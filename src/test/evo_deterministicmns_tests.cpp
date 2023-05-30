@@ -2384,7 +2384,7 @@ void FuncVerifyDB(TestChainSetup& setup)
 
     // Verify db consistency
     LOCK(cs_main);
-    BOOST_REQUIRE(CVerifyDB().VerifyDB(chainman.ActiveChainstate(), Params().GetConsensus(),
+    BOOST_REQUIRE(CVerifyDB(chainman.GetNotifications()).VerifyDB(chainman.ActiveChainstate(), Params().GetConsensus(),
                                        chainman.ActiveChainstate().CoinsTip(), *(setup.m_node.evodb), 4, 2) == VerifyDBResult::SUCCESS);
 }
 

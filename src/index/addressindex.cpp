@@ -7,13 +7,13 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
+#include <common/system.h>
 #include <hash.h>
 #include <index/addressindex_util.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <tinyformat.h>
 #include <undo.h>
-#include <util/system.h>
 #include <validation.h>
 
 constexpr uint8_t DB_ADDRESSINDEX{'a'};

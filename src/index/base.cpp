@@ -4,6 +4,7 @@
 
 #include <chainparams.h>
 #include <common/args.h>
+#include <common/system.h>
 #include <index/base.h>
 #include <interfaces/chain.h>
 #include <kernel/chain.h>
@@ -14,7 +15,6 @@
 #include <node/interface_ui.h>
 #include <shutdown.h>
 #include <tinyformat.h>
-#include <util/system.h>
 #include <util/thread.h>
 #include <util/translation.h>
 #include <validation.h>

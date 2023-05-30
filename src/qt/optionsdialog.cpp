@@ -16,6 +16,7 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 
+#include <common/system.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
@@ -23,7 +24,6 @@
 #include <netbase.h>
 #include <txdb.h> // for -dbcache defaults
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/std23.h>
 
 #include <chrono>

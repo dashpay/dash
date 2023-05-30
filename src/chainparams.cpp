@@ -13,10 +13,11 @@
 #include <chainparamsbase.h>
 #include <chainparamsseeds.h>
 #include <common/args.h>
+#include <common/system.h>
 #include <consensus/merkle.h>
 #include <deploymentinfo.h>
+#include <logging.h>
 #include <util/chaintype.h>
-#include <util/system.h>
 #include <versionbits.h>
 
 #include <cassert>

@@ -12,6 +12,7 @@
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <coinjoin/common.h>
+#include <common/system.h>
 #include <deploymentstatus.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
@@ -65,7 +66,6 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <util/result.h>
 #include <util/translation.h>
 #include <validation.h>

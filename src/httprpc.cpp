@@ -7,6 +7,7 @@
 #include <common/args.h>
 #include <crypto/hmac_sha256.h>
 #include <httpserver.h>
+#include <logging.h>
 #include <netaddress.h>
 #include <rpc/protocol.h>
 #include <rpc/server.h>

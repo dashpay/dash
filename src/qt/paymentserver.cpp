@@ -12,11 +12,11 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
+#include <common/system.h>
 #include <interfaces/node.h>
 #include <key_io.h>
 #include <node/interface_ui.h>
 #include <policy/policy.h>
-#include <util/system.h>
 
 #include <cstdlib>
 #include <memory>

@@ -8,6 +8,7 @@
 #include <evo/deterministicmns.h>
 #include <masternode/sync.h>
 
+#include <logging.h>
 #include <net.h>
 #include <shutdown.h>
 

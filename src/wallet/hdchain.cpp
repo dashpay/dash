@@ -4,10 +4,10 @@
 #include <common/args.h>
 #include <wallet/hdchain.h>
 
+#include <common/system.h>
 #include <wallet/bip39.h>
 #include <chainparams.h>
 #include <tinyformat.h>
-#include <util/system.h>
 
 #include <algorithm>
 

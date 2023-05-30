@@ -6,12 +6,12 @@
 #include <evo/netinfo.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <evo/types.h>
 #include <netbase.h>
 #include <span.h>
 #include <util/check.h>
 #include <util/string.h>
-#include <util/system.h>
 
 #include <univalue.h>
 

@@ -9,6 +9,7 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <evo/types.h>
@@ -30,7 +31,6 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <wallet/test/util.h>

@@ -5,10 +5,10 @@
 #include <common/args.h>
 #include <common/init.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <logging.h>
 #include <util/fs.h>
 #include <tinyformat.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <algorithm>

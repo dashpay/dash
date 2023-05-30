@@ -417,7 +417,7 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                 if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());
             }
 
-            VerifyDBResult result = CVerifyDB().VerifyDB(
+            VerifyDBResult result = CVerifyDB(chainman.GetNotifications()).VerifyDB(
                 *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
                 evodb,
                 options.check_level,

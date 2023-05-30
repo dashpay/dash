@@ -24,13 +24,13 @@
 
 #include <chainparams.h>
 #include <common/args.h>
+#include <common/system.h>
 #include <interfaces/node.h>
 #include <node/connection_types.h>
 #include <rpc/client.h>
 #include <rpc/server.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/threadnames.h>
 #include <util/std23.h>
 

@@ -12,6 +12,7 @@
 #include <clientversion.h>
 #include <common/args.h>
 #include <common/init.h>
+#include <common/system.h>
 #include <compat/compat.h>
 #include <init.h>
 #include <interfaces/chain.h>
@@ -23,7 +24,6 @@
 #include <util/check.h>
 #include <util/exception.h>
 #include <util/syserror.h>
-#include <util/system.h>
 #include <util/strencodings.h>
 #include <util/threadnames.h>
 #include <util/tokenpipe.h>

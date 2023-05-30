@@ -6,9 +6,9 @@
 #include <index/timestampindex.h>
 
 #include <chain.h>
+#include <common/system.h>
 #include <logging.h>
 #include <tinyformat.h>
-#include <util/system.h>
 #include <validation.h>
 
 constexpr uint8_t DB_TIMESTAMPINDEX{'s'};

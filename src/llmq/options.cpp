@@ -10,9 +10,9 @@
 #include <util/std23.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <consensus/params.h>
 #include <deploymentstatus.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <algorithm>

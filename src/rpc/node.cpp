@@ -36,8 +36,8 @@
 #include <scheduler.h>
 #include <txmempool.h>
 #include <univalue.h>
+#include <util/any.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <masternode/sync.h>

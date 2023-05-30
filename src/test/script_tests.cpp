@@ -8,6 +8,7 @@
 
 #include <test/data/script_tests.json.h>
 
+#include <common/system.h>
 #include <core_io.h>
 #include <key.h>
 #include <rpc/util.h>

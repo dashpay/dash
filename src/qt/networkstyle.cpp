@@ -10,8 +10,8 @@
 #include <qt/guiutil.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <tinyformat.h>
-#include <util/system.h>
 
 #include <util/chaintype.h>
 

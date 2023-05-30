@@ -11,11 +11,11 @@
 #include <coinjoin/walletman.h>
 #include <coinjoin/options.h>
 #include <coinjoin/util.h>
+#include <common/system.h>
 #include <consensus/amount.h>
 #include <interfaces/coinjoin.h>
 #include <masternode/sync.h>
 #include <node/context.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <util/time.h>
 #include <validation.h>

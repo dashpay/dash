@@ -8,6 +8,7 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <interfaces/node.h>
 #include <key_io.h>
 #include <netaddress.h>
@@ -33,7 +34,6 @@
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
 #include <univalue.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <wallet/context.h>

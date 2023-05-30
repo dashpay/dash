@@ -9,6 +9,7 @@
 #include <chainparams.h>
 #include <chainparamsbase.h>
 #include <common/args.h>
+#include <common/system.h>
 #include <compat/compat.h>
 #include <interfaces/init.h>
 #include <logging.h>
@@ -18,7 +19,6 @@
 #include <pubkey.h>
 #include <tinyformat.h>
 #include <util/exception.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <wallet/wallettool.h>
 

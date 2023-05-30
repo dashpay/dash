@@ -18,8 +18,8 @@
 #include <init.h>
 #include <util/strencodings.h>
 
+#include <common/system.h>
 #include <cstdio>
-#include <util/system.h>
 
 #include <QCloseEvent>
 #include <QLabel>

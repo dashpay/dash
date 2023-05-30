@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <common/system.h>
 #include <consensus/validation.h>
 #include <index/coinstatsindex.h>
 #include <interfaces/chain.h>
@@ -11,7 +12,6 @@
 #include <test/util/index.h>
 #include <test/util/setup_common.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <validation.h>
 #include <validationinterface.h>
 

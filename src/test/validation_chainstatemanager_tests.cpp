@@ -9,6 +9,7 @@
 #include <governance/superblock.h>
 #include <kernel/disconnected_transactions.h>
 #include <node/chainstate.h>
+#include <node/kernel_notifications.h>
 #include <node/utxo_snapshot.h>
 #include <random.h>
 #include <rpc/blockchain.h>
@@ -38,6 +39,7 @@
 #include <boost/test/unit_test.hpp>
 
 using node::BlockManager;
+using node::KernelNotifications;
 using node::SnapshotMetadata;
 
 namespace {
@@ -439,11 +441,13 @@ struct SnapshotTestSetup : TestChain100Setup {
             m_node.llmq_ctx.reset();
             chainman.ResetChainstates();
             BOOST_CHECK_EQUAL(chainman.GetAll().size(), 0);
+            m_node.notifications = std::make_unique<KernelNotifications>();
             const ChainstateManager::Options chainman_opts{
                 .chainparams = ::Params(),
                 .datadir = m_args.GetDataDirNet(),
                 .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
                 .mn_sync = m_node.mn_sync.get(),
+                .notifications = *m_node.notifications,
             };
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,

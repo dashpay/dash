@@ -8,9 +8,9 @@
 
 #include <chainparams.h>
 #include <chainparamsbase.h>
+#include <common/system.h>
 #include <consensus/params.h>
 #include <llmq/params.h>
-#include <util/system.h>
 
 #include <boost/test/unit_test.hpp>
 

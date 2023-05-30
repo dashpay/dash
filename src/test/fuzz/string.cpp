@@ -5,6 +5,7 @@
 #include <blockfilter.h>
 #include <clientversion.h>
 #include <common/args.h>
+#include <common/system.h>
 #include <common/url.h>
 #include <netbase.h>
 #include <rpc/client.h>
@@ -23,7 +24,6 @@
 #include <util/settings.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <cassert>

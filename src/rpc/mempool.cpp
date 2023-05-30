@@ -9,6 +9,7 @@
 #include <kernel/mempool_persist.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <core_io.h>
 #include <instantsend/instantsend.h>
 #include <kernel/mempool_entry.h>
@@ -25,7 +26,6 @@
 #include <util/helpers.h>
 #include <util/moneystr.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <validation.h>
 

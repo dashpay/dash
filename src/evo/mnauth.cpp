@@ -12,6 +12,8 @@
 #include <masternode/sync.h>
 
 #include <chainparams.h>
+#include <common/args.h>
+#include <logging.h>
 #include <net.h>
 #include <netmessagemaker.h>
 #include <util/time.h>

@@ -12,7 +12,7 @@
 #include <rpc/protocol.h>
 #include <rpc/request.h>
 #include <txmempool.h>
-#include <util/system.h>
+#include <util/any.h>
 #include <validation.h>
 
 #ifdef ENABLE_WALLET

@@ -10,9 +10,9 @@
 #include <llmq/signhash.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <dbwrapper.h>
 #include <streams.h>
-#include <util/system.h>
 
 #include <algorithm>
 #include <optional>

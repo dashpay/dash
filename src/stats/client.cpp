@@ -7,13 +7,13 @@
 #include <common/args.h>
 #include <stats/client.h>
 
+#include <common/system.h>
 #include <logging.h>
 #include <random.h>
 #include <stats/rawsender.h>
 #include <sync.h>
 #include <util/check.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <algorithm>

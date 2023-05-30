@@ -23,12 +23,12 @@
 
 #include <chainparams.h>
 #include <coins.h>
+#include <common/system.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <hash.h>
 #include <primitives/block.h>
-#include <util/system.h>
 #include <util/time.h>
 
 CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager& dmnman,

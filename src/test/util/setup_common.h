@@ -7,6 +7,7 @@
 #define BITCOIN_TEST_UTIL_SETUP_COMMON_H
 
 #include <common/args.h>
+#include <common/system.h>
 #include <key.h>
 #include <net_processing.h>
 #include <node/caches.h>
@@ -19,7 +20,6 @@
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <util/vector.h>
 

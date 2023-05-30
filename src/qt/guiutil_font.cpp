@@ -7,9 +7,9 @@
 
 #include <util/helpers.h>
 
+#include <common/system.h>
 #include <tinyformat.h>
 #include <util/std23.h>
-#include <util/system.h>
 
 #include <QApplication>
 #include <QDebug>

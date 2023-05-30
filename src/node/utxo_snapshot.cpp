@@ -5,6 +5,7 @@
 #include <node/utxo_snapshot.h>
 
 #include <common/args.h>
+#include <common/system.h>
 #include <logging.h>
 #include <streams.h>
 #include <sync.h>
@@ -13,7 +14,6 @@
 #include <uint256.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <cassert>

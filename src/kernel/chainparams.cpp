@@ -22,7 +22,6 @@
 #include <uint256.h>
 #include <util/chaintype.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <versionbits.h>
 
 #include <algorithm>

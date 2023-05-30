@@ -15,6 +15,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <coins.h>
+#include <common/system.h>
 #include <core_io.h>
 #include <net.h>
 #include <netmessagemaker.h>
@@ -23,7 +24,6 @@
 #include <util/check.h>
 #include <util/fs_helpers.h>
 #include <util/moneystr.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <version.h>

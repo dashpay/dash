@@ -7,6 +7,7 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <index/addressindex_util.h>
 #include <logging.h>
 #include <node/blockstorage.h>
@@ -15,7 +16,6 @@
 #include <script/script.h>
 #include <tinyformat.h>
 #include <undo.h>
-#include <util/system.h>
 #include <validation.h>
 
 constexpr uint8_t DB_SPENTINDEX{'p'};
