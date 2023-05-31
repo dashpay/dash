@@ -73,8 +73,7 @@ class LLMQChainLocksTest(DashTestFramework):
         # Generate new blocks and verify that they are not chainlocked
         previous_block_hash = self.nodes[0].getbestblockhash()
         for _ in range(2):
-            self.nodes[0].generate(1)
-            block_hash = self.nodes[0].getbestblockhash()
+            block_hash = self.nodes[0].generate(1)[0]
             self.wait_for_chainlocked_block_all_nodes(block_hash, expected=False)
             assert self.nodes[0].getblock(previous_block_hash)["chainlock"]
 
