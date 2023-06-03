@@ -464,6 +464,16 @@ private:
         }
         return true;
     }
+
+    friend bool operator==(const CDeterministicMNList& a, const CDeterministicMNList& b)
+    {
+        return  a.blockHash == b.blockHash &&
+                a.nHeight == b.nHeight &&
+                a.nTotalRegisteredCount == b.nTotalRegisteredCount &&
+                a.mnMap == b.mnMap &&
+                a.mnInternalIdMap == b.mnInternalIdMap &&
+                a.mnUniquePropertyMap == b.mnUniquePropertyMap;
+    }
 };
 
 class CDeterministicMNListDiff
