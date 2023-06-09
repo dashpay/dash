@@ -515,11 +515,9 @@ public:
             }
             if (!obj.CheckMalleable(vecBytes, bufLegacyScheme)) {
                 bufValid = false;
-                objInitialized = false;
-                obj = invalidObj;
-            } else {
-                objInitialized = true;
+                return invalidObj;
             }
+            objInitialized = true;
         }
         return obj;
     }
