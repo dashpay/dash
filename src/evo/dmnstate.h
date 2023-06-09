@@ -245,7 +245,8 @@ public:
 
     void ResetOperatorFields()
     {
-        pubKeyOperator.Set(CBLSPublicKey(), bls::bls_legacy_scheme.load());
+        nVersion = CProRegTx::LEGACY_BLS_VERSION;
+        pubKeyOperator = CBLSLazyPublicKey();
         addr = CService();
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
