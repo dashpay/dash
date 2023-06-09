@@ -510,13 +510,8 @@ public:
         if (!objInitialized) {
             obj.SetByteVector(vecBytes, bufLegacyScheme);
             if (!obj.IsValid()) {
-                // If setting of BLS object using one scheme failed, then we need to attempt again with the opposite scheme.
-                // This is due to the fact that LazyBLSWrapper receives a serialised buffer but attempts to create actual BLS object when needed.
-                // That could happen when the fork has been activated and the enforced scheme has switched.
-                obj.SetByteVector(vecBytes, !bufLegacyScheme);
-                if (obj.IsValid()) {
-                    bufLegacyScheme = !bufLegacyScheme;
-                }
+                bufValid = false;
+                return invalidObj;
             }
             if (!obj.CheckMalleable(vecBytes, bufLegacyScheme)) {
                 bufValid = false;
