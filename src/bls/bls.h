@@ -558,6 +558,11 @@ public:
         return hash;
     }
 
+    bool IsLegacy() const
+    {
+        return bufLegacyScheme;
+    }
+
     void SetLegacy(bool specificLegacyScheme)
     {
         bufLegacyScheme = specificLegacyScheme;

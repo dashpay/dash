@@ -862,8 +862,10 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
                 newState->ResetOperatorFields();
                 newState->BanIfNotBanned(nHeight);
+                // we update pubKeyOperator here, make sure state version matches
+                newState->nVersion = proTx.nVersion;
+                newState->pubKeyOperator = proTx.pubKeyOperator;
             }
-            newState->pubKeyOperator = proTx.pubKeyOperator;
             newState->keyIDVoting = proTx.keyIDVoting;
             newState->scriptPayout = proTx.scriptPayout;
 
