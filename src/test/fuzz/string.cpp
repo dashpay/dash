@@ -5,6 +5,7 @@
 #include <blockfilter.h>
 #include <clientversion.h>
 #include <common/args.h>
+#include <common/settings.h>
 #include <common/system.h>
 #include <common/url.h>
 #include <netbase.h>
@@ -21,7 +22,6 @@
 #include <test/fuzz/util.h>
 #include <util/error.h>
 #include <util/fees.h>
-#include <util/settings.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
@@ -62,7 +62,7 @@ FUZZ_TARGET(string)
     (void)IsDeprecatedRPCEnabled(random_string_1);
     (void)Join(random_string_vector, random_string_1);
     (void)JSONRPCError(fuzzed_data_provider.ConsumeIntegral<int>(), random_string_1);
-    const util::Settings settings;
+    const common::Settings settings;
     (void)OnlyHasDefaultSectionSetting(settings, random_string_1, random_string_2);
     (void)ParseNetwork(random_string_1);
     (void)RemovePrefix(random_string_1, random_string_2);

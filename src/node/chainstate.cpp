@@ -324,7 +324,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     // persisted snapshot chainstate can no longer be revived. Discard it here
     // rather than letting startup fail with advice ("reindex") the user has
     // just followed, which would never recover.
-    if ((options.reindex || options.reindex_chainstate) && !DeleteSnapshotChainstateFromDisk()) {
+    if ((options.reindex || options.reindex_chainstate) && !DeleteSnapshotChainstateFromDisk(chainman.m_options.datadir)) {
         return {ChainstateLoadStatus::FAILURE,
                 _("Failed to remove the snapshot chainstate directory. Remove it manually before restarting.")};
     }

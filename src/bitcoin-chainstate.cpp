@@ -63,7 +63,6 @@ int main(int argc, char* argv[])
     }
     std::filesystem::path abs_datadir = std::filesystem::absolute(argv[1]);
     std::filesystem::create_directories(abs_datadir);
-    gArgs.ForceSetArg("-datadir", abs_datadir.string());
 
 
     // SETUP: Misc Globals
@@ -116,26 +115,27 @@ int main(int argc, char* argv[])
     };
     auto notifications = std::make_unique<KernelNotifications>();
 
+
     // SETUP: Chainstate
     const ChainstateManager::Options chainman_opts{
         .chainparams = *chainparams,
-        .datadir = gArgs.GetDataDirNet(),
+        .datadir = abs_datadir,
         .notifications = *notifications,
     };
     node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
-        .blocks_dir = gArgs.GetBlocksDirPath(),
+        .blocks_dir = abs_datadir / "blocks",
     };
     ChainstateManager chainman{chainman_opts, blockman_opts};
 
     CMasternodeMetaMan metaman;
-    CEvoDB evodb{util::DbWrapperParams{.path = gArgs.GetDataDirNet(), .memory = false, .wipe = false}};
+    CEvoDB evodb{util::DbWrapperParams{.path = abs_datadir, .memory = false, .wipe = false}};
     CDeterministicMNManager dmnman{evodb, metaman};
     CSporkManager sporkman;
     chainlock::Chainlocks chainlocks(sporkman);
 
     auto llmq_ctx = WITH_LOCK(::cs_main, return std::make_unique<LLMQContext>(dmnman, evodb, chainman,
-                                                                              util::DbWrapperParams{.path = gArgs.GetDataDirNet(), .memory = false, .wipe = false},
+                                                                              util::DbWrapperParams{.path = abs_datadir, .memory = false, .wipe = false},
                                                                               llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE));
     auto special_tx = std::make_unique<CSpecialTxProcessor>(evodb, dmnman,
                                                             *llmq_ctx->quorum_block_processor, *llmq_ctx->qsnapman,
@@ -148,7 +148,7 @@ int main(int argc, char* argv[])
     cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
     node::ChainstateLoadOptions options;
     options.chainlocks = &chainlocks;
-    options.data_dir = gArgs.GetDataDirNet();
+    options.data_dir = abs_datadir;
     options.check_interrupt = [] { return false; };
     options.coins_error_cb = [] {};
     auto [status, error] = node::LoadChainstate(chainman, cache_sizes, options, evodb, dmnman, *special_tx);
@@ -174,7 +174,8 @@ int main(int argc, char* argv[])
     // Main program logic starts here
     std::cout
         << "Hello! I'm going to print out some information about your datadir." << std::endl
-        << "\t" << "Path: " << gArgs.GetDataDirNet() << std::endl;
+        << "\t"
+        << "Path: " << abs_datadir << std::endl;
     {
         LOCK(chainman.GetMutex());
         std::cout

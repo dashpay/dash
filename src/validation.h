@@ -83,9 +83,6 @@ static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
  *  less than this number, we reached its tip. Changing this value is a protocol upgrade. */
 static const unsigned int MAX_HEADERS_UNCOMPRESSED_RESULT = 2000;
 static const unsigned int MAX_HEADERS_COMPRESSED_RESULT = 8000;
-
-/** Default for -stopatheight */
-static const int DEFAULT_STOPATHEIGHT = 0;
 /** Blocks within this distance of ActiveChain().Tip() are accepted unrequested and announced by pruned nodes.
  *  Bitcoin Core's MIN_BLOCKS_TO_KEEP; pruning retention is CChainParams::MinBlocksToKeep(). */
 static const unsigned int BLOCKS_NEAR_TIP = 288;
@@ -986,6 +983,7 @@ public:
     const arith_uint256& MinimumChainWork() const { return *Assert(m_options.minimum_chain_work); }
     const uint256& AssumedValidBlock() const { return *Assert(m_options.assumed_valid_block); }
     kernel::Notifications& GetNotifications() const { return m_options.notifications; };
+    int StopAtHeight() const { return m_options.stop_at_height; };
 
     /**
      * Make various assertions about the state of the block index.
@@ -1332,7 +1330,7 @@ const AssumeutxoData* ExpectedAssumeutxo(const int height, const CChainParams& p
  * @returns false only if a snapshot chainstate was found but could not be fully
  *          removed; true when there was nothing to remove.
  */
-bool DeleteSnapshotChainstateFromDisk() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+bool DeleteSnapshotChainstateFromDisk(const fs::path& data_dir) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 /** Identifies blocks that overwrote an existing coinbase output in the UTXO set (see BIP30) */
 bool IsBIP30Repeat(const CBlockIndex& block_index);

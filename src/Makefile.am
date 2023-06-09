@@ -215,6 +215,7 @@ BITCOIN_CORE_H = \
   compat/compat.h \
   compat/cpuid.h \
   compat/endian.h \
+  common/settings.h \
   common/system.h \
   compressor.h \
   consensus/consensus.h \
@@ -475,7 +476,6 @@ BITCOIN_CORE_H = \
   util/readwritefile.h \
   util/result.h \
   util/serfloat.h \
-  util/settings.h \
   util/sock.h \
   util/spanparsing.h \
   util/std23.h \
@@ -1013,6 +1013,7 @@ libbitcoin_common_a_SOURCES = \
   common/init.cpp \
   common/interfaces.cpp \
   common/run_command.cpp \
+  common/settings.cpp \
   common/system.cpp \
   common/url.cpp \
   compressor.cpp \
@@ -1094,7 +1095,6 @@ libbitcoin_util_a_SOURCES = \
   util/ranges_set.cpp \
   util/readwritefile.cpp \
   util/serfloat.cpp \
-  util/settings.cpp \
   util/sock.cpp \
   util/spanparsing.cpp \
   util/strencodings.cpp \
@@ -1299,6 +1299,7 @@ libdashkernel_la_SOURCES = \
   common/args.cpp \
   common/bloom.cpp \
   common/config.cpp \
+  common/settings.cpp \
   common/system.cpp \
   compressor.cpp \
   consensus/merkle.cpp \
@@ -1408,7 +1409,6 @@ libdashkernel_la_SOURCES = \
   util/moneystr.cpp \
   util/ranges_set.cpp \
   util/serfloat.cpp \
-  util/settings.cpp \
   util/sock.cpp \
   util/strencodings.cpp \
   util/string.cpp \
