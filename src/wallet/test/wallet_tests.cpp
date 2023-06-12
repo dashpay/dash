@@ -1868,11 +1868,10 @@ BOOST_FIXTURE_TEST_CASE(wallet_sync_tx_invalid_state_test, TestChain100Setup)
     }
 
     // Add tx to wallet
-    const auto& op_dest = wallet.GetNewDestination("");
-    BOOST_ASSERT(op_dest);
+    const auto op_dest{*Assert(wallet.GetNewDestination(""))};
 
     CMutableTransaction mtx;
-    mtx.vout.emplace_back(COIN, GetScriptForDestination(*op_dest));
+    mtx.vout.emplace_back(COIN, GetScriptForDestination(op_dest));
     mtx.vin.emplace_back(g_insecure_rand_ctx.rand256(), 0);
     const auto& tx_id_to_spend = wallet.AddToWallet(MakeTransactionRef(mtx), TxStateInMempool{})->GetHash();
 
