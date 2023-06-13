@@ -185,6 +185,7 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj, bool extended) const
 {
     obj.setObject();
 
+    obj.pushKV("nVersion", nVersion);
     obj.pushKV("baseBlockHash", baseBlockHash.ToString());
     obj.pushKV("blockHash", blockHash.ToString());
 
@@ -207,7 +208,6 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj, bool extended) const
         mnListArr.push_back(eObj);
     }
     obj.pushKV("mnList", mnListArr);
-    obj.pushKV("nVersion", nVersion);
 
     UniValue deletedQuorumsArr(UniValue::VARR);
     for (const auto& e : deletedQuorums) {
