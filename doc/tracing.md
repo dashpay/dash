@@ -220,7 +220,7 @@ about the transaction.
 
 Arguments passed:
 1. Transaction ID (hash) as `pointer to unsigned chars` (i.e. 32 bytes in little-endian)
-2. Transaction virtual size as `uint64`
+2. Transaction virtual size as `int32`
 3. Transaction fee as `int64`
 
 #### Tracepoint `mempool:removed`
@@ -231,7 +231,7 @@ about the transaction.
 Arguments passed:
 1. Transaction ID (hash) as `pointer to unsigned chars` (i.e. 32 bytes in little-endian)
 2. Removal reason as `pointer to C-style String` (max. length 9 characters)
-3. Transaction virtual size as `uint64`
+3. Transaction virtual size as `int32`
 4. Transaction fee as `int64`
 5. Transaction mempool entry time (epoch) as `uint64`
 

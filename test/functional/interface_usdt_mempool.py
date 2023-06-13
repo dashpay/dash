@@ -35,7 +35,7 @@ MEMPOOL_TRACEPOINTS_PROGRAM = """
 struct added_event
 {
   u8    hash[HASH_LENGTH];
-  u64   vsize;
+  s32   vsize;
   s64   fee;
 };
 
@@ -43,7 +43,7 @@ struct removed_event
 {
   u8    hash[HASH_LENGTH];
   char  reason[MAX_REMOVAL_REASON_LENGTH];
-  u64   vsize;
+  s32   vsize;
   s64   fee;
   u64   entry_time;
 };

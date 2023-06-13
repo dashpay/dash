@@ -76,7 +76,6 @@ implicit-integer-sign-change:prevector.h
 implicit-integer-sign-change:script/bitcoinconsensus.cpp
 implicit-integer-sign-change:script/interpreter.cpp
 implicit-integer-sign-change:serialize.h
-implicit-integer-sign-change:txmempool.cpp
 implicit-integer-sign-change:util/strencodings.cpp
 implicit-integer-sign-change:util/strencodings.h
 implicit-integer-sign-change:validation.cpp
