@@ -133,7 +133,7 @@ chain for " target " development."))
       (home-page (package-home-page xgcc))
       (license (package-license xgcc)))))
 
-(define base-gcc gcc-10)
+(define base-gcc gcc-12)
 (define base-linux-kernel-headers linux-libre-headers-5.15)
 
 ;; https://gcc.gnu.org/install/configure.html
@@ -589,9 +589,9 @@ parse, modify and abstract ELF, PE and MachO formats.")
         automake
         pkg-config
         bison
-        ;; Native GCC 10 toolchain
-        gcc-toolchain-10
-        (list gcc-toolchain-10 "static")
+        ;; Native GCC 12 toolchain
+        gcc-toolchain-12
+        (list gcc-toolchain-12 "static")
         ;; Scripting
         python-minimal ;; (3.9)
         ;; Git
