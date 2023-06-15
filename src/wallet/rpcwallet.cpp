@@ -3550,6 +3550,54 @@ static UniValue rescanblockchain(const JSONRPCRequest& request)
     return response;
 }
 
+static UniValue wipewallettxes(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"wipewallettxes",
+        "\nWipe wallet transactions.\n"
+        "Note: Use \"rescanblockchain\" to initiate the scanning progress and recover wallet transactions.\n",
+        {
+            {"keep_confirmed", RPCArg::Type::BOOL, /* default */ "false", "Do not wipe confirmed transactions"},
+        },
+        RPCResult{RPCResult::Type::NONE, "", ""},
+        RPCExamples{
+            HelpExampleCli("wipewallettxes", "")
+    + HelpExampleRpc("wipewallettxes", "")
+        },
+    }.Check(request);
+
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    if (!wallet) return NullUniValue;
+    CWallet* const pwallet = wallet.get();
+
+    WalletRescanReserver reserver(pwallet);
+    if (!reserver.reserve()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort rescan or wait.");
+    }
+
+    LOCK(pwallet->cs_wallet);
+
+    std::vector<uint256> vHash;
+    std::vector<uint256> vHashOut;
+
+    bool keep_confirmed{false};
+    if (!request.params[0].isNull()) {
+        keep_confirmed = request.params[0].get_bool();
+    }
+
+    for (auto& [txid, wtx] : pwallet->mapWallet) {
+        if (keep_confirmed && wtx.m_confirm.status == CWalletTx::CONFIRMED) continue;
+        vHash.push_back(txid);
+    }
+
+    if (pwallet->ZapSelectTx(vHash, vHashOut) != DBErrors::LOAD_OK) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Could not properly delete transactions.");
+    }
+
+    CHECK_NONFATAL(vHashOut.size() == vHash.size());
+
+    return NullUniValue;
+}
+
 class DescribeWalletAddressVisitor
 {
 public:
@@ -4169,6 +4217,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",                 &walletpassphrase,              {"passphrase","timeout","mixingonly"} },
     { "wallet",             "walletprocesspsbt",                &walletprocesspsbt,             {"psbt","sign","sighashtype","bip32derivs"} },
     { "wallet",             "walletcreatefundedpsbt",           &walletcreatefundedpsbt,        {"inputs","outputs","locktime","options","bip32derivs"} },
+    { "wallet",             "wipewallettxes",                   &wipewallettxes,                {"keep_confirmed"} },
 };
 // clang-format on
 
