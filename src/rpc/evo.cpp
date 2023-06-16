@@ -111,8 +111,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"operatorReward",
             {"operatorReward", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The fraction in %% to share with the operator. The value must be\n"
-                "between 0.00 and 100.00."}
+                "The fraction in %% to share with the operator.\n"
+                "The value must be between 0 and 10000."}
         },
         {"ownerAddress",
             {"ownerAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -674,7 +674,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
         throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be a number");
     }
     if (operatorReward < 0 || operatorReward > 10000) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be between 0.00 and 100.00");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be between 0 and 10000");
     }
     ptx.nOperatorReward = operatorReward;
 
