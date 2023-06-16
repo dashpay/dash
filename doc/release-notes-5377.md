@@ -7,7 +7,7 @@ This field is a list containing: a ChainLock signature and the list of correspon
 `MNLISTDIFF` P2P message
 --------
 
-Starting with protocol version `70228`, the following fields are added to the `MNLISTDIFF` after `newQuorums`.
+Starting with protocol version `70229`, the following fields are added to the `MNLISTDIFF` after `newQuorums`.
 
 | Field              | Type                  | Size     | Description                                                         |
 |--------------------|-----------------------|----------|---------------------------------------------------------------------|
