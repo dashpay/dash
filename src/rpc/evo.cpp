@@ -69,8 +69,12 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"ipAndPort",
             {"ipAndPort", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "IP and port in the form \"IP:PORT\".\n"
-                "Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards."}
+                "IP and port in the form \"IP:PORT\". Must be unique on the network.\n"
+                "Can be set to an empty string, which will require a ProUpServTx afterwards."}
+        },
+        {"ipAndPort_update",
+            {"ipAndPort", RPCArg::Type::STR, RPCArg::Optional::NO,
+                "IP and port in the form \"IP:PORT\". Must be unique on the network."}
         },
         {"operatorKey",
             {"operatorKey", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -842,7 +846,7 @@ static void protx_update_service_help(const JSONRPCRequest& request)
         + HELP_REQUIRING_PASSPHRASE,
         {
             GetRpcArg("proTxHash"),
-            GetRpcArg("ipAndPort"),
+            GetRpcArg("ipAndPort_update"),
             GetRpcArg("operatorKey"),
             GetRpcArg("operatorPayoutAddress"),
             GetRpcArg("feeSourceAddress"),
@@ -866,7 +870,7 @@ static void protx_update_service_hpmn_help(const JSONRPCRequest& request)
             HELP_REQUIRING_PASSPHRASE,
         {
             GetRpcArg("proTxHash"),
-            GetRpcArg("ipAndPort"),
+            GetRpcArg("ipAndPort_update"),
             GetRpcArg("operatorKey"),
             GetRpcArg("platformNodeID"),
             GetRpcArg("platformP2PPort"),
