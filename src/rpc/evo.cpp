@@ -88,26 +88,26 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "If set to an empty string, the currently active payout address is reused."}
         },
         {"operatorPubKey_register",
-            {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+            {"operatorPubKey", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The operator BLS public key. The BLS private key does not have to be known.\n"
                 "It has to match the BLS private key which is later used when operating the masternode."}
         },
         {"operatorPubKey_register_legacy",
-                {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
-                        "The operator BLS public key in legacy scheme. The BLS private key does not have to be known.\n"
-                        "It has to match the BLS private key which is later used when operating the masternode.\n"}
+            {"operatorPubKey", RPCArg::Type::STR, RPCArg::Optional::NO,
+                "The operator BLS public key in legacy scheme. The BLS private key does not have to be known.\n"
+                "It has to match the BLS private key which is later used when operating the masternode.\n"}
         },
         {"operatorPubKey_update",
-            {"operatorPubKey_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+            {"operatorPubKey", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The operator BLS public key. The BLS private key does not have to be known.\n"
                 "It has to match the BLS private key which is later used when operating the masternode.\n"
                 "If set to an empty string, the currently active operator BLS public key is reused."}
         },
         {"operatorPubKey_update_legacy",
-                {"operatorPubKey_update", RPCArg::Type::STR, RPCArg::Optional::NO,
-                        "The operator BLS public key in legacy scheme. The BLS private key does not have to be known.\n"
-                        "It has to match the BLS private key which is later used when operating the masternode.\n"
-                        "If set to an empty string, the currently active operator BLS public key is reused."}
+            {"operatorPubKey", RPCArg::Type::STR, RPCArg::Optional::NO,
+                "The operator BLS public key in legacy scheme. The BLS private key does not have to be known.\n"
+                "It has to match the BLS private key which is later used when operating the masternode.\n"
+                "If set to an empty string, the currently active operator BLS public key is reused."}
         },
         {"operatorReward",
             {"operatorReward", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -121,11 +121,11 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "The address must be unused and must differ from the collateralAddress."}
         },
         {"payoutAddress_register",
-            {"payoutAddress_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+            {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The dash address to use for masternode reward payments."}
         },
         {"payoutAddress_update",
-            {"payoutAddress_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+            {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The dash address to use for masternode reward payments.\n"
                 "If set to an empty string, the currently active payout address is reused."}
         },
@@ -142,13 +142,13 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "If true, the resulting transaction is sent to the network."}
         },
         {"votingAddress_register",
-            {"votingAddress_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+            {"votingAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The voting key address. The private key does not have to be known by your wallet.\n"
                 "It has to match the private key which is later used when voting on proposals.\n"
                 "If set to an empty string, ownerAddress will be used."}
         },
         {"votingAddress_update",
-            {"votingAddress_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+            {"votingAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The voting key address. The private key does not have to be known by your wallet.\n"
                 "It has to match the private key which is later used when voting on proposals.\n"
                 "If set to an empty string, the currently active voting key address is reused."}
