@@ -373,10 +373,13 @@ public:
         if (mi == m_wallet->mapWallet.end()) {
             return false;
         }
+        {
+        LOCK(cs_main);
         if (std::optional<int> height = m_wallet->chain().getHeight()) {
             block_time = m_wallet->chain().getBlockTime(*height);
         } else {
             block_time = -1;
+        }
         }
         tx_status = MakeWalletTxStatus(*m_wallet, mi->second);
         return true;
