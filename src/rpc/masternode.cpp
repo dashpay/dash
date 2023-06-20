@@ -618,7 +618,7 @@ static UniValue masternodelist(const JSONRPCRequest& request)
                 return;
             }
         }
-        if (showHPMNsOnly && dmn.nType == MnType::Regular) {
+        if (showHPMNsOnly && dmn.nType != MnType::HighPerformance) {
             return;
         }
 

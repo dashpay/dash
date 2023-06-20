@@ -1367,7 +1367,7 @@ static UniValue protx_list(const JSONRPCRequest& request)
         bool onlyValid = type == "valid";
         bool onlyHPMN = type == "hpmn";
         mnList.ForEachMN(onlyValid, [&](const auto& dmn) {
-            if (onlyHPMN && dmn.nType == MnType::Regular) return;
+            if (onlyHPMN && dmn.nType != MnType::HighPerformance) return;
             ret.push_back(BuildDMNListEntry(wallet.get(), dmn, detailed));
         });
     } else {
