@@ -62,7 +62,6 @@ unsigned-integer-overflow:GetQuorumQuarterMembersBySnapshot
 unsigned-integer-overflow:policy/fees.cpp
 unsigned-integer-overflow:prevector.h
 unsigned-integer-overflow:EvalScript
-unsigned-integer-overflow:txmempool.cpp
 unsigned-integer-overflow:xoroshiro128plusplus.h
 unsigned-integer-overflow:bitset_detail::PopCount
 implicit-integer-sign-change:addrman.h
