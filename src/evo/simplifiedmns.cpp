@@ -191,19 +191,11 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockInd
 
     uint16_t idx = 0;
     for (const auto& e : newQuorums) {
-        auto opt_params = llmq::GetLLMQParams(e.llmqType);
-        assert(opt_params.has_value());
-        Consensus::LLMQParams llmq_params = opt_params.value();
-        auto q = llmq::quorumManager->GetQuorum(e.llmqType, e.quorumHash);
-        const CBlockIndex* pWorkBaseBlockIndex = nullptr;
-        if (llmq_params.useRotation) {
-            // In case of rotation, all rotated quorums rely on the CL sig expected in the cycleBlock (the block of the first DKG) - 8
-            pWorkBaseBlockIndex = blockIndex->GetAncestor(q->m_quorum_base_block_index->nHeight - q->qc->quorumIndex - 8);
-        }
-        else {
-            // In case of non-rotation, quorums rely on the CL sig expected in the block of the DKG - 8
-            pWorkBaseBlockIndex = blockIndex->GetAncestor(q->m_quorum_base_block_index->nHeight - 8);
-        }
+        auto quorum = llmq::quorumManager->GetQuorum(e.llmqType, e.quorumHash);
+        // In case of rotation, all rotated quorums rely on the CL sig expected in the cycleBlock (the block of the first DKG) - 8
+        // In case of non-rotation, quorums rely on the CL sig expected in the block of the DKG - 8
+        const CBlockIndex* pWorkBaseBlockIndex =
+                blockIndex->GetAncestor(quorum->m_quorum_base_block_index->nHeight - quorum->qc->quorumIndex - 8);
 
         workBaseBlockIndexMap.insert(std::make_pair(pWorkBaseBlockIndex, idx));
         idx++;
