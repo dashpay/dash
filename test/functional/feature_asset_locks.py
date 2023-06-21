@@ -16,7 +16,6 @@ from test_framework.blocktools import (
     create_coinbase,
 )
 from test_framework.authproxy import JSONRPCException
-from test_framework.key import ECKey
 from test_framework.messages import (
     CAssetLockTx,
     CAssetUnlockTx,
@@ -53,7 +52,7 @@ from test_framework.util import (
     softfork_active,
 )
 from test_framework.segwit_addr import encode_platform_p2pkh
-from test_framework.wallet_util import bytes_to_wif
+from test_framework.wallet_util import generate_keypair
 
 llmq_type_test = 106 # LLMQType::LLMQ_TEST_PLATFORM
 MNEHF_SIGNAL_TX_TYPE = 7 # TRANSACTION_MNHF_SIGNAL
@@ -342,11 +341,8 @@ class AssetLocksTest(DashTestFramework):
 
         self.mempool_size = 0
 
-        key = ECKey()
-        key.generate()
-        privkey = bytes_to_wif(key.get_bytes())
+        privkey, pubkey = generate_keypair(wif=True)
         node_wallet.importprivkey(privkey)
-        pubkey = key.get_pubkey().get_bytes()
 
         self.test_asset_locks(node_wallet, node, pubkey)
         self.test_asset_unlocks(node_wallet, node, pubkey)

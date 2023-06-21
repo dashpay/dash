@@ -7,7 +7,6 @@
 import struct
 from io import BytesIO
 
-from test_framework.key import ECKey
 from test_framework.messages import (
     CMnEhf,
     CTransaction,
@@ -22,6 +21,7 @@ from test_framework.util import (
     assert_equal,
     get_bip9_details,
 )
+from test_framework.wallet_util import generate_keypair
 
 class MnehfTest(DashTestFramework):
     def add_options(self, parser):
@@ -141,9 +141,7 @@ class MnehfTest(DashTestFramework):
         self.test_no_signing_outside_window()
         self.check_fork('defined')
 
-        key = ECKey()
-        key.generate()
-        pubkey = key.get_pubkey().get_bytes()
+        _, pubkey = generate_keypair()
         ehf_tx = self.create_mnehf(28, pubkey)
         ehf_unknown_tx = self.create_mnehf(27, pubkey)
 

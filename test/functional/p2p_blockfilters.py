@@ -38,7 +38,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
 )
-from test_framework.key import ECKey
+from test_framework.wallet_util import generate_keypair
 from decimal import Decimal
 
 class FiltersClient(P2PInterface):
@@ -309,9 +309,7 @@ class CompactFiltersTest(BitcoinTestFramework):
                 continue
 
             # Create a key for the credit outputs
-            key = ECKey()
-            key.generate()
-            pubkey = key.get_pubkey().get_bytes()
+            _, pubkey = generate_keypair()
             credit_outputs.append(CTxOut(int(amount * COIN), key_to_p2pkh_script(pubkey)))
 
         # AssetLock payload

@@ -9,7 +9,6 @@ from decimal import Decimal
 from itertools import product
 
 from test_framework.descriptors import descsum_create
-from test_framework.key import ECKey
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_approx,
@@ -22,7 +21,7 @@ from test_framework.util import (
     get_fee,
     satoshi_round,
 )
-from test_framework.wallet_util import bytes_to_wif
+from test_framework.wallet_util import generate_keypair
 
 ERR_NOT_ENOUGH_PRESET_INPUTS = "The preselected coins total amount does not cover the transaction target. " \
                                "Please allow other inputs to be automatically selected or include more coins manually"
@@ -958,11 +957,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
     def test_external_inputs(self):
         self.log.info("Test funding with external inputs")
-
-        eckey = ECKey()
-        eckey.generate()
-        privkey = bytes_to_wif(eckey.get_bytes())
-
+        privkey, _ = generate_keypair(wif=True)
         self.nodes[2].createwallet("extfund")
         wallet = self.nodes[2].get_wallet_rpc("extfund")
 
