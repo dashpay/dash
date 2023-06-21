@@ -3108,6 +3108,7 @@ CBlockIndex* CChainState::FindMostWorkChain()
                 while (pindexTest != pindexFailed) {
                     if (fFailedChain) {
                         pindexFailed->nStatus |= BLOCK_FAILED_CHILD;
+                        m_blockman.m_dirty_blockindex.insert(pindexFailed);
                     } else if (fConflictingChain) {
                         // We don't need data for conflciting blocks
                         pindexFailed->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
