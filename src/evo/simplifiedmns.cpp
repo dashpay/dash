@@ -24,6 +24,7 @@
 #include <validation.h>
 #include <key_io.h>
 #include <util/underlying.h>
+#include <util/enumerate.h>
 
 CSimplifiedMNListEntry::CSimplifiedMNListEntry(const CDeterministicMN& dmn) :
     proRegTxHash(dmn.proTxHash),
@@ -189,8 +190,7 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockInd
     // We want to avoid to load CbTx now, as more than one quorum will target the same block: hence we want to load CbTxs once per block (heavy operation).
     std::multimap<const CBlockIndex*, uint16_t>  workBaseBlockIndexMap;
 
-    uint16_t idx = 0;
-    for (const auto& e : newQuorums) {
+    for (const auto [idx, e] : enumerate(newQuorums)) {
         auto quorum = llmq::quorumManager->GetQuorum(e.llmqType, e.quorumHash);
         // In case of rotation, all rotated quorums rely on the CL sig expected in the cycleBlock (the block of the first DKG) - 8
         // In case of non-rotation, quorums rely on the CL sig expected in the block of the DKG - 8
@@ -198,7 +198,6 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockInd
                 blockIndex->GetAncestor(quorum->m_quorum_base_block_index->nHeight - quorum->qc->quorumIndex - 8);
 
         workBaseBlockIndexMap.insert(std::make_pair(pWorkBaseBlockIndex, idx));
-        idx++;
     }
 
     for(auto it = workBaseBlockIndexMap.begin(); it != workBaseBlockIndexMap.end(); ) {
