@@ -209,22 +209,16 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockInd
             sig = cbcl.value().first;
         }
         // Get the range of indexes (values) for the current key and merge them into a single std::set
-        const auto range = workBaseBlockIndexMap.equal_range(it->first);
+        const auto [begin, end] = workBaseBlockIndexMap.equal_range(it->first);
         std::set<uint16_t> idx_set;
-        for (auto jt = range.first; jt != range.second; ++jt) {
-            idx_set.insert(jt->second);
-        }
+        std::transform(begin, end, std::inserter(idx_set, idx_set.end()), [](const auto& pair) { return pair.second; });
         // Advance the iterator to the next key
-        it = range.second;
+        it = end;
 
         // Different CBlockIndex can contain the same CL sig in CbTx (both non-null or null during the first blocks after v20 activation)
         // Hence, we need to merge the std::set if another std::set already exists for the same sig.
-        auto it_sig = quorumsCLSigs.find(sig);
-        if (it_sig != quorumsCLSigs.end()) {
+        if (auto [it_sig, inserted] = quorumsCLSigs.insert({sig, idx_set}); !inserted) {
             it_sig->second.insert(idx_set.begin(), idx_set.end());
-        }
-        else {
-            quorumsCLSigs.insert(std::make_pair(sig, idx_set));
         }
     }
 
