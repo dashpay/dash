@@ -43,7 +43,7 @@ private:
 
 public:
     /** Default for -mnemonicbits */
-    static constexpr int DEFAULT_MNEMONIC_BITS = 256; // 256 bits == 24 words
+    static constexpr int DEFAULT_MNEMONIC_BITS = 128; // 128 bits == 12 words
 
     CHDChain() = default;
     CHDChain(const CHDChain& other) :
