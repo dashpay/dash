@@ -1730,7 +1730,7 @@ BOOST_FIXTURE_TEST_CASE(UnconfirmableOutputsAreNotWalletFunds, ListCoinsTestingS
     LOCK(wallet->cs_wallet);
 
     const auto dest{wallet->GetNewDestination("")};
-    BOOST_ASSERT(dest);
+    BOOST_REQUIRE(dest);
 
     // Use a real CoinJoin denomination so the denominated-credit paths apply.
     const CAmount denom{CoinJoin::GetSmallestDenomination()};
@@ -1760,7 +1760,7 @@ BOOST_FIXTURE_TEST_CASE(MempoolRemovalInvalidatesAnonymizableTally, ListCoinsTes
     LOCK(wallet->cs_wallet);
 
     const auto dest{wallet->GetNewDestination("")};
-    BOOST_ASSERT(dest);
+    BOOST_REQUIRE(dest);
 
     // A wallet transaction in the mempool is trusted at depth zero, so its outputs count
     // towards the anonymizable tally and that tally is cacheable.
@@ -1901,7 +1901,7 @@ BOOST_FIXTURE_TEST_CASE(AbandonedSpendRestoresDustLock, ListCoinsTestingSetup)
     wallet->m_dust_protection_threshold = 1 * COIN;
 
     const auto dest{wallet->GetNewDestination("")};
-    BOOST_ASSERT(dest);
+    BOOST_REQUIRE(dest);
 
     // An external transaction (no input is ours) pays us a dust-protection
     // target; AddToWallet() locks the output on insertion.
