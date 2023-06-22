@@ -101,16 +101,7 @@ class ValidationTracepointTest(BitcoinTestFramework):
             nonlocal events, blocks_checked
             event = ctypes.cast(data, ctypes.POINTER(Block)).contents
             self.log.info(f"handle_blockconnected(): {event}")
-            block_hash = bytes(event.hash[::-1]).hex()
-            block = expected_blocks[block_hash]
-            assert_equal(block["hash"], block_hash)
-            assert_equal(block["height"], event.height)
-            assert_equal(len(block["tx"]), event.transactions)
-            assert_equal(len([tx["vin"] for tx in block["tx"]]), event.inputs)
-            assert_equal(0, event.sigops)  # no sigops in coinbase tx
-            # only plausibility checks
-            assert event.duration > 0
-            del expected_blocks[block_hash]
+            events.append(event)
             blocks_checked += 1
 
         bpf["block_connected"].open_perf_buffer(
