@@ -3576,24 +3576,44 @@ static UniValue wipewallettxes(const JSONRPCRequest& request)
 
     LOCK(pwallet->cs_wallet);
 
-    std::vector<uint256> vHash;
-    std::vector<uint256> vHashOut;
-
     bool keep_confirmed{false};
     if (!request.params[0].isNull()) {
         keep_confirmed = request.params[0].get_bool();
     }
 
-    for (auto& [txid, wtx] : pwallet->mapWallet) {
-        if (keep_confirmed && wtx.m_confirm.status == CWalletTx::CONFIRMED) continue;
-        vHash.push_back(txid);
+    const size_t WALLET_SIZE{pwallet->mapWallet.size()};
+    const size_t STEPS{20};
+    const size_t BATCH_SIZE = std::max(WALLET_SIZE / STEPS, size_t(1000));
+
+    pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions...").translated, pwallet->GetDisplayName()), 0);
+
+    for (size_t progress = 0; progress < STEPS; ++progress) {
+        std::vector<uint256> vHashIn;
+        std::vector<uint256> vHashOut;
+        size_t count{0};
+
+        for (auto& [txid, wtx] : pwallet->mapWallet) {
+            if (progress < STEPS - 1 && ++count > BATCH_SIZE) break;
+            if (keep_confirmed && wtx.m_confirm.status == CWalletTx::CONFIRMED) continue;
+            vHashIn.push_back(txid);
+        }
+
+        if (vHashIn.size() > 0 && pwallet->ZapSelectTx(vHashIn, vHashOut) != DBErrors::LOAD_OK) {
+            pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions...").translated, pwallet->GetDisplayName()), 100);
+            throw JSONRPCError(RPC_WALLET_ERROR, "Could not properly delete transactions.");
+        }
+
+        CHECK_NONFATAL(vHashOut.size() == vHashIn.size());
+
+        if (pwallet->IsAbortingRescan() || pwallet->chain().shutdownRequested()) {
+            pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions...").translated, pwallet->GetDisplayName()), 100);
+            throw JSONRPCError(RPC_MISC_ERROR, "Wiping was aborted by user.");
+        }
+
+        pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions...").translated, pwallet->GetDisplayName()), std::max(1, std::min(99, int(progress * 100 / STEPS))));
     }
 
-    if (pwallet->ZapSelectTx(vHash, vHashOut) != DBErrors::LOAD_OK) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Could not properly delete transactions.");
-    }
-
-    CHECK_NONFATAL(vHashOut.size() == vHash.size());
+    pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions...").translated, pwallet->GetDisplayName()), 100);
 
     return NullUniValue;
 }

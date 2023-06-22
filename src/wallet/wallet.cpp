@@ -3875,6 +3875,9 @@ void CWallet::AutoLockMasternodeCollaterals()
 DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut)
 {
     AssertLockHeld(cs_wallet);
+
+    WalletLogPrintf("ZapSelectTx started for %d transactions...\n", vHashIn.size());
+
     DBErrors nZapSelectTxRet = WalletBatch(*database).ZapSelectTx(vHashIn, vHashOut);
     for (uint256 hash : vHashOut) {
         const auto& it = mapWallet.find(hash);
@@ -3897,6 +3900,8 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
         return nZapSelectTxRet;
 
     MarkDirty();
+
+    WalletLogPrintf("ZapSelectTx completed for %d transactions.\n", vHashOut.size());
 
     return DBErrors::LOAD_OK;
 }
