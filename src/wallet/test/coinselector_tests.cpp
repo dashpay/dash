@@ -1048,7 +1048,7 @@ static util::Result<SelectionResult> SelectCoinsSRDResult(const CAmount& target,
 
     CoinEligibilityFilter filter(0, 0, 0);
     Groups group = GroupOutputs(*wallet, coin_setup(*wallet), cs_params, {{filter}})[filter].all_groups;
-    return wallet::SelectCoinsSRD(group.positive_group, target, cs_params.rng_fast, max_weight, false);
+    return wallet::SelectCoinsSRD(group.positive_group, target, cs_params.m_change_fee, cs_params.rng_fast, max_weight, false);
 }
 
 BOOST_AUTO_TEST_CASE(srd_tests)
