@@ -2755,7 +2755,15 @@ void PeerLogicValidation::ProcessMessage(
                   pfrom.nStartingHeight, addrMe.ToString(), pfrom.GetId(),
                   remoteAddr);
 
-        int64_t nTimeOffset = nTime - GetTime();
+/*  Begin queue receive delay time offset fix
+    The receive time is not the time this message is processed, it it the time
+    it was put in the queue nTimeReceived.
+    Observed queue delays of 30 seconds or more are introduced
+    on hosts with restricted resources during "tip" folloowing and chain
+    re-org operations. This delay corrupts AdjustedTime/
+*/
+//        int64_t nTimeOffset = nTime - GetTime();
+        int64_t nTimeOffset = nTime - (nTimeReceived/1000000);
         pfrom.nTimeOffset = nTimeOffset;
         AddTimeData(pfrom.addr, nTimeOffset);
 
