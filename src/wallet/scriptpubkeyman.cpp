@@ -1416,22 +1416,26 @@ bool LegacyScriptPubKeyMan::TopUpInner(unsigned int kpSize)
             // don't create extra internal keys
             missingInternal = 0;
         }
-        int64_t total_missing = missingInternal + missingExternal;
+
+        const int64_t total_missing = missingInternal + missingExternal;
         if (total_missing == 0) return true;
-        bool should_show_progress = total_missing > 100;
-        bool fInternal = false;
-        WalletBatch batch(m_storage.GetDatabase());
-        std::string strMsg = _("Topping up keypool...").translated;
+
+        constexpr int64_t PROGRESS_REPORT_INTERVAL = 1; // in seconds
+        const bool should_show_progress = total_missing > 100;
+        const std::string strMsg = _("Topping up keypool...").translated;
+
+        int64_t progress_report_time = GetTime();
         WalletLogPrintf("%s\n", strMsg);
         if (should_show_progress) {
             uiInterface.ShowProgress(strMsg, 0, false);
         }
-        int64_t progress_report_time = GetTime();
-        constexpr int64_t PROGRESS_REPORT_INTERVAL = 1; // in seconds
-        int64_t i{0};
-        for (i = 0; i < total_missing; ++i)
-        {
-            if (i == missingExternal) {
+
+        bool fInternal = false;
+        int64_t current_index{0};
+        WalletBatch batch(m_storage.GetDatabase());
+
+        for (current_index = 0; current_index < total_missing; ++current_index) {
+            if (current_index == missingExternal) {
                 fInternal = true;
             }
 
@@ -1439,10 +1443,10 @@ bool LegacyScriptPubKeyMan::TopUpInner(unsigned int kpSize)
             CPubKey pubkey(GenerateNewKey(batch, 0, fInternal));
             AddKeypoolPubkeyWithDB(pubkey, fInternal, batch);
 
-            double dProgress = 100.f * i / (total_missing);
             if (GetTime() >= progress_report_time + PROGRESS_REPORT_INTERVAL) {
+                const double dProgress = 100.f * current_index / (total_missing);
                 progress_report_time = GetTime();
-                WalletLogPrintf("Still topping up. At key %i. Progress=%f\n", i, dProgress);
+                WalletLogPrintf("Still topping up. At key %i. Progress=%f\n", current_index, dProgress);
                 if (should_show_progress && (int)dProgress > 0) {
                     uiInterface.ShowProgress(strMsg, (int)dProgress, false);
                 }
@@ -1450,7 +1454,7 @@ bool LegacyScriptPubKeyMan::TopUpInner(unsigned int kpSize)
             if (ShutdownRequested()) break;
         }
         WalletLogPrintf("Keypool added %d keys, size=%u (%u internal)\n",
-                  i + 1, setInternalKeyPool.size() + setExternalKeyPool.size(), setInternalKeyPool.size());
+                  current_index + 1, setInternalKeyPool.size() + setExternalKeyPool.size(), setInternalKeyPool.size());
         if (should_show_progress) {
             uiInterface.ShowProgress("", 100, false);
         }
