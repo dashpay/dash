@@ -23,7 +23,7 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
 
         self.log.info("Invalid -mnemonicbits should rise an error")
         self.stop_node(0)
-        self.nodes[0].assert_start_raises_init_error(self.extra_args[0] + ['-mnemonicbits=123'], "Error: Invalid -mnemonicbits")
+        self.nodes[0].assert_start_raises_init_error(self.extra_args[0] + ['-mnemonicbits=123'], "Error: Invalid '-mnemonicbits'. Allowed values: 128, 192, 256.")
         self.start_node(0)
         assert_equal(len(self.nodes[0].dumphdinfo()["mnemonic"].split()), 12)  # 12 words by default
 
