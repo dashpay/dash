@@ -87,7 +87,7 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
 
     argsman.AddArg("-hdseed=<hex>", "User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::WALLET_HD);
     argsman.AddArg("-mnemonic=<text>", "User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::WALLET_HD);
-    argsman.AddArg("-mnemonicbits=<n>", strprintf("User defined mnemonic security for HD wallet in bits (BIP39). Only has effect during wallet creation/first start (allowed values: 128, 192, 256; default: %u)", CHDChain::DEFAULT_MNEMONIC_BITS), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET_HD);
+    argsman.AddArg("-mnemonicbits=<n>", strprintf("User defined mnemonic security for HD wallet in bits (BIP39). Only has effect during wallet creation/first start (allowed values: 128, 160, 192, 224, 256; default: %u)", CHDChain::DEFAULT_MNEMONIC_BITS), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET_HD);
     argsman.AddArg("-mnemonicpassphrase=<text>", "User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::WALLET_HD);
     argsman.AddArg("-usehd", strprintf("Use hierarchical deterministic key generation (HD) after BIP39/BIP44. Only has effect during wallet creation/first start (default: %u)", DEFAULT_USE_HD_WALLET), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET_HD);
 
@@ -172,7 +172,7 @@ bool WalletInit::ParameterInteraction() const
     }
 
     if (CMnemonic::Generate(gArgs.GetArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS)) == SecureString()) {
-        return InitError(strprintf(_("Invalid '%s'. Allowed values: 128, 192, 256."), "-mnemonicbits"));
+        return InitError(strprintf(_("Invalid '%s'. Allowed values: 128, 160, 192, 224, 256."), "-mnemonicbits"));
     }
 
     return true;
