@@ -1988,7 +1988,6 @@ private:
      */
     static constexpr size_t MAX_UNUSED_I2P_SESSIONS_SIZE{10};
 
-    friend struct CConnmanTest;
     friend struct ConnmanTestMsg;
 };
 
