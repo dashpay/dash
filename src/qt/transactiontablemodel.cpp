@@ -23,6 +23,7 @@
 #include <QDebug>
 #include <QIcon>
 #include <QList>
+#include <QMessageBox>
 
 
 // Amount column is right-aligned it contains numbers
@@ -75,13 +76,15 @@ public:
     {
         qDebug() << "TransactionTablePriv::refreshWallet";
         parent->beginResetModel();
-        cachedWallet.clear();
-        {
+        try {
+            cachedWallet.clear();
             for (const auto& wtx : wallet.getWalletTxs()) {
                 if (TransactionRecord::showTransaction()) {
                     cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, wtx));
                 }
             }
+        } catch(const std::exception& e) {
+            QMessageBox::critical(nullptr, PACKAGE_NAME, QString("Failed to refresh wallet table: ") + QString::fromStdString(e.what()));
         }
         parent->endResetModel();
     }
