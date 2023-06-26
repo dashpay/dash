@@ -1444,11 +1444,11 @@ bool LegacyScriptPubKeyMan::TopUpInner(unsigned int kpSize)
             AddKeypoolPubkeyWithDB(pubkey, fInternal, batch);
 
             if (GetTime() >= progress_report_time + PROGRESS_REPORT_INTERVAL) {
-                const double dProgress = 100.f * current_index / (total_missing);
+                const double dProgress = 100.f * current_index / total_missing;
                 progress_report_time = GetTime();
                 WalletLogPrintf("Still topping up. At key %i. Progress=%f\n", current_index, dProgress);
-                if (should_show_progress && (int)dProgress > 0) {
-                    uiInterface.ShowProgress(strMsg, (int)dProgress, false);
+                if (should_show_progress) {
+                    uiInterface.ShowProgress(strMsg, static_cast<int>(dProgress), false);
                 }
             }
             if (ShutdownRequested()) break;
