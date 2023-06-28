@@ -9,10 +9,13 @@ feature_llmq_rotation.py
 Checks LLMQs Quorum Rotation
 
 '''
+import hashlib
+import random
+import struct
 from io import BytesIO
 
 from test_framework.test_framework import DashTestFramework
-from test_framework.messages import CBlock, CBlockHeader, CCbTx, CMerkleBlock, FromHex, hash256, msg_getmnlistd, QuorumId
+from test_framework.messages import CBlock, CBlockHeader, CCbTx, CMerkleBlock, FromHex, hash256, msg_getmnlistd, QuorumId, ser_uint256, sha256
 from test_framework.mininode import P2PInterface
 from test_framework.util import (
     assert_equal,
@@ -270,7 +273,74 @@ class LLMQQuorumRotationTest(DashTestFramework):
         if testQuorumsCLSigs:
             # Total number of corresponding quorum indexes in quorumsCLSigs must be equal to the total of quorums in newQuorums
             assert_equal(len(d2["newQuorums"]), sum(len(value) for value in rpc_quorums_clsigs_dict.values()))
+            for cl_sig, value in rpc_quorums_clsigs_dict.items():
+                for q in value:
+                    self.test_verify_quorums(d2["newQuorums"][q], cl_sig)
         return d
+
+    def test_verify_quorums(self, quorum_info, quorum_cl_sig):
+        if int(quorum_cl_sig, 16) == 0:
+            # Skipping null-CLSig. No need to verify old way of shuffling (using BlockHash)
+            return
+        if quorum_info["version"] == 2 or quorum_info["version"] == 4:
+            # Skipping rotated quorums. Too complicated to implemented.
+            # TODO: Implement rotated quorum verification using CLSigs
+            return
+        quorum_height = self.nodes[0].getblock(quorum_info["quorumHash"])["height"]
+        work_height = quorum_height - 8
+        modifier = self.get_hash_modifier(quorum_info["llmqType"], work_height, quorum_cl_sig)
+        mn_list = self.nodes[0].protx('diff', 1, work_height)["mnList"]
+        scored_mns = []
+        # Compute each valid mn score and add them (mn, score) in scored_mns
+        for mn in mn_list:
+            if mn["isValid"] is False:
+                # Skip invalid mns
+                continue
+            score = self.compute_mn_score(mn, modifier)
+            scored_mns.append((mn, score))
+        # Sort the list based on the score in descending order
+        scored_mns.sort(key=lambda x: x[1], reverse=True)
+        llmq_size = self.get_llmq_size(int(quorum_info["llmqType"]))
+        # Keep the first llmq_size mns
+        scored_mns = scored_mns[:llmq_size]
+        quorum_info_members = self.nodes[0].quorum('info', quorum_info["llmqType"], quorum_info["quorumHash"])["members"]
+        # Make sure that each quorum member returned from quorum info RPC is matched in our scored_mns list
+        for m in quorum_info_members:
+            found = False
+            for e in scored_mns:
+                if m["proTxHash"] == e[0]["proRegTxHash"]:
+                    found = True
+                    break
+            assert found
+        return
+
+    def get_hash_modifier(self, llmq_type, height, cl_sig):
+        bytes = b""
+        bytes += struct.pack('<B', int(llmq_type))
+        bytes += struct.pack('<i', int(height))
+        bytes += bytes.fromhex(cl_sig)
+        return hash256(bytes)[::-1].hex()
+
+    def compute_mn_score(self, mn, modifier):
+        bytes = b""
+        bytes += ser_uint256(int(mn["proRegTxHash"], 16))
+        bytes += ser_uint256(int(mn["confirmedHash"], 16))
+        confirmed_hash_pro_regtx_hash = sha256(bytes)[::-1].hex()
+
+        bytes_2 = b""
+        bytes_2 += ser_uint256(int(confirmed_hash_pro_regtx_hash, 16))
+        bytes_2 += ser_uint256(int(modifier, 16))
+        score = sha256(bytes_2)[::-1].hex()
+        return int(score, 16)
+
+    def get_llmq_size(self, llmq_type):
+        return {
+            100: 4, # In this test size for llmqType 100 is overwritten to 4
+            102: 3,
+            103: 4,
+            104: 4, # In this test size for llmqType 104 is overwritten to 4
+            106: 3
+        }.get(llmq_type, -1)
 
     def test_quorum_listextended(self, quorum_info, llmq_type_name):
         extended_quorum_list = self.nodes[0].quorum("listextended")[llmq_type_name]
