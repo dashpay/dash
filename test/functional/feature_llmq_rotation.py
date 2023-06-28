@@ -9,8 +9,6 @@ feature_llmq_rotation.py
 Checks LLMQs Quorum Rotation
 
 '''
-import hashlib
-import random
 import struct
 from io import BytesIO
 
