@@ -894,6 +894,12 @@ size_t CConnman::SocketSendData(CNode *pnode) EXCLUSIVE_LOCKS_REQUIRED(pnode->cs
     (8)     nNonce
     ........ and so on...
 */
+    union uS
+    {
+        uint64_t ui64_tm;
+        u_char uchr_tm[8];
+    };
+    union uS uSendbuff;
     const int bigint = 1;
     auto& sh = *it;
 // at front of deque, hdrbuf is first
@@ -909,16 +915,19 @@ size_t CConnman::SocketSendData(CNode *pnode) EXCLUSIVE_LOCKS_REQUIRED(pnode->cs
             pnode->vSendMsg.push_back(std::move(msg.data));
 */
         auto& sd = *(std::next(it, 1)); // point to next data chunk
-        int64_t * pnsTime = reinterpret_cast<int64_t*>(sd.data() + 12);
-        int64_t nSendtime = *pnsTime;
+        memcpy(uSendbuff.uchr_tm, reinterpret_cast<unsigned char*>(sd.data() + 12), 8);
+        int64_t nSendtime = uSendbuff.ui64_tm;
         int64_t nNow = (pnode->fInbound) ? GetAdjustedTime() : GetTime();
         int64_t nNewSendtime = nNow;
         if (! *(char *)&bigint) {       // if bigendian
-            nSendtime = bswap_64(*pnsTime);
+            nSendtime = bswap_64(uSendbuff.ui64_tm);
             nNewSendtime = bswap_64(nNow);
         }
-//        LogPrintf("HACK %s size %d %" PRId64 " %" PRId64 "\n", strCommand.c_str(), shdr->nMessageSize, nSendtime
-        if (nSendtime != nNow) *pnsTime = nNewSendtime;
+//        LogPrintf("HACK %s size %d %" PRId64 " %" PRId64 "\n", strCommand.c_str(), shdr->nMessageSize, nSendtime, nNow);
+        if (nSendtime != nNow) {
+             uSendbuff.ui64_tm = nNewSendtime;
+             memcpy(reinterpret_cast<unsigned char*>(sd.data() + 12), uSendbuff.uchr_tm, 8);
+        }
     }
 // end time offset fix
 
