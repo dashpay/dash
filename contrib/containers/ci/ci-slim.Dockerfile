@@ -79,12 +79,12 @@ ENV UV_SYSTEM_PYTHON=1
 # Install Python packages
 # NOTE: if versions are changed, update ci/lint/04_install.sh
 RUN uv pip install --system --break-system-packages \
-    codespell==2.2.1 \
+    codespell==2.2.5 \
     flake8==6.1.0 \
     jinja2 \
     lief==0.13.2 \
-    mypy==0.981 \
-    pyzmq==24.0.1 \
+    mypy==1.4.1 \
+    pyzmq==25.1.0 \
     vulture==2.6 \
     zizmor==1.30.1
 

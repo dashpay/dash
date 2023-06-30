@@ -35,11 +35,11 @@ python3 --version
 
 # NOTE: BUMP ALSO contrib/containers/ci/ci-slim.Dockerfile
 ${CI_RETRY_EXE} pip3 install \
-  codespell==2.2.1 \
+  codespell==2.2.5 \
   flake8==6.1.0 \
   lief==0.13.2 \
-  mypy==0.981 \
-  pyzmq==24.0.1 \
+  mypy==1.4.1 \
+  pyzmq==25.1.0 \
   vulture==2.6 \
   zizmor==1.30.1
 

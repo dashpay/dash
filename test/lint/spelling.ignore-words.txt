@@ -1,3 +1,4 @@
+afile
 asend
 ba
 blockin
@@ -17,6 +18,7 @@ keypair
 mor
 nd
 nin
+requestor
 ser
 setban
 siz

@@ -23,7 +23,7 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 from .address import ADDRESS_BCRT1_P2SH_OP_TRUE
 from .authproxy import JSONRPCException
 from test_framework.masternodes import check_banned, check_punished
@@ -118,14 +118,14 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     chain = None  # type: str
     setup_clean_chain = None  # type: bool
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Sets test framework defaults. Do not override this method. Instead, override the set_test_params() method"""
         self.chain: str = 'regtest'
         self.setup_clean_chain: bool = False
         self.disable_mocktime: bool = False
         self.noban_tx_relay: bool = False
         self.nodes: List[TestNode] = []
-        self.extra_args = None
+        self.extra_args: Any = None
         self.network_thread = None
         self.mocktime = 0
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
@@ -134,7 +134,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.parse_args()
         self.default_wallet_name = "default_wallet" if self.options.descriptors else ""
         self.wallet_data_filename = "wallet.dat"
-        self.extra_args_from_options = []
+        self.extra_args_from_options: List[str] = []
         # Optional list of wallet names that can be set in set_test_params to
         # create and import keys to. If unset, default is len(nodes) *
         # [default_wallet_name]. If wallet names are None, wallet creation is
