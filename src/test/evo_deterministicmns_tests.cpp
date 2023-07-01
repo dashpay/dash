@@ -153,7 +153,9 @@ static CMutableTransaction CreateProUpRegTx(const CTxMemPool& mempool, SimpleUTX
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
     FundTransaction(tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN, coinbaseKey);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    CHashSigner::SignHash(::SerializeHash(proTx), mnKey, proTx.vchSig);
+    auto opt_sig = CHashSigner::SignHash(::SerializeHash(proTx), mnKey);
+    assert(opt_sig.has_value());
+    proTx.vchSig = *opt_sig;
     SetTxPayload(tx, proTx);
     SignTransaction(mempool, tx, coinbaseKey);
 
@@ -628,7 +630,9 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
     tx_reg.nType = TRANSACTION_PROVIDER_REGISTER;
     FundTransaction(tx_reg, utxos, scriptPayout, dmn_types::Regular.collat_amount, setup.coinbaseKey);
     payload.inputsHash = CalcTxInputsHash(CTransaction(tx_reg));
-    CMessageSigner::SignMessage(payload.MakeSignString(), payload.vchSig, collateralKey);
+    auto opt_sig = CMessageSigner::SignMessage(payload.MakeSignString(), collateralKey);
+    assert(opt_sig.has_value());
+    payload.vchSig = *opt_sig;
     SetTxPayload(tx_reg, payload);
     SignTransaction(*(setup.m_node.mempool), tx_reg, setup.coinbaseKey);
 
@@ -697,7 +701,9 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     tx_reg2.nType = TRANSACTION_PROVIDER_REGISTER;
     FundTransaction(tx_reg2, utxos, scriptPayout, dmn_types::Regular.collat_amount, setup.coinbaseKey);
     payload.inputsHash = CalcTxInputsHash(CTransaction(tx_reg2));
-    CMessageSigner::SignMessage(payload.MakeSignString(), payload.vchSig, collateralKey);
+    auto opt_sig = CMessageSigner::SignMessage(payload.MakeSignString(), collateralKey);
+    assert(opt_sig.has_value());
+    payload.vchSig = *opt_sig;
     SetTxPayload(tx_reg2, payload);
     SignTransaction(*(setup.m_node.mempool), tx_reg2, setup.coinbaseKey);
 
@@ -759,7 +765,10 @@ void FuncVerifyDB(TestChainSetup& setup)
     tx_reg.nType = TRANSACTION_PROVIDER_REGISTER;
     FundTransaction(tx_reg, utxos, scriptPayout, dmn_types::Regular.collat_amount, setup.coinbaseKey);
     payload.inputsHash = CalcTxInputsHash(CTransaction(tx_reg));
-    CMessageSigner::SignMessage(payload.MakeSignString(), payload.vchSig, collateralKey);
+    auto opt_sig = CMessageSigner::SignMessage(payload.MakeSignString(), collateralKey);
+    assert(opt_sig.has_value());
+    payload.vchSig = *opt_sig;
+
     SetTxPayload(tx_reg, payload);
     SignTransaction(*(setup.m_node.mempool), tx_reg, setup.coinbaseKey);
 

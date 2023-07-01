@@ -293,11 +293,13 @@ template<typename SpecialTxPayload>
 static void SignSpecialTxPayloadByHash(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
 {
     UpdateSpecialTxInputsHash(tx, payload);
-    payload.vchSig.clear();
+    payload.vchSig.fill(0);
 
     uint256 hash = ::SerializeHash(payload);
-    if (!CHashSigner::SignHash(hash, key, payload.vchSig)) {
+    if (auto opt_sig = CHashSigner::SignHash(hash, key); !opt_sig) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "failed to sign special tx");
+    } else {
+        payload.vchSig = *opt_sig;
     }
 }
 
@@ -305,11 +307,13 @@ template<typename SpecialTxPayload>
 static void SignSpecialTxPayloadByString(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
 {
     UpdateSpecialTxInputsHash(tx, payload);
-    payload.vchSig.clear();
+    payload.vchSig.fill(0);
 
     std::string m = payload.MakeSignString();
-    if (!CMessageSigner::SignMessage(m, payload.vchSig, key)) {
+    if (auto opt_sig = CMessageSigner::SignMessage(m, key); !opt_sig) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "failed to sign special tx");
+    } else {
+        payload.vchSig = *opt_sig;
     }
 }
 
@@ -707,11 +711,6 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     ptx.keyIDVoting = keyIDVoting;
     ptx.scriptPayout = GetScriptForDestination(payoutDest);
 
-    if (!isFundRegister) {
-        // make sure fee calculation works
-        ptx.vchSig.resize(65);
-    }
-
     CTxDestination fundDest = payoutDest;
     if (!request.params[paramIdx + 6].isNull()) {
         fundDest = DecodeDestination(request.params[paramIdx + 6].get_str());
@@ -757,7 +756,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
 
         if (isPrepareRegister) {
             // external signing with collateral key
-            ptx.vchSig.clear();
+            ptx.vchSig.fill(0);
             SetTxPayload(tx, ptx);
 
             UniValue ret(UniValue::VOBJ);
@@ -830,8 +829,9 @@ static UniValue protx_register_submit(const JSONRPCRequest& request)
     if (!ptx.vchSig.empty()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "payload signature not empty");
     }
-
-    ptx.vchSig = DecodeBase64(request.params[1].get_str().c_str());
+    auto vec_sig = DecodeBase64(request.params[1].get_str().c_str());
+    CHECK_NONFATAL(vec_sig.size() == CPubKey::COMPACT_SIGNATURE_SIZE);
+    std::copy(vec_sig.begin(), vec_sig.end(), ptx.vchSig.begin());
 
     SetTxPayload(tx, ptx);
     return SignAndSendSpecialTx(request, tx);
@@ -1079,9 +1079,6 @@ static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, co
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
-
-    // make sure we get anough fees added
-    ptx.vchSig.resize(65);
 
     CTxDestination feeSourceDest = payoutDest;
     if (!request.params[4].isNull()) {

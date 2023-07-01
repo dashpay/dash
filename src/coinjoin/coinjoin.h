@@ -18,6 +18,7 @@
 #include <version.h>
 
 #include <utility>
+#include <iterator>
 
 class CCoinJoin;
 class CConnman;
@@ -200,7 +201,7 @@ public:
     uint256 m_protxHash;
     int64_t nTime{0};
     bool fReady{false}; //ready for submit
-    std::vector<unsigned char> vchSig;
+    std::array<uint8_t, 96> vchSig;
     // memory only
     bool fTried{false};
 
@@ -272,7 +273,7 @@ public:
     CTransactionRef tx;
     COutPoint masternodeOutpoint;
     uint256 m_protxHash;
-    std::vector<unsigned char> vchSig;
+    std::array<unsigned char, 96> vchSig;
     int64_t sigTime{0};
 
     CCoinJoinBroadcastTx() :

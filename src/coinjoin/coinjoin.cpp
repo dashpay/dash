@@ -22,6 +22,7 @@
 #include <validation.h>
 
 #include <string>
+//#include <iterator>
 
 constexpr static CAmount DEFAULT_MAX_RAW_TX_FEE{COIN / 10};
 
@@ -65,7 +66,8 @@ bool CCoinJoinQueue::Sign()
 bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
     bool legacy_bls_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
-    if (!CBLSSignature(vchSig).VerifyInsecure(blsPubKey, GetSignatureHash(legacy_bls_scheme))) {
+    Span<uint8_t> span(const_cast<uint8_t*>(vchSig.data()), vchSig.size());
+    if (!CBLSSignature(span).VerifyInsecure(blsPubKey, GetSignatureHash(legacy_bls_scheme))) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinQueue::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -114,7 +116,8 @@ bool CCoinJoinBroadcastTx::Sign()
 bool CCoinJoinBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
     bool legacy_bls_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
-    if (!CBLSSignature(vchSig).VerifyInsecure(blsPubKey, GetSignatureHash(legacy_bls_scheme))) {
+    Span<uint8_t> span(const_cast<uint8_t*>(vchSig.data()), vchSig.size());
+    if (!CBLSSignature(span).VerifyInsecure(blsPubKey, GetSignatureHash(legacy_bls_scheme))) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBroadcastTx::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }

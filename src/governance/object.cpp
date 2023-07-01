@@ -317,7 +317,8 @@ bool CGovernanceObject::CheckSignature(const CBLSPublicKey& pubKey) const
     CBLSSignature sig;
     const auto pindex = llmq::utils::V19ActivationIndex(::ChainActive().Tip());
     bool is_bls_legacy_scheme = pindex == nullptr || nTime < pindex->pprev->nTime;
-    sig.SetByteVector(vchSig, is_bls_legacy_scheme);
+    auto span = Span<uint8_t>(const_cast<uint8_t*>(vchSig.data()), vchSig.size());
+    sig.SetByteVector(span, is_bls_legacy_scheme);
     if (!sig.VerifyInsecure(pubKey, GetSignatureHash(), is_bls_legacy_scheme)) {
         LogPrintf("CGovernanceObject::CheckSignature -- VerifyInsecure() failed\n");
         return false;

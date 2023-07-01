@@ -48,7 +48,7 @@ public:
     uint16_t nOperatorReward{0};
     CScript scriptPayout;
     uint256 inputsHash; // replay protection
-    std::vector<unsigned char> vchSig;
+    std::array<unsigned char, CPubKey::COMPACT_SIGNATURE_SIZE> vchSig{};
 
     SERIALIZE_METHODS(CProRegTx, obj)
     {
@@ -216,7 +216,7 @@ public:
     CKeyID keyIDVoting;
     CScript scriptPayout;
     uint256 inputsHash; // replay protection
-    std::vector<unsigned char> vchSig;
+    std::array<unsigned char, CPubKey::COMPACT_SIGNATURE_SIZE> vchSig;
 
     SERIALIZE_METHODS(CProUpRegTx, obj)
     {

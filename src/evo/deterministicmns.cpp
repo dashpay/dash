@@ -606,7 +606,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
             newList.SetHeight(nHeight);
         }
 
-        newList.SetBlockHash(block.GetHash());
+        newList.SetBlockHash(pindex->GetBlockHash());
 
         oldList = GetListForBlockInternal(pindex->pprev);
         diff = oldList.BuildDiff(newList);
@@ -1442,7 +1442,8 @@ template <typename ProTx>
 static bool CheckHashSig(const ProTx& proTx, const PKHash& pkhash, TxValidationState& state)
 {
     std::string strError;
-    if (!CHashSigner::VerifyHash(::SerializeHash(proTx), ToKeyID(pkhash), proTx.vchSig, strError)) {
+    auto span_vchSig = Span<uint8_t>(const_cast<uint8_t*>(proTx.vchSig.data()), proTx.vchSig.size());
+    if (!CHashSigner::VerifyHash(::SerializeHash(proTx), ToKeyID(pkhash), span_vchSig, strError)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-sig");
     }
     return true;
@@ -1452,7 +1453,8 @@ template <typename ProTx>
 static bool CheckStringSig(const ProTx& proTx, const PKHash& pkhash, TxValidationState& state)
 {
     std::string strError;
-    if (!CMessageSigner::VerifyMessage(ToKeyID(pkhash), proTx.vchSig, proTx.MakeSignString(), strError)) {
+    auto span_vchSig = Span<uint8_t>(const_cast<uint8_t*>(proTx.vchSig.data()), proTx.vchSig.size());
+    if (!CMessageSigner::VerifyMessage(ToKeyID(pkhash), span_vchSig, proTx.MakeSignString(), strError)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-sig");
     }
     return true;
@@ -1581,7 +1583,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxVali
         }
     } else {
         // collateral is part of this ProRegTx, so we know the collateral is owned by the issuer
-        if (!ptx.vchSig.empty()) {
+        if (!std::all_of(ptx.vchSig.begin(), ptx.vchSig.end(), [](unsigned char c) { return c == 0; })) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-sig");
         }
     }
