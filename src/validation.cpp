@@ -5053,15 +5053,16 @@ bool CChainState::ReplayBlocks()
         pindexOld = m_blockman.m_block_index[hashHeads[1]];
         pindexFork = LastCommonAncestor(pindexOld, pindexNew);
         assert(pindexFork != nullptr);
+        bool fDIP0003Active = pindexOld->nHeight >= m_params.GetConsensus().DIP0003Height;
+        if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindexOld->GetBlockHash())) {
+            return error("ReplayBlocks(DASH): Found EvoDB inconsistency");
+        }
     }
 
     auto dbTx = m_evoDb.BeginTransaction();
 
     // Rollback along the old branch.
     while (pindexOld != pindexFork) {
-        // TODO: RollforwardBlock should update not only coins but also evodb and additional indexes.
-        // Disable recovery from a crash during a fork until this is implemented.
-        return error("ReplayBlocks(): recovery from a db crash during a fork is not supported yet");
         if (pindexOld->nHeight > 0) { // Never disconnect the genesis block.
             CBlock block;
             if (!ReadBlockFromDisk(block, pindexOld, m_params.GetConsensus())) {
