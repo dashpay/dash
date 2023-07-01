@@ -2069,7 +2069,8 @@ static int64_t nTimePayeeValid = 0;
 static int64_t nTimeProcessSpecial = 0;
 static int64_t nTimeDashSpecific = 0;
 static int64_t nTimeConnect = 0;
-static int64_t nTimeIndex = 0;
+static int64_t nTimeIndexConnect = 0;
+static int64_t nTimeIndexWrite = 0;
 static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 static int64_t nBlocksTotal = 0;
@@ -2266,6 +2267,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime2_1 = GetTimeMicros(); nTimeProcessSpecial += nTime2_1 - nTime2;
     LogPrint(BCLog::BENCHMARK, "      - ProcessSpecialTxsInBlock: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime2_1 - nTime2), nTimeProcessSpecial * MICRO, nTimeProcessSpecial * MILLI / nBlocksTotal);
 
+    int64_t nTime2_index = 0;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
@@ -2304,6 +2307,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
             if (fAddressIndex || fSpentIndex)
             {
+                int64_t nTime2_index1 = GetTimeMicros();
+
                 for (size_t j = 0; j < tx.vin.size(); j++) {
                     const CTxIn input = tx.vin[j];
                     const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
@@ -2339,7 +2344,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                         spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, addressType, hashBytes)));
                     }
                 }
-
+                nTime2_index += GetTimeMicros() - nTime2_index1;
             }
 
         }
@@ -2371,6 +2376,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         }
 
         if (fAddressIndex) {
+            int64_t nTime2_index2 = GetTimeMicros();
             for (unsigned int k = 0; k < tx.vout.size(); k++) {
                 const CTxOut &out = tx.vout[k];
 
@@ -2399,8 +2405,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 } else {
                     continue;
                 }
-
             }
+            nTime2_index += GetTimeMicros() - nTime2_index2;
         }
 
         CTxUndo undoDummy;
@@ -2409,6 +2415,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
+
+    nTimeIndexConnect += nTime2_index;
+    LogPrint(BCLog::BENCHMARK, "        - Connect index: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * nTime2_index, nTimeIndexConnect * MICRO, nTimeIndexConnect * MILLI / nBlocksTotal);
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCHMARK, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
 
@@ -2498,6 +2507,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         setDirtyBlockIndex.insert(pindex);
     }
 
+    int64_t nTime6 = GetTimeMicros();
+
     if (fAddressIndex) {
         if (!pblocktree->WriteAddressIndex(addressIndex)) {
             return AbortNode(state, "Failed to write address index");
@@ -2516,17 +2527,16 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
             return AbortNode(state, "Failed to write timestamp index");
 
+    int64_t nTime7 = GetTimeMicros(); nTimeIndexWrite += nTime7 - nTime6;
+    LogPrint(BCLog::BENCHMARK, "      - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime7 - nTime6), nTimeIndexWrite * MICRO, nTimeIndexWrite * MILLI / nBlocksTotal);
+
     assert(pindex->phashBlock);
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
-
-    int64_t nTime6 = GetTimeMicros(); nTimeIndex += nTime6 - nTime5;
-    LogPrint(BCLog::BENCHMARK, "    - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime6 - nTime5), nTimeIndex * MICRO, nTimeIndex * MILLI / nBlocksTotal);
-
     m_evoDb.WriteBestBlock(pindex->GetBlockHash());
 
-    int64_t nTime7 = GetTimeMicros(); nTimeCallbacks += nTime7 - nTime6;
-    LogPrint(BCLog::BENCHMARK, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime7 - nTime6), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
+    int64_t nTime8 = GetTimeMicros(); nTimeCallbacks += nTime8 - nTime5;
+    LogPrint(BCLog::BENCHMARK, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime8 - nTime5), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
