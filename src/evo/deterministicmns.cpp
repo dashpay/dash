@@ -648,7 +648,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
 bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* pindex)
 {
     int nHeight = pindex->nHeight;
-    uint256 blockHash = block.GetHash();
+    uint256 blockHash = pindex->GetBlockHash();
 
     CDeterministicMNList curList;
     CDeterministicMNList prevList;
