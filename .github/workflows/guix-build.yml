@@ -20,9 +20,9 @@ jobs:
       - name: Commit variables
         id: dockerfile
         run: |
-          echo "::set-output name=hash::$(sha256sum ./contrib/containers/guix/Dockerfile | cut -d ' ' -f1)"
-          echo "::set-output name=host_user_id::$(id -u)"
-          echo "::set-output name=host_group_id::$(id -g)"
+          echo "hash=$(sha256sum ./contrib/containers/guix/Dockerfile | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
+          echo "host_user_id=$(id -u)" >> $GITHUB_OUTPUT
+          echo "host_group_id=$(id -g)" >> $GITHUB_OUTPUT
 
       - name: Cache Docker layers
         uses: actions/cache@v2
