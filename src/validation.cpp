@@ -4926,7 +4926,7 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
     std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
 
-    for (unsigned int i = 0; i < block.vtx.size(); i++) {
+    for (size_t i = 0; i < block.vtx.size(); i++) {
         const CTransactionRef &tx = block.vtx[i];
         const uint256 txhash = tx->GetHash();
 
@@ -4971,7 +4971,7 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
             }
 
             if (fAddressIndex) {
-                for (unsigned int k = 0; k < tx->vout.size(); k++) {
+                for (size_t k = 0; k < tx->vout.size(); k++) {
                     const CTxOut &out = tx->vout[k];
 
                     if (out.scriptPubKey.IsPayToScriptHash()) {
