@@ -34,8 +34,9 @@ namespace Consensus {
 struct Params;
 }
 namespace util {
+class SignalInterrupt;
 class ZstdFileReader;
-}
+} // namespace util
 
 namespace node {
 /** Higher levels cost several times more CPU per block for no measurable gain */
@@ -183,9 +184,13 @@ private:
 public:
     using Options = kernel::BlockManagerOpts;
 
-    explicit BlockManager(Options opts)
+    explicit BlockManager(const util::SignalInterrupt& interrupt, Options opts)
         : m_opts{std::move(opts)},
-          m_prune_mode{m_opts.prune_target > 0} {};
+          m_prune_mode{m_opts.prune_target > 0},
+          m_interrupt{interrupt} {};
+
+    const util::SignalInterrupt& m_interrupt;
+    std::atomic<bool> m_importing{false};
 
     BlockMap m_block_index GUARDED_BY(cs_main);
     PrevBlockMap m_prev_block_index GUARDED_BY(cs_main);

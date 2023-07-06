@@ -16,9 +16,12 @@
 
 
 namespace kernel {
+Context* g_context;
 
 Context::Context()
 {
+    assert(!g_context);
+    g_context = this;
     SapphireAutoDetect();
     std::string sha256_algo = SHA256AutoDetect();
     LogPrintf("Using the '%s' SHA256 implementation\n", sha256_algo);
@@ -30,6 +33,8 @@ Context::Context()
 Context::~Context()
 {
     ECC_Stop();
+    assert(g_context);
+    g_context = nullptr;
 }
 
 } // namespace kernel
