@@ -10,6 +10,7 @@
 #include <hash.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
+#include <node/kernel_notifications.h>
 #include <pow.h>
 #include <primitives/block.h>
 #include <script/script.h>
@@ -27,10 +28,11 @@
 #include <test/util/logging.h>
 #include <test/util/setup_common.h>
 
-using node::BlockManager;
 using node::BLOCK_RECORD_COMPRESSED;
 using node::BLOCK_RECORD_SIZE_MASK;
 using node::BLOCK_SERIALIZATION_HEADER_SIZE;
+using node::BlockManager;
+using node::KernelNotifications;
 using node::MAX_BLOCKFILE_SIZE;
 
 /** Size field of the record whose payload starts at pos */
@@ -58,11 +60,13 @@ BOOST_FIXTURE_TEST_SUITE(blockmanager_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
 {
     const auto params {CreateChainParams(ArgsManager{}, ChainType::MAIN)};
+    KernelNotifications notifications{m_node.exit_status};
     const BlockManager::Options blockman_opts{
         .chainparams = *params,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = notifications,
     };
-    BlockManager blockman{blockman_opts};
+    BlockManager blockman{m_node.kernel->interrupt, blockman_opts};
     // simulate adding a genesis block normally
     BOOST_CHECK_EQUAL(blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).nPos, BLOCK_SERIALIZATION_HEADER_SIZE);
     // simulate what happens during reindex
@@ -87,12 +91,14 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
 {
     if (!util::ZstdAvailable()) return;
     const auto params{CreateChainParams(ArgsManager{}, ChainType::REGTEST)};
+    KernelNotifications notifications{m_node.exit_status};
     const BlockManager::Options blockman_opts{
         .chainparams = *params,
         .block_compression = 3,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = notifications,
     };
-    BlockManager blockman{blockman_opts};
+    BlockManager blockman{m_node.kernel->interrupt, blockman_opts};
 
     // a block whose coinbase carries 20 KB of repeated bytes, so that it compresses
     CBlock block{params->GenesisBlock()};
@@ -140,8 +146,9 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
         .chainparams = *params,
         .block_compression = 0,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = notifications,
     };
-    BlockManager plain_blockman{plain_opts};
+    BlockManager plain_blockman{m_node.kernel->interrupt, plain_opts};
     const FlatFilePos plain_pos{plain_blockman.SaveBlockToDisk(block, 2, nullptr)};
     BOOST_CHECK_EQUAL(ReadSizeField(plain_blockman, plain_pos), serialized_size);
     BOOST_CHECK(plain_blockman.ReadBlockFromDisk(read_block, plain_pos) == block.GetHash());
@@ -162,12 +169,14 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     if (!util::ZstdAvailable()) return;
     const auto params{CreateChainParams(ArgsManager{}, ChainType::REGTEST)};
     const fs::path blocks_dir{m_args.GetBlocksDirPath()};
+    KernelNotifications notifications{m_node.exit_status};
     const BlockManager::Options blockman_opts{
         .chainparams = *params,
         .block_compression = 3,
         .blocks_dir = blocks_dir,
+        .notifications = notifications,
     };
-    BlockManager blockman{blockman_opts};
+    BlockManager blockman{m_node.kernel->interrupt, blockman_opts};
     // undo data goes next to the block file, so block file 0 has to exist
     BOOST_REQUIRE(!blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).IsNull());
 
@@ -245,8 +254,9 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
         .chainparams = *params,
         .block_compression = 0,
         .blocks_dir = blocks_dir,
+        .notifications = notifications,
     };
-    BlockManager plain_blockman{plain_opts};
+    BlockManager plain_blockman{m_node.kernel->interrupt, plain_opts};
     BOOST_REQUIRE(!plain_blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).IsNull());
     CBlockIndex plain_index{params->GenesisBlock()};
     BOOST_CHECK_EQUAL(ReadUndoSizeField(blocks_dir, write_undo(plain_blockman, plain_index, undo)), serialized_size);
@@ -296,11 +306,13 @@ BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain
 
 BOOST_AUTO_TEST_CASE(blockmanager_flush_block_file)
 {
+    KernelNotifications notifications{m_node.exit_status};
     node::BlockManager::Options blockman_opts{
         .chainparams = Params(),
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = notifications,
     };
-    BlockManager blockman{blockman_opts};
+    BlockManager blockman{m_node.kernel->interrupt, blockman_opts};
 
     // Test blocks with no transactions, not even a coinbase
     CBlock block1;

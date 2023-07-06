@@ -14,12 +14,12 @@
 #include <kernel/messagestartchars.h>
 #include <logging.h>
 #include <pow.h>
-#include <shutdown.h>
 #include <streams.h>
 #include <undo.h>
 #include <util/batchpriority.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
+#include <util/signalinterrupt.h>
 #include <util/zstd.h>
 #include <validation.h>
 #include <walletinitinterface.h>
@@ -279,7 +279,7 @@ bool BlockManager::LoadBlockIndex()
     m_prev_block_index.clear();
     m_blocks_unlinked.clear();
 
-    if (!m_block_tree_db->LoadBlockIndexGuts(GetConsensus(), [this](const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main) { return this->InsertBlockIndex(hash); })) {
+    if (!m_block_tree_db->LoadBlockIndexGuts(GetConsensus(), [this](const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main) { return this->InsertBlockIndex(hash); }, m_interrupt)) {
         return false;
     }
 
@@ -297,7 +297,7 @@ bool BlockManager::LoadBlockIndex()
 
     CBlockIndex* previous_index{nullptr};
     for (CBlockIndex* pindex : vSortedByHeight) {
-        if (ShutdownRequested()) return false;
+        if (m_interrupt) return false;
         if (previous_index && pindex->nHeight > previous_index->nHeight + 1) {
             LogError("%s: block index is non-contiguous, index of height %d missing\n", __func__, previous_index->nHeight + 1);
             return false;
@@ -592,7 +592,7 @@ bool BlockManager::FlushUndoFile(int block_file, bool finalize)
 {
     FlatFilePos undo_pos_old(block_file, m_blockfile_info[block_file].nUndoSize);
     if (!UndoFileSeq().Flush(undo_pos_old, finalize)) {
-        AbortNode("Flushing undo file to disk failed. This is likely the result of an I/O error.");
+        m_opts.notifications.flushError("Flushing undo file to disk failed. This is likely the result of an I/O error.");
         return false;
     }
     return true;
@@ -614,7 +614,7 @@ bool BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
 
     FlatFilePos block_pos_old(m_last_blockfile, m_blockfile_info[m_last_blockfile].nSize);
     if (!BlockFileSeq().Flush(block_pos_old, fFinalize)) {
-        AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.");
+        m_opts.notifications.flushError("Flushing block file to disk failed. This is likely the result of an I/O error.");
         success = false;
     }
     // we do not always flush the undo file, as the chain tip may be lagging behind the incoming blocks,
@@ -747,7 +747,8 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         bool out_of_space;
         size_t bytes_allocated = BlockFileSeq().Allocate(pos, nAddSize, out_of_space);
         if (out_of_space) {
-            return AbortNode("Disk space is too low!", _("Disk space is too low!"));
+            m_opts.notifications.fatalError("Disk space is too low!", _("Disk space is too low!"));
+            return false;
         }
         if (bytes_allocated != 0 && IsPruneMode()) {
             m_check_for_pruning = true;
@@ -771,7 +772,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     bool out_of_space;
     size_t bytes_allocated = UndoFileSeq().Allocate(pos, nAddSize, out_of_space);
     if (out_of_space) {
-        return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+        return FatalError(m_opts.notifications, state, "Disk space is too low!", _("Disk space is too low!"));
     }
     if (bytes_allocated != 0 && IsPruneMode()) {
         m_check_for_pruning = true;
@@ -851,7 +852,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
         }
         if (compressed) m_have_compressed_records = true;
         if (!UndoWriteToDisk(blockundo, compressed, size_field, _pos, block.pprev->GetBlockHash(), GetParams().MessageStart())) {
-            return AbortNode(state, "Failed to write undo data");
+            return FatalError(m_opts.notifications, state, "Failed to write undo data");
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)
         // we want to flush the rev (undo) file once we've written the last block, which is indicated by the last height
@@ -986,7 +987,7 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, cons
     if (!position_known) {
         if (size_field & BLOCK_RECORD_COMPRESSED) m_have_compressed_records = true;
         if (!WriteBlockToDisk(MakeByteSpan(payload), size_field, blockPos, GetParams().MessageStart())) {
-            AbortNode("Failed to write block");
+            m_opts.notifications.fatalError("Failed to write block");
             return FlatFilePos();
         }
     }
@@ -1034,8 +1035,8 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 }
                 LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
                 chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
-                if (ShutdownRequested()) {
-                    LogPrintf("Shutdown requested. Exit %s\n", __func__);
+                if (chainman.m_interrupt) {
+                    LogPrintf("Interrupt requested. Exit %s\n", __func__);
                     return;
                 }
                 nFile++;
@@ -1053,8 +1054,8 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             if (!file.IsNull()) {
                 LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
                 chainman.LoadExternalBlockFile(file);
-                if (ShutdownRequested()) {
-                    LogPrintf("Shutdown requested. Exit %s\n", __func__);
+                if (chainman.m_interrupt) {
+                    LogPrintf("Interrupt requested. Exit %s\n", __func__);
                     return;
                 }
             } else {
@@ -1070,7 +1071,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
-                AbortNode(strprintf("Failed to connect best block (%s)", state.ToString()));
+                chainman.GetNotifications().fatalError(strprintf("Failed to connect best block (%s)", state.ToString()));
                 return;
             }
         }

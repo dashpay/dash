@@ -113,6 +113,15 @@ int main(int argc, char* argv[])
         {
             std::cout << "Warning: " << warning.original << std::endl;
         }
+        void flushError(const std::string& debug_message) override
+        {
+            std::cerr << "Error flushing block data to disk: " << debug_message << std::endl;
+        }
+        void fatalError(const std::string& debug_message, const bilingual_str& user_message) override
+        {
+            std::cerr << "Error: " << debug_message << std::endl;
+            std::cerr << (user_message.empty() ? "A fatal internal error occurred." : user_message.original) << std::endl;
+        }
     };
     auto notifications = std::make_unique<KernelNotifications>();
 
@@ -126,8 +135,9 @@ int main(int argc, char* argv[])
     node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = abs_datadir / "blocks",
+        .notifications = chainman_opts.notifications,
     };
-    ChainstateManager chainman{chainman_opts, blockman_opts};
+    ChainstateManager chainman{kernel_context.interrupt, chainman_opts, blockman_opts};
 
     CMasternodeMetaMan metaman{abs_datadir};
     CEvoDB evodb{util::DbWrapperParams{.path = abs_datadir, .memory = false, .wipe = false}};
@@ -140,7 +150,7 @@ int main(int argc, char* argv[])
                                                                               llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE));
     auto special_tx = std::make_unique<CSpecialTxProcessor>(evodb, dmnman,
                                                             *llmq_ctx->quorum_block_processor, *llmq_ctx->qsnapman,
-                                                            chainman, chainman.m_blockman, chainman.GetConsensus(),
+                                                            chainman, chainman.m_blockman, chainman.GetConsensus(), chainman.GetNotifications(),
                                                             chainlocks, *llmq_ctx->qman);
 
     node::CacheSizes cache_sizes;

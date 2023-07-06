@@ -5,6 +5,7 @@
 #ifndef BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
+#include <kernel/notifications_interface.h>
 #include <util/fs.h>
 #include <util/zstd.h>
 
@@ -29,6 +30,7 @@ struct BlockManagerOpts {
     //! zstd compression level for newly written block and undo records, 0 to store them uncompressed
     int block_compression{util::DefaultZstdLevel()};
     const fs::path blocks_dir;
+    Notifications& notifications;
 };
 
 } // namespace kernel

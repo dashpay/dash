@@ -16,7 +16,6 @@
 #include <logging.h>
 #include <masternode/payments.h>
 #include <node/blockstorage.h>
-#include <shutdown.h>
 #include <util/overflow.h>
 #include <validation.h>
 
@@ -158,7 +157,7 @@ void CCreditPoolManager::MaybeWriteSnapshot(const uint256& block_hash, int heigh
         // translate this into a consensus rejection.
         const std::string msg = strprintf("CCreditPoolManager::%s -- EvoDB credit pool mismatch for block %s", __func__,
                                           block_hash.ToString());
-        AbortNode(msg);
+        m_chainman.GetNotifications().fatalError(msg);
         throw EvoDbInconsistencyError(msg);
     }
 }

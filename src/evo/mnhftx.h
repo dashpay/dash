@@ -26,6 +26,9 @@ class CEvoDB;
 class CTransaction;
 class TxValidationState;
 struct RPCResult;
+namespace kernel {
+class Notifications;
+} // namespace kernel
 namespace llmq {
 class CQuorumManager;
 }
@@ -101,6 +104,7 @@ private:
     // TODO: implement migration to a new format
     const node::BlockManager& m_blockman;
     const Consensus::Params& m_consensus_params;
+    kernel::Notifications& m_notifications;
 
     static constexpr size_t MNHFCacheSize = 1000;
     Mutex cs_cache;
@@ -111,7 +115,8 @@ public:
     CMNHFManager() = delete;
     CMNHFManager(const CMNHFManager&) = delete;
     CMNHFManager& operator=(const CMNHFManager&) = delete;
-    explicit CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, const Consensus::Params& consensus_params);
+    explicit CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, const Consensus::Params& consensus_params,
+                          kernel::Notifications& notifications);
     ~CMNHFManager() override;
 
     /**
