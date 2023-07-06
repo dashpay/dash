@@ -280,7 +280,6 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle,
                 GUIUtil::loadStyleSheet();
             }
         });
-        timerCustomCss->start(200);
     }
 
     GUIUtil::handleCloseWindowShortcut(this);
@@ -922,6 +921,15 @@ void BitcoinGUI::createToolBars()
 void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndHeaderTipInfo* tip_info)
 {
     this->clientModel = _clientModel;
+    if (timerCustomCss) {
+        // The timer checks shutdownRequested(), which needs the kernel context:
+        // it is created after this window and destroyed before it.
+        if (_clientModel) {
+            timerCustomCss->start(200);
+        } else {
+            timerCustomCss->stop();
+        }
+    }
     if(_clientModel)
     {
         // Create system tray menu (or setup the dock menu) that late to prevent users from calling actions,

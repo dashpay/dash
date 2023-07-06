@@ -39,6 +39,9 @@ namespace chainlock {
 class Chainlocks;
 }
 namespace Consensus { struct Params; }
+namespace kernel {
+class Notifications;
+} // namespace kernel
 namespace llmq {
 class CQuorumBlockProcessor;
 class CQuorumManager;
@@ -76,6 +79,7 @@ private:
     const ChainstateManager& m_chainman;
     const node::BlockManager& m_blockman;
     const Consensus::Params& m_consensus_params;
+    kernel::Notifications& m_notifications;
     const chainlock::Chainlocks& m_chainlocks;
     const llmq::CQuorumManager& m_qman;
 
@@ -83,8 +87,8 @@ public:
     explicit CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager& dmnman,
                                  llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
                                  const ChainstateManager& chainman, const node::BlockManager& blockman,
-                                 const Consensus::Params& consensus_params, const chainlock::Chainlocks& chainlocks,
-                                 const llmq::CQuorumManager& qman);
+                                 const Consensus::Params& consensus_params, kernel::Notifications& notifications,
+                                 const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman);
     ~CSpecialTxProcessor();
 
     bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, SpecialTxRules rules,

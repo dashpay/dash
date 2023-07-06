@@ -81,7 +81,6 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../netbase.cpp
   ../node/blockstorage.cpp
   ../node/chainstate.cpp
-  ../node/interface_ui.cpp
   ../node/utxo_snapshot.cpp
   ../policy/feerate.cpp
   ../policy/fees.cpp
@@ -123,6 +122,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../util/moneystr.cpp
   ../util/ranges_set.cpp
   ../util/serfloat.cpp
+  ../util/signalinterrupt.cpp
   ../util/sock.cpp
   ../util/strencodings.cpp
   ../util/string.cpp

@@ -115,6 +115,9 @@ private:
     /// instead of failing.
     virtual bool IgnoresEntriesOffActiveChain() const { return false; }
 
+    template <typename... Args>
+    void FatalErrorf(const char* fmt, const Args&... args);
+
 protected:
     std::unique_ptr<interfaces::Chain> m_chain;
     Chainstate* m_chainstate{nullptr};
@@ -160,15 +163,6 @@ protected:
 
     /// Get the name of the index for display in logs.
     const std::string& GetName() const LIFETIMEBOUND { return m_name; }
-
-    /// Trigger a fatal index error and initiate shutdown.
-    static void FatalErrorImpl(const std::string& message);
-
-    template <typename... Args>
-    void FatalError(const char* fmt, const Args&... args) const
-    {
-        FatalErrorImpl(tfm::format(fmt, args...));
-    }
 
     /// Update the internal best block index as well as the prune lock.
     void SetBestBlockIndex(const CBlockIndex* block);
