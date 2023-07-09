@@ -68,20 +68,22 @@ void CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, PeerManager&
     }
 
     {
-        TRY_LOCK(cs_vecqueue, lockRecv);
-        if (!lockRecv) return;
+        LOCK(cs_ProcessDSQueue);
 
-        // process every dsq only once
-        for (const auto& q : vecCoinJoinQueue) {
-            if (q == dsq) {
-                return;
-            }
-            if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
-                // no way the same mn can send another dsq with the same readiness this soon
-                LogPrint(BCLog::COINJOIN,
-                         "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n",
-                         peer.GetLogString(), dsq.masternodeOutpoint.ToStringShort());
-                return;
+        {
+            LOCK(cs_vecqueue);
+            // process every dsq only once
+            for (const auto &q: vecCoinJoinQueue) {
+                if (q == dsq) {
+                    return;
+                }
+                if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
+                    // no way the same mn can send another dsq with the same readiness this soon
+                    LogPrint(BCLog::COINJOIN,
+                             "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n",
+                             peer.GetLogString(), dsq.masternodeOutpoint.ToStringShort());
+                    return;
+                }
             }
         }
 
@@ -131,10 +133,10 @@ void CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, PeerManager&
             ranges::any_of(coinJoinClientManagers,
                            [&dsq](const auto &pair) { return pair.second->MarkAlreadyJoinedQueueAsTried(dsq); });
 
-            vecCoinJoinQueue.push_back(dsq);
+            WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
             dsq.Relay(connman);
         }
-    } // cs_vecqueue
+    } // cs_ProcessDSQueue
 }
 
 void CCoinJoinClientManager::ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv)
