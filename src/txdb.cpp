@@ -344,7 +344,8 @@ bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey &timestampIndex)
     return WriteBatch(batch);
 }
 
-bool CBlockTreeDB::EraseTimestampIndex(const CTimestampIndexKey &timestampIndex) {
+bool CBlockTreeDB::EraseTimestampIndex(const CTimestampIndexKey& timestampIndex)
+{
     CDBBatch batch(*this);
     batch.Erase(std::make_pair(DB_TIMESTAMPINDEX, timestampIndex));
     return WriteBatch(batch);

@@ -4926,17 +4926,17 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
     std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
 
-    for (size_t i = 0; i < block.vtx.size(); i++) {
-        const CTransactionRef &tx = block.vtx[i];
+    for (auto i = 0; i < block.vtx.size(); i++) {
+        const CTransactionRef& tx = block.vtx[i];
         const uint256 txhash = tx->GetHash();
 
         if (!tx->IsCoinBase()) {
             // Update indexes
             if (fAddressIndex || fSpentIndex) {
-                for (size_t j = 0; j < tx->vin.size(); j++) {
+                for (auto j = 0; j < tx->vin.size(); j++) {
                     const CTxIn input = tx->vin[j];
                     const Coin& coin = inputs.AccessCoin(tx->vin[j].prevout);
-                    const CTxOut &prevout = coin.out;
+                    const CTxOut& prevout = coin.out;
                     uint160 hashBytes;
                     int addressType;
 
@@ -4971,8 +4971,8 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
             }
 
             if (fAddressIndex) {
-                for (size_t k = 0; k < tx->vout.size(); k++) {
-                    const CTxOut &out = tx->vout[k];
+                for (auto k = 0; k < tx->vout.size(); k++) {
+                    const CTxOut& out = tx->vout[k];
 
                     if (out.scriptPubKey.IsPayToScriptHash()) {
                         std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
