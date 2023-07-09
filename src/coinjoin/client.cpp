@@ -79,7 +79,7 @@ void CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, PeerManager&
                 }
                 if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
                     // no way the same mn can send another dsq with the same readiness this soon
-                    LogPrint(BCLog::COINJOIN,
+                    LogPrint(BCLog::COINJOIN, /* Continued */
                              "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n",
                              peer.GetLogString(), dsq.masternodeOutpoint.ToStringShort());
                     return;
