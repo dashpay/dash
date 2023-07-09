@@ -134,9 +134,9 @@ void CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, PeerManager&
                            [&dsq](const auto &pair) { return pair.second->MarkAlreadyJoinedQueueAsTried(dsq); });
 
             WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
-            dsq.Relay(connman);
         }
     } // cs_ProcessDSQueue
+    dsq.Relay(connman);
 }
 
 void CCoinJoinClientManager::ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv)
