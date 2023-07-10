@@ -88,7 +88,8 @@ struct CollateralSetup : public TestChain100Setup {
     void StartIndex()
     {
         CreateIndex();
-        BOOST_REQUIRE(index->Start());
+        BOOST_REQUIRE(index->Init());
+        BOOST_REQUIRE(index->StartBackgroundSync());
         IndexWaitSynced(*index);
     }
 
@@ -213,7 +214,8 @@ BOOST_FIXTURE_TEST_CASE(sync_check_needs_only_blocks_above_the_resume_point, Tes
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return !chainstate.GetLastFlushedBlock()));
     {
         GovCollateralIndex synced_index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-        BOOST_REQUIRE(synced_index.Start());
+        BOOST_REQUIRE(synced_index.Init());
+        BOOST_REQUIRE(synced_index.StartBackgroundSync());
         IndexWaitSynced(synced_index);
         synced_index.Stop();
     }
@@ -245,7 +247,8 @@ BOOST_FIXTURE_TEST_CASE(sync_check_needs_only_blocks_above_the_resume_point, Tes
     BOOST_CHECK(!can_sync_without_data_at(50));
     {
         GovCollateralIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 103);
         index.Stop();
@@ -257,7 +260,8 @@ BOOST_FIXTURE_TEST_CASE(sync_check_needs_only_blocks_above_the_resume_point, Tes
     BOOST_CHECK(can_sync_without_data_at(50));
     {
         GovCollateralIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 104);
         BOOST_REQUIRE(chainstate.InvalidateBlock(state, WITH_LOCK(::cs_main, return chainstate.m_chain.Tip())));

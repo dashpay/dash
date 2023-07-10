@@ -62,7 +62,7 @@ public:
         m_filter_index = std::make_unique<BlockFilterIndex>(
             interfaces::MakeChain(m_testing_setup->m_node), BlockFilterType::BASIC_FILTER,
             /*n_cache_size=*/8 << 20, /*f_memory=*/false);
-        if (!m_filter_index->Start()) {
+        if (!m_filter_index->Init() || !m_filter_index->StartBackgroundSync()) {
             throw std::runtime_error("failed to start block filter benchmark index");
         }
         IndexWaitSynced(*m_filter_index);
