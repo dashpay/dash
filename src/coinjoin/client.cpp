@@ -85,7 +85,7 @@ void CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, PeerManager&
                     return;
                 }
             }
-        }
+        } // cs_vecqueue
 
         LogPrint(BCLog::COINJOIN, "DSQUEUE -- %s new\n", dsq.ToString());
 
