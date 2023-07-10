@@ -32,7 +32,6 @@
 namespace node {
 std::atomic_bool fImporting(false);
 std::atomic_bool fReindex(false);
-std::atomic_bool g_indexes_ready_to_sync{false};
 
 bool CBlockIndexWorkComparator::operator()(const CBlockIndex* pa, const CBlockIndex* pb) const
 {
@@ -448,14 +447,29 @@ bool BlockManager::IsBlockPruned(const CBlockIndex* pblockindex)
     return (m_have_pruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0);
 }
 
-const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& start_block)
+const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& upper_block, const CBlockIndex* lower_block)
 {
     AssertLockHeld(::cs_main);
-    const CBlockIndex* last_block = &start_block;
+    const CBlockIndex* last_block = &upper_block;
+    assert(last_block->nStatus & BLOCK_HAVE_DATA); // 'upper_block' must have data
     while (last_block->pprev && (last_block->pprev->nStatus & BLOCK_HAVE_DATA)) {
+        if (lower_block) {
+            // Return if we reached the lower_block
+            if (last_block == lower_block) return lower_block;
+            // if range was surpassed, means that 'lower_block' is not part of the 'upper_block' chain
+            // and so far this is not allowed.
+            assert(last_block->nHeight >= lower_block->nHeight);
+        }
         last_block = last_block->pprev;
     }
+    assert(last_block != nullptr);
     return last_block;
+}
+
+bool BlockManager::CheckBlockDataAvailability(const CBlockIndex& upper_block, const CBlockIndex& lower_block)
+{
+    if (!(upper_block.nStatus & BLOCK_HAVE_DATA)) return false;
+    return GetFirstStoredBlock(upper_block, &lower_block) == &lower_block;
 }
 
 // If we're using -prune with -reindex, then delete block files that will be ignored by the
@@ -1011,7 +1025,7 @@ public:
     }
 };
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
+void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
 {
     ScheduleBatchPriority();
 
@@ -1082,6 +1096,5 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             return;
         }
     } // End scope of ImportingNow
-    g_indexes_ready_to_sync = true;
 }
 } // namespace node

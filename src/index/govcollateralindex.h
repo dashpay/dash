@@ -48,7 +48,7 @@ public:
     // Destructor is declared because this class contains a unique_ptr to an incomplete type.
     virtual ~GovCollateralIndex() override;
 
-    /// Whether the blocks the index still has to read are stored, i.e. whether Start() would succeed.
+    /// Whether the blocks the index still has to read are stored, i.e. whether StartIndexBackgroundSync() would succeed.
     bool CanSync(Chainstate& chainstate) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     bool IsCollateralSynced() const override;

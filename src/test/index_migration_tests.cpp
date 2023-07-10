@@ -38,13 +38,11 @@ struct IndexMigrationSetup : public TestChainSetup {
     //! Height the timestamp index resumes from, read before its sync thread can advance it.
     int LoadedTimestampIndexHeight()
     {
-        node::g_indexes_ready_to_sync = false;
         TimestampIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
         const int height{index.GetSummary().best_block_height};
         index.Interrupt();
         index.Stop();
-        node::g_indexes_ready_to_sync = true;
         return height;
     }
 };

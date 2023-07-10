@@ -110,8 +110,8 @@ protected:
     /**
      * Force UpdatedBlockTip to initialize block-tip-dependent state at
      * startup (e.g. nCachedBlockHeight for DS/MN payments/budgets,
-     * quorum connections).  Called synchronously from the loadblk
-     * thread — once after ThreadImport for general subscribers and
+     * quorum connections).  Called synchronously from the initload
+     * thread — once after ImportBlocks for general subscribers and
      * again after nodeman->Init() so that masternode-specific state
      * (proTxHash) is available for quorum connection setup.
      *
