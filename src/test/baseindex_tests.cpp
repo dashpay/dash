@@ -132,7 +132,8 @@ BOOST_FIXTURE_TEST_CASE(baseindex_no_commit_ahead_of_flush, TestChain100Setup)
     auto sync_index = [&](bool do_flush, int expected_sync_height, int expected_commit_height) {
         {
             CoinStatsIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-            BOOST_REQUIRE(index.Start());
+            BOOST_REQUIRE(index.Init());
+            BOOST_REQUIRE(index.StartBackgroundSync());
             IndexWaitSynced(index);
             if (do_flush) {
                 chainstate.ForceFlushStateToDisk();
@@ -141,17 +142,14 @@ BOOST_FIXTURE_TEST_CASE(baseindex_no_commit_ahead_of_flush, TestChain100Setup)
             BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, expected_sync_height);
             index.Stop();
         }
-        // Reload index to see which block data was actually committed. Init() and Sync() are not
-        // callable on their own in Dash, so hold back the sync thread while the loaded best block is read.
-        node::g_indexes_ready_to_sync = false;
+        // Reload index to see which block data was actually committed
         {
             CoinStatsIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-            BOOST_REQUIRE(index.Start());
+            BOOST_REQUIRE(index.Init());
             BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, expected_commit_height);
             index.Interrupt();
             index.Stop();
         }
-        node::g_indexes_ready_to_sync = true;
     };
 
     // Part 1: Sync, then "crash" (stop without flushing). Models a node that
@@ -179,7 +177,8 @@ BOOST_FIXTURE_TEST_CASE(late_genesis_notification_keeps_index, TestChain100Setup
 {
     ChainstateManager& chainman{*Assert(m_node.chainman)};
     ErasingIndex index{interfaces::MakeChain(m_node)};
-    BOOST_REQUIRE(index.Start());
+    BOOST_REQUIRE(index.Init());
+    BOOST_REQUIRE(index.StartBackgroundSync());
     IndexWaitSynced(index);
 
     GetMainSignals().BlockConnected(std::make_shared<const CBlock>(Params().GenesisBlock()), AtHeight(chainman, 0));
@@ -202,7 +201,8 @@ BOOST_FIXTURE_TEST_CASE(restart_after_rewind_reindexes_erased_blocks, TestChain1
     ChainstateManager& chainman{*Assert(m_node.chainman)};
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         chainman.ActiveChainstate().ForceFlushStateToDisk();
         SyncWithValidationInterfaceQueue();
@@ -212,10 +212,9 @@ BOOST_FIXTURE_TEST_CASE(restart_after_rewind_reindexes_erased_blocks, TestChain1
     LowerLastFlushedBlock(chainman, 95);
     const CBlockIndex* tip{AtHeight(chainman, 100)};
 
-    node::g_indexes_ready_to_sync = false;
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
         BOOST_CHECK(index.CommittedTip() == tip->GetBlockHash());
         BOOST_REQUIRE(index.RewindTo(tip, AtHeight(chainman, 97)));
         BOOST_CHECK(!index.Indexed(tip));
@@ -223,11 +222,11 @@ BOOST_FIXTURE_TEST_CASE(restart_after_rewind_reindexes_erased_blocks, TestChain1
         index.Interrupt();
         index.Stop();
     }
-    node::g_indexes_ready_to_sync = true;
 
     // The rewound blocks are still the active chain, as after a restart in which their branch wins again
     ErasingIndex index{interfaces::MakeChain(m_node)};
-    BOOST_REQUIRE(index.Start());
+    BOOST_REQUIRE(index.Init());
+    BOOST_REQUIRE(index.StartBackgroundSync());
     IndexWaitSynced(index);
     for (int height{98}; height <= 100; ++height) {
         BOOST_CHECK_MESSAGE(index.Indexed(AtHeight(chainman, height)), "block " << height << " was not indexed again");
@@ -242,7 +241,8 @@ BOOST_FIXTURE_TEST_CASE(interrupted_rewind_keeps_locator_below_erased_entries, T
     ChainstateManager& chainman{*Assert(m_node.chainman)};
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         chainman.ActiveChainstate().ForceFlushStateToDisk();
         SyncWithValidationInterfaceQueue();
@@ -250,10 +250,9 @@ BOOST_FIXTURE_TEST_CASE(interrupted_rewind_keeps_locator_below_erased_entries, T
     }
     const CBlockIndex* tip{AtHeight(chainman, 100)};
 
-    node::g_indexes_ready_to_sync = false;
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
         BOOST_CHECK(index.CommittedTip() == tip->GetBlockHash());
         BOOST_CHECK(!index.RewindTo(tip, AtHeight(chainman, 97), /*stop_after=*/tip));
         BOOST_CHECK(!index.Indexed(tip));
@@ -262,10 +261,10 @@ BOOST_FIXTURE_TEST_CASE(interrupted_rewind_keeps_locator_below_erased_entries, T
         index.Interrupt();
         index.Stop();
     }
-    node::g_indexes_ready_to_sync = true;
 
     ErasingIndex index{interfaces::MakeChain(m_node)};
-    BOOST_REQUIRE(index.Start());
+    BOOST_REQUIRE(index.Init());
+    BOOST_REQUIRE(index.StartBackgroundSync());
     IndexWaitSynced(index);
     BOOST_CHECK_MESSAGE(index.Indexed(tip), "block 100 was not indexed again");
     index.Stop();
@@ -280,7 +279,8 @@ BOOST_FIXTURE_TEST_CASE(restart_rewinds_blocks_synced_above_flush, TestChain100S
     const std::vector<const CBlockIndex*> orphaned{AtHeight(chainman, 98), AtHeight(chainman, 99), AtHeight(chainman, 100)};
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         BOOST_CHECK(index.UncommittedTip() == orphaned.back()->GetBlockHash());
         index.Stop();
@@ -288,19 +288,18 @@ BOOST_FIXTURE_TEST_CASE(restart_rewinds_blocks_synced_above_flush, TestChain100S
 
     // A rewind that stops after its first block moves the uncommitted tip down with it, so the next start, with the
     // rewound block still on the active chain, indexes it again
-    node::g_indexes_ready_to_sync = false;
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
         BOOST_CHECK(!index.RewindTo(orphaned.back(), AtHeight(chainman, 97), /*stop_after=*/orphaned.back()));
         BOOST_CHECK(index.UncommittedTip() == orphaned[1]->GetBlockHash());
         index.Interrupt();
         index.Stop();
     }
-    node::g_indexes_ready_to_sync = true;
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         BOOST_CHECK(index.Indexed(orphaned.back()));
         index.Stop();
@@ -313,7 +312,8 @@ BOOST_FIXTURE_TEST_CASE(restart_rewinds_blocks_synced_above_flush, TestChain100S
 
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         for (const CBlockIndex* block : orphaned) {
             BOOST_CHECK_MESSAGE(!index.Indexed(block), "orphaned block " << block->nHeight << " is still indexed");
@@ -329,11 +329,10 @@ BOOST_FIXTURE_TEST_CASE(restart_rewinds_blocks_synced_above_flush, TestChain100S
 
     // An uncommitted tip that isn't above the locator was left behind by an older binary: it is dropped and the index
     // starts from the locator
-    node::g_indexes_ready_to_sync = false;
     {
         ErasingIndex index{interfaces::MakeChain(m_node)};
         index.SetUncommittedTip(orphaned.back()->GetBlockHash());
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
         BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 101);
         BOOST_CHECK(!index.UncommittedTip());
         index.Interrupt();
@@ -348,11 +347,10 @@ BOOST_FIXTURE_TEST_CASE(restart_rewinds_blocks_synced_above_flush, TestChain100S
         ErasingIndex index{interfaces::MakeChain(m_node)};
         index.WriteEntry(lost_block.GetHash());
         index.SetUncommittedTip(lost_block.GetHash());
-        BOOST_CHECK(!index.Start());
+        BOOST_CHECK(!index.Init());
         BOOST_CHECK(index.UncommittedTip() == lost_block.GetHash());
         BOOST_CHECK(index.Indexed(lost_block.GetHash()));
     }
-    node::g_indexes_ready_to_sync = true;
 
     // After an unclean stop the blocks above the flush can also be left with only their headers, as headers are
     // stored before the blocks. The node connects them again as it downloads them, before the ones above them are
@@ -372,7 +370,8 @@ BOOST_FIXTURE_TEST_CASE(restart_rewinds_blocks_synced_above_flush, TestChain100S
         index.WriteEntry(reconnected.GetHash());
         index.WriteEntry(header_only.GetHash());
         index.SetUncommittedTip(header_only.GetHash());
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
+        BOOST_REQUIRE(index.StartBackgroundSync());
         IndexWaitSynced(index);
         BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<const CBlock>(reconnected), /*force_processing=*/true,
                                                /*new_block=*/nullptr));

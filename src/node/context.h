@@ -16,8 +16,9 @@
 
 class AddressIndex;
 class ArgsManager;
-class BanMan;
 class AddrMan;
+class BanMan;
+class BaseIndex;
 class CBlockPolicyEstimator;
 class CConnman;
 class CDeterministicMNManager;
@@ -94,6 +95,7 @@ struct NodeContext {
     std::unique_ptr<ChainstateManager> chainman;
     std::unique_ptr<BanMan> banman;
     ArgsManager* args{nullptr}; // Currently a raw pointer because the memory is not managed by this struct
+    std::vector<BaseIndex*> indexes; // raw pointers because memory is not managed by this struct
     std::unique_ptr<interfaces::Chain> chain;
     //! List of all chain clients (wallet processes or other client) connected to node.
     std::vector<std::unique_ptr<interfaces::ChainClient>> chain_clients;

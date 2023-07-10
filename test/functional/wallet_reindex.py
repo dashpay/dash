@@ -72,7 +72,7 @@ class WalletReindexTest(BitcoinTestFramework):
         assert_equal(wallet_watch_only.getbalances()['mine' if self.options.descriptors else 'watchonly']['trusted'], 2)
 
         # Reindex and wait for it to finish
-        with node.assert_debug_log(expected_msgs=["loadblk thread exit"]):
+        with node.assert_debug_log(expected_msgs=["initload thread exit"]):
             self.restart_node(0, extra_args=['-reindex=1', f'-mocktime={self.node_time}'])
         node.syncwithvalidationinterfacequeue()
 
