@@ -173,7 +173,6 @@
 #endif
 
 using kernel::CoinStatsHashType;
-using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
@@ -200,6 +199,7 @@ using wallet::DEFAULT_DISABLE_WALLET;
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
 static constexpr bool DEFAULT_I2P_ACCEPT_INCOMING{true};
+static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -2520,6 +2520,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
         // Import blocks
         ImportBlocks(chainman, vImportFiles);
+        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+            LogPrintf("Stopping after block import\n");
+            StartShutdown();
+            return;
+        }
+
         // Start indexes initial sync
         if (!StartIndexBackgroundSync(node)) {
             bilingual_str err_str = _("Failed to start indexes, shutting down..");
