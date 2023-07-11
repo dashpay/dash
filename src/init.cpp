@@ -172,7 +172,6 @@
 #endif
 
 using kernel::CoinStatsHashType;
-using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
@@ -199,6 +198,7 @@ using wallet::DEFAULT_DISABLE_WALLET;
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
 static constexpr bool DEFAULT_I2P_ACCEPT_INCOMING{true};
+static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -2515,8 +2515,26 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     chainman.m_thread_load = std::thread(&util::TraceThread, "initload", [=, &args, &chainman, &node] {
         // ImportBlocks can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
+        // The repair marker shares the EvoDB root transaction with the blocks connected during the
+        // import, so persist it with a full flush that writes the coins DB first.
+        const auto complete_repair = [&] {
+            LOCK(::cs_main);
+            node.dmnman->CompleteRepair();
+            for (Chainstate* chainstate : chainman.GetAll()) {
+                if (chainstate->CanFlushToDisk()) {
+                    chainstate->ForceFlushStateToDisk();
+                }
+            }
+        };
         // Import blocks
         ImportBlocks(chainman, vImportFiles);
+        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+            LogPrintf("Stopping after block import\n");
+            if (skip_evodb_repair_on_reindex) complete_repair(); // Dash: the reindex rebuilt EvoDB
+            StartShutdown();
+            return;
+        }
+
         // Start indexes initial sync
         if (!StartIndexBackgroundSync(node)) {
             bilingual_str err_str = _("Failed to start indexes, shutting down..");
@@ -2551,18 +2569,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // updates via CValidationInterface but misses InitializeCurrentBlockTip.
         // TODO: move cache updates from NetInstantSend to g_ds_notification due to specific of Tip's processing
         node.isman->CacheTipHeight(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
-
-        // The repair marker shares the EvoDB root transaction with the blocks connected during the
-        // import, so persist it with a full flush that writes the coins DB first.
-        const auto complete_repair = [&] {
-            LOCK(::cs_main);
-            node.dmnman->CompleteRepair();
-            for (Chainstate* chainstate : chainman.GetAll()) {
-                if (chainstate->CanFlushToDisk()) {
-                    chainstate->ForceFlushStateToDisk();
-                }
-            }
-        };
 
         if (skip_evodb_repair_on_reindex) {
             LogPrintf("Skipping evodb repair during reindex\n");

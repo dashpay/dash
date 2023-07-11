@@ -243,8 +243,6 @@ public:
 
     [[nodiscard]] bool LoadingBlocks() const { return fImporting || fReindex; }
 
-    [[nodiscard]] bool StopAfterBlockImport() const { return m_opts.stop_after_block_import; }
-
     /** Calculate the amount of disk space the block & undo files currently use */
     uint64_t CalculateCurrentUsage();
 
