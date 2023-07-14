@@ -15,6 +15,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <random.h>
+#include <shutdown.h>
 #include <uint256.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
