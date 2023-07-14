@@ -22,7 +22,6 @@
 #include <policy/policy.h>
 #include <script/script_error.h>
 #include <serialize.h>
-#include <shutdown.h>
 #include <sync.h>
 #include <txdb.h>
 #include <txmempool.h> // For CTxMemPool::cs
@@ -972,7 +971,6 @@ public:
     const arith_uint256& MinimumChainWork() const { return *Assert(m_options.minimum_chain_work); }
     const uint256& AssumedValidBlock() const { return *Assert(m_options.assumed_valid_block); }
     kernel::Notifications& GetNotifications() const { return m_options.notifications; };
-    int StopAtHeight() const { return m_options.stop_at_height; };
 
     /**
      * Make various assertions about the state of the block index.
