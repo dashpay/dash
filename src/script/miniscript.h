@@ -864,14 +864,26 @@ public:
     size_t ScriptSize() const { return scriptlen; }
 
     //! Return the maximum number of ops needed to satisfy this script non-malleably.
-    uint32_t GetOps() const { return ops.count + ops.sat.value; }
+    std::optional<uint32_t> GetOps() const {
+        if (!ops.sat.valid) return {};
+        return ops.count + ops.sat.value;
+    }
 
     //! Check the ops limit of this script against the consensus limit.
-    bool CheckOpsLimit() const { return GetOps() <= MAX_OPS_PER_SCRIPT; }
+    bool CheckOpsLimit() const {
+        if (const auto ops = GetOps()) return *ops <= MAX_OPS_PER_SCRIPT;
+        return true;
+    }
 
     /** Return the maximum number of stack elements needed to satisfy this script non-malleably, including
      * the script push. */
-    uint32_t GetStackSize() const { return ss.sat.value + 1; }
+    std::optional<uint32_t> GetStackSize() const {
+        if (!ss.sat.valid) return {};
+        return ss.sat.value + 1;
+    }
+
+    //! Whether no satisfaction exists for this node.
+    bool IsNotSatisfiable() const { return !GetStackSize(); }
 
     //! Return the expression type.
     Type GetType() const { return typ; }
