@@ -117,8 +117,9 @@ class LLMQHPMNTest(DashTestFramework):
         self.activate_v20(expected_activation_height=1440)
         self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
 
+        # Generate a few blocks to make HPMN/MN analysis on a pure v20 window
         self.bump_mocktime(1)
-        self.nodes[0].generate(8)
+        self.nodes[0].generate(4)
         self.sync_blocks()
 
         self.log.info("Test that HPMNs are paid 1 block in a row after v20 activation")
