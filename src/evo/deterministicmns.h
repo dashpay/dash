@@ -342,7 +342,7 @@ public:
      * @param nCount the number of payees to return. "nCount = max()"" means "all", use it to avoid calling GetValidWeightedMNsCount twice.
      * @return
      */
-    [[nodiscard]] std::vector<CDeterministicMNCPtr> GetProjectedMNPayees(int nCount = std::numeric_limits<int>::max()) const;
+    [[nodiscard]] std::vector<CDeterministicMNCPtr> GetProjectedMNPayees(int nCount = std::numeric_limits<int>::max(), bool isV20Active = false) const;
 
     /**
      * Calculate a quorum based on the modifier. The resulting list is deterministically sorted by score
