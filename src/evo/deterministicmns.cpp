@@ -211,7 +211,12 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
     return best;
 }
 
-std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int nCount, bool isV20Active) const
+std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayeesAtChainTip(int nCount) const
+{
+    return GetProjectedMNPayees(::ChainActive()[nHeight], nCount);
+}
+
+std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(const CBlockIndex* const pindex, int nCount) const
 {
     if (nCount < 0 ) {
         return {};
@@ -223,6 +228,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
 
     auto remaining_hpmn_payments = 0;
     CDeterministicMNCPtr hpmn_to_be_skipped = nullptr;
+    bool isV20Active = llmq::utils::IsV20Active(pindex);
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
         if (dmn->pdmnState->nLastPaidHeight == nHeight) {
             // We found the last MN Payee.
