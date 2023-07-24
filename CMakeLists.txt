@@ -94,6 +94,8 @@ file(GLOB SOURCE_FILES
         src/univalue/include/*.h
         src/univalue/lib/*.cpp
         src/univalue/lib/*.h
+        src/util/*.h
+        src/util/*.cpp
         src/wallet/*.cpp
         src/wallet/*.h
         src/wallet/test/*.cpp
