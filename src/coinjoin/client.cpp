@@ -1821,7 +1821,6 @@ void CCoinJoinClientManager::UpdatedBlockTip(const CBlockIndex* pindex)
 
 void CCoinJoinClientQueueManager::DoMaintenance()
 {
-    if (!CCoinJoinClientOptions::IsEnabled()) return;
     if (fMasternodeMode) return; // no client-side mixing on masternodes
 
     if (!m_mn_sync.IsBlockchainSynced() || ShutdownRequested()) return;
