@@ -96,6 +96,7 @@ file(GLOB SOURCE_FILES
         src/script/*.cpp
         src/script/*.h
         src/secp256k1/include/*.h
+        src/support/allocators/*.h
         src/support/*.cpp
         src/support/*.h
         src/test/*.cpp
