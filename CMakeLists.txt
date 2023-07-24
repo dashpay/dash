@@ -96,8 +96,14 @@ file(GLOB SOURCE_FILES
         src/script/*.cpp
         src/script/*.h
         src/secp256k1/include/*.h
+        src/support/*.cpp
+        src/support/*.h
         src/test/*.cpp
         src/test/*.h
+        src/test/fuzz/*.cpp
+        src/test/fuzz/*.h
+        src/test/util/*.cpp
+        src/test/util/*.h
         src/univalue/include/*.h
         src/univalue/lib/*.cpp
         src/univalue/lib/*.h
