@@ -69,13 +69,20 @@ file(GLOB SOURCE_FILES
         src/evo/*.h
         src/governance/*.cpp
         src/governance/*.h
+        src/index/*.cpp
+        src/index/*.h
+        src/interfaces/*.cpp
+        src/interfaces/*.h
         src/leveldb/db/*.cc
         src/leveldb/db/*.h
         src/leveldb/include/*.h
         src/llmq/*.cpp
         src/llmq/*.h
+        src/logging/*.h
         src/masternode/*.cpp
         src/masternode/*.h
+        src/node/*.cpp
+        src/node/*.h
         src/policy/*.cpp
         src/policy/*.h
         src/primitives/*.cpp
