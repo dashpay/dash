@@ -49,6 +49,8 @@ add_definitions(
         -DENABLE_WALLET=1
 )
 
+# find src/ -name '*.h' -or -name '*.cpp' | sed -r 's/[^/]*.(h|cpp)$/*.\1/' | sort | uniq | grep -Ev "/(bench/data|obj)/" > list.txt
+
 file(GLOB SOURCE_FILES
         src/*.cpp
         src/*.h
