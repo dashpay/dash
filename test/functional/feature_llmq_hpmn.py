@@ -114,15 +114,15 @@ class LLMQHPMNTest(DashTestFramework):
         self.log.info("Test that HPMNs are paid 4x blocks in a row")
         self.test_hpmn_payments(window_analysis=256)
 
-        self.activate_v20(expected_activation_height=1440)
-        self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
+        self.activate_mn_rr()
+        self.log.info("Activated MN RewardReallocation at height:" + str(self.nodes[0].getblockcount()))
 
-        # Generate a few blocks to make HPMN/MN analysis on a pure v20 window
+        # Generate a few blocks to make HPMN/MN analysis on a pure MN RewardReallocation window
         self.bump_mocktime(1)
         self.nodes[0].generate(4)
         self.sync_blocks()
 
-        self.log.info("Test that HPMNs are paid 1 block in a row after v20 activation")
+        self.log.info("Test that HPMNs are paid 1 block in a row after MN RewardReallocation activation")
         self.test_hpmn_payments(window_analysis=256, v20active=True)
 
         self.log.info(self.nodes[0].masternodelist())
