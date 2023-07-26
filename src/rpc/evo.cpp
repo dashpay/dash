@@ -1616,7 +1616,7 @@ static UniValue protx(const JSONRPCRequest& request)
 #ifdef ENABLE_WALLET
     if (command == "protxregister" || command == "protxregister_fund" || command == "protxregister_prepare") {
         return protx_register(new_request, chainman);
-    } else if (command == "protxregister_evo" || command == "protxregister_fund_evo" || command == "protxregister_prepare_evo") {
+    } else if (command == "protxregister_evo" || command == "protxregister_fund_evo" || command == "protxregister_prepare_evo" || command == "protxregister_hpmn" || command == "protxregister_fund_hpmn" || command == "protxregister_prepare_hpmn") {
         return protx_register_evo(new_request, chainman);
     } else if (command == "protxregister_legacy" || command == "protxregister_fund_legacy" || command == "protxregister_prepare_legacy") {
         return protx_register_legacy(new_request, chainman);
@@ -1624,7 +1624,7 @@ static UniValue protx(const JSONRPCRequest& request)
         return protx_register_submit(new_request, chainman);
     } else if (command == "protxupdate_service") {
         return protx_update_service_common_wrapper(new_request, chainman, MnType::Regular);
-    } else if (command == "protxupdate_service_evo") {
+    } else if (command == "protxupdate_service_evo" || command == "protxupdate_service_hpmn") {
         return protx_update_service_common_wrapper(new_request, chainman, MnType::Evo);
     } else if (command == "protxupdate_registrar") {
         return protx_update_registrar(new_request, chainman);
