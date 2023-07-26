@@ -968,7 +968,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         return self.config["components"].getboolean("USE_BDB")
 
 MASTERNODE_COLLATERAL = 1000
-EVONODE_MASTERNODE_COLLATERAL = 4000
+EVONODE_COLLATERAL = 4000
 
 class MasternodeInfo:
     def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout, addr, evo=False):
@@ -1162,7 +1162,7 @@ class DashTestFramework(BitcoinTestFramework):
         platform_p2p_port = '%d' % (node_p2p_port + 101)
         platform_http_port = '%d' % (node_p2p_port + 102)
 
-        collateral_amount = EVONODE_MASTERNODE_COLLATERAL if evo else MASTERNODE_COLLATERAL
+        collateral_amount = EVONODE_COLLATERAL if evo else MASTERNODE_COLLATERAL
         outputs = {collateral_address: collateral_amount, funds_address: 1}
         collateral_txid = self.nodes[0].sendmany("", outputs)
         self.wait_for_instantlock(collateral_txid, self.nodes[0])
@@ -1244,7 +1244,7 @@ class DashTestFramework(BitcoinTestFramework):
         bls = self.nodes[0].bls('generate')
         address = self.nodes[0].getnewaddress()
 
-        collateral_amount = EVONODE_MASTERNODE_COLLATERAL if evo else MASTERNODE_COLLATERAL
+        collateral_amount = EVONODE_COLLATERAL if evo else MASTERNODE_COLLATERAL
         txid = None
         txid = self.nodes[0].sendtoaddress(address, collateral_amount)
         collateral_vout = 0
@@ -1373,7 +1373,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.add_nodes(1, extra_args=[self.extra_args[0]])
         self.start_node(0)
         self.import_deterministic_coinbase_privkeys()
-        required_balance = EVONODE_MASTERNODE_COLLATERAL * self.evo_count
+        required_balance = EVONODE_COLLATERAL * self.evo_count
         required_balance += MASTERNODE_COLLATERAL * (self.mn_count - self.evo_count) + 100
         self.log.info("Generating %d coins" % required_balance)
         while self.nodes[0].getbalance() < required_balance:
