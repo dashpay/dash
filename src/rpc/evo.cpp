@@ -615,7 +615,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     bool isV19active = llmq::utils::IsV19Active(WITH_LOCK(cs_main, return chainman.ActiveChain().Tip();));
-    if (isHPMNrequested && !isV19active) {
+    if (isEvoRequested && !isV19active) {
         throw JSONRPCError(RPC_INVALID_REQUEST, "EvoNodes aren't allowed yet");
     }
 
