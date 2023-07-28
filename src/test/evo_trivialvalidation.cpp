@@ -120,7 +120,7 @@ void trivialvalidation_runner(ChainstateManager& chainman, const std::string& js
 
 BOOST_AUTO_TEST_CASE(trivialvalidation_valid)
 {
-    const std::string json(json_tests::trivially_valid, json_tests::trivially_valid + sizeof(json_tests::trivially_valid));
+    const std::string& json = json_tests::trivially_valid;
 
     bls::bls_legacy_scheme.store(true);
     trivialvalidation_runner(*m_node.chainman, json);
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(trivialvalidation_valid)
 
 BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
 {
-    const std::string json(json_tests::trivially_invalid, json_tests::trivially_invalid + sizeof(json_tests::trivially_invalid));
+    const std::string& json = json_tests::trivially_invalid;
 
     bls::bls_legacy_scheme.store(true);
     trivialvalidation_runner(*m_node.chainman, json);
