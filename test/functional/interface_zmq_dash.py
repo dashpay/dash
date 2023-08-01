@@ -14,7 +14,6 @@ import time
 
 from test_framework.test_framework import (
     DashTestFramework,
-    MasternodeInfo,
 )
 from test_framework.p2p import P2PInterface
 from test_framework.util import (
@@ -219,7 +218,7 @@ class DashZMQTest (DashTestFramework):
         sign_id = uint256_to_string(random.getrandbits(256))
         sign_msg_hash = uint256_to_string(random.getrandbits(256))
         quorumHash = self.nodes[0].quorum("selectquorum", 100, sign_id)["quorumHash"]
-        for mn in self.get_quorum_masternodes(quorumHash): # type: MasternodeInfo
+        for mn in self.get_quorum_masternodes(quorumHash):
             mn.get_node(self).quorum("sign", 100, sign_id, sign_msg_hash)
         validate_recovered_sig(sign_id, sign_msg_hash)
         # Unsubscribe from recovered signature messages

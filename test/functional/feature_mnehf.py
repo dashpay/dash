@@ -17,7 +17,6 @@ from test_framework.messages import (
 
 from test_framework.test_framework import (
     DashTestFramework,
-    MasternodeInfo
 )
 from test_framework.util import (
     assert_equal,
@@ -46,7 +45,7 @@ class MnehfTest(DashTestFramework):
                 self.log.info(f"Actual restart options: {self.extra_args[inode]}")
 
         self.restart_node(0)
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             index = mn.nodeIdx
             self.stop_node(index)
             self.start_masternode(mn)

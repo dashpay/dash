@@ -14,7 +14,6 @@ import shutil
 from test_framework.messages import CBlock, from_hex, uint256_to_string
 from test_framework.test_framework import (
     DashTestFramework,
-    MasternodeInfo,
 )
 from test_framework.governance import EXPECTED_STDERR_GOV_PRUNED_TOO_FAR, have_trigger_for_height, prepare_object
 from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync, satoshi_round
@@ -252,7 +251,7 @@ class DashGovernanceTest (DashTestFramework):
         _, mn_payee_protx = height_protx_list[1]
 
         payee_idx = None
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             if mn.proTxHash == mn_payee_protx:
                 payee_idx = mn.nodeIdx
                 break
