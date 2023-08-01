@@ -122,8 +122,8 @@ class LLMQEvoNodesTest(DashTestFramework):
         self.nodes[0].generate(4)
         self.sync_blocks()
 
-        self.log.info("Test that HPMNs are paid 1 block in a row after MN RewardReallocation activation")
-        self.test_hpmn_payments(window_analysis=256, v20active=True)
+        self.log.info("Test that EvoNodes are paid 1 block in a row after MN RewardReallocation activation")
+        self.test_evo_payments(window_analysis=256, v20active=True)
 
         self.log.info(self.nodes[0].masternodelist())
 
