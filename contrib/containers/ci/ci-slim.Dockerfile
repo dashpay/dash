@@ -80,7 +80,7 @@ ENV UV_SYSTEM_PYTHON=1
 # NOTE: if versions are changed, update ci/lint/04_install.sh
 RUN uv pip install --system --break-system-packages \
     codespell==2.2.1 \
-    flake8==5.0.4 \
+    flake8==6.1.0 \
     jinja2 \
     lief==0.13.2 \
     mypy==0.981 \
