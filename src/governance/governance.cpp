@@ -587,7 +587,7 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     });
 
     // Create Superblock
-    CSuperblock sb(nNextSuperblock, payments);
+    CSuperblock sb(nNextSuperblock, std::move(payments));
 
     return sb;
 }
