@@ -237,8 +237,8 @@ public:
 
     void ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, std::string_view msg_type, CDataStream& vRecv);
 
-    std::optional<CSuperblock> SuperblockCreationAttempt(int nHeight) const;
-    bool GovernanceTriggerCreation(const CSuperblock& sb, CConnman& connman);
+    std::optional<CSuperblock> CreateSuperblockCandidate(int nHeight) const;
+    void CreateGovernanceTrigger(const CSuperblock& sb, CConnman& connman);
 
     void DoMaintenance(CConnman& connman);
 
