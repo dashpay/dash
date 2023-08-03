@@ -435,6 +435,12 @@ CSuperblock::
         nBlockHeight, strAddresses, strAmounts, vecPayments.size());
 }
 
+CSuperblock::CSuperblock(int nBlockHeight, std::vector<CGovernancePayment> vecPayments) : nBlockHeight(nBlockHeight), vecPayments(std::move(vecPayments))
+{
+    nStatus = SeenObjectStatus::Valid; //TODO: Investigate this
+    nGovObjHash = GetHash();
+}
+
 CGovernanceObject* CSuperblock::GetGovernanceObject(CGovernanceManager& governanceManager)
 {
     AssertLockHeld(governanceManager.cs);
@@ -692,10 +698,48 @@ bool CSuperblock::IsExpired(const CGovernanceManager& governanceManager) const
     return false;
 }
 
+std::string CSuperblock::GetHexStrData() const
+{
+    // {\"event_block_height\": 879720, \"payment_addresses\": \"yd5KMREs3GLMe6mTJYr3YrH1juwNwrFCfB\", \"payment_amounts\": \"5.00000000\", \"proposal_hashes\": \"485817fddbcab6c55c9a6856dabc8b19ed79548bda8c01712daebc9f74f287f4\", \"type\": 2}\u0000
+
+    std::stringstream ss;
+
+    std::stringstream ss_addresses;
+    std::stringstream ss_amounts;
+    std::stringstream ss_proposals;
+
+    CTxDestination dest;
+    ExtractDestination(vecPayments.at(0).script, dest);
+
+    ss_addresses << EncodeDestination(dest);
+    ss_amounts << vecPayments.at(0).nAmount;
+    ss_proposals << vecPayments.at(0).proposalHash.ToString();
+
+    for(auto p = std::next(vecPayments.begin()); p != vecPayments.end(); ++p) {
+        CTxDestination dest;
+        ExtractDestination(p->script, dest);
+
+        ss_addresses << "|" << EncodeDestination(dest);
+        ss_amounts << "|" << p->nAmount;
+        ss_proposals << "|" << p->proposalHash.ToString();
+    }
+
+    ss << "{";
+    ss << "\"event_block_height\": \"" << nBlockHeight << "\", ";
+    ss << "\"payment_addresses\": \"" << ss_addresses.str() << "\", ";
+    ss << "\"payment_amounts\": \"" << ss_amounts.str() << "\", ";
+    ss << "\"proposal_hashes\": \"" << ss_proposals.str() << "\", ";
+    ss << "\"type\":" << 2 << ", ";
+    ss << "}";
+
+    return HexStr(ss.str());
+}
+
 CGovernancePayment::CGovernancePayment(const CTxDestination& destIn, CAmount nAmountIn) :
         fValid(false),
         script(),
-        nAmount(0)
+        nAmount(0),
+        proposalHash(0)
 {
     try {
         script = GetScriptForDestination(destIn);

@@ -12,6 +12,7 @@
 #include <governance/classes.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
+#include <masternode/node.h>
 #include <masternode/sync.h>
 #include <net_processing.h>
 #include <netfulfilledman.h>
@@ -497,6 +498,132 @@ struct sortProposalsByVotes {
         return (UintToArith256(left.first->GetCollateralHash()) > UintToArith256(right.first->GetCollateralHash()));
     }
 };
+
+std::optional<CSuperblock> CGovernanceManager::SuperblockCreationAttempt(int nHeight) const
+{
+    int nLastSuperblock = {};
+    int nNextSuperblock = {};
+    CSuperblock::GetNearestSuperblocksHeights(nHeight, nLastSuperblock, nNextSuperblock);
+
+    auto SBEpochTime = BlockHeightToEpochTime(nCachedBlockHeight, nNextSuperblock);
+    auto governanceBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock);
+
+    // A proposal is considered passing if (YES votes) >= (Total Weight of Masternodes / 10),
+    // count total valid (ENABLED) masternodes to determine passing threshold.
+    const int nWeightedMnCount = deterministicMNManager->GetListAtChainTip().GetValidWeightedMNsCount();
+    const int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
+
+    // Use std::vector of std::shared_ptr<const CGovernanceObject> because CGovernanceObject don't support move operations (need for sorting the vector later)
+    std::vector<std::shared_ptr<const CGovernanceObject>> approvedProposals;
+
+    for (const auto& obj : mapObjects) {
+        // Skip all non-proposals objects
+        if (obj.second.GetObjectType() != GovernanceObject::PROPOSAL) continue;
+        const CGovernanceObject& proposal = obj.second;
+
+        const int absYesCount = proposal.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+        // Skip non-passing proposals
+        if (absYesCount < nAbsVoteReq) continue;
+
+        approvedProposals.push_back(std::make_shared<const CGovernanceObject>(proposal));
+    }
+
+    // Sort approved proposals by absolute Yes votes descending
+    std::sort(approvedProposals.begin(), approvedProposals.end(), [](std::shared_ptr<const CGovernanceObject> a, std::shared_ptr<const CGovernanceObject> b) {
+        return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+    });
+
+    if (approvedProposals.empty()) return std::nullopt;
+
+    std::vector<CGovernancePayment> payments;
+
+    CAmount budgetAllocated{};
+    for (const auto& proposal : approvedProposals) {
+        // Extract payment address and amount from proposal
+        UniValue jproposal = proposal->GetJSONObject();
+
+        CTxDestination dest = DecodeDestination(jproposal["payment_address"].getValStr());
+        if (!IsValidDestination(dest)) continue;
+
+        CAmount nAmount{};
+        try {
+            nAmount = ParsePaymentAmount(jproposal["payment_amount"].getValStr());
+        }
+        catch(std::runtime_error& e) {
+            continue;
+        }
+
+        // Construct CGovernancePayment object and make sure it is valid
+        CGovernancePayment payment(dest, nAmount);
+        if (!payment.IsValid()) continue;
+
+        // Skip proposals that are too expensive
+        if (budgetAllocated + payment.nAmount > governanceBudget) continue;
+
+        int64_t windowStart = jproposal["start_epoch"].get_int64() - GOVERNANCE_FUDGE_WINDOW;
+        int64_t windowEnd = jproposal["end_epoch"].get_int64() + GOVERNANCE_FUDGE_WINDOW;
+
+        // Skip proposals if the SB isn't within the proposal time window
+        if (SBEpochTime < windowStart || SBEpochTime > windowEnd) continue;
+
+        // Keep track of total budget allocation
+        budgetAllocated += payment.nAmount;
+
+        // Store proposal hash inside the payment
+        payment.proposalHash = proposal->GetHash();
+
+        // Add the payment
+        payments.push_back(payment);
+    }
+
+    // No proposals made the cut
+    if (payments.empty()) return std::nullopt;
+
+    // Sort by proposal hash descending
+    std::sort(payments.begin(), payments.end(), [](const CGovernancePayment& a, const CGovernancePayment& b) {
+        return UintToArith256(a.proposalHash) > UintToArith256(b.proposalHash);
+    });
+
+    // Create Superblock
+    CSuperblock sb(nNextSuperblock, payments);
+
+    return sb;
+}
+
+bool CGovernanceManager::GovernanceTriggerCreation(const CSuperblock& sb, CConnman& connman)
+{
+    //TODO: Check if nHashParentIn, nRevision and nCollateralHashIn are correct
+    CGovernanceObject gov_sb(uint256(), 1, GetAdjustedTime(), uint256(), sb.GetHexStrData());
+    {
+        LOCK(activeMasternodeInfoCs);
+        gov_sb.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
+        gov_sb.Sign(WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator));
+    }
+
+    bool fMissingConfirmations;
+    std::string strError;
+    {
+        LOCK(cs_main);
+        if (!gov_sb.IsValidLocally(strError, fMissingConfirmations, true) && !fMissingConfirmations) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Trigger created at height:%d is invalid:%s\n", __func__, sb.GetBlockHeight(), strError);
+            return false;
+        }
+    }
+
+    if (!governance->MasternodeRateCheck(gov_sb)) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Trigger rejected because of rate check failure hash(%s)\n", __func__, gov_sb.GetHash().ToString());
+        return false;
+    }
+
+    if (fMissingConfirmations) {
+        governance->AddPostponedObject(gov_sb);
+        gov_sb.Relay(connman);
+    } else {
+        governance->AddGovernanceObject(gov_sb, connman);
+    }
+
+    return true;
+}
 
 void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
@@ -1163,6 +1290,15 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CConnman& co
     // presumably never deleted.
     if (!pindex) {
         return;
+    }
+
+    if (pindex->nHeight % Params().GetConsensus().nSuperblockCycle >= (Params().GetConsensus().nSuperblockCycle - Params().GetConsensus().nSuperblockMaturityWindow)) {
+        if (fMasternodeMode && !fDisableGovernance) {
+            auto sb_opt = SuperblockCreationAttempt(pindex->nHeight);
+            if (sb_opt.has_value()) {
+                GovernanceTriggerCreation(sb_opt.value(), connman);
+            }
+        }
     }
 
     nCachedBlockHeight = pindex->nHeight;

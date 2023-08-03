@@ -169,3 +169,13 @@ const CBlockIndex* LastCommonAncestor(const CBlockIndex* pa, const CBlockIndex* 
     assert(pa == pb);
     return pa;
 }
+
+int64_t BlockHeightToEpochTime(int nTipHeight, int nHeight) {
+    int64_t future_secs = static_cast<int64_t>(nHeight - nTipHeight) * 2.62 * 60;
+
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(epoch);
+
+    return seconds.count() + future_secs;
+}

@@ -7,6 +7,7 @@
 
 #include <cachemap.h>
 #include <cachemultimap.h>
+#include <governance/classes.h>
 #include <governance/object.h>
 
 class CBloomFilter;
@@ -235,6 +236,9 @@ public:
     void SyncObjects(CNode& peer, PeerManager& peerman, CConnman& connman) const;
 
     void ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, std::string_view msg_type, CDataStream& vRecv);
+
+    std::optional<CSuperblock> SuperblockCreationAttempt(int nHeight) const;
+    bool GovernanceTriggerCreation(const CSuperblock& sb, CConnman& connman);
 
     void DoMaintenance(CConnman& connman);
 

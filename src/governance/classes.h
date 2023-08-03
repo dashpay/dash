@@ -23,6 +23,8 @@ using CSuperblock_sptr = std::shared_ptr<CSuperblock>;
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
 extern CGovernanceTriggerManager triggerman;
 
+CAmount ParsePaymentAmount(const std::string& strAmount);
+
 /**
 *   Trigger Manager
 *
@@ -80,11 +82,13 @@ private:
 public:
     CScript script;
     CAmount nAmount;
+    uint256 proposalHash;
 
     CGovernancePayment() :
         fValid(false),
         script(),
-        nAmount(0)
+        nAmount(0),
+        proposalHash(0)
     {
     }
 
@@ -124,6 +128,7 @@ private:
 
 public:
     CSuperblock();
+    CSuperblock(int nBlockHeight, std::vector<CGovernancePayment> vecPayments);
     explicit CSuperblock(uint256& nHash);
 
     static bool IsValidBlockHeight(int nBlockHeight);
@@ -132,6 +137,8 @@ public:
 
     SeenObjectStatus GetStatus() const { return nStatus; }
     void SetStatus(SeenObjectStatus nStatusIn) { nStatus = nStatusIn; }
+
+    std::string GetHexStrData() const;
 
     // TELL THE ENGINE WE EXECUTED THIS EVENT
     void SetExecuted() { nStatus = SeenObjectStatus::Executed; }
