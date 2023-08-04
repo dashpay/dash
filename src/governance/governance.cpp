@@ -510,7 +510,7 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     const int nWeightedMnCount = deterministicMNManager->GetListAtChainTip().GetValidWeightedMNsCount();
     const int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
 
-    // Use std::vector of std::shared_ptr<const CGovernanceObject> because CGovernanceObject don't support move operations (need for sorting the vector later)
+    // Use std::vector of std::shared_ptr<const CGovernanceObject> because CGovernanceObject doesn't support move operations (needed for sorting the vector later)
     std::vector<std::shared_ptr<const CGovernanceObject>> approvedProposals;
 
     for (const auto& [_, object] : mapObjects) {
