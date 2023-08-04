@@ -273,6 +273,7 @@ public:
     void Relay(CConnman& connman) const;
 
     uint256 GetHash() const;
+    uint256 GetDataHash() const;
 
     // GET VOTE COUNT FOR SIGNAL
 

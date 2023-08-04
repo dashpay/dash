@@ -429,6 +429,17 @@ CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash
     return nullptr;
 }
 
+bool CGovernanceManager::HasGovernanceObjectByDataHash(const uint256 &nHash)
+{
+    LOCK(cs);
+
+    for (const auto& [unused, object] : mapObjects) {
+        if (object.GetDataHash() == nHash) return true;
+    }
+
+    return false;
+}
+
 std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const
 {
     LOCK(cs);
@@ -604,7 +615,7 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
 
     std::string strError;
     if (LOCK(cs_main); !gov_sb.IsValidLocally(strError, true)) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Trigger created at height:%d is invalid:%s\n", __func__, sb.GetBlockHeight(), strError);
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Identical trigger already created\n", __func__);
         return;
     }
 
@@ -613,7 +624,53 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
         return;
     }
 
+    // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
+    if (governance->HasGovernanceObjectByDataHash(gov_sb.GetDataHash())) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Identical trigger already created\n", __func__);
+        return;
+    }
+
     governance->AddGovernanceObject(gov_sb, connman);
+
+    // Vote YES-FUNDING for the newly created trigger
+    {
+        CGovernanceVote vote(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.outpoint), gov_sb.GetHash(), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES);
+        vote.SetTime(GetAdjustedTime());
+        vote.Sign(WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator));
+
+        if (!vote.IsValid()) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote YES-FUNDING for trigger is invalid:%s\n", __func__, gov_sb.GetHash().ToString());
+            return;
+        }
+
+        CGovernanceException exception;
+        if (!governance->ProcessVoteAndRelay(vote, exception, connman)) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting YES-FUNDING for trigger:%s failed:%s\n", __func__, gov_sb.GetHash().ToString(), exception.GetMessage());
+            return;
+        }
+    }
+
+    // Vote NO-FUNDING for the rest of the active triggers
+    auto activeTriggers = triggerman.GetActiveTriggers();
+    for (const auto& trigger : activeTriggers) {
+        if (trigger->GetHash() == gov_sb.GetHash()) continue; // Skip actual trigger
+
+        CGovernanceVote vote(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.outpoint), trigger->GetHash(), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_NO);
+        vote.SetTime(GetAdjustedTime());
+        vote.Sign(WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator));
+
+        if (!vote.IsValid()) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote NO-FUNDING for trigger is invalid:%s\n", __func__, trigger->GetHash().ToString());
+            return;
+        }
+
+        CGovernanceException exception;
+        if (!governance->ProcessVoteAndRelay(vote, exception, connman)) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting NO-FUNDING for trigger:%s failed:%s\n", __func__, trigger->GetHash().ToString(), exception.GetMessage());
+            return;
+        }
+
+    }
 }
 
 void CGovernanceManager::DoMaintenance(CConnman& connman)
