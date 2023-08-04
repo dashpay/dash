@@ -599,7 +599,7 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
     {
         LOCK(activeMasternodeInfoCs);
         gov_sb.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
-        gov_sb.Sign(WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator));
+        gov_sb.Sign( *activeMasternodeInfo.blsKeyOperator);
     }
 
     std::string strError;
