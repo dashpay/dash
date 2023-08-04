@@ -513,7 +513,7 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     // Use std::vector of std::shared_ptr<const CGovernanceObject> because CGovernanceObject doesn't support move operations (needed for sorting the vector later)
     std::vector<std::shared_ptr<const CGovernanceObject>> approvedProposals;
 
-    for (const auto& [_, object] : mapObjects) {
+    for (const auto& [unused, object] : mapObjects) {
         // Skip all non-proposals objects
         if (object.GetObjectType() != GovernanceObject::PROPOSAL) continue;
 
