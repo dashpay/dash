@@ -645,7 +645,7 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
 
         CGovernanceException exception;
         if (!governance->ProcessVoteAndRelay(vote, exception, connman)) {
-            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting YES-FUNDING for trigger:%s failed:%s\n", __func__, gov_sb.GetHash().ToString(), exception.GetMessage());
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting YES-FUNDING for trigger:%s failed:%s\n", __func__, gov_sb.GetHash().ToString(), exception.what());
             return;
         }
     }
