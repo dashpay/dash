@@ -117,10 +117,10 @@ private:
 
     CAutoFile OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
-    bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const MessageStartChars& messageStart) const;
+    bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos) const;
     /** Size field of the record already stored at pos */
     std::optional<uint32_t> StoredBlockSizeField(const FlatFilePos& pos) const;
-    bool UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const MessageStartChars& messageStart) const;
+    bool UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock) const;
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
     void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height);
