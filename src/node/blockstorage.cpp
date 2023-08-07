@@ -521,7 +521,7 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
     return &m_blockfile_info.at(n);
 }
 
-bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const MessageStartChars& messageStart) const
+bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock) const
 {
     // Open history file to append
     CAutoFile fileout{OpenUndoFile(pos)};
@@ -531,7 +531,7 @@ bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, const std::optio
     }
 
     // Write index header
-    fileout << messageStart << size_field;
+    fileout << GetParams().MessageStart() << size_field;
 
     // Write undo data
     const int64_t fileOutPos{FileTell64(fileout.Get())};
@@ -795,7 +795,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     return true;
 }
 
-bool BlockManager::WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const MessageStartChars& messageStart) const
+bool BlockManager::WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos) const
 {
     // Open history file to append
     CAutoFile fileout{OpenBlockFile(pos)};
@@ -805,7 +805,7 @@ bool BlockManager::WriteBlockToDisk(Span<const std::byte> payload, uint32_t size
     }
 
     // Write index header
-    fileout << messageStart << size_field;
+    fileout << GetParams().MessageStart() << size_field;
 
     // Write block
     const int64_t fileOutPos{FileTell64(fileout.Get())};
@@ -865,7 +865,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
             return false;
         }
         if (compressed) m_have_compressed_records = true;
-        if (!UndoWriteToDisk(blockundo, compressed, size_field, _pos, block.pprev->GetBlockHash(), GetParams().MessageStart())) {
+        if (!UndoWriteToDisk(blockundo, compressed, size_field, _pos, block.pprev->GetBlockHash())) {
             return FatalError(m_opts.notifications, state, "Failed to write undo data");
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)
@@ -1000,7 +1000,7 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, cons
     }
     if (!position_known) {
         if (size_field & BLOCK_RECORD_COMPRESSED) m_have_compressed_records = true;
-        if (!WriteBlockToDisk(MakeByteSpan(payload), size_field, blockPos, GetParams().MessageStart())) {
+        if (!WriteBlockToDisk(MakeByteSpan(payload), size_field, blockPos)) {
             m_opts.notifications.fatalError("Failed to write block");
             return FlatFilePos();
         }
