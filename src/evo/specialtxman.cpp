@@ -430,7 +430,7 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
             // and the new one is added like a completely fresh one, which is also at the bottom of the payment list
             newList.RemoveMN(replacedDmn->proTxHash);
             if (debugLogs) {
-                LogPrintf("%s -- MN %s removed from list because collateral was used for " /* Continued */
+                LogPrintf("%s -- MN %s removed from list because collateral was used for "
                           "a new ProRegTx. collateralOutpoint=%s, nHeight=%d, mapCurMNs.allMNsCount=%d\n",
                           __func__, replacedDmn->proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort(),
                           nHeight, newList.GetCounts().total());
@@ -794,7 +794,7 @@ bool CSpecialTxProcessor::FinishListForBlock(const CBlock& block, gsl::not_null<
                 newList.RemoveMN(dmn->proTxHash);
 
                 if (debugLogs) {
-                    LogPrintf("%s -- MN %s removed from list because collateral was spent. " /* Continued */
+                    LogPrintf("%s -- MN %s removed from list because collateral was spent. "
                               "collateralOutpoint=%s, nHeight=%d, mapCurMNs.allMNsCount=%d\n",
                               __func__, dmn->proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort(), nHeight,
                               newList.GetCounts().total());

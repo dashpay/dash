@@ -134,7 +134,7 @@ static void double_lock_detected(const void* mutex, const LockStack& lock_stack)
     LogPrintf("Lock order:\n");
     for (const LockStackItem& i : lock_stack) {
         if (i.first == mutex) {
-            LogPrintf(" (*)"); /* Continued */
+            LogPrintf(" (*)"); // NOLINT(bitcoin-unterminated-logprintf)
         }
         LogPrintf(" %s\n", i.second.ToString());
     }

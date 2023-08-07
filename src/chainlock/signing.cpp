@@ -149,7 +149,7 @@ void ChainLockSigner::TrySignChainTip()
 
             for (const auto& txid : *txids) {
                 if (!m_clhandler.IsTxSafeForMining(txid) && !m_isman.IsLocked(txid)) {
-                    LogPrint(BCLog::CHAINLOCKS, /* Continued */
+                    LogPrint(BCLog::CHAINLOCKS,
                              "%s -- not signing block %s due to TX %s not being islocked and not old enough.\n",
                              __func__, pindexWalk->GetBlockHash().ToString(), txid.ToString());
                     return;
