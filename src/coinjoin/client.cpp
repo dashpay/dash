@@ -1042,7 +1042,7 @@ CDeterministicMNCPtr CCoinJoinClientManager::GetRandomNotUsedMasternode()
     return nullptr;
 }
 
-int CCoinJoinClientSession::WinnersToSkip()
+static int WinnersToSkip()
 {
     return (Params().NetworkIDString() == CBaseChainParams::DEVNET ||
             Params().NetworkIDString() == CBaseChainParams::REGTEST)

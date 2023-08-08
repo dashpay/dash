@@ -99,7 +99,6 @@ private:
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
 
-    int WinnersToSkip();
     bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
     bool StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
 
