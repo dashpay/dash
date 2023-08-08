@@ -1042,18 +1042,19 @@ CDeterministicMNCPtr CCoinJoinClientManager::GetRandomNotUsedMasternode()
     return nullptr;
 }
 
+int CCoinJoinClientSession::WinnersToSkip()
+{
+    return (Params().NetworkIDString() == CBaseChainParams::DEVNET ||
+            Params().NetworkIDString() == CBaseChainParams::REGTEST)
+            ? 0 : 8;
+}
+
 bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
     if (coinJoinClientQueueManager == nullptr) return false;
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
-
-    int winners_to_skip{8};
-
-    if (Params().NetworkIDString() == CBaseChainParams::DEVNET || Params().NetworkIDString() == CBaseChainParams::REGTEST) {
-        winners_to_skip = 0;
-    }
 
     // Look through the queues and see if anything matches
     CCoinJoinQueue dsq;
@@ -1066,7 +1067,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         }
 
         // skip next mn payments winners
-        if (dmn->pdmnState->nLastPaidHeight + int(mnList.GetValidMNsCount()) < mnList.GetHeight() + winners_to_skip) {
+        if (dmn->pdmnState->nLastPaidHeight + int(mnList.GetValidMNsCount()) < mnList.GetHeight() + WinnersToSkip()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::JoinExistingQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             continue;
         }
@@ -1138,7 +1139,7 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         coinJoinClientManagers.at(mixingWallet.GetName())->AddUsedMasternode(dmn->collateralOutpoint);
 
         // skip next mn payments winners
-        if (dmn->pdmnState->nLastPaidHeight + nMnCount < mnList.GetHeight() + 8) {
+        if (dmn->pdmnState->nLastPaidHeight + nMnCount < mnList.GetHeight() + WinnersToSkip()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::StartNewQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             nTries++;
             continue;
