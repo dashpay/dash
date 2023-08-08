@@ -540,14 +540,17 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
         return a->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > b->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
     });
 
-    if (approvedProposals.empty()) return std::nullopt;
+    if (approvedProposals.empty()) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s nHeight:%d empty approvedProposals\n", __func__, nHeight);
+        return std::nullopt;
+    }
 
     std::vector<CGovernancePayment> payments;
     int nLastSuperblock;
     int nNextSuperblock;
 
     CSuperblock::GetNearestSuperblocksHeights(nHeight, nLastSuperblock, nNextSuperblock);
-    auto SBEpochTime = count_seconds(GetTime<std::chrono::seconds>()) + (nNextSuperblock - nHeight) * 2.62 * 60;
+    auto SBEpochTime = static_cast<int64_t>(count_seconds(GetTime<std::chrono::seconds>()) + (nNextSuperblock - nHeight) * 2.62 * 60);
     auto governanceBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock);
 
     CAmount budgetAllocated{};
@@ -563,6 +566,7 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
             nAmount = ParsePaymentAmount(jproposal["payment_amount"].getValStr());
         }
         catch (const std::runtime_error& e) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s nHeight:%d Skipping payment exception:%s\n", __func__,nHeight, e.what());
             continue;
         }
 
@@ -577,7 +581,14 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
         int64_t windowEnd = jproposal["end_epoch"].get_int64() + GOVERNANCE_FUDGE_WINDOW;
 
         // Skip proposals if the SB isn't within the proposal time window
-        if (SBEpochTime < windowStart || SBEpochTime > windowEnd) continue;
+        if (SBEpochTime < windowStart) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s nHeight:%d SB:%d windowStart:%d\n", __func__,nHeight, SBEpochTime, windowStart);
+            continue;
+        }
+        if (SBEpochTime > windowEnd) {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s nHeight:%d SB:%d windowEnd:%d\n", __func__,nHeight, SBEpochTime, windowEnd);
+            continue;
+        }
 
         // Keep track of total budget allocation
         budgetAllocated += payment.nAmount;
@@ -590,7 +601,10 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     }
 
     // No proposals made the cut
-    if (payments.empty()) return std::nullopt;
+    if (payments.empty()) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s CreateSuperblockCandidate nHeight:%d empty payments\n", __func__, nHeight);
+        return std::nullopt;
+    }
 
     // Sort by proposal hash descending
     std::sort(payments.begin(), payments.end(), [](const CGovernancePayment& a, const CGovernancePayment& b) {
@@ -606,6 +620,8 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
 void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman& connman)
 {
     //TODO: Check if nHashParentIn, nRevision and nCollateralHashIn are correct
+    LOCK(cs_main);
+    LOCK(governance->cs);
     CGovernanceObject gov_sb(uint256(), 1, GetAdjustedTime(), uint256(), sb.GetHexStrData());
     {
         LOCK(activeMasternodeInfoCs);
@@ -614,8 +630,8 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
     }
 
     std::string strError;
-    if (LOCK(cs_main); !gov_sb.IsValidLocally(strError, true)) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Identical trigger already created\n", __func__);
+    if (!gov_sb.IsValidLocally(strError, true)) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Created trigger is invalid:%s\n", __func__, strError);
         return;
     }
 

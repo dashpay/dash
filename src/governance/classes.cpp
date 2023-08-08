@@ -707,16 +707,19 @@ std::string CSuperblock::GetHexStrData() const
         ExtractDestination(payment.script, dest);
         return EncodeDestination(dest);
     });
-    std::string str_amounts = Join(vecPayments, "|", [&](const auto& payment) { return ToString(payment.nAmount); });
+    std::string str_amounts = Join(vecPayments, "|", [&](const auto& payment) {
+        double a = static_cast<double>(payment.nAmount / COIN);
+        return ToString(a);
+    });
     std::string str_hashes = Join(vecPayments, "|", [&](const auto& payment) { return payment.proposalHash.ToString(); });
 
     std::stringstream ss;
     ss << "{";
-    ss << "\"event_block_height\": \"" << nBlockHeight << "\", ";
+    ss << "\"event_block_height\": " << nBlockHeight << ", ";
     ss << "\"payment_addresses\": \"" << str_addresses << "\", ";
     ss << "\"payment_amounts\": \"" << str_amounts << "\", ";
     ss << "\"proposal_hashes\": \"" << str_hashes << "\", ";
-    ss << "\"type\":" << 2 << ", ";
+    ss << "\"type\":" << 2;
     ss << "}";
 
     return HexStr(ss.str());
