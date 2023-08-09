@@ -520,9 +520,9 @@ void CSuperblock::ParsePaymentSchedule(const std::string& strPaymentAddresses, c
 
     // IF THESE DON'T MATCH, SOMETHING IS WRONG
 
-    if (vecParsed1.size() != vecParsed2.size() || vecParsed1.size() != vecParsed3.size() || vecParsed2.size() != vecParsed3.size()) {
+    if (vecParsed1.size() != vecParsed2.size() || vecParsed1.size() != vecParsed3.size()) {
         std::ostringstream ostr;
-        ostr << "CSuperblock::ParsePaymentSchedule -- Mismatched payments and amounts";
+        ostr << "CSuperblock::ParsePaymentSchedule -- Mismatched payments, amounts and proposalHashes";
         LogPrintf("%s\n", ostr.str());
         throw std::runtime_error(ostr.str());
     }
