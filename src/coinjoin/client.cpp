@@ -1054,7 +1054,8 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
     if (coinJoinClientQueueManager == nullptr) return false;
 
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+    const auto mnList = deterministicMNManager->GetListAtChainTip();
+    const int nWeightedMnCount = mnList.GetValidWeightedMNsCount();
 
     // Look through the queues and see if anything matches
     CCoinJoinQueue dsq;
@@ -1067,7 +1068,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         }
 
         // skip next mn payments winners
-        if (dmn->pdmnState->nLastPaidHeight + int(mnList.GetValidMNsCount()) < mnList.GetHeight() + WinnersToSkip()) {
+        if (dmn->pdmnState->nLastPaidHeight + nWeightedMnCount < mnList.GetHeight() + WinnersToSkip()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::JoinExistingQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             continue;
         }
@@ -1114,8 +1115,9 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
     if (nBalanceNeedsAnonymized <= 0) return false;
 
     int nTries = 0;
-    auto mnList = deterministicMNManager->GetListAtChainTip();
-    int nMnCount = mnList.GetValidMNsCount();
+    const auto mnList = deterministicMNManager->GetListAtChainTip();
+    const int nMnCount = mnList.GetValidMNsCount();
+    const int nWeightedMnCount = mnList.GetValidWeightedMNsCount();
 
     // find available denominated amounts
     std::set<CAmount> setAmounts;
@@ -1139,7 +1141,7 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         coinJoinClientManagers.at(mixingWallet.GetName())->AddUsedMasternode(dmn->collateralOutpoint);
 
         // skip next mn payments winners
-        if (dmn->pdmnState->nLastPaidHeight + nMnCount < mnList.GetHeight() + WinnersToSkip()) {
+        if (dmn->pdmnState->nLastPaidHeight + nWeightedMnCount < mnList.GetHeight() + WinnersToSkip()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::StartNewQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             nTries++;
             continue;
