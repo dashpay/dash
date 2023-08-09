@@ -7,6 +7,7 @@
 import json
 import time
 
+from test_framework.util import assert_equal, assert_greater_than
 from test_framework.messages import uint256_to_string
 from test_framework.test_framework import DashTestFramework
 
@@ -87,6 +88,8 @@ class DashGovernanceTest (DashTestFramework):
             4: "endorsed"
         }
 
+        assert_equal(len(self.nodes[0].gobject("list-prepared")), 0)
+
         p0_collateral_prepare = self.prepare_object(object_type, uint256_to_string(0), proposal_time, 1, "Proposal_1", 1, payout_address)
         p1_collateral_prepare = self.prepare_object(object_type, uint256_to_string(0), proposal_time, 1, "Proposal_2", 3, payout_address)
 
@@ -95,15 +98,55 @@ class DashGovernanceTest (DashTestFramework):
         self.nodes[0].generate(6)
         self.sync_blocks()
 
-        self.log.info("#### list-prepared:"+str(self.nodes[0].gobject("list-prepared")))
+        assert_equal(len(self.nodes[0].gobject("list-prepared")), 2)
+        assert_equal(len(self.nodes[0].gobject("list")), 0)
 
         p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
         p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
 
-        self.nodes[0].gobject("vote-many", p0_hash, map_vote_signals[1], map_vote_outcomes[1])
-        self.nodes[0].gobject("vote-many", p1_hash, map_vote_signals[1], map_vote_outcomes[1])
+        assert_equal(len(self.nodes[0].gobject("list")), 2)
 
-        for i in range(4):
+        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["YesCount"], 0)
+        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["NoCount"], 0)
+
+        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], 0)
+        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 0)
+
+        self.nodes[0].gobject("vote-many", p0_hash, map_vote_signals[1], map_vote_outcomes[1])
+        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["YesCount"], self.mn_count)
+        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["NoCount"], 0)
+
+        self.nodes[0].gobject("vote-many", p1_hash, map_vote_signals[1], map_vote_outcomes[1])
+        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], self.mn_count)
+        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 0)
+
+        assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
+
+        block_count = self.nodes[0].getblockcount()
+        sb_cycle = 10
+        sb_maturity_window = 2
+        sb_maturity_cycle = sb_cycle - sb_maturity_window
+
+        # Move until 1 block before the Superblock maturity window starts
+        n = sb_maturity_cycle - block_count % sb_cycle
+        self.nodes[0].generate(n - 1)
+        self.sync_blocks(nodes)
+        time.sleep(1)
+
+        assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
+
+        # Move 1 block enabling the Superblock maturity window
+        self.nodes[0].generate(1)
+        self.sync_blocks(nodes)
+        time.sleep(1)
+
+        assert_greater_than(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
+
+        block_count = self.nodes[0].getblockcount()
+        n = sb_cycle - block_count % sb_cycle
+
+        # Move remaining n blocks until actual Superblock
+        for i in range(n):
             time.sleep(1)
             self.nodes[0].generate(1)
             self.sync_blocks(nodes)
