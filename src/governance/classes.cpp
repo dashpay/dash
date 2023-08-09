@@ -385,13 +385,6 @@ void CSuperblockManager::ExecuteBestSuperblock(CGovernanceManager& governanceMan
         // All checks are done in CSuperblock::IsValid via IsBlockValueValid and IsBlockPayeeValid,
         // tip wouldn't be updated if anything was wrong. Mark this trigger as executed.
         pSuperblock->SetExecuted();
-        // Remove all used Governance objects: approved Proposal and executed trigger
-        auto proposals = pSuperblock->GetProposalHashes();
-        for (const auto& h : proposals) {
-            governanceManager.DeleteGovernanceObject(h);
-        }
-        auto trigger = pSuperblock->GetGovernanceObject(governanceManager);
-        governanceManager.DeleteGovernanceObject(trigger->GetHash());
     }
 }
 
