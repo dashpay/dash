@@ -440,6 +440,15 @@ bool CGovernanceManager::HasGovernanceObjectByDataHash(const uint256 &nHash)
     return false;
 }
 
+void CGovernanceManager::DeleteGovernanceObject(const uint256& nHash)
+{
+    LOCK(cs);
+
+    if (mapObjects.count(nHash)) {
+        mapObjects.erase(nHash);
+    }
+}
+
 std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const
 {
     LOCK(cs);
@@ -641,12 +650,9 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
     }
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
-    if (governance->HasGovernanceObjectByDataHash(gov_sb.GetDataHash())) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Identical trigger already created\n", __func__);
-        return;
+    if (!governance->HasGovernanceObjectByDataHash(gov_sb.GetDataHash())) {
+        governance->AddGovernanceObject(gov_sb, connman);
     }
-
-    governance->AddGovernanceObject(gov_sb, connman);
 
     // Vote YES-FUNDING for the newly created trigger
     {

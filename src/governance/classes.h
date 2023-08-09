@@ -156,6 +156,8 @@ public:
 
     bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
     bool IsExpired(const CGovernanceManager& governanceManager) const;
+
+    std::vector<uint256> GetProposalHashes() const;
 };
 
 #endif // BITCOIN_GOVERNANCE_CLASSES_H

@@ -244,6 +244,7 @@ public:
 
     CGovernanceObject* FindGovernanceObject(const uint256& nHash);
     bool HasGovernanceObjectByDataHash(const uint256& nHash);
+    void DeleteGovernanceObject(const uint256& nHash);
 
     // These commands are only used in RPC
     std::vector<CGovernanceVote> GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const;
