@@ -1046,7 +1046,7 @@ static int WinnersToSkip()
 {
     return (Params().NetworkIDString() == CBaseChainParams::DEVNET ||
             Params().NetworkIDString() == CBaseChainParams::REGTEST)
-            ? 0 : 8;
+            ? 1 : 8;
 }
 
 bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
