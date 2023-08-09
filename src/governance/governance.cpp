@@ -580,7 +580,7 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
         }
 
         // Construct CGovernancePayment object and make sure it is valid
-        CGovernancePayment payment(dest, nAmount);
+        CGovernancePayment payment(dest, nAmount, proposal->GetHash());
         if (!payment.IsValid()) continue;
 
         // Skip proposals that are too expensive
@@ -601,9 +601,6 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
 
         // Keep track of total budget allocation
         budgetAllocated += payment.nAmount;
-
-        // Store proposal hash inside the payment
-        payment.proposalHash = proposal->GetHash();
 
         // Add the payment
         payments.push_back(payment);

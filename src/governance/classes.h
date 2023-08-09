@@ -92,7 +92,7 @@ public:
     {
     }
 
-    CGovernancePayment(const CTxDestination& destIn, CAmount nAmountIn);
+    CGovernancePayment(const CTxDestination& destIn, CAmount nAmountIn, const uint256& proposalHash);
 
     bool IsValid() const { return fValid; }
 };
@@ -124,7 +124,7 @@ private:
     SeenObjectStatus nStatus;
     std::vector<CGovernancePayment> vecPayments;
 
-    void ParsePaymentSchedule(const std::string& strPaymentAddresses, const std::string& strPaymentAmounts);
+    void ParsePaymentSchedule(const std::string& strPaymentAddresses, const std::string& strPaymentAmounts, const std::string& strProposalHashes);
 
 public:
     CSuperblock();
