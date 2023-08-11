@@ -189,7 +189,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
         ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
             if (dmn->pdmnState->nLastPaidHeight == nHeight) {
                 // We found the last MN Payee.
-                // If the last payee is a Evo, we need to check its consecutive payments and pay him again if needed
+                // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
                 if (dmn->nType == MnType::Evo && dmn->pdmnState->nConsecutivePayments < dmn_types::Evo.voting_weight) {
                     best = dmn;
                 }
@@ -198,7 +198,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
 
         if (best != nullptr) return best;
 
-        // Note: If the last payee was a regular MN or if the payee is a Evo that was removed from the mnList then that's fine.
+        // Note: If the last payee was a regular MN or if the payee is an EvoNode that was removed from the mnList then that's fine.
         // We can proceed with classic MN payee selection
     }
 
@@ -945,8 +945,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         auto dmn = newList.GetMN(payee->proTxHash);
         auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
         newState->nLastPaidHeight = nHeight;
-        // Starting from v19 and until MNRewardReallocation, HPMN will be paid 4 blocks in a row
-        // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
+        // Starting from v19 and until MNRewardReallocation, EvoNodes will be paid 4 blocks in a row
+        // No need to check if v19 is active, since EvoNode ProRegTxes are allowed only after v19 activation
         // Note: If the payee wasn't found in the current block that's fine
         if (dmn->nType == MnType::Evo && !isMNRewardReallocation) {
             ++newState->nConsecutivePayments;

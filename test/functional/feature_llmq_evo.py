@@ -117,7 +117,7 @@ class LLMQEvoNodesTest(DashTestFramework):
         self.activate_mn_rr()
         self.log.info("Activated MN RewardReallocation at height:" + str(self.nodes[0].getblockcount()))
 
-        # Generate a few blocks to make HPMN/MN analysis on a pure MN RewardReallocation window
+        # Generate a few blocks to make EvoNode/MN analysis on a pure MN RewardReallocation window
         self.bump_mocktime(1)
         self.nodes[0].generate(4)
         self.sync_blocks()
@@ -159,7 +159,7 @@ class LLMQEvoNodesTest(DashTestFramework):
                     current_evo = payee
                     assert_equal(consecutive_payments, consecutive_payments_rpc)
             else:
-                # not a EvoNode
+                # not an EvoNode
                 if current_evo is not None:
                     # make sure the old one was paid N times in a row
                     assert_equal(consecutive_payments, n_payments)
