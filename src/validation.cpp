@@ -91,7 +91,6 @@
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 using kernel::ComputeUTXOStats;
-using kernel::LoadMempool;
 using kernel::Notifications;
 
 using fsbridge::FopenFn;
@@ -5172,13 +5171,6 @@ void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight
     if (!active_chainstate.FlushStateToDisk(state, FlushStateMode::NONE, nManualPruneHeight)) {
         LogPrintf("%s: failed to flush state (%s)\n", __func__, state.ToString());
     }
-}
-
-void Chainstate::LoadMempool(const fs::path& load_path, FopenFn mockable_fopen_function)
-{
-    if (!m_mempool) return;
-    ::LoadMempool(*m_mempool, load_path, *this, mockable_fopen_function);
-    m_mempool->SetLoadTried(!ShutdownRequested());
 }
 
 bool Chainstate::LoadChainTip()
