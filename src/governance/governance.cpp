@@ -659,7 +659,7 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
 
     // Vote YES-FUNDING for the newly created trigger
     if (!VoteFundingTrigger(gov_sb.GetHash(), VOTE_OUTCOME_YES, connman)) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting YES-FUNDING for new trigger:%s failed:%s\n", __func__, gov_sb.GetHash().ToString());
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting YES-FUNDING for new trigger:%s failed\n", __func__, gov_sb.GetHash().ToString());
         return;
     }
 
@@ -671,7 +671,7 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
         if (trigger->GetHash() == gov_sb.GetHash()) continue; // Skip actual trigger
 
         if (!VoteFundingTrigger(trigger->GetHash(), VOTE_OUTCOME_NO, connman)) {
-            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting NO-FUNDING for trigger:%s failed:%s\n", __func__, trigger->GetHash().ToString());
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting NO-FUNDING for trigger:%s failed\n", __func__, trigger->GetHash().ToString());
             return;
         }
 
@@ -685,13 +685,13 @@ bool CGovernanceManager::VoteFundingTrigger(const uint256& nHash, const vote_out
     vote.Sign(WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator));
 
     if (!vote.IsValid()) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING for trigger is invalid:%s\n", __func__, outcome, nHash.ToString());
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING %d for trigger:%s is invalid\n", __func__, outcome, nHash.ToString());
         return false;
     }
 
     CGovernanceException exception;
     if (!governance->ProcessVoteAndRelay(vote, exception, connman)) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting FUNDING for trigger:%s failed:%s\n", __func__, outcome, nHash.ToString(), exception.what());
+        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING %d for trigger:%s failed:%s\n", __func__, outcome, nHash.ToString(), exception.what());
         return false;
     }
 
