@@ -172,6 +172,8 @@ private:
     // keep track of the scanning errors
     std::map<uint256, CGovernanceObject> mapObjects;
 
+    std::optional<uint256> votedFundingYesTriggerHash;
+
     // mapErasedGovernanceObjects contains key-value pairs, where
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
@@ -239,6 +241,9 @@ public:
 
     std::optional<CSuperblock> CreateSuperblockCandidate(int nHeight) const;
     void CreateGovernanceTrigger(const CSuperblock& sb, CConnman& connman);
+    bool VoteFundingTrigger(const uint256& nHash, const vote_outcome_enum_t outcome, CConnman& connman);
+    bool HasAlreadyVotedFundingTrigger() const;
+    void ResetVotedFundingTrigger();
 
     void DoMaintenance(CConnman& connman);
 
