@@ -9,6 +9,8 @@
 #include <core_io.h>
 #include <key_io.h>
 #include <rpc/util.h>
+#include <script/script.h>
+#include <script/solver.h>
 #include <util/bip32.h>
 #include <util/translation.h>
 #include <wallet/receive.h>
@@ -393,11 +395,11 @@ public:
         return obj;
     }
 
-    UniValue operator()(const ScriptHash& scriptHash) const {
-        CScriptID scriptID(scriptHash);
+    UniValue operator()(const ScriptHash& scripthash) const
+    {
         UniValue obj(UniValue::VOBJ);
         CScript subscript;
-        if (provider && provider->GetCScript(scriptID, subscript)) {
+        if (provider && provider->GetCScript(ToScriptID(scripthash), subscript)) {
             ProcessSubScript(subscript, obj);
         }
         return obj;

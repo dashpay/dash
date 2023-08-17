@@ -4,6 +4,7 @@
 
 #include <test/util/setup_common.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/tx_check.h>
@@ -18,7 +19,7 @@
 #include <policy/policy.h>
 #include <script/script.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <util/ranges_set.h>

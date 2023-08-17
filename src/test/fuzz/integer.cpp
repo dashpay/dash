@@ -20,8 +20,8 @@
 #include <pow.h>
 #include <protocol.h>
 #include <pubkey.h>
+#include <script/script.h>
 #include <script/sign.h>
-#include <script/standard.h>
 #include <serialize.h>
 #include <streams.h>
 #include <test/fuzz/FuzzedDataProvider.h>

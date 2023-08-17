@@ -14,6 +14,7 @@
 #include <pow.h>
 #include <primitives/block.h>
 #include <script/script.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <test/util/random.h>
 #include <tinyformat.h>

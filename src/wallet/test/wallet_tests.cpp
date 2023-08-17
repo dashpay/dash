@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <vector>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <coinjoin/client.h>
@@ -30,6 +31,7 @@
 #include <policy/settings.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
+#include <script/solver.h>
 #include <test/util/index.h>
 #include <test/util/logging.h>
 #include <test/util/masternode.h>

@@ -5,6 +5,7 @@
 #include <common/args.h>
 #include <qt/test/masternodetestutil.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <common/system.h>
@@ -17,7 +18,6 @@
 #include <key_io.h>
 #include <node/context.h>
 #include <script/descriptor.h>
-#include <script/standard.h>
 #include <sync.h>
 #include <test/util/setup_common.h>
 #include <validation.h>

@@ -10,6 +10,8 @@
 #include <crypto/common.h>
 #include <prevector.h>
 #include <serialize.h>
+#include <uint256.h>
+#include <util/hash_type.h>
 
 #include <assert.h>
 #include <climits>
@@ -545,6 +547,15 @@ public:
         CScriptBase::clear();
         shrink_to_fit();
     }
+};
+
+/** A reference to a CScript: the Hash160 of its serialization */
+class CScriptID : public BaseHash<uint160>
+{
+public:
+    CScriptID() : BaseHash() {}
+    explicit CScriptID(const CScript& in);
+    explicit CScriptID(const uint160& in) : BaseHash(in) {}
 };
 
 bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode);

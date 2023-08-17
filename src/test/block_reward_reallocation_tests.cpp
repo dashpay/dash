@@ -14,7 +14,7 @@
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <node/miner.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>

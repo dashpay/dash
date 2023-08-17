@@ -4,10 +4,10 @@
 
 #include <qt/clientfeeds.h>
 
+#include <addresstype.h>
 #include <coins.h>
 #include <governance/object.h>
 #include <key_io.h>
-#include <script/standard.h>
 #include <util/threadnames.h>
 #include <util/time.h>
 

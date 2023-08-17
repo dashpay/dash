@@ -5,6 +5,7 @@
 #include <test/util/masternode.h>
 #include <test/util/setup_common.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/merkle.h>
@@ -32,7 +33,7 @@
 #include <script/interpreter.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>

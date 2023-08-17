@@ -17,6 +17,7 @@
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/signingprovider.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <test/util/json.h>
 #include <test/util/random.h>

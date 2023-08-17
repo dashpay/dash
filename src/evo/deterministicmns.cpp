@@ -4,6 +4,7 @@
 
 #include <evo/deterministicmns.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/validation.h>
@@ -17,7 +18,6 @@
 #include <kernel/notifications_interface.h>
 #include <masternode/meta.h>
 #include <node/blockstorage.h>
-#include <script/standard.h>
 #include <stats/client.h>
 #include <uint256.h>
 #include <util/helpers.h>

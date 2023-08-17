@@ -7,6 +7,7 @@
 #include <test/util/json.h>
 #include <test/util/setup_common.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -18,7 +19,6 @@
 #include <key.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
-#include <script/standard.h>
 #include <util/std23.h>
 #include <validation.h>
 

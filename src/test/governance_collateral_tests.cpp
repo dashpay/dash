@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <addresstype.h>
 #include <consensus/validation.h>
 #include <dbwrapper.h>
 #include <governance/collateral.h>
@@ -11,7 +12,7 @@
 #include <key.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <util/strencodings.h>
 #include <validation.h>
 #include <validationinterface.h>

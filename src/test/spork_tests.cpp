@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <addresstype.h>
 #include <key.h>
 #include <key_io.h>
 #include <protocol.h>
-#include <script/standard.h>
 #include <spork.h>
 #include <timedata.h>
 

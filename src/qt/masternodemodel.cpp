@@ -4,6 +4,7 @@
 
 #include <qt/masternodemodel.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <evo/types.h>
@@ -11,7 +12,6 @@
 #include <key_io.h>
 #include <pubkey.h>
 #include <script/script.h>
-#include <script/standard.h>
 
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>

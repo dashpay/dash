@@ -4,6 +4,7 @@
 
 #include <test/util/masternode.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
 #include <evo/providertx.h>
@@ -12,7 +13,6 @@
 #include <script/interpreter.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
 #include <sync.h>
 #include <tinyformat.h>
 #include <util/check.h>

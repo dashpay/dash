@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <key_io.h>
 #include <script/descriptor.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
