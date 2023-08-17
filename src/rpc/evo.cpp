@@ -795,7 +795,7 @@ static UniValue protx_register_evo(const JSONRPCRequest& request, const Chainsta
     bool isPrepareRegister = request.strMethod == "protxregister_prepare_evo";
     if (request.strMethod.find("_hpmn") != std::string::npos) {
         if (!IsDeprecatedRPCEnabled("hpmn")) {
-            throw JSONRPCError(RPC_METHOD_DEPRECATED, "*_hpmn methods are deprecated, set -deprecatedrpc=hpmn to enable them");
+            throw JSONRPCError(RPC_METHOD_DEPRECATED, "*_hpmn methods are deprecated. Use the related *_evo methods or set -deprecatedrpc=hpmn to enable them");
         }
         isExternalRegister = request.strMethod == "protxregister_hpmn";
         isFundRegister = request.strMethod == "protxregister_fund_hpmn";
