@@ -83,6 +83,7 @@ private:
     const int32_t nTxSize;          //!< ... and avoid recomputing tx size
     const size_t nUsageSize;        //!< ... and total memory usage
     const int64_t nTime;            //!< Local time when entering the mempool
+    const uint64_t entry_sequence;  //!< Sequence number used to determine whether this transaction is too recent for relay
     const unsigned int entryHeight; //!< Chain height when entering the mempool
     const bool spendsCoinbase;      //!< keep track of transactions that spend a coinbase
     const int64_t sigOpCount;       //!< Legacy sig ops plus P2SH sig op count
@@ -106,7 +107,7 @@ private:
 
 public:
     CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee,
-                    int64_t time, unsigned int entry_height,
+                    int64_t time, unsigned int entry_height, uint64_t entry_sequence,
                     bool spends_coinbase,
                     int64_t sigops_count, LockPoints lp)
         : tx{tx},
@@ -114,6 +115,7 @@ public:
           nTxSize(tx->GetTotalSize()),
           nUsageSize{RecursiveDynamicUsage(tx)},
           nTime{time},
+          entry_sequence{entry_sequence},
           entryHeight{entry_height},
           spendsCoinbase{spends_coinbase},
           sigOpCount{sigops_count},
@@ -145,6 +147,7 @@ public:
     }
     std::chrono::seconds GetTime() const { return std::chrono::seconds{nTime}; }
     unsigned int GetHeight() const { return entryHeight; }
+    uint64_t GetSequence() const { return entry_sequence; }
     int64_t GetSigOpCount() const { return sigOpCount; }
     CAmount GetModifiedFee() const { return m_modified_fee; }
     size_t DynamicMemoryUsage() const { return nUsageSize; }
