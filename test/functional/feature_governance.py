@@ -7,7 +7,7 @@
 import json
 import time
 
-from test_framework.util import assert_equal, assert_greater_than
+from test_framework.util import assert_equal
 from test_framework.messages import uint256_to_string
 from test_framework.test_framework import DashTestFramework
 
@@ -48,8 +48,6 @@ class DashGovernanceTest (DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        payout_address = self.nodes[0].getnewaddress()
-
         self.activate_v20(expected_activation_height=1440)
         self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
 
@@ -71,9 +69,6 @@ class DashGovernanceTest (DashTestFramework):
         self.sync_blocks(nodes)
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
-        proposal_time = self.mocktime
-        object_type = 1  # GOVERNANCE PROPOSAL
-
         map_vote_outcomes = {
             0: "none",
             1: "yes",
@@ -90,8 +85,14 @@ class DashGovernanceTest (DashTestFramework):
 
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 0)
 
-        p0_collateral_prepare = self.prepare_object(object_type, uint256_to_string(0), proposal_time, 1, "Proposal_1", 1, payout_address)
-        p1_collateral_prepare = self.prepare_object(object_type, uint256_to_string(0), proposal_time, 1, "Proposal_2", 3, payout_address)
+        proposal_time = self.mocktime
+        p0_payout_address = self.nodes[0].getnewaddress()
+        p1_payout_address = self.nodes[0].getnewaddress()
+        p0_amount = 1
+        p1_amount = 3
+
+        p0_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_0", p0_amount, p0_payout_address)
+        p1_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_1", p1_amount, p1_payout_address)
 
         self.wait_for_instantlock(p0_collateral_prepare["collateralHash"], self.nodes[0])
         self.wait_for_instantlock(p1_collateral_prepare["collateralHash"], self.nodes[0])
@@ -112,13 +113,15 @@ class DashGovernanceTest (DashTestFramework):
         assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], 0)
         assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 0)
 
+        self.nodes[0].gobject("vote-alias", p0_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
         self.nodes[0].gobject("vote-many", p0_hash, map_vote_signals[1], map_vote_outcomes[1])
-        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["YesCount"], self.mn_count)
-        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["NoCount"], 0)
+        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["YesCount"], self.mn_count - 1)
+        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["NoCount"], 1)
 
+        self.nodes[0].gobject("vote-alias", p1_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[1].proTxHash)
         self.nodes[0].gobject("vote-many", p1_hash, map_vote_signals[1], map_vote_outcomes[1])
-        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], self.mn_count)
-        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 0)
+        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], self.mn_count - 1)
+        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 1)
 
         assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
 
@@ -140,7 +143,7 @@ class DashGovernanceTest (DashTestFramework):
         self.sync_blocks(nodes)
         time.sleep(1)
 
-        assert_greater_than(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
+        assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 1)
 
         block_count = self.nodes[0].getblockcount()
         n = sb_cycle - block_count % sb_cycle
@@ -151,10 +154,16 @@ class DashGovernanceTest (DashTestFramework):
             self.nodes[0].generate(1)
             self.sync_blocks(nodes)
 
-        self.log.info("#### list:"+str(self.nodes[0].gobject("list")))
-        self.log.info("#### getgovernanceinfo:"+str(self.nodes[0].getgovernanceinfo()))
+        # Make sure Superblock has all the payments
+        coinbase_outputs = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), 2)["tx"][0]["vout"]
+        payments_found = 0
+        for txout in coinbase_outputs:
+            if txout["value"] == p0_amount and txout["scriptPubKey"]["addresses"][0] == p0_payout_address:
+                payments_found += 1
+            if txout["value"] == p1_amount and txout["scriptPubKey"]["addresses"][0] == p1_payout_address:
+                payments_found += 1
 
-        return
+        assert_equal(payments_found, 2)
 
 
 if __name__ == '__main__':

@@ -531,9 +531,14 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     if (nHeight % Params().GetConsensus().nSuperblockCycle < Params().GetConsensus().nSuperblockCycle - Params().GetConsensus().nSuperblockMaturityWindow) return std::nullopt;
     if (HasAlreadyVotedFundingTrigger()) return std::nullopt;
 
+    // only vote if we are the payee
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto mn_payees = mnList.GetProjectedMNPayeesAtChainTip();
+    if (mn_payees.empty() || mn_payees.front()->proTxHash != WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash)) return std::nullopt;
+
     // A proposal is considered passing if (YES votes) >= (Total Weight of Masternodes / 10),
     // count total valid (ENABLED) masternodes to determine passing threshold.
-    const int nWeightedMnCount = deterministicMNManager->GetListAtChainTip().GetValidWeightedMNsCount();
+    const int nWeightedMnCount = mnList.GetValidWeightedMNsCount();
     const int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
 
     // Use std::vector of std::shared_ptr<const CGovernanceObject> because CGovernanceObject doesn't support move operations (needed for sorting the vector later)
