@@ -3,28 +3,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <script/standard.h>
-
+#include <script/solver.h>
 #include <pubkey.h>
+#include <script/interpreter.h>
 #include <script/script.h>
+#include <span.h>
 
 #include <string>
+#include <algorithm>
 
 typedef std::vector<unsigned char> valtype;
-
-CScriptID::CScriptID(const CScript& in) : BaseHash(Hash160(in)) {}
-CScriptID::CScriptID(const ScriptHash& in) : BaseHash{in} {}
-
-ScriptHash::ScriptHash(const CScript& in) : BaseHash(Hash160(in)) {}
-ScriptHash::ScriptHash(const CScriptID& in) : BaseHash{in} {}
-
-PKHash::PKHash(const CPubKey& pubkey) : BaseHash(pubkey.GetID()) {}
-PKHash::PKHash(const CKeyID& pubkey_id) : BaseHash(pubkey_id) {}
-
-CKeyID ToKeyID(const PKHash& key_hash)
-{
-    return CKeyID{uint160{key_hash}};
-}
 
 std::string GetTxnOutputType(TxoutType t)
 {
@@ -158,62 +146,6 @@ TxoutType Solver(const CScript& scriptPubKey, std::vector<std::vector<unsigned c
     return TxoutType::NONSTANDARD;
 }
 
-bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
-{
-    std::vector<valtype> vSolutions;
-    TxoutType whichType = Solver(scriptPubKey, vSolutions);
-
-    switch (whichType) {
-    case TxoutType::PUBKEY: {
-        CPubKey pubKey(vSolutions[0]);
-        if (!pubKey.IsValid())
-            return false;
-
-        addressRet = PKHash(pubKey);
-        return true;
-    }
-    case TxoutType::PUBKEYHASH: {
-        addressRet = PKHash(uint160(vSolutions[0]));
-        return true;
-    }
-    case TxoutType::SCRIPTHASH: {
-        addressRet = ScriptHash(uint160(vSolutions[0]));
-        return true;
-    }
-    case TxoutType::MULTISIG:
-    case TxoutType::NULL_DATA:
-    case TxoutType::NONSTANDARD:
-        return false;
-    } // no default case, so the compiler can warn about missing cases
-    assert(false);
-}
-
-namespace {
-class CScriptVisitor
-{
-public:
-    CScript operator()(const CNoDestination& dest) const
-    {
-        return CScript();
-    }
-
-    CScript operator()(const PKHash& keyID) const
-    {
-        return CScript() << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
-    }
-
-    CScript operator()(const ScriptHash& scriptID) const
-    {
-        return CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
-    }
-};
-} // namespace
-
-CScript GetScriptForDestination(const CTxDestination& dest)
-{
-    return std::visit(CScriptVisitor(), dest);
-}
-
 CScript GetScriptForRawPubKey(const CPubKey& pubKey)
 {
     return CScript() << std::vector<unsigned char>(pubKey.begin(), pubKey.end()) << OP_CHECKSIG;
@@ -229,8 +161,4 @@ CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys)
     script << keys.size() << OP_CHECKMULTISIG;
 
     return script;
-}
-
-bool IsValidDestination(const CTxDestination& dest) {
-    return dest.index() != 0;
 }

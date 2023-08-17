@@ -9,7 +9,7 @@
 #include <config/bitcoin-config.h>
 #endif
 
-#include <script/standard.h>
+#include <addresstype.h>
 #include <wallet/db.h>
 
 #include <memory>

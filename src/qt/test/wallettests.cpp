@@ -24,6 +24,7 @@
 #include <key_io.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
+#include <script/solver.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>
 #include <util/error.h>

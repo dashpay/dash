@@ -7,7 +7,6 @@
 
 #include <crypto/sha256.h>
 #include <script/script.h>
-#include <script/standard.h>
 
 static const std::vector<uint8_t> STACK_ELEM_OP_TRUE{uint8_t{OP_TRUE}};
 static const CScript P2SH_OP_TRUE{

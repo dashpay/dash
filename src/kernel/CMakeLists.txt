@@ -5,6 +5,7 @@
 # The kernel supplies its own globals and helpers instead of pulling in the full node and RPC layers.
 add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   bitcoinkernel.cpp
+  ../addresstype.cpp
   ../arith_uint256.cpp
   ../base58.cpp
   ../batchedlogger.cpp
@@ -101,7 +102,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../script/script.cpp
   ../script/script_error.cpp
   ../script/sigcache.cpp
-  ../script/standard.cpp
+  ../script/solver.cpp
   ../shutdown.cpp
   ../streams.cpp
   ../spork.cpp

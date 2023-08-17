@@ -9,6 +9,7 @@
 #include <policy/policy.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/util.h>
+#include <script/script.h>
 #include <util/fees.h>
 #include <util/translation.h>
 #include <util/vector.h>

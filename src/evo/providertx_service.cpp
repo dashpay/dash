@@ -4,6 +4,7 @@
 
 #include <evo/providertx_service.h>
 
+#include <addresstype.h>
 #include <consensus/amount.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
@@ -19,7 +20,6 @@
 #include <node/context.h>
 #include <node/transaction.h>
 #include <policy/policy.h>
-#include <script/standard.h>
 #include <sync.h>
 #include <util/check.h>
 #include <util/message.h>

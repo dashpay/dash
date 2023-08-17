@@ -7,7 +7,8 @@
 #include <key_io.h>
 #include <pubkey.h>
 #include <script/script.h>
-#include <script/standard.h>
+#include <script/signingprovider.h>
+#include <script/solver.h>
 
 #include <common/args.h>
 #include <common/system.h>

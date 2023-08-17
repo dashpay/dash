@@ -16,6 +16,7 @@
 #include <qt/sharedmnwidgets.h>
 #include <qt/walletmodel.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <common/system.h>
@@ -35,7 +36,6 @@
 #include <primitives/transaction.h>
 #include <node/context.h>
 #include <script/descriptor.h>
-#include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
 #include <util/translation.h>

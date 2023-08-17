@@ -7,6 +7,7 @@
 
 #include <qt/test/masternodetestutil.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <common/system.h>
@@ -29,7 +30,6 @@
 #include <primitives/transaction.h>
 #include <random.h>
 #include <script/script.h>
-#include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <util/translation.h>
 #include <validation.h>

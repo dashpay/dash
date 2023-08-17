@@ -22,7 +22,7 @@
 #include <logging.h>
 #include <node/context.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <util/check.h>
 #include <util/strencodings.h>

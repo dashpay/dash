@@ -4,7 +4,7 @@
 
 #include <evo/dmnstate.h>
 
-#include <script/standard.h>
+#include <addresstype.h>
 #include <streams.h>
 
 std::string CDeterministicMNState::ToString() const

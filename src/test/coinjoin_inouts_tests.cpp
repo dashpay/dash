@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <active/masternode.h>
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chain.h>
 #include <chainlock/chainlock.h>
@@ -23,7 +24,6 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
 #include <streams.h>
 #include <test/util/net.h>
 #include <test/util/random.h>

@@ -4,6 +4,7 @@
 
 #include <qt/sharedmndialogs.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <core_io.h>
@@ -15,7 +16,6 @@
 #include <key_io.h>
 #include <messagesigner.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 #include <uint256.h>
 #include <univalue.h>
 #include <util/strencodings.h>

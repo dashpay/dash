@@ -14,11 +14,11 @@
 #include <llmq/commitment.h>
 #include <util/std23.h>
 
+#include <addresstype.h>
 #include <common/args.h>
 #include <core_io.h>
 #include <key_io.h>
 #include <netaddress.h>
-#include <script/standard.h>
 #include <util/check.h>
 
 #include <univalue.h>

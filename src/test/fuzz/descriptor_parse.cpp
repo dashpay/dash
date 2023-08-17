@@ -7,7 +7,6 @@
 #include <key_io.h>
 #include <pubkey.h>
 #include <script/descriptor.h>
-#include <script/standard.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util/descriptor.h>
 #include <util/chaintype.h>

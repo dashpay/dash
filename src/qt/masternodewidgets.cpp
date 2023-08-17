@@ -4,10 +4,10 @@
 
 #include <qt/masternodewidgets.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
-#include <script/standard.h>
 #include <support/cleanse.h>
 #include <util/result.h>
 #include <util/strencodings.h>

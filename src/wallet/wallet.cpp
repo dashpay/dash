@@ -42,6 +42,7 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
+#include <script/solver.h>
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>

@@ -4,6 +4,7 @@
 
 #include <qt/forms/ui_proposallist.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <governance/common.h>
 #include <governance/governance.h>
@@ -11,7 +12,6 @@
 #include <governance/vote.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
-#include <script/standard.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
 

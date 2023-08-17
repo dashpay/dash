@@ -15,7 +15,6 @@
 #include <key.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 #include <test/util/setup_common.h>
 
 #include <univalue.h>

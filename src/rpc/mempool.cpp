@@ -19,7 +19,6 @@
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>
-#include <script/standard.h>
 #include <txmempool.h>
 #include <univalue.h>
 #include <util/fs.h>
