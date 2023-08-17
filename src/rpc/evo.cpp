@@ -902,7 +902,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
 {
     if (request.strMethod.find("_hpmn") != std::string::npos) {
         if (!IsDeprecatedRPCEnabled("hpmn")) {
-            throw JSONRPCError(RPC_METHOD_DEPRECATED, "*_hpmn methods are deprecated, set -deprecatedrpc=hpmn to enable them");
+            throw JSONRPCError(RPC_METHOD_DEPRECATED, "*_hpmn methods are deprecated. Use the related *_evo methods or set -deprecatedrpc=hpmn to enable them");
         }
     }
 
