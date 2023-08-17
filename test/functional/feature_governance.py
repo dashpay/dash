@@ -13,7 +13,7 @@ from test_framework.test_framework import DashTestFramework
 
 class DashGovernanceTest (DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(6, 5)
+        self.set_dash_test_params(6, 5, [["-budgetparams=10:10:10"]] * 6)
 
     def prepare_object(self, object_type, parent_hash, creation_time, revision, name, amount, payment_address):
         proposal_rev = revision
@@ -39,36 +39,6 @@ class DashGovernanceTest (DashTestFramework):
         }
 
     def run_test(self):
-        llmq_type=103
-        llmq_type_name="llmq_test_dip0024"
-
-        self.activate_dip8()
-
-        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 0)
-        self.wait_for_sporks_same()
-
-        self.activate_v20(expected_activation_height=1440)
-        self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
-
-        #At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
-        #self.log.info("Start at H height:" + str(self.nodes[0].getblockcount()))
-        self.move_to_next_cycle()
-        self.log.info("Cycle H height:" + str(self.nodes[0].getblockcount()))
-        self.move_to_next_cycle()
-        self.log.info("Cycle H+C height:" + str(self.nodes[0].getblockcount()))
-        self.move_to_next_cycle()
-        self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
-
-        (quorum_info_0_0, quorum_info_0_1) = self.mine_cycle_quorum(llmq_type_name=llmq_type_name, llmq_type=llmq_type)
-
-        # At this point, we want to wait for CLs just before the self.mine_cycle_quorum to diversify the CLs in CbTx.
-        # Although because here a new quorum cycle is starting, and we don't want to mine them now, mine 8 blocks (to skip all DKG phases)
-        nodes = [self.nodes[0]] + [mn.node for mn in self.mninfo.copy()]
-        self.nodes[0].generate(8)
-        self.sync_blocks(nodes)
-        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
-
         map_vote_outcomes = {
             0: "none",
             1: "yes",
@@ -83,6 +53,10 @@ class DashGovernanceTest (DashTestFramework):
             4: "endorsed"
         }
 
+        self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 4070908800)
+        self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 0)
+        self.wait_for_sporks_same()
+
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 0)
 
         proposal_time = self.mocktime
@@ -94,8 +68,6 @@ class DashGovernanceTest (DashTestFramework):
         p0_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_0", p0_amount, p0_payout_address)
         p1_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_1", p1_amount, p1_payout_address)
 
-        self.wait_for_instantlock(p0_collateral_prepare["collateralHash"], self.nodes[0])
-        self.wait_for_instantlock(p1_collateral_prepare["collateralHash"], self.nodes[0])
         self.nodes[0].generate(6)
         self.sync_blocks()
 
@@ -133,14 +105,14 @@ class DashGovernanceTest (DashTestFramework):
         # Move until 1 block before the Superblock maturity window starts
         n = sb_maturity_cycle - block_count % sb_cycle
         self.nodes[0].generate(n - 1)
-        self.sync_blocks(nodes)
+        self.sync_blocks()
         time.sleep(1)
 
         assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
 
         # Move 1 block enabling the Superblock maturity window
         self.nodes[0].generate(1)
-        self.sync_blocks(nodes)
+        self.sync_blocks()
         time.sleep(1)
 
         assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 1)
@@ -152,7 +124,7 @@ class DashGovernanceTest (DashTestFramework):
         for i in range(n):
             time.sleep(1)
             self.nodes[0].generate(1)
-            self.sync_blocks(nodes)
+            self.sync_blocks()
 
         # Make sure Superblock has all the payments
         coinbase_outputs = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), 2)["tx"][0]["vout"]
