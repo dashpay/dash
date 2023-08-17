@@ -793,6 +793,14 @@ static UniValue protx_register_evo(const JSONRPCRequest& request, const Chainsta
     bool isExternalRegister = request.strMethod == "protxregister_evo";
     bool isFundRegister = request.strMethod == "protxregister_fund_evo";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare_evo";
+    if (request.strMethod.find("_hpmn") != std::string::npos) {
+        if (!IsDeprecatedRPCEnabled("hpmn")) {
+            throw JSONRPCError(RPC_METHOD_DEPRECATED, "*_hpmn methods are deprecated, set -deprecatedrpc=hpmn to enable them");
+        }
+        isExternalRegister = request.strMethod == "protxregister_hpmn";
+        isFundRegister = request.strMethod == "protxregister_fund_hpmn";
+        isPrepareRegister = request.strMethod == "protxregister_prepare_hpmn";
+    }
     return protx_register_common_wrapper(request, chainman, false, isExternalRegister, isFundRegister, isPrepareRegister, MnType::Evo);
 }
 
@@ -892,6 +900,12 @@ static void protx_update_service_evo_help(const JSONRPCRequest& request)
 
 static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& request, const ChainstateManager& chainman, const MnType mnType)
 {
+    if (request.strMethod.find("_hpmn") != std::string::npos) {
+        if (!IsDeprecatedRPCEnabled("hpmn")) {
+            throw JSONRPCError(RPC_METHOD_DEPRECATED, "*_hpmn methods are deprecated, set -deprecatedrpc=hpmn to enable them");
+        }
+    }
+
     const bool isEvoRequested = mnType == MnType::Evo;
     if (isEvoRequested) {
         protx_update_service_evo_help(request);
