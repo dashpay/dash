@@ -25,6 +25,7 @@ public:
     StatsdClient(const std::string& host,
                  const uint16_t port,
                  const std::string& prefix,
+                 const std::string& nspace,
                  const uint64_t batchsize = 0,
                  const uint64_t sendInterval = 1000,
                  const unsigned int gaugePrecision = 4) noexcept;
@@ -79,6 +80,8 @@ private:
 private:
     //! The prefix to be used for metrics
     std::string m_prefix;
+    //! The namespace to be used for metrics
+    std::string m_nspace;
     //! The UDP sender to be used for actual sending
     const std::unique_ptr<UDPSender> m_sender;
     //! The buffer string format our stats before sending them
@@ -140,6 +143,7 @@ void StatsdClient::send(const std::string& key,
 
     m_buffer.clear();
 
+    m_buffer.append(m_nspace);
     m_buffer.append(m_prefix);
     if (!m_prefix.empty() && !key.empty()) {
         m_buffer.push_back('.');

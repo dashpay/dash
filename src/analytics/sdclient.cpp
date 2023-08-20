@@ -9,10 +9,12 @@ namespace Statsd {
 StatsdClient::StatsdClient(const std::string& host,
                            const uint16_t port,
                            const std::string& prefix,
+                           const std::string& nspace,
                            const uint64_t batchsize,
                            const uint64_t sendInterval,
                            const unsigned int gaugePrecision) noexcept
     : m_prefix{detail::sanitizePrefix(prefix)},
+      m_nspace{detail::sanitizePrefix(nspace)},
       m_sender{std::make_unique<UDPSender>(host, port, batchsize, sendInterval)},
       m_gaugePrecision(gaugePrecision)
 {
