@@ -20,6 +20,10 @@ EXCLUDE = [
     'src/qt/dashstrings.cpp',
     'src/chainparamsseeds.h',
     # other external copyrights:
+    'src/analytics/sdclient.cpp',
+    'src/analytics/sdclient.h',
+    'src/analytics/sender.cpp',
+    'src/analytics/sender.h',
     'src/bip39.cpp',
     'src/bip39.h',
     'src/bip39_english.h',

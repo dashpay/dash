@@ -130,6 +130,8 @@ BITCOIN_CORE_H = \
   spentindex.h \
   addrman.h \
   analytics/sample.h \
+  analytics/sdclient.h \
+  analytics/sender.h \
   attributes.h \
   banman.h \
   base58.h \
@@ -382,6 +384,8 @@ libbitcoin_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
   analytics/sample.cpp \
+  analytics/sdclient.cpp \
+  analytics/sender.cpp \
   banman.cpp \
   batchedlogger.cpp \
   blockencodings.cpp \

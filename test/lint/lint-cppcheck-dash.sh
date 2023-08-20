@@ -56,7 +56,9 @@ IGNORED_WARNINGS=(
 )
 
 # We should attempt to update this with all dash specific code
-FILES=$(git ls-files -- "src/batchedlogger.*" \
+FILES=$(git ls-files -- "src/analytics/*.cpp" \
+                        "src/analytics/*.h" \
+                        "src/batchedlogger.*" \
                         "src/bench/bls*.cpp" \
                         "src/bls/*.cpp" \
                         "src/bls/*.h" \
