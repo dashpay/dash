@@ -8,13 +8,14 @@
 #include <rpc/blockchain.h>
 #include <rpc/server.h>
 #include <policy/policy.h>
-#include <statsd_client.h>
 #include <util/system.h>
 #include <validation.h>
 
+#include <analytics/sdclient.h>
+
 #include <algorithm>
 
-void PeriodicStats(const ArgsManager* args, const CTxMemPool* mempool)
+void SampleStats(const ArgsManager* args, const CTxMemPool* mempool)
 {
     if (args == nullptr)
         return;
@@ -48,12 +49,12 @@ void PeriodicStats(const ArgsManager* args, const CTxMemPool* mempool)
     int64_t timeDiff = maxTime - minTime;
     double nNetworkHashPS = workDiff.getdouble() / timeDiff;
 
-    ::StatsAgent().gaugeDouble("network.hashesPerSecond", nNetworkHashPS);
-    ::StatsAgent().gaugeDouble("network.terahashesPerSecond", nNetworkHashPS / 1e12);
-    ::StatsAgent().gaugeDouble("network.petahashesPerSecond", nNetworkHashPS / 1e15);
-    ::StatsAgent().gaugeDouble("network.exahashesPerSecond", nNetworkHashPS / 1e18);
+    ::StatsAgent().gauge("network.hashesPerSecond", nNetworkHashPS);
+    ::StatsAgent().gauge("network.terahashesPerSecond", nNetworkHashPS / 1e12);
+    ::StatsAgent().gauge("network.petahashesPerSecond", nNetworkHashPS / 1e15);
+    ::StatsAgent().gauge("network.exahashesPerSecond", nNetworkHashPS / 1e18);
     // No need for cs_main, we never use null tip here
-    ::StatsAgent().gaugeDouble("network.difficulty", (double)GetDifficulty(tip));
+    ::StatsAgent().gauge("network.difficulty", (double)GetDifficulty(tip));
 
     ::StatsAgent().gauge("transactions.txCacheSize", WITH_LOCK(cs_main, return ::ChainstateActive().CoinsTip().GetCacheSize()), 1.0f);
     ::StatsAgent().gauge("transactions.totalTransactions", tip->nChainTx, 1.0f);

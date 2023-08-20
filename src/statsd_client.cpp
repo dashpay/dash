@@ -244,9 +244,4 @@ const char* StatsdClient::errmsg()
 {
     return d->errmsg;
 }
-
 } // namespace statsd
-
-statsd::StatsdClient& StatsAgent() {
-    return ::statsClient;
-}

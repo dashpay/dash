@@ -8,6 +8,6 @@
 class ArgsManager;
 class CTxMemPool;
 
-void PeriodicStats(const ArgsManager* args, const CTxMemPool* mempool);
+void SampleStats(const ArgsManager* args, const CTxMemPool* mempool);
 
 #endif // BITCOIN_ANALYTICS_SAMPLE_H

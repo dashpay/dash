@@ -28,12 +28,12 @@
 #include <util/translation.h>
 #include <validation.h>
 
-#include <masternode/meta.h>
-#include <masternode/sync.h>
 #include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
+#include <masternode/meta.h>
+#include <masternode/sync.h>
 
-#include <statsd_client.h>
+#include <analytics/sdclient.h>
 
 #ifdef WIN32
 #include <string.h>

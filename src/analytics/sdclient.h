@@ -20,6 +20,21 @@
 #include <vector>
 
 class ArgsManager;
+class CScheduler;
+class CTxMemPool;
+
+struct bilingual_str;
+
+static constexpr bool DEFAULT_STATSD_ENABLE = false;
+static constexpr uint16_t DEFAULT_STATSD_PORT = 8125;
+static const std::string DEFAULT_STATSD_HOST = "127.0.0.1";
+static const std::string DEFAULT_STATSD_HOSTNAME = "";
+static const std::string DEFAULT_STATSD_NAMESPACE = "";
+
+//! Schedule periodic measurements (in seconds)
+static constexpr int64_t DEFAULT_STATSD_PERIOD = 60;
+static constexpr int64_t MIN_STATSD_PERIOD = 5;
+static constexpr int64_t MAX_STATSD_PERIOD = 60 * 60;
 
 namespace Statsd {
 class StatsdClient {
@@ -35,8 +50,6 @@ public:
     StatsdClient(const StatsdClient&) = delete;
     StatsdClient& operator=(const StatsdClient&) = delete;
 
-    //! Returns the error message as an std::string
-    const std::string errorMessage() const noexcept;
     //! Increments the key, at a given frequency rate
     void inc(const std::string& key,
              float frequency = 1.0f,
@@ -70,6 +83,10 @@ public:
     void flush() noexcept { m_sender->flush(); }
     //! Returns true if UDP socket has been successfully established
     bool IsConnected() noexcept { return m_sender->initialized(); }
+    //! Interval between sending each batch of messages
+    uint64_t sendInterval() noexcept { return m_sender->sendInterval(); }
+    //! Returns the error message as an std::string
+    const std::string errorMessage() const noexcept { return m_sender->errorMessage(); }
 private:
     //! Send a value for a key, according to its type, at a given frequency
     template <typename T>
@@ -176,7 +193,9 @@ void StatsdClient::send(const std::string& key,
 }
 }  // namespace Statsd
 
-bool InitStatsAgent(const ArgsManager& args);
+bool InitStatsAgent(const ArgsManager& args, bilingual_str& error, const CTxMemPool* mempool = nullptr);
 void StopStatsAgent();
+
+Statsd::StatsdClient& StatsAgent();
 
 #endif // BITCOIN_ANALYTICS_SDCLIENT_H

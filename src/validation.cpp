@@ -61,7 +61,7 @@
 #include <llmq/instantsend.h>
 #include <llmq/chainlocks.h>
 
-#include <statsd_client.h>
+#include <analytics/sdclient.h>
 
 #include <optional>
 #include <string>

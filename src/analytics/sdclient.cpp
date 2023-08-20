@@ -5,8 +5,10 @@
 
 #include <analytics/sdclient.h>
 
+#include <analytics/sample.h>
 #include <util/system.h>
-#include <statsd_client.h>
+#include <util/translation.h>
+#include <scheduler.h>
 
 namespace Statsd {
 StatsdClient::StatsdClient(const std::string& host,
@@ -23,10 +25,6 @@ StatsdClient::StatsdClient(const std::string& host,
 {
     // Avoid re-allocations by reserving a generous buffer
     m_buffer.reserve(256);
-}
-
-const std::string StatsdClient::errorMessage() const noexcept {
-    return m_sender->errorMessage();
 }
 
 void StatsdClient::dec(const std::string& key,
@@ -65,14 +63,18 @@ void StatsdClient::set(const std::string& key,
 
 static std::unique_ptr<Statsd::StatsdClient> g_stats_agent{nullptr};
 
-bool InitStatsAgent(const ArgsManager& args) {
+bool InitStatsAgent(const ArgsManager& args, bilingual_str& error, const CTxMemPool* mempool) {
     if (g_stats_agent) {
+        error = _("StatsdClient has already been initialized");
         return false;
     }
 
+    auto statsd_host = args.GetArg("-statshost", DEFAULT_STATSD_HOST);
+    auto statsd_port = args.GetArg("-statsport", DEFAULT_STATSD_PORT);
+
     g_stats_agent = std::make_unique<Statsd::StatsdClient>(
-        args.GetArg("-statshost",     DEFAULT_STATSD_HOST),
-        args.GetArg("-statsport",     DEFAULT_STATSD_PORT),
+        statsd_host,
+        statsd_port,
         args.GetArg("-statshostname", DEFAULT_STATSD_HOSTNAME),
         args.GetArg("-statsns",       DEFAULT_STATSD_NAMESPACE),
         /* batchsize */ 0,
@@ -85,14 +87,13 @@ bool InitStatsAgent(const ArgsManager& args) {
         )  * 1000, /* gaugePrecision */ 4
     );
 
-    if (g_stats_agent) {
-        if (g_stats_agent->IsConnected()) {
-            return true;
-        }
+    if (!g_stats_agent->IsConnected()) {
+        error = strprintf(_("StatsdClient was unable to connect to %s:%s"), statsd_host, statsd_port);
+        g_stats_agent.reset();
+        return false;
     }
 
-    g_stats_agent.reset();
-    return false;
+    return true;
 }
 
 void StopStatsAgent() {
@@ -102,4 +103,9 @@ void StopStatsAgent() {
     g_stats_agent->flush();
     g_stats_agent.reset();
     return;
+}
+
+Statsd::StatsdClient& StatsAgent() {
+    assert(g_stats_agent);
+    return *g_stats_agent;
 }

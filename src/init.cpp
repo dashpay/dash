@@ -66,7 +66,6 @@
 #include <validation.h>
 #include <validationinterface.h>
 
-#include <analytics/sample.h>
 #include <masternode/node.h>
 #ifdef ENABLE_WALLET
 #include <coinjoin/client.h>
@@ -97,7 +96,8 @@
 #include <llmq/utils.h>
 #include <llmq/signing_shares.h>
 
-#include <statsd_client.h>
+#include <analytics/sample.h>
+#include <analytics/sdclient.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -390,6 +390,8 @@ void PrepareShutdown(NodeContext& node)
         activeMasternodeInfo.blsKeyOperator.reset();
         activeMasternodeInfo.blsPubKeyOperator.reset();
     }
+
+    StopStatsAgent();
 
     node.chain_clients.clear();
     UnregisterAllValidationInterfaces();
@@ -1646,6 +1648,16 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                                      *node.scheduler, chainman, *node.mempool, node.llmq_ctx, ignores_incoming_txs);
     RegisterValidationInterface(node.peerman.get());
 
+    bool enable_stats = args.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE);
+
+    if (enable_stats) {
+        bilingual_str sd_error;
+        if (!InitStatsAgent(*node.args, sd_error, node.mempool.get())) {
+            InitError(strprintf(_("InitStatsAgent: %d"), sd_error.translated));
+            return false;
+        }
+    }
+
     ::governance = std::make_unique<CGovernanceManager>();
     assert(!::sporkManager);
     ::sporkManager = std::make_unique<CSporkManager>();
@@ -2279,9 +2291,8 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
 #endif // ENABLE_WALLET
     }
 
-    if (args.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE)) {
-        int nStatsPeriod = std::min(std::max(args.GetArg("-statsperiod", DEFAULT_STATSD_PERIOD), MIN_STATSD_PERIOD), MAX_STATSD_PERIOD);
-        node.scheduler->scheduleEvery(std::bind(&PeriodicStats, std::cref(node.args), node.mempool.get()), std::chrono::seconds{nStatsPeriod});
+    if (enable_stats) {
+        node.scheduler->scheduleEvery(std::bind(&SampleStats, &args, node.mempool.get()), std::chrono::milliseconds{::StatsAgent().sendInterval()});
     }
 
     node.llmq_ctx->Start();

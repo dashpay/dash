@@ -34,6 +34,8 @@ public:
     const std::string errorMessage() const noexcept;
     bool initialized() const noexcept;
     void flush() noexcept;
+    //! Interval between each message queue flush
+    uint64_t sendInterval() const noexcept { return m_sendInterval; }
 
 private:
     //! Initialize the sender and returns true when it is initialized

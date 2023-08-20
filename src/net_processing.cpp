@@ -45,6 +45,7 @@
 #endif // ENABLE_WALLET
 #include <coinjoin/server.h>
 
+#include <analytics/sdclient.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
 #include <evo/simplifiedmns.h>
@@ -58,8 +59,6 @@
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
-
-#include <statsd_client.h>
 
 /** Maximum number of in-flight objects from a peer */
 static constexpr int32_t MAX_PEER_OBJECT_IN_FLIGHT = 100;
