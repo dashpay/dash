@@ -6,18 +6,6 @@
 #ifndef BITCOIN_ANALYTICS_SENDER_H
 #define BITCOIN_ANALYTICS_SENDER_H
 
-#ifdef _WIN32
-#define NOMINMAX
-#include <io.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#endif
-
 #include <atomic>
 #include <cstdint>
 #include <cstring>
@@ -26,19 +14,10 @@
 #include <string>
 #include <thread>
 
-namespace Statsd {
-#ifdef _WIN32
-using SOCKET_TYPE = SOCKET;
-constexpr SOCKET_TYPE k_invalidSocket{INVALID_SOCKET};
-#define SOCKET_ERRNO WSAGetLastError()
-#define SOCKET_CLOSE closesocket
-#else
-using SOCKET_TYPE = int;
-constexpr SOCKET_TYPE k_invalidSocket{-1};
-#define SOCKET_ERRNO errno
-#define SOCKET_CLOSE close
-#endif
+#include <netbase.h>
+#include <util/sock.h>
 
+namespace Statsd {
 class UDPSender final {
 public:
     UDPSender(const std::string& host,
@@ -58,7 +37,7 @@ public:
 
 private:
     //! Initialize the sender and returns true when it is initialized
-    bool initialize() noexcept;
+    bool initialize(const std::string& str_host, uint16_t u16_port) noexcept;
     //! Queue a message to be sent to the daemon later
     void queueMessage(const std::string& message) noexcept;
     //! Send a message to the daemon
@@ -66,14 +45,10 @@ private:
 
 private:
     std::atomic<bool> m_mustExit{false};
-    //! The hostname
-    std::string m_host;
-    //! The port
-    uint16_t m_port;
     //! The structure holding the server
-    struct sockaddr_in m_server;
+    CService m_server;
     //! The socket to be used
-    SOCKET_TYPE m_socket = k_invalidSocket;
+    Sock m_socket;
 
 private:
     //! The batching size
@@ -91,34 +66,6 @@ private:
     //! Error message (optional string)
     std::string m_errorMessage;
 };
-
-namespace detail {
-inline bool isValidSocket(const SOCKET_TYPE socket) {
-    return socket != k_invalidSocket;
-}
-
-#ifdef _WIN32
-struct WinSockSingleton {
-    inline static const WinSockSingleton& getInstance() {
-        static const WinSockSingleton instance;
-        return instance;
-    }
-    inline bool ok() const {
-        return m_ok;
-    }
-    ~WinSockSingleton() {
-        WSACleanup();
-    }
-
-private:
-    WinSockSingleton() {
-        WSADATA wsa;
-        m_ok = WSAStartup(MAKEWORD(2, 2), &wsa) == 0;
-    }
-    bool m_ok;
-};
-#endif
-}  // namespace detail
 }  // namespace Statsd
 
 #endif // BITCOIN_ANALYTICS_SENDER_H

@@ -1,5 +1,6 @@
 // Copyright (c) 2017-2021 Vincent Thiery
 // Copyirght (C) 2017-2021 The cpp-statsd-client contributors
+// Copyright (c) 2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,12 +11,11 @@ UDPSender::UDPSender(const std::string& host,
                      const uint16_t port,
                      const uint64_t batchsize,
                      const uint64_t sendInterval) noexcept
-    : m_host(host), m_port(port), m_batchsize(batchsize), m_sendInterval(sendInterval) {
+    : m_batchsize(batchsize), m_sendInterval(sendInterval) {
     // Initialize the socket
-    if (!initialize()) {
+    if (!initialize(host, port)) {
         return;
     }
-
     // If batching is on, use a dedicated thread to send after the wait time is reached
     if (m_batchsize != 0 && m_sendInterval > 0) {
         // Define the batching thread
@@ -53,7 +53,7 @@ UDPSender::~UDPSender() {
     }
 
     // Cleanup the socket
-    SOCKET_CLOSE(m_socket);
+    m_socket.Reset();
 }
 
 void UDPSender::send(const std::string& message) noexcept {
@@ -89,75 +89,47 @@ const std::string UDPSender::errorMessage() const noexcept {
     return m_errorMessage;
 }
 
-bool UDPSender::initialize() noexcept {
-#ifdef _WIN32
-    if (!detail::WinSockSingleton::getInstance().ok()) {
-        m_errorMessage = "WSAStartup failed: errno=" + std::to_string(SOCKET_ERRNO);
-    }
-#endif
-
-    // Connect the socket
-    m_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (!detail::isValidSocket(m_socket)) {
-        m_errorMessage = "socket creation failed: errno=" + std::to_string(SOCKET_ERRNO);
+bool UDPSender::initialize(const std::string& str_host, uint16_t u16_port) noexcept {
+    /* Resolve address */
+    std::vector<CNetAddr> resolved;
+    if (!LookupHost(str_host, resolved, /* nMaxSolutions */ 256, /* fAllowLookup */ true, WrappedGetAddrInfoUDP) || resolved.empty()) {
+        // cannot resolve address
         return false;
     }
-
-    std::memset(&m_server, 0, sizeof(m_server));
-    m_server.sin_family = AF_INET;
-    m_server.sin_port = htons(m_port);
-
-    if (inet_pton(AF_INET, m_host.c_str(), &m_server.sin_addr) == 0) {
-        // An error code has been returned by inet_aton
-
-        // Specify the criteria for selecting the socket address structure
-        struct addrinfo hints;
-        std::memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_DGRAM;
-
-        // Get the address info using the hints
-        struct addrinfo* results = nullptr;
-        const int ret{getaddrinfo(m_host.c_str(), nullptr, &hints, &results)};
-        if (ret != 0) {
-            // An error code has been returned by getaddrinfo
-            SOCKET_CLOSE(m_socket);
-            m_socket = k_invalidSocket;
-            m_errorMessage = "getaddrinfo failed: err=" + std::to_string(ret) + ", msg=" + gai_strerror(ret);
-            return false;
-        }
-
-        // Copy the results in m_server
-        struct sockaddr_in* host_addr = (struct sockaddr_in*)results->ai_addr;
-        std::memcpy(&m_server.sin_addr, &host_addr->sin_addr, sizeof(struct in_addr));
-
-        // Free the memory allocated
-        freeaddrinfo(results);
+    m_server = CService(resolved.front(), u16_port);
+    if (!m_server.IsValid()) {
+        // resolver returned invalid address
+        return false;
     }
-
+    /* Create socket to resolved address */
+    std::unique_ptr<Sock> socket = CreateSockUDP(m_server);
+    if (!socket) {
+        // unable to create socket
+        return false;
+    }
+    /* Connect to socket  */
+    if (!ConnectSocketDirectly(m_server, *socket, DEFAULT_CONNECT_TIMEOUT, /* manual_connection */ false)) {
+        // inform that we eren't able to connect _directly_
+        socket->Reset();
+        return false;
+    }
+    /* Move unique pointer to member object */
+    m_socket = std::move(*socket);
     return true;
 }
 
 void UDPSender::sendToDaemon(const std::string& message) noexcept {
-    // Try sending the message
-    const auto ret = sendto(m_socket,
-                            message.data(),
-#ifdef _WIN32
-                            static_cast<int>(message.size()),
-#else
-                            message.size(),
-#endif
-                            0,
-                            (struct sockaddr*)&m_server,
-                            sizeof(m_server));
-    if (ret == -1) {
-        m_errorMessage = "sendto server failed: host=" + m_host + ":" + std::to_string(m_port) +
-                         ", err=" + std::to_string(SOCKET_ERRNO);
+    if (m_socket.Send(message.data(), message.size(), 0) == -1) {
+        m_errorMessage = strprintf(
+            "sendto server failed: host=%s, err=%s",
+            m_server.ToStringIPPort(/* fUseGetnameinfo */ true),
+            NetworkErrorString(WSAGetLastError())
+        );
     }
 }
 
 bool UDPSender::initialized() const noexcept {
-    return m_socket != k_invalidSocket;
+    return m_socket.Get() != INVALID_SOCKET;
 }
 
 void UDPSender::flush() noexcept {
