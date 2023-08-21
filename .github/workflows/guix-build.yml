@@ -112,10 +112,10 @@ jobs:
           restore-keys: |
             depends-sources-
 
-      - name: Cache Guix and depends
+      - name: Restore Guix and depends cache
         id: guix-cache-restore
         if: github.ref_type != 'tag'
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: |
             ${{ github.workspace }}/.cache
@@ -151,6 +151,17 @@ jobs:
             echo "Guix build failed!"
             exit 1
           fi
+
+      - name: Save Guix and depends cache
+        if: github.ref_type != 'tag' && github.event_name != 'pull_request_target'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ${{ github.workspace }}/.cache
+            ${{ github.workspace }}/dash/depends/built
+            ${{ github.workspace }}/dash/depends/work
+            /gnu/store
+          key: ${{ runner.os }}-guix-${{ matrix.build_target }}-${{ github.sha }}
 
       - name: Compute SHA256 checksums
         continue-on-error: true # It will complain on depending on only some hosts
