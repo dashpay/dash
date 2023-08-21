@@ -2500,7 +2500,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
-            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            const bool ibd = chainman.IsInitialBlockDownload();
             if (node.active_ctx) {
                 // On masternodes, defer the full broadcast until after
                 // nodeman->Init() so that GetProTxHash() is available
@@ -2591,7 +2591,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             // directly because the full broadcast (NetQuorum,
             // ActiveContext) depends on a valid proTxHash.
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
-            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            const bool ibd = chainman.IsInitialBlockDownload();
             GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
         }
     });
