@@ -228,7 +228,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(con
 
     auto remaining_evo_payments = 0;
     CDeterministicMNCPtr evo_to_be_skipped = nullptr;
-    bool isMNRewardReallocation = pindex ? llmq::utils::IsMNRewardReallocationActive(pindex) : false;
+    bool isMNRewardReallocation = llmq::utils::IsMNRewardReallocationActive(pindex);
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
         if (dmn->pdmnState->nLastPaidHeight == nHeight) {
             // We found the last MN Payee.
