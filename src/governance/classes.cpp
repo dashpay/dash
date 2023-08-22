@@ -13,6 +13,7 @@
 #include <timedata.h>
 #include <util/strencodings.h>
 #include <validation.h>
+#include <util/moneystr.h>
 #include <util/underlying.h>
 
 #include <univalue.h>
@@ -731,8 +732,7 @@ std::string CSuperblock::GetHexStrData() const
         return EncodeDestination(dest);
     });
     std::string str_amounts = Join(vecPayments, "|", [&](const auto& payment) {
-        double a = static_cast<double>(payment.nAmount / COIN);
-        return ToString(a);
+        return FormatMoney(payment.nAmount);
     });
     std::string str_hashes = Join(vecPayments, "|", [&](const auto& payment) { return payment.proposalHash.ToString(); });
 
