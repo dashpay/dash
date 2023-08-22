@@ -7,9 +7,14 @@
 #include <common/args.h>
 #include <wallet/wallet.h>
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <coins.h>
+#include <common/settings.h>
 #include <common/system.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
@@ -17,26 +22,44 @@
 #include <external_signer.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
+#include <interfaces/handler.h>
 #include <interfaces/wallet.h>
+#include <kernel/mempool_removal_reason.h>
 #include <key.h>
 #include <key_io.h>
+#include <logging.h>
+#include <outputtype.h>
+#include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <psbt.h>
+#include <pubkey.h>
 #include <random.h>
 #include <script/descriptor.h>
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
+#include <serialize.h>
+#include <span.h>
+#include <streams.h>
+#include <support/allocators/secure.h>
+#include <support/allocators/zeroafterfree.h>
 #include <support/cleanse.h>
+#include <sync.h>
+#include <tinyformat.h>
 #include <txmempool.h>
+#include <uint256.h>
+#include <univalue.h>
 #include <util/check.h>
 #include <util/error.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
+#include <util/message.h>
 #include <util/moneystr.h>
+#include <util/result.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/time.h>
@@ -47,20 +70,33 @@
 #include <wallet/bip39.h> // TODO(refactor): move dependency it to scriptpubkeyman.cpp
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
+#include <wallet/crypter.h>
+#include <wallet/db.h>
 #include <wallet/external_signer_scriptpubkeyman.h>
 #include <wallet/platformkeys.h>
 #include <wallet/scriptpubkeyman.h>
+#include <wallet/transaction.h>
+#include <wallet/types.h>
+#include <wallet/walletdb.h>
+#include <wallet/walletutil.h>
 #include <warnings.h>
 
 #include <coinjoin/options.h>
 #include <evo/providertx.h>
 #include <governance/vote.h>
 
-#include <univalue.h>
-
 #include <algorithm>
 #include <cassert>
+#include <condition_variable>
+#include <exception>
+#include <optional>
 #include <ranges>
+#include <stdexcept>
+#include <thread>
+#include <tuple>
+#include <variant>
+
+struct KeyOriginInfo;
 
 using interfaces::FoundBlock;
 

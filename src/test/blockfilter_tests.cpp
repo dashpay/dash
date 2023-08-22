@@ -13,9 +13,11 @@
 #include <evo/specialtx.h>
 #include <netaddress.h>
 #include <netbase.h>
+#include <primitives/block.h>
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
+#include <undo.h>
 #include <univalue.h>
 #include <util/strencodings.h>
 

@@ -9,9 +9,11 @@
 #include <crypto/siphash.h>
 #include <evo/specialtx_filter.h>
 #include <hash.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <streams.h>
+#include <undo.h>
 #include <util/golombrice.h>
 #include <util/string.h>
 
