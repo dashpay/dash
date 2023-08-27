@@ -40,6 +40,9 @@ NO_UPNP ?=
 NO_NATPMP ?=
 FALLBACK_DOWNLOAD_PATH ?= https://bitcoincore.org/depends-sources
 
+#C_STANDARD ?= c11
+#CXX_STANDARD ?= c++20
+
 BUILD = $(shell ./config.guess)
 HOST ?= $(BUILD)
 PATCHES_PATH = $(BASEDIR)/patches
