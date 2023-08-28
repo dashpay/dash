@@ -631,9 +631,7 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     });
 
     // Create Superblock
-    CSuperblock sb(nNextSuperblock, std::move(payments));
-
-    return sb;
+    return CSuperblock(nNextSuperblock, std::move(payments));
 }
 
 void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman& connman)
@@ -648,8 +646,7 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
         gov_sb.Sign( *activeMasternodeInfo.blsKeyOperator);
     }
 
-    std::string strError;
-    if (!gov_sb.IsValidLocally(strError, true)) {
+    if (std::string strError; !gov_sb.IsValidLocally(strError, true)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Created trigger is invalid:%s\n", __func__, strError);
         return;
     }
