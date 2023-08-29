@@ -516,10 +516,10 @@
          <item row="3" column="0">
           <widget class="QLabel" name="lblCoinJoinDenoms">
            <property name="toolTip">
-            <string>How many inputs of each denominated amount are created.&lt;br/&gt;Lower these numbers if you want less smaller denoms.</string>
+            <string>How many inputs of each denominated amount are created.&lt;br/&gt;Lower these numbers if you want fewer smaller denominations.</string>
            </property>
            <property name="text">
-            <string>Same denominated amount</string>
+            <string>Inputs per denomination</string>
            </property>
           </widget>
          </item>
@@ -530,7 +530,7 @@
              <item>
               <widget class="QLabel" name="lblCoinJoinDenomsTarget">
                <property name="toolTip">
-                <string>Try to create at least this many inputs of each denominated amount.&lt;br/&gt;Lower this number if you want less smaller denoms.</string>
+                <string>Try to create at least this many inputs for each denominated amount.&lt;br/&gt;Lower this number if you want fewer smaller denominations.</string>
                </property>
                <property name="text">
                 <string>Target</string>
@@ -560,7 +560,7 @@
              <item>
               <widget class="QLabel" name="lblCoinJoinDenomsMaximum">
                <property name="toolTip">
-                <string>Create up to this many inputs of each denominated amount.&lt;br/&gt;Lower this number if you want less smaller denoms.</string>
+                <string>Create up to this many inputs for each denominated amount.&lt;br/&gt;Lower this number if you want fewer smaller denominations.</string>
                </property>
                <property name="text">
                 <string>Maximum</string>
