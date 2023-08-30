@@ -342,6 +342,11 @@ static UniValue gobject_submit(const JSONRPCRequest& request)
     LogPrint(BCLog::GOBJECT, "gobject_submit -- GetDataAsPlainString = %s, hash = %s, txid = %s\n",
                 govobj.GetDataAsPlainString(), govobj.GetHash().ToString(), txidFee.ToString());
 
+    if (govobj.GetObjectType() == GovernanceObject::TRIGGER) {
+        LogPrintf("govobject(submit) -- Object submission rejected because submission of trigger is disabled\n");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Submission of triggers is not available");
+    }
+
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
         CProposalValidator validator(strDataHex);
         if (!validator.Validate()) {
@@ -349,17 +354,7 @@ static UniValue gobject_submit(const JSONRPCRequest& request)
         }
     }
 
-    // Attempt to sign triggers if we are a MN
-    if (govobj.GetObjectType() == GovernanceObject::TRIGGER) {
-        if (fMnFound) {
-            LOCK(activeMasternodeInfoCs);
-            govobj.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
-            govobj.Sign(*activeMasternodeInfo.blsKeyOperator);
-        } else {
-            LogPrintf("gobject(submit) -- Object submission rejected because node is not a masternode\n");
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Only valid masternodes can submit this type of object");
-        }
-    } else if (request.params.size() != 5) {
+    if (request.params.size() != 5) {
         LogPrintf("gobject(submit) -- Object submission rejected because fee tx not provided\n");
         throw JSONRPCError(RPC_INVALID_PARAMETER, "The fee-txid parameter must be included to submit this type of object");
     }
