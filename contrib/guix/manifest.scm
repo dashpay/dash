@@ -196,10 +196,6 @@ chain for " target " development."))
       (home-page (package-home-page pthreads-xgcc))
       (license (package-license pthreads-xgcc)))))
 
-(define (make-nsis-for-gcc-10 base-nsis)
-  (package-with-extra-patches base-nsis
-    (search-our-patches "nsis-gcc-10-memmove.patch")))
-
 (define osslsigncode
   (package
     (name "osslsigncode")
@@ -607,7 +603,7 @@ parse, modify and abstract ELF, PE and MachO formats.")
            ;; Windows
            (list zip
                  (make-mingw-pthreads-cross-toolchain "x86_64-w64-mingw32")
-                 (make-nsis-for-gcc-10 nsis-x86_64)
+                 (nsis-x86_64)
                  osslsigncode))
           ((string-contains target "-linux-")
            (list (make-bitcoin-cross-toolchain target)))
