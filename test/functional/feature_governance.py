@@ -28,7 +28,7 @@ class DashGovernanceTest (DashTestFramework):
             "url": "https://dash.org"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_template).encode())
-        collateral_hash = self.nodes[0].gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
+        collateral_hash = self.nodes[0].govobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
         return {
             "parentHash": parent_hash,
             "collateralHash": collateral_hash,
@@ -57,7 +57,7 @@ class DashGovernanceTest (DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        assert_equal(len(self.nodes[0].gobject("list-prepared")), 0)
+        assert_equal(len(self.nodes[0].govobject("list-prepared")), 0)
 
         proposal_time = self.mocktime
         sb_block_height = self.nodes[0].getblockcount() + 10 - self.nodes[0].getblockcount() % 10
@@ -75,42 +75,42 @@ class DashGovernanceTest (DashTestFramework):
         self.nodes[0].generate(6)
         self.sync_blocks()
 
-        assert_equal(len(self.nodes[0].gobject("list-prepared")), 3)
-        assert_equal(len(self.nodes[0].gobject("list")), 0)
+        assert_equal(len(self.nodes[0].govobject("list-prepared")), 3)
+        assert_equal(len(self.nodes[0].govobject("list")), 0)
 
-        p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
-        p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
-        p2_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p2_collateral_prepare["hex"], p2_collateral_prepare["collateralHash"])
+        p0_hash = self.nodes[0].govobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
+        p1_hash = self.nodes[0].govobject("submit", "0", 1, proposal_time, p1_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
+        p2_hash = self.nodes[0].govobject("submit", "0", 1, proposal_time, p2_collateral_prepare["hex"], p2_collateral_prepare["collateralHash"])
 
-        assert_equal(len(self.nodes[0].gobject("list")), 3)
+        assert_equal(len(self.nodes[0].govobject("list")), 3)
 
-        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["YesCount"], 0)
-        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["NoCount"], 0)
+        assert_equal(self.nodes[0].govobject("get", p0_hash)["FundingResult"]["YesCount"], 0)
+        assert_equal(self.nodes[0].govobject("get", p0_hash)["FundingResult"]["NoCount"], 0)
 
-        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], 0)
-        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 0)
+        assert_equal(self.nodes[0].govobject("get", p1_hash)["FundingResult"]["YesCount"], 0)
+        assert_equal(self.nodes[0].govobject("get", p1_hash)["FundingResult"]["NoCount"], 0)
 
-        assert_equal(self.nodes[0].gobject("get", p2_hash)["FundingResult"]["YesCount"], 0)
-        assert_equal(self.nodes[0].gobject("get", p2_hash)["FundingResult"]["NoCount"], 0)
+        assert_equal(self.nodes[0].govobject("get", p2_hash)["FundingResult"]["YesCount"], 0)
+        assert_equal(self.nodes[0].govobject("get", p2_hash)["FundingResult"]["NoCount"], 0)
 
-        self.nodes[0].gobject("vote-alias", p0_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
-        self.nodes[0].gobject("vote-many", p0_hash, map_vote_signals[1], map_vote_outcomes[1])
-        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["YesCount"], self.mn_count - 1)
-        assert_equal(self.nodes[0].gobject("get", p0_hash)["FundingResult"]["NoCount"], 1)
+        self.nodes[0].govobject("vote-alias", p0_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
+        self.nodes[0].govobject("vote-many", p0_hash, map_vote_signals[1], map_vote_outcomes[1])
+        assert_equal(self.nodes[0].govobject("get", p0_hash)["FundingResult"]["YesCount"], self.mn_count - 1)
+        assert_equal(self.nodes[0].govobject("get", p0_hash)["FundingResult"]["NoCount"], 1)
 
-        self.nodes[0].gobject("vote-alias", p1_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
-        self.nodes[0].gobject("vote-alias", p1_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[1].proTxHash)
-        self.nodes[0].gobject("vote-many", p1_hash, map_vote_signals[1], map_vote_outcomes[1])
-        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["YesCount"], self.mn_count - 2)
-        assert_equal(self.nodes[0].gobject("get", p1_hash)["FundingResult"]["NoCount"], 2)
+        self.nodes[0].govobject("vote-alias", p1_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
+        self.nodes[0].govobject("vote-alias", p1_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[1].proTxHash)
+        self.nodes[0].govobject("vote-many", p1_hash, map_vote_signals[1], map_vote_outcomes[1])
+        assert_equal(self.nodes[0].govobject("get", p1_hash)["FundingResult"]["YesCount"], self.mn_count - 2)
+        assert_equal(self.nodes[0].govobject("get", p1_hash)["FundingResult"]["NoCount"], 2)
 
-        self.nodes[0].gobject("vote-alias", p2_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
-        self.nodes[0].gobject("vote-alias", p2_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[1].proTxHash)
-        self.nodes[0].gobject("vote-many", p2_hash, map_vote_signals[1], map_vote_outcomes[1])
-        assert_equal(self.nodes[0].gobject("get", p2_hash)["FundingResult"]["YesCount"], self.mn_count - 2)
-        assert_equal(self.nodes[0].gobject("get", p2_hash)["FundingResult"]["NoCount"], 2)
+        self.nodes[0].govobject("vote-alias", p2_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[0].proTxHash)
+        self.nodes[0].govobject("vote-alias", p2_hash, map_vote_signals[1], map_vote_outcomes[2], self.mninfo[1].proTxHash)
+        self.nodes[0].govobject("vote-many", p2_hash, map_vote_signals[1], map_vote_outcomes[1])
+        assert_equal(self.nodes[0].govobject("get", p2_hash)["FundingResult"]["YesCount"], self.mn_count - 2)
+        assert_equal(self.nodes[0].govobject("get", p2_hash)["FundingResult"]["NoCount"], 2)
 
-        assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
+        assert_equal(len(self.nodes[0].govobject("list", "valid", "triggers")), 0)
 
         block_count = self.nodes[0].getblockcount()
         sb_cycle = 10
@@ -123,14 +123,14 @@ class DashGovernanceTest (DashTestFramework):
         self.sync_blocks()
         time.sleep(1)
 
-        assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
+        assert_equal(len(self.nodes[0].govobject("list", "valid", "triggers")), 0)
 
         # Move 1 block enabling the Superblock maturity window
         self.nodes[0].generate(1)
         self.sync_blocks()
         time.sleep(1)
 
-        assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 1)
+        assert_equal(len(self.nodes[0].govobject("list", "valid", "triggers")), 1)
 
         block_count = self.nodes[0].getblockcount()
         n = sb_cycle - block_count % sb_cycle
