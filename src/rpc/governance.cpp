@@ -438,6 +438,10 @@ static UniValue gobject_vote_conf(const JSONRPCRequest& request)
         return pGovObj->GetObjectType();
     }());
 
+    if (govObjType == GovernanceObject::TRIGGER) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Voting for triggers is not available");
+    }
+
     int nSuccessful = 0;
     int nFailed = 0;
 
