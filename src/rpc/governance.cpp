@@ -295,7 +295,7 @@ static void gobject_submit_help(const JSONRPCRequest& request)
             {"revision", RPCArg::Type::NUM, RPCArg::Optional::NO, "object revision in the system"},
             {"time", RPCArg::Type::NUM, RPCArg::Optional::NO, "time this object was created"},
             {"data-hex", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "data in hex string form"},
-            {"fee-txid", RPCArg::Type::STR_HEX, /* default */ "", "fee-tx id, required for all objects except triggers"},
+            {"fee-txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "txid of the corresponding proposal fee transaction"},
         },
         RPCResults{},
         RPCExamples{""}
@@ -352,11 +352,6 @@ static UniValue gobject_submit(const JSONRPCRequest& request)
         if (!validator.Validate()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
         }
-    }
-
-    if (request.params.size() != 5) {
-        LogPrintf("gobject(submit) -- Object submission rejected because fee tx not provided\n");
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "The fee-txid parameter must be included to submit this type of object");
     }
 
     std::string strHash = govobj.GetHash().ToString();
