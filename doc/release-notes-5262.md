@@ -1,7 +1,7 @@
 Coinbase Changes
 ------------------------
 
-Once v20 activates, miners will produce blocks containing a newer version (=3) of Coinbase transaction.
+Once v20 activates, Coinbase transactions in all mined blocks must be of version 3.
 
 Version 3 of Coinbase will include the following two fields:
 - bestCLHeightDiff (uint32)
