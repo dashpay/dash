@@ -51,6 +51,7 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
+#include <analytics/sdclient.h>
 #include <bls/bls.h>
 #ifdef ENABLE_WALLET
 #include <coinjoin/client.h>
@@ -153,6 +154,10 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     SetupNetworking();
     InitSignatureCache();
     InitScriptExecutionCache();
+    {
+        bilingual_str err;
+        assert(InitStatsAgent(*m_node.args, err, /* mempool */ nullptr));
+    }
     m_node.addrman = std::make_unique<CAddrMan>();
     m_node.chain = interfaces::MakeChain(m_node);
     g_wallet_init_interface.Construct(m_node);
@@ -175,6 +180,7 @@ BasicTestingSetup::~BasicTestingSetup()
     llmq::quorumSnapshotManager.reset();
     creditPoolManager.reset();
     m_node.evodb.reset();
+    StopStatsAgent();
 
     LogInstance().DisconnectTestLogger();
     fs::remove_all(m_path_root);

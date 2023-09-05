@@ -60,7 +60,7 @@
 #include <llmq/instantsend.h>
 #include <llmq/chainlocks.h>
 
-#include <statsd_client.h>
+#include <analytics/sdclient.h>
 
 #include <optional>
 #include <string>
@@ -681,7 +681,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     // is it already in the memory pool?
     if (m_pool.exists(hash)) {
-        statsClient.inc("transactions.duplicate", 1.0f);
+        ::StatsAgent().inc("transactions.duplicate", 1.0f);
         return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-in-mempool");
     }
 
@@ -910,11 +910,11 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
     CAmount nValueOut = tx.GetValueOut();
     unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
-    statsClient.count("transactions.sizeBytes", entry->GetTxSize(), 1.0f);
-    statsClient.count("transactions.fees", nModifiedFees, 1.0f);
-    statsClient.count("transactions.inputValue", nValueOut - nModifiedFees, 1.0f);
-    statsClient.count("transactions.outputValue", nValueOut, 1.0f);
-    statsClient.count("transactions.sigOps", nSigOps, 1.0f);
+    ::StatsAgent().count("transactions.sizeBytes", entry->GetTxSize(), 1.0f);
+    ::StatsAgent().count("transactions.fees", nModifiedFees, 1.0f);
+    ::StatsAgent().count("transactions.inputValue", nValueOut - nModifiedFees, 1.0f);
+    ::StatsAgent().count("transactions.outputValue", nValueOut, 1.0f);
+    ::StatsAgent().count("transactions.sigOps", nSigOps, 1.0f);
 
     // Add memory address index
     if (fAddressIndex) {
@@ -966,10 +966,10 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
     const CTransaction& tx = *ptx;
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("AcceptToMemoryPool_ms", diff.total_milliseconds(), 1.0f);
-    statsClient.inc("transactions.accepted", 1.0f);
-    statsClient.count("transactions.inputs", tx.vin.size(), 1.0f);
-    statsClient.count("transactions.outputs", tx.vout.size(), 1.0f);
+    ::StatsAgent().timing("AcceptToMemoryPool_ms", diff.total_milliseconds(), 1.0f);
+    ::StatsAgent().inc("transactions.accepted", 1.0f);
+    ::StatsAgent().count("transactions.inputs", tx.vin.size(), 1.0f);
+    ::StatsAgent().count("transactions.outputs", tx.vout.size(), 1.0f);
 
     return true;
 }
@@ -1350,7 +1350,7 @@ void CChainState::InvalidChainFound(CBlockIndex* pindexNew)
 {
     assert(std::addressof(::ChainstateActive()) == std::addressof(*this));
 
-    statsClient.inc("warnings.InvalidChainFound", 1.0f);
+    ::StatsAgent().inc("warnings.InvalidChainFound", 1.0f);
 
     if (!pindexBestInvalid || pindexNew->nChainWork > pindexBestInvalid->nChainWork)
         pindexBestInvalid = pindexNew;
@@ -1373,7 +1373,7 @@ void CChainState::ConflictingChainFound(CBlockIndex* pindexNew)
 {
     assert(std::addressof(::ChainstateActive()) == std::addressof(*this));
 
-    statsClient.inc("warnings.ConflictingChainFound", 1.0f);
+    ::StatsAgent().inc("warnings.ConflictingChainFound", 1.0f);
 
     LogPrintf("%s: conflicting block=%s  height=%d  log2_work=%.8f  date=%s\n", __func__,
       pindexNew->GetBlockHash().ToString(), pindexNew->nHeight,
@@ -1389,7 +1389,7 @@ void CChainState::ConflictingChainFound(CBlockIndex* pindexNew)
 // Same as InvalidChainFound, above, except not called directly from InvalidateBlock,
 // which does its own setBlockIndexCandidates manageent.
 void CChainState::InvalidBlockFound(CBlockIndex *pindex, const BlockValidationState &state) {
-    statsClient.inc("warnings.InvalidBlockFound", 1.0f);
+    ::StatsAgent().inc("warnings.InvalidBlockFound", 1.0f);
     if (state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
         pindex->nStatus |= BLOCK_FAILED_VALID;
         m_blockman.m_failed_blocks.insert(pindex);
@@ -1554,7 +1554,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("CheckInputScripts_ms", diff.total_milliseconds(), 1.0f);
+    ::StatsAgent().timing("CheckInputScripts_ms", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -1840,7 +1840,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("DisconnectBlock_ms", diff.total_milliseconds(), 1.0f);
+    ::StatsAgent().timing("DisconnectBlock_ms", diff.total_milliseconds(), 1.0f);
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
@@ -2481,12 +2481,12 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("ConnectBlock_ms", diff.total_milliseconds(), 1.0f);
-    statsClient.gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
-    statsClient.gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
-    statsClient.gauge("blocks.tip.Version", block.nVersion, 1.0f);
-    statsClient.gauge("blocks.tip.NumTransactions", block.vtx.size(), 1.0f);
-    statsClient.gauge("blocks.tip.SigOps", nSigOps, 1.0f);
+    ::StatsAgent().timing("ConnectBlock_ms", diff.total_milliseconds(), 1.0f);
+    ::StatsAgent().gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
+    ::StatsAgent().gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
+    ::StatsAgent().gauge("blocks.tip.Version", block.nVersion, 1.0f);
+    ::StatsAgent().gauge("blocks.tip.NumTransactions", block.vtx.size(), 1.0f);
+    ::StatsAgent().gauge("blocks.tip.SigOps", nSigOps, 1.0f);
 
     return true;
 }
@@ -2922,7 +2922,7 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("ConnectTip_ms", diff.total_milliseconds(), 1.0f);
+    ::StatsAgent().timing("ConnectTip_ms", diff.total_milliseconds(), 1.0f);
 
     connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
     return true;
@@ -3224,7 +3224,7 @@ bool CChainState::ActivateBestChain(BlockValidationState& state, std::shared_ptr
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("ActivateBestChain_ms", diff.total_milliseconds(), 1.0f);
+    ::StatsAgent().timing("ActivateBestChain_ms", diff.total_milliseconds(), 1.0f);
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
@@ -3840,7 +3840,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("CheckBlock_us", diff.total_microseconds(), 1.0f);
+    ::StatsAgent().timing("CheckBlock_us", diff.total_microseconds(), 1.0f);
 
     return true;
 }
@@ -4229,7 +4229,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("AcceptBlock_us", diff.total_microseconds(), 1.0f);
+    ::StatsAgent().timing("AcceptBlock_us", diff.total_microseconds(), 1.0f);
 
     return true;
 }

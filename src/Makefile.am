@@ -129,6 +129,9 @@ BITCOIN_CORE_H = \
   addressindex.h \
   spentindex.h \
   addrman.h \
+  analytics/sample.h \
+  analytics/sdclient.h \
+  analytics/sender.h \
   attributes.h \
   banman.h \
   base58.h \
@@ -287,7 +290,6 @@ BITCOIN_CORE_H = \
   spork.h \
   stacktraces.h \
   streams.h \
-  statsd_client.h \
   support/allocators/mt_pooled_secure.h \
   support/allocators/pooled_secure.h \
   support/allocators/secure.h \
@@ -380,6 +382,9 @@ libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
+  analytics/sample.cpp \
+  analytics/sdclient.cpp \
+  analytics/sender.cpp \
   banman.cpp \
   batchedlogger.cpp \
   blockencodings.cpp \
@@ -470,7 +475,6 @@ libbitcoin_server_a_SOURCES = \
   script/sigcache.cpp \
   shutdown.cpp \
   spork.cpp \
-  statsd_client.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \

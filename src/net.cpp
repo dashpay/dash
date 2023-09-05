@@ -28,12 +28,12 @@
 #include <util/translation.h>
 #include <validation.h>
 
-#include <masternode/meta.h>
-#include <masternode/sync.h>
 #include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
+#include <masternode/meta.h>
+#include <masternode/sync.h>
 
-#include <statsd_client.h>
+#include <analytics/sdclient.h>
 
 #ifdef WIN32
 #include <string.h>
@@ -514,7 +514,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     }
     CNode* pnode = new CNode(id, nLocalServices, sock->Release(), addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false, block_relay_only);
     pnode->AddRef();
-    statsClient.inc("peers.connect", 1.0f);
+    ::StatsAgent().inc("peers.connect", 1.0f);
 
     // We're making a new connection, harvest entropy from the time (and our peer count)
     RandAddEvent((uint32_t)id);
@@ -550,7 +550,7 @@ void CNode::CloseSocketDisconnect(CConnman* connman)
 
     LogPrint(BCLog::NET, "disconnecting peer=%d\n", id);
     CloseSocket(hSocket);
-    statsClient.inc("peers.disconnect", 1.0f);
+    ::StatsAgent().inc("peers.disconnect", 1.0f);
 }
 
 void CConnman::AddWhitelistPermissionFlags(NetPermissionFlags& flags, const CNetAddr &addr) const {
@@ -707,7 +707,7 @@ bool CNode::ReceiveMsgBytes(Span<const uint8_t> msg_bytes, bool& complete)
                 i = mapRecvBytesPerMsgCmd.find(NET_MESSAGE_COMMAND_OTHER);
             assert(i != mapRecvBytesPerMsgCmd.end());
             i->second += result->m_raw_message_size;
-            statsClient.count("bandwidth.message." + std::string(result->m_command) + ".bytesReceived", result->m_raw_message_size, 1.0f);
+            ::StatsAgent().count("bandwidth.message." + std::string(result->m_command) + ".bytesReceived", result->m_raw_message_size, 1.0f);
 
             // push the message to the process queue,
             vRecvMsg.push_back(std::move(*result));
@@ -1424,21 +1424,21 @@ void CConnman::CalculateNumConnectionsChangedStats()
         if(pnode->addr.IsTor())
             torNodes++;
         if(pnode->nPingUsecTime > 0)
-            statsClient.timing("peers.ping_us", pnode->nPingUsecTime, 1.0f);
+            ::StatsAgent().timing("peers.ping_us", pnode->nPingUsecTime, 1.0f);
     }
     ReleaseNodeVector(vNodesCopy);
     for (const std::string &msg : getAllNetMessageTypes()) {
-        statsClient.gauge("bandwidth.message." + msg + ".totalBytesReceived", mapRecvBytesMsgStats[msg], 1.0f);
-        statsClient.gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
+        ::StatsAgent().gauge("bandwidth.message." + msg + ".totalBytesReceived", mapRecvBytesMsgStats[msg], 1.0f);
+        ::StatsAgent().gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
     }
-    statsClient.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
-    statsClient.gauge("peers.spvNodeConnections", spvNodes, 1.0f);
-    statsClient.gauge("peers.fullNodeConnections", fullNodes, 1.0f);
-    statsClient.gauge("peers.inboundConnections", inboundNodes, 1.0f);
-    statsClient.gauge("peers.outboundConnections", outboundNodes, 1.0f);
-    statsClient.gauge("peers.ipv4Connections", ipv4Nodes, 1.0f);
-    statsClient.gauge("peers.ipv6Connections", ipv6Nodes, 1.0f);
-    statsClient.gauge("peers.torConnections", torNodes, 1.0f);
+    ::StatsAgent().gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
+    ::StatsAgent().gauge("peers.spvNodeConnections", spvNodes, 1.0f);
+    ::StatsAgent().gauge("peers.fullNodeConnections", fullNodes, 1.0f);
+    ::StatsAgent().gauge("peers.inboundConnections", inboundNodes, 1.0f);
+    ::StatsAgent().gauge("peers.outboundConnections", outboundNodes, 1.0f);
+    ::StatsAgent().gauge("peers.ipv4Connections", ipv4Nodes, 1.0f);
+    ::StatsAgent().gauge("peers.ipv6Connections", ipv6Nodes, 1.0f);
+    ::StatsAgent().gauge("peers.torConnections", torNodes, 1.0f);
 }
 
 void CConnman::InactivityCheck(CNode *pnode) const
@@ -3760,16 +3760,16 @@ void CConnman::RecordBytesRecv(uint64_t bytes)
 {
     LOCK(cs_totalBytesRecv);
     nTotalBytesRecv += bytes;
-    statsClient.count("bandwidth.bytesReceived", bytes, 0.1f);
-    statsClient.gauge("bandwidth.totalBytesReceived", nTotalBytesRecv, 0.01f);
+    ::StatsAgent().count("bandwidth.bytesReceived", bytes, 0.1f);
+    ::StatsAgent().gauge("bandwidth.totalBytesReceived", nTotalBytesRecv, 0.01f);
 }
 
 void CConnman::RecordBytesSent(uint64_t bytes)
 {
     LOCK(cs_totalBytesSent);
     nTotalBytesSent += bytes;
-    statsClient.count("bandwidth.bytesSent", bytes, 0.01f);
-    statsClient.gauge("bandwidth.totalBytesSent", nTotalBytesSent, 0.01f);
+    ::StatsAgent().count("bandwidth.bytesSent", bytes, 0.01f);
+    ::StatsAgent().gauge("bandwidth.totalBytesSent", nTotalBytesSent, 0.01f);
 
     const auto now = GetTime<std::chrono::seconds>();
     if (nMaxOutboundCycleStartTime + MAX_UPLOAD_TIMEFRAME < now)
@@ -3905,8 +3905,8 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
     pnode->m_serializer->prepareForTransport(msg, serializedHeader);
 
     size_t nTotalSize = nMessageSize + serializedHeader.size();
-    statsClient.count("bandwidth.message." + SanitizeString(msg.command.c_str()) + ".bytesSent", nTotalSize, 1.0f);
-    statsClient.inc("message.sent." + SanitizeString(msg.command.c_str()), 1.0f);
+    ::StatsAgent().count("bandwidth.message." + SanitizeString(msg.command.c_str()) + ".bytesSent", nTotalSize, 1.0f);
+    ::StatsAgent().inc("message.sent." + SanitizeString(msg.command.c_str()), 1.0f);
 
     size_t nBytesSent = 0;
     {
