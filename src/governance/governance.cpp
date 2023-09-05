@@ -632,12 +632,12 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
 void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman& connman)
 {
     //TODO: Check if nHashParentIn, nRevision and nCollateralHashIn are correct
-    LOCK2(cs_main, governance->cs);
+    LOCK2(cs_main, cs);
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
     CGovernanceObject* gov_sb_voting{nullptr};
     CGovernanceObject gov_sb(uint256(), 1, GetAdjustedTime(), uint256(), sb.GetHexStrData());
-    const auto identical_sb = governance->FindGovernanceObjectByDataHash(gov_sb.GetDataHash());
+    const auto identical_sb = FindGovernanceObjectByDataHash(gov_sb.GetDataHash());
 
     if (identical_sb == nullptr) {
         // Nobody submitted a trigger we'd like to see,
@@ -655,12 +655,12 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Created trigger is invalid:%s\n", __func__, strError);
             return;
         }
-        if (!governance->MasternodeRateCheck(gov_sb)) {
+        if (!MasternodeRateCheck(gov_sb)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Trigger rejected because of rate check failure hash(%s)\n", __func__, gov_sb.GetHash().ToString());
             return;
         }
         // The trigger we just created looks good, submit it
-        governance->AddGovernanceObject(gov_sb, connman);
+        AddGovernanceObject(gov_sb, connman);
         gov_sb_voting = &gov_sb;
     } else {
         // Somebody submitted a trigger with the same data, support it instead of submitting a duplicate
@@ -699,7 +699,7 @@ bool CGovernanceManager::VoteFundingTrigger(const uint256& nHash, const vote_out
     }
 
     CGovernanceException exception;
-    if (!governance->ProcessVoteAndRelay(vote, exception, connman)) {
+    if (!ProcessVoteAndRelay(vote, exception, connman)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING %d for trigger:%s failed:%s\n", __func__, outcome, nHash.ToString(), exception.what());
         return false;
     }
