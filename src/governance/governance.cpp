@@ -423,7 +423,7 @@ void CGovernanceManager::UpdateCachesAndClean()
 
 CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash)
 {
-    LOCK(cs);
+    AssertLockHeld(cs);
 
     if (mapObjects.count(nHash)) return &mapObjects[nHash];
 
@@ -432,7 +432,7 @@ CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash
 
 CGovernanceObject* CGovernanceManager::FindGovernanceObjectByDataHash(const uint256 &nDataHash)
 {
-    LOCK(cs);
+    AssertLockHeld(cs);
 
     for (const auto& [nHash, object] : mapObjects) {
         if (object.GetDataHash() == nDataHash) return &mapObjects[nHash];
