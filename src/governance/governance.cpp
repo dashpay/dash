@@ -536,16 +536,19 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
     // Use std::vector of std::shared_ptr<const CGovernanceObject> because CGovernanceObject doesn't support move operations (needed for sorting the vector later)
     std::vector<std::shared_ptr<const CGovernanceObject>> approvedProposals;
 
-    for (const auto& [unused, object] : mapObjects) {
-        // Skip all non-proposals objects
-        if (object.GetObjectType() != GovernanceObject::PROPOSAL) continue;
+    {
+        LOCK(cs);
+        for (const auto& [unused, object] : mapObjects) {
+            // Skip all non-proposals objects
+            if (object.GetObjectType() != GovernanceObject::PROPOSAL) continue;
 
-        const int absYesCount = object.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-        // Skip non-passing proposals
-        if (absYesCount < nAbsVoteReq) continue;
+            const int absYesCount = object.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+            // Skip non-passing proposals
+            if (absYesCount < nAbsVoteReq) continue;
 
-        approvedProposals.emplace_back(std::make_shared<const CGovernanceObject>(object));
-    }
+            approvedProposals.emplace_back(std::make_shared<const CGovernanceObject>(object));
+        }
+    } // cs
 
     // Sort approved proposals by absolute Yes votes descending
     std::sort(approvedProposals.begin(), approvedProposals.end(), [](std::shared_ptr<const CGovernanceObject> a, std::shared_ptr<const CGovernanceObject> b) {
