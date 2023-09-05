@@ -13,6 +13,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+using kernel::BlockTreeDB;
+
 namespace {
 struct IndexMigrationSetup : public TestChainSetup {
     IndexMigrationSetup() :
@@ -56,7 +58,7 @@ BOOST_AUTO_TEST_SUITE(index_migration_tests)
 BOOST_FIXTURE_TEST_CASE(empty_index_is_not_adopted_as_migrated, IndexMigrationSetup)
 {
     WriteChainstateBestBlock();
-    CBlockTreeDB& block_tree_db{*WITH_LOCK(cs_main, return m_node.chainman->m_blockman.m_block_tree_db.get())};
+    BlockTreeDB& block_tree_db{*WITH_LOCK(cs_main, return m_node.chainman->m_blockman.m_block_tree_db.get())};
     BOOST_REQUIRE(block_tree_db.WriteFlag("timestampindex", true));
 
     BOOST_REQUIRE(
