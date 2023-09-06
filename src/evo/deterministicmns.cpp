@@ -1181,6 +1181,31 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
 
 }
 
+[[nodiscard]] static bool EraseOldDBData(CDBWrapper& db, const std::vector<std::string>& db_keys)
+{
+    bool erased{false};
+    for(const auto& db_key : db_keys) {
+        CDBBatch batch(db);
+        auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+        auto firstKey = std::make_pair(db_key, uint256());
+        it->Seek(firstKey);
+        while (it->Valid()) {
+            decltype(firstKey) curKey;
+            if (!it->GetKey(curKey) || std::get<0>(curKey) != db_key) {
+                break;
+            }
+            batch.Erase(curKey);
+            erased = true;
+            it->Next();
+        }
+        if (erased) {
+            db.WriteBatch(batch);
+            LogPrintf("CDeterministicMNManager::%s -- done cleaning old data for %s\n", __func__, db_key);
+        }
+    }
+    return erased;
+}
+
 bool CDeterministicMNManager::MigrateDBIfNeeded()
 {
     static const std::string DB_OLD_LIST_SNAPSHOT = "dmn_S";
@@ -1199,7 +1224,19 @@ bool CDeterministicMNManager::MigrateDBIfNeeded()
     }
 
     if (m_evoDb.GetRawDB().Exists(EVODB_BEST_BLOCK) || m_evoDb.GetRawDB().Exists(DB_OLD_BEST_BLOCK2)) {
-        LogPrintf("CDeterministicMNManager::%s -- migration already done. skipping.\n", __func__);
+        if (EraseOldDBData(m_evoDb.GetRawDB(), {DB_OLD_LIST_DIFF, DB_OLD_LIST_SNAPSHOT})) {
+            // we messed up, make sure this time we actually drop old data
+            LogPrintf("CDeterministicMNManager::%s -- migration already done. cleaned old data.\n", __func__);
+            m_evoDb.GetRawDB().CompactFull();
+            LogPrintf("CDeterministicMNManager::%s -- done compacting database\n", __func__);
+            // flush it to disk
+            if (!m_evoDb.CommitRootTransaction()) {
+                LogPrintf("CDeterministicMNManager::%s -- failed to commit to evoDB\n", __func__);
+                return false;
+            }
+        } else {
+            LogPrintf("CDeterministicMNManager::%s -- migration already done. skipping.\n", __func__);
+        }
         return true;
     }
 
@@ -1263,10 +1300,9 @@ bool CDeterministicMNManager::MigrateDBIfNeeded()
 
     LogPrintf("CDeterministicMNManager::%s -- done migrating\n", __func__);
 
-    m_evoDb.GetRawDB().Erase(DB_OLD_LIST_DIFF);
-    m_evoDb.GetRawDB().Erase(DB_OLD_LIST_SNAPSHOT);
-
-    LogPrintf("CDeterministicMNManager::%s -- done cleaning old data\n", __func__);
+    if (EraseOldDBData(m_evoDb.GetRawDB(), {DB_OLD_LIST_DIFF, DB_OLD_LIST_SNAPSHOT})) {
+        LogPrintf("CDeterministicMNManager::%s -- done cleaning old data\n", __func__);
+    }
 
     m_evoDb.GetRawDB().CompactFull();
 
@@ -1298,7 +1334,19 @@ bool CDeterministicMNManager::MigrateDBIfNeeded2()
     }
 
     if (m_evoDb.GetRawDB().Exists(EVODB_BEST_BLOCK)) {
-        LogPrintf("CDeterministicMNManager::%s -- migration already done. skipping.\n", __func__);
+        if (EraseOldDBData(m_evoDb.GetRawDB(), {DB_OLD_LIST_DIFF, DB_OLD_LIST_SNAPSHOT})) {
+            // we messed up, make sure this time we actually drop old data
+            LogPrintf("CDeterministicMNManager::%s -- migration already done. cleaned old data.\n", __func__);
+            m_evoDb.GetRawDB().CompactFull();
+            LogPrintf("CDeterministicMNManager::%s -- done compacting database\n", __func__);
+            // flush it to disk
+            if (!m_evoDb.CommitRootTransaction()) {
+                LogPrintf("CDeterministicMNManager::%s -- failed to commit to evoDB\n", __func__);
+                return false;
+            }
+        } else {
+            LogPrintf("CDeterministicMNManager::%s -- migration already done. skipping.\n", __func__);
+        }
         return true;
     }
 
@@ -1362,10 +1410,9 @@ bool CDeterministicMNManager::MigrateDBIfNeeded2()
 
     LogPrintf("CDeterministicMNManager::%s -- done migrating\n", __func__);
 
-    m_evoDb.GetRawDB().Erase(DB_OLD_LIST_DIFF);
-    m_evoDb.GetRawDB().Erase(DB_OLD_LIST_SNAPSHOT);
-
-    LogPrintf("CDeterministicMNManager::%s -- done cleaning old data\n", __func__);
+    if (EraseOldDBData(m_evoDb.GetRawDB(), {DB_OLD_LIST_DIFF, DB_OLD_LIST_SNAPSHOT})) {
+        LogPrintf("CDeterministicMNManager::%s -- done cleaning old data\n", __func__);
+    }
 
     m_evoDb.GetRawDB().CompactFull();
 
