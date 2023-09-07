@@ -1181,17 +1181,17 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
 
 }
 
-[[nodiscard]] static bool EraseOldDBData(CDBWrapper& db, const std::vector<std::string>& db_keys)
+[[nodiscard]] static bool EraseOldDBData(CDBWrapper& db, const std::vector<std::string>& db_key_prefixes)
 {
     bool erased{false};
-    for(const auto& db_key : db_keys) {
+    for(const auto& db_key_prefix : db_key_prefixes) {
         CDBBatch batch(db);
         auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
-        auto firstKey = std::make_pair(db_key, uint256());
+        auto firstKey = std::make_pair(db_key_prefix, uint256());
         it->Seek(firstKey);
         while (it->Valid()) {
             decltype(firstKey) curKey;
-            if (!it->GetKey(curKey) || std::get<0>(curKey) != db_key) {
+            if (!it->GetKey(curKey) || std::get<0>(curKey) != db_key_prefix) {
                 break;
             }
             batch.Erase(curKey);
@@ -1200,7 +1200,7 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
         }
         if (erased) {
             db.WriteBatch(batch);
-            LogPrintf("CDeterministicMNManager::%s -- done cleaning old data for %s\n", __func__, db_key);
+            LogPrintf("CDeterministicMNManager::%s -- done cleaning old data for %s\n", __func__, db_key_prefix);
         }
     }
     return erased;
