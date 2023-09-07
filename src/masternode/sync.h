@@ -53,7 +53,7 @@ private:
 public:
     explicit CMasternodeSync(CConnman& _connman);
 
-    void SendGovernanceSyncRequest(CNode* pnode);
+    void SendGovernanceSyncRequest(CNode* pnode) const;
 
     bool IsBlockchainSynced() const { return nCurrentAsset > MASTERNODE_SYNC_BLOCKCHAIN; }
     bool IsSynced() const { return nCurrentAsset == MASTERNODE_SYNC_FINISHED; }

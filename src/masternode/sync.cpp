@@ -297,7 +297,7 @@ void CMasternodeSync::ProcessTick()
     connman.ReleaseNodeVector(vNodesCopy);
 }
 
-void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode)
+void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode) const
 {
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
 
