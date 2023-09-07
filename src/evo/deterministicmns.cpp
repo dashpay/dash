@@ -1185,9 +1185,9 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
 {
     bool erased{false};
     for(const auto& db_key_prefix : db_key_prefixes) {
-        CDBBatch batch(db);
-        auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
-        auto firstKey = std::make_pair(db_key_prefix, uint256());
+        CDBBatch batch{db};
+        std::unique_ptr<CDBIterator> it{db.NewIterator()};
+        std::pair firstKey{db_key_prefix, uint256()};
         it->Seek(firstKey);
         while (it->Valid()) {
             decltype(firstKey) curKey;
@@ -1199,6 +1199,7 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
             it->Next();
         }
         if (erased) {
+            LogPrintf("CDeterministicMNManager::%s -- updating db...\n", __func__);
             db.WriteBatch(batch);
             LogPrintf("CDeterministicMNManager::%s -- done cleaning old data for %s\n", __func__, db_key_prefix);
         }
