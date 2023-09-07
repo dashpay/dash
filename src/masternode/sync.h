@@ -13,6 +13,7 @@ class CBlockIndex;
 class CConnman;
 class CNode;
 class CDataStream;
+class CGovernanceManager;
 
 static constexpr int MASTERNODE_SYNC_BLOCKCHAIN      = 1;
 static constexpr int MASTERNODE_SYNC_GOVERNANCE      = 4;
@@ -49,9 +50,10 @@ private:
     std::atomic<int64_t> nTimeLastUpdateBlockTip{0};
 
     CConnman& connman;
+    const CGovernanceManager& governanceManager;
 
 public:
-    explicit CMasternodeSync(CConnman& _connman);
+    explicit CMasternodeSync(CConnman& _connman, const CGovernanceManager& govMan);
 
     void SendGovernanceSyncRequest(CNode* pnode) const;
 
