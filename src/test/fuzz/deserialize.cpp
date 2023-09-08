@@ -33,8 +33,7 @@
 
 void initialize_deserialize()
 {
-    // Fuzzers using pubkey must hold an ECCVerifyHandle.
-    static const ECCVerifyHandle verify_handle;
+    return;
 }
 
 #define FUZZ_TARGET_DESERIALIZE(name, code)                \
