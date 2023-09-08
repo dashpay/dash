@@ -50,10 +50,10 @@ private:
     std::atomic<int64_t> nTimeLastUpdateBlockTip{0};
 
     CConnman& connman;
-    const CGovernanceManager& governanceManager;
+    const CGovernanceManager& m_govman;
 
 public:
-    explicit CMasternodeSync(CConnman& _connman, const CGovernanceManager& govMan);
+    explicit CMasternodeSync(CConnman& _connman, const CGovernanceManager& govman);
 
     void SendGovernanceSyncRequest(CNode* pnode) const;
 
