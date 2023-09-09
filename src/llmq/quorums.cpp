@@ -212,7 +212,7 @@ void CQuorum::WriteContributions(CDBWrapper& db) const
 bool CQuorum::ReadContributions(const CDBWrapper& db)
 {
     uint256 dbKey = MakeQuorumKey(*this);
-    CDataStream s(SER_DISK, CLIENT_VERSION);
+    DataStream s{};
 
     if (!db.ReadDataStream(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), s)) {
         return false;

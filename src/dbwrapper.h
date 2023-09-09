@@ -199,7 +199,7 @@ public:
 
     template<typename V> bool GetValue(V& value) {
         try {
-            CDataStream ssValue{GetValueImpl(), SER_DISK, CLIENT_VERSION};
+            DataStream ssValue{GetValueImpl()};
             ssValue.Xor(dbwrapper_private::GetObfuscateKey(parent));
             ssValue >> value;
         } catch (const std::exception&) {
@@ -252,7 +252,7 @@ public:
     CDBWrapper& operator=(const CDBWrapper&) = delete;
 
     template <typename K>
-    bool ReadDataStream(const K& key, CDataStream& ssValue) const
+    bool ReadDataStream(const K& key, DataStream& ssValue) const
     {
         DataStream ssKey{};
         ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
@@ -260,13 +260,13 @@ public:
         return ReadDataStream(ssKey, ssValue);
     }
 
-    bool ReadDataStream(const DataStream& ssKey, CDataStream& ssValue) const
+    bool ReadDataStream(const DataStream& ssKey, DataStream& ssValue) const
     {
         std::optional<std::string> strValue{ReadImpl(ssKey)};
         if (!strValue) {
             return false;
         }
-        CDataStream ssValueTmp{MakeByteSpan(*strValue), SER_DISK, CLIENT_VERSION};
+        DataStream ssValueTmp{MakeByteSpan(*strValue)};
         ssValueTmp.Xor(obfuscate_key);
         ssValue = std::move(ssValueTmp);
         return true;
@@ -284,7 +284,7 @@ public:
     template <typename V>
     bool Read(const DataStream& ssKey, V& value) const
     {
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        DataStream ssValue{};
         if (!ReadDataStream(ssKey, ssValue)) {
             return false;
         }

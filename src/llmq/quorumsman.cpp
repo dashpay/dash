@@ -643,7 +643,7 @@ void CQuorumManager::MigrateOldQuorumDB(CEvoDB& evoDb) const
         int count{0};
         while (pcursor->Valid()) {
             decltype(start) k;
-            CDataStream s(SER_DISK, CLIENT_VERSION);
+            DataStream s{};
             CBLSSecretKey sk;
 
             if (!pcursor->GetKey(k) || std::get<0>(k) != prefix) {

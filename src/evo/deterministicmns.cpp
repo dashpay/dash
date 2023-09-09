@@ -1068,7 +1068,7 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
         }
 
         // Use legacy-aware deserialization for DB_LIST_DIFF_LEGACY entries
-        CDataStream s(SER_DISK, CLIENT_VERSION);
+        DataStream s{};
         if (!m_evoDb.GetRawDB().ReadDataStream(key, s)) {
             break;
         }
