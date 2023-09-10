@@ -111,9 +111,7 @@ class MempoolTracepointTest(BitcoinTestFramework):
         """Add a transaction to the mempool and make sure the tracepoint returns
         the expected txid, vsize, and fee."""
 
-        EXPECTED_ADDED_EVENTS = 1
-        handled_added_events = 0
-        event = None
+        events = []
 
         self.log.info("Hooking into mempool:added tracepoint...")
         node = self.nodes[0]
@@ -122,9 +120,7 @@ class MempoolTracepointTest(BitcoinTestFramework):
         bpf = BPF(text=MEMPOOL_TRACEPOINTS_PROGRAM, usdt_contexts=[ctx], debug=0)
 
         def handle_added_event(_, data, __):
-            nonlocal event, handled_added_events
-            event = bpf["added_events"].event(data)
-            handled_added_events += 1
+            events.append(bpf["added_events"].event(data))
 
         bpf["added_events"].open_perf_buffer(handle_added_event)
 
@@ -139,7 +135,8 @@ class MempoolTracepointTest(BitcoinTestFramework):
         self.generate(node, 1)
 
         self.log.info("Ensuring mempool:added event was handled successfully...")
-        assert_equal(EXPECTED_ADDED_EVENTS, handled_added_events)
+        assert_equal(1, len(events))
+        event = events[0]
         assert_equal(bytes(event.hash)[::-1].hex(), tx["txid"])
         assert_equal(event.vsize, tx["tx"].get_vsize())
         assert_equal(event.fee, fee)
@@ -150,9 +147,7 @@ class MempoolTracepointTest(BitcoinTestFramework):
         """Expire a transaction from the mempool and make sure the tracepoint returns
         the expected txid, expiry reason, vsize, and fee."""
 
-        EXPECTED_REMOVED_EVENTS = 1
-        handled_removed_events = 0
-        event = None
+        events = []
 
         self.log.info("Hooking into mempool:removed tracepoint...")
         node = self.nodes[0]
@@ -161,9 +156,7 @@ class MempoolTracepointTest(BitcoinTestFramework):
         bpf = BPF(text=MEMPOOL_TRACEPOINTS_PROGRAM, usdt_contexts=[ctx], debug=0)
 
         def handle_removed_event(_, data, __):
-            nonlocal event, handled_removed_events
-            event = bpf["removed_events"].event(data)
-            handled_removed_events += 1
+            events.append(bpf["removed_events"].event(data))
 
         bpf["removed_events"].open_perf_buffer(handle_removed_event)
 
@@ -185,7 +178,8 @@ class MempoolTracepointTest(BitcoinTestFramework):
         bpf.perf_buffer_poll(timeout=200)
 
         self.log.info("Ensuring mempool:removed event was handled successfully...")
-        assert_equal(EXPECTED_REMOVED_EVENTS, handled_removed_events)
+        assert_equal(1, len(events))
+        event = events[0]
         assert_equal(bytes(event.hash)[::-1].hex(), txid)
         assert_equal(event.reason.decode("UTF-8"), "expiry")
         assert_equal(event.vsize, tx["tx"].get_vsize())
@@ -198,9 +192,7 @@ class MempoolTracepointTest(BitcoinTestFramework):
         """Create an invalid transaction and make sure the tracepoint returns
         the expected txid, rejection reason, peer id, and peer address."""
 
-        EXPECTED_REJECTED_EVENTS = 1
-        handled_rejected_events = 0
-        event = None
+        events = []
 
         self.log.info("Adding P2P connection...")
         node = self.nodes[0]
@@ -212,9 +204,7 @@ class MempoolTracepointTest(BitcoinTestFramework):
         bpf = BPF(text=MEMPOOL_TRACEPOINTS_PROGRAM, usdt_contexts=[ctx], debug=0)
 
         def handle_rejected_event(_, data, __):
-            nonlocal event, handled_rejected_events
-            event = bpf["rejected_events"].event(data)
-            handled_rejected_events += 1
+            events.append(bpf["rejected_events"].event(data))
 
         bpf["rejected_events"].open_perf_buffer(handle_rejected_event)
 
@@ -226,7 +216,8 @@ class MempoolTracepointTest(BitcoinTestFramework):
         bpf.perf_buffer_poll(timeout=200)
 
         self.log.info("Ensuring mempool:rejected event was handled successfully...")
-        assert_equal(EXPECTED_REJECTED_EVENTS, handled_rejected_events)
+        assert_equal(1, len(events))
+        event = events[0]
         assert_equal(bytes(event.hash)[::-1].hex(), tx["tx"].hash)
         assert_equal(event.reason.decode("UTF-8"), "min relay fee not met")
 
