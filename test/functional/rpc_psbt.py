@@ -78,9 +78,8 @@ class PSBTTest(BitcoinTestFramework):
         utxo1 = tx1_inputs[0]
         assert_equal(unconfirmed_txid, utxo1['txid'])
 
-        signed_tx1 = wallet.walletprocesspsbt(psbtx1)['psbt']
-        final_tx1 = wallet.finalizepsbt(signed_tx1)['hex']
-        txid1 = self.nodes[0].sendrawtransaction(final_tx1)
+        signed_tx1 = wallet.walletprocesspsbt(psbtx1)
+        txid1 = self.nodes[0].sendrawtransaction(signed_tx1['hex'])
 
         mempool = self.nodes[0].getrawmempool()
         assert txid1 in mempool
@@ -97,9 +96,8 @@ class PSBTTest(BitcoinTestFramework):
         # and there is no RBF in Dash, so the transaction conflicts with the mempool
         invalid_inputs = self.nodes[0].decodepsbt(psbt_invalid)['tx']['vin']
         assert any(vin['txid'] == txid1 for vin in invalid_inputs)
-        signed_invalid = wallet.walletprocesspsbt(psbt_invalid)['psbt']
-        final_invalid = wallet.finalizepsbt(signed_invalid)['hex']
-        assert_raises_rpc_error(-26, "txn-mempool-conflict", self.nodes[0].sendrawtransaction, final_invalid)
+        signed_invalid = wallet.walletprocesspsbt(psbt_invalid)
+        assert_raises_rpc_error(-26, "txn-mempool-conflict", self.nodes[0].sendrawtransaction, signed_invalid['hex'])
 
         self.log.info("Craft a new PSBT adding inputs with highest confs possible")
         psbtx2 = wallet.walletcreatefundedpsbt([{'txid': utxo1['txid'], 'vout': utxo1['vout']}], {target_address: 1}, 0, {'add_inputs': True, 'minconf': 2, 'fee_rate': 10})['psbt']
