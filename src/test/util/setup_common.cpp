@@ -218,7 +218,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
         ::g_stats_client = std::move(*stats_client);
     }
 
-    m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman); // Deterministic randomness for tests.
+    m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params()); // Deterministic randomness for tests.
 
     m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>(m_args.GetDataDirNet());
     m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>(m_args.GetDataDirNet());

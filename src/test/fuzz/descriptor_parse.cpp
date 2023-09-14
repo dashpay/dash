@@ -11,6 +11,7 @@
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util/descriptor.h>
 #include <util/chaintype.h>
+#include <util/strencodings.h>
 
 //! The converter of mocked descriptors, needs to be initialized when the target is.
 MockedDescriptorConverter MOCKED_DESC_CONVERTER;

@@ -15,6 +15,7 @@
 #include <consensus/merkle.h>
 #include <consensus/params.h>
 #include <deploymentinfo.h>
+#include <kernel/messagestartchars.h>
 #include <logging.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
