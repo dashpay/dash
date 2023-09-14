@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/validation.h>
+#include <key.h>
+#include <random.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
