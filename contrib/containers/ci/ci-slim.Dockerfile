@@ -40,6 +40,7 @@ RUN set -ex; \
     build-essential \
     ca-certificates \
     curl \
+    e2fsprogs \
     g++ \
     git \
     jq \

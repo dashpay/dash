@@ -41,7 +41,8 @@ jobs:
       image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       # SYS_PTRACE is required by LeakSanitizer's stop-the-world
       # (https://github.com/google/sanitizers/issues/764)
-      options: --user root --cap-add SYS_PTRACE
+      # LINUX_IMMUTABLE lets feature_reindex_readonly.py run chattr +i
+      options: --user root --cap-add LINUX_IMMUTABLE --cap-add SYS_PTRACE
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
