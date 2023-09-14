@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
 #include <net.h>
 #include <node/connection_types.h>
 #include <protocol.h>
@@ -46,7 +47,7 @@ CNode& AddNode(ConnmanTestMsg& connman, NodeId id, ConnectionType conn_type)
  */
 BOOST_AUTO_TEST_CASE(verified_inbound_capped_per_protx)
 {
-    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params());
 
     const uint256 attacker{1};
     const uint256 other{2};

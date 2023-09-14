@@ -11,6 +11,7 @@
 #include <flatfile.h>
 #include <hash.h>
 #include <kernel/chainparams.h>
+#include <kernel/messagestartchars.h>
 #include <logging.h>
 #include <pow.h>
 #include <shutdown.h>
@@ -506,7 +507,7 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
     return &m_blockfile_info.at(n);
 }
 
-bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const
+bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const MessageStartChars& messageStart) const
 {
     // Open history file to append
     CAutoFile fileout{OpenUndoFile(pos)};
@@ -779,7 +780,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     return true;
 }
 
-bool BlockManager::WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const
+bool BlockManager::WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const MessageStartChars& messageStart) const
 {
     // Open history file to append
     CAutoFile fileout{OpenBlockFile(pos)};
@@ -888,7 +889,7 @@ FlatFilePos RecordHeaderPos(const FlatFilePos& pos)
 static uint32_t ReadRecordSizeField(AutoFile& filein)
 {
     uint32_t size_field;
-    filein.ignore(CMessageHeader::MESSAGE_START_SIZE);
+    filein.ignore(std::tuple_size_v<MessageStartChars>);
     filein >> size_field;
     return size_field;
 }

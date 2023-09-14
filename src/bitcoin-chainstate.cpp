@@ -33,6 +33,7 @@
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/chainstate.h>
+#include <random.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
 #include <spork.h>

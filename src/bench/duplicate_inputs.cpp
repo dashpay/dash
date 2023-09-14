@@ -8,6 +8,7 @@
 #include <consensus/validation.h>
 #include <policy/policy.h>
 #include <pow.h>
+#include <random.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>
 #include <validation.h>
