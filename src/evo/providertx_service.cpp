@@ -600,7 +600,7 @@ RegistrationResult BuildRegistration(node::NodeContext& node, Wallet& wallet,
                      strprintf("collateral not found: %s", payload.collateralOutpoint.ToStringShort()));
     }
     CTxDestination collateral_destination;
-    ExtractDestination(chain_snapshot.collateral_coin->out.scriptPubKey, collateral_destination);
+    ExtractLegacyDestination(chain_snapshot.collateral_coin->out.scriptPubKey, collateral_destination);
     const auto* collateral_key{std::get_if<PKHash>(&collateral_destination)};
     if (!collateral_key) {
         return Error(ProviderTxErrorCode::INVALID_ADDRESS_OR_KEY,
@@ -786,7 +786,7 @@ std::optional<ProviderTxError> CheckRegistrarUpdateFunding(Wallet& wallet, const
     for (size_t i = 0; i < coins.size(); ++i) {
         const CScript& script{coins[i].txout.scriptPubKey};
         CTxDestination source;
-        if (coins[i].depth_in_main_chain < 0 || !wallet.isSpendable(script) || !ExtractDestination(script, source)) {
+        if (coins[i].depth_in_main_chain < 0 || !wallet.isSpendable(script) || !ExtractLegacyDestination(script, source)) {
             return Error(ProviderTxErrorCode::WALLET_ERROR,
                          "a shared registrar update must be combined by the wallet that funded it");
         }

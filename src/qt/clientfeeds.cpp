@@ -178,7 +178,7 @@ void MasternodeFeed::fetch()
         CTxDestination collateralDest;
         const auto coin{m_client_model.node().getUnspentOutput(dmn->getCollateralOutpoint())};
         QString collateralStr = QObject::tr("UNKNOWN");
-        if (coin && ExtractDestination(coin->out.scriptPubKey, collateralDest)) {
+        if (coin && ExtractLegacyDestination(coin->out.scriptPubKey, collateralDest)) {
             collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
         int nNextPayment{0};

@@ -1283,7 +1283,7 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral");
         }
 
-        if (!ExtractDestination(coin.out.scriptPubKey, collateralTxDest)) {
+        if (!ExtractLegacyDestination(coin.out.scriptPubKey, collateralTxDest)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-dest");
         }
 
@@ -1308,7 +1308,7 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
             if (!IsSharedCollateralScript(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey)) {
                 return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-collateral-script");
             }
-        } else if (!ExtractDestination(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey, collateralTxDest)) {
+        } else if (!ExtractLegacyDestination(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey, collateralTxDest)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-dest");
         }
 
@@ -1588,7 +1588,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
 
     // don't allow reuse of collateral key for other keys (don't allow people to put the collateral key onto an online server)
     CTxDestination collateralTxDest;
-    if (!ExtractDestination(coin.out.scriptPubKey, collateralTxDest)) {
+    if (!ExtractLegacyDestination(coin.out.scriptPubKey, collateralTxDest)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-collateral-dest");
     }
     const bool check_payout_collateral_reuse{

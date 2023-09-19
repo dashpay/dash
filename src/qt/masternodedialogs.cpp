@@ -70,7 +70,7 @@ uint16_t PortOrDefault(const QStringList& endpoints, uint16_t default_port)
 
 std::optional<CTxDestination> ParseDestination(const QString& text, QString& error)
 {
-    const CTxDestination destination{DecodeDestination(text.trimmed().toStdString())};
+    CTxDestination destination{DecodeDestination(text.trimmed().toStdString())};
     if (!IsValidDestination(destination)) {
         error = QObject::tr("Invalid Dash address: %1").arg(text);
         return std::nullopt;

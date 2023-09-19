@@ -241,7 +241,7 @@ void FeeSourcePicker::refresh()
             if (m_wallet_model->wallet().isLockedCoin(outpoint)) continue;
             if (!m_wallet_model->wallet().isSpendable(txout.txout.scriptPubKey)) continue;
             CTxDestination coin_dest;
-            if (!ExtractDestination(txout.txout.scriptPubKey, coin_dest)) continue;
+            if (!ExtractLegacyDestination(txout.txout.scriptPubKey, coin_dest)) continue;
             balances[coin_dest] += txout.txout.nValue;
         }
     }
