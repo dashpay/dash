@@ -396,8 +396,15 @@ std::map<CTxDestination, std::vector<COutput>> ListCoins(const CWallet& wallet)
     coins_params.skip_locked = false;
     for (const COutput& coin : AvailableCoins(wallet, &coin_control, /*feerate=*/std::nullopt, coins_params).All()) {
         CTxDestination address;
-        if ((coin.spendable || (wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && coin.solvable)) &&
-            ExtractDestination(FindNonChangeParentOutput(wallet, coin.outpoint).scriptPubKey, address)) {
+        if ((coin.spendable || (wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && coin.solvable))) {
+            if (!ExtractDestination(FindNonChangeParentOutput(wallet, coin.outpoint).scriptPubKey, address)) {
+                // For backwards compatibility, we convert P2PK output scripts into PKHash destinations
+                if (auto pk_dest = std::get_if<PubKeyDestination>(&address)) {
+                    address = PKHash(pk_dest->GetPubKey());
+                } else {
+                    continue;
+                }
+            }
             result[address].emplace_back(coin);
         }
     }
@@ -884,7 +891,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
                     return util::Error{strprintf(_("Amount for a Platform address must be at least %s"),
                                                  FormatMoney(MIN_PLATFORM_TRANSFER_AMOUNT))};
                 }
-                creditOutputs.emplace_back(recipient.nAmount, recipient.scriptPubKey);
+                creditOutputs.emplace_back(recipient.nAmount, GetScriptForDestination(recipient.dest));
                 platform_total += recipient.nAmount;
             } else {
                 vecSend.push_back(recipient);
@@ -1017,7 +1024,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     // vouts to the payees
     for (const auto& recipient : vecSend)
     {
-        CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+        CTxOut txout(recipient.nAmount, GetScriptForDestination(recipient.dest));
 
         // Include the fee cost for outputs.
         coin_selection_params.tx_noinputs_size += ::GetSerializeSize(txout, PROTOCOL_VERSION);
@@ -1101,7 +1108,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         // shuffle them both to ensure this mapping remains consistent
         std::sort(sortedVecSend.begin(), sortedVecSend.end(),
                     [](const CRecipient& a, const CRecipient& b) {
-                        return a.nAmount < b.nAmount || (a.nAmount == b.nAmount && a.scriptPubKey < b.scriptPubKey);
+                        return a.nAmount < b.nAmount || (a.nAmount == b.nAmount && GetScriptForDestination(a.dest) < GetScriptForDestination(b.dest));
                     });
 
         // If there was a change output added before, we must update its position now
@@ -1321,7 +1328,9 @@ bool FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& nFeeRet,
     // Turn the txout set into a CRecipient vector.
     for (size_t idx = 0; idx < tx.vout.size(); idx++) {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+        CTxDestination dest;
+        ExtractDestination(txOut.scriptPubKey, dest);
+        CRecipient recipient = {dest, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
         vecSend.push_back(recipient);
     }
 

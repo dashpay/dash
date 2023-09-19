@@ -13,9 +13,30 @@
 #include <variant>
 
 class CNoDestination {
+private:
+    CScript m_script;
+
 public:
-    friend bool operator==(const CNoDestination &a, const CNoDestination &b) { return true; }
-    friend bool operator<(const CNoDestination &a, const CNoDestination &b) { return true; }
+    CNoDestination() = default;
+    CNoDestination(const CScript& script) : m_script(script) {}
+
+    const CScript& GetScript() const { return m_script; }
+
+    friend bool operator==(const CNoDestination& a, const CNoDestination& b) { return a.GetScript() == b.GetScript(); }
+    friend bool operator<(const CNoDestination& a, const CNoDestination& b) { return a.GetScript() < b.GetScript(); }
+};
+
+struct PubKeyDestination {
+private:
+    CPubKey m_pubkey;
+
+public:
+    PubKeyDestination(const CPubKey& pubkey) : m_pubkey(pubkey) {}
+
+    const CPubKey& GetPubKey() const LIFETIMEBOUND { return m_pubkey; }
+
+    friend bool operator==(const PubKeyDestination& a, const PubKeyDestination& b) { return a.GetPubKey() == b.GetPubKey(); }
+    friend bool operator<(const PubKeyDestination& a, const PubKeyDestination& b) { return a.GetPubKey() < b.GetPubKey(); }
 };
 
 struct PKHash : public BaseHash<uint160>
@@ -41,21 +62,27 @@ struct ScriptHash : public BaseHash<uint160>
 CScriptID ToScriptID(const ScriptHash& script_hash);
 
 /**
- * A txout script template with a specific destination. It is either:
- *  * CNoDestination: no destination set
- *  * CKeyID: TxoutType::PUBKEYHASH destination
- *  * CScriptID: TxoutType::SCRIPTHASH destination
+ * A txout script categorized into standard templates.
+ *  * CNoDestination: Optionally a script, no corresponding address.
+ *  * PubKeyDestination: TxoutType::PUBKEY (P2PK), no corresponding address
+ *  * PKHash: TxoutType::PUBKEYHASH destination (P2PKH address)
+ *  * ScriptHash: TxoutType::SCRIPTHASH destination (P2SH address)
  *  A CTxDestination is the internal data type encoded in a bitcoin address
  */
-using CTxDestination = std::variant<CNoDestination, PKHash, ScriptHash>;
+using CTxDestination = std::variant<CNoDestination, PubKeyDestination, PKHash, ScriptHash>;
 
-/** Check whether a CTxDestination is a CNoDestination. */
+/** Check whether a CTxDestination corresponds to one with an address. */
 bool IsValidDestination(const CTxDestination& dest);
 
 /**
- * Parse a standard scriptPubKey for the destination address. Assigns result to
- * the addressRet parameter and returns true if successful. Currently only works for P2PK,
- * P2PKH, and P2SH scripts.
+ * Parse a scriptPubKey for the destination.
+ *
+ * For standard scripts that have addresses (and P2PK as an exception), a corresponding CTxDestination
+ * is assigned to addressRet.
+ * For all other scripts. addressRet is assigned as a CNoDestination containing the scriptPubKey.
+ *
+ * Returns true for standard destinations with addresses - P2PKH and P2SH scripts.
+ * Returns false for non-standard destinations and those without addresses - P2PK, bare multisig, null data, and nonstandard scripts.
  */
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
 

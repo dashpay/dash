@@ -40,11 +40,12 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     switch (whichType) {
     case TxoutType::PUBKEY: {
         CPubKey pubKey(vSolutions[0]);
-        if (!pubKey.IsValid())
-            return false;
-
-        addressRet = PKHash(pubKey);
-        return true;
+        if (!pubKey.IsValid()) {
+            addressRet = CNoDestination(scriptPubKey);
+        } else {
+            addressRet = PubKeyDestination(pubKey);
+        }
+        return false;
     }
     case TxoutType::PUBKEYHASH: {
         addressRet = PKHash(uint160(vSolutions[0]));
@@ -57,6 +58,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     case TxoutType::MULTISIG:
     case TxoutType::NULL_DATA:
     case TxoutType::NONSTANDARD:
+        addressRet = CNoDestination(scriptPubKey);
         return false;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
@@ -68,7 +70,12 @@ class CScriptVisitor
 public:
     CScript operator()(const CNoDestination& dest) const
     {
-        return CScript();
+        return dest.GetScript();
+    }
+
+    CScript operator()(const PubKeyDestination& dest) const
+    {
+        return CScript() << ToByteVector(dest.GetPubKey()) << OP_CHECKSIG;
     }
 
     CScript operator()(const PKHash& keyID) const
@@ -81,6 +88,15 @@ public:
         return CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
     }
 };
+
+class ValidDestinationVisitor
+{
+public:
+    bool operator()(const CNoDestination& dest) const { return false; }
+    bool operator()(const PubKeyDestination& dest) const { return false; }
+    bool operator()(const PKHash& dest) const { return true; }
+    bool operator()(const ScriptHash& dest) const { return true; }
+};
 } // namespace
 
 CScript GetScriptForDestination(const CTxDestination& dest)
@@ -89,5 +105,5 @@ CScript GetScriptForDestination(const CTxDestination& dest)
 }
 
 bool IsValidDestination(const CTxDestination& dest) {
-    return dest.index() != 0;
+    return std::visit(ValidDestinationVisitor(), dest);
 }

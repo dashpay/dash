@@ -70,7 +70,7 @@ static void ParseRecipients(interfaces::Chain& chain, const UniValue& address_am
         if (is_platform && subtract_fee) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "subtractfeefromamount is not supported for Platform addresses");
         }
-        CRecipient recipient = {script_pub_key, amount, subtract_fee, is_platform};
+        CRecipient recipient = {is_platform ? CTxDestination{CNoDestination{script_pub_key}} : dest, amount, subtract_fee, is_platform};
         recipients.push_back(recipient);
     }
 }
