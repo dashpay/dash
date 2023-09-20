@@ -185,6 +185,8 @@ private:
     QAction* m_close_all_wallets_action{nullptr};
     QAction* m_wallet_selector_action = nullptr;
     QAction* m_mask_values_action{nullptr};
+    QAction* m_migrate_wallet_action{nullptr};
+    QMenu* m_migrate_wallet_menu{nullptr};
 
     QComboBox* m_wallet_selector = nullptr;
 

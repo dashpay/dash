@@ -195,9 +195,10 @@ void AskPassphraseDialog::accept()
                                              "the first null character. If this is successful, please set a new "
                                              "passphrase to avoid this issue in the future."));
                 }
-            }
-            else
-            {
+            } else {
+                if (m_passphrase_out) {
+                    m_passphrase_out->assign(oldpass);
+                }
                 QDialog::accept(); // Success
             }
         } catch (const std::runtime_error& e) {
