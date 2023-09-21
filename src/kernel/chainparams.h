@@ -116,7 +116,7 @@ public:
     /** If this chain allows time to be mocked */
     bool IsMockableChain() const { return m_is_mockable_chain; }
     /** If this chain is exclusively used for testing */
-    bool IsTestChain() const { return m_is_test_chain; }
+    bool IsTestChain() const { return strNetworkID != CBaseChainParams::MAIN; }
     uint64_t PruneAfterHeight() const { return nPruneAfterHeight; }
     /** Block files containing a block-height within MinBlocksToKeep() of ActiveChain().Tip() will not be pruned. */
     int MinBlocksToKeep() const { return m_min_blocks_to_keep; }
@@ -271,7 +271,6 @@ protected:
     std::vector<uint8_t> vFixedSeeds;
     bool fDefaultConsistencyChecks;
     bool fRequireRoutableExternalIP;
-    bool m_is_test_chain;
     bool fAllowMultipleAddressesFromGroup;
     bool m_is_mockable_chain;
     int nLLMQConnectionRetryTimeout;
