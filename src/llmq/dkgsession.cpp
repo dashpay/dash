@@ -353,7 +353,7 @@ void CDKGSession::VerifyPendingContributions()
 
     std::vector<size_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions;
+    std::vector<CBLSSecretKey> skContributions;
 
     for (const auto& idx : pend) {
         const auto& m = members[idx];
@@ -941,7 +941,7 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     cxxtimer::Timer t1(true);
     std::vector<uint16_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions;
+    std::vector<CBLSSecretKey> skContributions;
     if (!dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
         logger.Batch("failed to get valid contributions");
         return;
@@ -1106,7 +1106,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
 
     std::vector<uint16_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions;
+    std::vector<CBLSSecretKey> skContributions;
     BLSVerificationVectorPtr quorumVvec;
     if (dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
         quorumVvec = cache.BuildQuorumVerificationVector(::SerializeHash(memberIndexes), vvecs);

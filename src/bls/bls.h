@@ -586,13 +586,7 @@ public:
 };
 #endif
 
-using BLSIdVector = std::vector<CBLSId>;
-using BLSVerificationVector = std::vector<CBLSPublicKey>;
-using BLSPublicKeyVector = std::vector<CBLSPublicKey>;
-using BLSSecretKeyVector = std::vector<CBLSSecretKey>;
-using BLSSignatureVector = std::vector<CBLSSignature>;
-
-using BLSVerificationVectorPtr = std::shared_ptr<BLSVerificationVector>;
+using BLSVerificationVectorPtr = std::shared_ptr<std::vector<CBLSPublicKey>>;
 
 bool BLSInit();
 

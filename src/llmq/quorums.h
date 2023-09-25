@@ -191,7 +191,7 @@ public:
     ~CQuorum() = default;
     void Init(CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, const std::vector<CDeterministicMNCPtr>& _members);
 
-    bool SetVerificationVector(const BLSVerificationVector& quorumVecIn);
+    bool SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn);
     bool SetSecretKeyShare(const CBLSSecretKey& secretKeyShare);
 
     bool HasVerificationVector() const;
