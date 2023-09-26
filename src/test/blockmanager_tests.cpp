@@ -36,7 +36,7 @@ using node::MAX_BLOCKFILE_SIZE;
 /** Size field of the record whose payload starts at pos */
 static uint32_t ReadSizeField(const BlockManager& blockman, const FlatFilePos& pos)
 {
-    AutoFile file{blockman.OpenBlockFile(FlatFilePos{pos.nFile, pos.nPos - sizeof(uint32_t)}, true)};
+    CAutoFile file{blockman.OpenBlockFile(FlatFilePos{pos.nFile, pos.nPos - sizeof(uint32_t)}, true)};
     uint32_t size_field;
     file >> size_field;
     return size_field;
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
     // a record written by software without compression support is still readable
     FlatFilePos legacy_pos{0, plain_blockman.GetBlockFileInfo(0)->nSize};
     {
-        AutoFile file{plain_blockman.OpenBlockFile(legacy_pos)};
+        CAutoFile file{plain_blockman.OpenBlockFile(legacy_pos)};
         file << params->MessageStart() << serialized_size;
         legacy_pos.nPos = FileTell64(file.Get());
         file << block;
@@ -275,13 +275,13 @@ BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain
     // Check that the file is not unlinked after ScanAndUnlinkAlreadyPrunedFiles
     // if m_have_pruned is not yet set
     WITH_LOCK(chainman.GetMutex(), blockman.ScanAndUnlinkAlreadyPrunedFiles());
-    BOOST_CHECK(!CAutoFile(blockman.OpenBlockFile(pos, true), CLIENT_VERSION).IsNull());
+    BOOST_CHECK(!blockman.OpenBlockFile(pos, true).IsNull());
 
     // Check that the file is unlinked after ScanAndUnlinkAlreadyPrunedFiles
     // once m_have_pruned is set
     blockman.m_have_pruned = true;
     WITH_LOCK(chainman.GetMutex(), blockman.ScanAndUnlinkAlreadyPrunedFiles());
-    BOOST_CHECK(CAutoFile(blockman.OpenBlockFile(pos, true), CLIENT_VERSION).IsNull());
+    BOOST_CHECK(blockman.OpenBlockFile(pos, true).IsNull());
 
     // Check that calling with already pruned files doesn't cause an error
     WITH_LOCK(chainman.GetMutex(), blockman.ScanAndUnlinkAlreadyPrunedFiles());
@@ -291,7 +291,7 @@ BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain
     BOOST_CHECK_NE(old_tip, new_tip);
     const int new_file_number{WITH_LOCK(chainman.GetMutex(), return new_tip->GetBlockPos().nFile)};
     const FlatFilePos new_pos(new_file_number, 0);
-    BOOST_CHECK(!CAutoFile(blockman.OpenBlockFile(new_pos, true), CLIENT_VERSION).IsNull());
+    BOOST_CHECK(!blockman.OpenBlockFile(new_pos, true).IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(blockmanager_flush_block_file)
