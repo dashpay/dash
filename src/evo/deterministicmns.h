@@ -259,6 +259,13 @@ public:
                                                             });
     }
 
+    [[nodiscard]] size_t GetWeightedMNsCount() const
+    {
+        return std::accumulate(mnMap.begin(), mnMap.end(), 0, [this](auto res, const auto& p) {
+                                                                return res + GetMnType(p.second->nType).voting_weight;
+                                                            });
+    }
+
     /**
      * Execute a callback on all masternodes in the mnList. This will pass a reference
      * of each masternode to the callback function. This should be preferred over ForEachMNShared.
