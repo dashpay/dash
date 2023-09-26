@@ -382,7 +382,7 @@ bool BlockManager::LoadBlockIndexDB()
     }
     for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {
         FlatFilePos pos(*it, 0);
-        if (AutoFile{OpenBlockFile(pos, true)}.IsNull()) {
+        if (OpenBlockFile(pos, true).IsNull()) {
             return false;
         }
     }
@@ -506,7 +506,7 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
 bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const
 {
     // Open history file to append
-    AutoFile fileout{OpenUndoFile(pos)};
+    CAutoFile fileout{OpenUndoFile(pos)};
     if (fileout.IsNull()) {
         LogError("%s: OpenUndoFile failed\n", __func__);
         return false;
@@ -544,7 +544,7 @@ bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex& in
     }
 
     // Open history file to read
-    AutoFile filein{OpenUndoFile(pos, true)};
+    CAutoFile filein{OpenUndoFile(pos, true)};
     if (filein.IsNull()) {
         LogError("%s: OpenUndoFile failed\n", __func__);
         return false;
@@ -646,15 +646,15 @@ FlatFileSeq BlockManager::UndoFileSeq() const
     return FlatFileSeq(m_opts.blocks_dir, "rev", m_opts.tiny_blk ? 0x10000 /* 64kb */ : UNDOFILE_CHUNK_SIZE);
 }
 
-FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
+CAutoFile BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
 {
-    return BlockFileSeq().Open(pos, fReadOnly);
+    return CAutoFile{BlockFileSeq().Open(pos, fReadOnly), CLIENT_VERSION};
 }
 
 /** Open an undo file (rev?????.dat) */
-FILE* BlockManager::OpenUndoFile(const FlatFilePos& pos, bool fReadOnly) const
+CAutoFile BlockManager::OpenUndoFile(const FlatFilePos& pos, bool fReadOnly) const
 {
-    return UndoFileSeq().Open(pos, fReadOnly);
+    return CAutoFile{UndoFileSeq().Open(pos, fReadOnly), CLIENT_VERSION};
 }
 
 fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
@@ -766,7 +766,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
 bool BlockManager::WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const
 {
     // Open history file to append
-    AutoFile fileout{OpenBlockFile(pos)};
+    CAutoFile fileout{OpenBlockFile(pos)};
     if (fileout.IsNull()) {
         LogError("WriteBlockToDisk: OpenBlockFile failed\n");
         return false;
@@ -832,7 +832,7 @@ std::optional<uint256> BlockManager::ReadBlockFromDisk(CBlock& block, const Flat
     block.SetNull();
 
     // Open history file to read
-    AutoFile filein{OpenBlockFile(pos, true)};
+    CAutoFile filein{OpenBlockFile(pos, true)};
     if (filein.IsNull()) {
         LogError("ReadBlockFromDisk: OpenBlockFile failed for %s\n", pos.ToString());
         return std::nullopt;
@@ -933,7 +933,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 if (!fs::exists(chainman.m_blockman.GetBlockPosFilename(pos))) {
                     break; // No block files left to reindex
                 }
-                FILE* file = chainman.m_blockman.OpenBlockFile(pos, true);
+                CAutoFile file = chainman.m_blockman.OpenBlockFile(pos, true);
                 if (!file) {
                     break; // This error is logged in OpenBlockFile
                 }
@@ -954,8 +954,8 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
 
         // -loadblock=
         for (const fs::path& path : vImportFiles) {
-            FILE *file = fsbridge::fopen(path, "rb");
-            if (file) {
+            CAutoFile file{fsbridge::fopen(path, "rb"), CLIENT_VERSION};
+            if (!file.IsNull()) {
                 LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
                 chainman.LoadExternalBlockFile(file);
                 if (ShutdownRequested()) {

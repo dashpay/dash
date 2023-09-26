@@ -5627,7 +5627,7 @@ bool Chainstate::LoadGenesisBlock()
 }
 
 void ChainstateManager::LoadExternalBlockFile(
-    FILE* fileIn,
+    CAutoFile& file_in,
     FlatFilePos* dbp,
     std::multimap<uint256, FlatFilePos>* blocks_with_unknown_parent)
 {
@@ -5640,8 +5640,7 @@ void ChainstateManager::LoadExternalBlockFile(
     int nLoaded = 0;
     try {
         unsigned int nMaxBlockSize = MaxBlockSize();
-        // This takes over fileIn and calls fclose() on it in the BufferedFile destructor
-        BufferedFile blkdat{fileIn, 2 * nMaxBlockSize, nMaxBlockSize + 8, CLIENT_VERSION};
+        BufferedFile blkdat{file_in, 2 * nMaxBlockSize, nMaxBlockSize + 8};
         // nRewind indicates where to resume scanning in case something goes wrong,
         // such as a block fails to deserialize.
         uint64_t nRewind = blkdat.GetPos();
