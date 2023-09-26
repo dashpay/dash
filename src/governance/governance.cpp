@@ -27,7 +27,7 @@ std::unique_ptr<CGovernanceManager> governance;
 
 int nSubmittedFinalBudget;
 
-const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
+const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-17";
 const int CGovernanceManager::MAX_TIME_FUTURE_DEVIATION = 60 * 60;
 const int CGovernanceManager::RELIABLE_PROPAGATION_TIME = 60;
 
@@ -1500,6 +1500,8 @@ void CGovernanceManager::RemoveInvalidVotes()
         if ((p.second.fields & CDeterministicMNStateDiff::Field_keyIDVoting) && p.second.state.keyIDVoting != oldDmn->pdmnState->keyIDVoting) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         } else if ((p.second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && p.second.state.pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
+            changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
+        } else if ((p.second.fields & CDeterministicMNStateDiff::Field_nPoSeBanHeight) && p.second.state.IsBanned()) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         }
     }

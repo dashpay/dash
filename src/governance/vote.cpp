@@ -274,6 +274,11 @@ bool CGovernanceVote::IsValid(bool useVotingKey) const
         return false;
     }
 
+    if (dmn->pdmnState->IsBanned()) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- Invalid Masternode - %s\n", masternodeOutpoint.ToStringShort());
+        return false;
+    }
+
     if (useVotingKey) {
         return CheckSignature(dmn->pdmnState->keyIDVoting);
     } else {

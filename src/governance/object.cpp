@@ -123,6 +123,13 @@ bool CGovernanceObject::ProcessVote(const CGovernanceVote& vote, CGovernanceExce
         return false;
     }
 
+    if (dmn->pdmnState->IsBanned()) {
+        std::ostringstream ostr;
+        ostr << "CGovernanceObject::ProcessVote -- Masternode " << vote.GetMasternodeOutpoint().ToStringShort() << " is banned";
+        exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING);
+        return false;
+    }
+
     auto it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
     vote_rec_t& voteRecordRef = it->second;
     vote_signal_enum_t eSignal = vote.GetSignal();
