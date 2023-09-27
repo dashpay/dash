@@ -268,14 +268,15 @@ bool CGovernanceVote::IsValid(bool useVotingKey) const
         return false;
     }
 
-    auto dmn = deterministicMNManager->GetListAtChainTip().GetMNByCollateral(masternodeOutpoint);
+    const auto mnList = deterministicMNManager->GetListAtChainTip();
+    const auto dmn = mnList.GetMNByCollateral(masternodeOutpoint);
     if (!dmn) {
         LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- Unknown Masternode - %s\n", masternodeOutpoint.ToStringShort());
         return false;
     }
 
-    if (dmn->pdmnState->IsBanned()) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- Invalid Masternode - %s\n", masternodeOutpoint.ToStringShort());
+    if (dmn->pdmnState->IsBanned() && mnList.GetHeight() - dmn->pdmnState->GetBannedHeight() > Params().GetConsensus().nSuperblockCycle) {
+        LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- Long-time banned Masternode - %s\n", masternodeOutpoint.ToStringShort());
         return false;
     }
 

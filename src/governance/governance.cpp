@@ -1501,14 +1501,17 @@ void CGovernanceManager::RemoveInvalidVotes()
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         } else if ((p.second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && p.second.state.pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
-        } else if ((p.second.fields & CDeterministicMNStateDiff::Field_nPoSeBanHeight) && p.second.state.IsBanned()) {
-            changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         }
     }
     for (const auto& id : diff.removedMns) {
         auto oldDmn = lastMNListForVotingKeys->GetMNByInternalId(id);
         changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
     }
+    curMNList.ForEachMN(false, [&](const auto& dmn) {
+        if (dmn.pdmnState->IsBanned() && curMNList.GetHeight() - dmn.pdmnState->GetBannedHeight() > Params().GetConsensus().nSuperblockCycle) {
+            changedKeyMNs.emplace_back(dmn.collateralOutpoint);
+        }
+    });
 
     for (const auto& outpoint : changedKeyMNs) {
         for (auto& p : mapObjects) {

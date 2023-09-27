@@ -123,9 +123,9 @@ bool CGovernanceObject::ProcessVote(const CGovernanceVote& vote, CGovernanceExce
         return false;
     }
 
-    if (dmn->pdmnState->IsBanned()) {
+    if (dmn->pdmnState->IsBanned() && mnList.GetHeight() - dmn->pdmnState->GetBannedHeight() > Params().GetConsensus().nSuperblockCycle) {
         std::ostringstream ostr;
-        ostr << "CGovernanceObject::ProcessVote -- Masternode " << vote.GetMasternodeOutpoint().ToStringShort() << " is banned";
+        ostr << "CGovernanceObject::ProcessVote -- Masternode " << vote.GetMasternodeOutpoint().ToStringShort() << " is long-time banned";
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING);
         return false;
     }
