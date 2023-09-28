@@ -270,7 +270,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
 
     BOOST_CHECK(llmq::utils::IsMNRewardReallocationActive(::ChainActive().Tip()));
     { // At this moment Masternode reward should be reallocated to platform
-        // Reward split is exactly 60/40
+        // Allocation of block subsidy is 60% MN, 20% miners and 20% treasury
         LOCK(cs_main);
         isMNRewardReallocated = llmq::utils::IsMNRewardReallocationActive(::ChainActive().Tip());
         CAmount masternode_payment = GetMasternodePayment(::ChainActive().Height(), GetBlockSubsidyInner(::ChainActive().Tip()->nBits, ::ChainActive().Height(), consensus_params, isMNRewardReallocated), 2500, isMNRewardReallocated);
@@ -284,8 +284,8 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         CAmount expected_block_reward = block_subsidy * 0.8;
         // Transaction fee
         expected_block_reward += 1;
-        // Since MNRewardReallocation, MN reward share is 60%
-        CAmount expected_masternode_reward = expected_block_reward * 0.6;
+        // Since MNRewardReallocation, MN reward share is 75% of the block reward
+        CAmount expected_masternode_reward = expected_block_reward * 0.75;
         CAmount expected_mn_platform_payment = MasternodePayments::PlatformShare(expected_masternode_reward);
         CAmount expected_mn_core_payment = expected_masternode_reward - expected_mn_platform_payment;
 
