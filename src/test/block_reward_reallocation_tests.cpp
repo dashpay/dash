@@ -280,7 +280,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
 
         // At this height (3178) the block subsidy is 10546094382.
         CAmount block_subsidy = CAmount(10546094382);
-        // Treasury is 80% since MNRewardReallocation
+        // Treasury is 20% since MNRewardReallocation
         CAmount expected_block_reward = block_subsidy * 0.8;
         // Transaction fee
         expected_block_reward += 1;
