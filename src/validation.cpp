@@ -1161,9 +1161,8 @@ CAmount GetBlockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Pa
     CAmount nSuperblockPart{};
     // Hard fork to reduce the block reward by 10 extra percent (allowing budget/superblocks)
     if (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) {
-        nSuperblockPart = nSubsidy / 10;
         // Once MNRewardReallocated is active, the treasury is 20% instead of 10%
-        if (fMNRewardReallocated) nSuperblockPart *= 2;
+        nSuperblockPart = nSubsidy / (fMNRewardReallocated ? 5 : 10);
     }
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
@@ -1210,7 +1209,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, int nReallocActiva
         // Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
         // Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
         // Previous reallocation periods are dropped.
-        return blockValue * 0.75;
+        return blockValue * 3 / 4;
     }
 
     // Periods used to reallocate the masternode reward from 50% to 60%

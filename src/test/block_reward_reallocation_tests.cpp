@@ -281,11 +281,9 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         // At this height (3178) the block subsidy is 10546094382.
         CAmount block_subsidy = CAmount(10546094382);
         // Treasury is 20% since MNRewardReallocation
-        CAmount expected_block_reward = block_subsidy * 0.8;
-        // Transaction fee
-        expected_block_reward += 1;
+        CAmount expected_block_reward = block_subsidy - block_subsidy / 5;
         // Since MNRewardReallocation, MN reward share is 75% of the block reward
-        CAmount expected_masternode_reward = expected_block_reward * 0.75;
+        CAmount expected_masternode_reward = expected_block_reward * 3 / 4;
         CAmount expected_mn_platform_payment = MasternodePayments::PlatformShare(expected_masternode_reward);
         CAmount expected_mn_core_payment = expected_masternode_reward - expected_mn_platform_payment;
 
