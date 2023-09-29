@@ -82,7 +82,7 @@ public:
      * to change amount of credit pool
      * @return true if transaction can be included in this block
      */
-    bool ProcessTransaction(const CTransaction& tx, TxValidationState& state);
+    bool ProcessTransaction(const CTransaction& tx, std::optional<CAmount> blockReward, TxValidationState& state);
 
     /**
      * This function should be called by miner for initialization of MasterNode reward
@@ -102,7 +102,7 @@ public:
     }
 
 private:
-    bool SetTarget(const CTransaction& tx, TxValidationState& state);
+    bool SetTarget(const CTransaction& tx, const std::optional<CAmount> blockReward, TxValidationState& state);
     bool Lock(const CTransaction& tx, TxValidationState& state);
     bool Unlock(const CTransaction& tx, TxValidationState& state);
 };
