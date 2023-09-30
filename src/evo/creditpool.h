@@ -102,7 +102,7 @@ public:
     }
 
 private:
-    bool SetTarget(const CTransaction& tx, const std::optional<CAmount> blockReward, TxValidationState& state);
+    bool SetTarget(const CTransaction& tx, const CAmount blockReward, TxValidationState& state);
     bool Lock(const CTransaction& tx, TxValidationState& state);
     bool Unlock(const CTransaction& tx, TxValidationState& state);
 };
