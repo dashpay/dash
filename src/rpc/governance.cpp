@@ -1046,7 +1046,7 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
     obj.pushKV("superblockmaturitywindow", Params().GetConsensus().nSuperblockMaturityWindow);
     obj.pushKV("lastsuperblock", nLastSuperblock);
     obj.pushKV("nextsuperblock", nNextSuperblock);
-    obj.pushKV("fundingthreshold", int(deterministicMNManager->GetListAtChainTip().GetValidWeightedMNsCount() / 10));
+    obj.pushKV("fundingthreshold", int(deterministicMNManager->GetListAtChainTip().GetWeightedMNsCount() / 10));
 
     return obj;
 }
