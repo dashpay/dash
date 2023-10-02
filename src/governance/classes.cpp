@@ -494,12 +494,13 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
         return 0;
     }
 
-    bool fMNRewardReallocated = llmq::utils::IsMNRewardReallocationActive(::ChainActive().Tip());
-    if (!fMNRewardReallocated && nBlockHeight > ::ChainActive().Tip()->nHeight) {
+    const CBlockIndex* tipIndex = ::ChainActive().Tip();
+    bool fMNRewardReallocated = llmq::utils::IsMNRewardReallocationActive(tipIndex);
+    if (!fMNRewardReallocated && nBlockHeight > tipIndex->nHeight) {
         // If fMNRewardReallocated isn't active yet and nBlockHeight refers to a future SuperBlock
         // then we need to check if the fork is locked_in and see if it will be active by the time of the future SuperBlock
-        if (llmq::utils::GetMNRewardReallocationState(::ChainActive().Tip()) == ThresholdState::LOCKED_IN) {
-            int activation_height = llmq::utils::GetMNRewardReallocationSince(::ChainActive().Tip()) + static_cast<int>(Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_MN_RR].nWindowSize);
+        if (llmq::utils::GetMNRewardReallocationState(tipIndex) == ThresholdState::LOCKED_IN) {
+            int activation_height = llmq::utils::GetMNRewardReallocationSince(tipIndex) + static_cast<int>(Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_MN_RR].nWindowSize);
             if (nBlockHeight >= activation_height) fMNRewardReallocated = true;
         }
     }
