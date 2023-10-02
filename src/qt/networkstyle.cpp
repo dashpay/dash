@@ -21,9 +21,9 @@ static const struct {
     const char *appName;
     const int iconColorHueShift;
     const int iconColorSaturationReduction;
-    const std::string titleAddText;
+    const std::string titleAddText = "";
 } network_styles[] = {
-    {"main", QAPP_APP_NAME_DEFAULT, 0, 0, ""},
+    {"main", QAPP_APP_NAME_DEFAULT, 0, 0},
     {"test", QAPP_APP_NAME_TESTNET, 190, 20},
     {"devnet", QAPP_APP_NAME_DEVNET, 190, 20, "[devnet: %s]"},
     {"regtest", QAPP_APP_NAME_REGTEST, 160, 30}

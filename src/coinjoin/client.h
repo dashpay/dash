@@ -112,7 +112,6 @@ class CCoinJoinClientSession : public CCoinJoinBaseSession
 {
 private:
     CWallet& m_wallet;
-    CJClientManager& m_clientman;
     CCoinJoinClientManager& m_manager;
 
     const CMasternodeSync& m_mn_sync;
@@ -166,7 +165,7 @@ private:
 public:
     explicit CCoinJoinClientSession(CWallet& pwallet, CJClientManager& clientman, const CMasternodeSync& mn_sync,
                                     const std::unique_ptr<CCoinJoinClientQueueManager>& queueman) :
-        m_wallet(pwallet), m_clientman(clientman), m_manager(*Assert(clientman.Get(pwallet))), m_mn_sync(mn_sync), m_queueman(queueman) {}
+        m_wallet(pwallet), m_manager(*Assert(clientman.Get(pwallet))), m_mn_sync(mn_sync), m_queueman(queueman) {}
 
     void ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv);
 

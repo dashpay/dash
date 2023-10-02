@@ -16,7 +16,7 @@
 CJContext::CJContext(CChainState& chainstate, CConnman& connman, CTxMemPool& mempool, const CMasternodeSync& mn_sync, bool relay_txes) :
 #ifdef ENABLE_WALLET
     clientman {
-        [&]() -> CJClientManager* const {
+        [&]() -> CJClientManager* {
             assert(::coinJoinClientManagers == nullptr);
             ::coinJoinClientManagers = std::make_unique<CJClientManager>(connman, mempool, mn_sync, queueman);
             return ::coinJoinClientManagers.get();
