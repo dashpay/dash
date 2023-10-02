@@ -17,6 +17,8 @@
 #ifndef GSL_ASSERT_H
 #define GSL_ASSERT_H
 
+#include <source_location.h>
+
 //
 // Temporary until MSVC STL supports no-exceptions mode.
 // Currently terminate is a no-op in this mode, so we add termination behavior back
@@ -108,11 +110,13 @@ namespace gsl
 
 #endif // defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
 
-        [[noreturn]] inline void terminate() noexcept
+        [[noreturn]] inline void terminate(nostd::source_location loc) noexcept
         {
 #if defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
             (*gsl::details::get_terminate_handler())();
 #else
+            std::cout << "ERROR: error detected null not_null detected at " << loc.file_name() << ":" << loc.line() << ":"
+                                                                            << loc.column() << ":" << loc.function_name() << "\n";
             std::terminate();
 #endif // defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
         }
@@ -120,11 +124,11 @@ namespace gsl
     } // namespace details
 } // namespace gsl
 
-#define GSL_CONTRACT_CHECK(type, cond)                                                             \
-    (GSL_LIKELY(cond) ? static_cast<void>(0) : gsl::details::terminate())
+#define GSL_CONTRACT_CHECK(type, cond, loc)                                                             \
+    (GSL_LIKELY(cond) ? static_cast<void>(0) : gsl::details::terminate(loc))
 
-#define Expects(cond) GSL_CONTRACT_CHECK("Precondition", cond)
-#define Ensures(cond) GSL_CONTRACT_CHECK("Postcondition", cond)
+#define Expects(cond, loc) GSL_CONTRACT_CHECK("Precondition", cond, loc)
+#define Ensures(cond, loc) GSL_CONTRACT_CHECK("Postcondition", cond, loc)
 
 #if defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND) && defined(__clang__)
 #pragma clang diagnostic pop

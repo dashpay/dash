@@ -18,6 +18,7 @@
 #define GSL_POINTERS_H
 
 #include <gsl/assert.h> // for Ensures, Expects
+#include <source_location.h>
 
 #include <algorithm>    // for forward
 #include <cstddef>      // for ptrdiff_t, nullptr_t, size_t
@@ -100,15 +101,15 @@ namespace gsl
         static_assert(details::is_comparable_to_nullptr<T>::value, "T cannot be compared to nullptr.");
 
         template <typename U, typename = std::enable_if_t<std::is_convertible<U, T>::value>>
-        constexpr not_null(U&& u) : ptr_(std::forward<U>(u))
+        constexpr not_null(U&& u, nostd::source_location loc = nostd::source_location::current()) : ptr_(std::forward<U>(u))
         {
-            Expects(ptr_ != nullptr);
+            Expects(ptr_ != nullptr, loc);
         }
 
         template <typename = std::enable_if_t<!std::is_same<std::nullptr_t, T>::value>>
-        constexpr not_null(T u) : ptr_(std::move(u))
+        constexpr not_null(T u, nostd::source_location loc = nostd::source_location::current()) : ptr_(std::move(u))
         {
-            Expects(ptr_ != nullptr);
+            Expects(ptr_ != nullptr, loc);
         }
 
         template <typename U, typename = std::enable_if_t<std::is_convertible<U, T>::value>>
@@ -333,7 +334,6 @@ namespace gsl
     strict_not_null(T) -> strict_not_null<T>;
 
 #endif // ( defined(__cpp_deduction_guides) && (__cpp_deduction_guides >= 201611L) )
-
 } // namespace gsl
 
 namespace std
