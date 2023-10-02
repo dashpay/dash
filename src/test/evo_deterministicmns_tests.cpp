@@ -5029,7 +5029,7 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
     legacyDiff.state.pubKeyOperator.Set(sk.GetPublicKey());
     {
         std::vector<unsigned char> raw;
-        CVectorWriter writer{SER_DISK, CLIENT_VERSION, raw, 0};
+        VectorWriter writer{raw, 0};
         legacyDiff.state.pubKeyOperator.Serialize(writer, legacyDiff.state.OperatorKeyScheme());
         BOOST_REQUIRE_EQUAL(raw.size(), legacyDiff.pubKeyOperatorBytes.size());
         std::copy(raw.begin(), raw.end(), legacyDiff.pubKeyOperatorBytes.begin());

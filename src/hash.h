@@ -150,13 +150,11 @@ public:
 class CHashWriter : public HashWriter
 {
 private:
-    const int nType;
     const int nVersion;
 
 public:
-    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {}
+    CHashWriter(int nVersionIn) : nVersion{nVersionIn} {}
 
-    int GetType() const { return nType; }
     int GetVersion() const { return nVersion; }
 
     template<typename T>
@@ -229,15 +227,6 @@ template<typename T>
 uint256 SerializeHash(const T& obj)
 {
     return (HashWriter{} << obj).GetHash();
-}
-
-/** Compute the 256-bit hash of the serialization of an object whose serializer reads the stream type or version. */
-template<typename T>
-uint256 SerializeHash(const T& obj, int nType, int nVersion)
-{
-    CHashWriter ss(nType, nVersion);
-    ss << obj;
-    return ss.GetHash();
 }
 
 /** A writer that computes the hash a signed object's signature commits to: the object's serializer leaves the signature out. */

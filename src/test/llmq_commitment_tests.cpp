@@ -359,7 +359,7 @@ CFinalCommitment NullSizedCommitment(uint16_t version, const CBLSPublicKey& pubk
 CFinalCommitment RoundTripWithVersion(const CFinalCommitment& commitment, uint16_t wire_version)
 {
     std::vector<unsigned char> buf;
-    CVectorWriter ds(SER_NETWORK, PROTOCOL_VERSION, buf, 0);
+    VectorWriter ds{buf, 0};
     ds << commitment;
     BOOST_REQUIRE_GE(buf.size(), 2U);
     BOOST_REQUIRE_EQUAL(buf[0], static_cast<unsigned char>(commitment.nVersion));

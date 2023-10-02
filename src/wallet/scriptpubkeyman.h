@@ -130,20 +130,14 @@ public:
     template<typename Stream>
     void Serialize(Stream& s) const
     {
-        int nVersion = s.GetVersion();
-        if (!(s.GetType() & SER_GETHASH)) {
-            s << nVersion;
-        }
+        s << int{240100}; // Unused field, writes the highest client version ever written
         s << nTime << vchPubKey << fInternal;
     }
 
     template<typename Stream>
     void Unserialize(Stream& s)
     {
-        int nVersion = s.GetVersion();
-        if (!(s.GetType() & SER_GETHASH)) {
-            s >> nVersion;
-        }
+        s >> int{}; // Discard unused field
         s >> nTime >> vchPubKey;
         try {
             s >> fInternal;

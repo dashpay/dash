@@ -17,9 +17,6 @@
 #include <util/golombrice.h>
 #include <util/string.h>
 
-/// SerType used to serialize parameters in GCS filter encoding.
-static constexpr int GCS_SER_TYPE = SER_NETWORK;
-
 /// Protocol version used to serialize parameters in GCS filter encoding.
 static constexpr int GCS_SER_VERSION = 0;
 
@@ -53,7 +50,7 @@ GCSFilter::GCSFilter(const Params& params)
 GCSFilter::GCSFilter(const Params& params, std::vector<unsigned char> encoded_filter, bool skip_decode_check)
     : m_params(params), m_encoded(std::move(encoded_filter))
 {
-    SpanReader stream{GCS_SER_TYPE, GCS_SER_VERSION, m_encoded};
+    SpanReader stream{GCS_SER_VERSION, m_encoded};
 
     uint64_t N = ReadCompactSize(stream);
     m_N = static_cast<uint32_t>(N);
@@ -107,7 +104,7 @@ GCSFilter::GCSFilter(const Params& params, const ElementSet& elements)
 
 bool GCSFilter::MatchInternal(const uint64_t* element_hashes, size_t size) const
 {
-    SpanReader stream{GCS_SER_TYPE, GCS_SER_VERSION, m_encoded};
+    SpanReader stream{GCS_SER_VERSION, m_encoded};
 
     // Seek forward by size of N
     uint64_t N = ReadCompactSize(stream);

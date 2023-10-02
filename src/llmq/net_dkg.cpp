@@ -549,7 +549,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStrea
     // stays available for the framing walk, inventory hash, and retention below
     Consensus::LLMQType llmqType;
     uint256 quorumHash;
-    SpanReader{SER_NETWORK, PROTOCOL_VERSION, MakeUCharSpan(vRecv)} >> llmqType >> quorumHash;
+    SpanReader{PROTOCOL_VERSION, MakeUCharSpan(vRecv)} >> llmqType >> quorumHash;
 
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {

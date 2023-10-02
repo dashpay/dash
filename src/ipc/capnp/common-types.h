@@ -71,7 +71,7 @@ requires Unserializable<LocalType, DataStream> && (!ipc::capnp::Deserializable<L
     return read_dest.update([&](auto& value) {
         if (!input.has()) return;
         auto data = input.get();
-        SpanReader stream{SER_NETWORK, CLIENT_VERSION, {data.begin(), data.end()}};
+        SpanReader stream{CLIENT_VERSION, {data.begin(), data.end()}};
         value.Unserialize(stream);
     });
 }
@@ -86,7 +86,7 @@ requires ipc::capnp::Deserializable<LocalType>
 {
     assert(input.has());
     auto data = input.get();
-    SpanReader stream{SER_NETWORK, CLIENT_VERSION, {data.begin(), data.end()}};
+    SpanReader stream{CLIENT_VERSION, {data.begin(), data.end()}};
     return read_dest.construct(::deserialize, stream);
 }
 

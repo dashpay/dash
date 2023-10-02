@@ -849,7 +849,7 @@ static RPCHelpMan getmerkleblocks()
     // above-MAX_SIZE prefixes fall through to normal deserialization, which reproduces them.
     enum { PRECHECK_OK, OVERSIZED_COMPLETE, OVERSIZED_TRUNCATED } precheck{PRECHECK_OK};
     try {
-        SpanReader prefix{SER_NETWORK, PROTOCOL_VERSION, MakeUCharSpan(ssBloomFilter)};
+        SpanReader prefix{PROTOCOL_VERSION, MakeUCharSpan(ssBloomFilter)};
         const uint64_t vdata_size{ReadCompactSize(prefix)};
         if (vdata_size > MAX_BLOOM_FILTER_SIZE) {
             // Wire size of the fixed fields after vData: nHashFuncs + nTweak (uint32) + nFlags (uint8).
