@@ -287,15 +287,18 @@ bool CCreditPoolDiff::Unlock(const CTransaction& tx, TxValidationState& state)
     return true;
 }
 
-bool CCreditPoolDiff::ProcessTransaction(const CTransaction& tx, const std::optional<CAmount> blockReward, TxValidationState& state)
+bool CCreditPoolDiff::ProcessCoinbaseTransaction(const CTransaction& tx, const CAmount blockReward, TxValidationState& state)
 {
     if (tx.nVersion != 3) return true;
 
-    if (tx.nType == TRANSACTION_COINBASE) {
-        assert(blockReward.has_value());
-        return SetTarget(tx, blockReward.value(), state);
-    }
+    assert(tx.nType == TRANSACTION_COINBASE);
 
+    return SetTarget(tx, blockReward, state);
+}
+
+bool CCreditPoolDiff::ProcessLockUnlockTransaction(const CTransaction& tx, TxValidationState& state)
+{
+    if (tx.nVersion != 3) return true;
     if (tx.nType != TRANSACTION_ASSET_LOCK && tx.nType != TRANSACTION_ASSET_UNLOCK) return true;
 
     if (!CheckAssetLockUnlockTx(tx, pindex, pool.indexes, state)) {
