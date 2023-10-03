@@ -18,6 +18,8 @@ if [ "$RUN_FUNCTIONAL_TESTS" != "true" ]; then
   exit 0
 fi
 
+echo "System info: $(uname --kernel-name --kernel-release)"
+
 if [ -z "$NO_DEPENDS" ]; then
   export LD_LIBRARY_PATH=$DEPENDS_DIR/$HOST/lib
 fi
