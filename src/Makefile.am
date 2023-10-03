@@ -289,6 +289,7 @@ BITCOIN_CORE_H = \
   script/signingprovider.h \
   script/standard.h \
   shutdown.h \
+  source_location.h \
   spork.h \
   stacktraces.h \
   streams.h \
