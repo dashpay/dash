@@ -171,7 +171,15 @@ public:
         m_addr.fill(0);
         std::copy(byte_arr.data(), byte_arr.data() + ADDR_SIZES[NET_IPV4], m_addr.begin());
     }
-    void SetIP(const CNetAddr& ip);
+    constexpr void SetIP(const CNetAddr& ipIn)
+    {
+        // Size check.
+        assert(ipIn.m_net != NET_UNROUTABLE && ipIn.m_net != NET_MAX);
+        assert(ipIn.m_addr.size() == ADDR_SIZES[ipIn.m_net]);
+
+        m_net = ipIn.m_net;
+        m_addr = ipIn.m_addr;
+    }
 
     constexpr auto get_addr_span() const -> Span<const uint8_t> {
         return Span{m_addr}.first(ADDR_SIZES[m_net]);
