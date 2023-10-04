@@ -265,7 +265,7 @@ public:
             return std::bit_cast<std::array<uint8_t, sizeof(decltype(pipv6Addr))>>(pipv6Addr);
 #else
             auto ptr = reinterpret_cast<const uint8_t*>(&pipv6Addr);
-            return Span{ptr, ADDR_IPV4_SIZE};
+            return Span{ptr, ADDR_IPV6_SIZE};
 #endif
         };
 
