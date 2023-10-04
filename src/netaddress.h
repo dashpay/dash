@@ -16,6 +16,7 @@
 #include <tinyformat.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+#include <constexpr_if_cxx20.h>
 
 #include <array>
 #include <cstdint>
@@ -155,9 +156,18 @@ public:
      * @note This address is considered invalid by CNetAddr::IsValid()
      */
     constexpr CNetAddr() {};
-    constexpr explicit CNetAddr(const struct in_addr& ipv4Addr) {
+    CONSTEXPR_IF_CPP20 explicit CNetAddr(const struct in_addr& ipv4Addr) {
+        auto bit_cast_span = [&]() {
+#if __cplusplus >= 202002L
+            return std::bit_cast<std::array<uint8_t, sizeof(decltype(ipv4Addr))>>(ipv4Addr);
+#else
+            auto ptr = reinterpret_cast<const uint8_t*>(&ipv4Addr);
+            return Span{ptr, ADDR_IPV4_SIZE};
+#endif
+        };
+
         m_net = NET_IPV4;
-        auto byte_arr = std::bit_cast<std::array<uint8_t, sizeof(decltype(ipv4Addr))>>(ipv4Addr);
+        auto byte_arr = bit_cast_span();
         m_addr.fill(0);
         std::copy(byte_arr.data(), byte_arr.data() + ADDR_SIZES[NET_IPV4], m_addr.begin());
     }
@@ -249,8 +259,17 @@ public:
     std::vector<unsigned char> GetAddrBytes() const;
     int GetReachabilityFrom(const CNetAddr *paddrPartner = nullptr) const;
 
-    constexpr explicit CNetAddr(const struct in6_addr& pipv6Addr, const uint32_t scope = 0) {
-        SetLegacyIPv6(Span{std::bit_cast<std::array<uint8_t, sizeof(in6_addr)>>(pipv6Addr)});
+    CONSTEXPR_IF_CPP20 explicit CNetAddr(const struct in6_addr& pipv6Addr, const uint32_t scope = 0) {
+        auto bit_cast_span = [&]() {
+#if __cplusplus >= 202002L
+            return std::bit_cast<std::array<uint8_t, sizeof(decltype(pipv6Addr))>>(pipv6Addr);
+#else
+            auto ptr = reinterpret_cast<const uint8_t*>(&pipv6Addr);
+            return Span{ptr, ADDR_IPV4_SIZE};
+#endif
+        };
+
+        SetLegacyIPv6(bit_cast_span());
         m_scope_id = scope;
     }
 
@@ -559,8 +578,8 @@ protected:
 public:
     constexpr CService() : port(0) {};
     constexpr CService(const CNetAddr& ip, uint16_t port): CNetAddr(ip), port(port) {}
-    constexpr CService(const struct in_addr& ipv4Addr, uint16_t port) : CNetAddr(ipv4Addr), port(port) {}
-    constexpr explicit CService(const struct sockaddr_in& addr) : CNetAddr(addr.sin_addr), port(ntohs(addr.sin_port))
+    CONSTEXPR_IF_CPP20 CService(const struct in_addr& ipv4Addr, uint16_t port) : CNetAddr(ipv4Addr), port(port) {}
+    CONSTEXPR_IF_CPP20 explicit CService(const struct sockaddr_in& addr) : CNetAddr(addr.sin_addr), port(ntohs(addr.sin_port))
     {
         assert(addr.sin_family == AF_INET);
     }
@@ -577,9 +596,9 @@ public:
     std::string ToStringPort() const;
     std::string ToStringIPPort(bool fUseGetnameinfo = true) const;
 
-    constexpr CService(const struct in6_addr& ipv6Addr, uint16_t portIn) : CNetAddr(ipv6Addr), port(portIn) {}
+    CONSTEXPR_IF_CPP20 CService(const struct in6_addr& ipv6Addr, uint16_t portIn) : CNetAddr(ipv6Addr), port(portIn) {}
 
-    constexpr explicit CService(const struct sockaddr_in6& addr) : CNetAddr(addr.sin6_addr, addr.sin6_scope_id), port(ntohs(addr.sin6_port))
+    CONSTEXPR_IF_CPP20 explicit CService(const struct sockaddr_in6& addr) : CNetAddr(addr.sin6_addr, addr.sin6_scope_id), port(ntohs(addr.sin6_port))
     {
         assert(addr.sin6_family == AF_INET6);
     }
