@@ -227,8 +227,11 @@ struct RPCArg {
 
     bool IsOptional() const;
 
-    /** Check whether the request JSON type matches. */
-    void MatchesType(const UniValue& request) const;
+    /**
+     * Check whether the request JSON type matches.
+     * Returns true if type matches, or object describing error(s) if not.
+     */
+    UniValue MatchesType(const UniValue& request) const;
 
     /** Return the first of all aliases */
     std::string GetFirstName() const;

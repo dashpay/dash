@@ -421,6 +421,7 @@ def write_config(config_path, *, n, chain, extra_config="", disable_autoconnect=
         f.write("shrinkdebugfile=0\n")
         # To reduce IO and consumed disk storage use tiny size for allocated blk and rev files
         f.write("tinyblk=1\n")
+        f.write("deprecatedrpc=create_bdb\n")  # Required to run the tests
         # To improve SQLite wallet performance so that the tests don't timeout, use -unsafesqlitesync
         f.write("unsafesqlitesync=1\n")
         if disable_autoconnect:

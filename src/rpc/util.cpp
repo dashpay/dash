@@ -573,6 +573,7 @@ TMPL_INST(nullptr, std::optional<bool>, maybe_arg ? std::optional{maybe_arg->get
 TMPL_INST(nullptr, const std::string*, maybe_arg ? &maybe_arg->get_str() : nullptr;);
 
 // Required arg or optional arg with default value.
+TMPL_INST(CheckRequiredOrDefault, bool, CHECK_NONFATAL(maybe_arg)->get_bool(););
 TMPL_INST(CheckRequiredOrDefault, int, CHECK_NONFATAL(maybe_arg)->getInt<int>(););
 TMPL_INST(CheckRequiredOrDefault, uint64_t, CHECK_NONFATAL(maybe_arg)->getInt<uint64_t>(););
 TMPL_INST(CheckRequiredOrDefault, const std::string&, CHECK_NONFATAL(maybe_arg)->get_str(););
@@ -678,42 +679,50 @@ UniValue RPCHelpMan::GetArgMap() const
     return arr;
 }
 
-void RPCArg::MatchesType(const UniValue& request) const
+static std::optional<UniValue::VType> ExpectedType(RPCArg::Type type)
 {
-    if (m_opts.skip_type_check) return;
-    if (IsOptional() && request.isNull()) return;
-    switch (m_type) {
+    using Type = RPCArg::Type;
+    switch (type) {
     case Type::STR_HEX:
     case Type::STR: {
-        RPCTypeCheckArgument(request, UniValue::VSTR);
-        return;
+        return UniValue::VSTR;
     }
     case Type::NUM: {
-        RPCTypeCheckArgument(request, UniValue::VNUM);
-        return;
+        return UniValue::VNUM;
     }
     case Type::AMOUNT: {
         // VNUM or VSTR, checked inside AmountFromValue()
-        return;
+        return std::nullopt;
     }
     case Type::RANGE: {
         // VNUM or VARR, checked inside ParseRange()
-        return;
+        return std::nullopt;
     }
     case Type::BOOL: {
-        RPCTypeCheckArgument(request, UniValue::VBOOL);
-        return;
+        return UniValue::VBOOL;
     }
     case Type::OBJ:
     case Type::OBJ_USER_KEYS: {
-        RPCTypeCheckArgument(request, UniValue::VOBJ);
-        return;
+        return UniValue::VOBJ;
     }
     case Type::ARR: {
-        RPCTypeCheckArgument(request, UniValue::VARR);
-        return;
+        return UniValue::VARR;
     }
     } // no default case, so the compiler can warn about missing cases
+    NONFATAL_UNREACHABLE();
+}
+
+UniValue RPCArg::MatchesType(const UniValue& request) const
+{
+    if (m_opts.skip_type_check) return true;
+    if (IsOptional() && request.isNull()) return true;
+    const auto exp_type{ExpectedType(m_type)};
+    if (!exp_type) return true; // nothing to check
+
+    if (*exp_type != request.getType()) {
+        return strprintf("JSON value of type %s is not of expected type %s", uvTypeName(request.getType()), uvTypeName(*exp_type));
+    }
+    return true;
 }
 
 std::string RPCArg::GetFirstName() const
