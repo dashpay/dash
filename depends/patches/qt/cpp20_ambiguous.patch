@@ -1,0 +1,24 @@
+X-Git-Url: https://codereview.qt-project.org/gitweb?p=qt%2Fqtbase.git;a=blobdiff_plain;f=src%2Fgui%2Ftext%2Fqfontdatabase.cpp;h=cd1cad6603b889de204a8614c43c37273d48f650;hp=1f9e8994134e415e1fd3bdf7f88339ce87e2535b;hb=962576790d21e32b745fb339247ef33c13b81e34;hpb=54c2cebabdda0280b8443c6947b6fee02445e138
+
+diff --git a/src/gui/text/qfontdatabase.cpp b/src/gui/text/qfontdatabase.cpp
+index 1f9e8994134e..cd1cad6603b8 100644
+--- a/src/gui/text/qfontdatabase.cpp
++++ b/src/gui/text/qfontdatabase.cpp
+@@ -194,14 +194,14 @@ struct QtFontStyle
+         signed int  weight : 8;
+         signed int stretch : 12;
+
+-        bool operator==(const Key & other) {
++        bool operator==(const Key & other) const {
+             return (style == other.style && weight == other.weight &&
+                     (stretch == 0 || other.stretch == 0 || stretch == other.stretch));
+         }
+-        bool operator!=(const Key &other) {
++        bool operator!=(const Key &other) const {
+             return !operator==(other);
+         }
+-        bool operator <(const Key &o) {
++        bool operator <(const Key &o) const {
+             int x = (style << 12) + (weight << 14) + stretch;
+             int y = (o.style << 12) + (o.weight << 14) + o.stretch;
+             return (x < y);

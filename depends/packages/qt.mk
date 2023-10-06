@@ -23,6 +23,7 @@ $(package)_patches += guix_cross_lib_path.patch
 $(package)_patches += fast_fixed_dtoa_no_optimize.patch
 $(package)_patches += fix-macos-linker.patch
 $(package)_patches += memory_resource.patch
+$(package)_patches += cpp20_ambiguous.patch
 
 $(package)_qttranslations_file_name=qttranslations-$($(package)_suffix)
 $(package)_qttranslations_sha256_hash=38b942bc7e62794dd072945c8a92bb9dfffed24070aea300327a3bb42f855609
