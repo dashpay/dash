@@ -116,7 +116,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetValidMN(const uint256& proTxHash) 
 
 CDeterministicMNCPtr CDeterministicMNList::GetMNByOperatorKey(const CBLSPublicKey& pubKey) const
 {
-    const auto it = ranges::find_if(mnMap,
+    const auto it = std::find_if(mnMap.begin(), mnMap.end(),
                               [&pubKey](const auto& p){return p.second->pdmnState->pubKeyOperator.Get() == pubKey;});
     if (it == mnMap.end()) {
         return nullptr;

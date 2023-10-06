@@ -465,7 +465,7 @@ public:
 
     static constexpr int CalculateAmountPriority(CAmount nInputAmount)
     {
-        if (auto optDenom = ranges::find_if_opt(GetStandardDenominations(), [&nInputAmount](const auto& denom) {
+        if (auto optDenom = ranges_util::find_if_opt(GetStandardDenominations(), [&nInputAmount](const auto& denom) {
             return nInputAmount == denom;
         })) {
             return (float)COIN / *optDenom * 10000;

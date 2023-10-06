@@ -8,9 +8,10 @@
 #include <algorithm>
 #include <optional>
 
-//#if __cplusplus > 201703L // C++20 compiler
-//namespace ranges = std::ranges;
-//#else
+#if __cplusplus > 201703L // C++20 compiler
+#include <ranges>
+namespace ranges = std::ranges;
+#else
 
 #define MK_RANGE(FUN) \
 template <typename X, typename Z>               \
@@ -28,7 +29,11 @@ namespace ranges {
     MK_RANGE(any_of)
     MK_RANGE(count_if)
     MK_RANGE(find_if)
+}
 
+#endif // C++20 compiler
+
+namespace ranges_util {
     template <typename X, typename Z>
     constexpr inline auto find_if_opt(const X& ds, const Z& fn) {
         const auto it = ranges::find_if(ds, fn);
@@ -37,8 +42,6 @@ namespace ranges {
         }
         return std::optional<std::decay_t<decltype(*it)>>{};
     }
-
 }
 
-//#endif // C++20 compiler
 #endif // BITCOIN_UTIL_RANGES_H

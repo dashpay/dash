@@ -1046,7 +1046,7 @@ std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries()
             throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
         }
 
-        if (auto optLLMQParams = ranges::find_if_opt(Params().GetConsensus().llmqs,
+        if (auto optLLMQParams = ranges_util::find_if_opt(Params().GetConsensus().llmqs,
                                                      [&strLLMQType](const auto& params){return params.name == strLLMQType;})) {
             llmqType = optLLMQParams->type;
         } else {

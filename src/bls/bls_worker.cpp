@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <utility>
+#include <ranges>
 
 template <typename T>
 bool VerifyVectorHelper(Span<T> vec)
@@ -109,7 +110,7 @@ bool CBLSWorker::GenerateContributions(int quorumThreshold, Span<CBLSId> ids, BL
         };
         futures.emplace_back(workerPool.push(f));
     }
-    return ranges::all_of(futures, [](auto& f){
+    return std::ranges::all_of(futures, [](auto& f){
         return f.get();
     });
 }

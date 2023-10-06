@@ -272,7 +272,7 @@ SporkValue CSporkManager::GetSporkValue(SporkId nSporkID) const
     }
 
 
-    if (auto optSpork = ranges::find_if_opt(sporkDefs,
+    if (auto optSpork = ranges_util::find_if_opt(sporkDefs,
                                             [&nSporkID](const auto& sporkDef){return sporkDef.sporkId == nSporkID;})) {
         return optSpork->defaultValue;
     } else {
@@ -283,7 +283,7 @@ SporkValue CSporkManager::GetSporkValue(SporkId nSporkID) const
 
 SporkId CSporkManager::GetSporkIDByName(std::string_view strName)
 {
-    if (auto optSpork = ranges::find_if_opt(sporkDefs,
+    if (auto optSpork = ranges_util::find_if_opt(sporkDefs,
                                             [&strName](const auto& sporkDef){return sporkDef.name == strName;})) {
         return optSpork->sporkId;
     }

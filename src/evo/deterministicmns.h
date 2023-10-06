@@ -239,17 +239,17 @@ public:
 
     [[nodiscard]] size_t GetValidMNsCount() const
     {
-        return ranges::count_if(mnMap, [this](const auto& p){ return IsMNValid(*p.second); });
+        return std::count_if(mnMap.begin(), mnMap.end(), [this](const auto& p){ return IsMNValid(*p.second); });
     }
 
     [[nodiscard]] size_t GetAllEvoCount() const
     {
-        return ranges::count_if(mnMap, [this](const auto& p) { return p.second->nType == MnType::Evo; });
+        return std::count_if(mnMap.begin(), mnMap.end(), [this](const auto& p) { return p.second->nType == MnType::Evo; });
     }
 
     [[nodiscard]] size_t GetValidEvoCount() const
     {
-        return ranges::count_if(mnMap, [this](const auto& p) { return p.second->nType == MnType::Evo && IsMNValid(*p.second); });
+        return std::count_if(mnMap.begin(), mnMap.end(), [this](const auto& p) { return p.second->nType == MnType::Evo && IsMNValid(*p.second); });
     }
 
     [[nodiscard]] size_t GetValidWeightedMNsCount() const
