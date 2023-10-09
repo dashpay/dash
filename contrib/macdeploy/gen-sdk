@@ -47,9 +47,6 @@ def run():
 
     out_name = "Xcode-{xcode_version}-{xcode_build_id}-extracted-SDK-with-libcxx-headers".format(xcode_version=xcode_version, xcode_build_id=xcode_build_id)
 
-    xcode_libcxx_dir = xcode_app.joinpath("Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1")
-    assert xcode_libcxx_dir.is_dir()
-
     if args.out_sdktgz:
         out_sdktgz_path = pathlib.Path(args.out_sdktgz_path)
     else:
@@ -57,7 +54,7 @@ def run():
         out_sdktgz_path = pathlib.Path("./{}.tar.gz".format(out_name))
 
     def tarfp_add_with_base_change(tarfp, dir_to_add, alt_base_dir):
-        """Add all files in dir_to_add to tarfp, but prepent MEMBERPREFIX to the file's
+        """Add all files in dir_to_add to tarfp, but prepent alt_base_dir to the file's
         name
 
         e.g. if the only file under /root/bazdir is /root/bazdir/qux, invoking:
@@ -77,7 +74,8 @@ def run():
                 tarinfo.linkname = str(pathlib.Path(alt_base_dir, tarinfo.linkname))
             return tarinfo
         with cd(dir_to_add):
-            tarfp.add(".", recursive=True, filter=change_tarinfo_base)
+            tarfp.add("./usr/include", recursive=True, filter=change_tarinfo_base)
+            tarfp.add("./usr/lib", recursive=True, filter=change_tarinfo_base)
 
     print("Creating output .tar.gz file...")
     with out_sdktgz_path.open("wb") as fp:
@@ -85,8 +83,6 @@ def run():
             with tarfile.open(mode="w", fileobj=gzf) as tarfp:
                 print("Adding MacOSX SDK {} files...".format(sdk_version))
                 tarfp_add_with_base_change(tarfp, sdk_dir, out_name)
-                print("Adding libc++ headers...")
-                tarfp_add_with_base_change(tarfp, xcode_libcxx_dir, "{}/usr/include/c++/v1".format(out_name))
     print("Done! Find the resulting gzipped tarball at:")
     print(out_sdktgz_path.resolve())
 
