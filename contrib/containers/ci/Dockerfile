@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
 
 # Needed to prevent tzdata hanging while expecting user input
 ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
@@ -11,7 +11,7 @@ ENV APT_ARGS="-y --no-install-recommends --no-upgrade"
 # Install packages for i386; disabled on aarch64 and arm64 hosts
 RUN (dpkg --print-architecture | grep -Eq 'aarch64|arm64' || dpkg --add-architecture i386)
 RUN (dpkg --print-architecture | grep -Eq 'aarch64|arm64' || (apt-get update && apt-get install $APT_ARGS \
-    g++-9-multilib \
+    g++-12-multilib \
     wine32) && rm -rf /var/lib/apt/lists/*)
 
 RUN apt-get update && apt-get install $APT_ARGS \
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install $APT_ARGS \
     clang \
     cmake \
     git \
-    g++ \
+    g++-12 \
     gettext \
     libtool \
     libxcb-icccm4 \
@@ -98,7 +98,7 @@ RUN useradd -u ${USER_ID} -g dash -s /bin/bash -m -d /home/dash dash
 RUN apt-get update && apt-get install $APT_ARGS \
     bc \
     gawk \
-    g++-arm-linux-gnueabihf \
+    g++-12-arm-linux-gnueabihf \
     g++-mingw-w64-x86-64 \
     jq \
     libcap-dev \
