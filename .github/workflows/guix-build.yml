@@ -120,7 +120,6 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache
             ${{ github.workspace }}/dash/depends/built
-            ${{ github.workspace }}/dash/depends/work
             /gnu/store
           key: ${{ runner.os }}-guix-${{ matrix.build_target }}-${{ github.sha }}
           restore-keys: |
@@ -159,7 +158,6 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache
             ${{ github.workspace }}/dash/depends/built
-            ${{ github.workspace }}/dash/depends/work
             /gnu/store
           key: ${{ runner.os }}-guix-${{ matrix.build_target }}-${{ github.sha }}
 
