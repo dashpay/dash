@@ -171,8 +171,7 @@ bool CheckAssetUnlockTx(const CTransaction& tx, const CBlockIndex* pindexPrev, c
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-duplicated-index");
     }
 
-    if (const CBlockIndex* pindexQuorum = WITH_LOCK(cs_main, return g_chainman.m_blockman.LookupBlockIndex(assetUnlockTx.getQuorumHash()));
-            !pindexQuorum) {
+    if (LOCK(cs_main); g_chainman.m_blockman.LookupBlockIndex(assetUnlockTx.getQuorumHash()) == nullptr) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-quorum-hash");
     }
 
