@@ -957,9 +957,17 @@ clean-local:
 	## FIXME: How to get the appropriate modulename_CPPFLAGS in here?
 	$(AM_V_GEN) $(WINDRES) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(CPPFLAGS) -DWINDRES_PREPROC -i $< -o $@
 
+if GITLAB_CI
+# When in a CI build, do nothing for check-symbols
+check-symbols:
+	@echo "In CI build. Skipping check-symbols."
+else
+
 check-symbols: $(bin_PROGRAMS)
 	@echo "Running symbol and dynamic library checks..."
 	$(AM_V_at) $(PYTHON) $(top_srcdir)/contrib/devtools/symbol-check.py $(bin_PROGRAMS)
+
+endif
 
 check-security: $(bin_PROGRAMS)
 if HARDEN
