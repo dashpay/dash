@@ -1200,6 +1200,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether the wallet module was compiled with BDB support."""
         return self.config["components"].getboolean("USE_BDB")
 
+    def has_blockfile(self, node, filenum: str):
+        blocksdir = node.datadir_path / self.chain / 'blocks'
+        return (blocksdir / f"blk{filenum}.dat").is_file()
+
 MASTERNODE_COLLATERAL = 1000
 EVONODE_COLLATERAL = 4000
 
@@ -1548,10 +1552,10 @@ class DashTestFramework(BitcoinTestFramework):
         old_num_nodes = len(self.nodes)
         super().add_nodes(num_nodes, extra_args, rpchost=rpchost, binary=binary, binary_cli=binary_cli, versions=versions)
         for i in range(old_num_nodes, old_num_nodes + num_nodes):
-            self.append_dip3_config(self.nodes[i].datadir)
+            self.append_dip3_config(self.nodes[i].datadir_path)
         if old_num_nodes == 0:
             # controller node is the only node that has an extra option allowing it to submit sporks
-            append_config(self.nodes[0].datadir, ["sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"])
+            append_config(self.nodes[0].datadir_path, ["sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"])
 
     def connect_nodes(self, a, b, *, peer_advertises_v2=None):
         for mn2 in self.mninfo: # type: MasternodeInfo

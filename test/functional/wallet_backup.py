@@ -110,25 +110,24 @@ class WalletBackupTest(BitcoinTestFramework):
         self.stop_node(2)
 
     def erase_three(self):
-        os.remove(os.path.join(self.nodes[0].wallets_path, self.default_wallet_name, self.wallet_data_filename))
-        os.remove(os.path.join(self.nodes[1].wallets_path, self.default_wallet_name, self.wallet_data_filename))
-        os.remove(os.path.join(self.nodes[2].wallets_path, self.default_wallet_name, self.wallet_data_filename))
+        for node_num in range(3):
+            (self.nodes[node_num].wallets_path / self.default_wallet_name / self.wallet_data_filename).unlink()
 
     def restore_invalid_wallet(self):
         node = self.nodes[3]
-        invalid_wallet_file = os.path.join(self.nodes[0].datadir, 'invalid_wallet_file.bak')
+        invalid_wallet_file = self.nodes[0].datadir_path / 'invalid_wallet_file.bak'
         open(invalid_wallet_file, 'a', encoding="utf8").write('invald wallet')
         wallet_name = "res0"
-        not_created_wallet_file = os.path.join(node.wallets_path, wallet_name)
+        not_created_wallet_file = node.wallets_path / wallet_name
         error_message = "Wallet file verification failed. Failed to load database path '{}'. Data is not in recognized format.".format(not_created_wallet_file)
         assert_raises_rpc_error(-18, error_message, node.restorewallet, wallet_name, invalid_wallet_file)
-        assert not os.path.exists(not_created_wallet_file)
+        assert not not_created_wallet_file.exists()
 
     def restore_corrupt_bdb_wallet(self):
         if self.options.descriptors:
             return
         node = self.nodes[3]
-        backup_file = os.path.join(self.nodes[0].datadir, 'wallet.bak')
+        backup_file = os.path.join(self.nodes[0].datadir_path, 'wallet.bak')
         corrupt_file = backup_file + '.corrupt'
         with open(backup_file, 'rb') as source, open(corrupt_file, 'wb') as dest:
             dest.write(source.read(4096))
@@ -138,18 +137,18 @@ class WalletBackupTest(BitcoinTestFramework):
 
     def restore_nonexistent_wallet(self):
         node = self.nodes[3]
-        nonexistent_wallet_file = os.path.join(self.nodes[0].datadir, 'nonexistent_wallet.bak')
+        nonexistent_wallet_file = self.nodes[0].datadir_path / 'nonexistent_wallet.bak'
         wallet_name = "res0"
         assert_raises_rpc_error(-8, "Backup file does not exist", node.restorewallet, wallet_name, nonexistent_wallet_file)
-        not_created_wallet_file = os.path.join(node.wallets_path, wallet_name)
-        assert not os.path.exists(not_created_wallet_file)
+        not_created_wallet_file = node.wallets_path / wallet_name
+        assert not not_created_wallet_file.exists()
 
     def restore_preserves_existing_directory(self):
         node = self.nodes[3]
         wallet_dir = node.wallets_path
-        backup_file = os.path.join(self.nodes[0].datadir, 'wallet.bak')
-        invalid_path = os.path.join(node.datadir, 'x' * 256)
-        for wallet_name in ('restore_existing', os.path.join(node.datadir, 'restore_absolute')):
+        backup_file = os.path.join(self.nodes[0].datadir_path, 'wallet.bak')
+        invalid_path = os.path.join(node.datadir_path, 'x' * 256)
+        for wallet_name in ('restore_existing', os.path.join(node.datadir_path, 'restore_absolute')):
             destination = os.path.join(wallet_dir, wallet_name)
             sentinel = os.path.join(destination, 'nested', 'sentinel')
             os.makedirs(os.path.dirname(sentinel))
@@ -169,7 +168,7 @@ class WalletBackupTest(BitcoinTestFramework):
 
     def restore_wallet_existent_name(self):
         node = self.nodes[3]
-        backup_file = os.path.join(self.nodes[0].datadir, 'wallet.bak')
+        backup_file = self.nodes[0].datadir_path / 'wallet.bak'
         wallet_name = "res0"
         wallet_file = node.wallets_path / wallet_name
         error_message = "Failed to restore wallet. Database file exists in '{}'.".format(wallet_file / "wallet.dat")
@@ -237,7 +236,6 @@ class WalletBackupTest(BitcoinTestFramework):
             os.rename(node.wallets_path / "default.wallet.dat", node.wallets_path / "wallet.dat")
             node.loadwallet("")
 
-
     def run_test(self):
         self.log.info("Generating initial blockchain")
         self.generate(self.nodes[0], 1)
@@ -257,14 +255,12 @@ class WalletBackupTest(BitcoinTestFramework):
 
         self.log.info("Backing up")
 
-        self.nodes[0].backupwallet(os.path.join(self.nodes[0].datadir, 'wallet.bak'))
-        self.nodes[1].backupwallet(os.path.join(self.nodes[1].datadir, 'wallet.bak'))
-        self.nodes[2].backupwallet(os.path.join(self.nodes[2].datadir, 'wallet.bak'))
+        for node_num in range(3):
+            self.nodes[node_num].backupwallet(self.nodes[node_num].datadir_path / 'wallet.bak')
 
         if not self.options.descriptors:
-            self.nodes[0].dumpwallet(os.path.join(self.nodes[0].datadir, 'wallet.dump'))
-            self.nodes[1].dumpwallet(os.path.join(self.nodes[1].datadir, 'wallet.dump'))
-            self.nodes[2].dumpwallet(os.path.join(self.nodes[2].datadir, 'wallet.dump'))
+            for node_num in range(3):
+                self.nodes[node_num].dumpwallet(self.nodes[node_num].datadir_path / 'wallet.dump')
 
         self.log.info("More transactions")
         for _ in range(5):
@@ -293,17 +289,13 @@ class WalletBackupTest(BitcoinTestFramework):
         self.restore_preserves_existing_directory()
         self.restore_corrupt_bdb_wallet()
 
-        backup_file_0 = os.path.join(self.nodes[0].datadir, 'wallet.bak')
-        backup_file_1 = os.path.join(self.nodes[1].datadir, 'wallet.bak')
-        backup_file_2 = os.path.join(self.nodes[2].datadir, 'wallet.bak')
+        backup_files = []
+        for node_num in range(3):
+            backup_files.append(self.nodes[node_num].datadir_path / 'wallet.bak')
 
-        self.nodes[3].restorewallet("res0", backup_file_0)
-        self.nodes[3].restorewallet("res1", backup_file_1)
-        self.nodes[3].restorewallet("res2", backup_file_2)
-
-        assert os.path.exists(os.path.join(self.nodes[3].wallets_path, "res0"))
-        assert os.path.exists(os.path.join(self.nodes[3].wallets_path, "res1"))
-        assert os.path.exists(os.path.join(self.nodes[3].wallets_path, "res2"))
+        for idx, backup_file in enumerate(backup_files):
+            self.nodes[3].restorewallet(f'res{idx}', backup_file)
+            assert (self.nodes[3].wallets_path / f'res{idx}').exists()
 
         res0_rpc = self.nodes[3].get_wallet_rpc("res0")
         res1_rpc = self.nodes[3].get_wallet_rpc("res1")
@@ -323,25 +315,19 @@ class WalletBackupTest(BitcoinTestFramework):
             self.erase_three()
 
             #start node2 with no chain
-            shutil.rmtree(os.path.join(self.nodes[2].chain_path, 'blocks'))
-            shutil.rmtree(os.path.join(self.nodes[2].chain_path, 'chainstate'))
-            shutil.rmtree(os.path.join(self.nodes[2].chain_path, 'evodb'))
-            shutil.rmtree(os.path.join(self.nodes[2].chain_path, 'llmq'))
-            shutil.rmtree(os.path.join(self.nodes[2].chain_path, 'indexes'))
+            shutil.rmtree(self.nodes[2].blocks_path)
+            shutil.rmtree(self.nodes[2].chain_path / 'chainstate')
+            shutil.rmtree(self.nodes[2].chain_path / 'evodb')
+            shutil.rmtree(self.nodes[2].chain_path / 'llmq')
+            shutil.rmtree(self.nodes[2].chain_path / 'indexes')
 
             self.start_three(["-nowallet"])
             # Create new wallets for the three nodes.
             # We will use this empty wallets to test the 'importwallet()' RPC command below.
             for node_num in range(3):
                 self.nodes[node_num].createwallet(wallet_name=self.default_wallet_name, descriptors=self.options.descriptors, load_on_startup=True)
-
-            assert_equal(self.nodes[0].getbalance(), 0)
-            assert_equal(self.nodes[1].getbalance(), 0)
-            assert_equal(self.nodes[2].getbalance(), 0)
-
-            self.nodes[0].importwallet(os.path.join(self.nodes[0].datadir, 'wallet.dump'))
-            self.nodes[1].importwallet(os.path.join(self.nodes[1].datadir, 'wallet.dump'))
-            self.nodes[2].importwallet(os.path.join(self.nodes[2].datadir, 'wallet.dump'))
+                assert_equal(self.nodes[node_num].getbalance(), 0)
+                self.nodes[node_num].importwallet(self.nodes[node_num].datadir_path / 'wallet.dump')
 
             self.sync_blocks()
 
