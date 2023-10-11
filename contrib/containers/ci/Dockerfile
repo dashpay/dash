@@ -133,6 +133,7 @@ RUN ln -s x86_64-linux-gnu/asm /usr/include/asm
 RUN \
   update-alternatives --set x86_64-w64-mingw32-gcc  /usr/bin/x86_64-w64-mingw32-gcc-posix; \
   update-alternatives --set x86_64-w64-mingw32-g++  /usr/bin/x86_64-w64-mingw32-g++-posix; \
+  update-alternatives --install /usr/bin/arm-linux-gnueabihf-g++ arm-linux-gnueabihf-g++ /usr/bin/arm-linux-gnueabihf-g++-12 50; \
   exit 0
 
 ARG LLVM_VERSION=15
