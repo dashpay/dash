@@ -603,7 +603,7 @@ parse, modify and abstract ELF, PE and MachO formats.")
            ;; Windows
            (list zip
                  (make-mingw-pthreads-cross-toolchain "x86_64-w64-mingw32")
-                 (nsis-x86_64)
+                 nsis-x86_64
                  osslsigncode))
           ((string-contains target "-linux-")
            (list (make-bitcoin-cross-toolchain target)))
