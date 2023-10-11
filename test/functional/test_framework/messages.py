@@ -1129,9 +1129,9 @@ class CAssetLockTx:
 
 
 class CAssetUnlockTx:
-    __slots__ = ("version", "index", "fee", "requestedHeight", "quorumHash", "quorumSig")
+    __slots__ = ("version", "index", "fee", "requestedHeight", "platformHeight", "platformRound", "voteIndex", "quorumHash", "quorumSig")
 
-    def __init__(self, version=None, index=None, fee=None, requestedHeight=None, quorumHash = 0, quorumSig = None):
+    def __init__(self, version=None, index=None, fee=None, requestedHeight=None, platformHeight=None, platformRound=None, voteIndex=None, quorumHash = 0, quorumSig = None):
         self.set_null()
         if version is not None:
             self.version = version
@@ -1141,6 +1141,12 @@ class CAssetUnlockTx:
             self.fee = fee
         if requestedHeight is not None:
             self.requestedHeight = requestedHeight
+        if platformHeight is not None:
+            self.platformHeight = platformHeight
+        if platformRound is not None:
+            self.platformRound = platformRound
+        if voteIndex is not None:
+            self.voteIndex = voteIndex
         if quorumHash is not None:
             self.quorumHash = quorumHash
         if quorumSig is not None:
@@ -1151,6 +1157,9 @@ class CAssetUnlockTx:
         self.index = 0
         self.fee = None
         self.requestedHeight = 0
+        self.platformHeight = 0
+        self.platformRound = 0
+        self.voteIndex = 0
         self.quorumHash = 0
         self.quorumSig = b'\x00' * 96
 
@@ -1159,6 +1168,9 @@ class CAssetUnlockTx:
         self.index = struct.unpack("<Q", f.read(8))[0]
         self.fee = struct.unpack("<I", f.read(4))[0]
         self.requestedHeight = struct.unpack("<I", f.read(4))[0]
+        self.platformHeight = struct.unpack("<Q", f.read(8))[0]
+        self.platformRound = struct.unpack("<I", f.read(4))[0]
+        self.voteIndex = struct.unpack("<I", f.read(4))[0]
         self.quorumHash = deser_uint256(f)
         self.quorumSig = f.read(96)
 
@@ -1168,13 +1180,16 @@ class CAssetUnlockTx:
         r += struct.pack("<Q", self.index)
         r += struct.pack("<I", self.fee)
         r += struct.pack("<I", self.requestedHeight)
+        r += struct.pack("<Q", self.platformHeight)
+        r += struct.pack("<I", self.platformRound)
+        r += struct.pack("<I", self.voteIndex)
         r += ser_uint256(self.quorumHash)
         r += self.quorumSig
         return r
 
     def __repr__(self):
-        return "CAssetUnlockTx(version={} index={} fee={} requestedHeight={} quorumHash={:x} quorumSig={}" \
-            .format(self.version, self.index, self.fee, self.requestedHeight, self.quorumHash, self.quorumSig.hex())
+        return "CAssetUnlockTx(version={} index={} fee={} requestedHeight={} platformHeight={} platformRound={} voteIndex={} quorumHash={:x} quorumSig={}" \
+            .format(self.version, self.index, self.fee, self.requestedHeight, self.platformHeight, self.platformRound, self.voteIndex, self.quorumHash, self.quorumSig.hex())
 
 
 class CMnEhf:

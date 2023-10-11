@@ -85,16 +85,22 @@ private:
     uint64_t index{0};
     uint32_t fee{0};
     uint32_t requestedHeight{0};
+    uint64_t platformHeight{0};
+    uint32_t platformRound{0};
+    uint32_t voteIndex{0};
     uint256 quorumHash{0};
     CBLSSignature quorumSig{};
 
 public:
-    CAssetUnlockPayload(uint8_t nVersion, uint64_t index, uint32_t fee, uint32_t requestedHeight,
-            uint256 quorumHash, CBLSSignature quorumSig) :
+    CAssetUnlockPayload(uint8_t nVersion, uint64_t index, uint32_t fee, uint32_t requestedHeight, uint64_t platformHeight, uint32_t platformRound, uint32_t voteIndex,
+                        uint256 quorumHash, CBLSSignature quorumSig) :
         nVersion(nVersion),
         index(index),
         fee(fee),
         requestedHeight(requestedHeight),
+        platformHeight{platformHeight},
+        platformRound{platformRound},
+        voteIndex(voteIndex),
         quorumHash(quorumHash),
         quorumSig(quorumSig)
     {}
@@ -108,6 +114,9 @@ public:
             obj.index,
             obj.fee,
             obj.requestedHeight,
+            obj.platformHeight,
+            obj.platformRound,
+            obj.voteIndex,
             obj.quorumHash,
             obj.quorumSig
         );
@@ -123,6 +132,9 @@ public:
         obj.pushKV("index", int(index));
         obj.pushKV("fee", int(fee));
         obj.pushKV("requestedHeight", int(requestedHeight));
+        obj.pushKV("platformHeight", int(platformHeight));
+        obj.pushKV("platformRound", int(platformRound));
+        obj.pushKV("voteIndex", int(voteIndex));
         obj.pushKV("quorumHash", quorumHash.ToString());
         obj.pushKV("quorumSig", quorumSig.ToString());
         return obj;
@@ -149,6 +161,21 @@ public:
     uint32_t getRequestedHeight() const
     {
         return requestedHeight;
+    }
+
+    uint64_t getPlatformHeight() const
+    {
+        return platformHeight;
+    }
+
+    uint32_t getPlatformRound() const
+    {
+        return platformRound;
+    }
+
+    uint32_t getVoteIndex() const
+    {
+        return voteIndex;
     }
 
     const uint256& getQuorumHash() const

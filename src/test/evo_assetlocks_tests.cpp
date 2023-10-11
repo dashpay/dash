@@ -98,9 +98,12 @@ static CMutableTransaction CreateAssetUnlockTx(FillableSigningProvider& keystore
     uint32_t fee = 2000'000'000u;
     // just big enough to overflow uint16_t
     uint32_t requestedHeight = 1000'000;
+    uint64_t platformHeight;
+    uint32_t platformRound;
+    uint32_t voteIndex;
     uint256 quorumHash;
     CBLSSignature quorumSig;
-    CAssetUnlockPayload assetUnlockTx(nVersion, index, fee, requestedHeight, quorumHash, quorumSig);
+    CAssetUnlockPayload assetUnlockTx(nVersion, index, fee, requestedHeight, platformHeight, platformRound, voteIndex, quorumHash, quorumSig);
 
     CMutableTransaction tx;
     tx.nVersion = 3;
@@ -358,6 +361,9 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
                 unlockPayload.getIndex(),
                 unlockPayload.getFee(),
                 unlockPayload.getRequestedHeight(),
+                unlockPayload.getPlatformHeight(),
+                unlockPayload.getPlatformRound(),
+                unlockPayload.getVoteIndex(),
                 unlockPayload.getQuorumHash(),
                 unlockPayload.getQuorumSig()};
             CMutableTransaction txWrongVersion = tx;

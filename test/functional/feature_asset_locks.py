@@ -92,18 +92,27 @@ class AssetLocksTest(DashTestFramework):
         mninfo = self.mninfo
         assert_greater_than(int(withdrawal), fee)
         tx_output = CTxOut(int(withdrawal) - fee, CScript([pubkey, OP_CHECKSIG]))
+        height = node_wallet.getblockcount()
 
-        # request ID = sha256("plwdtx", index)
-        request_id_buf = ser_string(b"plwdtx") + struct.pack("<Q", index)
+        # request ID = sha256("dpevote", platformHeight, platformRound, voteIndex)
+        # For this test, those values don't have a real meaning.
+        # Assigning core height to platformHeight, 1 to platformRound and index to voteIndex
+        # (platformHeight, platformRound, voteIndex) must be unique
+        platformHeight = height
+        platformRound = 1
+        voteIndex = index
+        request_id_buf = ser_string(b"dpevote") + struct.pack("<Q", platformHeight) + struct.pack("<I", platformRound) + struct.pack("<I", voteIndex)
         request_id = hash256(request_id_buf)[::-1].hex()
 
-        height = node_wallet.getblockcount()
         quorumHash = mninfo[0].node.quorum("selectquorum", llmq_type_test, request_id)["quorumHash"]
         unlockTx_payload = CAssetUnlockTx(
             version = 1,
             index = index,
             fee = fee,
             requestedHeight = height,
+            platformHeight = platformHeight,
+            platformRound = platformRound,
+            voteIndex = voteIndex,
             quorumHash = int(quorumHash, 16),
             quorumSig = b'\00' * 96)
 

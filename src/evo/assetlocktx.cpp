@@ -106,7 +106,7 @@ std::string CAssetLockPayload::ToString() const
  * Asset Unlock Transaction (withdrawals)
  */
 
-const std::string ASSETUNLOCK_REQUESTID_PREFIX = "plwdtx";
+const std::string ASSETUNLOCK_REQUESTID_PREFIX = "dpevote";
 
 bool CAssetUnlockPayload::VerifySig(const uint256& msgHash, const CBlockIndex* pindexTip, TxValidationState& state) const
 {
@@ -133,7 +133,7 @@ bool CAssetUnlockPayload::VerifySig(const uint256& msgHash, const CBlockIndex* p
     const auto quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
     assert(quorum);
 
-    const uint256 requestId = ::SerializeHash(std::make_pair(ASSETUNLOCK_REQUESTID_PREFIX, index));
+    const uint256 requestId = ::SerializeHash(std::make_tuple(ASSETUNLOCK_REQUESTID_PREFIX, platformHeight, platformRound, voteIndex));
 
     const uint256 signHash = llmq::utils::BuildSignHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
     if (quorumSig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash)) {
@@ -179,7 +179,7 @@ bool CheckAssetUnlockTx(const CTransaction& tx, const CBlockIndex* pindexPrev, c
 
     // Copy transaction except `quorumSig` field to calculate hash
     CMutableTransaction tx_copy(tx);
-    const CAssetUnlockPayload payload_copy{assetUnlockTx.getVersion(), assetUnlockTx.getIndex(), assetUnlockTx.getFee(), assetUnlockTx.getRequestedHeight(), assetUnlockTx.getQuorumHash(), CBLSSignature{}};
+    const CAssetUnlockPayload payload_copy{assetUnlockTx.getVersion(), assetUnlockTx.getIndex(), assetUnlockTx.getFee(), assetUnlockTx.getRequestedHeight(), assetUnlockTx.getPlatformHeight(), assetUnlockTx.getPlatformRound(), assetUnlockTx.getVoteIndex(), assetUnlockTx.getQuorumHash(), CBLSSignature{}};
     SetTxPayload(tx_copy, payload_copy);
 
     uint256 msgHash = tx_copy.GetHash();
@@ -203,6 +203,6 @@ bool GetAssetUnlockFee(const CTransaction& tx, CAmount& txfee, TxValidationState
 
 std::string CAssetUnlockPayload::ToString() const
 {
-    return strprintf("CAssetUnlockPayload(nVersion=%d,index=%d,fee=%d.%08d,requestedHeight=%d,quorumHash=%d,quorumSig=%s",
-            nVersion, index, fee / COIN, fee % COIN, requestedHeight, quorumHash.GetHex(), quorumSig.ToString().c_str());
+    return strprintf("CAssetUnlockPayload(nVersion=%d,index=%d,fee=%d.%08d,requestedHeight=%d,platformHeight=%d,platformRound=%d,voteIndex=%d,quorumHash=%d,quorumSig=%s",
+            nVersion, index, fee / COIN, fee % COIN, requestedHeight, platformHeight, platformRound, voteIndex, quorumHash.GetHex(), quorumSig.ToString().c_str());
 }
