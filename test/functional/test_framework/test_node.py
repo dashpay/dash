@@ -70,7 +70,7 @@ class TestNode():
     To make things easier for the test writer, any unrecognised messages will
     be dispatched to the RPC connection."""
 
-    def __init__(self, i, datadir, extra_args_from_options, *, chain, rpchost, timewait, timeout_factor, bitcoind, bitcoin_cli, mocktime, coverage_dir, cwd, extra_conf=None, extra_args=None, use_cli=False, start_perf=False, use_valgrind=False, version=None, descriptors=False, v2transport=False, uses_wallet=False):
+    def __init__(self, i, datadir_path, extra_args_from_options, *, chain, rpchost, timewait, timeout_factor, bitcoind, bitcoin_cli, mocktime, coverage_dir, cwd, extra_conf=None, extra_args=None, use_cli=False, start_perf=False, use_valgrind=False, version=None, descriptors=False, v2transport=False, uses_wallet=False):
         """
         Kwargs:
             start_perf (bool): If True, begin profiling the node with `perf` as soon as
@@ -79,11 +79,11 @@ class TestNode():
 
         self.index = i
         self.p2p_conn_index = 1
-        self.datadir = datadir
+        self.datadir_path = datadir_path
         self.chain = chain
-        self.bitcoinconf = os.path.join(self.datadir, "dash.conf")
-        self.stdout_dir = os.path.join(self.datadir, "stdout")
-        self.stderr_dir = os.path.join(self.datadir, "stderr")
+        self.bitcoinconf = self.datadir_path / "dash.conf"
+        self.stdout_dir = self.datadir_path / "stdout"
+        self.stderr_dir = self.datadir_path / "stderr"
         self.rpchost = rpchost
         self.rpc_timeout = timewait
         self.binary = bitcoind
@@ -93,7 +93,7 @@ class TestNode():
         self.descriptors = descriptors
         self.has_explicit_bind = False
         if extra_conf is not None:
-            append_config(datadir, extra_conf)
+            append_config(self.datadir_path, extra_conf)
             # Remember if there is bind=... in the config file.
             self.has_explicit_bind = any(e.startswith("bind=") for e in extra_conf)
         # Most callers will just need to add extra args to the standard list below.
@@ -107,7 +107,7 @@ class TestNode():
         # spam debug.log.
         self.args = [
             self.binary,
-            "-datadir=" + self.datadir,
+            f"-datadir={self.datadir_path}",
             "-logtimemicros",
             "-debug",
             "-debugexclude=libevent",
@@ -130,9 +130,7 @@ class TestNode():
 
         # Use valgrind, expect for previous release binaries
         if use_valgrind and version is None:
-            default_suppressions_file = os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                "..", "..", "..", "contrib", "valgrind.supp")
+            default_suppressions_file = Path(__file__).parents[3] / "contrib" / "valgrind.supp"
             suppressions_file = os.getenv("VALGRIND_SUPPRESSIONS_FILE",
                                           default_suppressions_file)
             self.args = ["valgrind", "--suppressions={}".format(suppressions_file),
@@ -159,7 +157,7 @@ class TestNode():
                 self.args.append("-v2transport=0")
         # if v2transport is requested via global flag but not supported for node version, ignore it
 
-        self.cli = TestNodeCLI(bitcoin_cli, self.datadir)
+        self.cli = TestNodeCLI(bitcoin_cli, self.datadir_path)
         self.use_cli = use_cli
         self.start_perf = start_perf
 
@@ -271,7 +269,7 @@ class TestNode():
         # Delete any existing cookie file -- if such a file exists (eg due to
         # unclean shutdown), it will get overwritten anyway by dashd, and
         # potentially interfere with our attempt to authenticate
-        delete_cookie_file(self.datadir, self.chain)
+        delete_cookie_file(self.datadir_path, self.chain)
 
         # add environment variable LIBC_FATAL_STDERR_=1 so that libc errors are written to stderr and not the terminal
         subp_env = dict(os.environ, LIBC_FATAL_STDERR_="1")
@@ -302,7 +300,7 @@ class TestNode():
                     f'dashd exited with status {self.process.returncode} during initialization. {str_error}'))
             try:
                 rpc = get_rpc_proxy(
-                    rpc_url(self.datadir, self.index, self.chain, self.rpchost),
+                    rpc_url(self.datadir_path, self.index, self.chain, self.rpchost),
                     self.index,
                     timeout=self.rpc_timeout // 2,  # Shorter timeout to allow for one retry in case of ETIMEDOUT
                     coveragedir=self.coverage_dir,
@@ -366,7 +364,7 @@ class TestNode():
         poll_per_s = 4
         for _ in range(poll_per_s * self.rpc_timeout):
             try:
-                get_auth_cookie(self.datadir, self.chain)
+                get_auth_cookie(self.datadir_path, self.chain)
                 self.log.debug("Cookie credentials successfully retrieved")
                 return
             except ValueError:  # cookie file not found and no rpcuser or rpcpassword; bitcoind is still starting
@@ -481,12 +479,8 @@ class TestNode():
             conf.write(conf_data)
 
     @property
-    def datadir_path(self) -> Path:
-        return Path(self.datadir)
-
-    @property
     def chain_path(self) -> Path:
-        return self.datadir_path / get_chain_folder(self.datadir, self.chain)
+        return self.datadir_path / get_chain_folder(self.datadir_path, self.chain)
 
     @property
     def debug_log_path(self) -> Path:
@@ -633,7 +627,7 @@ class TestNode():
                 "perf output won't be very useful without debug symbols compiled into bitcoind")
 
         output_path = tempfile.NamedTemporaryFile(
-            dir=self.datadir,
+            dir=self.datadir_path,
             prefix="{}.perf.data.".format(profile_name or 'test'),
             delete=False,
         ).name
@@ -919,7 +913,7 @@ class TestNodeCLI():
         """Run dash-cli command. Deserializes returned string as python object."""
         pos_args = [arg_to_cli(arg) for arg in args]
         named_args = [str(key) + "=" + arg_to_cli(value) for (key, value) in kwargs.items()]
-        p_args = [self.binary, "-datadir=" + self.datadir] + self.options
+        p_args = [self.binary, f"-datadir={self.datadir}"] + self.options
         if named_args:
             p_args += ["-named"]
         if clicommand is not None:
