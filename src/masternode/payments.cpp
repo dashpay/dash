@@ -24,7 +24,7 @@
 #include <cassert>
 #include <string>
 
-[[nodiscard]] static bool GetBlockTxOuts(const CBlockIndex* const pindexPrev, const CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet)
+[[nodiscard]] static bool GetBlockTxOuts(const CBlockIndex* const pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, std::vector<CTxOut>& voutMasternodePaymentsRet)
 {
     voutMasternodePaymentsRet.clear();
 
@@ -32,7 +32,7 @@
 
     bool fMNRewardReallocated =  llmq::utils::IsMNRewardReallocationActive(pindexPrev);
 
-    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockReward, fMNRewardReallocated);
+    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy, fMNRewardReallocated);
     if (fMNRewardReallocated) {
         const CAmount platformReward = MasternodePayments::PlatformShare(masternodeReward);
         masternodeReward -= platformReward;
@@ -42,6 +42,8 @@
         LogPrint(BCLog::MNPAYMENTS, "CMasternodePayments::%s -- MN reward %lld reallocated to credit pool\n", __func__, platformReward);
         voutMasternodePaymentsRet.emplace_back(platformReward, CScript() << OP_RETURN);
     }
+    CAmount masternodeFeeReward = GetMasternodePayment(nBlockHeight, feeReward, fMNRewardReallocated);
+    masternodeReward += masternodeFeeReward;
 
     auto dmnPayee = deterministicMNManager->GetListForBlock(pindexPrev).GetMNPayee(pindexPrev);
     if (!dmnPayee) {
@@ -73,12 +75,12 @@
 *
 *   Get masternode payment tx outputs
 */
-[[nodiscard]] static bool GetMasternodeTxOuts(const CBlockIndex* const pindexPrev, const CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet)
+[[nodiscard]] static bool GetMasternodeTxOuts(const CBlockIndex* const pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, std::vector<CTxOut>& voutMasternodePaymentsRet)
 {
     // make sure it's not filled yet
     voutMasternodePaymentsRet.clear();
 
-    if(!GetBlockTxOuts(pindexPrev, blockReward, voutMasternodePaymentsRet)) {
+    if(!GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePaymentsRet)) {
         LogPrintf("MasternodePayments::%s -- no payee (deterministic masternode list empty)\n", __func__);
         return false;
     }
@@ -93,7 +95,7 @@
     return true;
 }
 
-[[nodiscard]] static bool IsTransactionValid(const CTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockReward)
+[[nodiscard]] static bool IsTransactionValid(const CTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockSubsidy, const CAmount feeReward)
 {
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
     if (!deterministicMNManager->IsDIP3Enforced(nBlockHeight)) {
@@ -102,7 +104,7 @@
     }
 
     std::vector<CTxOut> voutMasternodePayments;
-    if (!GetBlockTxOuts(pindexPrev, blockReward, voutMasternodePayments)) {
+    if (!GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePayments)) {
         LogPrintf("MasternodePayments::%s -- ERROR failed to get payees for block at height %s\n", __func__, nBlockHeight);
         return true;
     }
@@ -261,7 +263,7 @@ bool IsBlockValueValid(const CSporkManager& sporkManager, CGovernanceManager& go
 }
 
 bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& governanceManager,
-                       const CTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockReward)
+                       const CTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockSubsidy, const CAmount feeReward)
 {
     if(fDisableGovernance) {
         //there is no budget data to use to check anything, let's just accept the longest chain
@@ -288,7 +290,7 @@ bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& go
 
     if(AreSuperblocksEnabled(sporkManager)) {
         if(CSuperblockManager::IsSuperblockTriggered(governanceManager, nBlockHeight)) {
-            if(CSuperblockManager::IsValid(governanceManager, txNew, nBlockHeight, blockReward)) {
+            if(CSuperblockManager::IsValid(governanceManager, txNew, nBlockHeight, blockSubsidy + feeReward)) {
                 LogPrint(BCLog::GOBJECT, "%s -- Valid superblock at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
                 // continue validation, should also pay MN
             } else {
@@ -305,7 +307,7 @@ bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& go
     }
 
     // Check for correct masternode payment
-    if(IsTransactionValid(txNew, pindexPrev, blockReward)) {
+    if(IsTransactionValid(txNew, pindexPrev, blockSubsidy, feeReward)) {
         LogPrint(BCLog::MNPAYMENTS, "%s -- Valid masternode payment at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
         return true;
     }
@@ -315,7 +317,7 @@ bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& go
 }
 
 void FillBlockPayments(const CSporkManager& sporkManager, CGovernanceManager& governanceManager,
-                       CMutableTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockReward,
+                       CMutableTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
                        std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet)
 {
     int nBlockHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
@@ -327,7 +329,7 @@ void FillBlockPayments(const CSporkManager& sporkManager, CGovernanceManager& go
         CSuperblockManager::GetSuperblockPayments(governanceManager, nBlockHeight, voutSuperblockPaymentsRet);
     }
 
-    if (!GetMasternodeTxOuts(pindexPrev, blockReward, voutMasternodePaymentsRet)) {
+    if (!GetMasternodeTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePaymentsRet)) {
         LogPrint(BCLog::MNPAYMENTS, "%s -- no masternode to pay (MN list probably empty)\n", __func__);
     }
 
@@ -344,7 +346,7 @@ void FillBlockPayments(const CSporkManager& sporkManager, CGovernanceManager& go
     }
 
     LogPrint(BCLog::MNPAYMENTS, "%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__, /* Continued */
-                            nBlockHeight, blockReward, voutMasternodeStr, txNew.ToString());
+                            nBlockHeight, blockSubsidy + feeReward, voutMasternodeStr, txNew.ToString());
 }
 
 CAmount PlatformShare(const CAmount reward)

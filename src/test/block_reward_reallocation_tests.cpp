@@ -158,7 +158,6 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     auto tx = CreateProRegTx(*m_node.mempool, utxos, 1, GenerateRandomAddress(), coinbaseKey, ownerKey, operatorKey);
 
     CreateAndProcessBlock({tx}, coinbaseKey);
-
     {
         LOCK(cs_main);
         const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
