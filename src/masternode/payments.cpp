@@ -32,9 +32,14 @@
 
     bool fMNRewardReallocated =  llmq::utils::IsMNRewardReallocationActive(pindexPrev);
 
-    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy, fMNRewardReallocated);
+    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, fMNRewardReallocated);
     if (fMNRewardReallocated) {
-        const CAmount platformReward = MasternodePayments::PlatformShare(masternodeReward);
+        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, Params().GetConsensus().BRRHeight, fMNRewardReallocated);
+        // TODO remove this when we re-organize testnet
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+            masternodeSubsidyReward = masternodeReward;
+        }
+        const CAmount platformReward = MasternodePayments::PlatformShare(masternodeSubsidyReward);
         masternodeReward -= platformReward;
 
         assert(MoneyRange(masternodeReward));
