@@ -366,7 +366,8 @@ void CDeterministicMNList::PoSePunish(const uint256& proTxHash, int penalty, boo
     UpdateMN(proTxHash, newState);
 }
 
-void CDeterministicMNList::DecreaseScores() {
+void CDeterministicMNList::DecreaseScores()
+{
     std::vector<CDeterministicMNCPtr> toDecrease;
     toDecrease.reserve(GetAllMNsCount() / 10);
     // only iterate and decrease for valid ones (not PoSe banned yet)
