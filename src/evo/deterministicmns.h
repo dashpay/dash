@@ -274,6 +274,7 @@ public:
             }
         }
     }
+public:
 
     /**
      * Prefer ForEachMN. Execute a callback on all masternodes in the mnList.
@@ -385,12 +386,12 @@ public:
      */
     void PoSePunish(const uint256& proTxHash, int penalty, bool debugLogs);
 
+    void DecreaseScores();
     /**
      * Decrease penalty score of MN by 1.
      * Only allowed on non-banned MNs.
-     * @param proTxHash
      */
-    void PoSeDecrease(const uint256& proTxHash);
+    void PoSeDecrease(const CDeterministicMN& dmn);
 
     [[nodiscard]] CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
     [[nodiscard]] CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
@@ -609,7 +610,6 @@ public:
     bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, BlockValidationState& state, const CCoinsViewCache& view,
                                CDeterministicMNList& mnListRet, bool debugLogs) EXCLUSIVE_LOCKS_REQUIRED(cs);
     static void HandleQuorumCommitment(const llmq::CFinalCommitment& qc, const CBlockIndex* pQuorumBaseBlockIndex, CDeterministicMNList& mnList, bool debugLogs);
-    static void DecreasePoSePenalties(CDeterministicMNList& mnList);
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex) LOCKS_EXCLUDED(cs) {
         LOCK(cs);
