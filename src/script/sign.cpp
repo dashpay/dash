@@ -137,7 +137,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
     case TxoutType::SCRIPTHASH: {
         uint160 h160{vSolutions[0]};
         if (GetCScript(provider, sigdata, CScriptID{h160}, scriptRet)) {
-            ret.push_back(std::vector<unsigned char>(scriptRet.begin(), scriptRet.end()));
+            ret.emplace_back(scriptRet.begin(), scriptRet.end());
             return true;
         }
         // Could not find redeemScript, add to missing
@@ -146,7 +146,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
     }
     case TxoutType::MULTISIG: {
         size_t required = vSolutions.front()[0];
-        ret.push_back(valtype()); // workaround CHECKMULTISIG bug
+        ret.emplace_back(); // workaround CHECKMULTISIG bug
         for (size_t i = 1; i < vSolutions.size() - 1; ++i) {
             CPubKey pubkey = CPubKey(vSolutions[i]);
             // We need to always call CreateSig in order to fill sigdata with all
@@ -160,7 +160,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
         }
         bool ok = ret.size() == required + 1;
         for (size_t i = 0; i + ret.size() < required + 1; ++i) {
-            ret.push_back(valtype());
+            ret.emplace_back();
         }
         return ok;
     }
@@ -207,7 +207,7 @@ bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreato
     }
 
     if (P2SH) {
-        result.push_back(std::vector<unsigned char>(subscript.begin(), subscript.end()));
+        result.emplace_back(subscript.begin(), subscript.end());
     }
     sigdata.scriptSig = PushAll(result);
 

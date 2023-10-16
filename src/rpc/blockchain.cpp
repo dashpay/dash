@@ -2192,7 +2192,7 @@ static RPCHelpMan getblockstats()
 
             CAmount feerate = tx_size ? txfee / tx_size : 0;
             if (do_feerate_percentiles) {
-                feerate_array.emplace_back(std::make_pair(feerate, tx_size));
+                feerate_array.emplace_back(feerate, tx_size);
             }
             maxfeerate = std::max(maxfeerate, feerate);
             minfeerate = std::min(minfeerate, feerate);
