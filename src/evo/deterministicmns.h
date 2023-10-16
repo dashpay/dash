@@ -274,7 +274,6 @@ public:
             }
         }
     }
-public:
 
     /**
      * Prefer ForEachMN. Execute a callback on all masternodes in the mnList.
