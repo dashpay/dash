@@ -35,7 +35,7 @@ std::set<std::string> RenameEnMasse(int num_threads)
     };
 
     for (int i = 0; i < num_threads; ++i) {
-        threads.push_back(std::thread(RenameThisThread, i));
+        threads.emplace_back(RenameThisThread, i);
     }
 
     for (std::thread& thread : threads) thread.join();

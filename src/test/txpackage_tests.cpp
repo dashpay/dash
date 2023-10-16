@@ -159,9 +159,9 @@ BOOST_FIXTURE_TEST_CASE(noncontextual_package_tests, TestChain100NoDIP0001Setup)
             auto parent = MakeTransactionRef(CreateValidMempoolTransaction(m_coinbase_txns[i + 1],
                                              0, 0, coinbaseKey, spk, CAmount(48 * COIN), false));
             package.emplace_back(parent);
-            child.vin.push_back(CTxIn(COutPoint(parent->GetHash(), 0)));
+            child.vin.emplace_back(COutPoint(parent->GetHash(), 0));
         }
-        child.vout.push_back(CTxOut(47 * COIN, spk2));
+        child.vout.emplace_back(47 * COIN, spk2);
 
         // The child must be in the package.
         BOOST_CHECK(!IsChildWithParents(package));
@@ -186,20 +186,20 @@ BOOST_FIXTURE_TEST_CASE(noncontextual_package_tests, TestChain100NoDIP0001Setup)
     // 2 Parents and 1 Child where one parent depends on the other.
     {
         CMutableTransaction mtx_parent;
-        mtx_parent.vin.push_back(CTxIn(COutPoint(m_coinbase_txns[0]->GetHash(), 0)));
-        mtx_parent.vout.push_back(CTxOut(20 * COIN, spk));
-        mtx_parent.vout.push_back(CTxOut(20 * COIN, spk2));
+        mtx_parent.vin.emplace_back(COutPoint(m_coinbase_txns[0]->GetHash(), 0));
+        mtx_parent.vout.emplace_back(20 * COIN, spk);
+        mtx_parent.vout.emplace_back(20 * COIN, spk2);
         CTransactionRef tx_parent = MakeTransactionRef(mtx_parent);
 
         CMutableTransaction mtx_parent_also_child;
-        mtx_parent_also_child.vin.push_back(CTxIn(COutPoint(tx_parent->GetHash(), 0)));
-        mtx_parent_also_child.vout.push_back(CTxOut(20 * COIN, spk));
+        mtx_parent_also_child.vin.emplace_back(COutPoint(tx_parent->GetHash(), 0));
+        mtx_parent_also_child.vout.emplace_back(20 * COIN, spk);
         CTransactionRef tx_parent_also_child = MakeTransactionRef(mtx_parent_also_child);
 
         CMutableTransaction mtx_child;
-        mtx_child.vin.push_back(CTxIn(COutPoint(tx_parent->GetHash(), 1)));
-        mtx_child.vin.push_back(CTxIn(COutPoint(tx_parent_also_child->GetHash(), 0)));
-        mtx_child.vout.push_back(CTxOut(39 * COIN, spk));
+        mtx_child.vin.emplace_back(COutPoint(tx_parent->GetHash(), 1));
+        mtx_child.vin.emplace_back(COutPoint(tx_parent_also_child->GetHash(), 0));
+        mtx_child.vout.emplace_back(39 * COIN, spk);
         CTransactionRef tx_child = MakeTransactionRef(mtx_child);
 
         PackageValidationState state;
@@ -284,7 +284,7 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100NoDIP0001Setup)
     }
 
     // Child with missing parent.
-    mtx_child.vin.push_back(CTxIn(COutPoint(package_unrelated[0]->GetHash(), 0)));
+    mtx_child.vin.emplace_back(COutPoint(package_unrelated[0]->GetHash(), 0));
     Package package_missing_parent;
     package_missing_parent.push_back(tx_parent);
     package_missing_parent.push_back(MakeTransactionRef(mtx_child));
