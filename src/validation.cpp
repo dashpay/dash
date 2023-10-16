@@ -2404,7 +2404,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime5_2 = GetTimeMicros(); nTimeSubsidy += nTime5_2 - nTime5_1;
     LogPrint(BCLog::BENCHMARK, "      - GetBlockSubsidy: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5_2 - nTime5_1), nTimeSubsidy * MICRO, nTimeSubsidy * MILLI / nBlocksTotal);
 
-    if (!CheckCreditPoolDiffForBlock(block, pindex, m_params.GetConsensus(), blockSubsidy, state)) {
+    // TODO remove "if testnet" condition when we re-organize testnet
+    if (!CheckCreditPoolDiffForBlock(block, pindex, m_params.GetConsensus(), (m_params.NetworkIDString() == CBaseChainParams::TESTNET) ? (blockSubsidy + feeReward) : blockSubsidy, state)) {
         return error("ConnectBlock(DASH): CheckCreditPoolDiffForBlock for block %s failed with %s",
                      pindex->GetBlockHash().ToString(), state.ToString());
     }
