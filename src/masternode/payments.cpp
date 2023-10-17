@@ -47,8 +47,6 @@
         LogPrint(BCLog::MNPAYMENTS, "CMasternodePayments::%s -- MN reward %lld reallocated to credit pool\n", __func__, platformReward);
         voutMasternodePaymentsRet.emplace_back(platformReward, CScript() << OP_RETURN);
     }
-    CAmount masternodeFeeReward = GetMasternodePayment(nBlockHeight, feeReward, fMNRewardReallocated);
-    masternodeReward += masternodeFeeReward;
 
     auto dmnPayee = deterministicMNManager->GetListForBlock(pindexPrev).GetMNPayee(pindexPrev);
     if (!dmnPayee) {
