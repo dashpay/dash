@@ -263,9 +263,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
             const CAmount platform_payment = MasternodePayments::PlatformShare(masternode_payment);
             masternode_payment -= platform_payment;
         }
-        size_t payment_index = isMNRewardReallocated ? 1 : 0;
-
-        BOOST_CHECK_EQUAL(pblocktemplate->voutMasternodePayments[payment_index].nValue, masternode_payment);
+        BOOST_CHECK_EQUAL(pblocktemplate->voutMasternodePayments[0].nValue, masternode_payment);
     }
 
     BOOST_CHECK(llmq::utils::IsMNRewardReallocationActive(::ChainActive().Tip()));
@@ -288,8 +286,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         CAmount expected_mn_core_payment = expected_masternode_reward - expected_mn_platform_payment;
 
         BOOST_CHECK_EQUAL(pblocktemplate->block.vtx[0]->GetValueOut(), expected_block_reward);
-        BOOST_CHECK_EQUAL(pblocktemplate->voutMasternodePayments[1].nValue, masternode_payment);
-        BOOST_CHECK_EQUAL(pblocktemplate->voutMasternodePayments[1].nValue, expected_mn_core_payment);
+        BOOST_CHECK_EQUAL(pblocktemplate->voutMasternodePayments[0].nValue, expected_mn_core_payment);
     }
 }
 

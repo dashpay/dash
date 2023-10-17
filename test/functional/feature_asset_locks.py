@@ -508,23 +508,27 @@ class AssetLocksTest(DashTestFramework):
         self.activate_mn_rr(expected_activation_height=3090)
         self.log.info(f'height: {node.getblockcount()} credit: {self.get_credit_pool_balance()}')
         bt = node.getblocktemplate()
-        platform_reward = bt['masternode'][0]['amount']
-        assert_equal(bt['masternode'][0]['script'], '6a')  # empty OP_RETURN
-        owner_reward = bt['masternode'][1]['amount']
-        operator_reward = bt['masternode'][2]['amount'] if len(bt['masternode']) == 3 else 0
-        all_mn_rewards = platform_reward + owner_reward + operator_reward
-        assert_equal(all_mn_rewards, bt['coinbasevalue'] * 3 // 4)  # 75/25 mn/miner reward split
-        assert_equal(platform_reward, all_mn_rewards * 375 // 1000)  # 0.375 platform share
-        assert_equal(platform_reward, 2555399792)
+        block_subsidy = bt['coinbasevalue']
+        masternode_reward = block_subsidy * 3 // 4  # 75/25 mn/miner reward split
+        masternode_platform_reward = masternode_reward * 375 // 1000  # 0.375 platform share
+        masternode_core_reward = masternode_reward - masternode_platform_reward
+
+        owner_reward = bt['masternode'][0]['amount']
+        operator_reward = bt['masternode'][1]['amount'] if len(bt['masternode']) == 2 else 0
+        all_mn_rewards = owner_reward + operator_reward
+        assert_equal(all_mn_rewards, masternode_core_reward)
+        all_mn_rewards += masternode_platform_reward
+        assert_equal(all_mn_rewards, block_subsidy * 3 // 4)  # 75/25 mn/miner reward split
+
         assert_equal(new_total, self.get_credit_pool_balance())
         node.generate(1)
         self.sync_all()
-        new_total += platform_reward
+        new_total += masternode_platform_reward
         assert_equal(new_total, self.get_credit_pool_balance())
 
         coin = coins.pop()
         self.send_tx(self.create_assetlock(coin, COIN, pubkey))
-        new_total += platform_reward + COIN
+        new_total += masternode_platform_reward + COIN
         node.generate(1)
         self.sync_all()
         # part of fee is going to master node reward

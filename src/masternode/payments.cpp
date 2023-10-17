@@ -39,7 +39,6 @@
         assert(MoneyRange(masternodeReward));
 
         LogPrint(BCLog::MNPAYMENTS, "CMasternodePayments::%s -- MN reward %lld reallocated to credit pool\n", __func__, platformReward);
-        voutMasternodePaymentsRet.emplace_back(platformReward, CScript() << OP_RETURN);
     }
 
     auto dmnPayee = deterministicMNManager->GetListForBlock(pindex).GetMNPayee(pindex);
