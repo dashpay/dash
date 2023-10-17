@@ -971,7 +971,7 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
     const CTransaction& tx = *ptx;
     auto finish = std::chrono::system_clock::now();
     auto diff = finish - start;
-    statsClient.timing("AcceptToMemoryPool_ms", count_microseconds(diff), 1.0f);
+    statsClient.timing("AcceptToMemoryPool_us", count_microseconds(diff), 1.0f);
     statsClient.inc("transactions.accepted", 1.0f);
     statsClient.count("transactions.inputs", tx.vin.size(), 1.0f);
     statsClient.count("transactions.outputs", tx.vout.size(), 1.0f);
@@ -1575,7 +1575,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
 
     auto finish = std::chrono::system_clock::now();
     auto diff = finish - start;
-    statsClient.timing("CheckInputScripts_ms", count_microseconds(diff), 1.0f);
+    statsClient.timing("CheckInputScripts_us", count_microseconds(diff), 1.0f);
     return true;
 }
 
@@ -1829,7 +1829,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     auto finish = std::chrono::system_clock::now();
     auto diff = finish - start;
-    statsClient.timing("DisconnectBlock_ms", count_microseconds(diff), 1.0f);
+    statsClient.timing("DisconnectBlock_us", count_microseconds(diff), 1.0f);
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
@@ -3200,7 +3200,7 @@ bool CChainState::ActivateBestChain(BlockValidationState& state, std::shared_ptr
 
     auto finish = std::chrono::system_clock::now();
     auto diff = finish - start;
-    statsClient.timing("ActivateBestChain_ms", count_microseconds(diff), 1.0f);
+    statsClient.timing("ActivateBestChain_us", count_microseconds(diff), 1.0f);
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
