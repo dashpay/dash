@@ -942,7 +942,7 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
 
 bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs& args)
 {
-    auto start = std::chrono::system_clock::now();
+    auto start = Now<SteadyMilliseconds>();
     AssertLockHeld(cs_main);
     LOCK(m_pool.cs); // mempool "read lock" (held through GetMainSignals().TransactionAddedToMempool())
 
@@ -969,9 +969,9 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
     GetMainSignals().TransactionAddedToMempool(ptx, nAcceptTime);
 
     const CTransaction& tx = *ptx;
-    auto finish = std::chrono::system_clock::now();
+    auto finish = Now<SteadyMilliseconds>();
     auto diff = finish - start;
-    statsClient.timing("AcceptToMemoryPool_us", count_microseconds(diff), 1.0f);
+    statsClient.timing("AcceptToMemoryPool_ms", count_milliseconds(diff), 1.0f);
     statsClient.inc("transactions.accepted", 1.0f);
     statsClient.count("transactions.inputs", tx.vin.size(), 1.0f);
     statsClient.count("transactions.outputs", tx.vout.size(), 1.0f);
@@ -1496,7 +1496,7 @@ void InitScriptExecutionCache() {
  */
 bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const CCoinsViewCache &inputs, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    auto start = std::chrono::system_clock::now();
+    auto start = Now<SteadyMilliseconds>();
     if (tx.IsCoinBase()) return true;
 
     if (pvChecks) {
@@ -1573,9 +1573,9 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
         g_scriptExecutionCache.insert(hashCacheEntry);
     }
 
-    auto finish = std::chrono::system_clock::now();
+    auto finish = Now<SteadyMilliseconds>();
     auto diff = finish - start;
-    statsClient.timing("CheckInputScripts_us", count_microseconds(diff), 1.0f);
+    statsClient.timing("CheckInputScripts_ms", count_milliseconds(diff), 1.0f);
     return true;
 }
 
@@ -1692,7 +1692,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
-    auto start = std::chrono::system_clock::now();
+    auto start = Now<SteadyMilliseconds>();
 
     bool fClean = true;
 
@@ -1827,9 +1827,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     view.SetBestBlock(pindex->pprev->GetBlockHash());
     m_evoDb.WriteBestBlock(pindex->pprev->GetBlockHash());
 
-    auto finish = std::chrono::system_clock::now();
+    auto finish = Now<SteadyMilliseconds>();
     auto diff = finish - start;
-    statsClient.timing("DisconnectBlock_us", count_microseconds(diff), 1.0f);
+    statsClient.timing("DisconnectBlock_ms", count_milliseconds(diff), 1.0f);
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
@@ -3117,7 +3117,7 @@ bool CChainState::ActivateBestChain(BlockValidationState& state, std::shared_ptr
     // we use m_cs_chainstate to enforce mutual exclusion so that only one caller may execute this function at a time
     LOCK(m_cs_chainstate);
 
-    auto start = std::chrono::system_clock::now();
+    auto start = Now<SteadyMilliseconds>();
 
     CBlockIndex *pindexMostWork = nullptr;
     CBlockIndex *pindexNewTip = nullptr;
@@ -3198,9 +3198,9 @@ bool CChainState::ActivateBestChain(BlockValidationState& state, std::shared_ptr
     } while (pindexNewTip != pindexMostWork);
     CheckBlockIndex();
 
-    auto finish = std::chrono::system_clock::now();
+    auto finish = Now<SteadyMilliseconds>();
     auto diff = finish - start;
-    statsClient.timing("ActivateBestChain_us", count_microseconds(diff), 1.0f);
+    statsClient.timing("ActivateBestChain_ms", count_milliseconds(diff), 1.0f);
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
@@ -3751,7 +3751,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 {
     // These are checks that are independent of context.
 
-    auto start = std::chrono::system_clock::now();
+    auto start = Now<SteadyMicroseconds>();
 
     if (block.fChecked)
         return true;
@@ -3814,7 +3814,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     if (fCheckPOW && fCheckMerkleRoot)
         block.fChecked = true;
 
-    auto finish = std::chrono::system_clock::now();
+    auto finish = Now<SteadyMicroseconds>();
     auto diff = finish - start;
     statsClient.timing("CheckBlock_us", count_microseconds(diff), 1.0f);
 
@@ -4121,7 +4121,7 @@ bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
 bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock)
 {
-    auto start = std::chrono::system_clock::now();
+    auto start = Now<SteadyMicroseconds>();
 
     const CBlock& block = *pblock;
 
@@ -4203,7 +4203,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
 
     CheckBlockIndex();
 
-    auto finish = std::chrono::system_clock::now();
+    auto finish = Now<SteadyMicroseconds>();
     auto diff = finish - start;
     statsClient.timing("AcceptBlock_us", count_microseconds(diff), 1.0f);
 
