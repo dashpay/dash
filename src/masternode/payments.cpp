@@ -34,7 +34,7 @@
 
     CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, fMNRewardReallocated);
     if (fMNRewardReallocated) {
-        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, Params().GetConsensus().BRRHeight, fMNRewardReallocated);
+        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, fMNRewardReallocated);
         // TODO remove this when we re-organize testnet
         if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
             masternodeSubsidyReward = masternodeReward;
