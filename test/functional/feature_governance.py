@@ -13,7 +13,7 @@ from test_framework.util import assert_equal, satoshi_round
 
 class DashGovernanceTest (DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(6, 5, [["-budgetparams=10:10:10"]] * 6)
+        self.set_dash_test_params(6, 5, [["-budgetparams=10:10:10", "-vbparams=v20:0:999999999999:180:150:110:5:-1"]] * 6)
 
     def prepare_object(self, object_type, parent_hash, creation_time, revision, name, amount, payment_address):
         proposal_rev = revision
@@ -177,6 +177,13 @@ class DashGovernanceTest (DashTestFramework):
                     assert False
 
         assert_equal(payments_found, 2)
+
+        # v20 is expected to be activated at block 540
+        assert self.nodes[0].getblockcount() < 540
+        assert_equal(self.nodes[0].getblockchaininfo()["softforks"]["v20"]["active"], False)
+        assert_equal(self.nodes[0].getsuperblockbudget(530), satoshi_round("400.32798830"))
+        assert_equal(self.nodes[0].getsuperblockbudget(540), satoshi_round("4.00327990"))
+        assert_equal(self.nodes[0].getsuperblockbudget(550), satoshi_round("4.00327990"))
 
 
 if __name__ == '__main__':
