@@ -36,7 +36,6 @@ public:
 
 class AddrInfo;
 class AddrManImpl;
-class AddrInfo;
 
 /** Default for -checkaddrman */
 static constexpr int32_t DEFAULT_ADDRMAN_CONSISTENCY_CHECKS{0};
