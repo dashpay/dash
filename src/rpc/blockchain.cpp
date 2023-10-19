@@ -1635,6 +1635,9 @@ static void BIP9SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniVal
     if (ThresholdState::ACTIVE == thresholdState) {
         rv.pushKV("height", since_height);
     }
+    else if (ThresholdState::LOCKED_IN == thresholdState) {
+        rv.pushKV("activation_height", since_height + static_cast<int>(consensusParams.vDeployments[id].nWindowSize));
+    }
     rv.pushKV("active", ThresholdState::ACTIVE == thresholdState);
 
     softforks.pushKV(name, rv);
