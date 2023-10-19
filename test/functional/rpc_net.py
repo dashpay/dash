@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2017-2020 The Bitcoin Core developers
+# Copyright (c) 2017-present The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test RPC calls related to net.
@@ -7,6 +7,7 @@
 Tests correspond to code in rpc/net.cpp.
 """
 
+import time
 import test_framework.messages
 from test_framework.messages import (
     MAX_PROTOCOL_MESSAGE_LENGTH,
@@ -349,9 +350,11 @@ class NetTest(DashTestFramework):
 
         self.log.debug("Test that adding an address with invalid port fails")
         assert_raises_rpc_error(-1, "JSON integer out of range", self.nodes[0].addpeeraddress, address="1.2.3.4", port=-1)
-        assert_raises_rpc_error(-1, "JSON integer out of range", self.nodes[0].addpeeraddress,address="1.2.3.4", port=65536)
+        assert_raises_rpc_error(-1, "JSON integer out of range", self.nodes[0].addpeeraddress, address="1.2.3.4", port=65536)
 
         self.log.debug("Test that adding a valid address to the tried table succeeds")
+        self.addr_time = int(time.time())
+        node.setmocktime(self.addr_time)
         assert_equal(node.addpeeraddress(address="1.2.3.4", tried=True, port=8333), {"success": True})
         with node.assert_debug_log(expected_msgs=["CheckAddrman: new 0, tried 1, total 1 started"]):
             addrs = node.getnodeaddresses(count=0)  # getnodeaddresses re-runs the addrman checks
