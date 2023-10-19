@@ -167,9 +167,8 @@ void CGovernanceManager::ProcessMessage(CNode& peer, PeerManager& peerman, CConn
             return;
         }
 
-        LOCK2(cs_main, cs);
 
-        if (mapObjects.count(nHash) || mapPostponedObjects.count(nHash) || mapErasedGovernanceObjects.count(nHash)) {
+        if (LOCK(cs); mapObjects.count(nHash) || mapPostponedObjects.count(nHash) || mapErasedGovernanceObjects.count(nHash)) {
             // TODO - print error code? what if it's GOVOBJ_ERROR_IMMATURE?
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- Received already seen object: %s\n", strHash);
             return;
@@ -285,7 +284,6 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
     govobj.UpdateSentinelVariables(); //this sets local vars in object
 
-    LOCK2(cs_main, cs);
     std::string strError;
 
     // MAKE SURE THIS OBJECT IS OK
@@ -297,6 +295,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Adding object: hash = %s, type = %d\n", nHash.ToString(),
              ToUnderlying(govobj.GetObjectType()));
+    LOCK(cs);
 
     // INSERT INTO OUR GOVERNANCE OBJECT MEMORY
     // IF WE HAVE THIS OBJECT ALREADY, WE DON'T WANT ANOTHER COPY
@@ -343,7 +342,7 @@ void CGovernanceManager::UpdateCachesAndClean()
 
     std::vector<uint256> vecDirtyHashes = mmetaman->GetAndClearDirtyGovernanceObjectHashes();
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     for (const uint256& nHash : vecDirtyHashes) {
         auto it = mapObjects.find(nHash);
@@ -664,8 +663,11 @@ std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHe
 
 void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman& connman)
 {
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto mn_payees = mnList.GetProjectedMNPayeesAtChainTip(); // Locks cs_main internally
+
     //TODO: Check if nHashParentIn, nRevision and nCollateralHashIn are correct
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
     CGovernanceObject* gov_sb_voting{nullptr};
@@ -675,8 +677,6 @@ void CGovernanceManager::CreateGovernanceTrigger(const CSuperblock& sb, CConnman
     if (identical_sb == nullptr) {
         // Nobody submitted a trigger we'd like to see,
         // so let's do it but only if we are the payee
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto mn_payees = mnList.GetProjectedMNPayeesAtChainTip();
         if (mn_payees.empty()) return;
         {
             LOCK(activeMasternodeInfoCs);
@@ -1075,7 +1075,7 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
 {
     if (!::masternodeSync->IsSynced()) return;
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     // Check postponed proposals
     for (auto it = mapPostponedObjects.begin(); it != mapPostponedObjects.end();) {
@@ -1247,13 +1247,10 @@ int CGovernanceManager::RequestGovernanceObjectVotes(Span<CNode*> vNodesCopy, CC
             // initiated from another node, so skip it too.
             if (!pnode->CanRelay() || (fMasternodeMode && pnode->fInbound)) continue;
             // stop early to prevent setAskFor overflow
-            {
-                LOCK(cs_main);
-                size_t nProjectedSize = GetRequestedObjectCount(pnode->GetId()) + nProjectedVotes;
-                if (nProjectedSize > MAX_INV_SZ) continue;
-                // to early to ask the same node
-                if (mapAskedRecently[nHashGovobj].count(pnode->addr)) continue;
-            }
+            size_t nProjectedSize = WITH_LOCK(cs_main, return GetRequestedObjectCount(pnode->GetId())) + nProjectedVotes;
+            if (nProjectedSize > MAX_INV_SZ) continue;
+            // to early to ask the same node
+            if (mapAskedRecently[nHashGovobj].count(pnode->addr)) continue;
 
             RequestGovernanceObject(pnode, nHashGovobj, connman, true);
             mapAskedRecently[nHashGovobj][pnode->addr] = nNow + nTimeout;
