@@ -900,7 +900,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                 break;
             }
 
-            if ((GetTime() - nTimeLastSuccess) > nRequestTimeout) {
+            if ((count_seconds(GetTime<std::chrono::seconds>()) - nTimeLastSuccess) > nRequestTimeout) {
                 if (nTries >= vecMemberHashes.size()) {
                     printLog("All tried but failed");
                     break;
@@ -918,7 +918,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                 }
                 // Sleep a bit depending on the start offset to balance out multiple requests to same masternode
                 quorumThreadInterrupt.sleep_for(std::chrono::milliseconds(nMyStartOffset * 100));
-                nTimeLastSuccess = GetTime();
+                nTimeLastSuccess = count_seconds(GetTime<std::chrono::seconds>());
                 connman.AddPendingMasternode(*pCurrentMemberHash);
                 printLog("Connect");
             }
@@ -931,7 +931,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                 }
 
                 if (RequestQuorumData(pNode, pQuorum->qc->llmqType, pQuorum->m_quorum_base_block_index, nDataMask, proTxHash)) {
-                    nTimeLastSuccess = GetTime();
+                    nTimeLastSuccess = count_seconds(GetTime<std::chrono::seconds>());
                     printLog("Requested");
                 } else {
                     LOCK(cs_data_requests);

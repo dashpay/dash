@@ -336,7 +336,7 @@ void CMasternodeSync::NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitia
 void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload)
 {
     LogPrint(BCLog::MNSYNC, "CMasternodeSync::UpdatedBlockTip -- pindexNew->nHeight: %d fInitialDownload=%d\n", pindexNew->nHeight, fInitialDownload);
-    nTimeLastUpdateBlockTip = GetTime();
+    nTimeLastUpdateBlockTip = count_seconds(GetTime<std::chrono::seconds>());
 
     CBlockIndex* pindexTip = WITH_LOCK(cs_main, return pindexBestHeader);
 

@@ -320,7 +320,7 @@ void CChainLocksHandler::TrySignChainTip()
                     LOCK(cs);
                     auto it = txFirstSeenTime.find(txid);
                     if (it != txFirstSeenTime.end()) {
-                        txAge = GetTime() - it->second;
+                        txAge = count_seconds(GetTime<std::chrono::seconds>()) - it->second;
                     }
                 }
 
@@ -382,7 +382,7 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
     }
     auto& txids = *it->second;
 
-    int64_t curTime = GetTime();
+    int64_t curTime = count_seconds(GetTime<std::chrono::seconds>());
 
     for (const auto& tx : pblock->vtx) {
         if (tx->IsCoinBase() || tx->vin.empty()) {
@@ -457,7 +457,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid) const
         LOCK(cs);
         auto it = txFirstSeenTime.find(txid);
         if (it != txFirstSeenTime.end()) {
-            txAge = GetTime() - it->second;
+            txAge = count_seconds(GetTime<std::chrono::seconds>()) - it->second;
         }
     }
 

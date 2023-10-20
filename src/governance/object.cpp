@@ -736,7 +736,7 @@ void CGovernanceObject::UpdateSentinelVariables()
     if ((GetAbsoluteYesCount(VOTE_SIGNAL_DELETE) >= nAbsDeleteReq) && !fCachedDelete) {
         fCachedDelete = true;
         if (nDeletionTime == 0) {
-            nDeletionTime = GetTime();
+            nDeletionTime = count_seconds(GetTime<std::chrono::seconds>());
         }
     }
     if (GetAbsoluteYesCount(VOTE_SIGNAL_ENDORSED) >= nAbsVoteReq) fCachedEndorsed = true;
