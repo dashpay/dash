@@ -13,7 +13,7 @@
 namespace nostd {
     struct source_location {
     public:
-#if not defined(__apple_build_version__) and defined(__clang__) and (__clang_major__ >= 9)
+#if defined(__clang__) and (__clang_major__ >= 9)
         static constexpr source_location current(const char* fileName = __builtin_FILE(),
         const char* functionName = __builtin_FUNCTION(),
         const uint_least32_t lineNumber = __builtin_LINE(),
