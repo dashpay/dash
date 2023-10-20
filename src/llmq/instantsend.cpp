@@ -616,11 +616,13 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
         return false;
     }
 
-    auto [pindexMined, nTxAge] = [&]() {
+    const CBlockIndex* pindexMined;
+    int nTxAge;
+    {
         LOCK(cs_main);
-        auto pindex = m_chainstate.m_blockman.LookupBlockIndex(hashBlock);
-        return std::make_pair(pindex, m_chainstate.m_chain.Height() - pindex->nHeight + 1);
-    }();
+        pindexMined = m_chainstate.m_blockman.LookupBlockIndex(hashBlock);
+        nTxAge = m_chainstate.m_chain.Height() - pindexMined->nHeight + 1;
+    }
 
     if (nTxAge < nInstantSendConfirmationsRequired && !clhandler.HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
         if (printDebug) {
