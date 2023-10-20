@@ -21,6 +21,7 @@
 #include <protocol.h>
 #include <shutdown.h>
 #include <spork.h>
+#include <util/time.h>
 #include <validation.h>
 
 std::unique_ptr<CGovernanceManager> governance;
@@ -314,7 +315,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
     if (govobj.GetObjectType() == GovernanceObject::TRIGGER && !triggerman.AddNewTrigger(nHash)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- undo adding invalid trigger object: hash = %s\n", nHash.ToString());
-        objpair.first->second.PrepareDeletion(GetAdjustedTime());
+        objpair.first->second.PrepareDeletion(GetTime());
         return;
     }
 
@@ -359,7 +360,7 @@ void CGovernanceManager::UpdateCachesAndClean()
     triggerman.CleanAndRemove();
 
     auto it = mapObjects.begin();
-    int64_t nNow = GetAdjustedTime();
+    int64_t nNow = GetTime();
 
     while (it != mapObjects.end()) {
         CGovernanceObject* pObj = &((*it).second);
@@ -1046,7 +1047,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
         ostr << "CGovernanceManager::ProcessVote -- Unknown parent object " << nHashGovobj.ToString()
              << ", MN outpoint = " << vote.GetMasternodeOutpoint().ToStringShort();
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING);
-        if (cmmapOrphanVotes.Insert(nHashGovobj, vote_time_pair_t(vote, GetAdjustedTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME))) {
+        if (cmmapOrphanVotes.Insert(nHashGovobj, vote_time_pair_t(vote, GetTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME))) {
             LEAVE_CRITICAL_SECTION(cs)
             RequestGovernanceObject(pfrom, nHashGovobj, connman);
             LogPrint(BCLog::GOBJECT, "%s\n", ostr.str());
@@ -1317,6 +1318,8 @@ void CGovernanceManager::AddCachedTriggers()
 {
     LOCK(cs);
 
+    int64_t nNow = GetTime();
+
     for (auto& objpair : mapObjects) {
         CGovernanceObject& govobj = objpair.second;
 
@@ -1325,7 +1328,7 @@ void CGovernanceManager::AddCachedTriggers()
         }
 
         if (!triggerman.AddNewTrigger(govobj.GetHash())) {
-            govobj.PrepareDeletion(GetAdjustedTime());
+            govobj.PrepareDeletion(nNow);
         }
     }
 }
@@ -1463,7 +1466,7 @@ void CGovernanceManager::CleanOrphanObjects()
     LOCK(cs);
     const vote_cmm_t::list_t& items = cmmapOrphanVotes.GetItemList();
 
-    int64_t nNow = GetAdjustedTime();
+    int64_t nNow = GetTime();
 
     auto it = items.begin();
     while (it != items.end()) {
