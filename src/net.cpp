@@ -2568,7 +2568,7 @@ void CConnman::ThreadOpenMasternodeConnections()
         if (interruptNet)
             return;
 
-        int64_t nANow = count_seconds(GetTime<std::chrono::seconds>());
+        int64_t nANow = GetTime<std::chrono::seconds>().count();
         constexpr const auto &_func_ = __func__;
 
         // NOTE: Process only one pending masternode at a time

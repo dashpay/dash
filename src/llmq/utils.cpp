@@ -939,7 +939,7 @@ void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, const CB
     }
 
     auto members = GetAllQuorumMembers(llmqParams.type, pQuorumBaseBlockIndex);
-    auto curTime = count_seconds(GetTime<std::chrono::seconds>());
+    auto curTime = GetTime<std::chrono::seconds>().count();
 
     std::set<uint256> probeConnections;
     for (const auto& dmn : members) {
