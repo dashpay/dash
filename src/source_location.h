@@ -1,5 +1,10 @@
-#ifndef NOSTD_SOURCE_LOCATION_HPP
-#define NOSTD_SOURCE_LOCATION_HPP
+// Copyright (c) 2023 The Dash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Originally from https://github.com/paweldac/source_location
+
+#ifndef BITCOIN_SOURCE_LOCATION_H
+#define BITCOIN_SOURCE_LOCATION_H
 
 #pragma once
 
@@ -68,4 +73,4 @@ namespace nostd {
     };
 } // namespace nostd
 
-#endif
+#endif // BITCOIN_SOURCE_LOCATION_H
