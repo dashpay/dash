@@ -18,6 +18,7 @@
 #define GSL_ASSERT_H
 
 #include <source_location.h>
+#include <logging.h>
 
 //
 // Temporary until MSVC STL supports no-exceptions mode.
@@ -115,8 +116,7 @@ namespace gsl
 #if defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
             (*gsl::details::get_terminate_handler())();
 #else
-            std::cout << "ERROR: error detected null not_null detected at " << loc.file_name() << ":" << loc.line() << ":"
-                                                                            << loc.column() << ":" << loc.function_name() << "\n";
+            LogPrintf("ERROR: error detected null not_null at %s:%d:%d in %s", loc.file_name(), loc.line(), loc.column(), loc.function_name());
             std::terminate();
 #endif // defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
         }
