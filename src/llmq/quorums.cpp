@@ -23,7 +23,6 @@
 #include <util/underlying.h>
 #include <validation.h>
 
-#include <gsl/pointers.h>
 #include <cxxtimer.hpp>
 
 namespace llmq
