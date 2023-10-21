@@ -249,10 +249,11 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
         isMNRewardReallocation = llmq::utils::IsMNRewardReallocationActive(pindex);
     }
 
-    nCount = std::min(nCount, int(GetValidWeightedMNsCount()));
+    const auto weighted_count = GetValidWeightedMNsCount();
+    nCount = std::min(nCount, int(weighted_count));
 
     std::vector<CDeterministicMNCPtr> result;
-    result.reserve(nCount);
+    result.reserve(weighted_count);
 
     auto remaining_evo_payments = 0;
     CDeterministicMNCPtr evo_to_be_skipped = nullptr;
