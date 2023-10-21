@@ -120,8 +120,9 @@ namespace gsl
 #else
             std::ostringstream s;
             s << "ERROR: error detected null not_null detected at " << loc.file_name() << ":" << loc.line() << ":"
-                                                                    << loc.column() << ":" << loc.function_name() << "\n";
-            std::cerr << s.str();
+                                                                    << loc.column() << ":" << loc.function_name()
+                                                                    << std::endl;
+            std::cerr << s.str() << std::flush;
             LogPrintf("%s", s.str()); /* Continued */
             std::terminate();
 #endif // defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
