@@ -257,21 +257,21 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
 
     auto remaining_evo_payments = 0;
     CDeterministicMNCPtr evo_to_be_skipped = nullptr;
-    bool isMNRewardReallocation = llmq::utils::IsMNRewardReallocationActive(pindex);
-    ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
-        if (dmn->pdmnState->nLastPaidHeight == nHeight) {
-            // We found the last MN Payee.
-            // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
-            if (!isMNRewardReallocation && dmn->nType == MnType::Evo && dmn->pdmnState->nConsecutivePayments < dmn_types::Evo.voting_weight) {
-                remaining_evo_payments = dmn_types::Evo.voting_weight - dmn->pdmnState->nConsecutivePayments;
-                for ([[maybe_unused]] auto _ : irange::range(remaining_evo_payments)) {
-                    result.emplace_back(dmn);
-                    evo_to_be_skipped = dmn;
+    if (!isMNRewardReallocation) {
+        ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+            if (dmn->pdmnState->nLastPaidHeight == nHeight) {
+                // We found the last MN Payee.
+                // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
+                if (dmn->nType == MnType::Evo && dmn->pdmnState->nConsecutivePayments < dmn_types::Evo.voting_weight) {
+                    remaining_evo_payments = dmn_types::Evo.voting_weight - dmn->pdmnState->nConsecutivePayments;
+                    for ([[maybe_unused]] auto _ : irange::range(remaining_evo_payments)) {
+                        result.emplace_back(dmn);
+                        evo_to_be_skipped = dmn;
+                    }
                 }
             }
-        }
-        return;
-    });
+        });
+    }
 
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
         if (dmn == evo_to_be_skipped) return;
