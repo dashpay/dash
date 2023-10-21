@@ -214,16 +214,41 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
     return best;
 }
 
-std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayeesAtChainTip(int nCount) const
-{
-    return GetProjectedMNPayees(::ChainActive()[nHeight], nCount);
-}
-
-std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(const CBlockIndex* const pindex, int nCount) const
+std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int nCount) const
 {
     if (nCount < 0 ) {
         return {};
     }
+
+    bool isMNRewardReallocation{false};
+    if (auto pindex = ::ChainActive()[nHeight]; pindex == nullptr) {
+        // Something went wrong, probably a race condition in tip and mnlist updates,
+        // try ecovering...
+        pindex = ::ChainActive().Tip();
+        const auto mn_rr_state = llmq::utils::GetMNRewardReallocationState(pindex);
+        isMNRewardReallocation = (mn_rr_state == ThresholdState::ACTIVE);
+        if (!isMNRewardReallocation) {
+            const auto w_size = static_cast<int>(Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_MN_RR].nWindowSize);
+            // Check if mn_rr is going to be active at nHeight
+            if (mn_rr_state == ThresholdState::LOCKED_IN) {
+                int activation_height = llmq::utils::GetMNRewardReallocationSince(pindex) + w_size;
+                if (nHeight >= activation_height) {
+                    isMNRewardReallocation = true;
+                }
+            } else {
+                if (nHeight - pindex->nHeight > w_size) {
+                    // Should never happen, can't do anything
+                    return {};
+                }
+                // No way we reach mn_rr activation if it's not locked in yet
+                // and height diff is less than or equal w_size, so isMNRewardReallocation == false
+                // but it's safe to continue nevertheless.
+            }
+        }
+    } else {
+        isMNRewardReallocation = llmq::utils::IsMNRewardReallocationActive(pindex);
+    }
+
     nCount = std::min(nCount, int(GetValidWeightedMNsCount()));
 
     std::vector<CDeterministicMNCPtr> result;
