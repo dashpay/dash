@@ -710,7 +710,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 {
     int nHeight = pindexPrev->nHeight + 1;
 
-    CDeterministicMNList oldList = this->GetListForBlock(pindexPrev);
+    CDeterministicMNList oldList = GetListForBlock(pindexPrev);
     CDeterministicMNList newList = oldList;
     newList.SetBlockHash(uint256()); // we can't know the final block hash, so better not return a (invalid) block hash
     newList.SetHeight(nHeight);
