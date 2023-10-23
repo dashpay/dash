@@ -104,11 +104,18 @@ private:
     // versionBit <-> height
     unordered_lru_cache<uint256, Signals, StaticSaltedHasher> mnhfCache GUARDED_BY(cs_cache) {MNHFCacheSize};
 
+    static CMNHFManager* globalInstance;
 public:
-    explicit CMNHFManager(CEvoDB& evoDb) :
-        m_evoDb(evoDb) {}
-    ~CMNHFManager() = default;
+    explicit CMNHFManager(CEvoDB& evoDb);
+    ~CMNHFManager();
+    explicit CMNHFManager(const CMNHFManager&) = delete;
 
+    /**
+     * getInstance is used in places that are difficult to get context to Node
+     * for simplification this static/global variable is used
+     * TODO: deglobolize it
+     */
+    static CMNHFManager* getInstance() { return globalInstance; }
     /**
      * Every new block should be processed when Tip() is updated by calling of CMNHFManager::ProcessBlock
      */
@@ -120,18 +127,18 @@ public:
     bool UndoBlock(const CBlock& block, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /**
-     * Once app is started, need to initialize dictionary will all known signals at the current Tip()
-     * by calling UpdateChainParams()
-     */
-    void UpdateChainParams(const CBlockIndex* const pindex, const CBlockIndex* const pindexOld) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-
-    /**
-     * This function prepares signals for new block.
-     * This data is filterd expired signals from previous blocks.
+     * `GetSignalsStage' prepares signals for new block.
+     * The results are diffent with GetFromCache results due to one more
+     * stage of processing: signals that would be expired in next block
+     * are excluded from results.
      * This member function is not const because it calls non-const GetFromCache()
      */
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev);
 
+    /**
+     * Helper that used in Unit Test to forcely setup EHF signal for specific block
+     */
+    void AddSignal(const CBlockIndex* const pindex, int bit) LOCKS_EXCLUDED(cs_cache);
 private:
     void AddToCache(const Signals& signals, const CBlockIndex* const pindex);
 

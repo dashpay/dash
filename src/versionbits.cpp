@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <evo/mnhftx.h>
 #include <versionbits.h>
 #include <consensus/params.h>
 
@@ -31,7 +32,7 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
 {
     int nPeriod = Period(params);
     int64_t nTimeStart = BeginTime(params);
-    int masternodeStartHeight = MasternodeBeginHeight(params);
+    int masternodeStartHeight = SignalHeight(pindexPrev, params);
     int64_t nTimeTimeout = EndTime(params);
 
     // Check if this deployment is always active.
@@ -205,15 +206,18 @@ private:
 
 protected:
     int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
-    int MasternodeBeginHeight(const Consensus::Params& params) const override {
+    int SignalHeight(const CBlockIndex* const pindexPrev, const Consensus::Params& params) const override {
         const auto& deployment = params.vDeployments[id];
-        if (deployment.nMNActivationHeight == 0) {
-            return std::numeric_limits<int>::max();
-        }
         if (deployment.nMNActivationHeight < 0) {
             return 0;
         }
-        return deployment.nMNActivationHeight;
+        const auto signals = CMNHFManager::getInstance()->GetSignalsStage(pindexPrev);
+        const auto it = signals.find(deployment.bit);
+        if (it == signals.end()) {
+            return std::numeric_limits<int>::max();
+        }
+
+        return it->second;
     }
     int64_t EndTime(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeout; }
     int Period(const Consensus::Params& params) const override { return params.vDeployments[id].nWindowSize ? params.vDeployments[id].nWindowSize : params.nMinerConfirmationWindow; }

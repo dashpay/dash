@@ -106,7 +106,7 @@ static CBlock FindDevNetGenesisBlock(const CBlock &prevBlock, const CAmount& rew
     assert(false);
 }
 
-bool CChainParams::UpdateMNActivationParam(int nBit, int height, int64_t timePast, bool fJustCheck) const
+bool CChainParams::IsValidMNActivation(int nBit, int64_t timePast) const
 {
     assert(nBit < VERSIONBITS_NUM_BITS);
 
@@ -114,17 +114,14 @@ bool CChainParams::UpdateMNActivationParam(int nBit, int height, int64_t timePas
         if (consensus.vDeployments[index].bit == nBit) {
             auto& deployment = consensus.vDeployments[index];
             if (timePast > deployment.nTimeout || timePast < deployment.nStartTime) {
-                LogPrintf("%s: activation by bit=%d height=%d deployment='%s' is out of time range start=%lld timeout=%lld\n", __func__, nBit, height, VersionBitsDeploymentInfo[Consensus::DeploymentPos(index)].name, deployment.nStartTime, deployment.nTimeout);
+                LogPrintf("%s: activation by bit=%d deployment='%s' is out of time range start=%lld timeout=%lld\n", __func__, nBit, VersionBitsDeploymentInfo[Consensus::DeploymentPos(index)].name, deployment.nStartTime, deployment.nTimeout);
                 continue;
             }
             if (deployment.nMNActivationHeight < 0) {
-                LogPrintf("%s: trying to set MnEHF height=%d for non-masternode activation fork bit=%d\n", __func__, height, nBit);
+                LogPrintf("%s: trying to set MnEHF for non-masternode activation fork bit=%d\n", __func__, nBit);
                 return false;
             }
-            LogPrintf("%s: set MnEHF height=%d for bit=%d fJustCheck=%d is valid\n", __func__, height, nBit, fJustCheck);
-            if (!fJustCheck) {
-                deployment.nMNActivationHeight = height;
-            }
+            LogPrintf("%s: set MnEHF for bit=%d is valid\n", __func__, nBit);
             return true;
         }
     }

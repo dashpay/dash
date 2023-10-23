@@ -37,6 +37,21 @@ CMutableTransaction MNHFTxPayload::PrepareTx() const
     return tx;
 }
 
+CMNHFManager* CMNHFManager::globalInstance{nullptr};
+
+CMNHFManager::CMNHFManager(CEvoDB& evoDb) :
+    m_evoDb(evoDb)
+{
+    assert(globalInstance == nullptr);
+    globalInstance = this;
+}
+
+CMNHFManager::~CMNHFManager()
+{
+    assert(globalInstance != nullptr);
+    globalInstance = nullptr;
+}
+
 CMNHFManager::Signals CMNHFManager::GetSignalsStage(const CBlockIndex* const pindexPrev)
 {
     Signals signals = GetFromCache(pindexPrev);
@@ -123,7 +138,7 @@ bool CheckMNHFTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValida
         return false;
     }
 
-    if (!Params().UpdateMNActivationParam(mnhfTx.signal.versionBit, pindexPrev->nHeight, pindexPrev->GetMedianTimePast(), /* fJustCheck= */ true )) {
+    if (!Params().IsValidMNActivation(mnhfTx.signal.versionBit, pindexPrev->GetMedianTimePast())) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-non-ehf");
     }
 
@@ -202,7 +217,7 @@ bool CMNHFManager::ProcessBlock(const CBlock& block, const CBlockIndex* const pi
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-mnhf-duplicate");
             }
 
-            if (!Params().UpdateMNActivationParam(versionBit, mined_height, pindex->GetMedianTimePast(), true /* fJustCheck */)) {
+            if (!Params().IsValidMNActivation(versionBit, pindex->GetMedianTimePast())) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-mnhf-non-mn-fork");
             }
         }
@@ -211,11 +226,8 @@ bool CMNHFManager::ProcessBlock(const CBlock& block, const CBlockIndex* const pi
             return true;
         }
         for (const auto& versionBit : new_signals) {
-            signals.insert({versionBit, mined_height});
-
-            if (!Params().UpdateMNActivationParam(versionBit, mined_height, pindex->GetMedianTimePast(), false /* fJustCheck */)) {
-                // it should not ever fail - all checks are done above
-                assert(false);
+            if (Params().IsValidMNActivation(versionBit, pindex->GetMedianTimePast())) {
+                signals.insert({versionBit, mined_height});
             }
 
         }
@@ -244,42 +256,22 @@ bool CMNHFManager::UndoBlock(const CBlock& block, const CBlockIndex* const pinde
     for (const auto& versionBit : excluded_signals) {
         LogPrintf("%s: exclude mnhf bit=%d block:%s number of known signals:%lld\n", __func__, versionBit, pindex->GetBlockHash().ToString(), signals.size());
         assert(signals.find(versionBit) != signals.end());
-
-        bool update_ret = Params().UpdateMNActivationParam(versionBit, 0, pindex->GetMedianTimePast(), false /* fJustCheck */);
-        assert(update_ret);
+        assert(Params().IsValidMNActivation(versionBit, pindex->GetMedianTimePast()));
     }
 
     return true;
 }
 
-void CMNHFManager::UpdateChainParams(const CBlockIndex* const pindex, const CBlockIndex* const pindexOld)
-{
-    LogPrintf("%s: update chain params %s -> %s\n", __func__, pindexOld ? pindexOld->GetBlockHash().ToString() : "", pindex ? pindex->GetBlockHash().ToString() : "");
-    Signals signals_old{GetFromCache(pindexOld)};
-    for (const auto& signal: signals_old) {
-        const uint8_t versionBit = signal.first;
-
-        LogPrintf("%s: unload mnhf bit=%d block:%s number of known signals:%lld\n", __func__, versionBit, pindex->GetBlockHash().ToString(), signals_old.size());
-
-        bool update_ret = Params().UpdateMNActivationParam(versionBit, 0, pindex->GetMedianTimePast(), /* fJustCheck= */ false);
-        assert(update_ret);
-    }
-
-    Signals signals{GetFromCache(pindex)};
-    for (const auto& signal: signals) {
-        const uint8_t versionBit = signal.first;
-        const int value = signal.second;
-
-        LogPrintf("%s: load mnhf bit=%d block:%s number of known signals:%lld\n", __func__, versionBit, pindex->GetBlockHash().ToString(), signals.size());
-
-        bool update_ret = Params().UpdateMNActivationParam(versionBit, value, pindex->GetMedianTimePast(), /* fJustCheck= */ false);
-        assert(update_ret);
-    }
-}
-
 CMNHFManager::Signals CMNHFManager::GetFromCache(const CBlockIndex* const pindex)
 {
     if (pindex == nullptr) return {};
+
+    // TODO: remove this check of phashBlock to nullptr
+    // This check is needed only because unit test 'versionbits_tests.cpp'
+    // lets `phashBlock` to be nullptr
+    if (pindex->phashBlock == nullptr) return {};
+
+
     const uint256& blockHash = pindex->GetBlockHash();
     Signals signals{};
     {
@@ -295,6 +287,8 @@ CMNHFManager::Signals CMNHFManager::GetFromCache(const CBlockIndex* const pindex
     }
     if (!m_evoDb.Read(std::make_pair(DB_SIGNALS, blockHash), signals)) {
         LogPrintf("CMNHFManager::GetFromCache: failure: can't read MnEHF signals from db for %s\n", pindex->GetBlockHash().ToString());
+        // TODO: can it actually happen? Maybe if try to use old version with re-index and update after MN_RR activated
+        assert(false);
     }
     LOCK(cs_cache);
     mnhfCache.insert(blockHash, signals);
@@ -306,6 +300,19 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
     const uint256& blockHash = pindex->GetBlockHash();
     {
         LOCK(cs_cache);
+        mnhfCache.insert(blockHash, signals);
+    }
+    m_evoDb.Write(std::make_pair(DB_SIGNALS, blockHash), signals);
+}
+
+void CMNHFManager::AddSignal(const CBlockIndex* const pindex, int bit)
+{
+    const uint256& blockHash = pindex->GetBlockHash();
+    auto signals = GetFromCache(pindex->pprev);
+    {
+        LOCK(cs_cache);
+        signals.emplace(bit, pindex->nHeight);
+        LogPrintf("CMNHFManager::AddToCache: mnhf for block %s add to cache: %lld\n", pindex->GetBlockHash().ToString(), signals.size());
         mnhfCache.insert(blockHash, signals);
     }
     m_evoDb.Write(std::make_pair(DB_SIGNALS, blockHash), signals);

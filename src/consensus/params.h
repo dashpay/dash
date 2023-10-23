@@ -40,6 +40,11 @@ struct BIP9Deployment {
     int64_t nThresholdMin{0};
     /** A coefficient which adjusts the speed a required number of signaling blocks is decreasing from nThresholdStart to nThresholdMin at with each period. */
     int64_t nFalloffCoeff{0};
+    /** this value is used for forks activated by master nodes.
+      * negative values means it is regular fork, no masternodes confirmation is needed.
+      * 0 means that there is expecting height from signalling of masternodes
+      */
+    int64_t nMNActivationHeight{-1};
 
     /** Constant for nTimeout very far in the future. */
     static constexpr int64_t NO_TIMEOUT = std::numeric_limits<int64_t>::max();
@@ -49,13 +54,6 @@ struct BIP9Deployment {
      *  process (which takes at least 3 BIP9 intervals). Only tests that specifically test the
      *  behaviour during activation cannot use this. */
     static constexpr int64_t ALWAYS_ACTIVE = -1;
-
-    /** this value is used for forks activated by master nodes.
-      * negative values means it is regular fork, no masternodes confirmation is needed.
-      * 0 means that there's no approval from masternodes yet.
-      * Otherwise it shows minimum height when miner's signals for this block can be assumed
-      */
-    mutable int64_t nMNActivationHeight{-1};
 };
 
 /**

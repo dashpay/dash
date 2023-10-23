@@ -18,6 +18,7 @@
 #include <validation.h>
 
 #include <evo/deterministicmns.h>
+#include <evo/mnhftx.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <governance/governance.h>
@@ -269,7 +270,10 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     BOOST_CHECK(!llmq::utils::IsMNRewardReallocationActive(m_node.chainman->ActiveChain().Tip()));
 
     // Activate EHF "MN_RR"
-    Params().UpdateMNActivationParam(Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_MN_RR].bit, ::ChainActive().Height(), ::ChainActive().Tip()->GetMedianTimePast(), /*fJustCheck=*/ false);
+    {
+        LOCK(cs_main);
+        m_node.mnhf_manager->AddSignal(m_node.chainman->ActiveChain().Tip(), 10);
+    }
 
     // Reward split should stay ~75/25 after reallocation is done,
     // check 10 next superblocks
