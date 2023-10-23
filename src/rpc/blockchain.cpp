@@ -1628,15 +1628,15 @@ static void BIP9SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniVal
         statsUV.pushKV("possible", statsStruct.possible);
         bip9.pushKV("statistics", statsUV);
     }
+    else if (ThresholdState::LOCKED_IN == thresholdState) {
+        bip9.pushKV("activation_height", since_height + static_cast<int>(consensusParams.vDeployments[id].nWindowSize));
+    }
 
     UniValue rv(UniValue::VOBJ);
     rv.pushKV("type", "bip9");
     rv.pushKV("bip9", bip9);
     if (ThresholdState::ACTIVE == thresholdState) {
         rv.pushKV("height", since_height);
-    }
-    else if (ThresholdState::LOCKED_IN == thresholdState) {
-        rv.pushKV("activation_height", since_height + static_cast<int>(consensusParams.vDeployments[id].nWindowSize));
     }
     rv.pushKV("active", ThresholdState::ACTIVE == thresholdState);
 
