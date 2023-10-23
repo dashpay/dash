@@ -223,7 +223,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
     bool isMNRewardReallocation{false};
     if (auto pindex = ::ChainActive()[nHeight]; pindex == nullptr) {
         // Something went wrong, probably a race condition in tip and mnlist updates,
-        // try ecovering...
+        // try recovering...
         pindex = ::ChainActive().Tip();
         const auto mn_rr_state = llmq::utils::GetMNRewardReallocationState(pindex);
         isMNRewardReallocation = (mn_rr_state == ThresholdState::ACTIVE);
