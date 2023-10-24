@@ -127,7 +127,7 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
 
     mapTrigger.insert(std::make_pair(nHash, pSuperblock));
 
-    return true;
+    return !pSuperblock->IsExpired(*governance);
 }
 
 /**
