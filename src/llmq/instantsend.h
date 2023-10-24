@@ -46,24 +46,23 @@ struct CInstantSendLock
     uint256 cycleHash;
     CBLSLazySignature sig;
 
-    CInstantSendLock() : CInstantSendLock(islock_version) {}
+    CInstantSendLock() : CInstantSendLock(isdlock_version) {}
     explicit CInstantSendLock(const uint8_t desiredVersion) : nVersion(desiredVersion) {}
 
     SERIALIZE_METHODS(CInstantSendLock, obj)
     {
-        if (s.GetVersion() >= ISDLOCK_PROTO_VERSION && obj.IsDeterministic()) {
+        if (s.GetVersion() >= ISDLOCK_PROTO_VERSION) {
             READWRITE(obj.nVersion);
         }
         READWRITE(obj.inputs);
         READWRITE(obj.txid);
-        if (s.GetVersion() >= ISDLOCK_PROTO_VERSION && obj.IsDeterministic()) {
+        if (s.GetVersion() >= ISDLOCK_PROTO_VERSION) {
             READWRITE(obj.cycleHash);
         }
         READWRITE(obj.sig);
     }
 
     uint256 GetRequestId() const;
-    bool IsDeterministic() const { return nVersion != islock_version; }
     bool TriviallyValid() const;
 };
 
@@ -292,8 +291,7 @@ private:
     void TrySignInstantSendLock(const CTransaction& tx) LOCKS_EXCLUDED(cs_creating);
 
     void ProcessMessageInstantSendLock(const CNode& pfrom, const CInstantSendLockPtr& islock);
-    bool ProcessPendingInstantSendLocks();
-    bool ProcessPendingInstantSendLocks(bool deterministic) LOCKS_EXCLUDED(cs_pendingLocks);
+    bool ProcessPendingInstantSendLocks() LOCKS_EXCLUDED(cs_pendingLocks);
 
     std::unordered_set<uint256, StaticSaltedHasher> ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params,
                                                                                    int signOffset,

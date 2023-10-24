@@ -23,7 +23,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
     def set_test_params(self):
         # -whitelist is needed to avoid the trickling logic on node0
         self.set_dash_test_params(6, 5, [["-whitelist=127.0.0.1"], [], [], [], ["-minrelaytxfee=0.001"], ["-minrelaytxfee=0.001"]], fast_dip3_enforcement=True)
-        self.set_dash_llmq_test_params(5, 3)
+        #self.set_dash_llmq_test_params(5, 3)
 
     def run_test(self):
         self.activate_dip8()
@@ -33,8 +33,16 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 1)
         self.wait_for_sporks_same()
 
-        self.mine_quorum()
-        self.mine_quorum()
+        self.activate_v19(expected_activation_height=900)
+        self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle()
+        self.log.info("Cycle H height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle()
+        self.log.info("Cycle H+C height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle()
+        self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
+
+        self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
 
         # Make sure that all nodes are chainlocked at the same height before starting actual tests
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash(), timeout=30)
@@ -75,10 +83,10 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         # otherwise it might announce the TX to node 3 when reconnecting
         self.wait_for_tx(txid, self.nodes[1])
         self.wait_for_tx(txid, self.nodes[2])
-        self.reconnect_isolated_node(3, 0)
+        self.reconnect_isolated_node(2, 0)
         # Make sure nodes actually try re-connecting quorum connections
         self.bump_mocktime(30)
-        self.wait_for_mnauth(self.nodes[3], 2)
+        self.wait_for_mnauth(self.nodes[3], 3)
         # node 3 fully reconnected but the TX wasn't relayed to it, so there should be no IS lock
         self.wait_for_instantlock(txid, self.nodes[0], False, 5)
         # push the tx directly via rpc
