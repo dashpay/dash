@@ -724,6 +724,14 @@ bool CSuperblock::IsExpired(const CGovernanceManager& governanceManager) const
         return true;
     }
 
+    if (Params().NetworkIDString() != CBaseChainParams::MAIN) {
+        // NOTE: this can happen on testnet/devnets due to reorgs, should never happen on mainnet
+        if (governanceManager.GetCachedBlockHeight() + Params().GetConsensus().nSuperblockCycle * 2 < nBlockHeight) {
+            LogPrint(BCLog::GOBJECT, "CSuperblock::IsExpired -- Trigger is too far into the future\n");
+            return true;
+        }
+    }
+
     return false;
 }
 
