@@ -219,11 +219,9 @@ void CChainLocksHandler::UpdatedBlockTip()
 
 void CChainLocksHandler::CheckActiveState()
 {
-    const bool fDIP0008Active = WITH_LOCK(cs_main, return (m_chainstate.m_chain.Tip() != nullptr) && (m_chainstate.m_chain.Tip()->pprev != nullptr) && m_chainstate.m_chain.Tip()->pprev->nHeight >= Params().GetConsensus().DIP0008Height);
-
     bool oldIsEnforced = isEnforced;
     isEnabled = AreChainLocksEnabled(spork_manager);
-    isEnforced = (fDIP0008Active && isEnabled);
+    isEnforced = isEnabled.load();
 
     if (!oldIsEnforced && isEnforced) {
         // ChainLocks got activated just recently, but it's possible that it was already running before, leaving
