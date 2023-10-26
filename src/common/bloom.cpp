@@ -146,7 +146,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
                     contains(opt_proTx->keyIDVoting) ||
                     found_payout || found_share) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
-                    insert(tx.GetHash());
+                    insert(tx.GetHash().ToUint256());
                 return true;
             }
         }

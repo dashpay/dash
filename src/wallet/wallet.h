@@ -353,7 +353,7 @@ struct WalletTxHasher
     StaticSaltedHasher h;
     size_t operator()(const CWalletTx* a) const
     {
-        return h(a->GetHash());
+        return h(a->GetHash().ToUint256());
     }
 };
 
