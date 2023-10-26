@@ -221,7 +221,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
     }
 
     bool isMNRewardReallocation{false};
-    if (auto pindex = ::ChainActive()[nHeight]; pindex == nullptr) {
+    if (auto pindex = WITH_LOCK(::cs_main, return g_chainman.m_blockman.LookupBlockIndex(blockHash)); pindex == nullptr) {
         // Something went wrong, probably a race condition in tip and mnlist updates,
         // try recovering...
         pindex = ::ChainActive().Tip();
