@@ -451,7 +451,6 @@ UniValue CGovernanceObject::ToJson() const
 
 void CGovernanceObject::UpdateLocalValidity()
 {
-    AssertLockHeld(cs_main);
     // THIS DOES NOT CHECK COLLATERAL, THIS IS CHECKED UPON ORIGINAL ARRIVAL
     fCachedLocalValidity = IsValidLocally(strLocalValidityError, false);
 }
@@ -466,8 +465,6 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollate
 
 bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
 {
-    AssertLockHeld(cs_main);
-
     fMissingConfirmations = false;
 
     if (fUnparsable) {
@@ -539,14 +536,13 @@ CAmount CGovernanceObject::GetMinCollateralFee() const
 
 bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const
 {
-    AssertLockHeld(cs_main);
-
     strError = "";
     fMissingConfirmations = false;
     uint256 nExpectedHash = GetHash();
 
     // RETRIEVE TRANSACTION IN QUESTION
     uint256 nBlockHash;
+    // Locks cs_main internally
     CTransactionRef txCollateral = GetTransaction(/* block_index */ nullptr, /* mempool */ nullptr, nCollateralHash, Params().GetConsensus(), nBlockHash);
     if (!txCollateral) {
         strError = strprintf("Can't find collateral tx %s", nCollateralHash.ToString());
@@ -598,9 +594,9 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
 
     // GET CONFIRMATIONS FOR TRANSACTION
 
-    AssertLockHeld(cs_main);
     int nConfirmationsIn = 0;
     if (nBlockHash != uint256()) {
+        LOCK(cs_main);
         const CBlockIndex* pindex = g_chainman.m_blockman.LookupBlockIndex(nBlockHash);
         if (pindex && ::ChainActive().Contains(pindex)) {
             nConfirmationsIn += ::ChainActive().Height() - pindex->nHeight + 1;
