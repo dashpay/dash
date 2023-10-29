@@ -1181,12 +1181,12 @@ void CRegTestParams::UpdateLLMQTestParametersFromArgs(const ArgsManager& args, c
 
 void CRegTestParams::UpdateLLMQInstantSendFromArgs(const ArgsManager& args)
 {
-    if (!args.IsArgSet("-llmqinstantsend")) return;
+    if (!args.IsArgSet("-llmqtestinstantsend")) return;
 
     const auto& llmq_params_opt = GetLLMQ(consensus.llmqTypeInstantSend);
     assert(llmq_params_opt.has_value());
 
-    std::string strLLMQType = gArgs.GetArg("-llmqinstantsend", std::string(llmq_params_opt->name));
+    std::string strLLMQType = gArgs.GetArg("-llmqtestinstantsend", std::string(llmq_params_opt->name));
 
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
@@ -1195,20 +1195,20 @@ void CRegTestParams::UpdateLLMQInstantSendFromArgs(const ArgsManager& args)
         }
     }
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
-        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsend.");
+        throw std::runtime_error("Invalid LLMQ type specified for -llmqtestinstantsend.");
     }
-    LogPrintf("Setting llmqinstantsend to size=%ld\n", ToUnderlying(llmqType));
+    LogPrintf("Setting llmqtestinstantsend to %ld\n", ToUnderlying(llmqType));
     UpdateLLMQInstantSend(llmqType);
 }
 
 void CRegTestParams::UpdateLLMQInstantSendDIP0024FromArgs(const ArgsManager& args)
 {
-    if (!args.IsArgSet("-llmqinstantsenddip0024")) return;
+    if (!args.IsArgSet("-llmqtestinstantsenddip0024")) return;
 
     const auto& llmq_params_opt = GetLLMQ(consensus.llmqTypeDIP0024InstantSend);
     assert(llmq_params_opt.has_value());
 
-    std::string strLLMQType = gArgs.GetArg("-llmqinstantsenddip0024", std::string(llmq_params_opt->name));
+    std::string strLLMQType = gArgs.GetArg("-llmqtestinstantsenddip0024", std::string(llmq_params_opt->name));
 
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
@@ -1217,9 +1217,9 @@ void CRegTestParams::UpdateLLMQInstantSendDIP0024FromArgs(const ArgsManager& arg
         }
     }
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
-        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsenddip0024.");
+        throw std::runtime_error("Invalid LLMQ type specified for -llmqtestinstantsenddip0024.");
     }
-    LogPrintf("Setting llmqinstantsenddip0024 to size=%ld\n", ToUnderlying(llmqType));
+    LogPrintf("Setting llmqtestinstantsenddip0024 to %ld\n", ToUnderlying(llmqType));
     UpdateLLMQDIP0024InstantSend(llmqType);
 }
 
