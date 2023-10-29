@@ -12,7 +12,6 @@ from .crypto.ellswift import ellswift_create, ellswift_ecdh_xonly
 from .crypto.hkdf import hkdf_sha256
 from .key import TaggedHash
 from .messages import MAGIC_BYTES
-from .util import random_bytes
 
 
 CHACHA20POLY1305_EXPANSION = 16
@@ -156,7 +155,7 @@ class EncryptedP2PState:
         self.privkey_ours, self.ellswift_ours = ellswift_create()
         if garbage_len is None:
             garbage_len = random.randrange(MAX_GARBAGE_LEN + 1)
-        self.sent_garbage = random_bytes(garbage_len)
+        self.sent_garbage = random.randbytes(garbage_len)
         return self.ellswift_ours + self.sent_garbage
 
     def initiate_v2_handshake(self):

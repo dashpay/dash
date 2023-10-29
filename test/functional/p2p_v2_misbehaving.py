@@ -7,7 +7,6 @@ import random
 from enum import Enum
 
 from test_framework.messages import MAGIC_BYTES
-from test_framework.util import random_bytes
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import random_bitflip
@@ -91,7 +90,7 @@ class NoAADState(EncryptedP2PState):
 class NonEmptyVersionPacketState(EncryptedP2PState):
     """"Add option for sending non-empty transport version packet."""
     def complete_handshake(self, response):
-        self.transport_version = random_bytes(5)
+        self.transport_version = random.randbytes(5)
         return super().complete_handshake(response)
 
 
