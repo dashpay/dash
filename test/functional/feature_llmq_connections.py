@@ -87,13 +87,26 @@ class LLMQConnections(DashTestFramework):
                 break
         assert removed # no way we removed none
 
+        self.nodes[0].sporkupdate("SPORK_23_QUORUM_POSE", 4070908800)
+        self.wait_for_sporks_same()
+        
+        self.activate_v19(expected_activation_height=900)
+        self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle()
+        self.log.info("Cycle H height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle()
+        self.log.info("Cycle H+C height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle()
+        self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
+        self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
+
         self.log.info("check that inter-quorum masternode conections are added")
         added = False
         for mn in self.mninfo:
             if len(mn.node.quorum("memberof", mn.proTxHash)) > 0:
                 try:
                     with mn.node.assert_debug_log(['adding mn inter-quorum connections']):
-                        self.mine_quorum()
+                        self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
                     added = True
                 except:
                     pass # it's ok to not add connections sometimes
