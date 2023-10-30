@@ -37,8 +37,6 @@ CMutableTransaction MNHFTxPayload::PrepareTx() const
     return tx;
 }
 
-CMNHFManager* CMNHFManager::globalInstance{nullptr};
-
 CMNHFManager::CMNHFManager(CEvoDB& evoDb) :
     m_evoDb(evoDb)
 {

@@ -15,6 +15,7 @@
 #include <saltedhasher.h>
 #include <unordered_map>
 #include <unordered_lru_cache.h>
+#include <versionbits.h>
 
 class BlockValidationState;
 class CBlock;
@@ -91,11 +92,8 @@ public:
     }
 };
 
-class CMNHFManager
+class CMNHFManager : public AbstractEHFManager
 {
-public:
-    using Signals = std::unordered_map<uint8_t, int>;
-
 private:
     CEvoDB& m_evoDb;
 
@@ -104,18 +102,11 @@ private:
     // versionBit <-> height
     unordered_lru_cache<uint256, Signals, StaticSaltedHasher> mnhfCache GUARDED_BY(cs_cache) {MNHFCacheSize};
 
-    static CMNHFManager* globalInstance;
 public:
     explicit CMNHFManager(CEvoDB& evoDb);
     ~CMNHFManager();
     explicit CMNHFManager(const CMNHFManager&) = delete;
 
-    /**
-     * getInstance is used in places that are difficult to get context to Node
-     * for simplification this static/global variable is used
-     * TODO: deglobolize it
-     */
-    static CMNHFManager* getInstance() { return globalInstance; }
     /**
      * Every new block should be processed when Tip() is updated by calling of CMNHFManager::ProcessBlock
      */
@@ -126,14 +117,9 @@ public:
      */
     bool UndoBlock(const CBlock& block, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    /**
-     * `GetSignalsStage' prepares signals for new block.
-     * The results are diffent with GetFromCache results due to one more
-     * stage of processing: signals that would be expired in next block
-     * are excluded from results.
-     * This member function is not const because it calls non-const GetFromCache()
-     */
-    Signals GetSignalsStage(const CBlockIndex* const pindexPrev);
+
+    // Implements interface
+    Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override;
 
     /**
      * Helper that used in Unit Test to forcely setup EHF signal for specific block

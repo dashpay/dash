@@ -2,7 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <evo/mnhftx.h>
 #include <versionbits.h>
 #include <consensus/params.h>
 
@@ -211,7 +210,7 @@ protected:
         if (deployment.nMNActivationHeight < 0) {
             return 0;
         }
-        const auto signals = CMNHFManager::getInstance()->GetSignalsStage(pindexPrev);
+        const auto signals = AbstractEHFManager::getInstance()->GetSignalsStage(pindexPrev);
         const auto it = signals.find(deployment.bit);
         if (it == signals.end()) {
             return std::numeric_limits<int>::max();
@@ -270,4 +269,11 @@ void VersionBitsCache::Clear()
     for (unsigned int d = 0; d < Consensus::MAX_VERSION_BITS_DEPLOYMENTS; d++) {
         caches[d].clear();
     }
+}
+
+AbstractEHFManager* AbstractEHFManager::globalInstance{nullptr};
+
+AbstractEHFManager* AbstractEHFManager::getInstance()
+{
+    return globalInstance;
 }

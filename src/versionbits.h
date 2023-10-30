@@ -88,4 +88,33 @@ BIP9Stats VersionBitsStatistics(const CBlockIndex* pindexPrev, const Consensus::
 int VersionBitsStateSinceHeight(const CBlockIndex* pindexPrev, const Consensus::Params& params, Consensus::DeploymentPos pos, VersionBitsCache& cache);
 uint32_t VersionBitsMask(const Consensus::Params& params, Consensus::DeploymentPos pos);
 
+class AbstractEHFManager
+{
+public:
+    using Signals = std::unordered_map<uint8_t, int>;
+
+    /**
+     * getInstance() is used in versionbit because it is non-trivial
+     * to get access to NodeContext from all usages of VersionBits* methods
+     * For simplification of interface this methods static/global variable is used
+     * to get access to EHF data
+     */
+public:
+    static AbstractEHFManager* getInstance();
+
+    /**
+     * `GetSignalsStage' prepares signals for new block.
+     * The results are diffent with GetFromCache results due to one more
+     * stage of processing: signals that would be expired in next block
+     * are excluded from results.
+     * This member function is not const because it calls non-const GetFromCache()
+     */
+    virtual Signals GetSignalsStage(const CBlockIndex* const pindexPrev) = 0;
+
+
+protected:
+    static AbstractEHFManager* globalInstance;
+
+};
+
 #endif // BITCOIN_VERSIONBITS_H
