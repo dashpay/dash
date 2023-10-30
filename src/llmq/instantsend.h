@@ -35,30 +35,22 @@ class CSigSharesManager;
 
 struct CInstantSendLock
 {
-    // This is the old format of instant send lock, it must be 0
-    static constexpr uint8_t islock_version{0};
-    // This is the new format of instant send deterministic lock, this should be incremented for new isdlock versions
-    static constexpr uint8_t isdlock_version{1};
+    static constexpr uint8_t CURRENT_VERSION{1};
 
-    uint8_t nVersion;
+    uint8_t nVersion{CURRENT_VERSION};
     std::vector<COutPoint> inputs;
     uint256 txid;
     uint256 cycleHash;
     CBLSLazySignature sig;
 
-    CInstantSendLock() : CInstantSendLock(isdlock_version) {}
-    explicit CInstantSendLock(const uint8_t desiredVersion) : nVersion(desiredVersion) {}
+    CInstantSendLock() = default;
 
     SERIALIZE_METHODS(CInstantSendLock, obj)
     {
-        if (s.GetVersion() >= ISDLOCK_PROTO_VERSION) {
-            READWRITE(obj.nVersion);
-        }
+        READWRITE(obj.nVersion);
         READWRITE(obj.inputs);
         READWRITE(obj.txid);
-        if (s.GetVersion() >= ISDLOCK_PROTO_VERSION) {
-            READWRITE(obj.cycleHash);
-        }
+        READWRITE(obj.cycleHash);
         READWRITE(obj.sig);
     }
 

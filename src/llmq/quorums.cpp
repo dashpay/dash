@@ -327,7 +327,9 @@ void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqPar
     }
 
     const auto myProTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
-    bool isISType = llmqParams.type == Params().GetConsensus().llmqTypeInstantSend ||
+    // FIXME: should only check llmqTypeDIP0024InstantSend here but feature_llmq_connections.py is broken
+    // bool isISType = llmqParams.type == Params().GetConsensus().llmqTypeDIP0024InstantSend;
+    bool isISType = llmqParams.type == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND ||
                     llmqParams.type == Params().GetConsensus().llmqTypeDIP0024InstantSend;
 
     bool watchOtherISQuorums = isISType && !myProTxHash.IsNull() &&

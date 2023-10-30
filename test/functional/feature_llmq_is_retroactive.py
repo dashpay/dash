@@ -8,9 +8,9 @@ feature_llmq_is_retroactive.py
 
 Tests retroactive signing
 
-We have 6 nodes where node 0 is the control node, nodes 1-5 are masternodes.
+We have 5 nodes where node 0 is the control node, nodes 1-4 are masternodes.
 Mempool inconsistencies are simulated via disconnecting/reconnecting node 3
-and by having a higher relay fee on nodes 4 and 5.
+and by having a higher relay fee on node 4.
 '''
 
 import time
@@ -22,8 +22,7 @@ from test_framework.util import set_node_times
 class LLMQ_IS_RetroactiveSigning(DashTestFramework):
     def set_test_params(self):
         # -whitelist is needed to avoid the trickling logic on node0
-        self.set_dash_test_params(6, 5, [["-whitelist=127.0.0.1"], [], [], [], ["-minrelaytxfee=0.001"], ["-minrelaytxfee=0.001"]], fast_dip3_enforcement=True)
-        #self.set_dash_llmq_test_params(5, 3)
+        self.set_dash_test_params(5, 4, [["-whitelist=127.0.0.1"], [], [], [], ["-minrelaytxfee=0.001"]], fast_dip3_enforcement=True)
 
     def run_test(self):
         self.activate_dip8()
@@ -83,10 +82,10 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         # otherwise it might announce the TX to node 3 when reconnecting
         self.wait_for_tx(txid, self.nodes[1])
         self.wait_for_tx(txid, self.nodes[2])
-        self.reconnect_isolated_node(2, 0)
+        self.reconnect_isolated_node(3, 0)
         # Make sure nodes actually try re-connecting quorum connections
         self.bump_mocktime(30)
-        self.wait_for_mnauth(self.nodes[3], 3)
+        self.wait_for_mnauth(self.nodes[3], 2)
         # node 3 fully reconnected but the TX wasn't relayed to it, so there should be no IS lock
         self.wait_for_instantlock(txid, self.nodes[0], False, 5)
         # push the tx directly via rpc

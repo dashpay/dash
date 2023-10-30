@@ -42,8 +42,7 @@ static const std::string DB_ARCHIVED_BY_HASH = "is_a2";
 static const std::string DB_VERSION = "is_v";
 
 const int CInstantSendDb::CURRENT_VERSION;
-const uint8_t CInstantSendLock::islock_version;
-const uint8_t CInstantSendLock::isdlock_version;
+const uint8_t CInstantSendLock::CURRENT_VERSION;
 
 std::unique_ptr<CInstantSendManager> quorumInstantSendManager;
 
@@ -335,7 +334,7 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint2
         return ret;
     }
 
-    ret = std::make_shared<CInstantSendLock>(CInstantSendLock::isdlock_version);
+    ret = std::make_shared<CInstantSendLock>();
     bool exists = db->Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
     if (!exists || (::SerializeHash(*ret) != hash)) {
         ret = std::make_shared<CInstantSendLock>();
@@ -502,8 +501,7 @@ void CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
         return;
     }
 
-    if (params.llmqTypeInstantSend == Consensus::LLMQType::LLMQ_NONE ||
-        params.llmqTypeDIP0024InstantSend == Consensus::LLMQType::LLMQ_NONE) {
+    if (params.llmqTypeDIP0024InstantSend == Consensus::LLMQType::LLMQ_NONE) {
         return;
     }
 
@@ -527,9 +525,7 @@ void CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
     // block after we retroactively locked all transactions.
     if (!IsInstantSendMempoolSigningEnabled() && !fRetroactive) return;
 
-    if (auto llmqType_opt{GetInstantSendLLMQTypeAtTip(qman, m_chainstate)}; !llmqType_opt.has_value()) {
-        return;
-    } else if (!TrySignInputLocks(tx, fRetroactive, llmqType_opt.value(), params)) {
+    if (!TrySignInputLocks(tx, fRetroactive, params.llmqTypeDIP0024InstantSend, params)) {
         return;
     }
 
@@ -550,8 +546,7 @@ bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool fRetroa
 
         uint256 otherTxHash;
         // TODO check that we didn't vote for the other IS type also
-        if (sigman.GetVoteForId(params.llmqTypeDIP0024InstantSend, id, otherTxHash) ||
-            sigman.GetVoteForId(params.llmqTypeInstantSend, id, otherTxHash)) {
+        if (sigman.GetVoteForId(params.llmqTypeDIP0024InstantSend, id, otherTxHash)) {
             if (otherTxHash != tx.GetHash()) {
                 LogPrintf("CInstantSendManager::%s -- txid=%s: input %s is conflicting with previous vote for tx %s\n", __func__,
                           tx.GetHash().ToString(), in.prevout.ToStringShort(), otherTxHash.ToString());
@@ -561,10 +556,7 @@ bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool fRetroa
         }
 
         // don't even try the actual signing if any input is conflicting
-        if (auto llmqs = {params.llmqTypeDIP0024InstantSend, params.llmqTypeInstantSend};
-            ranges::any_of(llmqs, [&id, &tx, this](const auto& llmqType){
-                return sigman.IsConflicting(llmqType, id, tx.GetHash());})
-                ) {
+        if (sigman.IsConflicting(params.llmqTypeDIP0024InstantSend, id, tx.GetHash())) {
             LogPrintf("CInstantSendManager::%s -- txid=%s: sigman.IsConflicting returned true. id=%s\n", __func__,
                       tx.GetHash().ToString(), id.ToString());
             return false;
@@ -659,8 +651,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
         return;
     }
 
-    if (Params().GetConsensus().llmqTypeInstantSend == Consensus::LLMQType::LLMQ_NONE ||
-        Params().GetConsensus().llmqTypeDIP0024InstantSend == Consensus::LLMQType::LLMQ_NONE) {
+    if (Params().GetConsensus().llmqTypeDIP0024InstantSend == Consensus::LLMQType::LLMQ_NONE) {
         return;
     }
 
@@ -703,9 +694,7 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
 
 void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 {
-    const auto llmqType_opt{GetInstantSendLLMQTypeAtTip(qman, m_chainstate)};
-    if (!llmqType_opt.has_value()) return;
-    const auto llmqType = llmqType_opt.value();
+    const auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
 
     for (const auto& in : tx.vin) {
         auto id = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in.prevout));
@@ -787,7 +776,7 @@ void CInstantSendManager::ProcessMessage(const CNode& pfrom, const std::string& 
     }
 
     if (msg_type == NetMsgType::ISDLOCK) {
-        const auto islock = std::make_shared<CInstantSendLock>(CInstantSendLock::isdlock_version);
+        const auto islock = std::make_shared<CInstantSendLock>();
         vRecv >> *islock;
         ProcessMessageInstantSendLock(pfrom, islock);
     }
@@ -797,42 +786,28 @@ void CInstantSendManager::ProcessMessageInstantSendLock(const CNode& pfrom, cons
 {
     auto hash = ::SerializeHash(*islock);
 
-    bool fDIP0024IsActive = false;
-    {
-        LOCK(cs_main);
-        EraseObjectRequest(pfrom.GetId(), CInv(MSG_ISDLOCK, hash));
-        fDIP0024IsActive = utils::IsDIP0024Active(m_chainstate.m_chain.Tip());
-    }
+    WITH_LOCK(cs_main, EraseObjectRequest(pfrom.GetId(), CInv(MSG_ISDLOCK, hash)));
 
     if (!islock->TriviallyValid()) {
         m_peerman->Misbehaving(pfrom.GetId(), 100);
         return;
     }
 
-    // Deterministic ISLocks are only produced by rotation quorums, if we don't see DIP24 as active, then we won't be able to validate it anyway
-    if (fDIP0024IsActive) {
-        const auto blockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
-        if (blockIndex == nullptr) {
-            // Maybe we don't have the block yet or maybe some peer spams invalid values for cycleHash
-            m_peerman->Misbehaving(pfrom.GetId(), 1);
-            return;
-        }
-
-        // Deterministic islocks MUST use rotation based llmq
-        auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
-        const auto& llmq_params_opt = GetLLMQParams(llmqType);
-        assert(llmq_params_opt);
-        if (blockIndex->nHeight % llmq_params_opt->dkgInterval != 0) {
-            m_peerman->Misbehaving(pfrom.GetId(), 100);
-            return;
-        }
+    const auto blockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
+    if (blockIndex == nullptr) {
+        // Maybe we don't have the block yet or maybe some peer spams invalid values for cycleHash
+        m_peerman->Misbehaving(pfrom.GetId(), 1);
+        return;
     }
 
-    // WE MUST STILL PROCESS OLD ISLOCKS?
-//    else if (utils::IsDIP0024Active(WITH_LOCK(cs_main, return m_chainstate.m_chain.Tip()))) {
-//        // Ignore non-deterministic islocks once rotation is active
-//        return;
-//    }
+    // Deterministic islocks MUST use rotation based llmq
+    auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
+    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    assert(llmq_params_opt);
+    if (blockIndex->nHeight % llmq_params_opt->dkgInterval != 0) {
+        m_peerman->Misbehaving(pfrom.GetId(), 100);
+        return;
+    }
 
     if (WITH_LOCK(cs_pendingLocks, return pendingInstantSendLocks.count(hash) || pendingNoTxInstantSendLocks.count(hash))
             || db.KnownInstantSendLock(hash)) {
@@ -960,20 +935,16 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
             continue;
         }
 
+        const auto blockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
+        if (blockIndex == nullptr) {
+            batchVerifier.badSources.emplace(nodeId);
+            continue;
+        }
+
         int nSignHeight{-1};
-        {
-            LOCK(cs_main);
-
-            const auto blockIndex = m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash);
-            if (blockIndex == nullptr) {
-                batchVerifier.badSources.emplace(nodeId);
-                continue;
-            }
-
-            const auto dkgInterval = llmq_params.dkgInterval;
-            if (blockIndex->nHeight + dkgInterval < m_chainstate.m_chain.Height()) {
-                nSignHeight = blockIndex->nHeight + dkgInterval - 1;
-            }
+        const auto dkgInterval = llmq_params.dkgInterval;
+        if (blockIndex->nHeight + dkgInterval < m_chainstate.m_chain.Height()) {
+            nSignHeight = blockIndex->nHeight + dkgInterval - 1;
         }
 
         auto quorum = llmq::CSigningManager::SelectQuorumForSigning(llmq_params, qman, id, nSignHeight, signOffset);
@@ -1294,7 +1265,7 @@ void CInstantSendManager::TruncateRecoveredSigsForInputs(const llmq::CInstantSen
     for (const auto& in : islock.inputs) {
         auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
         WITH_LOCK(cs_inputReqests, inputRequestIds.erase(inputRequestId));
-        sigman.TruncateRecoveredSig(utils::GetInstantSendLLMQType(true), inputRequestId);
+        sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, inputRequestId);
     }
 }
 
@@ -1345,7 +1316,7 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 
         // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
         // fully confirmed now
-        sigman.TruncateRecoveredSig(utils::GetInstantSendLLMQType(true), islock->GetRequestId());
+        sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, islock->GetRequestId());
     }
 
     db.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
