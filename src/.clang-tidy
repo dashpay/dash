@@ -3,6 +3,7 @@ Checks: '
 bitcoin-*,
 bugprone-argument-comment,
 bugprone-move-forwarding-reference,
+bugprone-string-constructor,
 bugprone-use-after-move,
 bugprone-lambda-function-name,
 misc-unused-using-decls,
