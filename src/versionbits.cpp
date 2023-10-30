@@ -5,6 +5,8 @@
 #include <versionbits.h>
 #include <consensus/params.h>
 
+#include <limits>
+
 static int calculateStartHeight(const CBlockIndex* pindexPrev, ThresholdState state, const int nPeriod, const ThresholdConditionCache& cache) {
     int nStartHeight{std::numeric_limits<int>::max()};
 
