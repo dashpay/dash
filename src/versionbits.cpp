@@ -209,7 +209,7 @@ protected:
     int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
     int SignalHeight(const CBlockIndex* const pindexPrev, const Consensus::Params& params) const override {
         const auto& deployment = params.vDeployments[id];
-        if (deployment.nMNActivationHeight < 0) {
+        if (!deployment.useEHF) {
             return 0;
         }
         const auto signals = AbstractEHFManager::getInstance()->GetSignalsStage(pindexPrev);

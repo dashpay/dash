@@ -305,15 +305,9 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
 
 void CMNHFManager::AddSignal(const CBlockIndex* const pindex, int bit)
 {
-    const uint256& blockHash = pindex->GetBlockHash();
     auto signals = GetFromCache(pindex->pprev);
-    {
-        LOCK(cs_cache);
-        signals.emplace(bit, pindex->nHeight);
-        LogPrintf("CMNHFManager::AddToCache: mnhf for block %s add to cache: %lld\n", pindex->GetBlockHash().ToString(), signals.size());
-        mnhfCache.insert(blockHash, signals);
-    }
-    m_evoDb.Write(std::make_pair(DB_SIGNALS, blockHash), signals);
+    signals.emplace(bit, pindex->nHeight);
+    AddToCache(signals, pindex);
 }
 
 std::string MNHFTx::ToString() const
