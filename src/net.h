@@ -1103,7 +1103,10 @@ public:
     bool fSentAddr{false};
     // If 'true' this node will be disconnected on CMasternodeMan::ProcessMasternodeConnections()
     std::atomic<bool> m_masternode_connection{false};
-    // If 'true' this node will be disconnected after MNAUTH
+    /**
+     * If 'true' this node will be disconnected after MNAUTH (outbound only) or
+     * after 5 seconds since nTimeConnected
+     */
     std::atomic<bool> m_masternode_probe_connection{false};
     // If 'true', we identified it as an intra-quorum relay connection
     std::atomic<bool> m_masternode_iqr_connection{false};
