@@ -595,6 +595,9 @@ void TransactionView::showDetails()
             /*parent=*/this);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         m_opened_dialogs.append(dlg);
+        connect(dlg, &QObject::destroyed, [this, dlg] {
+            m_opened_dialogs.removeOne(dlg);
+        });
         dlg->show();
     }
 }
