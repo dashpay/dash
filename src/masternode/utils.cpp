@@ -47,8 +47,8 @@ void CMasternodeUtils::DoMaintenance(CConnman& connman, const CMasternodeSync& m
 
     connman.ForEachNode(CConnman::AllNodes, [&](CNode* pnode) {
         if (pnode->m_masternode_probe_connection) {
-            // we're not disconnecting masternode probes for at least a few seconds
-            if (GetSystemTimeInSeconds() - pnode->nTimeConnected < 5) return;
+            // we're not disconnecting masternode probes for at least PROBE_WAIT_INTERVAL seconds
+            if (GetSystemTimeInSeconds() - pnode->nTimeConnected < PROBE_WAIT_INTERVAL) return;
         } else {
             // we're only disconnecting m_masternode_connection connections
             if (!pnode->m_masternode_connection) return;
