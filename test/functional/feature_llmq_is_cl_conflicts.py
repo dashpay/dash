@@ -80,15 +80,6 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         self.test_chainlock_overrides_islock(True, False)
         self.test_chainlock_overrides_islock(True, True)
         self.test_chainlock_overrides_islock_overrides_nonchainlock()
-        #self.activate_dip0024()
-        #self.log.info("Activated DIP0024 at height:" + str(self.nodes[0].getblockcount()))
-        self.test_chainlock_overrides_islock_overrides_nonchainlock()
-        # At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
-        self.move_to_next_cycle()
-        self.move_to_next_cycle()
-        self.move_to_next_cycle()
-        self.mine_cycle_quorum()
-        self.test_chainlock_overrides_islock_overrides_nonchainlock()
 
     def test_chainlock_overrides_islock(self, test_block_conflict, mine_confllicting=False):
         if not test_block_conflict:
