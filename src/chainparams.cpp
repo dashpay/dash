@@ -950,7 +950,7 @@ public:
     /**
      * Allows modifying the Version Bits regtest parameters.
      */
-    void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout, int64_t nWindowSize, int64_t nThresholdStart, int64_t nThresholdMin, int64_t nFalloffCoeff, int64_t useEHF)
+    void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout, int64_t nWindowSize, int64_t nThresholdStart, int64_t nThresholdMin, int64_t nFalloffCoeff, int64_t nUseEHF)
     {
         consensus.vDeployments[d].nStartTime = nStartTime;
         consensus.vDeployments[d].nTimeout = nTimeout;
@@ -966,8 +966,8 @@ public:
         if (nFalloffCoeff != -1) {
             consensus.vDeployments[d].nFalloffCoeff = nFalloffCoeff;
         }
-        if (useEHF != -1) {
-            consensus.vDeployments[d].useEHF = useEHF;
+        if (nUseEHF != -1) {
+            consensus.vDeployments[d].useEHF = nUseEHF > 0;
         }
     }
     void UpdateActivationParametersFromArgs(const ArgsManager& args);
@@ -1048,7 +1048,7 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
                     "<deployment>:<start>:<end>:<window>:<threshold> or "
                     "<deployment>:<start>:<end>:<window>:<thresholdstart>:<thresholdmin>:<falloffcoeff>:<useehf>");
         }
-        int64_t nStartTime, nTimeout, nWindowSize = -1, nThresholdStart = -1, nThresholdMin = -1, nFalloffCoeff = -1, useEHF = -1;
+        int64_t nStartTime, nTimeout, nWindowSize = -1, nThresholdStart = -1, nThresholdMin = -1, nFalloffCoeff = -1, nUseEHF = -1;
         if (!ParseInt64(vDeploymentParams[1], &nStartTime)) {
             throw std::runtime_error(strprintf("Invalid nStartTime (%s)", vDeploymentParams[1]));
         }
@@ -1070,17 +1070,17 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
             if (!ParseInt64(vDeploymentParams[6], &nFalloffCoeff)) {
                 throw std::runtime_error(strprintf("Invalid nFalloffCoeff (%s)", vDeploymentParams[6]));
             }
-            if (!ParseInt64(vDeploymentParams[7], &useEHF)) {
-                throw std::runtime_error(strprintf("Invalid useEHF (%s)", vDeploymentParams[7]));
+            if (!ParseInt64(vDeploymentParams[7], &nUseEHF)) {
+                throw std::runtime_error(strprintf("Invalid nUseEHF (%s)", vDeploymentParams[7]));
             }
         }
         bool found = false;
         for (int j=0; j < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++j) {
             if (vDeploymentParams[0] == VersionBitsDeploymentInfo[j].name) {
-                UpdateVersionBitsParameters(Consensus::DeploymentPos(j), nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff, useEHF);
+                UpdateVersionBitsParameters(Consensus::DeploymentPos(j), nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff, nUseEHF);
                 found = true;
-                LogPrintf("Setting version bits activation parameters for %s to start=%ld, timeout=%ld, window=%ld, thresholdstart=%ld, thresholdmin=%ld, falloffcoeff=%ld, useEHF=%ld\n",
-                          vDeploymentParams[0], nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff, useEHF);
+                LogPrintf("Setting version bits activation parameters for %s to start=%ld, timeout=%ld, window=%ld, thresholdstart=%ld, thresholdmin=%ld, falloffcoeff=%ld, nUseEHF=%ld\n",
+                          vDeploymentParams[0], nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff, nUseEHF);
                 break;
             }
         }
