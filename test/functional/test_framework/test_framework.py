@@ -1071,6 +1071,41 @@ class DashTestFramework(BitcoinTestFramework):
                 self.sync_blocks()
         self.sync_blocks()
 
+    def advance_to_locked_in_softfork(self, name, expected_locked_in_height):
+        self.log.info("Wait for " + name + " locked_in phase")
+        # disable spork17 while mining blocks to activate "name" to prevent accidental quorum formation
+        spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
+        self.bump_mocktime(1)
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
+
+        # mine blocks in batches
+        batch_size = 10
+        height = self.nodes[0].getblockcount()
+        assert height < expected_locked_in_height
+        while expected_locked_in_height - height >= batch_size:
+            self.bump_mocktime(batch_size)
+            self.nodes[0].generate(batch_size)
+            height += batch_size
+            self.sync_blocks()
+        blocks_left = expected_locked_in_height - height - 2
+        assert blocks_left < batch_size
+        self.bump_mocktime(blocks_left)
+        self.nodes[0].generate(blocks_left)
+        self.sync_blocks()
+
+        softfork_info = get_bip9_details(self.nodes[0], name)
+        assert softfork_info['status'] == 'locked_in'
+        assert 'activation_height' in softfork_info
+        rpc_activation_height = softfork_info['activation_height']
+
+        # revert spork17 changes
+        self.bump_mocktime(1)
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork17_value)
+        self.wait_for_sporks_same()
+
+        return rpc_activation_height
+
     def activate_by_name(self, name, expected_activation_height=None):
         assert not softfork_active(self.nodes[0], name)
         self.log.info("Wait for " + name + " activation")
@@ -1122,8 +1157,17 @@ class DashTestFramework(BitcoinTestFramework):
     def activate_v19(self, expected_activation_height=None):
         self.activate_by_name('v19', expected_activation_height)
 
-    def activate_v20(self, expected_activation_height=None):
-        self.activate_by_name('v20', expected_activation_height)
+    def activate_v20(self, expected_activation_height=None, test_locked_in_phase=False):
+        if test_locked_in_phase:
+            # Expected locked_in phase starts at 1440 - 480 (window size in regtest) + 1
+            projected_activation_height = self.advance_to_locked_in_softfork('v20', expected_locked_in_height=961)
+            self.activate_by_name('v20', expected_activation_height)
+            softfork_info = get_bip9_details(self.nodes[0], 'v20')
+            assert softfork_info['status'] == 'active'
+            assert 'since' in softfork_info
+            assert projected_activation_height == softfork_info['since']
+        else:
+            self.activate_by_name('v20', expected_activation_height)
 
     def activate_mn_rr(self, expected_activation_height=None):
         self.nodes[0].sporkupdate("SPORK_24_EHF", 0)
