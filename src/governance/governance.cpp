@@ -757,11 +757,6 @@ bool CGovernanceManager::VoteFundingTrigger(const uint256& nHash, const vote_out
     vote.SetTime(GetAdjustedTime());
     vote.Sign(WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator));
 
-    if (!vote.IsValid()) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING %d for trigger:%s is invalid\n", __func__, outcome, nHash.ToString());
-        return false;
-    }
-
     CGovernanceException exception;
     if (!ProcessVoteAndRelay(vote, exception, connman)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING %d for trigger:%s failed:%s\n", __func__, outcome, nHash.ToString(), exception.what());
