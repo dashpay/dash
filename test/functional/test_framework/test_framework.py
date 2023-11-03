@@ -1088,7 +1088,7 @@ class DashTestFramework(BitcoinTestFramework):
             self.nodes[0].generate(batch_size)
             height += batch_size
             self.sync_blocks()
-        blocks_left = expected_locked_in_height - height - 2
+        blocks_left = expected_locked_in_height - height
         assert blocks_left < batch_size
         self.bump_mocktime(blocks_left)
         self.nodes[0].generate(blocks_left)
