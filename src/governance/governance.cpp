@@ -554,7 +554,7 @@ struct sortProposalsByVotes {
     }
 };
 
-const std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHeight) const
+std::optional<const CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHeight) const
 {
     if (!fMasternodeMode || fDisableGovernance) return std::nullopt;
     if (::masternodeSync == nullptr || !::masternodeSync->IsSynced()) return std::nullopt;
@@ -663,7 +663,7 @@ const std::optional<CSuperblock> CGovernanceManager::CreateSuperblockCandidate(i
     return CSuperblock(nNextSuperblock, std::move(payments));
 }
 
-const std::optional<CGovernanceObject> CGovernanceManager::CreateGovernanceTrigger(const std::optional<CSuperblock>& sb_opt, CConnman& connman)
+std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigger(const std::optional<const CSuperblock>& sb_opt, CConnman& connman)
 {
     // no sb_opt, no trigger
     if (!sb_opt.has_value()) return std::nullopt;
@@ -712,7 +712,7 @@ const std::optional<CGovernanceObject> CGovernanceManager::CreateGovernanceTrigg
     return std::make_optional<CGovernanceObject>(gov_sb);
 }
 
-void CGovernanceManager::VoteGovernanceTriggers(const std::optional<CGovernanceObject>& trigger_opt, CConnman& connman)
+void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGovernanceObject>& trigger_opt, CConnman& connman)
 {
     // only active masternodes can vote on triggers
     if (!fMasternodeMode || WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash.IsNull())) return;

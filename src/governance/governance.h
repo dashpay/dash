@@ -293,9 +293,9 @@ public:
 
     void ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, std::string_view msg_type, CDataStream& vRecv);
 
-    const std::optional<CSuperblock> CreateSuperblockCandidate(int nHeight) const;
-    const std::optional<CGovernanceObject> CreateGovernanceTrigger(const std::optional<CSuperblock>& sb_opt, CConnman& connman);
-    void VoteGovernanceTriggers(const std::optional<CGovernanceObject>& trigger_opt, CConnman& connman);
+    std::optional<const CSuperblock> CreateSuperblockCandidate(int nHeight) const;
+    std::optional<const CGovernanceObject> CreateGovernanceTrigger(const std::optional<const CSuperblock>& sb_opt, CConnman& connman);
+    void VoteGovernanceTriggers(const std::optional<const CGovernanceObject>& trigger_opt, CConnman& connman);
     bool VoteFundingTrigger(const uint256& nHash, const vote_outcome_enum_t outcome, CConnman& connman);
     bool HasAlreadyVotedFundingTrigger() const;
     void ResetVotedFundingTrigger();
