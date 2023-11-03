@@ -1072,7 +1072,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.sync_blocks()
 
     def advance_to_locked_in_softfork(self, name, expected_locked_in_height):
-        self.log.info("Wait for " + name + " locked_in phase")
+        self.log.info(f"Wait for {name} locked_in phase")
         # disable spork17 while mining blocks to activate "name" to prevent accidental quorum formation
         spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
         self.bump_mocktime(1)
@@ -1082,20 +1082,20 @@ class DashTestFramework(BitcoinTestFramework):
         # mine blocks in batches
         batch_size = 10
         height = self.nodes[0].getblockcount()
-        assert height < expected_locked_in_height
+        assert_greater_than(expected_locked_in_height, height)
         while expected_locked_in_height - height >= batch_size:
             self.bump_mocktime(batch_size)
             self.nodes[0].generate(batch_size)
             height += batch_size
             self.sync_blocks()
         blocks_left = expected_locked_in_height - height
-        assert blocks_left < batch_size
+        assert_greater_than(batch_size, blocks_left)
         self.bump_mocktime(blocks_left)
         self.nodes[0].generate(blocks_left)
         self.sync_blocks()
 
         softfork_info = get_bip9_details(self.nodes[0], name)
-        assert softfork_info['status'] == 'locked_in'
+        assert_equal(softfork_info['status'], 'locked_in')
         assert 'activation_height' in softfork_info
         rpc_activation_height = softfork_info['activation_height']
 
@@ -1163,7 +1163,7 @@ class DashTestFramework(BitcoinTestFramework):
             projected_activation_height = self.advance_to_locked_in_softfork('v20', expected_locked_in_height=961)
             self.activate_by_name('v20', expected_activation_height)
             softfork_info = get_bip9_details(self.nodes[0], 'v20')
-            assert softfork_info['status'] == 'active'
+            assert_equal(softfork_info['status'], 'active')
             assert 'since' in softfork_info
             assert projected_activation_height == softfork_info['since']
         else:
