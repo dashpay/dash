@@ -1166,7 +1166,8 @@ static std::pair<CAmount, CAmount> GetBlockSubsidyHelper(int nPrevBits, int nPre
         nSubsidy -= nSubsidy/14;
     }
 
-    if (isDevnet && nPrevHeight < consensusParams.nHighSubsidyBlocks) {
+    if (nPrevHeight < consensusParams.nHighSubsidyBlocks) {
+        assert(isDevnet);
         nSubsidy *= consensusParams.nHighSubsidyFactor;
     }
 
