@@ -679,8 +679,9 @@ std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigg
     }
 
     // Nobody submitted a trigger we'd like to see, so let's do it but only if we are the payee
-    auto mnList = deterministicMNManager->GetListForBlock(::ChainActive().Tip());
-    auto mn_payees = mnList.GetProjectedMNPayees(::ChainActive().Tip());
+    const CBlockIndex *tip = WITH_LOCK(::cs_main, return ::ChainActive().Tip());
+    const auto mnList = deterministicMNManager->GetListForBlock(tip);
+    const auto mn_payees = mnList.GetProjectedMNPayees(tip);
 
     if (mn_payees.empty()) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s payee list is empty\n", __func__);
