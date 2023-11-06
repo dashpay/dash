@@ -1129,8 +1129,8 @@ static std::pair<CAmount, CAmount> GetBlockSubsidyHelper(int nPrevBits, int nPre
         dDiff = ConvertBitsToDouble(nPrevBits);
     }
 
-    bool isDevnet = Params().NetworkIDString() == CBaseChainParams::DEVNET;
-    bool force_fixed_base_subsidy = fV20Active || (isDevnet && nPrevHeight >= consensusParams.nHighSubsidyBlocks);
+    const bool isDevnet = Params().NetworkIDString() == CBaseChainParams::DEVNET;
+    const bool force_fixed_base_subsidy = fV20Active || (isDevnet && nPrevHeight >= consensusParams.nHighSubsidyBlocks);
     if (force_fixed_base_subsidy) {
         // Originally, nSubsidyBase calculations relied on difficulty. Once Platform is live,
         // it must be able to calculate platformReward. However, we don't want it to constantly
