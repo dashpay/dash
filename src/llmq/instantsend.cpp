@@ -511,7 +511,14 @@ void CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
     // block after we retroactively locked all transactions.
     if (!IsInstantSendMempoolSigningEnabled() && !fRetroactive) return;
 
-    if (!TrySignInputLocks(tx, fRetroactive, utils::GetInstantSendLLMQType(qman, WITH_LOCK(cs_main, return m_chainstate.m_chain.Tip())), params)) {
+    Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
+    {
+        LOCK(cs_main);
+        const CBlockIndex* tip = m_chainstate.m_chain.Tip();
+        if (tip == nullptr) return;
+        llmqType = utils::GetInstantSendLLMQType(qman, tip);
+    }
+    if (!TrySignInputLocks(tx, fRetroactive, llmqType, params)) {
         return;
     }
 
@@ -685,7 +692,13 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
 
 void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 {
-    const auto llmqType = utils::GetInstantSendLLMQType(qman, WITH_LOCK(cs_main, return m_chainstate.m_chain.Tip()));
+    Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
+    {
+        LOCK(cs_main);
+        const CBlockIndex* tip = m_chainstate.m_chain.Tip();
+        if (tip == nullptr) return;
+        llmqType = utils::GetInstantSendLLMQType(qman, tip);
+    }
 
     for (const auto& in : tx.vin) {
         auto id = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in.prevout));
@@ -855,8 +868,14 @@ bool CInstantSendLock::TriviallyValid() const
 
 bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
-    const CBlockIndex* pBlockIndexTip = WITH_LOCK(cs_main, return m_chainstate.m_chain.Tip());
-    if (pBlockIndexTip && utils::GetInstantSendLLMQType(qman, pBlockIndexTip) == Params().GetConsensus().llmqTypeDIP0024InstantSend) {
+    Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
+    {
+        LOCK(cs_main);
+        const CBlockIndex* tip = m_chainstate.m_chain.Tip();
+        if (tip == nullptr) return true; // not an error
+        llmqType = utils::GetInstantSendLLMQType(qman, tip);
+    }
+    if (llmqType == Params().GetConsensus().llmqTypeDIP0024InstantSend) {
         // Don't short circuit. Try to process both deterministic and not deterministic islocks independable
         bool deterministicRes = ProcessPendingInstantSendLocks(true);
         bool nondeterministicRes = ProcessPendingInstantSendLocks(false);
