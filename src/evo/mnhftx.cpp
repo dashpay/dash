@@ -300,6 +300,9 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
         LOCK(cs_cache);
         mnhfCache.insert(blockHash, signals);
     }
+    if (VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20, versionbitscache) != ThresholdState::ACTIVE) {
+        return;
+    }
     m_evoDb.Write(std::make_pair(DB_SIGNALS, blockHash), signals);
 }
 
