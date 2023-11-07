@@ -1185,12 +1185,8 @@ public:
     struct Options
     {
         ServiceFlags nLocalServices = NODE_NONE;
-        int nMaxConnections = 0;
-        int m_max_outbound_full_relay = 0;
-        int m_max_outbound_block_relay = 0;
         int m_max_outbound_onion = 0;
-        int nMaxAddnode = 0;
-        int nMaxFeeler = 0;
+        int m_max_automatic_connections = 0;
         CClientUIInterface* uiInterface = nullptr;
         NetEventsInterface* m_msgproc = nullptr;
         BanMan* m_banman = nullptr;
@@ -1219,14 +1215,13 @@ public:
         AssertLockNotHeld(m_total_bytes_sent_mutex);
 
         nLocalServices = connOptions.nLocalServices;
-        nMaxConnections = connOptions.nMaxConnections;
-        m_max_outbound_full_relay = std::min(connOptions.m_max_outbound_full_relay, connOptions.nMaxConnections);
-        m_max_outbound_block_relay = connOptions.m_max_outbound_block_relay;
+        m_max_automatic_connections = connOptions.m_max_automatic_connections;
+        m_max_outbound_full_relay = std::min(MAX_OUTBOUND_FULL_RELAY_CONNECTIONS, m_max_automatic_connections);
+        m_max_outbound_block_relay = std::min(MAX_BLOCK_RELAY_ONLY_CONNECTIONS, m_max_automatic_connections - m_max_outbound_full_relay);
+        m_max_automatic_outbound = m_max_outbound_full_relay + m_max_outbound_block_relay + m_max_feeler;
+        m_max_inbound = std::max(0, m_max_automatic_connections - m_max_automatic_outbound);
         m_max_outbound_onion = connOptions.m_max_outbound_onion;
         m_use_addrman_outgoing = connOptions.m_use_addrman_outgoing;
-        nMaxAddnode = connOptions.nMaxAddnode;
-        nMaxFeeler = connOptions.nMaxFeeler;
-        m_max_outbound = m_max_outbound_full_relay + m_max_outbound_block_relay + nMaxFeeler;
         m_client_interface = connOptions.uiInterface;
         m_banman = connOptions.m_banman;
         m_msgproc = connOptions.m_msgproc;
@@ -1829,7 +1824,18 @@ private:
 
     std::unique_ptr<CSemaphore> semOutbound;
     std::unique_ptr<CSemaphore> semAddnode;
-    int nMaxConnections;
+
+    /**
+     * Maximum number of automatic connections permitted, excluding manual
+     * connections but including inbounds. May be changed by the user and is
+     * potentially limited by the operating system (number of file descriptors).
+     */
+    int m_max_automatic_connections;
+
+    /*
+     * Maximum number of peers by connection type. Might vary from defaults
+     * based on -maxconnections init value.
+     */
 
     // How many full-relay (tx, block, addr) outbound peers we want
     int m_max_outbound_full_relay;
@@ -1841,9 +1847,11 @@ private:
     // How many onion outbound peers we want; don't care if full or block only; does not increase m_max_outbound
     int m_max_outbound_onion;
 
-    int nMaxAddnode;
-    int nMaxFeeler;
-    int m_max_outbound;
+    int m_max_addnode{MAX_ADDNODE_CONNECTIONS};
+    int m_max_feeler{MAX_FEELER_CONNECTIONS};
+    int m_max_automatic_outbound;
+    int m_max_inbound;
+
     bool m_use_addrman_outgoing;
     CClientUIInterface* m_client_interface;
     NetEventsInterface* m_msgproc;
