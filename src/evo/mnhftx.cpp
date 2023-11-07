@@ -283,11 +283,8 @@ CMNHFManager::Signals CMNHFManager::GetFromCache(const CBlockIndex* const pindex
         mnhfCache.insert(blockHash, {});
         return {};
     }
-    if (!m_evoDb.Read(std::make_pair(DB_SIGNALS, blockHash), signals)) {
-        LogPrintf("CMNHFManager::GetFromCache: failure: can't read MnEHF signals from db for %s\n", pindex->GetBlockHash().ToString());
-        // TODO: can it actually happen? Maybe if try to use old version with re-index and update after MN_RR activated
-        assert(false);
-    }
+    bool ok = m_evoDb.Read(std::make_pair(DB_SIGNALS, blockHash), signals);
+    assert(ok);
     LOCK(cs_cache);
     mnhfCache.insert(blockHash, signals);
     return signals;
