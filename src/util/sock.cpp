@@ -402,7 +402,7 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout,
     return true;
 }
 
-void Sock::SendComplete(const std::string& data,
+void Sock::SendComplete(Span<const unsigned char> data,
                         std::chrono::milliseconds timeout,
                         CThreadInterrupt& interrupt) const
 {
@@ -441,6 +441,13 @@ void Sock::SendComplete(const std::string& data,
         const auto wait_time = std::min(deadline - now, std::chrono::milliseconds{MAX_WAIT_FOR_IO});
         (void)Wait(wait_time, SEND, SocketEventsParams{::g_socket_events_mode});
     }
+}
+
+void Sock::SendComplete(Span<const char> data,
+                        std::chrono::milliseconds timeout,
+                        CThreadInterrupt& interrupt) const
+{
+    SendComplete(MakeUCharSpan(data), timeout, interrupt);
 }
 
 std::string Sock::RecvUntilTerminator(uint8_t terminator,
