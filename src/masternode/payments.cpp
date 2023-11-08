@@ -261,7 +261,7 @@ bool IsBlockValueValid(const CSporkManager& sporkManager, CGovernanceManager& go
     return true;
 }
 
-bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& governanceManager,
+bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& governanceManager, const CMasternodeSync& mn_sync,
                        const CTransaction& txNew, const CBlockIndex* const pindexPrev, const CAmount blockSubsidy, const CAmount feeReward)
 {
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
@@ -274,7 +274,7 @@ bool IsBlockPayeeValid(const CSporkManager& sporkManager, CGovernanceManager& go
         return false;
     }
 
-    if (fDisableGovernance) {
+    if (!mn_sync.IsSynced() || fDisableGovernance) {
         // governance data is either incomplete or non-existent
         LogPrint(BCLog::MNPAYMENTS, "%s -- WARNING: Not enough data, skipping superblock payee checks\n", __func__);
         return true;  // not an error
