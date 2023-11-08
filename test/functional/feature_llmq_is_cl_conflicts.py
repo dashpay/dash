@@ -307,11 +307,8 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         coinbasevalue -= bt_fees
         coinbasevalue += new_fees
 
-        realloc_info = self.nodes[0].getblockchaininfo()['softforks']['realloc']
-        realloc_height = 99999999
-        if realloc_info['active']:
-            realloc_height = realloc_info['height']
-        mn_amount = get_masternode_payment(height, coinbasevalue, realloc_height)
+        v20_info = node.getblockchaininfo()['softforks']['v20']
+        mn_amount= get_masternode_payment(height, coinbasevalue, v20_info['active'])
         miner_amount = coinbasevalue - mn_amount
 
         outputs = {miner_address: str(Decimal(miner_amount) / COIN)}
