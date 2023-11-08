@@ -218,7 +218,7 @@ class DIP3Test(BitcoinTestFramework):
         mn.idx = idx
         mn.alias = alias
         mn.p2p_port = p2p_port(mn.idx)
-        mn.operator_reward = 0
+        mn.operator_reward = (mn.idx % self.num_initial_mn)
 
         blsKey = node.bls('generate')
         mn.fundsAddr = node.getnewaddress()
