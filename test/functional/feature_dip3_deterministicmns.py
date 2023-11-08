@@ -9,8 +9,8 @@
 
 from decimal import Decimal
 
-from test_framework.blocktools import create_block, create_coinbase, get_masternode_payment
-from test_framework.messages import CCbTx, COIN, CTransaction, FromHex, ToHex, uint256_to_string
+from test_framework.blocktools import create_block_with_mnpayments
+from test_framework.messages import CTransaction, FromHex, ToHex
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, force_finish_mnsync, p2p_port
 
@@ -354,81 +354,7 @@ class DIP3Test(BitcoinTestFramework):
         return dummy_txin
 
     def mine_block(self, node, vtx=None, mn_payee=None, mn_amount=None, expected_error=None):
-        if vtx is None:
-            vtx = []
-        bt = node.getblocktemplate()
-        height = bt['height']
-        tip_hash = bt['previousblockhash']
-
-        tip_block = node.getblock(tip_hash)
-
-        coinbasevalue = bt['coinbasevalue']
-        if miner_address is None:
-            miner_address = self.nodes[0].getnewaddress()
-        if mn_payee is None:
-            if isinstance(bt['masternode'], list):
-                mn_payee = bt['masternode'][0]['payee']
-            else:
-                mn_payee = bt['masternode']['payee']
-        # we can't take the masternode payee amount from the template here as we might have additional fees in vtx
-
-        # calculate fees that the block template included (we'll have to remove it from the coinbase as we won't
-        # include the template's transactions
-        bt_fees = 0
-        for tx in bt['transactions']:
-            bt_fees += tx['fee']
-
-        new_fees = 0
-        for tx in vtx:
-            in_value = 0
-            out_value = 0
-            for txin in tx.vin:
-                txout = node.gettxout(uint256_to_string(txin.prevout.hash), txin.prevout.n, False)
-                in_value += int(txout['value'] * COIN)
-            for txout in tx.vout:
-                out_value += txout.nValue
-            new_fees += in_value - out_value
-
-        # fix fees
-        coinbasevalue -= bt_fees
-        coinbasevalue += new_fees
-
-        if mn_amount is None:
-            v20_info = node.getblockchaininfo()['softforks']['v20']
-            mn_amount = get_masternode_payment(height, coinbasevalue, v20_info['active'])
-        miner_amount = coinbasevalue - mn_amount
-
-        outputs = {miner_address: str(Decimal(miner_amount) / COIN)}
-        if mn_amount > 0:
-            outputs[mn_payee] = str(Decimal(mn_amount) / COIN)
-
-        coinbase = FromHex(CTransaction(), node.createrawtransaction([], outputs))
-        coinbase.vin = create_coinbase(height).vin
-
-        # We can't really use this one as it would result in invalid merkle roots for masternode lists
-        if len(bt['coinbase_payload']) != 0:
-            cbtx = FromHex(CCbTx(version=1), bt['coinbase_payload'])
-            if 'cbTx' in tip_block:
-                cbtx.merkleRootMNList = int(tip_block['cbTx']['merkleRootMNList'], 16)
-            else:
-                cbtx.merkleRootMNList = 0
-            coinbase.nVersion = 3
-            coinbase.nType = 5 # CbTx
-            coinbase.vExtraPayload = cbtx.serialize()
-
-        coinbase.calc_sha256()
-
-        block = create_block(int(tip_hash, 16), coinbase)
-        block.vtx += vtx
-
-        # Add quorum commitments from template
-        for tx in bt['transactions']:
-            tx2 = FromHex(CTransaction(), tx['data'])
-            if tx2.nType == 6:
-                block.vtx.append(tx2)
-
-        block.hashMerkleRoot = block.calc_merkle_root()
-        block.solve()
+        block = create_block_with_mnpayments(node, vtx, mn_payee, mn_amount, expected_error)
         result = node.submitblock(ToHex(block))
         if expected_error is not None and result != expected_error:
             raise AssertionError('mining the block should have failed with error %s, but submitblock returned %s' % (expected_error, result))
