@@ -4,6 +4,7 @@
 
 #include <versionbits.h>
 #include <consensus/params.h>
+#include <gsl/pointers.h>
 
 #include <limits>
 
@@ -212,9 +213,9 @@ protected:
         if (!deployment.useEHF) {
             return 0;
         }
-        const auto ehfManagerPtr = AbstractEHFManager::getInstance();
         // ehfManager should be initialized before first usage of VersionBitsConditionChecker
-        assert(ehfManager != nullptr);
+        const auto ehfManagerPtr = gsl::make_not_null(AbstractEHFManager::getInstance());
+        assert(ehfManagerPtr != nullptr);
         const auto signals = ehfManagerPtr->GetSignalsStage(pindexPrev);
         const auto it = signals.find(deployment.bit);
         if (it == signals.end()) {
