@@ -215,7 +215,6 @@ protected:
         }
         // ehfManager should be initialized before first usage of VersionBitsConditionChecker
         const auto ehfManagerPtr = gsl::make_not_null(AbstractEHFManager::getInstance());
-        assert(ehfManagerPtr != nullptr);
         const auto signals = ehfManagerPtr->GetSignalsStage(pindexPrev);
         const auto it = signals.find(deployment.bit);
         if (it == signals.end()) {
