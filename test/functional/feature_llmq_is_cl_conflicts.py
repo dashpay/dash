@@ -111,7 +111,7 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
             self.wait_for_instantlock(rawtx1_txid, node)
             self.wait_for_instantlock(rawtx4_txid, node)
 
-        block = create_block_with_mnpayments(self.nodes[0], [rawtx2_obj])
+        block = create_block_with_mnpayments(self.mninfo, self.nodes[0], [rawtx2_obj])
         if test_block_conflict:
             # The block shouldn't be accepted/connected but it should be known to node 0 now
             submit_result = self.nodes[0].submitblock(ToHex(block))
@@ -233,7 +233,7 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         assert_raises_rpc_error(-25, "bad-txns-inputs-missingorspent", self.nodes[0].sendrawtransaction, rawtx2)
 
         # Create the block and the corresponding clsig but do not relay clsig yet
-        cl_block = create_block_with_mnpayments(self.nodes[0])
+        cl_block = create_block_with_mnpayments(self.mninfo, self.nodes[0])
         cl = self.create_chainlock(self.nodes[0].getblockcount() + 1, cl_block)
         self.nodes[0].submitblock(ToHex(cl_block))
         self.sync_all()

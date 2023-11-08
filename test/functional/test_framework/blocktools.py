@@ -46,7 +46,7 @@ def create_block(hashprev, coinbase, ntime=None, *, version=1):
     block.calc_sha256()
     return block
 
-def create_block_with_mnpayments(node, vtx=None, mn_payee=None, mn_amount=None, expected_error=None):
+def create_block_with_mnpayments(mninfo, node, vtx=None, mn_payee=None, mn_amount=None):
     if vtx is None:
         vtx = []
     bt = node.getblocktemplate()
@@ -54,11 +54,13 @@ def create_block_with_mnpayments(node, vtx=None, mn_payee=None, mn_amount=None, 
     tip_hash = bt['previousblockhash']
     coinbasevalue = bt['coinbasevalue']
 
+    assert len(bt['masternode']) <= 2
     if mn_payee is None:
-        if isinstance(bt['masternode'], list):
-            mn_payee = bt['masternode'][0]['payee']
-        else:
-            mn_payee = bt['masternode']['payee']
+        mn_payee = bt['masternode'][0]['payee']
+
+    mn_operator_payee = None
+    if len(bt['masternode']) == 2:
+        mn_operator_payee = bt['masternode'][1]['payee']
     # we can't take the masternode payee amount from the template here as we might have additional fees in vtx
 
     # calculate fees that the block template included (we'll have to remove it from the coinbase as we won't
@@ -82,15 +84,28 @@ def create_block_with_mnpayments(node, vtx=None, mn_payee=None, mn_amount=None, 
     coinbasevalue -= bt_fees
     coinbasevalue += new_fees
 
+    operator_reward = 0
+    if mn_operator_payee is not None:
+        for mn in mninfo:
+            if mn.rewards_address == mn_payee:
+                operator_reward = mn.operator_reward
+                break
+        assert operator_reward > 0
+
+    mn_operator_amount = 0
     if mn_amount is None:
         v20_info = node.getblockchaininfo()['softforks']['v20']
-        mn_amount = get_masternode_payment(height, coinbasevalue, v20_info['active'])
-    miner_amount = coinbasevalue - mn_amount
+        mn_amount_total = get_masternode_payment(height, coinbasevalue, v20_info['active'])
+        mn_operator_amount = mn_amount_total * operator_reward // 100
+        mn_amount = mn_amount_total - mn_operator_amount
+    miner_amount = coinbasevalue - mn_amount - mn_operator_amount
 
     miner_address = node.get_deterministic_priv_key().address
     outputs = {miner_address: str(Decimal(miner_amount) / COIN)}
     if mn_amount > 0:
         outputs[mn_payee] = str(Decimal(mn_amount) / COIN)
+    if mn_operator_amount > 0:
+        outputs[mn_operator_payee] = str(Decimal(mn_operator_amount) / COIN)
 
     coinbase = FromHex(CTransaction(), node.createrawtransaction([], outputs))
     coinbase.vin = create_coinbase(height).vin

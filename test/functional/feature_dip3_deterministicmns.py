@@ -131,7 +131,7 @@ class DIP3Test(BitcoinTestFramework):
             self.assert_mnlist(self.nodes[0], mns_tmp)
 
         self.log.info("cause a reorg with a double spend and check that mnlists are still correct on all nodes")
-        self.mine_double_spend(self.nodes[0], dummy_txins, self.nodes[0].getnewaddress())
+        self.mine_double_spend(mns, self.nodes[0], dummy_txins, self.nodes[0].getnewaddress())
         self.nodes[0].generate(spend_mns_count)
         self.sync_all()
         self.assert_mnlists(mns_tmp)
@@ -139,7 +139,7 @@ class DIP3Test(BitcoinTestFramework):
         self.log.info("test mn payment enforcement with deterministic MNs")
         for i in range(20):
             node = self.nodes[i % len(self.nodes)]
-            self.test_invalid_mn_payment(node)
+            self.test_invalid_mn_payment(mns, node)
             self.nodes[0].generate(1)
             self.sync_all()
 
@@ -218,6 +218,7 @@ class DIP3Test(BitcoinTestFramework):
         mn.idx = idx
         mn.alias = alias
         mn.p2p_port = p2p_port(mn.idx)
+        mn.operator_reward = 0
 
         blsKey = node.bls('generate')
         mn.fundsAddr = node.getnewaddress()
@@ -247,7 +248,7 @@ class DIP3Test(BitcoinTestFramework):
         mn.collateral_address = node.getnewaddress()
         mn.rewards_address = node.getnewaddress()
 
-        mn.protx_hash = node.protx('register_fund', mn.collateral_address, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, mn.rewards_address, mn.fundsAddr)
+        mn.protx_hash = node.protx('register_fund', mn.collateral_address, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, mn.operator_reward, mn.rewards_address, mn.fundsAddr)
         mn.collateral_txid = mn.protx_hash
         mn.collateral_vout = None
 
@@ -263,7 +264,7 @@ class DIP3Test(BitcoinTestFramework):
         node.sendtoaddress(mn.fundsAddr, 0.001)
         mn.rewards_address = node.getnewaddress()
 
-        mn.protx_hash = node.protx('register', mn.collateral_txid, mn.collateral_vout, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, mn.rewards_address, mn.fundsAddr)
+        mn.protx_hash = node.protx('register', mn.collateral_txid, mn.collateral_vout, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, mn.operator_reward, mn.rewards_address, mn.fundsAddr)
         node.generate(1)
 
     def start_mn(self, mn):
@@ -353,15 +354,15 @@ class DIP3Test(BitcoinTestFramework):
 
         return dummy_txin
 
-    def mine_block(self, node, vtx=None, mn_payee=None, mn_amount=None, expected_error=None):
-        block = create_block_with_mnpayments(node, vtx, mn_payee, mn_amount, expected_error)
+    def mine_block(self, mns, node, vtx=None, mn_payee=None, mn_amount=None, expected_error=None):
+        block = create_block_with_mnpayments(mns, node, vtx, mn_payee, mn_amount)
         result = node.submitblock(ToHex(block))
         if expected_error is not None and result != expected_error:
             raise AssertionError('mining the block should have failed with error %s, but submitblock returned %s' % (expected_error, result))
         elif expected_error is None and result is not None:
             raise AssertionError('submitblock returned %s' % (result))
 
-    def mine_double_spend(self, node, txins, target_address):
+    def mine_double_spend(self, mns, node, txins, target_address):
         amount = Decimal(0)
         for txin in txins:
             txout = node.gettxout(txin['txid'], txin['vout'], False)
@@ -372,12 +373,12 @@ class DIP3Test(BitcoinTestFramework):
         rawtx = node.signrawtransactionwithwallet(rawtx)['hex']
         tx = FromHex(CTransaction(), rawtx)
 
-        self.mine_block(node, [tx])
+        self.mine_block(mns, node, [tx])
 
-    def test_invalid_mn_payment(self, node):
+    def test_invalid_mn_payment(self, mns, node):
         mn_payee = self.nodes[0].getnewaddress()
-        self.mine_block(node, mn_payee=mn_payee, expected_error='bad-cb-payee')
-        self.mine_block(node, mn_amount=1, expected_error='bad-cb-payee')
+        self.mine_block(mns, node, mn_payee=mn_payee, expected_error='bad-cb-payee')
+        self.mine_block(mns, node, mn_amount=1, expected_error='bad-cb-payee')
 
 if __name__ == '__main__':
     DIP3Test().main()
