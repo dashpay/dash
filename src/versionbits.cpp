@@ -272,10 +272,4 @@ void VersionBitsCache::Clear()
         caches[d].clear();
     }
 }
-
 AbstractEHFManager* AbstractEHFManager::globalInstance{nullptr};
-
-AbstractEHFManager* AbstractEHFManager::getInstance()
-{
-    return globalInstance;
-}

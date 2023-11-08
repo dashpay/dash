@@ -100,7 +100,9 @@ public:
      * to get access to EHF data
      */
 public:
-    static AbstractEHFManager* getInstance();
+    [[nodiscard]] static gsl::not_null<AbstractEHFManager*> getInstance() {
+        return globalInstance;
+    };
 
     /**
      * `GetSignalsStage' prepares signals for new block.
