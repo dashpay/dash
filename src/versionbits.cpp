@@ -212,7 +212,10 @@ protected:
         if (!deployment.useEHF) {
             return 0;
         }
-        const auto signals = AbstractEHFManager::getInstance()->GetSignalsStage(pindexPrev);
+        const auto ehfManagerPtr = AbstractEHFManager::getInstance();
+        // ehfManager should be initialized before first usage of VersionBitsConditionChecker
+        assert(ehfManager != nullptr);
+        const auto signals = ehfManagerPtr->GetSignalsStage(pindexPrev);
         const auto it = signals.find(deployment.bit);
         if (it == signals.end()) {
             return std::numeric_limits<int>::max();

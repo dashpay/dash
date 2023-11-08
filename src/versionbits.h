@@ -100,7 +100,7 @@ public:
      * to get access to EHF data
      */
 public:
-    [[nodiscard]] static gsl::not_null<AbstractEHFManager*> getInstance() {
+    [[nodiscard]] static AbstractEHFManager* getInstance() {
         return globalInstance;
     };
 
