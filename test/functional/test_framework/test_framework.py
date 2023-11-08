@@ -1272,20 +1272,18 @@ class DashTestFramework(BitcoinTestFramework):
 
     def prepare_masternodes(self):
         self.log.info("Preparing %d masternodes" % self.mn_count)
-        rewardsAddr = self.nodes[0].getnewaddress()
-
         for idx in range(0, self.mn_count):
-            self.prepare_masternode(idx, rewardsAddr, False)
+            self.prepare_masternode(idx)
         self.sync_all()
 
-    def prepare_masternode(self, idx, rewardsAddr=None, evo=False):
+    def prepare_masternode(self, idx):
 
         register_fund = (idx % 2) == 0
 
         bls = self.nodes[0].bls('generate')
         address = self.nodes[0].getnewaddress()
 
-        collateral_amount = EVONODE_COLLATERAL if evo else MASTERNODE_COLLATERAL
+        collateral_amount = MASTERNODE_COLLATERAL
         txid = None
         txid = self.nodes[0].sendtoaddress(address, collateral_amount)
         collateral_vout = 0
@@ -1301,11 +1299,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.nodes[0].sendtoaddress(address, 0.001)
 
         ownerAddr = self.nodes[0].getnewaddress()
-        # votingAddr = self.nodes[0].getnewaddress()
-        if rewardsAddr is None:
-            rewardsAddr = self.nodes[0].getnewaddress()
+        rewardsAddr = self.nodes[0].getnewaddress()
         votingAddr = ownerAddr
-        # rewardsAddr = ownerAddr
 
         port = p2p_port(len(self.nodes) + idx)
         ipAndPort = '127.0.0.1:%d' % port
@@ -1314,7 +1309,6 @@ class DashTestFramework(BitcoinTestFramework):
         submit = (idx % 4) < 2
 
         if register_fund:
-            # self.nodes[0].lockunspent(True, [{'txid': txid, 'vout': collateral_vout}])
             protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
         else:
             self.nodes[0].generate(1)
@@ -1330,10 +1324,9 @@ class DashTestFramework(BitcoinTestFramework):
             operatorPayoutAddress = self.nodes[0].getnewaddress()
             self.nodes[0].protx('update_service', proTxHash, ipAndPort, bls['secret'], operatorPayoutAddress, address)
 
-        self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, rewardsAddr, operatorReward, bls['public'], bls['secret'], address, txid, collateral_vout, ipAndPort, evo))
+        self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, rewardsAddr, operatorReward, bls['public'], bls['secret'], address, txid, collateral_vout, ipAndPort, False))
 
-        mn_type_str = "EvoNode" if evo else "MN"
-        self.log.info("Prepared %s %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (mn_type_str, idx, txid, collateral_vout, proTxHash))
+        self.log.info("Prepared MN %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (idx, txid, collateral_vout, proTxHash))
 
     def remove_masternode(self, idx):
         mn = self.mninfo[idx]
