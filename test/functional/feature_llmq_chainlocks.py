@@ -13,7 +13,7 @@ Checks LLMQs based ChainLocks
 import time
 
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import force_finish_mnsync, assert_equal
+from test_framework.util import force_finish_mnsync, assert_equal, assert_raises_rpc_error
 
 
 class LLMQChainLocksTest(DashTestFramework):
@@ -189,13 +189,8 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.log.info("Add a new node and let it sync")
         added_mn_info_0 = self.dynamically_add_masternode(evo=False)
-        has_chainlock_info = False
-        try:
-            self.log.info(f'{self.nodes[added_mn_info_0.idx].getbestchainlock()}')
-            has_chainlock_info = True
-        except:
-            self.log.info("getbestchainlock() failed on the new node as expected")
-        assert not has_chainlock_info
+        assert_raises_rpc_error(-32603, "Unable to find any chainlock", self.nodes[added_mn_info_0.idx].getbestchainlock)
+
         self.log.info("Test that new node can mine without Chainlock info")
         tip_0 = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), 2)
         self.nodes[added_mn_info_0.idx].generate(1)
@@ -210,13 +205,8 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.log.info("Add a new node and let it sync")
         added_mn_info_1 = self.dynamically_add_masternode(evo=False)
-        has_chainlock_info = False
-        try:
-            self.log.info(f'{self.nodes[added_mn_info_1.idx].getbestchainlock()}')
-            has_chainlock_info = True
-        except:
-            self.log.info("getbestchainlock() failed on the new node as expected")
-        assert not has_chainlock_info
+        assert_raises_rpc_error(-32603, "Unable to find any chainlock", self.nodes[added_mn_info_1.idx].getbestchainlock)
+
         self.log.info("Test that new node can mine without Chainlock info")
         tip_0 = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), 2)
         self.nodes[added_mn_info_1.idx].generate(1)
