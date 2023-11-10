@@ -868,11 +868,10 @@ bool CInstantSendLock::TriviallyValid() const
 
 bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
-    const auto llmqType_opt{GetInstantSendLLMQTypeAtTip(qman, m_chainstate)};
-    if (!llmqType_opt.has_value()) return true; // not an error
-
-    if (llmqType_opt.value() == Params().GetConsensus().llmqTypeDIP0024InstantSend) {
-        // Don't short circuit. Try to process both deterministic and not deterministic islocks independable
+    if (auto llmqType_opt{GetInstantSendLLMQTypeAtTip(qman, m_chainstate)}; !llmqType_opt.has_value()) {
+        return true; // not an error
+    } else if (llmqType_opt.value() == Params().GetConsensus().llmqTypeDIP0024InstantSend) {
+         // Don't short circuit. Try to process both deterministic and not deterministic islocks independable
         bool deterministicRes = ProcessPendingInstantSendLocks(true);
         bool nondeterministicRes = ProcessPendingInstantSendLocks(false);
         return deterministicRes && nondeterministicRes;
