@@ -519,10 +519,9 @@ void CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
     // block after we retroactively locked all transactions.
     if (!IsInstantSendMempoolSigningEnabled() && !fRetroactive) return;
 
-    const auto llmqType_opt{GetInstantSendLLMQTypeAtTip(qman, m_chainstate)};
-    if (!llmqType_opt.has_value()) return;
-
-    if (!TrySignInputLocks(tx, fRetroactive, llmqType_opt.value(), params)) {
+    if (auto llmqType_opt{GetInstantSendLLMQTypeAtTip(qman, m_chainstate)}; !llmqType_opt.has_value()) {
+        return;
+    } else if (!TrySignInputLocks(tx, fRetroactive, llmqType_opt.value(), params)) {
         return;
     }
 
