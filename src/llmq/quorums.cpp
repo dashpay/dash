@@ -1007,7 +1007,7 @@ void CQuorumManager::CleanupOldQuorumData(const CBlockIndex* pIndex) const
 
     LogPrint(BCLog::LLMQ, "CQuorumManager::%d -- start\n", __func__);
     // Platform quorums in all networks are newed every 24h (LLMQ_100_67, LLMQ_25_67, LLMQ_DEVNET_PLATFORM and LLMQ_REGTEST_PLATFORM)
-    // Every month, 24 x 30 quorums are created
+    // During a month, 24 x 30 quorums are created
     // We want to keep data for Platform quorums no older than 2 months since Platform can be restarted and needs to re-sign stuff
     // Hence, we should not clean secret key shares and vvec for those quorums.
     constexpr auto numPlatformQuorumsDataToKeep = 24 * 30 * 2;
