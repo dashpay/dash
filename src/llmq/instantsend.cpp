@@ -545,7 +545,6 @@ bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool fRetroa
         ids.emplace_back(id);
 
         uint256 otherTxHash;
-        // TODO check that we didn't vote for the other IS type also
         if (sigman.GetVoteForId(params.llmqTypeDIP0024InstantSend, id, otherTxHash)) {
             if (otherTxHash != tx.GetHash()) {
                 LogPrintf("CInstantSendManager::%s -- txid=%s: input %s is conflicting with previous vote for tx %s\n", __func__,
