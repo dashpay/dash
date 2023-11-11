@@ -461,13 +461,6 @@ void CInstantSendDb::RemoveAndArchiveInstantSendLock(const gsl::not_null<CInstan
 
 ////////////////
 
-std::optional<Consensus::LLMQType> GetInstantSendLLMQTypeAtTip(const CQuorumManager& qman, const CChainState& chainstate)
-{
-    LOCK(cs_main);
-    const CBlockIndex* tip = chainstate.m_chain.Tip();
-    if (tip == nullptr) return std::nullopt;
-    return std::make_optional(utils::GetInstantSendLLMQType(qman, tip));
-}
 
 void CInstantSendManager::Start()
 {
