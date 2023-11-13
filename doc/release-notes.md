@@ -73,13 +73,13 @@ unlock feature will be activated later by another hard fork.
 Once v20 activates, Coinbase transactions in all mined blocks must be of
 version 3.
 
-Version 3 of the Coinbase transaction will include the following three fields:
+Version 3 of the Coinbase transaction will include the following new fields:
 - `bestCLSignature` (`BLSSignature`) will hold the best Chainlock signature
   known at the moment
 - `bestCLHeightDiff` (`uint32`) is equal to the diff in heights from the mined
   block height
-- `creditPoolBalance` (`int64`) is equal to all the duff locked in all previous
-  blocks minus all the duff unlocked in all previous blocks plus all the block
+- `creditPoolBalance` (`int64`) is equal to all the duffs locked in all previous
+  blocks minus all the duffs unlocked in all previous blocks plus all the block
   subsidy paid to evonodes on Platform.
 
 Although miners are forced to include a version 3 Coinbase transaction, the
@@ -102,10 +102,11 @@ activation and a newly introduced `SPORK_24_TEST_EHF` spork.
 
 ### Fixed subsidy base after `v20`
 
-Starting from `v20` activation base block subsidy on testnet and devnets will no
-longer be calculated based on previous block difficulty. This change mimics
-mainnet behaviour. It also simplifies calculations for Platform which would not
-need to constantly get blocks difficulty in order to calculate platformReward.
+Starting from `v20` activation, the base block subsidy on testnet and devnets
+will no longer be calculated based on previous block difficulty. This change
+mimics mainnet behaviour. It also simplifies calculations for Platform which
+would not need to constantly get block's difficulty in order to calculate
+platform reward.
 
 ## Sentinel deprecation
 
@@ -157,19 +158,19 @@ introduced unbroadcast set.
 ### `MNLISTDIFF` P2P message
 
 Starting with protocol version `70230`, the following fields are added to the
-`MNLISTDIFF` after `newQuorums`.
+`MNLISTDIFF` message after `newQuorums`.
 
 | Field | Type | Size | Description |
 |-|-|-|-|
 | quorumsCLSigsCount | compactSize uint | 1-9 | Number of quorumsCLSigs elements |
-| quorumsCLSigs | quorumsCLSigsObject[] | variable | CL Sig used to calculatemmembers per quorum indexes (in newQuorums) |
+| quorumsCLSigs | quorumsCLSigsObject[] | variable | ChainLock signature used to calculate members per quorum indexes (in newQuorums) |
 
 The content of `quorumsCLSigsObject`:
 
 | Field | Type | Size | Description |
 |-|-|-|-|
 | signature | BLSSig | 96 | ChainLock signature |
-| indexSetCount | compactSize uint | 1-9  Number of quorum indexes using the same `signature` for their member calculation |
+| indexSetCount | compactSize uint | 1-9 | Number of quorum indexes using the same `signature` for their member calculation |
 | indexSet | uint16_t[] | variable | Quorum indexes corresponding in `newQuorums` using `signature` for their member calculation |
 
 Note: The `quorumsCLSigs` field in both RPC and P2P will only be populated after
@@ -184,9 +185,9 @@ the v20 activation.
 
 ## GUI
 
-Add more granular CoinJoin options to let user control the number of CoinJoin
-sessions and also the min/max number of denominations for wallet to create while
-mixing.
+Add more granular CoinJoin options to let users control the number of CoinJoin
+sessions and also the min/max number of denominations for wallets to create
+while mixing.
 
 ## Remote Procedure Call (RPC) Changes
 
@@ -200,7 +201,7 @@ mixing.
   `index_name` to specify returning only the status of that index.
 
 - `protx listdiff` RPC returns a full deterministic masternode list diff
-  between two heigts.
+  between two heights.
 
 ### The removed RPCs are:
 
@@ -210,7 +211,7 @@ mixing.
 
 - The `fundrawtransaction`, `sendmany`, `sendtoaddress`, and
   `walletcreatefundedpsbt` RPC commands have been updated to include two new
-  fee estimation methods `DASH/kB` and `duff/B`. The target is the fee
+  fee estimation methods, `DASH/kB` and `duff/B`. The target is the fee
   expressed explicitly in the given form. In addition, the `estimate_mode`
   parameter is now case insensitive for all of the above RPC commands.
 
@@ -227,7 +228,7 @@ mixing.
 - `getblocktemplate` no longer returns a `rules` array containing `CSV`
   (the BIP 9 deployments that are currently in active state).
 
-- The `gettransaction` RPC now accepts a third (boolean) argument `verbose`.
+- The `gettransaction` RPC now accepts a third (boolean) argument, `verbose`.
   If set to `true`, a new `decoded` field will be added to the response
   containing the decoded transaction. This field is equivalent to RPC
   `decoderawtransaction`, or RPC `getrawtransaction` when `verbose` is passed.
@@ -237,7 +238,7 @@ mixing.
   Section [_Removal of reject network messages from Dash Core (BIP61)_](#removal-of-reject-network-messages-from-dash-core-bip61) above for
   details on the removal of BIP61 `REJECT` message support.
 
-- A new descriptor type `sortedmulti(...)` has been added to support multisig
+- A new descriptor type, `sortedmulti(...)`, has been added to support multisig
   scripts where the public keys are sorted lexicographically in the resulting
   script.
 
@@ -263,7 +264,7 @@ mixing.
   - `verifymessage` now returns `RPC_TYPE_ERROR (-3)` if the passed signature
     is malformed. Previously returned `RPC_INVALID_ADDRESS_OR_KEY (-5)`.
 
-- The `settxfee` RPC will fail if the fee was set higher than the `-maxtxfee`
+- The `settxfee` RPC will fail if the fee is set higher than the `-maxtxfee`
   command line setting. The wallet will already fail to create transactions
   with fees higher than `-maxtxfee`.
 
@@ -277,11 +278,11 @@ mixing.
   whether initial broadcast of the transaction has been acknowledged by a
   peer. `getmempoolancestors` and `getmempooldescendants` are also updated.
 
-- `logging` and `debug` rpc support new logging catefories `validations` and
+- `logging` and `debug` rpc support new logging categories `validations` and
   `i2p`
 
-  - `gettxoutsetinfo` rpc has 2 new params and lots of new fields in results.
-  Please check `help gettxoutsetinfo` for more information.
+  - `gettxoutsetinfo` RPC has 2 new parameters and lots of new fields in
+  results. Please check `help gettxoutsetinfo` for more information.
 
 - `gettxchainlocks` Returns the block height each transaction was mined at and
   whether it is chainlocked or not.
@@ -314,11 +315,12 @@ mixing.
   - `protx register_prepare_hpmn` to `protx register_prepare_evo`
   - `protx update_service_hpmn` to `protx update_service_evo`
 
-  Please note that `*_hpmn` RPCs are not fully removed, instead they are
-  deprecated so you can still enable them by using `-deprecatedrpc=hpmn` option.
+  Please note that `*_hpmn` RPCs are not fully removed; instead they are
+  deprecated so you can still enable them by using the `-deprecatedrpc=hpmn`
+  option.
 
-- `masternode count` return total number of EvoNodes under field `evo` instead
-  of `hpmn`.
+- `masternode count` returns the total number of evonodes under field `evo`
+  instead of `hpmn`.
 
 - `masternodelist`: New mode `evo` filters only HPMNs.
 
@@ -422,8 +424,9 @@ dash-cli -named createwallet mywallet load_on_startup=1
 
 ## Switch from Gitian to Guix
 
-Starting from v20.0.0 deterministic build are going to be produced using Guix
-build system. See [contrib/guix/README.md][guix-readme]. The previousely used
+Starting from v20.0.0 deterministic builds are going to be produced using the
+Guix build system. See [contrib/guix/README.md][guix-readme]. The previously
+used
 Gitian build system is no longer supported and is not guaranteed to produce any
 meaningful results.
 
