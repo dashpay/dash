@@ -40,7 +40,7 @@ reindex or re-sync the whole chain.
 
 To improve long-living masternode quorum (LLMQ) selection, the `v20` hard fork
 will enable a new random beacon using ChainLock signatures as described in
-[DIP-0029][DIP-0029]. ChainLock signatures will be stored in the coinbase
+[DIP-0029][DIP-0029]. ChainLock signatures will be stored in the Coinbase
 transaction to be used as a source of randomness during quorum member
 calculations. This change increases the decentralization in the source of
 randomness and prevents masternodes or miners from being able to manipulate the
@@ -68,12 +68,12 @@ Dash by withdrawing them from Dash Platform.
 Note: The asset lock feature is activated by the `v20` hard fork while the asset
 unlock feature will be activated later by another hard fork.
 
-## Coinbase Changes
+## Coinbase Transaction Changes
 
 Once v20 activates, Coinbase transactions in all mined blocks must be of
 version 3.
 
-Version 3 of Coinbase will include the following three fields:
+Version 3 of the Coinbase transaction will include the following three fields:
 - `bestCLSignature` (`BLSSignature`) will hold the best Chainlock signature
   known at the moment
 - `bestCLHeightDiff` (`uint32`) is equal to the diff in heights from the mined
@@ -82,13 +82,13 @@ Version 3 of Coinbase will include the following three fields:
   blocks minus all the duff unlocked in all previous blocks plus all the block
   subsidy paid to evonodes on Platform.
 
-Although miners are forced to include a version 3 Coinbase, the actual
-real-time best Chainlock signature isn't required as long as blocks contain a
-`bestCLSignature` equal to (or newer than) the previous block.
+Although miners are forced to include a version 3 Coinbase transaction, the
+actual real-time best Chainlock signature isn't required as long as blocks
+contain a `bestCLSignature` equal to (or newer than) the previous block.
 
-Note: Until the first `bestCLSignature` is included in a Coinbase once v20
-activates, null `bestCLSignature` and `bestCLHeightDiff` values are perfectly
-valid.
+Note: Until the first `bestCLSignature` is included in a Coinbase transaction
+once v20 activates, null `bestCLSignature` and `bestCLHeightDiff` values are
+perfectly valid.
 
 ## Testnet Breaking Changes
 
