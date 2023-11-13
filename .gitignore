@@ -33,6 +33,8 @@ cmake-build-debug
 
 # cppcheck cache-directory
 test/lint/.cppcheck/*
+# lint test runner build directory
+test/lint/test_runner/target/
 
 # flake8 cache location
 .cache/*

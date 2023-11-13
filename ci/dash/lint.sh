@@ -25,6 +25,7 @@ if [ "$CHECK_DOC" = 1 ]; then
     #test/lint/git-subtree-check.sh src/leveldb
     # TODO: Check docs (re-enable after all Bitcoin PRs have been merged and docs fully fixed)
     #test/lint/check-doc.py
+    RUST_BACKTRACE=1 cargo run --manifest-path "./test/lint/test_runner/Cargo.toml"
     # Run all linters
     test/lint/all-lint.py
 fi

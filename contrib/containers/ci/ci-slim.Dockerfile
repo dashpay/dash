@@ -39,6 +39,7 @@ RUN set -ex; \
     bsdmainutils \
     build-essential \
     ca-certificates \
+    cargo \
     curl \
     e2fsprogs \
     g++ \

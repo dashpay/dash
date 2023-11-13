@@ -52,6 +52,14 @@ makes it work from a git worktree. `COMMIT_RANGE` uses your local `develop`, so 
 branch current with `dashpay/dash`. The cppcheck cache is kept in the git-ignored
 `ci/scratch/cache/` directory to speed up reruns.
 
+test runner
+===========
+
+To run the checks in the test runner outside the docker, use:
+
+```sh
+( cd ./test/lint/test_runner/ && cargo fmt && cargo clippy && cargo run )
+```
 
 check-doc.py
 ============
