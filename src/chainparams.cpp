@@ -215,7 +215,7 @@ public:
 
         consensus.vDeployments[Consensus::DEPLOYMENT_MN_RR].bit = 10;
         consensus.vDeployments[Consensus::DEPLOYMENT_MN_RR].nStartTime = 1704088800;   // January 1, 2024
-        consensus.vDeployments[Consensus::DEPLOYMENT_MN_RR].nTimeout = 1767247200; // January 1, 2026
+        consensus.vDeployments[Consensus::DEPLOYMENT_MN_RR].nTimeout = 1767225600; // January 1, 2026
         // NOTE: nWindowSize for MN_RR __MUST__ be greater than or equal to nSuperblockMaturityWindow for CSuperblock::GetPaymentsLimit() to work correctly
         consensus.vDeployments[Consensus::DEPLOYMENT_MN_RR].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_MN_RR].nThresholdStart = 3226;     // 80% of 4032
