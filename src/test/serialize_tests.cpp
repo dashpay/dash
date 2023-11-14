@@ -91,6 +91,8 @@ BOOST_AUTO_TEST_CASE(sizes)
     BOOST_CHECK_EQUAL(GetSerializeSize(int64_t(0), 0), 8U);
     BOOST_CHECK_EQUAL(GetSerializeSize(uint64_t(0), 0), 8U);
     BOOST_CHECK_EQUAL(GetSerializeSize(bool(0), 0), 1U);
+    BOOST_CHECK_EQUAL(GetSerializeSize(std::array<uint8_t, 1>{0}, 0), 1U);
+    BOOST_CHECK_EQUAL(GetSerializeSize(std::array<uint8_t, 2>{0, 0}, 0), 2U);
 }
 
 BOOST_AUTO_TEST_CASE(varints)
@@ -229,6 +231,16 @@ BOOST_AUTO_TEST_CASE(dynbitset_accepts_maximum_size)
     std::vector<bool> decoded;
     s >> DYNBITSET(decoded);
     BOOST_CHECK(decoded == original);
+}
+
+BOOST_AUTO_TEST_CASE(array)
+{
+    std::array<uint8_t, 32> array1{1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1};
+    DataStream ds;
+    ds << array1;
+    std::array<uint8_t, 32> array2;
+    ds >> array2;
+    BOOST_CHECK(array1 == array2);
 }
 
 BOOST_AUTO_TEST_CASE(noncanonical)
