@@ -82,7 +82,7 @@ void SerializeToVector(Stream& s, const X&... args)
 
 // Takes a stream and multiple arguments and unserializes them first as a vector then each object individually in the order provided in the arguments
 template<typename Stream, typename... X>
-void UnserializeFromVector(Stream& s, X&... args)
+void UnserializeFromVector(Stream& s, X&&... args)
 {
     size_t expected_size = ReadCompactSize(s);
     size_t remaining_before = s.size();
@@ -186,7 +186,7 @@ struct PSBTInput
         // Write the utxo
         if (non_witness_utxo) {
             SerializeToVector(s, CompactSizeWriter(PSBT_IN_NON_WITNESS_UTXO));
-            SerializeToVector(s, non_witness_utxo);
+            SerializeToVector(s, TX_NO_WITNESS(non_witness_utxo));
         }
 
         if (final_script_sig.empty()) {
@@ -289,7 +289,7 @@ struct PSBTInput
                     } else if (key.size() != 1) {
                         throw std::ios_base::failure("Non-witness utxo key is more than one byte type");
                     }
-                    UnserializeFromVector(s, non_witness_utxo);
+                    UnserializeFromVector(s, TX_NO_WITNESS(non_witness_utxo));
                     break;
                 case PSBT_IN_PARTIAL_SIG:
                 {
@@ -634,7 +634,7 @@ struct PartiallySignedTransaction
         SerializeToVector(s, CompactSizeWriter(PSBT_GLOBAL_UNSIGNED_TX));
 
         // Write serialized tx to a stream
-        SerializeToVector(s, *tx);
+        SerializeToVector(s, TX_NO_WITNESS(*tx));
 
         // Write xpubs
         for (const auto& xpub_pair : m_xpubs) {
@@ -723,7 +723,7 @@ struct PartiallySignedTransaction
                         throw std::ios_base::failure("Global unsigned tx key is more than one byte type");
                     }
                     CMutableTransaction mtx;
-                    UnserializeFromVector(s, mtx);
+                    UnserializeFromVector(s, TX_NO_WITNESS(mtx));
                     tx = std::move(mtx);
                     // Make sure that all scriptSigs are empty
                     for (const CTxIn& txin : tx->vin) {

@@ -104,9 +104,9 @@ CScript ParseScript(const std::string& s)
 
 static bool DecodeTx(CMutableTransaction& tx, const std::vector<unsigned char>& tx_data)
 {
-    CDataStream ssData(tx_data, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssData(tx_data);
     try {
-        ssData >> tx;
+        ssData >> TX_NO_WITNESS(tx);
         if (!ssData.empty()) {
             return false;
         }
@@ -147,9 +147,9 @@ bool DecodeHexBlk(CBlock& block, const std::string& strHexBlk)
         return false;
 
     std::vector<unsigned char> blockData(ParseHex(strHexBlk));
-    CDataStream ssBlock(blockData, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssBlock(blockData);
     try {
-        ssBlock >> block;
+        ssBlock >> TX_NO_WITNESS(block);
     }
     catch (const std::exception&) {
         return false;

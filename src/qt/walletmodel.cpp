@@ -368,8 +368,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction& tran
                                    QString::fromStdString(error.translated.empty() ? error.original : error.translated));
         }
 
-        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-        ssTx << *newTx;
+        DataStream ssTx;
+        ssTx << TX_NO_WITNESS(*newTx);
         transaction_array.append((const char*)ssTx.data(), ssTx.size());
     }
 

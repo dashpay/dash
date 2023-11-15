@@ -92,7 +92,7 @@ uint256 ComputeStableUnlockHash(const TxType& tx)
 Txid CMutableTransaction::GetHash() const
 {
     if (IsAssetUnlockWithStableTxid(*this)) return Txid::FromUint256(ComputeStableUnlockHash(*this));
-    return Txid::FromUint256(SerializeHash(*this));
+    return Txid::FromUint256((HashWriter{} << TX_NO_WITNESS(*this)).GetHash());
 }
 
 std::string CMutableTransaction::ToString() const
@@ -116,7 +116,7 @@ std::string CMutableTransaction::ToString() const
 Txid CTransaction::ComputeHash() const
 {
     if (IsAssetUnlockWithStableTxid(*this)) return Txid::FromUint256(ComputeStableUnlockHash(*this));
-    return Txid::FromUint256(SerializeHash(*this));
+    return Txid::FromUint256((HashWriter{} << TX_NO_WITNESS(*this)).GetHash());
 }
 
 uint256 CTransaction::GetInstanceHash() const
@@ -142,7 +142,7 @@ CAmount CTransaction::GetValueOut() const
 
 unsigned int CTransaction::GetTotalSize() const
 {
-    return ::GetSerializeSize(*this, PROTOCOL_VERSION);
+    return ::GetSerializeSize(TX_NO_WITNESS(*this));
 }
 
 std::string CTransaction::ToString() const

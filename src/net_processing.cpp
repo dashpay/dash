@@ -2911,7 +2911,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
     }
     if (pblock) {
         if (inv.IsMsgBlk()) {
-            m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+            m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::BLOCK, TX_NO_WITNESS(*pblock)));
         } else if (inv.IsMsgFilteredBlk()) {
             bool sendMerkleBlock = false;
             CMerkleBlock merkleBlock;
@@ -2932,7 +2932,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
                 // however we MUST always provide at least what the remote peer needs
                 typedef std::pair<unsigned int, uint256> PairType;
                 for (PairType &pair : merkleBlock.vMatchedTxn) {
-                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::TX, *pblock->vtx[pair.first]));
+                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::TX, TX_NO_WITNESS(*pblock->vtx[pair.first])));
                 }
                 for (PairType &pair : merkleBlock.vMatchedTxn) {
                     auto islock = m_isman.GetInstantSendLockByTxid(pair.second);
@@ -2958,7 +2958,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
                     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));
                 }
             } else {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::BLOCK, TX_NO_WITNESS(*pblock)));
             }
         }
     }
@@ -3051,7 +3051,7 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
                 if (dstx) {
                     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::DSTX, dstx));
                 } else {
-                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::TX, *tx));
+                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::TX, TX_NO_WITNESS(*tx)));
                 }
                 m_mempool.RemoveUnbroadcastTx(tx->GetHash());
                 push = true;
@@ -4909,7 +4909,7 @@ void PeerManagerImpl::ProcessMessage(
             // will re-announce the new block via headers (or compact blocks again)
             // in the SendMessages logic.
             nodestate->pindexBestHeaderSent = pindex ? pindex : m_chainman.ActiveChain().Tip();
-            m_connman.PushMessage(&pfrom, msgMaker.Make(msg_type_internal, v_headers));
+            m_connman.PushMessage(&pfrom, msgMaker.Make(msg_type_internal, TX_NO_WITNESS(v_headers)));
         };
 
         LogPrint(BCLog::NET, "%s %d to %s from peer=%d\n", msg_type, (pindex ? pindex->nHeight : -1), hashStop.IsNull() ? "end" : hashStop.ToString(), pfrom.GetId());
@@ -4948,7 +4948,7 @@ void PeerManagerImpl::ProcessMessage(
             ptx = dstx.tx;
             nInvType = MSG_DSTX;
         } else {
-            vRecv >> ptx;
+            vRecv >> TX_NO_WITNESS(ptx);
         }
         const CTransaction& tx = *ptx;
 
@@ -5424,7 +5424,7 @@ void PeerManagerImpl::ProcessMessage(
         }
 
         std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
-        vRecv >> *pblock;
+        vRecv >> TX_NO_WITNESS(*pblock);
 
         LogPrint(BCLog::NET, "received block %s peer=%d\n", pblock->GetHash().ToString(), pfrom.GetId());
 
@@ -6623,7 +6623,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                         LogPrint(BCLog::NET, "%s: sending header %s to peer=%d\n", __func__,
                                 vHeaders.front().GetHash().ToString(), pto->GetId());
                     }
-                    m_connman.PushMessage(pto, msgMaker.Make(NetMsgType::HEADERS, vHeaders));
+                    m_connman.PushMessage(pto, msgMaker.Make(NetMsgType::HEADERS, TX_NO_WITNESS(vHeaders)));
                     state.pindexBestHeaderSent = pBestIndex;
                 } else
                     fRevertToInv = true;

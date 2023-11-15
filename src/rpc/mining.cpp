@@ -407,8 +407,8 @@ static RPCHelpMan generateblock()
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("hash", block_out->GetHash().GetHex());
     if (!process_new_block) {
-        CDataStream block_ser{SER_NETWORK, PROTOCOL_VERSION};
-        block_ser << *block_out;
+        DataStream block_ser;
+        block_ser << TX_NO_WITNESS(*block_out);
         obj.pushKV("hex", HexStr(block_ser));
     }
     return obj;

@@ -5636,7 +5636,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     if (!pindex || (pindex->nStatus & BLOCK_HAVE_DATA) == 0) {
                         // This block can be processed immediately; deserialize it.
                         pblock = std::make_shared<CBlock>();
-                        SpanReader{SER_DISK, CLIENT_VERSION, MakeUCharSpan(block_data)} >> *pblock;
+                        SpanReader{SER_DISK, CLIENT_VERSION, MakeUCharSpan(block_data)} >> TX_NO_WITNESS(*pblock);
 
                         BlockValidationState state;
                         if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, &hash)) {

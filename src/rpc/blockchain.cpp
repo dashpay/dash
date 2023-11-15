@@ -1044,8 +1044,8 @@ static RPCHelpMan getblock()
 
     if (verbosity <= 0)
     {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
+        DataStream ssBlock;
+        ssBlock << TX_NO_WITNESS(block);
         std::string strHex = HexStr(ssBlock);
         return strHex;
     }

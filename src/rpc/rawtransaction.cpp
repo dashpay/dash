@@ -1692,7 +1692,7 @@ static RPCHelpMan finalizepsbt()
     std::string result_str;
 
     if (complete && extract) {
-        ssTx << mtx;
+        ssTx << TX_NO_WITNESS(mtx);
         result_str = HexStr(ssTx);
         result.pushKV("hex", result_str);
     } else {
@@ -2102,8 +2102,8 @@ RPCHelpMan descriptorprocesspsbt()
         CMutableTransaction mtx;
         PartiallySignedTransaction psbtx_copy = psbtx;
         CHECK_NONFATAL(FinalizeAndExtractPSBT(psbtx_copy, mtx));
-        CDataStream ssTx_final(SER_NETWORK, PROTOCOL_VERSION);
-        ssTx_final << mtx;
+        DataStream ssTx_final;
+        ssTx_final << TX_NO_WITNESS(mtx);
         result.pushKV("hex", HexStr(ssTx_final));
     }
     return result;

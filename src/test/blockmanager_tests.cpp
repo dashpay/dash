@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
     // 8 bytes (for serialization header) + the stored (possibly compressed) genesis block
     // add another 8 bytes for the second block's serialization header
     const uint32_t stored_genesis_size{ReadSizeField(blockman, pos) & BLOCK_RECORD_SIZE_MASK};
-    BOOST_CHECK(stored_genesis_size <= ::GetSerializeSize(params->GenesisBlock(), CLIENT_VERSION));
+    BOOST_CHECK(stored_genesis_size <= ::GetSerializeSize(TX_NO_WITNESS(params->GenesisBlock())));
     FlatFilePos actual{blockman.SaveBlockToDisk(params->GenesisBlock(), 1, nullptr)};
     BOOST_CHECK_EQUAL(actual.nPos, BLOCK_SERIALIZATION_HEADER_SIZE + stored_genesis_size + BLOCK_SERIALIZATION_HEADER_SIZE);
 }

@@ -70,7 +70,7 @@ bool TxIndex::CustomAppend(const interfaces::BlockInfo& block)
     vPos.reserve(block.data->vtx.size());
     for (const auto& tx : block.data->vtx) {
         vPos.emplace_back(tx->GetHash(), pos);
-        pos.nTxOffset += ::GetSerializeSize(*tx, CLIENT_VERSION);
+        pos.nTxOffset += ::GetSerializeSize(TX_NO_WITNESS(*tx));
     }
     return m_db->WriteTxs(vPos);
 }
@@ -94,7 +94,7 @@ bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRe
         util::ZstdFileReader block_in{OpenRecordPayload(file)};
         block_in >> header;
         block_in.ignore(postx.nTxOffset);
-        block_in >> tx;
+        block_in >> TX_NO_WITNESS(tx);
     } catch (const std::exception& e) {
         LogError("%s: Deserialize or I/O error - %s\n", __func__, e.what());
         return false;
