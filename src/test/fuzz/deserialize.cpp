@@ -33,7 +33,6 @@
 
 void initialize_deserialize()
 {
-    return;
 }
 
 #define FUZZ_TARGET_DESERIALIZE(name, code)                \
