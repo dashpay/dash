@@ -285,8 +285,12 @@ mkdir -p "$DISTSRC"
     # Build Dash Core
     make --jobs="$JOBS" ${V:+V=1}
 
-    # Create dSYM-s for macos
-    make -C src osx_debug
+    # Make macos-specific debug symbols
+    case "$HOST" in
+        *darwin*)
+            make -C src/ osx_debug
+            ;;
+    esac
 
     # Check that symbol/security checks tools are sane.
     make test-security-check ${V:+V=1}
