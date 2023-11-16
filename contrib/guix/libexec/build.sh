@@ -299,6 +299,9 @@ mkdir -p "$DISTSRC"
         *mingw*)
             make deploy ${V:+V=1} BITCOIN_WIN_INSTALLER="${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
             ;;
+        *darwin*)
+            make -C src/ osx_debug --jobs="$JOBS"
+            ;;
     esac
 
     # Setup the directory where our Dash Core build for HOST will be
