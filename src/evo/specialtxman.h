@@ -9,6 +9,8 @@
 #include <sync.h>
 #include <threadsafety.h>
 
+#include <optional>
+
 class BlockValidationState;
 class CBlock;
 class CBlockIndex;
