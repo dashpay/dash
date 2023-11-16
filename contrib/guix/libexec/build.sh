@@ -285,6 +285,9 @@ mkdir -p "$DISTSRC"
     # Build Dash Core
     make --jobs="$JOBS" ${V:+V=1}
 
+    # Create dSYM-s for macos
+    make -C src osx_debug
+
     # Check that symbol/security checks tools are sane.
     make test-security-check ${V:+V=1}
     # Perform basic security checks on a series of executables.
@@ -298,9 +301,6 @@ mkdir -p "$DISTSRC"
     case "$HOST" in
         *mingw*)
             make deploy ${V:+V=1} BITCOIN_WIN_INSTALLER="${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
-            ;;
-        *darwin*)
-            make -C src/ osx_debug --jobs="$JOBS"
             ;;
     esac
 
@@ -357,7 +357,10 @@ mkdir -p "$DISTSRC"
         rm -rf "${DISTNAME}/lib/pkgconfig"
 
         case "$HOST" in
-            *darwin*) ;;
+            *darwin*)
+                # Copy dSYM-s
+                find ../src -name "*.dSYM" -exec cp -ra {} "${DISTNAME}/bin" \;
+                ;;
             *)
                 # Split binaries and libraries from their debug symbols
                 {
@@ -406,12 +409,12 @@ mkdir -p "$DISTSRC"
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" && exit 1 )
                 ;;
             *darwin*)
-                find "${DISTNAME}" -not -name "*.dSYM" -print0 \
+                find "${DISTNAME}" -not -path "*.dSYM*" -print0 \
                     | sort --zero-terminated \
                     | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" \
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" && exit 1 )
-                find "${DISTNAME}" -name "*.dSYM" -print0 \
+                find "${DISTNAME}" -path "*.dSYM*" -print0 \
                     | sort --zero-terminated \
                     | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" \
