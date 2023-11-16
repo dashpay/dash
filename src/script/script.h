@@ -51,7 +51,7 @@ std::vector<unsigned char> ToByteVector(const T& in)
 }
 
 /** Script opcodes */
-enum opcodetype
+enum opcodetype : uint8_t
 {
     // push value
     OP_0 = 0x00,
@@ -430,8 +430,7 @@ public:
 
     CScript& operator<<(opcodetype opcode)
     {
-        if (opcode < 0 || opcode > 0xff)
-            throw std::runtime_error("CScript::operator<<(): invalid opcode");
+        static_assert(std::numeric_limits<std::underlying_type_t<opcodetype>>::min() == 0 && std::numeric_limits<std::underlying_type_t<opcodetype>>::max() == 0xff);
         insert(end(), (unsigned char)opcode);
         return *this;
     }

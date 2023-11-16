@@ -24,25 +24,25 @@ LLMQContext::LLMQContext(CChainState& chainstate, CConnman& connman, CEvoDB& evo
                          const std::unique_ptr<PeerManager>& peerman, bool unit_tests, bool wipe) :
     bls_worker{std::make_shared<CBLSWorker>()},
     dkg_debugman{std::make_unique<llmq::CDKGDebugManager>()},
-    quorum_block_processor{[&]() -> llmq::CQuorumBlockProcessor* const {
+    quorum_block_processor{[&]() -> llmq::CQuorumBlockProcessor* {
         assert(llmq::quorumBlockProcessor == nullptr);
         llmq::quorumBlockProcessor = std::make_unique<llmq::CQuorumBlockProcessor>(chainstate, connman, evo_db, peerman);
         return llmq::quorumBlockProcessor.get();
     }()},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(*bls_worker, chainstate, connman, *dkg_debugman, *quorum_block_processor, sporkman, peerman, unit_tests, wipe)},
-    qman{[&]() -> llmq::CQuorumManager* const {
+    qman{[&]() -> llmq::CQuorumManager* {
         assert(llmq::quorumManager == nullptr);
         llmq::quorumManager = std::make_unique<llmq::CQuorumManager>(*bls_worker, chainstate, connman, *qdkgsman, evo_db, *quorum_block_processor, ::masternodeSync, peerman);
         return llmq::quorumManager.get();
     }()},
     sigman{std::make_unique<llmq::CSigningManager>(connman, *llmq::quorumManager, peerman, unit_tests, wipe)},
     shareman{std::make_unique<llmq::CSigSharesManager>(connman, *llmq::quorumManager, *sigman, peerman)},
-    clhandler{[&]() -> llmq::CChainLocksHandler* const {
+    clhandler{[&]() -> llmq::CChainLocksHandler* {
         assert(llmq::chainLocksHandler == nullptr);
         llmq::chainLocksHandler = std::make_unique<llmq::CChainLocksHandler>(chainstate, connman, *::masternodeSync, *llmq::quorumManager, *sigman, *shareman, sporkman, mempool, peerman);
         return llmq::chainLocksHandler.get();
     }()},
-    isman{[&]() -> llmq::CInstantSendManager* const {
+    isman{[&]() -> llmq::CInstantSendManager* {
         assert(llmq::quorumInstantSendManager == nullptr);
         llmq::quorumInstantSendManager = std::make_unique<llmq::CInstantSendManager>(*llmq::chainLocksHandler, chainstate, connman, *llmq::quorumManager, *sigman, *shareman, sporkman, mempool, *::masternodeSync, peerman, unit_tests, wipe);
         return llmq::quorumInstantSendManager.get();
