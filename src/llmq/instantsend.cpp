@@ -448,17 +448,6 @@ std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256
     return result;
 }
 
-void CInstantSendDb::RemoveAndArchiveInstantSendLock(const gsl::not_null<CInstantSendLockPtr>& islock, int nHeight)
-{
-    LOCK(cs_db);
-
-    CDBBatch batch(*db);
-    const auto hash = ::SerializeHash(*islock);
-    RemoveInstantSendLock(batch, hash, islock, false);
-    WriteInstantSendLockArchived(batch, hash, nHeight);
-    db->WriteBatch(batch);
-}
-
 ////////////////
 
 
@@ -704,12 +693,14 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
         islock.inputs.emplace_back(in.prevout);
     }
 
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
-    assert(llmq_params_opt);
-    LOCK(cs_main);
-    const auto dkgInterval = llmq_params_opt->dkgInterval;
-    const auto quorumHeight = m_chainstate.m_chain.Height() - (m_chainstate.m_chain.Height() % dkgInterval);
-    islock.cycleHash = m_chainstate.m_chain[quorumHeight]->GetBlockHash();
+    {
+        const auto &llmq_params_opt = GetLLMQParams(llmqType);
+        assert(llmq_params_opt);
+        LOCK(cs_main);
+        const auto dkgInterval = llmq_params_opt->dkgInterval;
+        const auto quorumHeight = m_chainstate.m_chain.Height() - (m_chainstate.m_chain.Height() % dkgInterval);
+        islock.cycleHash = m_chainstate.m_chain[quorumHeight]->GetBlockHash();
+    }
 
     auto id = islock.GetRequestId();
 
@@ -1036,13 +1027,12 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     if (sameTxIsLock != nullptr) {
         // can happen, nothing to do
         return;
-    } else {
-        for (const auto& in : islock->inputs) {
-            const auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
-            if (sameOutpointIsLock != nullptr) {
-                LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting outpoint in islock. input=%s, other islock=%s, peer=%d\n", __func__,
-                          islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*sameOutpointIsLock).ToString(), from);
-            }
+    }
+    for (const auto& in : islock->inputs) {
+        const auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
+        if (sameOutpointIsLock != nullptr) {
+            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting outpoint in islock. input=%s, other islock=%s, peer=%d\n", __func__,
+                      islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*sameOutpointIsLock).ToString(), from);
         }
     }
 

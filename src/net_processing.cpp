@@ -2259,8 +2259,7 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             if (!push && inv.type == MSG_ISDLOCK) {
                 llmq::CInstantSendLock o;
                 if (m_llmq_ctx->isman->GetInstantSendLockByHash(inv.hash, o)) {
-                    const auto msg_type = NetMsgType::ISDLOCK;
-                    m_connman.PushMessage(&pfrom, msgMaker.Make(msg_type, o));
+                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, o));
                     push = true;
                 }
             }

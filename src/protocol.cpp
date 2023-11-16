@@ -82,7 +82,6 @@ MAKE_MSG(QSIGSHARE, "qsigshare");
 MAKE_MSG(QGETDATA, "qgetdata");
 MAKE_MSG(QDATA, "qdata");
 MAKE_MSG(CLSIG, "clsig");
-MAKE_MSG(ISLOCK, "islock");
 MAKE_MSG(ISDLOCK, "isdlock");
 MAKE_MSG(MNAUTH, "mnauth");
 MAKE_MSG(GETHEADERS2, "getheaders2");
@@ -163,7 +162,6 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::QGETDATA,
     NetMsgType::QDATA,
     NetMsgType::CLSIG,
-    NetMsgType::ISLOCK,
     NetMsgType::ISDLOCK,
     NetMsgType::MNAUTH,
     NetMsgType::GETHEADERS2,
