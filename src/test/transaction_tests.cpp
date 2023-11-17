@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(tx_oversized)
         return CTransaction(tx);
     };
     const auto maxTransactionSize = MAX_LEGACY_BLOCK_SIZE;
-    const auto oversizedTransactionBaseSize = ::GetSerializeSize(createTransaction(maxTransactionSize), PROTOCOL_VERSION) - maxTransactionSize;
+    const auto oversizedTransactionBaseSize = ::GetSerializeSize(TX_NO_WITNESS(createTransaction(maxTransactionSize))) - maxTransactionSize;
 
     auto maxPayloadSize = maxTransactionSize - oversizedTransactionBaseSize;
     {

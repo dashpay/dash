@@ -2224,9 +2224,9 @@ void FuncTestMinerServiceUpdateWithParentBeforeKeyChange(TestChainSetup& setup, 
 
     TemplatePositions(setup, {});
     const auto base_size{static_cast<size_t>(*Assert(node::BlockAssembler::m_last_block_size))};
-    const size_t service_size{::GetSerializeSize(CTransaction(tx_parent), PROTOCOL_VERSION) +
-                              ::GetSerializeSize(CTransaction(tx_serv), PROTOCOL_VERSION)};
-    const size_t key_change_size{::GetSerializeSize(CTransaction(tx_key_change), PROTOCOL_VERSION)};
+    const size_t service_size{::GetSerializeSize(CTransaction(tx_parent)) +
+                              ::GetSerializeSize(CTransaction(tx_serv))};
+    const size_t key_change_size{::GetSerializeSize(CTransaction(tx_key_change))};
     const size_t block_max_size{base_size + std::max(service_size, key_change_size) + 1};
     const auto positions = TemplatePositions(setup, txs, block_max_size);
     BOOST_CHECK(positions.count(tx_key_change.GetHash()));
@@ -2271,9 +2271,9 @@ void FuncTestMinerKeyChangeNotHeldBackByServiceUpdates(TestChainSetup& setup)
     // Room for the key change and either update, but not both
     TemplatePositions(setup, {});
     const auto base_size{static_cast<size_t>(*Assert(node::BlockAssembler::m_last_block_size))};
-    const size_t service_size{std::max(::GetSerializeSize(CTransaction(tx_serv1), PROTOCOL_VERSION),
-                                       ::GetSerializeSize(CTransaction(tx_serv2), PROTOCOL_VERSION))};
-    const size_t key_change_size{::GetSerializeSize(CTransaction(tx_key_change), PROTOCOL_VERSION)};
+    const size_t service_size{std::max(::GetSerializeSize(CTransaction(tx_serv1)),
+                                       ::GetSerializeSize(CTransaction(tx_serv2)))};
+    const size_t key_change_size{::GetSerializeSize(CTransaction(tx_key_change))};
     const size_t block_max_size{base_size + key_change_size + service_size + 1};
     const auto positions = TemplatePositions(setup, {{tx_serv1, low_fee}, {tx_serv2, low_fee}, {tx_key_change, high_fee}},
                                              block_max_size);
@@ -2335,7 +2335,7 @@ void FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(TestChainSetup& setup)
 
     // Room for both key changes with B's update and its parent, but not for A's key change with all
     // of A's updates
-    auto size = [](const CMutableTransaction& tx) { return ::GetSerializeSize(CTransaction(tx), PROTOCOL_VERSION); };
+    auto size = [](const CMutableTransaction& tx) { return ::GetSerializeSize(CTransaction(tx)); };
     TemplatePositions(setup, {});
     const auto base_size{static_cast<size_t>(*Assert(node::BlockAssembler::m_last_block_size))};
     const size_t block_max_size{base_size + size(tx_key_change_a) + size(tx_key_change_b) + size(serv_a[0]) +

@@ -35,6 +35,7 @@
 #include <util/sock.h>
 #include <util/threadinterrupt.h>
 #include <util/wpipe.h>
+#include <version.h>
 
 #include <algorithm>
 #include <atomic>

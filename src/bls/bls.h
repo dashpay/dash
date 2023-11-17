@@ -183,7 +183,7 @@ public:
     }
 
     // cppcheck-suppress functionStatic
-    inline void Serialize(CSizeComputer& s) const
+    inline void Serialize(SizeComputer& s) const
     {
         s.seek(SerSize);
     }
@@ -492,7 +492,7 @@ public:
     }
 
     // cppcheck-suppress functionStatic
-    inline void Serialize(CSizeComputer& s) const
+    inline void Serialize(SizeComputer& s) const
     {
         s.seek(BLSObject::SerSize);
     }

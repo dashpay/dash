@@ -45,7 +45,7 @@ int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoin
     if (!provider || !DummySignInput(*provider, txn.vin[0], txout, can_grind_r, coin_control)) {
         return -1;
     }
-    return ::GetSerializeSize(txn.vin[0], PROTOCOL_VERSION);
+    return ::GetSerializeSize(txn.vin[0]);
 }
 
 int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* wallet, const CCoinControl* coin_control)
@@ -61,7 +61,7 @@ int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wall
     if (!wallet->DummySignTx(txNew, txouts, coin_control)) {
         return -1;
     }
-    return ::GetSerializeSize(txNew, PROTOCOL_VERSION);
+    return ::GetSerializeSize(txNew);
 }
 
 int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const CCoinControl* coin_control)
@@ -1034,7 +1034,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         CTxOut txout(recipient.nAmount, GetScriptForDestination(recipient.dest));
 
         // Include the fee cost for outputs.
-        coin_selection_params.tx_noinputs_size += ::GetSerializeSize(txout, PROTOCOL_VERSION);
+        coin_selection_params.tx_noinputs_size += ::GetSerializeSize(txout);
 
         if (IsDust(txout, wallet.chain().relayDustFee())) {
             return util::Error{_("Transaction amount too small")};
@@ -1227,7 +1227,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     CTransactionRef tx = MakeTransactionRef(std::move(txNew));
 
     // Limit size
-    if ((sign && ::GetSerializeSize(*tx, PROTOCOL_VERSION) > MAX_STANDARD_TX_SIZE) ||
+    if ((sign && ::GetSerializeSize(*tx) > MAX_STANDARD_TX_SIZE) ||
         (!sign && static_cast<size_t>(nBytes) > MAX_STANDARD_TX_SIZE)) {
         return util::Error{_("Transaction too large")};
     }

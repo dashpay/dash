@@ -84,7 +84,7 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
     // almost as much to process as they cost the sender in fees, because
     // computing signature hashes is O(ninputs*txsize). Limiting transactions
     // to MAX_STANDARD_TX_SIZE mitigates CPU exhaustion attacks.
-    unsigned int sz = GetSerializeSize(tx, CTransaction::CURRENT_VERSION);
+    unsigned int sz = GetSerializeSize(tx);
     if (sz >= MAX_STANDARD_TX_SIZE) {
         reason = "tx-size";
         return false;

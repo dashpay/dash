@@ -577,7 +577,7 @@ public:
 
     template <typename V>
     void Write(const DataStream& ssKey, const V& v) {
-        auto valueMemoryUsage = ::GetSerializeSize(v, CLIENT_VERSION);
+        auto valueMemoryUsage = ::GetSerializeSize(v);
 
         if (deletes.erase(ssKey)) {
             memoryUsage -= ssKey.size();

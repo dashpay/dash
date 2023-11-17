@@ -1296,7 +1296,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
             undo_data << blockundo;
             compressed = CompressRecordPayload(MakeByteSpan(undo_data), m_opts.block_compression);
         }
-        const uint32_t size_field{compressed ? static_cast<uint32_t>(compressed->size()) | BLOCK_RECORD_COMPRESSED : static_cast<uint32_t>(::GetSerializeSize(blockundo, CLIENT_VERSION))};
+        const uint32_t size_field{compressed ? static_cast<uint32_t>(compressed->size()) | BLOCK_RECORD_COMPRESSED : static_cast<uint32_t>(::GetSerializeSize(blockundo))};
         FlatFilePos _pos;
         if (!FindUndoPos(state, block.nFile, _pos, (size_field & BLOCK_RECORD_SIZE_MASK) + BLOCK_SERIALIZATION_HEADER_SIZE + uint256::size())) {
             LogError("ConnectBlock(): FindUndoPos failed\n");

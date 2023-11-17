@@ -157,7 +157,7 @@ CTransactionBuilder::CTransactionBuilder(CWallet& wallet, const CompactTallyItem
         nBytesBase = CalculateMaximumSignedTxSize(CTransaction(dummyTx), &m_wallet, /*coin_control=*/nullptr);
     }
     // Calculate the output size
-    nBytesOutput = ::GetSerializeSize(CTxOut(0, dummyScript), PROTOCOL_VERSION);
+    nBytesOutput = ::GetSerializeSize(CTxOut(0, dummyScript));
     // Just to make sure..
     Clear();
 }

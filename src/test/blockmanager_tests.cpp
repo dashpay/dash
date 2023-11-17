@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
     block.vtx[0] = MakeTransactionRef(coinbase);
     block.hashMerkleRoot = BlockMerkleRoot(block);
     while (!CheckProofOfWork(block.GetHash(), block.nBits, params->GetConsensus())) ++block.nNonce;
-    const auto serialized_size{static_cast<unsigned int>(::GetSerializeSize(block, CLIENT_VERSION))};
+    const auto serialized_size{static_cast<unsigned int>(::GetSerializeSize(block))};
 
     const FlatFilePos pos{blockman.SaveBlockToDisk(block, 1, nullptr)};
     BOOST_REQUIRE(!pos.IsNull());
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
         const CScript script{CScript() << ToByteVector(InsecureRand256()) << std::vector<unsigned char>(32, 0x42)};
         undo.vtxundo.back().vprevout.emplace_back(CTxOut{i * COIN, script}, /*nHeightIn=*/100, /*fCoinBaseIn=*/false);
     }
-    const auto serialized_size{::GetSerializeSize(undo, CLIENT_VERSION)};
+    const auto serialized_size{::GetSerializeSize(undo)};
 
     const uint256 prev_hash{params->GenesisBlock().GetHash()};
     CBlockIndex prev{params->GenesisBlock()};
@@ -220,8 +220,8 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     const CBlockUndo empty_undo;
     CBlockIndex empty_index{params->GenesisBlock()};
     const FlatFilePos empty_pos{write_undo(blockman, empty_index, empty_undo)};
-    BOOST_CHECK_EQUAL(ReadUndoSizeField(blocks_dir, empty_pos), ::GetSerializeSize(empty_undo, CLIENT_VERSION));
-    BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, empty_pos.nPos + ::GetSerializeSize(empty_undo, CLIENT_VERSION) + uint256::size());
+    BOOST_CHECK_EQUAL(ReadUndoSizeField(blocks_dir, empty_pos), ::GetSerializeSize(empty_undo));
+    BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, empty_pos.nPos + ::GetSerializeSize(empty_undo) + uint256::size());
     check_read(blockman, empty_index, empty_undo);
 
     // a frame followed by bytes the decompressor never needs (here a 200 KB skippable frame) still finds its checksum
