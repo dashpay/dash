@@ -21,7 +21,8 @@ import urllib.parse
 
 from . import coverage
 from .authproxy import AuthServiceProxy, JSONRPCException
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 logger = logging.getLogger("TestFramework.utils")
 

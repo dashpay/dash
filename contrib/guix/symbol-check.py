@@ -11,7 +11,6 @@ Example usage:
     find ../path/to/guix/binaries -type f -executable | xargs python3 contrib/guix/symbol-check.py
 '''
 import sys
-from typing import Dict, List
 
 import lief
 
@@ -50,7 +49,7 @@ IGNORE_EXPORTS = {
 
 # Expected linker-loader names can be found here:
 # https://sourceware.org/glibc/wiki/ABIList?action=recall&rev=16
-ELF_INTERPRETER_NAMES: Dict[lief.ELF.ARCH, Dict[lief.ENDIANNESS, str]] = {
+ELF_INTERPRETER_NAMES: dict[lief.ELF.ARCH, dict[lief.ENDIANNESS, str]] = {
     lief.ELF.ARCH.x86_64:  {
         lief.ENDIANNESS.LITTLE: "/lib64/ld-linux-x86-64.so.2",
     },
@@ -69,7 +68,7 @@ ELF_INTERPRETER_NAMES: Dict[lief.ELF.ARCH, Dict[lief.ENDIANNESS, str]] = {
     },
 }
 
-ELF_ABIS: Dict[lief.ELF.ARCH, Dict[lief.ENDIANNESS, List[int]]] = {
+ELF_ABIS: dict[lief.ELF.ARCH, dict[lief.ENDIANNESS, list[int]]] = {
     lief.ELF.ARCH.x86_64: {
         lief.ENDIANNESS.LITTLE: [3,2,0],
     },
@@ -303,7 +302,7 @@ if __name__ == '__main__':
         binary = lief.parse(filename)
         etype = binary.format
 
-        failed: List[str] = []
+        failed: list[str] = []
         for (name, func) in CHECKS[etype]:
             if not func(binary):
                 failed.append(name)
