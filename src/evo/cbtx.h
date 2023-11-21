@@ -25,15 +25,21 @@ class CChainLocksHandler;
 // Forward declaration from core_io to get rid of circular dependency
 UniValue ValueFromAmount(const CAmount& amount);
 
+enum class CbTxVersion : uint16_t {
+    INVALID = 0,
+    MERKLE_ROOT_MNLIST = 1,
+    MERKLE_ROOT_QUORUMS = 2,
+    BEST_CHAINLOCK = 3,
+    UNKNOWN,
+};
+template<> struct is_serializable_enum<CbTxVersion> : std::true_type {};
+
 // coinbase transaction
 class CCbTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_COINBASE;
-    static constexpr uint16_t CB_V19_VERSION = 2;
-    static constexpr uint16_t CB_V20_VERSION = 3;
-
-    uint16_t nVersion{CB_V19_VERSION};
+    CbTxVersion nVersion{CbTxVersion::MERKLE_ROOT_QUORUMS};
     int32_t nHeight{0};
     uint256 merkleRootMNList;
     uint256 merkleRootQuorums;
@@ -45,9 +51,9 @@ public:
     {
         READWRITE(obj.nVersion, obj.nHeight, obj.merkleRootMNList);
 
-        if (obj.nVersion >= CB_V19_VERSION) {
+        if (obj.nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
             READWRITE(obj.merkleRootQuorums);
-            if (obj.nVersion >= CB_V20_VERSION) {
+            if (obj.nVersion >= CbTxVersion::BEST_CHAINLOCK) {
                 READWRITE(COMPACTSIZE(obj.bestCLHeightDiff));
                 READWRITE(obj.bestCLSignature);
                 READWRITE(obj.creditPoolBalance);
@@ -65,9 +71,9 @@ public:
         obj.pushKV("version", (int)nVersion);
         obj.pushKV("height", nHeight);
         obj.pushKV("merkleRootMNList", merkleRootMNList.ToString());
-        if (nVersion >= CB_V19_VERSION) {
+        if (nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
             obj.pushKV("merkleRootQuorums", merkleRootQuorums.ToString());
-            if (nVersion >= CB_V20_VERSION) {
+            if (nVersion >= CbTxVersion::BEST_CHAINLOCK) {
                 obj.pushKV("bestCLHeightDiff", static_cast<int>(bestCLHeightDiff));
                 obj.pushKV("bestCLSignature", bestCLSignature.ToString());
                 obj.pushKV("creditPoolBalance", ValueFromAmount(creditPoolBalance));
