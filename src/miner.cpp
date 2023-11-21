@@ -202,7 +202,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         CCbTx cbTx;
 
         if (fV20Active_context) {
-            cbTx.nVersion = CbTxVersion::BEST_CHAINLOCK;
+            cbTx.nVersion = CbTxVersion::CLSIG_AND_CP_BALANCE;
         } else if (fDIP0008Active_context) {
             cbTx.nVersion = CbTxVersion::MERKLE_ROOT_QUORUMS;
         } else {
