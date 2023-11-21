@@ -29,7 +29,7 @@ enum class CbTxVersion : uint16_t {
     INVALID = 0,
     MERKLE_ROOT_MNLIST = 1,
     MERKLE_ROOT_QUORUMS = 2,
-    CLSIG_AND_CP_BALANCE = 3,
+    CLSIG_AND_BALANCE = 3,
     UNKNOWN,
 };
 template<> struct is_serializable_enum<CbTxVersion> : std::true_type {};
@@ -53,7 +53,7 @@ public:
 
         if (obj.nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
             READWRITE(obj.merkleRootQuorums);
-            if (obj.nVersion >= CbTxVersion::CLSIG_AND_CP_BALANCE) {
+            if (obj.nVersion >= CbTxVersion::CLSIG_AND_BALANCE) {
                 READWRITE(COMPACTSIZE(obj.bestCLHeightDiff));
                 READWRITE(obj.bestCLSignature);
                 READWRITE(obj.creditPoolBalance);
@@ -73,7 +73,7 @@ public:
         obj.pushKV("merkleRootMNList", merkleRootMNList.ToString());
         if (nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
             obj.pushKV("merkleRootQuorums", merkleRootQuorums.ToString());
-            if (nVersion >= CbTxVersion::CLSIG_AND_CP_BALANCE) {
+            if (nVersion >= CbTxVersion::CLSIG_AND_BALANCE) {
                 obj.pushKV("bestCLHeightDiff", static_cast<int>(bestCLHeightDiff));
                 obj.pushKV("bestCLSignature", bestCLSignature.ToString());
                 obj.pushKV("creditPoolBalance", ValueFromAmount(creditPoolBalance));

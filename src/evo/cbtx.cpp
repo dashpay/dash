@@ -48,7 +48,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
         }
 
         bool isV20 = llmq::utils::IsV20Active(pindexPrev);
-        if ((isV20 && cbTx.nVersion < CbTxVersion::CLSIG_AND_CP_BALANCE) || (!isV20 && cbTx.nVersion >= CbTxVersion::CLSIG_AND_CP_BALANCE)) {
+        if ((isV20 && cbTx.nVersion < CbTxVersion::CLSIG_AND_BALANCE) || (!isV20 && cbTx.nVersion >= CbTxVersion::CLSIG_AND_BALANCE)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
     }
@@ -332,7 +332,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion < CbTxVersion::CLSIG_AND_CP_BALANCE) {
+    if (cbTx.nVersion < CbTxVersion::CLSIG_AND_BALANCE) {
         return true;
     }
 
@@ -467,7 +467,7 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
 
     CCbTx& cbtx = opt_cbtx.value();
 
-    if (cbtx.nVersion < CbTxVersion::CLSIG_AND_CP_BALANCE) {
+    if (cbtx.nVersion < CbTxVersion::CLSIG_AND_BALANCE) {
         return std::nullopt;
     }
 
