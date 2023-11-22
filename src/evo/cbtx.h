@@ -25,21 +25,20 @@ class CChainLocksHandler;
 // Forward declaration from core_io to get rid of circular dependency
 UniValue ValueFromAmount(const CAmount& amount);
 
-enum class CbTxVersion : uint16_t {
-    INVALID = 0,
-    MERKLE_ROOT_MNLIST = 1,
-    MERKLE_ROOT_QUORUMS = 2,
-    CLSIG_AND_BALANCE = 3,
-    UNKNOWN,
-};
-template<> struct is_serializable_enum<CbTxVersion> : std::true_type {};
-
 // coinbase transaction
 class CCbTx
 {
 public:
+    enum class Version : uint16_t {
+        INVALID = 0,
+        MERKLE_ROOT_MNLIST = 1,
+        MERKLE_ROOT_QUORUMS = 2,
+        CLSIG_AND_BALANCE = 3,
+        UNKNOWN,
+    };
+
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_COINBASE;
-    CbTxVersion nVersion{CbTxVersion::MERKLE_ROOT_QUORUMS};
+    Version nVersion{Version::MERKLE_ROOT_QUORUMS};
     int32_t nHeight{0};
     uint256 merkleRootMNList;
     uint256 merkleRootQuorums;
@@ -51,9 +50,9 @@ public:
     {
         READWRITE(obj.nVersion, obj.nHeight, obj.merkleRootMNList);
 
-        if (obj.nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
+        if (obj.nVersion >= Version::MERKLE_ROOT_QUORUMS) {
             READWRITE(obj.merkleRootQuorums);
-            if (obj.nVersion >= CbTxVersion::CLSIG_AND_BALANCE) {
+            if (obj.nVersion >= Version::CLSIG_AND_BALANCE) {
                 READWRITE(COMPACTSIZE(obj.bestCLHeightDiff));
                 READWRITE(obj.bestCLSignature);
                 READWRITE(obj.creditPoolBalance);
@@ -71,9 +70,9 @@ public:
         obj.pushKV("version", (int)nVersion);
         obj.pushKV("height", nHeight);
         obj.pushKV("merkleRootMNList", merkleRootMNList.ToString());
-        if (nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
+        if (nVersion >= Version::MERKLE_ROOT_QUORUMS) {
             obj.pushKV("merkleRootQuorums", merkleRootQuorums.ToString());
-            if (nVersion >= CbTxVersion::CLSIG_AND_BALANCE) {
+            if (nVersion >= Version::CLSIG_AND_BALANCE) {
                 obj.pushKV("bestCLHeightDiff", static_cast<int>(bestCLHeightDiff));
                 obj.pushKV("bestCLSignature", bestCLSignature.ToString());
                 obj.pushKV("creditPoolBalance", ValueFromAmount(creditPoolBalance));
@@ -82,6 +81,7 @@ public:
         return obj;
     }
 };
+template<> struct is_serializable_enum<CCbTx::Version> : std::true_type {};
 
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state);
 

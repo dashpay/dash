@@ -33,7 +33,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion == CbTxVersion::INVALID || cbTx.nVersion >= CbTxVersion::UNKNOWN) {
+    if (cbTx.nVersion == CCbTx::Version::INVALID || cbTx.nVersion >= CCbTx::Version::UNKNOWN) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
     }
 
@@ -43,12 +43,12 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
         }
 
         bool fDIP0008Active = pindexPrev->nHeight >= Params().GetConsensus().DIP0008Height;
-        if (fDIP0008Active && cbTx.nVersion < CbTxVersion::MERKLE_ROOT_QUORUMS) {
+        if (fDIP0008Active && cbTx.nVersion < CCbTx::Version::MERKLE_ROOT_QUORUMS) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
 
         bool isV20 = llmq::utils::IsV20Active(pindexPrev);
-        if ((isV20 && cbTx.nVersion < CbTxVersion::CLSIG_AND_BALANCE) || (!isV20 && cbTx.nVersion >= CbTxVersion::CLSIG_AND_BALANCE)) {
+        if ((isV20 && cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) || (!isV20 && cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
     }
@@ -91,7 +91,7 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, const 
         int64_t nTime3 = GetTimeMicros(); nTimeMerkleMNL += nTime3 - nTime2;
         LogPrint(BCLog::BENCHMARK, "          - CalcCbTxMerkleRootMNList: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeMerkleMNL * 0.000001);
 
-        if (cbTx.nVersion >= CbTxVersion::MERKLE_ROOT_QUORUMS) {
+        if (cbTx.nVersion >= CCbTx::Version::MERKLE_ROOT_QUORUMS) {
             if (!CalcCbTxMerkleRootQuorums(block, pindex->pprev, quorum_block_processor, calculatedMerkleRoot, state)) {
                 // pass the state returned by the function above
                 return false;
@@ -332,7 +332,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion < CbTxVersion::CLSIG_AND_BALANCE) {
+    if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
     }
 
@@ -467,7 +467,7 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
 
     CCbTx& cbtx = opt_cbtx.value();
 
-    if (cbtx.nVersion < CbTxVersion::CLSIG_AND_BALANCE) {
+    if (cbtx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return std::nullopt;
     }
 
