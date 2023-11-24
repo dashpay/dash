@@ -833,10 +833,13 @@ static UniValue protx_register_submit(const JSONRPCRequest& request, const Chain
     if (tx.nType != TRANSACTION_PROVIDER_REGISTER) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction not a ProRegTx");
     }
-    CProRegTx ptx;
-    if (!GetTxPayload(tx, ptx)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction payload not deserializable");
-    }
+    auto ptx = [&tx]() {
+        if (auto opt_ptx = GetTxPayload<CProRegTx>(tx); !opt_ptx) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction payload not deserializable");
+        } else {
+            return *opt_ptx;
+        }
+    }();
     if (!ptx.vchSig.empty()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "payload signature not empty");
     }
