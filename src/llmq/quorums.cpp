@@ -955,7 +955,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
     });
 }
 
-static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list)
+static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list, bool compact = false)
 {
     const auto prefixes = {DB_QUORUM_QUORUM_VVEC, DB_QUORUM_SK_SHARE};
 
@@ -993,7 +993,13 @@ static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list)
     }
 
     pcursor.reset();
-    db.CompactFull();
+
+    if (compact) {
+        // Avoid using this on regular cleanups, use on db migrations only
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- compact start\n", __func__);
+        db.CompactFull();
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- compact end\n", __func__);
+    }
 }
 
 void CQuorumManager::CleanupOldQuorumData(const CBlockIndex* pIndex) const
