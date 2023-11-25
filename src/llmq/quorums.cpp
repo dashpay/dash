@@ -998,7 +998,7 @@ static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list)
 
 void CQuorumManager::CleanupOldQuorumData(const CBlockIndex* pIndex) const
 {
-    if (!fMasternodeMode || pIndex == nullptr || (pIndex->nHeight % 576 != 0)) {
+    if (!fMasternodeMode || pIndex == nullptr || (pIndex->nHeight % 576 != 58 /* no DKGs running or to be started soon */)) {
         return;
     }
 
