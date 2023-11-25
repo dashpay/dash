@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          path: dash
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -22,20 +23,20 @@ jobs:
       - name: Commit variables
         id: dockerfile
         run: |
-          echo "hash=$(sha256sum ./contrib/containers/guix/Dockerfile | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
+          echo "hash=$(sha256sum ./dash/contrib/containers/guix/Dockerfile | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
           echo "host_user_id=$(id -u)" >> $GITHUB_OUTPUT
           echo "host_group_id=$(id -g)" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ${{ github.workspace }}
+          context: ${{ github.workspace }}/dash
           build-args: |
             USER_ID=${{ steps.dockerfile.outputs.host_user_id }}
             GROUP_ID=${{ steps.dockerfile.outputs.host_group_id }}
           build-contexts: |
-            docker_root=${{ github.workspace }}/contrib/containers/guix
-          file: ./contrib/containers/guix/Dockerfile
+            docker_root=${{ github.workspace }}/dash/contrib/containers/guix
+          file: ./dash/contrib/containers/guix/Dockerfile
           load: true
           tags: guix_ubuntu:latest
           cache-from: type=gha
@@ -47,7 +48,7 @@ jobs:
           docker run --privileged -d --rm -t \
             --name guix-daemon \
             -e ADDITIONAL_GUIX_COMMON_FLAGS="--max-jobs=$(nproc --all)" \
-            -v ${{ github.workspace }}:/src/dash \
+            -v ${{ github.workspace }}/dash:/src/dash \
             -w /src/dash \
             guix_ubuntu:latest && \
           docker exec guix-daemon bash -c '/usr/local/bin/guix-start'
@@ -61,4 +62,4 @@ jobs:
 
       - name: Compute SHA256 checksums
         run: |
-          ./contrib/containers/guix/scripts/guix-check ${{ github.workspace }}
+          ./dash/contrib/containers/guix/scripts/guix-check ${{ github.workspace }}/dash
