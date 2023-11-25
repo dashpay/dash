@@ -42,6 +42,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Restore Guix cache and depends
+        id: guix-cache-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ${{ github.workspace }}/.cache
+            ${{ github.workspace }}/dash/depends/built
+            ${{ github.workspace }}/dash/depends/sources
+            ${{ github.workspace }}/dash/depends/work
+          key: ${{ runner.os }}-guix
+
+      - name: Create .cache folder if missing
+        if: steps.guix-cache-restore.outputs.cache-hit != 'true'
+        run: mkdir -p .cache
+
       - name: Run Guix build
         timeout-minutes: 480
         run: |
@@ -49,6 +64,7 @@ jobs:
             --name guix-daemon \
             -e ADDITIONAL_GUIX_COMMON_FLAGS="--max-jobs=$(nproc --all)" \
             -v ${{ github.workspace }}/dash:/src/dash \
+            -v ${{ github.workspace }}/.cache:/home/ubuntu/.cache \
             -w /src/dash \
             guix_ubuntu:latest && \
           docker exec guix-daemon bash -c '/usr/local/bin/guix-start'
@@ -59,6 +75,17 @@ jobs:
             echo "Guix build failed!"
             exit 1
           fi
+
+      - name: Save Guix cache and depends
+        id: guix-cache-save
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ${{ github.workspace }}/.cache
+            ${{ github.workspace }}/dash/depends/built
+            ${{ github.workspace }}/dash/depends/sources
+            ${{ github.workspace }}/dash/depends/work
+          key: ${{ steps.guix-cache-restore.outputs.cache-primary-key }}
 
       - name: Compute SHA256 checksums
         run: |
