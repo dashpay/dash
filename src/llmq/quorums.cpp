@@ -1015,6 +1015,7 @@ void CQuorumManager::CleanupOldQuorumData(const CBlockIndex* pIndex) const
     // Unlike for other quorum types we want to keep data (secret key shares and vvec)
     // for Platform quorums for at least 2 months because Platform can be restarted and
     // it must be able to re-sign stuff. During a month, 24 * 30 quorums are created.
+    // NOTE: when changing this make sure to update InitQuorumsCache() accordingly
     constexpr auto numPlatformQuorumsDataToKeep = 24 * 30 * 2;
 
     for (const auto& params : Params().GetConsensus().llmqs) {
