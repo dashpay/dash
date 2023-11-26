@@ -200,8 +200,8 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, 
     m_mn_sync(mn_sync),
     m_peerman(peerman)
 {
-    utils::InitQuorumsCache(mapQuorumsCache);
-    utils::InitQuorumsCache(scanQuorumsCache);
+    utils::InitQuorumsCache(mapQuorumsCache, false);
+    utils::InitQuorumsCache(scanQuorumsCache, false);
 
     quorumThreadInterrupt.reset();
 }
