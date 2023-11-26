@@ -1087,13 +1087,9 @@ std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries()
 template <typename CacheType>
 void InitQuorumsCache(CacheType& cache)
 {
-    // NOTE: See CQuorumManager::CleanupOldQuorumData() for more info
-    constexpr auto numPlatformQuorumsDataToKeep = 24 * 30 * 2;
-    const auto llmqTypePlatform = Params().GetConsensus().llmqTypePlatform;
     for (const auto& llmq : Params().GetConsensus().llmqs) {
-        const auto nQuorumsToKeep = llmq.type == llmqTypePlatform ? numPlatformQuorumsDataToKeep : llmq.keepOldConnections;
         cache.emplace(std::piecewise_construct, std::forward_as_tuple(llmq.type),
-                      std::forward_as_tuple(nQuorumsToKeep));
+                      std::forward_as_tuple(llmq.keepOldKeys));
     }
 }
 template void InitQuorumsCache<std::map<Consensus::LLMQType, unordered_lru_cache<uint256, bool, StaticSaltedHasher>>>(std::map<Consensus::LLMQType, unordered_lru_cache<uint256, bool, StaticSaltedHasher>>& cache);
