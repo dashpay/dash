@@ -989,7 +989,7 @@ static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list, bool 
 
         db.WriteBatch(batch);
 
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%d -- %s removed %d\n", __func__, prefix, count);
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- %s removed %d\n", __func__, prefix, count);
     }
 
     pcursor.reset();
