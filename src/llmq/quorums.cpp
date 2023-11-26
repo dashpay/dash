@@ -296,7 +296,7 @@ void CQuorumManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitial
     }
 
     TriggerQuorumDataRecoveryThreads(pindexNew);
-    CleanupOldQuorumData(pindexNew);
+    StartCleanupOldQuorumDataThread(pindexNew);
 }
 
 void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindexNew) const
@@ -1002,33 +1002,43 @@ static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list, bool 
     }
 }
 
-void CQuorumManager::CleanupOldQuorumData(const CBlockIndex* pIndex) const
+void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) const
 {
     if (!fMasternodeMode || pIndex == nullptr || (pIndex->nHeight % 576 != 58 /* no DKGs running or to be started soon */)) {
         return;
     }
 
-    std::set<uint256> dbKeysToSkip;
+    cxxtimer::Timer t(true);
+    LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- start\n", __func__);
 
-    LogPrint(BCLog::LLMQ, "CQuorumManager::%d -- start\n", __func__);
-    // Platform quorums in all networks are created every 24 blocks (~1h).
-    // Unlike for other quorum types we want to keep data (secret key shares and vvec)
-    // for Platform quorums for at least 2 months because Platform can be restarted and
-    // it must be able to re-sign stuff. During a month, 24 * 30 quorums are created.
-    // NOTE: when changing this make sure to update InitQuorumsCache() accordingly
-    constexpr auto numPlatformQuorumsDataToKeep = 24 * 30 * 2;
+    // do not block the caller thread
+    workerPool.push([pIndex, t, this](int threadId) {
+        std::set<uint256> dbKeysToSkip;
 
-    for (const auto& params : Params().GetConsensus().llmqs) {
-        auto nQuorumsToKeep = params.type == Params().GetConsensus().llmqTypePlatform ? numPlatformQuorumsDataToKeep : params.keepOldConnections;
-        const auto vecQuorums = ScanQuorums(params.type, pIndex, nQuorumsToKeep);
-        for (const auto& pQuorum : vecQuorums) {
-            dbKeysToSkip.insert(MakeQuorumKey(*pQuorum));
+        // Platform quorums in all networks are created every 24 blocks (~1h).
+        // Unlike for other quorum types we want to keep data (secret key shares and vvec)
+        // for Platform quorums for at least 2 months because Platform can be restarted and
+        // it must be able to re-sign stuff. During a month, 24 * 30 quorums are created.
+        constexpr auto numPlatformQuorumsDataToKeep = 24 * 30 * 2;
+        // NOTE: when changing this make sure to update InitQuorumsCache() accordingly
+
+        for (const auto& params : Params().GetConsensus().llmqs) {
+            if (quorumThreadInterrupt) {
+                break;
+            }
+            auto nQuorumsToKeep = params.type == Params().GetConsensus().llmqTypePlatform ? numPlatformQuorumsDataToKeep : params.keepOldConnections;
+            const auto vecQuorums = ScanQuorums(params.type, pIndex, nQuorumsToKeep);
+            for (const auto& pQuorum : vecQuorums) {
+                dbKeysToSkip.insert(MakeQuorumKey(*pQuorum));
+            }
         }
-    }
 
-    DataCleanupHelper(m_evoDb.GetRawDB(), dbKeysToSkip);
+        if (!quorumThreadInterrupt) {
+            DataCleanupHelper(m_evoDb.GetRawDB(), dbKeysToSkip);
+        }
 
-    LogPrint(BCLog::LLMQ, "CQuorumManager::%d -- done\n", __func__);
+        LogPrint(BCLog::LLMQ, "CQuorumManager::StartCleanupOldQuorumDataThread -- done. time=%d\n", t.count());
+    });
 }
 
 } // namespace llmq
