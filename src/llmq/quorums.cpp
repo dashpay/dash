@@ -301,6 +301,10 @@ void CQuorumManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitial
 
 void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindexNew) const
 {
+    if (!fMasternodeMode && !utils::IsWatchQuorumsEnabled()) {
+        return;
+    }
+
     auto lastQuorums = ScanQuorums(llmqParams.type, pindexNew, (size_t)llmqParams.keepOldConnections);
 
     auto connmanQuorumsToDelete = connman.GetMasternodeQuorums(llmqParams.type);
