@@ -1019,8 +1019,7 @@ void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) 
             if (quorumThreadInterrupt) {
                 break;
             }
-            const auto vecQuorums = ScanQuorums(params.type, pIndex, params.keepOldKeys);
-            for (const auto& pQuorum : vecQuorums) {
+            for (const auto& pQuorum : ScanQuorums(params.type, pIndex, params.keepOldKeys)) {
                 dbKeysToSkip.insert(MakeQuorumKey(*pQuorum));
             }
         }
