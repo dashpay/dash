@@ -1004,7 +1004,14 @@ static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list, bool 
 
 void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) const
 {
-    if (!fMasternodeMode || pIndex == nullptr || (pIndex->nHeight % 576 != 58 /* no DKGs running or to be started soon */)) {
+    // Note: this function is CPU heavy and we don't want it to be running during DKGs.
+    // The largest dkgMiningWindowStart for a related quorum type is 42 (LLMQ_60_75).
+    // At the same time most quorums use dkgInterval = 24 so the next DKG for them
+    // (after block 576 + 42) will start at block 576 + 24 * 2. That's only a 6 blocks
+    // window and it's better to have more room so we pick next cycle.
+    // dkgMiningWindowStart for small quorums is 10 i.e. a safe block to start
+    // these calculations is at height 576 + 24 * 2 + 10 = 576 + 58.
+    if (!fMasternodeMode || pIndex == nullptr || (pIndex->nHeight % 576 != 58)) {
         return;
     }
 
