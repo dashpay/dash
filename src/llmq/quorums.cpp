@@ -1008,7 +1008,7 @@ void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) 
         return;
     }
 
-    cxxtimer::Timer t(true);
+    cxxtimer::Timer t(/*start=*/ true);
     LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- start\n", __func__);
 
     // do not block the caller thread
