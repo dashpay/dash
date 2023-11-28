@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(psbt_updater_test)
     BOOST_REQUIRE_EQUAL(TransactionError::OK, m_wallet.FillPSBT(psbtx, complete, SIGHASH_ALL, false, true));
 
     // Get the final tx
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << psbtx;
     std::string final_hex = HexStr(ssTx);
 

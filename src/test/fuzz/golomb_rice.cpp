@@ -87,7 +87,7 @@ FUZZ_TARGET(golomb_rice)
         } catch (const std::ios_base::failure&) {
             return;
         }
-        BitStreamReader<SpanReader> bitreader{stream};
+        BitStreamReader bitreader{stream};
         for (uint32_t i = 0; i < std::min<uint32_t>(n, 1024); ++i) {
             try {
                 (void)GolombRiceDecode(bitreader, BASIC_FILTER_P);
