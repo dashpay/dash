@@ -11,7 +11,10 @@
 #endif
 
 #include <attributes.h>
+#include <compat/assumptions.h> // IWYU pragma: keep
 #include <compat/endian.h>
+#include <prevector.h>
+#include <span.h>
 
 #include <algorithm>
 #include <atomic>
@@ -26,15 +29,12 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <string.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <support/allocators/secure.h>
-#include <prevector.h>
-#include <span.h>
 
 /**
  * The maximum size of a serialized object in bytes or number of elements

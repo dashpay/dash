@@ -13,6 +13,7 @@
 #ifndef WIN32
 #include <sys/stat.h>
 #else
+#include <compat/compat.h>
 #include <codecvt>
 #endif
 
