@@ -151,7 +151,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
     {
         BOOST_CHECK(tx.nVersion == 3);
 
-        auto opt_payload = GetTxPayload<CAssetLockPayload>(tx);
+        const auto opt_payload = GetTxPayload<CAssetLockPayload>(tx);
 
         BOOST_CHECK(opt_payload.has_value());
         BOOST_CHECK(opt_payload->getVersion() == 1);
@@ -186,7 +186,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
         BOOST_CHECK(CheckAssetLockTx(CTransaction(txSmallOutput), tx_state));
     }
 
-    auto assetLockPayload = GetTxPayload<CAssetLockPayload>(tx);
+    const auto assetLockPayload = GetTxPayload<CAssetLockPayload>(tx);
     const std::vector<CTxOut> creditOutputs = assetLockPayload->getCreditOutputs();
 
     {
@@ -336,7 +336,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
     }
 
     {
-        auto unlockPayload = GetTxPayload<CAssetUnlockPayload>(tx);
+        const auto unlockPayload = GetTxPayload<CAssetUnlockPayload>(tx);
         BOOST_CHECK(unlockPayload.has_value());
         BOOST_CHECK(unlockPayload->getVersion() == 1);
         BOOST_CHECK(unlockPayload->getRequestedHeight() == 1000'000);

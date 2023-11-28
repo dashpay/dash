@@ -107,7 +107,7 @@ bool CheckMNHFTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValida
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-type");
     }
 
-    auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
+    const auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
     if (!opt_mnhfTx) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-payload");
     }
@@ -153,7 +153,7 @@ std::optional<uint8_t> extractEHFSignal(const CTransaction& tx)
         return std::nullopt;
     }
 
-    auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
+    const auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
     if (!opt_mnhfTx) {
         return std::nullopt;
     }
@@ -176,7 +176,7 @@ static bool extractSignals(const CBlock& block, const CBlockIndex* const pindex,
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(), tx_state.GetDebugMessage());
         }
 
-        auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
+        const auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
         if (!opt_mnhfTx) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-mnhf-tx-payload");
         }

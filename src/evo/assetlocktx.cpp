@@ -60,7 +60,7 @@ bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state)
 
     if (returnAmount == 0) return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-no-return");
 
-    auto opt_assetLockTx = GetTxPayload<CAssetLockPayload>(tx);
+    const auto opt_assetLockTx = GetTxPayload<CAssetLockPayload>(tx);
     if (!opt_assetLockTx.has_value()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-payload");
     }
@@ -158,7 +158,7 @@ bool CheckAssetUnlockTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-too-many-outs");
     }
 
-    auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
+    const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
     if (!opt_assetUnlockTx) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-payload");
     }
@@ -188,7 +188,7 @@ bool CheckAssetUnlockTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*
 
 bool GetAssetUnlockFee(const CTransaction& tx, CAmount& txfee, TxValidationState& state)
 {
-    auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
+    const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
     if (!opt_assetUnlockTx) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-payload");
     }

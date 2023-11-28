@@ -126,7 +126,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     }
     switch(tx.nType) {
     case(TRANSACTION_PROVIDER_REGISTER): {
-        if (auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
             if(contains(opt_proTx->collateralOutpoint) ||
                     contains(opt_proTx->keyIDOwner) ||
                     contains(opt_proTx->keyIDVoting) ||
@@ -139,7 +139,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         return false;
     }
     case(TRANSACTION_PROVIDER_UPDATE_SERVICE): {
-        if (auto opt_proTx = GetTxPayload<CProUpServTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProUpServTx>(tx)) {
             if(contains(opt_proTx->proTxHash)) {
                 return true;
             }
@@ -152,7 +152,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         return false;
     }
     case(TRANSACTION_PROVIDER_UPDATE_REGISTRAR): {
-        if (auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) {
             if(contains(opt_proTx->proTxHash))
                 return true;
             if(contains(opt_proTx->keyIDVoting) ||
@@ -165,7 +165,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         return false;
     }
     case(TRANSACTION_PROVIDER_UPDATE_REVOKE): {
-        if (auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) {
             if(contains(opt_proTx->proTxHash))
                 return true;
         }
@@ -173,7 +173,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     }
     case(TRANSACTION_ASSET_LOCK): {
         // inputs of Asset Lock transactions are standard. But some outputs are special
-        if (auto opt_assetlockTx = GetTxPayload<CAssetLockPayload>(tx)) {
+        if (const auto opt_assetlockTx = GetTxPayload<CAssetLockPayload>(tx)) {
             bool fFound = false;
             const auto& extraOuts = opt_assetlockTx->getCreditOutputs();
             for (unsigned int i = 0; i < extraOuts.size(); ++i)

@@ -288,7 +288,7 @@ bool CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex,
         assert(tx.nVersion == 3);
         assert(tx.nType == TRANSACTION_COINBASE);
 
-        auto opt_cbTx = GetTxPayload<CCbTx>(tx);
+        const auto opt_cbTx = GetTxPayload<CCbTx>(tx);
         if (!opt_cbTx) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-payload");
         }

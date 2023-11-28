@@ -21,7 +21,7 @@ template<class T>
 void TestTxHelper(const CMutableTransaction& tx, bool is_basic_bls, bool expected_failure, const std::string& expected_error)
 {
     const bool payload_to_fail = expected_failure && expected_error == "gettxpayload-fail";
-    auto opt_payload = GetTxPayload<T>(tx, false);
+    const auto opt_payload = GetTxPayload<T>(tx, false);
     BOOST_CHECK_EQUAL(opt_payload.has_value(), !payload_to_fail);
 
     // No need to check anything else if GetTxPayload() expected to fail

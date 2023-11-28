@@ -266,39 +266,39 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     }
 
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
-        if (auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
             entry.pushKV("proRegTx", opt_proTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-        if (auto opt_proTx = GetTxPayload<CProUpServTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProUpServTx>(tx)) {
             entry.pushKV("proUpServTx", opt_proTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
-        if (auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) {
             entry.pushKV("proUpRegTx", opt_proTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
-        if (auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) {
+        if (const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) {
             entry.pushKV("proUpRevTx", opt_proTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_COINBASE) {
-        if (auto opt_cbTx = GetTxPayload<CCbTx>(tx)) {
+        if (const auto opt_cbTx = GetTxPayload<CCbTx>(tx)) {
             entry.pushKV("cbTx", opt_cbTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
-        if (auto opt_qcTx = GetTxPayload<llmq::CFinalCommitmentTxPayload>(tx)) {
+        if (const auto opt_qcTx = GetTxPayload<llmq::CFinalCommitmentTxPayload>(tx)) {
             entry.pushKV("qcTx", opt_qcTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_MNHF_SIGNAL) {
-        if (auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx)) {
+        if (const auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx)) {
             entry.pushKV("mnhfTx", opt_mnhfTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_ASSET_LOCK) {
-        if (auto opt_assetLockTx = GetTxPayload<CAssetLockPayload>(tx)) {
+        if (const auto opt_assetLockTx = GetTxPayload<CAssetLockPayload>(tx)) {
             entry.pushKV("assetLockTx", opt_assetLockTx->ToJson());
         }
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
-        if (auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx)) {
+        if (const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx)) {
             entry.pushKV("assetUnlockTx", opt_assetUnlockTx->ToJson());
         }
     }

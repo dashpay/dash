@@ -877,7 +877,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
     removeProTxSpentCollateralConflicts(tx);
 
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
-        auto opt_proTx = GetTxPayload<CProRegTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return;
@@ -898,7 +898,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
             removeProTxCollateralConflicts(tx, COutPoint(tx.GetHash(), proTx.collateralOutpoint.n));
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-        auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return;
@@ -911,7 +911,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
             }
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
-        auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return;
@@ -920,7 +920,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
         removeProTxPubKeyConflicts(tx, opt_proTx->pubKeyOperator);
         removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(opt_proTx->pubKeyOperator));
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
-        auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return;
@@ -1242,7 +1242,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
     };
 
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
-        auto opt_proTx = GetTxPayload<CProRegTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return true; // i.e. can't decode payload == conflict
@@ -1262,7 +1262,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         }
         return false;
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-        auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return true; // i.e. can't decode payload == conflict
@@ -1270,7 +1270,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         auto it = mapProTxAddresses.find(opt_proTx->addr);
         return it != mapProTxAddresses.end() && it->second != opt_proTx->proTxHash;
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
-        auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return true; // i.e. can't decode payload == conflict
@@ -1293,7 +1293,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         auto it = mapProTxBlsPubKeyHashes.find(proTx.pubKeyOperator.GetHash());
         return it != mapProTxBlsPubKeyHashes.end() && it->second != proTx.proTxHash;
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
-        auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
+        const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
         if (!opt_proTx) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx.GetHash().ToString());
             return true; // i.e. can't decode payload == conflict

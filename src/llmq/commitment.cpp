@@ -174,7 +174,7 @@ bool CFinalCommitment::VerifySizes(const Consensus::LLMQParams& params) const
 
 bool CheckLLMQCommitment(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state)
 {
-    auto opt_qcTx = GetTxPayload<CFinalCommitmentTxPayload>(tx);
+    const auto opt_qcTx = GetTxPayload<CFinalCommitmentTxPayload>(tx);
     if (!opt_qcTx) {
         LogPrintfFinalCommitment("h[%d] GetTxPayload failed\n", pindexPrev->nHeight);
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-payload");

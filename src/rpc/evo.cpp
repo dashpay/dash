@@ -834,7 +834,7 @@ static UniValue protx_register_submit(const JSONRPCRequest& request, const Chain
         throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction not a ProRegTx");
     }
     auto ptx = [&tx]() {
-        if (auto opt_ptx = GetTxPayload<CProRegTx>(tx); !opt_ptx) {
+        if (const auto opt_ptx = GetTxPayload<CProRegTx>(tx); !opt_ptx) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction payload not deserializable");
         } else {
             return *opt_ptx;

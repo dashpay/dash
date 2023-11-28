@@ -363,7 +363,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, gsl::no
 
     for (const auto& tx : block.vtx) {
         if (tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
-            auto opt_qc = GetTxPayload<CFinalCommitmentTxPayload>(*tx);
+            const auto opt_qc = GetTxPayload<CFinalCommitmentTxPayload>(*tx);
             if (!opt_qc) {
                 // should not happen as it was verified before processing the block
                 LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s height=%d GetTxPayload fails\n", __func__, pindex->nHeight);
