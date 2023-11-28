@@ -317,7 +317,13 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
         int height{-1};
         bool chainLock{false};
 
-        GetTransaction(nullptr, nullptr, txid, Params().GetConsensus(), hash_block);
+        auto tx_ref = GetTransaction(nullptr, node.mempool.get(), txid, Params().GetConsensus(), hash_block);
+
+        if (tx_ref == nullptr) {
+            UniValue r(UniValue::VNULL);
+            result_arr.push_back(r);
+            continue;
+        }
 
         if (!hash_block.IsNull()) {
             LOCK(cs_main);
