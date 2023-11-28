@@ -104,6 +104,10 @@ public:
     typedef std::set<CTxMemPoolEntryRef, CompareIteratorByHash> Children;
 
 private:
+    CTxMemPoolEntry(const CTxMemPoolEntry&) = default;
+    struct ExplicitCopyTag {
+        explicit ExplicitCopyTag() = default;
+    };
     const CTransactionRef tx;
     mutable Parents m_parents;
     mutable Children m_children;
@@ -136,6 +140,12 @@ public:
                     bool spends_coinbase,
                     int64_t sigops_count, LockPoints lp);
 
+    CTxMemPoolEntry(ExplicitCopyTag, const CTxMemPoolEntry& entry) : CTxMemPoolEntry(entry) {}
+    CTxMemPoolEntry& operator=(const CTxMemPoolEntry&) = delete;
+    CTxMemPoolEntry(CTxMemPoolEntry&&) = delete;
+    CTxMemPoolEntry& operator=(CTxMemPoolEntry&&) = delete;
+
+    static constexpr ExplicitCopyTag ExplicitCopy{};
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
     const CAmount& GetFee() const { return nFee; }
