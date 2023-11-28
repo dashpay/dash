@@ -102,22 +102,22 @@ class QuorumDataInterface(P2PInterface):
 
     def wait_for_qgetdata(self, timeout=3, message_expected=True):
         def test_function():
-            return self.message_count["qgetdata"]
+            return self.message_count["qgetdata"] > 0
         wait_until(test_function, timeout=timeout, lock=mininode_lock, do_assert=message_expected)
-        self.message_count["qgetdata"] = 0
         if not message_expected:
-            assert not self.message_count["qgetdata"]
+            assert self.message_count["qgetdata"] == 0
+        self.message_count["qgetdata"] = 0
 
     def get_qdata(self):
         return self.last_message["qdata"]
 
     def wait_for_qdata(self, timeout=10, message_expected=True):
         def test_function():
-            return self.message_count["qdata"]
+            return self.message_count["qdata"] > 0
         wait_until(test_function, timeout=timeout, lock=mininode_lock, do_assert=message_expected)
-        self.message_count["qdata"] = 0
         if not message_expected:
-            assert not self.message_count["qdata"]
+            assert self.message_count["qdata"] == 0
+        self.message_count["qdata"] = 0
 
 
 class QuorumDataMessagesTest(DashTestFramework):
