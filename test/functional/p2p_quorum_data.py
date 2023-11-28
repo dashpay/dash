@@ -96,28 +96,18 @@ class QuorumDataInterface(P2PInterface):
 
     def test_qgetdata(self, qgetdata, expected_error=0, len_vvec=0, len_contributions=0, response_expected=True):
         self.send_message(qgetdata)
-        self.wait_for_qdata(message_expected=response_expected)
+        self.wait_for_qmessage("qdata", message_expected=response_expected)
         if response_expected:
             assert_qdata(self.get_qdata(), qgetdata, expected_error, len_vvec, len_contributions)
 
-    def wait_for_qgetdata(self, timeout=3, message_expected=True):
-        def test_function():
-            return self.message_count["qgetdata"] > 0
-        wait_until(test_function, timeout=timeout, lock=mininode_lock, do_assert=message_expected)
+    def wait_for_qmessage(self, message=None, timeout=3, message_expected=True):
+        wait_until(lambda: self.message_count[message] > 0, timeout=timeout, lock=mininode_lock, do_assert=message_expected)
         if not message_expected:
-            assert self.message_count["qgetdata"] == 0
-        self.message_count["qgetdata"] = 0
+            assert self.message_count[message] == 0
+        self.message_count[message] = 0
 
     def get_qdata(self):
         return self.last_message["qdata"]
-
-    def wait_for_qdata(self, timeout=10, message_expected=True):
-        def test_function():
-            return self.message_count["qdata"] > 0
-        wait_until(test_function, timeout=timeout, lock=mininode_lock, do_assert=message_expected)
-        if not message_expected:
-            assert self.message_count["qdata"] == 0
-        self.message_count["qdata"] = 0
 
 
 class QuorumDataMessagesTest(DashTestFramework):
@@ -202,7 +192,7 @@ class QuorumDataMessagesTest(DashTestFramework):
             # - Already received
             force_request_expire()
             assert mn1.node.quorum("getdata", id_p2p_mn1, 100, quorum_hash, 0x03, mn1.proTxHash)
-            p2p_mn1.wait_for_qgetdata()
+            p2p_mn1.wait_for_qmessage("qgetdata")
             p2p_mn1.send_message(qdata_valid)
             time.sleep(1)
             p2p_mn1.send_message(qdata_valid)
@@ -210,7 +200,7 @@ class QuorumDataMessagesTest(DashTestFramework):
             # - Not like requested
             force_request_expire()
             assert mn1.node.quorum("getdata", id_p2p_mn1, 100, quorum_hash, 0x03, mn1.proTxHash)
-            p2p_mn1.wait_for_qgetdata()
+            p2p_mn1.wait_for_qmessage("qgetdata")
             qdata_invalid_request = qdata_valid
             qdata_invalid_request.data_mask = 2
             p2p_mn1.send_message(qdata_invalid_request)
@@ -218,7 +208,7 @@ class QuorumDataMessagesTest(DashTestFramework):
             # - Invalid verification vector
             force_request_expire()
             assert mn1.node.quorum("getdata", id_p2p_mn1, 100, quorum_hash, 0x03, mn1.proTxHash)
-            p2p_mn1.wait_for_qgetdata()
+            p2p_mn1.wait_for_qmessage("qgetdata")
             qdata_invalid_vvec = qdata_valid
             qdata_invalid_vvec.quorum_vvec.pop()
             p2p_mn1.send_message(qdata_invalid_vvec)
@@ -226,7 +216,7 @@ class QuorumDataMessagesTest(DashTestFramework):
             # - Invalid contributions
             force_request_expire()
             assert mn1.node.quorum("getdata", id_p2p_mn1, 100, quorum_hash, 0x03, mn1.proTxHash)
-            p2p_mn1.wait_for_qgetdata()
+            p2p_mn1.wait_for_qmessage("qgetdata")
             qdata_invalid_contribution = qdata_valid
             qdata_invalid_contribution.enc_contributions.pop()
             p2p_mn1.send_message(qdata_invalid_contribution)
@@ -274,7 +264,7 @@ class QuorumDataMessagesTest(DashTestFramework):
             # Trigger mn1 - QGETDATA -> p2p_mn1
             assert mn1.node.quorum("getdata", id_p2p_mn1, 100, quorum_hash, 0x03, mn1.proTxHash)
             # Wait until mn1 sent the QGETDATA to p2p_mn1
-            p2p_mn1.wait_for_qgetdata()
+            p2p_mn1.wait_for_qmessage("qgetdata")
             # Send the QDATA received from mn2 to mn1
             p2p_mn1.send_message(p2p_mn2.get_qdata())
             # Now mn1 should have its data back!
@@ -379,7 +369,7 @@ class QuorumDataMessagesTest(DashTestFramework):
                 mnauth(mn2.node, id_p2p_mn2, fake_mnauth_2[0], fake_mnauth_2[1])
                 p2p_mn2.test_qgetdata(qgetdata_all, 0, self.llmq_threshold, self.llmq_size)
                 assert node0.quorum("getdata", id_p2p_node0, 100, quorum_hash, 0x03, mn1.proTxHash)
-                p2p_node0.wait_for_qgetdata()
+                p2p_node0.wait_for_qmessage("qgetdata")
                 p2p_node0.send_message(p2p_mn2.get_qdata())
                 wait_for_banscore(node0, id_p2p_node0, (1 - len(extra_args)) * 10)
                 node0.disconnect_p2ps()
