@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(dynbitset_rejects_oversized_declared_length)
 {
     constexpr uint64_t kClaimedBits = 1'000'000;
 
-    CDataStream s(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream s{};
     WriteCompactSize(s, kClaimedBits);
     // No bit payload follows, so the remaining size is zero.
 
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(dynbitset_accepts_maximum_size)
         original[i] = true;
     }
 
-    CDataStream s(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream s{};
     s << DYNBITSET(original);
 
     std::vector<bool> decoded;

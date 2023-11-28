@@ -678,7 +678,7 @@ static RPCHelpMan getislocks()
             objIS.pushKV("cycleHash", islock->cycleHash.ToString());
             objIS.pushKV("signature", islock->sig.ToString());
             {
-                CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+                DataStream ssTx{};
                 ssTx << *islock;
                 objIS.pushKV("hex", HexStr(ssTx));
             }

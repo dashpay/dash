@@ -906,7 +906,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         }
 
         opt_assetLockPayload.emplace(creditOutputs, coin_control.m_asset_lock_version.value_or(CAssetLockPayload::CURRENT_VERSION));
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream ss{};
         ss << *opt_assetLockPayload;
         nExtraPayloadSize = ss.size();
 

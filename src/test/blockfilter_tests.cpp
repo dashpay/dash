@@ -310,7 +310,7 @@ BOOST_AUTO_TEST_CASE(blockfilter_special_transactions_test)
 
     // Test ProRegTx fields
     // collateralOutpoint
-    CDataStream outpointStream(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream outpointStream{};
     outpointStream << proRegPayload.collateralOutpoint;
     auto outpointSpan = MakeUCharSpan(outpointStream);
     BOOST_CHECK(filter.Match(GCSFilter::Element(outpointSpan.begin(), outpointSpan.end())));

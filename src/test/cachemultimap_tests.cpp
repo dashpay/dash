@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
 //    DumpMap(cmmapTest1);
 
     // test serialization
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << cmmapTest1;
 
     CacheMultiMap<int,int> cmmapTest2;

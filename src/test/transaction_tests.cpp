@@ -375,9 +375,9 @@ BOOST_AUTO_TEST_CASE(tx_version_type_roundtrip)
         CMutableTransaction tx;
         tx.nVersion = version;
         tx.nType = type;
-        CDataStream mutable_stream(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream mutable_stream{};
         mutable_stream << tx;
-        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream stream{};
         stream << CTransaction(tx);
         BOOST_CHECK_EQUAL(HexStr(stream), HexStr(mutable_stream));
 

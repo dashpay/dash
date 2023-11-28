@@ -5614,7 +5614,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     block_data = std::move(*decompressed);
                 }
                 CBlockHeader header;
-                SpanReader{CLIENT_VERSION, MakeUCharSpan(block_data)} >> header;
+                SpanReader{MakeUCharSpan(block_data)} >> header;
                 const uint256 hash{header.GetHash()};
 
                 std::shared_ptr<CBlock> pblock{}; // needs to remain available after the cs_main lock is released to avoid duplicate reads from disk
@@ -5636,7 +5636,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     if (!pindex || (pindex->nStatus & BLOCK_HAVE_DATA) == 0) {
                         // This block can be processed immediately; deserialize it.
                         pblock = std::make_shared<CBlock>();
-                        SpanReader{CLIENT_VERSION, MakeUCharSpan(block_data)} >> TX_NO_WITNESS(*pblock);
+                        SpanReader{MakeUCharSpan(block_data)} >> TX_NO_WITNESS(*pblock);
 
                         BlockValidationState state;
                         if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, &hash)) {

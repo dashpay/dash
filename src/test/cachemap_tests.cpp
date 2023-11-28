@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     }
 
     // test serialization
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << cmapTest1;
 
     CacheMap<int,int> mapTest2;
