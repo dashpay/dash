@@ -702,7 +702,7 @@ bool NetDKG::AlreadyHave(const CInv& inv)
     return false;
 }
 
-bool NetDKG::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker)
+bool NetDKG::ProcessGetData(CNode& pfrom, const CInv& inv)
 {
     // Observer mode holds no CConnman, so this null check guards the replies
     // below rather than merely short-circuiting them. It costs no coverage: the
@@ -713,7 +713,7 @@ bool NetDKG::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& m
     case MSG_QUORUM_CONTRIB: {
         CDKGContribution o;
         if (m_qdkgsman.GetContribution(inv.hash, o)) {
-            m_active->connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
+            m_active->connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::QCONTRIB, o));
             return true;
         }
         return false;
@@ -721,7 +721,7 @@ bool NetDKG::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& m
     case MSG_QUORUM_COMPLAINT: {
         CDKGComplaint o;
         if (m_qdkgsman.GetComplaint(inv.hash, o)) {
-            m_active->connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
+            m_active->connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::QCOMPLAINT, o));
             return true;
         }
         return false;
@@ -729,7 +729,7 @@ bool NetDKG::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& m
     case MSG_QUORUM_JUSTIFICATION: {
         CDKGJustification o;
         if (m_qdkgsman.GetJustification(inv.hash, o)) {
-            m_active->connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
+            m_active->connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::QJUSTIFICATION, o));
             return true;
         }
         return false;
@@ -737,7 +737,7 @@ bool NetDKG::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& m
     case MSG_QUORUM_PREMATURE_COMMITMENT: {
         CDKGPrematureCommitment o;
         if (m_qdkgsman.GetPrematureCommitment(inv.hash, o)) {
-            m_active->connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
+            m_active->connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::QPCOMMITMENT, o));
             return true;
         }
         return false;

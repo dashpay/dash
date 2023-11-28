@@ -29,7 +29,7 @@ public:
 
     bool AlreadyHave(const CInv& inv) override;
     bool DeferAnnouncement(const CInv& inv) override;
-    bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
+    bool ProcessGetData(CNode& pfrom, const CInv& inv) override;
 
 private:
     CGovernanceManager& m_gov_manager;

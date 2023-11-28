@@ -49,66 +49,6 @@ inline void Xor(Span<std::byte> write, Span<const std::byte> key, size_t key_off
  *
  * The referenced vector will grow as necessary
  */
-class CVectorWriter
-{
- public:
-
-/*
- * @param[in]  nVersionIn Serialization Version (including any flags)
- * @param[in]  vchDataIn  Referenced byte vector to overwrite/append
- * @param[in]  nPosIn Starting position. Vector index where writes should start. The vector will initially
- *                    grow as necessary to max(nPosIn, vec.size()). So to append, use vec.size().
-*/
-    CVectorWriter(int nVersionIn, std::vector<unsigned char>& vchDataIn, size_t nPosIn) : nVersion{nVersionIn}, vchData{vchDataIn}, nPos{nPosIn}
-    {
-        if(nPos > vchData.size())
-            vchData.resize(nPos);
-    }
-/*
- * (other params same as above)
- * @param[in]  args  A list of items to serialize starting at nPosIn.
-*/
-    template <typename... Args>
-    CVectorWriter(int nVersionIn, std::vector<unsigned char>& vchDataIn, size_t nPosIn, Args&&... args) : CVectorWriter{nVersionIn, vchDataIn, nPosIn}
-    {
-        ::SerializeMany(*this, std::forward<Args>(args)...);
-    }
-    void write(Span<const std::byte> src)
-    {
-        assert(nPos <= vchData.size());
-        size_t nOverwrite = std::min(src.size(), vchData.size() - nPos);
-        if (nOverwrite) {
-            memcpy(vchData.data() + nPos, src.data(), nOverwrite);
-        }
-        if (nOverwrite < src.size()) {
-            vchData.insert(vchData.end(), UCharCast(src.data()) + nOverwrite, UCharCast(src.end()));
-        }
-        nPos += src.size();
-    }
-    template<typename T>
-    CVectorWriter& operator<<(const T& obj)
-    {
-        ::Serialize(*this, obj);
-        return (*this);
-    }
-    int GetVersion() const
-    {
-        return nVersion;
-    }
-    size_t size() const
-    {
-        return vchData.size() - nPos;
-    }
-private:
-    const int nVersion;
-    std::vector<unsigned char>& vchData;
-    size_t nPos;
-};
-
-/* Minimal stream for overwriting and/or appending to an existing byte vector
- *
- * The referenced vector will grow as necessary
- */
 class VectorWriter
 {
 public:

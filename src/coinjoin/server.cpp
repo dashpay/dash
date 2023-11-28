@@ -1248,8 +1248,7 @@ void CCoinJoinServer::RelayFinalTransaction(const CTransaction& txFinal)
     // final mixing tx with empty signatures should be relayed to mixing participants only
     for (const auto& entry : vecEntries) {
         bool fOk = connman.ForNode(entry.addr, [&txFinal, this](CNode* pnode) {
-            CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSFINALTX, nSessionID.load(), txFinal));
+            connman.PushMessage(pnode, NetMsg::Make(NetMsgType::DSFINALTX, nSessionID.load(), txFinal));
             return true;
         });
         if (!fOk) {
@@ -1263,7 +1262,7 @@ void CCoinJoinServer::RelayFinalTransaction(const CTransaction& txFinal)
 void CCoinJoinServer::PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID) const
 {
     CCoinJoinStatusUpdate psssup(nSessionID, nState, 0, nStatusUpdate, nMessageID);
-    connman.PushMessage(&peer, CNetMsgMaker(peer.GetCommonVersion()).Make(NetMsgType::DSSTATUSUPDATE, psssup));
+    connman.PushMessage(&peer, NetMsg::Make(NetMsgType::DSSTATUSUPDATE, psssup));
 }
 
 void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID)
@@ -1311,8 +1310,7 @@ void CCoinJoinServer::RelayCompletedTransaction(int session_id, const std::vecto
 
     for (const auto& addr : participants) {
         const bool fOk = connman.ForNode(addr, [&nMessageID, session_id, this](CNode* pnode) {
-            CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSCOMPLETE, session_id, nMessageID));
+            connman.PushMessage(pnode, NetMsg::Make(NetMsgType::DSCOMPLETE, session_id, nMessageID));
             return true;
         });
         if (!fOk) {
@@ -1385,13 +1383,13 @@ bool CCoinJoinServer::AlreadyHave(const CInv& inv)
     return (inv.type == MSG_DSQ) ? m_queueman.HasQueue(inv.hash) : false;
 }
 
-bool CCoinJoinServer::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker)
+bool CCoinJoinServer::ProcessGetData(CNode& pfrom, const CInv& inv)
 {
     if (inv.type != MSG_DSQ) return false;
 
     auto opt_dsq = m_queueman.GetQueueFromHash(inv.hash);
     if (!opt_dsq.has_value()) return false;
 
-    connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::DSQUEUE, *opt_dsq));
+    connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::DSQUEUE, *opt_dsq));
     return true;
 }

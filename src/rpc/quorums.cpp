@@ -943,7 +943,7 @@ static RPCHelpMan quorum_getdata()
         const llmq::CQuorumDataRequest request(llmqType, quorum->qc->quorumHash, nDataMask, proTxHash);
         const llmq::CQuorumDataRequestKey key(pNode->GetVerifiedProRegTxHash(), true, quorum->qc->quorumHash, llmqType);
         if (llmq_ctx.qman->RegisterDataRequest(key, request) != llmq::DataRequestRegistration::Accepted) return false;
-        connman.PushMessage(pNode, CNetMsgMaker(pNode->GetCommonVersion()).Make(NetMsgType::QGETDATA, request));
+        connman.PushMessage(pNode, NetMsg::Make(NetMsgType::QGETDATA, request));
         return true;
     });
 },

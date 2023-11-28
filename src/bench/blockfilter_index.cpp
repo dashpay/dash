@@ -91,12 +91,12 @@ std::vector<BlockFilter> LookupFilterRange(const BlockFilterIndexBenchSetup& set
     return filters;
 }
 
-std::vector<CSerializedNetMsg> SerializeFilters(const std::vector<BlockFilter>& filters, const CNetMsgMaker& msg_maker)
+std::vector<CSerializedNetMsg> SerializeFilters(const std::vector<BlockFilter>& filters)
 {
     std::vector<CSerializedNetMsg> messages;
     messages.reserve(filters.size());
     for (const auto& filter : filters) {
-        messages.emplace_back(msg_maker.Make(NetMsgType::CFILTER, filter));
+        messages.emplace_back(NetMsg::Make(NetMsgType::CFILTER, filter));
     }
     return messages;
 }
@@ -154,10 +154,9 @@ void BlockFilterSerialize1000(benchmark::Bench& bench)
 {
     BlockFilterIndexBenchSetup setup;
     const auto filters{LookupFilterRange(setup, NUM_FILTERS)};
-    const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
 
     bench.batch(NUM_FILTERS).unit("filter").run([&] {
-        auto messages{SerializeFilters(filters, msg_maker)};
+        auto messages{SerializeFilters(filters)};
         ankerl::nanobench::doNotOptimizeAway(messages);
     });
 }
@@ -165,11 +164,10 @@ void BlockFilterSerialize1000(benchmark::Bench& bench)
 void BlockFilterLookupAndSerialize1000(benchmark::Bench& bench)
 {
     BlockFilterIndexBenchSetup setup;
-    const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
 
     bench.batch(NUM_FILTERS).unit("filter").run([&] {
         const auto filters{LookupFilterRange(setup, NUM_FILTERS)};
-        auto messages{SerializeFilters(filters, msg_maker)};
+        auto messages{SerializeFilters(filters)};
         ankerl::nanobench::doNotOptimizeAway(messages);
     });
 }
