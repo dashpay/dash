@@ -440,6 +440,7 @@ bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType,
         }
     }
     if (nRequestedMemberIdx == std::numeric_limits<size_t>::max()) {
+        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- not a member, nProTxHash=%s\n", __func__, nProTxHash.ToString());
         return false;
     }
 
@@ -447,6 +448,7 @@ bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType,
         if (validMembers[i]) {
             CBLSIESMultiRecipientObjects<CBLSSecretKey> encryptedContributions;
             if (!db->Read(std::make_tuple(DB_ENC_CONTRIB, llmqType, pQuorumBaseBlockIndex->GetBlockHash(), members[i]->proTxHash), encryptedContributions)) {
+                LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- can't read from db, nProTxHash=%s\n", __func__, nProTxHash.ToString());
                 return false;
             }
             vecRet.emplace_back(encryptedContributions.Get(nRequestedMemberIdx));
