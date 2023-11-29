@@ -452,8 +452,8 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, Consensus::LLMQType llmqTyp
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Version must be %d or greater.\n", __func__, LLMQ_DATA_MESSAGES_VERSION);
         return false;
     }
-    if (pfrom->GetVerifiedProRegTxHash().IsNull() && !pfrom->qwatch) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- pfrom is neither a verified masternode nor a qwatch connection\n", __func__);
+    if (pfrom->GetVerifiedProRegTxHash().IsNull()) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- pfrom is not a verified masternode\n", __func__);
         return false;
     }
     if (!GetLLMQParams(llmqType).has_value()) {
@@ -719,8 +719,8 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
     }
 
     if (msg_type == NetMsgType::QDATA) {
-        if ((!fMasternodeMode && !utils::IsWatchQuorumsEnabled()) || (pfrom.GetVerifiedProRegTxHash().IsNull() && !pfrom.qwatch)) {
-            errorHandler("Not a verified masternode or a qwatch connection");
+        if ((!fMasternodeMode && !utils::IsWatchQuorumsEnabled()) || pfrom.GetVerifiedProRegTxHash().IsNull()) {
+            errorHandler("Not a verified masternode and -watchquorums is not enabled");
             return;
         }
 
