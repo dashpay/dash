@@ -189,6 +189,11 @@ void CDKGSessionManager::ProcessMessage(CNode& pfrom, const CQuorumManager& quor
     }
 
     if (msg_type == NetMsgType::QWATCH) {
+        if (!fMasternodeMode) {
+            // non-masternodes should never receive this
+            m_peerman->Misbehaving(pfrom.GetId(), 10);
+            return;
+        }
         pfrom.qwatch = true;
         return;
     }
