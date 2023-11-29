@@ -257,6 +257,8 @@ class QuorumDataMessagesTest(DashTestFramework):
             # Validate the DKG data is missing
             p2p_mn1.test_qgetdata(qgetdata_vvec, QUORUM_VERIFICATION_VECTOR_MISSING)
             p2p_mn1.test_qgetdata(qgetdata_contributions, ENCRYPTED_CONTRIBUTIONS_MISSING)
+            self.test_mn_quorum_data(mn1, 100, quorum_hash, expect_secret=False)
+
             self.log.info("Test DKG data recovery with QDATA")
             # Now that mn1 is missing its DKG data try to recover it by querying the data from mn2 and then sending it
             # to mn1 with a direct QDATA message.
