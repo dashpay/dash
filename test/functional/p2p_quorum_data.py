@@ -374,8 +374,8 @@ class QuorumDataMessagesTest(DashTestFramework):
                 id_p2p_mn2 = get_mininode_id(mn2.node)
                 mnauth(node0, id_p2p_node0, fake_mnauth_1[0], fake_mnauth_1[1])
                 mnauth(mn2.node, id_p2p_mn2, fake_mnauth_2[0], fake_mnauth_2[1])
-                p2p_mn2.test_qgetdata(qgetdata_all, 0, self.llmq_threshold, self.llmq_size)
-                assert node0.quorum("getdata", id_p2p_node0, 100, quorum_hash, 0x03, mn1.proTxHash)
+                p2p_mn2.test_qgetdata(qgetdata_vvec, 0, self.llmq_threshold)
+                assert node0.quorum("getdata", id_p2p_node0, 100, quorum_hash, 0x01)
                 p2p_node0.wait_for_qmessage("qgetdata")
                 p2p_node0.send_message(p2p_mn2.get_qdata())
                 wait_for_banscore(node0, id_p2p_node0, (1 - len(extra_args)) * 10)
@@ -407,7 +407,7 @@ class QuorumDataMessagesTest(DashTestFramework):
         protx_hash_int = int(mn1.proTxHash, 16)
 
         # Valid requests
-        qgetdata_vvec = msg_qgetdata(quorum_hash_int, 100, 0x01, protx_hash_int)
+        qgetdata_vvec = msg_qgetdata(quorum_hash_int, 100, 0x01)
         qgetdata_contributions = msg_qgetdata(quorum_hash_int, 100, 0x02, protx_hash_int)
         qgetdata_all = msg_qgetdata(quorum_hash_int, 100, 0x03, protx_hash_int)
 
