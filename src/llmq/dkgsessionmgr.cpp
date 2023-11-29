@@ -198,6 +198,12 @@ void CDKGSessionManager::ProcessMessage(CNode& pfrom, const CQuorumManager& quor
         return;
     }
 
+    if ((!fMasternodeMode && !utils::IsWatchQuorumsEnabled())) {
+        // regular non-watching nodes should never receive any of these
+        m_peerman->Misbehaving(pfrom.GetId(), 10);
+        return;
+    }
+
     if (vRecv.empty()) {
         m_peerman->Misbehaving(pfrom.GetId(), 100);
         return;
