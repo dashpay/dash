@@ -134,12 +134,13 @@ class QuorumDataMessagesTest(DashTestFramework):
         def force_request_expire(bump_seconds=self.quorum_data_request_expiration_timeout + 1):
             self.bump_mocktime(bump_seconds)
             # Test with/without expired request cleanup
-            if node0.getblockcount() % 2:
+            if self.cleanup:
                 node0.generate(1)
                 self.sync_blocks()
 
         def test_basics():
             self.log.info("Testing basics of QGETDATA/QDATA")
+            force_request_expire()
             p2p_node0 = p2p_connection(node0)
             p2p_mn2 = p2p_connection(mn2.node)
             id_p2p_node0 = get_mininode_id(node0)
@@ -367,6 +368,7 @@ class QuorumDataMessagesTest(DashTestFramework):
         def test_watchquorums():
             self.log.info("Test -watchquorums support")
             for extra_args in [[], ["-watchquorums"]]:
+                force_request_expire()
                 self.restart_node(0, self.extra_args[0] + extra_args)
                 for i in range(self.num_nodes - 1):
                     self.connect_nodes(0, i + 1)
@@ -413,11 +415,13 @@ class QuorumDataMessagesTest(DashTestFramework):
         qgetdata_contributions = msg_qgetdata(quorum_hash_int, 100, 0x02, protx_hash_int)
         qgetdata_all = msg_qgetdata(quorum_hash_int, 100, 0x03, protx_hash_int)
 
-        test_basics()
-        test_request_limit()
-        test_qwatch_connections()
-        test_watchquorums()
-        test_rpc_quorum_getdata_protx_hash()
+        # Test with/without expired request cleanup
+        for self.cleanup in [True, False]:
+            test_basics()
+            test_request_limit()
+            test_qwatch_connections()
+            test_watchquorums()
+            test_rpc_quorum_getdata_protx_hash()
 
 
 if __name__ == '__main__':
