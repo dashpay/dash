@@ -472,8 +472,8 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, Consensus::LLMQType llmqTyp
     LOCK(cs_data_requests);
     const CQuorumDataRequestKey key(pfrom->GetVerifiedProRegTxHash(), true, pQuorumBaseBlockIndex->GetBlockHash(), llmqType);
     const CQuorumDataRequest request(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash);
-    auto [old_pair, exists] = mapQuorumDataRequests.emplace(key, request);
-    if (!exists) {
+    auto [old_pair, inserted] = mapQuorumDataRequests.emplace(key, request);
+    if (!inserted) {
         if (old_pair->second.IsExpired(/*add_bias=*/true)) {
             old_pair->second = request;
         } else {
