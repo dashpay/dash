@@ -150,7 +150,7 @@ class QuorumDataMessagesTest(DashTestFramework):
             wait_for_banscore(node0, id_p2p_node0, 10)
             # The masternode should not respond to qgetdata for non-masternode connections
             self.log.info("Check that masternode doesn't respond to "
-                          "non-masternode connection. Doesn't bump score.")
+                          "non-masternode connection and does bump our score")
             p2p_mn1.test_qgetdata(qgetdata_all, response_expected=False)
             wait_for_banscore(mn1.node, id_p2p_mn1, 10)
             # Open a fake MNAUTH authenticated P2P connection to the masternode to allow qgetdata
