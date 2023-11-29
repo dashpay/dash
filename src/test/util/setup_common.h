@@ -6,7 +6,7 @@
 #ifndef BITCOIN_TEST_UTIL_SETUP_COMMON_H
 #define BITCOIN_TEST_UTIL_SETUP_COMMON_H
 
-#include <common/args.h>
+#include <common/args.h> // IWYU pragma: export
 #include <common/system.h>
 #include <key.h>
 #include <net_processing.h>
@@ -16,7 +16,7 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <random.h>
-#include <util/chaintype.h>
+#include <util/chaintype.h> // IWYU pragma: export
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/string.h>
