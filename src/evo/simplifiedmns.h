@@ -13,9 +13,9 @@
 
 #include <merkleblock.h>
 #include <netaddress.h>
+#include <node/protocol_version.h>
 #include <protocol_ser_params.h>
 #include <pubkey.h>
-#include <version.h>
 
 #include <gsl/pointers.h>
 

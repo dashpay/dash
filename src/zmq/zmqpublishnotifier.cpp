@@ -12,6 +12,7 @@
 #include <netaddress.h>
 #include <netbase.h>
 #include <node/blockstorage.h>
+#include <node/protocol_version.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
@@ -20,7 +21,6 @@
 #include <sync.h>
 #include <uint256.h>
 #include <util/std23.h>
-#include <version.h>
 #include <zmq/zmqutil.h>
 
 #include <zmq.h>

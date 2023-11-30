@@ -22,7 +22,7 @@ from test_framework.test_framework import (
 )
 from test_framework.util import assert_equal, force_finish_mnsync
 
-# See version.h
+# See node/protocol_version.h
 MIN_MASTERNODE_PROTO_VERSION = 70242
 
 NON_SIGNER_MSG = "recent commitments it was a valid member of"

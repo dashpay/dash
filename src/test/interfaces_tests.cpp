@@ -15,6 +15,7 @@
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/params.h>
+#include <node/protocol_version.h>
 #include <script/solver.h>
 #include <spork.h>
 #include <streams.h>
@@ -24,7 +25,6 @@
 #include <util/std23.h>
 #include <util/strencodings.h>
 #include <validation.h>
-#include <version.h>
 
 #include <algorithm>
 #include <chrono>

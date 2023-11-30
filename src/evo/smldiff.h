@@ -13,11 +13,11 @@
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <merkleblock.h>
 #include <netaddress.h>
+#include <node/protocol_version.h>
 #include <protocol_ser_params.h>
 #include <pubkey.h>
 #include <sync.h>
 #include <threadsafety.h>
-#include <version.h>
 
 class CBlockIndex;
 class CDeterministicMNList;

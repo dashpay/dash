@@ -17,6 +17,7 @@
 #include <net.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/protocol_version.h>
 #include <node/utxo_snapshot.h>
 #include <primitives/block.h>
 #include <protocol.h>
@@ -27,7 +28,6 @@
 #include <test/fuzz/util.h>
 #include <test/util/setup_common.h>
 #include <undo.h>
-#include <version.h>
 
 #include <exception>
 #include <optional>

@@ -13,10 +13,10 @@
 #include <masternode/meta.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/protocol_version.h>
 #include <streams.h>
 #include <util/time.h>
 #include <validation.h>
-#include <version.h>
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>

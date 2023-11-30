@@ -19,6 +19,7 @@
 #include <core_io.h>
 #include <net.h>
 #include <netmessagemaker.h>
+#include <node/protocol_version.h>
 #include <shutdown.h>
 #include <txmempool.h>
 #include <util/check.h>
@@ -26,7 +27,6 @@
 #include <util/moneystr.h>
 #include <util/translation.h>
 #include <validation.h>
-#include <version.h>
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
 #include <wallet/receive.h>

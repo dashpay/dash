@@ -16,10 +16,10 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>
+#include <node/protocol_version.h>
 #include <spork.h>
 #include <streams.h>
 #include <validation.h>
-#include <version.h>
 
 #include <chainlock/chainlock.h>
 #include <chainlock/clsig.h>

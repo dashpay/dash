@@ -7,13 +7,13 @@
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <core_memusage.h>
+#include <node/protocol_version.h>
 #include <primitives/block.h>
 #include <pubkey.h>
 #include <streams.h>
 #include <test/fuzz/fuzz.h>
 #include <util/chaintype.h>
 #include <validation.h>
-#include <version.h>
 
 #include <cassert>
 #include <string>

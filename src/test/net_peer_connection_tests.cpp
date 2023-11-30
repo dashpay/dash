@@ -10,6 +10,7 @@
 #include <netbase.h>
 #include <netgroup.h>
 #include <node/connection_types.h>
+#include <node/protocol_version.h>
 #include <protocol.h>
 #include <random.h>
 #include <test/util/logging.h>
@@ -17,7 +18,7 @@
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
-#include <version.h>
+
 
 #include <algorithm>
 #include <cstdint>

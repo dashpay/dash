@@ -22,6 +22,7 @@
 #include <netbase.h>
 #include <netgroup.h>
 #include <node/connection_types.h>
+#include <node/protocol_version.h>
 #include <policy/feerate.h>
 #include <protocol.h>
 #include <random.h>
@@ -35,7 +36,6 @@
 #include <util/sock.h>
 #include <util/threadinterrupt.h>
 #include <util/wpipe.h>
-#include <version.h>
 
 #include <algorithm>
 #include <atomic>

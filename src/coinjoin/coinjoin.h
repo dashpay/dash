@@ -11,6 +11,7 @@
 #include <evo/types.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <netaddress.h>
+#include <node/protocol_version.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <protocol_ser_params.h>
@@ -19,7 +20,6 @@
 #include <util/helpers.h>
 #include <util/time.h>
 #include <util/translation.h>
-#include <version.h>
 
 #include <atomic>
 #include <functional>

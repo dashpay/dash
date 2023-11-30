@@ -13,6 +13,7 @@
 #include <consensus/consensus.h>
 #include <key.h>
 #include <merkleblock.h>
+#include <node/protocol_version.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <serialize.h>
@@ -22,7 +23,6 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/overflow.h>
-#include <version.h>
 
 #include <algorithm>
 #include <array>

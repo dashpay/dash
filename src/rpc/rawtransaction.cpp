@@ -46,7 +46,6 @@
 #include <util/vector.h>
 #include <validation.h>
 #include <validationinterface.h>
-#include <version.h>
 
 #include <chainlock/chainlock.h>
 #include <evo/assetlocktx.h>

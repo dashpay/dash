@@ -14,12 +14,12 @@
 #include <net_processing.h>
 #include <netfulfilledman.h>
 #include <node/connection_types.h>
+#include <node/protocol_version.h>
 #include <protocol.h>
 #include <streams.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/time.h>
-#include <version.h>
 
 #include <test/util/net.h>
 #include <test/util/setup_common.h>

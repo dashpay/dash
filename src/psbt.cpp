@@ -4,6 +4,7 @@
 
 #include <coins.h>
 #include <consensus/tx_verify.h>
+#include <node/protocol_version.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <psbt.h>
@@ -11,7 +12,6 @@
 #include <tinyformat.h>
 #include <util/check.h>
 #include <util/strencodings.h>
-#include <version.h>
 
 #include <numeric>
 

@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_VERSION_H
-#define BITCOIN_VERSION_H
+#ifndef BITCOIN_NODE_PROTOCOL_VERSION_H
+#define BITCOIN_NODE_PROTOCOL_VERSION_H
 
 /**
  * network protocol versioning
@@ -73,4 +73,4 @@ static const int COINJOIN_REBALANCE_VERSION = 70241;
 //! so that re-signed instances of one withdrawal (sharing its txid) propagate
 static const int ASSET_UNLOCK_INV_VERSION = 70242;
 
-#endif // BITCOIN_VERSION_H
+#endif // BITCOIN_NODE_PROTOCOL_VERSION_H
