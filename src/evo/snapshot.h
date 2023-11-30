@@ -703,7 +703,7 @@ void EvoSnapshot::Unserialize(Stream& s)
     Validate(/*require_canonical_order=*/true);
 }
 
-/** Single SHA256 of the canonical SER_DISK/CLIENT_VERSION encoding. */
+/** Single SHA256 of the canonical encoding. */
 uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot);
 
 struct QuorumReconstructionHeight {

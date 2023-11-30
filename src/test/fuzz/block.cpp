@@ -7,7 +7,6 @@
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <core_memusage.h>
-#include <node/protocol_version.h>
 #include <primitives/block.h>
 #include <pubkey.h>
 #include <streams.h>
@@ -25,12 +24,9 @@ void initialize_block()
 
 FUZZ_TARGET(block, .init = initialize_block)
 {
-    CDataStream ds(buffer, SER_NETWORK, INIT_PROTO_VERSION);
+    DataStream ds{buffer};
     CBlock block;
     try {
-        int nVersion;
-        ds >> nVersion;
-        ds.SetVersion(nVersion);
         ds >> TX_NO_WITNESS(block);
     } catch (const std::ios_base::failure&) {
         return;

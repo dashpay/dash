@@ -4,7 +4,6 @@
 
 #include <coins.h>
 #include <consensus/tx_verify.h>
-#include <node/protocol_version.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <psbt.h>
@@ -390,7 +389,7 @@ bool DecodeBase64PSBT(PartiallySignedTransaction& psbt, const std::string& base6
 
 bool DecodeRawPSBT(PartiallySignedTransaction& psbt, Span<const std::byte> tx_data, std::string& error)
 {
-    CDataStream ss_data(tx_data, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss_data{tx_data};
     try {
         ss_data >> psbt;
         if (!ss_data.empty()) {

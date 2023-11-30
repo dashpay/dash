@@ -13,7 +13,6 @@
 #include <consensus/consensus.h>
 #include <key.h>
 #include <merkleblock.h>
-#include <node/protocol_version.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <serialize.h>
@@ -122,7 +121,7 @@ template <typename T>
 [[nodiscard]] inline std::optional<T> ConsumeDeserializable(FuzzedDataProvider& fuzzed_data_provider, const std::optional<size_t>& max_length = std::nullopt) noexcept
 {
     const std::vector<uint8_t> buffer = ConsumeRandomLengthByteVector(fuzzed_data_provider, max_length);
-    CDataStream ds{buffer, SER_NETWORK, INIT_PROTO_VERSION};
+    DataStream ds{buffer};
     T obj;
     try {
         ds >> obj;

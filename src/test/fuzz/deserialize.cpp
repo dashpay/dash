@@ -17,7 +17,6 @@
 #include <net.h>
 #include <netbase.h>
 #include <netgroup.h>
-#include <node/protocol_version.h>
 #include <node/utxo_snapshot.h>
 #include <primitives/block.h>
 #include <protocol.h>
@@ -90,15 +89,15 @@ void DeserializeFromFuzzingInput(FuzzBufferType buffer, T&& obj, const P& params
 }
 
 template <typename T>
-CDataStream Serialize(const T& obj)
+DataStream Serialize(const T& obj)
 {
-    CDataStream ds{SER_NETWORK, INIT_PROTO_VERSION};
+    DataStream ds{};
     ds << obj;
     return ds;
 }
 
 template <typename T>
-T Deserialize(CDataStream ds)
+T Deserialize(DataStream ds)
 {
     T obj;
     ds >> obj;
@@ -108,16 +107,7 @@ T Deserialize(CDataStream ds)
 template <typename T>
 void DeserializeFromFuzzingInput(FuzzBufferType buffer, T&& obj)
 {
-    CDataStream ds{buffer, SER_NETWORK, INIT_PROTO_VERSION};
-    {
-        try {
-            int version;
-            ds >> version;
-            ds.SetVersion(version);
-        } catch (const std::ios_base::failure&) {
-            throw invalid_fuzzing_input_exception();
-        }
-    }
+    DataStream ds{buffer};
     try {
         ds >> obj;
     } catch (const std::ios_base::failure&) {

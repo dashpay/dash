@@ -57,7 +57,7 @@ GetDataResponse ConsumeGetDataResponse(PeerManager& peerman, const CNode& peer, 
 void ProcessInv(PeerManager& peerman, CNode& peer, const CInv& inv)
     EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex)
 {
-    CDataStream inv_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream inv_stream{};
     inv_stream << std::vector<CInv>{inv};
     std::atomic<bool> interrupt_dummy{false};
     peerman.ProcessMessage(peer, NetMsgType::INV, inv_stream, GetTime<std::chrono::microseconds>(), interrupt_dummy);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(inventory_request_accounting)
     const auto process_batch =
         [&](CNode& node, const std::string& command, const std::vector<CInv>& invs)
             EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
-                CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+                DataStream stream{};
                 stream << invs;
                 peerman.ProcessMessage(node, command, stream, GetTime<std::chrono::microseconds>(), interrupt);
             };
@@ -149,7 +149,7 @@ BOOST_FIXTURE_TEST_CASE(mainnet_ignores_sporks, TestingSetup)
         key.MakeNewKey(/*fCompressed=*/true);
         CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 0, NodeClock::now()};
         BOOST_REQUIRE(spork.Sign(key));
-        CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream stream{};
         stream << spork;
         std::atomic<bool> interrupt_dummy{false};
         m_node.peerman->ProcessMessage(*peer, NetMsgType::SPORK, stream, GetTime<std::chrono::microseconds>(), interrupt_dummy);
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(notfound_does_not_wait_for_chainstate)
         BOOST_CHECK_EQUAL(peerman.GetRequestedObjectCount(peer->GetId()), 1U);
         response = std::async(std::launch::async, [&] {
             LOCK(NetEventsInterface::g_msgproc_mutex);
-            CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+            DataStream stream{};
             stream << std::vector<CInv>{inv};
             const std::atomic<bool> interrupt{false};
             peerman.ProcessMessage(*peer, NetMsgType::NOTFOUND, stream, GetTime<std::chrono::microseconds>(), interrupt);
@@ -1232,13 +1232,13 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
 
     const auto msg_version =
         NetMsg::Make(NetMsgType::VERSION, PROTOCOL_VERSION, services, time, services, CAddress::V1_NETWORK(peer_us));
-    CDataStream msg_version_stream{msg_version.data, SER_NETWORK, PROTOCOL_VERSION};
+    DataStream msg_version_stream{msg_version.data};
 
     m_node.peerman->ProcessMessage(
         peer, NetMsgType::VERSION, msg_version_stream, time_received_dummy, interrupt_dummy);
 
     const auto msg_verack = NetMsg::Make(NetMsgType::VERACK);
-    CDataStream msg_verack_stream{msg_verack.data, SER_NETWORK, PROTOCOL_VERSION};
+    DataStream msg_verack_stream{msg_verack.data};
 
     // Will set peer.fSuccessfullyConnected to true (necessary in SendMessages()).
     m_node.peerman->ProcessMessage(
