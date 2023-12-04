@@ -1932,6 +1932,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                 llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*node.evodb));
 
                 if (node.llmq_ctx) {
+                    node.llmq_ctx->Interrupt();
                     node.llmq_ctx->Stop();
                 }
                 node.llmq_ctx.reset();
