@@ -1502,6 +1502,7 @@ bool LegacyScriptPubKeyMan::TopUpInner(unsigned int kpSize)
         bool fInternal = false;
         int64_t current_index{0};
         WalletBatch batch(m_storage.GetDatabase());
+        if (!batch.TxnBegin()) return false;
 
         for (current_index = 0; current_index < total_missing; ++current_index) {
             if (current_index == missingExternal) {
@@ -1522,6 +1523,7 @@ bool LegacyScriptPubKeyMan::TopUpInner(unsigned int kpSize)
                 }
             }
         }
+        if (!batch.TxnCommit()) throw std::runtime_error(strprintf("Error during keypool top up. Cannot commit changes for wallet %s", m_storage.GetDisplayName()));
         WalletLogPrintf("Keypool added %d keys, size=%u (%u internal)\n",
                   current_index + 1, setInternalKeyPool.size() + setExternalKeyPool.size(), setInternalKeyPool.size());
         if (should_show_progress) {
@@ -1967,8 +1969,8 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
 
         // Make the DescriptorScriptPubKeyMan and get the scriptPubKeys
         auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc, m_keypool_size));
-        desc_spk_man->AddDescriptorKey(key, key.GetPubKey());
-        desc_spk_man->TopUp();
+        WITH_LOCK(desc_spk_man->cs_desc_man, desc_spk_man->AddDescriptorKeyWithDB(migration_batch, key, key.GetPubKey(), /*mnemonic=*/"", /*mnemonic_passphrase=*/""));
+        desc_spk_man->TopUpWithDB(migration_batch);
         auto desc_spks = desc_spk_man->GetScriptPubKeys();
 
         // Erase every script form combo just produced from the tracking set.
@@ -2053,8 +2055,8 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
             WalletDescriptor w_desc(std::move(desc), 0, 0, chain_counter, 0);
 
             auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc, m_keypool_size));
-            desc_spk_man->AddDescriptorKey(master_key.key, master_key.key.GetPubKey(), out.mnemonic, out.mnemonic_passphrase);
-            desc_spk_man->TopUp();
+            WITH_LOCK(desc_spk_man->cs_desc_man, desc_spk_man->AddDescriptorKeyWithDB(migration_batch, master_key.key, master_key.key.GetPubKey(), out.mnemonic, out.mnemonic_passphrase));
+            desc_spk_man->TopUpWithDB(migration_batch);
             auto desc_spks = desc_spk_man->GetScriptPubKeys();
 
             // Erase every script form combo just produced from the tracking set.
@@ -2112,9 +2114,9 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
                 if (!GetKey(keyid, key)) {
                     continue;
                 }
-                desc_spk_man->AddDescriptorKey(key, key.GetPubKey());
+                WITH_LOCK(desc_spk_man->cs_desc_man, desc_spk_man->AddDescriptorKeyWithDB(migration_batch, key, key.GetPubKey(), /*mnemonic=*/"", /*mnemonic_passphrase=*/""));
             }
-            desc_spk_man->TopUp();
+            desc_spk_man->TopUpWithDB(migration_batch);
             auto desc_spks_set = desc_spk_man->GetScriptPubKeys();
             desc_spks.insert(desc_spks.end(), desc_spks_set.begin(), desc_spks_set.end());
 
@@ -2348,6 +2350,15 @@ std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
 
 bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
 {
+    WalletBatch batch(m_storage.GetDatabase());
+    if (!batch.TxnBegin()) return false;
+    bool res = TopUpWithDB(batch, size);
+    if (!batch.TxnCommit()) throw std::runtime_error(strprintf("Error during descriptors keypool top up. Cannot commit changes for wallet %s", m_storage.GetDisplayName()));
+    return res;
+}
+
+bool DescriptorScriptPubKeyMan::TopUpWithDB(WalletBatch& batch, unsigned int size)
+{
     LOCK(cs_desc_man);
     unsigned int target_size;
     if (size > 0) {
@@ -2369,7 +2380,6 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
     FlatSigningProvider provider;
     provider.keys = GetKeys();
 
-    WalletBatch batch(m_storage.GetDatabase());
     uint256 id = GetID();
     for (int32_t i = m_max_cached_index + 1; i < new_range_end; ++i) {
         FlatSigningProvider out_keys;
@@ -2507,7 +2517,7 @@ bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const
     }
 }
 
-bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type)
+bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(WalletBatch& batch, const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type)
 {
     LOCK(cs_desc_man);
     assert(m_storage.IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
@@ -2548,7 +2558,6 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
     m_wallet_descriptor = w_desc;
 
     // Store the master private key, and descriptor
-    WalletBatch batch(m_storage.GetDatabase());
     if (!AddDescriptorKeyWithDB(batch, master_key.key, master_key.key.GetPubKey(), secure_mnemonic, secure_mnemonic_passphrase)) {
         throw std::runtime_error(std::string(__func__) + ": writing descriptor master private key failed");
     }
@@ -2557,7 +2566,7 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
     }
 
     // TopUp
-    TopUp();
+    TopUpWithDB(batch);
 
     m_storage.UnsetBlankWalletFlag(batch);
     return true;
