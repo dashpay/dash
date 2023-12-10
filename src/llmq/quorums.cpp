@@ -502,14 +502,39 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         return {};
     }
 
-    const CBlockIndex* pIndexScanCommitments{pindexStart};
+    const CBlockIndex* pindexStore{pindexStart};
+    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    assert(llmq_params_opt.has_value());
+
+    {
+        // Quorum sets can only change during the mining phase of DKG.
+        // Find the closest known block index.
+        const int quorumCycleStartHeight = pindexStart->nHeight - (pindexStart->nHeight % llmq_params_opt->dkgInterval);
+        const int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowStart;
+        const int quorumCycleMiningEndHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowEnd;
+
+        if (pindexStart->nHeight < quorumCycleMiningStartHeight) {
+            // too early for this cycle, use the previous one
+            pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
+        } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
+            // we are past the mining phase of this cycle, use it
+            pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
+        }
+        // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
+
+        if (pindexStore == nullptr || !utils::IsQuorumTypeEnabled(llmqType, *this, pindexStore)) {
+            return {};
+        }
+    }
+
+    const CBlockIndex* pIndexScanCommitments{pindexStore};
     size_t nScanCommitments{nCountRequested};
     std::vector<CQuorumCPtr> vecResultQuorums;
 
     {
         LOCK(cs_scan_quorums);
         auto& cache = scanQuorumsCache[llmqType];
-        bool fCacheExists = cache.get(pindexStart->GetBlockHash(), vecResultQuorums);
+        bool fCacheExists = cache.get(pindexStore->GetBlockHash(), vecResultQuorums);
         if (fCacheExists) {
             // We have exactly what requested so just return it
             if (vecResultQuorums.size() == nCountRequested) {
@@ -532,8 +557,6 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     }
 
     // Get the block indexes of the mined commitments to build the required quorums from
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
-    assert(llmq_params_opt.has_value());
     std::vector<const CBlockIndex*> pQuorumBaseBlockIndexes{ llmq_params_opt->useRotation ?
             quorumBlockProcessor.GetMinedCommitmentsIndexedUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments) :
             quorumBlockProcessor.GetMinedCommitmentsUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments)
@@ -553,7 +576,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         // Don't cache more than cache.max_size() elements
         auto& cache = scanQuorumsCache[llmqType];
         const size_t nCacheEndIndex = std::min(nCountResult, cache.max_size());
-        cache.emplace(pindexStart->GetBlockHash(), {vecResultQuorums.begin(), vecResultQuorums.begin() + nCacheEndIndex});
+        cache.emplace(pindexStore->GetBlockHash(), {vecResultQuorums.begin(), vecResultQuorums.begin() + nCacheEndIndex});
     }
     // Don't return more than nCountRequested elements
     const size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
