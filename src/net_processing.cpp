@@ -5089,7 +5089,7 @@ void PeerManagerImpl::ProcessMessage(
                 ForgetTx(tx.GetHash());
 
                 // DoS prevention: do not allow m_orphans to grow unbounded (see CVE-2012-3789)
-                m_orphanage.LimitOrphans(m_opts.max_orphan_txs_size);
+                m_orphanage.LimitOrphans(m_opts.max_orphan_txs_size, m_rng);
             } else {
                 LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
                 // We will continue to reject this tx since it has rejected
