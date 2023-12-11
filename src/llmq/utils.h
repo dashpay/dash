@@ -119,6 +119,13 @@ void IterateNodesRandom(NodesContainer& nodeStates, Continue&& cont, Callback&& 
 template <typename CacheType>
 void InitQuorumsCache(CacheType& cache, bool limit_by_connections = true);
 
+[[ nodiscard ]] static constexpr int max_store_depth(const Consensus::LLMQParams& llmqParams)
+{
+    // For how many blocks recent DKG info should be kept
+    const int MAX_CYCLES = llmqParams.useRotation ? llmqParams.keepOldKeys / llmqParams.signingActiveQuorumCount : llmqParams.keepOldKeys;
+    return MAX_CYCLES * llmqParams.dkgInterval;
+}
+
 } // namespace utils
 
 [[ nodiscard ]] const std::optional<Consensus::LLMQParams> GetLLMQParams(Consensus::LLMQType llmqType);
