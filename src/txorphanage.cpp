@@ -116,7 +116,7 @@ void TxOrphanage::EraseForPeer(NodeId peer)
     if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx from peer=%d\n", nErased, peer);
 }
 
-void TxOrphanage::LimitOrphans(unsigned int max_orphans_size)
+void TxOrphanage::LimitOrphans(unsigned int max_orphans_size, FastRandomContext& rng)
 {
     LOCK(m_mutex);
 
