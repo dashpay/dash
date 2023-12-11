@@ -561,8 +561,8 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
                 pIndexScanCommitments = vecResultQuorums.back()->m_quorum_base_block_index->pprev;
             }
         } else {
-            // If there is nothing in cache request at least cache.max_size() because this gets cached then later
-            nScanCommitments = std::max(nCountRequested, cache.max_size());
+            // If there is nothing in cache request at least keepOldConnections because this gets cached then later
+            nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
         }
     }
 
@@ -583,9 +583,11 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     const size_t nCountResult{vecResultQuorums.size()};
     if (nCountResult > 0) {
         LOCK(cs_scan_quorums);
-        // Don't cache more than cache.max_size() elements
+        // Don't cache more than keepOldConnections elements
+        // because signing by old quorums requires the exact quorum hash
+        // to be specified and quorum scanning isn't needed there.
         auto& cache = scanQuorumsCache[llmqType];
-        const size_t nCacheEndIndex = std::min(nCountResult, cache.max_size());
+        const size_t nCacheEndIndex = std::min(nCountResult, static_cast<size_t>(llmq_params_opt->keepOldConnections));
         cache.emplace(pindexStore->GetBlockHash(), {vecResultQuorums.begin(), vecResultQuorums.begin() + nCacheEndIndex});
     }
     // Don't return more than nCountRequested elements
