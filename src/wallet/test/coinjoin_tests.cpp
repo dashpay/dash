@@ -150,7 +150,6 @@ public:
         context.chain = m_node.chain.get();
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
         wallet->SetupLegacyScriptPubKeyMan();
-        wallet->LoadWallet();
         AddWallet(context, wallet);
         {
             LOCK2(wallet->cs_wallet, ::cs_main);

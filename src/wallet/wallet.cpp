@@ -2675,6 +2675,8 @@ DBErrors CWallet::LoadWallet()
 {
     LOCK(cs_wallet);
 
+    Assert(m_spk_managers.empty());
+    Assert(m_wallet_flags == 0);
     DBErrors nLoadWalletRet = WalletBatch(GetDatabase()).LoadWallet(this);
     if (nLoadWalletRet == DBErrors::NEED_REWRITE)
     {

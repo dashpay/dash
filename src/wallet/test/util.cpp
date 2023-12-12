@@ -37,7 +37,6 @@ std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, Chainstate
         LOCK(wallet->cs_wallet);
         wallet->SetLastBlockProcessed(chain_info.height, chain_info.tip_hash);
     }
-    wallet->LoadWallet();
     {
         LOCK(wallet->cs_wallet);
         wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);

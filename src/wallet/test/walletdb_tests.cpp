@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(walletdb_descriptor_orphan_records)
     for (const bool legacy_owner : {false, true}) {
         for (int record = 0; record < 3; ++record) {
             CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
-            const uint256 owner{legacy_owner ? wallet.GetOrCreateLegacyScriptPubKeyMan()->GetID() : uint256::TWO};
+            const uint256 owner{legacy_owner ? uint256::ONE : uint256::TWO};
             {
                 WalletBatch batch(wallet.GetDatabase());
                 switch (record) {
