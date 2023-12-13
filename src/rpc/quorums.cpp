@@ -986,6 +986,75 @@ static UniValue verifyislock(const JSONRPCRequest& request)
     return llmq_ctx.sigman->VerifyRecoveredSig(llmqType, *llmq_ctx.qman, signHeight, id, txid, sig, 0) ||
            llmq_ctx.sigman->VerifyRecoveredSig(llmqType, *llmq_ctx.qman, signHeight, id, txid, sig, signOffset);
 }
+
+static void addchainlock_help(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"adchainlock",
+               "Add a ChainLock signature if needed\n",
+               {
+                       {"blockHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash of the ChainLock."},
+                       {"signature", RPCArg::Type::STR, RPCArg::Optional::NO, "The signature of the ChainLock."},
+                       {"blockHeight", RPCArg::Type::NUM, RPCArg::Optional::NO, "The height of the ChainLock.."},
+               },
+               RPCResults{},
+               RPCExamples{""},
+    }.Check(request);
+}
+
+static UniValue addchainlock(const JSONRPCRequest& request)
+{
+    addchainlock_help(request);
+
+    const uint256 nBlockHash(ParseHashV(request.params[0], "blockHash"));
+
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const ChainstateManager& chainman = EnsureChainman(node);
+
+    const int nBlockHeight = ParseInt32V(request.params[2], "blockHeight");
+    CBlockIndex* pIndex{nullptr};
+    {
+        LOCK(cs_main);
+        if (nBlockHeight < 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid block height");
+        }
+        if (nBlockHeight > chainman.ActiveChain().Height()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "future block");
+        }
+        pIndex = chainman.ActiveChain()[nBlockHeight];
+        if (nBlockHash != pIndex->GetBlockHash()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid blockhash");
+        }
+    }
+
+    CBLSSignature sig;
+    if (pIndex) {
+        bool use_legacy_signature = !llmq::utils::IsV19Active(pIndex);
+        if (!sig.SetHexStr(request.params[1].get_str(), use_legacy_signature)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
+        }
+    } else {
+        if (!sig.SetHexStr(request.params[1].get_str(), false) &&
+            !sig.SetHexStr(request.params[1].get_str(), true)
+                ) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
+        }
+    }
+
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+    llmq::CChainLockSig clsig = llmq::CChainLockSig(nBlockHeight, nBlockHash, sig);
+    if (!llmq_ctx.clhandler->VerifyChainLock(clsig)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature");
+    }
+
+    if (llmq_ctx.clhandler->HasChainLock(nBlockHeight, nBlockHash)) {
+        return true;
+    }
+
+    llmq_ctx.clhandler->ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
+    return true;
+}
+
+
 void RegisterQuorumsRPCCommands(CRPCTable &tableRPC)
 {
 // clang-format off
@@ -995,6 +1064,7 @@ static const CRPCCommand commands[] =
     { "evo",                "quorum",                 &_quorum,                 {}  },
     { "evo",                "verifychainlock",        &verifychainlock,        {"blockHash", "signature", "blockHeight"} },
     { "evo",                "verifyislock",           &verifyislock,           {"id", "txid", "signature", "maxHeight"}  },
+    { "evo",                "addchainlock",           &addchainlock,           {"blockHash", "signature", "blockHeight"}  },
 };
 // clang-format on
     for (const auto& command : commands) {

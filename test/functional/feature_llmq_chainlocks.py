@@ -98,6 +98,24 @@ class LLMQChainLocksTest(DashTestFramework):
         self.wait_for_chainlocked_block_all_nodes(self.nodes[1].getbestblockhash())
         self.test_coinbase_best_cl(self.nodes[0])
 
+        self.log.info("Isolate node, mine on another, reconnect and insert CL via RPC")
+        self.isolate_node(0)
+        self.nodes[1].generate(1)
+        self.wait_for_chainlocked_block(self.nodes[1], self.nodes[1].getbestblockhash())
+        self.reconnect_isolated_node(0, 1)
+        time.sleep(1)
+        best_0 = self.nodes[0].getbestchainlock()
+        best_1 = self.nodes[1].getbestchainlock()
+        assert best_0['blockhash'] != best_1['blockhash']
+        assert best_0['height'] != best_1['height']
+        assert best_0['signature'] != best_1['signature']
+        self.log.info(self.nodes[0].addchainlock(best_1['blockhash'], best_1['signature'], best_1['height']))
+        best_0 = self.nodes[0].getbestchainlock()
+        best_1 = self.nodes[1].getbestchainlock()
+        assert best_0['blockhash'] == best_1['blockhash']
+        assert best_0['height'] == best_1['height']
+        assert best_0['signature'] == best_1['signature']
+
         self.log.info("Isolate node, mine on both parts of the network, and reconnect")
         self.isolate_node(0)
         bad_tip = self.nodes[0].generate(5)[-1]
