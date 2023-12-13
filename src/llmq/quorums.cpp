@@ -1057,13 +1057,31 @@ void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) 
     workerPool.push([pIndex, t, this](int threadId) {
         std::set<uint256> dbKeysToSkip;
 
+        if (LOCK(cs_cleanup); cleanupQuorumsCache.empty()) {
+            utils::InitQuorumsCache(cleanupQuorumsCache, false);
+        }
         for (const auto& params : Params().GetConsensus().llmqs) {
             if (quorumThreadInterrupt) {
                 break;
             }
-            for (const auto& pQuorum : ScanQuorums(params.type, pIndex, params.keepOldKeys)) {
-                dbKeysToSkip.insert(MakeQuorumKey(*pQuorum));
+            LOCK(cs_cleanup);
+            auto& cache = cleanupQuorumsCache[params.type];
+            const CBlockIndex* pindex_loop{pIndex};
+            std::set<uint256> quorum_keys;
+            while (pindex_loop != nullptr && pIndex->nHeight - pindex_loop->nHeight < utils::max_store_depth(params)) {
+                uint256 quorum_key;
+                if (cache.get(pindex_loop->GetBlockHash(), quorum_key)) {
+                    quorum_keys.insert(quorum_key);
+                    if (quorum_keys.size() >= params.keepOldKeys) break; // extra safety belt
+                }
+                pindex_loop = pindex_loop->pprev;
             }
+            for (const auto& pQuorum : ScanQuorums(params.type, pIndex, params.keepOldKeys - quorum_keys.size())) {
+                const uint256 quorum_key = MakeQuorumKey(*pQuorum);
+                quorum_keys.insert(quorum_key);
+                cache.insert(pQuorum->m_quorum_base_block_index->GetBlockHash(), quorum_key);
+            }
+            dbKeysToSkip.merge(quorum_keys);
         }
 
         if (!quorumThreadInterrupt) {
