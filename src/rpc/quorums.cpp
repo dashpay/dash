@@ -994,7 +994,7 @@ static void submitchainlock_help(const JSONRPCRequest& request)
                {
                        {"blockHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash of the ChainLock."},
                        {"signature", RPCArg::Type::STR, RPCArg::Optional::NO, "The signature of the ChainLock."},
-                       {"blockHeight", RPCArg::Type::NUM, RPCArg::Optional::NO, "The height of the ChainLock.."},
+                       {"blockHeight", RPCArg::Type::NUM, RPCArg::Optional::NO, "The height of the ChainLock."},
                },
                RPCResults{},
                RPCExamples{""},
