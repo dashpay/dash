@@ -61,7 +61,8 @@ class HTTPBasicsTest(BitcoinTestFramework):
                        "getblockcount",
                        "getbestchainlock",
                        "quorum",
-                       "verifyislock"]
+                       "verifyislock",
+                       "addchainlock"]
 
         help_output = self.nodes[0].help().split('\n')
         nonwhitelisted = set()

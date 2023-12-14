@@ -989,7 +989,7 @@ static UniValue verifyislock(const JSONRPCRequest& request)
 
 static void addchainlock_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"adchainlock",
+    RPCHelpMan{"addchainlock",
                "Add a ChainLock signature if needed\n",
                {
                        {"blockHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash of the ChainLock."},
