@@ -1007,47 +1007,21 @@ static UniValue submitchainlock(const JSONRPCRequest& request)
 
     const uint256 nBlockHash(ParseHashV(request.params[0], "blockHash"));
 
-    const NodeContext& node = EnsureAnyNodeContext(request.context);
-    const ChainstateManager& chainman = EnsureChainman(node);
-
     const int nBlockHeight = ParseInt32V(request.params[2], "blockHeight");
-    CBlockIndex* pIndex{nullptr};
-    {
-        LOCK(cs_main);
-        if (nBlockHeight < 0) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid block height");
-        }
-        if (nBlockHeight > chainman.ActiveChain().Height()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "future block");
-        }
-        pIndex = chainman.ActiveChain()[nBlockHeight];
-        if (nBlockHash != pIndex->GetBlockHash()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid blockhash");
-        }
+    if (nBlockHeight <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid block height");
     }
 
     CBLSSignature sig;
-    if (pIndex) {
-        bool use_legacy_signature = !llmq::utils::IsV19Active(pIndex);
-        if (!sig.SetHexStr(request.params[1].get_str(), use_legacy_signature)) {
+    if (!sig.SetHexStr(request.params[1].get_str(), false) && !sig.SetHexStr(request.params[1].get_str(), true)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
-        }
-    } else {
-        if (!sig.SetHexStr(request.params[1].get_str(), false) &&
-            !sig.SetHexStr(request.params[1].get_str(), true)
-                ) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
-        }
     }
 
-    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-    llmq::CChainLockSig clsig = llmq::CChainLockSig(nBlockHeight, nBlockHash, sig);
+
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(EnsureAnyNodeContext(request.context));
+    auto clsig = llmq::CChainLockSig(nBlockHeight, nBlockHash, sig);
     if (!llmq_ctx.clhandler->VerifyChainLock(clsig)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature");
-    }
-
-    if (llmq_ctx.clhandler->HasChainLock(nBlockHeight, nBlockHash)) {
-        return true;
     }
 
     llmq_ctx.clhandler->ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
