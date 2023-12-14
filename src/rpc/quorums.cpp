@@ -987,10 +987,10 @@ static UniValue verifyislock(const JSONRPCRequest& request)
            llmq_ctx.sigman->VerifyRecoveredSig(llmqType, *llmq_ctx.qman, signHeight, id, txid, sig, signOffset);
 }
 
-static void addchainlock_help(const JSONRPCRequest& request)
+static void submitchainlock_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"addchainlock",
-               "Add a ChainLock signature if needed\n",
+    RPCHelpMan{"submitchainlock",
+               "Submit a ChainLock signature if needed\n",
                {
                        {"blockHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash of the ChainLock."},
                        {"signature", RPCArg::Type::STR, RPCArg::Optional::NO, "The signature of the ChainLock."},
@@ -1001,9 +1001,9 @@ static void addchainlock_help(const JSONRPCRequest& request)
     }.Check(request);
 }
 
-static UniValue addchainlock(const JSONRPCRequest& request)
+static UniValue submitchainlock(const JSONRPCRequest& request)
 {
-    addchainlock_help(request);
+    submitchainlock_help(request);
 
     const uint256 nBlockHash(ParseHashV(request.params[0], "blockHash"));
 
@@ -1064,7 +1064,7 @@ static const CRPCCommand commands[] =
     { "evo",                "quorum",                 &_quorum,                 {}  },
     { "evo",                "verifychainlock",        &verifychainlock,        {"blockHash", "signature", "blockHeight"} },
     { "evo",                "verifyislock",           &verifyislock,           {"id", "txid", "signature", "maxHeight"}  },
-    { "evo",                "addchainlock",           &addchainlock,           {"blockHash", "signature", "blockHeight"}  },
+    { "evo",                "submitchainlock",        &submitchainlock,        {"blockHash", "signature", "blockHeight"}  },
 };
 // clang-format on
     for (const auto& command : commands) {
