@@ -116,7 +116,7 @@ class LLMQChainLocksTest(DashTestFramework):
         assert_equal(best_0['known_block'], False)
         self.reconnect_isolated_node(0, 1)
         self.sync_all()
-        
+
         self.log.info("Isolate node, mine on both parts of the network, and reconnect")
         self.isolate_node(0)
         bad_tip = self.nodes[0].generate(5)[-1]
