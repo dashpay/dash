@@ -1267,7 +1267,7 @@ static bool CheckWalletOwnsScript(CWallet* pwallet, const CScript& script) {
 }
 #endif
 
-static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn, bool detailed, const CBlockIndex* pindex = nullptr)
+static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn, bool detailed, const ChainstateManager& chainman, const CBlockIndex* pindex = nullptr)
 {
     if (!detailed) {
         return dmn.proTxHash.ToString();
@@ -1280,13 +1280,13 @@ static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn,
 
     if (pindex != nullptr) {
         if (confirmations > -1) {
-            confirmations -= WITH_LOCK(cs_main, return ::ChainActive().Height()) - pindex->nHeight;
+            confirmations -= chainman.ActiveChain().Height() - pindex->nHeight;
         } else {
             uint256 minedBlockHash;
             collateralTx = GetTransaction(/* pindex */ nullptr, /* mempool */ nullptr, dmn.collateralOutpoint.hash, Params().GetConsensus(), minedBlockHash);
-            const CBlockIndex* const pindexMined = WITH_LOCK(cs_main, return g_chainman.m_blockman.LookupBlockIndex(minedBlockHash));
+            const CBlockIndex* const pindexMined = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(minedBlockHash));
             CHECK_NONFATAL(pindexMined != nullptr);
-            CHECK_NONFATAL(pindex->nHeight >= pindexMined->nHeight);
+            CHECK_NONFATAL(pindex->GetAncestor(pindexMined->nHeight) == pindexMined);
             confirmations = pindex->nHeight - pindexMined->nHeight + 1;
         }
     }
@@ -1377,7 +1377,7 @@ static UniValue protx_list(const JSONRPCRequest& request, const ChainstateManage
                 CheckWalletOwnsKey(wallet.get(), dmn.pdmnState->keyIDVoting) ||
                 CheckWalletOwnsScript(wallet.get(), dmn.pdmnState->scriptPayout) ||
                 CheckWalletOwnsScript(wallet.get(), dmn.pdmnState->scriptOperatorPayout)) {
-                ret.push_back(BuildDMNListEntry(wallet.get(), dmn, detailed));
+                ret.push_back(BuildDMNListEntry(wallet.get(), dmn, detailed, chainman));
             }
         });
 #endif
@@ -1400,7 +1400,7 @@ static UniValue protx_list(const JSONRPCRequest& request, const ChainstateManage
         bool onlyEvoNodes = type == "evo";
         mnList.ForEachMN(onlyValid, [&](const auto& dmn) {
             if (onlyEvoNodes && dmn.nType != MnType::Evo) return;
-            ret.push_back(BuildDMNListEntry(wallet.get(), dmn, detailed));
+            ret.push_back(BuildDMNListEntry(wallet.get(), dmn, detailed, chainman));
         });
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid type specified");
@@ -1429,7 +1429,7 @@ static void protx_info_help(const JSONRPCRequest& request)
     }.Check(request);
 }
 
-static UniValue protx_info(const JSONRPCRequest& request)
+static UniValue protx_info(const JSONRPCRequest& request, const ChainstateManager& chainman)
 {
     protx_info_help(request);
 
@@ -1451,11 +1451,11 @@ static UniValue protx_info(const JSONRPCRequest& request)
 
     if (request.params[1].isNull()) {
         LOCK(cs_main);
-        pindex = ::ChainActive().Tip();
+        pindex = chainman.ActiveChain().Tip();
     } else {
         LOCK(cs_main);
         uint256 blockHash(ParseHashV(request.params[1], "blockHash"));
-        pindex = g_chainman.m_blockman.LookupBlockIndex(blockHash);
+        pindex = chainman.m_blockman.LookupBlockIndex(blockHash);
         if (pindex == nullptr) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
@@ -1466,7 +1466,7 @@ static UniValue protx_info(const JSONRPCRequest& request)
     if (!dmn) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s not found", proTxHash.ToString()));
     }
-    return BuildDMNListEntry(wallet.get(), *dmn, true, pindex);
+    return BuildDMNListEntry(wallet.get(), *dmn, true, chainman, pindex);
 }
 
 static void protx_diff_help(const JSONRPCRequest& request)
@@ -1671,7 +1671,7 @@ static UniValue protx(const JSONRPCRequest& request)
     if (command == "protxlist") {
         return protx_list(new_request, chainman);
     } else if (command == "protxinfo") {
-        return protx_info(new_request);
+        return protx_info(new_request, chainman);
     } else if (command == "protxdiff") {
         return protx_diff(new_request, chainman);
     } else if (command == "protxlistdiff") {
