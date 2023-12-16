@@ -1036,9 +1036,9 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)
   //  --------------------- ------------------------  -----------------------
     { "evo",                "quorum",                 &_quorum,                 {}  },
+    { "evo",                "submitchainlock",        &submitchainlock,        {"blockHash", "signature", "blockHeight"}  },
     { "evo",                "verifychainlock",        &verifychainlock,        {"blockHash", "signature", "blockHeight"} },
     { "evo",                "verifyislock",           &verifyislock,           {"id", "txid", "signature", "maxHeight"}  },
-    { "evo",                "submitchainlock",        &submitchainlock,        {"blockHash", "signature", "blockHeight"}  },
 };
 // clang-format on
     for (const auto& command : commands) {

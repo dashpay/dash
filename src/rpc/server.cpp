@@ -147,8 +147,8 @@ void CRPCTable::InitPlatformRestrictions()
         {"getbestchainlock", {}},
         {"quorum", {"sign", static_cast<uint8_t>(Params().GetConsensus().llmqTypePlatform)}},
         {"quorum", {"verify"}},
-        {"verifyislock", {}},
         {"submitchainlock", {}},
+        {"verifyislock", {}},
     };
 }
 
