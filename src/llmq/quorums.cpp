@@ -535,12 +535,11 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             for (const auto& llmq : Params().GetConsensus().llmqs) {
                 // NOTE: We store it for each block hash in the DKG mining phase here
                 // and not for a single quorum hash per quorum like we do for other caches.
-                // And we only do this for MAX_CYCLES of the most recent quorums
+                // And we only do this for max_cycles() of the most recent quorums
                 // because signing by old quorums requires the exact quorum hash to be specified
                 // and quorum scanning isn't needed there.
-                const int MAX_CYCLES = llmq.useRotation ? llmq.keepOldConnections / llmq.signingActiveQuorumCount : llmq.keepOldConnections;
                 scanQuorumsCache.emplace(std::piecewise_construct, std::forward_as_tuple(llmq.type),
-                            std::forward_as_tuple(MAX_CYCLES * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart)));
+                            std::forward_as_tuple(utils::max_cycles(llmq, llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart)));
             }
         }
         auto& cache = scanQuorumsCache[llmqType];
