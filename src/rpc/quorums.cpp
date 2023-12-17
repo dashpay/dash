@@ -720,8 +720,8 @@ static UniValue quorum_getdata(const JSONRPCRequest& request, const LLMQContext&
     uint16_t nDataMask = static_cast<uint16_t>(ParseInt32V(request.params[3], "dataMask"));
     uint256 proTxHash;
 
-    // Check if request wants ENCRYPTED_CONTRIBUTIONS data
     if (nDataMask & llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS) {
+        // Require proTxHash if request wants ENCRYPTED_CONTRIBUTIONS data
         if (!request.params[4].isNull()) {
             proTxHash = ParseHashV(request.params[4], "proTxHash");
             if (proTxHash.IsNull()) {
@@ -730,6 +730,9 @@ static UniValue quorum_getdata(const JSONRPCRequest& request, const LLMQContext&
         } else {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "proTxHash missing");
         }
+    } else if (!request.params[4].isNull()) {
+        // Require no proTxHash otherwise
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Should not specify proTxHash");
     }
 
     const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(quorumHash));
