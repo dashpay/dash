@@ -500,32 +500,28 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         return {};
     }
 
-    const CBlockIndex* pindexStore{pindexStart};
+    gsl::not_null<const CBlockIndex*> pindexStore{pindexStart};
     const auto& llmq_params_opt = GetLLMQParams(llmqType);
     assert(llmq_params_opt.has_value());
 
-    {
-        // Quorum sets can only change during the mining phase of DKG.
-        // Find the closest known block index.
-        const int quorumCycleStartHeight = pindexStart->nHeight - (pindexStart->nHeight % llmq_params_opt->dkgInterval);
-        const int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowStart;
-        const int quorumCycleMiningEndHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowEnd;
+    // Quorum sets can only change during the mining phase of DKG.
+    // Find the closest known block index.
+    const int quorumCycleStartHeight = pindexStart->nHeight - (pindexStart->nHeight % llmq_params_opt->dkgInterval);
+    const int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowStart;
+    const int quorumCycleMiningEndHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowEnd;
 
-        if (pindexStart->nHeight < quorumCycleMiningStartHeight) {
-            // too early for this cycle, use the previous one
-            pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
-        } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
-            // we are past the mining phase of this cycle, use it
-            pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
-        }
-        // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
-
-        if (pindexStore == nullptr || !utils::IsQuorumTypeEnabled(llmqType, *this, pindexStore)) {
-            return {};
-        }
+    if (pindexStart->nHeight < quorumCycleMiningStartHeight) {
+        // too early for this cycle, use the previous one
+        // bail out if it's below genesis block
+        if (quorumCycleMiningEndHeight < llmq_params_opt->dkgInterval) return {};
+        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
+    } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
+        // we are past the mining phase of this cycle, use it
+        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
     }
+    // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
 
-    const CBlockIndex* pIndexScanCommitments{pindexStore};
+    gsl::not_null<const CBlockIndex*> pIndexScanCommitments{pindexStore};
     size_t nScanCommitments{nCountRequested};
     std::vector<CQuorumCPtr> vecResultQuorums;
 
@@ -538,8 +534,8 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
                 // And we only do this for max_cycles() of the most recent quorums
                 // because signing by old quorums requires the exact quorum hash to be specified
                 // and quorum scanning isn't needed there.
-                scanQuorumsCache.emplace(std::piecewise_construct, std::forward_as_tuple(llmq.type),
-                            std::forward_as_tuple(utils::max_cycles(llmq, llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart)));
+                const auto& ret = scanQuorumsCache.emplace(llmq.type, utils::max_cycles(llmq, llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart));
+                assert(ret.second);
             }
         }
         auto& cache = scanQuorumsCache[llmqType];
@@ -557,6 +553,8 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             // scanning for the rests
             if (!vecResultQuorums.empty()) {
                 nScanCommitments -= vecResultQuorums.size();
+                // bail out if it's below genesis block
+                if (vecResultQuorums.back()->m_quorum_base_block_index->pprev == nullptr) return {};
                 pIndexScanCommitments = vecResultQuorums.back()->m_quorum_base_block_index->pprev;
             }
         } else {
