@@ -156,6 +156,7 @@ class LLMQChainLocksTest(DashTestFramework):
         self.log.info("Restart it so that it forgets all the chainlock messages from the past")
         self.restart_node(0)
         self.connect_nodes(0, 1)
+        force_finish_mnsync(self.nodes[0])
         assert self.nodes[0].getbestblockhash() == good_tip
         self.nodes[0].invalidateblock(good_tip)
         self.log.info("Now try to reorg the chain")

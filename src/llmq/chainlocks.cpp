@@ -107,6 +107,11 @@ void CChainLocksHandler::ProcessMessage(const CNode& pfrom, const std::string& m
 
 void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CChainLockSig& clsig, const uint256& hash)
 {
+    if (!m_mn_sync.IsBlockchainSynced()) {
+        // too early to do anything
+        return;
+    }
+
     CheckActiveState();
 
     CInv clsigInv(MSG_CLSIG, hash);
