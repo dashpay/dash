@@ -65,7 +65,7 @@ class RPCVerifyChainLockTest(DashTestFramework):
         tx1 = node1.getblock(node1.getbestblockhash())['tx'][0]
         locks0 = node0.gettxchainlocks([tx0, tx1])
         locks1 = node1.gettxchainlocks([tx0, tx1])
-        unknown_cl_helper = None
+        unknown_cl_helper = {'height': -1, 'chainlock': False, 'mempool': False}
         assert_equal(locks0, [{'height': height, 'chainlock': True}, unknown_cl_helper])
         assert_equal(locks1, [unknown_cl_helper, {'height': height1, 'chainlock': False}])
 

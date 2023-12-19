@@ -320,8 +320,10 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
         const auto tx_ref = GetTransaction(nullptr, node.mempool.get(), txid, Params().GetConsensus(), hash_block);
 
         if (tx_ref == nullptr) {
-            UniValue r(UniValue::VNULL);
-            result_arr.push_back(r);
+            result.pushKV("height", height);
+            result.pushKV("chainlock", chainLock);
+            result.pushKV("mempool", false);
+            result_arr.push_back(result);
             continue;
         }
 
