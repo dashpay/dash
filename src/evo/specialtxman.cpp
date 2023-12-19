@@ -131,7 +131,7 @@ static bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
 }
 
 bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CMNHFManager& mnhfManager,
-                              llmq::CQuorumBlockProcessor& quorum_block_processor, const llmq::CChainLocksHandler& chainlock_handler,
+                              llmq::CQuorumBlockProcessor& quorum_block_processor, llmq::CChainLocksHandler& chainlock_handler,
                               const Consensus::Params& consensusParams, const CCoinsViewCache& view, bool fJustCheck, bool fCheckCbTxMerleRoots,
                               BlockValidationState& state, std::optional<MNListUpdates>& updatesRet)
 {

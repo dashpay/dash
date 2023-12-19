@@ -321,7 +321,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     return true;
 }
 
-bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, const llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state)
+bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state)
 {
     if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
         return true;
@@ -365,9 +365,11 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
             return true;
         }
         uint256 curBlockCoinbaseCLBlockHash = pindex->GetAncestor(curBlockCoinbaseCLHeight)->GetBlockHash();
-        if (!chainlock_handler.VerifyChainLock(llmq::CChainLockSig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature))) {
+        llmq::CChainLockSig cbtxcl = llmq::CChainLockSig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature);
+        if (!chainlock_handler.VerifyChainLock(cbtxcl)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
         }
+        chainlock_handler.ProcessNewChainLock(-1, cbtxcl, ::SerializeHash(cbtxcl));
     } else if (cbTx.bestCLHeightDiff != 0) {
         // Null bestCLSignature is allowed only with bestCLHeightDiff = 0
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
