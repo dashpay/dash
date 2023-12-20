@@ -332,13 +332,7 @@ class AssetLocksTest(DashTestFramework):
         assert "assetUnlockTx" in node.getrawtransaction(txid, 1)
 
         indexes_statuses = self.nodes[0].getassetunlockstatuses(["101", "102", "300"])
-        self.log.info(f'{indexes_statuses}')
-        assert any('101' in d for d in indexes_statuses)
-        assert_equal(next((d['101'] for d in indexes_statuses if '101' in d), None), "mempooled")
-        assert any('102' in d for d in indexes_statuses)
-        assert_equal(next((d['102'] for d in indexes_statuses if '102' in d), None), None)
-        assert any('300' in d for d in indexes_statuses)
-        assert_equal(next((d['300'] for d in indexes_statuses if '300' in d), None), None)
+        assert_equal([{'101': 'mempooled'}, {'102': None}, {'300': None}], indexes_statuses)
 
         self.mempool_size += 1
         self.check_mempool_size()
@@ -513,13 +507,7 @@ class AssetLocksTest(DashTestFramework):
         self.sync_all()
 
         indexes_statuses = self.nodes[0].getassetunlockstatuses(["101", "102", "103"])
-        self.log.info(f'{indexes_statuses}')
-        assert any('101' in d for d in indexes_statuses)
-        assert_equal(next((d['101'] for d in indexes_statuses if '101' in d), None), "mined")
-        assert any('102' in d for d in indexes_statuses)
-        assert_equal(next((d['102'] for d in indexes_statuses if '102' in d), None), "mined")
-        assert any('103' in d for d in indexes_statuses)
-        assert_equal(next((d['103'] for d in indexes_statuses if '103' in d), None), None)
+        assert_equal([{'101': 'mined'}, {'102': 'mined'}, {'103': None}], indexes_statuses)
 
         self.log.info("generate many blocks to be sure that mempool is empty after expiring txes...")
         self.slowly_generate_batch(60)
