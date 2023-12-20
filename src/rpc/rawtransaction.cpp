@@ -386,33 +386,26 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
-    CBlockIndex* pTipBlockIndex= WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
+    CBlockIndex* pTipBlockIndex{WITH_LOCK(cs_main, return chainman.ActiveChain().Tip())};
 
-    CBlockIndex* pBlockIndex{nullptr};
-    bool chainlock_info = false;
-    llmq::CChainLockSig bestclsig = llmq_ctx.clhandler->GetBestChainLock();
+    CBlockIndex* pBlockIndexBestCL{nullptr};
+    const llmq::CChainLockSig bestclsig{llmq_ctx.clhandler->GetBestChainLock()};
     if (bestclsig.IsNull()) {
         // If no CL info is available, try to use CbTx CL information
-        if (auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex); cbtx_best_cl.has_value()) {
-            pBlockIndex = pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
-            chainlock_info = true;
-        }
-        else {
-            // If no CL info available at all, build Credit pool based on Tip but chainlock_info is false.
-            // Found Asset Unlock indexes will be marked as "mined" instead of "chainlocked"
-            pBlockIndex = pTipBlockIndex;
+        if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex); cbtx_best_cl.has_value()) {
+            pBlockIndexBestCL = pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
         }
     }
-    else {
-        pBlockIndex = pTipBlockIndex->GetAncestor(bestclsig.getHeight());
-        chainlock_info = true;
+
+    if (!pTipBlockIndex) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No blocks in chain");
     }
 
-    if (!pBlockIndex) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not found");
-    }
-
-    CCreditPool pool = node.creditPoolManager->GetCreditPool(pBlockIndex, Params().GetConsensus());
+    // We need in 2 credit pools: at tip of chain and on best CL to know if tx is mined or chainlocked
+    // Sometimes that's two different blocks, sometimes not and we need to initialize 2nd creditPoolManager
+    std::optional<CCreditPool> poolCL;
+    if (pBlockIndexBestCL != nullptr) poolCL = node.creditPoolManager->GetCreditPool(pBlockIndexBestCL, Params().GetConsensus());
+    std::optional<CCreditPool> poolOnTip{};
 
     for (const auto i : irange::range(str_indexes.size())) {
         UniValue obj(UniValue::VOBJ);
@@ -420,12 +413,19 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
         if (!ParseUInt64(str_indexes[i].get_str(), &index)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid index");
         }
-        if (pool.indexes.Contains(index)) {
-            obj.pushKV(str_indexes[i].get_str(), chainlock_info ? "chainlocked" : "mined");
+        if (poolCL.has_value() && poolCL->indexes.Contains(index)) {
+            obj.pushKV(str_indexes[i].get_str(), "chainlocked");
             result_arr.push_back(obj);
             continue;
         }
-
+        if (pTipBlockIndex != pBlockIndexBestCL) {
+            if (!poolOnTip.has_value()) poolOnTip = node.creditPoolManager->GetCreditPool(pTipBlockIndex, Params().GetConsensus());
+            if (poolOnTip->indexes.Contains(index)) {
+                obj.pushKV(str_indexes[i].get_str(), "mined");
+                result_arr.push_back(obj);
+                continue;
+            }
+        }
         LOCK(mempool.cs);
         bool is_mempooled = false;
         for (const CTxMemPoolEntry& e : mempool.mapTx) {
