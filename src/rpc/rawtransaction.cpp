@@ -266,7 +266,7 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
 {
     RPCHelpMan{
         "gettxchainlocks",
-        "\nReturns the block height each transaction was mined at and whether it is chainlocked or not.\n",
+        "\nReturns the block height at which each transaction was mined, and indicates whether it is in the mempool, chainlocked, or neither.\n",
         {
             {"txids", RPCArg::Type::ARR, RPCArg::Optional::NO, "The transaction ids (no more than 100)",
                 {
@@ -281,6 +281,7 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
                 {
                     {RPCResult::Type::NUM, "height", "The block height"},
                     {RPCResult::Type::BOOL, "chainlock", "Chainlock status for the block containing the transaction"},
+                    {RPCResult::Type::BOOL, "mempool", "Mempool status for the transaction"},
                 }},
             }
         },
