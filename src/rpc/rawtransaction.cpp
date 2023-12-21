@@ -354,9 +354,10 @@ static void getassetunlockstatuses_help(const JSONRPCRequest& request)
             RPCResult{
                     RPCResult::Type::ARR, "", "Response is an array with the same size as the input txids",
                     {
-                            {RPCResult::Type::OBJ, "xxxx", "Asset Unlock index.",
+                            {RPCResult::Type::OBJ, "", "",
                              {
-                                     {RPCResult::Type::STR, "", "Status of the Asset Unlock index: {chainlocked|mined|mempooled|null}"},
+                                {RPCResult::Type::NUM, "index", "The Asset Unlock index"},
+                                {RPCResult::Type::STR, "status", "Status of the Asset Unlock index: {chainlocked|mined|mempooled|null}"},
                              }},
                     }
             },
@@ -413,15 +414,16 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
         if (!ParseUInt64(str_indexes[i].get_str(), &index)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid index");
         }
+        obj.pushKV("index", index);
         if (poolCL.has_value() && poolCL->indexes.Contains(index)) {
-            obj.pushKV(str_indexes[i].get_str(), "chainlocked");
+            obj.pushKV("status", "chainlocked");
             result_arr.push_back(obj);
             continue;
         }
         if (pTipBlockIndex != pBlockIndexBestCL) {
             if (!poolOnTip.has_value()) poolOnTip = node.creditPoolManager->GetCreditPool(pTipBlockIndex, Params().GetConsensus());
             if (poolOnTip->indexes.Contains(index)) {
-                obj.pushKV(str_indexes[i].get_str(), "mined");
+                obj.pushKV("status", "mined");
                 result_arr.push_back(obj);
                 continue;
             }
@@ -441,10 +443,10 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
             }
         }
         if (is_mempooled)
-            obj.pushKV(str_indexes[i].get_str(), "mempooled");
+            obj.pushKV("status", "mempooled");
         else {
             UniValue jnull(UniValue::VNULL);
-            obj.pushKV(str_indexes[i].get_str(), jnull);
+            obj.pushKV("status", jnull);
         }
         result_arr.push_back(obj);
     }

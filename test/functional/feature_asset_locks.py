@@ -332,7 +332,7 @@ class AssetLocksTest(DashTestFramework):
         assert "assetUnlockTx" in node.getrawtransaction(txid, 1)
 
         indexes_statuses = self.nodes[0].getassetunlockstatuses(["101", "102", "300"])
-        assert_equal([{'101': 'mempooled'}, {'102': None}, {'300': None}], indexes_statuses)
+        assert_equal([{'index': 101, 'status': 'mempooled'}, {'index': 102, 'status': None}, {'index': 300, 'status': None}], indexes_statuses)
 
         self.mempool_size += 1
         self.check_mempool_size()
@@ -507,7 +507,7 @@ class AssetLocksTest(DashTestFramework):
         self.sync_all()
 
         indexes_statuses = self.nodes[0].getassetunlockstatuses(["101", "102", "103"])
-        assert_equal([{'101': 'mined'}, {'102': 'mined'}, {'103': None}], indexes_statuses)
+        assert_equal([{'index': 101, 'status': 'mined'}, {'index': 102, 'status': 'mined'}, {'index': 103, 'status': None}], indexes_statuses)
 
         self.log.info("generate many blocks to be sure that mempool is empty after expiring txes...")
         self.slowly_generate_batch(60)
