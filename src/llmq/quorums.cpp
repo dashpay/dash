@@ -851,7 +851,10 @@ void CQuorumManager::StartCachePopulatorThread(const CQuorumCPtr pQuorum) const
     }
 
     cxxtimer::Timer t(true);
-    LogPrint(BCLog::LLMQ, "CQuorumManager::StartCachePopulatorThread -- start\n");
+    LogPrint(BCLog::LLMQ, "CQuorumManager::StartCachePopulatorThread -- type=%d height=%d hash=%s start\n",
+            ToUnderlying(pQuorum->params.type),
+            pQuorum->m_quorum_base_block_index->nHeight,
+            pQuorum->m_quorum_base_block_index->GetBlockHash().ToString());
 
     // when then later some other thread tries to get keys, it will be much faster
     workerPool.push([pQuorum, t, this](int threadId) {
@@ -863,7 +866,11 @@ void CQuorumManager::StartCachePopulatorThread(const CQuorumCPtr pQuorum) const
                 pQuorum->GetPubKeyShare(i);
             }
         }
-        LogPrint(BCLog::LLMQ, "CQuorumManager::StartCachePopulatorThread -- done. time=%d\n", t.count());
+        LogPrint(BCLog::LLMQ, "CQuorumManager::StartCachePopulatorThread -- type=%d height=%d hash=%s done. time=%d\n",
+                ToUnderlying(pQuorum->params.type),
+                pQuorum->m_quorum_base_block_index->nHeight,
+                pQuorum->m_quorum_base_block_index->GetBlockHash().ToString(),
+                t.count());
     });
 }
 
