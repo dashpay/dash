@@ -357,7 +357,7 @@ static void getassetunlockstatuses_help(const JSONRPCRequest& request)
                             {RPCResult::Type::OBJ, "", "",
                              {
                                 {RPCResult::Type::NUM, "index", "The Asset Unlock index"},
-                                {RPCResult::Type::STR, "status", "Status of the Asset Unlock index: {chainlocked|mined|mempooled|null}"},
+                                {RPCResult::Type::STR, "status", "Status of the Asset Unlock index: {chainlocked|mined|mempooled|unknown}"},
                              }},
                     }
             },
@@ -389,24 +389,31 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
 
     CBlockIndex* pTipBlockIndex{WITH_LOCK(cs_main, return chainman.ActiveChain().Tip())};
 
-    CBlockIndex* pBlockIndexBestCL{nullptr};
-    const llmq::CChainLockSig bestclsig{llmq_ctx.clhandler->GetBestChainLock()};
-    if (bestclsig.IsNull()) {
-        // If no CL info is available, try to use CbTx CL information
-        if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex); cbtx_best_cl.has_value()) {
-            pBlockIndexBestCL = pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
-        }
-    }
-
     if (!pTipBlockIndex) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No blocks in chain");
     }
 
+    const auto pBlockIndexBestCL = [&]() -> const CBlockIndex* {
+        if (llmq_ctx.clhandler->GetBestChainLock().IsNull()) {
+        // If no CL info is available, try to use CbTx CL information
+            if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex)) {
+                return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
+            }
+        }
+        return nullptr;
+    }();
+
     // We need in 2 credit pools: at tip of chain and on best CL to know if tx is mined or chainlocked
     // Sometimes that's two different blocks, sometimes not and we need to initialize 2nd creditPoolManager
-    std::optional<CCreditPool> poolCL;
-    if (pBlockIndexBestCL != nullptr) poolCL = node.creditPoolManager->GetCreditPool(pBlockIndexBestCL, Params().GetConsensus());
-    std::optional<CCreditPool> poolOnTip{};
+    std::optional<CCreditPool> poolCL = pBlockIndexBestCL ?
+                                        std::make_optional(node.creditPoolManager->GetCreditPool(pBlockIndexBestCL, Params().GetConsensus())) :
+                                        std::nullopt;
+    auto poolOnTip = [&]() -> std::optional<CCreditPool> {
+        if (pTipBlockIndex != pBlockIndexBestCL) {
+            return std::make_optional(node.creditPoolManager->GetCreditPool(pTipBlockIndex, Params().GetConsensus()));
+        }
+        return std::nullopt;
+    }();
 
     for (const auto i : irange::range(str_indexes.size())) {
         UniValue obj(UniValue::VOBJ);
@@ -415,39 +422,29 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid index");
         }
         obj.pushKV("index", index);
-        if (poolCL.has_value() && poolCL->indexes.Contains(index)) {
-            obj.pushKV("status", "chainlocked");
-            result_arr.push_back(obj);
-            continue;
-        }
-        if (pTipBlockIndex != pBlockIndexBestCL) {
-            if (!poolOnTip.has_value()) poolOnTip = node.creditPoolManager->GetCreditPool(pTipBlockIndex, Params().GetConsensus());
-            if (poolOnTip->indexes.Contains(index)) {
-                obj.pushKV("status", "mined");
-                result_arr.push_back(obj);
-                continue;
+        auto status_to_push = [&]() -> std::string {
+            if (poolCL.has_value() && poolCL->indexes.Contains(index)) {
+                return "chainlocked";
             }
-        }
-        LOCK(mempool.cs);
-        bool is_mempooled = false;
-        for (const CTxMemPoolEntry& e : mempool.mapTx) {
-            if (e.GetTx().nType == CAssetUnlockPayload::SPECIALTX_TYPE) {
-                CAssetUnlockPayload assetUnlockTx;
-                if (!GetTxPayload(e.GetTx(), assetUnlockTx)) {
-                    throw JSONRPCError(RPC_TRANSACTION_ERROR, "bad-assetunlocktx-payload");
-                }
-                if (index == assetUnlockTx.getIndex()) {
-                    is_mempooled = true;
-                    break;
-                }
+            if (poolOnTip.has_value() && poolOnTip->indexes.Contains(index)) {
+                return "mined";
             }
-        }
-        if (is_mempooled)
-            obj.pushKV("status", "mempooled");
-        else {
-            UniValue jnull(UniValue::VNULL);
-            obj.pushKV("status", jnull);
-        }
+            bool is_mempooled = [&]() {
+                LOCK(mempool.cs);
+                return std::any_of(mempool.mapTx.begin(), mempool.mapTx.end(), [index](const CTxMemPoolEntry &e) {
+                    if (e.GetTx().nType == CAssetUnlockPayload::SPECIALTX_TYPE) {
+                        if (CAssetUnlockPayload assetUnlockTx; GetTxPayload(e.GetTx(), assetUnlockTx)) {
+                            return index == assetUnlockTx.getIndex();
+                        } else {
+                            throw JSONRPCError(RPC_TRANSACTION_ERROR, "bad-assetunlocktx-payload");
+                        }
+                    }
+                    return false;
+                });
+            }();
+            return is_mempooled ? "mempooled" : "unknown";
+        };
+        obj.pushKV("status", status_to_push());
         result_arr.push_back(obj);
     }
 
