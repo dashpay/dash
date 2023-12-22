@@ -317,13 +317,14 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
         uint256 hash_block;
         int height{-1};
         bool chainLock{false};
+        bool mempool{false};
 
         const auto tx_ref = GetTransaction(nullptr, node.mempool.get(), txid, Params().GetConsensus(), hash_block);
 
         if (tx_ref == nullptr) {
             result.pushKV("height", height);
             result.pushKV("chainlock", chainLock);
-            result.pushKV("mempool", false);
+            result.pushKV("mempool", mempool);
             result_arr.push_back(result);
             continue;
         }
@@ -337,13 +338,13 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
         }
         if (height != -1) {
             chainLock = llmq_ctx.clhandler->HasChainLock(height, hash_block);
-            result.pushKV("mempool", false);
         }
         else {
             result.pushKV("mempool", true);
         }
         result.pushKV("height", height);
         result.pushKV("chainlock", chainLock);
+        result.pushKV("mempool", mempool);
         result_arr.push_back(result);
     }
     return result_arr;
