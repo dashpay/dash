@@ -375,10 +375,10 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const CTxMemPool& mempool = EnsureMemPool(node);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-    ChainstateManager& chainman = EnsureChainman(node);
+    const ChainstateManager& chainman = EnsureChainman(node);
 
     UniValue result_arr(UniValue::VARR);
-    UniValue str_indexes = request.params[0].get_array();
+    const UniValue str_indexes = request.params[0].get_array();
     if (str_indexes.size() > 100) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Up to 100 indexes only");
     }
@@ -387,7 +387,7 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
-    CBlockIndex* pTipBlockIndex{WITH_LOCK(cs_main, return chainman.ActiveChain().Tip())};
+    const CBlockIndex* pTipBlockIndex{WITH_LOCK(cs_main, return chainman.ActiveChain().Tip())};
 
     if (!pTipBlockIndex) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No blocks in chain");
@@ -395,7 +395,7 @@ static UniValue getassetunlockstatuses(const JSONRPCRequest& request)
 
     const auto pBlockIndexBestCL = [&]() -> const CBlockIndex* {
         if (llmq_ctx.clhandler->GetBestChainLock().IsNull()) {
-        // If no CL info is available, try to use CbTx CL information
+            // If no CL info is available, try to use CbTx CL information
             if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex)) {
                 return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
             }
