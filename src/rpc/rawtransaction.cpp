@@ -337,6 +337,7 @@ static UniValue gettxchainlocks(const JSONRPCRequest& request)
         }
         if (height != -1) {
             chainLock = llmq_ctx.clhandler->HasChainLock(height, hash_block);
+            result.pushKV("mempool", false);
         }
         else {
             result.pushKV("mempool", true);

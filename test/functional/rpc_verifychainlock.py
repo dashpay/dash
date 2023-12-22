@@ -66,9 +66,14 @@ class RPCVerifyChainLockTest(DashTestFramework):
         locks0 = node0.gettxchainlocks([tx0, tx1])
         locks1 = node1.gettxchainlocks([tx0, tx1])
         unknown_cl_helper = {'height': -1, 'chainlock': False, 'mempool': False}
-        assert_equal(locks0, [{'height': height, 'chainlock': True}, unknown_cl_helper])
-        assert_equal(locks1, [unknown_cl_helper, {'height': height1, 'chainlock': False}])
+        assert_equal(locks0, [{'mempool': False, 'height': height, 'chainlock': True}, unknown_cl_helper])
+        assert_equal(locks1, [unknown_cl_helper, {'mempool': False, 'height': height1, 'chainlock': False}])
 
+        tx3 = node0.sendtoaddress(node0.getnewaddress(), 1)
+        locks0 = node0.gettxchainlocks([tx3])
+        locks1 = node0.gettxchainlocks([tx3])
+        assert_equal(locks0, [{'mempool': True, 'height': -1, 'chainlock': False}])
+        assert_equal(locks1, [{'mempool': True, 'height': -1, 'chainlock': False}])
 
 if __name__ == '__main__':
     RPCVerifyChainLockTest().main()
