@@ -462,7 +462,7 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
     if (!quorum) {
         return;
     }
-    if (!utils::IsQuorumActive(sigShare.getLlmqType(), qman, quorum->qc->quorumHash)) {
+    if (!IsQuorumActive(sigShare.getLlmqType(), qman, quorum->qc->quorumHash)) {
         // quorum is too old
         return;
     }
@@ -511,7 +511,7 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CQuorumManager& quorum_m
 {
     retBan = false;
 
-    if (!utils::IsQuorumActive(session.llmqType, quorum_manager, session.quorum->qc->quorumHash)) {
+    if (!IsQuorumActive(session.llmqType, quorum_manager, session.quorum->qc->quorumHash)) {
         // quorum is too old
         return false;
     }
@@ -1262,7 +1262,7 @@ void CSigSharesManager::Cleanup()
 
     // Find quorums which became inactive
     for (auto it = quorums.begin(); it != quorums.end(); ) {
-        if (utils::IsQuorumActive(it->first.first, qman, it->first.second)) {
+        if (IsQuorumActive(it->first.first, qman, it->first.second)) {
             it->second = qman.GetQuorum(it->first.first, it->first.second);
             ++it;
         } else {

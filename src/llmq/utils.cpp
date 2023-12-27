@@ -850,17 +850,6 @@ void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, gsl::not
     }
 }
 
-bool IsQuorumActive(Consensus::LLMQType llmqType, const CQuorumManager& qman, const uint256& quorumHash)
-{
-    // sig shares and recovered sigs are only accepted from recent/active quorums
-    // we allow one more active quorum as specified in consensus, as otherwise there is a small window where things could
-    // fail while we are on the brink of a new quorum
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
-    assert(llmq_params_opt.has_value());
-    auto quorums = qman.ScanQuorums(llmqType, llmq_params_opt->keepOldConnections);
-    return ranges::any_of(quorums, [&quorumHash](const auto& q){ return q->qc->quorumHash == quorumHash; });
-}
-
 bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CQuorumManager& qman, gsl::not_null<const CBlockIndex*> pindexPrev)
 {
     return IsQuorumTypeEnabledInternal(llmqType, qman, pindexPrev, std::nullopt, std::nullopt);

@@ -566,7 +566,7 @@ bool CSigningManager::GetRecoveredSigForGetData(const uint256& hash, CRecoveredS
     if (!db.GetRecoveredSigByHash(hash, ret)) {
         return false;
     }
-    if (!utils::IsQuorumActive(ret.getLlmqType(), qman, ret.getQuorumHash())) {
+    if (!IsQuorumActive(ret.getLlmqType(), qman, ret.getQuorumHash())) {
         // we don't want to propagate sigs from inactive quorums
         return false;
     }
@@ -633,7 +633,7 @@ bool CSigningManager::PreVerifyRecoveredSig(const CQuorumManager& quorum_manager
                   recoveredSig.getQuorumHash().ToString());
         return false;
     }
-    if (!utils::IsQuorumActive(llmqType, quorum_manager, quorum->qc->quorumHash)) {
+    if (!IsQuorumActive(llmqType, quorum_manager, quorum->qc->quorumHash)) {
         return false;
     }
 
@@ -692,7 +692,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
                     it = v.erase(it);
                     continue;
                 }
-                if (!utils::IsQuorumActive(llmqType, qman, quorum->qc->quorumHash)) {
+                if (!IsQuorumActive(llmqType, qman, quorum->qc->quorumHash)) {
                     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not active anymore, node=%d\n", __func__,
                               recSig->getQuorumHash().ToString(), nodeId);
                     it = v.erase(it);
@@ -1085,5 +1085,15 @@ uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, c
     return h.GetHash();
 }
 
+bool IsQuorumActive(Consensus::LLMQType llmqType, const CQuorumManager& qman, const uint256& quorumHash)
+{
+    // sig shares and recovered sigs are only accepted from recent/active quorums
+    // we allow one more active quorum as specified in consensus, as otherwise there is a small window where things could
+    // fail while we are on the brink of a new quorum
+    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    assert(llmq_params_opt.has_value());
+    auto quorums = qman.ScanQuorums(llmqType, llmq_params_opt->keepOldConnections);
+    return ranges::any_of(quorums, [&quorumHash](const auto& q){ return q->qc->quorumHash == quorumHash; });
+}
 
 } // namespace llmq
