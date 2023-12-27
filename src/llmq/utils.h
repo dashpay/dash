@@ -5,8 +5,6 @@
 #ifndef BITCOIN_LLMQ_UTILS_H
 #define BITCOIN_LLMQ_UTILS_H
 
-#include <consensus/params.h>
-
 #include <random.h>
 #include <set>
 #include <sync.h>
