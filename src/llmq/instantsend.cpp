@@ -8,7 +8,6 @@
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
 #include <llmq/signing_shares.h>
-#include <llmq/utils.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
@@ -694,7 +693,7 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
     }
 
     {
-        const auto &llmq_params_opt = GetLLMQParams(llmqType);
+        const auto &llmq_params_opt = Params().GetLLMQ(llmqType);
         assert(llmq_params_opt);
         LOCK(cs_main);
         const auto dkgInterval = llmq_params_opt->dkgInterval;
@@ -785,7 +784,7 @@ void CInstantSendManager::ProcessMessageInstantSendLock(const CNode& pfrom, cons
 
     // Deterministic islocks MUST use rotation based llmq
     auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt);
     if (blockIndex->nHeight % llmq_params_opt->dkgInterval != 0) {
         m_peerman->Misbehaving(pfrom.GetId(), 100);
@@ -864,7 +863,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
 
     //TODO Investigate if leaving this is ok
     auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt);
     const auto& llmq_params = llmq_params_opt.value();
     auto dkgInterval = llmq_params.dkgInterval;

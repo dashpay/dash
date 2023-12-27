@@ -36,7 +36,7 @@ void LogPrintfFinalCommitment(Types... out) {
 
 bool CFinalCommitment::Verify(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool checkSigs) const
 {
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrintfFinalCommitment("q[%s] invalid llmqType=%d\n", quorumHash.ToString(), ToUnderlying(llmqType));
         return false;
@@ -147,7 +147,7 @@ bool CFinalCommitment::Verify(gsl::not_null<const CBlockIndex*> pQuorumBaseBlock
 
 bool CFinalCommitment::VerifyNull() const
 {
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrintfFinalCommitment("q[%s]invalid llmqType=%d\n", quorumHash.ToString(), ToUnderlying(llmqType));
         return false;
@@ -182,9 +182,9 @@ bool CheckLLMQCommitment(const CTransaction& tx, gsl::not_null<const CBlockIndex
     }
     auto& qcTx = *opt_qcTx;
 
-    const auto& llmq_params_opt = GetLLMQParams(qcTx.commitment.llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(qcTx.commitment.llmqType);
     if (!llmq_params_opt.has_value()) {
-        LogPrintfFinalCommitment("h[%d] GetLLMQParams failed for llmqType[%d]\n", pindexPrev->nHeight, ToUnderlying(qcTx.commitment.llmqType));
+        LogPrintfFinalCommitment("h[%d] GetLLMQ failed for llmqType[%d]\n", pindexPrev->nHeight, ToUnderlying(qcTx.commitment.llmqType));
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-commitment-type");
     }
 

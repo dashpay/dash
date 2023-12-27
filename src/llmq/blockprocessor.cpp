@@ -68,7 +68,7 @@ PeerMsgRet CQuorumBlockProcessor::ProcessMessage(const CNode& peer, std::string_
         return tl::unexpected{100};
     }
 
-    const auto& llmq_params_opt = GetLLMQParams(qc.llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- invalid commitment type %d from peer=%d\n", __func__,
                  ToUnderlying(qc.llmqType), peer.GetId());
@@ -218,7 +218,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
 {
     AssertLockHeld(cs_main);
 
-    const auto& llmq_params_opt = GetLLMQParams(qc.llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- invalid commitment type %d\n", __func__, ToUnderlying(qc.llmqType));
         return false;
@@ -327,7 +327,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
 
         m_evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
 
-        const auto& llmq_params_opt = GetLLMQParams(qc.llmqType);
+        const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
         assert(llmq_params_opt.has_value());
 
         if (IsQuorumRotationEnabled(llmq_params_opt.value(), pindex)) {
@@ -368,7 +368,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, gsl::no
             }
             auto& qc = *opt_qc;
 
-            const auto& llmq_params_opt = GetLLMQParams(qc.commitment.llmqType);
+            const auto& llmq_params_opt = Params().GetLLMQ(qc.commitment.llmqType);
             if (!llmq_params_opt.has_value()) {
                 // should not happen as it was verified before processing the block
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type");
@@ -575,7 +575,7 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
 
 std::vector<std::pair<int, const CBlockIndex*>> CQuorumBlockProcessor::GetLastMinedCommitmentsPerQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t cycle) const
 {
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     std::vector<std::pair<int, const CBlockIndex*>> ret;
 

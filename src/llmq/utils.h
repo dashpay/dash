@@ -52,8 +52,6 @@ void InitQuorumsCache(CacheType& cache, bool limit_by_connections = true);
 
 } // namespace utils
 
-[[ nodiscard ]] const std::optional<Consensus::LLMQParams> GetLLMQParams(Consensus::LLMQType llmqType);
-
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_UTILS_H

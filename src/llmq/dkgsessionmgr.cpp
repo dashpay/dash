@@ -218,7 +218,7 @@ void CDKGSessionManager::ProcessMessage(CNode& pfrom, const CQuorumManager& quor
     vRecv.Rewind(sizeof(uint256));
     vRecv.Rewind(sizeof(uint8_t));
 
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrintf("CDKGSessionManager -- invalid llmqType [%d]\n", ToUnderlying(llmqType));
         m_peerman->Misbehaving(pfrom.GetId(), 100);

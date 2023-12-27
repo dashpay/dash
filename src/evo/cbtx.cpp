@@ -8,7 +8,6 @@
 #include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
-#include <llmq/utils.h>
 #include <node/blockstorage.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
@@ -200,7 +199,7 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
     qcIndexedHashes_cached.clear();
 
     for (const auto& [llmqType, vecBlockIndexes] : quorums) {
-        const auto& llmq_params_opt = llmq::GetLLMQParams(llmqType);
+        const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
         assert(llmq_params_opt.has_value());
         bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params_opt.value(), pindexPrev);
         auto& vec_hashes = qcHashes_cached[llmqType];
@@ -266,7 +265,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                 // having null commitments is ok but we don't use them here, move to the next tx
                 continue;
             }
-            const auto& llmq_params_opt = llmq::GetLLMQParams(opt_qc->commitment.llmqType);
+            const auto& llmq_params_opt = Params().GetLLMQ(opt_qc->commitment.llmqType);
             if (!llmq_params_opt.has_value()) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type-calc-cbtx-quorummerkleroot");
             }
@@ -299,7 +298,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     vec_hashes_final.reserve(CalcHashCountFromQCHashes(qcHashes));
 
     for (const auto& [llmqType, vec_hashes] : qcHashes) {
-        const auto& llmq_params_opt = llmq::GetLLMQParams(llmqType);
+        const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
         assert(llmq_params_opt.has_value());
         if (vec_hashes.size() > size_t(llmq_params_opt->signingActiveQuorumCount)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "excess-quorums-calc-cbtx-quorummerkleroot");

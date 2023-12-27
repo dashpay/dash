@@ -8,7 +8,6 @@
 #include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/signing_shares.h>
-#include <llmq/utils.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
@@ -621,7 +620,7 @@ bool CSigningManager::PreVerifyRecoveredSig(const CQuorumManager& quorum_manager
     retBan = false;
 
     auto llmqType = recoveredSig.getLlmqType();
-    if (!GetLLMQParams(llmqType).has_value()) {
+    if (!Params().GetLLMQ(llmqType).has_value()) {
         retBan = true;
         return false;
     }
@@ -897,7 +896,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigShares
         // This gives a slight risk of not getting enough shares to recover a signature
         // But at least it shouldn't be possible to get conflicting recovered signatures
         // TODO fix this by re-signing when the next block arrives, but only when that block results in a change of the quorum list and no recovered signature has been created in the mean time
-        const auto& llmq_params_opt = GetLLMQParams(llmqType);
+        const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
         assert(llmq_params_opt.has_value());
         quorum = SelectQuorumForSigning(llmq_params_opt.value(), qman, id);
     } else {
@@ -1059,7 +1058,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(const Consensus::LLMQParams&
 
 bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQuorumManager& quorum_manager, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, const int signOffset)
 {
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     auto quorum = SelectQuorumForSigning(llmq_params_opt.value(), quorum_manager, id, signedAtHeight, signOffset);
     if (!quorum) {
@@ -1090,7 +1089,7 @@ bool IsQuorumActive(Consensus::LLMQType llmqType, const CQuorumManager& qman, co
     // sig shares and recovered sigs are only accepted from recent/active quorums
     // we allow one more active quorum as specified in consensus, as otherwise there is a small window where things could
     // fail while we are on the brink of a new quorum
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     auto quorums = qman.ScanQuorums(llmqType, llmq_params_opt->keepOldConnections);
     return ranges::any_of(quorums, [&quorumHash](const auto& q){ return q->qc->quorumHash == quorumHash; });
