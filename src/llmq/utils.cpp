@@ -5,7 +5,6 @@
 #include <llmq/utils.h>
 
 #include <llmq/options.h>
-#include <llmq/quorums.h>
 #include <llmq/snapshot.h>
 
 #include <chainparams.h>
@@ -25,6 +24,12 @@
 #include <optional>
 
 class CBLSSignature;
+namespace llmq
+{
+class CQuorum;
+using CQuorumPtr = std::shared_ptr<CQuorum>;
+using CQuorumCPtr = std::shared_ptr<const CQuorum>;
+}
 
 /**
  * Forward declarations
