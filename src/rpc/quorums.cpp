@@ -599,7 +599,7 @@ static UniValue quorum_sigs_cmd(const JSONRPCRequest& request, const LLMQContext
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
             }
 
-            uint256 signHash = llmq::utils::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
+            uint256 signHash = llmq::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
             return sig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash);
         }
     } else if (cmd == "quorumhasrecsig") {

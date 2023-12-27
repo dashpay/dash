@@ -14,6 +14,7 @@
 #include <chainparams.h>
 #include <cxxtimer.hpp>
 #include <dbwrapper.h>
+#include <hash.h>
 #include <masternode/node.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
@@ -1065,13 +1066,23 @@ bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQu
         return false;
     }
 
-    uint256 signHash = utils::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
+    uint256 signHash = BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
     return sig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash);
 }
 
 uint256 CSigBase::buildSignHash() const
 {
-    return utils::BuildSignHash(llmqType, quorumHash, id, msgHash);
+    return BuildSignHash(llmqType, quorumHash, id, msgHash);
+}
+
+uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash)
+{
+    CHashWriter h(SER_GETHASH, 0);
+    h << llmqType;
+    h << quorumHash;
+    h << id;
+    h << msgHash;
+    return h.GetHash();
 }
 
 

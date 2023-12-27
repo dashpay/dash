@@ -754,7 +754,7 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
     {
         LOCK(cs);
 
-        auto signHash = utils::BuildSignHash(quorum->params.type, quorum->qc->quorumHash, id, msgHash);
+        auto signHash = BuildSignHash(quorum->params.type, quorum->qc->quorumHash, id, msgHash);
         const auto* sigSharesForSignHash = sigShares.GetAllForSignHash(signHash);
         if (sigSharesForSignHash == nullptr) {
             return;
@@ -1537,7 +1537,7 @@ void CSigSharesManager::ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus
     }
 
     LOCK(cs);
-    auto signHash = utils::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
+    auto signHash = BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
     if (const auto *const sigs = sigShares.GetAllForSignHash(signHash)) {
         for (const auto& [quorumMemberIndex, _] : *sigs) {
             // re-announce every sigshare to every node

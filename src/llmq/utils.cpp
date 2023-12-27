@@ -632,16 +632,6 @@ std::pair<CDeterministicMNList, CDeterministicMNList> GetMNUsageBySnapshot(const
     return std::make_pair(usedMNs, nonUsedMNs);
 }
 
-uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash)
-{
-    CHashWriter h(SER_GETHASH, 0);
-    h << llmqType;
-    h << quorumHash;
-    h << id;
-    h << msgHash;
-    return h.GetHash();
-}
-
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
 {
     // We need to deterministically select who is going to initiate the connection. The naive way would be to simply

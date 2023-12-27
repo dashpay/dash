@@ -5,10 +5,10 @@
 #include <llmq/instantsend.h>
 
 #include <llmq/chainlocks.h>
-#include <llmq/quorums.h>
-#include <llmq/utils.h>
 #include <llmq/commitment.h>
+#include <llmq/quorums.h>
 #include <llmq/signing_shares.h>
+#include <llmq/utils.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
@@ -935,7 +935,7 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
         }
-        uint256 signHash = utils::BuildSignHash(llmq_params.type, quorum->qc->quorumHash, id, islock->txid);
+        uint256 signHash = BuildSignHash(llmq_params.type, quorum->qc->quorumHash, id, islock->txid);
         batchVerifier.PushMessage(nodeId, hash, signHash, islock->sig.Get(), quorum->qc->quorumPublicKey);
         verifyCount++;
 
