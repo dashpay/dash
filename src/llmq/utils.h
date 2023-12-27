@@ -5,7 +5,6 @@
 #ifndef BITCOIN_LLMQ_UTILS_H
 #define BITCOIN_LLMQ_UTILS_H
 
-#include <random.h>
 #include <set>
 #include <sync.h>
 #include <versionbits.h>
@@ -72,36 +71,6 @@ bool IsWatchQuorumsEnabled();
 
 /// Returns the parsed entries given by `-llmq-qvvec-sync`
 std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries();
-
-template<typename NodesContainer, typename Continue, typename Callback>
-void IterateNodesRandom(NodesContainer& nodeStates, Continue&& cont, Callback&& callback, FastRandomContext& rnd)
-{
-    std::vector<typename NodesContainer::iterator> rndNodes;
-    rndNodes.reserve(nodeStates.size());
-    for (auto it = nodeStates.begin(); it != nodeStates.end(); ++it) {
-        rndNodes.emplace_back(it);
-    }
-    if (rndNodes.empty()) {
-        return;
-    }
-    Shuffle(rndNodes.begin(), rndNodes.end(), rnd);
-
-    size_t idx = 0;
-    while (!rndNodes.empty() && cont()) {
-        auto nodeId = rndNodes[idx]->first;
-        auto& ns = rndNodes[idx]->second;
-
-        if (callback(nodeId, ns)) {
-            idx = (idx + 1) % rndNodes.size();
-        } else {
-            rndNodes.erase(rndNodes.begin() + idx);
-            if (rndNodes.empty()) {
-                break;
-            }
-            idx %= rndNodes.size();
-        }
-    }
-}
 
 template <typename CacheType>
 void InitQuorumsCache(CacheType& cache, bool limit_by_connections = true);
