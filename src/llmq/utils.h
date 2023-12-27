@@ -51,17 +51,6 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
 template <typename CacheType>
 void InitQuorumsCache(CacheType& cache, bool limit_by_connections = true);
 
-[[ nodiscard ]] static constexpr int max_cycles(const Consensus::LLMQParams& llmqParams, int quorums_count)
-{
-    return llmqParams.useRotation ? quorums_count / llmqParams.signingActiveQuorumCount : quorums_count;
-}
-
-[[ nodiscard ]] static constexpr int max_store_depth(const Consensus::LLMQParams& llmqParams)
-{
-    // For how many blocks recent DKG info should be kept
-    return max_cycles(llmqParams, llmqParams.keepOldKeys) * llmqParams.dkgInterval;
-}
-
 } // namespace utils
 
 [[ nodiscard ]] const std::optional<Consensus::LLMQParams> GetLLMQParams(Consensus::LLMQType llmqType);

@@ -5,6 +5,7 @@
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
+#include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/utils.h>
 
@@ -497,7 +498,7 @@ void CDKGSessionManager::CleanupOldContributions() const
                 }
                 cnt_all++;
                 const CBlockIndex* pindexQuorum = m_chainstate.m_blockman.LookupBlockIndex(std::get<2>(k));
-                if (pindexQuorum == nullptr || m_chainstate.m_chain.Tip()->nHeight - pindexQuorum->nHeight > utils::max_store_depth(params)) {
+                if (pindexQuorum == nullptr || m_chainstate.m_chain.Tip()->nHeight - pindexQuorum->nHeight > params.max_store_depth()) {
                     // not found or too old
                     batch.Erase(k);
                     cnt_old++;

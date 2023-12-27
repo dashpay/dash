@@ -8,6 +8,7 @@
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
+#include <llmq/params.h>
 #include <llmq/utils.h>
 
 #include <evo/specialtx.h>
@@ -532,7 +533,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
                 // And we only do this for max_cycles() of the most recent quorums
                 // because signing by old quorums requires the exact quorum hash to be specified
                 // and quorum scanning isn't needed there.
-                scanQuorumsCache.try_emplace(llmq.type, utils::max_cycles(llmq, llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart));
+                scanQuorumsCache.try_emplace(llmq.type, llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart));
             }
         }
         auto& cache = scanQuorumsCache[llmqType];
@@ -1056,7 +1057,7 @@ void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) 
             auto& cache = cleanupQuorumsCache[params.type];
             const CBlockIndex* pindex_loop{pIndex};
             std::set<uint256> quorum_keys;
-            while (pindex_loop != nullptr && pIndex->nHeight - pindex_loop->nHeight < utils::max_store_depth(params)) {
+            while (pindex_loop != nullptr && pIndex->nHeight - pindex_loop->nHeight < params.max_store_depth()) {
                 uint256 quorum_key;
                 if (cache.get(pindex_loop->GetBlockHash(), quorum_key)) {
                     quorum_keys.insert(quorum_key);
