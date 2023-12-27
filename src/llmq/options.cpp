@@ -7,9 +7,32 @@
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <deploymentstatus.h>
+#include <spork.h>
 
 namespace llmq
 {
+
+static bool EvalSpork(Consensus::LLMQType llmqType, int64_t spork_value)
+{
+    if (spork_value == 0) {
+        return true;
+    }
+    if (spork_value == 1 && llmqType != Consensus::LLMQType::LLMQ_100_67 && llmqType != Consensus::LLMQType::LLMQ_400_60 && llmqType != Consensus::LLMQType::LLMQ_400_85) {
+        return true;
+    }
+    return false;
+}
+
+bool IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType)
+{
+    return EvalSpork(llmqType, sporkManager->GetSporkValue(SPORK_21_QUORUM_ALL_CONNECTED));
+}
+
+bool IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
+{
+    return EvalSpork(llmqType, sporkManager->GetSporkValue(SPORK_23_QUORUM_POSE));
+}
+
 
 bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex)
 {

@@ -12,6 +12,9 @@ class CBlockIndex;
 
 namespace llmq
 {
+bool IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType);
+bool IsQuorumPoseEnabled(Consensus::LLMQType llmqType);
+
 bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex);
 
 } // namespace llmq

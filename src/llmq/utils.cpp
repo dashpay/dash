@@ -16,7 +16,6 @@
 #include <masternode/meta.h>
 #include <net.h>
 #include <random.h>
-#include <spork.h>
 #include <util/irange.h>
 #include <util/ranges.h>
 #include <util/time.h>
@@ -654,28 +653,6 @@ uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, c
     h << msgHash;
     return h.GetHash();
 }
-
-static bool EvalSpork(Consensus::LLMQType llmqType, int64_t spork_value)
-{
-    if (spork_value == 0) {
-        return true;
-    }
-    if (spork_value == 1 && llmqType != Consensus::LLMQType::LLMQ_100_67 && llmqType != Consensus::LLMQType::LLMQ_400_60 && llmqType != Consensus::LLMQType::LLMQ_400_85) {
-        return true;
-    }
-    return false;
-}
-
-bool IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType)
-{
-    return EvalSpork(llmqType, sporkManager->GetSporkValue(SPORK_21_QUORUM_ALL_CONNECTED));
-}
-
-bool IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
-{
-    return EvalSpork(llmqType, sporkManager->GetSporkValue(SPORK_23_QUORUM_POSE));
-}
-
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
 {
