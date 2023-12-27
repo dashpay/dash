@@ -28,14 +28,6 @@ namespace llmq
 class CQuorumManager;
 class CQuorumSnapshot;
 
-static const bool DEFAULT_ENABLE_QUORUM_DATA_RECOVERY = true;
-
-enum class QvvecSyncMode {
-    Invalid = -1,
-    Always = 0,
-    OnlyIfTypeMember = 1,
-};
-
 namespace utils
 {
 
@@ -60,15 +52,6 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
 
 std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(gsl::not_null<const CBlockIndex*> pindex);
 std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(gsl::not_null<const CBlockIndex*> pindex);
-
-/// Returns the state of `-llmq-data-recovery`
-bool QuorumDataRecoveryEnabled();
-
-/// Returns the state of `-watchquorums`
-bool IsWatchQuorumsEnabled();
-
-/// Returns the parsed entries given by `-llmq-qvvec-sync`
-std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries();
 
 template <typename CacheType>
 void InitQuorumsCache(CacheType& cache, bool limit_by_connections = true);

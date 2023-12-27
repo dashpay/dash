@@ -8,6 +8,11 @@
 #include <consensus/params.h>
 #include <deploymentstatus.h>
 #include <spork.h>
+#include <util/ranges.h>
+#include <util/system.h>
+
+#include <map>
+#include <string>
 
 namespace llmq
 {
@@ -46,6 +51,64 @@ bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_n
     }
     // It should activate at least 1 block prior to the cycle start
     return DeploymentActiveAfter(pindex->GetAncestor(cycleQuorumBaseHeight - 1), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024);
+}
+
+bool QuorumDataRecoveryEnabled()
+{
+    return gArgs.GetBoolArg("-llmq-data-recovery", DEFAULT_ENABLE_QUORUM_DATA_RECOVERY);
+}
+
+bool IsWatchQuorumsEnabled()
+{
+    static bool fIsWatchQuroumsEnabled = gArgs.GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS);
+    return fIsWatchQuroumsEnabled;
+}
+
+std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries()
+{
+    std::map<Consensus::LLMQType, QvvecSyncMode> mapQuorumVvecSyncEntries;
+    for (const auto& strEntry : gArgs.GetArgs("-llmq-qvvec-sync")) {
+        Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
+        QvvecSyncMode mode{QvvecSyncMode::Invalid};
+        std::istringstream ssEntry(strEntry);
+        std::string strLLMQType, strMode, strTest;
+        const bool fLLMQTypePresent = std::getline(ssEntry, strLLMQType, ':') && strLLMQType != "";
+        const bool fModePresent = std::getline(ssEntry, strMode, ':') && strMode != "";
+        const bool fTooManyEntries = static_cast<bool>(std::getline(ssEntry, strTest, ':'));
+        if (!fLLMQTypePresent || !fModePresent || fTooManyEntries) {
+            throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
+        }
+
+        if (auto optLLMQParams = ranges::find_if_opt(Params().GetConsensus().llmqs,
+                                                     [&strLLMQType](const auto& params){return params.name == strLLMQType;})) {
+            llmqType = optLLMQParams->type;
+        } else {
+            throw std::invalid_argument(strprintf("Invalid llmqType in -llmq-qvvec-sync: %s", strEntry));
+        }
+        if (mapQuorumVvecSyncEntries.count(llmqType) > 0) {
+            throw std::invalid_argument(strprintf("Duplicated llmqType in -llmq-qvvec-sync: %s", strEntry));
+        }
+
+        int32_t nMode;
+        if (ParseInt32(strMode, &nMode)) {
+            switch (nMode) {
+            case (int32_t)QvvecSyncMode::Always:
+                mode = QvvecSyncMode::Always;
+                break;
+            case (int32_t)QvvecSyncMode::OnlyIfTypeMember:
+                mode = QvvecSyncMode::OnlyIfTypeMember;
+                break;
+            default:
+                mode = QvvecSyncMode::Invalid;
+                break;
+            }
+        }
+        if (mode == QvvecSyncMode::Invalid) {
+            throw std::invalid_argument(strprintf("Invalid mode in -llmq-qvvec-sync: %s", strEntry));
+        }
+        mapQuorumVvecSyncEntries.emplace(llmqType, mode);
+    }
+    return mapQuorumVvecSyncEntries;
 }
 
 } // namespace llmq

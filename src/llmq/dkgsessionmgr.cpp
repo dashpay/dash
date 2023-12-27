@@ -36,7 +36,7 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, CChainState& chai
     spork_manager(sporkManager),
     m_peerman(peerman)
 {
-    if (!fMasternodeMode && !utils::IsWatchQuorumsEnabled()) {
+    if (!fMasternodeMode && !IsWatchQuorumsEnabled()) {
         // Regular nodes do not care about any DKG internals, bail out
         return;
     }
@@ -199,7 +199,7 @@ void CDKGSessionManager::ProcessMessage(CNode& pfrom, const CQuorumManager& quor
         return;
     }
 
-    if ((!fMasternodeMode && !utils::IsWatchQuorumsEnabled())) {
+    if ((!fMasternodeMode && !IsWatchQuorumsEnabled())) {
         // regular non-watching nodes should never receive any of these
         m_peerman->Misbehaving(pfrom.GetId(), 10);
         return;
