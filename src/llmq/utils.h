@@ -6,13 +6,12 @@
 #define BITCOIN_LLMQ_UTILS_H
 
 #include <llmq/params.h>
-#include <set>
 #include <sync.h>
 #include <gsl/pointers.h>
 #include <uint256.h>
 
 #include <map>
-#include <optional>
+#include <set>
 #include <vector>
 
 class CConnman;
@@ -23,8 +22,6 @@ using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
 
 namespace llmq
 {
-
-class CQuorumSnapshot;
 
 namespace utils
 {
@@ -39,12 +36,6 @@ std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
 
 bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, CConnman& connman, const uint256& myProTxHash);
 void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, CConnman& connman, const uint256& myProTxHash);
-
-bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexPrev);
-bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexPrev, std::optional<bool> optDIP0024IsActive);
-
-std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(gsl::not_null<const CBlockIndex*> pindex);
-std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(gsl::not_null<const CBlockIndex*> pindex);
 
 template <typename CacheType>
 void InitQuorumsCache(CacheType& cache, bool limit_by_connections = true);

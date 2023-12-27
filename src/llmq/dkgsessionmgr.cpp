@@ -247,7 +247,7 @@ void CDKGSessionManager::ProcessMessage(CNode& pfrom, const std::string& msg_typ
             return;
         }
 
-        if (!utils::IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
+        if (!IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
             LogPrintf("CDKGSessionManager -- llmqType [%d] quorums aren't active\n", ToUnderlying(llmqType));
             m_peerman->Misbehaving(pfrom.GetId(), 100);
             return;

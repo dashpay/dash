@@ -5,7 +5,7 @@
 #include <test/util/setup_common.h>
 
 #include <llmq/params.h>
-#include <llmq/utils.h>
+#include <llmq/options.h>
 
 #include <chainparams.h>
 
@@ -13,12 +13,12 @@
 
 #include <boost/test/unit_test.hpp>
 
-/* TODO: rename this file and test to llmq_utils_test */
+/* TODO: rename this file and test to llmq_options_test */
 BOOST_AUTO_TEST_SUITE(evo_utils_tests)
 
 void Test(NodeContext& node)
 {
-    using namespace llmq::utils;
+    using namespace llmq;
     auto tip = node.chainman->ActiveTip();
     const auto& consensus_params = Params().GetConsensus();
     BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, tip, false), false);

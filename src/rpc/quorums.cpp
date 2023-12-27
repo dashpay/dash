@@ -76,7 +76,7 @@ static UniValue quorum_list(const JSONRPCRequest& request, const ChainstateManag
 
     CBlockIndex* pindexTip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
 
-    for (const auto& type : llmq::utils::GetEnabledQuorumTypes(pindexTip)) {
+    for (const auto& type : llmq::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params_opt = Params().GetLLMQ(type);
         CHECK_NONFATAL(llmq_params_opt.has_value());
         UniValue v(UniValue::VARR);
@@ -141,7 +141,7 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request, const Chains
 
     CBlockIndex* pblockindex = nHeight != -1 ? WITH_LOCK(cs_main, return chainman.ActiveChain()[nHeight]) : WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
 
-    for (const auto& type : llmq::utils::GetEnabledQuorumTypes(pblockindex)) {
+    for (const auto& type : llmq::GetEnabledQuorumTypes(pblockindex)) {
         const auto& llmq_params_opt = Params().GetLLMQ(type);
         CHECK_NONFATAL(llmq_params_opt.has_value());
         const auto& llmq_params = llmq_params_opt.value();
@@ -299,7 +299,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request, const Chainstate
 
     UniValue minableCommitments(UniValue::VARR);
     UniValue quorumArrConnections(UniValue::VARR);
-    for (const auto& type : llmq::utils::GetEnabledQuorumTypes(pindexTip)) {
+    for (const auto& type : llmq::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params_opt = Params().GetLLMQ(type);
         CHECK_NONFATAL(llmq_params_opt.has_value());
         const auto& llmq_params = llmq_params_opt.value();
@@ -403,7 +403,7 @@ static UniValue quorum_memberof(const JSONRPCRequest& request, const ChainstateM
     }
 
     UniValue result(UniValue::VARR);
-    for (const auto& type : llmq::utils::GetEnabledQuorumTypes(pindexTip)) {
+    for (const auto& type : llmq::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params_opt = Params().GetLLMQ(type);
         CHECK_NONFATAL(llmq_params_opt.has_value());
         size_t count = llmq_params_opt->signingActiveQuorumCount;

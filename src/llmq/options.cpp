@@ -10,9 +10,12 @@
 #include <spork.h>
 #include <util/ranges.h>
 #include <util/system.h>
+#include <util/underlying.h>
 
-#include <map>
 #include <string>
+#include <stdexcept>
+
+static constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
 
 namespace llmq
 {
@@ -111,4 +114,76 @@ std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries()
     return mapQuorumVvecSyncEntries;
 }
 
+bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexPrev)
+{
+    return IsQuorumTypeEnabledInternal(llmqType, pindexPrev, std::nullopt);
+}
+
+bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                std::optional<bool> optDIP0024IsActive)
+{
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+
+    const bool fDIP0024IsActive{optDIP0024IsActive.value_or(DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0024))};
+    switch (llmqType)
+    {
+        case Consensus::LLMQType::LLMQ_DEVNET:
+            return true;
+        case Consensus::LLMQType::LLMQ_50_60:
+            if (Params().NetworkIDString() == CBaseChainParams::TESTNET) return true;
+            // fall through
+        case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND:
+            return !fDIP0024IsActive;
+
+        case Consensus::LLMQType::LLMQ_TEST:
+        case Consensus::LLMQType::LLMQ_TEST_PLATFORM:
+        case Consensus::LLMQType::LLMQ_400_60:
+        case Consensus::LLMQType::LLMQ_400_85:
+        case Consensus::LLMQType::LLMQ_DEVNET_PLATFORM:
+            return true;
+
+        case Consensus::LLMQType::LLMQ_TEST_V17: {
+            return DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY);
+        }
+        case Consensus::LLMQType::LLMQ_100_67:
+            return DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0020);
+
+        case Consensus::LLMQType::LLMQ_60_75:
+        case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:
+        case Consensus::LLMQType::LLMQ_TEST_DIP0024: {
+            return fDIP0024IsActive;
+        }
+        case Consensus::LLMQType::LLMQ_25_67:
+            return pindexPrev->nHeight >= TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT;
+
+        default:
+            throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, ToUnderlying(llmqType)));
+    }
+
+    // Something wrong with conditions above, they are not consistent
+    assert(false);
+}
+
+std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(gsl::not_null<const CBlockIndex*> pindex)
+{
+    std::vector<Consensus::LLMQType> ret;
+    ret.reserve(Params().GetConsensus().llmqs.size());
+    for (const auto& params : Params().GetConsensus().llmqs) {
+        if (IsQuorumTypeEnabled(params.type, pindex)) {
+            ret.push_back(params.type);
+        }
+    }
+    return ret;
+}
+
+std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(gsl::not_null<const CBlockIndex*> pindex)
+{
+    std::vector<std::reference_wrapper<const Consensus::LLMQParams>> ret;
+    ret.reserve(Params().GetConsensus().llmqs.size());
+
+    std::copy_if(Params().GetConsensus().llmqs.begin(), Params().GetConsensus().llmqs.end(), std::back_inserter(ret),
+                 [&pindex](const auto& params){return IsQuorumTypeEnabled(params.type, pindex);});
+
+    return ret;
+}
 } // namespace llmq

@@ -28,7 +28,7 @@
 
 static void PreComputeQuorumMembers(const CBlockIndex* pindex, bool reset_cache = false)
 {
-    for (const Consensus::LLMQParams& params : llmq::utils::GetEnabledQuorumParams(pindex->pprev)) {
+    for (const Consensus::LLMQParams& params : llmq::GetEnabledQuorumParams(pindex->pprev)) {
         if (llmq::IsQuorumRotationEnabled(params, pindex) && (pindex->nHeight % params.dkgInterval == 0)) {
             llmq::utils::GetAllQuorumMembers(params.type, pindex, reset_cache);
         }
@@ -166,7 +166,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
     // until the first non-null commitment has been mined. After the non-null commitment, no other commitments are
     // allowed, including null commitments.
     // Note: must only check quorums that were enabled at the _previous_ block height to match mining logic
-    for (const Consensus::LLMQParams& params : utils::GetEnabledQuorumParams(pindex->pprev)) {
+    for (const Consensus::LLMQParams& params : GetEnabledQuorumParams(pindex->pprev)) {
         // skip these checks when replaying blocks after the crash
         if (m_chainstate.m_chain.Tip() == nullptr) {
             break;
