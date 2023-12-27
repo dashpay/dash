@@ -85,8 +85,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "evo/simplifiedmns -> llmq/blockprocessor -> llmq/utils -> llmq/snapshot -> evo/simplifiedmns"
     "llmq/blockprocessor -> llmq/utils -> llmq/snapshot -> llmq/blockprocessor"
     "llmq/context -> llmq/dkgsessionmgr -> net_processing -> llmq/context"
-    "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsession"
-    "llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsessionmgr"
     "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment"
     "spork -> validation -> spork"
     "governance/governance -> validation -> governance/governance"
