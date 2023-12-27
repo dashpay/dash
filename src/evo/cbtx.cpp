@@ -7,6 +7,7 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
+#include <llmq/options.h>
 #include <llmq/utils.h>
 #include <node/blockstorage.h>
 #include <evo/simplifiedmns.h>
@@ -201,7 +202,7 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
     for (const auto& [llmqType, vecBlockIndexes] : quorums) {
         const auto& llmq_params_opt = llmq::GetLLMQParams(llmqType);
         assert(llmq_params_opt.has_value());
-        bool rotation_enabled = llmq::utils::IsQuorumRotationEnabled(llmq_params_opt.value(), pindexPrev);
+        bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params_opt.value(), pindexPrev);
         auto& vec_hashes = qcHashes_cached[llmqType];
         vec_hashes.reserve(vecBlockIndexes.size());
         auto& map_indexed_hashes = qcIndexedHashes_cached[llmqType];
@@ -270,8 +271,8 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type-calc-cbtx-quorummerkleroot");
             }
             const auto& llmq_params = llmq_params_opt.value();
-            auto qcHash = ::SerializeHash(opt_qc->commitment);
-            if (llmq::utils::IsQuorumRotationEnabled(llmq_params, pindexPrev)) {
+            const auto qcHash = ::SerializeHash(opt_qc->commitment);
+            if (llmq::IsQuorumRotationEnabled(llmq_params, pindexPrev)) {
                 auto& map_indexed_hashes = qcIndexedHashes[opt_qc->commitment.llmqType];
                 map_indexed_hashes[opt_qc->commitment.quorumIndex] = qcHash;
             } else {

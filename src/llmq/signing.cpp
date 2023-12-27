@@ -4,10 +4,11 @@
 
 #include <llmq/signing.h>
 
-#include <llmq/quorums.h>
 #include <llmq/commitment.h>
-#include <llmq/utils.h>
+#include <llmq/options.h>
+#include <llmq/quorums.h>
 #include <llmq/signing_shares.h>
+#include <llmq/utils.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
@@ -1011,7 +1012,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(const Consensus::LLMQParams&
         pindexStart = ::ChainActive()[startBlockHeight];
     }
 
-    if (utils::IsQuorumRotationEnabled(llmq_params, pindexStart)) {
+    if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
         auto quorums = quorum_manager.ScanQuorums(llmq_params.type, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;

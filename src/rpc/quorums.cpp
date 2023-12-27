@@ -20,10 +20,12 @@
 #include <llmq/context.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
+#include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
+#include <llmq/utils.h>
 
 #include <iomanip>
 #include <optional>
@@ -301,7 +303,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request, const Chainstate
         const auto& llmq_params_opt = llmq::GetLLMQParams(type);
         CHECK_NONFATAL(llmq_params_opt.has_value());
         const auto& llmq_params = llmq_params_opt.value();
-        bool rotation_enabled = llmq::utils::IsQuorumRotationEnabled(llmq_params, pindexTip);
+        bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params, pindexTip);
         int quorums_num = rotation_enabled ? llmq_params.signingActiveQuorumCount : 1;
 
         for (const int quorumIndex : irange::range(quorums_num)) {

@@ -4,6 +4,7 @@
 
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/utils.h>
 
@@ -252,7 +253,7 @@ void CDKGSessionManager::ProcessMessage(CNode& pfrom, const CQuorumManager& quor
         }
 
         quorumIndex = pQuorumBaseBlockIndex->nHeight % llmq_params.dkgInterval;
-        int quorumIndexMax = utils::IsQuorumRotationEnabled(llmq_params, pQuorumBaseBlockIndex) ?
+        int quorumIndexMax = IsQuorumRotationEnabled(llmq_params, pQuorumBaseBlockIndex) ?
                 llmq_params.signingActiveQuorumCount - 1 : 0;
 
         if (quorumIndex > quorumIndexMax) {

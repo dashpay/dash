@@ -5,7 +5,15 @@
 #ifndef BITCOIN_LLMQ_OPTIONS_H
 #define BITCOIN_LLMQ_OPTIONS_H
 
+#include <llmq/params.h>
+#include <gsl/pointers.h>
 
+class CBlockIndex;
 
+namespace llmq
+{
+bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex);
+
+} // namespace llmq
 
 #endif // BITCOIN_LLMQ_OPTIONS_H

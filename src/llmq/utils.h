@@ -5,11 +5,13 @@
 #ifndef BITCOIN_LLMQ_UTILS_H
 #define BITCOIN_LLMQ_UTILS_H
 
+#include <llmq/params.h>
 #include <set>
 #include <sync.h>
-#include <versionbits.h>
 #include <gsl/pointers.h>
+#include <uint256.h>
 
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -60,8 +62,6 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
 
 std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(gsl::not_null<const CBlockIndex*> pindex);
 std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(gsl::not_null<const CBlockIndex*> pindex);
-
-bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex);
 
 /// Returns the state of `-llmq-data-recovery`
 bool QuorumDataRecoveryEnabled();
