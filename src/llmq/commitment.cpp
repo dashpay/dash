@@ -112,7 +112,7 @@ bool CFinalCommitment::Verify(gsl::not_null<const CBlockIndex*> pQuorumBaseBlock
 
     // sigs are only checked when the block is processed
     if (checkSigs) {
-        uint256 commitmentHash = utils::BuildCommitmentHash(llmq_params.type, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
+        uint256 commitmentHash = BuildCommitmentHash(llmq_params.type, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
         if (LogAcceptCategory(BCLog::LLMQ)) {
             std::stringstream ss3;
             for (const auto &mn: members) {
@@ -234,6 +234,19 @@ bool CheckLLMQCommitment(const CTransaction& tx, gsl::not_null<const CBlockIndex
     LogPrintfFinalCommitment("h[%d] CheckLLMQCommitment VALID\n", pindexPrev->nHeight);
 
     return true;
+}
+
+uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash,
+                                        const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey,
+                                        const uint256& vvecHash)
+{
+    CHashWriter hw(SER_GETHASH, 0);
+    hw << llmqType;
+    hw << blockHash;
+    hw << DYNBITSET(validMembers);
+    hw << pubKey;
+    hw << vvecHash;
+    return hw.GetHash();
 }
 
 } // namespace llmq

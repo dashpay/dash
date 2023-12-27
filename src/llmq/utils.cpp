@@ -8,7 +8,6 @@
 #include <llmq/quorums.h>
 #include <llmq/snapshot.h>
 
-#include <bls/bls.h>
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
@@ -25,6 +24,8 @@
 
 #include <atomic>
 #include <optional>
+
+class CBLSSignature;
 
 static constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
 
@@ -629,19 +630,6 @@ std::pair<CDeterministicMNList, CDeterministicMNList> GetMNUsageBySnapshot(const
     }
 
     return std::make_pair(usedMNs, nonUsedMNs);
-}
-
-uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash,
-                                        const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey,
-                                        const uint256& vvecHash)
-{
-    CHashWriter hw(SER_GETHASH, 0);
-    hw << llmqType;
-    hw << blockHash;
-    hw << DYNBITSET(validMembers);
-    hw << pubKey;
-    hw << vvecHash;
-    return hw.GetHash();
 }
 
 uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash)
