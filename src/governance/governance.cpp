@@ -734,6 +734,10 @@ void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGover
     // Vote NO-FUNDING for the rest of the active triggers
     const auto activeTriggers = triggerman.GetActiveTriggers();
     for (const auto& trigger : activeTriggers) {
+        if (trigger->GetBlockHeight() <= nCachedBlockHeight) {
+            // ignore triggers from the past
+            continue;
+        }
         const uint256 trigger_hash = trigger->GetGovernanceObject(*this)->GetHash();
         if (trigger_hash == votedFundingYesTriggerHash) {
             // Skip actual trigger
