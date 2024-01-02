@@ -75,8 +75,7 @@ BOOST_FIXTURE_TEST_CASE(package_validation_tests, TestChain100NoDIP0001Setup)
     unsigned int initialPoolSize = m_node.mempool->size();
 
     // Parent and Child Package
-    CKey parent_key;
-    parent_key.MakeNewKey(true);
+    CKey parent_key = GenerateRandomKey();
     CScript parent_locking_script = GetScriptForDestination(PKHash(parent_key.GetPubKey()));
     auto mtx_parent = CreateValidMempoolTransaction(/*input_transaction=*/m_coinbase_txns[0], /*input_vout=*/0,
                                                     /*input_height=*/0, /*input_signing_key=*/coinbaseKey,
@@ -84,8 +83,7 @@ BOOST_FIXTURE_TEST_CASE(package_validation_tests, TestChain100NoDIP0001Setup)
                                                     /*output_amount=*/CAmount(499 * COIN), /*submit=*/false);
     CTransactionRef tx_parent = MakeTransactionRef(mtx_parent);
 
-    CKey child_key;
-    child_key.MakeNewKey(true);
+    CKey child_key = GenerateRandomKey();
     CScript child_locking_script = GetScriptForDestination(PKHash(child_key.GetPubKey()));
     auto mtx_child = CreateValidMempoolTransaction(/*input_transaction=*/tx_parent, /*input_vout=*/0,
                                                    /*input_height=*/101, /*input_signing_key=*/parent_key,
@@ -126,11 +124,9 @@ BOOST_FIXTURE_TEST_CASE(package_validation_tests, TestChain100NoDIP0001Setup)
 BOOST_FIXTURE_TEST_CASE(noncontextual_package_tests, TestChain100NoDIP0001Setup)
 {
     // The signatures won't be verified so we can just use a placeholder
-    CKey placeholder_key;
-    placeholder_key.MakeNewKey(true);
+    CKey placeholder_key = GenerateRandomKey();
     CScript spk = GetScriptForDestination(PKHash(placeholder_key.GetPubKey()));
-    CKey placeholder_key_2;
-    placeholder_key_2.MakeNewKey(true);
+    CKey placeholder_key_2 = GenerateRandomKey();
     CScript spk2 = GetScriptForDestination(PKHash(placeholder_key_2.GetPubKey()));
 
     // Parent and Child Package
@@ -219,8 +215,7 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100NoDIP0001Setup)
 {
     LOCK(cs_main);
     unsigned int expected_pool_size = m_node.mempool->size();
-    CKey parent_key;
-    parent_key.MakeNewKey(true);
+    CKey parent_key = GenerateRandomKey();
     CScript parent_locking_script = GetScriptForDestination(PKHash(parent_key.GetPubKey()));
 
     // Unrelated transactions are not allowed in package submission.
@@ -251,8 +246,7 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100NoDIP0001Setup)
     package_parent_child.push_back(tx_parent);
     package_3gen.push_back(tx_parent);
 
-    CKey child_key;
-    child_key.MakeNewKey(true);
+    CKey child_key = GenerateRandomKey();
     CScript child_locking_script = GetScriptForDestination(PKHash(child_key.GetPubKey()));
     auto mtx_child = CreateValidMempoolTransaction(/*input_transaction=*/tx_parent, /*input_vout=*/0,
                                                    /*input_height=*/101, /*input_signing_key=*/parent_key,
@@ -262,8 +256,7 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100NoDIP0001Setup)
     package_parent_child.push_back(tx_child);
     package_3gen.push_back(tx_child);
 
-    CKey grandchild_key;
-    grandchild_key.MakeNewKey(true);
+    CKey grandchild_key = GenerateRandomKey();
     CScript grandchild_locking_script = GetScriptForDestination(PKHash(grandchild_key.GetPubKey()));
     auto mtx_grandchild = CreateValidMempoolTransaction(/*input_transaction=*/tx_child, /*input_vout=*/0,
                                                        /*input_height=*/101, /*input_signing_key=*/child_key,
@@ -350,11 +343,9 @@ BOOST_FIXTURE_TEST_CASE(package_cpfp_tests, TestChain100Setup)
     mineBlocks(5);
     LOCK(::cs_main);
     size_t expected_pool_size = m_node.mempool->size();
-    CKey child_key;
-    child_key.MakeNewKey(true);
+    CKey child_key = GenerateRandomKey();
     CScript parent_spk = GetScriptForDestination(PKHash(child_key.GetPubKey()));
-    CKey grandchild_key;
-    grandchild_key.MakeNewKey(true);
+    CKey grandchild_key = GenerateRandomKey();
     CScript child_spk = GetScriptForDestination(PKHash(grandchild_key.GetPubKey()));
 
     // zero-fee parent and high-fee child package
