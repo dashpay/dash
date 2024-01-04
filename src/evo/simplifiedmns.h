@@ -36,7 +36,7 @@ public:
     bool isValid{false};
     uint16_t platformHTTPPort{0};
     uint160 platformNodeID{};
-    CScript scriptPayout; // mem-only
+    std::vector<PayoutShare> payoutShares; // mem-only
     CScript scriptOperatorPayout; // mem-only
     uint16_t nVersion{LEGACY_BLS_VERSION};
     MnType nType{MnType::Regular};

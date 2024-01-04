@@ -155,7 +155,8 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     CService addr;
-    CScript scriptPayout;
+    // initialized as a vector of length one, in order to deserialize correctly old messages
+    std::vector<PayoutShare> payoutShares{PayoutShare(CScript())};
     CScript scriptOperatorPayout;
 
     uint160 platformNodeID{};
@@ -170,7 +171,7 @@ public:
         pubKeyOperator(proTx.pubKeyOperator),
         keyIDVoting(proTx.keyIDVoting),
         addr(proTx.addr),
-        scriptPayout(proTx.scriptPayout),
+        payoutShares(proTx.payoutShares),
         platformNodeID(proTx.platformNodeID),
         platformP2PPort(proTx.platformP2PPort),
         platformHTTPPort(proTx.platformHTTPPort)
@@ -189,7 +190,7 @@ public:
         pubKeyOperator(s.pubKeyOperator),
         keyIDVoting(s.keyIDVoting),
         addr(s.addr),
-        scriptPayout(s.scriptPayout),
+        payoutShares({PayoutShare(s.scriptPayout)}),
         scriptOperatorPayout(s.scriptOperatorPayout) {}
 
     explicit CDeterministicMNState(const CDeterministicMNState_mntype_format& s) :
@@ -206,7 +207,7 @@ public:
         pubKeyOperator(s.pubKeyOperator),
         keyIDVoting(s.keyIDVoting),
         addr(s.addr),
-        scriptPayout(s.scriptPayout),
+        payoutShares({PayoutShare(s.scriptPayout)}),
         scriptOperatorPayout(s.scriptOperatorPayout),
         platformNodeID(s.platformNodeID),
         platformP2PPort(s.platformP2PPort),
@@ -235,8 +236,13 @@ public:
         READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.nVersion == CProRegTx::LEGACY_BLS_VERSION));
         READWRITE(
             obj.keyIDVoting,
-            obj.addr,
-            obj.scriptPayout,
+            obj.addr);
+        if (obj.nVersion < CProRegTx::MULTI_PAYOUT_VERSION) {
+           READWRITE(obj.payoutShares[0].scriptPayout);
+        }else{
+            READWRITE(obj.payoutShares);
+        }
+        READWRITE(
             obj.scriptOperatorPayout,
             obj.platformNodeID,
             obj.platformP2PPort,
@@ -302,7 +308,7 @@ public:
         Field_pubKeyOperator = 0x0200,
         Field_keyIDVoting = 0x0400,
         Field_addr = 0x0800,
-        Field_scriptPayout = 0x1000,
+        Field_payoutShares = 0x1000,
         Field_scriptOperatorPayout = 0x2000,
         Field_nConsecutivePayments = 0x4000,
         Field_platformNodeID = 0x8000,
@@ -324,7 +330,7 @@ public:
     DMN_STATE_DIFF_LINE(pubKeyOperator)                \
     DMN_STATE_DIFF_LINE(keyIDVoting)                   \
     DMN_STATE_DIFF_LINE(addr)                          \
-    DMN_STATE_DIFF_LINE(scriptPayout)                  \
+    DMN_STATE_DIFF_LINE(payoutShares)                  \
     DMN_STATE_DIFF_LINE(scriptOperatorPayout)          \
     DMN_STATE_DIFF_LINE(nConsecutivePayments)          \
     DMN_STATE_DIFF_LINE(platformNodeID)                \

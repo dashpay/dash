@@ -877,7 +877,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 newState->pubKeyOperator = proTx.pubKeyOperator;
             }
             newState->keyIDVoting = proTx.keyIDVoting;
-            newState->scriptPayout = proTx.scriptPayout;
+            newState->payoutShares = proTx.payoutShares;
 
             newList.UpdateMN(proTx.proTxHash, newState);
 
@@ -1513,7 +1513,8 @@ static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not
         return std::nullopt;
     }
     const bool is_basic_scheme_active{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)};
-    if (!ptx.IsTriviallyValid(is_basic_scheme_active, state)) {
+    const bool is_multi_payout_active{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0026)};
+    if (!ptx.IsTriviallyValid(is_basic_scheme_active, is_multi_payout_active, state)) {
         // pass the state returned by the function above
         return std::nullopt;
     }
@@ -1706,10 +1707,10 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     const auto& ptx{*opt_ptx};
 
     CTxDestination payoutDest;
-    if (!ExtractDestination(ptx.scriptPayout, payoutDest)) {
-        // should not happen as we checked script types before
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
-    }
+    const auto& scriptIterator = std::find_if(ptx.payoutShares.begin(), ptx.payoutShares.end(), [&](const auto& payoutShare){
+        return !ExtractDestination(payoutShare.scriptPayout, payoutDest);
+    });
+    if(scriptIterator != ptx.payoutShares.end()) return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
 
     auto mnList = deterministicMNManager->GetListForBlock(pindexPrev);
     auto dmn = mnList.GetMN(ptx.proTxHash);

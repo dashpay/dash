@@ -216,11 +216,16 @@ void MasternodeList::updateDIP3List()
 
     mnList.ForEachMN(false, [&](auto& dmn) {
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
+            bool fMyPayee = false;
+            for (const auto& payoutShare : dmn.pdmnState->payoutShares) {
+                fMyPayee |= walletModel->wallet().isSpendable(payoutShare.scriptPayout);
+                if (fMyPayee) break;
+            }
             bool fMyMasternode = setOutpts.count(dmn.collateralOutpoint) ||
-                walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDOwner)) ||
-                walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDVoting)) ||
-                walletModel->wallet().isSpendable(dmn.pdmnState->scriptPayout) ||
-                walletModel->wallet().isSpendable(dmn.pdmnState->scriptOperatorPayout);
+                                 walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDOwner)) ||
+                                 walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDVoting)) ||
+                                 fMyPayee ||
+                                 walletModel->wallet().isSpendable(dmn.pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
         // populate list
@@ -243,9 +248,14 @@ void MasternodeList::updateDIP3List()
         QTableWidgetItem* nextPaymentItem = new CMasternodeListWidgetItem<int>(strNextPayment, nNextPayment);
 
         CTxDestination payeeDest;
-        QString payeeStr = tr("UNKNOWN");
-        if (ExtractDestination(dmn.pdmnState->scriptPayout, payeeDest)) {
-            payeeStr = QString::fromStdString(EncodeDestination(payeeDest));
+        QString payeeStr;
+        for (const auto& payeeShare : dmn.pdmnState->payoutShares) {
+            if (!payeeStr.isEmpty()) payeeStr += ", ";
+            if (ExtractDestination(payeeShare.scriptPayout, payeeDest)) {
+                payeeStr += QString::fromStdString(EncodeDestination(payeeDest));
+            } else {
+                payeeStr += tr("UNKNOWN");
+            }
         }
         QTableWidgetItem* payeeItem = new QTableWidgetItem(payeeStr);
 

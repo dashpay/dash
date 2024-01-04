@@ -110,6 +110,17 @@ bool CBloomFilter::CheckScript(const CScript &script) const
     return false;
 }
 
+bool CBloomFilter::CheckPayeeSharesScripts(const std::vector<PayoutShare>& payoutShares) const
+{
+    bool scriptCheck = false;
+    for (const auto& payoutShare : payoutShares) {
+        if (CheckScript(payoutShare.scriptPayout)) {
+            scriptCheck = true;
+            break;
+        }
+    }
+    return scriptCheck;
+}
 // If the transaction is a special transaction that has a registration
 // transaction hash, test the registration transaction hash.
 // If the transaction is a special transaction with any public keys or any
@@ -128,10 +139,10 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     case(TRANSACTION_PROVIDER_REGISTER): {
         CProRegTx proTx;
         if (GetTxPayload(tx, proTx)) {
-            if(contains(proTx.collateralOutpoint) ||
-                    contains(proTx.keyIDOwner) ||
-                    contains(proTx.keyIDVoting) ||
-                    CheckScript(proTx.scriptPayout)) {
+            if (contains(proTx.collateralOutpoint) ||
+                contains(proTx.keyIDOwner) ||
+                contains(proTx.keyIDVoting) ||
+                CheckPayeeSharesScripts(proTx.payoutShares)) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
                     insert(tx.GetHash());
                 return true;
@@ -158,8 +169,8 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         if (GetTxPayload(tx, proTx)) {
             if(contains(proTx.proTxHash))
                 return true;
-            if(contains(proTx.keyIDVoting) ||
-                    CheckScript(proTx.scriptPayout)) {
+            if (contains(proTx.keyIDVoting) ||
+                CheckPayeeSharesScripts(proTx.payoutShares)) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
                     insert(proTx.proTxHash);
                 return true;

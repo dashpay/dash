@@ -15,6 +15,7 @@ class CScript;
 class CTransaction;
 class CTxOut;
 class uint256;
+class PayoutShare;
 
 //! 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
 static constexpr unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
@@ -56,6 +57,7 @@ private:
 
     // Check matches for arbitrary script data elements
     bool CheckScript(const CScript& script) const;
+    bool CheckPayeeSharesScripts(const std::vector<PayoutShare>& payoutShares) const;
     // Check particular CTxOut helper
     bool ProcessTxOut(const CTxOut& txout, const uint256& hash, unsigned int index);
     // Check additional matches for special transactions
