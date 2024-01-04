@@ -5,20 +5,21 @@
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
-#include <index/txindex.h>
-#include <node/blockstorage.h>
-#include <node/context.h>
 #include <governance/governance.h>
+#include <index/txindex.h>
 #include <masternode/node.h>
 #include <masternode/payments.h>
 #include <net.h>
 #include <netbase.h>
+#include <node/blockstorage.h>
+#include <node/context.h>
 #include <rpc/blockchain.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
-#include <univalue.h>
-#include <util/strencodings.h>
 #include <spork.h>
+#include <univalue.h>
+#include <util/enumerate.h> // for enumerate
+#include <util/strencodings.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/rpcwallet.h>
@@ -141,10 +142,6 @@ static UniValue GetNextMasternodeForPayment(int heightShift)
     if (payees.empty())
         return "unknown";
     auto payee = payees.back();
-    CScript payeeScript = payee->pdmnState->scriptPayout;
-
-    CTxDestination payeeDest;
-    ExtractDestination(payeeScript, payeeDest);
 
     UniValue obj(UniValue::VOBJ);
 
@@ -152,7 +149,12 @@ static UniValue GetNextMasternodeForPayment(int heightShift)
     obj.pushKV("IP:port",       payee->pdmnState->addr.ToString());
     obj.pushKV("proTxHash",     payee->proTxHash.ToString());
     obj.pushKV("outpoint",      payee->collateralOutpoint.ToStringShort());
-    obj.pushKV("payee",         IsValidDestination(payeeDest) ? EncodeDestination(payeeDest) : "UNKNOWN");
+
+    UniValue payoutArray(UniValue::VARR);
+    for (const auto& payoutShare : payee->pdmnState->payoutShares) {
+        payoutArray.push_back(payoutShare.ToJson());
+    }
+    obj.pushKV("payees", payoutArray);
     return obj;
 }
 
@@ -277,15 +279,25 @@ static UniValue masternode_status(const JSONRPCRequest& request)
     return mnObj;
 }
 
-static std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCPtr &payee)
+static std::string GetStringFromMNPayoutShares(const std::vector<PayoutShare>& payoutShares)
 {
-    std::string strPayments = "Unknown";
-    if (payee) {
-        CTxDestination dest;
-        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest)) {
+    std::string strPayments = "UNKNOWN";
+    CTxDestination dest;
+    for (const auto [i, payoutShare] : enumerate(payoutShares)) {
+        if (!ExtractDestination(payoutShare.scriptPayout, dest)) {
             CHECK_NONFATAL(false);
         }
-        strPayments = EncodeDestination(dest);
+        strPayments = (i == 0) ? EncodeDestination(dest) : (strPayments + ", " + EncodeDestination(dest));
+    }
+    return strPayments;
+}
+static std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCPtr &payee)
+{
+    std::string strPayments = "UNKNOWN";
+    if (payee) {
+        CTxDestination dest;
+        strPayments = GetStringFromMNPayoutShares(payee->pdmnState->payoutShares);
+
         if (payee->nOperatorReward != 0 && payee->pdmnState->scriptOperatorPayout != CScript()) {
             if (!ExtractDestination(payee->pdmnState->scriptOperatorPayout, dest)) {
                 CHECK_NONFATAL(false);
@@ -634,13 +646,7 @@ static UniValue masternodelist(const JSONRPCRequest& request, ChainstateManager&
             }
         }
 
-        CScript payeeScript = dmn.pdmnState->scriptPayout;
-        CTxDestination payeeDest;
-        std::string payeeStr = "UNKNOWN";
-        if (ExtractDestination(payeeScript, payeeDest)) {
-            payeeStr = EncodeDestination(payeeDest);
-        }
-
+        std::string payeeStr = GetStringFromMNPayoutShares(dmn.pdmnState->payoutShares);
         if (strMode == "addr") {
             std::string strAddress = dmn.pdmnState->addr.ToString(false);
             if (strFilter !="" && strAddress.find(strFilter) == std::string::npos &&
