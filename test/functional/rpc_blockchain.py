@@ -162,6 +162,16 @@ class BlockchainTest(BitcoinTestFramework):
                     'ehf': True,
                 },
                 'active': False},
+            'multi_mn_payee': {
+                'type': 'bip9',
+                'bip9': {
+                    'status': 'defined',
+                    'start_time': 0,
+                    'timeout': 9223372036854775807,
+                    'since': 0,
+                    'ehf': True,
+                },
+                'active': False},
             'testdummy': {
                 'type': 'bip9',
                 'bip9': {

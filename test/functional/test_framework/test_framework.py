@@ -1225,9 +1225,9 @@ class DashTestFramework(BitcoinTestFramework):
 
         protx_result = None
         if evo:
-            protx_result = self.nodes[0].protx("register_evo", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, platform_node_id, platform_p2p_port, platform_http_port, funds_address, True)
+            protx_result = self.nodes[0].protx("register_evo", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, [[reward_address, 10000]], platform_node_id, platform_p2p_port, platform_http_port, funds_address, True)
         else:
-            protx_result = self.nodes[0].protx("register", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
+            protx_result = self.nodes[0].protx("register", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, [[reward_address, 10000]], funds_address, True)
 
         self.wait_for_instantlock(protx_result, self.nodes[0])
         tip = self.nodes[0].generate(1)[0]
@@ -1310,10 +1310,10 @@ class DashTestFramework(BitcoinTestFramework):
         submit = (idx % 4) < 2
 
         if register_fund:
-            protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, [[rewardsAddr, 10000]], address, submit)
         else:
             self.nodes[0].generate(1)
-            protx_result = self.nodes[0].protx('register', txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            protx_result = self.nodes[0].protx('register', txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, [[rewardsAddr, 10000]], address, submit)
 
         if submit:
             proTxHash = protx_result
