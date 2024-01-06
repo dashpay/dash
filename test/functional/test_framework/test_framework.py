@@ -1124,19 +1124,26 @@ class DashTestFramework(BitcoinTestFramework):
     def activate_v20(self, expected_activation_height=None):
         self.activate_by_name('v20', expected_activation_height)
 
-    def activate_mn_rr(self, expected_activation_height=None):
+    def activate_ehf_by_name(self, name, expected_activation_height=None):
         self.nodes[0].sporkupdate("SPORK_24_TEST_EHF", 0)
         self.wait_for_sporks_same()
-        mn_rr_height = 0
-        while mn_rr_height == 0:
+        assert get_bip9_details(self.nodes[0], name)['ehf']
+        ehf_height = 0
+        while ehf_height == 0:
             time.sleep(1)
             try:
-                mn_rr_height = get_bip9_details(self.nodes[0], 'mn_rr')['ehf_height']
+                ehf_height = get_bip9_details(self.nodes[0], name)['ehf_height']
             except KeyError:
                 pass
             self.nodes[0].generate(1)
             self.sync_all()
-        self.activate_by_name('mn_rr', expected_activation_height)
+        self.activate_by_name(name, expected_activation_height)
+
+    def activate_mn_rr(self, expected_activation_height=None):
+        self.activate_ehf_by_name('mn_rr', expected_activation_height)
+
+    def activate_dip0026(self, expected_activation_height=None):
+        self.activate_ehf_by_name('multi_mn_payee', expected_activation_height)
 
     def set_dash_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
@@ -1153,7 +1160,7 @@ class DashTestFramework(BitcoinTestFramework):
             self.connect_nodes(i, idx)
 
     # TODO: to let creating Evo Nodes without instant-send available
-    def dynamically_add_masternode(self, evo=False, rnd=None, should_be_rejected=False):
+    def dynamically_add_masternode(self, evo=False, rnd=None, should_be_rejected=False, n_payees=1):
         mn_idx = len(self.nodes)
 
         node_p2p_port = p2p_port(mn_idx)
@@ -1161,7 +1168,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         protx_success = False
         try:
-            created_mn_info = self.dynamically_prepare_masternode(mn_idx, node_p2p_port, evo, rnd)
+            created_mn_info = self.dynamically_prepare_masternode(mn_idx, node_p2p_port, evo, rnd, n_payees)
             protx_success = True
         except:
             self.log.info("dynamically_prepare_masternode failed")
@@ -1192,13 +1199,20 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Successfully started and synced proTx:"+str(created_mn_info.proTxHash))
         return created_mn_info
 
-    def dynamically_prepare_masternode(self, idx, node_p2p_port, evo=False, rnd=None):
+    def dynamically_prepare_masternode(self, idx, node_p2p_port, evo=False, rnd=None, n_payees=1):
         bls = self.nodes[0].bls('generate')
         collateral_address = self.nodes[0].getnewaddress()
         funds_address = self.nodes[0].getnewaddress()
         owner_address = self.nodes[0].getnewaddress()
         voting_address = self.nodes[0].getnewaddress()
-        reward_address = self.nodes[0].getnewaddress()
+        payee_shares = []
+        tot_generated_shares = 0
+        # distribute reward shares randomly
+        for i in range(1, n_payees + 1):
+            reward_share = (10000 - tot_generated_shares) if i == n_payees else random.randint(0, 10000 - tot_generated_shares)
+            payee_shares.append([self.nodes[0].getnewaddress(), reward_share])
+            tot_generated_shares += reward_share
+        assert (tot_generated_shares == 10000)
 
         platform_node_id = hash160(b'%d' % rnd).hex() if rnd is not None else hash160(b'%d' % node_p2p_port).hex()
         platform_p2p_port = '%d' % (node_p2p_port + 101)
@@ -1225,16 +1239,16 @@ class DashTestFramework(BitcoinTestFramework):
 
         protx_result = None
         if evo:
-            protx_result = self.nodes[0].protx("register_evo", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, [[reward_address, 10000]], platform_node_id, platform_p2p_port, platform_http_port, funds_address, True)
+            protx_result = self.nodes[0].protx("register_evo", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, payee_shares, platform_node_id, platform_p2p_port, platform_http_port, funds_address, True)
         else:
-            protx_result = self.nodes[0].protx("register", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, [[reward_address, 10000]], funds_address, True)
+            protx_result = self.nodes[0].protx("register", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, payee_shares, funds_address, True)
 
         self.wait_for_instantlock(protx_result, self.nodes[0])
         tip = self.nodes[0].generate(1)[0]
         self.sync_all(self.nodes)
 
         assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
-        mn_info = MasternodeInfo(protx_result, owner_address, voting_address, reward_address, operatorReward, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, evo)
+        mn_info = MasternodeInfo(protx_result, owner_address, voting_address, payee_shares, operatorReward, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, evo)
         self.mninfo.append(mn_info)
 
         mn_type_str = "EvoNode" if evo else "MN"
