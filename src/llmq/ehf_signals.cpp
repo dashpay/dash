@@ -17,6 +17,7 @@
 #include <primitives/transaction.h>
 #include <spork.h>
 #include <txmempool.h>
+#include <util/enumerate.h> // for enumerate
 #include <validation.h>
 
 namespace llmq {
@@ -54,8 +55,15 @@ void CEHFSignalsHandler::UpdatedBlockTip(const CBlockIndex* const pindexNew)
         // TODO: v20 will never attempt to create EHF messages on main net; if this is needed it will be done by v20.1 or v21 nodes
         return;
     }
-    // TODO: should do this for all not-yet-signied bits
-    trySignEHFSignal(Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_MN_RR].bit, pindexNew);
+
+    for (const auto [index, deployment] : enumerate(Params().GetConsensus().vDeployments)) {
+        // try only with not yet active deployments based on dip0023
+        // deployments with an existing RecoveredSignature will be discarded internally
+        if (deployment.useEHF && !DeploymentActiveAfter(pindexNew, Params().GetConsensus(),
+                                                        static_cast<Consensus::DeploymentPos>(index))) {
+            trySignEHFSignal(deployment.bit, pindexNew);
+        }
+    }
 }
 
 void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pindex)
@@ -111,31 +119,38 @@ void CEHFSignalsHandler::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig
     }
 
     MNHFTxPayload mnhfPayload;
-    // TODO: should do this for all not-yet-signied bits
-    mnhfPayload.signal.versionBit = Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_MN_RR].bit;
+    // TODO: make sure to don't process the same recoveredSig twice
+    for (const auto& deployment : Params().GetConsensus().vDeployments) {
+        // skip deployments that do not use dip0023
+        if (!deployment.useEHF) continue;
+        mnhfPayload.signal.versionBit = deployment.bit;
 
-    const uint256 expectedId = mnhfPayload.GetRequestId();
-    LogPrint(BCLog::EHF, "CEHFSignalsHandler::HandleNewRecoveredSig expecting ID=%s received=%s\n", expectedId.ToString(), recoveredSig.getId().ToString());
-    if (recoveredSig.getId() != mnhfPayload.GetRequestId()) {
-        // there's nothing interesting for CEHFSignalsHandler
-        LogPrint(BCLog::EHF, "CEHFSignalsHandler::HandleNewRecoveredSig id is known but it's not MN_RR, expected: %s\n", mnhfPayload.GetRequestId().ToString());
-        return;
-    }
+        const uint256 expectedId = mnhfPayload.GetRequestId();
+        LogPrint(BCLog::EHF, "CEHFSignalsHandler::HandleNewRecoveredSig expecting ID=%s received=%s\n",
+                 expectedId.ToString(), recoveredSig.getId().ToString());
+        if (recoveredSig.getId() != mnhfPayload.GetRequestId()) {
+            // wrong deployment! Check the next one
+            continue;
+        }
 
-    mnhfPayload.signal.quorumHash = recoveredSig.getQuorumHash();
-    mnhfPayload.signal.sig = recoveredSig.sig.Get();
+        mnhfPayload.signal.quorumHash = recoveredSig.getQuorumHash();
+        mnhfPayload.signal.sig = recoveredSig.sig.Get();
 
-    CMutableTransaction tx = mnhfPayload.PrepareTx();
+        CMutableTransaction tx = mnhfPayload.PrepareTx();
 
-    {
-        CTransactionRef tx_to_sent = MakeTransactionRef(std::move(tx));
-        LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig Special EHF TX is created hash=%s\n", tx_to_sent->GetHash().ToString());
-        LOCK(cs_main);
-        TxValidationState state;
-        if (AcceptToMemoryPool(chainstate, mempool, state, tx_to_sent, /* bypass_limits=*/ false, /* nAbsurdFee=*/ 0)) {
-            connman.RelayTransaction(*tx_to_sent);
-        } else {
-            LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig -- AcceptToMemoryPool failed: %s\n", state.ToString());
+        {
+            CTransactionRef tx_to_sent = MakeTransactionRef(std::move(tx));
+            LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig Special EHF TX is created hash=%s\n",
+                      tx_to_sent->GetHash().ToString());
+            LOCK(cs_main);
+            TxValidationState state;
+            if (AcceptToMemoryPool(chainstate, mempool, state, tx_to_sent, /* bypass_limits=*/false, /* nAbsurdFee=*/
+                                   0)) {
+                connman.RelayTransaction(*tx_to_sent);
+            } else {
+                LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig -- AcceptToMemoryPool failed: %s\n",
+                          state.ToString());
+            }
         }
     }
 }
