@@ -20,13 +20,13 @@
 #include <validation.h>
 
 #include <evo/deterministicmns.h>
+#include <evo/mnhftx.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 
 #include <boost/test/unit_test.hpp>
 
 using SimpleUTXOMap = std::map<COutPoint, std::pair<int, CAmount>>;
-
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransactionRef>& txs)
 {
     SimpleUTXOMap utxos;
@@ -94,24 +94,25 @@ static void SignTransaction(const CTxMemPool& mempool, CMutableTransaction& tx, 
     }
 }
 
-static CMutableTransaction CreateProRegTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, int port, const CScript& scriptPayout, const CKey& coinbaseKey, CKey& ownerKeyRet, CBLSSecretKey& operatorKeyRet)
+static CMutableTransaction CreateProRegTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, int port, const std::vector<PayoutShare>& payoutShares, const CKey& coinbaseKey, CKey& ownerKeyRet, CBLSSecretKey& operatorKeyRet, bool is_multi_payout_active = false)
 {
     ownerKeyRet.MakeNewKey(true);
     operatorKeyRet.MakeNewKey();
 
     CProRegTx proTx;
-    proTx.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme);
+    proTx.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme, is_multi_payout_active);
     proTx.collateralOutpoint.n = 0;
     proTx.addr = LookupNumeric("1.1.1.1", port);
     proTx.keyIDOwner = ownerKeyRet.GetPubKey().GetID();
     proTx.pubKeyOperator.Set(operatorKeyRet.GetPublicKey(), bls::bls_legacy_scheme.load());
     proTx.keyIDVoting = ownerKeyRet.GetPubKey().GetID();
-    proTx.scriptPayout = scriptPayout;
+    proTx.payoutShares = payoutShares;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
-    FundTransaction(tx, utxos, scriptPayout, dmn_types::Regular.collat_amount, coinbaseKey);
+    // Just fund the tx with the first script of the array
+    FundTransaction(tx, utxos, payoutShares[0].scriptPayout, dmn_types::Regular.collat_amount, coinbaseKey);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     SetTxPayload(tx, proTx);
     SignTransaction(mempool, tx, coinbaseKey);
@@ -139,14 +140,14 @@ static CMutableTransaction CreateProUpServTx(const CTxMemPool& mempool, SimpleUT
     return tx;
 }
 
-static CMutableTransaction CreateProUpRegTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, const uint256& proTxHash, const CKey& mnKey, const CBLSPublicKey& pubKeyOperator, const CKeyID& keyIDVoting, const CScript& scriptPayout, const CKey& coinbaseKey)
+static CMutableTransaction CreateProUpRegTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, const uint256& proTxHash, const CKey& mnKey, const CBLSPublicKey& pubKeyOperator, const CKeyID& keyIDVoting, const std::vector<PayoutShare>& payoutShares, const CKey& coinbaseKey, bool is_multi_payout_active = false)
 {
     CProUpRegTx proTx;
-    proTx.nVersion = CProUpRegTx::GetVersion(!bls::bls_legacy_scheme);
+    proTx.nVersion = CProUpRegTx::GetVersion(!bls::bls_legacy_scheme, is_multi_payout_active);
     proTx.proTxHash = proTxHash;
     proTx.pubKeyOperator.Set(pubKeyOperator, bls::bls_legacy_scheme.load());
     proTx.keyIDVoting = keyIDVoting;
-    proTx.scriptPayout = scriptPayout;
+    proTx.payoutShares = payoutShares;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
@@ -186,7 +187,7 @@ static CMutableTransaction MalleateProTxPayout(const CMutableTransaction& tx)
 
     CKey key;
     key.MakeNewKey(false);
-    proTx.scriptPayout = GetScriptForDestination(PKHash(key.GetPubKey()));
+    proTx.payoutShares = {PayoutShare(GetScriptForDestination(PKHash(key.GetPubKey())))};
 
     CMutableTransaction tx2 = tx;
     SetTxPayload(tx2, proTx);
@@ -208,7 +209,8 @@ static CDeterministicMNCPtr FindPayoutDmn(const CBlock& block)
     for (const auto& txout : block.vtx[0]->vout) {
         CDeterministicMNCPtr found;
         dmnList.ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
-            if (found == nullptr && txout.scriptPubKey == dmn->pdmnState->scriptPayout) {
+            // Checking only the first payee is enough for those tests
+            if (found == nullptr && txout.scriptPubKey == dmn->pdmnState->payoutShares[0].scriptPayout) {
                 found = dmn;
             }
         });
@@ -241,7 +243,7 @@ void FuncDIP3Activation(TestChainSetup& setup)
     CKey ownerKey;
     CBLSSecretKey operatorKey;
     CTxDestination payoutDest = DecodeDestination("yRq1Ky1AfFmf597rnotj7QRxsDUKePVWNF");
-    auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, GetScriptForDestination(payoutDest), setup.coinbaseKey, ownerKey, operatorKey);
+    auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, {PayoutShare(GetScriptForDestination(payoutDest))}, setup.coinbaseKey, ownerKey, operatorKey);
     std::vector<CMutableTransaction> txns = {tx};
 
     int nHeight = ::ChainActive().Height();
@@ -276,7 +278,7 @@ void FuncV19Activation(TestChainSetup& setup)
     CKey collateral_key;
     collateral_key.MakeNewKey(false);
     auto collateralScript = GetScriptForDestination(PKHash(collateral_key.GetPubKey()));
-    auto tx_reg = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, collateralScript, setup.coinbaseKey, owner_key, operator_key);
+    auto tx_reg = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, {PayoutShare(collateralScript)}, setup.coinbaseKey, owner_key, operator_key);
     auto tx_reg_hash = tx_reg.GetHash();
 
     int nHeight = ::ChainActive().Height();
@@ -297,7 +299,7 @@ void FuncV19Activation(TestChainSetup& setup)
     // update
     CBLSSecretKey operator_key_new;
     operator_key_new.MakeNewKey();
-    auto tx_upreg = CreateProUpRegTx(*(setup.m_node.mempool), utxos, tx_reg_hash, owner_key, operator_key_new.GetPublicKey(), owner_key.GetPubKey().GetID(), collateralScript, setup.coinbaseKey);
+    auto tx_upreg = CreateProUpRegTx(*(setup.m_node.mempool), utxos, tx_reg_hash, owner_key, operator_key_new.GetPublicKey(), owner_key.GetPubKey().GetID(), {PayoutShare(collateralScript)}, setup.coinbaseKey);
 
     block = std::make_shared<CBlock>(setup.CreateBlock({tx_upreg}, setup.coinbaseKey));
     BOOST_ASSERT(Assert(setup.m_node.chainman)->ProcessNewBlock(Params(), block, true, nullptr));
@@ -395,6 +397,121 @@ void FuncV19Activation(TestChainSetup& setup)
     BOOST_ASSERT(dummmy_list == tip_list);
 };
 
+void FuncDIP0026MultiPayout(TestChainSetup& setup)
+{
+    BOOST_ASSERT(DeploymentActiveAfter(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_ASSERT(!DeploymentActiveAfter(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0026));
+    {
+        LOCK(cs_main);
+        setup.m_node.mnhf_manager->AddSignal(::ChainActive().Tip(), 11);
+    }
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    int nHeight = ::ChainActive().Height();
+
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    CKey collateral_key;
+    CKey payee_key;
+    CKey payee_key2;
+    uint16_t collateral_amount = 3000;
+    uint16_t payee_amount = 7000;
+    uint16_t payee2_amount = 0;
+    collateral_key.MakeNewKey(false);
+    payee_key.MakeNewKey(false);
+    payee_key2.MakeNewKey(false);
+    auto collateralScript = GetScriptForDestination(PKHash(collateral_key.GetPubKey()));
+    auto payeeScript = GetScriptForDestination(PKHash(collateral_key.GetPubKey()));
+    auto payee2Script = GetScriptForDestination(PKHash(payee_key2.GetPubKey()));
+    TxValidationState tx_state;
+    CMutableTransaction proreg_tx;
+
+    // Test 1): A ProRegTx with multiple payees is not valid before activation of DIP0026
+    {
+        LOCK(cs_main);
+        auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, {PayoutShare(collateralScript, collateral_amount), PayoutShare(payeeScript, payee_amount)}, setup.coinbaseKey, owner_key, operator_key, true);
+        BOOST_ASSERT(!CheckProRegTx(CTransaction(tx), ::ChainActive().Tip(), tx_state, ::ChainstateActive().CoinsTip(), true));
+        BOOST_CHECK_EQUAL(tx_state.GetRejectReason(), "bad-protx-version");
+    }
+    // Mine some blocks in such a way that DIP0026 will be activated
+    for (size_t i = 0; i < 50; i++) {
+        setup.CreateAndProcessBlock({}, setup.coinbaseKey);
+        deterministicMNManager->UpdatedBlockTip(::ChainActive().Tip());
+        nHeight++;
+    }
+    BOOST_CHECK_EQUAL(::ChainActive().Height(), nHeight);
+    BOOST_ASSERT(DeploymentActiveAfter(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0026));
+    // Test 2): Create a valid masternode with two payees
+    {
+        proreg_tx = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, {PayoutShare(collateralScript, collateral_amount), PayoutShare(payeeScript, payee_amount)}, setup.coinbaseKey, owner_key, operator_key, true);
+        setup.CreateAndProcessBlock({proreg_tx}, setup.coinbaseKey);
+        deterministicMNManager->UpdatedBlockTip(::ChainActive().Tip());
+        BOOST_CHECK_EQUAL(::ChainActive().Height(), nHeight + 1);
+        BOOST_ASSERT(deterministicMNManager->GetListAtChainTip().HasMN(proreg_tx.GetHash()));
+        nHeight++;
+    }
+    // Test 3) Verify that both payees are paid as expected
+    {
+        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee(::ChainActive().Tip());
+        CBlock block = setup.CreateAndProcessBlock({}, setup.coinbaseKey);
+        deterministicMNManager->UpdatedBlockTip(::ChainActive().Tip());
+        BOOST_ASSERT(!block.vtx.empty());
+        BOOST_ASSERT(block.vtx[0]->vout.size() == 3);
+
+        auto dmnPayout = FindPayoutDmn(block);
+        BOOST_ASSERT(dmnPayout != nullptr);
+        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayee->proTxHash.ToString());
+
+        // Correct payees with the correct paid ratio
+        auto& coinbaseVouts = block.vtx[0]->vout;
+        BOOST_ASSERT(coinbaseVouts[1].scriptPubKey == collateralScript);
+        BOOST_ASSERT(coinbaseVouts[2].scriptPubKey == payeeScript);
+        CAmount totalPayed = (coinbaseVouts[1].nValue + coinbaseVouts[2].nValue);
+        BOOST_ASSERT(abs(totalPayed * collateral_amount - coinbaseVouts[1].nValue * 10000) < 10000 * 2);
+        BOOST_ASSERT(abs(totalPayed * payee_amount - coinbaseVouts[2].nValue * 10000) < 10000 * 2);
+        nHeight++;
+    }
+    CKey votingKey;
+    votingKey.MakeNewKey(false);
+    payee2_amount = 1000;
+    payee_amount = 4000;
+    collateral_amount = 5000;
+    // Test 4) Finally create a valid ProUpRegTx with 3 payees
+    {
+        auto newPayoutShares = {PayoutShare(payee2Script, payee2_amount),
+                                PayoutShare(collateralScript, collateral_amount),
+                                PayoutShare(payeeScript, payee_amount)};
+        auto tx = CreateProUpRegTx(*(setup.m_node.mempool), utxos, proreg_tx.GetHash(), owner_key, operator_key.GetPublicKey(), votingKey.GetPubKey().GetID(), newPayoutShares, setup.coinbaseKey, true);
+        setup.CreateAndProcessBlock({tx}, setup.coinbaseKey);
+        deterministicMNManager->UpdatedBlockTip(::ChainActive().Tip());
+        BOOST_CHECK_EQUAL(::ChainActive().Height(), nHeight + 1);
+        BOOST_ASSERT(deterministicMNManager->GetListAtChainTip().HasMN(proreg_tx.GetHash()));
+        nHeight++;
+    }
+    // Test 5) Check Again correct MN payments
+    {
+        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee(::ChainActive().Tip());
+        CBlock block = setup.CreateAndProcessBlock({}, setup.coinbaseKey);
+        deterministicMNManager->UpdatedBlockTip(::ChainActive().Tip());
+        BOOST_ASSERT(!block.vtx.empty());
+        auto& coinbaseVouts = block.vtx[0]->vout;
+
+        BOOST_ASSERT(coinbaseVouts.size() == 4);
+
+        auto dmnPayout = FindPayoutDmn(block);
+        BOOST_ASSERT(dmnPayout != nullptr);
+        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayee->proTxHash.ToString());
+
+        // Correct payees with the correct paid ratio
+        BOOST_ASSERT(coinbaseVouts[1].scriptPubKey == payee2Script);
+        BOOST_ASSERT(coinbaseVouts[2].scriptPubKey == collateralScript);
+        BOOST_ASSERT(coinbaseVouts[3].scriptPubKey == payeeScript);
+        CAmount totalPayed = (coinbaseVouts[1].nValue + coinbaseVouts[2].nValue + coinbaseVouts[3].nValue);
+        BOOST_ASSERT(abs(totalPayed * payee2_amount - coinbaseVouts[1].nValue * 10000) < 10000 * 3);
+        BOOST_ASSERT(abs(totalPayed * collateral_amount - coinbaseVouts[2].nValue * 10000) < 10000 * 3);
+        BOOST_ASSERT(abs(totalPayed * payee_amount - coinbaseVouts[3].nValue * 10000) < 10000 * 3);
+        BOOST_CHECK_EQUAL(::ChainActive().Height(), nHeight + 1);
+    }
+}
 void FuncDIP3Protx(TestChainSetup& setup)
 {
     CKey sporkKey;
@@ -415,7 +532,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
     for (size_t i = 0; i < 6; i++) {
         CKey ownerKey;
         CBLSSecretKey operatorKey;
-        auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, port++, GenerateRandomAddress(), setup.coinbaseKey, ownerKey, operatorKey);
+        auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, port++, {PayoutShare(GenerateRandomAddress())}, setup.coinbaseKey, ownerKey, operatorKey);
         dmnHashes.emplace_back(tx.GetHash());
         ownerKeys.emplace(tx.GetHash(), ownerKey);
         operatorKeys.emplace(tx.GetHash(), operatorKey);
@@ -472,7 +589,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
         for (size_t j = 0; j < 3; j++) {
             CKey ownerKey;
             CBLSSecretKey operatorKey;
-            auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, port++, GenerateRandomAddress(), setup.coinbaseKey, ownerKey, operatorKey);
+            auto tx = CreateProRegTx(*(setup.m_node.mempool), utxos, port++, {PayoutShare(GenerateRandomAddress())}, setup.coinbaseKey, ownerKey, operatorKey);
             dmnHashes.emplace_back(tx.GetHash());
             ownerKeys.emplace(tx.GetHash(), ownerKey);
             operatorKeys.emplace(tx.GetHash(), operatorKey);
@@ -529,7 +646,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
     dmn = deterministicMNManager->GetListAtChainTip().GetMN(dmnHashes[0]);
-    tx = CreateProUpRegTx(*(setup.m_node.mempool), utxos, dmnHashes[0], ownerKeys[dmnHashes[0]], newOperatorKey.GetPublicKey(), ownerKeys[dmnHashes[0]].GetPubKey().GetID(), dmn->pdmnState->scriptPayout, setup.coinbaseKey);
+    tx = CreateProUpRegTx(*(setup.m_node.mempool), utxos, dmnHashes[0], ownerKeys[dmnHashes[0]], newOperatorKey.GetPublicKey(), ownerKeys[dmnHashes[0]].GetPubKey().GetID(), dmn->pdmnState->payoutShares, setup.coinbaseKey);
     // check malleability protection again, but this time by also relying on the signature inside the ProUpRegTx
     auto tx2 = MalleateProTxPayout<CProUpRegTx>(tx);
     TxValidationState dummy_state;
@@ -609,13 +726,12 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(block->GetHash(), ::ChainActive().Tip()->GetBlockHash());
 
     CProRegTx payload;
-    payload.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme);
+    payload.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme, false);
     payload.addr = LookupNumeric("1.1.1.1", 1);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
     payload.keyIDVoting = ownerKey.GetPubKey().GetID();
-    payload.scriptPayout = scriptPayout;
-
+    payload.payoutShares = {PayoutShare(scriptPayout)};
     for (size_t i = 0; i < tx_collateral.vout.size(); ++i) {
         if (tx_collateral.vout[i].nValue == dmn_types::Regular.collat_amount) {
             payload.collateralOutpoint = COutPoint(tx_collateral.GetHash(), i);
@@ -663,7 +779,7 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     // Create a MN
     CKey ownerKey1;
     CBLSSecretKey operatorKey1;
-    auto tx_reg1 = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, GenerateRandomAddress(), setup.coinbaseKey, ownerKey1, operatorKey1);
+    auto tx_reg1 = CreateProRegTx(*(setup.m_node.mempool), utxos, 1, {PayoutShare(GenerateRandomAddress())}, setup.coinbaseKey, ownerKey1, operatorKey1);
 
     // Create a MN with an external collateral that references tx_reg1
     CKey ownerKey;
@@ -683,7 +799,7 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
     payload.keyIDVoting = ownerKey.GetPubKey().GetID();
-    payload.scriptPayout = scriptPayout;
+    payload.payoutShares = {PayoutShare(scriptPayout)};
 
     for (size_t i = 0; i < tx_reg1.vout.size(); ++i) {
         if (tx_reg1.vout[i].nValue == dmn_types::Regular.collat_amount) {
@@ -740,12 +856,12 @@ void FuncVerifyDB(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(block->GetHash(), ::ChainActive().Tip()->GetBlockHash());
 
     CProRegTx payload;
-    payload.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme);
+    payload.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme, false);
     payload.addr = LookupNumeric("1.1.1.1", 1);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
     payload.keyIDVoting = ownerKey.GetPubKey().GetID();
-    payload.scriptPayout = scriptPayout;
+    payload.payoutShares = {PayoutShare(scriptPayout)};
 
     for (size_t i = 0; i < tx_collateral.vout.size(); ++i) {
         if (tx_collateral.vout[i].nValue == dmn_types::Regular.collat_amount) {
@@ -803,6 +919,12 @@ BOOST_AUTO_TEST_CASE(v19_activation_legacy)
 {
     TestChainV19BeforeActivationSetup setup;
     FuncV19Activation(setup);
+}
+
+BOOST_AUTO_TEST_CASE(multi_payout_activation)
+{
+    TestChainV19Setup setup;
+    FuncDIP0026MultiPayout(setup);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)
