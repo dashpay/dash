@@ -52,6 +52,29 @@ public:
     }
 };
 
+class PayoutSharesSerializerWrapper
+{
+private:
+    std::vector<PayoutShare>& payoutShares;
+    bool isSinglePayee;
+
+public:
+    PayoutSharesSerializerWrapper(std::vector<PayoutShare>& payoutShares, bool isSinglePayee) :
+        payoutShares(payoutShares), isSinglePayee(isSinglePayee)
+    {
+    }
+
+    SERIALIZE_METHODS(PayoutSharesSerializerWrapper, obj)
+    {
+        if (!obj.isSinglePayee) {
+            READWRITE(obj.payoutShares);
+        } else {
+            SER_READ(obj, obj.payoutShares = std::vector<PayoutShare>{PayoutShare(CScript())});
+            READWRITE(obj.payoutShares[0].scriptPayout);
+        }
+    }
+};
+
 class CProRegTx
 {
 public:
@@ -82,8 +105,7 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     uint16_t nOperatorReward{0};
-    // initialized as a default vector of length one, in order to deserialize correctly old messages
-    std::vector<PayoutShare> payoutShares{PayoutShare(CScript())};
+    std::vector<PayoutShare> payoutShares;
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
@@ -105,13 +127,9 @@ public:
                 obj.keyIDOwner,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
                 obj.keyIDVoting,
-                obj.nOperatorReward);
-        if (obj.nVersion < MULTI_PAYOUT_VERSION) {
-            READWRITE(obj.payoutShares[0].scriptPayout);
-        } else {
-            READWRITE(obj.payoutShares);
-        }
-        READWRITE(obj.inputsHash);
+                obj.nOperatorReward,
+                PayoutSharesSerializerWrapper(const_cast<std::vector<PayoutShare>&>(obj.payoutShares), (obj.nVersion < MULTI_PAYOUT_VERSION)),
+                obj.inputsHash);
         if (obj.nType == MnType::Evo) {
             READWRITE(
                 obj.platformNodeID,
@@ -282,13 +300,9 @@ public:
                 obj.proTxHash,
                 obj.nMode,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
-                obj.keyIDVoting);
-        if (obj.nVersion < MULTI_PAYOUT_VERSION) {
-            READWRITE(obj.payoutShares[0].scriptPayout);
-        } else {
-            READWRITE(obj.payoutShares);
-        }
-        READWRITE(obj.inputsHash);
+                obj.keyIDVoting,
+                PayoutSharesSerializerWrapper(const_cast<std::vector<PayoutShare>&>(obj.payoutShares), (obj.nVersion < MULTI_PAYOUT_VERSION)),
+                obj.inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(
                     obj.vchSig
