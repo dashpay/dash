@@ -282,8 +282,7 @@ public:
     uint16_t nMode{0}; // only 0 supported for now
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
-    // initialized as a default vector of length one, in order to deserialize correctly old messages
-    std::vector<PayoutShare> payoutShares{PayoutShare(CScript())};
+    std::vector<PayoutShare> payoutShares;
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
