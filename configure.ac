@@ -1800,8 +1800,6 @@ if test x$enable_fuzz_binary = xyes; then
      ]],[[
       */ int not_main() {
      ]])])
-
-  CHECK_RUNTIME_LIB
 fi
 
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
