@@ -139,10 +139,10 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     case(TRANSACTION_PROVIDER_REGISTER): {
         CProRegTx proTx;
         if (GetTxPayload(tx, proTx)) {
-            if (contains(proTx.collateralOutpoint) ||
-                contains(proTx.keyIDOwner) ||
-                contains(proTx.keyIDVoting) ||
-                CheckPayeeSharesScripts(proTx.payoutShares)) {
+            if(contains(proTx.collateralOutpoint) ||
+                    contains(proTx.keyIDOwner) ||
+                    contains(proTx.keyIDVoting) ||
+                    CheckPayeeSharesScripts(proTx.payoutShares)) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
                     insert(tx.GetHash());
                 return true;
@@ -169,8 +169,8 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         if (GetTxPayload(tx, proTx)) {
             if(contains(proTx.proTxHash))
                 return true;
-            if (contains(proTx.keyIDVoting) ||
-                CheckPayeeSharesScripts(proTx.payoutShares)) {
+            if(contains(proTx.keyIDVoting) ||
+                    CheckPayeeSharesScripts(proTx.payoutShares)) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
                     insert(proTx.proTxHash);
                 return true;

@@ -27,6 +27,7 @@
 #include <boost/test/unit_test.hpp>
 
 using SimpleUTXOMap = std::map<COutPoint, std::pair<int, CAmount>>;
+
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransactionRef>& txs)
 {
     SimpleUTXOMap utxos;
@@ -732,6 +733,7 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
     payload.keyIDVoting = ownerKey.GetPubKey().GetID();
     payload.payoutShares = {PayoutShare(scriptPayout)};
+
     for (size_t i = 0; i < tx_collateral.vout.size(); ++i) {
         if (tx_collateral.vout[i].nValue == dmn_types::Regular.collat_amount) {
             payload.collateralOutpoint = COutPoint(tx_collateral.GetHash(), i);

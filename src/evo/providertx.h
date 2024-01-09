@@ -129,7 +129,8 @@ public:
                 obj.keyIDVoting,
                 obj.nOperatorReward,
                 PayoutSharesSerializerWrapper(const_cast<std::vector<PayoutShare>&>(obj.payoutShares), (obj.nVersion < MULTI_PAYOUT_VERSION)),
-                obj.inputsHash);
+                obj.inputsHash
+        );
         if (obj.nType == MnType::Evo) {
             READWRITE(
                 obj.platformNodeID,
@@ -301,7 +302,8 @@ public:
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
                 obj.keyIDVoting,
                 PayoutSharesSerializerWrapper(const_cast<std::vector<PayoutShare>&>(obj.payoutShares), (obj.nVersion < MULTI_PAYOUT_VERSION)),
-                obj.inputsHash);
+                obj.inputsHash
+        );
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(
                     obj.vchSig

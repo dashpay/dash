@@ -222,10 +222,10 @@ void MasternodeList::updateDIP3List()
                 if (fMyPayee) break;
             }
             bool fMyMasternode = setOutpts.count(dmn.collateralOutpoint) ||
-                                 walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDOwner)) ||
-                                 walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDVoting)) ||
-                                 fMyPayee ||
-                                 walletModel->wallet().isSpendable(dmn.pdmnState->scriptOperatorPayout);
+                walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDOwner)) ||
+                walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDVoting)) ||
+                fMyPayee ||
+                walletModel->wallet().isSpendable(dmn.pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
         // populate list

@@ -17,7 +17,7 @@ extern UniValue read_json(const std::string& jsondata);
 
 BOOST_FIXTURE_TEST_SUITE(evo_trivialvalidation, BasicTestingSetup)
 
-template <class T>
+template<class T>
 void TestTxHelper(const CMutableTransaction& tx, bool is_basic_bls, bool is_multi_payout_active, bool expected_failure, const std::string& expected_error)
 {
     T payload;
