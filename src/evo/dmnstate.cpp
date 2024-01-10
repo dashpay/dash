@@ -16,19 +16,20 @@
 std::string CDeterministicMNState::ToString() const
 {
     CTxDestination dest;
-    std::string payoutAddress = "unknown";
+    std::string payoutSharesStr;
     std::string operatorPayoutAddress = "none";
-    if (ExtractDestination(payoutShares[0].scriptPayout, dest)) {
-        payoutAddress = EncodeDestination(dest);
+    for (const auto& payoutShare : payoutShares) {
+        if (!payoutSharesStr.empty()) payoutSharesStr += ", ";
+        payoutSharesStr += payoutShare.ToString();
     }
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
     }
 
     return strprintf("CDeterministicMNState(nVersion=%d, nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
-                     "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorPayoutAddress=%s)",
+                     "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutShares=%s, operatorPayoutAddress=%s)",
                      nVersion, nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight, nRevocationReason,
-                     EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), addr.ToStringIPPort(false), payoutAddress, operatorPayoutAddress);
+                     EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), addr.ToStringIPPort(false), payoutSharesStr, operatorPayoutAddress);
 }
 
 UniValue CDeterministicMNState::ToJson(MnType nType) const

@@ -53,17 +53,18 @@ uint256 CSimplifiedMNListEntry::CalcHash() const
 std::string CSimplifiedMNListEntry::ToString() const
 {
     CTxDestination dest;
-    std::string payoutAddress = "unknown";
+    std::string payoutSharesStr;
     std::string operatorPayoutAddress = "none";
-    if (ExtractDestination(payoutShares[0].scriptPayout, dest)) {
-         payoutAddress = EncodeDestination(dest);
+    for (const auto& payoutShare : payoutShares) {
+        if (!payoutSharesStr.empty()) payoutSharesStr += ", ";
+        payoutSharesStr += payoutShare.ToString();
     }
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
     }
 
-    return strprintf("CSimplifiedMNListEntry(nVersion=%d, nType=%d, proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, platformHTTPPort=%d, platformNodeID=%s)",
-                     nVersion, ToUnderlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress, platformHTTPPort, platformNodeID.ToString());
+    return strprintf("CSimplifiedMNListEntry(nVersion=%d, nType=%d, proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutShares=%s, operatorPayoutAddress=%s, platformHTTPPort=%d, platformNodeID=%s)",
+                     nVersion, ToUnderlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutSharesStr, operatorPayoutAddress, platformHTTPPort, platformNodeID.ToString());
 }
 
 UniValue CSimplifiedMNListEntry::ToJson(bool extended) const

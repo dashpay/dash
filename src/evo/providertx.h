@@ -50,6 +50,12 @@ public:
         ret.pushKV("payoutShareReward", payoutShareReward);
         return ret;
     }
+    std::string ToString() const
+    {
+        CTxDestination dest;
+        std::string payee = ExtractDestination(scriptPayout, dest) ? EncodeDestination(dest) : "unknown";
+        return strprintf("(scriptPayout=%s, payoutShare=%d)", payee, payoutShareReward);
+    }
 };
 
 class PayoutSharesSerializerWrapper

@@ -115,14 +115,14 @@ std::string CProRegTx::MakeSignString() const
 
 std::string CProRegTx::ToString() const
 {
-    CTxDestination dest;
-    std::string payee = "unknown";
-    if (ExtractDestination(payoutShares[0].scriptPayout, dest)) {
-        payee = EncodeDestination(dest);
+    std::string payoutSharesStr;
+    for (const auto& payoutShare : payoutShares) {
+        if (!payoutSharesStr.empty()) payoutSharesStr += ", ";
+        payoutSharesStr += payoutShare.ToString();
     }
 
-    return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s, platformP2PPort=%d, platformHTTPPort=%d)",
-                     nVersion, ToUnderlying(nType), collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(), platformP2PPort, platformHTTPPort);
+    return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, payoutShares=%s, platformNodeID=%s, platformP2PPort=%d, platformHTTPPort=%d)",
+                     nVersion, ToUnderlying(nType), collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payoutSharesStr, platformNodeID.ToString(), platformP2PPort, platformHTTPPort);
 }
 
 bool CProUpServTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_multi_payout_active, TxValidationState& state) const
@@ -169,14 +169,14 @@ bool CProUpRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_multi_pa
 
 std::string CProUpRegTx::ToString() const
 {
-    CTxDestination dest;
-    std::string payee = "unknown";
-    if (ExtractDestination(payoutShares[0].scriptPayout, dest)) {
-        payee = EncodeDestination(dest);
+    std::string payoutSharesStr;
+    for (const auto& payoutShare : payoutShares) {
+        if (!payoutSharesStr.empty()) payoutSharesStr += ", ";
+        payoutSharesStr += payoutShare.ToString();
     }
 
-    return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
-        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee);
+    return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutShares=%s)",
+        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payoutSharesStr);
 }
 
 bool CProUpRevTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_multi_payout_active, TxValidationState& state) const
