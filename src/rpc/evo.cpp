@@ -739,12 +739,14 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     CTxDestination fundDest;
-    // TODO: decide who should fund the tx
     ExtractDestination(ptx.payoutShares[0].scriptPayout, fundDest);
     if (!request.params[paramIdx + 6].isNull()) {
         fundDest = DecodeDestination(request.params[paramIdx + 6].get_str());
         if (!IsValidDestination(fundDest))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[paramIdx + 6].get_str());
+    } else if (ptx.payoutShares.size() > 1) {
+        // For multi payees protx the user must specify the fee address
+        throw JSONRPCError(RPC_INVALID_REQUEST, "Please specify a fee source address");
     }
 
     FundSpecialTx(wallet.get(), tx, ptx, fundDest);
@@ -1023,8 +1025,11 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
             // use operator reward address as default source for fees
             ExtractDestination(ptx.scriptOperatorPayout, feeSource);
         } else {
-            // use first payout address as default source for fees
-            // TODO: decide who should fund the tx
+            if (dmn->pdmnState->payoutShares.size() > 1) {
+                // For multi payees protx the user must specify the fee source address
+                throw JSONRPCError(RPC_INVALID_REQUEST, "Please specify a fee source address");
+            }
+            // For single payees protx try to fund with the only address specified
             ExtractDestination(dmn->pdmnState->payoutShares[0].scriptPayout, feeSource);
         }
     }
@@ -1121,13 +1126,15 @@ static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, co
     // make sure we get enough fees added
     ptx.vchSig.resize(65);
     CTxDestination payoutDest;
-    // TODO: decide who should fund the tx
     ExtractDestination(ptx.payoutShares[0].scriptPayout, payoutDest);
     CTxDestination feeSourceDest = payoutDest;
     if (!request.params[4].isNull()) {
         feeSourceDest = DecodeDestination(request.params[4].get_str());
         if (!IsValidDestination(feeSourceDest))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[4].get_str());
+    } else if (ptx.payoutShares.size() > 1) {
+        // For multi payees protx the user must specify the fee source address
+        throw JSONRPCError(RPC_INVALID_REQUEST, "Please specify a fee source address");
     }
 
     FundSpecialTx(wallet.get(), tx, ptx, feeSourceDest);
@@ -1219,10 +1226,12 @@ static UniValue protx_revoke(const JSONRPCRequest& request, const ChainstateMana
         ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
         FundSpecialTx(wallet.get(), tx, ptx, txDest);
     } else if (dmn->pdmnState->payoutShares[0].scriptPayout != CScript()) {
+        if (dmn->pdmnState->payoutShares.size() > 1) {
+            // For multi payees the user must specify the fee address
+            throw JSONRPCError(RPC_INVALID_REQUEST, "Please specify a fee source address");
+        }
         // Using funds from previously specified masternode payout address
         CTxDestination txDest;
-        // Again, as fee source we can just use the first address in the payee list
-        // TODO: decide who should fund the tx
         ExtractDestination(dmn->pdmnState->payoutShares[0].scriptPayout, txDest);
         FundSpecialTx(wallet.get(), tx, ptx, txDest);
     } else {
