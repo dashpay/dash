@@ -234,7 +234,6 @@ CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex *pindexP
 
 bool CCreditPoolDiff::Lock(const CTransaction& tx, TxValidationState& state)
 {
-
     if (const auto opt_assetLockTx = GetTxPayload<CAssetLockPayload>(tx); !opt_assetLockTx) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-creditpool-lock-payload");
     }

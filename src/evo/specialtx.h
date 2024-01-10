@@ -12,6 +12,7 @@
 #include <version.h>
 
 #include <string_view>
+#include <optional>
 #include <vector>
 
 template <typename T>
