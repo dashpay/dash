@@ -1710,7 +1710,9 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     const auto& scriptIterator = std::find_if(ptx.payoutShares.begin(), ptx.payoutShares.end(), [&](const auto& payoutShare){
         return !ExtractDestination(payoutShare.scriptPayout, payoutDest);
     });
-    if(scriptIterator != ptx.payoutShares.end()) return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
+    if (scriptIterator != ptx.payoutShares.end()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
+    }
 
     auto mnList = deterministicMNManager->GetListForBlock(pindexPrev);
     auto dmn = mnList.GetMN(ptx.proTxHash);

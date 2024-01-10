@@ -17,7 +17,7 @@ static bool TriviallyVerifyProRegPayees(const ProRegTx& proRegTx, TxValidationSt
 {
     const std::vector<PayoutShare>& payoutShares = proRegTx.payoutShares;
     uint16_t totalPayoutReward{0};
-    if (payoutShares.size() > 32) {
+    if (payoutShares.size() > 32 || payoutShares.empty()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-size");
     }
     if (payoutShares.size() > 1 && proRegTx.nVersion < ProRegTx::MULTI_PAYOUT_VERSION) {
@@ -64,7 +64,10 @@ bool CProRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_multi_payo
     if (nOperatorReward > 10000) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-reward");
     }
-    if (!TriviallyVerifyProRegPayees<CProRegTx>(*this, state)) return false;
+    if (!TriviallyVerifyProRegPayees<CProRegTx>(*this, state)) {
+        // pass the state returned by the function above
+        return false;
+    }
     for (const auto& payoutShare : payoutShares) {
         CTxDestination payoutDest;
         if (!ExtractDestination(payoutShare.scriptPayout, payoutDest)) {
