@@ -112,14 +112,7 @@ bool CBloomFilter::CheckScript(const CScript &script) const
 
 bool CBloomFilter::CheckPayeeSharesScripts(const std::vector<PayoutShare>& payoutShares) const
 {
-    bool scriptCheck = false;
-    for (const auto& payoutShare : payoutShares) {
-        if (CheckScript(payoutShare.scriptPayout)) {
-            scriptCheck = true;
-            break;
-        }
-    }
-    return scriptCheck;
+    return ranges::any_of(payoutShares, [&](const auto& payoutShare) { return CheckScript(payoutShare.scriptPayout); });
 }
 // If the transaction is a special transaction that has a registration
 // transaction hash, test the registration transaction hash.

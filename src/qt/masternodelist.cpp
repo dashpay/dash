@@ -216,11 +216,9 @@ void MasternodeList::updateDIP3List()
 
     mnList.ForEachMN(false, [&](auto& dmn) {
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
-            bool fMyPayee = false;
-            for (const auto& payoutShare : dmn.pdmnState->payoutShares) {
-                fMyPayee |= walletModel->wallet().isSpendable(payoutShare.scriptPayout);
-                if (fMyPayee) break;
-            }
+            bool fMyPayee = ranges::any_of(dmn.pdmnState->payoutShares, [&](const auto& payoutShare) {
+                return walletModel->wallet().isSpendable(payoutShare.scriptPayout);
+            });
             bool fMyMasternode = setOutpts.count(dmn.collateralOutpoint) ||
                 walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDOwner)) ||
                 walletModel->wallet().isSpendable(PKHash(dmn.pdmnState->keyIDVoting)) ||
