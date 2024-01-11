@@ -60,7 +60,12 @@
     }
 
     if (masternodeReward > 0) {
-        voutMasternodePaymentsRet.emplace_back(masternodeReward, dmnPayee->pdmnState->scriptPayout);
+        for (const auto& payoutShare : dmnPayee->pdmnState->payoutShares) {
+            CAmount payeeReward = (masternodeReward * payoutShare.payoutShareReward) / 10000;
+            if (payeeReward > 0) {
+                voutMasternodePaymentsRet.emplace_back(payeeReward, payoutShare.scriptPayout);
+            }
+        }
     }
     if (operatorReward > 0) {
         voutMasternodePaymentsRet.emplace_back(operatorReward, dmnPayee->pdmnState->scriptOperatorPayout);

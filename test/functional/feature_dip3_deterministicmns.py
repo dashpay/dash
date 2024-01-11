@@ -204,14 +204,15 @@ class DIP3Test(BitcoinTestFramework):
         assert old_voting_address != new_voting_address
         # also check if funds from payout address are used when no fee source address is specified
         node.sendtoaddress(mn.rewards_address, 0.001)
-        node.protx('update_registrar', mn.protx_hash, "", new_voting_address, "")
+        node.protx('update_registrar', mn.protx_hash, "", new_voting_address, [])
         node.generate(1)
         self.sync_all()
         new_dmnState = mn.node.masternode("status")["dmnState"]
         new_voting_address_from_rpc = new_dmnState["votingAddress"]
         assert new_voting_address_from_rpc == new_voting_address
         # make sure payoutAddress is the same as before
-        assert old_dmnState["payoutAddress"] == new_dmnState["payoutAddress"]
+        assert old_dmnState['payouts'][0]['payoutAddress'] == new_dmnState['payouts'][0]['payoutAddress']
+        assert old_dmnState['payouts'][0]['payoutShareReward'] == new_dmnState['payouts'][0]['payoutShareReward']
 
     def prepare_mn(self, node, idx, alias):
         mn = Masternode()
@@ -248,7 +249,7 @@ class DIP3Test(BitcoinTestFramework):
         mn.collateral_address = node.getnewaddress()
         mn.rewards_address = node.getnewaddress()
 
-        mn.protx_hash = node.protx('register_fund', mn.collateral_address, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, mn.operator_reward, mn.rewards_address, mn.fundsAddr)
+        mn.protx_hash = node.protx('register_fund', mn.collateral_address, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, mn.operator_reward, [[mn.rewards_address, 10000]], mn.fundsAddr)
         mn.collateral_txid = mn.protx_hash
         mn.collateral_vout = None
 
@@ -264,7 +265,7 @@ class DIP3Test(BitcoinTestFramework):
         node.sendtoaddress(mn.fundsAddr, 0.001)
         mn.rewards_address = node.getnewaddress()
 
-        mn.protx_hash = node.protx('register', mn.collateral_txid, mn.collateral_vout, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, mn.operator_reward, mn.rewards_address, mn.fundsAddr)
+        mn.protx_hash = node.protx('register', mn.collateral_txid, mn.collateral_vout, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, mn.operator_reward, [[mn.rewards_address, 10000]], mn.fundsAddr)
         node.generate(1)
 
     def start_mn(self, mn):
@@ -282,11 +283,12 @@ class DIP3Test(BitcoinTestFramework):
 
     def update_mn_payee(self, mn, payee):
         self.nodes[0].sendtoaddress(mn.fundsAddr, 0.001)
-        self.nodes[0].protx('update_registrar', mn.protx_hash, '', '', payee, mn.fundsAddr)
+        self.nodes[0].protx('update_registrar', mn.protx_hash, '', '', [[payee, 10000]], mn.fundsAddr)
         self.nodes[0].generate(1)
         self.sync_all()
         info = self.nodes[0].protx('info', mn.protx_hash)
-        assert info['state']['payoutAddress'] == payee
+        assert info['state']['payouts'][0]['payoutAddress'] == payee
+        assert_equal(info['state']['payouts'][0]['payoutShareReward'], 10000)
 
     def test_protx_update_service(self, mn):
         self.nodes[0].sendtoaddress(mn.fundsAddr, 0.001)

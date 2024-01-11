@@ -155,7 +155,7 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     CService addr;
-    CScript scriptPayout;
+    std::vector<PayoutShare> payoutShares;
     CScript scriptOperatorPayout;
 
     uint160 platformNodeID{};
@@ -170,7 +170,7 @@ public:
         pubKeyOperator(proTx.pubKeyOperator),
         keyIDVoting(proTx.keyIDVoting),
         addr(proTx.addr),
-        scriptPayout(proTx.scriptPayout),
+        payoutShares(proTx.payoutShares),
         platformNodeID(proTx.platformNodeID),
         platformP2PPort(proTx.platformP2PPort),
         platformHTTPPort(proTx.platformHTTPPort)
@@ -189,7 +189,7 @@ public:
         pubKeyOperator(s.pubKeyOperator),
         keyIDVoting(s.keyIDVoting),
         addr(s.addr),
-        scriptPayout(s.scriptPayout),
+        payoutShares({PayoutShare(s.scriptPayout)}),
         scriptOperatorPayout(s.scriptOperatorPayout) {}
 
     explicit CDeterministicMNState(const CDeterministicMNState_mntype_format& s) :
@@ -206,7 +206,7 @@ public:
         pubKeyOperator(s.pubKeyOperator),
         keyIDVoting(s.keyIDVoting),
         addr(s.addr),
-        scriptPayout(s.scriptPayout),
+        payoutShares({PayoutShare(s.scriptPayout)}),
         scriptOperatorPayout(s.scriptOperatorPayout),
         platformNodeID(s.platformNodeID),
         platformP2PPort(s.platformP2PPort),
@@ -236,7 +236,7 @@ public:
         READWRITE(
             obj.keyIDVoting,
             obj.addr,
-            obj.scriptPayout,
+            PayoutSharesSerializerWrapper(const_cast<std::vector<PayoutShare>&>(obj.payoutShares), (obj.nVersion < CProRegTx::MULTI_PAYOUT_VERSION)),
             obj.scriptOperatorPayout,
             obj.platformNodeID,
             obj.platformP2PPort,
@@ -302,7 +302,7 @@ public:
         Field_pubKeyOperator = 0x0200,
         Field_keyIDVoting = 0x0400,
         Field_addr = 0x0800,
-        Field_scriptPayout = 0x1000,
+        Field_payoutShares = 0x1000,
         Field_scriptOperatorPayout = 0x2000,
         Field_nConsecutivePayments = 0x4000,
         Field_platformNodeID = 0x8000,
@@ -324,7 +324,7 @@ public:
     DMN_STATE_DIFF_LINE(pubKeyOperator)                \
     DMN_STATE_DIFF_LINE(keyIDVoting)                   \
     DMN_STATE_DIFF_LINE(addr)                          \
-    DMN_STATE_DIFF_LINE(scriptPayout)                  \
+    DMN_STATE_DIFF_LINE(payoutShares)                  \
     DMN_STATE_DIFF_LINE(scriptOperatorPayout)          \
     DMN_STATE_DIFF_LINE(nConsecutivePayments)          \
     DMN_STATE_DIFF_LINE(platformNodeID)                \
@@ -344,20 +344,27 @@ public:
 #define DMN_STATE_DIFF_LINE(f) if (a.f != b.f) { state.f = b.f; fields |= Field_##f; }
         DMN_STATE_DIFF_ALL_FIELDS
 #undef DMN_STATE_DIFF_LINE
-        if (fields & Field_pubKeyOperator) { state.nVersion = b.nVersion; fields |= Field_nVersion; }
+        if (fields & Field_pubKeyOperator || fields & Field_payoutShares) {
+            state.nVersion = b.nVersion;
+            fields |= Field_nVersion;
+        }
     }
 
     [[nodiscard]] UniValue ToJson(MnType nType) const;
 
     SERIALIZE_METHODS(CDeterministicMNStateDiff, obj)
     {
-        // NOTE: reading pubKeyOperator requires nVersion
+        // NOTE: reading pubKeyOperator and payoutShares requires nVersion
         bool read_pubkey{false};
+        bool read_payoutShares{false};
         READWRITE(VARINT(obj.fields));
 #define DMN_STATE_DIFF_LINE(f) \
         if (strcmp(#f, "pubKeyOperator") == 0 && (obj.fields & Field_pubKeyOperator)) {\
             SER_READ(obj, read_pubkey = true); \
             READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), obj.state.nVersion == CProRegTx::LEGACY_BLS_VERSION)); \
+        } else if (strcmp(#f, "payoutShares") == 0 && (obj.fields & Field_payoutShares)) {\
+            SER_READ(obj, read_payoutShares = true); \
+            READWRITE(PayoutSharesSerializerWrapper(const_cast<std::vector<PayoutShare>&>(obj.state.payoutShares), (obj.state.nVersion < CProRegTx::MULTI_PAYOUT_VERSION))); \
         } else if (obj.fields & Field_##f) READWRITE(obj.state.f);
 
         DMN_STATE_DIFF_ALL_FIELDS
@@ -365,6 +372,9 @@ public:
         if (read_pubkey) {
             SER_READ(obj, obj.fields |= Field_nVersion);
             SER_READ(obj, obj.state.pubKeyOperator.SetLegacy(obj.state.nVersion == CProRegTx::LEGACY_BLS_VERSION));
+        }
+        if (read_payoutShares) {
+            SER_READ(obj, obj.fields |= Field_nVersion);
         }
     }
 

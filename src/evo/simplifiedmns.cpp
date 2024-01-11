@@ -36,7 +36,7 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const CDeterministicMN& dmn) :
     isValid(!dmn.pdmnState->IsBanned()),
     platformHTTPPort(dmn.pdmnState->platformHTTPPort),
     platformNodeID(dmn.pdmnState->platformNodeID),
-    scriptPayout(dmn.pdmnState->scriptPayout),
+    payoutShares(dmn.pdmnState->payoutShares),
     scriptOperatorPayout(dmn.pdmnState->scriptOperatorPayout),
     nVersion(dmn.pdmnState->nVersion == CProRegTx::LEGACY_BLS_VERSION ? LEGACY_BLS_VERSION : BASIC_BLS_VERSION),
     nType(dmn.nType)
@@ -55,8 +55,8 @@ std::string CSimplifiedMNListEntry::ToString() const
     CTxDestination dest;
     std::string payoutAddress = "unknown";
     std::string operatorPayoutAddress = "none";
-    if (ExtractDestination(scriptPayout, dest)) {
-        payoutAddress = EncodeDestination(dest);
+    if (ExtractDestination(payoutShares[0].scriptPayout, dest)) {
+         payoutAddress = EncodeDestination(dest);
     }
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
@@ -85,9 +85,12 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
 
     if (extended) {
         CTxDestination dest;
-        if (ExtractDestination(scriptPayout, dest)) {
-            obj.pushKV("payoutAddress", EncodeDestination(dest));
+        UniValue payoutArray;
+        payoutArray.setArray();
+        for (const auto& payoutShare : payoutShares) {
+            payoutArray.push_back(payoutShare.ToJson());
         }
+        obj.pushKV("payouts", payoutArray);
         if (ExtractDestination(scriptOperatorPayout, dest)) {
             obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
         }
@@ -303,8 +306,8 @@ CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& from, cons
             CSimplifiedMNListEntry sme1(toPtr);
             CSimplifiedMNListEntry sme2(*fromPtr);
             if ((sme1 != sme2) ||
-                (extended && (sme1.scriptPayout != sme2.scriptPayout || sme1.scriptOperatorPayout != sme2.scriptOperatorPayout))) {
-                    diffRet.mnList.push_back(std::move(sme1));
+                (extended && (sme1.payoutShares != sme2.payoutShares || sme1.scriptOperatorPayout != sme2.scriptOperatorPayout))) {
+                diffRet.mnList.push_back(std::move(sme1));
             }
         }
     });

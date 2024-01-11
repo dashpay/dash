@@ -18,7 +18,7 @@ std::string CDeterministicMNState::ToString() const
     CTxDestination dest;
     std::string payoutAddress = "unknown";
     std::string operatorPayoutAddress = "none";
-    if (ExtractDestination(scriptPayout, dest)) {
+    if (ExtractDestination(payoutShares[0].scriptPayout, dest)) {
         payoutAddress = EncodeDestination(dest);
     }
     if (ExtractDestination(scriptOperatorPayout, dest)) {
@@ -52,10 +52,13 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
         obj.pushKV("platformHTTPPort", platformHTTPPort);
     }
 
+    UniValue payoutArray;
+    payoutArray.setArray();
     CTxDestination dest;
-    if (ExtractDestination(scriptPayout, dest)) {
-        obj.pushKV("payoutAddress", EncodeDestination(dest));
+    for (const auto& payoutShare : payoutShares) {
+        payoutArray.push_back(payoutShare.ToJson());
     }
+    obj.pushKV("payouts", payoutArray);
     obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
@@ -100,11 +103,13 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
     if (fields & Field_keyIDVoting) {
         obj.pushKV("votingAddress", EncodeDestination(PKHash(state.keyIDVoting)));
     }
-    if (fields & Field_scriptPayout) {
-        CTxDestination dest;
-        if (ExtractDestination(state.scriptPayout, dest)) {
-            obj.pushKV("payoutAddress", EncodeDestination(dest));
+    if (fields & Field_payoutShares) {
+        UniValue payoutArray;
+        payoutArray.setArray();
+        for (const auto& payoutShare : state.payoutShares) {
+            payoutArray.push_back(payoutShare.ToJson());
         }
+        obj.pushKV("payouts", payoutArray);
     }
     if (fields & Field_scriptOperatorPayout) {
         CTxDestination dest;

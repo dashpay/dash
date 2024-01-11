@@ -235,7 +235,7 @@ class LLMQEvoNodesTest(DashTestFramework):
         operatorReward = len(self.nodes)
 
         try:
-            self.nodes[0].protx('register_evo', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
+            self.nodes[0].protx('register_evo', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, [[reward_address, 10000]], funds_address, True)
             # this should never succeed
             assert False
         except:

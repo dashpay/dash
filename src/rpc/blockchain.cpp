@@ -1762,6 +1762,7 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_V19);
     SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_V20);
     SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_MN_RR);
+    SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_DIP0026);
     SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY);
 
     obj.pushKV("softforks", softforks);
