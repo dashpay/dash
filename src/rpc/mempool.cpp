@@ -349,17 +349,15 @@ UniValue MempoolToJSON(const CTxMemPool& pool, const llmq::CInstantSendManager* 
         }
         return o;
     } else {
+        UniValue a(UniValue::VARR);
         uint64_t mempool_sequence;
-        std::vector<uint256> vtxid;
         {
             LOCK(pool.cs);
-            pool.queryHashes(vtxid);
+            for (const CTxMemPoolEntry& e : pool.entryAll()) {
+                a.push_back(e.GetTx().GetHash().ToString());
+            }
             mempool_sequence = pool.GetSequence();
         }
-        UniValue a(UniValue::VARR);
-        for (const uint256& hash : vtxid)
-            a.push_back(hash.ToString());
-
         if (!include_mempool_sequence) {
             return a;
         } else {
