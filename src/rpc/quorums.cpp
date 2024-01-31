@@ -814,31 +814,19 @@ static UniValue quorum_dkginfo(const JSONRPCRequest& request, const LLMQContext&
     llmq_ctx.dkg_debugman->GetLocalDebugStatus(status);
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("nActiveDKGs", int(status.sessions.size()));
-
-    if (status.sessions.empty()) {
-        int nTipHeight = WITH_LOCK(cs_main, return chainman.ActiveChain().Height());
-        const Consensus::Params &consensus_params = Params().GetConsensus();
-
-        auto minNextDKG = [&consensus_params, nTipHeight]() {
-            int minDkgWindow = std::numeric_limits<int>::max();
-            for (const auto &params: consensus_params.llmqs) {
-                if (!params.useRotation)
-                    minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
-                else {
-                    if (nTipHeight % params.dkgInterval > params.signingActiveQuorumCount) {
-                        // Next potential DKG is the DKG for quorumIndex 0
-                        minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
-                    }
-                        // We are currently during a rotation cycle. Since sessions.empty(), next we return next potential DKG is 1 (next block for next quorumIndex)
-                    else {
-                        minDkgWindow = std::min(minDkgWindow, 1);
-                    }
-                }
+    
+    const int nTipHeight{WITH_LOCK(cs_main, return chainman.ActiveChain().Height())};
+    auto minNextDKG = [](const Consensus::Params& consensusParams, int nTipHeight) {
+        int minDkgWindow{std::numeric_limits<int>::max()};
+        for (const auto& params: consensusParams.llmqs) {
+            if (params.useRotation && (nTipHeight % params.dkgInterval <= params.signingActiveQuorumCount)) {
+                return 1;
             }
-            return minDkgWindow;
-        };
-        ret.pushKV("nextDKG", minNextDKG());
-    }
+            minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
+        }
+        return minDkgWindow;
+    };
+    ret.pushKV("nextDKG", minNextDKG(Params().GetConsensus(), nTipHeight));
 
     return ret;
 }
