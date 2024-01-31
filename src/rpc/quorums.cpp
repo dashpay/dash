@@ -789,6 +789,59 @@ static UniValue quorum_rotationinfo(const JSONRPCRequest& request, const LLMQCon
     return quorumRotationInfoRet.ToJson();
 }
 
+static void quorum_dkginfo_help(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"quorum dkginfo",
+               "Return information regarding DKGs.\n"
+               "Enabled only for Masternode and works only when SPORK_17_QUORUM_DKG_ENABLED spork is ON.\n",
+               {
+                       {},
+               },
+               RPCResults{},
+               RPCExamples{""},
+    }.Check(request);
+}
+
+static UniValue quorum_dkginfo(const JSONRPCRequest& request, const LLMQContext& llmq_ctx, const ChainstateManager& chainman)
+{
+    quorum_dkginfo_help(request);
+
+    if (!fMasternodeMode) {
+        throw JSONRPCError(RPC_INVALID_REQUEST, "RPC allowed only for Masternodes");
+    }
+
+    llmq::CDKGDebugStatus status;
+    llmq_ctx.dkg_debugman->GetLocalDebugStatus(status);
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("nActiveDKGs", int(status.sessions.size()));
+
+    if (status.sessions.empty()) {
+        int nTipHeight = WITH_LOCK(cs_main, return chainman.ActiveChain().Height());
+        const Consensus::Params &consensus_params = Params().GetConsensus();
+
+        auto minNextDKG = [&consensus_params, nTipHeight]() {
+            int minDkgWindow = std::numeric_limits<int>::max();
+            for (const auto &params: consensus_params.llmqs) {
+                if (!params.useRotation)
+                    minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
+                else {
+                    if (nTipHeight % params.dkgInterval > params.signingActiveQuorumCount) {
+                        // Next potential DKG is the DKG for quorumIndex 0
+                        minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
+                    }
+                        // We are currently during a rotation cycle. Since sessions.empty(), next we return next potential DKG is 1 (next block for next quorumIndex)
+                    else {
+                        minDkgWindow = std::min(minDkgWindow, 1);
+                    }
+                }
+            }
+            return minDkgWindow;
+        };
+        ret.pushKV("nextDKG", minNextDKG());
+    }
+
+    return ret;
+}
 
 [[ noreturn ]] static void quorum_help()
 {
@@ -801,6 +854,7 @@ static UniValue quorum_rotationinfo(const JSONRPCRequest& request, const LLMQCon
             "  list              - List of on-chain quorums\n"
             "  listextended      - Extended list of on-chain quorums\n"
             "  info              - Return information about a quorum\n"
+            "  dkginfo           - Return information about DKGs\n"
             "  dkgsimerror       - Simulates DKG errors and malicious behavior\n"
             "  dkgstatus         - Return the status of the current DKG process\n"
             "  memberof          - Checks which quorums the given masternode is a member of\n"
@@ -836,6 +890,8 @@ static UniValue _quorum(const JSONRPCRequest& request)
         return quorum_list_extended(new_request, chainman, llmq_ctx);
     } else if (command == "quoruminfo") {
         return quorum_info(new_request, llmq_ctx);
+    } else if (command == "quorumdkginfo") {
+        return quorum_dkginfo(new_request, llmq_ctx, chainman);
     } else if (command == "quorumdkgstatus") {
         return quorum_dkgstatus(new_request, chainman, llmq_ctx);
     } else if (command == "quorummemberof") {
@@ -1036,59 +1092,6 @@ static UniValue submitchainlock(const JSONRPCRequest& request)
     return true;
 }
 
-static void dkginfo_help(const JSONRPCRequest& request)
-{
-    RPCHelpMan{"dkginfo",
-               "Return information regarding DKGs.\n"
-               "Enabled only for Masternode and works only when SPORK_17_QUORUM_DKG_ENABLED spork is ON.\n",
-               {
-                       {},
-               },
-               RPCResults{},
-               RPCExamples{""},
-    }.Check(request);
-}
-
-static UniValue dkginfo(const JSONRPCRequest& request)
-{
-    dkginfo_help(request);
-
-    if (!fMasternodeMode) {
-        throw JSONRPCError(RPC_INVALID_REQUEST, "RPC allowed only for Masternodes");
-    }
-
-    const NodeContext& node = EnsureAnyNodeContext(request.context);
-    const ChainstateManager& chainman = EnsureChainman(node);
-    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-
-    llmq::CDKGDebugStatus status;
-    llmq_ctx.dkg_debugman->GetLocalDebugStatus(status);
-    UniValue ret(UniValue::VOBJ);
-    ret.pushKV("nActiveDKGs", (int)status.sessions.size());
-
-    if (status.sessions.empty()) {
-        int nTipHeight = WITH_LOCK(cs_main, return chainman.ActiveChain().Height());
-        const Consensus::Params &consensus_params = Params().GetConsensus();
-        int minDkgWindow = std::numeric_limits<int>::max();
-        for (const auto &params: consensus_params.llmqs) {
-            if (!params.useRotation)
-                minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
-            else {
-                if (nTipHeight % params.dkgInterval > params.signingActiveQuorumCount) {
-                    // Next potential DKG is the DKG for quorumIndex 0
-                    minDkgWindow = std::min(minDkgWindow, params.dkgInterval - (nTipHeight % params.dkgInterval));
-                }
-                // We are currently during a rotation cycle. Since sessions.empty(), next we return next potential DKG is 1 (next block for next quorumIndex)
-                else {
-                    minDkgWindow = std::min(minDkgWindow, 1);
-                }
-            }
-        }
-        ret.pushKV("nextDKG", minDkgWindow);
-    }
-
-    return ret;
-}
 
 
 void RegisterQuorumsRPCCommands(CRPCTable &tableRPC)
@@ -1101,7 +1104,6 @@ static const CRPCCommand commands[] =
     { "evo",                "submitchainlock",        &submitchainlock,        {"blockHash", "signature", "blockHeight"}  },
     { "evo",                "verifychainlock",        &verifychainlock,        {"blockHash", "signature", "blockHeight"} },
     { "evo",                "verifyislock",           &verifyislock,           {"id", "txid", "signature", "maxHeight"}  },
-    { "evo",                "dkginfo",                &dkginfo,                 {}  },
 };
 // clang-format on
     for (const auto& command : commands) {
