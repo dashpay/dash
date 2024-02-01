@@ -791,14 +791,20 @@ static UniValue quorum_rotationinfo(const JSONRPCRequest& request, const LLMQCon
 
 static void quorum_dkginfo_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"quorum dkginfo",
-               "Return information regarding DKGs.\n"
-               "Enabled only for Masternode and works only when SPORK_17_QUORUM_DKG_ENABLED spork is ON.\n",
-               {
-                       {},
-               },
-               RPCResults{},
-               RPCExamples{""},
+    RPCHelpMan{
+        "quorum dkginfo",
+        "Return information regarding DKGs.\n"
+        {
+            {},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "active_dkgs", "Total number of active DKG sessions this node is participating in right now"},
+                {RPCResult::Type::NUM, "next_dkg", "The number of blocks until the next potential DKG session"},
+            }
+        },
+        RPCExamples{""},
     }.Check(request);
 }
 
@@ -806,14 +812,10 @@ static UniValue quorum_dkginfo(const JSONRPCRequest& request, const LLMQContext&
 {
     quorum_dkginfo_help(request);
 
-    if (!fMasternodeMode) {
-        throw JSONRPCError(RPC_INVALID_REQUEST, "RPC allowed only for Masternodes");
-    }
-
     llmq::CDKGDebugStatus status;
     llmq_ctx.dkg_debugman->GetLocalDebugStatus(status);
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("nActiveDKGs", int(status.sessions.size()));
+    ret.pushKV("active_dkgs", int(status.sessions.size()));
     
     const int nTipHeight{WITH_LOCK(cs_main, return chainman.ActiveChain().Height())};
     auto minNextDKG = [](const Consensus::Params& consensusParams, int nTipHeight) {
@@ -826,7 +828,7 @@ static UniValue quorum_dkginfo(const JSONRPCRequest& request, const LLMQContext&
         }
         return minDkgWindow;
     };
-    ret.pushKV("nextDKG", minNextDKG(Params().GetConsensus(), nTipHeight));
+    ret.pushKV("next_dkg", minNextDKG(Params().GetConsensus(), nTipHeight));
 
     return ret;
 }
@@ -1079,7 +1081,6 @@ static UniValue submitchainlock(const JSONRPCRequest& request)
     llmq_ctx.clhandler->ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
     return true;
 }
-
 
 
 void RegisterQuorumsRPCCommands(CRPCTable &tableRPC)
