@@ -816,7 +816,7 @@ static UniValue quorum_dkginfo(const JSONRPCRequest& request, const LLMQContext&
     llmq_ctx.dkg_debugman->GetLocalDebugStatus(status);
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("active_dkgs", int(status.sessions.size()));
-    
+
     const int nTipHeight{WITH_LOCK(cs_main, return chainman.ActiveChain().Height())};
     auto minNextDKG = [](const Consensus::Params& consensusParams, int nTipHeight) {
         int minDkgWindow{std::numeric_limits<int>::max()};
