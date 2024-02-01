@@ -793,7 +793,7 @@ static void quorum_dkginfo_help(const JSONRPCRequest& request)
 {
     RPCHelpMan{
         "quorum dkginfo",
-        "Return information regarding DKGs.\n"
+        "Return information regarding DKGs.\n",
         {
             {},
         },
