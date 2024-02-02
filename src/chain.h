@@ -10,14 +10,19 @@
 #include <consensus/params.h>
 #include <flatfile.h>
 #include <primitives/block.h>
+#include <serialize.h>
 #include <sync.h>
 #include <uint256.h>
 
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <string>
 #include <vector>
 
 /**
  * Maximum amount of time that a block timestamp is allowed to exceed the
- * current network-adjusted time before the block will be accepted.
+ * current time before the block will be accepted.
  */
 static constexpr int64_t MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60;
 
