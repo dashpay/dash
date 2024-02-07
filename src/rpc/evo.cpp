@@ -1280,7 +1280,7 @@ static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn,
 
     if (pindex != nullptr) {
         if (confirmations > -1) {
-            confirmations -= chainman.ActiveChain().Height() - pindex->nHeight;
+            confirmations -= WITH_LOCK(cs_main, return chainman.ActiveChain().Height()) - pindex->nHeight;
         } else {
             uint256 minedBlockHash;
             collateralTx = GetTransaction(/* pindex */ nullptr, /* mempool */ nullptr, dmn.collateralOutpoint.hash, Params().GetConsensus(), minedBlockHash);
