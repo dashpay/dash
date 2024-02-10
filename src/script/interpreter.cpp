@@ -1481,37 +1481,37 @@ public:
     }
 };
 
-/** Compute the (single) SHA256 of the concatenation of all prevouts of a tx. */
+/** Compute the double SHA256 of the concatenation of all prevouts of a tx. */
 template <class T>
-uint256 GetPrevoutsSHA256(const T& txTo)
+uint256 GetPrevoutsHash(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txin : txTo.vin) {
         ss << txin.prevout;
     }
-    return ss.GetSHA256();
+    return ss.GetHash();
 }
 
-/** Compute the (single) SHA256 of the concatenation of all nSequences of a tx. */
+/** Compute the double SHA256 of the concatenation of all nSequences of a tx. */
 template <class T>
-uint256 GetSequencesSHA256(const T& txTo)
+uint256 GetSequencesHash(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txin : txTo.vin) {
         ss << txin.nSequence;
     }
-    return ss.GetSHA256();
+    return ss.GetHash();
 }
 
-/** Compute the (single) SHA256 of the concatenation of all txouts of a tx. */
+/** Compute the double SHA256 of the concatenation of all txouts of a tx. */
 template <class T>
-uint256 GetOutputsSHA256(const T& txTo)
+uint256 GetOutputsHash(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : txTo.vout) {
         ss << txout;
     }
-    return ss.GetSHA256();
+    return ss.GetHash();
 }
 
 } // namespace
