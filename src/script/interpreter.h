@@ -103,6 +103,9 @@ enum : uint32_t {
     //
     SCRIPT_VERIFY_CONST_SCRIPTCODE = (1U << 16),
 
+    // Enable the use of SIGHASH_DIP0143
+    SCRIPT_ENABLE_DIP0143 = (1U << 17),
+
     // Constants to point to the highest flag in use. Add new flags above this line.
     //
     SCRIPT_VERIFY_END_MARKER
@@ -130,6 +133,8 @@ enum class SigVersion
     BASE = 0,
     DIP0143 = 1,
 };
+
+SigVersion GetSigVersion(unsigned int flags, int nHashType);
 
 template <class T>
 uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache = nullptr);
