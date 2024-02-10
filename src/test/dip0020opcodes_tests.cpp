@@ -30,7 +30,7 @@ static void CheckTestResultForAllFlags(const stacktype& original_stack,
     for (uint32_t flags : flagset) {
         ScriptError err = ScriptError::SCRIPT_ERR_OK;
         stacktype stack{original_stack};
-        bool r = EvalScript(stack, script, flags | SCRIPT_ENABLE_DIP0020_OPCODES, sigchecker, SigVersion::BASE, &err);
+        bool r = EvalScript(stack, script, flags | SCRIPT_ENABLE_DIP0020_OPCODES, sigchecker, &err);
         BOOST_CHECK(r);
         BOOST_CHECK(stack == expected);
     }
@@ -42,7 +42,7 @@ static void CheckError(uint32_t flags, const stacktype& original_stack,
     BaseSignatureChecker sigchecker;
     ScriptError err = ScriptError::SCRIPT_ERR_OK;
     stacktype stack{original_stack};
-    bool r = EvalScript(stack, script, flags | SCRIPT_ENABLE_DIP0020_OPCODES, sigchecker, SigVersion::BASE, &err);
+    bool r = EvalScript(stack, script, flags | SCRIPT_ENABLE_DIP0020_OPCODES, sigchecker, &err);
     BOOST_CHECK(!r);
     BOOST_CHECK(err == expected_error);
 }
