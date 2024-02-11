@@ -975,8 +975,10 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
 #ifdef ENABLE_WALLET
 void BitcoinGUI::enableHistoryAction(bool privacy)
 {
-    historyButton->setEnabled(!privacy);
-    if (historyButton->isChecked()) gotoOverviewPage();
+    if (walletFrame->currentWalletModel()) {
+        historyButton->setEnabled(!privacy);
+        if (historyButton->isChecked()) gotoOverviewPage();
+    }
 }
 
 void BitcoinGUI::setWalletController(WalletController* wallet_controller, bool show_loading_minimized)
