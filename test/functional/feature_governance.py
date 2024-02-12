@@ -81,11 +81,10 @@ class DashGovernanceTest (DashTestFramework):
         count = 0
         for node in self.nodes:
             valid_triggers = node.gobject("list", "valid", "triggers")
-            valid_triggers_list = list(valid_triggers.values())
-            for i in range(len(valid_triggers)):
-                if json.loads(valid_triggers_list[i]["DataString"])["event_block_height"] != sb_block_height:
+            for trigger in list(valid_triggers.values()):
+                if json.loads(trigger["DataString"])["event_block_height"] != sb_block_height:
                     continue
-                if valid_triggers_list[i]['AbsoluteYesCount'] > 0:
+                if trigger['AbsoluteYesCount'] > 0:
                     count = count + 1
                     break
         return count == len(self.nodes)
