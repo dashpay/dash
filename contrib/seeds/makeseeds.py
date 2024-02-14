@@ -135,8 +135,8 @@ def filterbyasn(ips, max_per_asn, max_total):
                 continue
             asn_count[asn] += 1
             result.append(ip)
-        except:
-            sys.stderr.write('ERR: Could not resolve ASN for "' + ip['ip'] + '"\n')
+        except Exception as e:
+            sys.stderr.write(f'ERR: Could not resolve ASN for {ip["ip"]}: {e}\n')
 
     # Add back Onions
     result.extend(ips_onion)
