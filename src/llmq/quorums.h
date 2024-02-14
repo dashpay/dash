@@ -201,8 +201,8 @@ public:
     CBLSSecretKey GetSkShare() const;
 
 private:
-    void WriteContributions(CEvoDB& evoDb) const;
-    bool ReadContributions(CEvoDB& evoDb);
+    void WriteContributions(const std::unique_ptr<CDBWrapper>& db) const;
+    bool ReadContributions(const std::unique_ptr<CDBWrapper>& db);
 };
 
 /**
@@ -214,11 +214,13 @@ private:
 class CQuorumManager
 {
 private:
+    mutable Mutex cs_db;
+    std::unique_ptr<CDBWrapper> db GUARDED_BY(cs_db) {nullptr};
+
     CBLSWorker& blsWorker;
     CChainState& m_chainstate;
     CConnman& connman;
     CDKGSessionManager& dkgManager;
-    CEvoDB& m_evoDb;
     CQuorumBlockProcessor& quorumBlockProcessor;
     const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
@@ -234,7 +236,8 @@ private:
 
 public:
     CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, CConnman& _connman, CDKGSessionManager& _dkgManager,
-                   CEvoDB& _evoDb, CQuorumBlockProcessor& _quorumBlockProcessor, const std::unique_ptr<CMasternodeSync>& mn_sync);
+                   CEvoDB& _evoDb, CQuorumBlockProcessor& _quorumBlockProcessor, const std::unique_ptr<CMasternodeSync>& mn_sync,
+                   bool unit_tests, bool wipe);
     ~CQuorumManager() { Stop(); };
 
     void Start();
@@ -274,6 +277,7 @@ private:
     void StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, const CBlockIndex* pIndex, uint16_t nDataMask) const;
 
     void StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) const;
+    void MigrateOldQuorumDB(CEvoDB& evoDb) const;
 };
 
 extern std::unique_ptr<CQuorumManager> quorumManager;
