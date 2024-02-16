@@ -219,11 +219,10 @@ void CChainLocksHandler::UpdatedBlockTip()
 
 void CChainLocksHandler::CheckActiveState()
 {
-    bool oldIsEnforced = isEnforced;
+    bool oldIsEnabled = isEnabled;
     isEnabled = AreChainLocksEnabled(spork_manager);
-    isEnforced = isEnabled.load();
 
-    if (!oldIsEnforced && isEnforced) {
+    if (!oldIsEnabled && isEnabled) {
         // ChainLocks got activated just recently, but it's possible that it was already running before, leaving
         // us with some stale values which we should not try to enforce anymore (there probably was a good reason
         // to disable spork19)
@@ -475,7 +474,7 @@ void CChainLocksHandler::EnforceBestChainLock()
     {
         LOCK(cs);
 
-        if (!isEnforced) {
+        if (!isEnabled) {
             return;
         }
 
@@ -561,7 +560,7 @@ bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockH
 {
     AssertLockHeld(cs);
 
-    if (!isEnforced) {
+    if (!isEnabled) {
         return false;
     }
 
@@ -591,7 +590,7 @@ bool CChainLocksHandler::InternalHasConflictingChainLock(int nHeight, const uint
 {
     AssertLockHeld(cs);
 
-    if (!isEnforced) {
+    if (!isEnabled) {
         return false;
     }
 
