@@ -5,6 +5,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <addressindex.h>
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <chainparams.h>
 #include <consensus/consensus.h>
 #include <evo/mnauth.h>
