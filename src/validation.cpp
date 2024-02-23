@@ -1600,9 +1600,11 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
             check.swap(pvChecks->back());
         } else if (!check()) {
             const bool hasNonMandatoryFlags = (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) != 0;
+            //TODO: to avoid this flag by flag check, group all ENABLE like flags in a group STANDARD_ENABLE_FLAGS?
             const bool hasDIP0020Opcodes = (flags & SCRIPT_ENABLE_DIP0020_OPCODES) != 0;
+            const bool hasDIP0143Flag = (flags & SCRIPT_ENABLE_DIP0143) != 0;
 
-            if (hasNonMandatoryFlags || !hasDIP0020Opcodes) {
+            if (hasNonMandatoryFlags || !hasDIP0020Opcodes || !hasDIP0143Flag) {
                 // Check whether the failure was caused by a
                 // non-mandatory script verification check, such as
                 // non-standard DER encodings or non-null dummy
@@ -1612,7 +1614,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
                 // non-upgraded nodes by banning CONSENSUS-failing
                 // data providers.
                 CScriptCheck check2(coin.out, tx, i,
-                        (flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS) | SCRIPT_ENABLE_DIP0020_OPCODES, cacheSigStore, &txdata);
+                        (flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS) | SCRIPT_ENABLE_DIP0020_OPCODES | SCRIPT_ENABLE_DIP0143, cacheSigStore, &txdata);
                 if (check2())
                     return state.Invalid(TxValidationResult::TX_NOT_STANDARD, strprintf("non-mandatory-script-verify-flag (%s)", ScriptErrorString(check.GetScriptError())));
             }
@@ -2034,6 +2036,11 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const Consens
     // Enforce DIP0020
     if (DeploymentActiveAt(*pindex, consensusparams, Consensus::DEPLOYMENT_DIP0020)) {
         flags |= SCRIPT_ENABLE_DIP0020_OPCODES;
+    }
+
+    // Enforce DIP0143
+    if (DeploymentActiveAt(*pindex, consensusparams, Consensus::DEPLOYMENT_DIP0143)){
+        flags |= SCRIPT_ENABLE_DIP0143;
     }
 
     return flags;
