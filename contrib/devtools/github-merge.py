@@ -303,7 +303,12 @@ def main():
         message += subprocess.check_output([GIT,'log','--no-merges','--topo-order','--pretty=format:%H %s (%an)',base_branch+'..'+head_branch]).decode('utf-8')
         message += '\n\nPull request description:\n\n  ' + body.replace('\n', '\n  ') + '\n'
         try:
-            subprocess.check_call([GIT,'merge','-q','--commit','--no-edit','--no-ff','--no-gpg-sign','-m',message.encode('utf-8'),head_branch])
+            squash = input("Enter s for squash; anything else for regular merge commit: ").lower() == 's'
+            if squash:
+                subprocess.check_call([GIT,'merge','-q','--squash','--no-gpg-sign',head_branch])
+                subprocess.check_call([GIT,'commit','-q','--no-gpg-sign','-m',message.encode('utf-8')])
+            else:
+                subprocess.check_call([GIT,'merge','-q','--commit','--no-edit','--no-ff','--no-gpg-sign','-m',message.encode('utf-8'),head_branch])
         except subprocess.CalledProcessError:
             print("ERROR: Cannot be merged cleanly.",file=stderr)
             subprocess.check_call([GIT,'merge','--abort'])
