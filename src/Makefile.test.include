@@ -25,6 +25,7 @@ JSON_TEST_FILES = \
   test/data/proposals_invalid.json \
   test/data/script_tests.json \
   test/data/sighash.json \
+  test/data/sighash_dip0143.json \
   test/data/trivially_invalid.json \
   test/data/trivially_valid.json \
   test/data/tx_invalid.json \
