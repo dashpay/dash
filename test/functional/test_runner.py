@@ -260,6 +260,7 @@ BASE_SCRIPTS = [
     'rpc_platform_filter.py',
     'rpc_wipewallettxes.py',
     'feature_dip0020_activation.py',
+    'feature_dip0143_activation.py',
     'feature_uacomment.py',
     'wallet_coinbase_category.py',
     'feature_filelock.py',
