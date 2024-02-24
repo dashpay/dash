@@ -15,6 +15,9 @@ from .messages import (
     CTxOut,
     hash256,
     sha256,
+    uint256_from_str,
+    ser_uint256,
+    ser_string
 )
 
 from .ripemd160 import ripemd160
@@ -597,6 +600,7 @@ SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
 SIGHASH_ANYONECANPAY = 0x80
+SIGHASH_DIP0143 = 0x40
 
 def FindAndDelete(script, sig):
     """Consensus critical, see FindAndDelete() in Satoshi codebase"""
@@ -665,6 +669,49 @@ def SignatureHash(script, txTo, inIdx, hashtype):
     hash = hash256(s)
 
     return (hash, None)
+
+def DIP0143SignatureHash(script, txTo, inIdx, hashtype, amount):
+
+    ver32bit = int(txTo.nVersion | (txTo.nType << 16))
+    hashPrevouts = 0
+    hashSequence = 0
+    hashOutputs = 0
+
+    if not (hashtype & SIGHASH_ANYONECANPAY):
+        serialize_prevouts = bytes()
+        for i in txTo.vin:
+            serialize_prevouts += i.prevout.serialize()
+        hashPrevouts = uint256_from_str(hash256(serialize_prevouts))
+
+    if not (hashtype & SIGHASH_ANYONECANPAY) and (hashtype & 0x1f) != SIGHASH_SINGLE and (hashtype & 0x1f) != SIGHASH_NONE:
+        serialize_sequence = bytes()
+        for i in txTo.vin:
+            serialize_sequence += struct.pack("<I", i.nSequence)
+        hashSequence = uint256_from_str(hash256(serialize_sequence))
+
+    if (hashtype & 0x1f) != SIGHASH_SINGLE and (hashtype & 0x1f) != SIGHASH_NONE:
+        serialize_outputs = bytes()
+        for o in txTo.vout:
+            serialize_outputs += o.serialize()
+        hashOutputs = uint256_from_str(hash256(serialize_outputs))
+    elif (hashtype & 0x1f) == SIGHASH_SINGLE and inIdx < len(txTo.vout):
+        serialize_outputs = txTo.vout[inIdx].serialize()
+        hashOutputs = uint256_from_str(hash256(serialize_outputs))
+
+    ss = bytes()
+    ss += struct.pack("<i", ver32bit)
+    ss += ser_uint256(hashPrevouts)
+    ss += ser_uint256(hashSequence)
+    ss += txTo.vin[inIdx].prevout.serialize()
+    ss += ser_string(script)
+    ss += struct.pack("<q", amount)
+    ss += struct.pack("<I", txTo.vin[inIdx].nSequence)
+    ss += ser_uint256(hashOutputs)
+    if (txTo.nVersion == 3 and txTo.nType != 0):
+        ss += txTo.vExtraPayload
+    ss += txTo.nLockTime.to_bytes(4, "little")
+    ss += struct.pack("<I", hashtype)
+    return hash256(ss)
 
 class TestFrameworkScript(unittest.TestCase):
     def test_bn2vch(self):
