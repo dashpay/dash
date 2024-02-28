@@ -112,6 +112,59 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
     }
 }
 
+static void TestSigHash(SigVersion sigVersion)
+{
+    const bool isDip0143 = sigVersion == SigVersion::DIP0143;
+    #if defined(PRINT_SIGHASH_JSON)
+    std::cout << "[\n";
+    if (isDip0143) {
+        std::cout << "\t[\"raw_transaction, script, input_index, amount, hashType, signature_hash (result)\"],\n";
+    } else {
+        std::cout << "\t[\"raw_transaction, script, input_index, hashType, signature_hash (result)\"],\n";
+    }
+    int nRandomTests = 500;
+    #else
+    int nRandomTests = 50000;
+    #endif
+    for (int i=0; i<nRandomTests; i++) {
+        int nHashType = InsecureRand32();
+        CMutableTransaction txTo;
+        RandomTransaction(txTo, (nHashType & 0x1f) == SIGHASH_SINGLE);
+        CScript scriptCode;
+        RandomScript(scriptCode);
+        int nIn = InsecureRandRange(txTo.vin.size());
+        CAmount amount = InsecureRandRange(MAX_MONEY);
+
+        uint256 sh, sho;
+        sho = SignatureHashOld(scriptCode, CTransaction(txTo), nIn, nHashType);
+        sh = SignatureHash(scriptCode, txTo, nIn, nHashType, amount, sigVersion);
+        #if defined(PRINT_SIGHASH_JSON)
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << txTo;
+
+        std::cout << "\t[\"" ;
+        std::cout << HexStr(ss) << "\", \"";
+        std::cout << HexStr(scriptCode) << "\", ";
+        std::cout << nIn << ", ";
+        if(isDip0143) {
+            std::cout << amount << ", ";
+        }
+        std::cout << nHashType << ", \"";
+        std::cout << (isDip0143 ? sh.GetHex() : sho.GetHex()) << "\"]";
+        if (i+1 != nRandomTests) {
+          std::cout << ",";
+        }
+        std::cout << "\n";
+        #endif
+        if (!isDip0143) {
+            BOOST_CHECK(sh == sho);
+        }
+    }
+    #if defined(PRINT_SIGHASH_JSON)
+    std::cout << "]\n";
+    #endif
+}
+
 static void TestSigHashFromData(SigVersion sigVersion)
 {
     const bool isDip0143 = sigVersion == SigVersion::DIP0143;
@@ -171,44 +224,9 @@ BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sighash_test)
 {
-    #if defined(PRINT_SIGHASH_JSON)
-    std::cout << "[\n";
-    std::cout << "\t[\"raw_transaction, script, input_index, hashType, signature_hash (result)\"],\n";
-    int nRandomTests = 500;
-    #else
-    int nRandomTests = 50000;
-    #endif
-    for (int i=0; i<nRandomTests; i++) {
-        int nHashType = InsecureRand32();
-        CMutableTransaction txTo;
-        RandomTransaction(txTo, (nHashType & 0x1f) == SIGHASH_SINGLE);
-        CScript scriptCode;
-        RandomScript(scriptCode);
-        int nIn = InsecureRandRange(txTo.vin.size());
-
-        uint256 sh, sho;
-        sho = SignatureHashOld(scriptCode, CTransaction(txTo), nIn, nHashType);
-        sh = SignatureHash(scriptCode, txTo, nIn, nHashType, 0, SigVersion::BASE);
-        #if defined(PRINT_SIGHASH_JSON)
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-        ss << txTo;
-
-        std::cout << "\t[\"" ;
-        std::cout << HexStr(ss) << "\", \"";
-        std::cout << HexStr(scriptCode) << "\", ";
-        std::cout << nIn << ", ";
-        std::cout << nHashType << ", \"";
-        std::cout << sho.GetHex() << "\"]";
-        if (i+1 != nRandomTests) {
-          std::cout << ",";
-        }
-        std::cout << "\n";
-        #endif
-        BOOST_CHECK(sh == sho);
+    for (const auto sigVersion : {SigVersion::BASE, SigVersion::DIP0143}) {
+        TestSigHash(sigVersion);
     }
-    #if defined(PRINT_SIGHASH_JSON)
-    std::cout << "]\n";
-    #endif
 }
 
 // Goal: check that SignatureHash generates correct hash
