@@ -93,9 +93,14 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
     tx.nVersion = InsecureRandRange(2) + 1;
     tx.vin.clear();
     tx.vout.clear();
+    tx.vExtraPayload.clear();
     tx.nLockTime = (InsecureRandBool()) ? InsecureRand32() : 0;
     int ins = (InsecureRandBits(2)) + 1;
     int outs = fSingle ? ins : (InsecureRandBits(2)) + 1;
+    int vExtraPayloadSize = InsecureRandRange(100);
+    for (int i = 0; i < vExtraPayloadSize; i++) {
+        tx.vExtraPayload.push_back(InsecureRandBits(8));
+    }
     for (int in = 0; in < ins; in++) {
         tx.vin.push_back(CTxIn());
         CTxIn &txin = tx.vin.back();
