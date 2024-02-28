@@ -196,7 +196,7 @@ static void TestSigHashFromData(SigVersion sigVersion)
             raw_tx = test[0].get_str();
             raw_script = test[1].get_str();
             nIn = test[2].get_int();
-            amount = isDip0143 ? test[3].get_int() : 0;
+            amount = isDip0143 ? test[3].get_int64() : 0;
             size_t offset = isDip0143 ? 1 : 0;
             nHashType = test[3 + offset].get_int();
             sigHashHex = test[4 + offset].get_str();
