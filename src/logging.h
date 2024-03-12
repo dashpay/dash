@@ -257,7 +257,7 @@ std::string SafeStringFormat(const std::string& fmt, const Args&... args)
     }
 }
 
-// Be conservative when using LogPrintf/error or other things which
+// Be conservative when using functions that
 // unconditionally log to debug.log! It should not be the case that an inbound
 // peer can fill up a user's disk with debug.log entries.
 
