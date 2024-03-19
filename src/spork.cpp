@@ -16,6 +16,7 @@
 #include <protocol.h>
 #include <script/standard.h>
 #include <timedata.h>
+#include <txrequest.h>
 #include <util/message.h> // for MESSAGE_MAGIC
 #include <util/ranges.h>
 #include <util/string.h>
@@ -127,17 +128,17 @@ void CSporkManager::CheckAndRemove()
     }
 }
 
-PeerMsgRet CSporkManager::ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type, CDataStream& vRecv)
+PeerMsgRet CSporkManager::ProcessMessage(CNode& peer, ObjRequestTracker& objtracker, CConnman& connman, std::string_view msg_type, CDataStream& vRecv)
 {
     if (msg_type == NetMsgType::SPORK) {
-        return ProcessSpork(peer, connman, vRecv);
+        return ProcessSpork(peer, objtracker, connman, vRecv);
     } else if (msg_type == NetMsgType::GETSPORKS) {
         ProcessGetSporks(peer, connman);
     }
     return {};
 }
 
-PeerMsgRet CSporkManager::ProcessSpork(const CNode& peer, CConnman& connman, CDataStream& vRecv)
+PeerMsgRet CSporkManager::ProcessSpork(const CNode& peer, ObjRequestTracker& objtracker, CConnman& connman, CDataStream& vRecv)
 {
     CSporkMessage spork;
     vRecv >> spork;
@@ -147,7 +148,7 @@ PeerMsgRet CSporkManager::ProcessSpork(const CNode& peer, CConnman& connman, CDa
     std::string strLogMsg;
     {
         LOCK(cs_main);
-        EraseObjectRequest(peer.GetId(), CInv(MSG_SPORK, hash));
+        objtracker.ReceivedResponse(peer.GetId(), hash);
         if (!::ChainActive().Tip()) return {};
         strLogMsg = strprintf("SPORK -- hash: %s id: %d value: %10d bestHeight: %d peer=%d", hash.ToString(), spork.nSporkID, spork.nValue, ::ChainActive().Height(), peer.GetId());
     }

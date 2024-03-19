@@ -539,6 +539,10 @@ public:
     SERIALIZE_METHODS(CInv, obj) { READWRITE(obj.type, obj.hash); }
 
     friend bool operator<(const CInv& a, const CInv& b);
+    // required by txrequest_tests.cpp
+    friend bool operator==(const CInv& a, const CInv& b) {
+        return !(a < b || b < a);
+    }
 
     bool IsKnownType() const;
     std::string GetCommand() const;

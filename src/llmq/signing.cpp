@@ -587,7 +587,7 @@ PeerMsgRet CSigningManager::ProcessMessageRecoveredSig(const CNode& pfrom, gsl::
 {
     {
         LOCK(cs_main);
-        EraseObjectRequest(pfrom.GetId(), CInv(MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()));
+//        EraseObjectRequest(pfrom.GetId(), CInv(MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()));
     }
 
     bool ban = false;

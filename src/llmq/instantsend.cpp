@@ -767,7 +767,7 @@ PeerMsgRet CInstantSendManager::ProcessMessageInstantSendLock(const CNode& pfrom
 {
     auto hash = ::SerializeHash(*islock);
 
-    WITH_LOCK(cs_main, EraseObjectRequest(pfrom.GetId(), CInv(MSG_ISDLOCK, hash)));
+//    WITH_LOCK(cs_main, EraseObjectRequest(pfrom.GetId(), CInv(MSG_ISDLOCK, hash)));
 
     if (!islock->TriviallyValid()) {
         return tl::unexpected{100};
@@ -1482,7 +1482,7 @@ void CInstantSendManager::AskNodesForLockedTx(const uint256& txid, const CConnma
                       txid.ToString(), pnode->GetId());
 
             CInv inv(MSG_TX, txid);
-            RequestObject(pnode->GetId(), inv, GetTime<std::chrono::microseconds>(), true);
+            // RequestObject(pnode->GetId(), inv, GetTime<std::chrono::microseconds>(), true);
         }
     }
     for (CNode* pnode : nodesToAskFor) {

@@ -152,7 +152,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, st
 
         {
             LOCK(cs_main);
-            EraseObjectRequest(peer.GetId(), CInv(MSG_GOVERNANCE_OBJECT, nHash));
+            //EraseObjectRequest(peer.GetId(), CInv(MSG_GOVERNANCE_OBJECT, nHash));
         }
 
         if (!::masternodeSync->IsBlockchainSynced()) {
@@ -219,7 +219,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, st
 
         {
             LOCK(cs_main);
-            EraseObjectRequest(peer.GetId(), CInv(MSG_GOVERNANCE_OBJECT_VOTE, nHash));
+//            EraseObjectRequest(peer.GetId(), CInv(MSG_GOVERNANCE_OBJECT_VOTE, nHash));
         }
 
         // Ignore such messages until masternode list is synced
@@ -1279,7 +1279,8 @@ int CGovernanceManager::RequestGovernanceObjectVotes(Span<CNode*> vNodesCopy, CC
             // stop early to prevent setAskFor overflow
             {
                 LOCK(cs_main);
-                size_t nProjectedSize = GetRequestedObjectCount(pnode->GetId()) + nProjectedVotes;
+                size_t nProjectedSize = 0+ nProjectedVotes;
+//                size_t nProjectedSize = m_objrequest->Count(pnode->GetId()) + nProjectedVotes;
                 if (nProjectedSize > MAX_INV_SZ) continue;
                 // to early to ask the same node
                 if (mapAskedRecently[nHashGovobj].count(pnode->addr)) continue;

@@ -28,7 +28,7 @@ class CDataStream;
 
 class CSporkMessage;
 class CSporkManager;
-
+class ObjRequestTracker;
 /*
     Don't ever reuse these IDs for other sporks
     - This would result in old clients getting confused about which spork is for what
@@ -257,7 +257,7 @@ public:
     /**
      * ProcessMessage is used to call ProcessSpork and ProcessGetSporks. See below
      */
-    PeerMsgRet ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type, CDataStream& vRecv);
+    PeerMsgRet ProcessMessage(CNode& peer, ObjRequestTracker& objtracker, CConnman& connman, std::string_view msg_type, CDataStream& vRecv);
 
     /**
      * ProcessSpork is used to handle the 'spork' p2p message.
@@ -265,7 +265,7 @@ public:
      * For 'spork', it validates the spork and adds it to the internal spork storage and
      * performs any necessary processing.
      */
-    PeerMsgRet ProcessSpork(const CNode& peer, CConnman& connman, CDataStream& vRecv) LOCKS_EXCLUDED(cs);
+    PeerMsgRet ProcessSpork(const CNode& peer, ObjRequestTracker& objtracker, CConnman& connman, CDataStream& vRecv) LOCKS_EXCLUDED(cs);
 
     /**
      * ProcessGetSporks is used to handle the 'getsporks' p2p message.

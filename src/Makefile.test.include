@@ -167,6 +167,7 @@ BITCOIN_TESTS =\
   test/torcontrol_tests.cpp \
   test/transaction_tests.cpp \
   test/txindex_tests.cpp \
+  test/txrequest_tests.cpp \
   test/txvalidation_tests.cpp \
   test/txvalidationcache_tests.cpp \
   test/uint256_tests.cpp \
@@ -330,12 +331,12 @@ test_fuzz_fuzz_SOURCES = \
   test/fuzz/tx_in.cpp \
   test/fuzz/tx_out.cpp \
   test/fuzz/tx_pool.cpp \
+  test/fuzz/txrequest.cpp \
   test/fuzz/validation_load_mempool.cpp \
   test/fuzz/versionbits.cpp
 endif # ENABLE_FUZZ_BINARY
 
 nodist_test_test_dash_SOURCES = $(GENERATED_TEST_FILES)
-
 $(BITCOIN_TESTS): $(GENERATED_TEST_FILES)
 
 CLEAN_BITCOIN_TEST = test/*.gcda test/*.gcno test/fuzz/*.gcda test/fuzz/*.gcno test/util/*.gcda test/util/*.gcno $(GENERATED_TEST_FILES) $(addsuffix .log,$(basename $(BITCOIN_TESTS)))
