@@ -27,7 +27,7 @@
 
 int nSubmittedFinalBudget;
 
-const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
+const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-17";
 const int CGovernanceManager::MAX_TIME_FUTURE_DEVIATION = 60 * 60;
 const int CGovernanceManager::RELIABLE_PROPAGATION_TIME = 60;
 
@@ -1544,6 +1544,11 @@ void CGovernanceManager::RemoveInvalidVotes()
         auto oldDmn = lastMNListForVotingKeys->GetMNByInternalId(id);
         changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
     }
+    curMNList.ForEachMN(false, [&](const auto& dmn) {
+        if (dmn.pdmnState->IsBanned() && curMNList.GetHeight() - dmn.pdmnState->GetBannedHeight() > Params().GetConsensus().nSuperblockCycle) {
+            changedKeyMNs.emplace_back(dmn.collateralOutpoint);
+        }
+    });
 
     for (const auto& outpoint : changedKeyMNs) {
         for (auto& p : mapObjects) {
