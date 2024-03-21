@@ -253,7 +253,7 @@
 /*============================================================================*/
 
 /**
- * Toggle endianess of a digit.
+ * Toggle endianness of a digit.
  */
 uint32_t util_conv_endian(uint32_t i);
 
