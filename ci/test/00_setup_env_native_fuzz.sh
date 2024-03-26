@@ -17,3 +17,4 @@ export RUN_FUNCTIONAL_TESTS=false
 export RUN_FUZZ_TESTS=true
 export GOAL="install"
 export BITCOIN_CONFIG="--enable-zmq --disable-ccache --enable-fuzz --with-sanitizers=fuzzer,address,undefined --enable-suppress-external-warnings CC=clang-16 CXX=clang++-16 --with-boost-process"
+export CCACHE_SIZE=200M

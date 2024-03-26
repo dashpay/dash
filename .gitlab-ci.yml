@@ -282,6 +282,15 @@ linux64_fuzz-build:
 #  variables:
 #    BUILD_TARGET: linux64_asan
 
+linux64_msan-build:
+  extends:
+    - .build-template
+    - .skip-in-fast-mode-template
+  needs:
+    - x86_64-pc-linux-gnu-debug
+  variables:
+    BUILD_TARGET: linux64_msan
+
 linux64_tsan-build:
   extends:
     - .build-template
