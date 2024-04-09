@@ -138,6 +138,12 @@ RUN \
   update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-10 50; \
   exit 0
 
+# Set g++-10 and gcc-10 as the default versions
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 100 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 && \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 100
+
 ARG LLVM_VERSION=16
 # Setup Clang+LLVM support
 RUN apt-get update && apt-get install $APT_ARGS \
