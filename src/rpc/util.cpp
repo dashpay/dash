@@ -18,6 +18,11 @@
 #include <util/system.h>
 #include <util/translation.h>
 
+#include <algorithm>
+#include <iterator>
+#include <string_view>
+#include <tuple>
+
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";
 const std::string EXAMPLE_ADDRESS[2] = {"XunLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPw0", "XwQQkwA4FYkq2XERzMY2CiAZhJTEDAbtc0"};
 
@@ -608,6 +613,16 @@ std::vector<std::string> RPCHelpMan::GetArgNames() const
         ret.emplace_back(arg.m_names);
     }
     return ret;
+}
+
+size_t RPCHelpMan::GetParamIndex(std::string_view key) const
+{
+    auto it{std::find_if(
+        m_args.begin(), m_args.end(), [&key](const auto& arg) { return arg.GetName() == key;}
+    )};
+
+    CHECK_NONFATAL(it != m_args.end());  // TODO: ideally this is checked at compile time
+    return std::distance(m_args.begin(), it);
 }
 
 std::string RPCHelpMan::ToString() const
