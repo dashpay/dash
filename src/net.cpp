@@ -1614,32 +1614,31 @@ void CConnman::SocketEventsKqueue(std::set<SOCKET>& recv_set,
                                   std::set<SOCKET>& error_set,
                                   bool only_poll)
 {
-    const size_t maxEvents = 64;
-    struct kevent events[maxEvents];
-
-    struct timespec timeout;
-    timeout.tv_sec = only_poll ? 0 : SELECT_TIMEOUT_MILLISECONDS / 1000;
-    timeout.tv_nsec = (only_poll ? 0 : SELECT_TIMEOUT_MILLISECONDS % 1000) * 1000 * 1000;
+    std::array<struct kevent, MAX_EVENTS> events;
+    struct timespec timeout = MillisToTimespec(only_poll ? 0 : SELECT_TIMEOUT_MILLISECONDS);
 
     int n{-1};
-    ToggleWakeupPipe([&](){n = kevent(Assert(m_edge_trig_events)->GetFileDescriptor(), nullptr, 0, events, maxEvents, &timeout);});
+    ToggleWakeupPipe([&](){
+        n = kevent(Assert(m_edge_trig_events)->GetFileDescriptor(), nullptr, 0, events.data(), events.size(), &timeout);
+    });
     if (n == -1) {
         LogPrintf("kevent wait error\n");
-    } else if (n > 0) {
-        for (int i = 0; i < n; i++) {
-            auto& event = events[i];
-            if ((event.flags & EV_ERROR) || (event.flags & EV_EOF)) {
-                error_set.insert((SOCKET)event.ident);
-                continue;
-            }
+        return;
+    }
 
-            if (event.filter == EVFILT_READ) {
-                recv_set.insert((SOCKET)event.ident);
-            }
+    for (int i = 0; i < n; i++) {
+        auto& event = events[i];
+        if ((event.flags & EV_ERROR) || (event.flags & EV_EOF)) {
+            error_set.insert((SOCKET)event.ident);
+            continue;
+        }
 
-            if (event.filter == EVFILT_WRITE) {
-                send_set.insert((SOCKET)event.ident);
-            }
+        if (event.filter == EVFILT_READ) {
+            recv_set.insert((SOCKET)event.ident);
+        }
+
+        if (event.filter == EVFILT_WRITE) {
+            send_set.insert((SOCKET)event.ident);
         }
     }
 }
@@ -1651,11 +1650,19 @@ void CConnman::SocketEventsEpoll(std::set<SOCKET>& recv_set,
                                  std::set<SOCKET>& error_set,
                                  bool only_poll)
 {
-    const size_t maxEvents = 64;
-    epoll_event events[maxEvents];
+    std::array<epoll_event, MAX_EVENTS> events;
 
     int n{-1};
-    ToggleWakeupPipe([&](){n = epoll_wait(Assert(m_edge_trig_events)->GetFileDescriptor(), events, maxEvents, only_poll ? 0 : SELECT_TIMEOUT_MILLISECONDS);});
+    ToggleWakeupPipe([&](){
+        n = epoll_wait(Assert(m_edge_trig_events)->GetFileDescriptor(), events.data(), events.size(),
+                       only_poll ? 0 : SELECT_TIMEOUT_MILLISECONDS);
+    });
+
+    if (n == -1) {
+        LogPrintf("epoll_wait error\n");
+        return;
+    }
+
     for (int i = 0; i < n; i++) {
         auto& e = events[i];
         if((e.events & EPOLLERR) || (e.events & EPOLLHUP)) {
