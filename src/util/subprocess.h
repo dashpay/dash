@@ -172,12 +172,6 @@ using env_vector_t = std::vector<env_char_t>;
 //--------------------------------------------------------------------
 namespace util
 {
-  template <typename R>
-  inline bool is_ready(std::shared_future<R> const &f)
-  {
-    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-  }
-
   inline void quote_argument(const std::wstring &argument, std::wstring &command_line,
                       bool force)
   {
@@ -919,8 +913,8 @@ private:
  * This is basically used to determine the length of the actual
  * data stored inside the dynamically resized vector.
  *
- * This is what is returned as the output to communicate and check_output
- * functions, so, users must know about this class.
+ * This is what is returned as the output to the communicate
+ * function, so, users must know about this class.
  *
  * OutBuffer and ErrBuffer are just different typedefs to this class.
  */
@@ -930,22 +924,6 @@ public:
   Buffer() {}
   explicit Buffer(size_t cap) { buf.resize(cap); }
   void add_cap(size_t cap) { buf.resize(cap); }
-
-#if 0
-  Buffer(const Buffer& other):
-    buf(other.buf),
-    length(other.length)
-  {
-    std::cout << "COPY" << std::endl;
-  }
-
-  Buffer(Buffer&& other):
-    buf(std::move(other.buf)),
-    length(other.length)
-  {
-    std::cout << "MOVE" << std::endl;
-  }
-#endif
 
 public:
   std::vector<char> buf;
@@ -1202,25 +1180,24 @@ private:
  * interface to the client.
  *
  * API's provided by the class:
- * 1. Popen({"cmd"}, output{..}, error{..}, cwd{..}, ....)
+ * Popen({"cmd"}, output{..}, error{..}, cwd{..}, ....)
  *    Command provided as a sequence.
- * 2. Popen("cmd arg1"m output{..}, error{..}, cwd{..}, ....)
+ * Popen("cmd arg1", output{..}, error{..}, cwd{..}, ....)
  *    Command provided in a single string.
- * 3. wait()             - Wait for the child to exit.
- * 4. retcode()          - The return code of the exited child.
- * 5. pid()              - PID of the spawned child.
- * 6. poll()             - Check the status of the running child.
- * 7. kill(sig_num)      - Kill the child. SIGTERM used by default.
- * 8. send(...)          - Send input to the input channel of the child.
- * 9. communicate(...)   - Get the output/error from the child and close the channels
- *                         from the parent side.
- *10. input()            - Get the input channel/File pointer. Can be used for
- *                         customizing the way of sending input to child.
- *11. output()           - Get the output channel/File pointer. Usually used
-                           in case of redirection. See piping examples.
- *12. error()            - Get the error channel/File pointer. Usually used
-                           in case of redirection.
- *13. start_process()    - Start the child process. Only to be used when
+ * wait()             - Wait for the child to exit.
+ * retcode()          - The return code of the exited child.
+ * pid()              - PID of the spawned child.
+ * poll()             - Check the status of the running child.
+ * send(...)          - Send input to the input channel of the child.
+ * communicate(...)   - Get the output/error from the child and close the channels
+ *                      from the parent side.
+ * input()            - Get the input channel/File pointer. Can be used for
+ *                      customizing the way of sending input to child.
+ * output()           - Get the output channel/File pointer. Usually used
+                        in case of redirection. See piping examples.
+ * error()            - Get the error channel/File pointer. Usually used
+                        in case of redirection.
+ * start_process()    - Start the child process. Only to be used when
  *                         `defer_spawn` option was provided in Popen constructor.
  */
 class Popen
@@ -1265,14 +1242,6 @@ public:
     if (!defer_process_start_) execute_process();
   }
 
-/*
-  ~Popen()
-  {
-#ifdef __USING_WINDOWS__
-    CloseHandle(this->process_handle_);
-#endif
-  }
-*/
 
   void start_process() noexcept(false);
 
@@ -1283,10 +1252,6 @@ public:
   int wait() noexcept(false);
 
   int poll() noexcept(false);
-
-  // Does not fail, Caller is expected to recheck the
-  // status with a call to poll()
-  void kill(int sig_num = 9);
 
   void set_out_buf_cap(size_t cap) { stream_.set_out_buf_cap(cap); }
 
@@ -1477,19 +1442,6 @@ inline int Popen::poll() noexcept(false)
   return retcode_;
 #endif
 }
-
-inline void Popen::kill(int sig_num)
-{
-#ifdef __USING_WINDOWS__
-  if (!TerminateProcess(this->process_handle_, (UINT)sig_num)) {
-    throw OSError("TerminateProcess", 0);
-  }
-#else
-  if (session_leader_) killpg(child_pid_, sig_num);
-  else ::kill(child_pid_, sig_num);
-#endif
-}
-
 
 inline void Popen::execute_process() noexcept(false)
 {
