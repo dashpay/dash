@@ -1582,11 +1582,11 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
             continue;
         }
 
-        Sock::Event requested{0};
+        Sock::Event requested{Sock::ERR};
         if (select_send) {
-            requested = Sock::SEND;
+            requested |= Sock::SEND;
         } else if (select_recv) {
-            requested = Sock::RECV;
+            requested |= Sock::RECV;
         }
 
         events_per_sock.emplace(pnode->m_sock->Get(), Sock::Events{requested});

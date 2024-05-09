@@ -204,6 +204,9 @@ bool Sock::WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events
         if (events.requested & SEND) {
             pfd.events |= POLLOUT;
         }
+        if (events.requested & ERR) {
+            pfd.events |= (POLLERR | POLLHUP);
+        }
     }
 
     if (poll(pfds.data(), pfds.size(), count_milliseconds(timeout)) == SOCKET_ERROR) {
@@ -252,7 +255,9 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout, EventsPerSock& even
         if (events.requested & SEND) {
             FD_SET(s, &send);
         }
-        FD_SET(s, &err);
+        if (events.requested & ERR) {
+            FD_SET(s, &err);
+        }
         socket_max = std::max(socket_max, s);
     }
 
