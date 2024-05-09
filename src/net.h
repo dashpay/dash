@@ -1269,19 +1269,6 @@ private:
      */
     Sock::EventsPerSock GenerateWaitSockets(Span<CNode* const> nodes);
 
-#ifdef USE_KQUEUE
-    void SocketEventsKqueue(std::set<SOCKET>& recv_set,
-                            std::set<SOCKET>& send_set,
-                            std::set<SOCKET>& error_set,
-                            bool only_poll);
-#endif
-#ifdef USE_EPOLL
-    void SocketEventsEpoll(std::set<SOCKET>& recv_set,
-                           std::set<SOCKET>& send_set,
-                           std::set<SOCKET>& error_set,
-                           bool only_poll);
-#endif
-
     /**
      * Check connected and listening sockets for IO readiness and process them accordingly.
      */
