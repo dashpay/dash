@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string>
 
 /**
@@ -82,7 +83,7 @@ public:
     /**
      * Take ownership of an existent socket.
      */
-    explicit Sock(SOCKET s);
+    explicit Sock(SOCKET s, SocketEventsMode event_mode = SocketEventsMode::Select, std::optional<int> fd_mode = std::nullopt);
 
     /**
      * Copy constructor, disabled because closing the same socket twice is undesirable.
@@ -241,6 +242,10 @@ protected:
      * Contained socket. `INVALID_SOCKET` designates the object is empty.
      */
     SOCKET m_socket;
+    /* Flag for storing socket event mode */
+    SocketEventsMode m_event_mode{SocketEventsMode::Unknown};
+    /* Optional containing file descriptor for applicable event modes */
+    std::optional<int> m_fd_mode{std::nullopt};
 };
 
 /** Return readable error string for a network error code */

@@ -30,12 +30,32 @@ static inline bool IOErrorIsPermanent(int err)
 
 Sock::Sock() : m_socket(INVALID_SOCKET) {}
 
-Sock::Sock(SOCKET s) : m_socket(s) {}
+Sock::Sock(SOCKET s, SocketEventsMode event_mode, std::optional<int> fd_mode)
+    : m_socket(s),
+      m_event_mode(event_mode),
+      m_fd_mode(fd_mode)
+{
+    // Do not allow for the *possibility* of intentionally setting up a valid socket
+    // with an unknown event mode.
+    if (s != INVALID_SOCKET) {
+        assert(m_event_mode != SocketEventsMode::Unknown);
+    }
+
+    // If we are using {epoll, kqueue} socket event modes, there must exist a file
+    // descriptor for manipulating the socket with the {epoll, kqueue} instance
+    if (m_event_mode == SocketEventsMode::EPoll || m_event_mode == SocketEventsMode::KQueue) {
+        assert(m_fd_mode != std::nullopt && m_fd_mode != INVALID_SOCKET);
+    }
+}
 
 Sock::Sock(Sock&& other)
 {
     m_socket = other.m_socket;
+    m_event_mode = other.m_event_mode;
+    m_fd_mode = other.m_fd_mode;
     other.m_socket = INVALID_SOCKET;
+    other.m_event_mode = SocketEventsMode::Unknown;
+    other.m_fd_mode = std::nullopt;
 }
 
 Sock::~Sock() { Reset(); }
@@ -44,7 +64,11 @@ Sock& Sock::operator=(Sock&& other)
 {
     Reset();
     m_socket = other.m_socket;
+    m_event_mode = other.m_event_mode;
+    m_fd_mode = other.m_fd_mode;
     other.m_socket = INVALID_SOCKET;
+    other.m_event_mode = SocketEventsMode::Unknown;
+    other.m_fd_mode = std::nullopt;
     return *this;
 }
 
@@ -54,6 +78,8 @@ SOCKET Sock::Release()
 {
     const SOCKET s = m_socket;
     m_socket = INVALID_SOCKET;
+    m_event_mode = SocketEventsMode::Unknown;
+    m_fd_mode = std::nullopt;
     return s;
 }
 
@@ -87,7 +113,7 @@ std::unique_ptr<Sock> Sock::Accept(sockaddr* addr, socklen_t* addr_len) const
     const auto socket = accept(m_socket, addr, addr_len);
     if (socket != ERR) {
         try {
-            sock = std::make_unique<Sock>(socket);
+            sock = std::make_unique<Sock>(socket, m_event_mode, m_fd_mode);
         } catch (const std::exception&) {
 #ifdef WIN32
             closesocket(socket);

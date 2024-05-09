@@ -1519,6 +1519,13 @@ private:
     std::unique_ptr<EdgeTriggeredEvents> m_edge_trig_events{nullptr};
     std::unique_ptr<WakeupPipe> m_wakeup_pipe{nullptr};
 
+    std::optional<int> GetModeFileDescriptor() {
+        if (m_edge_trig_events) {
+            return m_edge_trig_events->GetFileDescriptor();
+        }
+        return std::nullopt;
+    }
+
     template <typename Callable>
     void ToggleWakeupPipe(Callable&& func)
     {
