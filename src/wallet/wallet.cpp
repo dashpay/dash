@@ -4405,7 +4405,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans()
                 spk_manager->SetupDescriptor(std::move(desc));
                 uint256 id = spk_manager->GetID();
                 m_spk_managers[id] = std::move(spk_manager);
-                AddActiveScriptPubKeyMan(id, t, internal);
+                AddActiveScriptPubKeyMan(id, internal);
             }
         }
     }
