@@ -1942,7 +1942,7 @@ esac
 
 echo
 echo "Options used to compile and link:"
-echo "  external signer     = $with_external_signer"
+echo "  external signer     = $use_external_signer"
 echo "  multiprocess        = $build_multiprocess"
 echo "  with libs           = $build_bitcoin_libs"
 echo "  with wallet         = $enable_wallet"
