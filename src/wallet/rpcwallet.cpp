@@ -4202,7 +4202,7 @@ static RPCHelpMan send()
     // Make a blank psbt
     PartiallySignedTransaction psbtx(rawTx);
 
-    
+
     // First fill transaction with our data without signing,
     // so external signers are not asked sign more than once.
     bool complete;
