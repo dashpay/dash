@@ -539,7 +539,7 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
         if (complete) {
             const CTransactionRef tx = MakeTransactionRef(mtx);
             m_current_transaction->setWtx(tx);
-            WalletModel::SendCoinsReturn sendStatus = model->sendCoins(*m_current_transaction);
+            WalletModel::SendCoinsReturn sendStatus = model->sendCoins(*m_current_transaction, m_coin_control->IsUsingCoinJoin());
             // process sendStatus and on error generate message shown to user
             processSendCoinsReturn(sendStatus);
 
