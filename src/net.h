@@ -1490,15 +1490,13 @@ private:
         return std::nullopt;
     }
 
-    template <typename Callable>
-    void ToggleWakeupPipe(Callable&& func)
-    {
+    wrap_fn ToggleWakeupPipe = [&](std::function<void()>&& func) {
         if (m_wakeup_pipe) {
             m_wakeup_pipe->Toggle(func);
         } else {
             func();
         }
-    }
+    };
 
     Mutex cs_sendable_receivable_nodes;
     std::unordered_map<NodeId, CNode*> mapReceivableNodes GUARDED_BY(cs_sendable_receivable_nodes);

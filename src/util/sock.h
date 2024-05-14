@@ -10,6 +10,7 @@
 #include <util/time.h>
 
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -69,6 +70,8 @@ static SocketEventsMode SEMFromString(const std::string str)
 #endif /* USE_KQUEUE */
     else { return SocketEventsMode::Unknown; }
 }
+
+using wrap_fn = std::function<void(std::function<void()>&&)>;
 
 /**
  * RAII helper class that manages a socket. Mimics `std::unique_ptr`, but instead of a pointer it
@@ -254,18 +257,25 @@ public:
      * This doesn't apply to Sock::Wait(), as it populates an EventsPerSock map with its own raw
      * socket before passing it to WaitMany.
      */
-    static bool IWaitMany(SocketEventsMode event_mode, std::optional<int> fd_mode, std::chrono::milliseconds timeout,
-                          EventsPerSock& events_per_sock, bool lt_only = false);
+    static bool IWaitMany(SocketEventsMode event_mode, std::optional<int> fd_mode, wrap_fn wrap_func,
+                          std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, bool lt_only = false);
 #ifdef USE_EPOLL
-    static bool WaitManyEPoll(int fd_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+    static bool WaitManyEPoll(int fd_mode, wrap_fn wrap_func,
+                              std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 #endif /* USE_EPOLL */
 #ifdef USE_KQUEUE
-    static bool WaitManyKQueue(int fd_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+    static bool WaitManyKQueue(int fd_mode, wrap_fn wrap_func,
+                               std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 #endif /* USE_KQUEUE */
 #ifdef USE_POLL
-    static bool WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+    static bool WaitManyPoll(wrap_fn wrap_func,
+                             std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 #endif /* USE_POLL */
-    static bool WaitManySelect(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+    static bool WaitManySelect(wrap_fn wrap_func,
+                               std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+
+    /* Set function wrapped around WaitMany()'s API call */
+    void SetWrapFn(wrap_fn wrap_func);
 
     /* Higher level, convenience, methods. These may throw. */
 
@@ -314,6 +324,8 @@ protected:
     SocketEventsMode m_event_mode{SocketEventsMode::Unknown};
     /* Optional containing file descriptor for applicable event modes */
     std::optional<int> m_fd_mode{std::nullopt};
+    /* Function that wraps itself around WakeMany()'s API call */
+    wrap_fn m_wrap_func{[](std::function<void()>&& func){func();}};
 };
 
 /** Return readable error string for a network error code */

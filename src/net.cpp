@@ -517,6 +517,9 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         return nullptr;
     }
 
+    // Set toggle wakeup pipe function to be called in between WakeMany()'s API call
+    sock->SetWrapFn(ToggleWakeupPipe);
+
     // Add node
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
@@ -1714,7 +1717,8 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
         // select(2)). If none are ready, wait for a short while and return
         // empty sets.
         events_per_sock = GenerateWaitSockets(snap.Nodes());
-        if (events_per_sock.empty() || !Sock::IWaitMany(socketEventsMode, GetModeFileDescriptor(), timeout, events_per_sock)) {
+        if (events_per_sock.empty() || !Sock::IWaitMany(socketEventsMode, GetModeFileDescriptor(),
+                                                         ToggleWakeupPipe, timeout, events_per_sock)) {
             if (!only_poll) interruptNet.sleep_for(timeout);
         }
 
@@ -2986,6 +2990,9 @@ bool CConnman::BindListenPort(const CService& addrBind, bilingual_str& strError,
         LogPrintf("%s\n", strError.original);
         return false;
     }
+
+    // Set toggle wakeup pipe function to be called in between WakeMany()'s API call
+    sock->SetWrapFn(ToggleWakeupPipe);
 
     if (m_edge_trig_events && !m_edge_trig_events->AddSocket(sock->Get())) {
         LogPrintf("Error: EdgeTriggeredEvents::AddSocket() failed\n");

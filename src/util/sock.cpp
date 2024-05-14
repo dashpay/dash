@@ -150,7 +150,7 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occur
 
     /* We need to specify that we only want level-triggered modes used because we are expecting
        a direct correlation between the events reported and the one socket we are querying */
-    if (!IWaitMany(m_event_mode, m_fd_mode, timeout, events_per_sock, /* lt_only = */ true)) {
+    if (!IWaitMany(m_event_mode, m_fd_mode, m_wrap_func, timeout, events_per_sock, /* lt_only = */ true)) {
         return false;
     }
 
@@ -163,33 +163,33 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occur
 
 bool Sock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock) const
 {
-    return IWaitMany(m_event_mode, m_fd_mode, timeout, events_per_sock);
+    return IWaitMany(m_event_mode, m_fd_mode, m_wrap_func, timeout, events_per_sock);
 }
 
-bool Sock::IWaitMany(SocketEventsMode event_mode, std::optional<int> fd_mode, std::chrono::milliseconds timeout,
-                     EventsPerSock& events_per_sock, bool lt_only)
+bool Sock::IWaitMany(SocketEventsMode event_mode, std::optional<int> fd_mode, wrap_fn wrap_func,
+                     std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, bool lt_only)
 {
     switch (event_mode)
     {
 #ifdef USE_POLL
         case SocketEventsMode::Poll:
-            return WaitManyPoll(timeout, events_per_sock);
+            return WaitManyPoll(wrap_func, timeout, events_per_sock);
 #endif /* USE_POLL */
         case SocketEventsMode::Select:
-            return WaitManySelect(timeout, events_per_sock);
+            return WaitManySelect(wrap_func, timeout, events_per_sock);
 #ifdef USE_EPOLL
         case SocketEventsMode::EPoll:
             /* If we explictly need to use a level triggered mode, skip below to fallback */
             if (lt_only) break;
             assert(fd_mode);
-            return WaitManyEPoll(fd_mode.value(), timeout, events_per_sock);
+            return WaitManyEPoll(fd_mode.value(), wrap_func, timeout, events_per_sock);
 #endif /* USE_EPOLL */
 #ifdef USE_KQUEUE
         case SocketEventsMode::KQueue:
             /* If we explictly need to use a level triggered mode, skip below to fallback */
             if (lt_only) break;
             assert(fd_mode);
-            return WaitManyKQueue(fd_mode.value(), timeout, events_per_sock);
+            return WaitManyKQueue(fd_mode.value(), wrap_func, timeout, events_per_sock);
 #endif /* USE_KQUEUE */
         default:
             assert(false);
@@ -197,18 +197,22 @@ bool Sock::IWaitMany(SocketEventsMode event_mode, std::optional<int> fd_mode, st
     /* We should only be here if we need a level-triggered mode but the instance is edge-triggered instead */
     assert(lt_only);
 #ifdef USE_POLL
-    return WaitManyPoll(timeout, events_per_sock);
+    return WaitManyPoll(wrap_func, timeout, events_per_sock);
 #else
-    return WaitManySelect(timeout, events_per_sock);
+    return WaitManySelect(wrap_func, timeout, events_per_sock);
 #endif /* USE_POLL */
 }
 
 #ifdef USE_EPOLL
-bool Sock::WaitManyEPoll(int fd_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
+bool Sock::WaitManyEPoll(int fd_mode, wrap_fn wrap_func,
+                         std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
 {
     std::array<epoll_event, MAX_EVENTS> events;
 
-    int ret = epoll_wait(fd_mode, events.data(), events.size(), count_milliseconds(timeout));
+    int ret{SOCKET_ERROR};
+    wrap_func([&](){
+        ret = epoll_wait(fd_mode, events.data(), events.size(), count_milliseconds(timeout));
+    });
     if (ret == SOCKET_ERROR || ret == 0) {
         return false;
     }
@@ -239,12 +243,16 @@ emplace_epoll:
 #endif /* USE_EPOLL */
 
 #ifdef USE_KQUEUE
-bool Sock::WaitManyKQueue(int fd_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
+bool Sock::WaitManyKQueue(int fd_mode, wrap_fn wrap_func,
+                          std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
 {
     std::array<struct kevent, MAX_EVENTS> events;
     struct timespec ts = MillisToTimespec(timeout);
 
-    int ret = kevent(fd_mode, nullptr, 0, events.data(), events.size(), &ts);
+    int ret{SOCKET_ERROR};
+    wrap_func([&](){
+        ret = kevent(fd_mode, nullptr, 0, events.data(), events.size(), &ts);
+    });
     if (ret == SOCKET_ERROR || ret == 0) {
         return false;
     }
@@ -275,7 +283,7 @@ emplace_kqueue:
 #endif /* USE_KQUEUE */
 
 #ifdef USE_POLL
-bool Sock::WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
+bool Sock::WaitManyPoll(wrap_fn wrap_func, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
 {
     std::vector<pollfd> pfds;
     for (const auto& [socket, events] : events_per_sock) {
@@ -293,7 +301,11 @@ bool Sock::WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events
         }
     }
 
-    if (poll(pfds.data(), pfds.size(), count_milliseconds(timeout)) == SOCKET_ERROR) {
+    int ret{SOCKET_ERROR};
+    wrap_func([&](){
+        ret = poll(pfds.data(), pfds.size(), count_milliseconds(timeout));
+    });
+    if (ret == SOCKET_ERROR) {
         return false;
     }
 
@@ -318,7 +330,7 @@ bool Sock::WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events
 }
 #endif /* USE_POLL */
 
-bool Sock::WaitManySelect(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
+bool Sock::WaitManySelect(wrap_fn wrap_func, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock)
 {
     fd_set recv;
     fd_set send;
@@ -347,7 +359,11 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout, EventsPerSock& even
 
     timeval tv = MillisToTimeval(timeout);
 
-    if (select(socket_max + 1, &recv, &send, &err, &tv) == SOCKET_ERROR) {
+    int ret{SOCKET_ERROR};
+    wrap_func([&](){
+        ret = select(socket_max + 1, &recv, &send, &err, &tv);
+    });
+    if (ret == SOCKET_ERROR) {
         return false;
     }
 
@@ -366,6 +382,11 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout, EventsPerSock& even
     }
 
     return true;
+}
+
+void Sock::SetWrapFn(wrap_fn wrap_func)
+{
+    m_wrap_func = wrap_func;
 }
 
 void Sock::SendComplete(const std::string& data,
