@@ -138,7 +138,41 @@ int Sock::SetSockOpt(int level, int opt_name, const void* opt_val, socklen_t opt
 
 bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
 {
+    std::string debug_str;
+
+    switch (m_event_mode)
+    {
 #ifdef USE_POLL
+        case SocketEventsMode::Poll:
+            return WaitPoll(timeout, requested, occurred);
+#endif /* USE_POLL */
+        case SocketEventsMode::Select:
+            return WaitSelect(timeout, requested, occurred);
+        case SocketEventsMode::EPoll:
+            debug_str += "Unimplemented for epoll, falling back on ";
+            break;
+        case SocketEventsMode::KQueue:
+            debug_str += "Unimplemented for kqueue, falling back on ";
+            break;
+        default:
+            assert(false);
+    }
+#ifdef USE_POLL
+    debug_str += "poll";
+#else
+    debug_str += "select";
+#endif /* USE_POLL*/
+    LogPrintf("%s\n", debug_str);
+#ifdef USE_POLL
+    return WaitPoll(timeout, requested, occurred);
+#else
+    return WaitSelect(timeout, requested, occurred);
+#endif /* USE_POLL */
+}
+
+#ifdef USE_POLL
+bool Sock::WaitPoll(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
+{
     pollfd fd;
     fd.fd = m_socket;
     fd.events = 0;
@@ -164,7 +198,11 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occur
     }
 
     return true;
-#else
+}
+#endif /* USE_POLL */
+
+bool Sock::WaitSelect(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
+{
     if (!IsSelectableSocket(m_socket)) {
         return false;
     }
@@ -199,7 +237,6 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occur
     }
 
     return true;
-#endif /* USE_POLL */
 }
 
 void Sock::SendComplete(const std::string& data,
