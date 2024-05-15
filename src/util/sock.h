@@ -211,7 +211,7 @@ public:
      * Auxiliary requested/occurred events to wait for in `WaitMany()`.
      */
     struct Events {
-        explicit Events(Event req) : requested{req}, occurred{0} {}
+        explicit Events(Event req, Event ocr = 0) : requested{req}, occurred{ocr} {}
         Event requested;
         Event occurred;
     };
@@ -254,7 +254,14 @@ public:
      * This doesn't apply to Sock::Wait(), as it populates an EventsPerSock map with its own raw
      * socket before passing it to WaitMany.
      */
-    static bool IWaitMany(SocketEventsMode event_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+    static bool IWaitMany(SocketEventsMode event_mode, std::optional<int> fd_mode, std::chrono::milliseconds timeout,
+                          EventsPerSock& events_per_sock, bool lt_only = false);
+#ifdef USE_EPOLL
+    static bool WaitManyEPoll(int fd_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+#endif /* USE_EPOLL */
+#ifdef USE_KQUEUE
+    static bool WaitManyKQueue(int fd_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
+#endif /* USE_KQUEUE */
 #ifdef USE_POLL
     static bool WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 #endif /* USE_POLL */
