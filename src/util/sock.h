@@ -13,6 +13,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 /**
  * Maximum time to wait for I/O readiness.
@@ -180,29 +181,84 @@ public:
     /**
      * If passed to `Wait()`, then it will wait for readiness to read from the socket.
      */
-    static constexpr Event RECV = 0b01;
+    static constexpr Event RECV = 0b001;
 
     /**
      * If passed to `Wait()`, then it will wait for readiness to send to the socket.
      */
-    static constexpr Event SEND = 0b10;
+    static constexpr Event SEND = 0b010;
+
+    /**
+     * Ignored if passed to `Wait()`, but could be set in the occurred events if an
+     * exceptional condition has occurred on the socket or if it has been disconnected.
+     */
+    static constexpr Event ERR = 0b100;
 
     /**
      * Wait for readiness for input (recv) or output (send).
      * @param[in] timeout Wait this much for at least one of the requested events to occur.
      * @param[in] requested Wait for those events, bitwise-or of `RECV` and `SEND`.
-     * @param[out] occurred If not nullptr and `true` is returned, then upon return this
-     * indicates which of the requested events occurred. A timeout is indicated by return
-     * value of `true` and `occurred` being set to 0.
-     * @return true on success and false otherwise
+     * @param[out] occurred If not nullptr and the function returns `true`, then this
+     * indicates which of the requested events occurred (`ERR` will be added, even if
+     * not requested, if an exceptional event occurs on the socket).
+     * A timeout is indicated by return value of `true` and `occurred` being set to 0.
+     * @return true on success (or timeout, if `occurred` of 0 is returned), false otherwise
      */
     [[nodiscard]] virtual bool Wait(std::chrono::milliseconds timeout,
                                     Event requested,
                                     Event* occurred = nullptr) const;
+    /**
+     * Auxiliary requested/occurred events to wait for in `WaitMany()`.
+     */
+    struct Events {
+        explicit Events(Event req) : requested{req}, occurred{0} {}
+        Event requested;
+        Event occurred;
+    };
+
+    /**
+     * On which socket to wait for what events in `WaitMany()`.
+     *
+     * Bitcoin:
+     * The `shared_ptr` is copied into the map to ensure that the `Sock` object
+     * is not destroyed (its destructor would close the underlying socket).
+     * If this happens shortly before or after we call `poll(2)` and a new
+     * socket gets created under the same file descriptor number then the report
+     * from `WaitMany()` will be bogus.
+     *
+     * Dash:
+     * The raw `SOCKET` file descriptor is copied into the map (generally taken from
+     * Sock::Get()) to allow sockets managed by external logic (e.g. WakeupPipes) to
+     * be used without wrapping it into a Sock object and risk handing control over.
+     */
+    using EventsPerSock = std::unordered_map<SOCKET, Events>;
+
+    /**
+     * Same as `Wait()`, but wait on many sockets within the same timeout.
+     * @param[in] timeout Wait this long for at least one of the requested events to occur.
+     * @param[in,out] events_per_sock Wait for the requested events on these sockets and set
+     * `occurred` for the events that actually occurred.
+     * @return true on success (or timeout, if all `what[].occurred` are returned as 0),
+     * false otherwise
+     */
+    [[nodiscard]] virtual bool WaitMany(std::chrono::milliseconds timeout,
+                                        EventsPerSock& events_per_sock) const;
+
+    /**
+     * As an EventsPerSock map no longer contains a Sock object (it now contains the raw SOCKET file
+     * descriptor), we lose access to all the logic implemented in Sock. Except that as WaitMany
+     * doesn't interact with the raw socket stored within Sock, it can be safely declared as static
+     * and we can pass all other parameters as arguments as it should ordinarily remain the same for
+     * entire runtime duration of the program.
+     *
+     * This doesn't apply to Sock::Wait(), as it populates an EventsPerSock map with its own raw
+     * socket before passing it to WaitMany.
+     */
+    static bool IWaitMany(SocketEventsMode event_mode, std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 #ifdef USE_POLL
-    bool WaitPoll(std::chrono::milliseconds timeout, Event requested, Event* occurred = nullptr) const;
+    static bool WaitManyPoll(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 #endif /* USE_POLL */
-    bool WaitSelect(std::chrono::milliseconds timeout, Event requested, Event* occurred = nullptr) const;
+    static bool WaitManySelect(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock);
 
     /* Higher level, convenience, methods. These may throw. */
 
