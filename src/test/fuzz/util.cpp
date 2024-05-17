@@ -10,6 +10,8 @@
 #include <util/time.h>
 #include <version.h>
 
+#include <memory>
+
 FuzzedSock::FuzzedSock(FuzzedDataProvider& fuzzed_data_provider)
     : m_fuzzed_data_provider{fuzzed_data_provider}
 {
@@ -155,6 +157,20 @@ int FuzzedSock::Connect(const sockaddr*, socklen_t) const
     return 0;
 }
 
+std::unique_ptr<Sock> FuzzedSock::Accept(sockaddr* addr, socklen_t* addr_len) const
+{
+    constexpr std::array accept_errnos{
+        ECONNABORTED,
+        EINTR,
+        ENOMEM,
+    };
+    if (m_fuzzed_data_provider.ConsumeBool()) {
+        SetFuzzedErrNo(m_fuzzed_data_provider, accept_errnos);
+        return std::unique_ptr<FuzzedSock>();
+    }
+    return std::make_unique<FuzzedSock>(m_fuzzed_data_provider);
+}
+
 int FuzzedSock::GetSockOpt(int level, int opt_name, void* opt_val, socklen_t* opt_len) const
 {
     constexpr std::array getsockopt_errnos{
@@ -174,6 +190,19 @@ int FuzzedSock::GetSockOpt(int level, int opt_name, void* opt_val, socklen_t* op
     return 0;
 }
 
+int FuzzedSock::SetSockOpt(int, int, const void*, socklen_t) const
+{
+    constexpr std::array setsockopt_errnos{
+        ENOMEM,
+        ENOBUFS,
+    };
+    if (m_fuzzed_data_provider.ConsumeBool()) {
+        SetFuzzedErrNo(m_fuzzed_data_provider, setsockopt_errnos);
+        return -1;
+    }
+    return 0;
+}
+
 bool FuzzedSock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
 {
     constexpr std::array wait_errnos{
@@ -187,6 +216,15 @@ bool FuzzedSock::Wait(std::chrono::milliseconds timeout, Event requested, Event*
     }
     if (occurred != nullptr) {
         *occurred = m_fuzzed_data_provider.ConsumeBool() ? requested : 0;
+    }
+    return true;
+}
+
+bool FuzzedSock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock) const
+{
+    for (auto& [sock, events] : events_per_sock) {
+        (void)sock;
+        events.occurred = m_fuzzed_data_provider.ConsumeBool() ? events.requested : 0;
     }
     return true;
 }

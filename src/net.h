@@ -30,6 +30,7 @@
 #include <uint256.h>
 #include <util/check.h>
 #include <util/edge.h>
+#include <util/sock.h>
 #include <util/system.h>
 #include <util/wpipe.h>
 #include <consensus/params.h>
@@ -107,16 +108,6 @@ static const bool DEFAULT_DNSSEED = true;
 static const bool DEFAULT_FIXEDSEEDS = true;
 static const size_t DEFAULT_MAXRECEIVEBUFFER = 5 * 1000;
 static const size_t DEFAULT_MAXSENDBUFFER    = 1 * 1000;
-
-#if defined USE_KQUEUE
-#define DEFAULT_SOCKETEVENTS "kqueue"
-#elif defined USE_EPOLL
-#define DEFAULT_SOCKETEVENTS "epoll"
-#elif defined USE_POLL
-#define DEFAULT_SOCKETEVENTS "poll"
-#else
-#define DEFAULT_SOCKETEVENTS "select"
-#endif
 
 typedef int64_t NodeId;
 
@@ -437,7 +428,17 @@ public:
 
     NetPermissionFlags m_permissionFlags{ NetPermissionFlags::None };
     std::atomic<ServiceFlags> nServices{NODE_NONE};
-    SOCKET hSocket GUARDED_BY(cs_hSocket);
+
+    /**
+     * Socket used for communication with the node.
+     * May not own a Sock object (after `CloseSocketDisconnect()` or during tests).
+     * `shared_ptr` (instead of `unique_ptr`) is used to avoid premature close of
+     * the underlying file descriptor by one thread while another thread is
+     * poll(2)-ing it for activity.
+     * @see https://github.com/bitcoin/bitcoin/issues/21744 for details.
+     */
+    std::shared_ptr<Sock> m_sock GUARDED_BY(m_sock_mutex);
+
     /** Total size of all vSendMsg entries */
     size_t nSendSize GUARDED_BY(cs_vSend){0};
     /** Offset inside the first vSendMsg already sent */
@@ -446,7 +447,7 @@ public:
     std::list<std::vector<unsigned char>> vSendMsg GUARDED_BY(cs_vSend);
     std::atomic<size_t> nSendMsgSize{0};
     Mutex cs_vSend;
-    Mutex cs_hSocket;
+    Mutex m_sock_mutex;
     Mutex cs_vRecv;
 
     RecursiveMutex cs_vProcessMsg;
@@ -622,8 +623,7 @@ public:
 
     bool IsBlockRelayOnly() const;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn, ConnectionType conn_type_in, bool inbound_onion);
-    ~CNode();
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, std::shared_ptr<Sock> sock, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn, ConnectionType conn_type_in, bool inbound_onion);
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
 
@@ -677,7 +677,7 @@ public:
         nRefCount--;
     }
 
-    void CloseSocketDisconnect(CConnman* connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_hSocket);
+    void CloseSocketDisconnect(CConnman* connman) EXCLUSIVE_LOCKS_REQUIRED(!m_sock_mutex);
 
     void copyStats(CNodeStats &stats, const std::vector<bool> &m_asmap) EXCLUSIVE_LOCKS_REQUIRED(!m_subver_mutex, !m_addr_local_mutex, !cs_vSend, !cs_vRecv);
 
@@ -1200,9 +1200,13 @@ public:
 private:
     struct ListenSocket {
     public:
-        SOCKET socket;
+        std::shared_ptr<Sock> sock;
         inline void AddSocketPermissionFlags(NetPermissionFlags& flags) const { NetPermissions::AddFlag(flags, m_permissions); }
-        ListenSocket(SOCKET socket_, NetPermissionFlags permissions_) : socket(socket_), m_permissions(permissions_) {}
+        ListenSocket(std::shared_ptr<Sock> sock_, NetPermissionFlags permissions_)
+            : sock{sock_}, m_permissions{permissions_}
+        {
+        }
+
     private:
         NetPermissionFlags m_permissions;
     };
@@ -1231,12 +1235,12 @@ private:
     /**
      * Create a `CNode` object from a socket that has just been accepted and add the node to
      * the `m_nodes` member.
-     * @param[in] hSocket Connected socket to communicate with the peer.
+     * @param[in] sock Connected socket to communicate with the peer.
      * @param[in] permissionFlags The peer's permissions.
      * @param[in] addr_bind The address and port at our side of the connection.
      * @param[in] addr The address and port at the peer's side of the connection.
      */
-    void CreateNodeFromAcceptedSocket(SOCKET hSocket,
+    void CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
                                       NetPermissionFlags permissionFlags,
                                       const CAddress& addr_bind,
                                       const CAddress& addr,
@@ -1251,55 +1255,9 @@ private:
     /**
      * Generate a collection of sockets to check for IO readiness.
      * @param[in] nodes Select from these nodes' sockets.
-     * @param[out] recv_set Sockets to check for read readiness.
-     * @param[out] send_set Sockets to check for write readiness.
-     * @param[out] error_set Sockets to check for errors.
-     * @return true if at least one socket is to be checked (the returned set is not empty)
+     * @return sockets to check for readiness
      */
-    bool GenerateSelectSet(const std::vector<CNode*>& nodes,
-                           std::set<SOCKET>& recv_set,
-                           std::set<SOCKET>& send_set,
-                           std::set<SOCKET>& error_set);
-
-    /**
-     * Check which sockets are ready for IO.
-     * @param[in] nodes Select from these nodes' sockets (in supported event methods).
-     * @param[in] only_poll Permit zero timeout polling
-     * @param[out] recv_set Sockets which are ready for read.
-     * @param[out] send_set Sockets which are ready for write.
-     * @param[out] error_set Sockets which have errors.
-     * This calls `GenerateSelectSet()` to gather a list of sockets to check.
-     */
-    void SocketEvents(const std::vector<CNode*>& nodes,
-                      std::set<SOCKET>& recv_set,
-                      std::set<SOCKET>& send_set,
-                      std::set<SOCKET>& error_set,
-                      bool only_poll);
-
-#ifdef USE_KQUEUE
-    void SocketEventsKqueue(std::set<SOCKET>& recv_set,
-                            std::set<SOCKET>& send_set,
-                            std::set<SOCKET>& error_set,
-                            bool only_poll);
-#endif
-#ifdef USE_EPOLL
-    void SocketEventsEpoll(std::set<SOCKET>& recv_set,
-                           std::set<SOCKET>& send_set,
-                           std::set<SOCKET>& error_set,
-                           bool only_poll);
-#endif
-#ifdef USE_POLL
-    void SocketEventsPoll(const std::vector<CNode*>& nodes,
-                          std::set<SOCKET>& recv_set,
-                          std::set<SOCKET>& send_set,
-                          std::set<SOCKET>& error_set,
-                          bool only_poll);
-#endif
-    void SocketEventsSelect(const std::vector<CNode*>& nodes,
-                            std::set<SOCKET>& recv_set,
-                            std::set<SOCKET>& send_set,
-                            std::set<SOCKET>& error_set,
-                            bool only_poll);
+    Sock::EventsPerSock GenerateWaitSockets(Span<CNode* const> nodes);
 
     /**
      * Check connected and listening sockets for IO readiness and process them accordingly.
@@ -1308,20 +1266,17 @@ private:
 
     /**
      * Do the read/write for connected sockets that are ready for IO.
-     * @param[in] recv_set Sockets that are ready for read.
-     * @param[in] send_set Sockets that are ready for send.
-     * @param[in] error_set Sockets that have an exceptional condition (error).
+     * @param[in] nodes Nodes to process. The socket of each node is checked against `what`.
+     * @param[in] events_per_sock Sockets that are ready for IO.
      */
-    void SocketHandlerConnected(const std::set<SOCKET>& recv_set,
-                                const std::set<SOCKET>& send_set,
-                                const std::set<SOCKET>& error_set)
+    void SocketHandlerConnected(const Sock::EventsPerSock& events_per_sock)
         EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !mutexMsgProc);
 
     /**
      * Accept incoming connections, one from each read-ready listening socket.
-     * @param[in] recv_set Sockets that are ready for read.
+     * @param[in] events_per_sock Sockets that are ready for IO.
      */
-    void SocketHandlerListening(const std::set<SOCKET>& recv_set, CMasternodeSync& mn_sync)
+    void SocketHandlerListening(const Sock::EventsPerSock& events_per_sock, CMasternodeSync& mn_sync)
         EXCLUSIVE_LOCKS_REQUIRED(!mutexMsgProc);
 
     void ThreadSocketHandler(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !mutexMsgProc);
@@ -1505,15 +1460,20 @@ private:
     std::unique_ptr<EdgeTriggeredEvents> m_edge_trig_events{nullptr};
     std::unique_ptr<WakeupPipe> m_wakeup_pipe{nullptr};
 
-    template <typename Callable>
-    void ToggleWakeupPipe(Callable&& func)
-    {
+    std::optional<int> GetModeFileDescriptor() {
+        if (m_edge_trig_events) {
+            return m_edge_trig_events->GetFileDescriptor();
+        }
+        return std::nullopt;
+    }
+
+    wrap_fn ToggleWakeupPipe = [&](std::function<void()>&& func) {
         if (m_wakeup_pipe) {
             m_wakeup_pipe->Toggle(func);
         } else {
             func();
         }
-    }
+    };
 
     Mutex cs_sendable_receivable_nodes;
     std::unordered_map<NodeId, CNode*> mapReceivableNodes GUARDED_BY(cs_sendable_receivable_nodes);
