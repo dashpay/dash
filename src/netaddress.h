@@ -18,6 +18,7 @@
 #include <tinyformat.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+#include <constexpr_if_cxx20.h>
 
 #include <array>
 #include <cstdint>
@@ -110,6 +111,20 @@ static constexpr size_t ADDR_CJDNS_SIZE = 16;
 /// Size of "internal" (NET_INTERNAL) address (in bytes).
 static constexpr size_t ADDR_INTERNAL_SIZE = 10;
 
+static constexpr std::array<size_t, NET_MAX> ADDR_SIZES = {
+        0,                      // NET_UNROUTABLE
+        ADDR_IPV4_SIZE,         // NET_IPV4
+        ADDR_IPV6_SIZE,         // NET_IPV6
+        ADDR_TORV3_SIZE,        // NET_ONION (assuming TORv3 here)
+        ADDR_I2P_SIZE,          // NET_I2P
+        ADDR_CJDNS_SIZE,        // NET_CJDNS
+        ADDR_INTERNAL_SIZE,     // NET_INTERNAL
+        // no entry for NET_MAX since it’s not a real network type
+};
+
+static constexpr size_t ADDR_MAX_SIZE = ADDR_TORV3_SIZE;
+
+
 /// SAM 3.1 and earlier do not support specifying ports and force the port to 0.
 static constexpr uint16_t I2P_SAM31_PORT{0};
 
@@ -123,7 +138,7 @@ protected:
      * Raw representation of the network address.
      * In network byte order (big endian) for IPv4 and IPv6.
      */
-    prevector<ADDR_IPV6_SIZE, uint8_t> m_addr{ADDR_IPV6_SIZE, 0x0};
+    std::array<uint8_t, ADDR_MAX_SIZE> m_addr{};
 
     /**
      * Network to which this address belongs.
@@ -137,9 +152,43 @@ protected:
     uint32_t m_scope_id{0};
 
 public:
-    CNetAddr();
-    explicit CNetAddr(const struct in_addr& ipv4Addr);
-    void SetIP(const CNetAddr& ip);
+    /**
+     * Construct an unspecified IPv6 network address (::/128).
+     *
+     * @note This address is considered invalid by CNetAddr::IsValid()
+     */
+    constexpr CNetAddr() {};
+    CONSTEXPR_IF_CPP20 explicit CNetAddr(const struct in_addr& ipv4Addr) {
+        auto bit_cast_span = [&]() {
+#if __cplusplus >= 202002L
+            return std::bit_cast<std::array<uint8_t, sizeof(decltype(ipv4Addr))>>(ipv4Addr);
+#else
+            auto ptr = reinterpret_cast<const uint8_t*>(&ipv4Addr);
+            return Span{ptr, ADDR_IPV4_SIZE};
+#endif
+        };
+
+        m_net = NET_IPV4;
+        auto byte_arr = bit_cast_span();
+        m_addr.fill(0);
+        std::copy(byte_arr.data(), byte_arr.data() + ADDR_SIZES[NET_IPV4], m_addr.begin());
+    }
+    constexpr void SetIP(const CNetAddr& ipIn)
+    {
+        // Size check.
+        assert(ipIn.m_net != NET_UNROUTABLE && ipIn.m_net != NET_MAX);
+        assert(ipIn.m_addr.size() == ADDR_SIZES[ipIn.m_net]);
+
+        m_net = ipIn.m_net;
+        m_addr = ipIn.m_addr;
+    }
+
+    constexpr auto get_addr_span() const -> Span<const uint8_t> {
+        return Span{m_addr}.first(ADDR_SIZES[m_net]);
+    }
+    constexpr auto get_addr_mut_span() -> Span<uint8_t> {
+        return Span{m_addr}.first(ADDR_SIZES[m_net]);
+    }
 
     /**
      * Set from a legacy IPv6 address.
@@ -220,7 +269,20 @@ public:
     std::vector<unsigned char> GetAddrBytes() const;
     int GetReachabilityFrom(const CNetAddr *paddrPartner = nullptr) const;
 
-    explicit CNetAddr(const struct in6_addr& pipv6Addr, const uint32_t scope = 0);
+    CONSTEXPR_IF_CPP20 explicit CNetAddr(const struct in6_addr& pipv6Addr, const uint32_t scope = 0) {
+        auto bit_cast_span = [&]() {
+#if __cplusplus >= 202002L
+            return std::bit_cast<std::array<uint8_t, sizeof(decltype(pipv6Addr))>>(pipv6Addr);
+#else
+            auto ptr = reinterpret_cast<const uint8_t*>(&pipv6Addr);
+            return Span{ptr, ADDR_IPV6_SIZE};
+#endif
+        };
+
+        SetLegacyIPv6(bit_cast_span());
+        m_scope_id = scope;
+    }
+
     bool GetIn6Addr(struct in6_addr* pipv6Addr) const;
 
     friend bool operator==(const CNetAddr& a, const CNetAddr& b);
@@ -332,20 +394,20 @@ private:
 
         switch (m_net) {
         case NET_IPV6:
-            assert(m_addr.size() == sizeof(arr));
-            memcpy(arr, m_addr.data(), m_addr.size());
+            assert(get_addr_span().size() == sizeof(arr));
+            memcpy(arr, get_addr_span().data(), get_addr_span().size());
             return;
         case NET_IPV4:
             prefix_size = sizeof(IPV4_IN_IPV6_PREFIX);
-            assert(prefix_size + m_addr.size() == sizeof(arr));
+            assert(prefix_size + get_addr_span().size() == sizeof(arr));
             memcpy(arr, IPV4_IN_IPV6_PREFIX.data(), prefix_size);
-            memcpy(arr + prefix_size, m_addr.data(), m_addr.size());
+            memcpy(arr + prefix_size, get_addr_span().data(), get_addr_span().size());
             return;
         case NET_INTERNAL:
             prefix_size = sizeof(INTERNAL_IN_IPV6_PREFIX);
-            assert(prefix_size + m_addr.size() == sizeof(arr));
+            assert(prefix_size + get_addr_span().size() == sizeof(arr));
             memcpy(arr, INTERNAL_IN_IPV6_PREFIX.data(), prefix_size);
-            memcpy(arr + prefix_size, m_addr.data(), m_addr.size());
+            memcpy(arr + prefix_size, get_addr_span().data(), get_addr_span().size());
             return;
         case NET_ONION:
         case NET_I2P:
@@ -390,7 +452,7 @@ public:
         }
 
         s << static_cast<uint8_t>(GetBIP155Network());
-        s << m_addr;
+        s << get_addr_span();
     }
 
     /**
@@ -442,8 +504,7 @@ public:
         m_scope_id = 0;
 
         if (SetNetFromBIP155Network(bip155_net, address_size)) {
-            m_addr.resize(address_size);
-            s >> Span{m_addr};
+            s >> get_addr_mut_span();
 
             if (m_net != NET_IPV6) {
                 return;
@@ -458,7 +519,6 @@ public:
                 m_net = NET_INTERNAL;
                 memmove(m_addr.data(), m_addr.data() + INTERNAL_IN_IPV6_PREFIX.size(),
                         ADDR_INTERNAL_SIZE);
-                m_addr.resize(ADDR_INTERNAL_SIZE);
                 return;
             }
 
@@ -478,7 +538,7 @@ public:
         // Mimic a default-constructed CNetAddr object which is !IsValid() and thus
         // will not be gossiped, but continue reading next addresses from the stream.
         m_net = NET_IPV6;
-        m_addr.assign(ADDR_IPV6_SIZE, 0x0);
+        m_addr.fill(0x0);
     }
 };
 
@@ -557,10 +617,14 @@ protected:
     uint16_t port; // host order
 
 public:
-    CService();
-    CService(const CNetAddr& ip, uint16_t port);
-    CService(const struct in_addr& ipv4Addr, uint16_t port);
-    explicit CService(const struct sockaddr_in& addr);
+    constexpr CService() : port(0) {};
+    constexpr CService(const CNetAddr& ip, uint16_t port): CNetAddr(ip), port(port) {}
+    CONSTEXPR_IF_CPP20 CService(const struct in_addr& ipv4Addr, uint16_t port) : CNetAddr(ipv4Addr), port(port) {}
+    CONSTEXPR_IF_CPP20 explicit CService(const struct sockaddr_in& addr) : CNetAddr(addr.sin_addr), port(ntohs(addr.sin_port))
+    {
+        assert(addr.sin_family == AF_INET);
+    }
+
     void SetPort(uint16_t portIn);
     uint16_t GetPort() const;
     bool GetSockAddr(struct sockaddr* paddr, socklen_t *addrlen) const;
@@ -573,8 +637,12 @@ public:
     std::string ToStringPort() const;
     std::string ToStringIPPort(bool fUseGetnameinfo = true) const;
 
-    CService(const struct in6_addr& ipv6Addr, uint16_t port);
-    explicit CService(const struct sockaddr_in6& addr);
+    CONSTEXPR_IF_CPP20 CService(const struct in6_addr& ipv6Addr, uint16_t portIn) : CNetAddr(ipv6Addr), port(portIn) {}
+
+    CONSTEXPR_IF_CPP20 explicit CService(const struct sockaddr_in6& addr) : CNetAddr(addr.sin6_addr, addr.sin6_scope_id), port(ntohs(addr.sin6_port))
+    {
+        assert(addr.sin6_family == AF_INET6);
+    }
 
     SERIALIZE_METHODS(CService, obj)
     {
