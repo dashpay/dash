@@ -37,14 +37,15 @@ static void WalletCreate(benchmark::Bench& bench, bool encrypted)
     bilingual_str error_string;
     std::vector<bilingual_str> warnings;
 
-    fs::path wallet_path = test_setup->m_path_root / strprintf("test_wallet_%d", random.rand32()).c_str();
+    auto wallet_path = fs::PathToString(test_setup->m_path_root / "test_wallet");
     bench.run([&] {
-        auto wallet = CreateWallet(context, wallet_path.utf8string(), /*load_on_start=*/std::nullopt, options, status, error_string, warnings);
+        auto wallet = CreateWallet(context, wallet_path, /*load_on_start=*/std::nullopt, options, status, error_string, warnings);
         assert(status == DatabaseStatus::SUCCESS);
         assert(wallet != nullptr);
 
-        // Cleanup
-        wallet.reset();
+        // Release wallet
+        RemoveWallet(context, wallet, /*load_on_start=*/ std::nullopt);
+        UnloadWallet(std::move(wallet));
         fs::remove_all(wallet_path);
     });
 }
