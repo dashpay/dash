@@ -436,6 +436,7 @@ BITCOIN_CORE_H = \
   util/translation.h \
   util/types.h \
   util/ui_change_type.h \
+  util/vecdeque.h \
   util/vector.h \
   util/wpipe.h \
   validation.h \
