@@ -13,7 +13,6 @@ Developer Notes
     - [Development tips and tricks](#development-tips-and-tricks)
         - [Compiling for debugging](#compiling-for-debugging)
         - [Show sources in debugging](#show-sources-in-debugging)
-        - [Compiling for gprof profiling](#compiling-for-gprof-profiling)
         - [`debug.log`](#debuglog)
         - [Devnet, testnet, and regtest modes](#devnet-testnet-and-regtest-modes)
         - [DEBUG_LOCKORDER](#debug_lockorder)
@@ -384,10 +383,6 @@ ln -s /path/to/project/root/src src
 ```
 
 3. Use `debugedit` to modify debug information in the binary.
-
-### Compiling for gprof profiling
-
-Run configure with the `--enable-gprof` option, then make.
 
 ### `debug.log`
 
