@@ -284,7 +284,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir = m_args.GetDataDirNet(),
-        .check_block_index = true,
+        .check_block_index = 1,
         .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
         .mn_sync = m_node.mn_sync.get(),
         .notifications = *m_node.notifications,

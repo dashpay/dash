@@ -24,6 +24,7 @@ add_executable(bench_bitcoin
   ccoins_caching.cpp
   chacha20.cpp
   checkblock.cpp
+  checkblockindex.cpp
   checkqueue.cpp
   disconnected_transactions.cpp
   crypto_hash.cpp
