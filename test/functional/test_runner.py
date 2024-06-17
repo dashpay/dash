@@ -15,8 +15,10 @@ For a description of arguments recognized by test scripts, see
 import argparse
 from collections import deque
 import configparser
+import csv
 import datetime
 import os
+import pathlib
 import time
 import shutil
 import signal
@@ -451,6 +453,7 @@ def main():
     parser.add_argument('--failfast', '-F', action='store_true', help='stop execution after the first test failure')
     parser.add_argument('--filter', help='filter scripts to run by regular expression')
     parser.add_argument('--skipunit', '-u', action='store_true', help='skip unit tests for the test framework')
+    parser.add_argument('--resultsfile', '-r', help='store test results (as CSV) to the provided file')
 
 
     args, unknown_args = parser.parse_known_args()
@@ -482,6 +485,13 @@ def main():
     os.makedirs(tmpdir)
 
     logging.debug("Temporary test directory at %s" % tmpdir)
+
+    results_filepath = None
+    if args.resultsfile:
+        results_filepath = pathlib.Path(args.resultsfile)
+        # Stop early if the parent directory doesn't exist
+        assert results_filepath.parent.exists(), "Results file parent directory does not exist"
+        logging.debug("Test results will be written to " + str(results_filepath))
 
     enable_bitcoind = config["components"].getboolean("ENABLE_BITCOIND")
 
@@ -564,9 +574,10 @@ def main():
         failfast=args.failfast,
         use_term_control=args.ansi,
         skipunit=args.skipunit,
+        results_filepath=results_filepath,
     )
 
-def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enable_coverage=False, args=None, combined_logs_len=0, failfast=False, use_term_control, skipunit=False):
+def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enable_coverage=False, args=None, combined_logs_len=0, failfast=False, use_term_control, skipunit=False, results_filepath=None):
     args = args or []
 
     # Warn if dashd is already running
@@ -662,7 +673,10 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enab
                     logging.debug("Early exiting after test failure")
                     break
 
-    print_results(test_results, max_len_name, (int(time.time() - start_time)))
+    runtime = int(time.time() - start_time)
+    print_results(test_results, max_len_name, runtime)
+    if results_filepath:
+        write_results(test_results, results_filepath, runtime)
 
     if coverage:
         coverage_passed = coverage.report_rpc_coverage()
@@ -708,6 +722,17 @@ def print_results(test_results, max_len_name, runtime):
         results += RED[0]
     results += "Runtime: %s s\n" % (runtime)
     print(results)
+
+
+def write_results(test_results, filepath, total_runtime):
+    with open(filepath, mode="w", encoding="utf8") as results_file:
+        results_writer = csv.writer(results_file)
+        results_writer.writerow(['test', 'status', 'duration(seconds)'])
+        all_passed = True
+        for test_result in test_results:
+            all_passed = all_passed and test_result.was_successful
+            results_writer.writerow([test_result.name, test_result.status, str(test_result.time)])
+        results_writer.writerow(['ALL', ("Passed" if all_passed else "Failed"), str(total_runtime)])
 
 class TestHandler:
     """
