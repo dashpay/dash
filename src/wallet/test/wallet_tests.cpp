@@ -24,6 +24,7 @@
 #include <util/translation.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>
+#include <wallet/test/util.h>
 #include <wallet/test/wallet_test_fixture.h>
 
 #include <boost/test/unit_test.hpp>
@@ -573,21 +574,7 @@ public:
     ListCoinsTestingSetup()
     {
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
-        wallet = std::make_unique<CWallet>(m_node.chain.get(), m_node.coinjoin_loader.get(), "", CreateMockWalletDatabase());
-        {
-            LOCK(wallet->cs_wallet);
-            wallet->SetLastBlockProcessed(::ChainActive().Height(), ::ChainActive().Tip()->GetBlockHash());
-        }
-        bool firstRun;
-        wallet->LoadWallet(firstRun);
-        AddKey(*wallet, coinbaseKey);
-        WalletRescanReserver reserver(*wallet);
-        reserver.reserve();
-        CWallet::ScanResult result = wallet->ScanForWalletTransactions(::ChainActive().Genesis()->GetBlockHash(), 0 /* start_height */, {} /* max_height */, reserver, false /* update */);
-        BOOST_CHECK_EQUAL(result.status, CWallet::ScanResult::SUCCESS);
-        BOOST_CHECK_EQUAL(result.last_scanned_block, ::ChainActive().Tip()->GetBlockHash());
-        BOOST_CHECK_EQUAL(*result.last_scanned_height, ::ChainActive().Height());
-        BOOST_CHECK(result.last_failed_block.IsNull());
+        wallet = CreateSyncedWallet(*m_node.chain, m_node.chainman->ActiveChain(), coinbaseKey);
     }
 
     ~ListCoinsTestingSetup()
