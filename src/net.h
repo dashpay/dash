@@ -131,14 +131,21 @@ struct AddedNodeInfo
 class CNodeStats;
 class CClientUIInterface;
 
-struct CSerializedNetMsg
-{
+struct CSerializedNetMsg {
     CSerializedNetMsg() = default;
     CSerializedNetMsg(CSerializedNetMsg&&) = default;
     CSerializedNetMsg& operator=(CSerializedNetMsg&&) = default;
-    // No copying, only moves.
+    // No implicit copying, only moves.
     CSerializedNetMsg(const CSerializedNetMsg& msg) = delete;
     CSerializedNetMsg& operator=(const CSerializedNetMsg&) = delete;
+
+    CSerializedNetMsg Copy() const
+    {
+        CSerializedNetMsg copy;
+        copy.data = data;
+        copy.m_type = m_type;
+        return copy;
+    }
 
     std::vector<unsigned char> data;
     std::string m_type;
@@ -238,8 +245,8 @@ enum
 };
 
 bool IsPeerAddrLocalGood(CNode *pnode);
-/** Returns a local address that we should advertise to this peer */
-std::optional<CAddress> GetLocalAddrForPeer(CNode *pnode);
+/** Returns a local address that we should advertise to this peer. */
+std::optional<CService> GetLocalAddrForPeer(CNode& node);
 
 /**
  * Mark a network as reachable or unreachable (no automatic connects to it)
@@ -257,7 +264,7 @@ void RemoveLocal(const CService& addr);
 bool SeenLocal(const CService& addr);
 bool IsLocal(const CService& addr);
 bool GetLocal(CService &addr, const CNetAddr *paddrPeer = nullptr);
-CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices);
+CService GetLocalAddress(const CNetAddr& addrPeer);
 
 
 extern bool fDiscover;
@@ -281,7 +288,6 @@ class CNodeStats
 {
 public:
     NodeId nodeid;
-    ServiceFlags nServices;
     std::chrono::seconds m_last_send;
     std::chrono::seconds m_last_recv;
     std::chrono::seconds m_last_tx_time;
@@ -447,7 +453,6 @@ public:
     const std::unique_ptr<const TransportSerializer> m_serializer;
 
     NetPermissionFlags m_permissionFlags{NetPermissionFlags::None}; // treated as const outside of fuzz tester
-    std::atomic<ServiceFlags> nServices{NODE_NONE};
 
     /**
      * Socket used for communication with the node.
@@ -464,7 +469,7 @@ public:
     /** Offset inside the first vSendMsg already sent */
     size_t nSendOffset GUARDED_BY(cs_vSend){0};
     uint64_t nSendBytes GUARDED_BY(cs_vSend){0};
-    std::list<std::vector<unsigned char>> vSendMsg GUARDED_BY(cs_vSend);
+    std::deque<std::vector<unsigned char>> vSendMsg GUARDED_BY(cs_vSend);
     std::atomic<size_t> nSendMsgSize{0};
     Mutex cs_vSend;
     Mutex m_sock_mutex;
@@ -507,8 +512,6 @@ public:
     }
     // This boolean is unusued in actual processing, only present for backward compatibility at RPC/QT level
     bool m_legacyWhitelisted{false};
-    bool fClient{false}; // set by version message
-    bool m_limited_node{false}; //after BIP159, set by version message
     /** fSuccessfullyConnected is set to true on receiving VERACK from the peer. */
     std::atomic_bool fSuccessfullyConnected{false};
     // Setting fDisconnect to true will cause the node to be disconnected the
@@ -608,6 +611,9 @@ public:
     // Peer selected us as (compact blocks) high-bandwidth peer (BIP152)
     std::atomic<bool> m_bip152_highbandwidth_from{false};
 
+    /** Whether this peer provides all services that we want. Used for eviction decisions */
+    std::atomic_bool m_has_all_wanted_services{false};
+
     /** Whether we should relay transactions to this peer (their version
      *  message did not include fRelay=false and this is not a block-relay-only
      *  connection). This only changes from false to true. It will never change
@@ -649,7 +655,6 @@ public:
     bool IsBlockRelayOnly() const;
 
     CNode(NodeId id,
-          ServiceFlags nLocalServicesIn,
           std::shared_ptr<Sock> sock,
           const CAddress &addrIn,
           uint64_t nKeyedNetGroupIn,
@@ -716,11 +721,6 @@ public:
 
     void CopyStats(CNodeStats& stats) EXCLUSIVE_LOCKS_REQUIRED(!m_subver_mutex, !m_addr_local_mutex, !cs_vSend, !cs_vRecv);
 
-    ServiceFlags GetLocalServices() const
-    {
-        return nLocalServices;
-    }
-
     std::string ConnectionTypeAsString() const { return ::ConnectionTypeAsString(m_conn_type); }
 
     /** A ping-pong round trip has completed successfully. Update latest and minimum ping times. */
@@ -779,23 +779,6 @@ private:
     const ConnectionType m_conn_type;
     std::atomic<int> m_greatest_common_version{INIT_PROTO_VERSION};
 
-    //! Services offered to this peer.
-    //!
-    //! This is supplied by the parent CConnman during peer connection
-    //! (CConnman::ConnectNode()) from its attribute of the same name.
-    //!
-    //! This is const because there is no protocol defined for renegotiating
-    //! services initially offered to a peer. The set of local services we
-    //! offer should not change after initialization.
-    //!
-    //! An interesting example of this is NODE_NETWORK and initial block
-    //! download: a node which starts up from scratch doesn't have any blocks
-    //! to serve, but still advertises NODE_NETWORK because it will eventually
-    //! fulfill this role after IBD completes. P2P code is written in such a
-    //! way that it can gracefully handle peers who don't make good on their
-    //! service advertisements.
-    const ServiceFlags nLocalServices;
-
     std::list<CNetMessage> vRecvMsg;  // Used only by SocketHandler thread
 
     // Our address, as reported by the peer
@@ -832,7 +815,7 @@ class NetEventsInterface
 {
 public:
     /** Initialize a peer (setup state, queue any initial messages) */
-    virtual void InitializeNode(CNode* pnode) = 0;
+    virtual void InitializeNode(CNode& node, ServiceFlags our_services) = 0;
 
     /** Handle removal of a peer (clear state) */
     virtual void FinalizeNode(const CNode& node) = 0;
@@ -1491,16 +1474,14 @@ private:
     std::map<uint64_t, CachedAddrResponse> m_addr_response_caches;
 
     /**
-     * Services this instance offers.
+     * Services this node offers.
      *
-     * This data is replicated in each CNode instance we create during peer
-     * connection (in ConnectNode()) under a member also called
-     * nLocalServices.
+     * This data is replicated in each Peer instance we create.
      *
      * This data is not marked const, but after being set it should not
-     * change. See the note in CNode::nLocalServices documentation.
+     * change.
      *
-     * \sa CNode::nLocalServices
+     * \sa Peer::our_services
      */
     ServiceFlags nLocalServices;
 

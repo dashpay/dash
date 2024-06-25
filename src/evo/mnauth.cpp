@@ -60,7 +60,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
     connman.PushMessage(&peer, CNetMsgMaker(peer.GetCommonVersion()).Make(NetMsgType::MNAUTH, mnauth));
 }
 
-PeerMsgRet CMNAuth::ProcessMessage(CNode& peer, CConnman& connman, CMasternodeMetaMan& mn_metaman, const CActiveMasternodeManager* const mn_activeman,
+PeerMsgRet CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_services, CConnman& connman, CMasternodeMetaMan& mn_metaman, const CActiveMasternodeManager* const mn_activeman,
                                    const CMasternodeSync& mn_sync, const CDeterministicMNList& tip_mn_list, std::string_view msg_type, CDataStream& vRecv)
 {
     assert(mn_metaman.IsValid());
@@ -78,7 +78,7 @@ PeerMsgRet CMNAuth::ProcessMessage(CNode& peer, CConnman& connman, CMasternodeMe
         return tl::unexpected{MisbehavingError{100, "duplicate mnauth"}};
     }
 
-    if ((~peer.nServices) & (NODE_NETWORK | NODE_BLOOM)) {
+    if ((~node_services) & (NODE_NETWORK | NODE_BLOOM)) {
         // either NODE_NETWORK or NODE_BLOOM bit is missing in node's services
         return tl::unexpected{MisbehavingError{100, "mnauth from a node with invalid services"}};
     }
