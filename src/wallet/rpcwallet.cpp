@@ -268,9 +268,9 @@ RPCHelpMan getnewaddress()
         label = LabelFromValue(request.params[0]);
 
     CTxDestination dest;
-    std::string error;
+    bilingual_str error;
     if (!pwallet->GetNewDestination(label, dest, error)) {
-        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, error);
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, error.original);
     }
     return EncodeDestination(dest);
 },
@@ -303,9 +303,9 @@ RPCHelpMan getrawchangeaddress()
     }
 
     CTxDestination dest;
-    std::string error;
+    bilingual_str error;
     if (!pwallet->GetNewChangeDestination(dest, error)) {
-        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, error);
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, error.original);
     }
     return EncodeDestination(dest);
 },
@@ -3692,7 +3692,7 @@ RPCHelpMan signrawtransactionwithwallet()
     int nHashType = ParseSighashString(request.params[2]);
 
     // Script verification errors
-    std::map<int, std::string> input_errors;
+    std::map<int, bilingual_str> input_errors;
 
     bool complete = pwallet->SignTransaction(mtx, coins, nHashType, input_errors);
     UniValue result(UniValue::VOBJ);
@@ -4016,7 +4016,7 @@ RPCHelpMan getaddressinfo()
     DescriptorScriptPubKeyMan* desc_spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(pwallet->GetScriptPubKeyMan(scriptPubKey));
     if (desc_spk_man) {
         std::string desc_str;
-        if (desc_spk_man->GetDescriptorString(desc_str)) {
+        if (desc_spk_man->GetDescriptorString(desc_str, /* priv */ false)) {
             ret.pushKV("parent_desc", desc_str);
         }
     }

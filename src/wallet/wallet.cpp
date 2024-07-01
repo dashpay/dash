@@ -2995,11 +2995,11 @@ bool CWallet::SignTransaction(CMutableTransaction& tx) const
         const CWalletTx& wtx = mi->second;
         coins[input.prevout] = Coin(wtx.tx->vout[input.prevout.n], wtx.m_confirm.block_height, wtx.IsCoinBase());
     }
-    std::map<int, std::string> input_errors;
+    std::map<int, bilingual_str> input_errors;
     return SignTransaction(tx, coins, SIGHASH_ALL, input_errors);
 }
 
-bool CWallet::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, std::string>& input_errors) const
+bool CWallet::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors) const
 {
     // Try to sign with all ScriptPubKeyMans
     for (ScriptPubKeyMan* spk_man : GetAllScriptPubKeyMans()) {
@@ -4092,7 +4092,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
     return res;
 }
 
-bool CWallet::GetNewDestination(const std::string label, CTxDestination& dest, std::string& error)
+bool CWallet::GetNewDestination(const std::string label, CTxDestination& dest, bilingual_str& error)
 {
     error.clear();
     bool result = false;
@@ -4112,7 +4112,7 @@ bool CWallet::GetNewDestination(const std::string label, CTxDestination& dest, s
     return result;
 }
 
-bool CWallet::GetNewChangeDestination(CTxDestination& dest, std::string& error)
+bool CWallet::GetNewChangeDestination(const OutputType type, bilingual_str& error)
 {
     LOCK(cs_wallet);
     error.clear();
