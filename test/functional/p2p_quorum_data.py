@@ -400,6 +400,8 @@ class QuorumDataMessagesTest(DashTestFramework):
             assert_raises_rpc_error(-8, "proTxHash invalid",
                                     mn1.node.quorum, "getdata", 0, 100, quorum_hash, 0x03,
                                     "0000000000000000000000000000000000000000000000000000000000000000")
+            assert_raises_rpc_error(-8, "Should not specify proTxHash",
+                                    mn1.node.quorum, "getdata", 0, 100, quorum_hash, 0x01, mn1.proTxHash)
 
         # Enable DKG and disable ChainLocks
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
