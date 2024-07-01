@@ -24,8 +24,6 @@ FUZZ_TARGET(eval_script)
         }
     }();
     const CScript script(script_bytes.begin(), script_bytes.end());
-    for (const auto sig_version : {SigVersion::BASE}) {
-        std::vector<std::vector<unsigned char>> stack;
-        (void)EvalScript(stack, script, flags, BaseSignatureChecker(), sig_version, nullptr);
-    }
+    std::vector<std::vector<unsigned char>> stack;
+    (void)EvalScript(stack, script, flags, BaseSignatureChecker(), nullptr);
 }

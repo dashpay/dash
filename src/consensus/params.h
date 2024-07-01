@@ -36,10 +36,11 @@ enum DeploymentPos : uint16_t
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_V20,     // Deployment of EHF, LLMQ Randomness Beacon
     DEPLOYMENT_MN_RR,   // Deployment of Masternode Reward Location Reallocation
+    DEPLOYMENT_DIP0143, // Deployment of a faster Signature Hash algorithm
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in deploymentinfo.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
-constexpr bool ValidDeployment(DeploymentPos dep) { return DEPLOYMENT_TESTDUMMY <= dep && dep <= DEPLOYMENT_MN_RR; }
+constexpr bool ValidDeployment(DeploymentPos dep) { return DEPLOYMENT_TESTDUMMY <= dep && dep <= DEPLOYMENT_DIP0143; }
 
 /**
  * Struct for each individual consensus rule change using BIP9.
