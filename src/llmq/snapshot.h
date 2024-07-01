@@ -75,7 +75,7 @@ public:
         size_t cnt = ReadCompactSize(s);
         ReadFixedBitSet(s, activeQuorumMembers, cnt);
         cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto __ : irange::range(cnt)) {
             int obj;
             s >> obj;
             mnSkipList.push_back(obj);
@@ -180,21 +180,21 @@ public:
         }
 
         size_t cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto __ : irange::range(cnt)) {
             CFinalCommitment qc;
             ::Unserialize(s, qc);
             lastCommitmentPerIndex.push_back(std::move(qc));
         }
 
         cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto __ : irange::range(cnt)) {
             CQuorumSnapshot snap;
             ::Unserialize(s, snap);
             quorumSnapshotList.push_back(std::move(snap));
         }
 
         cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto __ : irange::range(cnt)) {
             CSimplifiedMNListDiff mnlist;
             ::Unserialize(s, mnlist);
             mnListDiffList.push_back(std::move(mnlist));

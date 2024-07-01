@@ -265,7 +265,7 @@ void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash) const
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s qi[%d] - aborting due to stop/shutdown requested\n", __func__, params.name, quorumIndex);
             throw AbortPhaseException();
         }
-        auto [_, _quorumHash] = GetPhaseAndQuorumHash();
+        auto [__, _quorumHash] = GetPhaseAndQuorumHash();
         if (_quorumHash != oldQuorumHash) {
             break;
         }

@@ -194,7 +194,7 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
     size_t vvec_size = ReadCompactSize(s);
     CBLSPublicKey pubkey;
     std::vector<CBLSPublicKey> qv;
-    for ([[maybe_unused]] size_t _ : irange::range(vvec_size)) {
+    for ([[maybe_unused]] size_t __ : irange::range(vvec_size)) {
         s >> CBLSPublicKeyVersionWrapper(pubkey, false);
         qv.emplace_back(pubkey);
     }

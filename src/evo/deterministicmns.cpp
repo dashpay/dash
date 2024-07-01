@@ -249,7 +249,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
 
     if (evo_to_be_skipped != nullptr) {
         // if EvoNode is in the middle of payments, add entries for already paid ones to the end of the list
-        for ([[maybe_unused]] auto _ : irange::range(evo_to_be_skipped->pdmnState->nConsecutivePayments)) {
+        for ([[maybe_unused]] auto __ : irange::range(evo_to_be_skipped->pdmnState->nConsecutivePayments)) {
             result.emplace_back(evo_to_be_skipped);
         }
     }

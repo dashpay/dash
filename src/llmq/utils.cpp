@@ -746,7 +746,7 @@ std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
 
     std::set<size_t> result;
     uint256 rnd = qwatchConnectionSeed;
-    for ([[maybe_unused]] const auto _ : irange::range(connectionCount)) {
+    for ([[maybe_unused]] const auto __ : irange::range(connectionCount)) {
         rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash())));
         result.emplace(rnd.GetUint64(0) % memberCount);
     }

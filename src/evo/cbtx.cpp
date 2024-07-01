@@ -230,7 +230,7 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
 auto CalcHashCountFromQCHashes(const QcHashMap& qcHashes)
 {
     size_t hash_count{0};
-    for (const auto& [_, vec_hashes] : qcHashes) {
+    for (const auto& [__, vec_hashes] : qcHashes) {
         hash_count += vec_hashes.size();
     }
     return hash_count;
@@ -294,7 +294,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
 
     for (const auto& [llmqType, map_indexed_hashes] : qcIndexedHashes) {
         auto& vec_hashes = qcHashes[llmqType];
-        for (const auto& [_, hash] : map_indexed_hashes) {
+        for (const auto& [__, hash] : map_indexed_hashes) {
             vec_hashes.emplace_back(hash);
         }
     }
