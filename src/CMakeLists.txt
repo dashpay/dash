@@ -342,7 +342,6 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   kernel/context.cpp
   kernel/cs_main.cpp
   kernel/disconnected_transactions.cpp
-  kernel/mempool_persist.cpp
   kernel/mempool_removal_reason.cpp
   instantsend/db.cpp
   instantsend/instantsend.cpp
@@ -394,6 +393,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/interfaces.cpp
   node/kernel_notifications.cpp
   node/mempool_args.cpp
+  node/mempool_persist.cpp
   node/mempool_persist_args.cpp
   node/miner.cpp
   node/minisketchwrapper.cpp

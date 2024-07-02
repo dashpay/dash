@@ -59,7 +59,6 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   context.cpp
   cs_main.cpp
   disconnected_transactions.cpp
-  mempool_persist.cpp
   mempool_removal_reason.cpp
   ../key.cpp
   ../key_io.cpp

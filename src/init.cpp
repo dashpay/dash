@@ -12,7 +12,6 @@
 
 #include <kernel/checks.h>
 #include <kernel/mempool_options.h>
-#include <kernel/mempool_persist.h>
 #include <kernel/validation_cache_sizes.h>
 
 #include <addrman.h>
@@ -63,6 +62,7 @@
 #include <node/interface_ui.h>
 #include <node/kernel_notifications.h>
 #include <node/mempool_args.h>
+#include <node/mempool_persist.h>
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
@@ -173,8 +173,6 @@
 
 using kernel::CoinStatsHashType;
 using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
-using kernel::DumpMempool;
-using kernel::LoadMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
@@ -183,6 +181,8 @@ using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
+using node::DumpMempool;
+using node::LoadMempool;
 using node::g_indexes_ready_to_sync;
 using node::KernelNotifications;
 using node::LoadChainstate;
