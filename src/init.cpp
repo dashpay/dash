@@ -105,6 +105,7 @@
 
 #include <statsd_client.h>
 
+#include <algorithm>
 #include <functional>
 #include <set>
 #include <stdint.h>
@@ -1563,8 +1564,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (!ignores_incoming_txs) node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
 
     assert(!node.mempool);
-    int check_ratio = std::min<int>(std::max<int>(args.GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
-    node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), check_ratio);
+    const int mempool_check_ratio = std::clamp<int>(args.GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0, 1000000);
+    node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), mempool_check_ratio);
 
     assert(!node.chainman);
     node.chainman = std::make_unique<ChainstateManager>();
@@ -1813,9 +1814,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     LogPrintf("* Using %.1f MiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 
-    bool fLoaded = false;
-
-    while (!fLoaded && !ShutdownRequested()) {
+    for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         const bool fReset = fReindex;
         auto is_coinsview_empty = [&](CChainState* chainstate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
             return fReset || fReindexChainState || chainstate->CoinsTip().GetBestBlock().IsNull();
@@ -1840,8 +1839,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 chainman.InitializeChainstate(Assert(node.mempool.get()), *node.evodb, node.chain_helper, llmq::chainLocksHandler, llmq::quorumInstantSendManager);
                 chainman.m_total_coinstip_cache = nCoinCacheUsage;
                 chainman.m_total_coinsdb_cache = nCoinDBCache;
-
-                UnloadBlockIndex(node.mempool.get(), chainman);
 
                 auto& pblocktree{chainman.m_blockman.m_block_tree_db};
                 // new CBlockTreeDB tries to delete the existing file, which
