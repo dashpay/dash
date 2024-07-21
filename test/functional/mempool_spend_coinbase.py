@@ -25,7 +25,7 @@ class MempoolSpendCoinbaseTest(BitcoinTestFramework):
     def run_test(self):
         wallet = MiniWallet(self.nodes[0])
 
-        wallet.generate(200)
+        self.generate(wallet, 200)
         chain_height = self.nodes[0].getblockcount()
         assert_equal(chain_height, 200)
 
@@ -48,7 +48,7 @@ class MempoolSpendCoinbaseTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].getrawmempool(), [spend_101_id])
 
         # mine a block, spend_101 should get confirmed
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
         assert_equal(set(self.nodes[0].getrawmempool()), set())
 
         # ... and now height 102 can be spent:

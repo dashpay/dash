@@ -87,7 +87,7 @@ class DashGovernanceTest (DashTestFramework):
         p1_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_1", self.p1_amount, self.p1_payout_address)
         self.bump_mocktime(60 * 10 + 1)
 
-        self.nodes[0].generate(6)
+        self.generate(self.nodes[0], 6)
         self.bump_mocktime(6 * 156)
         self.sync_blocks()
 
@@ -117,7 +117,7 @@ class DashGovernanceTest (DashTestFramework):
 
         # Move remaining n blocks until the next Superblock
         for _ in range(n - 1):
-            self.nodes[0].generate(1)
+            self.generate(self.nodes[0], 1)
             self.bump_mocktime(156)
             self.sync_blocks(self.nodes[0:5])
 
@@ -125,7 +125,7 @@ class DashGovernanceTest (DashTestFramework):
         sb_block_height = self.nodes[0].getblockcount() + 1
         self.wait_until(lambda: self.have_trigger_for_height(sb_block_height, self.nodes[0:5]), timeout=5)
         # Mine superblock
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
         self.bump_mocktime(156)
         self.sync_blocks(self.nodes[0:5])
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash())
@@ -135,7 +135,7 @@ class DashGovernanceTest (DashTestFramework):
         # Force isolated node to be fully synced so that it would not request gov objects when reconnected
         assert_equal(self.nodes[5].mnsync("status")["IsSynced"], False)
         force_finish_mnsync(self.nodes[5])
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
         self.bump_mocktime(156)
         self.sync_blocks()
 

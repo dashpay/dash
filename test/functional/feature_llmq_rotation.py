@@ -95,7 +95,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         h_104_1 = QuorumId(104, int(h_1, 16))
 
         self.log.info("Mine single block, wait for chainlock")
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         b_h_1 = self.nodes[0].getbestblockhash()
@@ -129,7 +129,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         assert_equal(projected_activation_height, softfork_info['since'])
 
         # v20 is active for the next block, not for the tip
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
 
         self.log.info("Wait for chainlock")
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
@@ -154,14 +154,14 @@ class LLMQQuorumRotationTest(DashTestFramework):
         # At this point, we want to wait for CLs just before the self.mine_cycle_quorum to diversify the CLs in CbTx.
         # Although because here a new quorum cycle is starting, and we don't want to mine them now, mine 8 blocks (to skip all DKG phases)
         nodes = [self.nodes[0]] + [mn.node for mn in self.mninfo.copy()]
-        self.nodes[0].generate(8)
+        self.generate(self.nodes[0], 8)
         self.sync_blocks(nodes)
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         # And for the remaining blocks, enforce new CL in CbTx
         skip_count = 23 - (self.nodes[0].getblockcount() % 24)
         for _ in range(skip_count):
-            self.nodes[0].generate(1)
+            self.generate(self.nodes[0], 1)
             self.sync_blocks(nodes)
             self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
@@ -212,7 +212,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         self.sync_blocks(nodes)
         quorum_list = self.nodes[0].quorum("list", llmq_type)
         quorum_blockhash = self.nodes[0].getbestblockhash()
-        fallback_blockhash = self.nodes[0].generate(1)[0]
+        fallback_blockhash = self.generate(self.nodes[0], 1)[0]
         self.log.info("h("+str(self.nodes[0].getblockcount())+") quorum_list:"+str(quorum_list))
 
         assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_1_0)), 3)
@@ -411,13 +411,13 @@ class LLMQQuorumRotationTest(DashTestFramework):
         # Hence the last block prior to the locked_in state is (expected_locked_in_height - 2).
         while expected_locked_in_height - height - 2 >= batch_size:
             self.bump_mocktime(batch_size)
-            self.nodes[0].generate(batch_size)
+            self.generate(self.nodes[0], batch_size)
             height += batch_size
             self.sync_blocks()
         blocks_left = expected_locked_in_height - height - 2
         assert_greater_than(batch_size, blocks_left)
         self.bump_mocktime(blocks_left)
-        self.nodes[0].generate(blocks_left)
+        self.generate(self.nodes[0], blocks_left)
         self.sync_blocks()
 
         softfork_info = get_bip9_details(self.nodes[0], 'v20')
@@ -425,7 +425,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         assert 'activation_height' not in softfork_info
 
         self.bump_mocktime(1)
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
         self.sync_blocks()
 
         softfork_info = get_bip9_details(self.nodes[0], 'v20')

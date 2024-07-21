@@ -35,7 +35,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
 
         # Mine four blocks. After this, nodes[0] blocks
         # 101, 102, and 103 are spend-able.
-        new_blocks = self.nodes[1].generate(4)
+        new_blocks = self.generate(self.nodes[1], 4)
         self.sync_all()
 
         node0_address = self.nodes[0].getnewaddress()
@@ -69,7 +69,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         # Broadcast and mine spend_102 and 103:
         spend_102_id = self.nodes[0].sendrawtransaction(spend_102_raw)
         spend_103_id = self.nodes[0].sendrawtransaction(spend_103_raw)
-        self.nodes[0].generate(1)
+        self.generate(self.nodes[0], 1)
         # Time-locked transaction is still too immature to spend
         assert_raises_rpc_error(-26, 'non-final', self.nodes[0].sendrawtransaction, timelock_tx)
 
@@ -79,7 +79,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)
-        last_block = self.nodes[0].generate(1)
+        last_block = self.generate(self.nodes[0], 1)
         # Sync blocks, so that peer 1 gets the block before timelock_tx
         # Otherwise, peer 1 would put the timelock_tx in m_recent_rejects
         self.sync_all()
