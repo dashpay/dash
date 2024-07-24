@@ -90,9 +90,10 @@ private:
     void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
 public:
-    explicit CCoinJoinServer(CChainState& chainstate, CConnman& _connman, CDeterministicMNManager& dmnman, CDSTXManager& dstxman,
-                             CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool, const CActiveMasternodeManager* const mn_activeman,
-                             const CMasternodeSync& mn_sync, std::unique_ptr<PeerManager>& peerman) :
+    explicit CCoinJoinServer(CChainState& chainstate, CConnman& _connman, CDeterministicMNManager& dmnman,
+                             CDSTXManager& dstxman, CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool,
+                             const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
+                             std::unique_ptr<PeerManager>& peerman) :
         m_chainstate(chainstate),
         connman(_connman),
         m_dmnman(dmnman),

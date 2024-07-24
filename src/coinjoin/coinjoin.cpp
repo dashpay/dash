@@ -14,13 +14,13 @@
 #include <masternode/node.h>
 #include <masternode/sync.h>
 #include <messagesigner.h>
+#include <net_processing.h>
 #include <netmessagemaker.h>
 #include <txmempool.h>
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
-#include <net_processing.h>
 
 #include <tinyformat.h>
 #include <string>

@@ -210,9 +210,17 @@ private:
     const bool m_is_masternode;
 
 public:
-    explicit CCoinJoinClientQueueManager(CConnman& _connman, std::unique_ptr<PeerManager>& _peerman, CoinJoinWalletManager& walletman, CDeterministicMNManager& dmnman,
-                                         CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync, bool is_masternode) :
-        connman(_connman), peerman(_peerman), m_walletman(walletman), m_dmnman(dmnman), m_mn_metaman(mn_metaman), m_mn_sync(mn_sync), m_is_masternode{is_masternode} {};
+    explicit CCoinJoinClientQueueManager(CConnman& _connman, std::unique_ptr<PeerManager>& _peerman,
+                                         CoinJoinWalletManager& walletman, CDeterministicMNManager& dmnman,
+                                         CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync,
+                                         bool is_masternode) :
+        connman(_connman),
+        peerman(_peerman),
+        m_walletman(walletman),
+        m_dmnman(dmnman),
+        m_mn_metaman(mn_metaman),
+        m_mn_sync(mn_sync),
+        m_is_masternode{is_masternode} {};
 
     PeerMsgRet ProcessMessage(const CNode& peer, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
     PeerMsgRet ProcessDSQueue(const CNode& peer, CDataStream& vRecv);
