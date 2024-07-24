@@ -30,6 +30,7 @@ class CBlockIndex;
 class CMasternodeSync;
 class CTxMemPool;
 class TxValidationState;
+class PeerManager;
 
 namespace llmq {
 class CChainLocksHandler;
@@ -218,7 +219,7 @@ public:
     /// Check if we have a valid Masternode address
     [[nodiscard]] bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
-    bool Relay(CConnman& connman);
+    bool Relay(CConnman& connman, PeerManager& peerman);
 
     /// Check if a queue is too old or too far into the future
     [[nodiscard]] bool IsTimeOutOfBounds(int64_t current_time = GetAdjustedTime()) const;

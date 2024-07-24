@@ -33,7 +33,7 @@ struct CJContext {
     CJContext(const CJContext&) = delete;
     CJContext(CChainState& chainstate, CConnman& connman, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
               CTxMemPool& mempool, const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
-              const std::unique_ptr<PeerManager>& peerman, bool relay_txes);
+              std::unique_ptr<PeerManager>& peerman, bool relay_txes);
     ~CJContext();
 
     const std::unique_ptr<CDSTXManager> dstxman;
