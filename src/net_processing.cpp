@@ -291,37 +291,14 @@ struct Peer {
     };
 
     // in bitcoin: m_tx_relay == nullptr if we're not relaying transactions with this peer
-    // in dash: m_tx_relay should never be nullptr, we don't relay transactions if
-    //          `IsBlockOnlyConn() == true` is instead
+    // in dash: m_tx_relay should never be nullptr, use `!IsBlockOnlyConn() == false` instead
     std::unique_ptr<TxRelay> m_tx_relay{std::make_unique<TxRelay>()};
 
     /** A vector of addresses to send to the peer, limited to MAX_ADDR_TO_SEND. */
     std::vector<CAddress> m_addrs_to_send;
-    /** Probabilistic filter to track recent addr messages relayed with this
-     *  peer. Used to avoid relaying redundant addresses to this peer.
-     *
-     *  We initialize this filter for outbound peers (other than
-     *  block-relay-only connections) or when an inbound peer sends us an
-     *  address related message (ADDR, ADDRV2, GETADDR).
-     *
-     *  Presence of this filter must correlate with m_addr_relay_enabled.
-     **/
-    std::unique_ptr<CRollingBloomFilter> m_addr_known;
-    /** Whether we are participating in address relay with this connection.
-     *
-     *  We set this bool to true for outbound peers (other than
-     *  block-relay-only connections), or when an inbound peer sends us an
-     *  address related message (ADDR, ADDRV2, GETADDR).
-     *
-     *  We use this bool to decide whether a peer is eligible for gossiping
-     *  addr messages. This avoids relaying to peers that are unlikely to
-     *  forward them, effectively blackholing self announcements. Reasons
-     *  peers might support addr relay on the link include that they connected
-     *  to us as a block-relay-only peer or they are a light client.
-     *
-     *  This field must correlate with whether m_addr_known has been
-     *  initialized.*/
-    std::atomic_bool m_addr_relay_enabled{false};
+    /** Probabilistic filter of addresses that this peer already knows.
+     *  Used to avoid relaying addresses to this peer more than once. */
+    const std::unique_ptr<CRollingBloomFilter> m_addr_known;
     /** Whether a Peer can only be relayed blocks */
     const bool m_block_relay_only{false};
     /** Whether a getaddr request to this peer is outstanding. */
@@ -358,6 +335,7 @@ struct Peer {
     explicit Peer(NodeId id, bool block_relay_only)
         : m_id(id)
         , m_tx_relay(std::make_unique<TxRelay>())
+        , m_addr_known{!block_relay_only ? std::make_unique<CRollingBloomFilter>(5000, 0.001) : nullptr}
         , m_block_relay_only{block_relay_only}
     {}
 };
@@ -606,14 +584,6 @@ private:
      * @param[in]   vRecv           The raw message received
      */
     void ProcessGetCFCheckPt(CNode& peer, CDataStream& vRecv);
-
-    /** Checks if address relay is permitted with peer. If needed, initializes
-     * the m_addr_known bloom filter and sets m_addr_relay_enabled to true.
-     *
-     *  @return   True if address relay is enabled with peer
-     *            False if address relay is disallowed
-     */
-    bool SetupAddressRelay(const CNode& node, Peer& peer);
 
     /** Number of nodes with fSyncStarted. */
     int nSyncStarted GUARDED_BY(cs_main) = 0;
@@ -916,6 +886,11 @@ static CNodeState *State(NodeId pnode) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     if (it == mapNodeState.end())
         return nullptr;
     return &it->second;
+}
+
+static bool RelayAddrsWithPeer(const Peer& peer)
+{
+    return peer.m_addr_known != nullptr;
 }
 
 /**
@@ -1586,7 +1561,6 @@ bool PeerManagerImpl::GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats) c
     stats.m_ping_wait = ping_wait;
     stats.m_addr_processed = peer->m_addr_processed.load();
     stats.m_addr_rate_limited = peer->m_addr_rate_limited.load();
-    stats.m_addr_relay_enabled = peer->m_addr_relay_enabled.load();
 
     return true;
 }
@@ -2367,7 +2341,7 @@ void PeerManagerImpl::RelayAddress(NodeId originator,
     LOCK(m_peer_mutex);
 
     for (auto& [id, peer] : m_peer_map) {
-        if (peer->m_addr_relay_enabled && id != originator && IsAddrCompatible(*peer, addr)) {
+        if (RelayAddrsWithPeer(*peer) && id != originator && IsAddrCompatible(*peer, addr)) {
             uint64_t hashKey = CSipHasher(hasher).Write(id).Finalize();
             for (unsigned int i = 0; i < nRelayNodes; i++) {
                 if (hashKey > best[i].first) {
@@ -2589,7 +2563,7 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         }
         ++it;
 
-        if (!peer.m_addr_relay_enabled && NetMessageViolatesBlocksOnly(inv.GetCommand())) {
+        if (!RelayAddrsWithPeer(peer) && NetMessageViolatesBlocksOnly(inv.GetCommand())) {
             // Note that if we receive a getdata for non-block messages
             // from a block-relay-only outbound peer that violate the policy,
             // we skip such getdata messages from this peer
@@ -3454,8 +3428,7 @@ void PeerManagerImpl::ProcessMessage(
         UpdatePreferredDownload(pfrom, State(pfrom.GetId()));
         }
 
-        // Self advertisement & GETADDR logic
-        if (!pfrom.IsInboundConn() && SetupAddressRelay(pfrom, *peer)) {
+        if (!pfrom.IsInboundConn() && !pfrom.IsBlockOnlyConn()) {
             // For outbound peers, we try to relay our address (so that other
             // nodes can try to find us more quickly, as we have no guarantee
             // that an outbound peer is even aware of how to reach us) and do a
@@ -3464,9 +3437,8 @@ void PeerManagerImpl::ProcessMessage(
             // empty and no one will know who we are, so these mechanisms are
             // important to help us connect to the network.
             //
-            // We skip this for block-relay-only peers. We want to avoid
-            // potentially leaking addr information and we do not want to
-            // indicate to the peer that we will participate in addr relay.
+            // We skip this for block-relay-only peers to avoid potentially leaking
+            // information about our block-relay-only connections via address relay.
             if (fListen && !m_chainman.ActiveChainstate().IsInitialBlockDownload())
             {
                 CAddress addr = GetLocalAddress(&pfrom.addr, pfrom.GetLocalServices());
@@ -3674,11 +3646,10 @@ void PeerManagerImpl::ProcessMessage(
 
         s >> vAddr;
 
-        if (!SetupAddressRelay(pfrom, *peer)) {
+        if (!RelayAddrsWithPeer(*peer)) {
             LogPrint(BCLog::NET, "ignoring %s message from %s peer=%d\n", msg_type, pfrom.ConnectionTypeAsString(), pfrom.GetId());
             return;
         }
-
         if (vAddr.size() > MAX_ADDR_TO_SEND)
         {
             Misbehaving(pfrom.GetId(), 20, strprintf("%s message size = %u", msg_type, vAddr.size()));
@@ -4625,7 +4596,7 @@ void PeerManagerImpl::ProcessMessage(
 
         // Since this must be an inbound connection, SetupAddressRelay will
         // never fail.
-        Assume(SetupAddressRelay(pfrom, *peer));
+        Assume(RelayAddrsWithPeer(*peer));
 
         // Only send one GetAddr response per connection to reduce resource waste
         // and discourage addr stamping of INV announcements.
@@ -5295,7 +5266,7 @@ void PeerManagerImpl::MaybeSendPing(CNode& node_to, Peer& peer, std::chrono::mic
 void PeerManagerImpl::MaybeSendAddr(CNode& node, Peer& peer, std::chrono::microseconds current_time)
 {
     // Nothing to do for non-address-relay peers
-    if (!peer.m_addr_relay_enabled) return;
+    if (!RelayAddrsWithPeer(peer)) return;
 
     LOCK(peer.m_addr_send_times_mutex);
     // Periodically advertise our local address to the peer.
@@ -5376,22 +5347,6 @@ public:
         return mp->CompareDepthAndScore(*b, *a);
     }
 };
-}
-
-bool PeerManagerImpl::SetupAddressRelay(const CNode& node, Peer& peer)
-{
-    // We don't participate in addr relay with outbound block-relay-only
-    // connections to prevent providing adversaries with the additional
-    // information of addr traffic to infer the link.
-    if (node.IsBlockOnlyConn()) return false;
-
-    if (!peer.m_addr_relay_enabled.exchange(true)) {
-        // First addr message we have received from the peer, initialize
-        // m_addr_known
-        peer.m_addr_known = std::make_unique<CRollingBloomFilter>(5000, 0.001);
-    }
-
-    return true;
 }
 
 bool PeerManagerImpl::SendMessages(CNode* pto)
