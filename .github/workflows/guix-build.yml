@@ -55,9 +55,9 @@ jobs:
             ${{ github.workspace }}/dash/depends/built
             ${{ github.workspace }}/dash/depends/sources
             ${{ github.workspace }}/dash/depends/work
-          key: ${{ runner.os }}-guix-${{ github.event.pull_request.head.sha }}
+          key: ${{ runner.os }}-guix-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-guix-${{ github.event.pull_request.head.sha }}
+            ${{ runner.os }}-guix-${{ github.sha }}
             ${{ runner.os }}-guix-
 
 
