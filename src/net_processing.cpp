@@ -421,6 +421,10 @@ public:
                         const std::chrono::microseconds time_received, const std::atomic<bool>& interruptMsgProc) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex);
     bool IsBanned(NodeId pnode) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
+    void EraseObjectRequest(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
+                       bool is_masternode, bool fForce = false) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    size_t GetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool IsInvInFilter(NodeId nodeid, const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
 private:
@@ -1350,7 +1354,7 @@ void PeerManagerImpl::PushNodeVersion(CNode& pnode, const Peer& peer)
     }
 }
 
-void EraseObjectRequest(NodeId nodeid, const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+void PeerManagerImpl::EraseObjectRequest(NodeId nodeid, const CInv& inv)
 {
     AssertLockHeld(cs_main);
 
@@ -1436,7 +1440,8 @@ std::chrono::microseconds CalculateObjectGetDataTime(const CInv& inv, std::chron
     return process_time;
 }
 
-void RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time, bool is_masternode, bool fForce) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+void PeerManagerImpl::RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
+                                    bool is_masternode, bool fForce)
 {
     AssertLockHeld(cs_main);
 
@@ -1469,7 +1474,7 @@ void RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds cur
     LogPrint(BCLog::NET, "%s -- inv=(%s), current_time=%d, process_time=%d, delta=%d\n", __func__, inv.ToString(), current_time.count(), process_time.count(), (process_time - current_time).count());
 }
 
-size_t GetRequestedObjectCount(NodeId nodeid)
+size_t PeerManagerImpl::GetRequestedObjectCount(NodeId nodeid) const
 {
     AssertLockHeld(cs_main);
 
