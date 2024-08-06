@@ -32,18 +32,12 @@ NORMAL_FEE_FILTER = Decimal(100) / COIN
 class P2PIBDTxRelayTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
+        self.set_mocktime = False
         self.num_nodes = 2
         self.extra_args = [
             ["-minrelaytxfee={}".format(NORMAL_FEE_FILTER)],
             ["-minrelaytxfee={}".format(NORMAL_FEE_FILTER)],
         ]
-
-    def setup_chain(self):
-        self.log.info("Initializing test directory " + self.options.tmpdir)
-        if self.setup_clean_chain:
-            self._initialize_chain_clean()
-        else:
-            self._initialize_chain()
 
     def run_test(self):
         self.log.info("Check that nodes don't send getdatas for transactions while still in IBD")
