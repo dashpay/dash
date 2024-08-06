@@ -2041,9 +2041,7 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
 
     if (interruptNet) return;
 
-    std::vector<CNode*> vErrorNodes;
-    std::vector<CNode*> vReceivableNodes;
-    std::vector<CNode*> vSendableNodes;
+    std::set<CNode*> vReceivableNodes, vSendableNodes, vErrorNodes;
     {
         LOCK(cs_mapSocketToNode);
         for (auto hSocket : error_set) {
@@ -2052,7 +2050,7 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
                 continue;
             }
             it->second->AddRef();
-            vErrorNodes.emplace_back(it->second);
+            vErrorNodes.emplace(it->second);
         }
         for (auto hSocket : recv_set) {
             if (error_set.count(hSocket)) {
@@ -2082,52 +2080,58 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
             it->second->fCanSendData = true;
         }
 
-        // collect nodes that have a receivable socket
-        // also clean up mapReceivableNodes from nodes that were receivable in the last iteration but aren't anymore
         {
             LOCK(cs_sendable_receivable_nodes);
 
-            vReceivableNodes.reserve(mapReceivableNodes.size());
-            for (auto it = mapReceivableNodes.begin(); it != mapReceivableNodes.end(); ) {
-                if (!it->second->fHasRecvData) {
+            // Collect nodes that have a receivable socket
+            for (auto it = mapReceivableNodes.begin(); it != mapReceivableNodes.end();) {
+                auto& [_, pnode] = *it;
+                // Clean up nodes that were receivable in the last iteration but aren't anymore
+                if (!pnode->fHasRecvData) {
                     it = mapReceivableNodes.erase(it);
                 } else {
                     // Implement the following logic:
+                    //
                     // * If there is data to send, try sending data. As this only
                     //   happens when optimistic write failed, we choose to first drain the
                     //   write buffer in this case before receiving more. This avoids
                     //   needlessly queueing received data, if the remote peer is not themselves
                     //   receiving data. This means properly utilizing TCP flow control signalling.
+                    //
                     // * Otherwise, if there is space left in the receive buffer (!fPauseRecv), try
                     //   receiving data (which should succeed as the socket signalled as receivable).
-                    if (!it->second->fPauseRecv && it->second->nSendMsgSize == 0 && !it->second->fDisconnect) {
-                        it->second->AddRef();
-                        vReceivableNodes.emplace_back(it->second);
+                    if (!pnode->fPauseRecv && !pnode->fDisconnect && pnode->nSendMsgSize == 0) {
+                        pnode->AddRef();
+                        vReceivableNodes.emplace(pnode);
                     }
                     ++it;
                 }
             }
-        }
+        } // LOCK(cs_sendable_receivable_nodes)
 
-        // collect nodes that have data to send and have a socket with non-empty write buffers
-        // also clean up mapNodesWithDataToSend from nodes that had messages to send in the last iteration
-        // but don't have any in this iteration
-        LOCK(cs_mapNodesWithDataToSend);
-        vSendableNodes.reserve(mapNodesWithDataToSend.size());
-        for (auto it = mapNodesWithDataToSend.begin(); it != mapNodesWithDataToSend.end(); ) {
-            if (it->second->nSendMsgSize == 0) {
-                // See comment in PushMessage
-                it->second->Release();
-                it = mapNodesWithDataToSend.erase(it);
-            } else {
-                if (it->second->fCanSendData) {
-                    it->second->AddRef();
-                    vSendableNodes.emplace_back(it->second);
+        {
+            LOCK(cs_mapNodesWithDataToSend);
+
+            // Collect nodes that have data to send and have a socket with non-empty write buffers
+            for (auto it = mapNodesWithDataToSend.begin(); it != mapNodesWithDataToSend.end();) {
+                auto& [_, pnode] = *it;
+                // Clean up nodes that had messages to send in the last iteration but don't have any in this iteration.
+                if (pnode->nSendMsgSize == 0) {
+                    // See comment in PushMessage
+                    pnode->Release();
+                    it = mapNodesWithDataToSend.erase(it);
+                } else {
+                    // Sending is possible if either there are bytes to send right now, or if there will be
+                    // once a potential message from vSendMsg is handed to the transport.
+                    if (pnode->fCanSendData) {
+                        pnode->AddRef();
+                        vSendableNodes.emplace(pnode);
+                    }
+                    ++it;
                 }
-                ++it;
             }
-        }
-    }
+        } // LOCK(cs_mapNodesWithDataToSend)
+    } // LOCK(cs_mapSocketToNode)
 
     for (CNode* pnode : vErrorNodes)
     {
@@ -2176,11 +2180,12 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
 
     {
         LOCK(cs_sendable_receivable_nodes);
-        // remove nodes from mapSendableNodes, so that the next iteration knows that there is no work to do
-        // (even if there are pending messages to be sent)
-        for (auto it = mapSendableNodes.begin(); it != mapSendableNodes.end(); ) {
-            if (!it->second->fCanSendData) {
-                LogPrint(BCLog::NET, "%s -- remove mapSendableNodes, peer=%d\n", __func__, it->second->GetId());
+        // Remove nodes from mapSendableNodes, so that the next iteration knows that there is no work
+        // to do (even if there are pending messages to be sent)
+        for (auto it = mapSendableNodes.begin(); it != mapSendableNodes.end();) {
+            auto& [node_id, pnode] = *it;
+            if (!pnode->fCanSendData) {
+                LogPrint(BCLog::NET, "%s -- remove mapSendableNodes, peer=%d\n", __func__, pnode->GetId());
                 it = mapSendableNodes.erase(it);
             } else {
                 ++it;
