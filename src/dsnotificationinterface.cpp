@@ -79,7 +79,7 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     if (pindexNew == pindexFork) // blocks were disconnected without any new ones
         return;
 
-    m_mn_sync.UpdatedBlockTip(pindexNew, fInitialDownload);
+    m_mn_sync.UpdatedBlockTip(m_chainman.m_best_header, pindexNew, fInitialDownload);
 
     // Update global DIP0001 activation status
     fDIP0001ActiveAtTip = pindexNew->nHeight >= Params().GetConsensus().DIP0001Height;
@@ -155,3 +155,5 @@ void CDSNotificationInterface::NotifyChainLock(const CBlockIndex* pindex, const 
     m_llmq_ctx->isman->NotifyChainLock(pindex);
     m_cj_ctx->dstxman->NotifyChainLock(pindex, *m_llmq_ctx->clhandler, m_mn_sync);
 }
+
+std::unique_ptr<CDSNotificationInterface> g_ds_notification_interface;
