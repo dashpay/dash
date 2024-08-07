@@ -18,6 +18,7 @@
 #include <consensus/consensus.h>
 #include <crypto/sha256.h>
 #include <i2p.h>
+#include <memusage.h>
 #include <net_permissions.h>
 #include <netaddress.h>
 #include <netbase.h>
@@ -142,6 +143,14 @@ std::map<CNetAddr, LocalServiceInfo> mapLocalHost GUARDED_BY(g_maplocalhost_mute
 static bool vfLimited[NET_MAX] GUARDED_BY(g_maplocalhost_mutex) = {};
 std::string strSubVersion;
 
+size_t CSerializedNetMsg::GetMemoryUsage() const noexcept
+{
+    // Don't count the dynamic memory used for the m_type string, by assuming it fits in the
+    // "small string" optimization area (which stores data inside the object itself, up to some
+    // size; 15 bytes in modern libstdc++).
+    return sizeof(*this) + memusage::DynamicUsage(data);
+}
+
 void CConnman::AddAddrFetch(const std::string& strDest)
 {
     LOCK(m_addr_fetches_mutex);
@@ -229,15 +238,13 @@ static std::vector<CAddress> ConvertSeeds(const std::vector<uint8_t> &vSeedsIn)
 // Otherwise, return the unroutable 0.0.0.0 but filled in with
 // the normal parameters, since the IP may be changed to a useful
 // one by discovery.
-CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices)
+CService GetLocalAddress(const CNetAddr& addrPeer)
 {
-    CAddress ret(CService(CNetAddr(),GetListenPort()), nLocalServices);
+    CService ret{CNetAddr(), GetListenPort()};
     CService addr;
-    if (GetLocal(addr, paddrPeer))
-    {
-        ret = CAddress(addr, nLocalServices);
+    if (GetLocal(addr, &addrPeer)) {
+        ret = CService{addr};
     }
-    ret.nTime = GetAdjustedTime();
     return ret;
 }
 
@@ -256,35 +263,35 @@ bool IsPeerAddrLocalGood(CNode *pnode)
            IsReachable(addrLocal.GetNetwork());
 }
 
-std::optional<CAddress> GetLocalAddrForPeer(CNode *pnode)
+std::optional<CService> GetLocalAddrForPeer(CNode& node)
 {
-    CAddress addrLocal = GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
+    CService addrLocal{GetLocalAddress(node.addr)};
     if (gArgs.GetBoolArg("-addrmantest", false)) {
         // use IPv4 loopback during addrmantest
-        addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())), pnode->GetLocalServices());
+        addrLocal = CService(LookupNumeric("127.0.0.1", GetListenPort()));
     }
     // If discovery is enabled, sometimes give our peer the address it
     // tells us that it sees us as in case it has a better idea of our
     // address than we do.
     FastRandomContext rng;
-    if (IsPeerAddrLocalGood(pnode) && (!addrLocal.IsRoutable() ||
+    if (IsPeerAddrLocalGood(&node) && (!addrLocal.IsRoutable() ||
          rng.randbits((GetnScore(addrLocal) > LOCAL_MANUAL) ? 3 : 1) == 0))
     {
-        if (pnode->IsInboundConn()) {
+        if (node.IsInboundConn()) {
             // For inbound connections, assume both the address and the port
             // as seen from the peer.
-            addrLocal = CAddress{pnode->GetAddrLocal(), addrLocal.nServices, addrLocal.nTime};
+            addrLocal = CService{node.GetAddrLocal()};
         } else {
             // For outbound connections, assume just the address as seen from
             // the peer and leave the port in `addrLocal` as returned by
             // `GetLocalAddress()` above. The peer has no way to observe our
             // listening port when we have initiated the connection.
-            addrLocal.SetIP(pnode->GetAddrLocal());
+            addrLocal.SetIP(node.GetAddrLocal());
         }
     }
     if (addrLocal.IsRoutable() || gArgs.GetBoolArg("-addrmantest", false))
     {
-        LogPrint(BCLog::NET, "Advertising address %s to peer=%d\n", addrLocal.ToString(), pnode->GetId());
+        LogPrint(BCLog::NET, "Advertising address %s to peer=%d\n", addrLocal.ToString(), node.GetId());
         return addrLocal;
     }
     // Address is unroutable. Don't advertise.
@@ -609,7 +616,6 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         addr_bind = GetBindAddress(*sock);
     }
     CNode* pnode = new CNode(id,
-                             nLocalServices,
                              std::move(sock),
                              addrConnect,
                              CalculateKeyedNetGroup(addrConnect),
@@ -732,7 +738,6 @@ Network CNode::ConnectedThroughNetwork() const
 void CNode::CopyStats(CNodeStats& stats)
 {
     stats.nodeid = this->GetId();
-    X(nServices);
     X(addr);
     X(addrBind);
     stats.m_network = ConnectedThroughNetwork();
@@ -791,16 +796,15 @@ bool CNode::ReceiveMsgBytes(Span<const uint8_t> msg_bytes, bool& complete)
     nRecvBytes += msg_bytes.size();
     while (msg_bytes.size() > 0) {
         // absorb network data
-        int handled = m_deserializer->Read(msg_bytes);
-        if (handled < 0) {
-            // Serious header problem, disconnect from the peer.
+        if (!m_transport->ReceivedBytes(msg_bytes)) {
+            // Serious transport problem, disconnect from the peer.
             return false;
         }
 
-        if (m_deserializer->Complete()) {
+        if (m_transport->ReceivedMessageComplete()) {
             // decompose a transport agnostic CNetMessage from the deserializer
             bool reject_message{false};
-            CNetMessage msg = m_deserializer->GetMessage(time, reject_message);
+            CNetMessage msg = m_transport->GetReceivedMessage(time, reject_message);
             if (reject_message) {
                 // Message deserialization failed. Drop the message but don't disconnect the peer.
                 // store the size of the corrupt message
@@ -828,8 +832,18 @@ bool CNode::ReceiveMsgBytes(Span<const uint8_t> msg_bytes, bool& complete)
     return true;
 }
 
-int V1TransportDeserializer::readHeader(Span<const uint8_t> msg_bytes)
+V1Transport::V1Transport(const NodeId node_id, int nTypeIn, int nVersionIn) noexcept :
+    m_node_id(node_id), hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn)
 {
+    assert(std::size(Params().MessageStart()) == std::size(m_magic_bytes));
+    std::copy(std::begin(Params().MessageStart()), std::end(Params().MessageStart()), m_magic_bytes);
+    LOCK(m_recv_mutex);
+    Reset();
+}
+
+int V1Transport::readHeader(Span<const uint8_t> msg_bytes)
+{
+    AssertLockHeld(m_recv_mutex);
     // copy data to temporary parsing buffer
     unsigned int nRemaining = CMessageHeader::HEADER_SIZE - nHdrPos;
     unsigned int nCopy = std::min<unsigned int>(nRemaining, msg_bytes.size());
@@ -851,7 +865,7 @@ int V1TransportDeserializer::readHeader(Span<const uint8_t> msg_bytes)
     }
 
     // Check start string, network magic
-    if (memcmp(hdr.pchMessageStart, m_chain_params.MessageStart(), CMessageHeader::MESSAGE_START_SIZE) != 0) {
+    if (memcmp(hdr.pchMessageStart, m_magic_bytes, CMessageHeader::MESSAGE_START_SIZE) != 0) {
         LogPrint(BCLog::NET, "Header error: Wrong MessageStart %s received, peer=%d\n", HexStr(hdr.pchMessageStart), m_node_id);
         return -1;
     }
@@ -868,8 +882,9 @@ int V1TransportDeserializer::readHeader(Span<const uint8_t> msg_bytes)
     return nCopy;
 }
 
-int V1TransportDeserializer::readData(Span<const uint8_t> msg_bytes)
+int V1Transport::readData(Span<const uint8_t> msg_bytes)
 {
+    AssertLockHeld(m_recv_mutex);
     unsigned int nRemaining = hdr.nMessageSize - nDataPos;
     unsigned int nCopy = std::min<unsigned int>(nRemaining, msg_bytes.size());
 
@@ -885,19 +900,22 @@ int V1TransportDeserializer::readData(Span<const uint8_t> msg_bytes)
     return nCopy;
 }
 
-const uint256& V1TransportDeserializer::GetMessageHash() const
+const uint256& V1Transport::GetMessageHash() const
 {
-    assert(Complete());
+    AssertLockHeld(m_recv_mutex);
+    assert(CompleteInternal());
     if (data_hash.IsNull())
         hasher.Finalize(data_hash);
     return data_hash;
 }
 
-CNetMessage V1TransportDeserializer::GetMessage(const std::chrono::microseconds time, bool& reject_message)
+CNetMessage V1Transport::GetReceivedMessage(const std::chrono::microseconds time, bool& reject_message)
 {
+    AssertLockNotHeld(m_recv_mutex);
     // Initialize out parameter
     reject_message = false;
     // decompose a single CNetMessage from the TransportDeserializer
+    LOCK(m_recv_mutex);
     CNetMessage msg(std::move(vRecv));
 
     // store message type string, time, and sizes
@@ -930,47 +948,122 @@ CNetMessage V1TransportDeserializer::GetMessage(const std::chrono::microseconds 
     return msg;
 }
 
-void V1TransportSerializer::prepareForTransport(CSerializedNetMsg& msg, std::vector<unsigned char>& header) const
+bool V1Transport::SetMessageToSend(CSerializedNetMsg& msg) noexcept
 {
+    AssertLockNotHeld(m_send_mutex);
+    // Determine whether a new message can be set.
+    LOCK(m_send_mutex);
+    if (m_sending_header || m_bytes_sent < m_message_to_send.data.size()) return false;
+
     // create dbl-sha256 checksum
     uint256 hash = Hash(msg.data);
 
     // create header
-    CMessageHeader hdr(Params().MessageStart(), msg.m_type.c_str(), msg.data.size());
+    CMessageHeader hdr(m_magic_bytes, msg.m_type.c_str(), msg.data.size());
     memcpy(hdr.pchChecksum, hash.begin(), CMessageHeader::CHECKSUM_SIZE);
 
     // serialize header
-    header.reserve(CMessageHeader::HEADER_SIZE);
-    CVectorWriter{SER_NETWORK, INIT_PROTO_VERSION, header, 0, hdr};
+    m_header_to_send.clear();
+    CVectorWriter{SER_NETWORK, INIT_PROTO_VERSION, m_header_to_send, 0, hdr};
+
+    // update state
+    m_message_to_send = std::move(msg);
+    m_sending_header = true;
+    m_bytes_sent = 0;
+    return true;
 }
 
-size_t CConnman::SocketSendData(CNode& node)
+Transport::BytesToSend V1Transport::GetBytesToSend() const noexcept
+{
+    AssertLockNotHeld(m_send_mutex);
+    LOCK(m_send_mutex);
+    if (m_sending_header) {
+        return {Span{m_header_to_send}.subspan(m_bytes_sent),
+                // We have more to send after the header if the message has payload.
+                !m_message_to_send.data.empty(),
+                m_message_to_send.m_type
+               };
+    } else {
+        return {Span{m_message_to_send.data}.subspan(m_bytes_sent),
+                // We never have more to send after this message's payload.
+                false,
+                m_message_to_send.m_type
+               };
+    }
+}
+
+void V1Transport::MarkBytesSent(size_t bytes_sent) noexcept
+{
+    AssertLockNotHeld(m_send_mutex);
+    LOCK(m_send_mutex);
+    m_bytes_sent += bytes_sent;
+    if (m_sending_header && m_bytes_sent == m_header_to_send.size()) {
+        // We're done sending a message's header. Switch to sending its data bytes.
+        m_sending_header = false;
+        m_bytes_sent = 0;
+    } else if (!m_sending_header && m_bytes_sent == m_message_to_send.data.size()) {
+        // We're done sending a message's data. Wipe the data vector to reduce memory consumption.
+        m_message_to_send.data.clear();
+        m_message_to_send.data.shrink_to_fit();
+        m_bytes_sent = 0;
+    }
+}
+
+size_t V1Transport::GetSendMemoryUsage() const noexcept
+{
+    AssertLockNotHeld(m_send_mutex);
+    LOCK(m_send_mutex);
+    // Don't count sending-side fields besides m_message_to_send, as they're all small and bounded.
+    return m_message_to_send.GetMemoryUsage();
+}
+
+std::pair<size_t, bool> CConnman::SocketSendData(CNode& node) const
 {
     auto it = node.vSendMsg.begin();
     size_t nSentSize = 0;
+    bool data_left{false}; //!< second return value (whether unsent data remains)
 
-    while (it != node.vSendMsg.end()) {
-        const auto& data = *it;
-        assert(data.size() > node.nSendOffset);
+    while (true) {
+        if (it != node.vSendMsg.end()) {
+            // If possible, move one message from the send queue to the transport. This fails when
+            // there is an existing message still being sent.
+            size_t memusage = it->GetMemoryUsage();
+            if (node.m_transport->SetMessageToSend(*it)) {
+                // Update memory usage of send buffer (as *it will be deleted).
+                node.m_send_memusage -= memusage;
+                ++it;
+            }
+        }
+        const auto& [data, more, msg_type] = node.m_transport->GetBytesToSend();
+        data_left = !data.empty(); // will be overwritten on next loop if all of data gets sent
         int nBytes = 0;
-        {
+        if (!data.empty()) {
             LOCK(node.m_sock_mutex);
+            // There is no socket in case we've already disconnected, or in test cases without
+            // real connections. In these cases, we bail out immediately and just leave things
+            // in the send queue and transport.
             if (!node.m_sock) {
                 break;
             }
-            nBytes = node.m_sock->Send(reinterpret_cast<const char*>(data.data()) + node.nSendOffset, data.size() - node.nSendOffset, MSG_NOSIGNAL | MSG_DONTWAIT);
+            int flags = MSG_NOSIGNAL | MSG_DONTWAIT;
+#ifdef MSG_MORE
+            // We have more to send if either the transport itself has more, or if we have more
+            // messages to send.
+            if (more || it != node.vSendMsg.end()) {
+                flags |= MSG_MORE;
+            }
+#endif
+            nBytes = node.m_sock->Send(reinterpret_cast<const char*>(data.data()), data.size(), flags);
         }
         if (nBytes > 0) {
             node.m_last_send = GetTime<std::chrono::seconds>();
             node.nSendBytes += nBytes;
-            node.nSendOffset += nBytes;
+            // Notify transport that bytes have been processed.
+            node.m_transport->MarkBytesSent(nBytes);
+            // Update statistics per message type.
+            node.mapSendBytesPerMsgType[msg_type] += nBytes;
             nSentSize += nBytes;
-            if (node.nSendOffset == data.size()) {
-                node.nSendOffset = 0;
-                node.nSendSize -= data.size();
-                node.fPauseSend = node.nSendSize > nSendBufferMaxSize;
-                it++;
-            } else {
+            if ((size_t)nBytes != data.size()) {
                 // could not send full message; stop sending more
                 node.fCanSendData = false;
                 break;
@@ -984,19 +1077,18 @@ size_t CConnman::SocketSendData(CNode& node)
                     node.fDisconnect = true;
                 }
             }
-            // couldn't send anything at all
-            node.fCanSendData = false;
             break;
         }
     }
 
+    node.fPauseSend = node.m_send_memusage + node.m_transport->GetSendMemoryUsage() > nSendBufferMaxSize;
+
     if (it == node.vSendMsg.end()) {
-        assert(node.nSendOffset == 0);
-        assert(node.nSendSize == 0);
+        assert(node.m_send_memusage == 0);
     }
     node.vSendMsg.erase(node.vSendMsg.begin(), it);
     node.nSendMsgSize = node.vSendMsg.size();
-    return nSentSize;
+    return {nSentSize, data_left};
 }
 
 static bool ReverseCompareNodeMinPingTime(const NodeEvictionCandidate& a, const NodeEvictionCandidate& b)
@@ -1246,7 +1338,7 @@ bool CConnman::AttemptToEvictConnection()
 
             NodeEvictionCandidate candidate = {node->GetId(), node->m_connected, node->m_min_ping_time,
                                                node->m_last_block_time, node->m_last_tx_time,
-                                               HasAllDesirableServiceFlags(node->nServices),
+                                               node->m_has_all_wanted_services,
                                                node->m_relays_txs.load(), node->m_bloom_filter_loaded.load(),
                                                node->nKeyedNetGroup, node->m_prefer_evict, node->addr.IsLocal(),
                                                node->ConnectedThroughNetwork()};
@@ -1403,7 +1495,6 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
 
     const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
     CNode* pnode = new CNode(id,
-                             nodeServices,
                              std::move(sock),
                              addr,
                              CalculateKeyedNetGroup(addr),
@@ -1417,7 +1508,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     // If this flag is present, the user probably expect that RPC and QT report it as whitelisted (backward compatibility)
     pnode->m_legacyWhitelisted = legacyWhitelisted;
     pnode->m_prefer_evict = discouraged;
-    m_msgproc->InitializeNode(pnode);
+    m_msgproc->InitializeNode(*pnode, nodeServices);
 
     {
         LOCK(pnode->m_sock_mutex);
@@ -1522,7 +1613,9 @@ void CConnman::DisconnectNodes()
                     }
                     if (GetTimeMillis() < pnode->nDisconnectLingerTime) {
                         // everything flushed to the kernel?
-                        if (!pnode->fSocketShutdown && pnode->nSendMsgSize == 0) {
+                        const auto& [to_send, _more, _msg_type] = pnode->m_transport->GetBytesToSend();
+                        const bool queue_is_empty{to_send.empty() && pnode->nSendMsgSize == 0};
+                        if (!pnode->fSocketShutdown && queue_is_empty) {
                             LOCK(pnode->m_sock_mutex);
                             if (pnode->m_sock) {
                                 // Give the other side a chance to detect the disconnect as early as possible (recv() will return 0)
@@ -1644,10 +1737,11 @@ void CConnman::CalculateNumConnectionsChangedStats()
             for (const mapMsgTypeSize::value_type &i : pnode->mapSendBytesPerMsgType)
                 mapSentBytesMsgStats[i.first] += i.second;
         }
-        if(pnode->fClient)
+        if (pnode->m_bloom_filter_loaded.load()) {
             spvNodes++;
-        else
+        } else {
             fullNodes++;
+        }
         if(pnode->IsInboundConn())
             inboundNodes++;
         else
@@ -1723,10 +1817,10 @@ bool CConnman::GenerateSelectSet(const std::vector<CNode*>& nodes,
         recv_set.insert(hListenSocket.sock->Get());
     }
 
-    for (CNode* pnode : nodes)
-    {
+    for (CNode* pnode : nodes) {
         bool select_recv = !pnode->fHasRecvData;
         bool select_send = !pnode->fCanSendData;
+        if (!select_recv && !select_send) continue;
 
         LOCK(pnode->m_sock_mutex);
         if (!pnode->m_sock) {
@@ -2039,9 +2133,7 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
 
     if (interruptNet) return;
 
-    std::vector<CNode*> vErrorNodes;
-    std::vector<CNode*> vReceivableNodes;
-    std::vector<CNode*> vSendableNodes;
+    std::set<CNode*> vReceivableNodes, vSendableNodes, vErrorNodes;
     {
         LOCK(cs_mapSocketToNode);
         for (auto hSocket : error_set) {
@@ -2050,7 +2142,7 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
                 continue;
             }
             it->second->AddRef();
-            vErrorNodes.emplace_back(it->second);
+            vErrorNodes.emplace(it->second);
         }
         for (auto hSocket : recv_set) {
             if (error_set.count(hSocket)) {
@@ -2080,49 +2172,81 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
             it->second->fCanSendData = true;
         }
 
-        // collect nodes that have a receivable socket
-        // also clean up mapReceivableNodes from nodes that were receivable in the last iteration but aren't anymore
         {
             LOCK(cs_sendable_receivable_nodes);
 
-            vReceivableNodes.reserve(mapReceivableNodes.size());
-            for (auto it = mapReceivableNodes.begin(); it != mapReceivableNodes.end(); ) {
-                if (!it->second->fHasRecvData) {
+            // Collect nodes that have a receivable socket
+            for (auto it = mapReceivableNodes.begin(); it != mapReceivableNodes.end();) {
+                auto& [_, pnode] = *it;
+                // Clean up nodes that were receivable in the last iteration but aren't anymore
+                if (!pnode->fHasRecvData) {
                     it = mapReceivableNodes.erase(it);
                 } else {
                     // Implement the following logic:
+                    //
                     // * If there is data to send, try sending data. As this only
                     //   happens when optimistic write failed, we choose to first drain the
                     //   write buffer in this case before receiving more. This avoids
                     //   needlessly queueing received data, if the remote peer is not themselves
                     //   receiving data. This means properly utilizing TCP flow control signalling.
+                    //
                     // * Otherwise, if there is space left in the receive buffer (!fPauseRecv), try
                     //   receiving data (which should succeed as the socket signalled as receivable).
-                    if (!it->second->fPauseRecv && it->second->nSendMsgSize == 0 && !it->second->fDisconnect) {
-                        it->second->AddRef();
-                        vReceivableNodes.emplace_back(it->second);
+                    const auto& [to_send, _more, _msg_type] = pnode->m_transport->GetBytesToSend();
+                    const bool queue_is_empty{to_send.empty() && pnode->nSendMsgSize == 0};
+                    if (!pnode->fPauseRecv && !pnode->fDisconnect && queue_is_empty) {
+                        pnode->AddRef();
+                        vReceivableNodes.emplace(pnode);
                     }
                     ++it;
                 }
             }
+        } // LOCK(cs_sendable_receivable_nodes)
+
+        {
+            LOCK(cs_mapNodesWithDataToSend);
+
+            // Collect nodes that have data to send and have a socket with non-empty write buffers
+            for (auto it = mapNodesWithDataToSend.begin(); it != mapNodesWithDataToSend.end();) {
+                auto& [_, pnode] = *it;
+                // Clean up nodes that had messages to send in the last iteration but don't have any in this iteration.
+                const auto& [to_send, _more, _msg_type] = pnode->m_transport->GetBytesToSend();
+                if (to_send.empty() && pnode->nSendMsgSize == 0) {
+                    // See comment in PushMessage
+                    pnode->Release();
+                    it = mapNodesWithDataToSend.erase(it);
+                } else {
+                    // Sending is possible if either there are bytes to send right now, or if there will be
+                    // once a potential message from vSendMsg is handed to the transport.
+                    if (pnode->fCanSendData) {
+                        pnode->AddRef();
+                        vSendableNodes.emplace(pnode);
+                    }
+                    ++it;
+                }
+            }
+        } // LOCK(cs_mapNodesWithDataToSend)
+    } // LOCK(cs_mapSocketToNode)
+
+    for (CNode* pnode : vSendableNodes) {
+        if (interruptNet) {
+            break;
         }
 
-        // collect nodes that have data to send and have a socket with non-empty write buffers
-        // also clean up mapNodesWithDataToSend from nodes that had messages to send in the last iteration
-        // but don't have any in this iteration
-        LOCK(cs_mapNodesWithDataToSend);
-        vSendableNodes.reserve(mapNodesWithDataToSend.size());
-        for (auto it = mapNodesWithDataToSend.begin(); it != mapNodesWithDataToSend.end(); ) {
-            if (it->second->nSendMsgSize == 0) {
-                // See comment in PushMessage
-                it->second->Release();
-                it = mapNodesWithDataToSend.erase(it);
-            } else {
-                if (it->second->fCanSendData) {
-                    it->second->AddRef();
-                    vSendableNodes.emplace_back(it->second);
-                }
-                ++it;
+        // Send data
+        auto [bytes_sent, data_left] = WITH_LOCK(pnode->cs_vSend, return SocketSendData(*pnode));
+        if (bytes_sent) {
+            RecordBytesSent(bytes_sent);
+
+            // If both receiving and (non-optimistic) sending were possible, we first attempt
+            // sending. If that succeeds, but does not fully drain the send queue, do not
+            // attempt to receive. This avoids needlessly queueing data if the remote peer
+            // is slow at receiving data, by means of TCP flow control. We only do this when
+            // sending actually succeeded to make sure progress is always made; otherwise a
+            // deadlock would be possible when both sides have data to send, but neither is
+            // receiving.
+            if (data_left) {
+                vReceivableNodes.erase(pnode);
             }
         }
     }
@@ -2148,16 +2272,6 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
         SocketRecvData(pnode);
     }
 
-    for (CNode* pnode : vSendableNodes) {
-        if (interruptNet) {
-            break;
-        }
-
-        // Send data
-        size_t bytes_sent = WITH_LOCK(pnode->cs_vSend, return SocketSendData(*pnode));
-        if (bytes_sent) RecordBytesSent(bytes_sent);
-    }
-
     for (auto& node : vErrorNodes) {
         node->Release();
     }
@@ -2174,11 +2288,12 @@ void CConnman::SocketHandlerConnected(const std::set<SOCKET>& recv_set,
 
     {
         LOCK(cs_sendable_receivable_nodes);
-        // remove nodes from mapSendableNodes, so that the next iteration knows that there is no work to do
-        // (even if there are pending messages to be sent)
-        for (auto it = mapSendableNodes.begin(); it != mapSendableNodes.end(); ) {
-            if (!it->second->fCanSendData) {
-                LogPrint(BCLog::NET, "%s -- remove mapSendableNodes, peer=%d\n", __func__, it->second->GetId());
+        // Remove nodes from mapSendableNodes, so that the next iteration knows that there is no work
+        // to do (even if there are pending messages to be sent)
+        for (auto it = mapSendableNodes.begin(); it != mapSendableNodes.end();) {
+            auto& [node_id, pnode] = *it;
+            if (!pnode->fCanSendData) {
+                LogPrint(BCLog::NET, "%s -- remove mapSendableNodes, peer=%d\n", __func__, pnode->GetId());
                 it = mapSendableNodes.erase(it);
             } else {
                 ++it;
@@ -2515,8 +2630,8 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect, CDe
     auto start = GetTime<std::chrono::microseconds>();
 
     // Minimum time before next feeler connection (in microseconds).
-    auto next_feeler = PoissonNextSend(start, FEELER_INTERVAL);
-    auto next_extra_block_relay = PoissonNextSend(start, EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL);
+    auto next_feeler = GetExponentialRand(start, FEELER_INTERVAL);
+    auto next_extra_block_relay = GetExponentialRand(start, EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL);
     const bool dnsseed = gArgs.GetBoolArg("-dnsseed", DEFAULT_DNSSEED);
     bool add_fixed_seeds = gArgs.GetBoolArg("-fixedseeds", DEFAULT_FIXEDSEEDS);
 
@@ -2650,7 +2765,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect, CDe
             //
             // This is similar to the logic for trying extra outbound (full-relay)
             // peers, except:
-            // - we do this all the time on a poisson timer, rather than just when
+            // - we do this all the time on an exponential timer, rather than just when
             //   our tip is stale
             // - we potentially disconnect our next-youngest block-relay-only peer, if our
             //   newest block-relay-only peer delivers a block more recently.
@@ -2659,10 +2774,10 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect, CDe
             // Because we can promote these connections to block-relay-only
             // connections, they do not get their own ConnectionType enum
             // (similar to how we deal with extra outbound peers).
-            next_extra_block_relay = PoissonNextSend(now, EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL);
+            next_extra_block_relay = GetExponentialRand(now, EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL);
             conn_type = ConnectionType::BLOCK_RELAY;
         } else if (now > next_feeler) {
-            next_feeler = PoissonNextSend(now, FEELER_INTERVAL);
+            next_feeler = GetExponentialRand(now, FEELER_INTERVAL);
             conn_type = ConnectionType::FEELER;
             fFeeler = true;
         } else if (nOutboundOnionRelay < m_max_outbound_onion && IsReachable(Network::NET_ONION)) {
@@ -3138,7 +3253,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         mapSocketToNode.emplace(pnode->m_sock->Get(), pnode);
     }
 
-    m_msgproc->InitializeNode(pnode);
+    m_msgproc->InitializeNode(*pnode, nLocalServices);
     {
         LOCK(m_nodes_mutex);
         m_nodes.push_back(pnode);
@@ -3160,8 +3275,12 @@ void CConnman::OpenMasternodeConnection(const CAddress &addrConnect, MasternodeP
     OpenNetworkConnection(addrConnect, false, nullptr, nullptr, ConnectionType::OUTBOUND_FULL_RELAY, MasternodeConn::IsConnection, probe);
 }
 
+Mutex NetEventsInterface::g_msgproc_mutex;
+
 void CConnman::ThreadMessageHandler()
 {
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+
     int64_t nLastSendMessagesTimeMasternodes = 0;
 
     FastRandomContext rng;
@@ -3191,7 +3310,6 @@ void CConnman::ThreadMessageHandler()
                 return;
             // Send messages
             if (!fSkipSendMessagesForMasternodes || !pnode->m_masternode_connection) {
-                LOCK(pnode->cs_sendProcessing);
                 m_msgproc->SendMessages(pnode);
             }
 
@@ -4132,7 +4250,6 @@ ServiceFlags CConnman::GetLocalServices() const
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
 CNode::CNode(NodeId idIn,
-             ServiceFlags nLocalServicesIn,
              std::shared_ptr<Sock> sock,
              const CAddress& addrIn,
              uint64_t nKeyedNetGroupIn,
@@ -4142,8 +4259,7 @@ CNode::CNode(NodeId idIn,
              ConnectionType conn_type_in,
              bool inbound_onion,
              std::unique_ptr<i2p::sam::Session>&& i2p_sam_session)
-    : m_deserializer{std::make_unique<V1TransportDeserializer>(V1TransportDeserializer(Params(), idIn, SER_NETWORK, INIT_PROTO_VERSION))},
-      m_serializer{std::make_unique<V1TransportSerializer>(V1TransportSerializer())},
+    : m_transport{std::make_unique<V1Transport>(idIn, SER_NETWORK, INIT_PROTO_VERSION)},
       m_sock{sock},
       m_connected{GetTime<std::chrono::seconds>()},
       addr{addrIn},
@@ -4154,7 +4270,6 @@ CNode::CNode(NodeId idIn,
       id{idIn},
       nLocalHostNonce{nLocalHostNonceIn},
       m_conn_type{conn_type_in},
-      nLocalServices{nLocalServicesIn},
       m_i2p_sam_session{std::move(i2p_sam_session)}
 {
     if (inbound_onion) assert(conn_type_in == ConnectionType::INBOUND);
@@ -4183,26 +4298,19 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
     if (gArgs.GetBoolArg("-capturemessages", false)) {
         CaptureMessage(pnode->addr, msg.m_type, msg.data, /* incoming */ false);
     }
-
-    // make sure we use the appropriate network transport format
-    std::vector<unsigned char> serializedHeader;
-    pnode->m_serializer->prepareForTransport(msg, serializedHeader);
-
-    size_t nTotalSize = nMessageSize + serializedHeader.size();
-    statsClient.count("bandwidth.message." + SanitizeString(msg.m_type.c_str()) + ".bytesSent", nTotalSize, 1.0f);
-    statsClient.inc("message.sent." + SanitizeString(msg.m_type.c_str()), 1.0f);
+    statsClient.count(strprintf("bandwidth.message.%s.bytesSent", msg.m_type), nMessageSize, 1.0f);
+    statsClient.inc(strprintf("message.sent.%s", msg.m_type), 1.0f);
 
     {
         LOCK(pnode->cs_vSend);
-        bool hasPendingData = !pnode->vSendMsg.empty();
+        const auto& [to_send, _more, _msg_type] = pnode->m_transport->GetBytesToSend();
+        const bool queue_was_empty{to_send.empty() && pnode->vSendMsg.empty()};
 
-        //log total amount of bytes per message type
-        pnode->mapSendBytesPerMsgType[msg.m_type] += nTotalSize;
-        pnode->nSendSize += nTotalSize;
-
-        if (pnode->nSendSize > nSendBufferMaxSize) pnode->fPauseSend = true;
-        pnode->vSendMsg.push_back(std::move(serializedHeader));
-        if (nMessageSize) pnode->vSendMsg.push_back(std::move(msg.data));
+        // Update memory usage of send buffer.
+        pnode->m_send_memusage += msg.GetMemoryUsage();
+        if (pnode->m_send_memusage + pnode->m_transport->GetSendMemoryUsage() > nSendBufferMaxSize) pnode->fPauseSend = true;
+        // Move message to vSendMsg queue.
+        pnode->vSendMsg.push_back(std::move(msg));
         pnode->nSendMsgSize = pnode->vSendMsg.size();
 
         {
@@ -4216,9 +4324,13 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
             }
         }
 
-        // wake up select() call in case there was no pending data before (so it was not selecting this socket for sending)
-        if (!hasPendingData && (m_wakeup_pipe && m_wakeup_pipe->m_need_wakeup.load()))
-            m_wakeup_pipe->Write();
+        // Wake up select() call in case there was no pending data before (so it was not selecting
+        // this socket for sending)
+        if (queue_was_empty) {
+            if (m_wakeup_pipe && m_wakeup_pipe->m_need_wakeup.load()) {
+                m_wakeup_pipe->Write();
+            }
+        }
     }
 }
 
@@ -4252,23 +4364,6 @@ bool CConnman::IsMasternodeOrDisconnectRequested(const CService& addr) {
     return ForNode(addr, AllNodes, [](CNode* pnode){
         return pnode->m_masternode_connection || pnode->fDisconnect;
     });
-}
-
-std::chrono::microseconds CConnman::PoissonNextSendInbound(std::chrono::microseconds now, std::chrono::seconds average_interval)
-{
-    if (m_next_send_inv_to_incoming.load() < now) {
-        // If this function were called from multiple threads simultaneously
-        // it would possible that both update the next send variable, and return a different result to their caller.
-        // This is not possible in practice as only the net processing thread invokes this function.
-        m_next_send_inv_to_incoming = PoissonNextSend(now, average_interval);
-    }
-    return m_next_send_inv_to_incoming;
-}
-
-std::chrono::microseconds PoissonNextSend(std::chrono::microseconds now, std::chrono::seconds average_interval)
-{
-    double unscaled = -log1p(GetRand(1ULL << 48) * -0.0000000000000035527136788 /* -1/2^48 */);
-    return now + std::chrono::duration_cast<std::chrono::microseconds>(unscaled * average_interval + 0.5us);
 }
 
 CConnman::NodesSnapshot::NodesSnapshot(const CConnman& connman, std::function<bool(const CNode* pnode)> filter,

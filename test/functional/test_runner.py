@@ -172,6 +172,7 @@ BASE_SCRIPTS = [
     'wallet_avoidreuse.py --descriptors',
     'mempool_reorg.py',
     'mempool_persist.py',
+    'p2p_block_sync.py',
     'wallet_multiwallet.py --legacy-wallet',
     'wallet_multiwallet.py --descriptors',
     'wallet_multiwallet.py --usecli',
@@ -254,6 +255,7 @@ BASE_SCRIPTS = [
     'rpc_generate.py',
     'wallet_balance.py --legacy-wallet',
     'wallet_balance.py --descriptors',
+    'p2p_initial_headers_sync.py',
     'feature_nulldummy.py --legacy-wallet',
     'feature_nulldummy.py --descriptors',
     'mempool_accept.py',
@@ -302,6 +304,7 @@ BASE_SCRIPTS = [
     'rpc_estimatefee.py',
     'p2p_unrequested_blocks.py', # NOTE: needs dash_hash to pass
     'feature_shutdown.py',
+    'p2p_ibd_txrelay.py',
     'rpc_coinjoin.py',
     'rpc_masternode.py',
     'rpc_mnauth.py',

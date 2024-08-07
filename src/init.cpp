@@ -56,6 +56,7 @@
 #include <torcontrol.h>
 #include <txdb.h>
 #include <txmempool.h>
+#include <txorphanage.h>
 #include <util/asmap.h>
 #include <util/error.h>
 #include <util/moneystr.h>
@@ -105,6 +106,7 @@
 
 #include <statsd_client.h>
 
+#include <algorithm>
 #include <functional>
 #include <set>
 #include <stdint.h>
@@ -134,8 +136,6 @@
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
 static constexpr bool DEFAULT_I2P_ACCEPT_INCOMING{true};
-
-static CDSNotificationInterface* pdsNotificationInterface = nullptr;
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -362,11 +362,11 @@ void PrepareShutdown(NodeContext& node)
     }
 #endif
 
-    if (pdsNotificationInterface) {
-        UnregisterValidationInterface(pdsNotificationInterface);
-        delete pdsNotificationInterface;
-        pdsNotificationInterface = nullptr;
+    if (g_ds_notification_interface) {
+        UnregisterValidationInterface(g_ds_notification_interface.get());
+        g_ds_notification_interface.reset();
     }
+
     if (node.mn_activeman) {
         UnregisterValidationInterface(node.mn_activeman.get());
         node.mn_activeman.reset();
@@ -579,7 +579,7 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-listenonion", strprintf("Automatically create Tor onion service (default: %d)", DEFAULT_LISTEN_ONION), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-maxconnections=<n>", strprintf("Maintain at most <n> connections to peers (temporary service connections excluded) (default: %u). This limit does not apply to connections manually added via -addnode or the addnode RPC, which have a separate limit of %u.", DEFAULT_MAX_PEER_CONNECTIONS, MAX_ADDNODE_CONNECTIONS), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-maxreceivebuffer=<n>", strprintf("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXRECEIVEBUFFER), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
-    argsman.AddArg("-maxsendbuffer=<n>", strprintf("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXSENDBUFFER), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
+    argsman.AddArg("-maxsendbuffer=<n>", strprintf("Maximum per-connection memory usage for the send buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXSENDBUFFER), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-maxtimeadjustment", strprintf("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)", DEFAULT_MAX_TIME_ADJUSTMENT), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-maxuploadtarget=<n>", strprintf("Tries to keep outbound traffic under the given target (in MiB per 24h). Limit does not apply to peers with 'download' permission. 0 = no limit (default: %d)", DEFAULT_MAX_UPLOAD_TARGET), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-onion=<ip:port>", "Use separate SOCKS5 proxy to reach peers via Tor onion services, set -noonion to disable (default: -proxy)", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -1565,8 +1565,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (!ignores_incoming_txs) node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
 
     assert(!node.mempool);
-    int check_ratio = std::min<int>(std::max<int>(args.GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
-    node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), check_ratio);
+    const int mempool_check_ratio = std::clamp<int>(args.GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0, 1000000);
+    node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), mempool_check_ratio);
 
     assert(!node.chainman);
     node.chainman = std::make_unique<ChainstateManager>();
@@ -1765,10 +1765,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 #endif
 
-    pdsNotificationInterface = new CDSNotificationInterface(
+    g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
         *node.connman, *node.mn_sync, *node.govman, *node.peerman, chainman, node.mn_activeman.get(), node.dmnman, node.llmq_ctx, node.cj_ctx
     );
-    RegisterValidationInterface(pdsNotificationInterface);
+    RegisterValidationInterface(g_ds_notification_interface.get());
 
     // ********************************************************* Step 7a: Load sporks
 
@@ -1815,9 +1815,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     LogPrintf("* Using %.1f MiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 
-    bool fLoaded = false;
-
-    while (!fLoaded && !ShutdownRequested()) {
+    for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         const bool fReset = fReindex;
         auto is_coinsview_empty = [&](CChainState* chainstate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
             return fReset || fReindexChainState || chainstate->CoinsTip().GetBestBlock().IsNull();
@@ -1832,18 +1830,16 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
             try {
                 LOCK(cs_main);
+
                 node.evodb.reset();
                 node.evodb = std::make_unique<CEvoDB>(nEvoDbCache, false, fReset || fReindexChainState);
+
                 node.mnhf_manager.reset();
                 node.mnhf_manager = std::make_unique<CMNHFManager>(*node.evodb);
 
-
-                chainman.Reset();
                 chainman.InitializeChainstate(Assert(node.mempool.get()), *node.evodb, node.chain_helper, llmq::chainLocksHandler, llmq::quorumInstantSendManager);
                 chainman.m_total_coinstip_cache = nCoinCacheUsage;
                 chainman.m_total_coinsdb_cache = nCoinDBCache;
-
-                UnloadBlockIndex(node.mempool.get(), chainman);
 
                 auto& pblocktree{chainman.m_blockman.m_block_tree_db};
                 // new CBlockTreeDB tries to delete the existing file, which
@@ -1887,7 +1883,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
                 if (ShutdownRequested()) break;
 
-                // LoadBlockIndex will load fHavePruned if we've ever removed a
+                // LoadBlockIndex will load m_have_pruned if we've ever removed a
                 // block file from disk.
                 // Note that it also sets fReindex based on the disk flag!
                 // From here on out fReindex and fReset mean something different!
@@ -1933,7 +1929,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
                 // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks
                 // in the past, but is now trying to run unpruned.
-                if (fHavePruned && !fPruneMode) {
+                if (chainman.m_blockman.m_have_pruned && !fPruneMode) {
                     strLoadError = _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
                     break;
                 }
@@ -2019,7 +2015,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 for (CChainState* chainstate : chainman.GetAll()) {
                     if (!is_coinsview_empty(chainstate)) {
                         uiInterface.InitMessage(_("Verifying blocks…").translated);
-                        if (fHavePruned && args.GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {
+                        if (chainman.m_blockman.m_have_pruned && args.GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {
                             LogPrintf("Prune: pruned datadir may not have more than %d blocks; only checking available blocks\n",
                                 MIN_BLOCKS_TO_KEEP);
                         }
@@ -2217,7 +2213,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // ********************************************************* Step 10a: schedule Dash-specific tasks
 
     node.scheduler->scheduleEvery(std::bind(&CNetFulfilledRequestManager::DoMaintenance, std::ref(*node.netfulfilledman)), std::chrono::minutes{1});
-    node.scheduler->scheduleEvery(std::bind(&CMasternodeSync::DoMaintenance, std::ref(*node.mn_sync)), std::chrono::seconds{1});
+    node.scheduler->scheduleEvery(std::bind(&CMasternodeSync::DoMaintenance, std::ref(*node.mn_sync), std::cref(*node.peerman)), std::chrono::seconds{1});
     node.scheduler->scheduleEvery(std::bind(&CMasternodeUtils::DoMaintenance, std::ref(*node.connman), std::ref(*node.dmnman), std::ref(*node.mn_sync), std::ref(*node.cj_ctx)), std::chrono::minutes{1});
     node.scheduler->scheduleEvery(std::bind(&CDeterministicMNManager::DoMaintenance, std::ref(*node.dmnman)), std::chrono::seconds{10});
 
@@ -2288,7 +2284,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     chainman.m_load_block = std::thread(&util::TraceThread, "loadblk", [=, &args, &chainman, &node] {
-        ThreadImport(chainman, *node.dmnman, *pdsNotificationInterface, vImportFiles, node.mn_activeman.get(), args);
+        ThreadImport(chainman, *node.dmnman, *g_ds_notification_interface, vImportFiles, node.mn_activeman.get(), args);
     });
 
     // Wait for genesis block to be processed
@@ -2325,9 +2321,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             tip_info->block_hash = chainman.ActiveChain().Tip() ? chainman.ActiveChain().Tip()->GetBlockHash() : Params().GenesisBlock().GetHash();
             tip_info->verification_progress = GuessVerificationProgress(Params().TxData(), chainman.ActiveChain().Tip());
         }
-        if (tip_info && ::pindexBestHeader) {
-            tip_info->header_height = ::pindexBestHeader->nHeight;
-            tip_info->header_time = ::pindexBestHeader->GetBlockTime();
+        if (tip_info && chainman.m_best_header) {
+            tip_info->header_height = chainman.m_best_header->nHeight;
+            tip_info->header_time = chainman.m_best_header->GetBlockTime();
         }
     }
     LogPrintf("nBestHeight = %d\n", chain_active_height);

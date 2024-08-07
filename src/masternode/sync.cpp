@@ -115,7 +115,7 @@ void CMasternodeSync::ProcessMessage(const CNode& peer, std::string_view msg_typ
     LogPrint(BCLog::MNSYNC, "SYNCSTATUSCOUNT -- got inventory count: nItemID=%d  nCount=%d  peer=%d\n", nItemID, nCount, peer.GetId());
 }
 
-void CMasternodeSync::ProcessTick()
+void CMasternodeSync::ProcessTick(const PeerManager& peerman)
 {
     assert(m_netfulfilledman.IsValid());
 
@@ -144,7 +144,7 @@ void CMasternodeSync::ProcessTick()
 
     // gradually request the rest of the votes after sync finished
     if(IsSynced()) {
-        m_govman.RequestGovernanceObjectVotes(snap.Nodes(), connman);
+        m_govman.RequestGovernanceObjectVotes(snap.Nodes(), connman, peerman);
         return;
     }
 
@@ -264,7 +264,7 @@ void CMasternodeSync::ProcessTick()
         if(!m_netfulfilledman.HasFulfilledRequest(pnode->addr, "governance-sync")) {
             continue; // to early for this node
         }
-        int nObjsLeftToAsk = m_govman.RequestGovernanceObjectVotes(*pnode, connman);
+        int nObjsLeftToAsk = m_govman.RequestGovernanceObjectVotes(*pnode, connman, peerman);
         // check for data
         if(nObjsLeftToAsk == 0) {
             static int64_t nTimeNoObjectsLeft = 0;
@@ -329,7 +329,7 @@ void CMasternodeSync::NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitia
     }
 }
 
-void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload)
+void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexTip, const CBlockIndex *pindexNew, bool fInitialDownload)
 {
     LogPrint(BCLog::MNSYNC, "CMasternodeSync::UpdatedBlockTip -- pindexNew->nHeight: %d fInitialDownload=%d\n", pindexNew->nHeight, fInitialDownload);
     nTimeLastUpdateBlockTip = GetTime<std::chrono::seconds>().count();
@@ -353,7 +353,6 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
     }
 
     // Note: since we sync headers first, it should be ok to use this
-    CBlockIndex* pindexTip = WITH_LOCK(cs_main, return pindexBestHeader);
     if (pindexTip == nullptr) return;
     bool fReachedBestHeaderNew = pindexNew->GetBlockHash() == pindexTip->GetBlockHash();
 
@@ -369,9 +368,9 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
                 pindexNew->nHeight, pindexTip->nHeight, fInitialDownload, fReachedBestHeader);
 }
 
-void CMasternodeSync::DoMaintenance()
+void CMasternodeSync::DoMaintenance(const PeerManager& peerman)
 {
     if (ShutdownRequested()) return;
 
-    ProcessTick();
+    ProcessTick(peerman);
 }

@@ -23,9 +23,10 @@
 #include <validation.h>
 #include <walletinitinterface.h>
 
+#include <map>
+
 std::atomic_bool fImporting(false);
 std::atomic_bool fReindex(false);
-bool fHavePruned = false;
 bool fPruneMode = false;
 uint64_t nPruneTarget = 0;
 
@@ -86,7 +87,8 @@ const CBlockIndex* BlockManager::LookupBlockIndex(const uint256& hash) const
     return it == m_block_index.end() ? nullptr : &it->second;
 }
 
-CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, const uint256& hash, enum BlockStatus nStatus)
+CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, const uint256& hash, CBlockIndex*& best_header,
+                                           enum BlockStatus nStatus)
 {
     assert(!(nStatus & BLOCK_FAILED_MASK)); // no failed blocks allowed
     AssertLockHeld(cs_main);
@@ -113,8 +115,8 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, const uint
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + GetBlockProof(*pindexNew);
     if (nStatus & BLOCK_VALID_MASK) {
         pindexNew->RaiseValidity(nStatus);
-        if (pindexBestHeader == nullptr || pindexBestHeader->nChainWork < pindexNew->nChainWork) {
-            pindexBestHeader = pindexNew;
+        if (best_header == nullptr || best_header->nChainWork < pindexNew->nChainWork) {
+            best_header = pindexNew;
         }
     } else {
         pindexNew->RaiseValidity(BLOCK_VALID_TREE); // required validity level
@@ -309,24 +311,9 @@ bool BlockManager::LoadBlockIndex(const Consensus::Params& consensus_params)
         if (pindex->pprev) {
             pindex->BuildSkip();
         }
-        if (pindex->IsValid(BLOCK_VALID_TREE) && (pindexBestHeader == nullptr || CBlockIndexWorkComparator()(pindexBestHeader, pindex)))
-            pindexBestHeader = pindex;
     }
 
     return true;
-}
-
-void BlockManager::Unload()
-{
-    m_blocks_unlinked.clear();
-
-    m_block_index.clear();
-    m_prev_block_index.clear();
-
-    m_blockfile_info.clear();
-    m_last_blockfile = 0;
-    m_dirty_blockindex.clear();
-    m_dirty_fileinfo.clear();
 }
 
 bool BlockManager::WriteBlockIndexDB()
@@ -389,8 +376,8 @@ bool BlockManager::LoadBlockIndexDB()
     }
 
     // Check whether we have ever pruned block & undo files
-    m_block_tree_db->ReadFlag("prunedblockfiles", fHavePruned);
-    if (fHavePruned) {
+    m_block_tree_db->ReadFlag("prunedblockfiles", m_have_pruned);
+    if (m_have_pruned) {
         LogPrintf("LoadBlockIndexDB(): Block files have previously been pruned\n");
     }
 
@@ -428,10 +415,10 @@ const CBlockIndex* BlockManager::GetLastCheckpoint(const CCheckpointData& data)
     return nullptr;
 }
 
-bool IsBlockPruned(const CBlockIndex* pblockindex)
+bool BlockManager::IsBlockPruned(const CBlockIndex* pblockindex)
 {
     AssertLockHeld(::cs_main);
-    return (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0);
+    return (m_have_pruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0);
 }
 
 // If we're using -prune with -reindex, then delete block files that will be ignored by the
@@ -832,6 +819,9 @@ void ThreadImport(ChainstateManager& chainman, CDeterministicMNManager& dmnman, 
         // -reindex
         if (fReindex) {
             int nFile = 0;
+            // Map of disk positions for blocks with unknown parent (only used for reindex);
+            // parent hash -> child disk position, multiple children can have the same parent.
+            std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
             while (true) {
                 FlatFilePos pos(nFile, 0);
                 if (!fs::exists(GetBlockPosFilename(pos))) {
@@ -842,7 +832,7 @@ void ThreadImport(ChainstateManager& chainman, CDeterministicMNManager& dmnman, 
                     break; // This error is logged in OpenBlockFile
                 }
                 LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-                chainman.ActiveChainstate().LoadExternalBlockFile(file, &pos);
+                chainman.ActiveChainstate().LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
                 if (ShutdownRequested()) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
                     return;
