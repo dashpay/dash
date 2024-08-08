@@ -92,7 +92,7 @@ class DashGovernanceTest (DashTestFramework):
     def run_test(self):
         governance_info = self.nodes[0].getgovernanceinfo()
         assert_equal(governance_info['governanceminquorum'], 1)
-        assert_equal(governance_info['proposalfee'], 1)
+        assert_equal(governance_info['commitmentamount'], 1)
         assert_equal(governance_info['superblockcycle'], 20)
         assert_equal(governance_info['superblockmaturitywindow'], 10)
         assert_equal(governance_info['lastsuperblock'], 120)

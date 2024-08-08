@@ -1355,14 +1355,14 @@ class CFinalCommitment:
                     repr(self.validMembers), self.quorumPublicKey.hex(), self.quorumVvecHash, self.quorumSig.hex(), self.membersSig.hex())
 
 class CGovernanceObject:
-    __slots__ = ("nHashParent", "nRevision", "nTime", "nCollateralHash", "vchData", "nObjectType",
+    __slots__ = ("nHashParent", "nRevision", "nTime", "m_commitment_hash", "vchData", "nObjectType",
                  "masternodeOutpoint", "vchSig")
 
     def __init__(self):
         self.nHashParent = 0
         self.nRevision = 0
         self.nTime = 0
-        self.nCollateralHash = 0
+        self.m_commitment_hash = 0
         self.vchData = []
         self.nObjectType = 0
         self.masternodeOutpoint = COutPoint()
@@ -1372,7 +1372,7 @@ class CGovernanceObject:
         self.nHashParent = deser_uint256(f)
         self.nRevision = struct.unpack("<i", f.read(4))[0]
         self.nTime = struct.unpack("<q", f.read(8))[0]
-        self.nCollateralHash = deser_uint256(f)
+        self.m_commitment_hash = deser_uint256(f)
         size = deser_compact_size(f)
         if size > 0:
             self.vchData = f.read(size)
@@ -1387,7 +1387,7 @@ class CGovernanceObject:
         r += ser_uint256(self.nParentHash)
         r += struct.pack("<i", self.nRevision)
         r += struct.pack("<q", self.nTime)
-        r += deser_uint256(self.nCollateralHash)
+        r += deser_uint256(self.m_commitment_hash)
         r += deser_compact_size(len(self.vchData))
         r += self.vchData
         r += struct.pack("<i", self.nObjectType)

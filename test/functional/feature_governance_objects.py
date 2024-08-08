@@ -14,7 +14,7 @@ from test_framework.util import assert_equal, assert_greater_than, assert_raises
 
 def validate_object(prepared, rpc_prepared):
     assert_equal(prepared["parentHash"], rpc_prepared["parentHash"])
-    assert_equal(prepared["collateralHash"], rpc_prepared["collateralHash"])
+    assert_equal(prepared["commitmentHash"], rpc_prepared["commitmentHash"])
     assert_equal(prepared["createdAt"], rpc_prepared["createdAt"])
     assert_equal(prepared["revision"], rpc_prepared["revision"])
     assert_equal(prepared["hex"], rpc_prepared["data"]["hex"])
@@ -39,10 +39,10 @@ class DashGovernanceTest (DashTestFramework):
             "url": "https://dash.org"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_template).encode())
-        collateral_hash = self.nodes[0].gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
+        commitment_hash = self.nodes[0].gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
         return {
             "parentHash": parent_hash,
-            "collateralHash": collateral_hash,
+            "commitmentHash": commitment_hash,
             "createdAt": proposal_time,
             "revision": proposal_rev,
             "hex": proposal_hex,
