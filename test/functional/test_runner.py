@@ -314,7 +314,7 @@ BASE_SCRIPTS = [
     'wallet_send.py --descriptors',
     'wallet_create_tx.py --descriptors',
     'p2p_fingerprint.py',
-    'rpc_platform_filter.py',
+    'rpc_external_queue.py',
     'rpc_wipewallettxes.py',
     'feature_dip0020_activation.py',
     'feature_uacomment.py',
