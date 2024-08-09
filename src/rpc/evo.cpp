@@ -1707,6 +1707,9 @@ static RPCHelpMan protx_listdiff()
     UniValue jremovedMNs(UniValue::VARR);
     for(const auto& internal_id : mnDiff.removedMns) {
         auto dmn = baseBlockMNList.GetMNByInternalId(internal_id);
+        // BuildDiff will construct itself with MNs that we already have knowledge
+        // of, meaning that fetch operations should never fail.
+        CHECK_NONFATAL(dmn != nullptr);
         jremovedMNs.push_back(dmn->proTxHash.ToString());
     }
     ret.pushKV("removedMNs", jremovedMNs);
@@ -1714,6 +1717,9 @@ static RPCHelpMan protx_listdiff()
     UniValue jupdatedMNs(UniValue::VARR);
     for(const auto& [internal_id, stateDiff] : mnDiff.updatedMNs) {
         auto dmn = baseBlockMNList.GetMNByInternalId(internal_id);
+        // BuildDiff will construct itself with MNs that we already have knowledge
+        // of, meaning that fetch operations should never fail.
+        CHECK_NONFATAL(dmn != nullptr);
         UniValue obj(UniValue::VOBJ);
         obj.pushKV(dmn->proTxHash.ToString(), stateDiff.ToJson(dmn->nType));
         jupdatedMNs.push_back(obj);

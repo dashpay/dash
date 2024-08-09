@@ -426,7 +426,7 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(gsl::not_null<const CBlockI
     for (const auto& id : diff.removedMns) {
         auto dmn = result.GetMNByInternalId(id);
         if (!dmn) {
-            throw(std::runtime_error(strprintf("%s: can't find a removed masternode, id=%d", __func__, id)));
+            throw std::runtime_error(strprintf("%s: can't find a removed masternode, id=%d", __func__, id));
         }
         result.RemoveMN(dmn->proTxHash);
     }
@@ -435,6 +435,9 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(gsl::not_null<const CBlockI
     }
     for (const auto& p : diff.updatedMNs) {
         auto dmn = result.GetMNByInternalId(p.first);
+        if (!dmn) {
+            throw std::runtime_error(strprintf("%s: can't find an updated masternode, id=%d", __func__, p.first));
+        }
         result.UpdateMN(*dmn, p.second);
     }
 
@@ -816,7 +819,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-addr");
             }
 
-            CDeterministicMNCPtr dmn = newList.GetMN(opt_proTx->proTxHash);
+            auto dmn = newList.GetMN(opt_proTx->proTxHash);
             if (!dmn) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
@@ -857,7 +860,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
             }
 
-            CDeterministicMNCPtr dmn = newList.GetMN(opt_proTx->proTxHash);
+            auto dmn = newList.GetMN(opt_proTx->proTxHash);
             if (!dmn) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
@@ -885,7 +888,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
             }
 
-            CDeterministicMNCPtr dmn = newList.GetMN(opt_proTx->proTxHash);
+            auto dmn = newList.GetMN(opt_proTx->proTxHash);
             if (!dmn) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
@@ -945,6 +948,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
     // current block. We still pay that MN one last time, however.
     if (payee && newList.HasMN(payee->proTxHash)) {
         auto dmn = newList.GetMN(payee->proTxHash);
+        // HasMN has reported that GetMN should succeed, enforce that.
+        assert(dmn);
         auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
         newState->nLastPaidHeight = nHeight;
         // Starting from v19 and until MNRewardReallocation, EvoNodes will be paid 4 blocks in a row
@@ -960,6 +965,9 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
         newList.UpdateMN(payee->proTxHash, newState);
         if (debugLogs) {
             dmn = newList.GetMN(payee->proTxHash);
+            // Since the previous GetMN query returned a value, after an update, querying the same
+            // hash *must* give us a result. If it doesn't, that would be a potential logic bug.
+            assert(dmn);
             LogPrint(BCLog::MNPAYMENTS, "CDeterministicMNManager::%s -- MN %s, nConsecutivePayments=%d\n",
                       __func__, dmn->proTxHash.ToString(), dmn->pdmnState->nConsecutivePayments);
         }
