@@ -706,6 +706,7 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CConnma
     }
 
     if (sigman.HasRecoveredSigForId(llmqType, sigShare.getId())) {
+        LogPrintf("CSigSharesManager::ProcessSigShare has recovered sig for id=%s\n", sigShare.getId().ToString());
         return;
     }
 
@@ -735,6 +736,7 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CConnma
         }
 
         size_t sigShareCount = sigShares.CountForSignHash(sigShare.GetSignHash());
+        LogPrintf("CSigSharesManager::ProcessSigShare sig_id=%s key=%s,%d shares=%lld/%lld\n", sigShare.getId().ToString(), sigShare.GetSignHash().ToString(), sigShare.GetKey().second, sigShareCount, quorum->params.threshold);
         if (sigShareCount >= size_t(quorum->params.threshold)) {
             canTryRecovery = true;
         }

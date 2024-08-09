@@ -91,6 +91,7 @@ void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pind
     LogPrint(BCLog::EHF, "CEHFSignalsHandler::trySignEHFSignal: bit=%d at height=%d id=%s\n", bit, pindex->nHeight, requestId.ToString());
     mnhfPayload.signal.quorumHash = quorum->qc->quorumHash;
     const uint256 msgHash = mnhfPayload.PrepareTx().GetHash();
+    LogPrint(BCLog::EHF, "CEHFSignalsHandler::trySignEHFSignal: msgHash=%s quorum=%s id=%s\n", msgHash.ToString(), quorum->qc->quorumHash.ToString(), requestId.ToString());
 
     WITH_LOCK(cs, ids.insert(requestId));
     sigman.AsyncSignIfMember(llmqType, shareman, requestId, msgHash, quorum->qc->quorumHash, false, true);
