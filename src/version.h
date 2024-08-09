@@ -55,6 +55,9 @@ static const int MNLISTDIFF_CHAINLOCKS_PROTO_VERSION = 70230;
 //! Legacy ISLOCK messages and a corresponding INV were dropped in this version
 static const int NO_LEGACY_ISLOCK_PROTO_VERSION = 70231;
 
+//! Inventory type for DSQ messages added
+static const int DSQ_INV_VERSION = 70233;
+
 // Make sure that none of the values above collide with `ADDRV2_FORMAT`.
 
 #endif // BITCOIN_VERSION_H
