@@ -122,7 +122,7 @@ static RPCHelpMan gobject_check()
 }
 
 #ifdef ENABLE_WALLET
-// PREPARE THE GOVERNANCE OBJECT BY CREATING A COLLATERAL TRANSACTION
+// PREPARE THE GOVERNANCE OBJECT BY CREATING A COMMITMENT TRANSACTION
 static RPCHelpMan gobject_prepare()
 {
     return RPCHelpMan{"gobject prepare",
@@ -134,7 +134,7 @@ static RPCHelpMan gobject_prepare()
             {"time", RPCArg::Type::NUM, RPCArg::Optional::NO, "time this object was created"},
             {"data-hex", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "data in hex string form"},
             {"use-IS", RPCArg::Type::BOOL, /* default */ "false", "Deprecated and ignored"},
-            {"outputHash", RPCArg::Type::STR_HEX, /* default */ "", "the single output to submit the proposal fee from"},
+            {"outputHash", RPCArg::Type::STR_HEX, /* default */ "", "the single output to submit the proposal commitment from"},
             {"outputIndex", RPCArg::Type::NUM, /* default */ "", "The output index."},
         },
         RPCResults{},
@@ -161,7 +161,7 @@ static RPCHelpMan gobject_prepare()
     int64_t nTime = ParseInt64V(request.params[2], "time");
     std::string strDataHex = request.params[3].get_str();
 
-    // CREATE A NEW COLLATERAL TRANSACTION FOR THIS SPECIFIC OBJECT
+    // CREATE A NEW COMMITMENT TRANSACTION FOR THIS SPECIFIC OBJECT
 
     CGovernanceObject govobj(hashParent, nRevision, nTime, uint256(), strDataHex);
 
@@ -202,24 +202,24 @@ static RPCHelpMan gobject_prepare()
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
     }
 
-    // If specified, spend this outpoint as the proposal fee
+    // If specified, spend this outpoint as the proposal commitment
     COutPoint outpoint;
     outpoint.SetNull();
     if (!request.params[5].isNull() && !request.params[6].isNull()) {
-        uint256 collateralHash(ParseHashV(request.params[5], "outputHash"));
-        int32_t collateralIndex = ParseInt32V(request.params[6], "outputIndex");
-        if (collateralHash.IsNull() || collateralIndex < 0) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid hash or index: %s-%d", collateralHash.ToString(), collateralIndex));
+        uint256 outputHash(ParseHashV(request.params[5], "outputHash"));
+        int32_t outputIndex = ParseInt32V(request.params[6], "outputIndex");
+        if (outputHash.IsNull() || outputIndex < 0) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid hash or index: %s-%d", outputHash.ToString(), outputIndex));
         }
-        outpoint = COutPoint(collateralHash, (uint32_t)collateralIndex);
+        outpoint = COutPoint(outputHash, (uint32_t)outputIndex);
     }
 
     CTransactionRef tx;
 
-    if (!wallet->GetBudgetSystemCollateralTX(tx, govobj.GetHash(), govobj.GetMinCollateralFee(), outpoint)) {
-        std::string err = "Error making collateral transaction for governance object. Please check your wallet balance and make sure your wallet is unlocked.";
+    if (!wallet->CreateGovernanceCommitmentTransaction(tx, govobj.GetHash(), govobj.GetMinCommitmentAmount(), outpoint)) {
+        std::string err = "Error making commitment transaction for governance object. Please check your wallet balance and make sure your wallet is unlocked.";
         if (!request.params[5].isNull() && !request.params[6].isNull()) {
-            err += "Please verify your specified output is valid and is enough for the combined proposal fee and transaction fee.";
+            err += "Please verify your specified output is valid and is enough for the combined proposal commitment and transaction fee.";
         }
         throw JSONRPCError(RPC_INTERNAL_ERROR, err);
     }
@@ -279,7 +279,7 @@ static RPCHelpMan gobject_list_prepared()
 }
 #endif // ENABLE_WALLET
 
-// AFTER COLLATERAL TRANSACTION HAS MATURED USER CAN SUBMIT GOVERNANCE OBJECT TO PROPAGATE NETWORK
+// AFTER COMMITMENT TRANSACTION HAS MATURED USER CAN SUBMIT GOVERNANCE OBJECT TO PROPAGATE NETWORK
 /*
     ------ Example Governance Item ------
 
@@ -294,7 +294,7 @@ static RPCHelpMan gobject_submit()
             {"revision", RPCArg::Type::NUM, RPCArg::Optional::NO, "object revision in the system"},
             {"time", RPCArg::Type::NUM, RPCArg::Optional::NO, "time this object was created"},
             {"data-hex", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "data in hex string form"},
-            {"fee-txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "txid of the corresponding proposal fee transaction"},
+            {"commitment-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "txid of the corresponding proposal commitment transaction"},
         },
         RPCResults{},
         RPCExamples{""},
@@ -327,10 +327,10 @@ static RPCHelpMan gobject_submit()
 
     // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
 
-    uint256 txidFee;
+    uint256 commitment_hash;
 
     if (!request.params[4].isNull()) {
-        txidFee = ParseHashV(request.params[4], "fee-txid");
+        commitment_hash = ParseHashV(request.params[4], "commitment");
     }
     uint256 hashParent;
     if (request.params[0].get_str() == "0") { // attach to root node (root node doesn't really exist, but has a hash of zero)
@@ -345,10 +345,10 @@ static RPCHelpMan gobject_submit()
     int64_t nTime = ParseInt64V(request.params[2], "time");
     std::string strDataHex = request.params[3].get_str();
 
-    CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strDataHex);
+    CGovernanceObject govobj(hashParent, nRevision, nTime, commitment_hash, strDataHex);
 
-    LogPrint(BCLog::GOBJECT, "gobject_submit -- GetDataAsPlainString = %s, hash = %s, txid = %s\n",
-                govobj.GetDataAsPlainString(), govobj.GetHash().ToString(), txidFee.ToString());
+    LogPrint(BCLog::GOBJECT, "gobject_submit -- GetDataAsPlainString = %s, hash = %s, commitment_hash = %s\n",
+                govobj.GetDataAsPlainString(), govobj.GetHash().ToString(), commitment_hash.ToString());
 
     if (govobj.GetObjectType() == GovernanceObject::TRIGGER) {
         LogPrintf("govobject(submit) -- Object submission rejected because submission of trigger is disabled\n");
@@ -655,7 +655,7 @@ static UniValue ListObjects(CGovernanceManager& govman, const CDeterministicMNLi
         bObj.pushKV("DataHex",  govObj.GetDataAsHexString());
         bObj.pushKV("DataString",  govObj.GetDataAsPlainString());
         bObj.pushKV("Hash",  govObj.GetHash().ToString());
-        bObj.pushKV("CollateralHash",  govObj.GetCollateralHash().ToString());
+        bObj.pushKV("CommitmentHash",  govObj.GetCommitmentHash().ToString());
         bObj.pushKV("ObjectType", ToUnderlying(govObj.GetObjectType()));
         bObj.pushKV("CreationTime", govObj.GetCreationTime());
         const COutPoint& masternodeOutpoint = govObj.GetMasternodeOutpoint();
@@ -773,7 +773,7 @@ static RPCHelpMan gobject_get()
     objResult.pushKV("DataHex",  pGovObj->GetDataAsHexString());
     objResult.pushKV("DataString",  pGovObj->GetDataAsPlainString());
     objResult.pushKV("Hash",  pGovObj->GetHash().ToString());
-    objResult.pushKV("CollateralHash",  pGovObj->GetCollateralHash().ToString());
+    objResult.pushKV("CommitmentHash",  pGovObj->GetCommitmentHash().ToString());
     objResult.pushKV("ObjectType", ToUnderlying(pGovObj->GetObjectType()));
     objResult.pushKV("CreationTime", pGovObj->GetCreationTime());
     const COutPoint& masternodeOutpoint = pGovObj->GetMasternodeOutpoint();
@@ -1014,7 +1014,7 @@ static RPCHelpMan getgovernanceinfo()
             RPCResult::Type::OBJ, "", "",
             {
                 {RPCResult::Type::NUM, "governanceminquorum", "the absolute minimum number of votes needed to trigger a governance action"},
-                {RPCResult::Type::NUM, "proposalfee", "the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + ""},
+                {RPCResult::Type::NUM, "commitmentamount", "the amount which must be paid to create a proposal in " + CURRENCY_UNIT + ""},
                 {RPCResult::Type::NUM, "superblockcycle", "the number of blocks between superblocks"},
                 {RPCResult::Type::NUM, "superblockmaturitywindow", "the superblock trigger creation window"},
                 {RPCResult::Type::NUM, "lastsuperblock", "the block number of the last superblock"},
@@ -1042,7 +1042,7 @@ static RPCHelpMan getgovernanceinfo()
 
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum);
-    obj.pushKV("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX));
+    obj.pushKV("commitmentamount", ValueFromAmount(GOVERNANCE_COMMITMENT_AMOUNT));
     obj.pushKV("superblockcycle", Params().GetConsensus().nSuperblockCycle);
     obj.pushKV("superblockmaturitywindow", Params().GetConsensus().nSuperblockMaturityWindow);
     obj.pushKV("lastsuperblock", nLastSuperblock);
