@@ -39,6 +39,31 @@ class ZMQSubscriber:
         return body
 
 
+class ZMQTestSetupBlock:
+    """Helper class for setting up a ZMQ test via the "sync up" procedure.
+    Generates a block on the specified node on instantiation and provides a
+    method to check whether a ZMQ notification matches, i.e. the event was
+    caused by this generated block.  Assumes that a notification either contains
+    the generated block's hash, it's (coinbase) transaction id, the raw block or
+    raw transaction data.
+    """
+
+    def __init__(self, node):
+        self.block_hash = node.generate(1)[0]
+        coinbase = node.getblock(self.block_hash, 2)['tx'][0]
+        self.tx_hash = coinbase['txid']
+        self.raw_tx = coinbase['hex']
+        self.raw_block = node.getblock(self.block_hash, 0)
+
+    def caused_notification(self, notification):
+        return (
+            self.block_hash in notification
+            or self.tx_hash in notification
+            or self.raw_block in notification
+            or self.raw_tx in notification
+        )
+
+
 class ZMQTest (BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
