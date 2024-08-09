@@ -190,7 +190,7 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY));
+    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY)) & (~(SIGHASH_DIP0143));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
@@ -214,7 +214,7 @@ bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned i
     return true;
 }
 
-bool static CheckPubKeyEncoding(const valtype &vchPubKey, unsigned int flags, const SigVersion &sigversion, ScriptError* serror) {
+bool static CheckPubKeyEncoding(const valtype &vchPubKey, unsigned int flags, ScriptError* serror) {
     if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsCompressedOrUncompressedPubKey(vchPubKey)) {
         return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
     }
@@ -343,23 +343,26 @@ public:
  * A return value of false means the script fails entirely. When true is returned, the
  * fSuccess variable indicates whether the signature check itself succeeded.
  */
-static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& fSuccess)
+static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror, bool& fSuccess)
 {
     // Subset of script starting at the most recent codeseparator
     CScript scriptCode(pbegincodehash, pend);
 
-    // Drop the signature, since there's no way for a signature to sign itself
-    if (sigversion == SigVersion::BASE) {
-        int found = FindAndDelete(scriptCode, CScript() << vchSig);
-        if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
-            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+    int nHashType = vchSig.empty() ? 0 : vchSig.back();
+    // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
+    if ((nHashType & SIGHASH_DIP0143) && (~flags & SCRIPT_ENABLE_DIP0143)) {
+        return set_error(serror, SCRIPT_ERR_SIGHASHTYPE_DIP0143);
     }
+    // Drop the signature, since there's no way for a signature to sign itself
+    int found = FindAndDelete(scriptCode, CScript() << vchSig);
+    if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+        return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
 
-    if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror)) {
+    if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
         //serror is set
         return false;
     }
-    fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
+    fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersion(flags, nHashType));
 
     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
         return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
@@ -368,7 +371,7 @@ static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScrip
 }
 
 
-bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror)
+bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
 {
     static const CScriptNum bnZero(0);
     static const CScriptNum bnOne(1);
@@ -435,7 +438,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes (CVE-2010-5137).
 
             // With SCRIPT_VERIFY_CONST_SCRIPTCODE, OP_CODESEPARATOR is rejected even in an unexecuted branch
-            if (opcode == OP_CODESEPARATOR && sigversion == SigVersion::BASE && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+            if (opcode == OP_CODESEPARATOR && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
                 return set_error(serror, SCRIPT_ERR_OP_CODESEPARATOR);
 
             if (fExec && 0 <= opcode && opcode <= OP_PUSHDATA4) {
@@ -1073,7 +1076,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vchPubKey = stacktop(-1);
 
                     bool fSuccess = true;
-                    if (!EvalChecksig(vchSig, vchPubKey, pbegincodehash, pend, flags, checker, sigversion, serror, fSuccess)) return false;
+                    if (!EvalChecksig(vchSig, vchPubKey, pbegincodehash, pend, flags, checker, serror, fSuccess)) return false;
                     popstack(stack);
                     popstack(stack);
                     stack.push_back(fSuccess ? vchTrue : vchFalse);
@@ -1098,7 +1101,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype &vchMessage = stacktop(-2);
                     valtype &vchPubKey = stacktop(-1);
 
-                    if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror)) {
+                    if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
                         // serror is set
                         return false;
                     }
@@ -1164,15 +1167,18 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // Subset of script starting at the most recent codeseparator
                     CScript scriptCode(pbegincodehash, pend);
 
-                    // Drop the signatures, since there's no way for a signature to sign itself
                     for (int k = 0; k < nSigsCount; k++)
                     {
                         valtype& vchSig = stacktop(-isig-k);
-                        if (sigversion == SigVersion::BASE) {
-                            int found = FindAndDelete(scriptCode, CScript() << vchSig);
-                            if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
-                                return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+                        int nHashType = vchSig.empty() ? 0 : vchSig.back();
+                        // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
+                        if ((nHashType & SIGHASH_DIP0143) && (~flags & SCRIPT_ENABLE_DIP0143)) {
+                            return set_error(serror, SCRIPT_ERR_SIGHASHTYPE_DIP0143);
                         }
+                        // Drop the signatures, since there's no way for a signature to sign itself
+                        int found = FindAndDelete(scriptCode, CScript() << vchSig);
+                        if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+                            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
                     }
 
                     bool fSuccess = true;
@@ -1184,13 +1190,14 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         // Note how this makes the exact order of pubkey/signature evaluation
                         // distinguishable by CHECKMULTISIG NOT if the STRICTENC flag is set.
                         // See the script_(in)valid tests for details.
-                        if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror)) {
+                        if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
                             // serror is set
                             return false;
                         }
 
                         // Check signature
-                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
+                        int nHashType = vchSig.empty() ? 0 : vchSig.back();
+                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersion(flags, nHashType));
 
                         if (fOk) {
                             isig++;
@@ -1481,37 +1488,37 @@ public:
     }
 };
 
-/** Compute the (single) SHA256 of the concatenation of all prevouts of a tx. */
+/** Compute the double SHA256 of the concatenation of all prevouts of a tx. */
 template <class T>
-uint256 GetPrevoutsSHA256(const T& txTo)
+uint256 GetPrevoutsHash(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txin : txTo.vin) {
         ss << txin.prevout;
     }
-    return ss.GetSHA256();
+    return ss.GetHash();
 }
 
-/** Compute the (single) SHA256 of the concatenation of all nSequences of a tx. */
+/** Compute the double SHA256 of the concatenation of all nSequences of a tx. */
 template <class T>
-uint256 GetSequencesSHA256(const T& txTo)
+uint256 GetSequencesHash(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txin : txTo.vin) {
         ss << txin.nSequence;
     }
-    return ss.GetSHA256();
+    return ss.GetHash();
 }
 
-/** Compute the (single) SHA256 of the concatenation of all txouts of a tx. */
+/** Compute the double SHA256 of the concatenation of all txouts of a tx. */
 template <class T>
-uint256 GetOutputsSHA256(const T& txTo)
+uint256 GetOutputsHash(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : txTo.vout) {
         ss << txout;
     }
-    return ss.GetSHA256();
+    return ss.GetHash();
 }
 
 } // namespace
@@ -1522,6 +1529,9 @@ void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent
     assert(!m_ready);
 
     m_spent_outputs = std::move(spent_outputs);
+    hashPrevouts = GetPrevoutsHash(txTo);
+    hashSequence = GetSequencesHash(txTo);
+    hashOutputs = GetOutputsHash(txTo);
 
     m_ready = true;
 }
@@ -1538,10 +1548,66 @@ template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTr
 template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
 template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
 
+SigVersion GetSigVersion(unsigned int flags, int nHashType)
+{
+    return (flags & SCRIPT_ENABLE_DIP0143) && (nHashType & SIGHASH_DIP0143) ? SigVersion::DIP0143 : SigVersion::BASE;
+}
+
 template <class T>
 uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache)
 {
     assert(nIn < txTo.vin.size());
+
+    if (sigversion == SigVersion::DIP0143) {
+        int32_t n32bitVersion = txTo.nVersion | (txTo.nType << 16);
+        uint256 hashPrevouts;
+        uint256 hashSequence;
+        uint256 hashOutputs;
+        const bool cacheready = cache && cache->m_ready;
+
+        if (!(nHashType & SIGHASH_ANYONECANPAY)) {
+            hashPrevouts = cacheready ? cache->hashPrevouts : GetPrevoutsHash(txTo);
+        }
+
+        if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+            hashSequence = cacheready ? cache->hashSequence : GetSequencesHash(txTo);
+        }
+
+        if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+            hashOutputs = cacheready ? cache->hashOutputs : GetOutputsHash(txTo);
+        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
+            CHashWriter ss(SER_GETHASH, 0);
+            ss << txTo.vout[nIn];
+            hashOutputs = ss.GetHash();
+        }
+
+        CHashWriter ss(SER_GETHASH, 0);
+
+        // Version and type
+        ss << n32bitVersion;
+        // Input prevouts/nSequence (none/all, depending on flags)
+        ss << hashPrevouts;
+        ss << hashSequence;
+        // The input being signed (replacing the scriptSig with scriptCode + amount)
+        // The prevout may already be contained in hashPrevout, and the nSequence
+        // may already be contain in hashSequence.
+        ss << txTo.vin[nIn].prevout;
+        ss << scriptCode;
+        ss << amount;
+        ss << txTo.vin[nIn].nSequence;
+        // Outputs (none/one/all, depending on flags)
+        ss << hashOutputs;
+        // Extra payload
+        if (txTo.nVersion == 3 && txTo.nType != TRANSACTION_NORMAL) {
+            ss << txTo.vExtraPayload;
+        }
+        // Locktime
+        ss << txTo.nLockTime;
+        // Sighash type
+        ss << nHashType;
+
+        return ss.GetHash();
+    }
 
     // Check for invalid use of SIGHASH_SINGLE
     if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
@@ -1690,12 +1756,12 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
     // scriptSig and scriptPubKey must be evaluated sequentially on the same stack
     // rather than being simply concatenated (see CVE-2010-5141)
     std::vector<std::vector<unsigned char> > stack, stackCopy;
-    if (!EvalScript(stack, scriptSig, flags, checker, SigVersion::BASE, serror))
+    if (!EvalScript(stack, scriptSig, flags, checker, serror))
         // serror is set
         return false;
     if (flags & SCRIPT_VERIFY_P2SH)
         stackCopy = stack;
-    if (!EvalScript(stack, scriptPubKey, flags, checker, SigVersion::BASE, serror))
+    if (!EvalScript(stack, scriptPubKey, flags, checker, serror))
         // serror is set
         return false;
     if (stack.empty())
@@ -1722,7 +1788,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         CScript pubKey2(pubKeySerialized.begin(), pubKeySerialized.end());
         popstack(stack);
 
-        if (!EvalScript(stack, pubKey2, flags, checker, SigVersion::BASE, serror))
+        if (!EvalScript(stack, pubKey2, flags, checker, serror))
             // serror is set
             return false;
         if (stack.empty())

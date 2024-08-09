@@ -61,7 +61,8 @@ static constexpr unsigned int STANDARD_SCRIPT_VERIFY_FLAGS = MANDATORY_SCRIPT_VE
                                                              SCRIPT_VERIFY_CHECKSEQUENCEVERIFY |
                                                              SCRIPT_VERIFY_LOW_S |
                                                              SCRIPT_ENABLE_DIP0020_OPCODES |
-                                                             SCRIPT_VERIFY_CONST_SCRIPTCODE;
+                                                             SCRIPT_VERIFY_CONST_SCRIPTCODE |
+                                                             SCRIPT_ENABLE_DIP0143;
 
 /** For convenience, standard but not mandatory verify flags. */
 static constexpr unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS = STANDARD_SCRIPT_VERIFY_FLAGS & ~MANDATORY_SCRIPT_VERIFY_FLAGS;

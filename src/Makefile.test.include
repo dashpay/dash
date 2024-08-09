@@ -25,6 +25,7 @@ JSON_TEST_FILES = \
   test/data/proposals_invalid.json \
   test/data/script_tests.json \
   test/data/sighash.json \
+  test/data/sighash_dip0143.json \
   test/data/trivially_invalid.json \
   test/data/trivially_valid.json \
   test/data/tx_invalid.json \
@@ -104,6 +105,7 @@ BITCOIN_TESTS =\
   test/cuckoocache_tests.cpp \
   test/denialofservice_tests.cpp \
   test/dip0020opcodes_tests.cpp \
+  test/dip0143_tests.cpp \
   test/descriptor_tests.cpp \
   test/dynamic_activation_thresholds_tests.cpp \
   test/evo_assetlocks_tests.cpp \
