@@ -151,18 +151,13 @@ static RPCHelpMan spork()
     return RPCHelpMan{"spork",
         "\nShows information about current state of sporks\n",
         {
-            {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "'show' to show all current spork values, 'active' to show which sporks are active"},
+            {"command", RPCArg::Type::STR, /* default*/ "\"show\"", "DEPRECATED. 'show' to show all current spork values"},
         },
         {
             RPCResult{"For 'show'",
                 RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its value",
                 {
                     {RPCResult::Type::NUM, "SPORK_NAME", "The value of the specific spork with the name SPORK_NAME"},
-                }},
-            RPCResult{"For 'active'",
-                RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its status",
-                {
-                    {RPCResult::Type::BOOL, "SPORK_NAME", "'true' for time-based sporks if spork is active and 'false' otherwise"},
                 }},
         },
         RPCExamples {
@@ -173,24 +168,13 @@ static RPCHelpMan spork()
 {
 
     // basic mode, show info
-    std:: string strCommand = request.params[0].get_str();
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CHECK_NONFATAL(node.sporkman);
-    if (strCommand == "show") {
-        UniValue ret(UniValue::VOBJ);
-        for (const auto& sporkDef : sporkDefs) {
-            ret.pushKV(std::string(sporkDef.name), node.sporkman->GetSporkValue(sporkDef.sporkId));
-        }
-        return ret;
-    } else if(strCommand == "active"){
-        UniValue ret(UniValue::VOBJ);
-        for (const auto& sporkDef : sporkDefs) {
-            ret.pushKV(std::string(sporkDef.name), node.sporkman->IsSporkActive(sporkDef.sporkId));
-        }
-        return ret;
+    UniValue ret(UniValue::VOBJ);
+    for (const auto& sporkDef : sporkDefs) {
+        ret.pushKV(std::string(sporkDef.name), node.sporkman->GetSporkValue(sporkDef.sporkId));
     }
-
-    return NullUniValue;
+    return ret;
 },
     };
 }
