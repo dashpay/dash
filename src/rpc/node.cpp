@@ -149,20 +149,20 @@ static RPCHelpMan spork()
 {
     // default help, for basic mode
     return RPCHelpMan{"spork",
-        "\nShows information about current state of sporks\n",
+        "\nShows information about current state of sporks for non-mainnet networks. Mainnet values are hardcoded.\n",
         {
-            {"command", RPCArg::Type::STR, /* default*/ "\"show\"", "DEPRECATED. 'show' to show all current spork values"},
+            {"command", RPCArg::Type::STR, RPCArg::Default{""}, "Deprecated and ignored"},
         },
         {
-            RPCResult{"For 'show'",
+            RPCResult{
                 RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its value",
                 {
                     {RPCResult::Type::NUM, "SPORK_NAME", "The value of the specific spork with the name SPORK_NAME"},
                 }},
         },
         RPCExamples {
-            HelpExampleCli("spork", "show")
-            + HelpExampleRpc("spork", "\"show\"")
+            HelpExampleCli("spork", "")
+            + HelpExampleRpc("spork", "")
         },
     [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -182,7 +182,7 @@ static RPCHelpMan spork()
 static RPCHelpMan sporkupdate()
 {
     return RPCHelpMan{"sporkupdate",
-        "\nUpdate the value of the specific spork. Requires \"-sporkkey\" to be set to sign the message.\n",
+        "\nUpdate the value of the specific spork on non-mainnet networks. Requires \"-sporkkey\" to be set to sign the message.\n",
         {
             {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name of the spork to update"},
             {"value", RPCArg::Type::NUM, RPCArg::Optional::NO, "The new desired value of the spork"},
