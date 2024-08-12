@@ -17,6 +17,7 @@ add_executable(fuzz
   bitset.cpp
   block.cpp
   block_header.cpp
+  block_index.cpp
   blockfilter.cpp
   bloom_filter.cpp
   buffered_file.cpp
