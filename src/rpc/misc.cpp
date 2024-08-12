@@ -149,7 +149,7 @@ static RPCHelpMan spork()
 {
     // default help, for basic mode
     return RPCHelpMan{"spork",
-        "\nShows information about current state of sporks\n",
+        "\nShows information about current state of sporks for non-mainnet networks. Mainnet values are hardcoded.\n",
         {
             {"command", RPCArg::Type::STR, /* default*/ "\"show\"", "DEPRECATED. 'show' to show all current spork values"},
         },
@@ -182,7 +182,7 @@ static RPCHelpMan spork()
 static RPCHelpMan sporkupdate()
 {
     return RPCHelpMan{"sporkupdate",
-        "\nUpdate the value of the specific spork. Requires \"-sporkkey\" to be set to sign the message.\n",
+        "\nUpdate the value of the specific spork on non-mainnet networks. Requires \"-sporkkey\" to be set to sign the message.\n",
         {
             {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name of the spork to update"},
             {"value", RPCArg::Type::NUM, RPCArg::Optional::NO, "The new desired value of the spork"},
