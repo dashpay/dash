@@ -69,7 +69,7 @@ class MultiKeySporkTest(BitcoinTestFramework):
 
     def get_test_spork_value(self, node, spork_name):
         self.bump_mocktime(5)  # advance ProcessTick
-        info = node.spork('show')
+        info = node.spork()
         # use InstantSend spork for tests
         return info[spork_name]
 
