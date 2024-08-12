@@ -230,13 +230,15 @@ static std::vector<CAddress> ConvertSeeds(const std::vector<uint8_t> &vSeedsIn)
 // Otherwise, return the unroutable 0.0.0.0 but filled in with
 // the normal parameters, since the IP may be changed to a useful
 // one by discovery.
-CService GetLocalAddress(const CNetAddr& addrPeer)
+CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices)
 {
-    CService ret{CNetAddr(), GetListenPort()};
+    CAddress ret(CService(CNetAddr(),GetListenPort()), nLocalServices);
     CService addr;
-    if (GetLocal(addr, &addrPeer)) {
-        ret = CService{addr};
+    if (GetLocal(addr, paddrPeer))
+    {
+        ret = CAddress(addr, nLocalServices);
     }
+    ret.nTime = GetAdjustedTime();
     return ret;
 }
 
@@ -255,35 +257,35 @@ bool IsPeerAddrLocalGood(CNode *pnode)
            IsReachable(addrLocal.GetNetwork());
 }
 
-std::optional<CService> GetLocalAddrForPeer(CNode& node)
+std::optional<CAddress> GetLocalAddrForPeer(CNode *pnode)
 {
-    CService addrLocal{GetLocalAddress(node.addr)};
+    CAddress addrLocal = GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
     if (gArgs.GetBoolArg("-addrmantest", false)) {
         // use IPv4 loopback during addrmantest
-        addrLocal = CService(LookupNumeric("127.0.0.1", GetListenPort()));
+        addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())), pnode->GetLocalServices());
     }
     // If discovery is enabled, sometimes give our peer the address it
     // tells us that it sees us as in case it has a better idea of our
     // address than we do.
     FastRandomContext rng;
-    if (IsPeerAddrLocalGood(&node) && (!addrLocal.IsRoutable() ||
+    if (IsPeerAddrLocalGood(pnode) && (!addrLocal.IsRoutable() ||
          rng.randbits((GetnScore(addrLocal) > LOCAL_MANUAL) ? 3 : 1) == 0))
     {
-        if (node.IsInboundConn()) {
+        if (pnode->IsInboundConn()) {
             // For inbound connections, assume both the address and the port
             // as seen from the peer.
-            addrLocal = CService{node.GetAddrLocal()};
+            addrLocal = CAddress{pnode->GetAddrLocal(), addrLocal.nServices, addrLocal.nTime};
         } else {
             // For outbound connections, assume just the address as seen from
             // the peer and leave the port in `addrLocal` as returned by
             // `GetLocalAddress()` above. The peer has no way to observe our
             // listening port when we have initiated the connection.
-            addrLocal.SetIP(node.GetAddrLocal());
+            addrLocal.SetIP(pnode->GetAddrLocal());
         }
     }
     if (addrLocal.IsRoutable() || gArgs.GetBoolArg("-addrmantest", false))
     {
-        LogPrint(BCLog::NET, "Advertising address %s to peer=%d\n", addrLocal.ToString(), node.GetId());
+        LogPrint(BCLog::NET, "Advertising address %s to peer=%d\n", addrLocal.ToString(), pnode->GetId());
         return addrLocal;
     }
     // Address is unroutable. Don't advertise.
@@ -608,6 +610,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         addr_bind = GetBindAddress(*sock);
     }
     CNode* pnode = new CNode(id,
+                             nLocalServices,
                              std::move(sock),
                              addrConnect,
                              CalculateKeyedNetGroup(addrConnect),
@@ -730,6 +733,7 @@ Network CNode::ConnectedThroughNetwork() const
 void CNode::CopyStats(CNodeStats& stats)
 {
     stats.nodeid = this->GetId();
+    X(nServices);
     X(addr);
     X(addrBind);
     stats.m_network = ConnectedThroughNetwork();
@@ -1243,7 +1247,7 @@ bool CConnman::AttemptToEvictConnection()
 
             NodeEvictionCandidate candidate = {node->GetId(), node->m_connected, node->m_min_ping_time,
                                                node->m_last_block_time, node->m_last_tx_time,
-                                               node->m_has_all_wanted_services,
+                                               HasAllDesirableServiceFlags(node->nServices),
                                                node->m_relays_txs.load(), node->m_bloom_filter_loaded.load(),
                                                node->nKeyedNetGroup, node->m_prefer_evict, node->addr.IsLocal(),
                                                node->ConnectedThroughNetwork()};
@@ -1400,6 +1404,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
 
     const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
     CNode* pnode = new CNode(id,
+                             nodeServices,
                              std::move(sock),
                              addr,
                              CalculateKeyedNetGroup(addr),
@@ -1413,7 +1418,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     // If this flag is present, the user probably expect that RPC and QT report it as whitelisted (backward compatibility)
     pnode->m_legacyWhitelisted = legacyWhitelisted;
     pnode->m_prefer_evict = discouraged;
-    m_msgproc->InitializeNode(*pnode, nodeServices);
+    m_msgproc->InitializeNode(pnode);
 
     {
         LOCK(pnode->m_sock_mutex);
@@ -1630,11 +1635,10 @@ void CConnman::CalculateNumConnectionsChangedStats()
             for (const mapMsgTypeSize::value_type &i : pnode->mapSendBytesPerMsgType)
                 mapSentBytesMsgStats[i.first] += i.second;
         }
-        if (pnode->m_bloom_filter_loaded.load()) {
+        if(pnode->fClient)
             spvNodes++;
-        } else {
+        else
             fullNodes++;
-        }
         if(pnode->IsInboundConn())
             inboundNodes++;
         else
@@ -3125,7 +3129,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         mapSocketToNode.emplace(pnode->m_sock->Get(), pnode);
     }
 
-    m_msgproc->InitializeNode(*pnode, nLocalServices);
+    m_msgproc->InitializeNode(pnode);
     {
         LOCK(m_nodes_mutex);
         m_nodes.push_back(pnode);
@@ -4119,6 +4123,7 @@ ServiceFlags CConnman::GetLocalServices() const
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
 CNode::CNode(NodeId idIn,
+             ServiceFlags nLocalServicesIn,
              std::shared_ptr<Sock> sock,
              const CAddress& addrIn,
              uint64_t nKeyedNetGroupIn,
@@ -4140,6 +4145,7 @@ CNode::CNode(NodeId idIn,
       id{idIn},
       nLocalHostNonce{nLocalHostNonceIn},
       m_conn_type{conn_type_in},
+      nLocalServices{nLocalServicesIn},
       m_i2p_sam_session{std::move(i2p_sam_session)}
 {
     if (inbound_onion) assert(conn_type_in == ConnectionType::INBOUND);
