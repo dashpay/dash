@@ -3,6 +3,11 @@
 todo.txt
 reset-files.bash
 
+# Build subdirectories.
+/*build*
+!/build-aux
+!/build_msvc
+
 *.tar.gz
 
 *.exe
