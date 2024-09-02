@@ -255,6 +255,95 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
     return ret;
 }
 
+static uint256 MakeQuorumKey(llmq::CQuorumCPtr quorum)
+{
+    CHashWriter hw(SER_NETWORK, 0);
+    hw << quorum->params.type;
+    hw << quorum->qc->quorumHash;
+    for (const auto& dmn : quorum->members) {
+        hw << dmn->proTxHash;
+    }
+    return hw.GetHash();
+}
+
+static RPCHelpMan quorum_submit_sk_share()
+{
+    return RPCHelpMan{"quorum submit_sk_share",
+                      "Submits a quorum sk share\n",
+                      {
+                              {"llmqType", RPCArg::Type::NUM, RPCArg::Optional::NO, "LLMQ type."},
+                              {"quorumHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Quorum hash."},
+                              {"skShare", RPCArg::Type::STR, RPCArg::Optional::NO, "The BLS secret key share"},
+                              {"overwriteSkShare", RPCArg::Type::BOOL, /* default */ "", "Overwrite existing sk share"},
+                      },
+                      RPCResults{},
+                      RPCExamples{""},
+                      [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+                      {
+                          const NodeContext& node = EnsureAnyNodeContext(request.context);
+                          const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+                          const ChainstateManager& chainman = EnsureChainman(node);
+
+                          const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+                          if (!Params().GetLLMQ(llmqType).has_value()) {
+                              throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
+                          }
+
+                          const uint256 quorumHash(ParseHashV(request.params[1], "quorumHash"));
+
+                          auto quorum = llmq_ctx.qman->GetQuorum(llmqType, quorumHash);
+                          if (!quorum) {
+                              throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
+                          }
+
+                          bool bls_legacy_scheme{!DeploymentActiveAfter(WITH_LOCK(cs_main, return chainman.ActiveChain().Tip();), Params().GetConsensus(), Consensus::DEPLOYMENT_V19)};
+
+                          CBLSSecretKey sk_share;
+                          if (!sk_share.SetHexStr(request.params[2].get_str(), bls_legacy_scheme)) {
+                              throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS secret key", "skShare"));
+                          }
+
+                          bool overwriteSkShare = false;
+                          if (!request.params[3].isNull()) {
+                              overwriteSkShare = ParseBoolV(request.params[3], "overwriteSkShare");
+                          }
+
+                          auto quorum_key = MakeQuorumKey(quorum);
+                          std::string DB_QUORUM_SK_SHARE = "q_Qsk";
+                          auto quorum_sk_share_key = std::make_pair(DB_QUORUM_SK_SHARE, quorum_key);
+
+                          CBLSSecretKey existing_sk_share;
+                          bool sk_share_exists = node.evodb->GetRawDB().Read(quorum_sk_share_key, existing_sk_share);
+
+                          UniValue ret{UniValue::VOBJ};
+                          if (sk_share_exists) {
+                              if (sk_share == existing_sk_share) {
+                                  ret.pushKV("operation", "skShare already exists and is equal to the one provided");
+                              }
+                              else {
+                                  if (overwriteSkShare) {
+                                      LOCK(node.evodb->cs);
+                                      if (node.evodb->GetRawDB().Write(quorum_sk_share_key, sk_share)) {
+                                          ret.pushKV("operation", "skShare already exists and successfully overwritten with the one provided");
+                                      }
+                                  }
+                                  else {
+                                      ret.pushKV("operation", "skShare already exists and is different to the one provided. not overwriting");
+                                  }
+                              }
+                          }
+                          else {
+                              LOCK(node.evodb->cs);
+                              if (node.evodb->GetRawDB().Write(quorum_sk_share_key, sk_share)) {
+                                  ret.pushKV("operation", "skShare doesn't exist. Successfully submitted the one provided");
+                              }
+                          }
+
+                          return ret;
+                      }
+    };
+}
+
 static RPCHelpMan quorum_info()
 {
     return RPCHelpMan{"quorum info",
@@ -1198,6 +1287,7 @@ static const CRPCCommand commands[] =
     { "evo",                &quorum_dkgstatus,       },
     { "evo",                &quorum_memberof,        },
     { "evo",                &quorum_sign,            },
+    { "evo",                &quorum_submit_sk_share, },
     { "evo",                &quorum_platformsign,    },
     { "evo",                &quorum_verify,          },
     { "evo",                &quorum_hasrecsig,       },
