@@ -326,6 +326,9 @@ static RPCHelpMan quorum_submit_sk_share()
                                       if (node.evodb->GetRawDB().Write(quorum_sk_share_key, sk_share)) {
                                           ret.pushKV("operation", "skShare already exists and successfully overwritten with the one provided");
                                       }
+                                      else {
+                                          ret.pushKV("operation", "skShare already exists and overwriting FAILED");
+                                      }
                                   }
                                   else {
                                       ret.pushKV("operation", "skShare already exists and is different to the one provided. not overwriting");
@@ -336,6 +339,9 @@ static RPCHelpMan quorum_submit_sk_share()
                               LOCK(node.evodb->cs);
                               if (node.evodb->GetRawDB().Write(quorum_sk_share_key, sk_share)) {
                                   ret.pushKV("operation", "skShare doesn't exist. Successfully submitted the one provided");
+                              }
+                              else {
+                                  ret.pushKV("operation", "skShare doesn't exist. Submission FAILED");
                               }
                           }
 
