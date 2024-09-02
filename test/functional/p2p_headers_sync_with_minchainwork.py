@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2019-2021 The Bitcoin Core developers
+# Copyright (c) 2019-present The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test that we reject low difficulty headers to prevent our block tree from filling up with useless bloat"""
@@ -22,6 +22,8 @@ from test_framework.blocktools import (
 )
 
 from test_framework.util import assert_equal
+
+import time
 
 NODE1_BLOCKS_REQUIRED = 15
 NODE2_BLOCKS_REQUIRED = 2047
@@ -49,6 +51,10 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
         self.connect_nodes(0, 1)
         self.connect_nodes(0, 2)
         self.connect_nodes(0, 3)
+
+    def mocktime_all(self, time):
+        for n in self.nodes:
+            n.setmocktime(time)
 
     def test_chains_sync_when_long_enough(self):
         # The Dash test framework pins mocktime to TIME_GENESIS_BLOCK when
@@ -170,7 +176,9 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
 
         self.reconnect_all()
 
+        self.mocktime_all(int(time.time()))  # Temporarily hold time to avoid internal timeouts
         self.sync_blocks(timeout=300) # Ensure tips eventually agree
+        self.mocktime_all(0)
 
 
     def run_test(self):
