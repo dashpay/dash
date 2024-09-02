@@ -315,7 +315,7 @@ void CQuorumManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitial
     }
 
     TriggerQuorumDataRecoveryThreads(pindexNew);
-    StartCleanupOldQuorumDataThread(pindexNew);
+//    StartCleanupOldQuorumDataThread(pindexNew);
 }
 
 void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindexNew) const
