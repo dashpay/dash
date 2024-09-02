@@ -180,7 +180,18 @@ static RPCHelpMan quorum_list_extended()
     };
 }
 
-static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_processor, const llmq::CQuorumCPtr& quorum, bool includeMembers, bool includeSkShare)
+static uint256 MakeQuorumKey(llmq::CQuorumCPtr quorum)
+{
+    CHashWriter hw(SER_NETWORK, 0);
+    hw << quorum->params.type;
+    hw << quorum->qc->quorumHash;
+    for (const auto& dmn : quorum->members) {
+        hw << dmn->proTxHash;
+    }
+    return hw.GetHash();
+}
+
+static UniValue BuildQuorumInfo(const NodeContext& node, const llmq::CQuorumBlockProcessor& quorum_block_processor, const llmq::CQuorumCPtr& quorum, bool includeMembers, bool includeSkShare)
 {
     UniValue ret(UniValue::VOBJ);
 
@@ -245,7 +256,17 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
             ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
         }
         ret.pushKV("ssKey", ss.str());
+    }
 
+    {
+        auto quorum_key = MakeQuorumKey(quorum);
+        std::string DB_QUORUM_SK_SHARE = "q_Qsk";
+        auto quorum_sk_share_key = std::make_pair(DB_QUORUM_SK_SHARE, quorum_key);
+
+        CBLSSecretKey existing_sk_share;
+        bool sk_share_exists = node.evodb->GetRawDB().Read(quorum_sk_share_key, existing_sk_share);
+        ret.pushKV("sk_share_exists", sk_share_exists);
+        ret.pushKV("existing_sk_share", existing_sk_share.ToString());
     }
 
     const CBLSSecretKey& skShare = quorum->GetSkShare();
@@ -253,17 +274,6 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
         ret.pushKV("secretKeyShare", skShare.ToString());
     }
     return ret;
-}
-
-static uint256 MakeQuorumKey(llmq::CQuorumCPtr quorum)
-{
-    CHashWriter hw(SER_NETWORK, 0);
-    hw << quorum->params.type;
-    hw << quorum->qc->quorumHash;
-    for (const auto& dmn : quorum->members) {
-        hw << dmn->proTxHash;
-    }
-    return hw.GetHash();
 }
 
 static RPCHelpMan quorum_submit_sk_share()
@@ -382,7 +392,7 @@ static RPCHelpMan quorum_info()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
     }
 
-    return BuildQuorumInfo(*llmq_ctx.quorum_block_processor, quorum, true, includeSkShare);
+    return BuildQuorumInfo(node, *llmq_ctx.quorum_block_processor, quorum, true, includeSkShare);
 },
     };
 }
@@ -538,7 +548,7 @@ static RPCHelpMan quorum_memberof()
         auto quorums = llmq_ctx.qman->ScanQuorums(llmq_params_opt->type, count);
         for (auto& quorum : quorums) {
             if (quorum->IsMember(dmn->proTxHash)) {
-                auto json = BuildQuorumInfo(*llmq_ctx.quorum_block_processor, quorum, false, false);
+                auto json = BuildQuorumInfo(node, *llmq_ctx.quorum_block_processor, quorum, false, false);
                 json.pushKV("isValidMember", quorum->IsValidMember(dmn->proTxHash));
                 json.pushKV("memberIndex", quorum->GetMemberIndex(dmn->proTxHash));
                 result.push_back(json);

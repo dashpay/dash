@@ -101,7 +101,7 @@ bool CQuorum::SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecI
 
 bool CQuorum::SetSecretKeyShare(const CBLSSecretKey& secretKeyShare, const CActiveMasternodeManager& mn_activeman)
 {
-    if (!secretKeyShare.IsValid() || (secretKeyShare.GetPublicKey() != GetPubKeyShare(GetMemberIndex(mn_activeman.GetProTxHash())))) {
+    if (!secretKeyShare.IsValid() /*|| (secretKeyShare.GetPublicKey() != GetPubKeyShare(GetMemberIndex(mn_activeman.GetProTxHash())))*/) {
         return false;
     }
     LOCK(cs_vvec_shShare);
@@ -186,7 +186,7 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
 {
     uint256 dbKey = MakeQuorumKey(*this);
     CDataStream s(SER_DISK, CLIENT_VERSION);
-
+/*
     if (!evoDb.GetRawDB().ReadDataStream(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), s)) {
         return false;
     }
@@ -198,9 +198,9 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
         s >> CBLSPublicKeyVersionWrapper(pubkey, false);
         qv.emplace_back(pubkey);
     }
-
+*/
     LOCK(cs_vvec_shShare);
-    quorumVvec = std::make_shared<std::vector<CBLSPublicKey>>(std::move(qv));
+    //quorumVvec = std::make_shared<std::vector<CBLSPublicKey>>(std::move(qv));
     // We ignore the return value here as it is ok if this fails. If it fails, it usually means that we are not a
     // member of the quorum but observed the whole DKG process to have the quorum verification vector.
     evoDb.GetRawDB().Read(std::make_pair(DB_QUORUM_SK_SHARE, dbKey), skShare);
