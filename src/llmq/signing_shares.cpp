@@ -1367,6 +1367,11 @@ void CSigSharesManager::Cleanup()
     lastCleanupTime = GetTime<std::chrono::seconds>().count();
 }
 
+const CActiveMasternodeManager* CSigSharesManager::getActiveMasternodeManager() const
+{
+    return m_mn_activeman;
+}
+
 void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
 {
     AssertLockHeld(cs);
@@ -1492,7 +1497,10 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorumCPtr& qu
     cxxtimer::Timer t(true);
     auto activeMasterNodeProTxHash = m_mn_activeman->GetProTxHash();
 
+    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- activeMasterNodeProTxHash:%s\n", __func__, activeMasterNodeProTxHash.ToString());
+
     if (!quorum->IsValidMember(activeMasterNodeProTxHash)) {
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- activeMasterNodeProTxHash:%s not valid member for quorum:%s\n", __func__, activeMasterNodeProTxHash.ToString(), quorum->qc->quorumHash.ToString());
         return std::nullopt;
     }
 
@@ -1504,6 +1512,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorumCPtr& qu
 
     int memberIdx = quorum->GetMemberIndex(activeMasterNodeProTxHash);
     if (memberIdx == -1) {
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- activeMasterNodeProTxHash:%s\n invalid memberIds", __func__, activeMasterNodeProTxHash.ToString());
         // this should really not happen (IsValidMember gave true)
         return std::nullopt;
     }

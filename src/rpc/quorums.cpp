@@ -14,6 +14,7 @@
 
 #include <masternode/node.h>
 #include <evo/deterministicmns.h>
+#include <masternode/node.h>
 
 #include <llmq/blockprocessor.h>
 #include <llmq/chainlocks.h>
@@ -34,6 +35,8 @@
 namespace llmq {
 extern const std::string CLSIG_REQUESTID_PREFIX;
 }
+
+class CActiveMasternodeManager;
 
 static RPCHelpMan quorum_list()
 {
@@ -605,6 +608,32 @@ static RPCHelpMan quorum_verify()
     };
 }
 
+static RPCHelpMan masternodeinfo()
+{
+    return RPCHelpMan{"quorum masternodeinfo",
+                      "Get masternode info\n",
+                      {
+                      },
+                      RPCResults{},
+                      RPCExamples{""},
+                      [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+                      {
+                          const NodeContext& node = EnsureAnyNodeContext(request.context);
+                          const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+
+                          UniValue response{UniValue::VOBJ};
+                          const CActiveMasternodeManager* active_mn = llmq_ctx.shareman->getActiveMasternodeManager();
+                        if (active_mn) {
+                            response.pushKV("blsPrivateKey", active_mn->GetBlsPrivateString());
+                        }
+                        else {
+                            response.pushKV("blsPrivateKey", "n/a");
+                        }
+                          return response;
+                      }
+    };
+}
+
 static RPCHelpMan quorum_hasrecsig()
 {
     return RPCHelpMan{"quorum hasrecsig",
@@ -934,7 +963,8 @@ static RPCHelpMan quorum_help()
             "  isconflicting     - Test if a conflict exists\n"
             "  selectquorum      - Return the quorum that would/should sign a request\n"
             "  getdata           - Request quorum data from other masternodes in the quorum\n"
-            "  rotationinfo      - Request quorum rotation information\n",
+            "  rotationinfo      - Request quorum rotation information\n"
+            "  masternodeinfo    - Return Masternode info\n",
             {
                 {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
             },
@@ -1154,6 +1184,7 @@ static const CRPCCommand commands[] =
     { "evo",                &submitchainlock,        },
     { "evo",                &verifychainlock,        },
     { "evo",                &verifyislock,           },
+    { "evo",                &masternodeinfo          }
 };
 // clang-format on
     for (const auto& command : commands) {

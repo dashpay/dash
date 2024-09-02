@@ -72,6 +72,7 @@ public:
     /* TODO: Reconsider external locking */
     [[nodiscard]] COutPoint GetOutPoint() const { READ_LOCK(cs); return m_info.outpoint; }
     [[nodiscard]] uint256 GetProTxHash() const { READ_LOCK(cs); return m_info.proTxHash; }
+    [[nodiscard]] std::string GetBlsPrivateString() const { READ_LOCK(cs); return m_info.blsKeyOperator.ToString(); }
     [[nodiscard]] CService GetService() const { READ_LOCK(cs); return m_info.service; }
     [[nodiscard]] CBLSPublicKey GetPubKey() const;
     [[nodiscard]] bool IsLegacy() const { READ_LOCK(cs); return m_info.legacy; }
