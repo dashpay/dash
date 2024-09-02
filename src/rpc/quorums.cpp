@@ -222,6 +222,32 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
         ret.pushKV("members", membersArr);
     }
     ret.pushKV("quorumPublicKey", quorum->qc->quorumPublicKey.ToString());
+
+    {
+        CHashWriter hw(SER_NETWORK, 0);
+        {
+            hw << quorum->params.type;
+            hw << quorum->qc->quorumHash;
+            for (const auto &dmn: quorum->members) {
+                hw << dmn->proTxHash;
+            }
+        }
+        uint256 quorumKey = hw.GetHash();
+        std::string DB_QUORUM_SK_SHARE = "q_Qsk";
+        auto dbKey = std::make_pair(DB_QUORUM_SK_SHARE, quorumKey);
+
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
+        ssKey << dbKey;
+
+        std::stringstream ss;
+        for (unsigned char c : ssKey.str()) {
+            ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+        }
+        ret.pushKV("ssKey", ss.str());
+
+    }
+
     const CBLSSecretKey& skShare = quorum->GetSkShare();
     if (includeSkShare && skShare.IsValid()) {
         ret.pushKV("secretKeyShare", skShare.ToString());
