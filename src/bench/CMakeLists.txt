@@ -3,12 +3,11 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 include(GenerateHeaders)
-generate_header_from_raw(data/block813851.raw)
+generate_header_from_raw(data/block813851.raw benchmark::data)
 
 add_executable(bench_bitcoin
   bench_bitcoin.cpp
   bench.cpp
-  data.cpp
   nanobench.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/data/block813851.raw.h
 # Benchmarks:

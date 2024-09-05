@@ -26,6 +26,8 @@
 
 #include <univalue.h>
 
+#include <string_view>
+
 struct TestChain100V19Activation : public TestChain100Setup {
     TestChain100V19Activation()
         : TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=v19@100"}} {}
@@ -49,7 +51,7 @@ void TestTxHelper(const CMutableTransaction& tx, gsl::not_null<const CBlockIndex
     }
 }
 
-void trivialvalidation_runner(ChainstateManager& chainman, const std::string& json)
+void trivialvalidation_runner(ChainstateManager& chainman, std::string_view json)
 {
     LOCK(::cs_main);
 
@@ -120,7 +122,7 @@ void trivialvalidation_runner(ChainstateManager& chainman, const std::string& js
 
 BOOST_AUTO_TEST_CASE(trivialvalidation_valid)
 {
-    const std::string& json = json_tests::trivially_valid;
+    const std::string_view json{json_tests::trivially_valid};
 
     bls::bls_legacy_scheme.store(true);
     trivialvalidation_runner(*m_node.chainman, json);
@@ -131,7 +133,7 @@ BOOST_AUTO_TEST_CASE(trivialvalidation_valid)
 
 BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
 {
-    const std::string& json = json_tests::trivially_invalid;
+    const std::string_view json{json_tests::trivially_invalid};
 
     bls::bls_legacy_scheme.store(true);
     trivialvalidation_runner(*m_node.chainman, json);

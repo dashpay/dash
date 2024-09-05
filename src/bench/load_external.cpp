@@ -3,7 +3,7 @@
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
-#include <bench/data.h>
+#include <bench/data/block813851.raw.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <test/util/setup_common.h>

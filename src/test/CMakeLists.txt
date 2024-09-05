@@ -16,7 +16,7 @@ generate_header_from_json(data/trivially_invalid.json)
 generate_header_from_json(data/trivially_valid.json)
 generate_header_from_json(data/tx_invalid.json)
 generate_header_from_json(data/tx_valid.json)
-generate_header_from_raw(data/asmap.raw)
+generate_header_from_raw(data/asmap.raw test::data)
 
 # Do not use generator expressions in test sources because the
 # SOURCES property is processed to gather test suite macros.
