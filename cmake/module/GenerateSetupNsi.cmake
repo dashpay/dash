@@ -18,7 +18,7 @@ function(generate_setup_nsi)
   set(BITCOIN_TEST_NAME "test_dash")
   set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
   set(nsi_file ${PROJECT_BINARY_DIR}/${PACKAGE_TARNAME}-win64-setup.nsi)
-  configure_file(${PROJECT_SOURCE_DIR}/share/setup.nsi.in ${nsi_file} @ONLY)
+  configure_file(${PROJECT_SOURCE_DIR}/share/setup.nsi.in ${nsi_file} USE_SOURCE_PERMISSIONS @ONLY)
   # share/setup.nsi.in carries no OutFile directive, so prepend one.
   file(READ ${nsi_file} nsi_content)
   file(WRITE ${nsi_file}
