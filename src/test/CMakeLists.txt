@@ -222,6 +222,7 @@ if(WITH_MULTIPROCESS)
   target_link_libraries(bitcoin_ipc_test
     PRIVATE
       core_interface
+      blst
       univalue
   )
 
@@ -229,7 +230,7 @@ if(WITH_MULTIPROCESS)
     PRIVATE
       ipc_tests.cpp
   )
-  target_link_libraries(test_bitcoin bitcoin_ipc_test)
+  target_link_libraries(test_bitcoin bitcoin_ipc_test bitcoin_ipc)
 endif()
 
 function(add_boost_test source_file)

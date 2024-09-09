@@ -39,6 +39,7 @@ public:
     virtual std::unique_ptr<interfaces::WalletLoader> makeWalletLoader(interfaces::Chain&) { return nullptr; }
     virtual std::unique_ptr<Echo> makeEcho() { return nullptr; }
     virtual Ipc* ipc() { return nullptr; }
+    virtual bool canListenIpc() { return false; }
 };
 
 //! Return implementation of Init interface for the node process. If the argv
