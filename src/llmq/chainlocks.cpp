@@ -16,6 +16,7 @@
 #include <node/ui_interface.h>
 #include <scheduler.h>
 #include <spork.h>
+#include <statsd_client.h>
 #include <txmempool.h>
 #include <util/thread.h>
 #include <util/time.h>
@@ -518,6 +519,7 @@ void CChainLocksHandler::EnforceBestChainLock()
 
     GetMainSignals().NotifyChainLock(currentBestChainLockBlockIndex, clsig);
     uiInterface.NotifyChainLock(clsig->getBlockHash().ToString(), clsig->getHeight());
+    statsClient.gauge("chainlocks.blockHeight", clsig->getHeight(), 1.0f);
 }
 
 void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)

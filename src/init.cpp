@@ -833,7 +833,7 @@ static void StartupNotify(const ArgsManager& args)
 }
 #endif
 
-static void PeriodicStats(ArgsManager& args, ChainstateManager& chainman, const CTxMemPool& mempool)
+static void PeriodicStats(ArgsManager& args, ChainstateManager& chainman, const CTxMemPool& mempool, const llmq::CInstantSendManager& isman)
 {
     assert(args.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE));
     CCoinsStats stats{CoinStatsHashType::NONE};
@@ -883,6 +883,7 @@ static void PeriodicStats(ArgsManager& args, ChainstateManager& chainman, const 
         statsClient.gauge("transactions.mempool.memoryUsageBytes", (int64_t) mempool.DynamicMemoryUsage(), 1.0f);
         statsClient.gauge("transactions.mempool.minFeePerKb", mempool.GetMinFee(args.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFeePerK(), 1.0f);
     }
+    statsClient.gauge("transactions.mempool.lockedTransactions", isman.GetInstantSendLockCount(), 1.0f);
 }
 
 static bool AppInitServers(NodeContext& node)
@@ -2248,7 +2249,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     if (args.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE)) {
         int nStatsPeriod = std::min(std::max((int)args.GetArg("-statsperiod", DEFAULT_STATSD_PERIOD), MIN_STATSD_PERIOD), MAX_STATSD_PERIOD);
-        node.scheduler->scheduleEvery(std::bind(&PeriodicStats, std::ref(*node.args), std::ref(chainman), std::cref(*node.mempool)), std::chrono::seconds{nStatsPeriod});
+        node.scheduler->scheduleEvery(std::bind(&PeriodicStats, std::ref(*node.args), std::ref(chainman), std::cref(*node.mempool), std::cref(*node.llmq_ctx->isman)), std::chrono::seconds{nStatsPeriod});
     }
 
     // ********************************************************* Step 11: import blocks
