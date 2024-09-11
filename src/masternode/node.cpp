@@ -93,7 +93,7 @@ void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
 
     CDeterministicMNList mnList = Assert(m_dmnman)->GetListForBlock(pindex);
 
-    CDeterministicMNCPtr dmn = mnList.GetMNByOperatorKey(m_info.blsPubKeyOperator);
+    auto dmn = mnList.GetMNByOperatorKey(m_info.blsPubKeyOperator);
     if (!dmn) {
         // MN not appeared on the chain yet
         return;
@@ -166,6 +166,9 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
 
         auto oldDmn = oldMNList.GetMN(cur_protx_hash);
         auto newDmn = newMNList.GetMN(cur_protx_hash);
+        if (oldDmn == nullptr || newDmn == nullptr) {
+            return reset(MASTERNODE_ERROR);
+        }
         if (newDmn->pdmnState->pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
             // MN operator key changed or revoked
             return reset(MASTERNODE_OPERATOR_KEY_CHANGED);

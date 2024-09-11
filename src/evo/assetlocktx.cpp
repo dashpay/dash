@@ -129,7 +129,10 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint
     }
 
     const auto quorum = qman.GetQuorum(llmqType, quorumHash);
-    assert(quorum);
+    if (quorum == nullptr) {
+        LogPrint(BCLog::CREDITPOOL, "No quorum for found for hash=%s\n", quorumHash.ToString());
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-missing-quorum");
+    }
 
     const uint256 requestId = ::SerializeHash(std::make_pair(ASSETUNLOCK_REQUESTID_PREFIX, index));
 
