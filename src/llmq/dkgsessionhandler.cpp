@@ -551,6 +551,20 @@ void CDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& peerman)
         return changed;
     });
 
+    if (params.size == 1) // TODO: add here check AreWeMember instead checking is-null for final-commitment
+    {
+        auto finalCommitment = curSession->FinalizeSingleCommitment();
+        if (finalCommitment.IsNull()) {
+            LogPrintf("final commitment is null here -- is-member=%d\n", curSession->AreWeMember());
+            return;
+        }
+
+        if (auto inv_opt = quorumBlockProcessor.AddMineableCommitment(finalCommitment); inv_opt.has_value()) {
+            peerman.RelayInv(inv_opt.value());
+        }
+        return;
+    }
+
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     utils::EnsureQuorumConnections(params, connman, m_dmnman, m_sporkman, tip_mn_list, pQuorumBaseBlockIndex, curSession->myProTxHash, /* is_masternode = */ m_mn_activeman != nullptr);
     if (curSession->AreWeMember()) {

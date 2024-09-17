@@ -914,6 +914,7 @@ public:
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST_V17);
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST_DIP0024);
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+        AddLLMQ(Consensus::LLMQType::LLMQ_SINGLE_NODE);
         consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_TEST;
         consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_TEST_DIP0024;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_TEST_PLATFORM;
@@ -922,6 +923,7 @@ public:
         UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST);
         UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
         UpdateLLMQInstantSendDIP0024FromArgs(args);
+        UpdateLLMQTestPlatformFromArgs(args);
     }
 
     /**
@@ -984,16 +986,9 @@ public:
         params->dkgBadVotesThreshold = threshold;
     }
 
-    /**
-     * Allows modifying the LLMQ type for InstantSend (DIP0024).
-     */
-    void UpdateLLMQDIP0024InstantSend(Consensus::LLMQType llmqType)
-    {
-        consensus.llmqTypeDIP0024InstantSend = llmqType;
-    }
-
     void UpdateLLMQTestParametersFromArgs(const ArgsManager& args, const Consensus::LLMQType llmqType);
     void UpdateLLMQInstantSendDIP0024FromArgs(const ArgsManager& args);
+    void UpdateLLMQTestPlatformFromArgs(const ArgsManager& args);
 };
 
 static void MaybeUpdateHeights(const ArgsManager& args, Consensus::Params& consensus)
@@ -1188,7 +1183,30 @@ void CRegTestParams::UpdateLLMQInstantSendDIP0024FromArgs(const ArgsManager& arg
         throw std::runtime_error("Invalid LLMQ type specified for -llmqtestinstantsenddip0024.");
     }
     LogPrintf("Setting llmqtestinstantsenddip0024 to %ld\n", ToUnderlying(llmqType));
-    UpdateLLMQDIP0024InstantSend(llmqType);
+
+    consensus.llmqTypeDIP0024InstantSend = llmqType;
+}
+
+void CRegTestParams::UpdateLLMQTestPlatformFromArgs(const ArgsManager& args)
+{
+    if (!args.IsArgSet("-llmqtestplatform")) return;
+
+    const auto& llmq_params_opt = GetLLMQ(consensus.llmqTypePlatform);
+    assert(llmq_params_opt.has_value());
+
+    std::string strLLMQType = gArgs.GetArg("-llmqtestplatform", std::string(llmq_params_opt->name));
+
+    Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
+    for (const auto& params : consensus.llmqs) {
+        if (params.name == strLLMQType) {
+            llmqType = params.type;
+        }
+    }
+    if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
+        throw std::runtime_error("Invalid LLMQ type specified for -llmqtestplatform.");
+    }
+    LogPrintf("Setting llmqtestplatform to size=%ld\n", static_cast<uint8_t>(llmqType));
+    consensus.llmqTypePlatform = llmqType;
 }
 
 void CDevNetParams::UpdateDevnetSubsidyAndDiffParametersFromArgs(const ArgsManager& args)

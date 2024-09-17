@@ -174,6 +174,7 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
 
 std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqType, CDeterministicMNManager& dmnman, const CBlockIndex* pQuorumBaseBlockIndex)
 {
+    // it will just works for evo, when you set it as PlatformQuorum
     bool EvoOnly = (Params().GetConsensus().llmqTypePlatform == llmqType) && IsV19Active(pQuorumBaseBlockIndex);
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
