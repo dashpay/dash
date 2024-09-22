@@ -3488,7 +3488,7 @@ bool CWallet::HasCollateralInputs(bool fOnlyConfirmed) const
     return !vCoins.empty();
 }
 
-bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, CAmount amount, const COutPoint& outpoint)
+bool CWallet::CreateGovernanceCommitmentTransaction(CTransactionRef& tx, uint256 hash, CAmount amount, const COutPoint& outpoint)
 {
     CScript scriptChange;
     scriptChange << OP_RETURN << ToByteVector(hash);
@@ -3506,7 +3506,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, CAm
     FeeCalculation fee_calc_out;
     bool success = CreateTransaction(vecSend, tx, nFeeRet, nChangePosRet, error, coinControl, fee_calc_out);
     if(!success){
-        WalletLogPrintf("CWallet::GetBudgetSystemCollateralTX -- Error: %s\n", error.original);
+        WalletLogPrintf("CWallet::%s -- Error: %s\n", __func__, error.original);
         return false;
     }
 

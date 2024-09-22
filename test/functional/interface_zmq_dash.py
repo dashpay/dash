@@ -373,11 +373,11 @@ class DashZMQTest (DashTestFramework):
             "url": "https://dash.org"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_data).encode())
-        collateral = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
-        self.wait_for_instantlock(collateral, self.nodes[0])
+        commitment_hash = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
+        self.wait_for_instantlock(commitment_hash, self.nodes[0])
         self.nodes[0].generate(6)
         self.sync_blocks()
-        rpc_proposal_hash = self.nodes[0].gobject("submit", "0", proposal_rev, proposal_time, proposal_hex, collateral)
+        rpc_proposal_hash = self.nodes[0].gobject("submit", "0", proposal_rev, proposal_time, proposal_hex, commitment_hash)
         # Validate hashgovernanceobject
         zmq_governance_object_hash = self.subscribers[ZMQPublisher.hash_governance_object].receive().read(32).hex()
         assert_equal(zmq_governance_object_hash, rpc_proposal_hash)

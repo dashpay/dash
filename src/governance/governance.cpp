@@ -565,7 +565,7 @@ struct sortProposalsByVotes {
     bool operator()(const std::pair<CGovernanceObject*, int>& left, const std::pair<CGovernanceObject*, int>& right) const
     {
         if (left.second != right.second) return (left.second > right.second);
-        return (UintToArith256(left.first->GetCollateralHash()) > UintToArith256(right.first->GetCollateralHash()));
+        return (UintToArith256(left.first->GetCommitmentHash()) > UintToArith256(right.first->GetCommitmentHash()));
     }
 };
 
@@ -684,7 +684,7 @@ std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigg
     // no sb_opt, no trigger
     if (!sb_opt.has_value()) return std::nullopt;
 
-    //TODO: Check if nHashParentIn, nRevision and nCollateralHashIn are correct
+    //TODO: Check if nHashParentIn, nRevision and m_commitment_hash are correct
     LOCK2(cs_main, cs);
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
@@ -1177,7 +1177,7 @@ void CGovernanceManager::CheckPostponedObjects(PeerManager& peerman)
 
         std::string strError;
         bool fMissingConfirmations;
-        if (govobj.IsCollateralValid(m_chainman, strError, fMissingConfirmations)) {
+        if (govobj.IsCommitmentValid(m_chainman, strError, fMissingConfirmations)) {
             if (govobj.IsValidLocally(Assert(m_dmnman)->GetListAtChainTip(), m_chainman, strError, false)) {
                 AddGovernanceObject(govobj, peerman);
             } else {

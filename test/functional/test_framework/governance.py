@@ -19,10 +19,10 @@ def prepare_object(node, object_type, parent_hash, creation_time, revision, name
         "url": "https://dash.org"
     }
     proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_template).encode())
-    collateral_hash = node.gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
+    commitment_hash = node.gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
     return {
         "parentHash": parent_hash,
-        "collateralHash": collateral_hash,
+        "commitmentHash": commitment_hash,
         "createdAt": proposal_time,
         "revision": proposal_rev,
         "hex": proposal_hex,

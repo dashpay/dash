@@ -14,7 +14,7 @@ from test_framework.util import assert_equal, assert_greater_than, assert_raises
 
 def validate_object(prepared, rpc_prepared):
     assert_equal(prepared["parentHash"], rpc_prepared["parentHash"])
-    assert_equal(prepared["collateralHash"], rpc_prepared["collateralHash"])
+    assert_equal(prepared["commitmentHash"], rpc_prepared["commitmentHash"])
     assert_equal(prepared["createdAt"], rpc_prepared["createdAt"])
     assert_equal(prepared["revision"], rpc_prepared["revision"])
     assert_equal(prepared["hex"], rpc_prepared["data"]["hex"])
