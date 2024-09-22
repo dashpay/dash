@@ -125,9 +125,9 @@ static RPCHelpMan gobject_check()
 // PREPARE THE GOVERNANCE OBJECT BY CREATING A COMMITMENT TRANSACTION
 static RPCHelpMan gobject_prepare()
 {
-    return RPCHelpMan{"gobject prepare",
-        "Prepare governance object by signing and creating tx\n"
-        + HELP_REQUIRING_PASSPHRASE,
+    return RPCHelpMan{
+        "gobject prepare",
+        "Prepare governance object by signing and creating tx\n" + HELP_REQUIRING_PASSPHRASE,
         {
             {"parent-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "hash of the parent object, \"0\" is root"},
             {"revision", RPCArg::Type::NUM, RPCArg::Optional::NO, "object revision in the system"},
@@ -287,7 +287,8 @@ static RPCHelpMan gobject_list_prepared()
 */
 static RPCHelpMan gobject_submit()
 {
-    return RPCHelpMan{"gobject submit",
+    return RPCHelpMan{
+        "gobject submit",
         "Submit governance object to network\n",
         {
             {"parent-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "hash of the parent object, \"0\" is root"},
@@ -655,7 +656,7 @@ static UniValue ListObjects(CGovernanceManager& govman, const CDeterministicMNLi
         bObj.pushKV("DataHex",  govObj.GetDataAsHexString());
         bObj.pushKV("DataString",  govObj.GetDataAsPlainString());
         bObj.pushKV("Hash",  govObj.GetHash().ToString());
-        bObj.pushKV("CommitmentHash",  govObj.GetCommitmentHash().ToString());
+        bObj.pushKV("CommitmentHash", govObj.GetCommitmentHash().ToString());
         bObj.pushKV("ObjectType", ToUnderlying(govObj.GetObjectType()));
         bObj.pushKV("CreationTime", govObj.GetCreationTime());
         const COutPoint& masternodeOutpoint = govObj.GetMasternodeOutpoint();
@@ -773,7 +774,7 @@ static RPCHelpMan gobject_get()
     objResult.pushKV("DataHex",  pGovObj->GetDataAsHexString());
     objResult.pushKV("DataString",  pGovObj->GetDataAsPlainString());
     objResult.pushKV("Hash",  pGovObj->GetHash().ToString());
-    objResult.pushKV("CommitmentHash",  pGovObj->GetCommitmentHash().ToString());
+    objResult.pushKV("CommitmentHash", pGovObj->GetCommitmentHash().ToString());
     objResult.pushKV("ObjectType", ToUnderlying(pGovObj->GetObjectType()));
     objResult.pushKV("CreationTime", pGovObj->GetCreationTime());
     const COutPoint& masternodeOutpoint = pGovObj->GetMasternodeOutpoint();

@@ -380,14 +380,16 @@ void CGovernanceObject::UpdateLocalValidity(const CDeterministicMNList& tip_mn_l
 }
 
 
-bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool check_commitment) const
+bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                                       std::string& strError, bool check_commitment) const
 {
     bool fMissingConfirmations = false;
 
     return IsValidLocally(tip_mn_list, chainman, strError, fMissingConfirmations, check_commitment);
 }
 
-bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool check_commitment) const
+bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                                       std::string& strError, bool& fMissingConfirmations, bool check_commitment) const
 {
     AssertLockHeld(cs_main);
 
@@ -458,7 +460,8 @@ CAmount CGovernanceObject::GetMinCommitmentAmount() const
     }
 }
 
-bool CGovernanceObject::IsCommitmentValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
+bool CGovernanceObject::IsCommitmentValid(const ChainstateManager& chainman, std::string& strError,
+                                          bool& fMissingConfirmations) const
 {
     AssertLockHeld(cs_main);
 
@@ -468,7 +471,8 @@ bool CGovernanceObject::IsCommitmentValid(const ChainstateManager& chainman, std
 
     // RETRIEVE TRANSACTION IN QUESTION
     uint256 nBlockHash;
-    CTransactionRef commitment_tx = GetTransaction(/* block_index */ nullptr, /* mempool */ nullptr, m_obj.m_commitment_hash, Params().GetConsensus(), nBlockHash);
+    CTransactionRef commitment_tx = GetTransaction(/* block_index */ nullptr, /* mempool */ nullptr,
+                                                   m_obj.m_commitment_hash, Params().GetConsensus(), nBlockHash);
     if (!commitment_tx) {
         strError = strprintf("Can't find commitment tx %s", m_obj.m_commitment_hash.ToString());
         LogPrintf("CGovernanceObject::%s -- %s\n", __func__, strError);
@@ -494,13 +498,14 @@ bool CGovernanceObject::IsCommitmentValid(const ChainstateManager& chainman, std
 
     CAmount commitment_amount = GetMinCommitmentAmount();
 
-    LogPrint(BCLog::GOBJECT, "CGovernanceObject::%s -- commitment_tx->vout.size() = %s, findScript = %s, commitment_amount = %lld\n",
-                __func__, commitment_tx->vout.size(), ScriptToAsmStr(findScript, false), commitment_amount);
+    LogPrint(BCLog::GOBJECT, /* Continued */
+             "CGovernanceObject::%s -- commitment_tx->vout.size() = %s, findScript = %s, commitment_amount = %lld\n",
+             __func__, commitment_tx->vout.size(), ScriptToAsmStr(findScript, false), commitment_amount);
 
     bool foundOpReturn = false;
     for (const auto& output : commitment_tx->vout) {
         LogPrint(BCLog::GOBJECT, "CGovernanceObject::%s -- txout = %s, output.nValue = %lld, output.scriptPubKey = %s\n",
-                    __func__, output.ToString(), output.nValue, ScriptToAsmStr(output.scriptPubKey, false));
+                 __func__, output.ToString(), output.nValue, ScriptToAsmStr(output.scriptPubKey, false));
         if (!output.scriptPubKey.IsPayToPublicKeyHash() && !output.scriptPubKey.IsUnspendable()) {
             strError = strprintf("Invalid Script %s", commitment_tx->ToString());
             LogPrintf("CGovernanceObject::%s -- %s\n", __func__, strError);
@@ -529,7 +534,9 @@ bool CGovernanceObject::IsCommitmentValid(const ChainstateManager& chainman, std
     }
 
     if (nConfirmationsIn < GOVERNANCE_COMMITMENT_CONFIRMATIONS) {
-        strError = strprintf("Commitment tx requires at least %d confirmations to be relayed throughout the network (it has only %d)", GOVERNANCE_COMMITMENT_CONFIRMATIONS, nConfirmationsIn);
+        strError = strprintf("Commitment tx requires at least %d confirmations to be relayed throughout the network "
+                             "(it has only %d)",
+                             GOVERNANCE_COMMITMENT_CONFIRMATIONS, nConfirmationsIn);
         if (nConfirmationsIn >= GOVERNANCE_COMMITMENT_MIN_RELAY_CONFIRMATIONS) {
             fMissingConfirmations = true;
             strError += ", pre-accepted -- waiting for required confirmations";

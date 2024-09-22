@@ -142,7 +142,8 @@ private:
 public:
     CGovernanceObject();
 
-    CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& commitment_hash, const std::string& strDataHexIn);
+    CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& commitment_hash,
+                      const std::string& strDataHexIn);
 
     CGovernanceObject(const CGovernanceObject& other);
 
@@ -168,10 +169,7 @@ public:
         return m_obj.type;
     }
 
-    const uint256& GetCommitmentHash() const
-    {
-        return m_obj.m_commitment_hash;
-    }
+    const uint256& GetCommitmentHash() const { return m_obj.m_commitment_hash; }
 
     const COutPoint& GetMasternodeOutpoint() const
     {
@@ -228,12 +226,15 @@ public:
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool check_commitment) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                        std::string& strError, bool check_commitment) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool check_commitment) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError,
+                        bool& fMissingConfirmations, bool check_commitment) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /// Check the commitment transaction for the budget proposal/finalized budget
-    bool IsCommitmentValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsCommitmentValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman);
 

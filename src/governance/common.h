@@ -34,7 +34,8 @@ class Object
 public:
     Object() = default;
 
-    Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& commitment_hash, const std::string& strDataHex);
+    Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& commitment_hash,
+           const std::string& strDataHex);
 
     UniValue ToJson() const;
 
@@ -67,15 +68,8 @@ public:
 
     SERIALIZE_METHODS(Object, obj)
     {
-        READWRITE(
-                obj.hashParent,
-                obj.revision,
-                obj.time,
-                obj.m_commitment_hash,
-                obj.vchData,
-                obj.type,
-                obj.masternodeOutpoint
-                );
+        READWRITE(obj.hashParent, obj.revision, obj.time, obj.m_commitment_hash, obj.vchData, obj.type,
+                  obj.masternodeOutpoint);
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
         }

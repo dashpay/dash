@@ -684,7 +684,7 @@ std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigg
     // no sb_opt, no trigger
     if (!sb_opt.has_value()) return std::nullopt;
 
-    //TODO: Check if nHashParentIn, nRevision and m_commitment_hash are correct
+    // TODO: Check if nHashParentIn, nRevision and m_commitment_hash are correct
     LOCK2(cs_main, cs);
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)

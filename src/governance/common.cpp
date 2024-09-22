@@ -12,7 +12,8 @@
 namespace Governance
 {
 
-Object::Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& commitment_hash, const std::string& strDataHex) :
+Object::Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& commitment_hash,
+               const std::string& strDataHex) :
     hashParent{nHashParent},
     revision{nRevision},
     time{nTime},
