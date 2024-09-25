@@ -1464,7 +1464,7 @@ public:
     //! Make a LegacyScriptPubKeyMan and set it for all types, internal, and external.
     void SetupLegacyScriptPubKeyMan();
 
-    const CKeyingMaterial& GetEncryptionKey() const override;
+    const CKeyingMaterial& GetEncryptionKey() const override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool HasEncryptionKeys() const override;
 
     /** Get last block processed height */
