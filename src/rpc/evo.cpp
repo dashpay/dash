@@ -214,8 +214,7 @@ static bool ValidatePlatformPort(const int32_t port)
 #ifdef ENABLE_WALLET
 
 template<typename SpecialTxPayload>
-static void FundSpecialTx(CWallet& wallet, CMutableTransaction& tx, const SpecialTxPayload& payload, const CTxDestination& fundDest) EXCLUSIVE_LOCKS_REQUIRED(!::cs_main, !cs_wallet);
-
+static void FundSpecialTx(CWallet& wallet, CMutableTransaction& tx, const SpecialTxPayload& payload, const CTxDestination& fundDest) EXCLUSIVE_LOCKS_REQUIRED(!::cs_main, !wallet.cs_wallet)
 {
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now

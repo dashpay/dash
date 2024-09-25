@@ -956,7 +956,7 @@ static RPCHelpMan voteraw()
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CHECK_NONFATAL(node.govman);
-    GovernanceObject govObjType = WITH_LOCK(node.govman->cs, return [&]() EXCLUSIVE_LOCKS_REQUIRED(cs) {
+    GovernanceObject govObjType = WITH_LOCK(node.govman->cs, return [&]() EXCLUSIVE_LOCKS_REQUIRED(node.govman->cs) {
         AssertLockHeld(node.govman->cs);
         const CGovernanceObject *pGovObj = node.govman->FindConstGovernanceObject(hashGovObj);
         if (!pGovObj) {
