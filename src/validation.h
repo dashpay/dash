@@ -266,9 +266,6 @@ bool GetUTXOCoin(CChainState& active_chainstate, const COutPoint& outpoint, Coin
 int GetUTXOHeight(CChainState& active_chainstate, const COutPoint& outpoint);
 int GetUTXOConfirmations(CChainState& active_chainstate, const COutPoint& outpoint);
 
-/** Apply the effects of this transaction on the UTXO set represented by view */
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
-
 /** Transaction validation functions */
 
 /**
@@ -279,11 +276,6 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
  * See consensus/consensus.h for flag definitions.
  */
 bool CheckFinalTx(const CBlockIndex* active_chain_tip, const CTransaction &tx, int flags = -1) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-
-/**
- * Test whether the LockPoints height and time are still valid on the current chain
- */
-bool TestLockPointValidity(CChain& active_chain, const LockPoints* lp) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
  * Check if transaction will be BIP68 final in the next block to be created on top of tip.

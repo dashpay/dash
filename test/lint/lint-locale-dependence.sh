@@ -52,6 +52,7 @@ KNOWN_VIOLATIONS=(
     "src/torcontrol.cpp:.*strtol"
     "src/util/strencodings.cpp:.*strtoll"
     "src/util/system.cpp:.*fprintf"
+    "src/test/util_tests.cpp"
 )
 
 REGEXP_IGNORE_EXTERNAL_DEPENDENCIES="^src/(dashbls/|immer/|crypto/ctaes/|leveldb/|secp256k1/|tinyformat.h|univalue/)"
