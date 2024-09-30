@@ -12,7 +12,7 @@ export HOST=x86_64-apple-darwin
 # Therefore, `--break-system-packages` is needed.
 export PIP_PACKAGES="--break-system-packages zmq"
 export GOAL="install"
-export BITCOIN_CONFIG="-DBUILD_GUI=ON -DWITH_MINIUPNPC=ON -DWITH_NATPMP=ON -DREDUCE_EXPORTS=ON -DENABLE_MINER=OFF"
+export BITCOIN_CONFIG="-DBUILD_GUI=ON -DWITH_MINIUPNPC=ON -DREDUCE_EXPORTS=ON -DENABLE_MINER=OFF"
 export CI_OS_NAME="macos"
 export NO_DEPENDS=1
 export OSX_SDK=""

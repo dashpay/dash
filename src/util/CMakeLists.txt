@@ -18,6 +18,8 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   hasher.cpp
   message.cpp
   moneystr.cpp
+  netif.cpp
+  pcp.cpp
   readwritefile.cpp
   ranges_set.cpp
   serfloat.cpp
@@ -58,6 +60,7 @@ target_link_libraries(bitcoin_util
     dashbls
     univalue
     $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<PLATFORM_ID:Windows>:iphlpapi>
   PUBLIC
     $<TARGET_NAME_IF_EXISTS:PkgConfig::libzstd>
 )
