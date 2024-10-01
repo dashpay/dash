@@ -769,7 +769,12 @@ bool MemPoolAccept::PolicyScriptChecks(const ATMPArgs& args, Workspace& ws, Prec
     const CTransaction& tx = *ws.m_ptx;
     TxValidationState& state = ws.m_state;
 
-    constexpr unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
+    unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
+
+    // Exclude SCRIPT_ENABLE_DIP0020_OPCODES while DIP0020 is not activated yet
+    if (!DeploymentActiveAt(*m_active_chainstate.m_chain.Tip(), args.m_chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0020)) {
+        scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS & ~SCRIPT_ENABLE_DIP0020_OPCODES;
+    }
 
     // Check input scripts and signatures.
     // This is done last to help prevent CPU exhaustion denial-of-service attacks.
