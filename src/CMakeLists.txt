@@ -192,6 +192,8 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   common/config.cpp
   common/init.cpp
   common/interfaces.cpp
+  common/netif.cpp
+  common/pcp.cpp
   common/run_command.cpp
   common/settings.cpp
   common/system.cpp
