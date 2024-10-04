@@ -34,7 +34,8 @@ class Object
 public:
     Object() = default;
 
-    Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& nCollateralHash, const std::string& strDataHex);
+    Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& commitment_hash,
+           const std::string& strDataHex);
 
     UniValue ToJson() const;
 
@@ -55,8 +56,8 @@ public:
     /// time this object was created
     int64_t time{0};
 
-    /// fee-tx
-    uint256 collateralHash{};
+    /// commitment tx id
+    uint256 m_commitment_hash{};
 
     /// Masternode info for signed objects
     COutPoint masternodeOutpoint;
@@ -67,15 +68,8 @@ public:
 
     SERIALIZE_METHODS(Object, obj)
     {
-        READWRITE(
-                obj.hashParent,
-                obj.revision,
-                obj.time,
-                obj.collateralHash,
-                obj.vchData,
-                obj.type,
-                obj.masternodeOutpoint
-                );
+        READWRITE(obj.hashParent, obj.revision, obj.time, obj.m_commitment_hash, obj.vchData, obj.type,
+                  obj.masternodeOutpoint);
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
         }

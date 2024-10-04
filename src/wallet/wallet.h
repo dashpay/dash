@@ -1128,7 +1128,7 @@ public:
     float GetAverageAnonymizedRounds() const;
     CAmount GetNormalizedAnonymizedBalance() const;
 
-    bool GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, CAmount amount, const COutPoint& outpoint=COutPoint()/*defaults null*/);
+    bool CreateGovernanceCommitmentTransaction(CTransactionRef& tx, uint256 hash, CAmount amount, const COutPoint& outpoint=COutPoint()/*defaults null*/);
     CAmount GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;
 
     /**

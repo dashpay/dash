@@ -30,10 +30,10 @@ extern RecursiveMutex cs_main;
 static constexpr double GOVERNANCE_FILTER_FP_RATE = 0.001;
 
 
-static constexpr CAmount GOVERNANCE_PROPOSAL_FEE_TX = (1 * COIN);
+static constexpr CAmount GOVERNANCE_COMMITMENT_AMOUNT = (1 * COIN);
+static constexpr int64_t GOVERNANCE_COMMITMENT_CONFIRMATIONS = 6;
+static constexpr int64_t GOVERNANCE_COMMITMENT_MIN_RELAY_CONFIRMATIONS = 1;
 
-static constexpr int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
-static constexpr int64_t GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS = 1;
 static constexpr int64_t GOVERNANCE_UPDATE_MIN = 60 * 60;
 static constexpr int64_t GOVERNANCE_DELETION_DELAY = 10 * 60;
 static constexpr int64_t GOVERNANCE_ORPHAN_EXPIRATION_TIME = 10 * 60;
@@ -142,7 +142,8 @@ private:
 public:
     CGovernanceObject();
 
-    CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& nCollateralHashIn, const std::string& strDataHexIn);
+    CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& commitment_hash,
+                      const std::string& strDataHexIn);
 
     CGovernanceObject(const CGovernanceObject& other);
 
@@ -168,10 +169,7 @@ public:
         return m_obj.type;
     }
 
-    const uint256& GetCollateralHash() const
-    {
-        return m_obj.collateralHash;
-    }
+    const uint256& GetCommitmentHash() const { return m_obj.m_commitment_hash; }
 
     const COutPoint& GetMasternodeOutpoint() const
     {
@@ -228,12 +226,15 @@ public:
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                        std::string& strError, bool check_commitment) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError,
+                        bool& fMissingConfirmations, bool check_commitment) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    /// Check the commitment transaction for the budget proposal/finalized budget
+    bool IsCommitmentValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman);
 
@@ -247,7 +248,7 @@ public:
         }
     }
 
-    CAmount GetMinCollateralFee() const;
+    CAmount GetMinCommitmentAmount() const;
 
     UniValue GetJSONObject() const;
 

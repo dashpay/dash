@@ -56,7 +56,7 @@ class DashGovernanceTest (DashTestFramework):
         self.log.info("Start testing...")
         governance_info = self.nodes[0].getgovernanceinfo()
         assert_equal(governance_info['governanceminquorum'], 1)
-        assert_equal(governance_info['proposalfee'], 1)
+        assert_equal(governance_info['commitmentamount'], 1)
         assert_equal(governance_info['superblockcycle'], 20)
         assert_equal(governance_info['superblockmaturitywindow'], 10)
         assert_equal(governance_info['lastsuperblock'], 120)
@@ -113,9 +113,9 @@ class DashGovernanceTest (DashTestFramework):
         self.p1_amount = satoshi_round("3.3")
         self.p2_amount = self.expected_v20_budget - self.p1_amount
 
-        p0_collateral_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_0", self.p0_amount, self.p0_payout_address)
-        p1_collateral_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_1", self.p1_amount, self.p1_payout_address)
-        p2_collateral_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_2", self.p2_amount, self.p2_payout_address)
+        p0_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_0", self.p0_amount, self.p0_payout_address)
+        p1_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_1", self.p1_amount, self.p1_payout_address)
+        p2_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_2", self.p2_amount, self.p2_payout_address)
 
         self.nodes[0].generate(6)
         self.bump_mocktime(6)
@@ -124,9 +124,9 @@ class DashGovernanceTest (DashTestFramework):
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 3)
         assert_equal(len(self.nodes[0].gobject("list")), 0)
 
-        self.p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
-        self.p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
-        self.p2_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p2_collateral_prepare["hex"], p2_collateral_prepare["collateralHash"])
+        self.p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_prepare["hex"], p0_prepare["commitmentHash"])
+        self.p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_prepare["hex"], p1_prepare["commitmentHash"])
+        self.p2_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p2_prepare["hex"], p2_prepare["commitmentHash"])
 
         assert_equal(len(self.nodes[0].gobject("list")), 3)
 

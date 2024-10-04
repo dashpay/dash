@@ -12,11 +12,12 @@
 namespace Governance
 {
 
-Object::Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& nCollateralHash, const std::string& strDataHex) :
+Object::Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& commitment_hash,
+               const std::string& strDataHex) :
     hashParent{nHashParent},
     revision{nRevision},
     time{nTime},
-    collateralHash{nCollateralHash},
+    m_commitment_hash{commitment_hash},
     masternodeOutpoint{},
     vchSig{},
     vchData{ParseHex(strDataHex)}
@@ -46,7 +47,7 @@ UniValue Object::ToJson() const
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("objectHash", GetHash().ToString());
     obj.pushKV("parentHash", hashParent.ToString());
-    obj.pushKV("collateralHash", collateralHash.ToString());
+    obj.pushKV("commitmentHash", m_commitment_hash.ToString());
     obj.pushKV("createdAt", time);
     obj.pushKV("revision", revision);
     UniValue data;

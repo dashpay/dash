@@ -29,10 +29,10 @@ class DashGovernanceTest (DashTestFramework):
             "url": "https://dash.org"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_template).encode())
-        collateral_hash = self.nodes[0].gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
+        commitment_hash = self.nodes[0].gobject("prepare", parent_hash, proposal_rev, proposal_time, proposal_hex)
         return {
             "parentHash": parent_hash,
-            "collateralHash": collateral_hash,
+            "commitmentHash": commitment_hash,
             "createdAt": proposal_time,
             "revision": proposal_rev,
             "hex": proposal_hex,
@@ -80,8 +80,8 @@ class DashGovernanceTest (DashTestFramework):
         self.p0_amount = satoshi_round("1.1")
         self.p1_amount = satoshi_round("3.3")
 
-        p0_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_0", self.p0_amount, self.p0_payout_address)
-        p1_collateral_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_1", self.p1_amount, self.p1_payout_address)
+        p0_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_0", self.p0_amount, self.p0_payout_address)
+        p1_prepare = self.prepare_object(1, uint256_to_string(0), proposal_time, 1, "Proposal_1", self.p1_amount, self.p1_payout_address)
         self.bump_mocktime(60 * 10 + 1)
 
         self.nodes[0].generate(6)
@@ -93,8 +93,8 @@ class DashGovernanceTest (DashTestFramework):
 
         self.log.info("Submit proposals")
 
-        self.p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
-        self.p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
+        self.p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_prepare["hex"], p0_prepare["commitmentHash"])
+        self.p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_prepare["hex"], p1_prepare["commitmentHash"])
 
         assert_equal(len(self.nodes[0].gobject("list")), 2)
 
