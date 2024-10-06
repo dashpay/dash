@@ -1840,7 +1840,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
          * need it or not further down and then query if the database is initialized
          * to check if validation is enabled.
          */
-        node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.netfulfilledman, *node.chainman, node.dmnman, node.mn_sync);
+        node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.netfulfilledman, *node.chainman, node.dmnman);
 
         node.mn_sync = std::make_unique<CMasternodeSync>(*node.connman, *node.netfulfilledman, *node.govman);
 
@@ -2182,7 +2182,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     if (is_governance_enabled) {
-        if (!node.govman->LoadCache(fLoadCacheFiles)) {
+        if (!node.govman->LoadCache(*node.mn_sync, fLoadCacheFiles)) {
             auto file_path = fs::PathToString(gArgs.GetDataDirNet() / "governance.dat");
             if (fLoadCacheFiles) {
                 return InitError(strprintf(_("Failed to load governance cache from %s"), file_path));
@@ -2260,7 +2260,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.scheduler->scheduleEvery(std::bind(&CDeterministicMNManager::DoMaintenance, std::ref(*node.dmnman)), std::chrono::seconds{10});
 
     if (node.govman->IsValid()) {
-        node.scheduler->scheduleEvery(std::bind(&CGovernanceManager::DoMaintenance, std::ref(*node.govman), std::ref(*node.connman)), std::chrono::minutes{5});
+        node.scheduler->scheduleEvery(std::bind(&CGovernanceManager::DoMaintenance, std::ref(*node.govman), std::cref(*node.mn_sync), std::ref(*node.connman)), std::chrono::minutes{5});
     }
 
     if (node.mn_activeman) {

@@ -68,14 +68,12 @@ GovernanceStore::GovernanceStore() :
 }
 
 CGovernanceManager::CGovernanceManager(CMasternodeMetaMan& mn_metaman, CNetFulfilledRequestManager& netfulfilledman,
-                                       const ChainstateManager& chainman, const std::unique_ptr<CDeterministicMNManager>& dmnman,
-                                       const std::unique_ptr<CMasternodeSync>& mn_sync) :
+                                       const ChainstateManager& chainman, const std::unique_ptr<CDeterministicMNManager>& dmnman) :
     m_db{std::make_unique<db_type>("governance.dat", "magicGovernanceCache")},
     m_mn_metaman{mn_metaman},
     m_netfulfilledman{netfulfilledman},
     m_chainman{chainman},
     m_dmnman{dmnman},
-    m_mn_sync{mn_sync},
     nTimeLastDiff(0),
     nCachedBlockHeight(0),
     fRateChecksEnabled(true),
@@ -90,12 +88,12 @@ CGovernanceManager::~CGovernanceManager()
     m_db->Store(*this);
 }
 
-bool CGovernanceManager::LoadCache(bool load_cache)
+bool CGovernanceManager::LoadCache(const CMasternodeSync& mn_sync, bool load_cache)
 {
     assert(m_db != nullptr);
     is_valid = load_cache ? m_db->Load(*this) : m_db->Store(*this);
     if (is_valid && load_cache) {
-        CheckAndRemove();
+        CheckAndRemove(mn_sync);
         InitOnLoad();
     }
     return is_valid;
@@ -143,10 +141,10 @@ bool CGovernanceManager::SerializeVoteForHash(const uint256& nHash, CDataStream&
     return cmapVoteToObject.Get(nHash, pGovobj) && pGovobj->GetVoteFile().SerializeVoteToStream(nHash, ss);
 }
 
-PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, PeerManager& peerman, std::string_view msg_type, CDataStream& vRecv)
+PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CMasternodeSync& mn_sync, CConnman& connman, PeerManager& peerman, std::string_view msg_type, CDataStream& vRecv)
 {
     if (!IsValid()) return {};
-    if (m_mn_sync == nullptr || !m_mn_sync->IsBlockchainSynced()) return {};
+    if (!mn_sync.IsBlockchainSynced()) return {};
 
     const auto tip_mn_list = Assert(m_dmnman)->GetListAtChainTip();
     // ANOTHER USER IS ASKING US TO HELP THEM SYNC GOVERNANCE OBJECT DATA
@@ -154,7 +152,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
         // Ignore such requests until we are fully synced.
         // We could start processing this after masternode list is synced
         // but this is a heavy one so it's better to finish sync first.
-        if (!m_mn_sync->IsSynced()) return {};
+        if (!mn_sync.IsSynced()) return {};
 
         uint256 nProp;
         CBloomFilter filter;
@@ -182,7 +180,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
 
         WITH_LOCK(::cs_main, peerman.EraseObjectRequest(peer.GetId(), CInv(MSG_GOVERNANCE_OBJECT, nHash)));
 
-        if (!m_mn_sync->IsBlockchainSynced()) {
+        if (!mn_sync.IsBlockchainSynced()) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- masternode list not synced\n");
             return {};
         }
@@ -205,7 +203,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
         }
 
         bool fRateCheckBypassed = false;
-        if (!MasternodeRateCheck(govobj, true, false, fRateCheckBypassed)) {
+        if (!MasternodeRateCheck(mn_sync, govobj, true, false, fRateCheckBypassed)) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- masternode rate check failed - %s - (current block height %d) \n", strHash, nCachedBlockHeight);
             return {};
         }
@@ -216,7 +214,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
         bool fMissingConfirmations = false;
         bool fIsValid = govobj.IsValidLocally(tip_mn_list, m_chainman, strError, fMissingConfirmations, true);
 
-        if (fRateCheckBypassed && fIsValid && !MasternodeRateCheck(govobj, true)) {
+        if (fRateCheckBypassed && fIsValid && !MasternodeRateCheck(mn_sync, govobj, true)) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- masternode rate check failed (after signature verification) - %s - (current block height %d)\n", strHash, nCachedBlockHeight);
             return {};
         }
@@ -234,7 +232,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
             return {};
         }
 
-        AddGovernanceObject(govobj, peerman, &peer);
+        AddGovernanceObject(govobj, mn_sync, peerman, &peer);
     }
 
     // A NEW GOVERNANCE OBJECT VOTE HAS ARRIVED
@@ -246,7 +244,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
         WITH_LOCK(::cs_main, peerman.EraseObjectRequest(peer.GetId(), CInv(MSG_GOVERNANCE_OBJECT_VOTE, nHash)));
 
         // Ignore such messages until masternode list is synced
-        if (!m_mn_sync->IsBlockchainSynced()) {
+        if (!mn_sync.IsBlockchainSynced()) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- masternode list not synced\n");
             return {};
         }
@@ -264,11 +262,11 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
         CGovernanceException exception;
         if (ProcessVote(&peer, vote, exception, connman)) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- %s new\n", strHash);
-            m_mn_sync->BumpAssetLastTime("MNGOVERNANCEOBJECTVOTE");
-            vote.Relay(peerman, *m_mn_sync, tip_mn_list);
+            mn_sync.BumpAssetLastTime("MNGOVERNANCEOBJECTVOTE");
+            vote.Relay(peerman, mn_sync, tip_mn_list);
         } else {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- Rejected vote, error = %s\n", exception.what());
-            if ((exception.GetNodePenalty() != 0) && m_mn_sync->IsSynced()) {
+            if ((exception.GetNodePenalty() != 0) && mn_sync.IsSynced()) {
                 return tl::unexpected{exception.GetNodePenalty()};
             }
             return {};
@@ -277,7 +275,7 @@ PeerMsgRet CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, Pe
     return {};
 }
 
-void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, PeerManager& peerman)
+void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, const CMasternodeSync& mn_sync, PeerManager& peerman)
 {
     uint256 nHash = govobj.GetHash();
     std::vector<vote_time_pair_t> vecVotePairs;
@@ -294,7 +292,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, PeerManager
         if (pairVote.second < nNow) {
             fRemove = true;
         } else if (govobj.ProcessVote(m_mn_metaman, *this, tip_mn_list, vote, e)) {
-            vote.Relay(peerman, *Assert(m_mn_sync), tip_mn_list);
+            vote.Relay(peerman, mn_sync, tip_mn_list);
             fRemove = true;
         }
         if (fRemove) {
@@ -303,7 +301,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, PeerManager
     }
 }
 
-void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, PeerManager& peerman, const CNode* pfrom)
+void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CMasternodeSync& mn_sync, PeerManager& peerman, const CNode* pfrom)
 {
     uint256 nHash = govobj.GetHash();
     std::string strHash = nHash.ToString();
@@ -348,27 +346,27 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, PeerMana
     }
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- %s new, received from peer %s\n", strHash, pfrom ? pfrom->GetLogString() : "nullptr");
-    govobj.Relay(peerman, *Assert(m_mn_sync));
+    govobj.Relay(peerman, mn_sync);
 
     // Update the rate buffer
     MasternodeRateUpdate(govobj);
 
-    m_mn_sync->BumpAssetLastTime("CGovernanceManager::AddGovernanceObject");
+    mn_sync.BumpAssetLastTime("CGovernanceManager::AddGovernanceObject");
 
     // WE MIGHT HAVE PENDING/ORPHAN VOTES FOR THIS OBJECT
 
-    CheckOrphanVotes(govobj, peerman);
+    CheckOrphanVotes(govobj, mn_sync, peerman);
 
     // SEND NOTIFICATION TO SCRIPT/ZMQ
     GetMainSignals().NotifyGovernanceObject(std::make_shared<const Governance::Object>(govobj.Object()));
 }
 
-void CGovernanceManager::CheckAndRemove()
+void CGovernanceManager::CheckAndRemove(const CMasternodeSync& mn_sync)
 {
     assert(m_mn_metaman.IsValid());
 
     // Return on initial sync, spammed the debug.log and provided no use
-    if (m_mn_sync == nullptr || !m_mn_sync->IsBlockchainSynced()) return;
+    if (!mn_sync.IsBlockchainSynced()) return;
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean\n");
 
@@ -594,7 +592,6 @@ struct sortProposalsByVotes {
 std::optional<const CSuperblock> CGovernanceManager::CreateSuperblockCandidate(int nHeight) const
 {
     if (!IsValid()) return std::nullopt;
-    if (m_mn_sync == nullptr || !m_mn_sync->IsSynced()) return std::nullopt;
     if (nHeight % Params().GetConsensus().nSuperblockCycle < Params().GetConsensus().nSuperblockCycle - Params().GetConsensus().nSuperblockMaturityWindow) return std::nullopt;
     if (HasAlreadyVotedFundingTrigger()) return std::nullopt;
 
@@ -700,7 +697,7 @@ std::optional<const CSuperblock> CGovernanceManager::CreateSuperblockCandidate(i
     return CSuperblock(nNextSuperblock, std::move(payments));
 }
 
-std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigger(const std::optional<const CSuperblock>& sb_opt, PeerManager& peerman,
+std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigger(const std::optional<const CSuperblock>& sb_opt, CMasternodeSync& mn_sync, PeerManager& peerman,
                                                                                    const CActiveMasternodeManager& mn_activeman)
 {
     // no sb_opt, no trigger
@@ -738,17 +735,17 @@ std::optional<const CGovernanceObject> CGovernanceManager::CreateGovernanceTrigg
         return std::nullopt;
     }
 
-    if (!MasternodeRateCheck(gov_sb)) {
+    if (!MasternodeRateCheck(mn_sync, gov_sb)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Trigger rejected because of rate check failure hash(%s)\n", __func__, gov_sb.GetHash().ToString());
         return std::nullopt;
     }
 
     // The trigger we just created looks good, submit it
-    AddGovernanceObject(gov_sb, peerman);
+    AddGovernanceObject(gov_sb, mn_sync, peerman);
     return std::make_optional<CGovernanceObject>(gov_sb);
 }
 
-void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGovernanceObject>& trigger_opt, CConnman& connman, PeerManager& peerman,
+void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGovernanceObject>& trigger_opt, const CMasternodeSync& mn_sync, CConnman& connman, PeerManager& peerman,
                                                 const CActiveMasternodeManager& mn_activeman)
 {
     // only active masternodes can vote on triggers
@@ -782,7 +779,7 @@ void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGover
         }
         if (!voted_already) {
             // No previous VOTE_SIGNAL_FUNDING was found, vote now
-            if (VoteFundingTrigger(gov_sb_hash, VOTE_OUTCOME_YES, connman, peerman, mn_activeman)) {
+            if (VoteFundingTrigger(gov_sb_hash, VOTE_OUTCOME_YES, mn_sync, connman, peerman, mn_activeman)) {
                 LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting YES-FUNDING for new trigger:%s success\n",
                          __func__, gov_sb_hash.ToString());
                 votedFundingYesTriggerHash = gov_sb_hash;
@@ -826,7 +823,7 @@ void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGover
                 continue;
             }
         }
-        if (!VoteFundingTrigger(trigger_hash, VOTE_OUTCOME_NO, connman, peerman, mn_activeman)) {
+        if (!VoteFundingTrigger(trigger_hash, VOTE_OUTCOME_NO, mn_sync, connman, peerman, mn_activeman)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Voting NO-FUNDING for trigger:%s failed\n", __func__, trigger_hash.ToString());
             // failing here is ok-ish
             continue;
@@ -835,7 +832,7 @@ void CGovernanceManager::VoteGovernanceTriggers(const std::optional<const CGover
     }
 }
 
-bool CGovernanceManager::VoteFundingTrigger(const uint256& nHash, const vote_outcome_enum_t outcome, CConnman& connman, PeerManager& peerman,
+bool CGovernanceManager::VoteFundingTrigger(const uint256& nHash, const vote_outcome_enum_t outcome, const CMasternodeSync& mn_sync, CConnman& connman, PeerManager& peerman,
                                             const CActiveMasternodeManager& mn_activeman)
 {
     CGovernanceVote vote(mn_activeman.GetOutPoint(), nHash, VOTE_SIGNAL_FUNDING, outcome);
@@ -843,7 +840,7 @@ bool CGovernanceManager::VoteFundingTrigger(const uint256& nHash, const vote_out
     vote.Sign(mn_activeman);
 
     CGovernanceException exception;
-    if (!ProcessVoteAndRelay(vote, exception, connman, peerman)) {
+    if (!ProcessVoteAndRelay(vote, exception, mn_sync, connman, peerman)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s Vote FUNDING %d for trigger:%s failed:%s\n", __func__, outcome, nHash.ToString(), exception.what());
         return false;
     }
@@ -861,10 +858,10 @@ void CGovernanceManager::ResetVotedFundingTrigger()
     votedFundingYesTriggerHash = std::nullopt;
 }
 
-void CGovernanceManager::DoMaintenance(CConnman& connman)
+void CGovernanceManager::DoMaintenance(const CMasternodeSync& mn_sync, CConnman& connman)
 {
     if (!IsValid()) return;
-    if (m_mn_sync == nullptr || !m_mn_sync->IsSynced()) return;
+    if (!mn_sync.IsSynced()) return;
     if (ShutdownRequested()) return;
 
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
@@ -872,14 +869,11 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
     RequestOrphanObjects(connman);
 
     // CHECK AND REMOVE - REPROCESS GOVERNANCE OBJECTS
-    CheckAndRemove();
+    CheckAndRemove(mn_sync);
 }
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
-    // do not request objects until it's time to sync
-    if (!Assert(m_mn_sync)->IsBlockchainSynced()) return false;
-
     LOCK(cs);
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::ConfirmInventoryRequest inv = %s\n", inv.ToString());
@@ -920,9 +914,6 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 
 void CGovernanceManager::SyncSingleObjVotes(CNode& peer, PeerManager& peerman, const uint256& nProp, const CBloomFilter& filter, CConnman& connman)
 {
-    // do not provide any data until our node is synced
-    if (!Assert(m_mn_sync)->IsSynced()) return;
-
     int nVoteCount = 0;
 
     // SYNC GOVERNANCE OBJECTS WITH OTHER CLIENT
@@ -971,9 +962,6 @@ void CGovernanceManager::SyncSingleObjVotes(CNode& peer, PeerManager& peerman, c
 PeerMsgRet CGovernanceManager::SyncObjects(CNode& peer, PeerManager& peerman, CConnman& connman) const
 {
     assert(m_netfulfilledman.IsValid());
-
-    // do not provide any data until our node is synced
-    if (!Assert(m_mn_sync)->IsSynced()) return {};
 
     if (m_netfulfilledman.HasFulfilledRequest(peer.addr, NetMsgType::MNGOVERNANCESYNC)) {
         // Asking for the whole list multiple times in a short period of time is no good
@@ -1051,19 +1039,19 @@ void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
     it->second.fStatusOK = true;
 }
 
-bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus)
+bool CGovernanceManager::MasternodeRateCheck(const CMasternodeSync& mn_sync, const CGovernanceObject& govobj, bool fUpdateFailStatus)
 {
     bool fRateCheckBypassed;
-    return MasternodeRateCheck(govobj, fUpdateFailStatus, true, fRateCheckBypassed);
+    return MasternodeRateCheck(mn_sync, govobj, fUpdateFailStatus, true, fRateCheckBypassed);
 }
 
-bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus, bool fForce, bool& fRateCheckBypassed)
+bool CGovernanceManager::MasternodeRateCheck(const CMasternodeSync& mn_sync, const CGovernanceObject& govobj, bool fUpdateFailStatus, bool fForce, bool& fRateCheckBypassed)
 {
     LOCK(cs);
 
     fRateCheckBypassed = false;
 
-    if (!Assert(m_mn_sync)->IsSynced() || !fRateChecksEnabled) {
+    if (!mn_sync.IsSynced() || !fRateChecksEnabled) {
         return true;
     }
 
@@ -1121,11 +1109,11 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
     return false;
 }
 
-bool CGovernanceManager::ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman, PeerManager& peerman)
+bool CGovernanceManager::ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, const CMasternodeSync& mn_sync, CConnman& connman, PeerManager& peerman)
 {
     bool fOK = ProcessVote(/* pfrom = */ nullptr, vote, exception, connman);
     if (fOK) {
-        vote.Relay(peerman, *Assert(m_mn_sync), Assert(m_dmnman)->GetListAtChainTip());
+        vote.Relay(peerman, mn_sync, Assert(m_dmnman)->GetListAtChainTip());
     }
     return fOK;
 }
@@ -1184,9 +1172,9 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     return fOk;
 }
 
-void CGovernanceManager::CheckPostponedObjects(PeerManager& peerman)
+void CGovernanceManager::CheckPostponedObjects(CMasternodeSync& mn_sync, PeerManager& peerman)
 {
-    if (!Assert(m_mn_sync)->IsSynced()) return;
+    if (!mn_sync.IsSynced()) return;
 
     LOCK2(cs_main, cs);
 
@@ -1201,7 +1189,7 @@ void CGovernanceManager::CheckPostponedObjects(PeerManager& peerman)
         bool fMissingConfirmations;
         if (govobj.IsCollateralValid(m_chainman, strError, fMissingConfirmations)) {
             if (govobj.IsValidLocally(Assert(m_dmnman)->GetListAtChainTip(), m_chainman, strError, false)) {
-                AddGovernanceObject(govobj, peerman);
+                AddGovernanceObject(govobj, mn_sync, peerman);
             } else {
                 LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());
             }
@@ -1234,7 +1222,7 @@ void CGovernanceManager::CheckPostponedObjects(PeerManager& peerman)
             if (fValid) {
                 if (fReady) {
                     LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- additional relay: hash = %s\n", govobj.GetHash().ToString());
-                    govobj.Relay(peerman, *m_mn_sync);
+                    govobj.Relay(peerman, mn_sync);
                 } else {
                     it++;
                     continue;
@@ -1519,7 +1507,7 @@ UniValue CGovernanceManager::ToJson() const
     return jsonObj;
 }
 
-void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CConnman& connman, PeerManager& peerman, const CActiveMasternodeManager* const mn_activeman)
+void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CMasternodeSync& mn_sync, CConnman& connman, PeerManager& peerman, const CActiveMasternodeManager* const mn_activeman)
 {
     // Note this gets called from ActivateBestChain without cs_main being held
     // so it should be safe to lock our mutex here without risking a deadlock
@@ -1531,19 +1519,21 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CConnman& co
     }
 
     if (mn_activeman) {
-        const auto sb_opt = CreateSuperblockCandidate(pindex->nHeight);
-        const auto trigger_opt = CreateGovernanceTrigger(sb_opt, peerman, *mn_activeman);
-        VoteGovernanceTriggers(trigger_opt, connman, peerman, *mn_activeman);
+        const auto sb_opt = mn_sync.IsSynced() ? CreateSuperblockCandidate(pindex->nHeight) : std::nullopt;
+        const auto trigger_opt = CreateGovernanceTrigger(sb_opt, mn_sync, peerman, *mn_activeman);
+        VoteGovernanceTriggers(trigger_opt, mn_sync, connman, peerman, *mn_activeman);
     }
 
     nCachedBlockHeight = pindex->nHeight;
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
 
     if (DeploymentDIP0003Enforced(pindex->nHeight, Params().GetConsensus())) {
-        RemoveInvalidVotes();
+        if (mn_sync.IsSynced()) {
+            RemoveInvalidVotes();
+        }
     }
 
-    CheckPostponedObjects(peerman);
+    CheckPostponedObjects(mn_sync, peerman);
 
     CSuperblockManager::ExecuteBestSuperblock(*this, Assert(m_dmnman)->GetListAtChainTip(), pindex->nHeight);
 }
@@ -1595,10 +1585,6 @@ void CGovernanceManager::CleanOrphanObjects()
 
 void CGovernanceManager::RemoveInvalidVotes()
 {
-    if (!Assert(m_mn_sync)->IsSynced()) {
-        return;
-    }
-
     LOCK(cs);
 
     const auto tip_mn_list = Assert(m_dmnman)->GetListAtChainTip();
