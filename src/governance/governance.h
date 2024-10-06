@@ -348,9 +348,9 @@ public:
      *   - Track governance objects which are triggers
      *   - After triggers are activated and executed, they can be removed
     */
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const;
-    bool AddNewTrigger(uint256 nHash);
-    void CleanAndRemoveTriggers();
+    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool AddNewTrigger(uint256 nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void CleanAndRemoveTriggers() EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Superblocks related:
 
@@ -371,7 +371,7 @@ public:
     bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list, const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
 private:
     void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight);
-    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet, int nBlockHeight);
+    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet, int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     std::optional<const CSuperblock> CreateSuperblockCandidate(int nHeight) const;
     std::optional<const CGovernanceObject> CreateGovernanceTrigger(const std::optional<const CSuperblock>& sb_opt, CMasternodeSync& mn_sync, PeerManager& peerman,
