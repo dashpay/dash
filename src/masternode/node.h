@@ -42,7 +42,7 @@ public:
     };
 
 private:
-    mutable SharedMutex cs;
+    mutable RecursiveMutex cs;
     masternode_state_t m_state GUARDED_BY(cs) {MASTERNODE_WAITING_FOR_PROTX};
     CActiveMasternodeInfo m_info GUARDED_BY(cs);
     std::string m_error GUARDED_BY(cs);
@@ -70,11 +70,11 @@ public:
     [[nodiscard]] CBLSSignature Sign(const uint256& hash, const bool is_legacy) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /* TODO: Reconsider external locking */
-    [[nodiscard]] COutPoint GetOutPoint() const { READ_LOCK(cs); return m_info.outpoint; }
-    [[nodiscard]] uint256 GetProTxHash() const { READ_LOCK(cs); return m_info.proTxHash; }
-    [[nodiscard]] CService GetService() const { READ_LOCK(cs); return m_info.service; }
+    [[nodiscard]] COutPoint GetOutPoint() const { LOCK(cs); return m_info.outpoint; }
+    [[nodiscard]] uint256 GetProTxHash() const { LOCK(cs); return m_info.proTxHash; }
+    [[nodiscard]] CService GetService() const { LOCK(cs); return m_info.service; }
     [[nodiscard]] CBLSPublicKey GetPubKey() const;
-    [[nodiscard]] bool IsLegacy() const { READ_LOCK(cs); return m_info.legacy; }
+    [[nodiscard]] bool IsLegacy() const { LOCK(cs); return m_info.legacy; }
 
 private:
     void InitInternal(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
