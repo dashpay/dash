@@ -202,7 +202,7 @@ void CGovernanceManager::CleanAndRemoveTriggers()
 *   - Return the triggers in a list
 */
 
-std::vector<CSuperblock_sptr> CGovernanceManager::GetActiveTriggers()
+std::vector<CSuperblock_sptr> CGovernanceManager::GetActiveTriggers() const
 {
     AssertLockHeld(cs);
     std::vector<CSuperblock_sptr> vecResults;
@@ -271,7 +271,7 @@ bool CGovernanceManager::IsSuperblockTriggered(const CDeterministicMNList& tip_m
 }
 
 
-bool CGovernanceManager::GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet, int nBlockHeight) const
+bool CGovernanceManager::GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet, int nBlockHeight)
 {
     if (!CSuperblock::IsValidBlockHeight(nBlockHeight)) {
         return false;
