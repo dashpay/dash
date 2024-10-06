@@ -1535,7 +1535,7 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CMasternodeS
 
     CheckPostponedObjects(mn_sync, peerman);
 
-    CSuperblockManager::ExecuteBestSuperblock(*this, Assert(m_dmnman)->GetListAtChainTip(), pindex->nHeight);
+    ExecuteBestSuperblock(Assert(m_dmnman)->GetListAtChainTip(), pindex->nHeight);
 }
 
 void CGovernanceManager::RequestOrphanObjects(CConnman& connman)
