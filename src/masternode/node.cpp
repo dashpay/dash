@@ -64,7 +64,7 @@ CActiveMasternodeManager::CActiveMasternodeManager(const CBLSSecretKey& sk, CCon
 
 std::string CActiveMasternodeManager::GetStateString() const
 {
-    switch (WITH_READ_LOCK(cs, return m_state)) {
+    switch (WITH_LOCK(cs, return m_state)) {
     case MASTERNODE_WAITING_FOR_PROTX:
         return "WAITING_FOR_PROTX";
     case MASTERNODE_POSE_BANNED:
@@ -86,7 +86,7 @@ std::string CActiveMasternodeManager::GetStateString() const
 
 std::string CActiveMasternodeManager::GetStatus() const
 {
-    READ_LOCK(cs);
+    LOCK(cs);
     switch (m_state) {
     case MASTERNODE_WAITING_FOR_PROTX:
         return "Waiting for ProTx to appear on-chain";
@@ -182,7 +182,7 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
 {
     if (!DeploymentDIP0003Enforced(pindexNew->nHeight, Params().GetConsensus())) return;
 
-    const auto [cur_state, cur_protx_hash] = WITH_READ_LOCK(cs, return std::make_pair(m_state, m_info.proTxHash));
+    const auto [cur_state, cur_protx_hash] = WITH_LOCK(cs, return std::make_pair(m_state, m_info.proTxHash));
     if (cur_state == MASTERNODE_READY) {
         auto oldMNList = Assert(m_dmnman)->GetListForBlock(pindexNew->pprev);
         auto newMNList = m_dmnman->GetListForBlock(pindexNew);
@@ -266,7 +266,7 @@ template <template <typename> class EncryptedObj, typename Obj>
                                                      int version) const
 {
     AssertLockNotHeld(cs);
-    return WITH_READ_LOCK(cs, return obj.Decrypt(idx, m_info.blsKeyOperator, ret_obj, version));
+    return WITH_LOCK(cs, return obj.Decrypt(idx, m_info.blsKeyOperator, ret_obj, version));
 }
 template bool CActiveMasternodeManager::Decrypt(const CBLSIESEncryptedObject<CBLSSecretKey>& obj, size_t idx,
                                                 CBLSSecretKey& ret_obj, int version) const;
@@ -276,19 +276,19 @@ template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjec
 [[nodiscard]] CBLSSignature CActiveMasternodeManager::Sign(const uint256& hash) const
 {
     AssertLockNotHeld(cs);
-    return WITH_READ_LOCK(cs, return m_info.blsKeyOperator.Sign(hash));
+    return WITH_LOCK(cs, return m_info.blsKeyOperator.Sign(hash));
 }
 
 [[nodiscard]] CBLSSignature CActiveMasternodeManager::Sign(const uint256& hash, const bool is_legacy) const
 {
     AssertLockNotHeld(cs);
-    return WITH_READ_LOCK(cs, return m_info.blsKeyOperator.Sign(hash, is_legacy));
+    return WITH_LOCK(cs, return m_info.blsKeyOperator.Sign(hash, is_legacy));
 }
 
 // We need to pass a copy as opposed to a const ref because CBLSPublicKeyVersionWrapper
 // does not accept a const ref in its construction args
 [[nodiscard]] CBLSPublicKey CActiveMasternodeManager::GetPubKey() const
 {
-    READ_LOCK(cs);
+    LOCK(cs);
     return m_info.blsPubKeyOperator;
 }

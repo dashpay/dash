@@ -98,7 +98,7 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     m_llmq_ctx->ehfSignalsHandler->UpdatedBlockTip(pindexNew, /* is_masternode = */ m_mn_activeman != nullptr);
 
     if (m_govman.IsValid()) {
-        m_govman.UpdatedBlockTip(pindexNew, m_connman, m_peerman, m_mn_activeman);
+        m_govman.UpdatedBlockTip(pindexNew, m_mn_sync, m_connman, m_peerman, m_mn_activeman);
     }
 }
 
@@ -142,7 +142,7 @@ void CDSNotificationInterface::NotifyMasternodeListChanged(bool undo, const CDet
 {
     CMNAuth::NotifyMasternodeListChanged(undo, oldMNList, diff, m_connman);
     if (m_govman.IsValid()) {
-        m_govman.CheckAndRemove();
+        m_govman.CheckAndRemove(m_mn_sync);
     }
 }
 

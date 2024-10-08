@@ -245,7 +245,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>();
     m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
     m_node.sporkman = std::make_unique<CSporkManager>();
-    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.netfulfilledman, *m_node.chainman, m_node.dmnman, m_node.mn_sync);
+    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.netfulfilledman, *m_node.chainman, m_node.dmnman);
     m_node.mn_sync = std::make_unique<CMasternodeSync>(*m_node.connman, *m_node.netfulfilledman, *m_node.govman);
 
     // Start script-checking threads. Set g_parallel_script_checks to true so they are used.

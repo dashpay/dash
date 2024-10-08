@@ -1448,12 +1448,13 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
     });
 
     // First try to use only non-denominated funds
-    if (std::any_of(vecTally.begin(), vecTally.end(), [&](const auto& item) { return MakeCollateralAmounts(item, false); })) {
-        return true;
+    for (const auto& item : vecTally) {
+        if (MakeCollateralAmounts(item, false)) return true;
     }
+
     // There should be at least some denominated funds we should be able to break in pieces to continue mixing
-    if (std::any_of(vecTally.begin(), vecTally.end(), [&](const auto& item) { return MakeCollateralAmounts(item, true); })) {
-        return true;
+    for (const auto& item : vecTally) {
+        if (MakeCollateralAmounts(item, true)) return true;
     }
 
     // If we got here then something is terribly broken actually

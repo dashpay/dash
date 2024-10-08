@@ -384,7 +384,8 @@ static RPCHelpMan gobject_submit()
 
     // RELAY THIS OBJECT
     // Reject if rate check fails but don't update buffer
-    if (!node.govman->MasternodeRateCheck(govobj)) {
+    CHECK_NONFATAL(node.mn_sync);
+    if (!node.govman->MasternodeRateCheck(*node.mn_sync, govobj, false)) {
         LogPrintf("gobject(submit) -- Object submission rejected because of rate check failure - hash = %s\n", strHash);
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
     }
@@ -393,11 +394,10 @@ static RPCHelpMan gobject_submit()
 
     PeerManager& peerman = EnsurePeerman(node);
     if (fMissingConfirmations) {
-        CHECK_NONFATAL(node.mn_sync);
         node.govman->AddPostponedObject(govobj);
         govobj.Relay(peerman, *node.mn_sync);
     } else {
-        node.govman->AddGovernanceObject(govobj, peerman);
+        node.govman->AddGovernanceObject(govobj, *node.mn_sync, peerman);
     }
 
     return govobj.GetHash().ToString();
@@ -484,7 +484,8 @@ static UniValue VoteWithMasternodes(const JSONRPCRequest& request, const CWallet
         CGovernanceException exception;
         CConnman& connman = EnsureConnman(node);
         PeerManager& peerman = EnsurePeerman(node);
-        if (node.govman->ProcessVoteAndRelay(vote, exception, connman, peerman)) {
+        CHECK_NONFATAL(node.mn_sync);
+        if (node.govman->ProcessVoteAndRelay(vote, exception, *node.mn_sync, connman, peerman)) {
             nSuccessful++;
             statusObj.pushKV("result", "success");
         } else {
@@ -956,7 +957,7 @@ static RPCHelpMan voteraw()
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CHECK_NONFATAL(node.govman);
-    GovernanceObject govObjType = WITH_LOCK(node.govman->cs, return [&](){
+    GovernanceObject govObjType = WITH_LOCK(node.govman->cs, return [&]() EXCLUSIVE_LOCKS_REQUIRED(node.govman->cs) {
         AssertLockHeld(node.govman->cs);
         const CGovernanceObject *pGovObj = node.govman->FindConstGovernanceObject(hashGovObj);
         if (!pGovObj) {
@@ -997,7 +998,8 @@ static RPCHelpMan voteraw()
     PeerManager& peerman = EnsurePeerman(node);
 
     CGovernanceException exception;
-    if (node.govman->ProcessVoteAndRelay(vote, exception, connman, peerman)) {
+    CHECK_NONFATAL(node.mn_sync);
+    if (node.govman->ProcessVoteAndRelay(vote, exception, *node.mn_sync, connman, peerman)) {
         return "Voted successfully";
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Error voting : " + exception.GetMessage());

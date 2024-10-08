@@ -21,7 +21,7 @@
 
 static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CTransaction& tx,
                                 const CBlockIndex* pindexPrev, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes, bool check_sigs,
-                                TxValidationState& state)
+                                TxValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(cs_main);
 
