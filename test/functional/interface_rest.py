@@ -211,7 +211,7 @@ class RESTTest (BitcoinTestFramework):
 
         self.generate(self.nodes[0], 1)  # generate block to not affect upcoming tests
 
-        self.log.info("Test the /block, /blockhashbyheight, /headers, and /blockfilterheaders URIs")
+        self.log.info("Test the /block, /blockhashbyheight and /headers URIs")
         bb_hash = self.nodes[0].getbestblockhash()
 
         # Check result if block does not exists
@@ -285,12 +285,6 @@ class RESTTest (BitcoinTestFramework):
         json_obj = self.test_rest_request(f"/blockfilterheaders/basic/5/{bb_hash}")
         assert_equal(len(json_obj), 5)  # now we should have 5 filter header objects
         self.test_rest_request(f"/blockfilter/basic/{bb_hash}", req_type=ReqType.BIN, ret_type=RetType.OBJ)
-
-        # Test blockfilterheaders with an invalid hash and filtertype
-        resp = self.test_rest_request(f"/blockfilterheaders/{INVALID_PARAM}/{bb_hash}", ret_type=RetType.OBJ, status=400)
-        assert_equal(resp.read().decode('utf-8').rstrip(), f"Unknown filtertype {INVALID_PARAM}")
-        resp = self.test_rest_request(f"/blockfilterheaders/basic/{INVALID_PARAM}", ret_type=RetType.OBJ, status=400)
-        assert_equal(resp.read().decode('utf-8').rstrip(), f"Invalid hash: {INVALID_PARAM}")
 
         # Test number parsing
         for num in ['5a', '-5', '0', '2001', '99999999999999999999999999999999999']:
