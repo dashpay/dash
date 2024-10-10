@@ -276,7 +276,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.options.bitcoind = os.getenv("BITCOIND", default=fname_bitcoind)
         self.options.bitcoincli = os.getenv("BITCOINCLI", default=fname_bitcoincli)
 
-        self.extra_args_from_options = self.options.dashd_extra_args
+        self.extra_args_from_options += self.options.dashd_extra_args
 
         os.environ['PATH'] = os.pathsep.join([
             os.path.join(config['environment']['BUILDDIR'], 'src'),
@@ -1170,9 +1170,7 @@ class DashTestFramework(BitcoinTestFramework):
             extra_args = [[]] * num_nodes
         assert_equal(len(extra_args), num_nodes)
         self.extra_args = [copy.deepcopy(a) for a in extra_args]
-        self.extra_args[0] += ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"]
-        for i in range(0, num_nodes):
-            self.extra_args[i].append("-dip3params=2:2")
+        self.extra_args_from_options += ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK", "-dip3params=2:2"]
 
         # LLMQ default test params (no need to pass -llmqtestparams)
         self.llmq_size = 3
