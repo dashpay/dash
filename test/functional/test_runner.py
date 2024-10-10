@@ -350,6 +350,7 @@ BASE_SCRIPTS = [
     'feature_anchors.py',
     'feature_coinstatsindex.py',
     'wallet_orphanedreward.py',
+    'wallet_timelock.py',
     'p2p_node_network_limited.py',
     'p2p_permissions.py',
     'feature_blocksdir.py',
