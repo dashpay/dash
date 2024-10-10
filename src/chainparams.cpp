@@ -797,7 +797,6 @@ public:
 
         UpdateActivationParametersFromArgs(args);
         UpdateDIP3ParametersFromArgs(args);
-        UpdateDIP8ParametersFromArgs(args);
         UpdateBudgetParametersFromArgs(args);
 
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
@@ -913,15 +912,6 @@ public:
         consensus.DIP0003EnforcementHeight = nEnforcementHeight;
     }
     void UpdateDIP3ParametersFromArgs(const ArgsManager& args);
-
-    /**
-     * Allows modifying the DIP8 activation height
-     */
-    void UpdateDIP8Parameters(int nActivationHeight)
-    {
-        consensus.DIP0008Height = nActivationHeight;
-    }
-    void UpdateDIP8ParametersFromArgs(const ArgsManager& args);
 
     /**
      * Allows modifying the budget regtest parameters.
@@ -1079,23 +1069,6 @@ void CRegTestParams::UpdateDIP3ParametersFromArgs(const ArgsManager& args)
     }
     LogPrintf("Setting DIP3 parameters to activation=%ld, enforcement=%ld\n", nDIP3ActivationHeight, nDIP3EnforcementHeight);
     UpdateDIP3Parameters(nDIP3ActivationHeight, nDIP3EnforcementHeight);
-}
-
-void CRegTestParams::UpdateDIP8ParametersFromArgs(const ArgsManager& args)
-{
-    if (!args.IsArgSet("-dip8params")) return;
-
-    std::string strParams = args.GetArg("-dip8params", "");
-    std::vector<std::string> vParams = SplitString(strParams, ':');
-    if (vParams.size() != 1) {
-        throw std::runtime_error("DIP8 parameters malformed, expecting <activation>");
-    }
-    int nDIP8ActivationHeight;
-    if (!ParseInt32(vParams[0], &nDIP8ActivationHeight)) {
-        throw std::runtime_error(strprintf("Invalid activation height (%s)", vParams[0]));
-    }
-    LogPrintf("Setting DIP8 parameters to activation=%ld\n", nDIP8ActivationHeight);
-    UpdateDIP8Parameters(nDIP8ActivationHeight);
 }
 
 void CRegTestParams::UpdateBudgetParametersFromArgs(const ArgsManager& args)
