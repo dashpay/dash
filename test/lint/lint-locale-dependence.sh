@@ -42,7 +42,6 @@ export LC_ALL=C
 # https://stackoverflow.com/a/34878283 for more details.
 
 KNOWN_VIOLATIONS=(
-    "src/bitcoin-tx.cpp.*stoul"
     "src/dbwrapper.cpp:.*vsnprintf"
     "src/test/dbwrapper_tests.cpp:.*snprintf"
     "src/test/fuzz/locale.cpp"
