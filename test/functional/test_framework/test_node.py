@@ -24,9 +24,11 @@ from pathlib import Path
 
 from .authproxy import JSONRPCException
 from .descriptors import descsum_create
-from .p2p import P2P_SUBVERSION
+from .messages import NODE_P2P_V2
+from .p2p import P2P_SERVICES, P2P_SUBVERSION
 from .util import (
     MAX_NODES,
+    assert_equal,
     append_config,
     delete_cookie_file,
     get_auth_cookie,
@@ -65,7 +67,7 @@ class TestNode():
     To make things easier for the test writer, any unrecognised messages will
     be dispatched to the RPC connection."""
 
-    def __init__(self, i, datadir, extra_args_from_options, *, chain, rpchost, timewait, timeout_factor, bitcoind, bitcoin_cli, mocktime, coverage_dir, cwd, extra_conf=None, extra_args=None, use_cli=False, start_perf=False, use_valgrind=False, version=None, descriptors=False):
+    def __init__(self, i, datadir, extra_args_from_options, *, chain, rpchost, timewait, timeout_factor, bitcoind, bitcoin_cli, mocktime, coverage_dir, cwd, extra_conf=None, extra_args=None, use_cli=False, start_perf=False, use_valgrind=False, version=None, descriptors=False, v2transport=False):
         """
         Kwargs:
             start_perf (bool): If True, begin profiling the node with `perf` as soon as
@@ -123,6 +125,12 @@ class TestNode():
             self.args.append("-logthreadnames")
         if self.version_is_at_least(21000000):
             self.args.append("-logsourcelocations")
+
+        # Default behavior from global -v2transport flag is added to args to persist it over restarts.
+        # May be overwritten in individual tests, using extra_args.
+        self.default_to_v2 = v2transport
+        if self.default_to_v2:
+            self.args.append("-v2transport=1")
 
         self.cli = TestNodeCLI(bitcoin_cli, self.datadir)
         self.use_cli = use_cli
@@ -204,6 +212,8 @@ class TestNode():
         """Start the node."""
         if extra_args is None:
             extra_args = self.extra_args
+
+        self.use_v2transport = "-v2transport=1" in extra_args or (self.default_to_v2 and "-v2transport=0" not in extra_args)
 
         # Add a new stdout and stderr file each time dashd is started
         if stderr is None:
@@ -418,6 +428,9 @@ class TestNode():
     def assert_debug_log(self, expected_msgs, unexpected_msgs=None, timeout=2):
         if unexpected_msgs is None:
             unexpected_msgs = []
+        assert_equal(type(expected_msgs), list)
+        assert_equal(type(unexpected_msgs), list)
+
         time_end = time.time() + timeout * self.timeout_factor
         prev_size = self.debug_log_bytes()
 
@@ -477,6 +490,24 @@ class TestNode():
         self._raise_assertion_error(
             'Expected messages "{}" does not partially match log:\n\n{}\n\n'.format(
                 str(expected_msgs), print_log))
+
+    @contextlib.contextmanager
+    def wait_for_new_peer(self, timeout=5):
+        """
+        Wait until the node is connected to at least one new peer. We detect this
+        by watching for an increased highest peer id, using the `getpeerinfo` RPC call.
+        Note that the simpler approach of only accounting for the number of peers
+        suffers from race conditions, as disconnects from unrelated previous peers
+        could happen anytime in-between.
+        """
+        def get_highest_peer_id():
+            peer_info = self.getpeerinfo()
+            return peer_info[-1]["id"] if peer_info else -1
+
+        initial_peer_id = get_highest_peer_id()
+        yield
+        wait_until_helper(lambda: get_highest_peer_id() > initial_peer_id,
+                          timeout=timeout, timeout_factor=self.timeout_factor)
 
     @contextlib.contextmanager
     def profile_with_perf(self, profile_name: str):
@@ -600,19 +631,40 @@ class TestNode():
                     assert_msg += "with expected error " + expected_msg
                 self._raise_assertion_error(assert_msg)
 
-    def add_p2p_connection(self, p2p_conn, *, wait_for_verack=True, **kwargs):
+    def add_p2p_connection(self, p2p_conn, *, wait_for_verack=True, send_version=True, supports_v2_p2p=None, wait_for_v2_handshake=True, expect_success=True, **kwargs):
         """Add an inbound p2p connection to the node.
 
         This method adds the p2p connection to the self.p2ps list and also
-        returns the connection to the caller."""
+        returns the connection to the caller.
+
+        When self.use_v2transport is True, TestNode advertises NODE_P2P_V2 service flag
+
+        An inbound connection is made from TestNode <------ P2PConnection
+        - if TestNode doesn't advertise NODE_P2P_V2 service, P2PConnection sends version message and v1 P2P is followed
+        - if TestNode advertises NODE_P2P_V2 service, (and if P2PConnections supports v2 P2P)
+                P2PConnection sends ellswift bytes and v2 P2P is followed
+        """
         if 'dstport' not in kwargs:
             kwargs['dstport'] = p2p_port(self.index)
         if 'dstaddr' not in kwargs:
             kwargs['dstaddr'] = '127.0.0.1'
+        if supports_v2_p2p is None:
+            supports_v2_p2p = self.use_v2transport
 
-        p2p_conn.peer_connect(**kwargs, net=self.chain, timeout_factor=self.timeout_factor)()
+        p2p_conn.p2p_connected_to_node = True
+        if self.use_v2transport:
+            kwargs['services'] = kwargs.get('services', P2P_SERVICES) | NODE_P2P_V2
+        supports_v2_p2p = self.use_v2transport and supports_v2_p2p
+        p2p_conn.peer_connect(**kwargs, send_version=send_version, net=self.chain, timeout_factor=self.timeout_factor, supports_v2_p2p=supports_v2_p2p)()
+
         self.p2ps.append(p2p_conn)
+        if not expect_success:
+            return p2p_conn
         p2p_conn.wait_until(lambda: p2p_conn.is_connected, check_connected=False)
+        if supports_v2_p2p and wait_for_v2_handshake:
+            p2p_conn.wait_until(lambda: p2p_conn.v2_state.tried_v2_handshake)
+        if send_version:
+            p2p_conn.wait_until(lambda: not p2p_conn.on_connection_send_msg)
         if wait_for_verack:
             # Wait for the node to send us the version and verack
             p2p_conn.wait_for_verack()
@@ -628,21 +680,62 @@ class TestNode():
             # in comparison to the upside of making tests less fragile and unexpected intermittent errors less likely.
             p2p_conn.sync_with_ping()
 
+            # Consistency check that the node received our user agent string.
+            # Find our connection in getpeerinfo by our address:port, as it is unique.
+            sockname = p2p_conn._transport.get_extra_info("socket").getsockname()
+            our_addr_and_port = f"{sockname[0]}:{sockname[1]}"
+            info = [peer for peer in self.getpeerinfo() if peer["addr"] == our_addr_and_port]
+            assert_equal(len(info), 1)
+            assert_equal(info[0]["subver"], p2p_conn.strSubVer)
+
         return p2p_conn
 
-    def add_outbound_p2p_connection(self, p2p_conn, *, p2p_idx, connection_type="outbound-full-relay", **kwargs):
+    def add_outbound_p2p_connection(self, p2p_conn, *, wait_for_verack=True, p2p_idx, connection_type="outbound-full-relay", supports_v2_p2p=None, advertise_v2_p2p=None, **kwargs):
         """Add an outbound p2p connection from node. Must be an
         "outbound-full-relay", "block-relay-only", "addr-fetch" or "feeler" connection.
 
         This method adds the p2p connection to the self.p2ps list and returns
         the connection to the caller.
+
+        p2p_idx must be different for simultaneously connected peers. When reusing it for the next peer
+        after disconnecting the previous one, it is necessary to wait for the disconnect to finish to avoid
+        a race condition.
+
+        Parameters:
+            supports_v2_p2p: whether p2p_conn supports v2 P2P or not
+            advertise_v2_p2p: whether p2p_conn is advertised to support v2 P2P or not
+
+        An outbound connection is made from TestNode -------> P2PConnection
+            - if P2PConnection doesn't advertise_v2_p2p, TestNode sends version message and v1 P2P is followed
+            - if P2PConnection both supports_v2_p2p and advertise_v2_p2p, TestNode sends ellswift bytes and v2 P2P is followed
+            - if P2PConnection doesn't supports_v2_p2p but advertise_v2_p2p,
+                TestNode sends ellswift bytes and P2PConnection disconnects,
+                TestNode reconnects by sending version message and v1 P2P is followed
         """
 
         def addconnection_callback(address, port):
             self.log.debug("Connecting to %s:%d %s" % (address, port, connection_type))
-            self.addconnection('%s:%d' % (address, port), connection_type)
+            self.addconnection('%s:%d' % (address, port), connection_type, advertise_v2_p2p)
 
-        p2p_conn.peer_accept_connection(connect_cb=addconnection_callback, connect_id=p2p_idx + 1, net=self.chain, timeout_factor=self.timeout_factor, **kwargs)()
+        p2p_conn.p2p_connected_to_node = False
+        if supports_v2_p2p is None:
+            supports_v2_p2p = self.use_v2transport
+        if advertise_v2_p2p is None:
+            advertise_v2_p2p = self.use_v2transport
+
+        if advertise_v2_p2p:
+            kwargs['services'] = kwargs.get('services', P2P_SERVICES) | NODE_P2P_V2
+            assert self.use_v2transport  # only a v2 TestNode could make a v2 outbound connection
+
+        # if P2PConnection is advertised to support v2 P2P when it doesn't actually support v2 P2P,
+        # reconnection needs to be attempted using v1 P2P by sending version message
+        reconnect = advertise_v2_p2p and not supports_v2_p2p
+        # P2PConnection needs to be advertised to support v2 P2P so that ellswift bytes are sent instead of msg_version
+        supports_v2_p2p = supports_v2_p2p and advertise_v2_p2p
+        p2p_conn.peer_accept_connection(connect_cb=addconnection_callback, connect_id=p2p_idx + 1, net=self.chain, timeout_factor=self.timeout_factor, supports_v2_p2p=supports_v2_p2p, reconnect=reconnect, **kwargs)()
+
+        if reconnect:
+            p2p_conn.wait_for_reconnect()
 
         if connection_type == "feeler":
             # feeler connections are closed as soon as the node receives a `version` message
@@ -652,8 +745,12 @@ class TestNode():
             p2p_conn.wait_for_connect()
             self.p2ps.append(p2p_conn)
 
-            p2p_conn.wait_for_verack()
-            p2p_conn.sync_with_ping()
+            if supports_v2_p2p:
+                p2p_conn.wait_until(lambda: p2p_conn.v2_state.tried_v2_handshake)
+            p2p_conn.wait_until(lambda: not p2p_conn.on_connection_send_msg)
+            if wait_for_verack:
+                p2p_conn.wait_for_verack()
+                p2p_conn.sync_with_ping()
 
         return p2p_conn
 
@@ -662,7 +759,8 @@ class TestNode():
         return len([peer for peer in self.getpeerinfo() if P2P_SUBVERSION % "" in peer['subver']])
 
     def disconnect_p2ps(self):
-        """Close all p2p connections to the node."""
+        """Close all p2p connections to the node.
+        Use only after each p2p has sent a version message to ensure the wait works."""
         for p in self.p2ps:
             p.peer_disconnect()
 
@@ -731,15 +829,15 @@ class TestNodeCLI():
                 results.append(dict(error=e))
         return results
 
-    def send_cli(self, command=None, *args, **kwargs):
+    def send_cli(self, clicommand=None, *args, **kwargs):
         """Run dash-cli command. Deserializes returned string as python object."""
         pos_args = [arg_to_cli(arg) for arg in args]
         named_args = [str(key) + "=" + arg_to_cli(value) for (key, value) in kwargs.items()]
         p_args = [self.binary, "-datadir=" + self.datadir] + self.options
         if named_args:
             p_args += ["-named"]
-        if command is not None:
-            p_args += [command]
+        if clicommand is not None:
+            p_args += [clicommand]
         p_args += pos_args + named_args
         self.log.debug("Running dash-cli {}".format(p_args[2:]))
         process = subprocess.Popen(p_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)

@@ -166,7 +166,10 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::MNAUTH,
     NetMsgType::GETHEADERS2,
     NetMsgType::SENDHEADERS2,
-    NetMsgType::HEADERS2};
+    NetMsgType::HEADERS2,
+    NetMsgType::GETQUORUMROTATIONINFO,
+    NetMsgType::QUORUMROTATIONINFO
+};
 const static std::vector<std::string> allNetMessageTypesVec(std::begin(allNetMessageTypes), std::end(allNetMessageTypes));
 
 /** Message types that are not allowed by blocks-relay-only policy.
@@ -338,6 +341,7 @@ static std::string serviceFlagToStr(size_t bit)
     case NODE_COMPACT_FILTERS: return "COMPACT_FILTERS";
     case NODE_NETWORK_LIMITED: return "NETWORK_LIMITED";
     case NODE_HEADERS_COMPRESSED: return "HEADERS_COMPRESSED";
+    case NODE_P2P_V2:          return "P2P_V2";
     // Not using default, so we get warned when a case is missing
     }
 

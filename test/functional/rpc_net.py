@@ -114,10 +114,15 @@ class NetTest(DashTestFramework):
         no_version_peer_id = 3
         no_version_peer_conntime = self.mocktime
         with self.nodes[0].assert_debug_log([f"Added connection peer={no_version_peer_id}"]):
-            self.nodes[0].add_p2p_connection(P2PInterface(), send_version=False, wait_for_verack=False)
+            no_version_peer = self.nodes[0].add_p2p_connection(P2PInterface(), send_version=False, wait_for_verack=False)
+        if self.options.v2transport:
+            self.wait_until(lambda: self.nodes[0].getpeerinfo()[no_version_peer_id]["transport_protocol_type"] == "v2")
         peer_info = self.nodes[0].getpeerinfo()[no_version_peer_id]
         peer_info.pop("addr")
         peer_info.pop("addrbind")
+        # The next two fields will vary for v2 connections because we send a rng-based number of decoy messages
+        peer_info.pop("bytesrecv")
+        peer_info.pop("bytessent")
         assert_equal(
             peer_info,
             {
@@ -126,9 +131,7 @@ class NetTest(DashTestFramework):
                 "addr_relay_enabled": False,
                 "bip152_hb_from": False,
                 "bip152_hb_to": False,
-                "bytesrecv": 0,
                 "bytesrecv_per_msg": {},
-                "bytessent": 0,
                 "bytessent_per_msg": {},
                 "connection_type": "inbound",
                 "conntime": no_version_peer_conntime,
@@ -137,40 +140,47 @@ class NetTest(DashTestFramework):
                 "inflight": [],
                 "last_block": 0,
                 "last_transaction": 0,
-                "lastrecv": 0,
-                "lastsend": 0,
+                "lastrecv": 0 if not self.options.v2transport else no_version_peer_conntime,
+                "lastsend": 0 if not self.options.v2transport else no_version_peer_conntime,
                 "masternode": False,
                 "network": "not_publicly_routable",
                 "permissions": [],
                 "relaytxes": False,
                 "services": "0000000000000000",
                 "servicesnames": [],
+                "session_id": "" if not self.options.v2transport else no_version_peer.v2_state.peer['session_id'].hex(),
                 "startingheight": -1,
                 "subver": "",
                 "synced_blocks": -1,
                 "synced_headers": -1,
                 "timeoffset": 0,
+                "transport_protocol_type": "v1" if not self.options.v2transport else "v2",
                 "version": 0,
             },
         )
-        self.nodes[0].disconnect_p2ps()
+        no_version_peer.peer_disconnect()
+        self.wait_until(lambda: len(self.nodes[0].getpeerinfo()) == 3)
 
     def test_getnettotals(self):
         self.log.info("Test getnettotals")
         # Test getnettotals and getpeerinfo by doing a ping. The bytes
-        # sent/received should increase by at least the size of one ping (32
-        # bytes) and one pong (32 bytes).
+        # sent/received should increase by at least the size of one ping
+        # and one pong. Both have a payload size of 8 bytes, but the total
+        # size depends on the used p2p version:
+        #   - p2p v1: 24 bytes (header) + 8 bytes (payload) = 32 bytes
+        #   - p2p v2: 21 bytes (header/tag with short-id) + 8 bytes (payload) = 29 bytes
+        ping_size = 32 if not self.options.v2transport else 29
         net_totals_before = self.nodes[0].getnettotals()
         peer_info_before = self.nodes[0].getpeerinfo()
 
         self.nodes[0].ping()
-        self.wait_until(lambda: (self.nodes[0].getnettotals()['totalbytessent'] >= net_totals_before['totalbytessent'] + 32 * 2), timeout=1)
-        self.wait_until(lambda: (self.nodes[0].getnettotals()['totalbytesrecv'] >= net_totals_before['totalbytesrecv'] + 32 * 2), timeout=1)
+        self.wait_until(lambda: (self.nodes[0].getnettotals()['totalbytessent'] >= net_totals_before['totalbytessent'] + ping_size * 2), timeout=1)
+        self.wait_until(lambda: (self.nodes[0].getnettotals()['totalbytesrecv'] >= net_totals_before['totalbytesrecv'] + ping_size * 2), timeout=1)
 
         for peer_before in peer_info_before:
             peer_after = lambda: next(p for p in self.nodes[0].getpeerinfo() if p['id'] == peer_before['id'])
-            self.wait_until(lambda: peer_after()['bytesrecv_per_msg'].get('pong', 0) >= peer_before['bytesrecv_per_msg'].get('pong', 0) + 32, timeout=1)
-            self.wait_until(lambda: peer_after()['bytessent_per_msg'].get('ping', 0) >= peer_before['bytessent_per_msg'].get('ping', 0) + 32, timeout=1)
+            self.wait_until(lambda: peer_after()['bytesrecv_per_msg'].get('pong', 0) >= peer_before['bytesrecv_per_msg'].get('pong', 0) + ping_size, timeout=1)
+            self.wait_until(lambda: peer_after()['bytessent_per_msg'].get('ping', 0) >= peer_before['bytessent_per_msg'].get('ping', 0) + ping_size, timeout=1)
 
     def test_getnetworkinfo(self):
         self.log.info("Test getnetworkinfo")
@@ -246,7 +256,10 @@ class NetTest(DashTestFramework):
     def test_service_flags(self):
         self.log.info("Test service flags")
         self.nodes[0].add_p2p_connection(P2PInterface(), services=(1 << 4) | (1 << 63))
-        assert_equal(['UNKNOWN[2^4]', 'UNKNOWN[2^63]'], self.nodes[0].getpeerinfo()[-1]['servicesnames'])
+        if self.options.v2transport:
+            assert_equal(['UNKNOWN[2^4]', 'P2P_V2', 'UNKNOWN[2^63]'], self.nodes[0].getpeerinfo()[-1]['servicesnames'])
+        else:
+            assert_equal(['UNKNOWN[2^4]', 'UNKNOWN[2^63]'], self.nodes[0].getpeerinfo()[-1]['servicesnames'])
         self.nodes[0].disconnect_p2ps()
 
     def test_getnodeaddresses(self):
@@ -346,7 +359,10 @@ class NetTest(DashTestFramework):
         node = self.nodes[0]
 
         self.restart_node(0)
-        self.connect_nodes(0, 1)
+        # we want to use a p2p v1 connection here in order to ensure
+        # a peer id of zero (a downgrade from v2 to v1 would lead
+        # to an increase of the peer id)
+        self.connect_nodes(0, 1, peer_advertises_v2=False)
 
         self.log.info("Test sendmsgtopeer")
         self.log.debug("Send a valid message")

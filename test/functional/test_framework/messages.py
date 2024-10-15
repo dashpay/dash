@@ -51,6 +51,7 @@ NODE_BLOOM = (1 << 2)
 NODE_COMPACT_FILTERS = (1 << 6)
 NODE_NETWORK_LIMITED = (1 << 10)
 NODE_HEADERS_COMPRESSED = (1 << 11)
+NODE_P2P_V2 = (1 << 12)
 
 MSG_TX = 1
 MSG_BLOCK = 2
@@ -61,6 +62,13 @@ MSG_CMPCT_BLOCK = 20
 MSG_TYPE_MASK = 0xffffffff >> 2
 
 FILTER_TYPE_BASIC = 0
+
+MAGIC_BYTES = {
+    "mainnet": b"\xbf\x0c\x6b\xbd",   # mainnet
+    "testnet3": b"\xce\xe2\xca\xff",  # testnet3
+    "regtest": b"\xfc\xc1\xb7\xdc",   # regtest
+    "devnet": b"\xe2\xca\xff\xce",    # devnet
+}
 
 def sha256(s):
     return hashlib.sha256(s).digest()
