@@ -10,6 +10,7 @@
 #include <fs.h>
 #include <key.h>
 #include <util/system.h>
+#include <node/caches.h>
 #include <node/context.h>
 #include <pubkey.h>
 #include <random.h>
@@ -79,9 +80,9 @@ static inline bool InsecureRandBool() { return g_insecure_rand_ctx.randbool(); }
 
 static constexpr CAmount CENT{1000000};
 
-/* Initialize Dash-specific components after chainstate initialization */
-void DashTestSetup(NodeContext& node, const CChainParams& chainparams);
-void DashTestSetupClose(NodeContext& node);
+/** Initialize Dash-specific components after chainstate initialization */
+void DashPostChainstateSetup(NodeContext& node);
+void DashPostChainstateSetupClose(NodeContext& node);
 
 /** Basic testing setup.
  * This just configures logging, data dir and chain parameters.
@@ -101,6 +102,8 @@ struct BasicTestingSetup {
  * initialization behaviour.
  */
 struct ChainTestingSetup : public BasicTestingSetup {
+    CacheSizes m_cache_sizes{};
+
     explicit ChainTestingSetup(const std::string& chainName = CBaseChainParams::MAIN, const std::vector<const char*>& extra_args = {});
     ~ChainTestingSetup();
 };
