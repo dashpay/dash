@@ -623,12 +623,17 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
     return false;
 }
 
-void CWallet::AddToSpends(const COutPoint& outpoint, const uint256& wtxid)
+void CWallet::AddToSpends(const COutPoint& outpoint, const uint256& wtxid, WalletBatch* batch)
 {
     mapTxSpends.insert(std::make_pair(outpoint, wtxid));
     setWalletUTXO.erase(outpoint);
 
-    setLockedCoins.erase(outpoint);
+    if (batch) {
+        UnlockCoin(outpoint, batch);
+    } else {
+        WalletBatch temp_batch(GetDatabase());
+        UnlockCoin(outpoint, &temp_batch);
+    }
 
     std::pair<TxSpends::iterator, TxSpends::iterator> range;
     range = mapTxSpends.equal_range(outpoint);
@@ -636,7 +641,7 @@ void CWallet::AddToSpends(const COutPoint& outpoint, const uint256& wtxid)
 }
 
 
-void CWallet::AddToSpends(const uint256& wtxid)
+void CWallet::AddToSpends(const uint256& wtxid, WalletBatch* batch)
 {
     auto it = mapWallet.find(wtxid);
     assert(it != mapWallet.end());
@@ -645,7 +650,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
         return;
 
     for (const CTxIn& txin : thisTx.tx->vin)
-        AddToSpends(txin.prevout, wtxid);
+        AddToSpends(txin.prevout, wtxid, batch);
 }
 
 bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
@@ -913,7 +918,7 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const CWalletTx::Confirmatio
         wtx.nOrderPos = IncOrderPosNext(&batch);
         wtx.m_it_wtxOrdered = wtxOrdered.insert(std::make_pair(wtx.nOrderPos, &wtx));
         wtx.nTimeSmart = ComputeTimeSmart(wtx);
-        AddToSpends(hash);
+        AddToSpends(hash, &batch);
 
         std::vector<std::pair<const CTransactionRef&, unsigned int>> outputs;
         for(unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
@@ -4422,7 +4427,7 @@ void ReserveDestination::ReturnDestination()
     address = CNoDestination();
 }
 
-void CWallet::LockCoin(const COutPoint& output)
+bool  CWallet::LockCoin(const COutPoint& output, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
     setLockedCoins.insert(output);
@@ -4431,23 +4436,38 @@ void CWallet::LockCoin(const COutPoint& output)
 
     fAnonymizableTallyCached = false;
     fAnonymizableTallyCachedNonDenom = false;
+    if (batch) {
+        return batch->WriteLockedUTXO(output);
+    }
+    return true;
 }
 
-void CWallet::UnlockCoin(const COutPoint& output)
+bool CWallet::UnlockCoin(const COutPoint& output, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
-    setLockedCoins.erase(output);
     std::map<uint256, CWalletTx>::iterator it = mapWallet.find(output.hash);
     if (it != mapWallet.end()) it->second.MarkDirty(); // recalculate all credits for this tx
 
     fAnonymizableTallyCached = false;
     fAnonymizableTallyCachedNonDenom = false;
+
+    bool was_locked = setLockedCoins.erase(output);
+    if (batch && was_locked) {
+        return batch->EraseLockedUTXO(output);
+    }
+    return true;
 }
 
-void CWallet::UnlockAllCoins()
+bool CWallet::UnlockAllCoins()
 {
     AssertLockHeld(cs_wallet);
+    bool success = true;
+    WalletBatch batch(GetDatabase());
+    for (auto it = setLockedCoins.begin(); it != setLockedCoins.end(); ++it) {
+        success &= batch.EraseLockedUTXO(*it);
+    }
     setLockedCoins.clear();
+    return success;
 }
 
 bool CWallet::IsLockedCoin(uint256 hash, unsigned int n) const

@@ -869,29 +869,33 @@ static RPCHelpMan decoderawtransaction()
 
 static RPCHelpMan decodescript()
 {
-    return RPCHelpMan{"decodescript",
-                "\nDecode a hex-encoded script.\n",
-                {
-                    {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "the hex-encoded script"},
-                },
-                RPCResult{
-                    RPCResult::Type::OBJ, "", "",
-                    {
-                        {RPCResult::Type::STR, "asm", "Script public key"},
-                        {RPCResult::Type::STR, "type", "The output type (e.g. "+GetAllOutputTypes()+")"},
-                        {RPCResult::Type::STR, "address", /* optional */ true, "Dash address (only if a well-defined address exists)"},
-                        {RPCResult::Type::NUM, "reqSigs", /* optional */ true, "(DEPRECATED, returned only if config option -deprecatedrpc=addresses is passed) Number of required signatures"},
-                        {RPCResult::Type::ARR, "addresses", /* optional */ true, "(DEPRECATED, returned only if config option -deprecatedrpc=addresses is passed) Array of Dash addresses",
-                        {
-                            {RPCResult::Type::STR, "address", "Dash address"},
-                        }},
-                        {RPCResult::Type::STR, "p2sh", "address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH)"},
-                    }
-                },
-                RPCExamples{
-                    HelpExampleCli("decodescript", "\"hexstring\"")
-            + HelpExampleRpc("decodescript", "\"hexstring\"")
-                },
+    return RPCHelpMan{
+        "decodescript",
+        "\nDecode a hex-encoded script.\n",
+        {
+            {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "the hex-encoded script"},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "asm", "Script public key"},
+                {RPCResult::Type::STR, "type", "The output type (e.g. " + GetAllOutputTypes() + ")"},
+                {RPCResult::Type::STR, "address", /* optional */ true, "The Bitcoin address (only if a well-defined address exists)"},
+                {RPCResult::Type::STR, "p2sh", /* optional */ true, "address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH)"},
+                {RPCResult::Type::OBJ, "segwit", /* optional */ true, "Result of a witness script public key wrapping this redeem script (not returned if the script is a P2SH or witness)",
+                 {
+                     {RPCResult::Type::STR, "asm", "String representation of the script public key"},
+                     {RPCResult::Type::STR_HEX, "hex", "Hex string of the script public key"},
+                     {RPCResult::Type::STR, "type", "The type of the script public key (e.g. witness_v0_keyhash or witness_v0_scripthash)"},
+                     {RPCResult::Type::STR, "address", /* optional */ true, "The Bitcoin address (only if a well-defined address exists)"},
+                     {RPCResult::Type::STR, "p2sh-segwit", "address of the P2SH script wrapping this witness redeem script"},
+                 }},
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("decodescript", "\"hexstring\"")
+          + HelpExampleRpc("decodescript", "\"hexstring\"")
+        },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     RPCTypeCheck(request.params, {UniValue::VSTR});
@@ -906,11 +910,10 @@ static RPCHelpMan decodescript()
     }
     ScriptPubKeyToUniv(script, r, /* fIncludeHex */ false);
 
-    UniValue type;
+    std::vector<std::vector<unsigned char>> solutions_data;
+    const TxoutType which_type{Solver(script, solutions_data)};
 
-    type = find_value(r, "type");
-
-    if (type.isStr() && type.get_str() != "scripthash") {
+    if (which_type != TxoutType::SCRIPTHASH) {
         // P2SH cannot be wrapped in a P2SH. If this script is already a P2SH,
         // don't return the address for a P2SH of the P2SH.
         r.pushKV("p2sh", EncodeDestination(ScriptHash(script)));
@@ -923,35 +926,34 @@ static RPCHelpMan decodescript()
 
 static RPCHelpMan combinerawtransaction()
 {
-    return RPCHelpMan{"combinerawtransaction",
-        "\nCombine multiple partially signed transactions into one transaction.\n"
-        "The combined transaction may be another partially signed transaction or a \n"
-        "fully signed transaction.",
-        {
-            {"txs", RPCArg::Type::ARR, RPCArg::Optional::NO, "The of hex strings of partially signed transactions",
-                {
-                    {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "A hex-encoded raw transaction"},
-                },
-                },
-        },
-        RPCResult{
-            RPCResult::Type::STR, "", "The hex-encoded raw transaction with signature(s)"
-        },
-        RPCExamples{
-            HelpExampleCli("combinerawtransaction", R"('["myhex1", "myhex2", "myhex3"]')")
-        },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
+        return RPCHelpMan{"combinerawtransaction",
+            "\nCombine multiple partially signed transactions into one transaction.\n"
+            "The combined transaction may be another partially signed transaction or a \n"
+            "fully signed transaction.",
+            {
+                {"txs", RPCArg::Type::ARR, RPCArg::Optional::NO, "The of hex strings of partially signed transactions",
+                    {
+                        {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "A hex-encoded raw transaction"},
+                    },
+                    },
+            },
+            RPCResult{
+                RPCResult::Type::STR, "", "The hex-encoded raw transaction with signature(s)"
+            },
+            RPCExamples{
+                HelpExampleCli("combinerawtransaction", R"('["myhex1", "myhex2", "myhex3"]')")
+            },
+            [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+ {
 
-    UniValue txs = request.params[0].get_array();
-    std::vector<CMutableTransaction> txVariants(txs.size());
+        UniValue txs = request.params[0].get_array();
+        std::vector<CMutableTransaction> txVariants(txs.size());
 
-    for (unsigned int idx = 0; idx < txs.size(); idx++) {
-        if (!DecodeHexTx(txVariants[idx], txs[idx].get_str())) {
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed for tx %d. Make sure the tx has at least one input.", idx));
+        for (unsigned int idx = 0; idx < txs.size(); idx++) {
+            if (!DecodeHexTx(txVariants[idx], txs[idx].get_str())) {
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed for tx %d. Make sure the tx has at least one input.", idx));
+            }
         }
-    }
-
     if (txVariants.empty()) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Missing transactions");
     }
