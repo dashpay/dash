@@ -72,6 +72,7 @@ from test_framework.messages import (
     msg_sendcmpct,
     msg_sendheaders,
     msg_sendheaders2,
+    msg_sendtxrcncl,
     msg_tx,
     msg_verack,
     msg_version,
@@ -135,6 +136,7 @@ MESSAGEMAP = {
     b"sendcmpct": msg_sendcmpct,
     b"sendheaders": msg_sendheaders,
     b"sendheaders2": msg_sendheaders2,
+    b"sendtxrcncl": msg_sendtxrcncl,
     b"tx": msg_tx,
     b"verack": msg_verack,
     b"version": msg_version,
@@ -460,6 +462,7 @@ class P2PInterface(P2PConnection):
     def on_sendcmpct(self, message): pass
     def on_sendheaders(self, message): pass
     def on_sendheaders2(self, message): pass
+    def on_sendtxrcncl(self, message): pass
     def on_tx(self, message): pass
 
     def on_inv(self, message):

@@ -36,7 +36,7 @@ BACKTRACE_LIB = -lbacktrace
 endif
 endif #ENABLE_STACKTRACES
 
-BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
+BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
 BITCOIN_INCLUDES+=-isystem$(srcdir)/dashbls/include -isystem$(srcdir)/dashbls/depends/relic/include -isystem$(srcdir)/dashbls/depends/minialloc/include
 BITCOIN_INCLUDES+=-isystem$(srcdir)/immer
 
@@ -104,6 +104,7 @@ noinst_LTLIBRARIES =
 
 bin_PROGRAMS =
 noinst_PROGRAMS =
+check_PROGRAMS =
 TESTS =
 BENCHMARKS =
 
@@ -274,8 +275,10 @@ BITCOIN_CORE_H = \
   node/connection_types.h \
   node/context.h \
   node/eviction.h \
+  node/minisketchwrapper.h \
   node/psbt.h \
   node/transaction.h \
+  node/txreconciliation.h \
   node/ui_interface.h \
   node/utxo_snapshot.h \
   noui.h \
@@ -505,8 +508,10 @@ libbitcoin_server_a_SOURCES = \
   node/context.cpp \
   node/eviction.cpp \
   node/interfaces.cpp \
+  node/minisketchwrapper.cpp \
   node/psbt.cpp \
   node/transaction.cpp \
+  node/txreconciliation.cpp \
   node/ui_interface.cpp \
   noui.cpp \
   policy/fees.cpp \
@@ -1059,8 +1064,11 @@ nodist_libbitcoin_ipc_a_SOURCES = $(libbitcoin_ipc_mpgen_output)
 CLEANFILES += $(libbitcoin_ipc_mpgen_output)
 endif
 
+include Makefile.minisketch.include
+
 include Makefile.crc32c.include
 include Makefile.leveldb.include
+
 include Makefile.test_util.include
 include Makefile.test_fuzz.include
 
