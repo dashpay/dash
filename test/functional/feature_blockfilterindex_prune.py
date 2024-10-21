@@ -15,6 +15,7 @@ from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 class FeatureBlockfilterindexPruneTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
+        # TODO: remove testactivationheight=v20@2000 when it will be activated from block 1
         self.extra_args = [["-fastprune", "-prune=1", "-blockfilterindex=1", "-testactivationheight=v20@2000"]]
 
     def sync_index(self, height):
@@ -53,7 +54,7 @@ class FeatureBlockfilterindexPruneTest(BitcoinTestFramework):
 
         self.log.info("prune exactly up to the blockfilterindexes best block while blockfilters are disabled")
         pruneheight_2 = self.nodes[0].pruneblockchain(1000)
-        assert_equal(pruneheight_2, 932)
+        assert_equal(pruneheight_2, 946)
         self.restart_node(0, extra_args=["-fastprune", "-prune=1", "-blockfilterindex=1", "-testactivationheight=v20@2000"], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
         self.log.info("make sure that we can continue with the partially synced index after having pruned up to the index height")
         self.sync_index(height=1500)
