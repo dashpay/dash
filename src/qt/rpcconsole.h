@@ -110,8 +110,6 @@ public Q_SLOTS:
     void setFontSize(int newSize);
 
     /** Wallet repair options */
-    void walletRescan1();
-    void walletRescan2();
     void walletReindex();
 
     /** Append the message to the message widget */

@@ -6,7 +6,6 @@
 #ifndef BITCOIN_WALLET_WALLETDB_H
 #define BITCOIN_WALLET_WALLETDB_H
 
-#include <amount.h>
 #include <script/sign.h>
 #include <wallet/db.h>
 #include <wallet/walletutil.h>
@@ -54,7 +53,8 @@ enum class DBErrors
     NONCRITICAL_ERROR,
     TOO_NEW,
     LOAD_FAIL,
-    NEED_REWRITE
+    NEED_REWRITE,
+    NEED_RESCAN
 };
 
 namespace DBKeys {
