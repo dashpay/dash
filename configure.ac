@@ -973,7 +973,8 @@ if test x$use_hardening != xno; then
 
   case $host in
     *mingw*)
-      dnl stack-clash-protection doesn't currently work, and likely should just be skipped for Windows.
+      dnl stack-clash-protection doesn't compile with GCC 10 and earlier.
+      dnl In any case, it is a no-op for Windows.
       dnl See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90458 for more details.
       ;;
     *)
@@ -1088,7 +1089,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <malloc.h>]],
 dnl Check for posix_fallocate
 AC_MSG_CHECKING(for posix_fallocate)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-                   // same as in src/util/system.cpp
+                   // same as in src/util/fs_helpers.cpp
                    #ifdef __linux__
                    #ifdef _POSIX_C_SOURCE
                    #undef _POSIX_C_SOURCE
