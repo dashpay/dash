@@ -149,48 +149,32 @@ static RPCHelpMan spork()
 {
     // default help, for basic mode
     return RPCHelpMan{"spork",
-        "\nShows information about current state of sporks\n",
+        "\nShows information about current state of sporks for non-mainnet networks. Mainnet values are hardcoded.\n",
         {
-            {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "'show' to show all current spork values, 'active' to show which sporks are active"},
+            {"command", RPCArg::Type::STR, RPCArg::Default{""}, "Deprecated and ignored"},
         },
         {
-            RPCResult{"For 'show'",
+            RPCResult{
                 RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its value",
                 {
                     {RPCResult::Type::NUM, "SPORK_NAME", "The value of the specific spork with the name SPORK_NAME"},
                 }},
-            RPCResult{"For 'active'",
-                RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its status",
-                {
-                    {RPCResult::Type::BOOL, "SPORK_NAME", "'true' for time-based sporks if spork is active and 'false' otherwise"},
-                }},
         },
         RPCExamples {
-            HelpExampleCli("spork", "show")
-            + HelpExampleRpc("spork", "\"show\"")
+            HelpExampleCli("spork", "")
+            + HelpExampleRpc("spork", "")
         },
     [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
 
     // basic mode, show info
-    std:: string strCommand = request.params[0].get_str();
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CHECK_NONFATAL(node.sporkman);
-    if (strCommand == "show") {
-        UniValue ret(UniValue::VOBJ);
-        for (const auto& sporkDef : sporkDefs) {
-            ret.pushKV(std::string(sporkDef.name), node.sporkman->GetSporkValue(sporkDef.sporkId));
-        }
-        return ret;
-    } else if(strCommand == "active"){
-        UniValue ret(UniValue::VOBJ);
-        for (const auto& sporkDef : sporkDefs) {
-            ret.pushKV(std::string(sporkDef.name), node.sporkman->IsSporkActive(sporkDef.sporkId));
-        }
-        return ret;
+    UniValue ret(UniValue::VOBJ);
+    for (const auto& sporkDef : sporkDefs) {
+        ret.pushKV(std::string(sporkDef.name), node.sporkman->GetSporkValue(sporkDef.sporkId));
     }
-
-    return NullUniValue;
+    return ret;
 },
     };
 }
@@ -198,7 +182,7 @@ static RPCHelpMan spork()
 static RPCHelpMan sporkupdate()
 {
     return RPCHelpMan{"sporkupdate",
-        "\nUpdate the value of the specific spork. Requires \"-sporkkey\" to be set to sign the message.\n",
+        "\nUpdate the value of the specific spork on non-mainnet networks. Requires \"-sporkkey\" to be set to sign the message.\n",
         {
             {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name of the spork to update"},
             {"value", RPCArg::Type::NUM, RPCArg::Optional::NO, "The new desired value of the spork"},
