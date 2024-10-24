@@ -8,6 +8,7 @@ import os
 
 from test_framework.address import ADDRESS_BCRT1_UNSPENDABLE
 
+from test_framework.descriptors import descsum_create
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_equal,
@@ -22,7 +23,7 @@ FILE_CHARS_DISALLOWED = '/\\?%*:|"<>' if os.name == 'nt' else '/'
 UNCONFIRMED_HASH_STRING = 'unconfirmed'
 
 def notify_outputname(walletname, txid):
-    return txid if os.name == 'nt' else '{}_{}'.format(walletname, txid)
+    return txid if os.name == 'nt' else f'{walletname}_{txid}'
 
 
 class NotificationsTest(DashTestFramework):
@@ -43,14 +44,17 @@ class NotificationsTest(DashTestFramework):
         os.mkdir(self.instantsendnotify_dir)
 
         # -alertnotify and -blocknotify on node0, walletnotify on node1
-        self.extra_args[0].append("-alertnotify=echo > {}".format(os.path.join(self.alertnotify_dir, '%s')))
-        self.extra_args[0].append("-blocknotify=echo > {}".format(os.path.join(self.blocknotify_dir, '%s')))
-        self.extra_args[1].append("-rescan")
-        self.extra_args[1].append("-walletnotify=echo %h_%b > {}".format(os.path.join(self.walletnotify_dir, notify_outputname('%w', '%s'))))
-
         # -chainlocknotify on node0, -instantsendnotify on node1
-        self.extra_args[0].append("-chainlocknotify=echo > {}".format(os.path.join(self.chainlocknotify_dir, '%s')))
-        self.extra_args[1].append("-instantsendnotify=echo > {}".format(os.path.join(self.instantsendnotify_dir, notify_outputname('%w', '%s'))))
+        self.extra_args = [[
+            f"-alertnotify=echo > {os.path.join(self.alertnotify_dir, '%s')}",
+            f"-blocknotify=echo > {os.path.join(self.blocknotify_dir, '%s')}",
+            f"-chainlocknotify=echo > {os.path.join(self.chainlocknotify_dir, '%s')}",
+        ], [
+            "-rescan",
+            f"-walletnotify=echo %h_%b > {os.path.join(self.walletnotify_dir, notify_outputname('%w', '%s'))}",
+            f"-instantsendnotify=echo > {os.path.join(self.instantsendnotify_dir, notify_outputname('%w', '%s'))}",
+        ],
+        [], [], [], []]
 
         self.wallet_names = [self.default_wallet_name, self.wallet]
         super().setup_network()
@@ -61,6 +65,37 @@ class NotificationsTest(DashTestFramework):
             os.remove(os.path.join(self.blocknotify_dir, block_file))
         for tx_file in os.listdir(self.walletnotify_dir):
             os.remove(os.path.join(self.walletnotify_dir, tx_file))
+
+        if self.is_wallet_compiled():
+            # Setup the descriptors to be imported to the wallet
+            seed = "cTdGmKFWpbvpKQ7ejrdzqYT2hhjyb3GPHnLAK7wdi5Em67YLwSm9"
+            xpriv = "tprv8ZgxMBicQKsPfHCsTwkiM1KT56RXbGGTqvc2hgqzycpwbHqqpcajQeMRZoBD35kW4RtyCemu6j34Ku5DEspmgjKdt2qe4SvRch5Kk8B8A2v"
+            desc_imports = [{
+                "desc": descsum_create(f"pkh({xpriv}/0/*)"),
+                "timestamp": 0,
+                "active": True,
+                "keypool": True,
+            },{
+                "desc": descsum_create(f"pkh({xpriv}/1/*)"),
+                "timestamp": 0,
+                "active": True,
+                "keypool": True,
+                "internal": True,
+            }]
+            # Make the wallets and import the descriptors
+            # Ensures that node 0 and node 1 share the same wallet for the conflicting transaction tests below.
+
+            # TODO: remove this flag when DashTestFramework will be compatible with setup_clean_chain = True
+            # and set_dash_test_params; otherwise wallets created during initialization and sethdseed can't be called anymore
+            workaround_fixed_setup_clean_chain = False
+            for i, name in enumerate(self.wallet_names):
+                if workaround_fixed_setup_clean_chain:
+                    self.nodes[i].createwallet(wallet_name=name, descriptors=self.options.descriptors, blank=True, load_on_startup=True)
+                if self.options.descriptors:
+                    self.nodes[i].importdescriptors(desc_imports)
+                else:
+                    if workaround_fixed_setup_clean_chain:
+                        self.nodes[i].sethdseed(True, seed)
 
         self.log.info("test -blocknotify")
         block_count = 10
