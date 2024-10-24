@@ -16,6 +16,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/system.h>
+#include <util/ranges.h>
 
 #include <boost/signals2/signal.hpp>
 
@@ -595,8 +596,7 @@ static bool ExecuteCommand(const CRPCCommand& command, const JSONRPCRequest& req
                     continue;
                 }
 
-                if (std::equal(vecAllowedParam.begin(), vecAllowedParam.end(),
-                               request.params.getValues().begin(),
+                if (ranges::equal(vecAllowedParam, request.params.getValues(),
                                [](const UniValue& left, const UniValue& right) {
                                    return left.type() == right.type() && left.getValStr() == right.getValStr();
                                })) {
