@@ -108,22 +108,6 @@ brew install qrencode
 ```
 ---
 
-#### Port Mapping Dependencies
-
-###### miniupnpc
-
-miniupnpc may be used for UPnP port mapping.
-Skip if you do not need this functionality.
-
-``` bash
-brew install miniupnpc
-```
-
-Enable UPnP support with `-DWITH_MINIUPNPC=ON`. It remains disabled at runtime by default.
-Check out the [further configuration](#further-configuration) section for more information.
-
----
-
 #### ZMQ Dependencies
 
 Support for ZMQ notifications requires the following dependency.

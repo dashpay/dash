@@ -232,7 +232,7 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
 {
     AssertLockHeld(cs);
     // First try to find whatever our own local address is known internally.
-    // Addresses could be specified via externalip or bind option, discovered via UPnP
+    // Addresses could be specified via externalip or bind option, discovered via PCP or NAT-PMP
     // or added by TorController. Use some random dummy IPv4 peer to prefer the one
     // reachable via IPv4.
     bool fFoundLocal{false};

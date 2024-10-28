@@ -78,10 +78,6 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
     ui->coinJoinEnabled->setText(tr("Enable %1 features").arg(QString::fromStdString(gCoinJoinName)));
 
     /* Network elements init */
-#ifndef USE_UPNP
-    ui->mapPortUpnp->setEnabled(false);
-#endif
-
     ui->proxyIp->setEnabled(false);
     ui->proxyPort->setEnabled(false);
     ui->proxyPort->setValidator(new QIntValidator(1, 65535, this));
@@ -372,7 +368,6 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->coinJoinDenomsHardCap, OptionsModel::CoinJoinDenomsHardCap);
 
     /* Network */
-    mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
     mapper->addMapping(ui->mapPortNatpmp, OptionsModel::MapPortNatpmp);
     mapper->addMapping(ui->allowIncoming, OptionsModel::Listen);
     mapper->addMapping(ui->enableServer, OptionsModel::Server);
