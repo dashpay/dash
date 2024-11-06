@@ -159,7 +159,7 @@ target_link_libraries(bitcoinqt
     leveldb
     univalue
     Boost::headers
-    $<TARGET_NAME_IF_EXISTS:PkgConfig::libqrencode>
+    $<TARGET_NAME_IF_EXISTS:QRencode::QRencode>
     $<$<PLATFORM_ID:Darwin>:-framework\ AppKit>
     $<$<CXX_COMPILER_ID:MSVC>:shlwapi>
 )
