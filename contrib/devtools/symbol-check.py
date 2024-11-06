@@ -15,20 +15,20 @@ from typing import Dict, List
 
 import lief
 
-# Debian 11 (Bullseye) EOL: est. 2026 https://wiki.debian.org/LTS
+# Debian 11 (Bullseye) EOL: 2026. https://wiki.debian.org/LTS
 #
-# - libgcc version 10.2.1 (https://packages.debian.org/search?suite=bullseye&arch=any&searchon=names&keywords=libgcc-s1)
-# - libc version 2.31 (https://packages.debian.org/search?suite=bullseye&arch=any&searchon=names&keywords=libc6)
+# - libgcc version 10.2.1 (https://packages.debian.org/bullseye/libgcc-s1)
+# - libc version 2.31 (https://packages.debian.org/source/bullseye/glibc)
 #
 # Ubuntu 20.04 (Focal) EOL: 2030. https://wiki.ubuntu.com/ReleaseTeam
 #
-# - libgcc version 10.3.0 (https://packages.ubuntu.com/focal/libgcc1)
+# - libgcc version 10.5.0 (https://packages.ubuntu.com/focal/libgcc1)
 # - libc version 2.31 (https://packages.ubuntu.com/focal/libc6)
 #
-# CentOS Stream 9 EOL: est. 2027 https://www.centos.org/cl-vs-cs
+# CentOS Stream 9 EOL: 2027. https://www.centos.org/cl-vs-cs/#end-of-life
 #
-# - libgcc version 12.2.1 (https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages)
-# - libc version 2.34 (https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages)
+# - libgcc version 12.2.1 (https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/)
+# - libc version 2.34 (https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/)
 #
 # See https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html for more info.
 
@@ -101,7 +101,6 @@ ELF_ALLOWED_LIBRARIES = {
 'libc.so.6', # C library
 'libpthread.so.0', # threading
 'libm.so.6', # math library
-'librt.so.1', # real-time (clock)
 'libatomic.so.1',
 'ld-linux-x86-64.so.2', # 64-bit dynamic linker
 'ld-linux.so.2', # 32-bit dynamic linker
@@ -243,12 +242,17 @@ def check_MACHO_libraries(binary) -> bool:
     return ok
 
 def check_MACHO_min_os(binary) -> bool:
-    if binary.build_version.minos == [10,15,0]:
+    if binary.build_version.minos == [11,0,0]:
         return True
     return False
 
 def check_MACHO_sdk(binary) -> bool:
-    if binary.build_version.sdk == [11, 0, 0]:
+    if binary.build_version.sdk == [14, 0, 0]:
+        return True
+    return False
+
+def check_MACHO_ld64(binary) -> bool:
+    if binary.build_version.tools[0].version == [711, 0, 0]:
         return True
     return False
 
@@ -291,6 +295,7 @@ lief.EXE_FORMATS.MACHO: [
     ('DYNAMIC_LIBRARIES', check_MACHO_libraries),
     ('MIN_OS', check_MACHO_min_os),
     ('SDK', check_MACHO_sdk),
+    ('LD64', check_MACHO_ld64),
 ],
 lief.EXE_FORMATS.PE: [
     ('DYNAMIC_LIBRARIES', check_PE_libraries),

@@ -42,8 +42,8 @@ builder-image:
   image: $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG
   variables:
     SDK_URL: https://bitcoincore.org/depends-sources/sdks
-    XCODE_VERSION: "12.2"
-    XCODE_BUILD_ID: 12B45b
+    XCODE_VERSION: "15.0"
+    XCODE_BUILD_ID: 15A240d
   before_script:
     - echo HOST=$HOST
     - |
@@ -189,11 +189,23 @@ x86_64-w64-mingw32:
   variables:
     HOST: x86_64-w64-mingw32
 
+x86_64-pc-linux-gnu-clang18:
+  extends: .build-depends-template
+  variables:
+    HOST: x86_64-pc-linux-gnu
+    DEP_OPTS: "DEBUG=1 CC=clang-18 CXX=clang++-18"
+
 x86_64-pc-linux-gnu-debug:
   extends: .build-depends-template
   variables:
     HOST: x86_64-pc-linux-gnu
     DEP_OPTS: "DEBUG=1"
+
+x86_64-pc-linux-gnu-gcc14:
+  extends: .build-depends-template
+  variables:
+    HOST: x86_64-pc-linux-gnu
+    DEP_OPTS: "DEBUG=1 CC=gcc-14 CXX=g++-14"
 
 x86_64-pc-linux-gnu-nowallet:
   extends:
@@ -248,7 +260,7 @@ linux64_cxx20-build:
     - .build-template
     - .skip-in-fast-mode-template
   needs:
-    - x86_64-pc-linux-gnu-debug
+    - x86_64-pc-linux-gnu-gcc14
   variables:
     BUILD_TARGET: linux64_cxx20
 
@@ -266,7 +278,7 @@ linux64_fuzz-build:
     - .build-template
     - .skip-in-fast-mode-template
   needs:
-    - x86_64-pc-linux-gnu-debug
+    - x86_64-pc-linux-gnu-clang18
   variables:
     BUILD_TARGET: linux64_fuzz
 
@@ -284,7 +296,7 @@ linux64_tsan-build:
     - .build-template
     - .skip-in-fast-mode-template
   needs:
-    - x86_64-pc-linux-gnu-debug
+    - x86_64-pc-linux-gnu-clang18
   variables:
     BUILD_TARGET: linux64_tsan
 

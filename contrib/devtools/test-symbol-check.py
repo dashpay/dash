@@ -28,20 +28,11 @@ def call_symbol_check(cc: List[str], source, executable, options):
     os.remove(executable)
     return (p.returncode, p.stdout.rstrip())
 
-def get_machine(cc: List[str]):
-    p = subprocess.run([*cc,'-dumpmachine'], stdout=subprocess.PIPE, universal_newlines=True)
-    return p.stdout.rstrip()
-
 class TestSymbolChecks(unittest.TestCase):
     def test_ELF(self):
         source = 'test1.c'
         executable = 'test1'
         cc = determine_wellknown_cmd('CC', 'gcc')
-
-        # there's no way to do this test for ARM at the moment; we build for
-        # ARM in a glibc 2.31 envinonment and we allow all symbols from 2.28.
-        if 'arm' in get_machine(cc):
-            self.skipTest("test not available for 32-bit ARM")
 
         # -lutil is part of the libc6 package so a safe bet that it's installed
         # it's also out of context enough that it's unlikely to ever become a real dependency
@@ -126,7 +117,7 @@ class TestSymbolChecks(unittest.TestCase):
                 }
         ''')
 
-        self.assertEqual(call_symbol_check(cc, source, executable, ['-Wl,-platform_version','-Wl,macos', '-Wl,10.15', '-Wl,11.4']),
+        self.assertEqual(call_symbol_check(cc, source, executable, ['-Wl,-platform_version','-Wl,macos', '-Wl,11.0', '-Wl,11.4']),
                 (1, f'{executable}: failed SDK'))
 
     def test_PE(self):
