@@ -222,9 +222,13 @@ details.
   Override the space-separated list of platform triples for which to perform a
   bootstrappable build.
 
-  _(defaults to "x86\_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu
-  powerpc64-linux-gnu powerpc64le-linux-gnu
-  x86\_64-w64-mingw32 x86\_64-apple-darwin arm64-apple-darwin")_
+  Supported platform triples: aarch64-linux-gnu, arm-linux-gnueabihf,
+  arm64-apple-darwin, powerpc64-linux-gnu, powerpc64le-linux-gnu,
+  riscv64-linux-gnu, x86\_64-apple-darwin, x86\_64-linux-gnu and
+  x86\_64-w64-mingw32.
+
+  _(defaults to "x86\_64-linux-gnu aarch64-linux-gnu x86\_64-w64-mingw32
+  x86\_64-apple-darwin arm64-apple-darwin")_
 
 * _**SOURCES_PATH**_
 

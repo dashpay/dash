@@ -73,8 +73,19 @@ mkdir -p "$VERSION_BASE"
 # Build directories should not exist
 ################
 
-# Default to building for all supported HOSTs (overridable by environment)
-export HOSTS="${HOSTS:-x86_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu riscv64-linux-gnu powerpc64-linux-gnu powerpc64le-linux-gnu
+# Supported HOSTs:
+# aarch64-linux-gnu
+# arm-linux-gnueabihf
+# arm64-apple-darwin
+# powerpc64-linux-gnu
+# powerpc64le-linux-gnu
+# riscv64-linux-gnu
+# x86_64-apple-darwin
+# x86_64-linux-gnu
+# x86_64-w64-mingw32
+
+# Default to building for some supported HOSTs only (overridable by environment)
+export HOSTS="${HOSTS:-x86_64-linux-gnu aarch64-linux-gnu riscv64-linux-gnu
                        x86_64-w64-mingw32
                        x86_64-apple-darwin arm64-apple-darwin}"
 
