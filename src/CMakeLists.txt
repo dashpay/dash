@@ -458,14 +458,15 @@ target_link_libraries(bitcoin_node
     core_interface
     bitcoin_common
     bitcoin_util
+    $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
     dashbls
     leveldb
     minisketch
     univalue
     $<TARGET_NAME_IF_EXISTS:Boost::headers>
-    $<TARGET_NAME_IF_EXISTS:libevent::libevent>
+    libevent::core
+    libevent::extra
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
-    $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )
 
@@ -523,7 +524,8 @@ if(BUILD_CLI)
     bitcoin_cli
     bitcoin_common
     bitcoin_util
-    $<TARGET_NAME_IF_EXISTS:libevent::libevent>
+    libevent::core
+    libevent::extra
   )
   set_target_properties(bitcoin-cli PROPERTIES OUTPUT_NAME dash-cli)
   list(APPEND installable_targets bitcoin-cli)

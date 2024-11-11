@@ -208,7 +208,7 @@ target_link_libraries(test_bitcoin
   minisketch
   secp256k1
   Boost::headers
-  $<TARGET_NAME_IF_EXISTS:libevent::libevent>
+  libevent::extra
   $<TARGET_NAME_IF_EXISTS:PkgConfig::dash_sdk_cxx>
 )
 
