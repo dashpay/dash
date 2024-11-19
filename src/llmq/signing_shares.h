@@ -376,20 +376,25 @@ private:
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
     static constexpr size_t MAX_MSGS_SIG_SHARES{32};
 
-    RecursiveMutex cs;
-
     std::thread workThread;
     CThreadInterrupt workInterrupt;
 
-    SigShareMap<CSigShare> sigShares GUARDED_BY(cs);
-    std::unordered_map<uint256, CSignedSession, StaticSaltedHasher> signedSessions GUARDED_BY(cs);
+    Mutex cs_sigShares;
+    SigShareMap<CSigShare> sigShares GUARDED_BY(cs_sigShares);
 
+    Mutex cs_signedSessions;
+    std::unordered_map<uint256, CSignedSession, StaticSaltedHasher> signedSessions GUARDED_BY(cs_signedSessions);
+
+    Mutex cs_timeSeenForSessions;
     // stores time of last receivedSigShare. Used to detect timeouts
-    std::unordered_map<uint256, int64_t, StaticSaltedHasher> timeSeenForSessions GUARDED_BY(cs);
+    std::unordered_map<uint256, int64_t, StaticSaltedHasher> timeSeenForSessions GUARDED_BY(cs_timeSeenForSessions);
 
-    std::unordered_map<NodeId, CSigSharesNodeState> nodeStates GUARDED_BY(cs);
-    SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs);
-    SigShareMap<bool> sigSharesQueuedToAnnounce GUARDED_BY(cs);
+    Mutex cs_nodeStates;
+    std::unordered_map<NodeId, CSigSharesNodeState> nodeStates GUARDED_BY(cs_nodeStates);
+    SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs_nodeStates);
+
+    Mutex cs_sigSharesQueuedToAnnounce;
+    SigShareMap<bool> sigSharesQueuedToAnnounce GUARDED_BY(cs_sigSharesQueuedToAnnounce);
 
     struct PendingSignatureData {
         const CQuorumCPtr quorum;
@@ -399,9 +404,11 @@ private:
         PendingSignatureData(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash) : quorum(std::move(quorum)), id(id), msgHash(msgHash){}
     };
 
-    std::vector<PendingSignatureData> pendingSigns GUARDED_BY(cs);
+    Mutex cs_pendingSigns;
+    std::vector<PendingSignatureData> pendingSigns GUARDED_BY(cs_pendingSigns);
 
-    FastRandomContext rnd GUARDED_BY(cs);
+    Mutex cs_rnd;
+    FastRandomContext rnd GUARDED_BY(cs_rnd);
 
     CConnman& connman;
     CSigningManager& sigman;
@@ -432,9 +439,12 @@ public:
 
     void ProcessMessage(const CNode& pnode, const CSporkManager& sporkman, const std::string& msg_type, CDataStream& vRecv);
 
-    void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
+    void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     std::optional<CSigShare> CreateSigShare(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash) const;
-    void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
+    void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id,
+                             const uint256& msgHash)
+        LOCKS_EXCLUDED(cs_sigShares, cs_sigSharesQueuedToAnnounce, cs_nodeStates);
 
     [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
 
@@ -442,11 +452,12 @@ public:
 
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
-    bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann);
-    bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv);
-    bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv);
-    bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares);
-    void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare);
+    bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann) LOCKS_EXCLUDED(cs_nodeStates);
+    bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv) LOCKS_EXCLUDED(cs_nodeStates);
+    bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv) LOCKS_EXCLUDED(cs_nodeStates);
+    bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
+        LOCKS_EXCLUDED(cs_sigShares, cs_nodeStates);
+    void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) LOCKS_EXCLUDED(cs_sigShares, cs_nodeStates);
 
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
@@ -454,32 +465,44 @@ private:
 
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
-        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
+        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
+        LOCKS_EXCLUDED(cs_nodeStates, cs_sigShares, cs_rnd);
     bool ProcessPendingSigShares(const CConnman& connman);
 
     void ProcessPendingSigShares(const std::vector<CSigShare>& sigSharesToProcess,
             const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums,
             const CConnman& connman);
 
-    void ProcessSigShare(const CSigShare& sigShare, const CConnman& connman, const CQuorumCPtr& quorum);
-    void TryRecoverSig(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
+    void ProcessSigShare(const CSigShare& sigShare, const CConnman& connman, const CQuorumCPtr& quorum)
+        LOCKS_EXCLUDED(cs_sigShares, cs_sigSharesQueuedToAnnounce, cs_timeSeenForSessions, cs_nodeStates);
+    void TryRecoverSig(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash) LOCKS_EXCLUDED(cs_sigShares);
 
-    bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo);
+    bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo)
+        LOCKS_EXCLUDED(cs_nodeStates);
     static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in);
 
-    void Cleanup();
-    void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void RemoveBannedNodeStates();
+    void Cleanup() LOCKS_EXCLUDED(cs_sigShares, cs_timeSeenForSessions, cs_nodeStates);
+    void RemoveSigSharesForSession(const uint256& signHash)
+        LOCKS_EXCLUDED(cs_nodeStates, cs_sigShares, cs_sigSharesQueuedToAnnounce, cs_signedSessions,
+                       cs_timeSeenForSessions);
+    void RemoveBannedNodeStates() LOCKS_EXCLUDED(cs_nodeStates);
 
-    void BanNode(NodeId nodeId);
+    void BanNode(NodeId nodeId) LOCKS_EXCLUDED(cs_nodeStates);
 
-    bool SendMessages();
-    void CollectSigSharesToRequest(std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>>& sigSharesToRequest) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void CollectSigSharesToSend(std::unordered_map<NodeId, std::unordered_map<uint256, CBatchedSigShares, StaticSaltedHasher>>& sigSharesToSend) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void CollectSigSharesToAnnounce(std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>>& sigSharesToAnnounce) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void SignPendingSigShares();
-    void WorkThreadMain();
+    bool SendMessages() EXCLUSIVE_LOCKS_REQUIRED(!cs_nodeStates, !cs_sigShares, !cs_rnd, !cs_sigSharesQueuedToAnnounce);
+    void CollectSigSharesToRequest(
+        std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>>& sigSharesToRequest)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_nodeStates, !cs_sigShares, !cs_rnd);
+    void CollectSigSharesToSend(
+        std::unordered_map<NodeId, std::unordered_map<uint256, CBatchedSigShares, StaticSaltedHasher>>& sigSharesToSend)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_nodeStates, !cs_sigShares);
+    void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend,
+                                            const std::vector<CNode*>& vNodes) LOCKS_EXCLUDED(cs_signedSessions);
+    void CollectSigSharesToAnnounce(
+        std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>>& sigSharesToAnnounce)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_nodeStates, !cs_sigSharesQueuedToAnnounce);
+    void SignPendingSigShares() LOCKS_EXCLUDED(cs_pendingSigns, cs_signedSessions);
+    void WorkThreadMain() EXCLUSIVE_LOCKS_REQUIRED(!cs_nodeStates, !cs_sigShares, !cs_rnd, !cs_sigSharesQueuedToAnnounce);
 };
 } // namespace llmq
 
