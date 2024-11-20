@@ -1199,7 +1199,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Wait for " + name + " activation")
 
         # disable spork17 while mining blocks to activate "name" to prevent accidental quorum formation
-        spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
+        spork17_value = self.nodes[0].spork()['SPORK_17_QUORUM_DKG_ENABLED']
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
         self.wait_for_sporks_same()
@@ -1675,8 +1675,8 @@ class DashTestFramework(BitcoinTestFramework):
     def wait_for_sporks_same(self, timeout=30):
         def check_sporks_same():
             self.bump_mocktime(1)
-            sporks = self.nodes[0].spork('show')
-            return all(node.spork('show') == sporks for node in self.nodes[1:])
+            sporks = self.nodes[0].spork()
+            return all(node.spork() == sporks for node in self.nodes[1:])
         wait_until_helper(check_sporks_same, timeout=timeout, sleep=0.5)
 
     def wait_for_quorum_connections(self, quorum_hash, expected_connections, mninfos, llmq_type_name="llmq_test", timeout = 60, wait_proc=None):
@@ -1825,8 +1825,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.generate(self.nodes[0], num_blocks, sync_fun=lambda: self.sync_blocks(nodes))
 
     def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
-        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
-        spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
+        spork21_active = self.nodes[0].spork()['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
+        spork23_active = self.nodes[0].spork()['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
             expected_connections = (self.llmq_size - 1) if spork21_active else 2
@@ -1910,8 +1910,8 @@ class DashTestFramework(BitcoinTestFramework):
         return new_quorum
 
     def mine_cycle_quorum(self, llmq_type_name="llmq_test_dip0024", llmq_type=103,  expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
-        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
-        spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
+        spork21_active = self.nodes[0].spork()['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
+        spork23_active = self.nodes[0].spork()['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
             expected_connections = (self.llmq_size_dip0024 - 1) if spork21_active else 2
