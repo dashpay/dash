@@ -453,7 +453,7 @@ static UniValue quorum_sign_helper(const JSONRPCRequest& request, Consensus::LLM
     } else {
         const auto pQuorum = [&]() {
             if (quorumHash.IsNull()) {
-                return llmq::SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), *llmq_ctx.qman, id);
+                return llmq_ctx.qman->SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), id);
             } else {
                 return llmq_ctx.qman->GetQuorum(llmqType, quorumHash);
             }
@@ -724,7 +724,7 @@ static RPCHelpMan quorum_selectquorum()
 
     UniValue ret(UniValue::VOBJ);
 
-    const auto quorum = llmq::SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), *llmq_ctx.qman, id);
+    const auto quorum = llmq_ctx.qman->SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), id);
     if (!quorum) {
         throw JSONRPCError(RPC_MISC_ERROR, "no quorums active");
     }

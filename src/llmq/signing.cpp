@@ -704,7 +704,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigShares
             // TODO fix this by re-signing when the next block arrives, but only when that block results in a change of the quorum list and no recovered signature has been created in the mean time
             const auto &llmq_params_opt = Params().GetLLMQ(llmqType);
             assert(llmq_params_opt.has_value());
-            return SelectQuorumForSigning(llmq_params_opt.value(), m_chainstate.m_chain, qman, id);
+            return qman.SelectQuorumForSigning(llmq_params_opt.value(), m_chainstate.m_chain, id);
         } else {
             return qman.GetQuorum(llmqType, quorumHash);
         }
