@@ -1206,17 +1206,22 @@ CQuorumCPtr CQuorumManager::SelectQuorumForSigning(const Consensus::LLMQParams& 
 {
     size_t poolSize = llmq_params.signingActiveQuorumCount;
 
-    CBlockIndex* pindexStart;
+    auto pindexStart = [&]() -> const CBlockIndex*
     {
-        LOCK(cs_main);
+        auto chainTip = cachedChainTip.load();
+        if (chainTip == nullptr) return nullptr;
+        auto cur_height = chainTip->nHeight;
         if (signHeight == -1) {
-            signHeight = active_chain.Height();
+            signHeight = cur_height;
         }
         int startBlockHeight = signHeight - signOffset;
-        if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
-            return {};
+        if (startBlockHeight > cur_height || startBlockHeight < 0) {
+            return nullptr;
         }
-        pindexStart = active_chain[startBlockHeight];
+        return chainTip->GetAncestor(startBlockHeight);
+    }();
+    if (pindexStart == nullptr) {
+        return {};
     }
 
     if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
