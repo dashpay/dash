@@ -303,6 +303,8 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
 
 void CQuorumManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const
 {
+    cachedChainTip = pindexNew;
+
     if (!m_mn_sync.IsBlockchainSynced()) return;
 
     for (const auto& params : Params().GetConsensus().llmqs) {
@@ -519,8 +521,7 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, Consensus::LLMQType llmqTyp
 
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
 {
-    const CBlockIndex* pindex = WITH_LOCK(cs_main, return m_chainstate.m_chain.Tip());
-    return ScanQuorums(llmqType, pindex, nCountRequested);
+    return ScanQuorums(llmqType, cachedChainTip, nCountRequested);
 }
 
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
@@ -633,7 +634,20 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
-    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(quorumHash));
+    const CBlockIndex* pQuorumBaseBlockIndex = [&]() {
+        // Lock contention may still be high here; consider using a shared lock
+        // We cannot hold cs_quorumBaseBlockIndexCache the whole time as that creates lock-order inversion with cs_main;
+        // We cannot aquire cs_main if we have cs_quorumBaseBlockIndexCache held
+        const CBlockIndex* pindex;
+        if (!WITH_LOCK(cs_quorumBaseBlockIndexCache, return quorumBaseBlockIndexCache.get(quorumHash, pindex))) {
+            pindex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(quorumHash));
+            if (pindex) {
+                LOCK(cs_quorumBaseBlockIndexCache);
+                quorumBaseBlockIndexCache.insert(quorumHash, pindex);
+            }
+        }
+        return pindex;
+    }();
     if (!pQuorumBaseBlockIndex) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- block %s not found\n", __func__, quorumHash.ToString());
         return nullptr;
@@ -1187,26 +1201,31 @@ void CQuorumManager::MigrateOldQuorumDB(CEvoDB& evoDb) const
     LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- done\n", __func__);
 }
 
-CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
-                                   const uint256& selectionHash, int signHeight, int signOffset)
+CQuorumCPtr CQuorumManager::SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain,
+                                   const uint256& selectionHash, int signHeight, int signOffset) const
 {
     size_t poolSize = llmq_params.signingActiveQuorumCount;
 
-    CBlockIndex* pindexStart;
+    auto pindexStart = [&]() -> const CBlockIndex*
     {
-        LOCK(cs_main);
+        auto chainTip = cachedChainTip.load();
+        if (chainTip == nullptr) return nullptr;
+        auto cur_height = chainTip->nHeight;
         if (signHeight == -1) {
-            signHeight = active_chain.Height();
+            signHeight = cur_height;
         }
         int startBlockHeight = signHeight - signOffset;
-        if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
-            return {};
+        if (startBlockHeight > cur_height || startBlockHeight < 0) {
+            return nullptr;
         }
-        pindexStart = active_chain[startBlockHeight];
+        return chainTip->GetAncestor(startBlockHeight);
+    }();
+    if (pindexStart == nullptr) {
+        return {};
     }
 
     if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
-        auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
+        auto quorums = ScanQuorums(llmq_params.type, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;
         }
@@ -1230,7 +1249,7 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
         }
         return *itQuorum;
     } else {
-        auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
+        auto quorums = ScanQuorums(llmq_params.type, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;
         }
@@ -1255,7 +1274,7 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
-    auto quorum = SelectQuorumForSigning(llmq_params_opt.value(), active_chain, qman, id, signedAtHeight, signOffset);
+    auto quorum = qman.SelectQuorumForSigning(llmq_params_opt.value(), active_chain, id, signedAtHeight, signOffset);
     if (!quorum) {
         return VerifyRecSigStatus::NoQuorum;
     }
