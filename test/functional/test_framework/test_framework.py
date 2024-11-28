@@ -1258,7 +1258,6 @@ class DashTestFramework(BitcoinTestFramework):
         for i in range(0, idx):
             self.connect_nodes(i, idx)
 
-    # TODO: to let creating Evo Nodes without instant-send available
     def dynamically_add_masternode(self, evo=False, rnd=None, should_be_rejected=False):
         mn_idx = len(self.nodes)
 
@@ -1279,7 +1278,7 @@ class DashTestFramework(BitcoinTestFramework):
             return
 
         self.dynamically_initialize_datadir(node_p2p_port, node_rpc_port)
-        node_info = self.add_dynamically_node(self.extra_args[1])
+        node_info = self.add_dynamically_node(self.extra_args[1] if len(self.extra_args) > 1 else self.extra_args[0])
 
         args = ['-masternodeblsprivkey=%s' % created_mn_info.keyOperator] + node_info.extra_args
         self.start_node(mn_idx, args)
