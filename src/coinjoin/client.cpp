@@ -1395,12 +1395,7 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
                 ++nSteps;
                 continue;
             }
-            const auto pwallet = GetWallet(m_wallet.GetName());
-            if (!pwallet) {
-                strErrorRet ="Couldn't get wallet pointer";
-                return false;
-            }
-            scriptDenom = keyHolderStorage.AddKey(pwallet.get());
+            scriptDenom = keyHolderStorage.AddKey(m_wallet);
         }
         vecPSInOutPairsRet.emplace_back(entry, CTxOut(nDenomAmount, scriptDenom));
         // step is complete
@@ -1484,14 +1479,7 @@ bool CCoinJoinClientSession::MakeCollateralAmounts(const CompactTallyItem& tally
         return false;
     }
 
-    const auto pwallet = GetWallet(m_wallet.GetName());
-
-    if (!pwallet) {
-        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- Couldn't get wallet pointer\n", __func__);
-        return false;
-    }
-
-    CTransactionBuilder txBuilder(pwallet, tallyItem);
+    CTransactionBuilder txBuilder(m_wallet, tallyItem);
 
     WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- Start %s\n", __func__, txBuilder.ToString());
 
@@ -1654,14 +1642,7 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
         return false;
     }
 
-    const auto pwallet = GetWallet(m_wallet.GetName());
-
-    if (!pwallet) {
-        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- Couldn't get wallet pointer\n", __func__);
-        return false;
-    }
-
-    CTransactionBuilder txBuilder(pwallet, tallyItem);
+    CTransactionBuilder txBuilder(m_wallet, tallyItem);
 
     WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- Start %s\n", __func__, txBuilder.ToString());
 
