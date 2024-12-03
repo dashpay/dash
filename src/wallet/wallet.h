@@ -733,6 +733,7 @@ private:
     std::atomic<bool> fAbortRescan{false}; // reset by WalletRescanReserver::reserve()
     std::atomic<bool> fScanningWallet{false}; // controlled by WalletRescanReserver
     std::atomic<bool> m_attaching_chain{false};
+    std::atomic<bool> m_scanning_with_passphrase{false};
     std::atomic<int64_t> m_scanning_start{0};
     std::atomic<double> m_scanning_progress{0};
     friend class WalletRescanReserver;
@@ -1045,6 +1046,7 @@ public:
     void AbortRescan() { fAbortRescan = true; }
     bool IsAbortingRescan() const { return fAbortRescan; }
     bool IsScanning() const { return fScanningWallet; }
+    bool IsScanningWithPassphrase() const { return m_scanning_with_passphrase; }
     int64_t ScanningDuration() const { return fScanningWallet ? GetTimeMillis() - m_scanning_start : 0; }
     double ScanningProgress() const { return fScanningWallet ? (double) m_scanning_progress : 0; }
 
@@ -1064,6 +1066,9 @@ public:
 
     // Used to prevent concurrent calls to walletpassphrase RPC.
     Mutex m_unlock_mutex;
+    // Used to prevent deleting the passphrase from memory when it is still in use.
+    RecursiveMutex m_relock_mutex;
+
     bool Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnly = false, bool accept_no_keys = false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
@@ -1539,12 +1544,13 @@ private:
 public:
     explicit WalletRescanReserver(CWallet& w) : m_wallet(w), m_could_reserve(false) {}
 
-    bool reserve()
+    bool reserve(bool with_passphrase = false)
     {
         assert(!m_could_reserve);
         if (m_wallet.fScanningWallet.exchange(true)) {
             return false;
         }
+        m_wallet.m_scanning_with_passphrase.exchange(with_passphrase);
         m_wallet.m_scanning_start = GetTimeMillis();
         m_wallet.m_scanning_progress = 0;
         m_wallet.fAbortRescan = false;
@@ -1561,6 +1567,7 @@ public:
     {
         if (m_could_reserve) {
             m_wallet.fScanningWallet = false;
+            m_wallet.m_scanning_with_passphrase = false;
         }
     }
 

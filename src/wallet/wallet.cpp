@@ -453,7 +453,7 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
     bool fWasLocked = IsLocked(true);
 
     {
-        LOCK(cs_wallet);
+        LOCK2(m_relock_mutex, cs_wallet);
         Lock();
 
         CCrypter crypter;
@@ -685,7 +685,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         return false;
 
     {
-        LOCK(cs_wallet);
+        LOCK2(m_relock_mutex, cs_wallet);
         mapMasterKeys[++nMasterKeyMaxID] = kMasterKey;
         WalletBatch* encrypted_batch = new WalletBatch(GetDatabase());
         if (!encrypted_batch->TxnBegin()) {
@@ -5637,7 +5637,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
     CKeyingMaterial _vMasterKey;
 
     {
-        LOCK(cs_wallet);
+        LOCK2(m_relock_mutex, cs_wallet);
         for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys)
         {
             if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
