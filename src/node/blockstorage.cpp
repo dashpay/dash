@@ -66,6 +66,7 @@ static FlatFileSeq UndoFileSeq();
 std::vector<CBlockIndex*> BlockManager::GetAllBlockIndices()
 {
     AssertLockHeld(cs_main);
+    LOCK(m_block_index_mutex);
     std::vector<CBlockIndex*> rv;
     rv.reserve(m_block_index.size());
     for (auto& [_, block_index] : m_block_index) {
@@ -76,14 +77,14 @@ std::vector<CBlockIndex*> BlockManager::GetAllBlockIndices()
 
 CBlockIndex* BlockManager::LookupBlockIndex(const uint256& hash)
 {
-    AssertLockHeld(cs_main);
+    LOCK(m_block_index_mutex);
     BlockMap::iterator it = m_block_index.find(hash);
     return it == m_block_index.end() ? nullptr : &it->second;
 }
 
 const CBlockIndex* BlockManager::LookupBlockIndex(const uint256& hash) const
 {
-    AssertLockHeld(cs_main);
+    LOCK(m_block_index_mutex);
     BlockMap::const_iterator it = m_block_index.find(hash);
     return it == m_block_index.end() ? nullptr : &it->second;
 }
@@ -94,7 +95,7 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, const uint
     assert(!(nStatus & BLOCK_FAILED_MASK)); // no failed blocks allowed
     AssertLockHeld(cs_main);
 
-    auto [mi, inserted] = m_block_index.try_emplace(hash, block);
+    auto [mi, inserted] = WITH_LOCK(m_block_index_mutex, return m_block_index.try_emplace(hash, block));
     if (!inserted) {
         return &mi->second;
     }
@@ -106,11 +107,14 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, const uint
     pindexNew->nSequenceId = 0;
 
     pindexNew->phashBlock = &((*mi).first);
-    BlockMap::iterator miPrev = m_block_index.find(block.hashPrevBlock);
-    if (miPrev != m_block_index.end()) {
-        pindexNew->pprev = &(*miPrev).second;
-        pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
-        pindexNew->BuildSkip();
+    {
+        LOCK(m_block_index_mutex);
+        BlockMap::iterator miPrev = m_block_index.find(block.hashPrevBlock);
+        if (miPrev != m_block_index.end()) {
+            pindexNew->pprev = &(*miPrev).second;
+            pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+            pindexNew->BuildSkip();
+        }
     }
     pindexNew->nTimeMax = (pindexNew->pprev ? std::max(pindexNew->pprev->nTimeMax, pindexNew->nTime) : pindexNew->nTime);
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + GetBlockProof(*pindexNew);
@@ -139,6 +143,7 @@ void BlockManager::PruneOneBlockFile(const int fileNumber)
     AssertLockHeld(cs_main);
     LOCK(cs_LastBlockFile);
 
+    LOCK(m_block_index_mutex);
     for (auto& entry : m_block_index) {
         CBlockIndex* pindex = &entry.second;
         if (pindex->nFile == fileNumber) {
@@ -263,7 +268,7 @@ CBlockIndex* BlockManager::InsertBlockIndex(const uint256& hash)
         return nullptr;
     }
 
-    const auto [mi, inserted]{m_block_index.try_emplace(hash)};
+    const auto [mi, inserted]{WITH_LOCK(m_block_index_mutex, return m_block_index.try_emplace(hash))};
     CBlockIndex* pindex = &(*mi).second;
     if (inserted) {
         pindex->phashBlock = &((*mi).first);
@@ -277,13 +282,15 @@ bool BlockManager::LoadBlockIndex(const Consensus::Params& consensus_params)
         return false;
     }
 
-    for (auto& [_, block_index] : m_block_index) {
-        // build m_blockman.m_prev_block_index
-        if (block_index.pprev) {
-            m_prev_block_index.emplace(block_index.pprev->GetBlockHash(), &block_index);
+    {
+        LOCK(m_block_index_mutex);
+        for (auto& [_, block_index] : m_block_index) {
+            // build m_blockman.m_prev_block_index
+            if (block_index.pprev) {
+                m_prev_block_index.emplace(block_index.pprev->GetBlockHash(), &block_index);
+            }
         }
     }
-
     // Calculate nChainWork
     std::vector<CBlockIndex*> vSortedByHeight{GetAllBlockIndices()};
     std::sort(vSortedByHeight.begin(), vSortedByHeight.end(),
@@ -369,9 +376,12 @@ bool BlockManager::LoadBlockIndexDB()
     // Check presence of blk files
     LogPrintf("Checking all blk files are present...\n");
     std::set<int> setBlkDataFiles;
-    for (const auto& [_, block_index] : m_block_index) {
-        if (block_index.nStatus & BLOCK_HAVE_DATA) {
-            setBlkDataFiles.insert(block_index.nFile);
+    {
+        LOCK(m_block_index_mutex);
+        for (const auto& [_, block_index] : m_block_index) {
+            if (block_index.nStatus & BLOCK_HAVE_DATA) {
+                setBlkDataFiles.insert(block_index.nFile);
+            }
         }
     }
     for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {

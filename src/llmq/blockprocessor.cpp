@@ -82,7 +82,6 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
     // Verify that quorumHash is part of the active chain and that it's the first block in the DKG interval
     const CBlockIndex* pQuorumBaseBlockIndex;
     {
-        LOCK(cs_main);
         pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(qc.quorumHash);
         if (pQuorumBaseBlockIndex == nullptr) {
             LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- unknown block %s in commitment, peer=%d\n", __func__,

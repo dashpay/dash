@@ -589,7 +589,6 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
     const CBlockIndex* pindexMined;
     int nTxAge;
     {
-        LOCK(cs_main);
         pindexMined = m_chainstate.m_blockman.LookupBlockIndex(hashBlock);
         nTxAge = m_chainstate.m_chain.Height() - pindexMined->nHeight + 1;
     }
@@ -752,7 +751,7 @@ PeerMsgRet CInstantSendManager::ProcessMessageInstantSendLock(const CNode& pfrom
         return tl::unexpected{100};
     }
 
-    const auto blockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
+    const auto blockIndex = m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash);
     if (blockIndex == nullptr) {
         // Maybe we don't have the block yet or maybe some peer spams invalid values for cycleHash
         return tl::unexpected{1};
@@ -893,7 +892,7 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
             continue;
         }
 
-        const auto blockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
+        const auto blockIndex = m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash);
         if (blockIndex == nullptr) {
             batchVerifier.badSources.emplace(nodeId);
             continue;
@@ -987,7 +986,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     const CBlockIndex* pindexMined{nullptr};
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
     if (tx && !hashBlock.IsNull()) {
-        pindexMined = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
+        pindexMined = m_chainstate.m_blockman.LookupBlockIndex(hashBlock);
 
         // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
         // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
@@ -1388,7 +1387,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
 
         BlockValidationState state;
         // need non-const pointer
-        auto pindex2 = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
+        auto pindex2 = m_chainstate.m_blockman.LookupBlockIndex(pindex->GetBlockHash());
         if (!m_chainstate.InvalidateBlock(state, pindex2)) {
             LogPrintf("CInstantSendManager::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
             // This should not have happened and we are in a state were it's not safe to continue anymore
