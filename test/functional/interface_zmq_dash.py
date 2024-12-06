@@ -263,6 +263,7 @@ class DashZMQTest (DashTestFramework):
         assert_equal(uint256_to_string(zmq_chain_lock.blockHash), rpc_chain_lock_hash)
         assert_equal(zmq_chain_locked_block.hash, rpc_chain_lock_hash)
         assert_equal(zmq_chain_lock.sig.hex(), rpc_best_chain_lock_sig)
+        assert_equal(zmq_chain_lock.serialize().hex(), self.nodes[0].getrawbestchainlock())
         # Unsubscribe from ChainLock messages
         self.unsubscribe(chain_lock_publishers)
 

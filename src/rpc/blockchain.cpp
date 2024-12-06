@@ -275,6 +275,37 @@ static RPCHelpMan getbestchainlock()
     };
 }
 
+static RPCHelpMan getrawbestchainlock()
+{
+    return RPCHelpMan{"getrawbestchainlock",
+        "\nReturns the raw best ChainLock. Throws an error if there is no known ChainLock yet.",
+        {},
+        RPCResult{
+             RPCResult::Type::STR, "data", "The serialized, hex-encoded data for best ChainLock"
+        },
+        RPCExamples{
+            HelpExampleCli("getrawbestchainlock", "")
+            + HelpExampleRpc("getrawbestchainlock", "")
+        },
+    [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    UniValue result(UniValue::VOBJ);
+
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+
+    LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+    llmq::CChainLockSig clsig = llmq_ctx.clhandler->GetBestChainLock();
+    if (clsig.IsNull()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to find any ChainLock");
+    }
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << clsig;
+    return HexStr(ssTx);
+
+},
+    };
+}
+
 void RPCNotifyBlockChange(const CBlockIndex* pindex)
 {
     if(pindex) {
@@ -3106,6 +3137,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         &getblockstats,                      },
     { "blockchain",         &getbestblockhash,                   },
     { "blockchain",         &getbestchainlock,                   },
+    { "blockchain",         &getrawbestchainlock,                },
     { "blockchain",         &getblockcount,                      },
     { "blockchain",         &getblock,                           },
     { "blockchain",         &getblockfrompeer,                   },
