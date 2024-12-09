@@ -402,14 +402,14 @@ static bool PreVerifyRecoveredSig(const CQuorumManager& quorum_manager, const CR
         return false;
     }
 
-    auto quorum = quorum_manager.GetQuorum(llmqType, recoveredSig.getQuorumHash());
-
-    if (!quorum) {
+    auto quorum_opt = quorum_manager.GetQuorum(llmqType, recoveredSig.getQuorumHash());
+    if (!quorum_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found\n", __func__,
                   recoveredSig.getQuorumHash().ToString());
         return false;
     }
-    if (!IsQuorumActive(llmqType, quorum_manager, quorum->qc->quorumHash)) {
+
+    if (!IsQuorumActive(llmqType, quorum_manager, quorum_opt.value()->qc->quorumHash)) {
         return false;
     }
 
@@ -495,13 +495,15 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
             auto llmqType = recSig->getLlmqType();
             auto quorumKey = std::make_pair(recSig->getLlmqType(), recSig->getQuorumHash());
             if (!retQuorums.count(quorumKey)) {
-                auto quorum = qman.GetQuorum(llmqType, recSig->getQuorumHash());
-                if (!quorum) {
+                auto quorum_opt = qman.GetQuorum(llmqType, recSig->getQuorumHash());
+                if (!quorum_opt.has_value()) {
                     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found, node=%d\n", __func__,
                               recSig->getQuorumHash().ToString(), nodeId);
                     it = v.erase(it);
                     continue;
                 }
+
+                auto quorum = quorum_opt.value();
                 if (!IsQuorumActive(llmqType, qman, quorum->qc->quorumHash)) {
                     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not active anymore, node=%d\n", __func__,
                               recSig->getQuorumHash().ToString(), nodeId);
@@ -688,7 +690,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigShares
     if (m_mn_activeman == nullptr) return false;
     if (m_mn_activeman->GetProTxHash().IsNull()) return false;
 
-    const auto quorum = [&]() {
+    const auto quorum_opt = [&]() {
         if (quorumHash.IsNull()) {
             // This might end up giving different results on different members
             // This might happen when we are on the brink of confirming a new quorum
@@ -703,11 +705,12 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigShares
         }
     }();
 
-    if (!quorum) {
+    if (!quorum_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CSigningManager::%s -- failed to select quorum. id=%s, msgHash=%s\n", __func__, id.ToString(), msgHash.ToString());
         return false;
     }
 
+    auto quorum = quorum_opt.value();
     if (!quorum->IsValidMember(m_mn_activeman->GetProTxHash())) {
         return false;
     }

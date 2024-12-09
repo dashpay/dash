@@ -458,8 +458,8 @@ static UniValue VoteWithMasternodes(const JSONRPCRequest& request, const CWallet
 
         UniValue statusObj(UniValue::VOBJ);
 
-        auto dmn = mnList.GetValidMN(proTxHash);
-        if (!dmn) {
+        auto dmn_opt = mnList.GetValidMN(proTxHash);
+        if (!dmn_opt.has_value()) {
             nFailed++;
             statusObj.pushKV("result", "failed");
             statusObj.pushKV("errorMessage", "Can't find masternode by proTxHash");
@@ -467,6 +467,7 @@ static UniValue VoteWithMasternodes(const JSONRPCRequest& request, const CWallet
             continue;
         }
 
+        auto dmn = dmn_opt.value();
         CGovernanceVote vote(dmn->collateralOutpoint, hash, eVoteSignal, eVoteOutcome);
 
         if (!SignVote(wallet, keyID, vote) || !vote.CheckSignature(keyID)) {
@@ -598,12 +599,12 @@ static RPCHelpMan gobject_vote_alias()
     EnsureWalletIsUnlocked(*wallet);
 
     uint256 proTxHash(ParseHashV(request.params[3], "protx-hash"));
-    auto dmn = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip().GetValidMN(proTxHash);
-    if (!dmn) {
+    auto dmn_opt = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip().GetValidMN(proTxHash);
+    if (!dmn_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid or unknown proTxHash");
     }
 
-
+    auto dmn = dmn_opt.value();
     const bool is_mine = CheckWalletOwnsKey(*wallet, dmn->pdmnState->keyIDVoting);
     if (!is_mine) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Private key for voting address %s not known by wallet", EncodeDestination(PKHash(dmn->pdmnState->keyIDVoting))));

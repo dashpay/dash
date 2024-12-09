@@ -453,9 +453,13 @@ private:
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
                                           const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    bool CollectPendingSigSharesToVerify(
-        size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
-        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
+    std::optional<
+        std::pair<
+            std::unordered_map<NodeId, std::vector<CSigShare>>,
+            std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>
+        >
+    > CollectPendingSigSharesToVerify(size_t maxUniqueSessions);
+
     bool ProcessPendingSigShares(const CConnman& connman);
 
     void ProcessPendingSigShares(const std::vector<CSigShare>& sigSharesToProcess,

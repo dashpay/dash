@@ -702,7 +702,9 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
         auto proTx = *Assert(GetTxPayload<CProUpRegTx>(tx));
         mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
         mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
-        auto dmn = Assert(m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash));
+        // addUncheckedProTx is called after AcceptToMemoryPool() has run appropriate checks. So
+        // we should assume that the contents of this transaction are valid. See comment in addUnchecked.
+        auto dmn = Assert(*(m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash)));
         newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
         if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
             newit->isKeyChangeProTx = true;
@@ -710,7 +712,9 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
         auto proTx = *Assert(GetTxPayload<CProUpRevTx>(tx));
         mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
-        auto dmn = Assert(m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash));
+        // addUncheckedProTx is called after AcceptToMemoryPool() has run appropriate checks. So
+        // we should assume that the contents of this transaction are valid. See comment in addUnchecked.
+        auto dmn = Assert(*(m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash)));
         newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
         if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             newit->isKeyChangeProTx = true;
@@ -981,10 +985,10 @@ void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
             // These are not yet mined ProRegTxs
             removeSpentCollateralConflict(collateralIt->second);
         }
-        auto dmn = mnList.GetMNByCollateral(in.prevout);
-        if (dmn) {
+        auto dmn_opt = mnList.GetMNByCollateral(in.prevout);
+        if (dmn_opt.has_value()) {
             // These are updates referring to a mined ProRegTx
-            removeSpentCollateralConflict(dmn->proTxHash);
+            removeSpentCollateralConflict(dmn_opt.value()->proTxHash);
         }
     }
 }
@@ -1404,13 +1408,13 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         auto& proTx = *opt_proTx;
 
         // this method should only be called with validated ProTxs
-        auto dmn = m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash);
-        if (!dmn) {
+        auto dmn_opt = m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash);
+        if (!dmn_opt) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Masternode is not in the list, proTxHash: %s\n", __func__, proTx.proTxHash.ToString());
             return true; // i.e. failed to find validated ProTx == conflict
         }
         // only allow one operator key change in the mempool
-        if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
+        if (dmn_opt.value()->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
             }
@@ -1426,13 +1430,13 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         }
         auto& proTx = *opt_proTx;
         // this method should only be called with validated ProTxs
-        auto dmn = m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash);
-        if (!dmn) {
+        auto dmn_opt = m_dmnman->GetListAtChainTip().GetMN(proTx.proTxHash);
+        if (!dmn_opt.has_value()) {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Masternode is not in the list, proTxHash: %s\n", __func__, proTx.proTxHash.ToString());
             return true; // i.e. failed to find validated ProTx == conflict
         }
         // only allow one operator key change in the mempool
-        if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
+        if (dmn_opt.value()->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
             }

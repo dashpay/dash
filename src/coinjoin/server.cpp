@@ -60,12 +60,13 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
     LogPrint(BCLog::COINJOIN, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CoinJoin::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString()); /* Continued */
 
     auto mnList = m_dmnman.GetListAtChainTip();
-    auto dmn = mnList.GetValidMNByCollateral(m_mn_activeman->GetOutPoint());
-    if (!dmn) {
+    auto dmn_opt = mnList.GetValidMNByCollateral(m_mn_activeman->GetOutPoint());
+    if (!dmn_opt.has_value()) {
         PushStatus(peer, STATUS_REJECTED, ERR_MN_LIST);
         return;
     }
 
+    auto dmn = dmn_opt.value();
     if (vecSessionCollaterals.empty()) {
         {
             TRY_LOCK(cs_vecqueue, lockRecv);
@@ -129,8 +130,8 @@ PeerMsgRet CCoinJoinServer::ProcessDSQUEUE(const CNode& peer, CDataStream& vRecv
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     if (dsq.masternodeOutpoint.IsNull()) {
-        if (auto dmn = tip_mn_list.GetValidMN(dsq.m_protxHash)) {
-            dsq.masternodeOutpoint = dmn->collateralOutpoint;
+        if (auto dmn_opt = tip_mn_list.GetValidMN(dsq.m_protxHash); dmn_opt.has_value()) {
+            dsq.masternodeOutpoint = dmn_opt.value()->collateralOutpoint;
         } else {
             return tl::unexpected{10};
         }
@@ -157,9 +158,10 @@ PeerMsgRet CCoinJoinServer::ProcessDSQUEUE(const CNode& peer, CDataStream& vRecv
 
     if (dsq.IsTimeOutOfBounds()) return {};
 
-    auto dmn = tip_mn_list.GetValidMNByCollateral(dsq.masternodeOutpoint);
-    if (!dmn) return {};
+    auto dmn_opt = tip_mn_list.GetValidMNByCollateral(dsq.masternodeOutpoint);
+    if (!dmn_opt.has_value()) return {};
 
+    auto dmn = dmn_opt.value();
     if (dsq.m_protxHash.IsNull()) {
         dsq.m_protxHash = dmn->proTxHash;
     }

@@ -1003,10 +1003,12 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
         paramIdx += 3;
     }
 
-    auto dmn = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
-    if (!dmn) {
+    auto dmn_opt = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
+    if (!dmn_opt.has_value()) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s not found", ptx.proTxHash.ToString()));
     }
+
+    auto dmn = dmn_opt.value();
     if (dmn->nType != mnType) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a %s", ptx.proTxHash.ToString(), GetMnType(mnType).description));
     }
@@ -1100,10 +1102,12 @@ static RPCHelpMan protx_update_registrar_wrapper(bool specific_legacy_bls_scheme
     CProUpRegTx ptx;
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
-    auto dmn = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
-    if (!dmn) {
+    auto dmn_opt = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
+    if (!dmn_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
+
+    auto dmn = dmn_opt.value();
     ptx.keyIDVoting = dmn->pdmnState->keyIDVoting;
     ptx.scriptPayout = dmn->pdmnState->scriptPayout;
 
@@ -1225,11 +1229,12 @@ static RPCHelpMan protx_revoke()
         ptx.nReason = (uint16_t)nReason;
     }
 
-    auto dmn = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
-    if (!dmn) {
+    auto dmn_opt = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
+    if (!dmn_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
 
+    auto dmn = dmn_opt.value();
     if (keyOperator.GetPublicKey() != dmn->pdmnState->pubKeyOperator.Get()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("the operator key does not belong to the registered public key"));
     }
@@ -1505,11 +1510,11 @@ static RPCHelpMan protx_info()
     }
 
     auto mnList = dmnman.GetListForBlock(pindex);
-    auto dmn = mnList.GetMN(proTxHash);
-    if (!dmn) {
+    auto dmn_opt = mnList.GetMN(proTxHash);
+    if (!dmn_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s not found", proTxHash.ToString()));
     }
-    return BuildDMNListEntry(wallet.get(), *dmn, mn_metaman, true, chainman, pindex);
+    return BuildDMNListEntry(wallet.get(), *dmn_opt.value(), mn_metaman, true, chainman, pindex);
 },
     };
 }
@@ -1634,20 +1639,21 @@ static RPCHelpMan protx_listdiff()
 
     UniValue jremovedMNs(UniValue::VARR);
     for(const auto& internal_id : mnDiff.removedMns) {
-        auto dmn = baseBlockMNList.GetMNByInternalId(internal_id);
+        auto dmn_opt = baseBlockMNList.GetMNByInternalId(internal_id);
         // BuildDiff will construct itself with MNs that we already have knowledge
         // of, meaning that fetch operations should never fail.
-        CHECK_NONFATAL(dmn);
-        jremovedMNs.push_back(dmn->proTxHash.ToString());
+        CHECK_NONFATAL(dmn_opt.has_value());
+        jremovedMNs.push_back(dmn_opt.value()->proTxHash.ToString());
     }
     ret.pushKV("removedMNs", jremovedMNs);
 
     UniValue jupdatedMNs(UniValue::VARR);
     for(const auto& [internal_id, stateDiff] : mnDiff.updatedMNs) {
-        auto dmn = baseBlockMNList.GetMNByInternalId(internal_id);
+        auto dmn_opt = baseBlockMNList.GetMNByInternalId(internal_id);
         // BuildDiff will construct itself with MNs that we already have knowledge
         // of, meaning that fetch operations should never fail.
-        CHECK_NONFATAL(dmn);
+        CHECK_NONFATAL(dmn_opt.has_value());
+        auto dmn = dmn_opt.value();
         UniValue obj(UniValue::VOBJ);
         obj.pushKV(dmn->proTxHash.ToString(), stateDiff.ToJson(dmn->nType));
         jupdatedMNs.push_back(obj);

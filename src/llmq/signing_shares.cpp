@@ -307,8 +307,8 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- ann={%s}, node=%d\n", __func__, ann.ToString(), pfrom.GetId());
 
-    auto quorum = qman.GetQuorum(llmqType, ann.getQuorumHash());
-    if (!quorum) {
+    auto quorum_opt = qman.GetQuorum(llmqType, ann.getQuorumHash());
+    if (!quorum_opt.has_value()) {
         // TODO should we ban here?
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorum %s not found, node=%d\n", __func__,
                   ann.getQuorumHash().ToString(), pfrom.GetId());
@@ -321,7 +321,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.getSessionId());
     session.recvSessionId = ann.getSessionId();
-    session.quorum = quorum;
+    session.quorum = quorum_opt.value();
     nodeState.sessionByRecvId.try_emplace(ann.getSessionId(), &session);
 
     return true;
@@ -458,10 +458,12 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
 {
     assert(m_mn_activeman);
 
-    auto quorum = qman.GetQuorum(sigShare.getLlmqType(), sigShare.getQuorumHash());
-    if (!quorum) {
+    auto quorum_opt = qman.GetQuorum(sigShare.getLlmqType(), sigShare.getQuorumHash());
+    if (!quorum_opt.has_value()) {
         return;
     }
+
+    auto quorum = quorum_opt.value();
     if (!IsQuorumActive(sigShare.getLlmqType(), qman, quorum->qc->quorumHash)) {
         // quorum is too old
         return;
@@ -549,14 +551,20 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager
     return true;
 }
 
-bool CSigSharesManager::CollectPendingSigSharesToVerify(
-    size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
-    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
+std::optional<
+    std::pair<
+        std::unordered_map<NodeId, std::vector<CSigShare>>,
+        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>
+    >
+> CSigSharesManager::CollectPendingSigSharesToVerify(size_t maxUniqueSessions)
 {
+    std::unordered_map<NodeId, std::vector<CSigShare>> sig_shares;
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
+
     {
         LOCK(cs);
         if (nodeStates.empty()) {
-            return false;
+            return std::nullopt;
         }
 
         // This will iterate node states in random order and pick one sig share at a time. This avoids processing
@@ -581,53 +589,55 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
                 AssertLockHeld(cs);
                 if (const bool alreadyHave = this->sigShares.Has(sigShare.GetKey()); !alreadyHave) {
                     uniqueSignHashes.emplace(nodeId, sigShare.GetSignHash());
-                    retSigShares[nodeId].emplace_back(sigShare);
+                    sig_shares[nodeId].emplace_back(sigShare);
                 }
                 ns.pendingIncomingSigShares.Erase(sigShare.GetKey());
                 return !ns.pendingIncomingSigShares.Empty();
             },
             rnd);
 
-        if (retSigShares.empty()) {
-            return false;
+        if (sig_shares.empty()) {
+            return std::nullopt;
         }
     }
 
     // For the convenience of the caller, also build a map of quorumHash -> quorum
 
-    for (const auto& [_, vecSigShares] : retSigShares) {
+    for (const auto& [_, vecSigShares] : sig_shares) {
         for (const auto& sigShare : vecSigShares) {
             auto llmqType = sigShare.getLlmqType();
 
             auto k = std::make_pair(llmqType, sigShare.getQuorumHash());
-            if (retQuorums.count(k) != 0) {
+            if (quorums.count(k) != 0) {
                 continue;
             }
 
-            auto quorum = qman.GetQuorum(llmqType, sigShare.getQuorumHash());
+            auto quorum_opt = qman.GetQuorum(llmqType, sigShare.getQuorumHash());
             // Despite constructing a convenience map, we assume that the quorum *must* be present.
             // The absence of it might indicate an inconsistent internal state, so we should report
             // nothing instead of reporting flawed data.
-            if (!quorum) {
+            if (!quorum_opt.has_value()) {
                 LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
                           ToUnderlying(llmqType), sigShare.getQuorumHash().ToString());
-                return false;
+                return std::nullopt;
             }
-            retQuorums.try_emplace(k, quorum);
+            quorums.try_emplace(k, quorum_opt.value());
         }
     }
 
-    return true;
+    return std::make_pair(sig_shares, quorums);
 }
 
 bool CSigSharesManager::ProcessPendingSigShares(const CConnman& connman)
 {
-    std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
-    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
-
     const size_t nMaxBatchSize{32};
-    bool collect_status = CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
-    if (!collect_status || sigSharesByNodes.empty()) {
+    auto pending_sig_shares = CollectPendingSigSharesToVerify(nMaxBatchSize);
+    if (!pending_sig_shares.has_value()) {
+        return false;
+    }
+
+    auto [sigSharesByNodes, quorums] = pending_sig_shares.value();
+    if (sigSharesByNodes.empty()) {
         return false;
     }
 
@@ -1277,9 +1287,9 @@ void CSigSharesManager::Cleanup()
     // Find quorums which became inactive
     for (auto it = quorums.begin(); it != quorums.end(); ) {
         if (IsQuorumActive(it->first.first, qman, it->first.second)) {
-            auto quorum = qman.GetQuorum(it->first.first, it->first.second);
-            if (quorum) {
-                it->second = quorum;
+            auto quorum_opt = qman.GetQuorum(it->first.first, it->first.second);
+            if (quorum_opt.has_value()) {
+                it->second = quorum_opt.value();
                 ++it;
                 continue;
             }

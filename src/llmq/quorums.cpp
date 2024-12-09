@@ -393,15 +393,17 @@ void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqPar
     }
 }
 
-CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool populate_cache) const
+std::optional<CQuorumPtr> CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool populate_cache) const
 {
     const uint256& quorumHash{pQuorumBaseBlockIndex->GetBlockHash()};
     uint256 minedBlockHash;
-    CFinalCommitmentPtr qc = quorumBlockProcessor.GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
-    if (qc == nullptr) {
+    auto qc_opt = quorumBlockProcessor.GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
+    if (!qc_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- No mined commitment for llmqType[%d] nHeight[%d] quorumHash[%s]\n", __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->nHeight, pQuorumBaseBlockIndex->GetBlockHash().ToString());
-        return nullptr;
+        return std::nullopt;
     }
+
+    auto qc = std::move(qc_opt).value();
     assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
@@ -606,14 +608,14 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         // We assume that every quorum asked for is available to us on hand, if this
         // fails then we can assume that something has gone wrong and we should stop
         // trying to process any further and return a blank.
-        auto quorum = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
-        if (!quorum) {
+        auto quorum_opt = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
+        if (!quorum_opt.has_value()) {
             LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, blockHash=%s, populate_cache=%s\n",
                       __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
                       populate_cache ? "true" : "false");
             return {};
         }
-        vecResultQuorums.emplace_back(quorum);
+        vecResultQuorums.emplace_back(quorum_opt.value());
     }
 
     const size_t nCountResult{vecResultQuorums.size()};
@@ -631,7 +633,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return {vecResultQuorums.begin(), vecResultQuorums.begin() + nResultEndIndex};
 }
 
-CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+std::optional<CQuorumCPtr> CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     const CBlockIndex* pQuorumBaseBlockIndex = [&]() {
         // Lock contention may still be high here; consider using a shared lock
@@ -649,19 +651,19 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint25
     }();
     if (!pQuorumBaseBlockIndex) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- block %s not found\n", __func__, quorumHash.ToString());
-        return nullptr;
+        return std::nullopt;
     }
     return GetQuorum(llmqType, pQuorumBaseBlockIndex);
 }
 
-CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool populate_cache) const
+std::optional<CQuorumCPtr> CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool populate_cache) const
 {
     auto quorumHash = pQuorumBaseBlockIndex->GetBlockHash();
 
     // we must check this before we look into the cache. Reorgs might have happened which would mean we might have
     // cached quorums which are not in the active chain anymore
     if (!HasQuorum(llmqType, quorumBlockProcessor, quorumHash)) {
-        return nullptr;
+        return std::nullopt;
     }
 
     CQuorumPtr pQuorum;
@@ -764,11 +766,12 @@ PeerMsgRet CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_t
             return sendQDATA(CQuorumDataRequest::Errors::QUORUM_BLOCK_NOT_FOUND, request_limit_exceeded);
         }
 
-        const auto pQuorum = GetQuorum(request.GetLLMQType(), pQuorumBaseBlockIndex);
-        if (pQuorum == nullptr) {
+        const auto pQuorumOpt = GetQuorum(request.GetLLMQType(), pQuorumBaseBlockIndex);
+        if (!pQuorumOpt.has_value()) {
             return sendQDATA(CQuorumDataRequest::Errors::QUORUM_NOT_FOUND, request_limit_exceeded);
         }
 
+        const auto pQuorum = pQuorumOpt.value();
         CDataStream ssResponseData(SER_NETWORK, pfrom.GetCommonVersion());
 
         // Check if request wants QUORUM_VERIFICATION_VECTOR data
@@ -1200,8 +1203,8 @@ void CQuorumManager::MigrateOldQuorumDB(CEvoDB& evoDb) const
     LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- done\n", __func__);
 }
 
-CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
-                                   const uint256& selectionHash, int signHeight, int signOffset)
+std::optional<CQuorumCPtr> SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
+                                                  const uint256& selectionHash, int signHeight, int signOffset)
 {
     size_t poolSize = llmq_params.signingActiveQuorumCount;
 
@@ -1221,7 +1224,7 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
     if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
         auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
         if (quorums.empty()) {
-            return nullptr;
+            return std::nullopt;
         }
         //log2 int
         int n = std::log2(llmq_params.signingActiveQuorumCount);
@@ -1231,7 +1234,7 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
         uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
 
         if (signer > quorums.size()) {
-            return nullptr;
+            return std::nullopt;
         }
         auto itQuorum = std::find_if(quorums.begin(),
                                      quorums.end(),
@@ -1239,13 +1242,13 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
                                          return uint64_t(obj->qc->quorumIndex) == signer;
                                      });
         if (itQuorum == quorums.end()) {
-            return nullptr;
+            return std::nullopt;
         }
         return *itQuorum;
     } else {
         auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
         if (quorums.empty()) {
-            return nullptr;
+            return std::nullopt;
         }
 
         std::vector<std::pair<uint256, size_t>> scores;
@@ -1268,11 +1271,12 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
-    auto quorum = SelectQuorumForSigning(llmq_params_opt.value(), active_chain, qman, id, signedAtHeight, signOffset);
-    if (!quorum) {
+    auto quorum_opt = SelectQuorumForSigning(llmq_params_opt.value(), active_chain, qman, id, signedAtHeight, signOffset);
+    if (!quorum_opt.has_value()) {
         return VerifyRecSigStatus::NoQuorum;
     }
 
+    auto quorum = quorum_opt.value();
     uint256 signHash = BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
     const bool ret = sig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash);
     return ret ? VerifyRecSigStatus::Valid : VerifyRecSigStatus::Invalid;

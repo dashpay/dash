@@ -176,11 +176,11 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
         const auto& [llmqType, hash] = p;
         if (!baseQuorumHashes.count(p)) {
             uint256 minedBlockHash;
-            llmq::CFinalCommitmentPtr qc = quorum_block_processor.GetMinedCommitment(llmqType, hash, minedBlockHash);
-            if (qc == nullptr) {
+            auto qc = quorum_block_processor.GetMinedCommitment(llmqType, hash, minedBlockHash);
+            if (!qc.has_value()) {
                 return false;
             }
-            newQuorums.emplace_back(*qc);
+            newQuorums.emplace_back(*qc.value());
         }
     }
 
@@ -197,13 +197,14 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
         // We assume that we have on hand, quorums that correspond to the hashes queried.
         // If we cannot find them, something must have gone wrong and we should cease trying
         // to build any further.
-        auto quorum = qman.GetQuorum(e.llmqType, e.quorumHash);
-        if (!quorum) {
+        auto quorum_opt = qman.GetQuorum(e.llmqType, e.quorumHash);
+        if (!quorum_opt.has_value()) {
             LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
                       ToUnderlying(e.llmqType), e.quorumHash.ToString());
             return false;
         }
 
+        auto quorum = quorum_opt.value();
         // In case of rotation, all rotated quorums rely on the CL sig expected in the cycleBlock (the block of the first DKG) - 8
         // In case of non-rotation, quorums rely on the CL sig expected in the block of the DKG - 8
         const CBlockIndex* pWorkBaseBlockIndex =
@@ -307,13 +308,13 @@ CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& from, cons
     diffRet.blockHash = to.GetBlockHash();
 
     to.ForEachMN(false, [&](const auto& toPtr) {
-        auto fromPtr = from.GetMN(toPtr.proTxHash);
-        if (fromPtr == nullptr) {
+        auto fromPtrOpt = from.GetMN(toPtr.proTxHash);
+        if (!fromPtrOpt.has_value()) {
             CSimplifiedMNListEntry sme(toPtr);
             diffRet.mnList.push_back(std::move(sme));
         } else {
             CSimplifiedMNListEntry sme1(toPtr);
-            CSimplifiedMNListEntry sme2(*fromPtr);
+            CSimplifiedMNListEntry sme2(*fromPtrOpt.value());
             if ((sme1 != sme2) ||
                 (extended && (sme1.scriptPayout != sme2.scriptPayout || sme1.scriptOperatorPayout != sme2.scriptOperatorPayout))) {
                     diffRet.mnList.push_back(std::move(sme1));
@@ -322,8 +323,8 @@ CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& from, cons
     });
 
     from.ForEachMN(false, [&](auto& fromPtr) {
-        auto toPtr = to.GetMN(fromPtr.proTxHash);
-        if (toPtr == nullptr) {
+        auto toPtrOpt = to.GetMN(fromPtr.proTxHash);
+        if (!toPtrOpt.has_value()) {
             diffRet.deletedMNs.emplace_back(fromPtr.proTxHash);
         }
     });

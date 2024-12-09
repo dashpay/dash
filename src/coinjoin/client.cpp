@@ -59,8 +59,8 @@ PeerMsgRet CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, CDataS
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     if (dsq.masternodeOutpoint.IsNull()) {
-        if (auto dmn = tip_mn_list.GetValidMN(dsq.m_protxHash)) {
-            dsq.masternodeOutpoint = dmn->collateralOutpoint;
+        if (auto dmn_opt = tip_mn_list.GetValidMN(dsq.m_protxHash); dmn_opt.has_value()) {
+            dsq.masternodeOutpoint = dmn_opt.value()->collateralOutpoint;
         } else {
             return tl::unexpected{10};
         }
@@ -90,9 +90,10 @@ PeerMsgRet CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, CDataS
 
         if (dsq.IsTimeOutOfBounds()) return {};
 
-        auto dmn = tip_mn_list.GetValidMNByCollateral(dsq.masternodeOutpoint);
-        if (!dmn) return {};
+        auto dmn_opt = tip_mn_list.GetValidMNByCollateral(dsq.masternodeOutpoint);
+        if (!dmn_opt.has_value()) return {};
 
+        auto dmn = dmn_opt.value();
         if (dsq.m_protxHash.IsNull()) {
             dsq.m_protxHash = dmn->proTxHash;
         }
@@ -1088,14 +1089,15 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
     // Look through the queues and see if anything matches
     CCoinJoinQueue dsq;
     while (m_queueman->GetQueueItemAndTry(dsq)) {
-        auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
+        auto dmn_opt = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
 
-        if (!dmn) {
+        if (!dmn_opt) {
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- dsq masternode is not in masternode list, masternode=%s\n", dsq.masternodeOutpoint.ToStringShort());
             continue;
         }
 
         // skip next mn payments winners
+        auto dmn = dmn_opt.value();
         if (dmn->pdmnState->nLastPaidHeight + nWeightedMnCount < mnList.GetHeight() + WinnersToSkip()) {
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             continue;

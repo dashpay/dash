@@ -101,10 +101,11 @@ void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash,
 {
     AssertLockHeld(cs_db);
     if (!islock) {
-        islock = GetInstantSendLockByHashInternal(hash, false);
-        if (!islock) {
+        auto islock_opt = GetInstantSendLockByHashInternal(hash, false);
+        if (!islock_opt.has_value()) {
             return;
         }
+        islock = islock_opt.value();
     }
 
     batch.Erase(std::make_tuple(DB_ISLOCK_BY_HASH, hash));
@@ -184,7 +185,8 @@ std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> CInstantSen
 
         auto& islockHash = std::get<2>(curKey);
 
-        if (auto islock = GetInstantSendLockByHashInternal(islockHash, false)) {
+        if (auto islock_opt = GetInstantSendLockByHashInternal(islockHash, false); islock_opt.has_value()) {
+            auto islock = islock_opt.value();
             RemoveInstantSendLock(batch, islockHash, islock);
             ret.try_emplace(islockHash, std::move(islock));
         }
@@ -275,7 +277,7 @@ void CInstantSendDb::RemoveBlockInstantSendLocks(const gsl::not_null<std::shared
 bool CInstantSendDb::KnownInstantSendLock(const uint256& islockHash) const
 {
     LOCK(cs_db);
-    return GetInstantSendLockByHashInternal(islockHash) != nullptr || db->Exists(std::make_tuple(DB_ARCHIVED_BY_HASH, islockHash));
+    return GetInstantSendLockByHashInternal(islockHash).has_value() || db->Exists(std::make_tuple(DB_ARCHIVED_BY_HASH, islockHash));
 }
 
 size_t CInstantSendDb::GetInstantSendLockCount() const
@@ -301,11 +303,11 @@ size_t CInstantSendDb::GetInstantSendLockCount() const
     return cnt;
 }
 
-CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache) const
+std::optional<CInstantSendLockPtr> CInstantSendDb::GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache) const
 {
     AssertLockHeld(cs_db);
     if (hash.IsNull()) {
-        return nullptr;
+        return std::nullopt;
     }
 
     CInstantSendLockPtr ret;
@@ -319,9 +321,10 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint2
         ret = std::make_shared<CInstantSendLock>();
         exists = db->Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
         if (!exists || (::SerializeHash(*ret) != hash)) {
-            ret = nullptr;
+            return std::nullopt;
         }
     }
+
     islockCache.insert(hash, ret);
     return ret;
 }
@@ -339,19 +342,19 @@ uint256 CInstantSendDb::GetInstantSendLockHashByTxidInternal(const uint256& txid
     return islockHash;
 }
 
-CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid) const
+std::optional<CInstantSendLockPtr> CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid) const
 {
     LOCK(cs_db);
     return GetInstantSendLockByHashInternal(GetInstantSendLockHashByTxidInternal(txid));
 }
 
-CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& outpoint) const
+std::optional<CInstantSendLockPtr> CInstantSendDb::GetInstantSendLockByInput(const COutPoint& outpoint) const
 {
     LOCK(cs_db);
     uint256 islockHash;
     if (!outpointCache.get(outpoint, islockHash)) {
         if (!db->Read(std::make_tuple(DB_HASH_BY_OUTPOINT, outpoint), islockHash)) {
-            return nullptr;
+            return std::nullopt;
         }
         outpointCache.insert(outpoint, islockHash);
     }
@@ -403,11 +406,12 @@ std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256
         stack.pop_back();
 
         for (auto& childIslockHash : children) {
-            auto childIsLock = GetInstantSendLockByHashInternal(childIslockHash, false);
-            if (!childIsLock) {
+            auto childIsLockOpt = GetInstantSendLockByHashInternal(childIslockHash, false);
+            if (!childIsLockOpt.has_value()) {
                 continue;
             }
 
+            auto childIsLock = childIsLockOpt.value();
             RemoveInstantSendLock(batch, childIslockHash, childIsLock, false);
             WriteInstantSendLockArchived(batch, childIslockHash, nHeight);
             result.emplace_back(childIslockHash);
@@ -472,8 +476,9 @@ void CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
         return;
     }
 
-    auto conflictingLock = GetConflictingLock(tx);
-    if (conflictingLock != nullptr) {
+    auto conflictingLockOpt = GetConflictingLock(tx);
+    if (conflictingLockOpt.has_value()) {
+        auto conflictingLock = conflictingLockOpt.value();
         auto conflictingLockHash = ::SerializeHash(*conflictingLock);
         LogPrintf("CInstantSendManager::%s -- txid=%s: conflicts with islock %s, txid=%s\n", __func__,
                   tx.GetHash().ToString(), conflictingLockHash.ToString(), conflictingLock->txid.ToString());
@@ -905,11 +910,13 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
             nSignHeight = blockIndex->nHeight + dkgInterval - 1;
         }
 
-        auto quorum = llmq::SelectQuorumForSigning(llmq_params, m_chainstate.m_chain, qman, id, nSignHeight, signOffset);
-        if (!quorum) {
+        auto quorum_opt = llmq::SelectQuorumForSigning(llmq_params, m_chainstate.m_chain, qman, id, nSignHeight, signOffset);
+        if (!quorum_opt.has_value()) {
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
         }
+
+        auto quorum = quorum_opt.value();
         uint256 signHash = BuildSignHash(llmq_params.type, quorum->qc->quorumHash, id, islock->txid);
         batchVerifier.PushMessage(nodeId, hash, signHash, islock->sig.Get(), quorum->qc->quorumPublicKey);
         verifyCount++;
@@ -998,16 +1005,17 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         }
     }
 
-    const auto sameTxIsLock = db.GetInstantSendLockByTxid(islock->txid);
-    if (sameTxIsLock != nullptr) {
+    const auto sameTxIsLockOpt = db.GetInstantSendLockByTxid(islock->txid);
+    if (sameTxIsLockOpt.has_value()) {
         // can happen, nothing to do
         return;
     }
+
     for (const auto& in : islock->inputs) {
-        const auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
-        if (sameOutpointIsLock != nullptr) {
+        const auto sameOutpointIsLockOpt = db.GetInstantSendLockByInput(in);
+        if (sameOutpointIsLockOpt.has_value()) {
             LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting outpoint in islock. input=%s, other islock=%s, peer=%d\n", __func__,
-                      islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*sameOutpointIsLock).ToString(), from);
+                      islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*sameOutpointIsLockOpt.value()).ToString(), from);
         }
     }
 
@@ -1090,13 +1098,14 @@ void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& t
         return;
     }
 
-    CInstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
-
-    if (islock == nullptr) {
+    auto islock_opt = db.GetInstantSendLockByTxid(tx->GetHash());
+    if (!islock_opt.has_value()) {
         return;
     }
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- transaction %s was removed from mempool\n", __func__, tx->GetHash().ToString());
+
+    auto islock = islock_opt.value();
     RemoveConflictingLock(::SerializeHash(*islock), *islock);
 }
 
@@ -1461,7 +1470,7 @@ void CInstantSendManager::ProcessPendingRetryLockTxs()
             if (IsLocked(tx->GetHash())) {
                 continue;
             }
-            if (GetConflictingLock(*tx) != nullptr) {
+            if (auto conflictingLockOpt = GetConflictingLock(*tx); conflictingLockOpt.has_value()) {
                 // should not really happen as we have already filtered these out
                 continue;
             }
@@ -1503,29 +1512,29 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CI
         return false;
     }
 
-    auto islock = db.GetInstantSendLockByHash(hash);
-    if (!islock) {
+    auto islock_opt = db.GetInstantSendLockByHash(hash);
+    if (!islock_opt.has_value()) {
         LOCK(cs_pendingLocks);
         auto it = pendingInstantSendLocks.find(hash);
         if (it != pendingInstantSendLocks.end()) {
-            islock = it->second.second;
+            islock_opt = it->second.second;
         } else {
             auto itNoTx = pendingNoTxInstantSendLocks.find(hash);
             if (itNoTx != pendingNoTxInstantSendLocks.end()) {
-                islock = itNoTx->second.second;
+                islock_opt = itNoTx->second.second;
             } else {
                 return false;
             }
         }
     }
-    ret = *islock;
+    ret = *islock_opt.value();
     return true;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetInstantSendLockByTxid(const uint256& txid) const
+std::optional<CInstantSendLockPtr> CInstantSendManager::GetInstantSendLockByTxid(const uint256& txid) const
 {
     if (!IsInstantSendEnabled()) {
-        return nullptr;
+        return std::nullopt;
     }
 
     return db.GetInstantSendLockByTxid(txid);
@@ -1559,23 +1568,23 @@ bool CInstantSendManager::IsWaitingForTx(const uint256& txHash) const
     return false;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx) const
+std::optional<CInstantSendLockPtr> CInstantSendManager::GetConflictingLock(const CTransaction& tx) const
 {
     if (!IsInstantSendEnabled()) {
-        return nullptr;
+        return std::nullopt;
     }
 
     for (const auto& in : tx.vin) {
         auto otherIsLock = db.GetInstantSendLockByInput(in.prevout);
-        if (!otherIsLock) {
+        if (!otherIsLock.has_value()) {
             continue;
         }
 
-        if (otherIsLock->txid != tx.GetHash()) {
+        if (otherIsLock.value()->txid != tx.GetHash()) {
             return otherIsLock;
         }
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 size_t CInstantSendManager::GetInstantSendLockCount() const

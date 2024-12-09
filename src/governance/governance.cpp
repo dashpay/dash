@@ -536,9 +536,9 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
             mapMasternodes.emplace(dmn->collateralOutpoint, dmn);
         });
     } else {
-        auto dmn = tip_mn_list.GetMNByCollateral(mnCollateralOutpointFilter);
-        if (dmn) {
-            mapMasternodes.emplace(dmn->collateralOutpoint, dmn);
+        auto dmn_opt = tip_mn_list.GetMNByCollateral(mnCollateralOutpointFilter);
+        if (dmn_opt.has_value()) {
+            mapMasternodes.emplace(dmn_opt.value()->collateralOutpoint, dmn_opt.value());
         }
     }
 
@@ -1600,10 +1600,11 @@ void CGovernanceManager::RemoveInvalidVotes()
 
     std::vector<COutPoint> changedKeyMNs;
     for (const auto& p : diff.updatedMNs) {
-        auto oldDmn = lastMNListForVotingKeys->GetMNByInternalId(p.first);
+        auto oldDmnOpt = lastMNListForVotingKeys->GetMNByInternalId(p.first);
         // BuildDiff will construct itself with MNs that we already have knowledge
         // of, meaning that fetch operations should never fail.
-        assert(oldDmn);
+        assert(oldDmnOpt.has_value());
+        auto oldDmn = oldDmnOpt.value();
         if ((p.second.fields & CDeterministicMNStateDiff::Field_keyIDVoting) && p.second.state.keyIDVoting != oldDmn->pdmnState->keyIDVoting) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         } else if ((p.second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && p.second.state.pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
@@ -1611,11 +1612,11 @@ void CGovernanceManager::RemoveInvalidVotes()
         }
     }
     for (const auto& id : diff.removedMns) {
-        auto oldDmn = lastMNListForVotingKeys->GetMNByInternalId(id);
+        auto oldDmnOpt = lastMNListForVotingKeys->GetMNByInternalId(id);
         // BuildDiff will construct itself with MNs that we already have knowledge
         // of, meaning that fetch operations should never fail.
-        assert(oldDmn);
-        changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
+        assert(oldDmnOpt.has_value());
+        changedKeyMNs.emplace_back(oldDmnOpt.value()->collateralOutpoint);
     }
 
     for (const auto& outpoint : changedKeyMNs) {

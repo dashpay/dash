@@ -105,7 +105,7 @@ private:
     /**
      * See GetInstantSendLockByHash
      */
-    CInstantSendLockPtr GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+    std::optional<CInstantSendLockPtr> GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
 
     /**
      * See GetInstantSendLockHashByTxid
@@ -156,7 +156,7 @@ public:
      * @param use_cache Should we try using the cache first or not
      * @return A Pointer object to the IS Lock, returns nullptr if it doesn't exist
      */
-    CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db)
+    std::optional<CInstantSendLockPtr> GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db)
     {
         LOCK(cs_db);
         return GetInstantSendLockByHashInternal(hash, use_cache);
@@ -176,13 +176,13 @@ public:
      * @param txid The txid for which the IS Lock Pointer is being returned
      * @return Returns the IS Lock Pointer associated with the txid, returns nullptr if it doesn't exist
      */
-    CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    std::optional<CInstantSendLockPtr> GetInstantSendLockByTxid(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
     /**
      * Gets an IS Lock pointer from an input given
      * @param outpoint Since all inputs are really just outpoints that are being spent
      * @return IS Lock Pointer associated with that input.
      */
-    CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    std::optional<CInstantSendLockPtr> GetInstantSendLockByInput(const COutPoint& outpoint) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
     /**
      * Called when a ChainLock invalidated a IS Lock, removes any chained/children IS Locks and the invalidated IS Lock
      * @param islockHash IS Lock hash which has been invalidated
@@ -334,7 +334,7 @@ private:
 public:
     bool IsLocked(const uint256& txHash) const;
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
-    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx) const;
+    std::optional<CInstantSendLockPtr> GetConflictingLock(const CTransaction& tx) const;
 
     [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_creating, !cs_inputReqests, !cs_pendingLocks);
@@ -351,7 +351,7 @@ public:
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
-    CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
+    std::optional<CInstantSendLockPtr> GetInstantSendLockByTxid(const uint256& txid) const;
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_inputReqests, !cs_nonLocked, !cs_pendingRetry);

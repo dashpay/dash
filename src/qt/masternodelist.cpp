@@ -355,7 +355,7 @@ CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
     proTxHash.SetHex(strProTxHash);
 
     // Caller is responsible for nullptr checking return value
-    return clientModel->getMasternodeList().first.GetMN(proTxHash);
+    return clientModel->getMasternodeList().first.GetMN(proTxHash).value_or(nullptr);
 }
 
 void MasternodeList::extraInfoDIP3_clicked()

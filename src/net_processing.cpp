@@ -2593,9 +2593,9 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
                     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::TX, *pblock->vtx[pair.first]));
                 }
                 for (PairType &pair : merkleBlock.vMatchedTxn) {
-                    auto islock = isman.GetInstantSendLockByTxid(pair.second);
-                    if (islock != nullptr) {
-                        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, *islock));
+                    auto islock_opt = isman.GetInstantSendLockByTxid(pair.second);
+                    if (islock_opt.has_value()) {
+                        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, *islock_opt.value()));
                     }
                 }
             }
@@ -3404,7 +3404,7 @@ std::pair<bool /*ret*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMN
     }
 
     const CBlockIndex* pindex{nullptr};
-    CDeterministicMNCPtr dmn{nullptr};
+    std::optional<CDeterministicMNCPtr> dmn_opt{std::nullopt};
     {
         LOCK(cs_main);
         pindex = chainman.ActiveChain().Tip();
@@ -3413,29 +3413,30 @@ std::pair<bool /*ret*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMN
     // Try to find a MN up to 24 blocks deep to make sure such dstx-es are relayed and processed correctly.
     if (dstx.masternodeOutpoint.IsNull()) {
         for (int i = 0; i < 24 && pindex; ++i) {
-            dmn = dmnman.GetListForBlock(pindex).GetMN(dstx.m_protxHash);
-            if (dmn) {
-                dstx.masternodeOutpoint = dmn->collateralOutpoint;
+            dmn_opt = dmnman.GetListForBlock(pindex).GetMN(dstx.m_protxHash);
+            if (dmn_opt.has_value()) {
+                dstx.masternodeOutpoint = dmn_opt.value()->collateralOutpoint;
                 break;
             }
             pindex = pindex->pprev;
         }
     } else {
         for (int i = 0; i < 24 && pindex; ++i) {
-            dmn = dmnman.GetListForBlock(pindex).GetMNByCollateral(dstx.masternodeOutpoint);
-            if (dmn) {
-                dstx.m_protxHash = dmn->proTxHash;
+            dmn_opt = dmnman.GetListForBlock(pindex).GetMNByCollateral(dstx.masternodeOutpoint);
+            if (dmn_opt.has_value()) {
+                dstx.m_protxHash = dmn_opt.value()->proTxHash;
                 break;
             }
             pindex = pindex->pprev;
         }
     }
 
-    if (!dmn) {
+    if (!dmn_opt.has_value()) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Can't find masternode %s to verify %s\n", dstx.masternodeOutpoint.ToStringShort(), hashTx.ToString());
         return {false, true};
     }
 
+    auto dmn = dmn_opt.value();
     if (!mn_metaman.GetMetaInfo(dmn->proTxHash)->IsValidForMixingTxes()) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Masternode %s is sending too many transactions %s\n", dstx.masternodeOutpoint.ToStringShort(), hashTx.ToString());
         return {true, true};
@@ -6089,10 +6090,10 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                     tx_relay->m_tx_inventory_known_filter.insert(hash);
                     queueAndMaybePushInv(CInv(nInvType, hash));
 
-                    const auto islock = m_llmq_ctx->isman->GetInstantSendLockByTxid(hash);
-                    if (islock == nullptr) continue;
+                    const auto islock_opt = m_llmq_ctx->isman->GetInstantSendLockByTxid(hash);
+                    if (!islock_opt.has_value()) continue;
                     if (pto->nVersion < ISDLOCK_PROTO_VERSION) continue;
-                    uint256 isLockHash{::SerializeHash(*islock)};
+                    uint256 isLockHash{::SerializeHash(*islock_opt.value())};
                     tx_relay->m_tx_inventory_known_filter.insert(isLockHash);
                     queueAndMaybePushInv(CInv(MSG_ISDLOCK, isLockHash));
                 }

@@ -93,14 +93,15 @@ PeerMsgRet CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_services, CCon
         return tl::unexpected{MisbehavingError{100, "invalid mnauth signature"}};
     }
 
-    const auto dmn = tip_mn_list.GetMN(mnauth.proRegTxHash);
-    if (!dmn) {
+    const auto dmn_opt = tip_mn_list.GetMN(mnauth.proRegTxHash);
+    if (!dmn_opt.has_value()) {
         // in case node was unlucky and not up to date, just let it be connected as a regular node, which gives it
         // a chance to get up-to-date and thus realize that it's not a MN anymore. We still give it a
         // low DoS score.
         return tl::unexpected{MisbehavingError{10, "missing mnauth masternode"}};
     }
 
+    auto dmn = dmn_opt.value();
     uint256 signHash;
     int nOurNodeVersion{PROTOCOL_VERSION};
     if (Params().NetworkIDString() != CBaseChainParams::MAIN && gArgs.IsArgSet("-pushversion")) {
@@ -206,10 +207,12 @@ void CMNAuth::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList&
         if (verifiedProRegTxHash.IsNull()) {
             return;
         }
-        const auto verifiedDmn = oldMNList.GetMN(verifiedProRegTxHash);
-        if (!verifiedDmn) {
+        const auto verifiedDmnOpt = oldMNList.GetMN(verifiedProRegTxHash);
+        if (!verifiedDmnOpt.has_value()) {
             return;
         }
+
+        const auto verifiedDmn = verifiedDmnOpt.value();
         bool doRemove = false;
         if (diff.removedMns.count(verifiedDmn->GetInternalId())) {
             doRemove = true;

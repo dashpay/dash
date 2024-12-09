@@ -326,24 +326,24 @@ public:
 
     [[nodiscard]] bool HasMN(const uint256& proTxHash) const
     {
-        return GetMN(proTxHash) != nullptr;
+        return GetMN(proTxHash).has_value();
     }
     [[nodiscard]] bool HasMNByCollateral(const COutPoint& collateralOutpoint) const
     {
-        return GetMNByCollateral(collateralOutpoint) != nullptr;
+        return GetMNByCollateral(collateralOutpoint).has_value();
     }
     [[nodiscard]] bool HasValidMNByCollateral(const COutPoint& collateralOutpoint) const
     {
-        return GetValidMNByCollateral(collateralOutpoint) != nullptr;
+        return GetValidMNByCollateral(collateralOutpoint).has_value();
     }
-    [[nodiscard]] CDeterministicMNCPtr GetMN(const uint256& proTxHash) const;
-    [[nodiscard]] CDeterministicMNCPtr GetValidMN(const uint256& proTxHash) const;
-    [[nodiscard]] CDeterministicMNCPtr GetMNByOperatorKey(const CBLSPublicKey& pubKey) const;
-    [[nodiscard]] CDeterministicMNCPtr GetMNByCollateral(const COutPoint& collateralOutpoint) const;
-    [[nodiscard]] CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
-    [[nodiscard]] CDeterministicMNCPtr GetMNByService(const CService& service) const;
-    [[nodiscard]] CDeterministicMNCPtr GetMNByInternalId(uint64_t internalId) const;
-    [[nodiscard]] CDeterministicMNCPtr GetMNPayee(gsl::not_null<const CBlockIndex*> pindexPrev) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetMN(const uint256& proTxHash) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetValidMN(const uint256& proTxHash) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetMNByOperatorKey(const CBLSPublicKey& pubKey) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetMNByCollateral(const COutPoint& collateralOutpoint) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetMNByService(const CService& service) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetMNByInternalId(uint64_t internalId) const;
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetMNPayee(gsl::not_null<const CBlockIndex*> pindexPrev) const;
 
     /**
      * Calculates the projected MN payees for the next *count* blocks. The result is not guaranteed to be correct
@@ -401,11 +401,11 @@ public:
         return mnUniquePropertyMap.count(GetUniquePropertyHash(v)) != 0;
     }
     template <typename T>
-    [[nodiscard]] CDeterministicMNCPtr GetUniquePropertyMN(const T& v) const
+    [[nodiscard]] std::optional<CDeterministicMNCPtr> GetUniquePropertyMN(const T& v) const
     {
         auto p = mnUniquePropertyMap.find(GetUniquePropertyHash(v));
         if (!p) {
-            return nullptr;
+            return std::nullopt;
         }
         return GetMN(p->first);
     }

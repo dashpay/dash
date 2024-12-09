@@ -212,11 +212,13 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
         auto& map_indexed_hashes = qcIndexedHashes_cached[llmqType];
         for (const auto& blockIndex : vecBlockIndexes) {
             uint256 dummyHash;
-            llmq::CFinalCommitmentPtr pqc = quorum_block_processor.GetMinedCommitment(llmqType, blockIndex->GetBlockHash(), dummyHash);
-            if (pqc == nullptr) {
+            auto pqc_opt = quorum_block_processor.GetMinedCommitment(llmqType, blockIndex->GetBlockHash(), dummyHash);
+            if (!pqc_opt.has_value()) {
                 // this should never happen
                 return std::nullopt;
             }
+
+            auto pqc = std::move(pqc_opt).value();
             auto qcHash = ::SerializeHash(*pqc);
             if (rotation_enabled) {
                 map_indexed_hashes[pqc->quorumIndex] = qcHash;

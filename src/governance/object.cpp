@@ -72,14 +72,15 @@ bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, CGovernanceM
         return false;
     }
 
-    auto dmn = tip_mn_list.GetMNByCollateral(vote.GetMasternodeOutpoint());
-    if (!dmn) {
+    auto dmn_opt = tip_mn_list.GetMNByCollateral(vote.GetMasternodeOutpoint());
+    if (!dmn_opt.has_value()) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Masternode " << vote.GetMasternodeOutpoint().ToStringShort() << " not found";
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
         return false;
     }
 
+    auto dmn = dmn_opt.value();
     auto it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
     vote_rec_t& voteRecordRef = it->second;
     vote_signal_enum_t eSignal = vote.GetSignal();
@@ -421,12 +422,13 @@ bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, 
         }
 
         std::string strOutpoint = m_obj.masternodeOutpoint.ToStringShort();
-        auto dmn = tip_mn_list.GetMNByCollateral(m_obj.masternodeOutpoint);
-        if (!dmn) {
+        auto dmn_opt = tip_mn_list.GetMNByCollateral(m_obj.masternodeOutpoint);
+        if (!dmn_opt.has_value()) {
             strError = "Failed to find Masternode by UTXO, missing masternode=" + strOutpoint;
             return false;
         }
 
+        auto dmn = dmn_opt.value();
         // Check that we have a valid MN signature
         if (!CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
             strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey = " + dmn->pdmnState->pubKeyOperator.ToString();
@@ -556,8 +558,8 @@ int CGovernanceObject::CountMatchingVotes(const CDeterministicMNList& tip_mn_lis
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
             // 4x times weight vote for EvoNode owners.
             // No need to check if v19 is active since no EvoNode are allowed to register before v19s
-            auto dmn = tip_mn_list.GetMNByCollateral(votepair.first);
-            if (dmn != nullptr) nCount += GetMnType(dmn->nType).voting_weight;
+            auto dmn_opt = tip_mn_list.GetMNByCollateral(votepair.first);
+            if (dmn_opt.has_value()) nCount += GetMnType(dmn_opt.value()->nType).voting_weight;
         }
     }
     return nCount;

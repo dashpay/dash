@@ -229,8 +229,9 @@ static RPCHelpMan masternode_status()
     // keep compatibility with legacy status for now (might get deprecated/removed later)
     mnObj.pushKV("outpoint", node.mn_activeman->GetOutPoint().ToStringShort());
     mnObj.pushKV("service", node.mn_activeman->GetService().ToStringAddrPort());
-    auto dmn = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip().GetMN(node.mn_activeman->GetProTxHash());
-    if (dmn) {
+    auto dmn_opt = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip().GetMN(node.mn_activeman->GetProTxHash());
+    if (dmn_opt.has_value()) {
+        auto dmn = dmn_opt.value();
         mnObj.pushKV("proTxHash", dmn->proTxHash.ToString());
         mnObj.pushKV("type", std::string(GetMnType(dmn->nType).description));
         mnObj.pushKV("collateralHash", dmn->collateralOutpoint.hash.ToString());
@@ -321,9 +322,9 @@ static RPCHelpMan masternode_winners()
     const auto tip_mn_list = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip();
     for (int h = nStartHeight; h <= nChainTipHeight; h++) {
         const CBlockIndex* pIndex = pindexTip->GetAncestor(h - 1);
-        auto payee = node.dmnman->GetListForBlock(pIndex).GetMNPayee(pIndex);
-        if (payee) {
-            std::string strPayments = GetRequiredPaymentsString(*CHECK_NONFATAL(node.govman), tip_mn_list, h, payee);
+        auto payee_opt = node.dmnman->GetListForBlock(pIndex).GetMNPayee(pIndex);
+        if (payee_opt.has_value()) {
+            std::string strPayments = GetRequiredPaymentsString(*CHECK_NONFATAL(node.govman), tip_mn_list, h, payee_opt.value());
             if (strFilter != "" && strPayments.find(strFilter) == std::string::npos) continue;
             obj.pushKV(strprintf("%d", h), strPayments);
         }
@@ -458,8 +459,8 @@ static RPCHelpMan masternode_payments()
         }
 
         // NOTE: we use _previous_ block to find a payee for the current one
-        const auto dmnPayee = node.dmnman->GetListForBlock(pindex->pprev).GetMNPayee(pindex->pprev);
-        protxObj.pushKV("proTxHash", dmnPayee == nullptr ? "" : dmnPayee->proTxHash.ToString());
+        auto dmnPayeeOpt = node.dmnman->GetListForBlock(pindex->pprev).GetMNPayee(pindex->pprev);
+        protxObj.pushKV("proTxHash", !dmnPayeeOpt.has_value() ? "" : dmnPayeeOpt.value()->proTxHash.ToString());
         protxObj.pushKV("amount", payedPerMasternode);
         protxObj.pushKV("payees", payeesArr);
         payedPerBlock += payedPerMasternode;

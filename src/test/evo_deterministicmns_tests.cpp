@@ -466,8 +466,8 @@ void FuncDIP3Protx(TestChainSetup& setup)
 
     // check MN reward payments
     for (size_t i = 0; i < 20; i++) {
-        auto dmnExpectedPayee = dmnman.GetListAtChainTip().GetMNPayee(chainman.ActiveChain().Tip());
-        BOOST_ASSERT(dmnExpectedPayee);
+        auto dmnExpectedPayeeOpt = dmnman.GetListAtChainTip().GetMNPayee(chainman.ActiveChain().Tip());
+        BOOST_ASSERT(dmnExpectedPayeeOpt.has_value());
 
         CBlock block = setup.CreateAndProcessBlock({}, setup.coinbaseKey);
         dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
@@ -475,7 +475,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
 
         auto dmnPayout = FindPayoutDmn(dmnman, block);
         BOOST_REQUIRE(dmnPayout != nullptr);
-        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayee->proTxHash.ToString());
+        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayeeOpt.value()->proTxHash.ToString());
 
         nHeight++;
     }
@@ -510,8 +510,8 @@ void FuncDIP3Protx(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(chainman.ActiveChain().Height(), nHeight + 1);
     nHeight++;
 
-    auto dmn = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
-    BOOST_REQUIRE(dmn != nullptr && dmn->pdmnState->addr.GetPort() == 1000);
+    auto dmn_opt = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
+    BOOST_REQUIRE(dmn_opt.has_value() && dmn_opt.value()->pdmnState->addr.GetPort() == 1000);
 
     // test ProUpRevTx
     tx = CreateProUpRevTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, dmnHashes[0], operatorKeys[dmnHashes[0]], setup.coinbaseKey);
@@ -520,13 +520,13 @@ void FuncDIP3Protx(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(chainman.ActiveChain().Height(), nHeight + 1);
     nHeight++;
 
-    dmn = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
-    BOOST_REQUIRE(dmn != nullptr && dmn->pdmnState->GetBannedHeight() == nHeight);
+    dmn_opt = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
+    BOOST_REQUIRE(dmn_opt.has_value() && dmn_opt.value()->pdmnState->GetBannedHeight() == nHeight);
 
     // test that the revoked MN does not get paid anymore
     for (size_t i = 0; i < 20; i++) {
-        auto dmnExpectedPayee = dmnman.GetListAtChainTip().GetMNPayee(chainman.ActiveChain().Tip());
-        BOOST_REQUIRE(dmnExpectedPayee && dmnExpectedPayee->proTxHash != dmnHashes[0]);
+        auto dmnExpectedPayeeOpt = dmnman.GetListAtChainTip().GetMNPayee(chainman.ActiveChain().Tip());
+        BOOST_REQUIRE(dmnExpectedPayeeOpt.has_value() && dmnExpectedPayeeOpt.value()->proTxHash != dmnHashes[0]);
 
         CBlock block = setup.CreateAndProcessBlock({}, setup.coinbaseKey);
         dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
@@ -534,7 +534,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
 
         auto dmnPayout = FindPayoutDmn(dmnman, block);
         BOOST_REQUIRE(dmnPayout != nullptr);
-        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayee->proTxHash.ToString());
+        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayeeOpt.value()->proTxHash.ToString());
 
         nHeight++;
     }
@@ -542,8 +542,8 @@ void FuncDIP3Protx(TestChainSetup& setup)
     // test reviving the MN
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
-    dmn = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
-    tx = CreateProUpRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, dmnHashes[0], ownerKeys[dmnHashes[0]], newOperatorKey.GetPublicKey(), ownerKeys[dmnHashes[0]].GetPubKey().GetID(), dmn->pdmnState->scriptPayout, setup.coinbaseKey);
+    dmn_opt = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
+    tx = CreateProUpRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, dmnHashes[0], ownerKeys[dmnHashes[0]], newOperatorKey.GetPublicKey(), ownerKeys[dmnHashes[0]].GetPubKey().GetID(), dmn_opt.value()->pdmnState->scriptPayout, setup.coinbaseKey);
     // check malleability protection again, but this time by also relying on the signature inside the ProUpRegTx
     auto tx2 = MalleateProTxPayout<CProUpRegTx>(tx);
     TxValidationState dummy_state;
@@ -568,16 +568,16 @@ void FuncDIP3Protx(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(chainman.ActiveChain().Height(), nHeight + 1);
     nHeight++;
 
-    dmn = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
-    BOOST_REQUIRE(dmn != nullptr && dmn->pdmnState->addr.GetPort() == 100);
-    BOOST_REQUIRE(dmn != nullptr && !dmn->pdmnState->IsBanned());
+    dmn_opt = dmnman.GetListAtChainTip().GetMN(dmnHashes[0]);
+    BOOST_REQUIRE(dmn_opt.has_value() && dmn_opt.value()->pdmnState->addr.GetPort() == 100);
+    BOOST_REQUIRE(dmn_opt.has_value() && !dmn_opt.value()->pdmnState->IsBanned());
 
     // test that the revived MN gets payments again
     bool foundRevived = false;
     for (size_t i = 0; i < 20; i++) {
-        auto dmnExpectedPayee = dmnman.GetListAtChainTip().GetMNPayee(chainman.ActiveChain().Tip());
-        BOOST_ASSERT(dmnExpectedPayee);
-        if (dmnExpectedPayee->proTxHash == dmnHashes[0]) {
+        auto dmnExpectedPayeeOpt = dmnman.GetListAtChainTip().GetMNPayee(chainman.ActiveChain().Tip());
+        BOOST_ASSERT(dmnExpectedPayeeOpt.has_value());
+        if (dmnExpectedPayeeOpt.value()->proTxHash == dmnHashes[0]) {
             foundRevived = true;
         }
 
@@ -587,7 +587,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
 
         auto dmnPayout = FindPayoutDmn(dmnman, block);
         BOOST_REQUIRE(dmnPayout != nullptr);
-        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayee->proTxHash.ToString());
+        BOOST_CHECK_EQUAL(dmnPayout->proTxHash.ToString(), dmnExpectedPayeeOpt.value()->proTxHash.ToString());
 
         nHeight++;
     }

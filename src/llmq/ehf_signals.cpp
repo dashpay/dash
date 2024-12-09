@@ -75,12 +75,13 @@ void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pind
         return;
     }
 
-    const auto quorum = llmq::SelectQuorumForSigning(llmq_params_opt.value(), m_chainman.ActiveChain(), qman, requestId);
-    if (!quorum) {
+    const auto quorum_opt = llmq::SelectQuorumForSigning(llmq_params_opt.value(), m_chainman.ActiveChain(), qman, requestId);
+    if (!quorum_opt) {
         LogPrintf("CEHFSignalsHandler::trySignEHFSignal no quorum for id=%s\n", requestId.ToString());
         return;
     }
 
+    const auto quorum = quorum_opt.value();
     LogPrint(BCLog::EHF, "CEHFSignalsHandler::trySignEHFSignal: bit=%d at height=%d id=%s\n", bit, pindex->nHeight, requestId.ToString());
     mnhfPayload.signal.quorumHash = quorum->qc->quorumHash;
     const uint256 msgHash = mnhfPayload.PrepareTx().GetHash();

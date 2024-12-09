@@ -792,11 +792,11 @@ bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& 
             LogAcceptDebug(BCLog::LLMQ)) {
             std::string debugMsg = strprintf("%s -- adding masternodes quorum connections for quorum %s:\n", __func__, pQuorumBaseBlockIndex->GetBlockHash().ToString());
             for (const auto& c : connections) {
-                auto dmn = tip_mn_list.GetValidMN(c);
-                if (!dmn) {
+                auto dmn_opt = tip_mn_list.GetValidMN(c);
+                if (!dmn_opt.has_value()) {
                     debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
                 } else {
-                    debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToStringAddrPort());
+                    debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn_opt.value()->pdmnState->addr.ToStringAddrPort());
                 }
             }
             LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
@@ -839,11 +839,11 @@ void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman
         if (LogAcceptDebug(BCLog::LLMQ)) {
             std::string debugMsg = strprintf("%s -- adding masternodes probes for quorum %s:\n", __func__, pQuorumBaseBlockIndex->GetBlockHash().ToString());
             for (const auto& c : probeConnections) {
-                auto dmn = tip_mn_list.GetValidMN(c);
-                if (!dmn) {
+                auto dmn_opt = tip_mn_list.GetValidMN(c);
+                if (!dmn_opt.has_value()) {
                     debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
                 } else {
-                    debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToStringAddrPort());
+                    debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn_opt.value()->pdmnState->addr.ToStringAddrPort());
                 }
             }
             LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */

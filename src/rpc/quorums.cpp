@@ -255,12 +255,12 @@ static RPCHelpMan quorum_info()
         includeSkShare = ParseBoolV(request.params[2], "includeSkShare");
     }
 
-    const auto quorum = llmq_ctx.qman->GetQuorum(llmqType, quorumHash);
-    if (!quorum) {
+    const auto quorum_opt = llmq_ctx.qman->GetQuorum(llmqType, quorumHash);
+    if (!quorum_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
     }
 
-    return BuildQuorumInfo(*llmq_ctx.quorum_block_processor, quorum, true, includeSkShare);
+    return BuildQuorumInfo(*llmq_ctx.quorum_block_processor, quorum_opt.value(), true, includeSkShare);
 },
     };
 }
@@ -397,11 +397,12 @@ static RPCHelpMan quorum_memberof()
 
     const CBlockIndex* pindexTip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
     auto mnList = CHECK_NONFATAL(node.dmnman)->GetListForBlock(pindexTip);
-    auto dmn = mnList.GetMN(protxHash);
-    if (!dmn) {
+    auto dmn_opt = mnList.GetMN(protxHash);
+    if (!dmn_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "masternode not found");
     }
 
+    auto dmn = dmn_opt.value();
     UniValue result(UniValue::VARR);
     for (const auto& type : llmq::GetEnabledQuorumTypes(pindexTip)) {
         const auto llmq_params_opt = Params().GetLLMQ(type);
@@ -451,7 +452,7 @@ static UniValue quorum_sign_helper(const JSONRPCRequest& request, Consensus::LLM
     if (fSubmit) {
         return llmq_ctx.sigman->AsyncSignIfMember(llmqType, *llmq_ctx.shareman, id, msgHash, quorumHash);
     } else {
-        const auto pQuorum = [&]() {
+        const auto pQuorumOpt = [&]() {
             if (quorumHash.IsNull()) {
                 return llmq::SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), *llmq_ctx.qman, id);
             } else {
@@ -459,11 +460,11 @@ static UniValue quorum_sign_helper(const JSONRPCRequest& request, Consensus::LLM
             }
         }();
 
-        if (pQuorum == nullptr) {
+        if (!pQuorumOpt.has_value()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
         }
 
-        auto sigShare = llmq_ctx.shareman->CreateSigShare(pQuorum, id, msgHash);
+        auto sigShare = llmq_ctx.shareman->CreateSigShare(pQuorumOpt.value(), id, msgHash);
 
         if (!sigShare.has_value() || !sigShare->sigShare.Get().IsValid()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "failed to create sigShare");
@@ -592,12 +593,12 @@ static RPCHelpMan quorum_verify()
     }
 
     uint256 quorumHash(ParseHashV(request.params[4], "quorumHash"));
-    const auto quorum = llmq_ctx.qman->GetQuorum(llmqType, quorumHash);
-
-    if (!quorum) {
+    const auto quorum_opt = llmq_ctx.qman->GetQuorum(llmqType, quorumHash);
+    if (!quorum_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
     }
 
+    const auto quorum = quorum_opt.value();
     uint256 signHash = llmq::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
     return sig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash);
 },
@@ -724,12 +725,13 @@ static RPCHelpMan quorum_selectquorum()
 
     UniValue ret(UniValue::VOBJ);
 
-    const auto quorum = llmq::SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), *llmq_ctx.qman, id);
-    if (!quorum) {
+    const auto quorum_opt = llmq::SelectQuorumForSigning(llmq_params_opt.value(), chainman.ActiveChain(), *llmq_ctx.qman, id);
+    if (!quorum_opt.has_value()) {
         throw JSONRPCError(RPC_MISC_ERROR, "no quorums active");
     }
-    ret.pushKV("quorumHash", quorum->qc->quorumHash.ToString());
 
+    const auto quorum = quorum_opt.value();
+    ret.pushKV("quorumHash", quorum->qc->quorumHash.ToString());
     UniValue recoveryMembers(UniValue::VARR);
     for (int i = 0; i < quorum->params.recoveryMembers; ++i) {
         auto dmn = llmq_ctx.shareman->SelectMemberForRecovery(quorum, id, i);

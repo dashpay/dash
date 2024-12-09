@@ -98,8 +98,8 @@ CGovernanceVote::CGovernanceVote(const COutPoint& outpointMasternodeIn, const ui
 
 std::string CGovernanceVote::ToString(const CDeterministicMNList& tip_mn_list) const
 {
-    auto dmn = tip_mn_list.GetMNByCollateral(masternodeOutpoint);
-    int voteWeight = dmn != nullptr ? GetMnType(dmn->nType).voting_weight : 0;
+    auto dmn_opt = tip_mn_list.GetMNByCollateral(masternodeOutpoint);
+    int voteWeight = dmn_opt.has_value() ? GetMnType(dmn_opt.value()->nType).voting_weight : 0;
     std::ostringstream ostr;
     ostr << masternodeOutpoint.ToStringShort() << ":"
          << nTime << ":"
@@ -209,12 +209,13 @@ bool CGovernanceVote::IsValid(const CDeterministicMNList& tip_mn_list, bool useV
         return false;
     }
 
-    auto dmn = tip_mn_list.GetMNByCollateral(masternodeOutpoint);
-    if (!dmn) {
+    auto dmn_opt = tip_mn_list.GetMNByCollateral(masternodeOutpoint);
+    if (!dmn_opt.has_value()) {
         LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- Unknown Masternode - %s\n", masternodeOutpoint.ToStringShort());
         return false;
     }
 
+    auto dmn = dmn_opt.value();
     if (useVotingKey) {
         return CheckSignature(dmn->pdmnState->keyIDVoting);
     } else {

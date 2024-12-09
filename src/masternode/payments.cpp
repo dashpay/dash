@@ -51,18 +51,20 @@ CAmount PlatformShare(const CAmount reward)
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- MN reward %lld reallocated to credit pool\n", __func__, platformReward);
         voutMasternodePaymentsRet.emplace_back(platformReward, CScript() << OP_RETURN);
     }
+
     const auto mnList = m_dmnman.GetListForBlock(pindexPrev);
     if (mnList.GetAllMNsCount() == 0) {
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- no masternode registered to receive a payment\n", __func__);
         return true;
     }
-    const auto dmnPayee = mnList.GetMNPayee(pindexPrev);
-    if (!dmnPayee) {
+
+    auto dmnPayeeOpt = m_dmnman.GetListForBlock(pindexPrev).GetMNPayee(pindexPrev);
+    if (!dmnPayeeOpt.has_value()) {
         return false;
     }
 
     CAmount operatorReward = 0;
-
+    auto dmnPayee = dmnPayeeOpt.value();
     if (dmnPayee->nOperatorReward != 0 && dmnPayee->pdmnState->scriptOperatorPayout != CScript()) {
         // This calculation might eventually turn out to result in 0 even if an operator reward percentage is given.
         // This will however only happen in a few years when the block rewards drops very low.
