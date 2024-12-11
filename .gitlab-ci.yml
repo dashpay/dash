@@ -133,16 +133,21 @@ builder-image:
     name: binaries
     when: always
     paths:
-      - build-ci
-    # Exclude some less important binaries to reduce the size of the artifacts
-    exclude:
-      - build-ci/dashcore-$BUILD_TARGET/src/bench/bench_dash
-      - build-ci/dashcore-$BUILD_TARGET/src/bench/bench_dash.exe
-      - build-ci/dashcore-$BUILD_TARGET/src/qt/test/test_dash-qt
-      - build-ci/dashcore-$BUILD_TARGET/src/qt/test/test_dash-qt.exe
-      - build-ci/dashcore-$BUILD_TARGET/src/test/test_dash
-      - build-ci/dashcore-$BUILD_TARGET/src/test/test_dash.exe
-      - build-ci/dashcore-$BUILD_TARGET/src/test/fuzz/*
+      - build-ci/dashcore-${BUILD_TARGET}/contrib/linearize/linearize-data.py # for feature_loadblock.py
+      - build-ci/dashcore-${BUILD_TARGET}/contrib/linearize/linearize-hashes.py # for feature_loadblock.py
+      - build-ci/dashcore-${BUILD_TARGET}/share/rpcauth/rpcauth.py # for rpc_users.py
+      - build-ci/dashcore-${BUILD_TARGET}/src/**/*.log # unit test logs
+      - build-ci/dashcore-${BUILD_TARGET}/src/dashd*
+      - build-ci/dashcore-${BUILD_TARGET}/src/dash-cli*
+      - build-ci/dashcore-${BUILD_TARGET}/src/dash-gui
+      - build-ci/dashcore-${BUILD_TARGET}/src/dash-node
+      - build-ci/dashcore-${BUILD_TARGET}/src/dash-tx*
+      - build-ci/dashcore-${BUILD_TARGET}/src/dash-wallet*
+      - build-ci/dashcore-${BUILD_TARGET}/src/qt/dash-qt*
+      - build-ci/dashcore-${BUILD_TARGET}/src/rpc/client.cpp # for rpc_help.py
+      - build-ci/dashcore-${BUILD_TARGET}/src/test/data/asmap.raw # for feature_asmap.py
+      - build-ci/dashcore-${BUILD_TARGET}/test/
+      - build-ci/test/
     expire_in: 3 days
 
 .test-template:
