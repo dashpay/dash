@@ -815,7 +815,7 @@ static RPCHelpMan quorum_getdata()
         }
     }
 
-    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(quorumHash));
+    const CBlockIndex* pQuorumBaseBlockIndex = chainman.m_blockman.LookupBlockIndex(quorumHash);
 
     return connman.ForNode(nodeId, [&](CNode* pNode) {
         return llmq_ctx.qman->RequestQuorumData(pNode, connman, llmqType, pQuorumBaseBlockIndex, nDataMask, proTxHash);
@@ -968,7 +968,7 @@ static RPCHelpMan verifychainlock()
     int nBlockHeight;
     const CBlockIndex* pIndex{nullptr};
     if (request.params[2].isNull()) {
-        pIndex = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(nBlockHash));
+        pIndex = chainman.m_blockman.LookupBlockIndex(nBlockHash);
         if (pIndex == nullptr) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "blockHash not found");
         }
@@ -1029,13 +1029,10 @@ static RPCHelpMan verifyislock()
     }
 
     const CBlockIndex* pindexMined{nullptr};
-    {
-        LOCK(cs_main);
-        uint256 hash_block;
-        CTransactionRef tx = GetTransaction(/* block_index */ nullptr,  /* mempool */ nullptr, txid, Params().GetConsensus(), hash_block);
-        if (tx && !hash_block.IsNull()) {
-            pindexMined = chainman.m_blockman.LookupBlockIndex(hash_block);
-        }
+    uint256 hash_block;
+    CTransactionRef tx = GetTransaction(/* block_index */ nullptr,  /* mempool */ nullptr, txid, Params().GetConsensus(), hash_block);
+    if (tx && !hash_block.IsNull()) {
+        pindexMined = chainman.m_blockman.LookupBlockIndex(hash_block);
     }
 
     int maxHeight{-1};

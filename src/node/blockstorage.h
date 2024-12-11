@@ -104,14 +104,14 @@ private:
      * collections like m_dirty_blockindex.
      */
     bool LoadBlockIndex(const Consensus::Params& consensus_params)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+        EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_block_index_mutex);
     void FlushBlockFile(bool fFinalize = false, bool finalize_undo = false);
     void FlushUndoFile(int block_file, bool finalize = false);
     bool FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, CChain& active_chain, uint64_t nTime, bool fKnown);
     bool FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize);
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
-    void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height);
+    void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height) EXCLUSIVE_LOCKS_REQUIRED(!m_block_index_mutex);
 
     /**
      * Prune block and undo files (blk???.dat and rev???.dat) so that the disk space used is less than a user-defined target.
@@ -128,7 +128,7 @@ private:
      *
      * @param[out]   setFilesToPrune   The set of file indices that can be unlinked will be returned
      */
-    void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight, int chain_tip_height, int prune_height, bool is_ibd);
+    void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight, int chain_tip_height, int prune_height, bool is_ibd) EXCLUSIVE_LOCKS_REQUIRED(!m_block_index_mutex);
 
     RecursiveMutex cs_LastBlockFile;
     std::vector<CBlockFileInfo> m_blockfile_info;
@@ -154,10 +154,11 @@ private:
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
 
 public:
-    BlockMap m_block_index GUARDED_BY(cs_main);
+    mutable Mutex m_block_index_mutex;
+    BlockMap m_block_index GUARDED_BY(m_block_index_mutex);
     PrevBlockMap m_prev_block_index GUARDED_BY(cs_main);
 
-    std::vector<CBlockIndex*> GetAllBlockIndices() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    std::vector<CBlockIndex*> GetAllBlockIndices() EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_block_index_mutex);
 
     /**
      * All pairs A->B, where A (or one of its ancestors) misses transactions, but B has transactions.
@@ -168,19 +169,19 @@ public:
     std::unique_ptr<CBlockTreeDB> m_block_tree_db GUARDED_BY(::cs_main);
 
     bool WriteBlockIndexDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool LoadBlockIndexDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool LoadBlockIndexDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_block_index_mutex);
 
     CBlockIndex* AddToBlockIndex(const CBlockHeader& block, const uint256& hash, CBlockIndex*& best_header,
                                  enum BlockStatus nStatus = BLOCK_VALID_TREE)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+        EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_block_index_mutex);
     /** Create a new block index entry for a given block hash */
-    CBlockIndex* InsertBlockIndex(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    CBlockIndex* InsertBlockIndex(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_block_index_mutex);
 
     //! Mark one block file as pruned (modify associated database entries)
-    void PruneOneBlockFile(const int fileNumber) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void PruneOneBlockFile(const int fileNumber) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_block_index_mutex);
 
-    CBlockIndex* LookupBlockIndex(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-    const CBlockIndex* LookupBlockIndex(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    CBlockIndex* LookupBlockIndex(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!m_block_index_mutex);
+    const CBlockIndex* LookupBlockIndex(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!m_block_index_mutex);
 
     /** Get block file info entry for one block file */
     CBlockFileInfo* GetBlockFileInfo(size_t n);
@@ -195,7 +196,7 @@ public:
     uint64_t CalculateCurrentUsage();
 
     //! Returns last CBlockIndex* that is a checkpoint
-    const CBlockIndex* GetLastCheckpoint(const CCheckpointData& data) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    const CBlockIndex* GetLastCheckpoint(const CCheckpointData& data) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_block_index_mutex);
 
     //! Find the first block that is not pruned
     const CBlockIndex* GetFirstStoredBlock(const CBlockIndex& start_block LIFETIMEBOUND) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);

@@ -121,7 +121,7 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
         return {};
     }
 
-    const CBlockIndex* pindex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(clsig.getBlockHash()));
+    const CBlockIndex* pindex = m_chainstate.m_blockman.LookupBlockIndex(clsig.getBlockHash());
 
     {
         LOCK(cs);
@@ -404,7 +404,6 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
 
         uint32_t blockTime;
         {
-            LOCK(cs_main);
             const auto* pindex = m_chainstate.m_blockman.LookupBlockIndex(blockHash);
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {

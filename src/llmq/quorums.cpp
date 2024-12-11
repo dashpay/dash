@@ -641,7 +641,7 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint25
         // We cannot aquire cs_main if we have cs_quorumBaseBlockIndexCache held
         const CBlockIndex* pindex;
         if (!WITH_LOCK(cs_quorumBaseBlockIndexCache, return quorumBaseBlockIndexCache.get(quorumHash, pindex))) {
-            pindex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(quorumHash));
+            pindex = m_chainstate.m_blockman.LookupBlockIndex(quorumHash);
             if (pindex) {
                 LOCK(cs_quorumBaseBlockIndexCache);
                 quorumBaseBlockIndexCache.insert(quorumHash, pindex);
@@ -760,7 +760,7 @@ PeerMsgRet CQuorumManager::ProcessMessage(CNode& pfrom, CConnman& connman, const
             return sendQDATA(CQuorumDataRequest::Errors::QUORUM_TYPE_INVALID, request_limit_exceeded);
         }
 
-        const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(request.GetQuorumHash()));
+        const CBlockIndex* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(request.GetQuorumHash());
         if (pQuorumBaseBlockIndex == nullptr) {
             return sendQDATA(CQuorumDataRequest::Errors::QUORUM_BLOCK_NOT_FOUND, request_limit_exceeded);
         }

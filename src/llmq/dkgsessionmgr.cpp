@@ -153,7 +153,7 @@ PeerMsgRet CDKGSessionManager::ProcessMessage(CNode& pfrom, PeerManager& peerman
 
     // No luck, try to compute
     if (quorumIndex == -1) {
-        CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return m_chainstate.m_blockman.LookupBlockIndex(quorumHash));
+        CBlockIndex* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(quorumHash);
         if (pQuorumBaseBlockIndex == nullptr) {
             LogPrintf("CDKGSessionManager -- unknown quorumHash %s\n", quorumHash.ToString());
             // NOTE: do not insta-ban for this, we might be lagging behind
@@ -406,7 +406,6 @@ void CDKGSessionManager::CleanupOldContributions() const
             decltype(start) k;
 
             pcursor->Seek(start);
-            LOCK(cs_main);
             while (pcursor->Valid()) {
                 if (!pcursor->GetKey(k) || std::get<0>(k) != prefix || std::get<1>(k) != params.type) {
                     break;
