@@ -17,7 +17,7 @@ from test_framework.util import assert_raises_rpc_error, wait_until_helper
 
 class LLMQSigningTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(1, 0, [["-llmqtestplatform=llmq_1_100"]] * 1, evo_count=2)
+        self.set_dash_test_params(1, 0, [["-llmqtestplatform=llmq_1_100", "-llmqtestchainlocks=llmq_1_100", "-llmqtestinstantsenddip0024=llmq_1_100"]] * 1, evo_count=2)
 
 
     def mine_single_node_quorum(self):
