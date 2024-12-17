@@ -300,6 +300,7 @@ static RPCHelpMan getrawtransactionmulti() {
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false},
                      "If false, return a string, otherwise return a json object"},
             },
+            // TODO: replace RPCResults to proper annotation
             RPCResults{},
             RPCExamples{
                     HelpExampleCli("getrawtransactionmulti",
@@ -362,6 +363,60 @@ static RPCHelpMan getrawtransactionmulti() {
         }
     }
     return result;
+},
+    };
+}
+
+static RPCHelpMan getrawislocks()
+{
+    return RPCHelpMan{"getrawislocks",
+        "\nReturns the raw InstantSend lock data for each txids. Returns Null if there is no known IS yet.",
+        {
+            {"txids", RPCArg::Type::ARR, RPCArg::Optional::NO, "The transaction ids (no more than 100)",
+                {
+                    {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "A transaction hash"},
+                },
+            },
+        },
+        RPCResult{
+            RPCResult::Type::ARR, "", "Response is an array with the same size as the input txids",
+            {
+                RPCResult{"if InstantSend Lock is known for specified txid",
+                     RPCResult::Type::STR, "data", "The serialized, hex-encoded data for 'txid'"
+                },
+                RPCResult{"if no InstantSend Lock is known for specified txid",
+                     RPCResult::Type::STR, "data", "Just 'None' string"
+                },
+            }},
+        RPCExamples{
+            HelpExampleCli("getrawislocks", "'[\"txid\",...]'")
+            + HelpExampleRpc("getrawislocks", "'[\"txid\",...]'")
+        },
+    [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+
+    UniValue result_arr(UniValue::VARR);
+    UniValue txids = request.params[0].get_array();
+    if (txids.size() > 100) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Up to 100 txids only");
+    }
+
+    for (const auto idx : irange::range(txids.size())) {
+        const uint256 txid(ParseHashV(txids[idx], "txid"));
+
+        LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+        llmq::CInstantSendLockPtr islock = llmq_ctx.isman->GetInstantSendLockByTxid(txid);
+        if (islock == nullptr) {
+            result_arr.push_back("None");
+        } else {
+            CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+            ssTx << *islock;
+            result_arr.push_back(HexStr(ssTx));
+        }
+    }
+    return result_arr;
+
 },
     };
 }
@@ -2082,6 +2137,7 @@ static const CRPCCommand commands[] =
     { "rawtransactions",     &getassetunlockstatuses,     },
     { "rawtransactions",     &getrawtransaction,          },
     { "rawtransactions",     &getrawtransactionmulti,     },
+    { "rawtransactions",     &getrawislocks,              },
     { "rawtransactions",     &gettxchainlocks,            },
     { "rawtransactions",     &createrawtransaction,       },
     { "rawtransactions",     &decoderawtransaction,       },
