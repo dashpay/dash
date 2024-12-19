@@ -113,8 +113,8 @@ class LLMQSigningTest(DashTestFramework):
         quorumHash = self.mninfo[1].node.quorum("selectquorum", 111, id)["quorumHash"]
 
         self.mninfo[0].node.quorum("sign", 111, id, msgHash, quorumHash, False)
-        sign1 = self.mninfo[0].node.quorum("sign", 111, id, msgHash)
-        sign2 = self.mninfo[1].node.quorum("sign", 111, id, msgHash)
+        self.mninfo[0].node.quorum("sign", 111, id, msgHash)
+        self.mninfo[1].node.quorum("sign", 111, id, msgHash)
 
         self.wait_for_sigs(True, False, True, 15)
         has0 = self.nodes[0].quorum("hasrecsig", 111, id, msgHash)
