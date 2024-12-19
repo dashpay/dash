@@ -12,7 +12,11 @@ This functional test is similar to feature_llmq_signing.py but difference are bi
 '''
 
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_raises_rpc_error, wait_until_helper
+from test_framework.util import (
+    assert_raises_rpc_error,
+    assert_greater_than,
+    wait_until_helper,
+)
 
 
 id = "0000000000000000000000000000000000000000000000000000000000000001"
@@ -75,8 +79,9 @@ class LLMQSigningTest(DashTestFramework):
             self.generate(self.nodes[0], skip_count)
         self.generate(self.nodes[0], 30)
 
+        assert_greater_than(len(self.nodes[0].quorum('list')['llmq_1_100']), 0)
         self.log.info("We have quorum waiting for ChainLock")
-        self.wait_for_best_chainlock(self.nodes[0], self.nodes[0].getbestblockhash())
+        self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash())
 
         self.log.info("Send funds and wait InstantSend lock")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
@@ -142,8 +147,11 @@ class LLMQSigningTest(DashTestFramework):
         self.wait_for_sigs(False, False, False, 15)
 
         self.log.info("Test chainlocks and InstantSend with new quorums and 2 nodes")
-        self.wait_for_best_chainlock(self.nodes[0], self.nodes[0].getbestblockhash())
+        block_hash = self.nodes[0].getbestblockhash()
+        self.log.info(f"Chainlock on block: {block_hash} is expected")
+        self.wait_for_best_chainlock(self.nodes[0], block_hash)
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
+        self.log.info(f"InstantSend lock on tx: {txid} is expected")
         self.wait_for_instantlock(txid, self.nodes[0])
 
 if __name__ == '__main__':
