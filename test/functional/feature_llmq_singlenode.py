@@ -11,6 +11,8 @@ This functional test is similar to feature_llmq_signing.py but difference are bi
 
 '''
 
+import time
+
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_raises_rpc_error,
@@ -63,6 +65,12 @@ class LLMQSigningTest(DashTestFramework):
         assert not wait_until_helper(lambda: not self.check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
 
 
+    def log_connections(self):
+        connections = []
+        for idx in range(len(self.nodes)):
+            connections.append(self.nodes[idx].getconnectioncount())
+        self.log.info(f"nodes connection count: {connections}")
+
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
@@ -76,9 +84,11 @@ class LLMQSigningTest(DashTestFramework):
         skip_count = 24 - (self.nodes[0].getblockcount() % 24)
         if skip_count != 0:
             self.bump_mocktime(1)
+            time.sleep(1)
             self.generate(self.nodes[0], skip_count)
         self.generate(self.nodes[0], 30)
 
+        self.log_connections()
         assert_greater_than(len(self.nodes[0].quorum('list')['llmq_1_100']), 0)
         self.log.info("We have quorum waiting for ChainLock")
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash())
@@ -112,10 +122,11 @@ class LLMQSigningTest(DashTestFramework):
         has2 = self.nodes[2].quorum("hasrecsig", 111, id, msgHash)
         assert (has0 or has1 or has2)
 
-        # Test `quorum verify` rpc
+        self.log.info("Test `quorum verify` rpc")
+        self.log_connections()
         node = self.mninfo[0].node
         recsig = node.quorum("getrecsig", 111, id, msgHash)
-        # Find quorum automatically
+        self.log.info("Find quorum automatically")
         height = node.getblockcount()
         height_bad = node.getblockheader(recsig["quorumHash"])["height"]
         hash_bad = node.getblockhash(0)
@@ -123,28 +134,32 @@ class LLMQSigningTest(DashTestFramework):
         assert node.quorum("verify", 111, id, msgHash, recsig["sig"], "", height)
         assert not node.quorum("verify", 111, id, msgHashConflict, recsig["sig"])
         assert not node.quorum("verify", 111, id, msgHash, recsig["sig"], "", height_bad)
-        # Use specific quorum
+        self.log.info("Use specific quorum")
         assert node.quorum("verify", 111, id, msgHash, recsig["sig"], recsig["quorumHash"])
         assert not node.quorum("verify", 111, id, msgHashConflict, recsig["sig"], recsig["quorumHash"])
         assert_raises_rpc_error(-8, "quorum not found", node.quorum, "verify", 111, id, msgHash, recsig["sig"], hash_bad)
 
-        # Mine one more quorum, so that we have 2 active ones, nothing should change
+        self.log.info("Mine one more quorum, so that we have 2 active ones, nothing should change")
         self.mine_single_node_quorum()
         self.assert_sigs_nochange(True, False, True, 3)
 
-        # Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change
+        self.log_connections()
+
+        self.log.info("Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change")
         self.mine_single_node_quorum()
         self.mine_single_node_quorum()
         self.assert_sigs_nochange(True, False, True, 3)
 
-        # fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid
+        self.log.info("Fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid")
         self.bump_mocktime(recsig_time + int(60 * 60 * 24 * 6.5) - self.mocktime, update_schedulers=False)
-        # Cleanup starts every 5 seconds
+        self.log.info("Cleanup starts every 5 seconds")
         self.wait_for_sigs(True, False, True, 15)
-        # fast forward 1 day, recovered sig should not be valid anymore
+        self.log.info("Fast forward 1 day, recovered sig should not be valid anymore")
         self.bump_mocktime(int(60 * 60 * 24 * 1), update_schedulers=False)
-        # Cleanup starts every 5 seconds
+        self.log.info("Cleanup starts every 5 seconds")
         self.wait_for_sigs(False, False, False, 15)
+
+        self.log_connections()
 
         self.log.info("Test chainlocks and InstantSend with new quorums and 2 nodes")
         block_hash = self.nodes[0].getbestblockhash()
