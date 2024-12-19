@@ -558,6 +558,7 @@ void CDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& peerman)
         auto finalCommitment = curSession->FinalizeSingleCommitment();
         if (finalCommitment.IsNull()) {
             LogPrintf("final commitment is null here -- is-member=%d\n", curSession->AreWeMember());
+            WaitForNextPhase(QuorumPhase::Initialized, QuorumPhase::Contribute, curQuorumHash);
             return;
         }
 
