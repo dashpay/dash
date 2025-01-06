@@ -39,6 +39,7 @@
 #ifdef USE_BDB
 #include <wallet/bdb.h>
 #endif
+#include <wallet/bip39.h> // TODO - maybe remove from wallet
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
 #include <wallet/fees.h>
@@ -4290,9 +4291,9 @@ void CWallet::UpdateProgress(const std::string& title, int nProgress)
     ShowProgress(title, nProgress);
 }
 
-void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc)
+void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc, SecureString& mnemonic, SecureString& mnemonic_passphrase)
 {
-    auto spk_manager = std::unique_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc));
+    auto spk_manager = std::unique_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc, mnemonic, mnemonic_passphrase));
     m_spk_managers[id] = std::move(spk_manager);
 }
 
@@ -4301,10 +4302,14 @@ void CWallet::SetupDescriptorScriptPubKeyMans()
     AssertLockHeld(cs_wallet);
 
     // Make a seed
-    CKey seed_key;
-    seed_key.MakeNewKey(true);
-    CPubKey seed = seed_key.GetPubKey();
-    assert(seed_key.VerifyPubKey(seed));
+    // TODO: remove duplicated code with CHDChain::SetMnemonic
+    const SecureString mnemonic = CMnemonic::Generate(gArgs.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS));
+    const SecureString mnemonic_passphrase = ""; // if not defined, it's empty
+    if (!CMnemonic::Check(mnemonic)) {
+        throw std::runtime_error(std::string(__func__) + ": invalid mnemonic: `" + std::string(mnemonic.c_str()) + "`");
+    }
+    SecureVector seed_key;
+    CMnemonic::ToSeed(mnemonic, mnemonic_passphrase, seed_key);
 
     // Get the extended key
     CExtKey master_key;
@@ -4321,7 +4326,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans()
                     throw std::runtime_error(std::string(__func__) + ": Could not encrypt new descriptors");
                 }
             }
-            spk_manager->SetupDescriptorGeneration(master_key, internal);
+            spk_manager->SetupDescriptorGeneration(master_key, mnemonic, mnemonic_passphrase, internal);
             uint256 id = spk_manager->GetID();
             m_spk_managers[id] = std::move(spk_manager);
             AddActiveScriptPubKeyMan(id, internal);
@@ -4402,13 +4407,17 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
         return nullptr;
     }
 
+    // TODO: implement mnemonic for AddDescriptor()
+    SecureString mnemonic;
+    SecureString mnemonic_passphrase;
+
     LOCK(cs_wallet);
     auto spk_man = GetDescriptorScriptPubKeyMan(desc);
     if (spk_man) {
         WalletLogPrintf("Update existing descriptor: %s\n", desc.descriptor->ToString());
         spk_man->UpdateWalletDescriptor(desc);
     } else {
-        auto new_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc));
+        auto new_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc, mnemonic, mnemonic_passphrase));
         spk_man = new_spk_man.get();
 
         // Save the descriptor to memory

@@ -24,7 +24,14 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(['-mnemonicbits=123'], "Error: Invalid '-mnemonicbits'. Allowed values: 128, 160, 192, 224, 256.")
         self.start_node(0)
-        assert_equal(len(self.nodes[0].dumphdinfo()["mnemonic"].split()), 12)  # 12 words by default
+        if self.options.descriptors:
+            assert not "mnemonic" in self.nodes[0].listdescriptors()
+            descriptors = self.nodes[0].listdescriptors(True)['descriptors']
+            assert_equal(len(descriptors[0]['mnemonic'].split()), 12)
+            assert_equal(len(descriptors[1]['mnemonic'].split()), 12)
+            assert_equal(descriptors[0]['mnemonic'], descriptors[1]['mnemonic'])
+        else:
+            assert_equal(len(self.nodes[0].dumphdinfo()["mnemonic"].split()), 12)  # 12 words by default
 
         self.log.info("Can have multiple wallets with different mnemonic length loaded at the same time")
         self.restart_node(0, extra_args=["-mnemonicbits=160"])
@@ -37,13 +44,19 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         self.nodes[0].loadwallet("wallet_160")
         self.nodes[0].loadwallet("wallet_192")
         self.nodes[0].loadwallet("wallet_224")
-        self.nodes[0].createwallet("wallet_256", False, True)  # blank
-        self.nodes[0].get_wallet_rpc("wallet_256").upgradetohd()
-        assert_equal(len(self.nodes[0].get_wallet_rpc(self.default_wallet_name).dumphdinfo()["mnemonic"].split()), 12)  # 12 words by default
-        assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_160").dumphdinfo()["mnemonic"].split()), 15)              # 15 words
-        assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_192").dumphdinfo()["mnemonic"].split()), 18)              # 18 words
-        assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_224").dumphdinfo()["mnemonic"].split()), 21)              # 21 words
-        assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_256").dumphdinfo()["mnemonic"].split()), 24)              # 24 words
+        if self.options.descriptors:
+            assert_equal(len(self.nodes[0].get_wallet_rpc(self.default_wallet_name).listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 12)  # 12 words by default
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_160").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 15)              # 15 words
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_192").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 18)              # 18 words
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_224").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 21)              # 21 words
+        else:
+            self.nodes[0].createwallet("wallet_256", False, True)  # blank HD legacy
+            self.nodes[0].get_wallet_rpc("wallet_256").upgradetohd()
+            assert_equal(len(self.nodes[0].get_wallet_rpc(self.default_wallet_name).dumphdinfo()["mnemonic"].split()), 12)  # 12 words by default
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_160").dumphdinfo()["mnemonic"].split()), 15)              # 15 words
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_192").dumphdinfo()["mnemonic"].split()), 18)              # 18 words
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_224").dumphdinfo()["mnemonic"].split()), 21)              # 21 words
+            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_256").dumphdinfo()["mnemonic"].split()), 24)              # 24 words
 
 
 if __name__ == '__main__':

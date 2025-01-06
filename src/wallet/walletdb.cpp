@@ -60,6 +60,7 @@ const std::string SETTINGS{"settings"};
 const std::string TX{"tx"};
 const std::string VERSION{"version"};
 const std::string WALLETDESCRIPTOR{"walletdescriptor"};
+const std::string WALLETDESCRIPTORMNEMONIC{"walletdescriptormnemonic"};
 const std::string WALLETDESCRIPTORCACHE{"walletdescriptorcache"};
 const std::string WALLETDESCRIPTORLHCACHE{"walletdescriptorlhcache"};
 const std::string WALLETDESCRIPTORCKEY{"walletdescriptorckey"};
@@ -261,9 +262,14 @@ bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKe
     return true;
 }
 
-bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor)
+bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
 {
-    return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
+    if (mnemonic.empty()) {
+        return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
+    } else {
+        WalletDescriptorMnemonic descriptor_mnemonic{descriptor, mnemonic, mnemonic_passphrase};
+        return WriteIC(make_pair(DBKeys::WALLETDESCRIPTORMNEMONIC, desc_id), descriptor_mnemonic);
+    }
 }
 
 bool WalletBatch::WriteDescriptorDerivedCache(const CExtPubKey& xpub, const uint256& desc_id, uint32_t key_exp_index, uint32_t der_index)
@@ -623,7 +629,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
             spk_mans[static_cast<OutputType>(type)] = id;
-        } else if (strType == DBKeys::WALLETDESCRIPTOR) {
+        } else if (strType == DBKeys::WALLETDESCRIPTOR || strType == DBKeys::WALLETDESCRIPTORMNEMONIC) {
             uint256 id;
             ssKey >> id;
             WalletDescriptor desc;
@@ -631,7 +637,13 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             if (wss.m_descriptor_caches.count(id) == 0) {
                 wss.m_descriptor_caches[id] = DescriptorCache();
             }
-            pwallet->LoadDescriptorScriptPubKeyMan(id, desc);
+            SecureString mnemonic;
+            SecureString mnemonic_passphrase;
+            if (strType == DBKeys::WALLETDESCRIPTORMNEMONIC) {
+                ssValue >> mnemonic;
+                ssValue >> mnemonic_passphrase;
+            }
+            pwallet->LoadDescriptorScriptPubKeyMan(id, desc, mnemonic, mnemonic_passphrase);
         } else if (strType == DBKeys::WALLETDESCRIPTORCACHE) {
             bool parent = true;
             uint256 desc_id;

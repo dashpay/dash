@@ -505,6 +505,9 @@ class DescriptorScriptPubKeyMan : public ScriptPubKeyMan
 private:
     WalletDescriptor m_wallet_descriptor GUARDED_BY(cs_desc_man);
 
+    SecureString m_mnemonic GUARDED_BY(cs_desc_man);
+    SecureString m_mnemonic_passphrase GUARDED_BY(cs_desc_man);
+
     using ScriptPubKeyMap = std::map<CScript, int32_t>; // Map of scripts to descriptor range index
     using PubKeyMap = std::map<CPubKey, int32_t>; // Map of pubkeys involved in scripts to descriptor range index
     using CryptedKeyMap = std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>>;
@@ -532,14 +535,15 @@ private:
     std::unique_ptr<FlatSigningProvider> GetSigningProvider(int32_t index, bool include_private = false) const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
 public:
-    DescriptorScriptPubKeyMan(WalletStorage& storage, WalletDescriptor& descriptor)
+    DescriptorScriptPubKeyMan(WalletStorage& storage, WalletDescriptor& descriptor, SecureString& mnemonic, SecureString& mnemonic_passphrase)
         :   ScriptPubKeyMan(storage),
-            m_wallet_descriptor(descriptor)
+            m_wallet_descriptor(descriptor),
+            m_mnemonic(mnemonic),
+            m_mnemonic_passphrase(mnemonic_passphrase)
         {}
     DescriptorScriptPubKeyMan(WalletStorage& storage)
         :   ScriptPubKeyMan(storage)
         {}
-
     mutable RecursiveMutex cs_desc_man;
 
     bool GetNewDestination(CTxDestination& dest, bilingual_str& error) override;
@@ -562,7 +566,7 @@ public:
     bool IsHDEnabled() const override;
 
     //! Setup descriptors based on the given CExtkey
-    bool SetupDescriptorGeneration(const CExtKey& master_key, bool internal);
+    bool SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, bool internal);
 
     bool HavePrivateKeys() const override;
 
@@ -601,6 +605,7 @@ public:
     const std::vector<CScript> GetScriptPubKeys() const;
 
     bool GetDescriptorString(std::string& out, const bool priv) const;
+    bool GetMnemonicString(SecureString& mnemonic_out, SecureString& mnemonic_passphrase_out) const;
 
     void UpgradeDescriptorCache();
 };
