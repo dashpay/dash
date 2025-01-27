@@ -336,7 +336,7 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, interfaces::Coin
             // Set a seed for the wallet
             if (wallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
                 LOCK(wallet->cs_wallet);
-                wallet->SetupDescriptorScriptPubKeyMans();
+                wallet->SetupDescriptorScriptPubKeyMans("", "");
             } else {
                 // TODO: drop this condition after removing option to create non-HD wallets
                 // related backport bitcoin#11250
@@ -725,7 +725,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 
         // If we are using descriptors, make new descriptors with a new seed
         if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && !IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET)) {
-            SetupDescriptorScriptPubKeyMans();
+            SetupDescriptorScriptPubKeyMans("", "");
         } else if (auto spk_man = GetLegacyScriptPubKeyMan()) {
             // if we are not using HD, generate new keypool
             if (spk_man->IsHDEnabled()) {
@@ -3351,7 +3351,11 @@ std::shared_ptr<CWallet> CWallet::Create(interfaces::Chain* chain, interfaces::C
 
             LOCK(walletInstance->cs_wallet);
             if (walletInstance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-                walletInstance->SetupDescriptorScriptPubKeyMans();
+                SecureString mnemonic = gArgs.GetArg("-mnemonic", "").c_str();
+                SecureString mnemonic_passphrase = gArgs.GetArg("-mnemonicpassphrase", "").c_str();
+                gArgs.ForceRemoveArg("mnemonic");
+                gArgs.ForceRemoveArg("mnemonicpassphrase");
+                walletInstance->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
                 // SetupDescriptorScriptPubKeyMans already calls SetupGeneration for us so we don't need to call SetupGeneration separately
             } else { // Top up the keypool
                 // Legacy wallets need SetupGeneration here.
@@ -3688,17 +3692,16 @@ bool CWallet::UpgradeToHD(const SecureString& secureMnemonic, const SecureString
         return false;
     }
 
-    if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-        error = Untranslated("Use RPC 'importdescriptors' to add new descriptors to Descriptor Wallets");
-        return false;
-    }
-
     WalletLogPrintf("Upgrading wallet to HD\n");
     SetMinVersion(FEATURE_HD);
 
-    if (!GenerateNewHDChain(secureMnemonic, secureMnemonicPassphrase, secureWalletPassphrase)) {
-        error = Untranslated("Failed to generate HD wallet");
-        return false;
+    if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        SetupDescriptorScriptPubKeyMans(secureMnemonic, secureMnemonicPassphrase);
+    } else {
+        if (!GenerateNewHDChain(secureMnemonic, secureMnemonicPassphrase, secureWalletPassphrase)) {
+            error = Untranslated("Failed to generate HD wallet");
+            return false;
+        }
     }
     return true;
 }
@@ -4297,14 +4300,13 @@ void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc, 
     m_spk_managers[id] = std::move(spk_manager);
 }
 
-void CWallet::SetupDescriptorScriptPubKeyMans()
+void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, const SecureString mnemonic_passphrase)
 {
     AssertLockHeld(cs_wallet);
 
     // Make a seed
     // TODO: remove duplicated code with CHDChain::SetMnemonic
-    const SecureString mnemonic = CMnemonic::Generate(gArgs.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS));
-    const SecureString mnemonic_passphrase = ""; // if not defined, it's empty
+    const SecureString mnemonic = mnemonic_arg.empty() ? CMnemonic::Generate(gArgs.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS)) : mnemonic_arg;
     if (!CMnemonic::Check(mnemonic)) {
         throw std::runtime_error(std::string(__func__) + ": invalid mnemonic: `" + std::string(mnemonic.c_str()) + "`");
     }
