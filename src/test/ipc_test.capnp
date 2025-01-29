@@ -17,4 +17,5 @@ interface FooInterface $Proxy.wrap("FooImplementation") {
     passUniValue @2 (arg :Text) -> (result :Text);
     passTransaction @3 (arg :Data) -> (result :Data);
     passVectorChar @4 (arg :Data) -> (result :Data);
+    passScript @5 (arg :Data) -> (result :Data);
 }

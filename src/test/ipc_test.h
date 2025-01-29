@@ -6,6 +6,7 @@
 #define BITCOIN_TEST_IPC_TEST_H
 
 #include <primitives/transaction.h>
+#include <script/script.h>
 #include <univalue.h>
 #include <util/fs.h>
 
@@ -17,6 +18,7 @@ public:
     UniValue passUniValue(UniValue v) { return v; }
     CTransactionRef passTransaction(CTransactionRef t) { return t; }
     std::vector<char> passVectorChar(std::vector<char> v) { return v; }
+    CScript passScript(CScript s) { return s; }
 };
 
 void IpcPipeTest();

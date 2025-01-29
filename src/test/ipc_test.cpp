@@ -101,6 +101,10 @@ void IpcPipeTest()
     std::vector<char> vec2{foo->passVectorChar(vec1)};
     BOOST_CHECK_EQUAL(std::string_view(vec1.begin(), vec1.end()), std::string_view(vec2.begin(), vec2.end()));
 
+    auto script1{CScript() << OP_11};
+    auto script2{foo->passScript(script1)};
+    BOOST_CHECK_EQUAL(HexStr(script1), HexStr(script2));
+
     // Test cleanup: disconnect pipe and join thread
     disconnect_client();
     thread.join();
