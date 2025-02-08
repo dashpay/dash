@@ -133,6 +133,7 @@ public:
         context{m_node.coinjoin_loader},
         wallet{std::make_unique<CWallet>(m_node.chain.get(), m_node.coinjoin_loader.get(), "", CreateMockWalletDatabase())}
     {
+        context.args = &gArgs;
         context.chain = m_node.chain.get();
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
         wallet->SetupLegacyScriptPubKeyMan();
