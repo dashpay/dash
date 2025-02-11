@@ -255,10 +255,18 @@ bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubk
 
 bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret)
 {
-    if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, std::make_pair(desc_id, pubkey)), secret, false)) {
-        return false;
+    if (mnemonic.empty()) {
+        if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, std::make_pair(desc_id, pubkey)), secret, false)) {
+            return false;
+        }
+        EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)));
+    } else {
+        WalletDescriptorMnemonic descriptor_mnemonic{descriptor, mnemonic, mnemonic_passphrase};
+        if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORMNEMONICKEY, std::make_pair(descriptor_mnemonic, pubkey)), secret, false)) {
+            return false;
+        }
+        EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTOR
     }
-    EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)));
     return true;
 }
 

@@ -1879,7 +1879,20 @@ bool DescriptorScriptPubKeyMan::Encrypt(const CKeyingMaterial& master_key, Walle
         m_map_crypted_keys[pubkey.GetID()] = make_pair(pubkey, crypted_secret);
         batch->WriteCryptedDescriptorKey(GetID(), pubkey, crypted_secret);
 
-    }
+        SecureVector vchMnemonic;
+        SecureVector vchMnemonicPassphrase;
+
+        // it's ok to have no mnemonic if wallet was initialized via hdseed
+        if (chain.GetMnemonic(vchMnemonic, vchMnemonicPassphrase)) {
+            std::vector<unsigned char> vchCryptedMnemonic;
+            std::vector<unsigned char> vchCryptedMnemonicPassphrase;
+
+            if (!vchMnemonic.empty() && !EncryptSecret(vMasterKeyIn, vchMnemonic, chain.GetID(), vchCryptedMnemonic))
+                return false;
+            if (!vchMnemonicPassphrase.empty() && !EncryptSecret(vMasterKeyIn, vchMnemonicPassphrase, chain.GetID(), vchCryptedMnemonicPassphrase))
+                return false;
+
+        }
     // TODO encrypt mnemonic
     m_map_keys.clear();
     return true;
