@@ -80,6 +80,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
+include(ProcessConfigurations)
 
 #=============================
 # Configurable options
@@ -301,10 +302,19 @@ endif()
 # Derive this after BUILD_FOR_FUZZING has applied its target overrides.
 set(HAVE_CONSENSUS_LIB ${BUILD_CONSENSUS_LIB})
 
-include(ProcessConfigurations)
-
 include(TryAppendCXXFlags)
 include(TryAppendLinkerFlag)
+
+# Redefine/adjust per-configuration flags.
+# Dash uses DEBUG_CORE, not upstream's DEBUG, which is what span.h and
+# init/common.cpp check.
+target_compile_definitions(core_interface_debug INTERFACE
+  DEBUG_CORE
+  DEBUG_LOCKORDER
+  DEBUG_LOCKCONTENTION
+  RPC_DOC_CHECK
+  ABORT_ON_FAILED_ASSUME
+)
 
 if(WIN32)
   #[=[
