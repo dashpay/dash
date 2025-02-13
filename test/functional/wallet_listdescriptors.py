@@ -84,7 +84,7 @@ class ListDescriptorsTest(BitcoinTestFramework):
                  'range': [0, 0],
                  'next': 0,
                  'mnemonic':'',
-                 'mnemonic_passphrase':''},
+                 'mnemonicpassphrase':''},
             ],
         }
         assert_equal(expected_private, wallet.listdescriptors(True))
