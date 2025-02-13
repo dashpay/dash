@@ -265,9 +265,11 @@ bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKe
 bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
 {
     if (mnemonic.empty()) {
+        LogPrintf("knst Write no descriptor: %s\n", mnemonic);
         return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
     } else {
         WalletDescriptorMnemonic descriptor_mnemonic{descriptor, mnemonic, mnemonic_passphrase};
+        LogPrintf("knst Write descriptor: %s\n", mnemonic);
         return WriteIC(make_pair(DBKeys::WALLETDESCRIPTORMNEMONIC, desc_id), descriptor_mnemonic);
     }
 }
@@ -643,6 +645,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 ssValue >> mnemonic;
                 ssValue >> mnemonic_passphrase;
             }
+            LogPrintf("knst: load descriptor: %s %s\n", mnemonic, mnemonic_passphrase);
             pwallet->LoadDescriptorScriptPubKeyMan(id, desc, mnemonic, mnemonic_passphrase);
         } else if (strType == DBKeys::WALLETDESCRIPTORCACHE) {
             bool parent = true;

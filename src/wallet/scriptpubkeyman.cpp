@@ -2067,6 +2067,7 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
         return false;
     }
 
+    LogPrintf("knst set mnemonic-1: %s\n", secure_mnemonic);
     if (!secure_mnemonic.empty()) {
         SecureVector seed_key_tmp;
         CMnemonic::ToSeed(secure_mnemonic, secure_mnemonic_passphrase, seed_key_tmp);
@@ -2079,6 +2080,7 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
     m_mnemonic = secure_mnemonic;
     m_mnemonic_passphrase = secure_mnemonic_passphrase;
 
+    LogPrintf("knst set mnemonic: %s\n", secure_mnemonic);
     int64_t creation_time = GetTime();
 
     std::string xpub = EncodeExtPubKey(master_key.Neuter());
@@ -2455,6 +2457,7 @@ bool DescriptorScriptPubKeyMan::GetMnemonicString(SecureString& mnemonic, Secure
     LOCK(cs_desc_man);
 
     if (m_storage.IsLocked(false)) return false;
+    LogPrintf("knst get mnemonic: %s\n", mnemonic);
     mnemonic = m_mnemonic;
     mnemonic_passphrase = m_mnemonic_passphrase;
     return true;
