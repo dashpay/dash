@@ -47,7 +47,8 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         if self.options.descriptors:
             self.nodes[0].createwallet("wallet_256", False, True, "", False, True)  # blank Descriptors
             self.nodes[0].get_wallet_rpc("wallet_256").upgradetohd()
-            assert_equal(len(self.nodes[0].get_wallet_rpc(self.default_wallet_name).listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 12)  # 12 words by default
+            # first descriptor is private key with no mnemonic for CbTx (see node.importprivkey), we use number#1 here instead
+            assert_equal(len(self.nodes[0].get_wallet_rpc(self.default_wallet_name).listdescriptors(True)["descriptors"][1]["mnemonic"].split()), 12)  # 12 words by default
             assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_160").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 15)              # 15 words
             assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_192").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 18)              # 18 words
             assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_224").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 21)              # 21 words
