@@ -1814,7 +1814,7 @@ bool DescriptorScriptPubKeyMan::GetNewDestination(CTxDestination& dest, bilingua
             throw std::runtime_error(std::string(__func__) + ": Types are inconsistent. Stored type does not match type of newly generated address");
         }
         m_wallet_descriptor.next_index++;
-        WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor, m_mnemonic, m_mnemonic_passphrase);
+        WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
         return true;
     }
 }
@@ -1869,7 +1869,7 @@ bool DescriptorScriptPubKeyMan::Encrypt(const CKeyingMaterial& master_key, Walle
 
     for (const KeyMap::value_type& key_in : m_map_keys)
     {
-        const CKey &key = key_in.second;
+        const CKey &key = key_in.second.first;
         CPubKey pubkey = key.GetPubKey();
         CKeyingMaterial secret(key.begin(), key.end());
         std::vector<unsigned char> crypted_secret;
@@ -1915,11 +1915,11 @@ void DescriptorScriptPubKeyMan::ReturnDestination(int64_t index, bool internal, 
     if (m_wallet_descriptor.next_index - 1 == index) {
         m_wallet_descriptor.next_index--;
     }
-    WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor, m_mnemonic, m_mnemonic_passphrase);
+    WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
     NotifyCanGetAddressesChanged();
 }
 
-std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
+std::map<CKeyID, std::pair<CKey, SecureString>> DescriptorScriptPubKeyMan::GetKeys() const
 {
     AssertLockHeld(cs_desc_man);
     if (m_storage.HasEncryptionKeys() && !m_storage.IsLocked(true)) {
@@ -1931,7 +1931,7 @@ std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
             m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
                 return DecryptKey(encryption_key, crypted_secret, pubkey, key);
             });
-            keys[pubkey.GetID()] = key;
+            keys[pubkey.GetID()] = {key, ""};
         }
         return keys;
     }
@@ -1992,7 +1992,7 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
         m_max_cached_index++;
     }
     m_wallet_descriptor.range_end = new_range_end;
-    batch.WriteDescriptor(GetID(), m_wallet_descriptor, m_mnemonic, m_mnemonic_passphrase);
+    batch.WriteDescriptor(GetID(), m_wallet_descriptor);
 
     // By this point, the cache size should be the size of the entire range
     assert(m_wallet_descriptor.range_end - 1 == m_max_cached_index);
@@ -2020,12 +2020,13 @@ void DescriptorScriptPubKeyMan::AddDescriptorKey(const CKey& key, const CPubKey 
 {
     LOCK(cs_desc_man);
     WalletBatch batch(m_storage.GetDatabase());
-    if (!AddDescriptorKeyWithDB(batch, key, pubkey)) {
+    // TODO: add mnemonic here too
+    if (!AddDescriptorKeyWithDB(batch, key, pubkey, "")) {
         throw std::runtime_error(std::string(__func__) + ": writing descriptor private key failed");
     }
 }
 
-bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey)
+bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey, const SecureString& mnemonic)
 {
     AssertLockHeld(cs_desc_man);
     assert(!m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
@@ -2052,8 +2053,8 @@ bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const
         m_map_crypted_keys[pubkey.GetID()] = make_pair(pubkey, crypted_secret);
         return batch.WriteCryptedDescriptorKey(GetID(), pubkey, crypted_secret);
     } else {
-        m_map_keys[pubkey.GetID()] = key;
-        return batch.WriteDescriptorKey(GetID(), pubkey, key.GetPrivKey());
+        m_map_keys[pubkey.GetID()] = {key, mnemonic};
+        return batch.WriteDescriptorKey(GetID(), pubkey, key.GetPrivKey(), mnemonic);
     }
 }
 
@@ -2101,10 +2102,10 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
 
     // Store the master private key, and descriptor
     WalletBatch batch(m_storage.GetDatabase());
-    if (!AddDescriptorKeyWithDB(batch, master_key.key, master_key.key.GetPubKey())) {
+    if (!AddDescriptorKeyWithDB(batch, master_key.key, master_key.key.GetPubKey(), m_mnemonic)) {
         throw std::runtime_error(std::string(__func__) + ": writing descriptor master private key failed");
     }
-    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor, m_mnemonic, m_mnemonic_passphrase)) {
+    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
         throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
     }
 
@@ -2388,7 +2389,8 @@ void DescriptorScriptPubKeyMan::SetCache(const DescriptorCache& cache)
 bool DescriptorScriptPubKeyMan::AddKey(const CKeyID& key_id, const CKey& key)
 {
     LOCK(cs_desc_man);
-    m_map_keys[key_id] = key;
+    // TODO - mnemonic here?
+    m_map_keys[key_id] = {key, ""};
     return true;
 }
 
@@ -2413,7 +2415,7 @@ void DescriptorScriptPubKeyMan::WriteDescriptor()
 {
     LOCK(cs_desc_man);
     WalletBatch batch(m_storage.GetDatabase());
-    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor, m_mnemonic, m_mnemonic_passphrase)) {
+    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
         throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
     }
 }
@@ -2440,8 +2442,13 @@ bool DescriptorScriptPubKeyMan::GetDescriptorString(std::string& out, const bool
     LOCK(cs_desc_man);
 
     FlatSigningProvider provider;
-    provider.keys = GetKeys();
+    auto keys = GetKeys();
 
+    std::map<CKeyID, CKey> new_keys;
+    for (auto i : keys) {
+        new_keys.insert({i.first, i.second.first});
+    }
+    provider.keys = new_keys;
     if (priv) {
         // For the private version, always return the master key to avoid
         // exposing child private keys. The risk implications of exposing child
@@ -2477,7 +2484,12 @@ void DescriptorScriptPubKeyMan::UpgradeDescriptorCache()
 
     // Expand the descriptor
     FlatSigningProvider provider;
-    provider.keys = GetKeys();
+    auto keys = GetKeys();
+    std::map<CKeyID, CKey> new_keys;
+    for (auto i : keys) {
+        new_keys.insert({i.first, i.second.first});
+    }
+    provider.keys = new_keys;
     FlatSigningProvider out_keys;
     std::vector<CScript> scripts_temp;
     DescriptorCache temp_cache;

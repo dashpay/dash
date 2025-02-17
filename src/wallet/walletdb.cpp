@@ -242,7 +242,7 @@ bool WalletBatch::EraseActiveScriptPubKeyMan(bool internal)
     return EraseIC(key);
 }
 
-bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey)
+bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey, const SecureString& mnemonic)
 {
     // hash pubkey/privkey to accelerate wallet load
     std::vector<unsigned char> key;
@@ -250,7 +250,7 @@ bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubk
     key.insert(key.end(), pubkey.begin(), pubkey.end());
     key.insert(key.end(), privkey.begin(), privkey.end());
 
-    return WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)), std::make_pair(privkey, Hash(key)), false);
+    return WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)), std::make_pair(std::make_pair(privkey, Hash(key)), mnemonic), false);
 }
 
 bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret)
@@ -262,8 +262,10 @@ bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKe
     return true;
 }
 
-bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
+bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor/*, const SecureString& mnemonic, const SecureString& mnemonic_passphrase*/)
 {
+    return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
+    /*
     if (mnemonic.empty()) {
         LogPrintf("knst Write no descriptor: %s\n", mnemonic);
         return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
@@ -272,6 +274,7 @@ bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor
         LogPrintf("knst Write descriptor: %s\n", mnemonic);
         return WriteIC(make_pair(DBKeys::WALLETDESCRIPTORMNEMONIC, desc_id), descriptor_mnemonic);
     }
+    */
 }
 
 bool WalletBatch::WriteDescriptorDerivedCache(const CExtPubKey& xpub, const uint256& desc_id, uint32_t key_exp_index, uint32_t der_index)
@@ -718,6 +721,11 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: CPrivKey corrupt";
                 return false;
             }
+            SecureString mnemonic;
+            ssValue >> mnemonic;
+            LogPrintf("ssvalue -> mnemonic : %s\n", mnemonic.c_str());
+
+            wss.m_descriptor_mnemonics.insert( ... )
             wss.m_descriptor_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), key));
         } else if (strType == DBKeys::WALLETDESCRIPTORCKEY) {
             uint256 desc_id;

@@ -508,10 +508,14 @@ private:
     SecureString m_mnemonic GUARDED_BY(cs_desc_man);
     SecureString m_mnemonic_passphrase GUARDED_BY(cs_desc_man);
 
+    SecureString m_crypted_mnemonic GUARDED_BY(cs_desc_man);
+    SecureString m_crypted_mnemonic_passphrase GUARDED_BY(cs_desc_man);
+
     using ScriptPubKeyMap = std::map<CScript, int32_t>; // Map of scripts to descriptor range index
     using PubKeyMap = std::map<CPubKey, int32_t>; // Map of pubkeys involved in scripts to descriptor range index
     using CryptedKeyMap = std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>>;
-    using KeyMap = std::map<CKeyID, CKey>;
+    // seems as too much works with this approach; maybe add one more map instead this one
+    using KeyMap = std::map<CKeyID, std::pair<CKey, SecureString>>;
 
     ScriptPubKeyMap m_map_script_pub_keys GUARDED_BY(cs_desc_man);
     PubKeyMap m_map_pubkeys GUARDED_BY(cs_desc_man);
@@ -523,7 +527,7 @@ private:
     //! keeps track of whether Unlock has run a thorough check before
     bool m_decryption_thoroughly_checked = false;
 
-    bool AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
+    bool AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey, const SecureString& mnemonic) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
     KeyMap GetKeys() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
