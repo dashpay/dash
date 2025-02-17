@@ -60,11 +60,11 @@ const std::string SETTINGS{"settings"};
 const std::string TX{"tx"};
 const std::string VERSION{"version"};
 const std::string WALLETDESCRIPTOR{"walletdescriptor"};
-const std::string WALLETDESCRIPTORMNEMONIC{"walletdescriptormnemonic"};
 const std::string WALLETDESCRIPTORCACHE{"walletdescriptorcache"};
 const std::string WALLETDESCRIPTORLHCACHE{"walletdescriptorlhcache"};
 const std::string WALLETDESCRIPTORCKEY{"walletdescriptorckey"};
 const std::string WALLETDESCRIPTORKEY{"walletdescriptorkey"};
+const std::string WALLETDESCRIPTORKEYMNEMONIC{"walletdescriptorkeymnemonic"};
 const std::string WATCHMETA{"watchmeta"};
 const std::string WATCHS{"watchs"};
 } // namespace DBKeys
@@ -242,7 +242,7 @@ bool WalletBatch::EraseActiveScriptPubKeyMan(bool internal)
     return EraseIC(key);
 }
 
-bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey)
+bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey, const SecureString& mnemonic, const SecureString& mnemonic_string)
 {
     // hash pubkey/privkey to accelerate wallet load
     std::vector<unsigned char> key;
@@ -250,36 +250,32 @@ bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubk
     key.insert(key.end(), pubkey.begin(), pubkey.end());
     key.insert(key.end(), privkey.begin(), privkey.end());
 
+    if (mnemonic.size())
     return WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)), std::make_pair(privkey, Hash(key)), false);
 }
 
 bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret)
 {
-    if (mnemonic.empty()) {
+//    if (mnemonic.empty()) {
         if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, std::make_pair(desc_id, pubkey)), secret, false)) {
             return false;
         }
         EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)));
+        /*
     } else {
-        WalletDescriptorMnemonic descriptor_mnemonic{descriptor, mnemonic, mnemonic_passphrase};
+//        WalletDescriptorMnemonic descriptor_mnemonic{descriptor, mnemonic, mnemonic_passphrase};
         if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORMNEMONICKEY, std::make_pair(descriptor_mnemonic, pubkey)), secret, false)) {
             return false;
         }
-        EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTOR
+        EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTORMNEMONIC_KE
     }
+    */
     return true;
 }
 
-bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
+bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor)
 {
-    if (mnemonic.empty()) {
-        LogPrintf("knst Write no descriptor: %s\n", mnemonic);
-        return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
-    } else {
-        WalletDescriptorMnemonic descriptor_mnemonic{descriptor, mnemonic, mnemonic_passphrase};
-        LogPrintf("knst Write descriptor: %s\n", mnemonic);
-        return WriteIC(make_pair(DBKeys::WALLETDESCRIPTORMNEMONIC, desc_id), descriptor_mnemonic);
-    }
+    return WriteIC(make_pair(DBKeys::WALLETDESCRIPTOR, desc_id), descriptor);
 }
 
 bool WalletBatch::WriteDescriptorDerivedCache(const CExtPubKey& xpub, const uint256& desc_id, uint32_t key_exp_index, uint32_t der_index)
@@ -691,7 +687,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CExtPubKey xpub;
             xpub.Decode(ser_xpub.data());
             wss.m_descriptor_caches[desc_id].CacheLastHardenedExtPubKey(key_exp_index, xpub);
-        } else if (strType == DBKeys::WALLETDESCRIPTORKEY) {
+        } else if (strType == DBKeys::WALLETDESCRIPTORKEY || strType == DBKeys::WALETDESCRIPPTORKEYMNEMONIC) {
             uint256 desc_id;
             CPubKey pubkey;
             ssKey >> desc_id;
@@ -727,7 +723,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
             wss.m_descriptor_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), key));
-        } else if (strType == DBKeys::WALLETDESCRIPTORCKEY) {
+        } else if (strType == DBKeys::WALLETDESCRIPTORCKEY/* || strType == DBKey::WALLETDESCRIPTORC*/) {
             uint256 desc_id;
             CPubKey pubkey;
             ssKey >> desc_id;
