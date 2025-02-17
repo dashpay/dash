@@ -505,6 +505,9 @@ class DescriptorScriptPubKeyMan : public ScriptPubKeyMan
 private:
     WalletDescriptor m_wallet_descriptor GUARDED_BY(cs_desc_man);
 
+    SecureString m_mnemonic GUARDED_BY(cs_desc_man);
+    SecureString m_mnemonic_passphrase GUARDED_BY(cs_desc_man);
+
     using ScriptPubKeyMap = std::map<CScript, int32_t>; // Map of scripts to descriptor range index
     using PubKeyMap = std::map<CPubKey, int32_t>; // Map of pubkeys involved in scripts to descriptor range index
     using CryptedKeyMap = std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>>;
@@ -516,11 +519,6 @@ private:
 
     KeyMap m_map_keys GUARDED_BY(cs_desc_man);
     CryptedKeyMap m_map_crypted_keys GUARDED_BY(cs_desc_man);
-
-    SecureString m_mnemonic GUARDED_BY(cs_desc_man);
-    SecureString m_mnemonic_passphrase GUARDED_BY(cs_desc_man);
-
-
 
     //! keeps track of whether Unlock has run a thorough check before
     bool m_decryption_thoroughly_checked = false;
