@@ -241,7 +241,7 @@ bool WalletBatch::EraseActiveScriptPubKeyMan(bool internal)
     return EraseIC(key);
 }
 
-bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey, const SecureString& mnemonic)
+bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
 {
     // hash pubkey/privkey to accelerate wallet load
     std::vector<unsigned char> key;
@@ -249,12 +249,12 @@ bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubk
     key.insert(key.end(), pubkey.begin(), pubkey.end());
     key.insert(key.end(), privkey.begin(), privkey.end());
 
-    return WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)), std::make_pair(std::make_pair(privkey, Hash(key)), mnemonic), false);
+    return WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)), std::make_pair(std::make_pair(privkey, Hash(key)), std::make_pair(mnemonic, mnemonic_passphrase)), false);
 }
 
-bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret)
+bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret, const std::vector<unsigned char>& mnemonic, const std::vector<unsigned char>& mnemonic_passphrase)
 {
-    if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, std::make_pair(desc_id, pubkey)), secret, false)) {
+    if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, std::make_pair(desc_id, pubkey)), std::make_pair(secret, std::make_pair(mnemonic, mnemonic_passphrase)), false)) {
         return false;
     }
     EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)));
