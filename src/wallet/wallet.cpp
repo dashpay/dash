@@ -4294,9 +4294,9 @@ void CWallet::UpdateProgress(const std::string& title, int nProgress)
     ShowProgress(title, nProgress);
 }
 
-void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc, SecureString& mnemonic, SecureString& mnemonic_passphrase)
+void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc)
 {
-    auto spk_manager = std::unique_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc, mnemonic, mnemonic_passphrase));
+    auto spk_manager = std::unique_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc));
     m_spk_managers[id] = std::move(spk_manager);
 }
 
@@ -4419,7 +4419,7 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
         WalletLogPrintf("Update existing descriptor: %s\n", desc.descriptor->ToString());
         spk_man->UpdateWalletDescriptor(desc);
     } else {
-        auto new_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc, mnemonic, mnemonic_passphrase));
+        auto new_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc));
         spk_man = new_spk_man.get();
 
         // Save the descriptor to memory

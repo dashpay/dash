@@ -1869,7 +1869,7 @@ bool DescriptorScriptPubKeyMan::Encrypt(const CKeyingMaterial& master_key, Walle
 
     for (const KeyMap::value_type& key_in : m_map_keys)
     {
-        const CKey &key = key_in.second.first;
+        const CKey &key = key_in.second;
         CPubKey pubkey = key.GetPubKey();
         CKeyingMaterial secret(key.begin(), key.end());
         std::vector<unsigned char> crypted_secret;
@@ -1919,7 +1919,7 @@ void DescriptorScriptPubKeyMan::ReturnDestination(int64_t index, bool internal, 
     NotifyCanGetAddressesChanged();
 }
 
-std::map<CKeyID, std::pair<CKey, SecureString>> DescriptorScriptPubKeyMan::GetKeys() const
+std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
 {
     AssertLockHeld(cs_desc_man);
     if (m_storage.HasEncryptionKeys() && !m_storage.IsLocked(true)) {
@@ -1931,7 +1931,7 @@ std::map<CKeyID, std::pair<CKey, SecureString>> DescriptorScriptPubKeyMan::GetKe
             m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
                 return DecryptKey(encryption_key, crypted_secret, pubkey, key);
             });
-            keys[pubkey.GetID()] = {key, ""};
+            keys[pubkey.GetID()] = key;
         }
         return keys;
     }
@@ -2050,10 +2050,14 @@ bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const
             return false;
         }
 
+        // TODO: add mnemonic for crypted
         m_map_crypted_keys[pubkey.GetID()] = make_pair(pubkey, crypted_secret);
         return batch.WriteCryptedDescriptorKey(GetID(), pubkey, crypted_secret);
     } else {
-        m_map_keys[pubkey.GetID()] = {key, mnemonic};
+        m_map_keys[pubkey.GetID()] = key;
+        m_mnemonic = mnemonic;
+        // TODO - passphrase
+    //    m_mnemonic_passphrase = mnemonic_passphrase;
         return batch.WriteDescriptorKey(GetID(), pubkey, key.GetPrivKey(), mnemonic);
     }
 }
@@ -2386,11 +2390,18 @@ void DescriptorScriptPubKeyMan::SetCache(const DescriptorCache& cache)
     }
 }
 
-bool DescriptorScriptPubKeyMan::AddKey(const CKeyID& key_id, const CKey& key)
+bool DescriptorScriptPubKeyMan::AddKey(const CKeyID& key_id, const CKey& key, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
 {
     LOCK(cs_desc_man);
-    // TODO - mnemonic here?
-    m_map_keys[key_id] = {key, ""};
+    if (!m_mnemonic.empty()) {
+        if (mnemonic != m_mnemonic || mnemonic_passphrase != m_mnemonic_passphrase) return false;
+    }
+
+    // TODO: add validation that key & mnemonic are matched
+    m_map_keys[key_id] = key;
+    m_mnemonic = mnemonic;
+    m_mnemonic_passphrase = mnemonic_passphrase;
+
     return true;
 }
 
@@ -2442,13 +2453,7 @@ bool DescriptorScriptPubKeyMan::GetDescriptorString(std::string& out, const bool
     LOCK(cs_desc_man);
 
     FlatSigningProvider provider;
-    auto keys = GetKeys();
-
-    std::map<CKeyID, CKey> new_keys;
-    for (auto i : keys) {
-        new_keys.insert({i.first, i.second.first});
-    }
-    provider.keys = new_keys;
+    provider.keys = GetKeys();
     if (priv) {
         // For the private version, always return the master key to avoid
         // exposing child private keys. The risk implications of exposing child
@@ -2484,12 +2489,7 @@ void DescriptorScriptPubKeyMan::UpgradeDescriptorCache()
 
     // Expand the descriptor
     FlatSigningProvider provider;
-    auto keys = GetKeys();
-    std::map<CKeyID, CKey> new_keys;
-    for (auto i : keys) {
-        new_keys.insert({i.first, i.second.first});
-    }
-    provider.keys = new_keys;
+    provider.keys = GetKeys();
     FlatSigningProvider out_keys;
     std::vector<CScript> scripts_temp;
     DescriptorCache temp_cache;

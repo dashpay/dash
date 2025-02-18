@@ -60,7 +60,6 @@ const std::string SETTINGS{"settings"};
 const std::string TX{"tx"};
 const std::string VERSION{"version"};
 const std::string WALLETDESCRIPTOR{"walletdescriptor"};
-const std::string WALLETDESCRIPTORMNEMONIC{"walletdescriptormnemonic"};
 const std::string WALLETDESCRIPTORCACHE{"walletdescriptorcache"};
 const std::string WALLETDESCRIPTORLHCACHE{"walletdescriptorlhcache"};
 const std::string WALLETDESCRIPTORCKEY{"walletdescriptorckey"};
@@ -346,6 +345,8 @@ public:
     std::map<uint256, DescriptorCache> m_descriptor_caches;
     std::map<std::pair<uint256, CKeyID>, CKey> m_descriptor_keys;
     std::map<std::pair<uint256, CKeyID>, std::pair<CPubKey, std::vector<unsigned char>>> m_descriptor_crypt_keys;
+    SecureString mnemonic;
+    SecureString mnemonic_passphrase;
     bool tx_corrupt{false};
 
     CWalletScanState() {
@@ -634,7 +635,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
             spk_mans[static_cast<OutputType>(type)] = id;
-        } else if (strType == DBKeys::WALLETDESCRIPTOR || strType == DBKeys::WALLETDESCRIPTORMNEMONIC) {
+        } else if (strType == DBKeys::WALLETDESCRIPTOR) {
             uint256 id;
             ssKey >> id;
             WalletDescriptor desc;
@@ -642,14 +643,16 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             if (wss.m_descriptor_caches.count(id) == 0) {
                 wss.m_descriptor_caches[id] = DescriptorCache();
             }
+            /*
             SecureString mnemonic;
             SecureString mnemonic_passphrase;
             if (strType == DBKeys::WALLETDESCRIPTORMNEMONIC) {
                 ssValue >> mnemonic;
                 ssValue >> mnemonic_passphrase;
             }
-            LogPrintf("knst: load descriptor: %s %s\n", mnemonic, mnemonic_passphrase);
-            pwallet->LoadDescriptorScriptPubKeyMan(id, desc, mnemonic, mnemonic_passphrase);
+            */
+            //LogPrintf("knst: load descriptor: %s %s\n", mnemonic, mnemonic_passphrase);
+            pwallet->LoadDescriptorScriptPubKeyMan(id, desc);
         } else if (strType == DBKeys::WALLETDESCRIPTORCACHE) {
             bool parent = true;
             uint256 desc_id;
@@ -722,11 +725,26 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
             SecureString mnemonic;
+            SecureString mnemonic_passphrase;
+            /*
+            try
+            {
+                ssValue >> hash;
+            }
+            catch (const std::ios_base::failure&) {}
+            */
+            // it's okay if wallet doesn't have mnemonic. It may be created in older version of Dash Core or by importing descriptor
             ssValue >> mnemonic;
+            ssValue >> mnemonic_passphrase;
             LogPrintf("ssvalue -> mnemonic : %s\n", mnemonic.c_str());
 
-            wss.m_descriptor_mnemonics.insert( ... )
+            if (!mnemonic.empty() && (!wss.mnemonic_passphrase.empty() || !wss.mnemonic.empty())) {
+                strErr = "Error reading wallet database: more than one mnemonic";
+                return false;
+            }
             wss.m_descriptor_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), key));
+            wss.mnemonic = mnemonic;
+            wss.mnemonic_passphrase = mnemonic_passphrase;
         } else if (strType == DBKeys::WALLETDESCRIPTORCKEY) {
             uint256 desc_id;
             CPubKey pubkey;
@@ -887,8 +905,9 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
     // Set the descriptor keys
     for (auto desc_key_pair : wss.m_descriptor_keys) {
         auto spk_man = pwallet->GetScriptPubKeyMan(desc_key_pair.first.first);
-        ((DescriptorScriptPubKeyMan*)spk_man)->AddKey(desc_key_pair.first.second, desc_key_pair.second);
+        ((DescriptorScriptPubKeyMan*)spk_man)->AddKey(desc_key_pair.first.second, desc_key_pair.second, wss.mnemonic, wss.mnemonic_passphrase);
     }
+
     for (auto desc_key_pair : wss.m_descriptor_crypt_keys) {
         auto spk_man = pwallet->GetScriptPubKeyMan(desc_key_pair.first.first);
         ((DescriptorScriptPubKeyMan*)spk_man)->AddCryptedKey(desc_key_pair.first.second, desc_key_pair.second.first, desc_key_pair.second.second);
