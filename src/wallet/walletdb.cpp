@@ -726,25 +726,25 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             }
             SecureString mnemonic;
             SecureString mnemonic_passphrase;
-            /*
+            // it's okay if wallet doesn't have mnemonic.
+            // The wallet may be created in an older version of Dash Core or by importing descriptor
             try
             {
-                ssValue >> hash;
+                ssValue >> mnemonic;
+                ssValue >> mnemonic_passphrase;
             }
             catch (const std::ios_base::failure&) {}
-            */
-            // it's okay if wallet doesn't have mnemonic. It may be created in older version of Dash Core or by importing descriptor
-            ssValue >> mnemonic;
-            ssValue >> mnemonic_passphrase;
             LogPrintf("ssvalue -> mnemonic : %s\n", mnemonic.c_str());
 
-            if (!mnemonic.empty() && (!wss.mnemonic_passphrase.empty() || !wss.mnemonic.empty())) {
-                strErr = "Error reading wallet database: more than one mnemonic";
-                return false;
+            if (!mnemonic.empty()) {
+                if (wss.mnemonic != mnemonic && !wss.mnemonic.empty()) {
+                    strErr = "Error reading wallet database: more than one mnemonic";
+                    return false;
+                }
+                wss.mnemonic = mnemonic;
+                wss.mnemonic_passphrase = mnemonic_passphrase;
             }
             wss.m_descriptor_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), key));
-            wss.mnemonic = mnemonic;
-            wss.mnemonic_passphrase = mnemonic_passphrase;
         } else if (strType == DBKeys::WALLETDESCRIPTORCKEY) {
             uint256 desc_id;
             CPubKey pubkey;
