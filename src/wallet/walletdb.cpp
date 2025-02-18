@@ -724,6 +724,8 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: CPrivKey corrupt";
                 return false;
             }
+            wss.m_descriptor_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), key));
+
             SecureString mnemonic;
             SecureString mnemonic_passphrase;
             // it's okay if wallet doesn't have mnemonic.
@@ -744,7 +746,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 wss.mnemonic = mnemonic;
                 wss.mnemonic_passphrase = mnemonic_passphrase;
             }
-            wss.m_descriptor_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), key));
         } else if (strType == DBKeys::WALLETDESCRIPTORCKEY) {
             uint256 desc_id;
             CPubKey pubkey;
@@ -761,6 +762,28 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
 
             wss.m_descriptor_crypt_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), std::make_pair(pubkey, privkey)));
             wss.fIsEncrypted = true;
+
+            // TODO : remove copy-paste with plain-text key
+            SecureString mnemonic;
+            SecureString mnemonic_passphrase;
+            // it's okay if wallet doesn't have mnemonic.
+            // The wallet may be created in an older version of Dash Core or by importing descriptor
+            try
+            {
+                ssValue >> mnemonic;
+                ssValue >> mnemonic_passphrase;
+            }
+            catch (const std::ios_base::failure&) {}
+            LogPrintf("ssvalue -> mnemonic : %s\n", mnemonic.c_str());
+
+            if (!mnemonic.empty()) {
+                if (wss.mnemonic != mnemonic && !wss.mnemonic.empty()) {
+                    strErr = "Error reading wallet database: more than one mnemonic";
+                    return false;
+                }
+                wss.mnemonic = mnemonic;
+                wss.mnemonic_passphrase = mnemonic_passphrase;
+            }
         } else if (strType == DBKeys::LOCKED_UTXO) {
             uint256 hash;
             uint32_t n;
