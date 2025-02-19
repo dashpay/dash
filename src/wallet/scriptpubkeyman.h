@@ -508,7 +508,9 @@ private:
     using ScriptPubKeyMap = std::map<CScript, int32_t>; // Map of scripts to descriptor range index
     using PubKeyMap = std::map<CPubKey, int32_t>; // Map of pubkeys involved in scripts to descriptor range index
     using CryptedKeyMap = std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>>;
+    // seems as too much works with this approach; maybe add one more map instead this one
     using KeyMap = std::map<CKeyID, CKey>;
+    using MnemonicMap = std::map<CKeyID, SecureString>;
 
     ScriptPubKeyMap m_map_script_pub_keys GUARDED_BY(cs_desc_man);
     PubKeyMap m_map_pubkeys GUARDED_BY(cs_desc_man);
@@ -517,10 +519,13 @@ private:
     KeyMap m_map_keys GUARDED_BY(cs_desc_man);
     CryptedKeyMap m_map_crypted_keys GUARDED_BY(cs_desc_man);
 
+    SecureString m_mnemonic GUARDED_BY(cs_desc_man);
+    SecureString m_mnemonic_passphrase GUARDED_BY(cs_desc_man);
+
     //! keeps track of whether Unlock has run a thorough check before
     bool m_decryption_thoroughly_checked = false;
 
-    bool AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
+    bool AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey, const SecureString& mnemonic, const SecureString& mnemonic_passphrase) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
     KeyMap GetKeys() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
@@ -539,7 +544,6 @@ public:
     DescriptorScriptPubKeyMan(WalletStorage& storage)
         :   ScriptPubKeyMan(storage)
         {}
-
     mutable RecursiveMutex cs_desc_man;
 
     bool GetNewDestination(CTxDestination& dest, bilingual_str& error) override;
@@ -562,7 +566,7 @@ public:
     bool IsHDEnabled() const override;
 
     //! Setup descriptors based on the given CExtkey
-    bool SetupDescriptorGeneration(const CExtKey& master_key, bool internal);
+    bool SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, bool internal);
 
     bool HavePrivateKeys() const override;
 
@@ -588,7 +592,7 @@ public:
 
     void SetCache(const DescriptorCache& cache);
 
-    bool AddKey(const CKeyID& key_id, const CKey& key);
+    bool AddKey(const CKeyID& key_id, const CKey& key, const SecureString& mnemonic, const SecureString& mnemonic_passphrase);
     bool AddCryptedKey(const CKeyID& key_id, const CPubKey& pubkey, const std::vector<unsigned char>& crypted_key);
 
     bool HasWalletDescriptor(const WalletDescriptor& desc) const;
@@ -601,6 +605,7 @@ public:
     const std::vector<CScript> GetScriptPubKeys() const;
 
     bool GetDescriptorString(std::string& out, const bool priv) const;
+    bool GetMnemonicString(SecureString& mnemonic_out, SecureString& mnemonic_passphrase_out) const;
 
     void UpgradeDescriptorCache();
 };

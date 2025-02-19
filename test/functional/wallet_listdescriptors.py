@@ -82,7 +82,9 @@ class ListDescriptorsTest(BitcoinTestFramework):
                  'timestamp': 1296688602,
                  'active': False,
                  'range': [0, 0],
-                 'next': 0},
+                 'next': 0,
+                 'mnemonic':'',
+                 'mnemonicpassphrase':''},
             ],
         }
         assert_equal(expected_private, wallet.listdescriptors(True))
