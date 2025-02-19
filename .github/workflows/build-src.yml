@@ -15,11 +15,17 @@ on:
         description: "Key needed to access cached depends"
         required: true
         type: string
+    outputs:
+      key:
+        description: "Key needed for restoring build outputs"
+        value: ${{ jobs.build-src.outputs.key }}
 
 jobs:
   build-src:
     name: Build source
     runs-on: ubuntu-24.04
+    outputs:
+      key:  ${{ steps.bundle.outputs.key }}
     container:
       image: ${{ inputs.container-path }}
       options: --user root
@@ -68,17 +74,40 @@ jobs:
         run: |
           CCACHE_SIZE="400M"
           CACHE_DIR="/cache"
-          mkdir /output
-          BASE_OUTDIR="/output"
           BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/build_src.sh
           ./ci/dash/test_unittests.sh
         shell: bash
 
+      - name: Bundle outputs and artifacts
+        id: bundle
+        run: |
+          export BUILD_TARGET="${{ inputs.build-target }}"
+          ./ci/dash/bundle-output.sh create
+          ARTIFACT_PATH="/output" ./ci/dash/bundle-build.sh
+          echo "key=build-$(head -c 512 /dev/urandom | sha256sum | head -c 64)" >> "${GITHUB_OUTPUT}"
+          echo "short-sha=$(git rev-parse --short=8 HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: Save build outputs
+        if: |
+          inputs.build-target == 'linux64'
+          || inputs.build-target == 'linux64_nowallet'
+          || inputs.build-target == 'linux64_sqlite'
+          || inputs.build-target == 'linux64_ubsan'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            output-${{ inputs.build-target }}.tar.zst
+          key: ${{ steps.bundle.outputs.key }}
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ inputs.build-target }}
+          name: artifacts-${{ inputs.build-target }}-${{ steps.bundle.outputs.short-sha }}
           path: |
-            /output
+            /output/artifacts-${{ inputs.build-target }}.tar.zst
+            /output/artifacts-${{ inputs.build-target }}.tar.zst.sha256
+          compression-level: 0
+          overwrite: true
+          retention-days: 1

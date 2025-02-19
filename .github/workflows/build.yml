@@ -5,6 +5,7 @@ on:
   pull_request_target:
 
 permissions:
+  actions: write
   contents: read
   packages: write
 
@@ -137,3 +138,39 @@ jobs:
       build-target: win64
       container-path: ${{ needs.container.outputs.path }}
       depends-key: ${{ needs.depends-win64.outputs.key }}
+
+  test-linux64:
+    name: linux64-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [container, depends-linux64, src-linux64]
+    with:
+      build-key: ${{ needs.src-linux64.outputs.key }}
+      build-target: linux64
+      container-path: ${{ needs.container.outputs.path }}
+
+  test-linux64_nowallet:
+    name: linux64_nowallet-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [container, depends-linux64_nowallet, src-linux64_nowallet]
+    with:
+      build-key: ${{ needs.src-linux64_nowallet.outputs.key }}
+      build-target: linux64_nowallet
+      container-path: ${{ needs.container.outputs.path }}
+
+  test-linux64_sqlite:
+    name: linux64_sqlite-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [container, depends-linux64, src-linux64_sqlite]
+    with:
+      build-key: ${{ needs.src-linux64_sqlite.outputs.key }}
+      build-target: linux64_sqlite
+      container-path: ${{ needs.container.outputs.path }}
+
+  test-linux64_ubsan:
+    name: linux64_ubsan-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [container, depends-linux64, src-linux64_ubsan]
+    with:
+      build-key: ${{ needs.src-linux64_ubsan.outputs.key }}
+      build-target: linux64_ubsan
+      container-path: ${{ needs.container.outputs.path }}
