@@ -141,7 +141,7 @@ void StartWallets(CScheduler& scheduler, const ArgsManager& args)
     if (args.GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET)) {
         scheduler.scheduleEvery(MaybeCompactWalletDB, std::chrono::milliseconds{500});
     }
-    scheduler.scheduleEvery(MaybeResendWalletTxs, std::chrono::milliseconds{1000});
+    scheduler.scheduleEvery(MaybeResendWalletTxs, 1min);
 }
 
 void FlushWallets()
