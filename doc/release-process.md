@@ -6,6 +6,7 @@ Release Process
 
 Before every minor and major release:
 
+* [ ] Review ["Needs backport" labels](https://github.com/dashpay/dash/labels?q=backport).
 * [ ] Update [bips.md](bips.md) to account for changes since the last release.
 * [ ] Update DIPs with any changes introduced by this release (see [this pull request](https://github.com/dashpay/dips/pull/142) for an example)
 * [ ] Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`)
@@ -233,6 +234,7 @@ popd
 * [ ] Test Docker build runs without error in Dashmate
 * [ ] Add new Release Process items to repo [Release Process](release-process.md) document
 * [ ] Merge `master` branch back into `develop` so that `master` could be fast-forwarded on next release again
+* [ ] Delete post-EOL [release branches](https://github.com/bitcoin/bitcoin/branches/all) and create a tag `v${branch_name}-final`.
 
 ### MacOS Notarization
 
