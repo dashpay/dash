@@ -3299,7 +3299,7 @@ void FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& fee_out,
             true, true);
 
         if (options.exists("add_inputs") ) {
-            coinControl.m_add_inputs = options["add_inputs"].get_bool();
+            coinControl.m_allow_other_inputs = options["add_inputs"].get_bool();
         }
 
         if (options.exists("changeAddress") || options.exists("change_address")) {
@@ -3455,7 +3455,7 @@ static RPCHelpMan fundrawtransaction()
     int change_position;
     CCoinControl coin_control;
     // Automatically select (additional) coins. Can be overridden by options.add_inputs.
-    coin_control.m_add_inputs = true;
+    coin_control.m_allow_other_inputs = true;
     FundTransaction(*pwallet, tx, fee, change_position, request.params[1], coin_control, /* override_min_fee */ true);
 
     UniValue result(UniValue::VOBJ);
@@ -4179,7 +4179,7 @@ static RPCHelpMan send()
     CCoinControl coin_control;
     // Automatically select coins, unless at least one is manually selected. Can
     // be overridden by options.add_inputs.
-    coin_control.m_add_inputs = rawTx.vin.size() == 0;
+    coin_control.m_allow_other_inputs = rawTx.vin.size() == 0;
     FundTransaction(*pwallet, rawTx, fee, change_position, options, coin_control, /* override_min_fee */ false);
 
     bool add_to_wallet = true;
@@ -4483,7 +4483,7 @@ static RPCHelpMan walletcreatefundedpsbt()
     CCoinControl coin_control;
     // Automatically select coins, unless at least one is manually selected. Can
     // be overridden by options.add_inputs.
-    coin_control.m_add_inputs = rawTx.vin.size() == 0;
+    coin_control.m_allow_other_inputs = rawTx.vin.size() == 0;
     FundTransaction(*pwallet, rawTx, fee, change_position, request.params[3], coin_control, /* override_min_fee */ true);
 
     // Make a blank psbt
