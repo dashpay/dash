@@ -439,13 +439,16 @@ endif()
 target_link_options(sanitize_interface INTERFACE ${SANITIZER_LDFLAGS})
 
 if(BUILD_FUZZ_BINARY)
-  include(CheckSourceCompilesAndLinks)
-  check_cxx_source_links_with_flags("${SANITIZER_LDFLAGS}" "
+  target_link_libraries(core_interface INTERFACE ${FUZZ_LIBS})
+  include(CheckSourceCompilesWithFlags)
+  check_cxx_source_compiles_with_flags("
       #include <cstdint>
       #include <cstddef>
       extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) { return 0; }
       // No main() function.
     " FUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION
+    LDFLAGS ${SANITIZER_LDFLAGS}
+    LINK_LIBRARIES ${FUZZ_LIBS}
   )
 endif()
 
@@ -459,8 +462,8 @@ endif()
 if(ENABLE_PLATFORM_GUI)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(dash_sdk_cxx REQUIRED IMPORTED_TARGET dash_sdk_cxx)
-  include(CheckSourceCompilesAndLinks)
-  check_cxx_source_links_with_libs(PkgConfig::dash_sdk_cxx "
+  include(CheckSourceCompilesWithFlags)
+  check_cxx_source_compiles_with_flags("
     #include <dash/sdk/ffi.h>
     int main()
     {
@@ -468,6 +471,7 @@ if(ENABLE_PLATFORM_GUI)
       client->shutdown();
     }
     " HAVE_WORKING_DASH_SDK_CXX
+    LINK_LIBRARIES PkgConfig::dash_sdk_cxx
   )
   if(NOT HAVE_WORKING_DASH_SDK_CXX)
     message(FATAL_ERROR "A program using dash-sdk-cxx does not link. See CMakeFiles/CMakeConfigureLog.yaml.")
