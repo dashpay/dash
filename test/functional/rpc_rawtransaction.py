@@ -439,7 +439,6 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.log.info('sendrawtransaction/testmempoolaccept with tx that is already in the chain')
         self.generate(self.nodes[2], 1)
-        self.sync_blocks()
         for node in self.nodes:
             testres = node.testmempoolaccept([rawTxSigned['hex']])[0]
             assert_equal(testres['allowed'], False)
