@@ -1489,10 +1489,9 @@ if test x$use_boost = xyes; then
 
   if test x$suppress_external_warnings != xno; then
       BOOST_CPPFLAGS=SUPPRESS_WARNINGS($BOOST_CPPFLAGS)
-    fi
-
-    BOOST_LIBS="$BOOST_LDFLAGS $BOOST_SYSTEM_LIB $BOOST_FILESYSTEM_LIB"
   fi
+
+  BOOST_LIBS="$BOOST_LDFLAGS $BOOST_SYSTEM_LIB $BOOST_FILESYSTEM_LIB"
 fi
 
 AM_CONDITIONAL([ENABLE_EXTERNAL_SIGNER], [test "x$use_external_signer" = "xyes"])
