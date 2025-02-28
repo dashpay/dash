@@ -65,7 +65,7 @@ void RegisterSignerRPCCommands(CRPCTable &t)
 static const CRPCCommand commands[] =
 { // category              actor (function)
   // --------------------- ------------------------
-  { "signer",              "enumeratesigners", &enumeratesigners, {}},
+  { "signer",              &enumeratesigners},
 };
 // clang-format on
     for (const auto& c : commands) {
