@@ -48,7 +48,7 @@ class RPCSignerTest(BitcoinTestFramework):
     def run_test(self):
         self.log.debug(f"-signer={self.mock_signer_path()}")
 
-        assert_raises_rpc_error(-1, 'Error: restart bitcoind with -signer=<cmd>',
+        assert_raises_rpc_error(-1, 'Error: restart dashd with -signer=<cmd>',
             self.nodes[0].enumeratesigners
         )
 
