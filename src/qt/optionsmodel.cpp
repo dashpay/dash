@@ -1218,6 +1218,7 @@ void OptionsModel::checkAndMigrate()
     migrate_setting(ExternalSignerPath, "external_signer_path");
 #endif
     migrate_setting(MapPortNatpmp, "fUseNatpmp");
+    migrate_setting(MapPortNatpmp, "fUseUPnP");
     migrate_setting(Listen, "fListen");
     migrate_setting(Server, "server");
     migrate_setting(PruneSize, "nPruneSize");

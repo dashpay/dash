@@ -1116,6 +1116,32 @@ void InitParameterInteraction(ArgsManager& args)
             LogPrintf("%s: parameter interaction: -masternodeblsprivkey set -> setting -blockfilterindex=basic\n", __func__);
         }
     }
+
+    // If settings.json contains a "upnp" option, migrate it to use "natpmp" instead
+    bool settings_changed{false}; // Whether settings.json file needs to be rewritten
+    args.LockSettings([&](common::Settings& settings) {
+        if (auto* upnp{common::FindKey(settings.rw_settings, "upnp")}) {
+            if (common::FindKey(settings.rw_settings, "natpmp") == nullptr) {
+                LogWarning(R"(Adding "natpmp": %s to settings.json to replace obsolete "upnp" setting)" "\n", upnp->write());
+                settings.rw_settings["natpmp"] = *upnp;
+            }
+            LogWarning(R"(Removing obsolete "upnp" setting from settings.json)" "\n");
+            settings.rw_settings.erase("upnp");
+            settings_changed = true;
+        }
+    });
+    if (settings_changed) args.WriteSettingsFile();
+
+    // We dropped UPnP support but kept the arg as hidden for now to display a friendlier error to user who has the
+    // option in their config, and migrate the setting to -natpmp.
+    if (const auto arg{args.GetBoolArg("-upnp")}) {
+        std::string message;
+        if (args.SoftSetBoolArg("-natpmp", *arg)) {
+            message = strprintf(" Substituting '-natpmp=%s'.", *arg);
+        }
+        LogWarning("Option '-upnp=%s' is given but UPnP support was dropped.%s\n",
+                *arg, message);
+    }
 }
 
 /**
@@ -1201,12 +1227,6 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     // ********************************************************* Step 2: parameter interactions
 
     // also see: InitParameterInteraction()
-
-    // We drop UPnP support but kept the arg as hidden for now to display a friendlier error to user who have the
-    // option in their config. TODO: remove (here and above) in a future release.
-    if (args.IsArgSet("-upnp")) {
-        InitWarning(_("Option '-upnp' is set but UPnP support was dropped. Consider using '-natpmp' instead."));
-    }
 
     // Error if network-specific options (-addnode, -connect, etc) are
     // specified in default section of config file, but not overridden
