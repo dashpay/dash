@@ -31,12 +31,18 @@ public:
     uint32_t nBits;
     uint32_t nNonce;
 
+    // Memory only cached hash as x11 is more expensive than sha256
+    mutable uint256 cached_hash;
+
     CBlockHeader()
     {
         SetNull();
     }
 
-    SERIALIZE_METHODS(CBlockHeader, obj) { READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce); }
+    SERIALIZE_METHODS(CBlockHeader, obj) {
+        READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce);
+        obj.cached_hash.SetNull();
+    }
 
     void SetNull()
     {
@@ -46,6 +52,7 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        cached_hash.SetNull();
     }
 
     bool IsNull() const
@@ -225,6 +232,7 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.cached_hash    = cached_hash;
         return block;
     }
 
