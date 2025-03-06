@@ -4973,6 +4973,8 @@ void CChainState::LoadExternalBlockFile(
                         blkdat.SetPos(nBlockPos);
                         std::shared_ptr<CBlock> pblock{std::make_shared<CBlock>()};
                         blkdat >> *pblock;
+                        // We calculated the hash of the header earlier, no need to recalculate it.
+                        pblock->cached_hash = hash;
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
