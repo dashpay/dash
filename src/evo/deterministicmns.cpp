@@ -11,6 +11,7 @@
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/utils.h>
+#include <masternode/meta.h>
 
 #include <base58.h>
 #include <chainparams.h>
@@ -838,6 +839,12 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 newState->platformP2PPort = opt_proTx->platformP2PPort;
                 newState->platformHTTPPort = opt_proTx->platformHTTPPort;
             }
+            if (auto meta_info = m_mn_metaman.GetMetaInfo(opt_proTx->proTxHash, false);
+                !meta_info || !meta_info->SetPlatformBan(false, nHeight)) {
+                LogPrintf("CDeterministicMNManager::%s -- MN %s is not Platform revived at height %d\n", __func__,
+                          opt_proTx->proTxHash.ToString(), nHeight);
+            }
+
             if (newState->IsBanned()) {
                 // only revive when all keys are set
                 if (newState->pubKeyOperator != CBLSLazyPublicKey() && !newState->keyIDVoting.IsNull() &&
