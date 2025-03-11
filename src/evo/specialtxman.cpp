@@ -22,6 +22,7 @@
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
 #include <llmq/utils.h>
+#include <masternode/meta.h>
 #include <primitives/block.h>
 #include <util/irange.h>
 #include <validation.h>
@@ -328,6 +329,7 @@ bool CSpecialTxProcessor::BuildNewListFromBlock(const CBlock& block, gsl::not_nu
                 newState->platformP2PPort = opt_proTx->platformP2PPort;
                 newState->platformHTTPPort = opt_proTx->platformHTTPPort;
             }
+
             if (newState->IsBanned()) {
                 // only revive when all keys are set
                 if (newState->pubKeyOperator != CBLSLazyPublicKey() && !newState->keyIDVoting.IsNull() &&
