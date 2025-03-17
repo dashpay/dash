@@ -65,6 +65,7 @@ from test_framework.messages import (
     msg_merkleblock,
     msg_notfound,
     msg_ping,
+    msg_platformban,
     msg_pong,
     msg_qdata,
     msg_qgetdata,
@@ -154,6 +155,7 @@ MESSAGEMAP = {
     b"isdlock": msg_isdlock,
     b"mnlistdiff": msg_mnlistdiff,
     b"notfound": msg_notfound,
+    b"platformban": msg_platformban,
     b"qdata": msg_qdata,
     b"qfcommit": None,
     b"qgetdata": msg_qgetdata,
@@ -591,6 +593,7 @@ class P2PInterface(P2PConnection):
     def on_isdlock(self, message): pass
     def on_islock(self, message): pass
     def on_mnlistdiff(self, message): pass
+    def on_platformban(self, message): pass
     def on_qdata(self, message): pass
     def on_qgetdata(self, message): pass
     def on_qwatch(self, message): pass
