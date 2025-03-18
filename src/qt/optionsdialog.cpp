@@ -136,6 +136,11 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
 
     showPage(0);
 
+#ifndef ENABLE_EXTERNAL_SIGNER
+    //: "External signing" means using devices such as hardware wallets.
+    ui->externalSignerPath->setToolTip(tr("Compiled without external signing support (required for external signing)"));
+    ui->externalSignerPath->setEnabled(false);
+#endif
     /* Display elements init */
 
     /* Number of displayed decimal digits selector */
@@ -262,6 +267,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->prune, &QCheckBox::clicked, this, &OptionsDialog::togglePruneWarning);
     connect(ui->pruneSize, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     connect(ui->databaseCache, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
+    connect(ui->externalSignerPath, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
     connect(ui->threadsScriptVerif, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     /* Wallet */
     connect(ui->showMasternodesTab, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
@@ -328,6 +334,7 @@ void OptionsDialog::setMapper()
 
     /* Wallet */
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
+    mapper->addMapping(ui->externalSignerPath, OptionsModel::ExternalSignerPath);
     mapper->addMapping(ui->subFeeFromAmount, OptionsModel::SubFeeFromAmount);
     mapper->addMapping(ui->keepChangeAddress, OptionsModel::KeepChangeAddress);
     mapper->addMapping(ui->showMasternodesTab, OptionsModel::ShowMasternodesTab);
