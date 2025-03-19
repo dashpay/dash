@@ -504,7 +504,7 @@ CBlock TestChainSetup::CreateBlock(
         IncrementExtraNonce(&block, chainstate.m_chain.Tip(), extraNonce);
     }
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetHash(/*use_cache=*/false), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
 
     CBlock result = block;
     return result;
