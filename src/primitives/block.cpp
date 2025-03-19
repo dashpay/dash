@@ -10,9 +10,9 @@
 #include <streams.h>
 #include <tinyformat.h>
 
-uint256 CBlockHeader::GetHash() const
+uint256 CBlockHeader::GetHash(bool use_cache) const
 {
-    if (cached_hash.IsNull()) {
+    if (!use_cache || cached_hash.IsNull()) {
         std::vector<unsigned char> vch(80);
         CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
         ss << *this;
