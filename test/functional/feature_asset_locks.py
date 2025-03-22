@@ -250,6 +250,7 @@ class AssetLocksTest(DashTestFramework):
 
         self.activate_v20(expected_activation_height=900)
         self.log.info("Activated v20 at height:" + str(node.getblockcount()))
+        assert softfork_active(node_wallet, 'withdrawals')
 
         for _ in range(2):
             self.dynamically_add_masternode(evo=True)
@@ -431,12 +432,8 @@ class AssetLocksTest(DashTestFramework):
         self.check_mempool_result(tx=asset_unlock_tx_too_late,
                 result_expected={'allowed': False, 'reject-reason' : 'bad-assetunlock-too-late'})
 
-        self.log.info("Checking that two quorums later it is too late because quorum is not active...")
+        # TODO remove this quorum
         self.mine_quorum_2_nodes()
-        self.log.info("Expecting new reject-reason...")
-        assert not softfork_active(self.nodes[0], 'withdrawals')
-        self.check_mempool_result(tx=asset_unlock_tx_too_late,
-                result_expected={'allowed': False, 'reject-reason' : 'bad-assetunlock-too-old-quorum'})
 
         block_to_reconsider = node.getbestblockhash()
         self.log.info("Test block invalidation with asset unlock tx...")
@@ -450,9 +447,6 @@ class AssetLocksTest(DashTestFramework):
         self.validate_credit_pool_balance(locked - 2 * COIN)
 
         self.log.info("Forcibly mining asset_unlock_tx_too_late and ensure block is invalid")
-        assert not softfork_active(self.nodes[0], 'withdrawals')
-        self.create_and_check_block([asset_unlock_tx_too_late], expected_error = "bad-assetunlock-too-old-quorum")
-
         self.generate(node, 1)
 
         self.validate_credit_pool_balance(locked - 2 * COIN)
@@ -464,7 +458,6 @@ class AssetLocksTest(DashTestFramework):
 
     def test_withdrawal_limits(self, node_wallet, node, pubkey):
         self.log.info("Testing withdrawal limits before v22 'withdrawal fork'...")
-        assert not softfork_active(node_wallet, 'withdrawals')
 
         self.log.info("Too big withdrawal is expected to not be mined")
         asset_unlock_tx_full = self.create_assetunlock(201, 1 + self.get_credit_pool_balance(), pubkey)
@@ -514,7 +507,7 @@ class AssetLocksTest(DashTestFramework):
 
         total = self.get_credit_pool_balance()
         coins = node_wallet.listunspent()
-        while total <= 10_901 * COIN:
+        while total <= 6_000 * COIN:
             coin = coins.pop()
             to_lock = int(coin['amount'] * COIN) - tiny_amount
             if to_lock > 99 * COIN:
@@ -522,17 +515,17 @@ class AssetLocksTest(DashTestFramework):
             total += to_lock
             tx = self.create_assetlock(coin, to_lock, pubkey)
             self.send_tx_simple(tx)
-            self.log.info(f"Collecting coins in pool... Collected {total}/{10_901 * COIN}")
+            self.log.info(f"Collecting coins in pool... Collected {total}/{6_000 * COIN}")
         self.sync_mempools()
         self.generate(node, 1)
         credit_pool_balance_1 = self.get_credit_pool_balance()
-        assert_greater_than(credit_pool_balance_1, 10_901 * COIN)
-        limit_amount_1 = 1000 * COIN
+        assert_greater_than(credit_pool_balance_1, 6_000 * COIN)
+        limit_amount_1 = 2000 * COIN
         self.log.info("Create 5 transactions and make sure that only 4 of them can be mined")
-        self.log.info("because their sum is bigger than the hard-limit (1000)")
+        self.log.info("because their sum is bigger than the hard-limit (2000)")
         # take most of limit by one big tx for faster testing and
         # create several tiny withdrawal with exactly 1 *invalid* / causes spend above limit tx
-        withdrawals = [600 * COIN, 100 * COIN, 100 * COIN, 100 * COIN - 10000, 100 * COIN + 10001]
+        withdrawals = [1600 * COIN, 100 * COIN, 100 * COIN, 100 * COIN - 10000, 100 * COIN + 10001]
         amount_to_withdraw_1 = sum(withdrawals)
         index = 400
         for next_amount in withdrawals:
@@ -549,11 +542,11 @@ class AssetLocksTest(DashTestFramework):
         amount_actually_withdrawn = total - new_total
         self.log.info("Testing that we tried to withdraw more than we could")
         assert_greater_than(amount_to_withdraw_1, amount_actually_withdrawn)
-        self.log.info("Checking that we tried to withdraw more than the hard-limit (1000)")
+        self.log.info("Checking that we tried to withdraw more than the hard-limit (2000)")
         assert_greater_than(amount_to_withdraw_1, limit_amount_1)
         self.log.info("Checking we didn't actually withdraw more than allowed by the limit")
         assert_greater_than_or_equal(limit_amount_1, amount_actually_withdrawn)
-        assert_equal(amount_actually_withdrawn, 900 * COIN + 10001)
+        assert_equal(amount_actually_withdrawn, 1900 * COIN + 10001)
 
         self.generate(node, 1)
         self.log.info("Checking that exactly 1 tx stayed in mempool...")
@@ -563,7 +556,7 @@ class AssetLocksTest(DashTestFramework):
         pending_txid = node.getrawmempool()[0]
 
         amount_to_withdraw_2 = limit_amount_1 - amount_actually_withdrawn
-        self.log.info(f"We can still consume {Decimal(str(amount_to_withdraw_2 / COIN))} before we hit the hard-limit (1000)")
+        self.log.info(f"We can still consume {Decimal(str(amount_to_withdraw_2 / COIN))} before we hit the hard-limit (2000)")
         index += 1
         asset_unlock_tx = self.create_assetunlock(index, amount_to_withdraw_2, pubkey)
         self.send_tx_simple(asset_unlock_tx)
@@ -586,8 +579,7 @@ class AssetLocksTest(DashTestFramework):
         self.check_mempool_size()
 
         self.log.info("Creating new asset-unlock tx. It should be mined exactly 1 block after")
-        credit_pool_balance_2 = self.get_credit_pool_balance()
-        limit_amount_2 = credit_pool_balance_2 // 10
+        limit_amount_2 = 2000 * COIN
         index += 1
         asset_unlock_tx = self.create_assetunlock(index, limit_amount_2, pubkey)
         self.send_tx(asset_unlock_tx)
@@ -614,7 +606,6 @@ class AssetLocksTest(DashTestFramework):
         self.log.info("Checking that credit pool is not changed...")
         assert_equal(new_total, self.get_credit_pool_balance())
         self.check_mempool_size()
-        assert not softfork_active(node_wallet, 'withdrawals')
 
 
     def test_mn_rr(self, node_wallet, node, pubkey):
@@ -646,10 +637,6 @@ class AssetLocksTest(DashTestFramework):
         assert_equal(locked, self.get_credit_pool_balance())
 
     def test_withdrawal_fork(self, node_wallet, node, pubkey):
-        self.log.info("Testing asset unlock after 'withdrawal' activation...")
-        assert softfork_active(node_wallet, 'withdrawals')
-        self.log.info(f'post-withdrawals height: {node.getblockcount()} credit: {self.get_credit_pool_balance()}')
-
         index = 501
         while index < 511:
             self.log.info(f"Generating new Asset Unlock tx, index={index}...")

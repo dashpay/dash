@@ -1538,12 +1538,12 @@ RPCHelpMan getblockchaininfo()
                          Consensus::DEPLOYMENT_BRR,
                          Consensus::DEPLOYMENT_V19,
                          Consensus::DEPLOYMENT_V20,
-                         Consensus::DEPLOYMENT_MN_RR }) {
+                         Consensus::DEPLOYMENT_MN_RR,
+                         Consensus::DEPLOYMENT_WITHDRAWALS,
+                        }) {
         SoftForkDescPushBack(&tip, softforks, consensusParams, deploy);
     }
-    for (auto ehf_deploy : { /* sorted by activation block */
-                             Consensus::DEPLOYMENT_WITHDRAWALS,
-                             Consensus::DEPLOYMENT_TESTDUMMY }) {
+    for (auto ehf_deploy : { Consensus::DEPLOYMENT_TESTDUMMY, }) {
         SoftForkDescPushBack(&tip, ehfSignals, softforks, consensusParams, ehf_deploy);
     }
     obj.pushKV("softforks", softforks);
