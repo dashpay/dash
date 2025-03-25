@@ -102,7 +102,7 @@ class AssetLocksTest(DashTestFramework):
         request_id = hash256(request_id_buf)[::-1].hex()
 
         height = node_wallet.getblockcount()
-        self.log.info(f"Creating asset unlock: {llmq_type_test} {request_id}")
+        self.log.info(f"Creating asset unlock: index={index} {request_id}")
         quorumHash = mninfo[0].node.quorum("selectquorum", llmq_type_test, request_id)["quorumHash"]
         self.log.info(f"Used quorum hash: {quorumHash}")
         unlockTx_payload = CAssetUnlockTx(
@@ -618,7 +618,6 @@ class AssetLocksTest(DashTestFramework):
 
 
     def test_mn_rr(self, node_wallet, node, pubkey):
-        self.log.info(node_wallet.getblockcount())
         self.log.info("Activate mn_rr...")
         locked = self.get_credit_pool_balance()
         self.activate_mn_rr(expected_activation_height=1400)
