@@ -221,12 +221,15 @@ public:
 class ExtNetInfo final : public NetInfoInterface
 {
 private:
+    static constexpr uint8_t CURRENT_VERSION{1};
+
     bool HasDuplicates() const;
     bool IsDuplicateCandidate(const NetInfoEntry& candidate) const;
     NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
     static NetInfoStatus ValidateService(const CService& service);
 
 private:
+    uint8_t m_version{CURRENT_VERSION};
     std::vector<NetInfoEntry> m_data{};
 
 public:
@@ -235,11 +238,15 @@ public:
 
     ~ExtNetInfo() = default;
 
-    bool operator==(const ExtNetInfo& rhs) const { return m_data == rhs.m_data; }
+    bool operator==(const ExtNetInfo& rhs) const { return m_version == rhs.m_version && m_data == rhs.m_data; }
     bool operator!=(const ExtNetInfo& rhs) const { return !(*this == rhs); }
 
     SERIALIZE_METHODS(ExtNetInfo, obj)
     {
+        READWRITE(obj.m_version);
+        if (obj.m_version == 0 || obj.m_version > CURRENT_VERSION) {
+            return; // Don't bother with unknown versions
+        }
         READWRITE(obj.m_data);
     }
 
@@ -251,7 +258,11 @@ public:
     NetInfoStatus Validate() const override;
     std::string ToString() const override;
 
-    void Clear() override { m_data.clear(); }
+    void Clear() override
+    {
+        m_version = CURRENT_VERSION;
+        m_data.clear();
+    }
 };
 
 /* Selects NetInfoInterface implementation to use based on object version */
