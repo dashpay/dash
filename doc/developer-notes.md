@@ -1305,6 +1305,9 @@ Current subtrees include:
 - src/immer
   - Upstream at https://github.com/arximboldi/immer ; provides the immutable containers used by the deterministic masternode list.
 
+- src/ipc/libmultiprocess
+  - Upstream at https://github.com/bitcoin-core/libmultiprocess ; maintained by Core contributors.
+
 Upgrading LevelDB
 ---------------------
 

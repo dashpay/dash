@@ -34,8 +34,12 @@ add_dependencies(bitcoin_clientversion generate_build_info)
 
 add_subdirectory(crypto)
 add_subdirectory(univalue)
+if (ENABLE_IPC AND NOT WITH_EXTERNAL_LIBMULTIPROCESS)
+  include(../cmake/libmultiprocess.cmake)
+  add_libmultiprocess(ipc/libmultiprocess)
+endif()
 add_subdirectory(util)
-if(WITH_MULTIPROCESS)
+if(ENABLE_IPC)
   add_subdirectory(ipc)
 endif()
 
@@ -492,7 +496,7 @@ if(BUILD_DAEMON)
   set_target_properties(bitcoind PROPERTIES OUTPUT_NAME dashd)
   list(APPEND installable_targets bitcoind)
 endif()
-if(WITH_MULTIPROCESS)
+if(ENABLE_IPC)
   add_executable(bitcoin-node
     bitcoind.cpp
     init/bitcoin-node.cpp

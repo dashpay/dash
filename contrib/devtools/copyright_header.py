@@ -40,6 +40,7 @@ EXCLUDE_DIRS = [
     "src/crypto/ctaes/",
     "src/gsl/",
     "src/immer/",
+    "src/ipc/libmultiprocess/",
     "src/leveldb/",
     "src/minisketch",
     "src/secp256k1/",
