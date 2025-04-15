@@ -897,8 +897,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         for node in self.nodes:
             node.mocktime = self.mocktime
 
-    def wait_until(self, test_function, timeout=60, lock=None, sleep=0.5, do_assert=True):
-        return wait_until_helper(test_function, timeout=timeout, lock=lock, timeout_factor=self.options.timeout_factor, sleep=sleep, do_assert=do_assert)
+    def wait_until(self, test_function, timeout=60, lock=None, do_assert=True):
+        return wait_until_helper(test_function, timeout=timeout, lock=lock, timeout_factor=self.options.timeout_factor, do_assert=do_assert)
 
     # Private helper methods. These should not be accessed by the subclass test scripts.
 
@@ -1619,7 +1619,7 @@ class DashTestFramework(BitcoinTestFramework):
                 return node.getrawtransaction(txid)
             except:
                 return False
-        if self.wait_until(check_tx, timeout=timeout, sleep=1, do_assert=expected) and not expected:
+        if self.wait_until(check_tx, timeout=timeout, do_assert=expected) and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
     def create_isdlock(self, hextx):
@@ -1651,7 +1651,7 @@ class DashTestFramework(BitcoinTestFramework):
                 return node.getrawtransaction(txid, True)["instantlock"]
             except:
                 return False
-        if self.wait_until(check_instantlock, timeout=timeout, sleep=1, do_assert=expected) and not expected:
+        if self.wait_until(check_instantlock, timeout=timeout, do_assert=expected) and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
     def wait_for_chainlocked_block(self, node, block_hash, expected=True, timeout=15):
@@ -1661,7 +1661,7 @@ class DashTestFramework(BitcoinTestFramework):
                 return block["confirmations"] > 0 and block["chainlock"]
             except:
                 return False
-        if self.wait_until(check_chainlocked_block, timeout=timeout, sleep=0.1, do_assert=expected) and not expected:
+        if self.wait_until(check_chainlocked_block, timeout=timeout, do_assert=expected) and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
     def wait_for_chainlocked_block_all_nodes(self, block_hash, timeout=15, expected=True):
@@ -1669,14 +1669,14 @@ class DashTestFramework(BitcoinTestFramework):
             self.wait_for_chainlocked_block(node, block_hash, expected=expected, timeout=timeout)
 
     def wait_for_best_chainlock(self, node, block_hash, timeout=15):
-        self.wait_until(lambda: node.getbestchainlock()["blockhash"] == block_hash, timeout=timeout, sleep=0.1)
+        self.wait_until(lambda: node.getbestchainlock()["blockhash"] == block_hash, timeout=timeout)
 
     def wait_for_sporks_same(self, timeout=30):
         def check_sporks_same():
             self.bump_mocktime(1)
             sporks = self.nodes[0].spork('show')
             return all(node.spork('show') == sporks for node in self.nodes[1:])
-        self.wait_until(check_sporks_same, timeout=timeout, sleep=0.5)
+        self.wait_until(check_sporks_same, timeout=timeout)
 
     def wait_for_quorum_connections(self, quorum_hash, expected_connections, mninfos, llmq_type_name="llmq_test", timeout = 60, wait_proc=None):
         def check_quorum_connections():
@@ -1715,7 +1715,7 @@ class DashTestFramework(BitcoinTestFramework):
             # no sessions at all - not ok
             return ret()
 
-        self.wait_until(check_quorum_connections, timeout=timeout, sleep=1)
+        self.wait_until(check_quorum_connections, timeout=timeout)
 
     def wait_for_masternode_probes(self, quorum_hash, mninfos, timeout = 30, wait_proc=None, llmq_type_name="llmq_test"):
         def check_probes():
@@ -1753,9 +1753,9 @@ class DashTestFramework(BitcoinTestFramework):
                                         return ret()
             return True
 
-        self.wait_until(check_probes, timeout=timeout, sleep=1)
+        self.wait_until(check_probes, timeout=timeout)
 
-    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=0.5):
+    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30):
         def check_dkg_session():
             member_count = 0
             for mn in mninfos:
@@ -1775,7 +1775,7 @@ class DashTestFramework(BitcoinTestFramework):
                     break
             return member_count >= expected_member_count
 
-        self.wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
+        self.wait_until(check_dkg_session, timeout=timeout)
 
     def wait_for_quorum_commitment(self, quorum_hash, nodes, llmq_type=100, timeout=15):
         def check_dkg_comitments():
@@ -1796,28 +1796,29 @@ class DashTestFramework(BitcoinTestFramework):
                     return False
             return True
 
-        self.wait_until(check_dkg_comitments, timeout=timeout, sleep=1)
+        self.wait_until(check_dkg_comitments, timeout=timeout)
 
-    def wait_for_quorum_list(self, quorum_hash, nodes, timeout=15, sleep=2, llmq_type_name="llmq_test"):
+    def wait_for_quorum_list(self, quorum_hash, nodes, timeout=15, llmq_type_name="llmq_test"):
         def wait_func():
             self.log.info("quorums: " + str(self.nodes[0].quorum("list")))
             if quorum_hash in self.nodes[0].quorum("list")[llmq_type_name]:
                 return True
-            self.bump_mocktime(sleep, nodes=nodes)
+            time.sleep(1)
+            self.bump_mocktime(1, nodes=nodes)
             self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
             return False
-        self.wait_until(wait_func, timeout=timeout, sleep=sleep)
+        self.wait_until(wait_func, timeout=timeout)
 
-    def wait_for_quorums_list(self, quorum_hash_0, quorum_hash_1, nodes, llmq_type_name="llmq_test",  timeout=15, sleep=2):
+    def wait_for_quorums_list(self, quorum_hash_0, quorum_hash_1, nodes, llmq_type_name="llmq_test",  timeout=15):
         def wait_func():
             self.log.info("h("+str(self.nodes[0].getblockcount())+") quorums: " + str(self.nodes[0].quorum("list")))
             if quorum_hash_0 in self.nodes[0].quorum("list")[llmq_type_name]:
                 if quorum_hash_1 in self.nodes[0].quorum("list")[llmq_type_name]:
                     return True
-            self.bump_mocktime(sleep, nodes=nodes)
+            self.bump_mocktime(1, nodes=nodes)
             self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
             return False
-        self.wait_until(wait_func, timeout=timeout, sleep=sleep)
+        self.wait_until(wait_func, timeout=timeout)
 
     def move_blocks(self, nodes, num_blocks):
         self.bump_mocktime(1, nodes=nodes)
@@ -2038,7 +2039,7 @@ class DashTestFramework(BitcoinTestFramework):
                 if not mn.node.quorum("hasrecsig", llmq_type, rec_sig_id, rec_sig_msg_hash):
                     return False
             return True
-        self.wait_until(check_recovered_sig, timeout=timeout, sleep=1)
+        self.wait_until(check_recovered_sig, timeout=timeout)
 
     def get_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, use_platformsign=False):
         # Note: recsigs aren't relayed to regular nodes by default,
@@ -2099,7 +2100,7 @@ class DashTestFramework(BitcoinTestFramework):
                            (valid, len(mns), quorum_type_in, quorum_hash_in))
             return valid == len(mns)
 
-        self.wait_until(test_mns, timeout=timeout, sleep=0.5)
+        self.wait_until(test_mns, timeout=timeout)
 
     def wait_for_mnauth(self, node, count, timeout=10):
         def test():
