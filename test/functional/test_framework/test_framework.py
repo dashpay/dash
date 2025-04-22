@@ -1647,6 +1647,7 @@ class DashTestFramework(BitcoinTestFramework):
     def wait_for_instantlock(self, txid, node, expected=True, timeout=60):
         def check_instantlock():
             self.bump_mocktime(1)
+            time.sleep(1)
             try:
                 return node.getrawtransaction(txid, True)["instantlock"]
             except:
