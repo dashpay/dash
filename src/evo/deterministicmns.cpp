@@ -551,7 +551,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
 
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex,
                                            BlockValidationState& state, const CCoinsViewCache& view,
-                                           llmq::CQuorumSnapshotManager& qsnapman, bool fJustCheck,
+                                           llmq::CQuorumSnapshotManager& qsnapman, const CDeterministicMNList& newList,
                                            std::optional<MNListUpdates>& updatesRet)
 {
     AssertLockHeld(cs_main);
@@ -561,23 +561,12 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
         return true;
     }
 
-    CDeterministicMNList oldList, newList;
+    CDeterministicMNList oldList;
     CDeterministicMNListDiff diff;
 
     int nHeight = pindex->nHeight;
 
     try {
-        if (!BuildNewListFromBlock(block, pindex->pprev, state, view, newList, qsnapman, true)) {
-            // pass the state returned by the function above
-            return false;
-        }
-
-        if (fJustCheck) {
-            return true;
-        }
-
-        newList.SetBlockHash(pindex->GetBlockHash());
-
         LOCK(cs);
 
         oldList = GetListForBlockInternal(pindex->pprev);
