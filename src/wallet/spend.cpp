@@ -84,9 +84,6 @@ void CWallet::AvailableCoins(std::vector<COutput> &vCoins, const CCoinControl* c
 
         const uint256& wtxid = wtx.GetHash();
 
-        if (!chain().checkFinalTx(*wtx.tx))
-            continue;
-
         if (wtx.IsImmatureCoinBase())
             continue;
 
