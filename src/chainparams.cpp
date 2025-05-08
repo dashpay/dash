@@ -924,6 +924,7 @@ public:
         UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST);
         UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
         UpdateLLMQInstantSendDIP0024FromArgs(args);
+        assert(consensus.V20Height >= consensus.DIP0003Height);
     }
 
     /**
