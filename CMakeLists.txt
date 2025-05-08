@@ -13,6 +13,10 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds are not allowed.")
 endif()
 
+# When adjusting CMake flag variables, we must not override those explicitly
+# set by the user. These are a subset of the CACHE_VARIABLES property.
+get_directory_property(precious_variables CACHE_VARIABLES)
+
 #=============================
 # Project / Package metadata
 #=============================
