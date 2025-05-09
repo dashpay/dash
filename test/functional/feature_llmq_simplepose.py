@@ -118,10 +118,12 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_good_nodes, None, 0, mninfos_online)
+        time.sleep(0.5)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_good_nodes, None, 0, mninfos_online)
+        time.sleep(0.5)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
@@ -130,6 +132,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_good_nodes, None, 0, mninfos_online)
+        time.sleep(0.5)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, nodes)

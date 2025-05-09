@@ -283,6 +283,7 @@ class DashGovernanceTest (DashTestFramework):
         self.wait_until(lambda: self.nodes[1].gobject("count")["votes"] == 24, timeout=5)
 
         self.log.info("Remember vote count")
+
         before = self.nodes[1].gobject("count")["votes"]
 
         self.log.info("Bump mocktime to let MNs vote again")
