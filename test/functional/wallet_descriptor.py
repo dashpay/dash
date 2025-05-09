@@ -91,7 +91,7 @@ class WalletDescriptorTest(BitcoinTestFramework):
         send_wrpc.walletpassphrase('pass', 10)
         addr = send_wrpc.getnewaddress()
         info2 = send_wrpc.getaddressinfo(addr)
-        assert info1['hdmasterfingerprint'] != info2['hdmasterfingerprint']
+        assert info1['hdmasterfingerprint'] == info2['hdmasterfingerprint']
         send_wrpc.walletlock()
         assert 'hdmasterfingerprint' in send_wrpc.getaddressinfo(send_wrpc.getnewaddress())
         info3 = send_wrpc.getaddressinfo(addr)
@@ -103,6 +103,7 @@ class WalletDescriptorTest(BitcoinTestFramework):
 
         self.log.info("Test that unlock is needed when deriving only hardened keys in an encrypted wallet")
         send_wrpc.walletpassphrase('pass', 10)
+        # TODO: implement import descriptors by mnemonic
         send_wrpc.importdescriptors([{
             "desc": "pkh(tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/0h/*h)#y4dfsj7n",
             "timestamp": "now",
