@@ -245,7 +245,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 
             // This will usually succeed in the first round as we take the nonce from BLOCKINFO
             // It's however useful when adding new blocks with unknown nonces (you should add the found block to BLOCKINFO)
-            while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, chainparams.GetConsensus())) {
+            while (!CheckProofOfWork(pblock->GetHash(/*use_cache=*/false), pblock->nBits, chainparams.GetConsensus())) {
                 pblock->nNonce++;
             }
         }
