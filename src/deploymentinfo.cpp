@@ -11,10 +11,6 @@ const struct VBDeploymentInfo VersionBitsDeploymentInfo[Consensus::MAX_VERSION_B
         /*.name =*/ "testdummy",
         /*.gbt_force =*/ true,
     },
-    {
-        /*.name =*/"withdrawals",
-        /*.gbt_force =*/true,
-    },
 };
 
 std::string DeploymentName(Consensus::BuriedDeployment dep)
@@ -49,6 +45,8 @@ std::string DeploymentName(Consensus::BuriedDeployment dep)
         return "v20";
     case Consensus::DEPLOYMENT_MN_RR:
         return "mn_rr";
+    case Consensus::DEPLOYMENT_WITHDRAWALS:
+        return "withdrawals";
     } // no default case, so the compiler can warn about missing cases
     return "";
 }
