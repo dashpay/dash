@@ -1251,6 +1251,7 @@ static bool CheckService(const ProTx& proTx, TxValidationState& state)
         return true;
     // Shouldn't be possible during self-checks
     case NetInfoStatus::BadInput:
+    case NetInfoStatus::MaxLimit:
         ASSERT_IF_DEBUG(false);
     } // no default case, so the compiler can warn about missing cases
     assert(false);
