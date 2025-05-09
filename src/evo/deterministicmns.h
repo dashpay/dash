@@ -30,6 +30,7 @@ class CBlock;
 class CBlockIndex;
 class CCoinsViewCache;
 class CEvoDB;
+class CMasternodeMetaMan;
 class TxValidationState;
 
 extern RecursiveMutex cs_main;
@@ -567,6 +568,7 @@ private:
     std::atomic<int> to_cleanup {0};
 
     CEvoDB& m_evoDb;
+    CMasternodeMetaMan& m_mn_metaman;
 
     std::unordered_map<uint256, CDeterministicMNList, StaticSaltedHasher> mnListsCache GUARDED_BY(cs);
     std::unordered_map<uint256, CDeterministicMNListDiff, StaticSaltedHasher> mnListDiffsCache GUARDED_BY(cs);
@@ -574,8 +576,9 @@ private:
     const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
 
 public:
-    explicit CDeterministicMNManager(CEvoDB& evoDb) :
-        m_evoDb(evoDb)
+    explicit CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaMan& mn_metaman) :
+        m_evoDb(evoDb),
+        m_mn_metaman(mn_metaman)
     {
     }
     ~CDeterministicMNManager() = default;
