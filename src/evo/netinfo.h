@@ -128,7 +128,7 @@ public:
 
 template<> struct is_serializable_enum<NetInfoEntry::NetInfoType> : std::true_type {};
 
-using CServiceList = std::vector<std::reference_wrapper<const CService>>;
+using NetInfoList = std::vector<std::reference_wrapper<const NetInfoEntry>>;
 
 class MnNetInfo
 {
@@ -169,7 +169,7 @@ public:
     }
 
     NetInfoStatus AddEntry(const std::string& service);
-    CServiceList GetEntries() const;
+    NetInfoList GetEntries() const;
 
     const CService& GetPrimary() const;
     bool IsEmpty() const { return *this == MnNetInfo(); }
