@@ -19,32 +19,32 @@ void ProcessNetInfoCore(T1& ptx, const UniValue& input, const bool optional)
     CHECK_NONFATAL(ptx.netInfo);
 
     if (!input.isArray() && !input.isStr()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid param for ipAndPort, must be string or array");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid param for coreP2PAddrs, must be string or array");
     }
 
     if (input.isStr()) {
         if (!optional && input.get_str().empty()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Empty param for ipAndPort not allowed");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Empty param for coreP2PAddrs not allowed");
         } else if (!input.get_str().empty()) {
             if (auto entryRet = ptx.netInfo->AddEntry(input.get_str()); entryRet != NetInfoStatus::Success) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Error setting ipAndPort[0] to '%s' (%s)",
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Error setting coreP2PAddrs[0] to '%s' (%s)",
                                                                     input.get_str(), NISToString(entryRet)));
             }
         }
     } else if (input.isArray()) {
         if (!optional && input.get_array().empty()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Empty params for ipAndPort not allowed");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Empty params for coreP2PAddrs not allowed");
         } else if (!input.get_array().empty()) {
             const UniValue& entries = input.get_array();
             for (size_t idx{0}; idx < entries.size(); idx++) {
                 const UniValue& entry{entries[idx]};
                 if (!entry.isStr()) {
                     throw JSONRPCError(RPC_INVALID_PARAMETER,
-                                       strprintf("Invalid param for ipAndPort[%d], must be string", idx));
+                                       strprintf("Invalid param for coreP2PAddrs[%d], must be string", idx));
                 }
                 if (auto entryRet = ptx.netInfo->AddEntry(entry.get_str()); entryRet != NetInfoStatus::Success) {
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Error setting ipAndPort[%d] to '%s' (%s)", idx,
-                                                                        entry.get_str(), NISToString(entryRet)));
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Error setting coreP2PAddrs[%d] to '%s' (%s)",
+                                                                        idx, entry.get_str(), NISToString(entryRet)));
                 }
             }
         }
