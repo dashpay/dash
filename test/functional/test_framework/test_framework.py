@@ -1349,7 +1349,7 @@ class DashTestFramework(BitcoinTestFramework):
                 break
         assert collateral_vout is not None
 
-        ipAndPort = '127.0.0.1:%d' % node_p2p_port
+        ipAndPort = ['127.0.0.1:%d' % node_p2p_port]
         operatorReward = idx
 
         protx_result = None
@@ -1432,7 +1432,7 @@ class DashTestFramework(BitcoinTestFramework):
         votingAddr = ownerAddr
 
         port = p2p_port(len(self.nodes) + idx)
-        ipAndPort = '127.0.0.1:%d' % port
+        ipAndPort = ['127.0.0.1:%d' % port]
         operatorReward = idx
 
         submit = (idx % 4) < 2
