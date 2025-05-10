@@ -54,7 +54,7 @@ public:
     CKeyID keyIDOwner;
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
-    MnNetInfo netInfo;
+    std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
     CScript scriptOperatorPayout;
 
@@ -100,7 +100,7 @@ public:
         READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.nVersion == ProTxVersion::LegacyBLS));
         READWRITE(
             obj.keyIDVoting,
-            obj.netInfo,
+            NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo)),
             obj.scriptPayout,
             obj.scriptOperatorPayout,
             obj.platformNodeID,
@@ -112,7 +112,7 @@ public:
     {
         nVersion = ProTxVersion::LegacyBLS;
         pubKeyOperator = CBLSLazyPublicKey();
-        netInfo.Clear();
+        netInfo = MakeNetInfo(*this);
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
         platformNodeID = uint160();
@@ -245,6 +245,10 @@ public:
                 if (obj.fields & member.mask) {
                     SER_READ(obj, read_pubkey = true);
                     READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), obj.state.nVersion == ProTxVersion::LegacyBLS));
+                }
+            } else if constexpr (BaseType::mask == Field_netInfo) {
+                if (obj.fields & member.mask) {
+                    READWRITE(NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.state.netInfo)));
                 }
             } else {
                 if (obj.fields & member.mask) {

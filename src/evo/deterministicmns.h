@@ -398,6 +398,9 @@ private:
     static_assert(!std::is_same_v<std::decay_t<T>, name>, "GetUniquePropertyHash cannot be templated against " #name)
         DMNL_NO_TEMPLATE(CBLSPublicKey);
         DMNL_NO_TEMPLATE(MnNetInfo);
+        DMNL_NO_TEMPLATE(NetInfoEntry);
+        DMNL_NO_TEMPLATE(NetInfoInterface);
+        DMNL_NO_TEMPLATE(std::shared_ptr<NetInfoInterface>);
 #undef DMNL_NO_TEMPLATE
         return ::SerializeHash(v);
     }

@@ -19,10 +19,12 @@ BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
     std::vector<CSimplifiedMNListEntry> entries;
     for (size_t i = 1; i < 16; i++) {
         CSimplifiedMNListEntry smle;
+        smle.nVersion = CProRegTx::GetMaxVersion(!bls::bls_legacy_scheme);
+        smle.netInfo = MakeNetInfo(smle);
         smle.proRegTxHash.SetHex(strprintf("%064x", i));
         smle.confirmedHash.SetHex(strprintf("%064x", i));
 
-        BOOST_CHECK_EQUAL(smle.netInfo.AddEntry(strprintf("%d.%d.%d.%d:%d", 0, 0, 0, i, i)), NetInfoStatus::Success);
+        BOOST_CHECK_EQUAL(smle.netInfo->AddEntry(strprintf("%d.%d.%d.%d:%d", 0, 0, 0, i, i)), NetInfoStatus::Success);
 
         std::vector<unsigned char> vecBytes{static_cast<unsigned char>(i)};
         vecBytes.resize(CBLSSecretKey::SerSize);
