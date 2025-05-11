@@ -226,7 +226,7 @@ private:
     bool HasDuplicates() const;
     bool IsDuplicateCandidate(const NetInfoEntry& candidate) const;
     NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
-    static NetInfoStatus ValidateService(const CService& service);
+    static NetInfoStatus ValidateService(const CService& service, bool is_primary);
 
 private:
     uint8_t m_version{CURRENT_VERSION};

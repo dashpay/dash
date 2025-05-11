@@ -33,8 +33,8 @@ static const TestVectors vals_main{
     // Port greater than uint16_t max
     {"1.1.1.1:99999", NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // - Non-IPv4 addresses are prohibited in MnNetInfo
-    // - Any valid BIP155 address is allowed in ExtNetInfo
-    {"[2606:4700:4700::1111]:9999", NetInfoStatus::BadInput, NetInfoStatus::Success},
+    // - The first address must be IPv4 and therefore is not allowed in ExtNetInfo
+    {"[2606:4700:4700::1111]:9999", NetInfoStatus::BadInput, NetInfoStatus::BadType},
     // Domains are not allowed
     {"example.com:9999", NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // Incorrect IPv4 address
@@ -134,6 +134,16 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_rules_reg, RegTestingSetup)
         BOOST_CHECK_EQUAL(netInfo.AddEntry("1.1.1.1:9998"), NetInfoStatus::Duplicate);
         // Partial duplicates (same address, different port) are also prohibited
         BOOST_CHECK_EQUAL(netInfo.AddEntry("1.1.1.1:9997"), NetInfoStatus::Duplicate);
+    }
+
+    {
+        // ExtNetInfo allows storing non-IPv4 addresses if they aren't the first entry
+        ExtNetInfo netInfo;
+        BOOST_CHECK_EQUAL(netInfo.AddEntry("[2620:0:ccc::2]:9998"), NetInfoStatus::BadType);
+        BOOST_CHECK_EQUAL(netInfo.AddEntry("1.1.1.1:9998"), NetInfoStatus::Success);
+        BOOST_CHECK_EQUAL(netInfo.AddEntry("[2620:0:ccc::2]:9998"), NetInfoStatus::Success);
+        BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
+        ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/2);
     }
 }
 
