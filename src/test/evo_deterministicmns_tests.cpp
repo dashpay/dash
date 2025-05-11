@@ -105,6 +105,7 @@ static CMutableTransaction CreateProRegTx(const CChain& active_chain, const CTxM
 
     CProRegTx proTx;
     proTx.nVersion = CProRegTx::GetMaxVersion(!bls::bls_legacy_scheme);
+    proTx.netInfo = MakeNetInfo(proTx);
     proTx.collateralOutpoint.n = 0;
     BOOST_CHECK_EQUAL(proTx.netInfo->AddEntry(strprintf("1.1.1.1:%d", port)), NetInfoStatus::Success);
     proTx.keyIDOwner = ownerKeyRet.GetPubKey().GetID();
@@ -127,6 +128,7 @@ static CMutableTransaction CreateProUpServTx(const CChain& active_chain, const C
 {
     CProUpServTx proTx;
     proTx.nVersion = CProUpServTx::GetMaxVersion(!bls::bls_legacy_scheme);
+    proTx.netInfo = MakeNetInfo(proTx);
     proTx.proTxHash = proTxHash;
     BOOST_CHECK_EQUAL(proTx.netInfo->AddEntry(strprintf("1.1.1.1:%d", port)), NetInfoStatus::Success);
     proTx.scriptOperatorPayout = scriptOperatorPayout;
@@ -634,6 +636,7 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
 
     CProRegTx payload;
     payload.nVersion = CProRegTx::GetMaxVersion(!bls::bls_legacy_scheme);
+    payload.netInfo = MakeNetInfo(payload);
     BOOST_CHECK_EQUAL(payload.netInfo->AddEntry("1.1.1.1:1"), NetInfoStatus::Success);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
@@ -708,6 +711,8 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     auto scriptPayout = GetScriptForDestination(PKHash(payoutKey.GetPubKey()));
 
     CProRegTx payload;
+    payload.nVersion = CProRegTx::GetMaxVersion(!bls::bls_legacy_scheme);
+    payload.netInfo = MakeNetInfo(payload);
     BOOST_CHECK_EQUAL(payload.netInfo->AddEntry("1.1.1.1:2"), NetInfoStatus::Success);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
@@ -776,6 +781,7 @@ void FuncVerifyDB(TestChainSetup& setup)
 
     CProRegTx payload;
     payload.nVersion = CProRegTx::GetMaxVersion(!bls::bls_legacy_scheme);
+    payload.netInfo = MakeNetInfo(payload);
     BOOST_CHECK_EQUAL(payload.netInfo->AddEntry("1.1.1.1:1"), NetInfoStatus::Success);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());

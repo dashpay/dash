@@ -211,8 +211,11 @@ public:
     void Clear() override { m_addr.Clear(); }
 };
 
-inline std::shared_ptr<NetInfoInterface> MakeNetInfo()
+/* Selects NetInfoInterface implementation to use based on object version */
+template <typename T1>
+std::shared_ptr<NetInfoInterface> MakeNetInfo(const T1& obj)
 {
+    assert(obj.nVersion > 0);
     return std::make_shared<MnNetInfo>();
 }
 
