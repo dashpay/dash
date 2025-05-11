@@ -298,7 +298,7 @@ NetInfoStatus ExtNetInfo::ProcessCandidate(const NetInfoEntry& candidate)
     return NetInfoStatus::Success;
 }
 
-NetInfoStatus ExtNetInfo::ValidateService(const CService& service)
+NetInfoStatus ExtNetInfo::ValidateService(const CService& service, bool is_primary)
 {
     if (!service.IsValid()) {
         return NetInfoStatus::BadAddress;
@@ -311,6 +311,11 @@ NetInfoStatus ExtNetInfo::ValidateService(const CService& service)
     }
     if (IsBadPort(service.GetPort()) || service.GetPort() == 0) {
         return NetInfoStatus::BadPort;
+    }
+    if (is_primary) {
+        if (!service.IsIPv4()) {
+            return NetInfoStatus::BadType;
+        }
     }
 
     return NetInfoStatus::Success;
@@ -329,7 +334,7 @@ NetInfoStatus ExtNetInfo::AddEntry(const std::string& input)
     }
 
     if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
-        const auto ret{ValidateService(*service_opt)};
+        const auto ret{ValidateService(*service_opt, /*is_primary=*/m_data.empty())};
         if (ret == NetInfoStatus::Success) {
             return ProcessCandidate(NetInfoEntry{*service_opt});
         }
@@ -369,7 +374,8 @@ NetInfoStatus ExtNetInfo::Validate() const
             return NetInfoStatus::Malformed;
         }
         if (const auto& service_opt{entry.GetAddrPort()}) {
-            if (auto ret{ValidateService(*service_opt)}; ret != NetInfoStatus::Success) {
+            if (auto ret{ValidateService(*service_opt, /*is_primary=*/entry == *m_data.begin())};
+                ret != NetInfoStatus::Success) {
                 // Stores CService underneath but doesn't pass validation rules
                 return ret;
             }
