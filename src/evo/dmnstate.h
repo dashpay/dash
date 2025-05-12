@@ -100,7 +100,7 @@ public:
         READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.nVersion == ProTxVersion::LegacyBLS));
         READWRITE(
             obj.keyIDVoting,
-            NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo)),
+            NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo), obj.nVersion >= ProTxVersion::ExtAddr),
             obj.scriptPayout,
             obj.scriptOperatorPayout,
             obj.platformNodeID,
@@ -224,7 +224,7 @@ public:
                 fields |= member.mask;
             }
         });
-        if (fields & Field_pubKeyOperator) {
+        if ((fields & Field_netInfo) || (fields & Field_pubKeyOperator)) {
             // pubKeyOperator needs nVersion
             state.nVersion = b.nVersion;
             fields |= Field_nVersion;
@@ -237,18 +237,27 @@ public:
     {
         READWRITE(VARINT(obj.fields));
 
-        // NOTE: reading pubKeyOperator requires nVersion
-        bool read_pubkey{false};
         boost::hana::for_each(members, [&](auto&& member) {
             using BaseType = std::decay_t<decltype(member)>;
-            if constexpr (BaseType::mask == Field_pubKeyOperator) {
+            // NOTE: reading pubKeyOperator or netInfo requires nVersion
+            if constexpr (BaseType::mask == Field_netInfo || BaseType::mask == Field_pubKeyOperator) {
                 if (obj.fields & member.mask) {
-                    SER_READ(obj, read_pubkey = true);
-                    READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), obj.state.nVersion == ProTxVersion::LegacyBLS));
+                    SER_READ(obj, obj.fields |= Field_nVersion);
+                }
+            }
+            if constexpr (BaseType::mask == Field_pubKeyOperator) {
+                if ((obj.fields & member.mask) && (obj.fields & Field_nVersion)) {
+                    auto& pubKeyOperator{const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator)};
+                    if (ser_action.ForRead()) {
+                        pubKeyOperator.SetLegacy(/*specificLegacyScheme=*/obj.state.nVersion == ProTxVersion::LegacyBLS);
+                    }
+                    READWRITE(CBLSLazyPublicKeyVersionWrapper(pubKeyOperator,
+                                                              /*legacy=*/obj.state.nVersion == ProTxVersion::LegacyBLS));
                 }
             } else if constexpr (BaseType::mask == Field_netInfo) {
-                if (obj.fields & member.mask) {
-                    READWRITE(NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.state.netInfo)));
+                if ((obj.fields & member.mask) && (obj.fields & Field_nVersion)) {
+                    READWRITE(NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.state.netInfo),
+                                                /*is_extended=*/obj.state.nVersion >= ProTxVersion::ExtAddr));
                 }
             } else {
                 if (obj.fields & member.mask) {
@@ -256,11 +265,6 @@ public:
                 }
             }
         });
-
-        if (read_pubkey) {
-            SER_READ(obj, obj.fields |= Field_nVersion);
-            SER_READ(obj, obj.state.pubKeyOperator.SetLegacy(obj.state.nVersion == ProTxVersion::LegacyBLS));
-        }
     }
 
     void ApplyToState(CDeterministicMNState& target) const
