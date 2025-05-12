@@ -116,9 +116,7 @@ private:
     static constexpr int DISK_SNAPSHOT_PERIOD = 576; // once per day
 
 public:
-    static constexpr CAmount LimitAmountLow = 100 * COIN;
-    static constexpr CAmount LimitAmountHigh = 1000 * COIN;
-    static constexpr CAmount LimitAmountV22 = 2000 * COIN;
+    static constexpr CAmount LimitAmount = 2000 * COIN;
 
     explicit CCreditPoolManager(CEvoDB& _evoDb);
 
