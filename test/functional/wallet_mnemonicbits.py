@@ -33,8 +33,7 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
             elif desc['desc'][:6] == 'combo(':
                 assert 'mnemonic' not in desc
             else:
-                self.log.info(f"unknown type of descriptor: {desc['desc']}")
-                assert False
+                raise AssertionError(f"Unknown descriptor type: {desc['desc']}")
         return mnemonic
 
     def run_test(self):
