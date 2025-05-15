@@ -275,32 +275,55 @@ std::string MnNetInfo::ToString() const
                      PurposeToString(Purpose::CORE_P2P), m_addr.ToString());
 }
 
-bool ExtNetInfo::HasDuplicates() const
+bool ExtNetInfo::HasDuplicates(const std::vector<NetInfoEntry>* entries) const
 {
-    const auto& all_entries{GetEntries()};
+    if (!entries) {
+        // Entries list not provided, searching through all entries for exact match
+        const auto& all_entries{GetEntries()};
+        if (all_entries.empty()) return false;
+        std::set<NetInfoEntry> known{};
+        for (const NetInfoEntry& entry : all_entries) {
+            if (auto [_, inserted] = known.insert(entry); !inserted) {
+                return true;
+            }
+        }
+        ASSERT_IF_DEBUG(known.size() == all_entries.size());
+        return false;
+    }
+    // Entries list provided, searching through list for partial match
+    if (Assert(entries)->empty()) return false;
     std::unordered_set<std::string> known{};
-    for (const NetInfoEntry& entry : all_entries) {
+    for (const NetInfoEntry& entry : *entries) {
         if (auto [_, inserted] = known.insert(entry.ToStringAddr()); !inserted) {
             return true;
         }
     }
-    ASSERT_IF_DEBUG(known.size() == all_entries.size());
+    ASSERT_IF_DEBUG(known.size() == entries->size());
     return false;
 }
 
-bool ExtNetInfo::IsDuplicateCandidate(const NetInfoEntry& candidate) const
+bool ExtNetInfo::IsDuplicateCandidate(const NetInfoEntry& candidate, const std::vector<NetInfoEntry>* entries) const
 {
-    const auto& all_entries{GetEntries()};
+    if (!entries) {
+        // Entries list not provided, searching through all entries for exact match
+        const auto& all_entries{GetEntries()};
+        if (all_entries.empty()) return false;
+        return std::any_of(all_entries.begin(), all_entries.end(),
+                           [&candidate](const auto& entry) { return candidate == entry; });
+    }
+    // Entries list provided, searching through list for partial match
+    if (Assert(entries)->empty()) return false;
     const std::string& candidate_str{candidate.ToStringAddr()};
-    return std::any_of(all_entries.begin(), all_entries.end(),
-                       [&candidate_str](const auto& entry) { return candidate_str == entry.get().ToStringAddr(); });
+    return std::any_of(entries->begin(), entries->end(),
+                       [&candidate_str](const auto& entry) { return candidate_str == entry.ToStringAddr(); });
 }
 
 NetInfoStatus ExtNetInfo::ProcessCandidate(const uint8_t purpose, const NetInfoEntry& candidate)
 {
     assert(candidate.IsTriviallyValid());
 
-    if (IsDuplicateCandidate(candidate)) {
+    if (IsDuplicateCandidate(candidate, /*entries=*/nullptr)) {
+        // Absolute duplicates are prohibited *across* lists
         return NetInfoStatus::Duplicate;
     }
     if (auto it{m_data.find(purpose)}; it != m_data.end()) {
@@ -308,6 +331,10 @@ NetInfoStatus ExtNetInfo::ProcessCandidate(const uint8_t purpose, const NetInfoE
         auto& [_, entries] = *it;
         if (entries.size() >= NETINFO_EXTENDED_LIMIT) {
             return NetInfoStatus::MaxLimit;
+        }
+        if (IsDuplicateCandidate(candidate, &entries)) {
+            // Partial duplicates are prohibited *within* a list
+            return NetInfoStatus::Duplicate;
         }
         entries.push_back(candidate);
         return NetInfoStatus::Success;
@@ -403,7 +430,8 @@ NetInfoStatus ExtNetInfo::Validate() const
     if (m_version == 0 || m_version > CURRENT_VERSION || m_data.empty()) {
         return NetInfoStatus::Malformed;
     }
-    if (HasDuplicates()) {
+    if (HasDuplicates(/*entries=*/nullptr)) {
+        // Absolute duplicates are prohibited *across* lists
         return NetInfoStatus::Duplicate;
     }
     for (const auto& [purpose, entries] : m_data) {
@@ -413,6 +441,10 @@ NetInfoStatus ExtNetInfo::Validate() const
         if (entries.empty()) {
             // Purpose if present in map must have at least one entry
             return NetInfoStatus::Malformed;
+        }
+        if (HasDuplicates(&entries)) {
+            // Partial duplicates are prohibited *within* a list
+            return NetInfoStatus::Duplicate;
         }
         for (const auto& entry : entries) {
             if (!entry.IsTriviallyValid()) {
