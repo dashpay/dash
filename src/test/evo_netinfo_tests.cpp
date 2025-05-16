@@ -35,8 +35,9 @@ static const TestVectors vals_main{
     // - Non-IPv4 addresses are prohibited in MnNetInfo
     // - The first address must be IPv4 and therefore is not allowed in ExtNetInfo
     {{Purpose::CORE_P2P, "[2606:4700:4700::1111]:9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadType},
-    // Domains are not allowed
-    {{Purpose::CORE_P2P, "example.com:9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadInput},
+    // - Domains are not allowed in MnNetInfo
+    // - The first address must be IPv4 and therefore is not allowed in ExtNetInfo
+    {{Purpose::CORE_P2P, "example.com:9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadType},
     // Incorrect IPv4 address
     {{Purpose::CORE_P2P, "1.1.1.256:9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // Missing address
@@ -134,11 +135,21 @@ static const TestVectors vals_reg{
 
 enum class ExpectedType : uint8_t {
     CJDNS,
+    I2P,
+    Tor,
 };
 
 static const std::vector<std::tuple</*type=*/ExpectedType, /*input=*/std::string, /*expected_ret=*/NetInfoStatus>> nonprimary_vals{
     // CJDNS is supported in ExtNetInfo
     {ExpectedType::CJDNS, "[fc00:3344:5566:7788:9900:aabb:ccdd:eeff]:9998", NetInfoStatus::Success},
+    // ExtNetInfo can store I2P addresses as long as it uses port 0
+    {ExpectedType::I2P, "udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p:0", NetInfoStatus::Success},
+    // ExtNetInfo can store onion addresses
+    {ExpectedType::Tor, "pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion:9998", NetInfoStatus::Success},
+    // ExtNetInfo can store I2P addresses but non-zero ports are not allowed
+    {ExpectedType::I2P, "udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p:9998", NetInfoStatus::BadPort},
+    // ExtNetInfo can store onion addresses but zero ports are not allowed
+    {ExpectedType::Tor, "pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion:0", NetInfoStatus::BadPort},
 };
 
 BOOST_FIXTURE_TEST_CASE(mnnetinfo_rules_reg, RegTestingSetup) { TestMnNetInfo(vals_reg); }
@@ -241,6 +252,12 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_rules_reg, RegTestingSetup)
         switch (type) {
         case ExpectedType::CJDNS:
             BOOST_CHECK(service.IsCJDNS());
+            break;
+        case ExpectedType::I2P:
+            BOOST_CHECK(service.IsI2P());
+            break;
+        case ExpectedType::Tor:
+            BOOST_CHECK(service.IsTor());
             break;
         } // no default case, so the compiler can warn about missing cases
     }

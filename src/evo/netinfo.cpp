@@ -17,6 +17,8 @@ static const CService empty_service{CService()};
 
 static constexpr std::string_view SAFE_CHARS_IPV4{"1234567890."};
 static constexpr std::string_view SAFE_CHARS_IPV4_6{"abcdefABCDEF1234567890.:[]"};
+static constexpr std::string_view SAFE_CHARS_RFC1035{"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"};
+static constexpr std::array<std::string_view, 2> TLDS_SPECIAL{".i2p", ".onion"};
 
 bool IsNodeOnMainnet() { return Params().NetworkIDString() == CBaseChainParams::MAIN; }
 const CChainParams& MainParams()
@@ -30,6 +32,17 @@ const CChainParams& MainParams()
 bool MatchCharsFilter(std::string_view input, std::string_view filter)
 {
     return std::all_of(input.begin(), input.end(), [&filter](char c) { return filter.find(c) != std::string_view::npos; });
+}
+
+template <typename T1>
+bool MatchSuffix(const std::string& str, const T1& list)
+{
+    if (str.empty()) return false;
+    for (const auto& suffix : list) {
+        if (suffix.size() > str.size()) continue;
+        if (std::equal(suffix.rbegin(), suffix.rend(), str.rbegin())) return true;
+    }
+    return false;
 }
 } // anonymous namespace
 
@@ -351,13 +364,16 @@ NetInfoStatus ExtNetInfo::ValidateService(const CService& service, bool is_prima
     if (!service.IsValid()) {
         return NetInfoStatus::BadAddress;
     }
-    if (!service.IsCJDNS() && !service.IsIPv4() && !service.IsIPv6()) {
+    if (!service.IsCJDNS() && !service.IsI2P() && !service.IsIPv4() && !service.IsIPv6() && !service.IsTor()) {
         return NetInfoStatus::BadType;
     }
     if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
         return NetInfoStatus::NotRoutable;
     }
-    if (IsBadPort(service.GetPort()) || service.GetPort() == 0) {
+    if (service.IsI2P() && service.GetPort() != I2P_SAM31_PORT) {
+        // I2P SAM 3.1 and earlier don't support arbitrary ports
+        return NetInfoStatus::BadPort;
+    } else if (!service.IsI2P() && (IsBadPort(service.GetPort()) || service.GetPort() == 0)) {
         return NetInfoStatus::BadPort;
     }
     if (is_primary) {
@@ -380,14 +396,39 @@ NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& inp
     std::string addr;
     uint16_t port{0};
     SplitHostPort(input, port, addr);
-    // Contains invalid characters, unlikely to pass Lookup(), fast-fail
+
+    // Primary addresses are subject to stricter validation rules
+    const bool is_primary{m_data.find(purpose) == m_data.end()};
+
     if (!MatchCharsFilter(addr, SAFE_CHARS_IPV4_6)) {
-        return NetInfoStatus::BadInput;
+        if (!MatchCharsFilter(addr, SAFE_CHARS_RFC1035)) {
+            // Neither IP:port safe nor domain-safe, we can safely assume it's bad input
+            return NetInfoStatus::BadInput;
+        }
+
+        // Not IP:port safe but domain safe
+        if (is_primary) {
+            // Domains are not allowed as primary addresses
+            return NetInfoStatus::BadType;
+        } else if (MatchSuffix(addr, TLDS_SPECIAL)) {
+            // Special domain, try storing it as CService
+            CNetAddr netaddr;
+            if (netaddr.SetSpecial(addr)) {
+                const CService service{netaddr, port};
+                const auto ret{ValidateService(service, /*is_primary=*/false)};
+                if (ret == NetInfoStatus::Success) {
+                    return ProcessCandidate(purpose, NetInfoEntry{service});
+                }
+                return ret; /* ValidateService() failed */
+            }
+        }
+        return NetInfoStatus::BadInput; /* CService::SetSpecial() failed */
     }
 
+    // IP:port safe, try to parse it as IP:port
     if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
         const auto service{MaybeFlipIPv6toCJDNS(*service_opt)};
-        const auto ret{ValidateService(service, /*is_primary=*/m_data.find(purpose) == m_data.end())};
+        const auto ret{ValidateService(service, is_primary)};
         if (ret == NetInfoStatus::Success) {
             return ProcessCandidate(purpose, NetInfoEntry{service});
         }
