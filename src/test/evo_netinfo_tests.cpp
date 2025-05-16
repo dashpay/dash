@@ -23,9 +23,8 @@ static const TestVectors vals_main{
     // - Port should default to default P2P core with MnNetInfo
     // - Ports are no longer implied with ExtNetInfo
     {{Purpose::CORE_P2P, "1.1.1.1"}, NetInfoStatus::Success, NetInfoStatus::BadPort},
-    // - Non-mainnet port on mainnet causes failure in MnNetInfo
-    // - ExtNetInfo is indifferent to choice of port unless it's a bad port which 9998 isn't
-    {{Purpose::CORE_P2P, "1.1.1.1:9998"}, NetInfoStatus::BadPort, NetInfoStatus::Success},
+    // Non-mainnet port on mainnet not allowed
+    {{Purpose::CORE_P2P, "1.1.1.1:9998"}, NetInfoStatus::BadPort, NetInfoStatus::BadPort},
     // Internal addresses not allowed on mainnet
     {{Purpose::CORE_P2P, "127.0.0.1:9999"}, NetInfoStatus::NotRoutable, NetInfoStatus::NotRoutable},
     // Valid IPv4 formatting but invalid IPv4 address
@@ -44,9 +43,14 @@ static const TestVectors vals_main{
     {{Purpose::CORE_P2P, ":9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // Bad purpose code
     {{64, "1.1.1.1:9999"}, NetInfoStatus::MaxLimit, NetInfoStatus::MaxLimit},
-    // - MnNetInfo doesn't allow storing anything except a Core P2P address
-    // - ExtNetInfo allows storing Platform P2P addresses
-    {{Purpose::PLATFORM_P2P, "1.1.1.1:9999"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+    // - MnNetInfo only supports CORE_P2P and cannot store PLATFORM_HTTPS
+    // - ExtNetInfo can store PLATFORM_HTTPS but non-default ports are not allowed on mainnet
+    {{Purpose::PLATFORM_HTTPS, "1.1.1.1:443"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+    {{Purpose::PLATFORM_HTTPS, "1.1.1.1:1445"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadPort},
+    // - MnNetInfo only supports CORE_P2P and cannot store PLATFORM_HTTPS
+    // - ExtNetInfo can store PLATFORM_P2P but non-default ports are not allowed on mainnet
+    {{Purpose::PLATFORM_P2P, "1.1.1.1:26656"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+    {{Purpose::PLATFORM_P2P, "1.1.1.1:26657"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadPort},
 };
 
 void ValidateGetEntries(const NetInfoList& entries, const size_t expected_size)
@@ -125,12 +129,21 @@ static const TestVectors vals_reg{
     // - MnNetInfo doesn't mind using port 0
     // - ExtNetInfo prohibits non-zero ports
     {{Purpose::CORE_P2P, "1.1.1.1:0"}, NetInfoStatus::Success, NetInfoStatus::BadPort},
-    // - Mainnet P2P port on non-mainnet cause failure in MnNetInfo
-    // - ExtNetInfo is indifferent to choice of port unless it's a bad port which 9999 isn't
-    {{Purpose::CORE_P2P, "1.1.1.1:9999"}, NetInfoStatus::BadPort, NetInfoStatus::Success},
+    // Mainnet P2P port on non-mainnet not allowed
+    {{Purpose::CORE_P2P, "1.1.1.1:9999"}, NetInfoStatus::BadPort, NetInfoStatus::BadPort},
     // - Non-mainnet P2P port is allowed in MnNetInfo regardless of bad port status
     // - Port 22 (SSH) is below the privileged ports threshold (1023) and is therefore a bad port, disallowed in ExtNetInfo
     {{Purpose::CORE_P2P, "1.1.1.1:22"}, NetInfoStatus::Success, NetInfoStatus::BadPort},
+    // - MnNetInfo only supports CORE_P2P and cannot store PLATFORM_HTTPS
+    // - ExtNetInfo can store PLATFORM_HTTPS but default and non-default ports are allowed on non-mainnet
+    {{Purpose::PLATFORM_HTTPS, "1.1.1.1:443"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+    {{Purpose::PLATFORM_HTTPS, "1.1.1.1:1445"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+    // The port 443 bad ports carve-out doesn't apply outside PLATFORM_HTTPS (where it is default)
+    {{Purpose::PLATFORM_P2P, "1.1.1.1:443"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadPort},
+    // - MnNetInfo only supports CORE_P2P and cannot store PLATFORM_P2P
+    // - ExtNetInfo can store PLATFORM_P2P but default and non-default ports are allowed on non-mainnet
+    {{Purpose::PLATFORM_P2P, "1.1.1.1:26656"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+    {{Purpose::PLATFORM_P2P, "1.1.1.1:26657"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
 };
 
 enum class ExpectedType : uint8_t {

@@ -262,7 +262,7 @@ private:
     bool HasDuplicates(const std::vector<NetInfoEntry>* entries) const;
     bool IsDuplicateCandidate(const NetInfoEntry& candidate, const std::vector<NetInfoEntry>* entries) const;
     NetInfoStatus ProcessCandidate(const uint8_t purpose, const NetInfoEntry& candidate);
-    static NetInfoStatus ValidateService(const CService& service, bool is_primary);
+    static NetInfoStatus ValidateService(const CService& service, const uint8_t purpose, bool is_primary);
 
 private:
     uint8_t m_version{CURRENT_VERSION};
