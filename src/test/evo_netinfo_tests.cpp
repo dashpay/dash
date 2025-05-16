@@ -132,6 +132,15 @@ static const TestVectors vals_reg{
     {{Purpose::CORE_P2P, "1.1.1.1:22"}, NetInfoStatus::Success, NetInfoStatus::BadPort},
 };
 
+enum class ExpectedType : uint8_t {
+    CJDNS,
+};
+
+static const std::vector<std::tuple</*type=*/ExpectedType, /*input=*/std::string, /*expected_ret=*/NetInfoStatus>> nonprimary_vals{
+    // CJDNS is supported in ExtNetInfo
+    {ExpectedType::CJDNS, "[fc00:3344:5566:7788:9900:aabb:ccdd:eeff]:9998", NetInfoStatus::Success},
+};
+
 BOOST_FIXTURE_TEST_CASE(mnnetinfo_rules_reg, RegTestingSetup) { TestMnNetInfo(vals_reg); }
 
 BOOST_FIXTURE_TEST_CASE(extnetinfo_rules_reg, RegTestingSetup)
@@ -207,6 +216,33 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_rules_reg, RegTestingSetup)
         BOOST_CHECK(!netInfo.HasEntries(Purpose::PLATFORM_HTTPS));
         BOOST_CHECK(!netInfo.HasEntries(Purpose::PLATFORM_P2P));
         ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/5);
+    }
+
+    // Non-primary entry checks
+    for (const auto& [type, input, expected_ret] : nonprimary_vals) {
+        ExtNetInfo netInfo;
+        // Non-primary type should fail as first entry
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::CORE_P2P, input), NetInfoStatus::BadType);
+        // Dummy entry to fulfil primary address requirement
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::CORE_P2P, "1.1.1.1:9998"), NetInfoStatus::Success);
+        // Insert non-primary entry
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::CORE_P2P, input), expected_ret);
+
+        // Validity checks
+        BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
+        BOOST_CHECK(netInfo.HasEntries(Purpose::CORE_P2P));
+        const bool expected_success{expected_ret == NetInfoStatus::Success};
+        ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/expected_success ? 2 : 1);
+        if (!expected_success) continue;
+
+        // Type registration check
+        const CService service{netInfo.GetEntries().at(1).get().GetAddrPort().value().get()};
+        BOOST_CHECK(service.IsValid());
+        switch (type) {
+        case ExpectedType::CJDNS:
+            BOOST_CHECK(service.IsCJDNS());
+            break;
+        } // no default case, so the compiler can warn about missing cases
     }
 }
 
