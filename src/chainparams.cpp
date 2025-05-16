@@ -95,7 +95,7 @@ static CBlock FindDevNetGenesisBlock(const CBlock &prevBlock, const CAmount& rew
     for (uint32_t nNonce = 0; nNonce < UINT32_MAX; nNonce++) {
         block.nNonce = nNonce;
 
-        uint256 hash = block.GetHash();
+        uint256 hash = block.GetHash(/*use_cache=*/false);
         if (UintToArith256(hash) <= bnTarget)
             return block;
     }
