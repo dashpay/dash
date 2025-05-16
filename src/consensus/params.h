@@ -9,6 +9,7 @@
 #include <uint256.h>
 #include <llmq/params.h>
 
+#include <chrono>
 #include <limits>
 #include <vector>
 
@@ -168,6 +169,10 @@ struct Params {
     int64_t nPowTargetTimespan;
     int nPowKGWHeight;
     int nPowDGWHeight;
+    std::chrono::seconds PowTargetSpacing() const
+    {
+        return std::chrono::seconds{nPowTargetSpacing};
+    }
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
