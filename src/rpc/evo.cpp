@@ -686,7 +686,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     if (!request.params[paramIdx].get_str().empty()) {
-        if (auto entryRet = ptx.netInfo->AddEntry(request.params[paramIdx].get_str()); entryRet != NetInfoStatus::Success) {
+        if (auto entryRet = ptx.netInfo->AddEntry(Purpose::CORE_P2P, request.params[paramIdx].get_str());
+            entryRet != NetInfoStatus::Success) {
             throw std::runtime_error(strprintf("%s (%s)", NISToString(entryRet), request.params[paramIdx].get_str()));
         }
     }
@@ -980,7 +981,8 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     ptx.nVersion = dmn->pdmnState->nVersion;
     ptx.netInfo = MakeNetInfo(ptx);
 
-    if (auto entryRet = ptx.netInfo->AddEntry(request.params[1].get_str()); entryRet != NetInfoStatus::Success) {
+    if (auto entryRet = ptx.netInfo->AddEntry(Purpose::CORE_P2P, request.params[1].get_str());
+        entryRet != NetInfoStatus::Success) {
         throw std::runtime_error(strprintf("%s (%s)", NISToString(entryRet), request.params[1].get_str()));
     }
 

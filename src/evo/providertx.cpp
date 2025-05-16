@@ -36,6 +36,9 @@ bool CProRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_a
     if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
     }
+    if (!netInfo->IsEmpty() && !netInfo->HasEntries(Purpose::CORE_P2P)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
+    }
     for (const NetInfoEntry& entry : netInfo->GetEntries()) {
         if (!entry.IsTriviallyValid()) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
@@ -110,7 +113,7 @@ bool CProUpServTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extende
     if (nVersion < ProTxVersion::BasicBLS && nType == MnType::Evo) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-evo-version");
     }
-    if (netInfo->IsEmpty()) {
+    if (netInfo->IsEmpty() || !netInfo->HasEntries(Purpose::CORE_P2P)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
     }
     for (const NetInfoEntry& entry : netInfo->GetEntries()) {

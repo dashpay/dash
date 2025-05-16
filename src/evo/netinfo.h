@@ -58,6 +58,31 @@ constexpr std::string_view NISToString(const NetInfoStatus code)
     assert(false);
 }
 
+namespace Purpose {
+enum : uint8_t {
+    // Mandatory for masternodes
+    CORE_P2P = 0,
+};
+} // namespace Purpose
+
+constexpr bool IsValidPurpose(const uint8_t purpose)
+{
+    switch (purpose) {
+    case Purpose::CORE_P2P:
+        return true;
+    } // no default case, so the compiler can warn about missing cases
+    return false;
+}
+
+constexpr std::string_view PurposeToString(const uint8_t purpose)
+{
+    switch (purpose) {
+    case Purpose::CORE_P2P:
+        return "CORE_P2P";
+    } // no default case, so the compiler can warn about missing cases
+    return "";
+}
+
 class NetInfoEntry
 {
 public:
@@ -156,10 +181,11 @@ public:
 public:
     virtual ~NetInfoInterface() = default;
 
-    virtual NetInfoStatus AddEntry(const std::string& service) = 0;
+    virtual NetInfoStatus AddEntry(const uint8_t purpose, const std::string& service) = 0;
     virtual NetInfoList GetEntries() const = 0;
 
     virtual const CService& GetPrimary() const = 0;
+    virtual bool HasEntries(uint8_t purpose) const = 0;
     virtual bool IsEmpty() const = 0;
     virtual NetInfoStatus Validate() const = 0;
     virtual std::string ToString() const = 0;
@@ -207,10 +233,11 @@ public:
         m_addr = NetInfoEntry{service};
     }
 
-    NetInfoStatus AddEntry(const std::string& service) override;
+    NetInfoStatus AddEntry(const uint8_t purpose, const std::string& service) override;
     NetInfoList GetEntries() const override;
 
     const CService& GetPrimary() const override;
+    bool HasEntries(uint8_t purpose) const override { return purpose == Purpose::CORE_P2P && !IsEmpty(); }
     bool IsEmpty() const override { return *this == MnNetInfo(); }
     NetInfoStatus Validate() const override;
     std::string ToString() const override;
@@ -225,12 +252,12 @@ private:
 
     bool HasDuplicates() const;
     bool IsDuplicateCandidate(const NetInfoEntry& candidate) const;
-    NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
+    NetInfoStatus ProcessCandidate(const uint8_t purpose, const NetInfoEntry& candidate);
     static NetInfoStatus ValidateService(const CService& service, bool is_primary);
 
 private:
     uint8_t m_version{CURRENT_VERSION};
-    std::vector<NetInfoEntry> m_data{};
+    std::map<uint8_t, std::vector<NetInfoEntry>> m_data{};
 
 public:
     ExtNetInfo() = default;
@@ -250,10 +277,11 @@ public:
         READWRITE(obj.m_data);
     }
 
-    NetInfoStatus AddEntry(const std::string& input) override;
+    NetInfoStatus AddEntry(const uint8_t purpose, const std::string& input) override;
     NetInfoList GetEntries() const override;
 
     const CService& GetPrimary() const override;
+    bool HasEntries(uint8_t purpose) const override;
     bool IsEmpty() const override { return *this == ExtNetInfo(); }
     NetInfoStatus Validate() const override;
     std::string ToString() const override;
