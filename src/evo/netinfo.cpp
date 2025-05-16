@@ -47,6 +47,20 @@ bool MatchSuffix(const std::string& str, const T1& list)
     }
     return false;
 }
+
+uint16_t GetMainnetPurposePort(const uint8_t purpose)
+{
+    assert(IsValidPurpose(purpose));
+    switch (purpose) {
+    case Purpose::CORE_P2P:
+        return MainParams().GetDefaultPort();
+    case Purpose::PLATFORM_P2P:
+        return MainParams().GetDefaultPlatformP2PPort();
+    case Purpose::PLATFORM_HTTPS:
+        return MainParams().GetDefaultPlatformHTTPPort();
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
 } // anonymous namespace
 
 UniValue ArrFromService(const CService& addr)
@@ -198,9 +212,8 @@ NetInfoStatus MnNetInfo::ValidateService(const CService& service)
         return NetInfoStatus::NotRoutable;
     }
 
-    if (IsNodeOnMainnet() != (service.GetPort() == MainParams().GetDefaultPort())) {
-        // Must use mainnet port on mainnet.
-        // Must NOT use mainnet port on other networks.
+    if (IsNodeOnMainnet() != (service.GetPort() == GetMainnetPurposePort(Purpose::CORE_P2P))) {
+        // Must use mainnet port on mainnet and any other port for other networks
         return NetInfoStatus::BadPort;
     }
 
@@ -351,7 +364,7 @@ NetInfoStatus ExtNetInfo::ProcessCandidate(const uint8_t purpose, const NetInfoE
     }
 }
 
-NetInfoStatus ExtNetInfo::ValidateService(const CService& service, bool is_primary)
+NetInfoStatus ExtNetInfo::ValidateService(const CService& service, const uint8_t purpose, bool is_primary)
 {
     if (!service.IsValid()) {
         return NetInfoStatus::BadAddress;
@@ -362,15 +375,26 @@ NetInfoStatus ExtNetInfo::ValidateService(const CService& service, bool is_prima
     if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
         return NetInfoStatus::NotRoutable;
     }
-    if (service.IsI2P() && service.GetPort() != I2P_SAM31_PORT) {
+
+    const uint16_t service_port{service.GetPort()};
+    if (service.IsI2P() && service_port != I2P_SAM31_PORT) {
         // I2P SAM 3.1 and earlier don't support arbitrary ports
         return NetInfoStatus::BadPort;
-    } else if (!service.IsI2P() && (IsBadPort(service.GetPort()) || service.GetPort() == 0)) {
+    } else if (!service.IsI2P() &&
+               ((IsBadPort(service_port) && service_port != GetMainnetPurposePort(purpose)) || service_port == 0)) {
         return NetInfoStatus::BadPort;
     }
+
     if (is_primary) {
         if (!service.IsIPv4()) {
             return NetInfoStatus::BadType;
+        }
+        if (IsNodeOnMainnet() && service_port != GetMainnetPurposePort(purpose)) {
+            // On mainnet, the primary address must use the fixed port assigned to the purpose
+            return NetInfoStatus::BadPort;
+        } else if (!IsNodeOnMainnet() && service_port == GetMainnetPurposePort(Purpose::CORE_P2P)) {
+            // The mainnet CORE_P2P port may not be used for any purpose outside of mainnet
+            return NetInfoStatus::BadPort;
         }
     }
 
@@ -407,7 +431,7 @@ NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& inp
             CNetAddr netaddr;
             if (netaddr.SetSpecial(addr)) {
                 const CService service{netaddr, port};
-                const auto ret{ValidateService(service, /*is_primary=*/false)};
+                const auto ret{ValidateService(service, purpose, /*is_primary=*/false)};
                 if (ret == NetInfoStatus::Success) {
                     return ProcessCandidate(purpose, NetInfoEntry{service});
                 }
@@ -420,7 +444,7 @@ NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& inp
     // IP:port safe, try to parse it as IP:port
     if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
         const auto service{MaybeFlipIPv6toCJDNS(*service_opt)};
-        const auto ret{ValidateService(service, is_primary)};
+        const auto ret{ValidateService(service, purpose, is_primary)};
         if (ret == NetInfoStatus::Success) {
             return ProcessCandidate(purpose, NetInfoEntry{service});
         }
@@ -486,7 +510,7 @@ NetInfoStatus ExtNetInfo::Validate() const
                 return NetInfoStatus::Malformed;
             }
             if (const auto& service_opt{entry.GetAddrPort()}) {
-                if (auto ret{ValidateService(*service_opt, /*is_primary=*/entry == *entries.begin())};
+                if (auto ret{ValidateService(*service_opt, purpose, /*is_primary=*/entry == *entries.begin())};
                     ret != NetInfoStatus::Success) {
                     // Stores CService underneath but doesn't pass validation rules
                     return ret;
