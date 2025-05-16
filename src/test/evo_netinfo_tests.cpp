@@ -14,27 +14,33 @@
 
 BOOST_FIXTURE_TEST_SUITE(evo_netinfo_tests, BasicTestingSetup)
 
-const std::vector<std::pair</*input=*/std::string, /*expected_ret=*/NetInfoStatus>> vals{
+using TestVectors =
+    std::vector<std::tuple</*input=*/std::string, /*expected_ret_mn=*/NetInfoStatus, /*expected_ret_ext=*/NetInfoStatus>>;
+
+static const TestVectors vals_main{
     // Address and port specified
-    {"1.1.1.1:9999", NetInfoStatus::Success},
-    // Address specified, port should default to default P2P core
-    {"1.1.1.1", NetInfoStatus::Success},
-    // Non-mainnet port on mainnet
-    {"1.1.1.1:9998", NetInfoStatus::BadPort},
+    {"1.1.1.1:9999", NetInfoStatus::Success, NetInfoStatus::Success},
+    // - Port should default to default P2P core with MnNetInfo
+    // - Ports are no longer implied with ExtNetInfo
+    {"1.1.1.1", NetInfoStatus::Success, NetInfoStatus::BadPort},
+    // - Non-mainnet port on mainnet causes failure in MnNetInfo
+    // - ExtNetInfo is indifferent to choice of port unless it's a bad port which 9998 isn't
+    {"1.1.1.1:9998", NetInfoStatus::BadPort, NetInfoStatus::Success},
     // Internal addresses not allowed on mainnet
-    {"127.0.0.1:9999", NetInfoStatus::NotRoutable},
+    {"127.0.0.1:9999", NetInfoStatus::NotRoutable, NetInfoStatus::NotRoutable},
     // Valid IPv4 formatting but invalid IPv4 address
-    {"0.0.0.0:9999", NetInfoStatus::BadAddress},
+    {"0.0.0.0:9999", NetInfoStatus::BadAddress, NetInfoStatus::BadAddress},
     // Port greater than uint16_t max
-    {"1.1.1.1:99999", NetInfoStatus::BadInput},
-    // Only IPv4 allowed
-    {"[2606:4700:4700::1111]:9999", NetInfoStatus::BadInput},
+    {"1.1.1.1:99999", NetInfoStatus::BadInput, NetInfoStatus::BadInput},
+    // - Non-IPv4 addresses are prohibited in MnNetInfo
+    // - Any valid BIP155 address is allowed in ExtNetInfo
+    {"[2606:4700:4700::1111]:9999", NetInfoStatus::BadInput, NetInfoStatus::Success},
     // Domains are not allowed
-    {"example.com:9999", NetInfoStatus::BadInput},
+    {"example.com:9999", NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // Incorrect IPv4 address
-    {"1.1.1.256:9999", NetInfoStatus::BadInput},
+    {"1.1.1.256:9999", NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // Missing address
-    {":9999", NetInfoStatus::BadInput},
+    {":9999", NetInfoStatus::BadInput, NetInfoStatus::BadInput},
 };
 
 void ValidateGetEntries(const NetInfoList& entries, const size_t expected_size)
@@ -45,10 +51,9 @@ void ValidateGetEntries(const NetInfoList& entries, const size_t expected_size)
     }
 }
 
-BOOST_AUTO_TEST_CASE(mnnetinfo_rules)
+void TestMnNetInfo(const TestVectors& vals)
 {
-    // Validate AddEntry() rules enforcement
-    for (const auto& [input, expected_ret] : vals) {
+    for (const auto& [input, expected_ret, _] : vals) {
         MnNetInfo netInfo;
         BOOST_CHECK_EQUAL(netInfo.AddEntry(input), expected_ret);
         if (expected_ret != NetInfoStatus::Success) {
@@ -60,6 +65,27 @@ BOOST_AUTO_TEST_CASE(mnnetinfo_rules)
             ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/1);
         }
     }
+}
+
+void TestExtNetInfo(const TestVectors& vals)
+{
+    for (const auto& [input, _, expected_ret] : vals) {
+        ExtNetInfo netInfo;
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(input), expected_ret);
+        if (expected_ret != NetInfoStatus::Success) {
+            // An empty ExtNetInfo is considered malformed
+            BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Malformed);
+            BOOST_CHECK(netInfo.GetEntries().empty());
+        } else {
+            BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
+            ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/1);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(mnnetinfo_rules_main)
+{
+    TestMnNetInfo(vals_main);
 
     {
         // MnNetInfo only stores one value, overwriting prohibited
@@ -67,6 +93,37 @@ BOOST_AUTO_TEST_CASE(mnnetinfo_rules)
         BOOST_CHECK_EQUAL(netInfo.AddEntry("1.1.1.1:9999"), NetInfoStatus::Success);
         BOOST_CHECK_EQUAL(netInfo.AddEntry("1.1.1.2:9999"), NetInfoStatus::MaxLimit);
         ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/1);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(extnetinfo_rules_main) { TestExtNetInfo(vals_main); }
+
+static const TestVectors vals_reg{
+    // - MnNetInfo doesn't mind using port 0
+    // - ExtNetInfo prohibits non-zero ports
+    {"1.1.1.1:0", NetInfoStatus::Success, NetInfoStatus::BadPort},
+    // - Mainnet P2P port on non-mainnet cause failure in MnNetInfo
+    // - ExtNetInfo is indifferent to choice of port unless it's a bad port which 9999 isn't
+    {"1.1.1.1:9999", NetInfoStatus::BadPort, NetInfoStatus::Success},
+    // - Non-mainnet P2P port is allowed in MnNetInfo regardless of bad port status
+    // - Port 22 (SSH) is below the privileged ports threshold (1023) and is therefore a bad port, disallowed in ExtNetInfo
+    {"1.1.1.1:22", NetInfoStatus::Success, NetInfoStatus::BadPort},
+};
+
+BOOST_FIXTURE_TEST_CASE(mnnetinfo_rules_reg, RegTestingSetup) { TestMnNetInfo(vals_reg); }
+
+BOOST_FIXTURE_TEST_CASE(extnetinfo_rules_reg, RegTestingSetup)
+{
+    TestExtNetInfo(vals_reg);
+
+    {
+        // ExtNetInfo can store up to 32 entries, check limit enforcement
+        ExtNetInfo netInfo;
+        for (size_t idx = 1; idx <= NETINFO_EXTENDED_LIMIT; idx++) {
+            BOOST_CHECK_EQUAL(netInfo.AddEntry(strprintf("1.1.1.%d:9998", idx)), NetInfoStatus::Success);
+        }
+        BOOST_CHECK_EQUAL(netInfo.AddEntry("1.1.1.33:9998"), NetInfoStatus::MaxLimit);
+        ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/32);
     }
 }
 

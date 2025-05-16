@@ -16,6 +16,7 @@ static std::once_flag g_main_params_flag;
 static const CService empty_service{CService()};
 
 static constexpr std::string_view SAFE_CHARS_IPV4{"1234567890."};
+static constexpr std::string_view SAFE_CHARS_IPV4_6{"abcdefABCDEF1234567890.:[]"};
 
 bool IsNodeOnMainnet() { return Params().NetworkIDString() == CBaseChainParams::MAIN; }
 const CChainParams& MainParams()
@@ -176,6 +177,13 @@ bool NetInfoInterface::IsEqual(const std::shared_ptr<NetInfoInterface>& lhs, con
         }
     }
 
+    if (const auto lhs_ptr{std::dynamic_pointer_cast<ExtNetInfo>(lhs)}) {
+        if (const auto rhs_ptr{std::dynamic_pointer_cast<ExtNetInfo>(rhs)}) {
+            // Successful downcasting of both lhs and rhs, can now deep compare
+            return *lhs_ptr == *rhs_ptr;
+        }
+    }
+
     // Downcasting failed, lhs and rhs are differing types
     return false;
 }
@@ -259,4 +267,105 @@ std::string MnNetInfo::ToString() const
     return strprintf("MnNetInfo()\n"
                      "    %s\n",
                      m_addr.ToString());
+}
+
+NetInfoStatus ExtNetInfo::ProcessCandidate(const NetInfoEntry& candidate)
+{
+    assert(candidate.IsTriviallyValid());
+
+    if (m_data.size() >= NETINFO_EXTENDED_LIMIT) {
+        return NetInfoStatus::MaxLimit;
+    }
+    m_data.push_back(candidate);
+
+    return NetInfoStatus::Success;
+}
+
+NetInfoStatus ExtNetInfo::ValidateService(const CService& service)
+{
+    if (!service.IsValid()) {
+        return NetInfoStatus::BadAddress;
+    }
+    if (!service.IsIPv4() && !service.IsIPv6()) {
+        return NetInfoStatus::BadType;
+    }
+    if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
+        return NetInfoStatus::NotRoutable;
+    }
+    if (IsBadPort(service.GetPort()) || service.GetPort() == 0) {
+        return NetInfoStatus::BadPort;
+    }
+
+    return NetInfoStatus::Success;
+}
+
+NetInfoStatus ExtNetInfo::AddEntry(const std::string& input)
+{
+    // We don't allow assuming ports, so we set the default value to 0 so that if no port is specified
+    // it uses a fallback value of 0, which will return a NetInfoStatus::BadPort
+    std::string addr;
+    uint16_t port{0};
+    SplitHostPort(input, port, addr);
+    // Contains invalid characters, unlikely to pass Lookup(), fast-fail
+    if (!MatchCharsFilter(addr, SAFE_CHARS_IPV4_6)) {
+        return NetInfoStatus::BadInput;
+    }
+
+    if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
+        const auto ret{ValidateService(*service_opt)};
+        if (ret == NetInfoStatus::Success) {
+            return ProcessCandidate(NetInfoEntry{*service_opt});
+        }
+        return ret; /* ValidateService() failed */
+    }
+    return NetInfoStatus::BadInput; /* Lookup() failed */
+}
+
+NetInfoList ExtNetInfo::GetEntries() const
+{
+    NetInfoList ret;
+    ret.insert(ret.end(), m_data.begin(), m_data.end());
+    return ret;
+}
+
+const CService& ExtNetInfo::GetPrimary() const
+{
+    if (!m_data.empty()) {
+        if (const auto& service_opt{m_data.begin()->GetAddrPort()}) {
+            return *service_opt;
+        }
+    }
+    return empty_service;
+}
+
+NetInfoStatus ExtNetInfo::Validate() const
+{
+    if (m_data.empty()) {
+        return NetInfoStatus::Malformed;
+    }
+    for (const auto& entry : m_data) {
+        if (!entry.IsTriviallyValid()) {
+            // Trivially invalid NetInfoEntry, no point checking against consensus rules
+            return NetInfoStatus::Malformed;
+        }
+        if (const auto& service_opt{entry.GetAddrPort()}) {
+            if (auto ret{ValidateService(*service_opt)}; ret != NetInfoStatus::Success) {
+                // Stores CService underneath but doesn't pass validation rules
+                return ret;
+            }
+        } else {
+            // Doesn't store valid type underneath
+            return NetInfoStatus::Malformed;
+        }
+    }
+    return NetInfoStatus::Success;
+}
+
+std::string ExtNetInfo::ToString() const
+{
+    std::string ret{"ExtNetInfo()\n"};
+    for (const auto& entry : m_data) {
+        ret += strprintf("    %s\n", entry.ToString());
+    }
+    return ret;
 }

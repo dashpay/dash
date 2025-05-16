@@ -14,6 +14,9 @@
 
 class CService;
 
+/** Maximum entries that can be stored in an ExtNetInfo */
+static constexpr uint8_t NETINFO_EXTENDED_LIMIT{32};
+
 enum class NetInfoStatus : uint8_t {
     // Managing entries
     BadInput,
@@ -212,11 +215,48 @@ public:
     void Clear() override { m_addr.Clear(); }
 };
 
+class ExtNetInfo final : public NetInfoInterface
+{
+private:
+    NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
+    static NetInfoStatus ValidateService(const CService& service);
+
+private:
+    std::vector<NetInfoEntry> m_data{};
+
+public:
+    ExtNetInfo() = default;
+    template <typename Stream> ExtNetInfo(deserialize_type, Stream& s) { s >> *this; }
+
+    ~ExtNetInfo() = default;
+
+    bool operator==(const ExtNetInfo& rhs) const { return m_data == rhs.m_data; }
+    bool operator!=(const ExtNetInfo& rhs) const { return !(*this == rhs); }
+
+    SERIALIZE_METHODS(ExtNetInfo, obj)
+    {
+        READWRITE(obj.m_data);
+    }
+
+    NetInfoStatus AddEntry(const std::string& input) override;
+    NetInfoList GetEntries() const override;
+
+    const CService& GetPrimary() const override;
+    bool IsEmpty() const override { return *this == ExtNetInfo(); }
+    NetInfoStatus Validate() const override;
+    std::string ToString() const override;
+
+    void Clear() override { m_data.clear(); }
+};
+
 /* Selects NetInfoInterface implementation to use based on object version */
 template <typename T1>
 std::shared_ptr<NetInfoInterface> MakeNetInfo(const T1& obj)
 {
-    assert(obj.nVersion > 0 && obj.nVersion < ProTxVersion::ExtAddr);
+    assert(obj.nVersion > 0);
+    if (obj.nVersion >= ProTxVersion::ExtAddr) {
+        return std::make_shared<ExtNetInfo>();
+    }
     return std::make_shared<MnNetInfo>();
 }
 
@@ -233,8 +273,6 @@ public:
         m_data{data},
         m_is_extended{is_extended}
     {
-        // TODO: Remove when extended addresses implementation is added in
-        assert(!m_is_extended);
     }
     template <typename Stream> NetInfoSerWrapper(deserialize_type, Stream& s) { s >> *this; }
 
@@ -243,7 +281,11 @@ public:
     template <typename Stream>
     void Serialize(Stream& s) const
     {
-        if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
+        if (const auto ptr{std::dynamic_pointer_cast<ExtNetInfo>(m_data)}) {
+            assert(m_is_extended);
+            s << ptr;
+        } else if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
+            assert(!m_is_extended);
             s << ptr;
         } else {
             throw std::ios_base::failure("Improperly constructed NetInfoInterface");
@@ -252,15 +294,25 @@ public:
 
     void Serialize(CSizeComputer& s) const
     {
-        s.seek(::GetSerializeSize(MnNetInfo{}, s.GetVersion()));
+        if (m_is_extended) {
+            s.seek(::GetSerializeSize(ExtNetInfo{}, s.GetVersion()));
+        } else {
+            s.seek(::GetSerializeSize(MnNetInfo{}, s.GetVersion()));
+        }
     }
 
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        std::shared_ptr<MnNetInfo> ptr;
-        s >> ptr;
-        m_data = std::move(ptr);
+        if (m_is_extended) {
+            std::shared_ptr<ExtNetInfo> ptr;
+            s >> ptr;
+            m_data = std::move(ptr);
+        } else {
+            std::shared_ptr<MnNetInfo> ptr;
+            s >> ptr;
+            m_data = std::move(ptr);
+        }
     }
 };
 
