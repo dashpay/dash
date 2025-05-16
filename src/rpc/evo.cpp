@@ -654,10 +654,13 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
 
     const bool use_legacy = specific_legacy_bls_scheme;
+    const bool is_extended_addr{DeploymentActiveAfter(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
+                                                      Params().GetConsensus(), Consensus::DEPLOYMENT_V23)};
 
     CProRegTx ptx;
     ptx.nType = mnType;
-    ptx.nVersion = CProRegTx::GetMaxVersion(/*is_basic_scheme_active=*/!use_legacy);
+    ptx.nVersion = CProRegTx::GetMaxVersion(/*is_basic_scheme_active=*/!use_legacy, is_extended_addr);
+    ptx.netInfo = MakeNetInfo(ptx);
 
     if (action == ProTxRegisterAction::Fund) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
@@ -683,7 +686,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     if (!request.params[paramIdx].get_str().empty()) {
-        if (auto entryRet = ptx.netInfo.AddEntry(request.params[paramIdx].get_str()); entryRet != NetInfoStatus::Success) {
+        if (auto entryRet = ptx.netInfo->AddEntry(Purpose::CORE_P2P, request.params[paramIdx].get_str());
+            entryRet != NetInfoStatus::Success) {
             throw std::runtime_error(strprintf("%s (%s)", NISToString(entryRet), request.params[paramIdx].get_str()));
         }
     }
@@ -975,8 +979,10 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     }
 
     ptx.nVersion = dmn->pdmnState->nVersion;
+    ptx.netInfo = MakeNetInfo(ptx);
 
-    if (auto entryRet = ptx.netInfo.AddEntry(request.params[1].get_str()); entryRet != NetInfoStatus::Success) {
+    if (auto entryRet = ptx.netInfo->AddEntry(Purpose::CORE_P2P, request.params[1].get_str());
+        entryRet != NetInfoStatus::Success) {
         throw std::runtime_error(strprintf("%s (%s)", NISToString(entryRet), request.params[1].get_str()));
     }
 
