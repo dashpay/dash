@@ -441,7 +441,7 @@ NetInfoStatus ExtNetInfo::ValidateService(const CService& service)
     if (!service.IsValid()) {
         return NetInfoStatus::BadAddress;
     }
-    if (!service.IsIPv4() && !service.IsIPv6()) {
+    if (!service.IsCJDNS() && !service.IsIPv4() && !service.IsIPv6()) {
         return NetInfoStatus::BadType;
     }
     if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
@@ -505,9 +505,10 @@ NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& inp
 
     // IP:port safe, try to parse it as IP:port
     if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
-        const auto ret{ValidateService(*service_opt)};
+        const auto service{MaybeFlipIPv6toCJDNS(*service_opt)};
+        const auto ret{ValidateService(service)};
         if (ret == NetInfoStatus::Success) {
-            return ProcessCandidate(purpose, NetInfoEntry{*service_opt});
+            return ProcessCandidate(purpose, NetInfoEntry{service});
         }
         return ret; /* ValidateService() failed */
     }
