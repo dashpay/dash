@@ -226,7 +226,12 @@ NetInfoStatus MnNetInfo::AddEntry(const std::string& input)
     if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
         const auto ret{ValidateService(*service_opt)};
         if (ret == NetInfoStatus::Success) {
-            m_addr = NetInfoEntry{*service_opt};
+            const NetInfoEntry candidate{*service_opt};
+            if (m_addr == candidate) {
+                // Not possible since we allow only one value at most
+                return NetInfoStatus::Duplicate;
+            }
+            m_addr = candidate;
             ASSERT_IF_DEBUG(m_addr.GetAddrPort().has_value());
         }
         return ret;
@@ -269,12 +274,34 @@ std::string MnNetInfo::ToString() const
                      m_addr.ToString());
 }
 
+bool ExtNetInfo::HasDuplicates() const
+{
+    std::unordered_set<std::string> known{};
+    for (const NetInfoEntry& entry : m_data) {
+        if (auto [_, inserted] = known.insert(entry.ToStringAddr()); !inserted) {
+            return true;
+        }
+    }
+    ASSERT_IF_DEBUG(known.size() == m_data.size());
+    return false;
+}
+
+bool ExtNetInfo::IsDuplicateCandidate(const NetInfoEntry& candidate) const
+{
+    const std::string& candidate_str{candidate.ToStringAddr()};
+    return std::any_of(m_data.begin(), m_data.end(),
+                       [&candidate_str](const auto& entry) { return candidate_str == entry.ToStringAddr(); });
+}
+
 NetInfoStatus ExtNetInfo::ProcessCandidate(const NetInfoEntry& candidate)
 {
     assert(candidate.IsTriviallyValid());
 
     if (m_data.size() >= NETINFO_EXTENDED_LIMIT) {
         return NetInfoStatus::MaxLimit;
+    }
+    if (IsDuplicateCandidate(candidate)) {
+        return NetInfoStatus::Duplicate;
     }
     m_data.push_back(candidate);
 
@@ -342,6 +369,9 @@ NetInfoStatus ExtNetInfo::Validate() const
 {
     if (m_data.empty()) {
         return NetInfoStatus::Malformed;
+    }
+    if (HasDuplicates()) {
+        return NetInfoStatus::Duplicate;
     }
     for (const auto& entry : m_data) {
         if (!entry.IsTriviallyValid()) {

@@ -20,6 +20,7 @@ static constexpr uint8_t NETINFO_EXTENDED_LIMIT{32};
 enum class NetInfoStatus : uint8_t {
     // Managing entries
     BadInput,
+    Duplicate,
     MaxLimit,
 
     // Validation
@@ -43,6 +44,8 @@ constexpr std::string_view NISToString(const NetInfoStatus code)
         return "invalid port";
     case NetInfoStatus::BadType:
         return "invalid address type";
+    case NetInfoStatus::Duplicate:
+        return "duplicate";
     case NetInfoStatus::NotRoutable:
         return "unroutable address";
     case NetInfoStatus::Malformed:
@@ -218,6 +221,8 @@ public:
 class ExtNetInfo final : public NetInfoInterface
 {
 private:
+    bool HasDuplicates() const;
+    bool IsDuplicateCandidate(const NetInfoEntry& candidate) const;
     NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
     static NetInfoStatus ValidateService(const CService& service);
 
