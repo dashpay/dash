@@ -62,6 +62,9 @@ namespace Purpose {
 enum : uint8_t {
     // Mandatory for masternodes
     CORE_P2P = 0,
+    // Mandatory for EvoNodes
+    PLATFORM_P2P = 1,
+    PLATFORM_HTTPS = 2,
 };
 } // namespace Purpose
 
@@ -69,6 +72,8 @@ constexpr bool IsValidPurpose(const uint8_t purpose)
 {
     switch (purpose) {
     case Purpose::CORE_P2P:
+    case Purpose::PLATFORM_P2P:
+    case Purpose::PLATFORM_HTTPS:
         return true;
     } // no default case, so the compiler can warn about missing cases
     return false;
@@ -79,6 +84,10 @@ constexpr std::string_view PurposeToString(const uint8_t purpose)
     switch (purpose) {
     case Purpose::CORE_P2P:
         return "CORE_P2P";
+    case Purpose::PLATFORM_P2P:
+        return "PLATFORM_P2P";
+    case Purpose::PLATFORM_HTTPS:
+        return "PLATFORM_HTTPS";
     } // no default case, so the compiler can warn about missing cases
     return "";
 }

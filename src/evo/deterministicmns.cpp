@@ -1237,8 +1237,9 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
 template <typename ProTx>
 static bool CheckService(const ProTx& proTx, bool is_extended_addr, TxValidationState& state)
 {
-    if (!proTx.netInfo->HasEntries(Purpose::CORE_P2P)) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
+    if (!IsNetInfoTriviallyValid(proTx, is_extended_addr, state)) {
+        // pass the state returned by the function above
+        return false;
     }
     switch (proTx.netInfo->Validate()) {
     case NetInfoStatus::BadAddress:

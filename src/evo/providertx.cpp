@@ -12,6 +12,27 @@
 #include <tinyformat.h>
 #include <util/underlying.h>
 
+template <typename ProTx>
+bool IsNetInfoTriviallyValid(const ProTx& proTx, bool is_extended_addr, TxValidationState& state)
+{
+    // Mandatory for all nodes
+    if (!proTx.netInfo->HasEntries(Purpose::CORE_P2P)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
+    }
+    if (proTx.nType == MnType::Regular) {
+        // Regular nodes shouldn't populate Platform-specific fields
+        if (proTx.netInfo->HasEntries(Purpose::PLATFORM_HTTPS) || proTx.netInfo->HasEntries(Purpose::PLATFORM_P2P)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
+        }
+    } else if (is_extended_addr && proTx.nType == MnType::Evo) {
+        // Platform fields are mandatory for EvoNodes
+        if (!proTx.netInfo->HasEntries(Purpose::PLATFORM_HTTPS) || !proTx.netInfo->HasEntries(Purpose::PLATFORM_P2P)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
+        }
+    }
+    return true;
+}
+
 bool CProRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_addr, TxValidationState& state) const
 {
     if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active, is_extended_addr)) {
@@ -36,8 +57,9 @@ bool CProRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_a
     if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
     }
-    if (!netInfo->IsEmpty() && !netInfo->HasEntries(Purpose::CORE_P2P)) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
+    if (!netInfo->IsEmpty() && !IsNetInfoTriviallyValid(*this, is_extended_addr, state)) {
+        // pass the state returned by the function above
+        return false;
     }
     for (const NetInfoEntry& entry : netInfo->GetEntries()) {
         if (!entry.IsTriviallyValid()) {
@@ -113,8 +135,12 @@ bool CProUpServTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extende
     if (nVersion < ProTxVersion::BasicBLS && nType == MnType::Evo) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-evo-version");
     }
-    if (netInfo->IsEmpty() || !netInfo->HasEntries(Purpose::CORE_P2P)) {
+    if (netInfo->IsEmpty()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-empty");
+    }
+    if (!IsNetInfoTriviallyValid(*this, is_extended_addr, state)) {
+        // pass the state returned by the function above
+        return false;
     }
     for (const NetInfoEntry& entry : netInfo->GetEntries()) {
         if (!entry.IsTriviallyValid()) {
