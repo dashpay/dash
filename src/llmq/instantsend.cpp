@@ -689,7 +689,10 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 
     const int cycle_height = quorum->m_quorum_base_block_index->nHeight -
                              quorum->m_quorum_base_block_index->nHeight % llmq_params_opt->dkgInterval;
-    islock.cycleHash = quorum->m_quorum_base_block_index->GetAncestor(cycle_height)->GetBlockHash();
+    // For RegTest's non-rotating quorum cycleHash has directly quorum hash
+    islock.cycleHash = (llmq_params_opt->useRotation ? quorum->m_quorum_base_block_index->GetAncestor(cycle_height)
+                                                     : quorum->m_quorum_base_block_index)
+                           ->GetBlockHash();
 
     {
         LOCK(cs_creating);
@@ -932,8 +935,11 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
         if (blockIndex->nHeight + dkgInterval < m_chainstate.m_chain.Height()) {
             nSignHeight = blockIndex->nHeight + dkgInterval - 1;
         }
+        // For RegTest non-rotating quorum cycleHash has directly quorum hash
+        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_chainstate.m_chain, qman,
+                                                                             id, nSignHeight, signOffset)
+                                              : qman.GetQuorum(llmq_params.type, islock->cycleHash);
 
-        auto quorum = llmq::SelectQuorumForSigning(llmq_params, m_chainstate.m_chain, qman, id, nSignHeight, signOffset);
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
