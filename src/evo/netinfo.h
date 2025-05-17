@@ -259,8 +259,8 @@ class ExtNetInfo final : public NetInfoInterface
 private:
     static constexpr uint8_t CURRENT_VERSION{1};
 
-    bool HasDuplicates() const;
-    bool IsDuplicateCandidate(const NetInfoEntry& candidate) const;
+    bool HasDuplicates(const std::vector<NetInfoEntry>* entries) const;
+    bool IsDuplicateCandidate(const NetInfoEntry& candidate, const std::vector<NetInfoEntry>* entries) const;
     NetInfoStatus ProcessCandidate(const uint8_t purpose, const NetInfoEntry& candidate);
     static NetInfoStatus ValidateService(const CService& service, bool is_primary);
 
