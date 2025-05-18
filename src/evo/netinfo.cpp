@@ -10,6 +10,8 @@
 #include <util/check.h>
 #include <util/system.h>
 
+#include <univalue.h>
+
 namespace {
 static std::unique_ptr<const CChainParams> g_main_params{nullptr};
 static std::once_flag g_main_params_flag;
@@ -31,6 +33,13 @@ bool MatchCharsFilter(std::string_view input, std::string_view filter)
     return std::all_of(input.begin(), input.end(), [&filter](char c) { return filter.find(c) != std::string_view::npos; });
 }
 } // anonymous namespace
+
+UniValue ArrFromService(const CService& addr)
+{
+    UniValue obj(UniValue::VARR);
+    obj.push_back(addr.ToStringAddrPort());
+    return obj;
+}
 
 bool NetInfoEntry::operator==(const NetInfoEntry& rhs) const
 {
@@ -250,6 +259,11 @@ NetInfoStatus MnNetInfo::Validate() const
         return NetInfoStatus::Malformed;
     }
     return ValidateService(GetPrimary());
+}
+
+UniValue MnNetInfo::ToJson() const
+{
+    return ArrFromService(GetPrimary());
 }
 
 std::string MnNetInfo::ToString() const
