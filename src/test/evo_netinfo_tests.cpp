@@ -96,16 +96,27 @@ void TestExtNetInfo(const TestVectors& vals)
     for (const auto& [input, _, expected_ret] : vals) {
         const auto& [purpose, addr] = input;
         ExtNetInfo netInfo;
+        if (purpose != Purpose::CORE_P2P) {
+            // Entries could get rejected because a CORE_P2P entry wasn't added first, we'll do it for them
+            BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::CORE_P2P, strprintf("1.1.1.1:%u", Params().GetDefaultPort())), NetInfoStatus::Success);
+        }
         BOOST_CHECK_EQUAL(netInfo.AddEntry(purpose, addr), expected_ret);
         if (expected_ret != NetInfoStatus::Success) {
-            // An empty ExtNetInfo is considered malformed
-            BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Malformed);
-            BOOST_CHECK(!netInfo.HasEntries(purpose));
-            BOOST_CHECK(netInfo.GetEntries().empty());
+            if (purpose != Purpose::CORE_P2P) {
+                // The dummy entry makes the constructed ExtNetInfo valid
+                BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
+                BOOST_CHECK(!netInfo.HasEntries(purpose));
+                ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/1);
+            } else {
+                // An empty ExtNetInfo is considered malformed
+                BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Malformed);
+                BOOST_CHECK(!netInfo.HasEntries(purpose));
+                BOOST_CHECK(netInfo.GetEntries().empty());
+            }
         } else {
             BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
             BOOST_CHECK(netInfo.HasEntries(purpose));
-            ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/1);
+            ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/purpose == Purpose::CORE_P2P ? 1 : 2);
         }
     }
 }
@@ -124,7 +135,29 @@ BOOST_AUTO_TEST_CASE(mnnetinfo_rules_main)
     }
 }
 
-BOOST_AUTO_TEST_CASE(extnetinfo_rules_main) { TestExtNetInfo(vals_main); }
+BOOST_AUTO_TEST_CASE(extnetinfo_rules_main)
+{
+    TestExtNetInfo(vals_main);
+
+    {
+        // ExtNetInfo requires adding a CORE_P2P entry before adding an entry for any other purpose
+        ExtNetInfo netInfo;
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::PLATFORM_HTTPS, "1.1.1.1:443"), NetInfoStatus::MissingData);
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::PLATFORM_P2P, "1.1.1.1:26656"), NetInfoStatus::MissingData);
+
+        // Emptiness checks
+        BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Malformed);
+        BOOST_CHECK(netInfo.IsEmpty() && netInfo.GetEntries().empty());
+
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::PLATFORM_HTTPS, "1.1.1.1:443"), NetInfoStatus::Success);
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::PLATFORM_P2P, "1.1.1.1:26656"), NetInfoStatus::Success);
+
+        // Presence checks
+        BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
+        ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/3);
+    }
+}
 
 static const TestVectors vals_reg{
     // - MnNetInfo doesn't mind using port 0

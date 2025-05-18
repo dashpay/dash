@@ -357,6 +357,10 @@ NetInfoStatus ExtNetInfo::ProcessCandidate(const uint8_t purpose, const NetInfoE
         entries.push_back(candidate);
         return NetInfoStatus::Success;
     } else {
+        if (purpose != Purpose::CORE_P2P && m_data.find(Purpose::CORE_P2P) == m_data.end()) {
+            // May not register with any other purpose code if CORE_P2P is not defined first
+            return NetInfoStatus::MissingData;
+        }
         // First entry for purpose code, create new entries list
         auto [_, status] = m_data.try_emplace(purpose, std::vector<NetInfoEntry>({candidate}));
         assert(status); // We did just check to see if our value already existed, try_emplace shouldn't fail
@@ -492,6 +496,7 @@ NetInfoStatus ExtNetInfo::Validate() const
         // Exact duplicates are prohibited *across* lists
         return NetInfoStatus::Duplicate;
     }
+    const bool has_core_p2p{m_data.find(Purpose::CORE_P2P) != m_data.end()};
     for (const auto& [purpose, entries] : m_data) {
         if (!IsValidPurpose(purpose)) {
             return NetInfoStatus::Malformed;
@@ -499,6 +504,10 @@ NetInfoStatus ExtNetInfo::Validate() const
         if (entries.empty()) {
             // Purpose if present in map must have at least one entry
             return NetInfoStatus::Malformed;
+        }
+        if (purpose != Purpose::CORE_P2P && !has_core_p2p) {
+            // Other purpose codes may only be defined *after* CORE_P2P
+            return NetInfoStatus::MissingData;
         }
         if (HasDuplicates(&entries)) {
             // Partial duplicates are prohibited *within* a list

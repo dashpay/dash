@@ -860,6 +860,8 @@ static bool CheckService(const ProTx& proTx, TxValidationState& state)
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-addr-unroutable");
     case NetInfoStatus::Malformed:
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
+    case NetInfoStatus::MissingData:
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-missing-data");
     case NetInfoStatus::Success:
         return true;
     // Shouldn't be possible during self-checks

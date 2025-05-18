@@ -31,6 +31,7 @@ enum class NetInfoStatus : uint8_t {
     BadType,
     NotRoutable,
     Malformed,
+    MissingData,
 
     Success
 };
@@ -52,6 +53,8 @@ constexpr std::string_view NISToString(const NetInfoStatus code)
         return "unroutable address";
     case NetInfoStatus::Malformed:
         return "malformed";
+    case NetInfoStatus::MissingData:
+        return "missing data";
     case NetInfoStatus::MaxLimit:
         return "too many entries";
     case NetInfoStatus::Success:
