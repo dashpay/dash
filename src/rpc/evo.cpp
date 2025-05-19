@@ -191,9 +191,19 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"platformP2PPort",
             {"platformP2PPort", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "Address in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
+                "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards."}
+        },
+        {"platformP2PPort_update",
+            {"platformP2PPort", RPCArg::Type::STR, RPCArg::Optional::NO,
+                "Address in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
                 "Must be unique on the network."}
         },
         {"platformHTTPPort",
+            {"platformHTTPPort", RPCArg::Type::STR, RPCArg::Optional::NO,
+                "Address in the form \"ADDR:PORT\" used by Platform for their HTTP API.\n"
+                "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards."}
+        },
+        {"platformHTTPPort_update",
             {"platformHTTPPort", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "Address in the form \"ADDR:PORT\" used by Platform for their HTTP API.\n"
                 "Must be unique on the network."}
@@ -746,7 +756,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
         }
         ptx.platformNodeID.SetHex(request.params[paramIdx + 6].get_str());
 
-        ProcessNetInfoPlatform(ptx, request.params[paramIdx + 7], request.params[paramIdx + 8]);
+        ProcessNetInfoPlatform(ptx, request.params[paramIdx + 7], request.params[paramIdx + 8], /*optional=*/true);
 
         paramIdx += 3;
     }
@@ -954,8 +964,8 @@ static RPCHelpMan protx_update_service_evo()
             GetRpcArg("coreP2PAddrs_update"),
             GetRpcArg("operatorKey"),
             GetRpcArg("platformNodeID"),
-            GetRpcArg("platformP2PPort"),
-            GetRpcArg("platformHTTPPort"),
+            GetRpcArg("platformP2PPort_update"),
+            GetRpcArg("platformHTTPPort_update"),
             GetRpcArg("operatorPayoutAddress"),
             GetRpcArg("feeSourceAddress"),
             GetRpcArg("submit"),
@@ -1016,7 +1026,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
         }
         ptx.platformNodeID.SetHex(request.params[paramIdx].get_str());
 
-        ProcessNetInfoPlatform(ptx, request.params[paramIdx + 1], request.params[paramIdx + 2]);
+        ProcessNetInfoPlatform(ptx, request.params[paramIdx + 1], request.params[paramIdx + 2], /*optional=*/false);
 
         paramIdx += 3;
     }
