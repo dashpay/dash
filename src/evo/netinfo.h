@@ -54,6 +54,9 @@ constexpr std::string_view NISToString(const NetInfoStatus code)
     assert(false);
 }
 
+/* Identical to IsDeprecatedRPCEnabled("service"). For use outside of RPC code. */
+bool IsServiceDeprecatedRPCEnabled();
+
 class NetInfoEntry
 {
 public:
