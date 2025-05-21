@@ -90,7 +90,7 @@ std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock>
 {
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
-    while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
+    while (!CheckProofOfWork(pblock->GetHash(/*use_cache=*/false), pblock->nBits, Params().GetConsensus())) {
         ++(pblock->nNonce);
     }
 
