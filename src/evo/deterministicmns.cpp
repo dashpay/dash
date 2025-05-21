@@ -470,11 +470,17 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate collateralOutpoint=%s", __func__,
                 dmn->proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort())));
     }
-    for (const CService& entry : dmn->pdmnState->netInfo.GetEntries()) {
-        if (!AddUniqueProperty(*dmn, entry)) {
-            mnUniquePropertyMap = mnUniquePropertyMapSaved;
-            throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate address=%s", __func__,
-                                               dmn->proTxHash.ToString(), entry.ToStringAddrPort())));
+    for (const NetInfoEntry& entry : dmn->pdmnState->netInfo->GetEntries()) {
+        if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
+            const CService& service{service_opt.value()};
+            if (!AddUniqueProperty(*dmn, service)) {
+                mnUniquePropertyMap = mnUniquePropertyMapSaved;
+                throw std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate address=%s",
+                                                   __func__, dmn->proTxHash.ToString(), service.ToStringAddrPort()));
+            }
+        } else {
+            throw std::runtime_error(
+                strprintf("%s: Can't add a masternode %s with invalid address", __func__, dmn->proTxHash.ToString()));
         }
     }
     if (!AddUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
@@ -518,14 +524,24 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
             // We track each individual entry in netInfo as opposed to netInfo itself (preventing us from
             // using UpdateUniqueProperty()), so we need to successfully purge all old entries and insert
             // new entries to successfully update.
-            for (const CService& old_entry : oldState->netInfo.GetEntries()) {
-                if (!DeleteUniqueProperty(*dmn, old_entry)) {
-                    return strprintf("internal error"); // This shouldn't be possible
+            for (const NetInfoEntry& old_entry : oldState->netInfo->GetEntries()) {
+                if (const auto& service_opt{old_entry.GetAddrPort()}; service_opt.has_value()) {
+                    const CService& service{service_opt.value()};
+                    if (!DeleteUniqueProperty(*dmn, service)) {
+                        return strprintf("internal error"); // This shouldn't be possible
+                    }
+                } else {
+                    return strprintf("invalid address");
                 }
             }
-            for (const CService& new_entry : pdmnState->netInfo.GetEntries()) {
-                if (!AddUniqueProperty(*dmn, new_entry)) {
-                    return strprintf("duplicate (%s)", new_entry.ToStringAddrPort());
+            for (const NetInfoEntry& new_entry : pdmnState->netInfo->GetEntries()) {
+                if (const auto& service_opt{new_entry.GetAddrPort()}; service_opt.has_value()) {
+                    const CService& service{service_opt.value()};
+                    if (!AddUniqueProperty(*dmn, service)) {
+                        return strprintf("duplicate (%s)", service.ToStringAddrPort());
+                    }
+                } else {
+                    return strprintf("invalid address");
                 }
             }
         }
@@ -591,11 +607,17 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
         throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a collateralOutpoint=%s", __func__,
                 proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort())));
     }
-    for (const CService& entry : dmn->pdmnState->netInfo.GetEntries()) {
-        if (!DeleteUniqueProperty(*dmn, entry)) {
-            mnUniquePropertyMap = mnUniquePropertyMapSaved;
-            throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with an address=%s", __func__,
-                                               proTxHash.ToString(), entry.ToStringAddrPort())));
+    for (const NetInfoEntry& entry : dmn->pdmnState->netInfo->GetEntries()) {
+        if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
+            const CService& service{service_opt.value()};
+            if (!DeleteUniqueProperty(*dmn, service)) {
+                mnUniquePropertyMap = mnUniquePropertyMapSaved;
+                throw std::runtime_error(strprintf("%s: Can't delete a masternode %s with an address=%s", __func__,
+                                                   proTxHash.ToString(), service.ToStringAddrPort()));
+            }
+        } else {
+            throw std::runtime_error(strprintf("%s: Can't delete a masternode %s with invalid address", __func__,
+                                               dmn->proTxHash.ToString()));
         }
     }
     if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
@@ -811,9 +833,14 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 }
             }
 
-            for (const CService& entry : proTx.netInfo.GetEntries()) {
-                if (newList.HasUniqueProperty(entry)) {
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+            for (const NetInfoEntry& entry : proTx.netInfo->GetEntries()) {
+                if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
+                    const CService& service{service_opt.value()};
+                    if (newList.HasUniqueProperty(service)) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+                    }
+                } else {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
                 }
             }
             if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
@@ -824,7 +851,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
 
             auto dmnState = std::make_shared<CDeterministicMNState>(proTx);
             dmnState->nRegisteredHeight = nHeight;
-            if (proTx.netInfo.IsEmpty()) {
+            if (proTx.netInfo->IsEmpty()) {
                 // start in banned pdmnState as we need to wait for a ProUpServTx
                 dmnState->BanIfNotBanned(nHeight);
             }
@@ -842,10 +869,15 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
             }
 
-            for (const CService& entry : opt_proTx->netInfo.GetEntries()) {
-                if (newList.HasUniqueProperty(entry) &&
-                    newList.GetUniquePropertyMN(entry)->proTxHash != opt_proTx->proTxHash) {
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+            for (const NetInfoEntry& entry : opt_proTx->netInfo->GetEntries()) {
+                if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
+                    const CService& service{service_opt.value()};
+                    if (newList.HasUniqueProperty(service) &&
+                        newList.GetUniquePropertyMN(service)->proTxHash != opt_proTx->proTxHash) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+                    }
+                } else {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
                 }
             }
 
@@ -902,6 +934,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 newState->BanIfNotBanned(nHeight);
                 // we update pubKeyOperator here, make sure state version matches
                 newState->nVersion = opt_proTx->nVersion;
+                newState->netInfo = MakeNetInfo(*newState);
                 newState->pubKeyOperator = opt_proTx->pubKeyOperator;
             }
             newState->keyIDVoting = opt_proTx->keyIDVoting;
@@ -1202,15 +1235,30 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
 }
 
 template <typename ProTx>
-static bool CheckService(const ProTx& proTx, TxValidationState& state)
+static bool CheckService(const ProTx& proTx, bool is_extended_addr, TxValidationState& state)
 {
-    switch (proTx.netInfo.Validate()) {
-    case NetInfoStatus::BadInput:
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo");
+    if (!IsNetInfoTriviallyValid(proTx, is_extended_addr, state)) {
+        // pass the state returned by the function above
+        return false;
+    }
+    switch (proTx.netInfo->Validate()) {
+    case NetInfoStatus::BadAddress:
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-addr");
     case NetInfoStatus::BadPort:
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-port");
+    case NetInfoStatus::BadType:
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-addr-type");
+    case NetInfoStatus::NotRoutable:
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-addr-unroutable");
+    case NetInfoStatus::Malformed:
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
     case NetInfoStatus::Success:
         return true;
+    // Shouldn't be possible during self-checks
+    case NetInfoStatus::BadInput:
+    case NetInfoStatus::Duplicate:
+    case NetInfoStatus::MaxLimit:
+        ASSERT_IF_DEBUG(false);
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -1247,8 +1295,8 @@ static bool CheckPlatformFields(const ProTx& proTx, TxValidationState& state)
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-platform-http-port");
     }
 
-    if (proTx.platformP2PPort == proTx.platformHTTPPort || proTx.platformP2PPort == proTx.netInfo.GetPrimary().GetPort() ||
-        proTx.platformHTTPPort == proTx.netInfo.GetPrimary().GetPort()) {
+    if (proTx.platformP2PPort == proTx.platformHTTPPort || proTx.platformP2PPort == proTx.netInfo->GetPrimary().GetPort() ||
+        proTx.platformHTTPPort == proTx.netInfo->GetPrimary().GetPort()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-platform-dup-ports");
     }
 
@@ -1296,7 +1344,8 @@ static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not
         return std::nullopt;
     }
     const bool is_basic_scheme_active{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)};
-    if (!opt_ptx->IsTriviallyValid(is_basic_scheme_active, state)) {
+    const bool is_extended_addr{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V23)};
+    if (!opt_ptx->IsTriviallyValid(is_basic_scheme_active, is_extended_addr, state)) {
         // pass the state returned by the function above
         return std::nullopt;
     }
@@ -1313,7 +1362,8 @@ bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl:
 
     // It's allowed to set addr to 0, which will put the MN into PoSe-banned state and require a ProUpServTx to be issues later
     // If any of both is set, it must be valid however
-    if (!opt_ptx->netInfo.IsEmpty() && !CheckService(*opt_ptx, state)) {
+    const bool is_extended_addr{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V23)};
+    if (!opt_ptx->netInfo->IsEmpty() && !CheckService(*opt_ptx, is_extended_addr, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1373,10 +1423,15 @@ bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl:
         auto mnList = dmnman.GetListForBlock(pindexPrev);
 
         // only allow reusing of addresses when it's for the same collateral (which replaces the old MN)
-        for (const CService& entry : opt_ptx->netInfo.GetEntries()) {
-            if (mnList.HasUniqueProperty(entry) &&
-                mnList.GetUniquePropertyMN(entry)->collateralOutpoint != collateralOutpoint) {
-                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-netinfo-entry");
+        for (const NetInfoEntry& entry : opt_ptx->netInfo->GetEntries()) {
+            if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
+                const CService& service{service_opt.value()};
+                if (mnList.HasUniqueProperty(service) &&
+                    mnList.GetUniquePropertyMN(service)->collateralOutpoint != collateralOutpoint) {
+                    return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-netinfo-entry");
+                }
+            } else {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-entry");
             }
         }
 
@@ -1428,7 +1483,8 @@ bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, g
         return false;
     }
 
-    if (!CheckService(*opt_ptx, state)) {
+    const bool is_extended_addr{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V23)};
+    if (!CheckService(*opt_ptx, is_extended_addr, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1446,9 +1502,14 @@ bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, g
     }
 
     // don't allow updating to addresses already used by other MNs
-    for (const CService& entry : opt_ptx->netInfo.GetEntries()) {
-        if (mnList.HasUniqueProperty(entry) && mnList.GetUniquePropertyMN(entry)->proTxHash != opt_ptx->proTxHash) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-netinfo-entry");
+    for (const NetInfoEntry& entry : opt_ptx->netInfo->GetEntries()) {
+        if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
+            const CService& service{service_opt.value()};
+            if (mnList.HasUniqueProperty(service) && mnList.GetUniquePropertyMN(service)->proTxHash != opt_ptx->proTxHash) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-netinfo-entry");
+            }
+        } else {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-entry");
         }
     }
 
