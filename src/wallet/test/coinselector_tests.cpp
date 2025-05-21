@@ -311,7 +311,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         wallet->LoadWallet();
         LOCK(wallet->cs_wallet);
         wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-        wallet->SetupDescriptorScriptPubKeyMans();
+        wallet->SetupDescriptorScriptPubKeyMans("", "");
 
         std::vector<COutput> coins;
 
@@ -334,7 +334,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         wallet->LoadWallet();
         LOCK(wallet->cs_wallet);
         wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-        wallet->SetupDescriptorScriptPubKeyMans();
+        wallet->SetupDescriptorScriptPubKeyMans("", "");
 
         std::vector<COutput> coins;
 
@@ -359,7 +359,7 @@ BOOST_AUTO_TEST_CASE(knapsack_solver_test)
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-    wallet->SetupDescriptorScriptPubKeyMans();
+    wallet->SetupDescriptorScriptPubKeyMans("", "");
 
     std::vector<COutput> coins;
 
@@ -669,7 +669,7 @@ BOOST_AUTO_TEST_CASE(ApproximateBestSubset)
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-    wallet->SetupDescriptorScriptPubKeyMans();
+    wallet->SetupDescriptorScriptPubKeyMans("", "");
 
     std::vector<COutput> coins;
 
@@ -691,7 +691,7 @@ BOOST_AUTO_TEST_CASE(SelectCoins_test)
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-    wallet->SetupDescriptorScriptPubKeyMans();
+    wallet->SetupDescriptorScriptPubKeyMans("", "");
 
     // Random generator stuff
     std::default_random_engine generator;

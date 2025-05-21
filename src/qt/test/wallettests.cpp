@@ -116,7 +116,7 @@ void TestGUI(interfaces::Node& node)
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
     {
         LOCK(wallet->cs_wallet);
-        wallet->SetupDescriptorScriptPubKeyMans();
+        wallet->SetupDescriptorScriptPubKeyMans("", "");
 
         // Add the coinbase key
         FlatSigningProvider provider;
