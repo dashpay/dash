@@ -76,7 +76,7 @@ public:
         READWRITE(
                 obj.proRegTxHash,
                 obj.confirmedHash,
-                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo)),
+                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo), obj.nVersion >= ProTxVersion::ExtAddr),
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
                 obj.keyIDVoting,
                 obj.isValid

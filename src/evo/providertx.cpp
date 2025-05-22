@@ -12,9 +12,9 @@
 #include <tinyformat.h>
 #include <util/underlying.h>
 
-bool CProRegTx::IsTriviallyValid(bool is_basic_scheme_active, TxValidationState& state) const
+bool CProRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_addr, TxValidationState& state) const
 {
-    if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active)) {
+    if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active, is_extended_addr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version");
     }
     if (nVersion < ProTxVersion::BasicBLS && nType == MnType::Evo) {
@@ -102,9 +102,9 @@ std::string CProRegTx::ToString() const
                      platformHTTPPort, netInfo->ToString());
 }
 
-bool CProUpServTx::IsTriviallyValid(bool is_basic_scheme_active, TxValidationState& state) const
+bool CProUpServTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_addr, TxValidationState& state) const
 {
-    if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active)) {
+    if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active, is_extended_addr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version");
     }
     if (nVersion < ProTxVersion::BasicBLS && nType == MnType::Evo) {
@@ -137,7 +137,7 @@ std::string CProUpServTx::ToString() const
                      platformP2PPort, platformHTTPPort, netInfo->ToString());
 }
 
-bool CProUpRegTx::IsTriviallyValid(bool is_basic_scheme_active, TxValidationState& state) const
+bool CProUpRegTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_addr, TxValidationState& state) const
 {
     if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version");
@@ -170,7 +170,7 @@ std::string CProUpRegTx::ToString() const
         nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee);
 }
 
-bool CProUpRevTx::IsTriviallyValid(bool is_basic_scheme_active, TxValidationState& state) const
+bool CProUpRevTx::IsTriviallyValid(bool is_basic_scheme_active, bool is_extended_addr, TxValidationState& state) const
 {
     if (nVersion == 0 || nVersion > GetMaxVersion(is_basic_scheme_active)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version");
