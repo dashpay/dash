@@ -101,9 +101,12 @@ public:
                                              obj.nVersion >= ProTxVersion::ExtAddr),
             obj.scriptPayout,
             obj.scriptOperatorPayout,
-            obj.platformNodeID,
+            obj.platformNodeID);
+        if (obj.nVersion < ProTxVersion::ExtAddr) {
+            READWRITE(
             obj.platformP2PPort,
             obj.platformHTTPPort);
+        }
     }
 
     void ResetOperatorFields()
