@@ -54,7 +54,7 @@ public:
     CKeyID keyIDOwner;
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
-    std::shared_ptr<NetInfoInterface> netInfo{MakeNetInfo()};
+    std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
     CScript scriptOperatorPayout;
 
@@ -108,7 +108,7 @@ public:
     {
         nVersion = ProTxVersion::LegacyBLS;
         pubKeyOperator = CBLSLazyPublicKey();
-        netInfo = MakeNetInfo();
+        netInfo = MakeNetInfo(*this);
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
         platformNodeID = uint160();

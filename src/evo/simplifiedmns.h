@@ -35,7 +35,7 @@ class CSimplifiedMNListEntry
 public:
     uint256 proRegTxHash;
     uint256 confirmedHash;
-    std::shared_ptr<NetInfoInterface> netInfo{MakeNetInfo()};
+    std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     bool isValid{false};
