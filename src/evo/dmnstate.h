@@ -54,7 +54,7 @@ public:
     CKeyID keyIDOwner;
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
-    MnNetInfo netInfo;
+    std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
     CScript scriptOperatorPayout;
 
@@ -76,12 +76,8 @@ public:
         platformHTTPPort(proTx.platformHTTPPort)
     {
     }
-
     template <typename Stream>
-    CDeterministicMNState(deserialize_type, Stream& s)
-    {
-        s >> *this;
-    }
+    CDeterministicMNState(deserialize_type, Stream& s) { s >> *this; }
 
     SERIALIZE_METHODS(CDeterministicMNState, obj)
     {
@@ -100,7 +96,7 @@ public:
         READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.nVersion == ProTxVersion::LegacyBLS));
         READWRITE(
             obj.keyIDVoting,
-            obj.netInfo,
+            NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo), obj.nVersion >= ProTxVersion::ExtAddr),
             obj.scriptPayout,
             obj.scriptOperatorPayout,
             obj.platformNodeID,
@@ -112,7 +108,7 @@ public:
     {
         nVersion = ProTxVersion::LegacyBLS;
         pubKeyOperator = CBLSLazyPublicKey();
-        netInfo.Clear();
+        netInfo = MakeNetInfo(*this);
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
         platformNodeID = uint160();
@@ -219,9 +215,17 @@ public:
     CDeterministicMNStateDiff(const CDeterministicMNState& a, const CDeterministicMNState& b)
     {
         boost::hana::for_each(members, [&](auto&& member) {
-            if (member.get(a) != member.get(b)) {
-                member.get(state) = member.get(b);
-                fields |= member.mask;
+            using BaseType = std::decay_t<decltype(member)>;
+            if constexpr (BaseType::mask == Field_netInfo) {
+                if (!NetInfoInterface::IsEqual(member.get(a), member.get(b))) {
+                    member.get(state) = member.get(b);
+                    fields |= member.mask;
+                }
+            } else {
+                if (member.get(a) != member.get(b)) {
+                    member.get(state) = member.get(b);
+                    fields |= member.mask;
+                }
             }
         });
         if (fields & Field_pubKeyOperator) {
@@ -230,6 +234,8 @@ public:
             fields |= Field_nVersion;
         }
     }
+    template <typename Stream>
+    CDeterministicMNStateDiff(deserialize_type, Stream& s) { s >> *this; }
 
     [[nodiscard]] UniValue ToJson(MnType nType) const;
 
@@ -245,6 +251,12 @@ public:
                 if (obj.fields & member.mask) {
                     SER_READ(obj, read_pubkey = true);
                     READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), obj.state.nVersion == ProTxVersion::LegacyBLS));
+                }
+            } else if constexpr (BaseType::mask == Field_netInfo) {
+                if (obj.fields & member.mask) {
+                    // As nVersion is stored after netInfo, we use a magic word to determine the underlying implementation
+                    // TODO: Implement this
+                    READWRITE(NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.state.netInfo), /*is_extended=*/false));
                 }
             } else {
                 if (obj.fields & member.mask) {
