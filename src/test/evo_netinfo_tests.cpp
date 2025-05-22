@@ -214,4 +214,25 @@ BOOST_AUTO_TEST_CASE(cservice_compatible)
     BOOST_CHECK(CheckIfSerSame(service, netInfo));
 }
 
+BOOST_AUTO_TEST_CASE(interface_equality)
+{
+    std::shared_ptr<NetInfoInterface> ptr_lhs{nullptr}, ptr_rhs{nullptr};
+
+    // Equal initialization state (uninitialized)
+    BOOST_CHECK(NetInfoInterface::IsEqual(ptr_lhs, ptr_rhs));
+
+    // Unequal initialization state (lhs initialized, rhs unchanged)
+    ptr_lhs = std::make_shared<MnNetInfo>();
+    BOOST_CHECK(!NetInfoInterface::IsEqual(ptr_lhs, ptr_rhs));
+
+    // Equal initialization state (lhs unchanged, rhs initialized), same values
+    ptr_rhs = std::make_shared<MnNetInfo>();
+    BOOST_CHECK(ptr_lhs->IsEmpty() && ptr_rhs->IsEmpty());
+    BOOST_CHECK(NetInfoInterface::IsEqual(ptr_lhs, ptr_rhs));
+
+    // Equal initialization state, same type, differing values
+    BOOST_CHECK_EQUAL(ptr_rhs->AddEntry("1.1.1.1:9999"), NetInfoStatus::Success);
+    BOOST_CHECK(!NetInfoInterface::IsEqual(ptr_lhs, ptr_rhs));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -156,6 +156,29 @@ std::string NetInfoEntry::ToStringAddrPort() const
         m_data);
 }
 
+bool NetInfoInterface::IsEqual(const std::shared_ptr<NetInfoInterface>& lhs, const std::shared_ptr<NetInfoInterface>& rhs)
+{
+    if (lhs == rhs) {
+        // Points to the same object or both blank
+        return true;
+    }
+
+    if (!lhs || !rhs) {
+        // Unequal initialization status
+        return false;
+    }
+
+    if (const auto lhs_ptr{std::dynamic_pointer_cast<MnNetInfo>(lhs)}) {
+        if (const auto rhs_ptr{std::dynamic_pointer_cast<MnNetInfo>(rhs)}) {
+            // Successful downcasting of both lhs and rhs, can now deep compare
+            return *lhs_ptr == *rhs_ptr;
+        }
+    }
+
+    // Downcasting failed, lhs and rhs are differing types
+    return false;
+}
+
 NetInfoStatus MnNetInfo::ValidateService(const CService& service)
 {
     if (!service.IsValid()) {

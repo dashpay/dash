@@ -129,6 +129,9 @@ using NetInfoList = std::vector<std::reference_wrapper<const NetInfoEntry>>;
 class NetInfoInterface
 {
 public:
+    static bool IsEqual(const std::shared_ptr<NetInfoInterface>& lhs, const std::shared_ptr<NetInfoInterface>& rhs);
+
+public:
     virtual ~NetInfoInterface() = default;
 
     virtual NetInfoStatus AddEntry(const std::string& service) = 0;
@@ -194,9 +197,45 @@ public:
     void Clear() override { m_addr.Clear(); }
 };
 
-inline std::shared_ptr<MnNetInfo> MakeNetInfo()
+inline std::shared_ptr<NetInfoInterface> MakeNetInfo()
 {
     return std::make_shared<MnNetInfo>();
 }
+
+class NetInfoSerWrapper
+{
+private:
+    std::shared_ptr<NetInfoInterface>& m_data;
+
+public:
+    NetInfoSerWrapper() = delete;
+    NetInfoSerWrapper(const NetInfoSerWrapper&) = delete;
+    NetInfoSerWrapper(std::shared_ptr<NetInfoInterface>& data) :
+        m_data{data}
+    {
+    }
+    template <typename Stream>
+    NetInfoSerWrapper(deserialize_type, Stream& s) { s >> *this; }
+
+    ~NetInfoSerWrapper() = default;
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
+            s << *ptr;
+        } else {
+            // MakeNetInfo() supplied an unexpected implementation or we didn't call it and
+            // are left with a nullptr. Neither should happen.
+            assert(false);
+        }
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        m_data = std::make_shared<MnNetInfo>(deserialize, s);
+    }
+};
 
 #endif // BITCOIN_EVO_NETINFO_H
