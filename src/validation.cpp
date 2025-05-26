@@ -4943,7 +4943,7 @@ void CChainState::LoadExternalBlockFile(
             try {
                 // locate a header
                 unsigned char buf[CMessageHeader::MESSAGE_START_SIZE];
-                blkdat.FindByte(m_params.MessageStart()[0]);
+                blkdat.FindByte(std::byte(m_params.MessageStart()[0]));
                 nRewind = blkdat.GetPos() + 1;
                 blkdat >> buf;
                 if (memcmp(buf, m_params.MessageStart(), CMessageHeader::MESSAGE_START_SIZE)) {
@@ -5867,8 +5867,8 @@ void ChainstateManager::MaybeRebalanceCaches()
 {
     AssertLockHeld(::cs_main);
     if (m_ibd_chainstate && !m_snapshot_chainstate) {
-        LogPrintf("[snapshot] allocating all cache to the IBD chainstate\n");
-        // Allocate everything to the IBD chainstate.
+        // Allocate everything to the IBD chainstate. This will always happen
+        // when we are not using a snapshot
         m_ibd_chainstate->ResizeCoinsCaches(m_total_coinstip_cache, m_total_coinsdb_cache);
     }
     else if (m_snapshot_chainstate && !m_ibd_chainstate) {
