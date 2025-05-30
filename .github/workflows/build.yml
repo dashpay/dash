@@ -34,6 +34,24 @@ jobs:
       file: ./contrib/containers/ci/ci-slim.Dockerfile
       name: dashcore-ci-slim
 
+  container-arm64:
+    name: Build container (ARM64)
+    uses: ./.github/workflows/build-container.yml
+    with:
+      context: ./contrib/containers/ci
+      file: ./contrib/containers/ci/ci.Dockerfile
+      name: dashcore-ci-runner
+      runs-on: ubuntu-24.04-arm
+
+  container-slim-arm64:
+    name: Build slim container (ARM64)
+    uses: ./.github/workflows/build-container.yml
+    with:
+      context: ./contrib/containers/ci
+      file: ./contrib/containers/ci/ci-slim.Dockerfile
+      name: dashcore-ci-slim
+      runs-on: ubuntu-24.04-arm
+
   depends-arm-linux:
     name: arm-linux-gnueabihf
     uses: ./.github/workflows/build-depends.yml
