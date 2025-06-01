@@ -283,4 +283,7 @@ static bool CheckInputsHash(const CTransaction& tx, const ProTx& proTx, TxValida
     return true;
 }
 
+template <typename ProTx>
+bool IsNetInfoTriviallyValid(const ProTx& proTx, bool is_extended_addr, TxValidationState& state);
+
 #endif // BITCOIN_EVO_PROVIDERTX_H

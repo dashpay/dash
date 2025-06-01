@@ -64,6 +64,9 @@ namespace Purpose {
 enum : uint8_t {
     // Mandatory for masternodes
     CORE_P2P = 0,
+    // Mandatory for EvoNodes
+    PLATFORM_P2P = 1,
+    PLATFORM_HTTPS = 2,
 };
 } // namespace Purpose
 
@@ -71,6 +74,8 @@ constexpr bool IsValidPurpose(const uint8_t purpose)
 {
     switch (purpose) {
     case Purpose::CORE_P2P:
+    case Purpose::PLATFORM_P2P:
+    case Purpose::PLATFORM_HTTPS:
         return true;
     } // no default case, so the compiler can warn about missing cases
     return false;
@@ -82,6 +87,10 @@ constexpr std::string_view PurposeToString(const uint8_t purpose, const bool low
     switch (purpose) {
     case Purpose::CORE_P2P:
         return lower ? "core_p2p" : "CORE_P2P";
+    case Purpose::PLATFORM_P2P:
+        return lower ? "platform_p2p" : "PLATFORM_P2P";
+    case Purpose::PLATFORM_HTTPS:
+        return lower ? "platform_https" : "PLATFORM_HTTPS";
     } // no default case, so the compiler can warn about missing cases
     return "";
 }
@@ -290,12 +299,7 @@ public:
     const CService& GetPrimary() const override;
     bool HasEntries(uint8_t purpose) const override;
     bool IsEmpty() const override { return m_version == CURRENT_VERSION && m_data.empty(); }
-    bool CanStorePlatform() const override
-    {
-        // TODO: Store Platform fields, reporting as true as used to differentiate
-        //       with legacy implementation
-        return true;
-    }
+    bool CanStorePlatform() const override { return true; }
     NetInfoStatus Validate() const override;
     UniValue ToJson() const override;
     std::string ToString() const override;
