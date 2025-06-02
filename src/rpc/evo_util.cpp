@@ -163,8 +163,8 @@ void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& 
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid port [1-65535]", field_name));
         }
     };
-    process_field(ptx.platformP2PPort, input_p2p, Purpose::PLATFORM_P2P, "platformP2PPort");
-    process_field(ptx.platformHTTPPort, input_http, Purpose::PLATFORM_HTTPS, "platformHTTPPort");
+    process_field(ptx.platformP2PPort, input_p2p, Purpose::PLATFORM_P2P, "platformP2PAddrs");
+    process_field(ptx.platformHTTPPort, input_http, Purpose::PLATFORM_HTTPS, "platformHTTPAddrs");
 }
 template void ProcessNetInfoPlatform(CProRegTx& ptx, const UniValue& input_p2p, const UniValue& input_http,
                                      const bool optional);
