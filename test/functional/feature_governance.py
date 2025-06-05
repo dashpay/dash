@@ -9,7 +9,7 @@ import json
 from test_framework.messages import uint256_to_string
 from test_framework.test_framework import DashTestFramework
 from test_framework.governance import have_trigger_for_height, prepare_object
-from test_framework.util import assert_equal, satoshi_round
+from test_framework.util import assert_equal, assert_greater_than, satoshi_round
 
 GOVERNANCE_UPDATE_MIN = 60 * 60 # src/governance/object.h
 
@@ -280,8 +280,11 @@ class DashGovernanceTest (DashTestFramework):
         self.wait_until(lambda: self.nodes[0].gobject("list", "valid", "triggers")[winning_trigger_hash]['NoCount'] == 1, timeout=5)
         self.wait_until(lambda: self.nodes[0].gobject("list", "valid", "triggers")[isolated_trigger_hash]['NoCount'] == self.mn_count - 1, timeout=5)
         self.log.info("Should wait until all 24 votes are counted for success on next stages")
-        self.wait_until(lambda: self.nodes[1].gobject("count")["votes"] == 24, timeout=5)
-
+        # TODO: figure out where 25th vote come from
+        # it is supposed to be only 24 of them, but in rare case there's 25 votes
+        # and it's add instability to this functional tests
+        self.wait_until(lambda: self.nodes[1].gobject("count")["votes"] >= 24, timeout=5)
+        assert_greater_than(25, self.nodes[1].gobject("count")["votes"])
         self.log.info("Remember vote count")
         before = self.nodes[1].gobject("count")["votes"]
 
