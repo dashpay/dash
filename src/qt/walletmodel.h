@@ -29,10 +29,8 @@ class SendCoinsRecipient;
 class TransactionTableModel;
 class WalletModelTransaction;
 
-class CCoinControl;
 class CKeyID;
 class COutPoint;
-class COutput;
 class CPubKey;
 class uint256;
 
@@ -42,6 +40,9 @@ namespace CoinJoin {
 class Client;
 } // namespace CoinJoin
 } // namespace interfaces
+namespace wallet {
+class CCoinControl;
+} // namespace wallet
 
 QT_BEGIN_NAMESPACE
 class QTimer;
@@ -100,7 +101,7 @@ public:
     };
 
     // prepare transaction for getting txfee before sending coins
-    SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl);
+    SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const wallet::CCoinControl& coinControl);
 
     // Send coins to a list of recipients
     void sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);

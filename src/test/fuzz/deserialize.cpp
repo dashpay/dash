@@ -38,6 +38,7 @@
 namespace {
 const BasicTestingSetup* g_setup;
 } // namespace
+using node::SnapshotMetadata;
 
 void initialize_deserialize()
 {

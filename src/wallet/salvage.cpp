@@ -11,6 +11,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
+namespace wallet {
 /* End of headers, beginning of key/value data */
 static const char *HEADER_END = "HEADER=END";
 /* End of key/value data */
@@ -166,3 +167,4 @@ bool RecoverDatabaseFile(const fs::path& file_path, bilingual_str& error, std::v
 
     return fSuccess;
 }
+} // namespace wallet

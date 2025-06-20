@@ -21,7 +21,9 @@ class CBlock;
 class CBlockIndex;
 class CChainState;
 class UniValue;
+namespace node {
 struct NodeContext;
+} // namespace node
 namespace llmq {
 class CChainLocksHandler;
 class CInstantSendManager;
@@ -54,7 +56,7 @@ void CalculatePercentilesBySize(CAmount result[NUM_GETBLOCKSTATS_PERCENTILES], s
  * @return a UniValue map containing metadata about the snapshot.
  */
 UniValue CreateUTXOSnapshot(
-    NodeContext& node,
+    node::NodeContext& node,
     CChainState& chainstate,
     CAutoFile& afile,
     const fs::path& path,

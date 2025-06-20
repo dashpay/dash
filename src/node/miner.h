@@ -41,6 +41,7 @@ class CQuorumManager;
 class CQuorumSnapshotManager;
 } // namespace llmq
 
+namespace node {
 static const bool DEFAULT_PRINTPRIORITY = false;
 
 struct CBlockTemplate
@@ -229,5 +230,8 @@ private:
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
+
+
+} // namespace node
 
 #endif // BITCOIN_NODE_MINER_H
