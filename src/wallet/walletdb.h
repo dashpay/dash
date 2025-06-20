@@ -266,7 +266,4 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, st
 /** Return object for accessing dummy database with no read/write capabilities. */
 std::unique_ptr<WalletDatabase> CreateDummyWalletDatabase();
 
-/** Return object for accessing temporary in-memory database. */
-std::unique_ptr<WalletDatabase> CreateMockWalletDatabase();
-
 #endif // BITCOIN_WALLET_WALLETDB_H

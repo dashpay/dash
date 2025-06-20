@@ -1188,13 +1188,3 @@ std::unique_ptr<WalletDatabase> CreateDummyWalletDatabase()
 {
     return std::make_unique<DummyDatabase>();
 }
-
-/** Return object for accessing temporary in-memory database. */
-std::unique_ptr<WalletDatabase> CreateMockWalletDatabase()
-{
-#ifdef USE_SQLITE
-    return std::make_unique<SQLiteDatabase>("", "", true);
-#elif defined(USE_BDB)
-    return std::make_unique<BerkeleyDatabase>(std::make_shared<BerkeleyEnvironment>(), "");
-#endif
-}
