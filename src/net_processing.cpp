@@ -61,7 +61,7 @@
 
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
-#include <evo/simplifiedmns.h>
+#include <evo/smldiff.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
