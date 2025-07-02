@@ -7,7 +7,6 @@
 #include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
-#include <llmq/signing_shares.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>

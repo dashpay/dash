@@ -12,7 +12,6 @@
 #include <llmq/commitment.h>
 #include <llmq/utils.h>
 
-#include <base58.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/validation.h>

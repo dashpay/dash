@@ -4,16 +4,11 @@
 
 #include <llmq/snapshot.h>
 
+#include <chainparams.h>
 #include <evo/evodb.h>
 #include <evo/simplifiedmns.h>
-#include <evo/specialtx.h>
-
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
-
-#include <base58.h>
-#include <chainparams.h>
-#include <serialize.h>
 #include <univalue.h>
 #include <validation.h>
 

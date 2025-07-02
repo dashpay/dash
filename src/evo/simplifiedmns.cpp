@@ -14,11 +14,9 @@
 #include <node/blockstorage.h>
 #include <evo/specialtx.h>
 
-#include <pubkey.h>
 #include <serialize.h>
 #include <version.h>
 
-#include <base58.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
 #include <univalue.h>
