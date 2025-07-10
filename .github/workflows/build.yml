@@ -252,8 +252,8 @@ jobs:
   test-arm-linux:
     name: arm-linux-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-arm64, src-arm-linux]
+    needs: [container, src-arm-linux]
     with:
       bundle-key: ${{ needs.src-arm-linux.outputs.key }}
       build-target: arm-linux
-      container-path: ${{ needs.container-arm64.outputs.slim-path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
