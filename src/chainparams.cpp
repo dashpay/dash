@@ -219,8 +219,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_WITHDRAWALS].useEHF = true;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].bit = 12;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nStartTime = 1751328000;    // July 1, 2025
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nTimeout = 1782864000;      // July 1, 2026
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE; // TODO
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT; // TODO
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdStart = 3226;     // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdMin = 2420;       // 60% of 4032
@@ -426,7 +426,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_WITHDRAWALS].useEHF = true;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].bit = 12;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nStartTime = 1751328000;    // July 1, 2025
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE; // TODO
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nWindowSize = 100;
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdStart = 80;       // 80% of 100
