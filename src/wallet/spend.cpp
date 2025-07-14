@@ -172,9 +172,11 @@ void AvailableCoins(const CWallet& wallet, std::vector<COutput>& vCoins, const C
 
             std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(wtx.tx->vout[i].scriptPubKey);
 
-            bool solvable = provider ? IsSolvable(*provider, wtx.tx->vout[i].scriptPubKey) : false;
+            int input_bytes = CalculateMaximumSignedInputSize(wtx.tx->vout[i], COutPoint(), provider.get(), coinControl);
+            // Because CalculateMaximumSignedInputSize just uses ProduceSignature and makes a dummy signature,
+            // it is safe to assume that this input is solvable if input_bytes is greater -1.
+            bool solvable = input_bytes > -1;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
-            int input_bytes = GetTxSpendSize(wallet, wtx, i, (coinControl && coinControl->fAllowWatchOnly));
 
             vCoins.emplace_back(COutPoint(wtx.GetHash(), i), wtx.tx->vout.at(i), nDepth, input_bytes, spendable, solvable, safeTx, wtx.GetTxTime(), tx_from_me);
 
