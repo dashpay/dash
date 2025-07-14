@@ -6,10 +6,7 @@
 #include <qt/governancelist.h>
 
 #include <chainparams.h>
-#include <clientversion.h>
-#include <coins.h>
 #include <evo/deterministicmns.h>
-#include <netbase.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>

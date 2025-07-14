@@ -4,12 +4,10 @@
 
 #include <test/util/setup_common.h>
 
-#include <base58.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <messagesigner.h>
-#include <netbase.h>
 #include <node/transaction.h>
 #include <policy/policy.h>
 #include <script/interpreter.h>
@@ -24,7 +22,6 @@
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <llmq/context.h>
-#include <llmq/instantsend.h>
 
 #include <boost/test/unit_test.hpp>
 
