@@ -94,6 +94,7 @@ WalletView::WalletView(QWidget* parent) :
     }
     if (settings.value("fShowGovernanceTab").toBool()) {
         governanceListPage = new GovernanceList();
+        governanceListPage->setWalletModel(walletModel);
         addWidget(governanceListPage);
     }
 
