@@ -19,20 +19,25 @@ concurrency:
 
 jobs:
   container:
-    name: Build container
+    name: Build containers (amd64)
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
       file: ./contrib/containers/ci/ci.Dockerfile
       name: dashcore-ci-runner
+      slim-file: ./contrib/containers/ci/ci-slim.Dockerfile
+      slim-name: dashcore-ci-slim
 
-  container-slim:
-    name: Build slim container
+  container-arm64:
+    name: Build containers (ARM64)
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
-      file: ./contrib/containers/ci/ci-slim.Dockerfile
-      name: dashcore-ci-slim
+      file: ./contrib/containers/ci/ci.Dockerfile
+      name: dashcore-ci-runner
+      slim-file: ./contrib/containers/ci/ci-slim.Dockerfile
+      slim-name: dashcore-ci-slim
+      runs-on: ubuntu-24.04-arm
 
   depends-arm-linux:
     name: arm-linux-gnueabihf
@@ -193,53 +198,62 @@ jobs:
   test-linux64:
     name: linux64-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64]
+    needs: [container, src-linux64]
     with:
       bundle-key: ${{ needs.src-linux64.outputs.key }}
       build-target: linux64
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
 
   test-linux64_multiprocess:
     name: linux64_multiprocess-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_multiprocess]
+    needs: [container, src-linux64_multiprocess]
     with:
       bundle-key: ${{ needs.src-linux64_multiprocess.outputs.key }}
       build-target: linux64_multiprocess
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
 
   test-linux64_nowallet:
     name: linux64_nowallet-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_nowallet]
+    needs: [container, src-linux64_nowallet]
     with:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
 
   test-linux64_sqlite:
     name: linux64_sqlite-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_sqlite]
+    needs: [container, src-linux64_sqlite]
     with:
       bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
       build-target: linux64_sqlite
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
 
   test-linux64_tsan:
     name: linux64_tsan-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_tsan]
+    needs: [container, src-linux64_tsan]
     with:
       bundle-key: ${{ needs.src-linux64_tsan.outputs.key }}
       build-target: linux64_tsan
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
 
   test-linux64_ubsan:
     name: linux64_ubsan-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_ubsan]
+    needs: [container, src-linux64_ubsan]
     with:
       bundle-key: ${{ needs.src-linux64_ubsan.outputs.key }}
       build-target: linux64_ubsan
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.slim-path }}
+
+  test-arm-linux:
+    name: arm-linux-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [container, src-arm-linux]
+    with:
+      bundle-key: ${{ needs.src-arm-linux.outputs.key }}
+      build-target: arm-linux
+      container-path: ${{ needs.container.outputs.slim-path }}

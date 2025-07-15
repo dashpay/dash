@@ -1,5 +1,4 @@
 name: Build container
-
 on:
   workflow_call:
     inputs:
@@ -8,22 +7,38 @@ on:
         required: true
         type: string
       file:
-        description: "Path to Dockerfile"
+        description: "Path to main Dockerfile"
         required: true
         type: string
       name:
-        description: "Container name"
+        description: "Main container name"
         required: true
         type: string
+      slim-file:
+        description: "Path to slim Dockerfile"
+        required: true
+        type: string
+      slim-name:
+        description: "Slim container name"
+        required: true
+        type: string
+      runs-on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-24.04"
     outputs:
       path:
-        description: "Path to built container"
+        description: "Path to built main container"
         value: ghcr.io/${{ jobs.build.outputs.repo }}/${{ inputs.name }}:${{ jobs.build.outputs.tag }}
+      slim-path:
+        description: "Path to built slim container"
+        value: ghcr.io/${{ jobs.build.outputs.repo }}/${{ inputs.slim-name }}:${{ jobs.build.outputs.tag }}
 
 jobs:
   build:
     name: Build container
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runs-on }}
     outputs:
       tag: ${{ steps.prepare.outputs.tag }}
       repo: ${{ steps.prepare.outputs.repo }}
@@ -51,7 +66,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push SLIM Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.slim-file }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.slim-name }}:${{ hashFiles(inputs.slim-file) }}
+            ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.slim-name }}:${{ steps.prepare.outputs.tag }}
+            ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.slim-name }}:latest
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.slim-name }}:${{ hashFiles(inputs.slim-file) }}
+            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.slim-name }}:${{ steps.prepare.outputs.tag }}
+            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.slim-name }}:latest
+          cache-to: type=inline
+
+      - name: Build and push MAIN Docker image
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.context }}
