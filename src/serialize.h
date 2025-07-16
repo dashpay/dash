@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include <support/allocators/secure.h>
 #include <prevector.h>
 #include <span.h>
 
@@ -816,8 +817,8 @@ struct VectorFormatter
 /**
  *  string
  */
-template<typename Stream, typename C> void Serialize(Stream& os, const std::basic_string<C>& str);
-template<typename Stream, typename C> void Unserialize(Stream& is, std::basic_string<C>& str);
+template<typename Stream, typename A, typename B, typename C> void Serialize(Stream& os, const std::basic_string<A, B, C>& str);
+template<typename Stream, typename A, typename B, typename C> void Unserialize(Stream& is, std::basic_string<A, B, C>& str);
 
 /**
  * prevector
@@ -947,16 +948,16 @@ struct DefaultFormatter
 /**
  * string
  */
-template<typename Stream, typename C>
-void Serialize(Stream& os, const std::basic_string<C>& str)
+template<typename Stream, typename A, typename B, typename C>
+void Serialize(Stream& os, const std::basic_string<A, B, C>& str)
 {
     WriteCompactSize(os, str.size());
     if (!str.empty())
         os.write(MakeByteSpan(str));
 }
 
-template<typename Stream, typename C>
-void Unserialize(Stream& is, std::basic_string<C>& str)
+template<typename Stream, typename A, typename B, typename C>
+void Unserialize(Stream& is, std::basic_string<A, B, C>& str)
 {
     unsigned int nSize = ReadCompactSize(is);
     str.resize(nSize);
