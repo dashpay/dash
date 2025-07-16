@@ -456,6 +456,7 @@ libbitcoin_node_a_SOURCES = \
   chain.cpp \
   chainlocks/chainlocks.cpp \
   chainlocks/clsig.cpp \
+  chainlocks/signing.cpp \
   coinjoin/coinjoin.cpp \
   coinjoin/context.cpp \
   coinjoin/server.cpp \
