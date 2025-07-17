@@ -368,12 +368,6 @@ void CChainLocksHandler::EnforceBestChainLock()
     ::g_stats_client->gauge("chainlocks.blockHeight", clsig->getHeight(), 1.0f);
 }
 
-bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash) const
-{
-    LOCK(cs);
-    return InternalHasChainLock(nHeight, blockHash);
-}
-
 VerifyRecSigStatus CChainLocksHandler::VerifyChainLock(const chainlocks::ChainLockSig& clsig) const
 {
     const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
@@ -382,9 +376,10 @@ VerifyRecSigStatus CChainLocksHandler::VerifyChainLock(const chainlocks::ChainLo
     return llmq::VerifyRecoveredSig(llmqType, m_chainstate.m_chain, qman, clsig.getHeight(), nRequestId, clsig.getBlockHash(), clsig.getSig());
 }
 
-bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockHash) const
+bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash) const
 {
-    AssertLockHeld(cs);
+    AssertLockNotHeld(cs);
+    LOCK(cs);
 
     if (!IsEnabled()) {
         return false;
@@ -408,13 +403,8 @@ bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockH
 
 bool CChainLocksHandler::HasConflictingChainLock(int nHeight, const uint256& blockHash) const
 {
+    AssertLockNotHeld(cs);
     LOCK(cs);
-    return InternalHasConflictingChainLock(nHeight, blockHash);
-}
-
-bool CChainLocksHandler::InternalHasConflictingChainLock(int nHeight, const uint256& blockHash) const
-{
-    AssertLockHeld(cs);
 
     if (!IsEnabled()) {
         return false;
