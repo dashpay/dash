@@ -14,10 +14,10 @@
 #include <net_processing.h>
 #include <validation.h>
 
+#include <chainlocks/chainlocks.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
 #include <instantsend/instantsend.h>
-#include <llmq/chainlocks.h>
 #include <llmq/context.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/ehf_signals.h>

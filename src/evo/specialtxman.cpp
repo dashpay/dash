@@ -13,6 +13,7 @@
 #include <util/irange.h>
 #include <validation.h>
 
+#include <chainlocks/chainlocks.h>
 #include <chainlocks/clsig.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
@@ -22,7 +23,6 @@
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
 #include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
 #include <llmq/utils.h>

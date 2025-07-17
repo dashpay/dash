@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_LLMQ_CHAINLOCKS_H
-#define BITCOIN_LLMQ_CHAINLOCKS_H
+#ifndef BITCOIN_CHAINLOCKS_CHAINLOCKS_H
+#define BITCOIN_CHAINLOCKS_CHAINLOCKS_H
 
 #include <chainlocks/clsig.h>
 
@@ -130,4 +130,4 @@ private:
 bool AreChainLocksEnabled(const CSporkManager& sporkman);
 } // namespace llmq
 
-#endif // BITCOIN_LLMQ_CHAINLOCKS_H
+#endif // BITCOIN_CHAINLOCKS_CHAINLOCKS_H

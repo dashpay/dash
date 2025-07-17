@@ -2,17 +2,14 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <llmq/chainlocks.h>
+#include <chainlocks/chainlocks.h>
 
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <masternode/sync.h>
 #include <node/blockstorage.h>
 #include <node/interface_ui.h>
 #include <scheduler.h>
-#include <spork.h>
-#include <stats/client.h>
 #include <txmempool.h>
 #include <util/thread.h>
 #include <util/time.h>
@@ -23,6 +20,9 @@
 #include <instantsend/instantsend.h>
 #include <llmq/quorums.h>
 #include <llmq/signing_shares.h>
+#include <masternode/sync.h>
+#include <spork.h>
+#include <stats/client.h>
 
 using node::ReadBlockFromDisk;
 
