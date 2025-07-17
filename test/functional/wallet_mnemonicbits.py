@@ -101,30 +101,35 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
 
     def test_upgradetohd_custom(self):
         self.log.info("Test upgradetohd with user defined mnemonic")
-        self.nodes[0].createwallet("w-custom-1a", blank=True)
-        self.nodes[0].createwallet("w-custom-1b", blank=True)
-        self.nodes[0].createwallet("w-custom-2", blank=True)
+        wname_1a = "w-custom-1a"
+        wname_1b = "w-custom-1b"
+        wname_2 = "w-custom-2"
+
+        wnames = [wname_1a, wname_1b, wname_2]
+        for wname in wnames:
+            self.nodes[0].createwallet(wname, blank=True)
+
         custom_mnemonic = "similar behave slot swim scissors throw planet view ghost laugh drift calm"
         # this address belongs to custom mnemonic with no passphrase
         custom_address_1 = "yLpq97zZUsFQ2rdMqhcPKkYT36MoPK4Hob"
         # this address belongs to custom mnemonic with passphrase "custom-passphrase"
         custom_address_2 = "yYBPeZQcqgQHu9dxA5pKBWtYbK2hwfFHxf"
 
-        self.nodes[0].get_wallet_rpc('w-custom-1a').upgradetohd(custom_mnemonic)
-        self.nodes[0].get_wallet_rpc('w-custom-1b').upgradetohd(custom_mnemonic, "")
-        self.nodes[0].get_wallet_rpc('w-custom-2').upgradetohd(custom_mnemonic, "custom-passphrase")
+        self.nodes[0].get_wallet_rpc(wname_1a).upgradetohd(custom_mnemonic)
+        self.nodes[0].get_wallet_rpc(wname_1b).upgradetohd(custom_mnemonic, "")
+        self.nodes[0].get_wallet_rpc(wname_2).upgradetohd(custom_mnemonic, "custom-passphrase")
         self.generate(self.nodes[0], COINBASE_MATURITY + 1)
 
         self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(custom_address_1, 11)
         self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(custom_address_2, 12)
         self.generate(self.nodes[0], 1)
         self.restart_node(0)
-        self.nodes[0].loadwallet('w-custom-1a')
-        self.nodes[0].loadwallet('w-custom-1b')
-        self.nodes[0].loadwallet('w-custom-2')
-        assert_equal(11, self.nodes[0].get_wallet_rpc('w-custom-1a').getbalance())
-        assert_equal(11, self.nodes[0].get_wallet_rpc('w-custom-1b').getbalance())
-        assert_equal(12, self.nodes[0].get_wallet_rpc('w-custom-2').getbalance())
+        for wname in wnames:
+            self.nodes[0].loadwallet(wname)
+
+        assert_equal(11, self.nodes[0].get_wallet_rpc(wname_1a).getbalance())
+        assert_equal(11, self.nodes[0].get_wallet_rpc(wname_1b).getbalance())
+        assert_equal(12, self.nodes[0].get_wallet_rpc(wname_2).getbalance())
 
 
 if __name__ == '__main__':
