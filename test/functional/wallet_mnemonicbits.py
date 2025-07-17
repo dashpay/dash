@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test -mnemonicbits wallet option."""
 
+from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
@@ -44,7 +45,6 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         self.start_node(0)
 
         mnemonic_pre = self.get_mnemonic(self.nodes[0])
-
 
         self.nodes[0].encryptwallet('pass')
         self.nodes[0].walletpassphrase('pass', 100)
@@ -96,6 +96,35 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_192")).split()), 18)              # 18 words
         assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_224")).split()), 21)              # 21 words
         assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_256")).split()), 24)              # 24 words
+
+        self.test_upgradetohd_custom()
+
+    def test_upgradetohd_custom(self):
+        self.log.info("Test upgradetohd with user defined mnemonic")
+        self.nodes[0].createwallet("w-custom-1a", blank=True)
+        self.nodes[0].createwallet("w-custom-1b", blank=True)
+        self.nodes[0].createwallet("w-custom-2", blank=True)
+        custom_mnemonic = "similar behave slot swim scissors throw planet view ghost laugh drift calm"
+        # this address belongs to custom mnemonic with no passphrase
+        custom_address_1 = "yLpq97zZUsFQ2rdMqhcPKkYT36MoPK4Hob"
+        # this address belongs to custom mnemonic with passphrase "custom-passphrase"
+        custom_address_2 = "yYBPeZQcqgQHu9dxA5pKBWtYbK2hwfFHxf"
+
+        self.nodes[0].get_wallet_rpc('w-custom-1a').upgradetohd(custom_mnemonic)
+        self.nodes[0].get_wallet_rpc('w-custom-1b').upgradetohd(custom_mnemonic, "")
+        self.nodes[0].get_wallet_rpc('w-custom-2').upgradetohd(custom_mnemonic, "custom-passphrase")
+        self.generate(self.nodes[0], COINBASE_MATURITY + 1)
+
+        self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(custom_address_1, 11)
+        self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(custom_address_2, 12)
+        self.generate(self.nodes[0], 1)
+        self.restart_node(0)
+        self.nodes[0].loadwallet('w-custom-1a')
+        self.nodes[0].loadwallet('w-custom-1b')
+        self.nodes[0].loadwallet('w-custom-2')
+        assert_equal(11, self.nodes[0].get_wallet_rpc('w-custom-1a').getbalance())
+        assert_equal(11, self.nodes[0].get_wallet_rpc('w-custom-1b').getbalance())
+        assert_equal(12, self.nodes[0].get_wallet_rpc('w-custom-2').getbalance())
 
 
 if __name__ == '__main__':

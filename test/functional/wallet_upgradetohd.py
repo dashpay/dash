@@ -5,7 +5,8 @@
 """
 wallet_upgradetohd.py
 
-Test upgrade to a Hierarchical Deterministic wallet via upgradetohd rpc
+Test upgrade to a Hierarchical Deterministic wallet via upgradetohd rpc for legacy wallets
+For tests of upgradetohd for descriptor wallets see wallet_mnemonicbits.py
 """
 
 import shutil
