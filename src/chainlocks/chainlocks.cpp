@@ -87,7 +87,7 @@ bool CChainLocksHandler::AlreadyHave(const CInv& inv) const
     return seenChainLocks.count(inv.hash) != 0;
 }
 
-bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLockSig& ret) const
+bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, chainlocks::ChainLockSig& ret) const
 {
     LOCK(cs);
 
@@ -100,13 +100,13 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
     return true;
 }
 
-CChainLockSig CChainLocksHandler::GetBestChainLock() const
+chainlocks::ChainLockSig CChainLocksHandler::GetBestChainLock() const
 {
     LOCK(cs);
     return bestChainLock;
 }
 
-MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CChainLockSig& clsig,
+MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId from, const chainlocks::ChainLockSig& clsig,
                                                                 const uint256& hash)
 {
     CheckActiveState();
@@ -222,7 +222,7 @@ void CChainLocksHandler::CheckActiveState()
         // to disable spork19)
         LOCK(cs);
         bestChainLockHash = uint256();
-        bestChainLock = bestChainLockWithKnownBlock = CChainLockSig();
+        bestChainLock = bestChainLockWithKnownBlock = chainlocks::ChainLockSig();
         bestChainLockBlockIndex = lastNotifyChainLockBlockIndex = nullptr;
     }
 }
@@ -326,7 +326,7 @@ void CChainLocksHandler::TrySignChainTip(const llmq::CInstantSendManager& isman)
         }
     }
 
-    uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, pindex->nHeight));
+    uint256 requestId = ::SerializeHash(std::make_pair(chainlocks::CLSIG_REQUESTID_PREFIX, pindex->nHeight));
     uint256 msgHash = pindex->GetBlockHash();
 
     {
@@ -462,7 +462,7 @@ void CChainLocksHandler::EnforceBestChainLock()
     AssertLockNotHeld(cs);
     AssertLockNotHeld(cs_main);
 
-    std::shared_ptr<CChainLockSig> clsig;
+    std::shared_ptr<chainlocks::ChainLockSig> clsig;
     const CBlockIndex* pindex;
     const CBlockIndex* currentBestChainLockBlockIndex;
     {
@@ -472,7 +472,7 @@ void CChainLocksHandler::EnforceBestChainLock()
             return;
         }
 
-        clsig = std::make_shared<CChainLockSig>(bestChainLockWithKnownBlock);
+        clsig = std::make_shared<chainlocks::ChainLockSig>(bestChainLockWithKnownBlock);
         pindex = currentBestChainLockBlockIndex = this->bestChainLockBlockIndex;
 
         if (currentBestChainLockBlockIndex == nullptr) {
@@ -518,7 +518,7 @@ MessageProcessingResult CChainLocksHandler::HandleNewRecoveredSig(const llmq::CR
         return {};
     }
 
-    CChainLockSig clsig;
+    chainlocks::ChainLockSig clsig;
     {
         LOCK(cs);
 
@@ -532,7 +532,7 @@ MessageProcessingResult CChainLocksHandler::HandleNewRecoveredSig(const llmq::CR
         }
 
 
-        clsig = CChainLockSig(lastSignedHeight, lastSignedMsgHash, recoveredSig.sig.Get());
+        clsig = chainlocks::ChainLockSig(lastSignedHeight, lastSignedMsgHash, recoveredSig.sig.Get());
     }
     return ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
 }
@@ -544,10 +544,10 @@ bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash) con
 }
 
 
-VerifyRecSigStatus CChainLocksHandler::VerifyChainLock(const CChainLockSig& clsig) const
+VerifyRecSigStatus CChainLocksHandler::VerifyChainLock(const chainlocks::ChainLockSig& clsig) const
 {
     const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
-    const uint256 nRequestId = ::SerializeHash(std::make_pair(llmq::CLSIG_REQUESTID_PREFIX, clsig.getHeight()));
+    const uint256 nRequestId = ::SerializeHash(std::make_pair(chainlocks::CLSIG_REQUESTID_PREFIX, clsig.getHeight()));
 
     return llmq::VerifyRecoveredSig(llmqType, m_chainstate.m_chain, qman, clsig.getHeight(), nRequestId, clsig.getBlockHash(), clsig.getSig());
 }

@@ -11,8 +11,8 @@
 #include <util/irange.h>
 #include <validation.h>
 
+#include <chainlocks/chainlocks.h>
 #include <instantsend/instantsend.h>
-#include <llmq/chainlocks.h>
 #include <llmq/quorums.h>
 #include <masternode/sync.h>
 #include <spork.h>
