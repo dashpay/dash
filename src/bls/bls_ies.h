@@ -27,6 +27,7 @@ public:
         READWRITE(obj.ephemeralPubKey, obj.ivSeed, obj.data);
     }
 
+    bool Encrypt(size_t idx, const CBLSPublicKey& peerPubKey, const void* plainTextData, size_t dataSize);
     bool Decrypt(size_t idx, const CBLSSecretKey& secretKey, CDataStream& decryptedDataRet) const;
     bool IsValid() const;
 };
