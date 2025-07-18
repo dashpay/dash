@@ -401,16 +401,16 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
             return;
         }
 
-        if (uint32_t{clsig_height} > WITH_LOCK(cs, return bestChainLock.getHeight())) {
+        if (clsig_height > WITH_LOCK(cs, return bestChainLock.getHeight())) {
             // Get the ancestor block for the chainlock
-            const CBlockIndex* pindexAncestor = pindex->GetAncestor(uint32_t{clsig_height});
+            const CBlockIndex* pindexAncestor = pindex->GetAncestor(uint32_t(clsig_height));
             if (!pindexAncestor) {
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Cannot find ancestor block at height %d for chainlock\n",
                         __func__, clsig_height);
                 return;
             }
 
-            auto clsig = CChainLockSig(uint32_t{clsig_height}, pindexAncestor->GetBlockHash(), coinbase_cl.signature);
+            auto clsig = CChainLockSig(uint32_t(clsig_height), pindexAncestor->GetBlockHash(), coinbase_cl.signature);
             auto result = ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
             if (result.m_error.has_value()) {
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Failed to process chainlock from coinbase: %s\n",
