@@ -392,25 +392,25 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
     auto opt_chainlock = GetCoinbaseChainlock(*pblock, pindex);
     if (opt_chainlock.has_value()) {
         const auto& coinbase_cl = *opt_chainlock;
-        auto clsig_height = pindex->nHeight - coinbase_cl.heightDiff;
+        int32_t clsig_height = pindex->nHeight - coinbase_cl.heightDiff;
 
         // Validate chainlock height is reasonable
-        if (clsig_height < 0 || static_cast<uint32_t>(clsig_height) > static_cast<uint32_t>(pindex->nHeight)) {
+        if (clsig_height < 0 || clsig_height > pindex->nHeight) {
             LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Invalid chainlock height %d from coinbase (block height %d, height diff %d)\n",
                     __func__, clsig_height, pindex->nHeight, coinbase_cl.heightDiff);
             return;
         }
 
-        if (clsig_height > uint32_t(WITH_LOCK(cs, return bestChainLock.getHeight()))) {
+        if (uint32_t{clsig_height} > WITH_LOCK(cs, return bestChainLock.getHeight())) {
             // Get the ancestor block for the chainlock
-            const CBlockIndex* pindexAncestor = pindex->GetAncestor(clsig_height);
+            const CBlockIndex* pindexAncestor = pindex->GetAncestor(uint32_t{clsig_height});
             if (!pindexAncestor) {
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Cannot find ancestor block at height %d for chainlock\n",
                         __func__, clsig_height);
                 return;
             }
 
-            auto clsig = CChainLockSig(clsig_height, pindexAncestor->GetBlockHash(), coinbase_cl.signature);
+            auto clsig = CChainLockSig(uint32_t{clsig_height}, pindexAncestor->GetBlockHash(), coinbase_cl.signature);
             auto result = ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
             if (result.m_error.has_value()) {
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Failed to process chainlock from coinbase: %s\n",

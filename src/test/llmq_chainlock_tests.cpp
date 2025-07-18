@@ -180,30 +180,30 @@ BOOST_AUTO_TEST_CASE(coinbase_chainlock_version_compatibility_test)
 BOOST_AUTO_TEST_CASE(automatic_chainlock_detection_logic_test)
 {
     // Test the logical flow of automatic chainlock detection
-    
+
     // Case 1: Valid chainlock with height difference
     const int32_t block_height = 1000;
     const uint32_t height_diff = 5;
     const int32_t clsig_height = block_height - height_diff;
-    
+
     BOOST_CHECK_EQUAL(clsig_height, 995);
-    
+
     // Case 2: Zero height difference (should point to current block)
     const uint32_t zero_diff = 0;
     const int32_t clsig_height_zero = block_height - zero_diff;
-    
+
     BOOST_CHECK_EQUAL(clsig_height_zero, 1000);
-    
+
     // Case 3: Large height difference
     const uint32_t large_diff = 100;
     const int32_t clsig_height_large = block_height - large_diff;
-    
+
     BOOST_CHECK_EQUAL(clsig_height_large, 900);
-    
+
     // Case 4: Height difference larger than block height (edge case)
     const uint32_t too_large_diff = 1500;
     const int32_t clsig_height_negative = block_height - too_large_diff;
-    
+
     BOOST_CHECK_EQUAL(clsig_height_negative, -500);
     BOOST_CHECK(clsig_height_negative < 0); // Should be handled as invalid
 }
@@ -212,19 +212,19 @@ BOOST_AUTO_TEST_CASE(chainlock_message_processing_result_test)
 {
     // Test that MessageProcessingResult is properly handled
     // This test verifies the structure exists and has expected fields
-    
+
     MessageProcessingResult result;
-    
+
     // Test default construction
     BOOST_CHECK(!result.m_error.has_value());
     BOOST_CHECK(!result.m_inventory.has_value());
     BOOST_CHECK(result.m_transactions.empty());
     BOOST_CHECK(!result.m_to_erase.has_value());
-    
+
     // Test with error
     MisbehavingError error{100, "Test error"};
     MessageProcessingResult result_with_error(error);
-    
+
     BOOST_CHECK(result_with_error.m_error.has_value());
     BOOST_CHECK_EQUAL(result_with_error.m_error->score, 100);
     BOOST_CHECK_EQUAL(result_with_error.m_error->message, "Test error");
@@ -233,32 +233,32 @@ BOOST_AUTO_TEST_CASE(chainlock_message_processing_result_test)
 BOOST_AUTO_TEST_CASE(automatic_chainlock_edge_cases_test)
 {
     // Test edge cases for automatic chainlock detection
-    
+
     // Edge case 1: Height difference equal to block height (should result in height 0)
     const int32_t block_height = 100;
     const uint32_t height_diff_equal = 100;
     const int32_t clsig_height_zero = block_height - height_diff_equal;
-    
+
     BOOST_CHECK_EQUAL(clsig_height_zero, 0);
-    
+
     // Edge case 2: Height difference greater than block height (negative result)
     const uint32_t height_diff_too_large = 150;
     const int32_t clsig_height_negative = block_height - height_diff_too_large;
-    
+
     BOOST_CHECK_EQUAL(clsig_height_negative, -50);
     BOOST_CHECK(clsig_height_negative < 0);
-    
+
     // Edge case 3: Maximum height difference (uint32_t max)
     const uint32_t max_height_diff = std::numeric_limits<uint32_t>::max();
     const int64_t clsig_height_overflow = static_cast<int64_t>(block_height) - max_height_diff;
-    
+
     BOOST_CHECK(clsig_height_overflow < 0);
-    
+
     // Edge case 4: Block height at maximum int32_t
     const int32_t max_block_height = std::numeric_limits<int32_t>::max();
     const uint32_t small_diff = 10;
     const int32_t clsig_height_max = max_block_height - small_diff;
-    
+
     BOOST_CHECK_EQUAL(clsig_height_max, max_block_height - 10);
     BOOST_CHECK(clsig_height_max > 0);
 }
@@ -266,17 +266,17 @@ BOOST_AUTO_TEST_CASE(automatic_chainlock_edge_cases_test)
 BOOST_AUTO_TEST_CASE(coinbase_chainlock_invalid_data_test)
 {
     // Test handling of invalid chainlock data in coinbase transactions
-    
+
     // Test with invalid version (too old)
     CCbTx cbTx_invalid_version;
     cbTx_invalid_version.nVersion = CCbTx::Version::MERKLE_ROOT_MNLIST;
     cbTx_invalid_version.nHeight = 1000;
     cbTx_invalid_version.merkleRootMNList = GetTestQuorumHash(1);
-    
+
     // This should not have chainlock data
     BOOST_CHECK(!cbTx_invalid_version.bestCLSignature.IsValid());
     BOOST_CHECK_EQUAL(cbTx_invalid_version.bestCLHeightDiff, 0);
-    
+
     // Test with valid version but corrupted signature
     CCbTx cbTx_corrupted;
     cbTx_corrupted.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
@@ -286,7 +286,7 @@ BOOST_AUTO_TEST_CASE(coinbase_chainlock_invalid_data_test)
     cbTx_corrupted.bestCLHeightDiff = 5;
     cbTx_corrupted.bestCLSignature = CBLSSignature(); // Invalid/null signature
     cbTx_corrupted.creditPoolBalance = 1000000;
-    
+
     // Should have the height diff but invalid signature
     BOOST_CHECK(!cbTx_corrupted.bestCLSignature.IsValid());
     BOOST_CHECK_EQUAL(cbTx_corrupted.bestCLHeightDiff, 5);
@@ -295,27 +295,27 @@ BOOST_AUTO_TEST_CASE(coinbase_chainlock_invalid_data_test)
 BOOST_AUTO_TEST_CASE(chainlock_ancestor_lookup_edge_cases_test)
 {
     // Test edge cases for ancestor block lookup in automatic chainlock detection
-    
+
     // Test calculating ancestor heights with various scenarios
     const int32_t current_height = 1000;
-    
+
     // Normal case
     const uint32_t normal_diff = 10;
     const int32_t ancestor_height = current_height - normal_diff;
     BOOST_CHECK_EQUAL(ancestor_height, 990);
     BOOST_CHECK(ancestor_height >= 0);
-    
+
     // Edge case: pointing to genesis block
     const uint32_t genesis_diff = current_height;
     const int32_t genesis_height = current_height - genesis_diff;
     BOOST_CHECK_EQUAL(genesis_height, 0);
-    
+
     // Edge case: pointing to invalid height (negative)
     const uint32_t invalid_diff = current_height + 100;
     const int32_t invalid_height = current_height - invalid_diff;
     BOOST_CHECK_EQUAL(invalid_height, -100);
     BOOST_CHECK(invalid_height < 0);
-    
+
     // Edge case: zero difference (pointing to current block)
     const uint32_t zero_diff = 0;
     const int32_t same_height = current_height - zero_diff;
@@ -325,27 +325,27 @@ BOOST_AUTO_TEST_CASE(chainlock_ancestor_lookup_edge_cases_test)
 BOOST_AUTO_TEST_CASE(chainlock_comparison_and_validation_test)
 {
     // Test chainlock comparison logic for automatic processing
-    
+
     // Test comparison with existing chainlock heights
     const int32_t existing_cl_height = 500;
     const int32_t new_cl_height_higher = 600;
     const int32_t new_cl_height_lower = 400;
     const int32_t new_cl_height_same = 500;
-    
+
     // Higher height should be processed
     BOOST_CHECK(new_cl_height_higher > existing_cl_height);
-    
+
     // Lower height should not be processed
     BOOST_CHECK(new_cl_height_lower < existing_cl_height);
-    
+
     // Same height should not be processed
     BOOST_CHECK(new_cl_height_same == existing_cl_height);
-    
+
     // Test with unsigned comparison (mimicking the actual code)
     const uint32_t existing_cl_height_unsigned = 500;
     const uint32_t new_cl_height_higher_unsigned = 600;
     const uint32_t new_cl_height_lower_unsigned = 400;
-    
+
     BOOST_CHECK(new_cl_height_higher_unsigned > existing_cl_height_unsigned);
     BOOST_CHECK(new_cl_height_lower_unsigned < existing_cl_height_unsigned);
 }
