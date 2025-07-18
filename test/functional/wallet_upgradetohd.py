@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016 The Bitcoin Core developers
+# Copyright (c) 2016 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """
 wallet_upgradetohd.py
 
-Test upgrade to a Hierarchical Deterministic wallet via upgradetohd rpc
+Test upgrade to a Hierarchical Deterministic wallet via upgradetohd rpc for legacy wallets
+For tests of upgradetohd for descriptor wallets see wallet_mnemonicbits.py
 """
 
 import shutil

@@ -4,10 +4,18 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test -mnemonicbits wallet option."""
 
+from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
 )
+
+custom_mnemonic = "similar behave slot swim scissors throw planet view ghost laugh drift calm"
+# this address belongs to custom mnemonic with no passphrase
+custom_address_1 = "yLpq97zZUsFQ2rdMqhcPKkYT36MoPK4Hob"
+# this address belongs to custom mnemonic with passphrase "custom-passphrase"
+custom_address_2 = "yYBPeZQcqgQHu9dxA5pKBWtYbK2hwfFHxf"
+
 
 class WalletMnemonicbitsTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -44,7 +52,6 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         self.start_node(0)
 
         mnemonic_pre = self.get_mnemonic(self.nodes[0])
-
 
         self.nodes[0].encryptwallet('pass')
         self.nodes[0].walletpassphrase('pass', 100)
@@ -88,22 +95,68 @@ class WalletMnemonicbitsTest(BitcoinTestFramework):
         self.nodes[0].loadwallet("wallet_160")
         self.nodes[0].loadwallet("wallet_192")
         self.nodes[0].loadwallet("wallet_224")
-        if self.options.descriptors:
-            self.nodes[0].createwallet("wallet_256", False, True, "", False, True)  # blank Descriptors
-            self.nodes[0].get_wallet_rpc("wallet_256").upgradetohd()
-            assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc(self.default_wallet_name)).split()), 12)  # 12 words by default
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_160").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 15)              # 15 words
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_192").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 18)              # 18 words
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_224").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 21)              # 21 words
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_256").listdescriptors(True)["descriptors"][0]["mnemonic"].split()), 24)              # 24 words
+        self.nodes[0].createwallet("wallet_256", blank=True, descriptors=self.options.descriptors)  # blank wallet
+        self.nodes[0].get_wallet_rpc("wallet_256").upgradetohd()
+
+        assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc(self.default_wallet_name)).split()), 12)  # 12 words by default
+        assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_160")).split()), 15)              # 15 words
+        assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_192")).split()), 18)              # 18 words
+        assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_224")).split()), 21)              # 21 words
+        assert_equal(len(self.get_mnemonic(self.nodes[0].get_wallet_rpc("wallet_256")).split()), 24)              # 24 words
+
+
+        self.generate(self.nodes[0], COINBASE_MATURITY + 1)
+
+        self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(custom_address_1, 11)
+        self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(custom_address_2, 12)
+        self.generate(self.nodes[0], 1)
+
+
+        self.log.info("Test upgradetohd with user defined mnemonic")
+        self.test_upgradetohd_custom(False, False)
+
+        self.log.info("Test upgradetohd with user defined mnemonic, encrypt wallet after creation")
+        self.test_upgradetohd_custom(True, False)
+
+        self.log.info("Test upgradetohd with user defined mnemonic, encrypt wallet after upgradetohd")
+        self.test_upgradetohd_custom(False, True)
+
+    def test_upgradetohd_custom(self, to_encrypt_1, to_encrypt_2):
+        wname_1a = f"w-custom-1a-{to_encrypt_1}-{to_encrypt_2}"
+        wname_1b = f"w-custom-1b-{to_encrypt_1}-{to_encrypt_2}"
+        wname_2 = f"w-custom-2-{to_encrypt_1}-{to_encrypt_2}"
+        wnames = [wname_1a, wname_1b, wname_2]
+
+        for wname in wnames:
+            self.nodes[0].createwallet(wname, blank=True)
+            if to_encrypt_1:
+                self.nodes[0].get_wallet_rpc(wname).encryptwallet("123")
+                self.nodes[0].get_wallet_rpc(wname).walletpassphrase("123", 100)
+
+        if to_encrypt_1:
+            self.nodes[0].get_wallet_rpc(wname_1a).upgradetohd(custom_mnemonic, "", "123")
+            self.nodes[0].get_wallet_rpc(wname_1b).upgradetohd(custom_mnemonic, "", "123")
+            self.nodes[0].get_wallet_rpc(wname_2).upgradetohd(custom_mnemonic, "custom-passphrase", "123")
         else:
-            self.nodes[0].createwallet("wallet_256", False, True)  # blank HD legacy
-            self.nodes[0].get_wallet_rpc("wallet_256").upgradetohd()
-            assert_equal(len(self.nodes[0].get_wallet_rpc(self.default_wallet_name).dumphdinfo()["mnemonic"].split()), 12)  # 12 words by default
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_160").dumphdinfo()["mnemonic"].split()), 15)              # 15 words
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_192").dumphdinfo()["mnemonic"].split()), 18)              # 18 words
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_224").dumphdinfo()["mnemonic"].split()), 21)              # 21 words
-            assert_equal(len(self.nodes[0].get_wallet_rpc("wallet_256").dumphdinfo()["mnemonic"].split()), 24)              # 24 words
+            self.nodes[0].get_wallet_rpc(wname_1a).upgradetohd(custom_mnemonic)
+            self.nodes[0].get_wallet_rpc(wname_1b).upgradetohd(custom_mnemonic, "")
+            self.nodes[0].get_wallet_rpc(wname_2).upgradetohd(custom_mnemonic, "custom-passphrase")
+
+
+        if to_encrypt_2:
+            for wname in wnames:
+                self.nodes[0].get_wallet_rpc(wname).encryptwallet("123")
+                self.nodes[0].get_wallet_rpc(wname).walletpassphrase("123", 100)
+
+        self.restart_node(0)
+        for wname in wnames:
+            self.nodes[0].loadwallet(wname)
+            if to_encrypt_1 or to_encrypt_2:
+                self.nodes[0].get_wallet_rpc(wname).walletpassphrase("123", 100)
+
+        assert_equal(11, self.nodes[0].get_wallet_rpc(wname_1a).getbalance())
+        assert_equal(11, self.nodes[0].get_wallet_rpc(wname_1b).getbalance())
+        assert_equal(12, self.nodes[0].get_wallet_rpc(wname_2).getbalance())
 
 
 if __name__ == '__main__':
