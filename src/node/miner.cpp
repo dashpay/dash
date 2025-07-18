@@ -141,18 +141,18 @@ static bool CalcCbTxBestChainlock(const llmq::CChainLocksHandler& chainlock_hand
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
         if (best_clsig.IsNull()) {
             // We don't know any CL, therefore inserting the CL of the previous block
-            bestCLHeightDiff = prevBlockCoinbaseChainlock->second + 1;
-            bestCLSignature = prevBlockCoinbaseChainlock->first;
+            bestCLHeightDiff = prevBlockCoinbaseChainlock->heightDiff + 1;
+            bestCLSignature = prevBlockCoinbaseChainlock->signature;
             return true;
         }
 
         // We check if our best CL is newer than the one from previous block Coinbase
         int curCLHeight = best_clsig.getHeight();
-        int prevCLHeight = pindexPrev->nHeight - static_cast<int>(prevBlockCoinbaseChainlock->second) - 1;
+        int prevCLHeight = pindexPrev->nHeight - static_cast<int>(prevBlockCoinbaseChainlock->heightDiff) - 1;
         if (curCLHeight < prevCLHeight) {
             // Our best CL isn't newer: inserting CL from previous block
-            bestCLHeightDiff = prevBlockCoinbaseChainlock->second + 1;
-            bestCLSignature = prevBlockCoinbaseChainlock->first;
+            bestCLHeightDiff = prevBlockCoinbaseChainlock->heightDiff + 1;
+            bestCLSignature = prevBlockCoinbaseChainlock->signature;
         }
         else {
             // Our best CL is newer

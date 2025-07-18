@@ -224,7 +224,7 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
         const auto cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
         CBLSSignature sig;
         if (cbcl.has_value()) {
-            sig = cbcl.value().first;
+            sig = cbcl.value().signature;
         }
         // Get the range of indexes (values) for the current key and merge them into a single std::set
         const auto [it_begin, it_end] = workBaseBlockIndexMap.equal_range(it->first);

@@ -125,6 +125,7 @@ BASE_SCRIPTS = [
     'feature_llmq_connections.py', # NOTE: needs dash_hash to pass
     'feature_llmq_is_retroactive.py', # NOTE: needs dash_hash to pass
     'feature_llmq_chainlocks.py', # NOTE: needs dash_hash to pass
+    'feature_llmq_chainlocks_automatic.py', # NOTE: needs dash_hash to pass
     'feature_llmq_simplepose.py', # NOTE: needs dash_hash to pass
     'feature_llmq_simplepose.py --disable-spork23', # NOTE: needs dash_hash to pass
     'feature_dip3_deterministicmns.py --legacy-wallet', # NOTE: needs dash_hash to pass

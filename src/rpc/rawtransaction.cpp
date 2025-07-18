@@ -640,7 +640,7 @@ static RPCHelpMan getassetunlockstatuses()
             }
             // If no CL info is available, try to use CbTx CL information
             if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex)) {
-                return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
+                return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->heightDiff - 1);
             }
             // no CL info, no CbTx CL
             return nullptr;
