@@ -9,6 +9,7 @@
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
+#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <masternode/meta.h>
@@ -32,7 +33,6 @@ using CQuorumCPtr = std::shared_ptr<const CQuorum>;
 /**
  * Forward declarations
  */
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 
 static bool IsV19Active(gsl::not_null<const CBlockIndex*> pindexPrev)
 {
@@ -92,8 +92,8 @@ static uint256 GetHashModifier(const Consensus::LLMQParams& llmqParams, gsl::not
         auto cbcl = GetNonNullCoinbaseChainlock(pWorkBlockIndex);
         if (cbcl.has_value()) {
             // We have a non-null CL signature: calculate modifier using this CL signature
-            auto& [bestCLSignature, bestCLHeightDiff] = cbcl.value();
-            return ::SerializeHash(std::make_tuple(llmqParams.type, pWorkBlockIndex->nHeight, bestCLSignature));
+            const auto& coinbase_cl = cbcl.value();
+            return ::SerializeHash(std::make_tuple(llmqParams.type, pWorkBlockIndex->nHeight, coinbase_cl.signature));
         }
         // No non-null CL signature found in coinbase: calculate modifier using block hash only
         return ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));

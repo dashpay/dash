@@ -223,7 +223,12 @@ std::string CCbTx::ToString() const
         creditPoolBalance / COIN, creditPoolBalance % COIN);
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetCoinbaseChainlock(const CBlock& block, const CBlockIndex* pindex)
+std::string CCoinbaseChainlock::ToString() const
+{
+    return strprintf("CCoinbaseChainlock(signature=%s, heightDiff=%d)", signature.ToString(), heightDiff);
+}
+
+std::optional<CCoinbaseChainlock> GetCoinbaseChainlock(const CBlock& block, const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
         return std::nullopt;
@@ -249,10 +254,10 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetCoinbaseChainlock(const CBl
         return std::nullopt;
     }
 
-    return std::make_pair(opt_cbtx->bestCLSignature, opt_cbtx->bestCLHeightDiff);
+    return CCoinbaseChainlock(opt_cbtx->bestCLSignature, opt_cbtx->bestCLHeightDiff);
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
+std::optional<CCoinbaseChainlock> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
         return std::nullopt;

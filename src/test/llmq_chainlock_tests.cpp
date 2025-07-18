@@ -399,24 +399,40 @@ BOOST_AUTO_TEST_CASE(get_coinbase_chainlock_from_block_test)
     BOOST_CHECK(emptyBlock.vtx.empty());
 }
 
-BOOST_AUTO_TEST_CASE(coinbase_chainlock_function_comparison_test)
+BOOST_AUTO_TEST_CASE(coinbase_chainlock_struct_test)
 {
-    // Test that both GetCoinbaseChainlock and GetNonNullCoinbaseChainlock
-    // should return the same result when given the same data
-    // This is more of a conceptual test since the actual functions require
-    // proper blockchain setup with block indexes
+    // Test the new CCoinbaseChainlock structure
 
-    // Create test data
+    // Test default constructor
+    CCoinbaseChainlock defaultCl;
+    BOOST_CHECK(defaultCl.IsNull());
+    BOOST_CHECK_EQUAL(defaultCl.heightDiff, 0);
+    BOOST_CHECK(!defaultCl.signature.IsValid());
+
+    // Test parameterized constructor
     CBLSSignature testSig = CreateRandomBLSSignature();
     uint32_t testHeightDiff = 10;
+    CCoinbaseChainlock cl(testSig, testHeightDiff);
 
-    // Test that our test utilities work properly
-    BOOST_CHECK(testSig.IsValid());
-    BOOST_CHECK_EQUAL(testHeightDiff, 10);
+    BOOST_CHECK(!cl.IsNull());
+    BOOST_CHECK_EQUAL(cl.heightDiff, testHeightDiff);
+    BOOST_CHECK(cl.signature == testSig);
+    BOOST_CHECK(cl.signature.IsValid());
 
-    // The actual integration test would require a full blockchain setup,
-    // which is covered by our functional tests
-    BOOST_CHECK(true); // Placeholder for successful logical structure test
+    // Test ToString method
+    std::string clString = cl.ToString();
+    BOOST_CHECK(clString.find("CCoinbaseChainlock") != std::string::npos);
+    BOOST_CHECK(clString.find("heightDiff=10") != std::string::npos);
+
+    // Test serialization
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << cl;
+    BOOST_CHECK(ss.size() > 0);
+
+    CCoinbaseChainlock cl2;
+    ss >> cl2;
+    BOOST_CHECK(cl2.signature == cl.signature);
+    BOOST_CHECK_EQUAL(cl2.heightDiff, cl.heightDiff);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

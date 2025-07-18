@@ -391,13 +391,13 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
     // Check if coinbase transaction contains a chainlock signature
     auto opt_chainlock = GetCoinbaseChainlock(*pblock, pindex);
     if (opt_chainlock.has_value()) {
-        auto [clsig_sig, clsig_height_diff] = *opt_chainlock;
-        auto clsig_height = pindex->nHeight - clsig_height_diff;
+        const auto& coinbase_cl = *opt_chainlock;
+        auto clsig_height = pindex->nHeight - coinbase_cl.heightDiff;
 
         // Validate chainlock height is reasonable
         if (clsig_height < 0 || static_cast<uint32_t>(clsig_height) > static_cast<uint32_t>(pindex->nHeight)) {
             LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Invalid chainlock height %d from coinbase (block height %d, height diff %d)\n",
-                    __func__, clsig_height, pindex->nHeight, clsig_height_diff);
+                    __func__, clsig_height, pindex->nHeight, coinbase_cl.heightDiff);
             return;
         }
 
@@ -410,7 +410,7 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
                 return;
             }
 
-            auto clsig = CChainLockSig(clsig_height, pindexAncestor->GetBlockHash(), clsig_sig);
+            auto clsig = CChainLockSig(clsig_height, pindexAncestor->GetBlockHash(), coinbase_cl.signature);
             auto result = ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
             if (result.m_error.has_value()) {
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Failed to process chainlock from coinbase: %s\n",
