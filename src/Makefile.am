@@ -152,6 +152,7 @@ BITCOIN_CORE_H = \
   chain.h \
   chainlocks/chainlocks.h \
   chainlocks/clsig.h \
+  chainlocks/signing.h \
   chainparams.h \
   chainparamsbase.h \
   chainparamsseeds.h \
