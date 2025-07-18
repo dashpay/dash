@@ -438,9 +438,21 @@ static RPCHelpMan getcoinjoininfo()
                                     {RPCResult::Type::STR, "service", "The IP address and port of the masternode (DEPRECATED, returned only if config option -deprecatedrpc=service is passed)"},
                                     {RPCResult::Type::ARR, "addresses", "Network addresses of the masternode",
                                     {
-                                        {
-                                            {RPCResult::Type::STR, "address", ""},
-                                        }
+                                        {RPCResult::Type::ARR, "core_p2p", /*optional=*/true, "Addresses used for protocol P2P",
+                                            {
+                                                {RPCResult::Type::STR, "address", ""},
+                                            }
+                                        },
+                                        {RPCResult::Type::ARR, "platform_p2p", /*optional=*/true, "Addresses used for Platform P2P",
+                                            {
+                                                {RPCResult::Type::STR, "address", ""},
+                                            }
+                                        },
+                                        {RPCResult::Type::ARR, "platform_http", /*optional=*/true, "Addresses used for Platform HTTP API",
+                                            {
+                                                {RPCResult::Type::STR, "address", ""},
+                                            }
+                                        },
                                     }},
                                     {RPCResult::Type::NUM, "denomination", "The denomination of the mixing session in " + CURRENCY_UNIT + ""},
                                     {RPCResult::Type::STR_HEX, "state", "Current state of the mixing session"},
