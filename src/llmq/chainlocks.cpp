@@ -389,7 +389,7 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
     }
 
     // Check if coinbase transaction contains a chainlock signature
-    auto opt_chainlock = GetNonNullCoinbaseChainlock(pindex);
+    auto opt_chainlock = GetCoinbaseChainlock(*pblock, pindex);
     if (opt_chainlock.has_value()) {
         auto [clsig_sig, clsig_height_diff] = *opt_chainlock;
         auto clsig_height = pindex->nHeight - clsig_height_diff;
