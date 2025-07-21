@@ -19,14 +19,11 @@ from test_framework.util import assert_equal, assert_raises_rpc_error, force_fin
 
 class LLMQChainLocksAutomaticTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(6, 5)
+        self.set_dash_test_params(3, 1)
+        self.set_dash_llmq_test_params(1, 1)
         self.delay_v20_and_mn_rr(height=200)
 
     def run_test(self):
-        # Connect all nodes to node1 so that we always have the whole network connected
-        for i in range(2, len(self.nodes)):
-            self.connect_nodes(i, 1)
-
         self.log.info("Wait for initial sync and activate v20")
         self.test_coinbase_best_cl(self.nodes[0], expected_cl_in_cb=False)
         self.activate_v20(expected_activation_height=200)
@@ -39,7 +36,7 @@ class LLMQChainLocksAutomaticTest(DashTestFramework):
 
         # Mine enough blocks to create a quorum
         self.log.info("Mine blocks to create first quorum")
-        self.mine_quorum()
+        self.mine_single_node_quorum()
 
         self.log.info("Test automatic chainlock detection from coinbase transactions")
         self.test_automatic_chainlock_detection()
@@ -54,6 +51,7 @@ class LLMQChainLocksAutomaticTest(DashTestFramework):
         """Test that chainlocks embedded in coinbase transactions are automatically detected and processed"""
 
         # Get the current chain state
+        self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash())
         initial_best_cl = self.nodes[0].getbestchainlock()
         initial_height = self.nodes[0].getblockcount()
 
@@ -62,8 +60,8 @@ class LLMQChainLocksAutomaticTest(DashTestFramework):
         # Mine a few blocks to generate some chainlocks
         self.log.info("Mining blocks to generate chainlocks...")
         for i in range(5):
-            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
-            time.sleep(0.1)  # Small delay to allow chainlock processing
+            h = self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+            self.wait_for_chainlocked_block(self.nodes[0], h[0])
 
         # Wait for chainlocks to be created and processed
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
@@ -145,12 +143,12 @@ class LLMQChainLocksAutomaticTest(DashTestFramework):
         # Test with node isolation and reconnection
         self.log.info("Testing automatic detection with node isolation...")
 
-        # Isolate node 5 and mine some blocks
-        self.isolate_node(5)
-        isolated_blocks = self.generate(self.nodes[5], 2, sync_fun=self.no_op)
+        # Isolate node 1 and mine some blocks
+        self.isolate_node(1)
+        isolated_blocks = self.generate(self.nodes[1], 2, sync_fun=self.no_op)
 
         # Reconnect and see if automatic detection still works
-        self.reconnect_isolated_node(5, 1)
+        self.reconnect_isolated_node(1, 0)
 
         # Mine a block on the main chain that should cause reorganization
         main_block = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
@@ -187,20 +185,6 @@ class LLMQChainLocksAutomaticTest(DashTestFramework):
             target_block_hash = node.getblockhash(best_cl_height)
             # Verify CL signature
             assert node.verifychainlock(target_block_hash, best_cl_signature, best_cl_height)
-
-    def wait_for_chainlocked_block_all_nodes(self, block_hash, timeout=15):
-        """Wait for a specific block to be chainlocked on all nodes"""
-        for node in self.nodes:
-            wait_until_helper(lambda: self.is_block_chainlocked(node, block_hash), timeout=timeout)
-
-    def is_block_chainlocked(self, node, block_hash):
-        """Check if a block is chainlocked on a specific node"""
-        try:
-            block = node.getblock(block_hash, 1)
-            return block.get("chainlock", False)
-        except:
-            return False
-
 
 if __name__ == '__main__':
     LLMQChainLocksAutomaticTest().main()
