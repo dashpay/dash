@@ -19,7 +19,7 @@ from test_framework.util import assert_equal, assert_raises_rpc_error, force_fin
 
 class LLMQChainLocksAutomaticTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(3, 1)
+        self.set_dash_test_params(2, 1)
         self.set_dash_llmq_test_params(1, 1)
         self.delay_v20_and_mn_rr(height=200)
 
