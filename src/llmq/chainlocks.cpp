@@ -7,6 +7,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <evo/cbtx.h>
 #include <masternode/sync.h>
 #include <node/blockstorage.h>
 #include <node/interface_ui.h>
@@ -363,27 +364,60 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
     // We need this information later when we try to sign a new tip, so that we can determine if all included TXs are
     // safe.
 
-    LOCK(cs);
+    {
+        LOCK(cs);
 
-    auto it = blockTxs.find(pindex->GetBlockHash());
-    if (it == blockTxs.end()) {
-        // we must create this entry even if there are no lockable transactions in the block, so that TrySignChainTip
-        // later knows about this block
-        it = blockTxs.emplace(pindex->GetBlockHash(), std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>()).first;
+        auto it = blockTxs.find(pindex->GetBlockHash());
+        if (it == blockTxs.end()) {
+            // we must create this entry even if there are no lockable transactions in the block, so that TrySignChainTip later knows about this block
+            it = blockTxs
+                     .emplace(pindex->GetBlockHash(), std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>())
+                     .first;
+        }
+        auto& txids = *it->second;
+
+        int64_t curTime = GetTime<std::chrono::seconds>().count();
+
+        for (const auto& tx : pblock->vtx) {
+            if (tx->IsCoinBase() || tx->vin.empty()) {
+                continue;
+            }
+
+            txids.emplace(tx->GetHash());
+            txFirstSeenTime.emplace(tx->GetHash(), curTime);
+        }
     }
-    auto& txids = *it->second;
 
-    int64_t curTime = GetTime<std::chrono::seconds>().count();
+    // Check if coinbase transaction contains a chainlock signature
+    auto opt_chainlock = GetCoinbaseChainlock(*pblock, pindex);
+    if (opt_chainlock.has_value()) {
+        const auto& coinbase_cl = *opt_chainlock;
+        int32_t clsig_height = pindex->nHeight - coinbase_cl.heightDiff;
 
-    for (const auto& tx : pblock->vtx) {
-        if (tx->IsCoinBase() || tx->vin.empty()) {
-            continue;
+        // Validate chainlock height is reasonable
+        if (clsig_height < 0 || clsig_height > pindex->nHeight) {
+            LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Invalid chainlock height %d from coinbase (block height %d, height diff %d)\n",
+                    __func__, clsig_height, pindex->nHeight, coinbase_cl.heightDiff);
+            return;
         }
 
-        txids.emplace(tx->GetHash());
-        txFirstSeenTime.emplace(tx->GetHash(), curTime);
-    }
+        if (clsig_height > WITH_LOCK(cs, return bestChainLock.getHeight())) {
+            // Get the ancestor block for the chainlock
+            const CBlockIndex* pindexAncestor = pindex->GetAncestor(uint32_t(clsig_height));
+            if (!pindexAncestor) {
+                LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Cannot find ancestor block at height %d for chainlock\n",
+                        __func__, clsig_height);
+                return;
+            }
 
+            auto clsig = CChainLockSig(uint32_t(clsig_height), pindexAncestor->GetBlockHash(), coinbase_cl.signature);
+            auto result = ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
+            if (result.m_error.has_value()) {
+                LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- Failed to process chainlock from coinbase: %s\n",
+                        __func__, result.m_error->message);
+            }
+        }
+    }
 }
 
 void CChainLocksHandler::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, gsl::not_null<const CBlockIndex*> pindexDisconnected)

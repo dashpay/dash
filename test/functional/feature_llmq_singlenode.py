@@ -38,21 +38,6 @@ class LLMQSigningTest(DashTestFramework):
         self.set_dash_llmq_test_params(1, 1)
 
 
-    def mine_single_node_quorum(self):
-        node = self.nodes[0]
-        quorums = node.quorum('list')['llmq_test']
-
-        skip_count = 24 - (self.nodes[0].getblockcount() % 24)
-        if skip_count != 0:
-            self.bump_mocktime(1)
-            self.generate(self.nodes[0], skip_count)
-        time.sleep(1)
-        self.generate(self.nodes[0], 30)
-        new_quorums_list = node.quorum('list')['llmq_test']
-
-        self.log.info(f"Test Quorums at height={node.getblockcount()} : {new_quorums_list}")
-        assert new_quorums_list != quorums
-
     def check_sigs(self, hasrecsigs, isconflicting1, isconflicting2):
         has_sig = False
         conflicting_1 = False

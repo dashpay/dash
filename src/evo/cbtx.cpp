@@ -223,7 +223,41 @@ std::string CCbTx::ToString() const
         creditPoolBalance / COIN, creditPoolBalance % COIN);
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
+std::string CCoinbaseChainlock::ToString() const
+{
+    return strprintf("CCoinbaseChainlock(signature=%s, heightDiff=%d)", signature.ToString(), heightDiff);
+}
+
+std::optional<CCoinbaseChainlock> GetCoinbaseChainlock(const CBlock& block, const CBlockIndex* pindex)
+{
+    if (pindex == nullptr) {
+        return std::nullopt;
+    }
+
+    // There's no CL in CbTx before v20 activation
+    if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) {
+        return std::nullopt;
+    }
+
+    if (block.vtx.empty()) {
+        return std::nullopt;
+    }
+
+    const CTransactionRef cbTx = block.vtx[0];
+    const auto opt_cbtx = GetTxPayload<CCbTx>(*cbTx);
+
+    if (!opt_cbtx.has_value()) {
+        return std::nullopt;
+    }
+
+    if (!opt_cbtx->bestCLSignature.IsValid()) {
+        return std::nullopt;
+    }
+
+    return CCoinbaseChainlock(opt_cbtx->bestCLSignature, opt_cbtx->bestCLHeightDiff);
+}
+
+std::optional<CCoinbaseChainlock> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
         return std::nullopt;
@@ -239,16 +273,5 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
         return std::nullopt;
     }
 
-    const CTransactionRef cbTx = block.vtx[0];
-    const auto opt_cbtx = GetTxPayload<CCbTx>(*cbTx);
-
-    if (!opt_cbtx.has_value()) {
-        return std::nullopt;
-    }
-
-    if (!opt_cbtx->bestCLSignature.IsValid()) {
-        return std::nullopt;
-    }
-
-    return std::make_pair(opt_cbtx->bestCLSignature, opt_cbtx->bestCLHeightDiff);
+    return GetCoinbaseChainlock(block, pindex);
 }

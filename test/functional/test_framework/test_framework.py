@@ -2097,6 +2097,21 @@ class DashTestFramework(BitcoinTestFramework):
         self.bump_mocktime(1, nodes=nodes)
         self.generate(self.nodes[0], num_blocks, sync_fun=lambda: self.sync_blocks(nodes))
 
+    def mine_single_node_quorum(self):
+        node = self.nodes[0]
+        quorums = node.quorum('list')['llmq_test']
+
+        skip_count = 24 - (self.nodes[0].getblockcount() % 24)
+        if skip_count != 0:
+            self.bump_mocktime(1)
+            self.generate(self.nodes[0], skip_count)
+        time.sleep(1)
+        self.generate(self.nodes[0], 30)
+        new_quorums_list = node.quorum('list')['llmq_test']
+
+        self.log.info(f"Test Quorums at height={node.getblockcount()} : {new_quorums_list}")
+        assert new_quorums_list != quorums
+
     def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1

@@ -70,6 +70,25 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                                const llmq::CQuorumBlockProcessor& quorum_block_processor, uint256& merkleRootRet,
                                BlockValidationState& state);
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
+class CCoinbaseChainlock
+{
+public:
+    CBLSSignature signature;
+    uint32_t heightDiff{0};
+
+    CCoinbaseChainlock() = default;
+    CCoinbaseChainlock(const CBLSSignature& sig, uint32_t diff) : signature(sig), heightDiff(diff) {}
+
+    [[nodiscard]] bool IsNull() const { return !signature.IsValid(); }
+    [[nodiscard]] std::string ToString() const;
+
+    SERIALIZE_METHODS(CCoinbaseChainlock, obj)
+    {
+        READWRITE(obj.signature, obj.heightDiff);
+    }
+};
+
+std::optional<CCoinbaseChainlock> GetCoinbaseChainlock(const CBlock& block, const CBlockIndex* pindex);
+std::optional<CCoinbaseChainlock> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 
 #endif // BITCOIN_EVO_CBTX_H
