@@ -7,9 +7,9 @@
 #include <dbwrapper.h>
 #include <validation.h>
 
+#include <chainlock/chainlock.h>
 #include <instantsend/instantsend.h>
 #include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>

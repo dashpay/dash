@@ -14,11 +14,9 @@
 #include <util/check.h>
 #include <validation.h>
 
-#include <masternode/node.h>
+#include <chainlock/chainlock.h>
 #include <evo/deterministicmns.h>
-
 #include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/debug.h>
@@ -29,6 +27,7 @@
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
+#include <masternode/node.h>
 
 #include <iomanip>
 #include <optional>
@@ -1022,7 +1021,8 @@ static RPCHelpMan verifychainlock()
     }
 
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-    return llmq_ctx.clhandler->VerifyChainLock(llmq::CChainLockSig(nBlockHeight, nBlockHash, sig)) == llmq::VerifyRecSigStatus::Valid;
+    return llmq_ctx.clhandler->VerifyChainLock(chainlock::ChainLockSig(nBlockHeight, nBlockHash, sig)) ==
+           llmq::VerifyRecSigStatus::Valid;
 },
     };
 }
@@ -1133,7 +1133,7 @@ static RPCHelpMan submitchainlock()
     }
 
 
-    const auto clsig{llmq::CChainLockSig(nBlockHeight, nBlockHash, sig)};
+    const auto clsig{chainlock::ChainLockSig(nBlockHeight, nBlockHash, sig)};
     const llmq::VerifyRecSigStatus ret{llmq_ctx.clhandler->VerifyChainLock(clsig)};
     if (ret == llmq::VerifyRecSigStatus::NoQuorum) {
         LOCK(cs_main);
