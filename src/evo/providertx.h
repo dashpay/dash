@@ -91,8 +91,8 @@ public:
                 obj.nType,
                 obj.nMode,
                 obj.collateralOutpoint,
-                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                                  obj.nVersion >= ProTxVersion::ExtAddr),
+                NetInfoSerWrapper<decltype(obj)>(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
+                                                 obj.nVersion >= ProTxVersion::ExtAddr),
                 obj.keyIDOwner,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
                 obj.keyIDVoting,
@@ -102,9 +102,12 @@ public:
         );
         if (obj.nType == MnType::Evo) {
             READWRITE(
-                obj.platformNodeID,
+                obj.platformNodeID);
+            if (obj.nVersion < ProTxVersion::ExtAddr) {
+                READWRITE(
                 obj.platformP2PPort,
                 obj.platformHTTPPort);
+            }
         }
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
@@ -154,16 +157,19 @@ public:
         }
         READWRITE(
                 obj.proTxHash,
-                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                                  obj.nVersion >= ProTxVersion::ExtAddr),
+                NetInfoSerWrapper<decltype(obj)>(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
+                                                 obj.nVersion >= ProTxVersion::ExtAddr),
                 obj.scriptOperatorPayout,
                 obj.inputsHash
         );
         if (obj.nType == MnType::Evo) {
             READWRITE(
-                obj.platformNodeID,
+                obj.platformNodeID);
+            if (obj.nVersion < ProTxVersion::ExtAddr) {
+                READWRITE(
                 obj.platformP2PPort,
                 obj.platformHTTPPort);
+            }
         }
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(
@@ -282,5 +288,8 @@ static bool CheckInputsHash(const CTransaction& tx, const ProTx& proTx, TxValida
     }
     return true;
 }
+
+template <typename ProTx>
+bool IsNetInfoTriviallyValid(const ProTx& proTx, bool is_extended_addr, TxValidationState& state);
 
 #endif // BITCOIN_EVO_PROVIDERTX_H
