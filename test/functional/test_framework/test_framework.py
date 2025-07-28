@@ -955,7 +955,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     cache_node_dir,
                     chain=self.chain,
                     extra_conf=["bind=127.0.0.1"],
-                    extra_args=['-disablewallet', f"-mocktime={TIME_GENESIS_BLOCK}"],
+                    extra_args=[f"-mocktime={TIME_GENESIS_BLOCK}"],
                     extra_args_from_options=self.extra_args_from_options,
                     rpchost=None,
                     timewait=self.rpc_timeout,
