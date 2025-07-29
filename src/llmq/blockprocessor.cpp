@@ -217,6 +217,10 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
         for (const auto& [_, qc] : qcs) {
             if (qc.IsNull()) continue;
             const auto* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(qc.quorumHash);
+            if (pQuorumBaseBlockIndex == nullptr) {
+                LogPrint(BCLog::LLMQ, "[ProcessBlock] failed due to no known pindex for hash[%s]\n", qc.quorumHash.ToString());
+                return false;
+            }
             qc.VerifySignatureAsync(m_dmnman, m_qsnapman, pQuorumBaseBlockIndex, &queue_control);
         }
 
@@ -304,6 +308,10 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     }
 
     const auto* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(qc.quorumHash);
+    if (pQuorumBaseBlockIndex == nullptr) {
+        LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s failed due to no known pindex for hash[%s]\n", qc.quorumHash.ToString());
+        return false;
+    }
 
     // we don't validate signatures here; they already validated on previous step
     if (!qc.Verify(m_dmnman, m_qsnapman, pQuorumBaseBlockIndex, /*checkSigs=*/false)) {
