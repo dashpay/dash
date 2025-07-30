@@ -66,8 +66,8 @@ darwin_CXX=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH $(clangxx_prog) --target=
                -iwithsysroot/usr/include/c++/v1 \
                -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
-darwin_CFLAGS=-pipe -std=$(C_STANDARD) -mmacos-version-min=$(OSX_MIN_VERSION)
-darwin_CXXFLAGS=-pipe -std=$(CXX_STANDARD) -mmacos-version-min=$(OSX_MIN_VERSION) -Xclang -fno-cxx-modules
+darwin_CFLAGS=-mmacos-version-min=$(OSX_MIN_VERSION)
+darwin_CXXFLAGS=-mmacos-version-min=$(OSX_MIN_VERSION) -Xclang -fno-cxx-modules
 darwin_LDFLAGS=-Wl,-platform_version,macos,$(OSX_MIN_VERSION),$(OSX_SDK_VERSION)
 
 ifneq ($(build_os),darwin)
