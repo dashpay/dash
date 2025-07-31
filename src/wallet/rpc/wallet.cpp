@@ -371,29 +371,27 @@ static RPCHelpMan upgradetohd()
     if (!pwallet) return NullUniValue;
 
     bool generate_mnemonic = request.params[0].isNull() || request.params[0].get_str().empty();
-    SecureString secureWalletPassphrase;
-    secureWalletPassphrase.reserve(100);
+    SecureString wallet_passphrase;
+    wallet_passphrase.reserve(100);
 
     if (request.params[2].isNull()) {
         if (pwallet->IsCrypted()) {
             throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet encrypted but passphrase not supplied to RPC.");
         }
     } else {
-        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
-        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-        secureWalletPassphrase = request.params[2].get_str().c_str();
+        wallet_passphrase = std::string_view{request.params[2].get_str()};
     }
 
-    SecureString secureMnemonic;
-    secureMnemonic.reserve(256);
+    SecureString mnemonic;
+    mnemonic.reserve(256);
     if (!generate_mnemonic) {
-        secureMnemonic = request.params[0].get_str().c_str();
+        mnemonic = std::string_view{request.params[0].get_str()};
     }
 
-    SecureString secureMnemonicPassphrase;
-    secureMnemonicPassphrase.reserve(256);
+    SecureString mnemonic_passphrase;
+    mnemonic_passphrase.reserve(256);
     if (!request.params[1].isNull()) {
-        secureMnemonicPassphrase = request.params[1].get_str().c_str();
+        mnemonic_passphrase = std::string_view{request.params[1].get_str()};
     }
 
     // TODO: breaking changes kept for v21!
@@ -405,10 +403,10 @@ static RPCHelpMan upgradetohd()
     }
 
     bilingual_str error;
-    const bool wallet_upgraded{pwallet->UpgradeToHD(secureMnemonic, secureMnemonicPassphrase, secureWalletPassphrase, error)};
+    const bool wallet_upgraded{pwallet->UpgradeToHD(mnemonic, mnemonic_passphrase, wallet_passphrase, error)};
 
-    if (!secureWalletPassphrase.empty() && !pwallet->IsCrypted()) {
-        if (!pwallet->EncryptWallet(secureWalletPassphrase)) {
+    if (!wallet_passphrase.empty() && !pwallet->IsCrypted()) {
+        if (!pwallet->EncryptWallet(wallet_passphrase)) {
             throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Failed to encrypt HD wallet");
         }
     }
