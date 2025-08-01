@@ -76,6 +76,10 @@ LIBBITCOIN_CRYPTO = $(LIBBITCOIN_CRYPTO_BASE)
 if ENABLE_SSE41
 LIBBITCOIN_CRYPTO_SSE41 = crypto/libbitcoin_crypto_sse41.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_SSE41)
+if ENABLE_X86_AESNI
+LIBBITCOIN_CRYPTO_X86_AESNI = crypto/libbitcoin_crypto_x86_aesni.la
+LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_X86_AESNI)
+endif
 if ENABLE_X86_SHANI
 LIBBITCOIN_CRYPTO_X86_SHANI = crypto/libbitcoin_crypto_x86_shani.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_X86_SHANI)
@@ -742,6 +746,15 @@ crypto_libbitcoin_crypto_base_la_SOURCES += \
   crypto/x11/sph_simd.h \
   crypto/x11/sph_skein.h \
   crypto/x11/sph_types.h
+
+# See explanation for -static in crypto_libbitcoin_crypto_base_la's LDFLAGS and
+# CXXFLAGS above
+crypto_libbitcoin_crypto_x86_aesni_la_LDFLAGS = $(AM_LDFLAGS) -static
+crypto_libbitcoin_crypto_x86_aesni_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -static
+crypto_libbitcoin_crypto_x86_aesni_la_CPPFLAGS = $(AM_CPPFLAGS)
+crypto_libbitcoin_crypto_x86_aesni_la_CXXFLAGS += $(X86_AESNI_CXXFLAGS)
+crypto_libbitcoin_crypto_x86_aesni_la_CPPFLAGS += -DENABLE_SSE41 -DENABLE_X86_AESNI
+crypto_libbitcoin_crypto_x86_aesni_la_SOURCES = crypto/x11/x86_aesni/aes_helper.cpp
 
 # See explanation for -static in crypto_libbitcoin_crypto_base_la's LDFLAGS and
 # CXXFLAGS above

@@ -43,10 +43,31 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include "sph_types.h"
 
 #include <array>
 #include <bit>
+
+#if !defined(DISABLE_OPTIMIZED_SHA256)
+#include <compat/cpuid.h>
+
+#if defined(ENABLE_SSE41) && defined(ENABLE_X86_AESNI)
+namespace sapphire {
+namespace aes_aesni {
+void Round(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+           uint32_t k0, uint32_t k1, uint32_t k2, uint32_t k3,
+           uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3);
+
+void RoundKeyless(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+                  uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3);
+} // namespace aes_aesni
+} // namespace sapphire
+#endif // ENABLE_SSE41 && ENABLE_X86_AESNI
+#endif // !DISABLE_OPTIMIZED_SHA256
 
 namespace {
 constexpr inline uint32_t pack_le(uint8_t b3, uint8_t b2, uint8_t b1, uint8_t b0) noexcept
@@ -121,9 +142,11 @@ static_assert(aes_tbox_le[0][  0] == 0xa56363c6 &&
               aes_tbox_le[3][255] == 0x2c3a1616, "Bad little-endian AES transform table");
 } // anonymous namespace
 
-void aes_round_le(sph_u32 x0, sph_u32 x1, sph_u32 x2, sph_u32 x3,
-                  sph_u32 k0, sph_u32 k1, sph_u32 k2, sph_u32 k3,
-                  sph_u32& y0, sph_u32& y1, sph_u32& y2, sph_u32& y3)
+namespace sapphire {
+namespace aes_soft {
+inline void Round(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+                  uint32_t k0, uint32_t k1, uint32_t k2, uint32_t k3,
+                  uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3)
 {
     y0 = aes_tbox_le[0][(x0) & 0xff] ^ aes_tbox_le[1][((x1) >> 8) & 0xff] ^ aes_tbox_le[2][((x2) >> 16) & 0xff] ^ aes_tbox_le[3][((x3) >> 24) & 0xff] ^ (k0);
     y1 = aes_tbox_le[0][(x1) & 0xff] ^ aes_tbox_le[1][((x2) >> 8) & 0xff] ^ aes_tbox_le[2][((x3) >> 16) & 0xff] ^ aes_tbox_le[3][((x0) >> 24) & 0xff] ^ (k1);
@@ -131,8 +154,61 @@ void aes_round_le(sph_u32 x0, sph_u32 x1, sph_u32 x2, sph_u32 x3,
     y3 = aes_tbox_le[0][(x3) & 0xff] ^ aes_tbox_le[1][((x0) >> 8) & 0xff] ^ aes_tbox_le[2][((x1) >> 16) & 0xff] ^ aes_tbox_le[3][((x2) >> 24) & 0xff] ^ (k3);
 }
 
-void aes_round_le_nokey(sph_u32 x0, sph_u32 x1, sph_u32 x2, sph_u32 x3,
-                        sph_u32& y0, sph_u32& y1, sph_u32& y2, sph_u32& y3)
+void RoundKeyless(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+                  uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3)
 {
-    return aes_round_le(x0, x1, x2, x3, /*k0=*/0, /*k1=*/0, /*k2=*/0, /*k3=*/0, y0, y1, y2, y3);
+    return Round(x0, x1, x2, x3, /*k0=*/0, /*k1=*/0, /*k2=*/0, /*k3=*/0, y0, y1, y2, y3);
+}
+} // namespace aes_soft
+} // namespace sapphire
+
+namespace {
+typedef void (*RoundFn)(uint32_t, uint32_t, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t, uint32_t,
+                        uint32_t&, uint32_t&, uint32_t&, uint32_t&);
+typedef void (*RoundFnNk)(uint32_t, uint32_t, uint32_t, uint32_t,
+                          uint32_t&, uint32_t&, uint32_t&, uint32_t&);
+
+RoundFn round_fn = sapphire::aes_soft::Round;
+RoundFnNk round_keyless_fn = sapphire::aes_soft::RoundKeyless;
+
+[[maybe_unused]] bool use_aes_ni = []() {
+#if !defined(DISABLE_OPTIMIZED_SHA256)
+#if defined(HAVE_GETCPUID)
+    uint32_t eax, ebx, ecx, edx;
+    GetCPUID(1, 0, eax, ebx, ecx, edx);
+    return (/*has_sse4_1=*/((ecx >> 19) & 1) &&
+            /*has_aes_ni=*/((ecx >> 25) & 1));
+#endif // HAVE_GETCPUID
+#endif // DISABLE_OPTIMIZED_SHA256
+    return false;
+}();
+} // anonymous namespace
+
+void SapphireAutoDetect()
+{
+    round_fn = sapphire::aes_soft::Round;
+    round_keyless_fn = sapphire::aes_soft::RoundKeyless;
+
+#if !defined(DISABLE_OPTIMIZED_SHA256)
+#if defined(ENABLE_SSE41) && defined(ENABLE_X86_AESNI)
+    if (use_aes_ni) {
+        round_fn = sapphire::aes_aesni::Round;
+        round_keyless_fn = sapphire::aes_aesni::RoundKeyless;
+    }
+#endif // ENABLE_SSE41 && ENABLE_X86_AESNI
+#endif // !DISABLE_OPTIMIZED_SHA256
+}
+
+void aes_round_le(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+                  uint32_t k0, uint32_t k1, uint32_t k2, uint32_t k3,
+                  uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3)
+{
+    round_fn(x0, x1, x2, x3, k0, k1, k2, k3, y0, y1, y2, y3);
+}
+
+void aes_round_le_nokey(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+                        uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3)
+{
+    round_keyless_fn(x0, x1, x2, x3, y0, y1, y2, y3);
 }
