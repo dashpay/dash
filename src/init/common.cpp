@@ -9,7 +9,7 @@
 #include <bls/bls.h>
 #include <clientversion.h>
 #include <crypto/sha256.h>
-#include <crypto/x11/aes_helper.h>
+#include <crypto/x11/dispatch.h>
 #include <fs.h>
 #include <key.h>
 #include <logging.h>

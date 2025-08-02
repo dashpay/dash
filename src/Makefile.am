@@ -726,6 +726,7 @@ crypto_libbitcoin_crypto_base_la_SOURCES += \
   crypto/x11/blake.cpp \
   crypto/x11/bmw.cpp \
   crypto/x11/cubehash.cpp \
+  crypto/x11/dispatch.cpp \
   crypto/x11/echo.cpp \
   crypto/x11/groestl.cpp \
   crypto/x11/jh.cpp \
@@ -734,6 +735,7 @@ crypto_libbitcoin_crypto_base_la_SOURCES += \
   crypto/x11/shavite.cpp \
   crypto/x11/simd.cpp \
   crypto/x11/skein.cpp \
+  crypto/x11/dispatch.h \
   crypto/x11/sph_blake.h \
   crypto/x11/sph_bmw.h \
   crypto/x11/sph_cubehash.h \
@@ -754,7 +756,9 @@ crypto_libbitcoin_crypto_x86_aesni_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -st
 crypto_libbitcoin_crypto_x86_aesni_la_CPPFLAGS = $(AM_CPPFLAGS)
 crypto_libbitcoin_crypto_x86_aesni_la_CXXFLAGS += $(X86_AESNI_CXXFLAGS)
 crypto_libbitcoin_crypto_x86_aesni_la_CPPFLAGS += -DENABLE_SSE41 -DENABLE_X86_AESNI
-crypto_libbitcoin_crypto_x86_aesni_la_SOURCES = crypto/x11/x86_aesni/aes_helper.cpp
+crypto_libbitcoin_crypto_x86_aesni_la_SOURCES = \
+  crypto/x11/x86_aesni/aes_helper.cpp \
+  crypto/x11/x86_aesni/echo.cpp
 
 # See explanation for -static in crypto_libbitcoin_crypto_base_la's LDFLAGS and
 # CXXFLAGS above

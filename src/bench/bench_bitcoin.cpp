@@ -6,7 +6,7 @@
 
 #include <clientversion.h>
 #include <crypto/sha256.h>
-#include <crypto/x11/aes_helper.h>
+#include <crypto/x11/dispatch.h>
 #include <fs.h>
 #include <util/strencodings.h>
 #include <util/system.h>

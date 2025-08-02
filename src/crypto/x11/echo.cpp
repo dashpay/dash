@@ -30,10 +30,14 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#include <stddef.h>
-#include <string.h>
-
 #include "sph_echo.h"
+
+#include "aes_helper.h"
+
+#include <crypto/x11/dispatch.h>
+
+#include <cstddef>
+#include <cstring>
 
 /*
  * We can use a 64-bit implementation only if a 64-bit type is available.
@@ -45,7 +49,43 @@
 #define T32   SPH_T32
 #define C64   SPH_C64
 
-#include "aes_helper.h"
+namespace sapphire {
+namespace echo_soft {
+void FullStateRound(sph_u64 W[16][2], sph_u32& pK0, sph_u32& pK1, sph_u32& pK2, sph_u32& pK3)
+{
+	int n;
+	sph_u32 K0 = pK0;
+	sph_u32 K1 = pK1;
+	sph_u32 K2 = pK2;
+	sph_u32 K3 = pK3;
+
+	for (n = 0; n < 16; n ++) {
+		sph_u64 Wl = W[n][0];
+		sph_u64 Wh = W[n][1];
+		sph_u32 X0 = (sph_u32)Wl;
+		sph_u32 X1 = (sph_u32)(Wl >> 32);
+		sph_u32 X2 = (sph_u32)Wh;
+		sph_u32 X3 = (sph_u32)(Wh >> 32);
+		sph_u32 Y0, Y1, Y2, Y3; \
+		aes_soft::Round(X0, X1, X2, X3, K0, K1, K2, K3, Y0, Y1, Y2, Y3);
+		aes_soft::RoundKeyless(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
+		W[n][0] = (sph_u64)X0 | ((sph_u64)X1 << 32);
+		W[n][1] = (sph_u64)X2 | ((sph_u64)X3 << 32);
+		if ((K0 = T32(K0 + 1)) == 0) {
+			if ((K1 = T32(K1 + 1)) == 0)
+				if ((K2 = T32(K2 + 1)) == 0)
+					K3 = T32(K3 + 1);
+		}
+	}
+	pK0 = K0;
+	pK1 = K1;
+	pK2 = K2;
+	pK3 = K3;
+}
+} // namespace echo_soft
+} // namespace sapphire
+
+sapphire::dispatch::EchoRoundFn aes_2rounds_all{sapphire::echo_soft::FullStateRound};
 
 #define DECL_STATE_BIG   \
 	sph_u64 W[16][2];
@@ -61,42 +101,8 @@
 		} \
 	} while (0)
 
-static void
-aes_2rounds_all(sph_u64 W[16][2],
-	sph_u32 *pK0, sph_u32 *pK1, sph_u32 *pK2, sph_u32 *pK3)
-{
-	int n;
-	sph_u32 K0 = *pK0;
-	sph_u32 K1 = *pK1;
-	sph_u32 K2 = *pK2;
-	sph_u32 K3 = *pK3;
-
-	for (n = 0; n < 16; n ++) {
-		sph_u64 Wl = W[n][0];
-		sph_u64 Wh = W[n][1];
-		sph_u32 X0 = (sph_u32)Wl;
-		sph_u32 X1 = (sph_u32)(Wl >> 32);
-		sph_u32 X2 = (sph_u32)Wh;
-		sph_u32 X3 = (sph_u32)(Wh >> 32);
-		sph_u32 Y0, Y1, Y2, Y3; \
-		aes_round_le(X0, X1, X2, X3, K0, K1, K2, K3, Y0, Y1, Y2, Y3);
-		aes_round_le_nokey(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
-		W[n][0] = (sph_u64)X0 | ((sph_u64)X1 << 32);
-		W[n][1] = (sph_u64)X2 | ((sph_u64)X3 << 32);
-		if ((K0 = T32(K0 + 1)) == 0) {
-			if ((K1 = T32(K1 + 1)) == 0)
-				if ((K2 = T32(K2 + 1)) == 0)
-					K3 = T32(K3 + 1);
-		}
-	}
-	*pK0 = K0;
-	*pK1 = K1;
-	*pK2 = K2;
-	*pK3 = K3;
-}
-
 #define BIG_SUB_WORDS   do { \
-		aes_2rounds_all(W, &K0, &K1, &K2, &K3); \
+		aes_2rounds_all(W, K0, K1, K2, K3); \
 	} while (0)
 
 #define SHIFT_ROW1(a, b, c, d)   do { \

@@ -43,31 +43,12 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include "sph_types.h"
+
+#include <crypto/x11/dispatch.h>
 
 #include <array>
 #include <bit>
-
-#if !defined(DISABLE_OPTIMIZED_SHA256)
-#include <compat/cpuid.h>
-
-#if defined(ENABLE_SSE41) && defined(ENABLE_X86_AESNI)
-namespace sapphire {
-namespace aes_aesni {
-void Round(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
-           uint32_t k0, uint32_t k1, uint32_t k2, uint32_t k3,
-           uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3);
-
-void RoundKeyless(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
-                  uint32_t& y0, uint32_t& y1, uint32_t& y2, uint32_t& y3);
-} // namespace aes_aesni
-} // namespace sapphire
-#endif // ENABLE_SSE41 && ENABLE_X86_AESNI
-#endif // !DISABLE_OPTIMIZED_SHA256
 
 namespace {
 constexpr inline uint32_t pack_le(uint8_t b3, uint8_t b2, uint8_t b1, uint8_t b0) noexcept
@@ -162,43 +143,8 @@ void RoundKeyless(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
 } // namespace aes_soft
 } // namespace sapphire
 
-namespace {
-typedef void (*RoundFn)(uint32_t, uint32_t, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t, uint32_t,
-                        uint32_t&, uint32_t&, uint32_t&, uint32_t&);
-typedef void (*RoundFnNk)(uint32_t, uint32_t, uint32_t, uint32_t,
-                          uint32_t&, uint32_t&, uint32_t&, uint32_t&);
-
-RoundFn round_fn = sapphire::aes_soft::Round;
-RoundFnNk round_keyless_fn = sapphire::aes_soft::RoundKeyless;
-
-[[maybe_unused]] bool use_aes_ni = []() {
-#if !defined(DISABLE_OPTIMIZED_SHA256)
-#if defined(HAVE_GETCPUID)
-    uint32_t eax, ebx, ecx, edx;
-    GetCPUID(1, 0, eax, ebx, ecx, edx);
-    return (/*has_sse4_1=*/((ecx >> 19) & 1) &&
-            /*has_aes_ni=*/((ecx >> 25) & 1));
-#endif // HAVE_GETCPUID
-#endif // DISABLE_OPTIMIZED_SHA256
-    return false;
-}();
-} // anonymous namespace
-
-void SapphireAutoDetect()
-{
-    round_fn = sapphire::aes_soft::Round;
-    round_keyless_fn = sapphire::aes_soft::RoundKeyless;
-
-#if !defined(DISABLE_OPTIMIZED_SHA256)
-#if defined(ENABLE_SSE41) && defined(ENABLE_X86_AESNI)
-    if (use_aes_ni) {
-        round_fn = sapphire::aes_aesni::Round;
-        round_keyless_fn = sapphire::aes_aesni::RoundKeyless;
-    }
-#endif // ENABLE_SSE41 && ENABLE_X86_AESNI
-#endif // !DISABLE_OPTIMIZED_SHA256
-}
+sapphire::dispatch::AESRoundFn round_fn = sapphire::aes_soft::Round;
+sapphire::dispatch::AESRoundFnNk round_keyless_fn = sapphire::aes_soft::RoundKeyless;
 
 void aes_round_le(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
                   uint32_t k0, uint32_t k1, uint32_t k2, uint32_t k3,
