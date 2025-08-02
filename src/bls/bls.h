@@ -119,6 +119,14 @@ public:
         cachedHash.SetNull();
     }
 
+    std::array<uint8_t, SerSize> ToBytes(const bool specificLegacyScheme) const
+    {
+        if (!fValid) {
+            return std::array<uint8_t, SerSize>{};
+        }
+        return impl.SerializeToArray(specificLegacyScheme);
+    }
+
     std::vector<uint8_t> ToByteVector(const bool specificLegacyScheme) const
     {
         if (!fValid) {
@@ -127,12 +135,9 @@ public:
         return impl.Serialize(specificLegacyScheme);
     }
 
-    std::array<uint8_t, SerSize> ToBytes(const bool specificLegacyScheme) const
+    std::array<uint8_t, SerSize> ToBytes() const
     {
-        if (!fValid) {
-            return std::array<uint8_t, SerSize>{};
-        }
-        return impl.SerializeToArray(specificLegacyScheme);
+        return ToBytes(bls::bls_legacy_scheme.load());
     }
 
     const uint256& GetHash() const
@@ -166,8 +171,7 @@ public:
     template <typename Stream>
     inline void Serialize(Stream& s, const bool specificLegacyScheme) const
     {
-        const auto bytes{ToBytes(specificLegacyScheme)};
-        s.write(AsBytes(Span{bytes.data(), SerSize}));
+        s.write(AsBytes(Span{ToBytes(specificLegacyScheme)}));
     }
 
     template <typename Stream>
@@ -206,8 +210,7 @@ public:
 
     inline bool CheckMalleable(Span<uint8_t> vecBytes, const bool specificLegacyScheme) const
     {
-        const auto bytes{ToBytes(specificLegacyScheme)};
-        if (memcmp(vecBytes.data(), bytes.data(), SerSize)) {
+        if (memcmp(vecBytes.data(), ToBytes(specificLegacyScheme).data(), SerSize)) {
             // TODO not sure if this is actually possible with the BLS libs. I'm assuming here that somewhere deep inside
             // these libs masking might happen, so that 2 different binary representations could result in the same object
             // representation
@@ -241,11 +244,12 @@ struct CBLSIdImplicit : public uint256
         memcpy(instance.begin(), buffer, sizeof(CBLSIdImplicit));
         return instance;
     }
-    [[nodiscard]] std::vector<uint8_t> Serialize(const bool fLegacy) const
+    [[nodiscard]] std::vector<uint8_t> SerializeToVec(const bool fLegacy) const
     {
         return {begin(), end()};
     }
-    [[nodiscard]] std::array<uint8_t, 32> SerializeToArray(const bool fLegacy) const { return m_data; }
+    [[nodiscard]] std::array<uint8_t, WIDTH> Serialize(const bool fLegacy) const { return m_data; }
+    [[nodiscard]] std::array<uint8_t, WIDTH> SerializeToArray(const bool fLegacy) const { return Serialize(fLegacy); }
 };
 
 class CBLSId : public CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_SIZE, CBLSId>
@@ -390,7 +394,7 @@ class CBLSLazyWrapper
 private:
     mutable std::mutex mutex;
 
-    mutable std::array<uint8_t, BLSObject::SerSize> vecBytes;
+    mutable std::array<uint8_t, BLSObject::SerSize> vecBytes{};
 
     mutable BLSObject obj;
     mutable bool objInitialized{false};
@@ -403,8 +407,7 @@ private:
 
 public:
     CBLSLazyWrapper() :
-        vecBytes{},
-        bufLegacyScheme(bls::bls_legacy_scheme.load())
+            bufLegacyScheme(bls::bls_legacy_scheme.load())
     {}
 
     explicit CBLSLazyWrapper(const CBLSLazyWrapper& r)
