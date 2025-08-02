@@ -346,6 +346,19 @@ static const sph_u32 AES3[256] = {
 #define AES_ROUND_NOKEY_LE(X0, X1, X2, X3, Y0, Y1, Y2, Y3) \
 	AES_ROUND_LE(X0, X1, X2, X3, 0, 0, 0, 0, Y0, Y1, Y2, Y3)
 
+void aes_round_le(sph_u32* x0, sph_u32* x1, sph_u32* x2, sph_u32* x3,
+                  sph_u32* k0, sph_u32* k1, sph_u32* k2, sph_u32* k3,
+                  sph_u32* y0, sph_u32* y1, sph_u32* y2, sph_u32* y3)
+{
+	AES_ROUND_LE(*x0, *x1, *x2, *x3, *k0, *k1, *k2, *k3, *y0, *y1, *y2, *y3);
+}
+
+void aes_round_le_nokey(sph_u32* x0, sph_u32* x1, sph_u32* x2, sph_u32* x3,
+                        sph_u32* y0, sph_u32* y1, sph_u32* y2, sph_u32* y3)
+{
+	AES_ROUND_NOKEY_LE(*x0, *x1, *x2, *x3, *y0, *y1, *y2, *y3);
+}
+
 #ifdef __cplusplus
 }
 #endif

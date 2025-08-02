@@ -718,6 +718,7 @@ crypto_libbitcoin_crypto_avx2_la_SOURCES = crypto/sha256_avx2.cpp
 # x11
 crypto_libbitcoin_crypto_base_la_SOURCES += \
   crypto/x11/aes_helper.c \
+  crypto/x11/aes_helper.h \
   crypto/x11/blake.c \
   crypto/x11/bmw.c \
   crypto/x11/cubehash.c \
