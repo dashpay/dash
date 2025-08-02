@@ -55,6 +55,44 @@
 
 #include "aes_helper.h"
 
+#include <crypto/x11/dispatch.h>
+
+namespace sapphire {
+namespace shavite_soft {
+void CompressElement(uint32_t& l0, uint32_t& l1, uint32_t& l2, uint32_t& l3,
+				 	 uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3,
+					 const uint32_t* rk)
+{
+	uint32_t x0{r0 ^ rk[0]};
+	uint32_t x1{r1 ^ rk[1]};
+	uint32_t x2{r2 ^ rk[2]};
+	uint32_t x3{r3 ^ rk[3]};
+	aes_soft::RoundKeyless(x0, x1, x2, x3, x0, x1, x2, x3);
+	x0 ^= rk[4];
+	x1 ^= rk[5];
+	x2 ^= rk[6];
+	x3 ^= rk[7];
+	aes_soft::RoundKeyless(x0, x1, x2, x3, x0, x1, x2, x3);
+	x0 ^= rk[8];
+	x1 ^= rk[9];
+	x2 ^= rk[10];
+	x3 ^= rk[11];
+	aes_soft::RoundKeyless(x0, x1, x2, x3, x0, x1, x2, x3);
+	x0 ^= rk[12];
+	x1 ^= rk[13];
+	x2 ^= rk[14];
+	x3 ^= rk[15];
+	aes_soft::RoundKeyless(x0, x1, x2, x3, x0, x1, x2, x3);
+	l0 ^= x0;
+	l1 ^= x1;
+	l2 ^= x2;
+	l3 ^= x3;
+}
+} // namespace shavite_soft
+} // namespace sapphire
+
+sapphire::dispatch::ShaviteCompressFn c512e_fn = sapphire::shavite_soft::CompressElement;
+
 static const sph_u32 IV512[] = {
 	C32(0x72FCCDD8), C32(0x79CA4727), C32(0x128A077B), C32(0x40D55AEC),
 	C32(0xD1901A06), C32(0x430AE307), C32(0xB29F5CD1), C32(0xDF07FBFC),
@@ -62,23 +100,11 @@ static const sph_u32 IV512[] = {
 	C32(0xE275EADE), C32(0x502D9FCD), C32(0xB9357178), C32(0x022A4B9A)
 };
 
-#define AES_ROUND_NOKEY(x0, x1, x2, x3)   do { \
-		sph_u32 t0 = (x0); \
-		sph_u32 t1 = (x1); \
-		sph_u32 t2 = (x2); \
-		sph_u32 t3 = (x3); \
-		aes_round_le_nokey(t0, t1, t2, t3, x0, x1, x2, x3); \
-	} while (0)
+#define AES_ROUND_NOKEY(x0, x1, x2, x3) \
+		aes_round_le_nokey(x0, x1, x2, x3, x0, x1, x2, x3)
 
-#define KEY_EXPAND_ELT(k0, k1, k2, k3)   do { \
-		sph_u32 kt; \
-		AES_ROUND_NOKEY(k1, k2, k3, k0); \
-		kt = (k0); \
-		(k0) = (k1); \
-		(k1) = (k2); \
-		(k2) = (k3); \
-		(k3) = kt; \
-	} while (0)
+#define KEY_EXPAND_ELT(k0, k1, k2, k3) \
+		AES_ROUND_NOKEY(k0, k1, k2, k3)
 
 /*
  * This function assumes that "msg" is aligned for 32-bit access.
@@ -185,31 +211,8 @@ c512(sph_shavite_big_context *sc, const void *msg)
 	u = 0;
 	for (r = 0; r < 14; r ++) {
 #define C512_ELT(l0, l1, l2, l3, r0, r1, r2, r3)   do { \
-		sph_u32 x0, x1, x2, x3; \
-		x0 = r0 ^ rk[u ++]; \
-		x1 = r1 ^ rk[u ++]; \
-		x2 = r2 ^ rk[u ++]; \
-		x3 = r3 ^ rk[u ++]; \
-		AES_ROUND_NOKEY(x0, x1, x2, x3); \
-		x0 ^= rk[u ++]; \
-		x1 ^= rk[u ++]; \
-		x2 ^= rk[u ++]; \
-		x3 ^= rk[u ++]; \
-		AES_ROUND_NOKEY(x0, x1, x2, x3); \
-		x0 ^= rk[u ++]; \
-		x1 ^= rk[u ++]; \
-		x2 ^= rk[u ++]; \
-		x3 ^= rk[u ++]; \
-		AES_ROUND_NOKEY(x0, x1, x2, x3); \
-		x0 ^= rk[u ++]; \
-		x1 ^= rk[u ++]; \
-		x2 ^= rk[u ++]; \
-		x3 ^= rk[u ++]; \
-		AES_ROUND_NOKEY(x0, x1, x2, x3); \
-		l0 ^= x0; \
-		l1 ^= x1; \
-		l2 ^= x2; \
-		l3 ^= x3; \
+		c512e_fn(l0, l1, l2, l3, r0, r1, r2, r3, &rk[u]); \
+		u += 16; \
 	} while (0)
 
 #define WROT(a, b, c, d)   do { \

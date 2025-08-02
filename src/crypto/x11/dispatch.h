@@ -18,6 +18,11 @@ typedef void (*AESRoundFnNk)(uint32_t, uint32_t, uint32_t, uint32_t,
 
 // echo
 typedef void (*EchoRoundFn)(uint64_t[16][2], uint32_t&, uint32_t&, uint32_t&, uint32_t&);
+
+// shavite
+typedef void (*ShaviteCompressFn)(uint32_t&, uint32_t&, uint32_t&, uint32_t&,
+                                  uint32_t, uint32_t, uint32_t, uint32_t,
+                                  const uint32_t*);
 } // namespace dispatch
 } // namespace sapphire
 
