@@ -717,19 +717,19 @@ crypto_libbitcoin_crypto_avx2_la_SOURCES = crypto/sha256_avx2.cpp
 
 # x11
 crypto_libbitcoin_crypto_base_la_SOURCES += \
-  crypto/x11/aes_helper.c \
+  crypto/x11/aes_helper.cpp \
   crypto/x11/aes_helper.h \
-  crypto/x11/blake.c \
-  crypto/x11/bmw.c \
-  crypto/x11/cubehash.c \
-  crypto/x11/echo.c \
-  crypto/x11/groestl.c \
-  crypto/x11/jh.c \
-  crypto/x11/keccak.c \
-  crypto/x11/luffa.c \
-  crypto/x11/shavite.c \
-  crypto/x11/simd.c \
-  crypto/x11/skein.c \
+  crypto/x11/blake.cpp \
+  crypto/x11/bmw.cpp \
+  crypto/x11/cubehash.cpp \
+  crypto/x11/echo.cpp \
+  crypto/x11/groestl.cpp \
+  crypto/x11/jh.cpp \
+  crypto/x11/keccak.cpp \
+  crypto/x11/luffa.cpp \
+  crypto/x11/shavite.cpp \
+  crypto/x11/simd.cpp \
+  crypto/x11/skein.cpp \
   crypto/x11/sph_blake.h \
   crypto/x11/sph_bmw.h \
   crypto/x11/sph_cubehash.h \

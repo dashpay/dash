@@ -35,10 +35,6 @@
 
 #include "sph_keccak.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 /*
  * Parameters:
  *
@@ -1017,33 +1013,28 @@ DEFCLOSE(64, 72)
 
 /* see sph_keccak.h */
 void
-sph_keccak512_init(void *cc)
+sph_keccak512_init(sph_keccak512_context *cc)
 {
 	keccak_init(cc, 512);
 }
 
 /* see sph_keccak.h */
 void
-sph_keccak512(void *cc, const void *data, size_t len)
+sph_keccak512(sph_keccak512_context *cc, const void *data, size_t len)
 {
 	keccak_core(cc, data, len, 72);
 }
 
 /* see sph_keccak.h */
 void
-sph_keccak512_close(void *cc, void *dst)
+sph_keccak512_close(sph_keccak512_context *cc, void *dst)
 {
 	sph_keccak512_addbits_and_close(cc, 0, 0, dst);
 }
 
 /* see sph_keccak.h */
 void
-sph_keccak512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_keccak512_addbits_and_close(sph_keccak512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	keccak_close64(cc, ub, n, dst);
 }
-
-
-#ifdef __cplusplus
-}
-#endif

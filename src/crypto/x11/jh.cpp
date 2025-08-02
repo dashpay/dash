@@ -35,11 +35,6 @@
 
 #include "sph_jh.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_JH
 #define SPH_SMALL_FOOTPRINT_JH   1
 #endif
@@ -470,32 +465,28 @@ jh_close(sph_jh_context *sc, unsigned ub, unsigned n,
 
 /* see sph_jh.h */
 void
-sph_jh512_init(void *cc)
+sph_jh512_init(sph_jh512_context *cc)
 {
 	jh_init(cc, IV512);
 }
 
 /* see sph_jh.h */
 void
-sph_jh512(void *cc, const void *data, size_t len)
+sph_jh512(sph_jh512_context *cc, const void *data, size_t len)
 {
 	jh_core(cc, data, len);
 }
 
 /* see sph_jh.h */
 void
-sph_jh512_close(void *cc, void *dst)
+sph_jh512_close(sph_jh512_context *cc, void *dst)
 {
 	jh_close(cc, 0, 0, dst, 16, IV512);
 }
 
 /* see sph_jh.h */
 void
-sph_jh512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_jh512_addbits_and_close(sph_jh512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	jh_close(cc, ub, n, dst, 16, IV512);
 }
-
-#ifdef __cplusplus
-}
-#endif

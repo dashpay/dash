@@ -44,9 +44,6 @@
  */
 
 #include "sph_types.h"
-#ifdef __cplusplus
-extern "C"{
-#endif
 
 #define AESx(x)   SPH_C32(x)
 
@@ -358,7 +355,3 @@ void aes_round_le_nokey(sph_u32* x0, sph_u32* x1, sph_u32* x2, sph_u32* x3,
 {
 	AES_ROUND_NOKEY_LE(*x0, *x1, *x2, *x3, *y0, *y1, *y2, *y3);
 }
-
-#ifdef __cplusplus
-}
-#endif

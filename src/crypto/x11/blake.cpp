@@ -35,10 +35,6 @@
 
 #include "sph_blake.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_BLAKE
 #define SPH_SMALL_FOOTPRINT_BLAKE   1
 #endif
@@ -604,40 +600,36 @@ blake64_close(sph_blake_big_context *sc,
 		sph_enc64be_aligned(u.buf + 120, tl);
 		blake64(sc, u.buf, 128);
 	}
-	out = dst;
+	out = static_cast<unsigned char*>(dst);
 	for (k = 0; k < out_size_w64; k ++)
 		sph_enc64be(out + (k << 3), sc->H[k]);
 }
 
 /* see sph_blake.h */
 void
-sph_blake512_init(void *cc)
+sph_blake512_init(sph_blake512_context *cc)
 {
 	blake64_init(cc, IV512, salt_zero_big);
 }
 
 /* see sph_blake.h */
 void
-sph_blake512(void *cc, const void *data, size_t len)
+sph_blake512(sph_blake512_context *cc, const void *data, size_t len)
 {
 	blake64(cc, data, len);
 }
 
 /* see sph_blake.h */
 void
-sph_blake512_close(void *cc, void *dst)
+sph_blake512_close(sph_blake512_context *cc, void *dst)
 {
 	sph_blake512_addbits_and_close(cc, 0, 0, dst);
 }
 
 /* see sph_blake.h */
 void
-sph_blake512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_blake512_addbits_and_close(sph_blake512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	blake64_close(cc, ub, n, dst, 8);
 	sph_blake512_init(cc);
 }
-
-#ifdef __cplusplus
-}
-#endif

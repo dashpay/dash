@@ -33,10 +33,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #include "sph_bmw.h"
 
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_BMW
@@ -484,40 +480,36 @@ bmw64_close(sph_bmw_big_context *sc, unsigned ub, unsigned n,
 	for (u = 0; u < 16; u ++)
 		sph_enc64le_aligned(buf + 8 * u, h2[u]);
 	compress_big(buf, final_b, h1);
-	out = dst;
+	out = static_cast<unsigned char*>(dst);
 	for (u = 0, v = 16 - out_size_w64; u < out_size_w64; u ++, v ++)
 		sph_enc64le(out + 8 * u, h1[v]);
 }
 
 /* see sph_bmw.h */
 void
-sph_bmw512_init(void *cc)
+sph_bmw512_init(sph_bmw512_context *cc)
 {
 	bmw64_init(cc, IV512);
 }
 
 /* see sph_bmw.h */
 void
-sph_bmw512(void *cc, const void *data, size_t len)
+sph_bmw512(sph_bmw512_context *cc, const void *data, size_t len)
 {
 	bmw64(cc, data, len);
 }
 
 /* see sph_bmw.h */
 void
-sph_bmw512_close(void *cc, void *dst)
+sph_bmw512_close(sph_bmw512_context *cc, void *dst)
 {
 	sph_bmw512_addbits_and_close(cc, 0, 0, dst);
 }
 
 /* see sph_bmw.h */
 void
-sph_bmw512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_bmw512_addbits_and_close(sph_bmw512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	bmw64_close(cc, ub, n, dst, 8);
 	sph_bmw512_init(cc);
 }
-
-#ifdef __cplusplus
-}
-#endif

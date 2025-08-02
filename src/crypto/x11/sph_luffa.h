@@ -36,10 +36,6 @@
 #ifndef SPH_LUFFA_H__
 #define SPH_LUFFA_H__
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #include <stddef.h>
 #include "sph_types.h"
 
@@ -63,7 +59,7 @@ typedef struct {
  * @param cc   the Luffa-512 context (pointer to a
  *             <code>sph_luffa512_context</code>)
  */
-void sph_luffa512_init(void *cc);
+void sph_luffa512_init(sph_luffa512_context *cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -73,7 +69,7 @@ void sph_luffa512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_luffa512(void *cc, const void *data, size_t len);
+void sph_luffa512(sph_luffa512_context *cc, const void *data, size_t len);
 
 /**
  * Terminate the current Luffa-512 computation and output the result into
@@ -84,7 +80,7 @@ void sph_luffa512(void *cc, const void *data, size_t len);
  * @param cc    the Luffa-512 context
  * @param dst   the destination buffer
  */
-void sph_luffa512_close(void *cc, void *dst);
+void sph_luffa512_close(sph_luffa512_context *cc, void *dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -100,10 +96,6 @@ void sph_luffa512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_luffa512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-
-#ifdef __cplusplus
-}
-#endif
+	sph_luffa512_context *cc, unsigned ub, unsigned n, void *dst);
 
 #endif

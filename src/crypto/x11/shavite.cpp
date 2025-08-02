@@ -35,10 +35,6 @@
 
 #include "sph_shavite.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_SHAVITE
 #define SPH_SMALL_FOOTPRINT_SHAVITE   1
 #endif
@@ -934,21 +930,21 @@ shavite_big_close(sph_shavite_big_context *sc,
 
 /* see sph_shavite.h */
 void
-sph_shavite512_init(void *cc)
+sph_shavite512_init(sph_shavite512_context *cc)
 {
 	shavite_big_init(cc, IV512);
 }
 
 /* see sph_shavite.h */
 void
-sph_shavite512(void *cc, const void *data, size_t len)
+sph_shavite512(sph_shavite512_context *cc, const void *data, size_t len)
 {
 	shavite_big_core(cc, data, len);
 }
 
 /* see sph_shavite.h */
 void
-sph_shavite512_close(void *cc, void *dst)
+sph_shavite512_close(sph_shavite512_context *cc, void *dst)
 {
 	shavite_big_close(cc, 0, 0, dst, 16);
 	shavite_big_init(cc, IV512);
@@ -956,12 +952,8 @@ sph_shavite512_close(void *cc, void *dst)
 
 /* see sph_shavite.h */
 void
-sph_shavite512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_shavite512_addbits_and_close(sph_shavite512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	shavite_big_close(cc, ub, n, dst, 16);
 	shavite_big_init(cc, IV512);
 }
-
-#ifdef __cplusplus
-}
-#endif

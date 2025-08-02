@@ -35,10 +35,6 @@
 
 #include "sph_echo.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_ECHO
 #define SPH_SMALL_FOOTPRINT_ECHO   1
 #endif
@@ -408,31 +404,28 @@ echo_big_close(sph_echo_big_context *sc, unsigned ub, unsigned n,
 
 /* see sph_echo.h */
 void
-sph_echo512_init(void *cc)
+sph_echo512_init(sph_echo512_context *cc)
 {
 	echo_big_init(cc, 512);
 }
 
 /* see sph_echo.h */
 void
-sph_echo512(void *cc, const void *data, size_t len)
+sph_echo512(sph_echo512_context *cc, const void *data, size_t len)
 {
-	echo_big_core(cc, data, len);
+	echo_big_core(cc, static_cast<const unsigned char*>(data), len);
 }
 
 /* see sph_echo.h */
 void
-sph_echo512_close(void *cc, void *dst)
+sph_echo512_close(sph_echo512_context *cc, void *dst)
 {
 	echo_big_close(cc, 0, 0, dst, 16);
 }
 
 /* see sph_echo.h */
 void
-sph_echo512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_echo512_addbits_and_close(sph_echo512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	echo_big_close(cc, ub, n, dst, 16);
 }
-#ifdef __cplusplus
-}
-#endif

@@ -37,10 +37,6 @@
 #ifndef SPH_BLAKE_H__
 #define SPH_BLAKE_H__
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #include <stddef.h>
 #include "sph_types.h"
 
@@ -79,7 +75,7 @@ typedef sph_blake_big_context sph_blake512_context;
  * @param cc   the BLAKE-512 context (pointer to a
  *             <code>sph_blake512_context</code>)
  */
-void sph_blake512_init(void *cc);
+void sph_blake512_init(sph_blake512_context *cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -89,7 +85,7 @@ void sph_blake512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_blake512(void *cc, const void *data, size_t len);
+void sph_blake512(sph_blake512_context *cc, const void *data, size_t len);
 
 /**
  * Terminate the current BLAKE-512 computation and output the result into
@@ -100,7 +96,7 @@ void sph_blake512(void *cc, const void *data, size_t len);
  * @param cc    the BLAKE-512 context
  * @param dst   the destination buffer
  */
-void sph_blake512_close(void *cc, void *dst);
+void sph_blake512_close(sph_blake512_context *cc, void *dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -116,10 +112,6 @@ void sph_blake512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_blake512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-
-#ifdef __cplusplus
-}
-#endif
+	sph_blake512_context *cc, unsigned ub, unsigned n, void *dst);
 
 #endif

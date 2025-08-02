@@ -35,10 +35,6 @@
 
 #include "sph_simd.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_SIMD
 #define SPH_SMALL_FOOTPRINT_SIMD   1
 #endif
@@ -1030,37 +1026,31 @@ static const u32 IV512[] = {
 };
 
 static void
-init_big(void *cc, const u32 *iv)
+init_big(sph_simd_big_context *cc, const u32 *iv)
 {
-	sph_simd_big_context *sc;
-
-	sc = cc;
-	memcpy(sc->state, iv, sizeof sc->state);
-	sc->count_low = sc->count_high = 0;
-	sc->ptr = 0;
+	memcpy(cc->state, iv, sizeof cc->state);
+	cc->count_low = cc->count_high = 0;
+	cc->ptr = 0;
 }
 
 static void
-update_big(void *cc, const void *data, size_t len)
+update_big(sph_simd_big_context *cc, const void *data, size_t len)
 {
-	sph_simd_big_context *sc;
-
-	sc = cc;
 	while (len > 0) {
 		size_t clen;
 
-		clen = (sizeof sc->buf) - sc->ptr;
+		clen = (sizeof cc->buf) - cc->ptr;
 		if (clen > len)
 			clen = len;
-		memcpy(sc->buf + sc->ptr, data, clen);
+		memcpy(cc->buf + cc->ptr, data, clen);
 		data = (const unsigned char *)data + clen;
 		len -= clen;
-		if ((sc->ptr += clen) == sizeof sc->buf) {
-			compress_big(sc, 0);
-			sc->ptr = 0;
-			sc->count_low = T32(sc->count_low + 1);
-			if (sc->count_low == 0)
-				sc->count_high ++;
+		if ((cc->ptr += clen) == sizeof cc->buf) {
+			compress_big(cc, 0);
+			cc->ptr = 0;
+			cc->count_low = T32(cc->count_low + 1);
+			if (cc->count_low == 0)
+				cc->count_high ++;
 		}
 	}
 }
@@ -1077,51 +1067,46 @@ encode_count_big(unsigned char *dst,
 }
 
 static void
-finalize_big(void *cc, unsigned ub, unsigned n, void *dst, size_t dst_len)
+finalize_big(sph_simd_big_context *cc, unsigned ub, unsigned n, void *dst, size_t dst_len)
 {
-	sph_simd_big_context *sc;
 	unsigned char *d;
 	size_t u;
 
-	sc = cc;
-	if (sc->ptr > 0 || n > 0) {
-		memset(sc->buf + sc->ptr, 0,
-			(sizeof sc->buf) - sc->ptr);
-		sc->buf[sc->ptr] = ub & (0xFF << (8 - n));
-		compress_big(sc, 0);
+	if (cc->ptr > 0 || n > 0) {
+		memset(cc->buf + cc->ptr, 0,
+			(sizeof cc->buf) - cc->ptr);
+		cc->buf[cc->ptr] = ub & (0xFF << (8 - n));
+		compress_big(cc, 0);
 	}
-	memset(sc->buf, 0, sizeof sc->buf);
-	encode_count_big(sc->buf, sc->count_low, sc->count_high, sc->ptr, n);
-	compress_big(sc, 1);
-	d = dst;
-	for (d = dst, u = 0; u < dst_len; u ++)
-		sph_enc32le(d + (u << 2), sc->state[u]);
+	memset(cc->buf, 0, sizeof cc->buf);
+	encode_count_big(cc->buf, cc->count_low, cc->count_high, cc->ptr, n);
+	compress_big(cc, 1);
+	d = static_cast<unsigned char*>(dst);
+	for (u = 0; u < dst_len; u ++)
+		sph_enc32le(d + (u << 2), cc->state[u]);
 }
 
 void
-sph_simd512_init(void *cc)
+sph_simd512_init(sph_simd512_context *cc)
 {
 	init_big(cc, IV512);
 }
 
 void
-sph_simd512(void *cc, const void *data, size_t len)
+sph_simd512(sph_simd512_context *cc, const void *data, size_t len)
 {
 	update_big(cc, data, len);
 }
 
 void
-sph_simd512_close(void *cc, void *dst)
+sph_simd512_close(sph_simd512_context *cc, void *dst)
 {
 	sph_simd512_addbits_and_close(cc, 0, 0, dst);
 }
 
 void
-sph_simd512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_simd512_addbits_and_close(sph_simd512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	finalize_big(cc, ub, n, dst, 16);
 	sph_simd512_init(cc);
 }
-#ifdef __cplusplus
-}
-#endif

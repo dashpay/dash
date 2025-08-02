@@ -35,10 +35,6 @@
 
 #include "sph_groestl.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_GROESTL
 #define SPH_SMALL_FOOTPRINT_GROESTL   1
 #endif
@@ -2433,7 +2429,7 @@ static void
 groestl_big_close(sph_groestl_big_context *sc,
 	unsigned ub, unsigned n, void *dst, size_t out_len)
 {
-	unsigned char *buf;
+	[[maybe_unused]] unsigned char *buf;
 	unsigned char pad[136];
 	size_t ptr, pad_len, u;
 	sph_u64 count;
@@ -2464,32 +2460,28 @@ groestl_big_close(sph_groestl_big_context *sc,
 
 /* see sph_groestl.h */
 void
-sph_groestl512_init(void *cc)
+sph_groestl512_init(sph_groestl512_context *cc)
 {
 	groestl_big_init(cc, 512);
 }
 
 /* see sph_groestl.h */
 void
-sph_groestl512(void *cc, const void *data, size_t len)
+sph_groestl512(sph_groestl512_context *cc, const void *data, size_t len)
 {
 	groestl_big_core(cc, data, len);
 }
 
 /* see sph_groestl.h */
 void
-sph_groestl512_close(void *cc, void *dst)
+sph_groestl512_close(sph_groestl512_context *cc, void *dst)
 {
 	groestl_big_close(cc, 0, 0, dst, 64);
 }
 
 /* see sph_groestl.h */
 void
-sph_groestl512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_groestl512_addbits_and_close(sph_groestl512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	groestl_big_close(cc, ub, n, dst, 64);
 }
-
-#ifdef __cplusplus
-}
-#endif
