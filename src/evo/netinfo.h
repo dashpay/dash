@@ -11,13 +11,18 @@
 
 #include <variant>
 
+class CDeterministicMNStateDiff;
 class CService;
 
 class UniValue;
 
+/** Maximum entries that can be stored in an ExtNetInfo */
+static constexpr uint8_t NETINFO_EXTENDED_LIMIT{32};
+
 enum class NetInfoStatus : uint8_t {
     // Managing entries
     BadInput,
+    Duplicate,
     MaxLimit,
 
     // Validation
@@ -26,6 +31,7 @@ enum class NetInfoStatus : uint8_t {
     BadType,
     NotRoutable,
     Malformed,
+    MissingData,
 
     Success
 };
@@ -41,16 +47,55 @@ constexpr std::string_view NISToString(const NetInfoStatus code)
         return "invalid port";
     case NetInfoStatus::BadType:
         return "invalid address type";
+    case NetInfoStatus::Duplicate:
+        return "duplicate";
     case NetInfoStatus::NotRoutable:
         return "unroutable address";
     case NetInfoStatus::Malformed:
         return "malformed";
+    case NetInfoStatus::MissingData:
+        return "missing data";
     case NetInfoStatus::MaxLimit:
         return "too many entries";
     case NetInfoStatus::Success:
         return "success";
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+}
+
+namespace Purpose {
+enum : uint8_t {
+    // Mandatory for masternodes
+    CORE_P2P = 0,
+    // Mandatory for EvoNodes
+    PLATFORM_P2P = 1,
+    PLATFORM_HTTPS = 2,
+};
+} // namespace Purpose
+
+constexpr bool IsValidPurpose(const uint8_t purpose)
+{
+    switch (purpose) {
+    case Purpose::CORE_P2P:
+    case Purpose::PLATFORM_P2P:
+    case Purpose::PLATFORM_HTTPS:
+        return true;
+    } // no default case, so the compiler can warn about missing cases
+    return false;
+}
+
+// Warning: Used in RPC code, altering existing values is a breaking change
+constexpr std::string_view PurposeToString(const uint8_t purpose, const bool lower = false)
+{
+    switch (purpose) {
+    case Purpose::CORE_P2P:
+        return lower ? "core_p2p" : "CORE_P2P";
+    case Purpose::PLATFORM_P2P:
+        return lower ? "platform_p2p" : "PLATFORM_P2P";
+    case Purpose::PLATFORM_HTTPS:
+        return lower ? "platform_https" : "PLATFORM_HTTPS";
+    } // no default case, so the compiler can warn about missing cases
+    return "";
 }
 
 /* Identical to IsDeprecatedRPCEnabled("service"). For use outside of RPC code. */
@@ -139,11 +184,12 @@ public:
 public:
     virtual ~NetInfoInterface() = default;
 
-    virtual NetInfoStatus AddEntry(const std::string& service) = 0;
+    virtual NetInfoStatus AddEntry(const uint8_t purpose, const std::string& service) = 0;
     virtual NetInfoList GetEntries() const = 0;
 
     virtual const CService& GetPrimary() const = 0;
     virtual bool CanStorePlatform() const = 0;
+    virtual bool HasEntries(uint8_t purpose) const = 0;
     virtual bool IsEmpty() const = 0;
     virtual NetInfoStatus Validate() const = 0;
     virtual UniValue ToJson() const = 0;
@@ -196,10 +242,11 @@ public:
         m_addr = NetInfoEntry{service};
     }
 
-    NetInfoStatus AddEntry(const std::string& service) override;
+    NetInfoStatus AddEntry(const uint8_t purpose, const std::string& service) override;
     NetInfoList GetEntries() const override;
 
     const CService& GetPrimary() const override;
+    bool HasEntries(uint8_t purpose) const override { return purpose == Purpose::CORE_P2P && !IsEmpty(); }
     bool IsEmpty() const override { return m_addr.IsEmpty(); }
     bool CanStorePlatform() const override { return false; }
     NetInfoStatus Validate() const override;
@@ -219,8 +266,79 @@ private:
     }
 };
 
+class ExtNetInfo final : public NetInfoInterface
+{
+private:
+    static constexpr uint8_t CURRENT_VERSION{1};
+
+    bool HasDuplicates(const std::vector<NetInfoEntry>* entries) const;
+    bool IsDuplicateCandidate(const NetInfoEntry& candidate, const std::vector<NetInfoEntry>* entries) const;
+    NetInfoStatus ProcessCandidate(const uint8_t purpose, const NetInfoEntry& candidate);
+    static NetInfoStatus ValidateService(const CService& service, const uint8_t purpose, bool is_primary);
+
+private:
+    uint8_t m_version{CURRENT_VERSION};
+    std::map<uint8_t, std::vector<NetInfoEntry>> m_data{};
+
+public:
+    ExtNetInfo() = default;
+    template <typename Stream>
+    ExtNetInfo(deserialize_type, Stream& s) { s >> *this; }
+
+    ~ExtNetInfo() = default;
+
+    SERIALIZE_METHODS(ExtNetInfo, obj)
+    {
+        READWRITE(obj.m_version);
+        if (obj.m_version == 0 || obj.m_version > CURRENT_VERSION) {
+            return; // Don't bother with unknown versions
+        }
+        READWRITE(obj.m_data);
+    }
+
+    NetInfoStatus AddEntry(const uint8_t purpose, const std::string& input) override;
+    NetInfoList GetEntries() const override;
+
+    const CService& GetPrimary() const override;
+    bool HasEntries(uint8_t purpose) const override;
+    bool IsEmpty() const override { return m_version == CURRENT_VERSION && m_data.empty(); }
+    bool CanStorePlatform() const override { return true; }
+    NetInfoStatus Validate() const override;
+    UniValue ToJson() const override;
+    std::string ToString() const override;
+
+    void Clear() override
+    {
+        m_version = CURRENT_VERSION;
+        m_data.clear();
+    }
+
+private:
+    // operator== and operator!= are defined by the parent which then leverage the child's IsEqual() override
+    // IsEqual() should only be called by NetInfoInterface::operator== otherwise static_cast assumption could fail
+    bool IsEqual(const NetInfoInterface& rhs) const override
+    {
+        ASSERT_IF_DEBUG(typeid(*this) == typeid(rhs));
+        const auto& rhs_obj{static_cast<const ExtNetInfo&>(rhs)};
+        return m_version == rhs_obj.m_version && m_data == rhs_obj.m_data;
+    }
+};
+
+template <typename T1>
 class NetInfoSerWrapper
 {
+private:
+    // This wrapper uses is_extended to decide which implementation of NetInfoInterface
+    // to (de)serialize. is_extended is generally decided by the object version. As the
+    // serialization infrastructure used doesn't allow for rewinding, the version needs
+    // to be placed *before* netInfo. This isn't the case for CDeterministicMNStateDiff
+    // where the version is stored at the end of the structure.
+    //
+    // Complicating things, MnNetInfo is fixed-length and ExtNetInfo is variable length
+    // To work around this for CDeterministicMNStateDiff, we use a magic to distinguish
+    // between MnNetInfo and ExtNetInfo. This lets us ignore the version field entirely
+    static constexpr std::array<uint8_t, 4> EXTADDR_MAGIC{0x23, 0x23, 0x23, 0x23};
+
 private:
     std::shared_ptr<NetInfoInterface>& m_data;
     const bool m_is_extended{false};
@@ -232,8 +350,6 @@ public:
         m_data{data},
         m_is_extended{is_extended}
     {
-        // TODO: Remove when extended addresses implementation is added in
-        assert(!m_is_extended);
     }
 
     ~NetInfoSerWrapper() = default;
@@ -241,7 +357,12 @@ public:
     template <typename Stream>
     void Serialize(Stream& s) const
     {
-        if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
+        if (const auto ptr{std::dynamic_pointer_cast<ExtNetInfo>(m_data)}) {
+            if constexpr (std::is_same_v<std::decay_t<T1>, CDeterministicMNStateDiff>) {
+                s.write(MakeByteSpan(EXTADDR_MAGIC));
+            }
+            s << *ptr;
+        } else if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
             s << *ptr;
         } else {
             // NetInfoInterface::MakeNetInfo() supplied an unexpected implementation or we didn't call it and
@@ -253,7 +374,34 @@ public:
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        m_data = std::make_shared<MnNetInfo>(deserialize, s);
+        if constexpr (std::is_same_v<std::decay_t<T1>, CDeterministicMNStateDiff>) {
+            constexpr size_t magic_size{EXTADDR_MAGIC.size()};
+            std::vector<uint8_t> bytes(magic_size);
+            for (size_t idx{0}; idx < magic_size; idx++) {
+                s >> bytes[idx];
+            }
+            if (std::ranges::equal(bytes, EXTADDR_MAGIC)) {
+                // First four bytes match magic word, deserialize rest as extended format
+                m_data = std::make_shared<ExtNetInfo>(deserialize, s);
+                return;
+            }
+            // Didn't match magic, read stream as legacy format
+            size_t target_bytes{::GetSerializeSize(MnNetInfo{}, s.GetVersion())};
+            bytes.resize(target_bytes);
+            for (size_t idx{magic_size}; idx < target_bytes; idx++) {
+                s >> bytes[idx];
+            }
+            // Transform raw bytes to MnNetInfo
+            CDataStream ss(s.GetType(), s.GetVersion());
+            ss.write(MakeByteSpan(bytes));
+            m_data = std::make_shared<MnNetInfo>(deserialize, ss);
+        } else {
+            if (m_is_extended) {
+                m_data = std::make_shared<ExtNetInfo>(deserialize, s);
+            } else {
+                m_data = std::make_shared<MnNetInfo>(deserialize, s);
+            }
+        }
     }
 };
 
