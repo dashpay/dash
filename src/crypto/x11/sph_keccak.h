@@ -36,10 +36,6 @@
 #ifndef SPH_KECCAK_H__
 #define SPH_KECCAK_H__
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #include <stddef.h>
 #include "sph_types.h"
 
@@ -62,9 +58,7 @@ typedef struct {
 	unsigned char buf[144];    /* first field, for alignment */
 	size_t ptr, lim;
 	union {
-#if SPH_64
 		sph_u64 wide[25];
-#endif
 		sph_u32 narrow[50];
 	} u;
 } sph_keccak_context;
@@ -80,7 +74,7 @@ typedef sph_keccak_context sph_keccak512_context;
  * @param cc   the Keccak-512 context (pointer to a
  *             <code>sph_keccak512_context</code>)
  */
-void sph_keccak512_init(void *cc);
+void sph_keccak512_init(sph_keccak512_context *cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -90,7 +84,7 @@ void sph_keccak512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_keccak512(void *cc, const void *data, size_t len);
+void sph_keccak512(sph_keccak512_context *cc, const void *data, size_t len);
 
 /**
  * Terminate the current Keccak-512 computation and output the result into
@@ -101,7 +95,7 @@ void sph_keccak512(void *cc, const void *data, size_t len);
  * @param cc    the Keccak-512 context
  * @param dst   the destination buffer
  */
-void sph_keccak512_close(void *cc, void *dst);
+void sph_keccak512_close(sph_keccak512_context *cc, void *dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -117,10 +111,6 @@ void sph_keccak512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_keccak512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-
-#ifdef __cplusplus
-}
-#endif
+	sph_keccak512_context *cc, unsigned ub, unsigned n, void *dst);
 
 #endif

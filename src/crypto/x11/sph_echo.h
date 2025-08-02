@@ -36,10 +36,6 @@
 #ifndef SPH_ECHO_H__
 #define SPH_ECHO_H__
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #include <stddef.h>
 #include "sph_types.h"
 
@@ -64,9 +60,7 @@ typedef struct {
 	size_t ptr;
 	union {
 		sph_u32 Vs[8][4];
-#if SPH_64
 		sph_u64 Vb[8][2];
-#endif
 	} u;
 	sph_u32 C0, C1, C2, C3;
 } sph_echo_big_context;
@@ -82,7 +76,7 @@ typedef sph_echo_big_context sph_echo512_context;
  * @param cc   the ECHO-512 context (pointer to a
  *             <code>sph_echo512_context</code>)
  */
-void sph_echo512_init(void *cc);
+void sph_echo512_init(sph_echo512_context *cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -92,7 +86,7 @@ void sph_echo512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_echo512(void *cc, const void *data, size_t len);
+void sph_echo512(sph_echo512_context *cc, const void *data, size_t len);
 
 /**
  * Terminate the current ECHO-512 computation and output the result into
@@ -103,7 +97,7 @@ void sph_echo512(void *cc, const void *data, size_t len);
  * @param cc    the ECHO-512 context
  * @param dst   the destination buffer
  */
-void sph_echo512_close(void *cc, void *dst);
+void sph_echo512_close(sph_echo512_context *cc, void *dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -119,10 +113,6 @@ void sph_echo512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_echo512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-
-#ifdef __cplusplus
-}
-#endif
+	sph_echo512_context *cc, unsigned ub, unsigned n, void *dst);
 
 #endif
