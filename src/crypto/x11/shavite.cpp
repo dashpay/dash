@@ -71,7 +71,7 @@ static const sph_u32 IV512[] = {
 		sph_u32 t1 = (x1); \
 		sph_u32 t2 = (x2); \
 		sph_u32 t3 = (x3); \
-		aes_round_le_nokey(&t0, &t1, &t2, &t3, &x0, &x1, &x2, &x3); \
+		aes_round_le_nokey(t0, t1, t2, t3, x0, x1, x2, x3); \
 	} while (0)
 
 #define KEY_EXPAND_ELT(k0, k1, k2, k3)   do { \

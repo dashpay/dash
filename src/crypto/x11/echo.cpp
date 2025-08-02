@@ -85,8 +85,8 @@ aes_2rounds_all(sph_u64 W[16][2],
 		sph_u32 X2 = (sph_u32)Wh;
 		sph_u32 X3 = (sph_u32)(Wh >> 32);
 		sph_u32 Y0, Y1, Y2, Y3; \
-		aes_round_le(&X0, &X1, &X2, &X3, &K0, &K1, &K2, &K3, &Y0, &Y1, &Y2, &Y3);
-		aes_round_le_nokey(&Y0, &Y1, &Y2, &Y3, &X0, &X1, &X2, &X3);
+		aes_round_le(X0, X1, X2, X3, K0, K1, K2, K3, Y0, Y1, Y2, Y3);
+		aes_round_le_nokey(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
 		W[n][0] = (sph_u64)X0 | ((sph_u64)X1 << 32);
 		W[n][1] = (sph_u64)X2 | ((sph_u64)X3 << 32);
 		if ((K0 = T32(K0 + 1)) == 0) {
@@ -113,8 +113,8 @@ aes_2rounds_all(sph_u64 W[16][2],
 		sph_u32 X2 = (sph_u32)(X[1]); \
 		sph_u32 X3 = (sph_u32)(X[1] >> 32); \
 		sph_u32 Y0, Y1, Y2, Y3; \
-		aes_round_le(&X0, &X1, &X2, &X3, &K0, &K1, &K2, &K3, &Y0, &Y1, &Y2, &Y3); \
-		aes_round_le_nokey(&Y0, &Y1, &Y2, &Y3, &X0, &X1, &X2, &X3); \
+		aes_round_le(X0, X1, X2, X3, K0, K1, K2, K3, Y0, Y1, Y2, Y3); \
+		aes_round_le_nokey(Y0, Y1, Y2, Y3, X0, X1, X2, X3); \
 		X[0] = (sph_u64)X0 | ((sph_u64)X1 << 32); \
 		X[1] = (sph_u64)X2 | ((sph_u64)X3 << 32); \
 		if ((K0 = T32(K0 + 1)) == 0) { \
