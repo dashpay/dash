@@ -71,7 +71,7 @@ template void ProcessNetInfoCore(CProRegTx& ptx, const UniValue& input, const bo
 template void ProcessNetInfoCore(CProUpServTx& ptx, const UniValue& input, const bool optional);
 
 template <typename T1>
-void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& input_http)
+void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& input_http, const bool optional)
 {
     CHECK_NONFATAL(ptx.netInfo);
 
@@ -83,6 +83,26 @@ void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& 
         }
 
         const auto& input_str{input.getValStr()};
+        if (input_str.empty()) {
+            if (!optional) {
+                // Mandatory field, cannot specify blank value
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Empty param for %s not allowed", field_name));
+            }
+            if (!ptx.netInfo->CanStorePlatform()) {
+                // We can tolerate blank values if netInfo can store platform fields, if it cannot, we are relying
+                // on platform{HTTP,P2P}Port, where it is mandatory even if their netInfo counterpart is optional.
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                                   strprintf("ProTx version disallows storing blank values in %s (must specify port number)",
+                                             field_name));
+            }
+            if (!ptx.netInfo->IsEmpty()) {
+                // Blank values are tolerable so long as no other field has been populated.
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                                   strprintf("Cannot leave %s empty if other address fields populated", field_name));
+            }
+            return; // Nothing to do
+        }
+
         if (!IsNumeric(input_str)) {
             // Cannot be parsed as a number (port) so must be an addr:port string
             if (!ptx.netInfo->CanStorePlatform()) {
@@ -126,5 +146,5 @@ void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& 
     process_field(ptx.platformP2PPort, input_p2p, Purpose::PLATFORM_P2P, "platformP2PPort");
     process_field(ptx.platformHTTPPort, input_http, Purpose::PLATFORM_HTTPS, "platformHTTPPort");
 }
-template void ProcessNetInfoPlatform(CProRegTx& ptx, const UniValue& input_p2p, const UniValue& input_http);
-template void ProcessNetInfoPlatform(CProUpServTx& ptx, const UniValue& input_p2p, const UniValue& input_http);
+template void ProcessNetInfoPlatform(CProRegTx& ptx, const UniValue& input_p2p, const UniValue& input_http, const bool optional);
+template void ProcessNetInfoPlatform(CProUpServTx& ptx, const UniValue& input_p2p, const UniValue& input_http, const bool optional);
