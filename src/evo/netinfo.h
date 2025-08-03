@@ -262,8 +262,18 @@ class ExtNetInfo final : public NetInfoInterface
 private:
     static constexpr uint8_t CURRENT_VERSION{1};
 
-    bool HasDuplicates() const;
-    bool IsDuplicateCandidate(const NetInfoEntry& candidate) const;
+    //! Returns true if there are addr:port duplicates in the object
+    bool HasAddrPortDuplicates() const;
+
+    //! Returns true if candidate is an addr:port duplicate in the object
+    bool IsAddrPortDuplicate(const NetInfoEntry& candidate) const;
+
+    //! Returns true if there are addr duplicates within a given address list
+    bool HasAddrDuplicates(const NetInfoList& entries) const;
+
+    //! Returns true if candidate is an addr duplicate within a given address list
+    bool IsAddrDuplicate(const NetInfoEntry& candidate, const NetInfoList& entries) const;
+
     NetInfoStatus ProcessCandidate(const NetInfoPurpose purpose, const NetInfoEntry& candidate);
     static NetInfoStatus ValidateService(const CService& service);
 
