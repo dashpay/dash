@@ -11,9 +11,13 @@
 
 #include <variant>
 
+class CDeterministicMNStateDiff;
 class CService;
 
 class UniValue;
+
+//! Maximum entries that can be stored in an ExtNetInfo
+static constexpr uint8_t MAX_ENTRIES_EXTNETINFO{4};
 
 enum class NetInfoStatus : uint8_t {
     // Managing entries
@@ -219,8 +223,70 @@ private:
     }
 };
 
+class ExtNetInfo final : public NetInfoInterface
+{
+private:
+    NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
+    static NetInfoStatus ValidateService(const CService& service);
+
+private:
+    NetInfoList m_data{};
+
+public:
+    ExtNetInfo() = default;
+    template <typename Stream>
+    ExtNetInfo(deserialize_type, Stream& s) { s >> *this; }
+
+    ~ExtNetInfo() = default;
+
+    SERIALIZE_METHODS(ExtNetInfo, obj)
+    {
+        READWRITE(obj.m_data);
+    }
+
+    NetInfoStatus AddEntry(const std::string& input) override;
+    NetInfoList GetEntries() const override;
+
+    CService GetPrimary() const override;
+    bool IsEmpty() const override { return m_data.empty(); }
+    bool CanStorePlatform() const override
+    {
+        // TODO: Store Platform fields, reporting as true as used to differentiate
+        //       with legacy implementation
+        return true;
+    }
+    NetInfoStatus Validate() const override;
+    UniValue ToJson() const override;
+    std::string ToString() const override;
+
+    void Clear() override { m_data.clear(); }
+
+private:
+    // operator== and operator!= are defined by the parent which then leverage the child's IsEqual() override
+    // IsEqual() should only be called by NetInfoInterface::operator== otherwise static_cast assumption could fail
+    bool IsEqual(const NetInfoInterface& rhs) const override
+    {
+        ASSERT_IF_DEBUG(typeid(*this) == typeid(rhs));
+        const auto& rhs_obj{static_cast<const ExtNetInfo&>(rhs)};
+        return m_data == rhs_obj.m_data;
+    }
+};
+
+template <typename T1>
 class NetInfoSerWrapper
 {
+private:
+    // This wrapper uses is_extended to decide which implementation of NetInfoInterface
+    // to (de)serialize. is_extended is generally decided by the object version. As the
+    // serialization infrastructure used doesn't allow for rewinding, the version needs
+    // to be placed *before* netInfo. This isn't the case for CDeterministicMNStateDiff
+    // where the version is stored at the end of the structure.
+    //
+    // Complicating things, MnNetInfo is fixed-length and ExtNetInfo is variable length
+    // To work around this for CDeterministicMNStateDiff, we use a magic to distinguish
+    // between MnNetInfo and ExtNetInfo. This lets us ignore the version field entirely
+    static constexpr std::array<uint8_t, 4> EXTADDR_MAGIC{0x23, 0x23, 0x23, 0x23};
+
 private:
     std::shared_ptr<NetInfoInterface>& m_data;
     const bool m_is_extended{false};
@@ -232,8 +298,6 @@ public:
         m_data{data},
         m_is_extended{is_extended}
     {
-        // TODO: Remove when extended addresses implementation is added in
-        assert(!m_is_extended);
     }
 
     ~NetInfoSerWrapper() = default;
@@ -241,7 +305,12 @@ public:
     template <typename Stream>
     void Serialize(Stream& s) const
     {
-        if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
+        if (const auto ptr{std::dynamic_pointer_cast<ExtNetInfo>(m_data)}) {
+            if constexpr (std::is_same_v<std::decay_t<T1>, CDeterministicMNStateDiff>) {
+                s.write(MakeByteSpan(EXTADDR_MAGIC));
+            }
+            s << *ptr;
+        } else if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
             s << *ptr;
         } else {
             // NetInfoInterface::MakeNetInfo() supplied an unexpected implementation or we didn't call it and
@@ -253,7 +322,34 @@ public:
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        m_data = std::make_shared<MnNetInfo>(deserialize, s);
+        if constexpr (std::is_same_v<std::decay_t<T1>, CDeterministicMNStateDiff>) {
+            constexpr size_t magic_size{EXTADDR_MAGIC.size()};
+            std::vector<uint8_t> bytes(magic_size);
+            for (size_t idx{0}; idx < magic_size; idx++) {
+                s >> bytes[idx];
+            }
+            if (std::ranges::equal(bytes, EXTADDR_MAGIC)) {
+                // First four bytes match magic word, deserialize rest as extended format
+                m_data = std::make_shared<ExtNetInfo>(deserialize, s);
+                return;
+            }
+            // Didn't match magic, read stream as legacy format
+            size_t target_bytes{::GetSerializeSize(MnNetInfo{}, s.GetVersion())};
+            bytes.resize(target_bytes);
+            for (size_t idx{magic_size}; idx < target_bytes; idx++) {
+                s >> bytes[idx];
+            }
+            // Transform raw bytes to MnNetInfo
+            CDataStream ss(s.GetType(), s.GetVersion());
+            ss.write(MakeByteSpan(bytes));
+            m_data = std::make_shared<MnNetInfo>(deserialize, ss);
+        } else {
+            if (m_is_extended) {
+                m_data = std::make_shared<ExtNetInfo>(deserialize, s);
+            } else {
+                m_data = std::make_shared<MnNetInfo>(deserialize, s);
+            }
+        }
     }
 };
 
