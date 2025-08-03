@@ -379,9 +379,7 @@ static RPCHelpMan upgradetohd()
             throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet encrypted but passphrase not supplied to RPC.");
         }
     } else {
-        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
-        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-        secureWalletPassphrase = request.params[2].get_str().c_str();
+        secureWalletPassphrase = std::string_view{request.params[2].get_str()};
     }
 
     SecureString secureMnemonic;

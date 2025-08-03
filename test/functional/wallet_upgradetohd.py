@@ -175,7 +175,8 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         self.recover_non_hd()
 
         self.log.info("Same mnemonic, same mnemonic passphrase, encrypt wallet on upgrade, should recover all coins after rescan")
-        walletpass = "111pass222"
+        # Null characters are allowed in wallet passphrases now
+        walletpass = "111\0pass222"
         assert node.upgradetohd(mnemonic, "", walletpass)
         node.stop()
         node.wait_until_stopped()
