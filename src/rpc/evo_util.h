@@ -11,6 +11,6 @@ template <typename T1>
 void ProcessNetInfoCore(T1& ptx, const UniValue& input, const bool optional);
 
 template <typename T1>
-void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& input_http);
+void ProcessNetInfoPlatform(T1& ptx, const UniValue& input_p2p, const UniValue& input_http, const bool optional);
 
 #endif // BITCOIN_RPC_EVO_UTIL_H
