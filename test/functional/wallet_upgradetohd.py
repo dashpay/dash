@@ -247,6 +247,14 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         assert_equal(12, w12.getbalance())
         w12.unloadwallet()
 
+        self.log.info("Test upgradetohd with null characters in mnemonic passphrase")
+        # Null characters aren't allowed in mnemonic passphrases, the first one and everything after it is ignored
+        node.createwallet("wallet-13", blank=True)
+        w13 = node.get_wallet_rpc("wallet-13")
+        w13.upgradetohd(custom_mnemonic, "custom-passphrase\0with\0null\0characters")
+        assert_equal(12, w13.getbalance())
+        w13.unloadwallet()
+
 
 if __name__ == '__main__':
     WalletUpgradeToHDTest().main ()
