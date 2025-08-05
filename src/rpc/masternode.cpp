@@ -623,8 +623,8 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             objMN.pushKV("type", std::string(GetMnType(dmn.nType).description));
             if (dmn.nType == MnType::Evo) {
                 objMN.pushKV("platformNodeID", dmn.pdmnState->platformNodeID.ToString());
-                objMN.pushKV("platformP2PPort", dmn.pdmnState->platformP2PPort);
-                objMN.pushKV("platformHTTPPort", dmn.pdmnState->platformHTTPPort);
+                objMN.pushKV("platformP2PPort", ShimPlatformPort</*is_p2p=*/true>(*dmn.pdmnState));
+                objMN.pushKV("platformHTTPPort", ShimPlatformPort</*is_p2p=*/false>(*dmn.pdmnState));
             }
             objMN.pushKV("pospenaltyscore", dmn.pdmnState->nPoSePenalty);
             objMN.pushKV("consecutivePayments", dmn.pdmnState->nConsecutivePayments);
