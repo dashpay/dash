@@ -34,9 +34,6 @@
 #include <string.h>
 
 #include "sph_cubehash.h"
-#ifdef __cplusplus
-extern "C"{
-#endif
 
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_CUBEHASH
 #define SPH_SMALL_FOOTPRINT_CUBEHASH   1
@@ -555,39 +552,36 @@ cubehash_close(sph_cubehash_context *sc, unsigned ub, unsigned n,
 			xv ^= SPH_C32(1);
 	}
 	WRITE_STATE(sc);
-	out = dst;
+	out = static_cast<unsigned char*>(dst);
 	for (z = 0; z < out_size_w32; z ++)
 		sph_enc32le(out + (z << 2), sc->state[z]);
 }
 
 /* see sph_cubehash.h */
 void
-sph_cubehash512_init(void *cc)
+sph_cubehash512_init(sph_cubehash512_context *cc)
 {
 	cubehash_init(cc, IV512);
 }
 
 /* see sph_cubehash.h */
 void
-sph_cubehash512(void *cc, const void *data, size_t len)
+sph_cubehash512(sph_cubehash512_context *cc, const void *data, size_t len)
 {
 	cubehash_core(cc, data, len);
 }
 
 /* see sph_cubehash.h */
 void
-sph_cubehash512_close(void *cc, void *dst)
+sph_cubehash512_close(sph_cubehash512_context *cc, void *dst)
 {
 	sph_cubehash512_addbits_and_close(cc, 0, 0, dst);
 }
 
 /* see sph_cubehash.h */
 void
-sph_cubehash512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_cubehash512_addbits_and_close(sph_cubehash512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	cubehash_close(cc, ub, n, dst, 16);
 	sph_cubehash512_init(cc);
 }
-#ifdef __cplusplus
-}
-#endif

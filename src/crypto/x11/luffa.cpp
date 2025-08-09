@@ -35,13 +35,7 @@
 
 #include "sph_luffa.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-#if SPH_64_TRUE && !defined SPH_LUFFA_PARALLEL
 #define SPH_LUFFA_PARALLEL   1
-#endif
 
 #ifdef _MSC_VER
 #pragma warning (disable: 4146)
@@ -76,6 +70,8 @@ static const sph_u32 V_INIT[5][8] = {
 	}
 };
 
+#if !SPH_LUFFA_PARALLEL
+
 static const sph_u32 RC00[8] = {
 	SPH_C32(0x303994a6), SPH_C32(0xc0e65299),
 	SPH_C32(0x6cc33a12), SPH_C32(0xdc56983e),
@@ -104,6 +100,8 @@ static const sph_u32 RC14[8] = {
 	SPH_C32(0x2e48f1c1), SPH_C32(0xb923c704)
 };
 
+#endif // !SPH_LUFFA_PARALLEL
+
 #if SPH_LUFFA_PARALLEL
 
 static const sph_u64 RCW010[8] = {
@@ -121,6 +119,8 @@ static const sph_u64 RCW014[8] = {
 };
 
 #endif
+
+#if !SPH_LUFFA_PARALLEL
 
 static const sph_u32 RC20[8] = {
 	SPH_C32(0xfc20d9d2), SPH_C32(0x34552e25),
@@ -149,6 +149,8 @@ static const sph_u32 RC34[8] = {
 	SPH_C32(0xfe191be2), SPH_C32(0x3cb226e5),
 	SPH_C32(0x5944a28e), SPH_C32(0xa1c4c355)
 };
+
+#endif // !SPH_LUFFA_PARALLEL
 
 #if SPH_LUFFA_PARALLEL
 
@@ -646,7 +648,7 @@ luffa5_close(sph_luffa512_context *sc, unsigned ub, unsigned n, void *dst)
 
 	buf = sc->buf;
 	ptr = sc->ptr;
-	out = dst;
+	out = static_cast<unsigned char*>(dst);
 	z = 0x80 >> n;
 	buf[ptr ++] = ((ub & -z) | z) & 0xFF;
 	memset(buf + ptr, 0, (sizeof sc->buf) - ptr);
@@ -684,7 +686,7 @@ luffa5_close(sph_luffa512_context *sc, unsigned ub, unsigned n, void *dst)
 
 /* see sph_luffa.h */
 void
-sph_luffa512_init(void *cc)
+sph_luffa512_init(sph_luffa512_context *cc)
 {
 	sph_luffa512_context *sc;
 
@@ -695,26 +697,22 @@ sph_luffa512_init(void *cc)
 
 /* see sph_luffa.h */
 void
-sph_luffa512(void *cc, const void *data, size_t len)
+sph_luffa512(sph_luffa512_context *cc, const void *data, size_t len)
 {
 	luffa5(cc, data, len);
 }
 
 /* see sph_luffa.h */
 void
-sph_luffa512_close(void *cc, void *dst)
+sph_luffa512_close(sph_luffa512_context *cc, void *dst)
 {
 	sph_luffa512_addbits_and_close(cc, 0, 0, dst);
 }
 
 /* see sph_luffa.h */
 void
-sph_luffa512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_luffa512_addbits_and_close(sph_luffa512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	luffa5_close(cc, ub, n, dst);
 	sph_luffa512_init(cc);
 }
-
-#ifdef __cplusplus
-}
-#endif

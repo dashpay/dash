@@ -35,10 +35,6 @@
 #ifndef SPH_GROESTL_H__
 #define SPH_GROESTL_H__
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #include <stddef.h>
 #include "sph_types.h"
 
@@ -61,16 +57,10 @@ typedef struct {
 	unsigned char buf[128];    /* first field, for alignment */
 	size_t ptr;
 	union {
-#if SPH_64
 		sph_u64 wide[16];
-#endif
 		sph_u32 narrow[32];
 	} state;
-#if SPH_64
 	sph_u64 count;
-#else
-	sph_u32 count_high, count_low;
-#endif
 } sph_groestl_big_context;
 
 /**
@@ -85,7 +75,7 @@ typedef sph_groestl_big_context sph_groestl512_context;
  * @param cc   the Groestl-512 context (pointer to a
  *             <code>sph_groestl512_context</code>)
  */
-void sph_groestl512_init(void *cc);
+void sph_groestl512_init(sph_groestl512_context *cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -95,7 +85,7 @@ void sph_groestl512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_groestl512(void *cc, const void *data, size_t len);
+void sph_groestl512(sph_groestl512_context *cc, const void *data, size_t len);
 
 /**
  * Terminate the current Groestl-512 computation and output the result into
@@ -106,7 +96,7 @@ void sph_groestl512(void *cc, const void *data, size_t len);
  * @param cc    the Groestl-512 context
  * @param dst   the destination buffer
  */
-void sph_groestl512_close(void *cc, void *dst);
+void sph_groestl512_close(sph_groestl512_context *cc, void *dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -122,10 +112,6 @@ void sph_groestl512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_groestl512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-
-#ifdef __cplusplus
-}
-#endif
+	sph_groestl512_context *cc, unsigned ub, unsigned n, void *dst);
 
 #endif

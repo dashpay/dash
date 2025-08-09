@@ -73,9 +73,15 @@ LIBBITCOIN_WALLET_TOOL=libbitcoin_wallet_tool.a
 endif
 
 LIBBITCOIN_CRYPTO = $(LIBBITCOIN_CRYPTO_BASE)
+LIBBITCOIN_CRYPTO_SPH = crypto/libbitcoin_crypto_sph.la
+LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_SPH)
 if ENABLE_SSE41
 LIBBITCOIN_CRYPTO_SSE41 = crypto/libbitcoin_crypto_sse41.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_SSE41)
+if ENABLE_X86_AESNI
+LIBBITCOIN_CRYPTO_X86_AESNI = crypto/libbitcoin_crypto_x86_aesni.la
+LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_X86_AESNI)
+endif
 if ENABLE_X86_SHANI
 LIBBITCOIN_CRYPTO_X86_SHANI = crypto/libbitcoin_crypto_x86_shani.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_X86_SHANI)
@@ -718,20 +724,32 @@ crypto_libbitcoin_crypto_avx2_la_CXXFLAGS += $(AVX2_CXXFLAGS)
 crypto_libbitcoin_crypto_avx2_la_CPPFLAGS += -DENABLE_AVX2
 crypto_libbitcoin_crypto_avx2_la_SOURCES = crypto/sha256_avx2.cpp
 
-# x11
-crypto_libbitcoin_crypto_base_la_SOURCES += \
-  crypto/x11/aes_helper.c \
-  crypto/x11/blake.c \
-  crypto/x11/bmw.c \
-  crypto/x11/cubehash.c \
-  crypto/x11/echo.c \
-  crypto/x11/groestl.c \
-  crypto/x11/jh.c \
-  crypto/x11/keccak.c \
-  crypto/x11/luffa.c \
-  crypto/x11/shavite.c \
-  crypto/x11/simd.c \
-  crypto/x11/skein.c \
+# See explanation for -static in crypto_libbitcoin_crypto_base_la's LDFLAGS and
+# CXXFLAGS above
+crypto_libbitcoin_crypto_sph_la_LDFLAGS = $(AM_LDFLAGS) -static
+crypto_libbitcoin_crypto_sph_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -static
+crypto_libbitcoin_crypto_sph_la_CPPFLAGS = $(AM_CPPFLAGS)
+crypto_libbitcoin_crypto_sph_la_CXXFLAGS += $(SPHLIB_CXXFLAGS)
+crypto_libbitcoin_crypto_sph_la_CPPFLAGS += \
+  -DSPH_SMALL_FOOTPRINT_CUBEHASH=1 \
+  -DSPH_SMALL_FOOTPRINT_SKEIN=1 \
+  -DSPH_SMALL_FOOTPRINT_JH=1
+crypto_libbitcoin_crypto_sph_la_SOURCES = \
+  crypto/x11/aes_helper.cpp \
+  crypto/x11/aes_helper.h \
+  crypto/x11/blake.cpp \
+  crypto/x11/bmw.cpp \
+  crypto/x11/cubehash.cpp \
+  crypto/x11/dispatch.cpp \
+  crypto/x11/echo.cpp \
+  crypto/x11/groestl.cpp \
+  crypto/x11/jh.cpp \
+  crypto/x11/keccak.cpp \
+  crypto/x11/luffa.cpp \
+  crypto/x11/shavite.cpp \
+  crypto/x11/simd.cpp \
+  crypto/x11/skein.cpp \
+  crypto/x11/dispatch.h \
   crypto/x11/sph_blake.h \
   crypto/x11/sph_bmw.h \
   crypto/x11/sph_cubehash.h \
@@ -744,6 +762,18 @@ crypto_libbitcoin_crypto_base_la_SOURCES += \
   crypto/x11/sph_simd.h \
   crypto/x11/sph_skein.h \
   crypto/x11/sph_types.h
+
+# See explanation for -static in crypto_libbitcoin_crypto_base_la's LDFLAGS and
+# CXXFLAGS above
+crypto_libbitcoin_crypto_x86_aesni_la_LDFLAGS = $(AM_LDFLAGS) -static
+crypto_libbitcoin_crypto_x86_aesni_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -static
+crypto_libbitcoin_crypto_x86_aesni_la_CPPFLAGS = $(AM_CPPFLAGS)
+crypto_libbitcoin_crypto_x86_aesni_la_CXXFLAGS += $(X86_AESNI_CXXFLAGS)
+crypto_libbitcoin_crypto_x86_aesni_la_CPPFLAGS += -DENABLE_SSE41 -DENABLE_X86_AESNI
+crypto_libbitcoin_crypto_x86_aesni_la_SOURCES = \
+  crypto/x11/x86_aesni/aes_helper.cpp \
+  crypto/x11/x86_aesni/echo.cpp \
+  crypto/x11/x86_aesni/shavite.cpp
 
 # See explanation for -static in crypto_libbitcoin_crypto_base_la's LDFLAGS and
 # CXXFLAGS above
@@ -1009,7 +1039,7 @@ endif
 # dashconsensus library #
 if BUILD_BITCOIN_LIBS
 include_HEADERS = script/bitcoinconsensus.h
-libdashconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoin_crypto_base_la_SOURCES) $(libbitcoin_consensus_a_SOURCES)
+libdashconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoin_crypto_base_la_SOURCES) $(crypto_libbitcoin_crypto_sph_la_SOURCES) $(libbitcoin_consensus_a_SOURCES)
 
 libdashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
 libdashconsensus_la_LIBADD = $(LIBDASHBLS) $(LIBSECP256K1) $(GMP_LIBS)

@@ -35,11 +35,6 @@
 
 #include "sph_skein.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_SKEIN
 #define SPH_SMALL_FOOTPRINT_SKEIN   1
 #endif
@@ -47,8 +42,6 @@ extern "C"{
 #ifdef _MSC_VER
 #pragma warning (disable: 4146)
 #endif
-
-#if SPH_64
 
 /*
  * M9_ ## s ## _ ## i  evaluates to s+i mod 9 (0 <= s <= 18, 0 <= i <= 7).
@@ -678,36 +671,29 @@ static const sph_u64 IV512[] = {
 
 /* see sph_skein.h */
 void
-sph_skein512_init(void *cc)
+sph_skein512_init(sph_skein512_context *cc)
 {
 	skein_big_init(cc, IV512);
 }
 
 /* see sph_skein.h */
 void
-sph_skein512(void *cc, const void *data, size_t len)
+sph_skein512(sph_skein512_context *cc, const void *data, size_t len)
 {
 	skein_big_core(cc, data, len);
 }
 
 /* see sph_skein.h */
 void
-sph_skein512_close(void *cc, void *dst)
+sph_skein512_close(sph_skein512_context *cc, void *dst)
 {
 	sph_skein512_addbits_and_close(cc, 0, 0, dst);
 }
 
 /* see sph_skein.h */
 void
-sph_skein512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_skein512_addbits_and_close(sph_skein512_context *cc, unsigned ub, unsigned n, void *dst)
 {
 	skein_big_close(cc, ub, n, dst, 64);
 	sph_skein512_init(cc);
 }
-
-#endif
-
-
-#ifdef __cplusplus
-}
-#endif
