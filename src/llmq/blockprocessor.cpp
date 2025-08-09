@@ -12,6 +12,7 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <checkqueue.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
@@ -52,7 +53,24 @@ CQuorumBlockProcessor::CQuorumBlockProcessor(CChainState& chainstate, CDetermini
     m_qsnapman(qsnapman)
 {
     utils::InitQuorumsCache(mapHasMinedCommitmentCache);
+
+    int bls_threads = gArgs.GetIntArg("-parbls", DEFAULT_BLSCHECK_THREADS);
+    if (bls_threads <= 0) {
+        // -parbls=0 means autodetect (number of cores - 1 validator threads)
+        // -parbls=-n means "leave n cores free" (number of cores - n - 1 validator threads)
+        bls_threads += GetNumCores();
+    }
+    // Subtract 1 because the main thread counts towards the par threads
+    bls_threads = std::max(bls_threads - 1, 0);
+
+    // Number of script-checking threads <= MAX_BLSCHECK_THREADS
+    bls_threads = std::min(bls_threads, MAX_BLSCHECK_THREADS);
+
+    LogPrintf("BLS verification uses %d additional threads\n", bls_threads);
+    m_bls_queue.StartWorkerThreads(bls_threads);
 }
+
+CQuorumBlockProcessor::~CQuorumBlockProcessor() { m_bls_queue.StopWorkerThreads(); }
 
 MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer, std::string_view msg_type,
                                                               CDataStream& vRecv)
@@ -194,8 +212,25 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
         }
     }
 
+    if (fBLSChecks) {
+        CCheckQueueControl<utils::BlsCheck> queue_control(&m_bls_queue);
+        for (const auto& [_, qc] : qcs) {
+            if (qc.IsNull()) continue;
+            const auto* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(qc.quorumHash);
+            if (pQuorumBaseBlockIndex == nullptr) {
+                LogPrint(BCLog::LLMQ, "[ProcessBlock] failed due to no known pindex for hash[%s]\n", qc.quorumHash.ToString());
+                return false;
+            }
+            qc.VerifySignatureAsync(m_dmnman, m_qsnapman, pQuorumBaseBlockIndex, &queue_control);
+        }
+
+        if (!queue_control.Wait()) {
+            // at least one check failed
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-invalid");
+        }
+    }
     for (const auto& [_, qc] : qcs) {
-        if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck, fBLSChecks)) {
+        if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck)) {
             LogPrintf("[ProcessBlock] failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, ToUnderlying(qc.llmqType), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
             return false;
         }
@@ -220,7 +255,8 @@ static std::tuple<std::string, Consensus::LLMQType, int, uint32_t> BuildInversed
     return std::make_tuple(DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED, llmqType, quorumIndex, htobe32_internal(std::numeric_limits<uint32_t>::max() - nMinedHeight));
 }
 
-bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockHash, const CFinalCommitment& qc, BlockValidationState& state, bool fJustCheck, bool fBLSChecks)
+bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockHash, const CFinalCommitment& qc,
+                                              BlockValidationState& state, bool fJustCheck)
 {
     AssertLockHeld(::cs_main);
 
@@ -272,8 +308,13 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     }
 
     const auto* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(qc.quorumHash);
+    if (pQuorumBaseBlockIndex == nullptr) {
+        LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s failed due to no known pindex for hash[%s]\n", qc.quorumHash.ToString());
+        return false;
+    }
 
-    if (!qc.Verify(m_dmnman, m_qsnapman, pQuorumBaseBlockIndex, /*checkSigs=*/fBLSChecks)) {
+    // we don't validate signatures here; they already validated on previous step
+    if (!qc.Verify(m_dmnman, m_qsnapman, pQuorumBaseBlockIndex, /*checkSigs=*/false)) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, quorumPublicKey=%s qc verify failed.\n", __func__,
                  nHeight, ToUnderlying(qc.llmqType), qc.quorumIndex, quorumHash.ToString(), qc.CountSigners(), qc.CountValidMembers(), qc.quorumPublicKey.ToString());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-invalid");
