@@ -14,6 +14,7 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
+#include <rpc/evo_util.h>
 #include <shutdown.h>
 #include <util/check.h>
 #include <util/irange.h>
@@ -1880,7 +1881,7 @@ void CCoinJoinClientSession::GetJsonInfo(UniValue& obj) const
         if (m_wallet->chain().rpcEnableDeprecated("service")) {
             obj.pushKV("service", mixingMasternode->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
         }
-        obj.pushKV("addresses", mixingMasternode->pdmnState->netInfo->ToJson());
+        obj.pushKV("addresses", ShimNetInfoPlatform(*mixingMasternode->pdmnState, mixingMasternode->nType));
     }
     obj.pushKV("denomination", ValueFromAmount(CoinJoin::DenominationToAmount(nSessionDenom)));
     obj.pushKV("state", GetStateString());
