@@ -18,9 +18,22 @@ namespace {
 static std::unique_ptr<const CChainParams> g_main_params{nullptr};
 static std::once_flag g_main_params_flag;
 
+static constexpr std::string_view SAFE_CHARS_ALPHA{"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"};
 static constexpr std::string_view SAFE_CHARS_IPV4{"1234567890."};
 static constexpr std::string_view SAFE_CHARS_IPV4_6{"abcdefABCDEF1234567890.:[]"};
 static constexpr std::string_view SAFE_CHARS_RFC1035{"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"};
+static constexpr std::array<std::string_view, 13> TLDS_BAD{
+    // ICANN resolution 2018.02.04.12
+    ".mail",
+    // Infrastructure TLD
+    ".arpa",
+    // RFC 6761
+    ".example", ".invalid", ".localhost", ".test",
+    // RFC 6762
+    ".local",
+    // RFC 6762, Appendix G
+    ".corp", ".home", ".internal", ".intranet", ".lan", ".private",
+};
 
 bool IsNodeOnMainnet() { return Params().NetworkIDString() == CBaseChainParams::MAIN; }
 const CChainParams& MainParams()
@@ -34,6 +47,26 @@ const CChainParams& MainParams()
 bool MatchCharsFilter(std::string_view input, std::string_view filter)
 {
     return std::all_of(input.begin(), input.end(), [&filter](char c) { return filter.find(c) != std::string_view::npos; });
+}
+
+template <typename T1>
+bool MatchSuffix(const std::string& str, const T1& list)
+{
+    if (str.empty()) return false;
+    for (const auto& suffix : list) {
+        if (suffix.size() > str.size()) continue;
+        if (std::equal(suffix.rbegin(), suffix.rend(), str.rbegin())) return true;
+    }
+    return false;
+}
+
+bool IsAllowedPlatformHTTPPort(uint16_t port)
+{
+    switch (port) {
+    case 443:
+        return true;
+    }
+    return false;
 }
 } // anonymous namespace
 
@@ -378,6 +411,10 @@ NetInfoStatus ExtNetInfo::ProcessCandidate(const uint8_t purpose, const NetInfoE
     if (IsAddrPortDuplicate(candidate)) {
         return NetInfoStatus::Duplicate;
     }
+    if (candidate.GetDomainPort().has_value() && purpose != Purpose::PLATFORM_HTTPS) {
+        // Domains only allowed for Platform HTTPS API
+        return NetInfoStatus::BadInput;
+    }
     if (auto it{m_data.find(purpose)}; it != m_data.end()) {
         // Existing entries list found, check limit
         auto& [_, entries] = *it;
@@ -417,6 +454,26 @@ NetInfoStatus ExtNetInfo::ValidateService(const CService& service)
     return NetInfoStatus::Success;
 }
 
+NetInfoStatus ExtNetInfo::ValidateDomainPort(const DomainPort& domain)
+{
+    if (!domain.IsValid()) {
+        return NetInfoStatus::BadInput;
+    }
+    const uint16_t domain_port{domain.GetPort()};
+    if (domain_port == 0 || (IsBadPort(domain_port) && !IsAllowedPlatformHTTPPort(domain_port))) {
+        return NetInfoStatus::BadPort;
+    }
+    const std::string& addr{domain.ToStringAddr()};
+    if (MatchSuffix(addr, TLDS_BAD)) {
+        return NetInfoStatus::BadInput;
+    }
+    if (const auto labels{SplitString(addr, '.')}; !MatchCharsFilter(labels.at(labels.size() - 1), SAFE_CHARS_ALPHA)) {
+        return NetInfoStatus::BadInput;
+    }
+
+    return NetInfoStatus::Success;
+}
+
 NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& input)
 {
     if (!IsValidPurpose(purpose)) {
@@ -428,11 +485,25 @@ NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& inp
     std::string addr;
     uint16_t port{0};
     SplitHostPort(input, port, addr);
-    // Contains invalid characters, unlikely to pass Lookup(), fast-fail
+
     if (!MatchCharsFilter(addr, SAFE_CHARS_IPV4_6)) {
-        return NetInfoStatus::BadInput;
+        if (!MatchCharsFilter(addr, SAFE_CHARS_RFC1035)) {
+            // Neither IP:port safe nor domain-safe, we can safely assume it's bad input
+            return NetInfoStatus::BadInput;
+        }
+
+        // Not IP:port safe but domain safe, treat as domain.
+        if (DomainPort domain; domain.Set(addr, port) == DomainPort::Status::Success) {
+            const auto ret{ValidateDomainPort(domain)};
+            if (ret == NetInfoStatus::Success) {
+                return ProcessCandidate(purpose, NetInfoEntry{domain});
+            }
+            return ret; /* ValidateDomainPort() failed */
+        }
+        return NetInfoStatus::BadInput; /* DomainPort::Set() failed */
     }
 
+    // IP:port safe, try to parse it as IP:port
     if (auto service_opt{Lookup(addr, /*portDefault=*/port, /*fAllowLookup=*/false)}) {
         const auto ret{ValidateService(*service_opt)};
         if (ret == NetInfoStatus::Success) {
@@ -505,6 +576,15 @@ NetInfoStatus ExtNetInfo::Validate() const
             if (const auto& service_opt{entry.GetAddrPort()}) {
                 if (auto ret{ValidateService(*service_opt)}; ret != NetInfoStatus::Success) {
                     // Stores CService underneath but doesn't pass validation rules
+                    return ret;
+                }
+            } else if (const auto domain_opt{entry.GetDomainPort()}) {
+                if (purpose != Purpose::PLATFORM_HTTPS) {
+                    // Domains only allowed for Platform HTTPS API
+                    return NetInfoStatus::BadInput;
+                }
+                if (auto ret{ValidateDomainPort(*domain_opt)}; ret != NetInfoStatus::Success) {
+                    // Stores DomainPort underneath but doesn't pass validation rules
                     return ret;
                 }
             } else {

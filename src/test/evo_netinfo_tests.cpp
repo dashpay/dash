@@ -37,8 +37,12 @@ static const TestVectors addr_vals_main{
     // - Non-IPv4 addresses are prohibited in MnNetInfo
     // - Any valid BIP155 address is allowed in ExtNetInfo
     {{Purpose::CORE_P2P, "[2606:4700:4700::1111]:9999"}, NetInfoStatus::BadInput, NetInfoStatus::Success},
-    // Domains are not allowed
+    // Domains are not allowed for Core P2P or Platform P2P
     {{Purpose::CORE_P2P, "example.com:9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadInput},
+    {{Purpose::PLATFORM_P2P, "example.com:9999"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadInput},
+    // - MnNetInfo doesn't allow storing anything except a Core P2P address
+    // - ExtNetInfo can store Platform HTTPS addresses *as domains*
+    {{Purpose::PLATFORM_HTTPS, "example.com:9999"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
     // Incorrect IPv4 address
     {{Purpose::CORE_P2P, "1.1.1.256:9999"}, NetInfoStatus::BadInput, NetInfoStatus::BadInput},
     // Missing address
@@ -177,6 +181,21 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_rules_reg, RegTestingSetup)
         BOOST_CHECK(netInfo.HasEntries(Purpose::PLATFORM_P2P));
         BOOST_CHECK(!netInfo.HasEntries(Purpose::PLATFORM_HTTPS));
         ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/2);
+    }
+
+    {
+        // ExtNetInfo has additional rules for domains
+        const TestVectors domain_vals{
+            // Port 80 (HTTP) is below the privileged ports threshold (1023), not allowed
+            {{Purpose::PLATFORM_HTTPS, "example.com:80"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadPort},
+            // Port 443 (HTTPS) is below the privileged ports threshold (1023) but still allowed
+            {{Purpose::PLATFORM_HTTPS, "example.com:443"}, NetInfoStatus::MaxLimit, NetInfoStatus::Success},
+            // TLDs must be alphabetic to avoid ambiguation with IP addresses (per ICANN guidelines)
+            {{Purpose::PLATFORM_HTTPS, "example.123:443"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadInput},
+            // .local is a prohibited TLD
+            {{Purpose::PLATFORM_HTTPS, "somebodys-macbook-pro.local:9998"}, NetInfoStatus::MaxLimit, NetInfoStatus::BadInput},
+        };
+        TestExtNetInfo(domain_vals);
     }
 }
 
@@ -395,11 +414,15 @@ BOOST_AUTO_TEST_CASE(domainport_rules)
 
     for (const auto& [addr, retval] : domain_vals) {
         DomainPort domain;
-        BOOST_CHECK_EQUAL(domain.Set(addr, 9999), retval);
+        ExtNetInfo netInfo;
+        BOOST_CHECK_EQUAL(domain.Set(addr, 443), retval);
         if (retval != DomainPort::Status::Success) {
             BOOST_CHECK_EQUAL(domain.Validate(), DomainPort::Status::Malformed); // Empty values report as Malformed
+            BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::PLATFORM_HTTPS, domain.ToStringAddrPort()),
+                              NetInfoStatus::BadInput);
         } else {
             BOOST_CHECK_EQUAL(domain.Validate(), DomainPort::Status::Success);
+            BOOST_CHECK_EQUAL(netInfo.AddEntry(Purpose::PLATFORM_HTTPS, domain.ToStringAddrPort()), NetInfoStatus::Success);
         }
     }
 

@@ -378,6 +378,7 @@ private:
 
     NetInfoStatus ProcessCandidate(const uint8_t purpose, const NetInfoEntry& candidate);
     static NetInfoStatus ValidateService(const CService& service);
+    static NetInfoStatus ValidateDomainPort(const DomainPort& domain);
 
 private:
     uint8_t m_version{CURRENT_VERSION};
