@@ -34,6 +34,7 @@ static constexpr std::array<std::string_view, 13> TLDS_BAD{
     // RFC 6762, Appendix G
     ".corp", ".home", ".internal", ".intranet", ".lan", ".private",
 };
+static constexpr std::array<std::string_view, 2> TLDS_PRIVACY{".i2p", ".onion"};
 
 bool IsNodeOnMainnet() { return Params().NetworkIDString() == CBaseChainParams::MAIN; }
 const CChainParams& MainParams()
@@ -441,14 +442,22 @@ NetInfoStatus ExtNetInfo::ValidateService(const CService& service)
     if (!service.IsValid()) {
         return NetInfoStatus::BadAddress;
     }
-    if (!service.IsCJDNS() && !service.IsIPv4() && !service.IsIPv6()) {
+    if (!service.IsCJDNS() && !service.IsI2P() && !service.IsIPv4() && !service.IsIPv6() && !service.IsTor()) {
         return NetInfoStatus::BadType;
     }
     if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
         return NetInfoStatus::NotRoutable;
     }
-    if (IsBadPort(service.GetPort()) || service.GetPort() == 0) {
-        return NetInfoStatus::BadPort;
+    const uint16_t service_port{service.GetPort()};
+    if (service.IsI2P()) {
+        if (service_port != I2P_SAM31_PORT) {
+            // I2P SAM 3.1 and earlier don't support arbitrary ports
+            return NetInfoStatus::BadPort;
+        }
+    } else {
+        if (service_port == 0 || IsBadPort(service_port)) {
+            return NetInfoStatus::BadPort;
+        }
     }
 
     return NetInfoStatus::Success;
@@ -464,7 +473,7 @@ NetInfoStatus ExtNetInfo::ValidateDomainPort(const DomainPort& domain)
         return NetInfoStatus::BadPort;
     }
     const std::string& addr{domain.ToStringAddr()};
-    if (MatchSuffix(addr, TLDS_BAD)) {
+    if (MatchSuffix(addr, TLDS_BAD) || MatchSuffix(addr, TLDS_PRIVACY)) {
         return NetInfoStatus::BadInput;
     }
     if (const auto labels{SplitString(addr, '.')}; !MatchCharsFilter(labels.at(labels.size() - 1), SAFE_CHARS_ALPHA)) {
@@ -492,15 +501,27 @@ NetInfoStatus ExtNetInfo::AddEntry(const uint8_t purpose, const std::string& inp
             return NetInfoStatus::BadInput;
         }
 
-        // Not IP:port safe but domain safe, treat as domain.
-        if (DomainPort domain; domain.Set(addr, port) == DomainPort::Status::Success) {
+        // Not IP:port safe but domain safe
+        if (MatchSuffix(addr, TLDS_PRIVACY)) {
+            // Special domain, try storing it as CService
+            CNetAddr netaddr;
+            if (netaddr.SetSpecial(addr)) {
+                const CService service{netaddr, port};
+                const auto ret{ValidateService(service)};
+                if (ret == NetInfoStatus::Success) {
+                    return ProcessCandidate(purpose, NetInfoEntry{service});
+                }
+                return ret; /* ValidateService() failed */
+            }
+        } else if (DomainPort domain; domain.Set(addr, port) == DomainPort::Status::Success) {
+            // Regular domain
             const auto ret{ValidateDomainPort(domain)};
             if (ret == NetInfoStatus::Success) {
                 return ProcessCandidate(purpose, NetInfoEntry{domain});
             }
             return ret; /* ValidateDomainPort() failed */
         }
-        return NetInfoStatus::BadInput; /* DomainPort::Set() failed */
+        return NetInfoStatus::BadInput; /* CNetAddr::SetSpecial() or DomainPort::Set() failed */
     }
 
     // IP:port safe, try to parse it as IP:port
