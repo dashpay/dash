@@ -101,9 +101,6 @@ constexpr std::string_view PurposeToString(const uint8_t purpose, const bool low
 /* Creates a one-element array using CService::ToStringPortAddr() output. */
 UniValue ArrFromService(const CService& addr);
 
-/* Identical to IsDeprecatedRPCEnabled("service"). For use outside of RPC code. */
-bool IsServiceDeprecatedRPCEnabled();
-
 class NetInfoEntry
 {
 public:
