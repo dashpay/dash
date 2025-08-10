@@ -45,4 +45,40 @@ UniValue ShimNetInfoPlatform(const T1& obj, const MnType& type)
     return ret;
 }
 
+template <bool is_p2p, typename T1>
+int32_t ShimPlatformPort(const T1& obj)
+{
+    // Currently, there is nothing that prevents PLATFORM_{HTTPS,P2P} to be registered to
+    // an addr *different* from the primary addr for CORE_P2P. This breaks the assumptions
+    // under which platform{HTTP,P2P}Port operate under (i.e. all three are hosted with the
+    // same addr).
+    //
+    // TODO: Introduce restrictions that enforce this assumption *until* we remove legacy
+    //       fields for good.
+    //
+    bool is_legacy{!(CHECK_NONFATAL(obj.netInfo)->CanStorePlatform())};
+    if constexpr (is_p2p) {
+        static_assert(!std::is_same_v<std::decay_t<T1>, CSimplifiedMNListEntry>, "CSimplifiedMNListEntry doesn't have platformP2PPort");
+        if (is_legacy) {
+            return obj.platformP2PPort;
+        }
+        if (obj.netInfo->IsEmpty()) {
+            return -1; // Blank entry, nothing to report
+        }
+        // If an EvoNode doesn't have these fields populated, something's gone horribly wrong
+        CHECK_NONFATAL(obj.netInfo->HasEntries(Purpose::PLATFORM_P2P));
+        return obj.netInfo->GetEntries(Purpose::PLATFORM_P2P)[0].GetPort();
+    } else {
+        if (is_legacy) {
+            return obj.platformHTTPPort;
+        }
+        if (obj.netInfo->IsEmpty()) {
+            return -1; // Blank entry, nothing to report
+        }
+        // If an EvoNode doesn't have these fields populated, something's gone horribly wrong
+        CHECK_NONFATAL(obj.netInfo->HasEntries(Purpose::PLATFORM_HTTPS));
+        return obj.netInfo->GetEntries(Purpose::PLATFORM_HTTPS)[0].GetPort();
+    }
+}
+
 #endif // BITCOIN_RPC_EVO_UTIL_H
