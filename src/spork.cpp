@@ -188,7 +188,7 @@ MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vR
         WITH_LOCK(cs_mapSporksCachedValues, mapSporksCachedValues.erase(spork.nSporkID));
     }
 
-    ret.m_inventory = CInv{MSG_SPORK, spork.GetHash()};
+    ret.m_inventory.emplace_back(MSG_SPORK, spork.GetHash());
     return ret;
 }
 
