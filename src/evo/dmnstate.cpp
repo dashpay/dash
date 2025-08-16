@@ -6,6 +6,9 @@
 
 #include <script/standard.h>
 
+#include <evo/netinfo.h>
+#include <rpc/evo_util.h>
+
 #include <univalue.h>
 
 std::string CDeterministicMNState::ToString() const
@@ -34,10 +37,8 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
 {
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("version", nVersion);
-    if (IsServiceDeprecatedRPCEnabled()) {
-        obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
-    }
-    obj.pushKV("addresses", netInfo->ToJson());
+    obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    obj.pushKV("addresses", ShimNetInfoPlatform(*this, nType));
     obj.pushKV("registeredHeight", nRegisteredHeight);
     obj.pushKV("lastPaidHeight", nLastPaidHeight);
     obj.pushKV("consecutivePayments", nConsecutivePayments);
@@ -49,8 +50,8 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (nType == MnType::Evo) {
         obj.pushKV("platformNodeID", platformNodeID.ToString());
-        obj.pushKV("platformP2PPort", platformP2PPort);
-        obj.pushKV("platformHTTPPort", platformHTTPPort);
+        obj.pushKV("platformP2PPort", ShimPlatformPort</*is_p2p=*/true>(*this));
+        obj.pushKV("platformHTTPPort", ShimPlatformPort</*is_p2p=*/false>(*this));
     }
 
     CTxDestination dest;
@@ -71,10 +72,7 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
         obj.pushKV("version", state.nVersion);
     }
     if (fields & Field_netInfo) {
-        if (IsServiceDeprecatedRPCEnabled()) {
-            obj.pushKV("service", state.netInfo->GetPrimary().ToStringAddrPort());
-        }
-        obj.pushKV("addresses", state.netInfo->ToJson());
+        obj.pushKV("service", state.netInfo->GetPrimary().ToStringAddrPort());
     }
     if (fields & Field_nRegisteredHeight) {
         obj.pushKV("registeredHeight", state.nRegisteredHeight);
@@ -127,6 +125,38 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
         }
         if (fields & Field_platformHTTPPort) {
             obj.pushKV("platformHTTPPort", state.platformHTTPPort);
+        }
+    }
+    {
+        const bool has_netinfo = (fields & Field_netInfo);
+
+        UniValue netInfoObj(UniValue::VOBJ);
+        if (has_netinfo) {
+            netInfoObj = state.netInfo->ToJson();
+        }
+        if (nType == MnType::Evo && (!has_netinfo || !state.netInfo->CanStorePlatform())) {
+            auto unknownAddr = [](uint16_t port) -> UniValue {
+                UniValue obj(UniValue::VARR);
+                // We don't know what the address is because it wasn't changed in the
+                // diff but we still need to report the port number in addr:port format
+                obj.push_back(strprintf("255.255.255.255:%d", port));
+                return obj;
+            };
+            if (fields & Field_platformP2PPort) {
+                netInfoObj.pushKV(PurposeToString(Purpose::PLATFORM_P2P, /*lower=*/true).data(),
+                                  (has_netinfo)
+                                      ? ArrFromService(CService(state.netInfo->GetPrimary(), state.platformP2PPort))
+                                      : unknownAddr(state.platformP2PPort));
+            }
+            if (fields & Field_platformHTTPPort) {
+                netInfoObj.pushKV(PurposeToString(Purpose::PLATFORM_HTTPS, /*lower=*/true).data(),
+                                  (has_netinfo)
+                                      ? ArrFromService(CService(state.netInfo->GetPrimary(), state.platformHTTPPort))
+                                      : unknownAddr(state.platformHTTPPort));
+            }
+        }
+        if (!netInfoObj.empty()) {
+            obj.pushKV("addresses", netInfoObj);
         }
     }
     return obj;
