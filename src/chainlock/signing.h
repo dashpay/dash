@@ -20,6 +20,9 @@ class CSigSharesManager;
 } // namespace llmq
 
 namespace chainlock {
+//! Depth of block including transactions before it's considered safe
+static constexpr int32_t TX_CONFIRM_THRESHOLD{5};
+
 class ChainLockSignerParent
 {
 public:
@@ -30,7 +33,7 @@ public:
     virtual bool HasConflictingChainLock(int nHeight, const uint256& blockHash) const = 0;
     virtual bool IsEnabled() const = 0;
     virtual bool IsTxSafeForMining(const uint256& txid) const = 0;
-    virtual MessageProcessingResult ProcessNewChainLock(NodeId from, const ChainLockSig& clsig, const uint256& hash) = 0;
+    [[nodiscard]] virtual MessageProcessingResult ProcessNewChainLock(NodeId from, const ChainLockSig& clsig, const uint256& hash) = 0;
     virtual void UpdateTxFirstSeenMap(const std::unordered_set<uint256, StaticSaltedHasher>& tx, const int64_t& time) = 0;
 };
 

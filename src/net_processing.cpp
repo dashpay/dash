@@ -627,10 +627,8 @@ public:
     bool IgnoresIncomingTxs() override { return m_ignore_incoming_txs; }
     void SendPings() override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);;
     void PushInventory(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void RelayInv(CInv &inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void RelayInv(CInv &inv, const int minProtoVersion) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void RelayInvFiltered(CInv &inv, const CTransaction &relatedTx, const int minProtoVersion) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void RelayInvFiltered(CInv &inv, const uint256 &relatedTxHash, const int minProtoVersion) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    void RelayInv(const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    void RelayInv(const CInv& inv, const int minProtoVersion) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void RelayTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void RelayRecoveredSig(const uint256& sigHash) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void RelayDSQ(const CCoinJoinQueue& queue) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -641,17 +639,28 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex, g_msgproc_mutex);
     void UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds) override;
     bool IsBanned(NodeId pnode) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
-    void EraseObjectRequest(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    void RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
-                       bool is_masternode, bool fForce = false) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     size_t GetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool IsInvInFilter(NodeId nodeid, const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void AskPeersForTransaction(const uint256& txid, bool is_masternode) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 private:
     void _RelayTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
+    /** Ask peers that have a transaction in their inventory to relay it to us. */
+    void AskPeersForTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+
+    /** Relay inventories to peers that find it relevant */
+    void RelayInvFiltered(const CInv& inv, const CTransaction& relatedTx, const int minProtoVersion) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+
+    /**
+     * This overload will not update node filters, use it only for the cases
+     * when other messages will update related transaction data in filters
+     */
+    void RelayInvFiltered(const CInv& inv, const uint256& relatedTxHash, const int minProtoVersion) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+
+    void EraseObjectRequest(NodeId nodeid, const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    void RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time, bool fForce = false)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     /** Helpers to process result of external handlers of message */
-    void ProcessPeerMsgRet(const PeerMsgRet& ret, CNode& pfrom) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PostProcessMessage(MessageProcessingResult&& ret, NodeId node) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
     /** Consider evicting an outbound peer based on the amount of time they've been behind our tip */
@@ -1567,8 +1576,7 @@ std::chrono::microseconds CalculateObjectGetDataTime(const CInv& inv, std::chron
     return process_time;
 }
 
-void PeerManagerImpl::RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
-                                    bool is_masternode, bool fForce)
+void PeerManagerImpl::RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time, bool fForce)
 {
     AssertLockHeld(cs_main);
 
@@ -1588,7 +1596,8 @@ void PeerManagerImpl::RequestObject(NodeId nodeid, const CInv& inv, std::chrono:
 
     // Calculate the time to try requesting this transaction. Use
     // fPreferredDownload as a proxy for outbound peers.
-    std::chrono::microseconds process_time = CalculateObjectGetDataTime(inv, current_time, is_masternode, !state->fPreferredDownload);
+    std::chrono::microseconds process_time = CalculateObjectGetDataTime(inv, current_time, /*is_masternode=*/m_mn_activeman != nullptr,
+                                                                        !state->fPreferredDownload);
 
     peer_download_state.m_object_process_time.emplace(process_time, inv);
 
@@ -2287,7 +2296,7 @@ void PeerManagerImpl::SendPings()
     for(auto& it : m_peer_map) it.second->m_ping_queued = true;
 }
 
-void PeerManagerImpl::AskPeersForTransaction(const uint256& txid, bool is_masternode)
+void PeerManagerImpl::AskPeersForTransaction(const uint256& txid)
 {
     std::vector<PeerRef> peersToAsk;
     peersToAsk.reserve(4);
@@ -2311,18 +2320,9 @@ void PeerManagerImpl::AskPeersForTransaction(const uint256& txid, bool is_master
             LogPrintf("PeerManagerImpl::%s -- txid=%s: asking other peer %d for correct TX\n", __func__,
                       txid.ToString(), peer->m_id);
 
-            RequestObject(peer->m_id, inv, GetTime<std::chrono::microseconds>(), is_masternode,
-                          /*fForce=*/true);
+            RequestObject(peer->m_id, inv, GetTime<std::chrono::microseconds>(), /*fForce=*/true);
         }
     }
-}
-
-bool PeerManagerImpl::IsInvInFilter(NodeId nodeid, const uint256& hash) const
-{
-    PeerRef peer = GetPeerRef(nodeid);
-    if (peer == nullptr)
-        return false;
-    return IsInvInFilter(*peer, hash);
 }
 
 bool PeerManagerImpl::IsInvInFilter(const Peer& peer, const uint256& hash) const
@@ -2343,7 +2343,7 @@ void PeerManagerImpl::PushInventory(NodeId nodeid, const CInv& inv)
     PushInv(*peer, inv);
 }
 
-void PeerManagerImpl::RelayInv(CInv &inv, const int minProtoVersion)
+void PeerManagerImpl::RelayInv(const CInv& inv, const int minProtoVersion)
 {
     // TODO: Migrate to iteration through m_peer_map
     m_connman.ForEachNode([&](CNode* pnode) {
@@ -2356,7 +2356,7 @@ void PeerManagerImpl::RelayInv(CInv &inv, const int minProtoVersion)
     });
 }
 
-void PeerManagerImpl::RelayInv(CInv &inv)
+void PeerManagerImpl::RelayInv(const CInv& inv)
 {
     LOCK(m_peer_mutex);
     for (const auto& [_, peer] : m_peer_map) {
@@ -2393,7 +2393,7 @@ void PeerManagerImpl::RelayDSQ(const CCoinJoinQueue& queue)
     }
 }
 
-void PeerManagerImpl::RelayInvFiltered(CInv &inv, const CTransaction& relatedTx, const int minProtoVersion)
+void PeerManagerImpl::RelayInvFiltered(const CInv& inv, const CTransaction& relatedTx, const int minProtoVersion)
 {
     // TODO: Migrate to iteration through m_peer_map
     m_connman.ForEachNode([&](CNode* pnode) {
@@ -2418,7 +2418,7 @@ void PeerManagerImpl::RelayInvFiltered(CInv &inv, const CTransaction& relatedTx,
     });
 }
 
-void PeerManagerImpl::RelayInvFiltered(CInv &inv, const uint256& relatedTxHash, const int minProtoVersion)
+void PeerManagerImpl::RelayInvFiltered(const CInv& inv, const uint256& relatedTxHash, const int minProtoVersion)
 {
     // TODO: Migrate to iteration through m_peer_map
     m_connman.ForEachNode([&](CNode* pnode) {
@@ -3492,11 +3492,6 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     }
 }
 
-void PeerManagerImpl::ProcessPeerMsgRet(const PeerMsgRet& ret, CNode& pfrom)
-{
-    if (!ret) Misbehaving(pfrom.GetId(), ret.error().score, ret.error().message);
-}
-
 void PeerManagerImpl::PostProcessMessage(MessageProcessingResult&& result, NodeId node)
 {
     if (result.m_error) {
@@ -3508,8 +3503,19 @@ void PeerManagerImpl::PostProcessMessage(MessageProcessingResult&& result, NodeI
     for (const auto& tx : result.m_transactions) {
         WITH_LOCK(cs_main, _RelayTransaction(tx));
     }
-    if (result.m_inventory) {
-        RelayInv(result.m_inventory.value());
+    for (const auto& inv : result.m_inventory) {
+        RelayInv(inv);
+    }
+    if (result.m_inv_filter) {
+        const auto& [inv, filter] = result.m_inv_filter.value();
+        if (std::holds_alternative<CTransactionRef>(filter)) {
+            RelayInvFiltered(inv, *std::get<CTransactionRef>(filter), ISDLOCK_PROTO_VERSION);
+        } else {
+            RelayInvFiltered(inv, std::get<uint256>(filter), ISDLOCK_PROTO_VERSION);
+        }
+    }
+    if (result.m_request_tx) {
+        AskPeersForTransaction(result.m_request_tx.value());
     }
 }
 
@@ -4151,7 +4157,7 @@ void PeerManagerImpl::ProcessMessage(
                     }
                     bool allowWhileInIBD = allowWhileInIBDObjs.count(inv.type);
                     if (allowWhileInIBD || !m_chainman.ActiveChainstate().IsInitialBlockDownload()) {
-                        RequestObject(pfrom.GetId(), inv, current_time, is_masternode);
+                        RequestObject(pfrom.GetId(), inv, current_time);
                     }
                 }
             }
@@ -4538,11 +4544,11 @@ void PeerManagerImpl::ProcessMessage(
                 for (const uint256& parent_txid : unique_parents) {
                     CInv _inv(MSG_TX, parent_txid);
                     AddKnownInv(*peer, _inv.hash);
-                    if (!AlreadyHave(_inv)) RequestObject(pfrom.GetId(), _inv, current_time, is_masternode);
+                    if (!AlreadyHave(_inv)) RequestObject(pfrom.GetId(), _inv, current_time);
                     // We don't know if the previous tx was a regular or a mixing one, try both
                     CInv _inv2(MSG_DSTX, parent_txid);
                     AddKnownInv(*peer, _inv2.hash);
-                    if (!AlreadyHave(_inv2)) RequestObject(pfrom.GetId(), _inv2, current_time, is_masternode);
+                    if (!AlreadyHave(_inv2)) RequestObject(pfrom.GetId(), _inv2, current_time);
                 }
 
                 if (m_orphanage.AddTx(ptx, pfrom.GetId())) {
@@ -5262,21 +5268,21 @@ void PeerManagerImpl::ProcessMessage(
     {
         //probably one the extensions
 #ifdef ENABLE_WALLET
-        ProcessPeerMsgRet(m_cj_ctx->queueman->ProcessMessage(pfrom, m_connman, *this, msg_type, vRecv), pfrom);
+        PostProcessMessage(m_cj_ctx->queueman->ProcessMessage(pfrom.GetId(), m_connman, *this, msg_type, vRecv), pfrom.GetId());
         m_cj_ctx->walletman->ForEachCJClientMan([this, &pfrom, &msg_type, &vRecv](std::unique_ptr<CCoinJoinClientManager>& clientman) {
             clientman->ProcessMessage(pfrom, m_chainman.ActiveChainstate(), m_connman, m_mempool, msg_type, vRecv);
         });
 #endif // ENABLE_WALLET
-        ProcessPeerMsgRet(m_cj_ctx->server->ProcessMessage(pfrom, msg_type, vRecv), pfrom);
-        ProcessPeerMsgRet(m_sporkman.ProcessMessage(pfrom, m_connman, *this, msg_type, vRecv), pfrom);
+        PostProcessMessage(m_cj_ctx->server->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
+        PostProcessMessage(m_sporkman.ProcessMessage(pfrom, m_connman, msg_type, vRecv), pfrom.GetId());
         m_mn_sync.ProcessMessage(pfrom, msg_type, vRecv);
-        ProcessPeerMsgRet(m_govman.ProcessMessage(pfrom, m_connman, *this, msg_type, vRecv), pfrom);
-        ProcessPeerMsgRet(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, m_mn_activeman, m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom);
+        PostProcessMessage(m_govman.ProcessMessage(pfrom, m_connman, *this, msg_type, vRecv), pfrom.GetId());
+        PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, m_mn_activeman, m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(m_llmq_ctx->quorum_block_processor->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
-        ProcessPeerMsgRet(m_llmq_ctx->qdkgsman->ProcessMessage(pfrom, *this, is_masternode, msg_type, vRecv), pfrom);
-        ProcessPeerMsgRet(m_llmq_ctx->qman->ProcessMessage(pfrom, m_connman, msg_type, vRecv), pfrom);
+        PostProcessMessage(m_llmq_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv), pfrom.GetId());
+        PostProcessMessage(m_llmq_ctx->qman->ProcessMessage(pfrom, m_connman, msg_type, vRecv), pfrom.GetId());
         m_llmq_ctx->shareman->ProcessMessage(pfrom, *this, m_sporkman, msg_type, vRecv);
-        ProcessPeerMsgRet(m_llmq_ctx->sigman->ProcessMessage(pfrom, *this, msg_type, vRecv), pfrom);
+        PostProcessMessage(m_llmq_ctx->sigman->ProcessMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());
 
         if (msg_type == NetMsgType::CLSIG) {
             if (llmq::AreChainLocksEnabled(m_sporkman)) {
@@ -5289,7 +5295,7 @@ void PeerManagerImpl::ProcessMessage(
             return; // CLSIG
         }
 
-        ProcessPeerMsgRet(m_llmq_ctx->isman->ProcessMessage(pfrom, *this, msg_type, vRecv), pfrom);
+        PostProcessMessage(m_llmq_ctx->isman->ProcessMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());
         return;
     }
 

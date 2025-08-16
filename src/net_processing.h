@@ -85,12 +85,6 @@ public:
     /** Send ping message to all peers */
     virtual void SendPings() = 0;
 
-    /** Is an inventory in the known inventory filter. Used by InstantSend. */
-    virtual bool IsInvInFilter(NodeId nodeid, const uint256& hash) const = 0;
-
-    /** Ask a number of our peers, which have a transaction in their inventory, for the transaction. */
-    virtual void AskPeersForTransaction(const uint256& txid, bool is_masternode) = 0;
-
     /** Broadcast inventory message to a specific peer. */
     virtual void PushInventory(NodeId nodeid, const CInv& inv) = 0;
 
@@ -98,17 +92,8 @@ public:
     virtual void RelayDSQ(const CCoinJoinQueue& queue) = 0;
 
     /** Relay inventories to all peers */
-    virtual void RelayInv(CInv &inv) = 0;
-    virtual void RelayInv(CInv &inv, const int minProtoVersion) = 0;
-    virtual void RelayInvFiltered(CInv &inv, const CTransaction &relatedTx,
-                                  const int minProtoVersion = MIN_PEER_PROTO_VERSION) = 0;
-
-    /**
-     * This overload will not update node filters, use it only for the cases
-     * when other messages will update related transaction data in filters
-     */
-    virtual void RelayInvFiltered(CInv &inv, const uint256 &relatedTxHash,
-                                  const int minProtoVersion = MIN_PEER_PROTO_VERSION) = 0;
+    virtual void RelayInv(const CInv& inv) = 0;
+    virtual void RelayInv(const CInv& inv, const int minProtoVersion) = 0;
 
     /** Relay transaction to all peers. */
     virtual void RelayTransaction(const uint256& txid) = 0;
@@ -142,9 +127,6 @@ public:
 
     virtual bool IsBanned(NodeId pnode) = 0;
 
-    virtual void EraseObjectRequest(NodeId nodeid, const CInv& inv) = 0;
-    virtual void RequestObject(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
-                               bool is_masternode, bool fForce = false) = 0;
     virtual size_t GetRequestedObjectCount(NodeId nodeid) const = 0;
 };
 

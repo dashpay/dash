@@ -25,7 +25,6 @@ class CBlockIndex;
 class CChainState;
 class CDataStream;
 class CMasternodeSync;
-class CNode;
 class CSporkManager;
 class CTxMemPool;
 class PeerManager;
@@ -36,7 +35,12 @@ namespace instantsend {
 class InstantSendSigner;
 } // namespace instantsend
 
-using NodeId = int64_t;
+namespace instantsend {
+struct PendingState {
+    bool m_pending_work{false};
+    std::vector<std::pair<NodeId, MessageProcessingResult>> m_peer_activity{};
+};
+} // namespace PendingState
 
 namespace llmq {
 class CChainLocksHandler;
@@ -98,15 +102,16 @@ public:
     void InterruptWorkerThread() { workInterrupt(); };
 
 private:
-    PeerMsgRet ProcessMessageInstantSendLock(const CNode& pfrom, PeerManager& peerman, const instantsend::InstantSendLockPtr& islock);
-    bool ProcessPendingInstantSendLocks(PeerManager& peerman)
+    instantsend::PendingState ProcessPendingInstantSendLocks()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
 
     std::unordered_set<uint256, StaticSaltedHasher> ProcessPendingInstantSendLocks(
-        const Consensus::LLMQParams& llmq_params, PeerManager& peerman, int signOffset,
-        const std::unordered_map<uint256, std::pair<NodeId, instantsend::InstantSendLockPtr>, StaticSaltedHasher>& pend, bool ban)
+        const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
+        const std::unordered_map<uint256, std::pair<NodeId, instantsend::InstantSendLockPtr>, StaticSaltedHasher>& pend,
+        std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-    void ProcessInstantSendLock(NodeId from, PeerManager& peerman, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
+    MessageProcessingResult ProcessInstantSendLock(NodeId from, const uint256& hash,
+                                                   const instantsend::InstantSendLockPtr& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
 
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
@@ -133,7 +138,7 @@ public:
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
 
-    PeerMsgRet ProcessMessage(const CNode& pfrom, PeerManager& peerman, std::string_view msg_type, CDataStream& vRecv);
+    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv);
 
     void TransactionAddedToMempool(const CTransactionRef& tx)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
