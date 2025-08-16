@@ -189,7 +189,7 @@ static RPCHelpMan getwalletinfo()
                                 {
                                      {RPCResult::Type::NUM, "duration", "elapsed seconds since scan start"},
                                      {RPCResult::Type::NUM, "progress", "scanning progress percentage [0.0, 1.0]"},
-                                }},
+                                }, /*skip_type_check=*/true},
                             {RPCResult::Type::BOOL, "descriptors", "whether this wallet uses descriptors for scriptPubKey management"},
                         },
                 },
