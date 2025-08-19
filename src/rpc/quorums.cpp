@@ -7,6 +7,7 @@
 #include <index/txindex.h>
 #include <net_processing.h>
 #include <node/context.h>
+#include <rpc/evo_util.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>
@@ -204,10 +205,8 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
             const auto& dmn = quorum->members[i];
             UniValue mo(UniValue::VOBJ);
             mo.pushKV("proTxHash", dmn->proTxHash.ToString());
-            if (IsDeprecatedRPCEnabled("service")) {
-                mo.pushKV("service", dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
-            }
-            mo.pushKV("addresses", dmn->pdmnState->netInfo->ToJson());
+            mo.pushKV("service", dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
+            mo.pushKV("addresses", ShimNetInfoPlatform(*dmn->pdmnState, dmn->nType));
             mo.pushKV("pubKeyOperator", dmn->pdmnState->pubKeyOperator.ToString());
             mo.pushKV("valid", static_cast<bool>(quorum->qc->validMembers[i]));
             if (quorum->qc->validMembers[i]) {
