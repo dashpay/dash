@@ -56,13 +56,12 @@ std::string CSimplifiedMNListEntry::ToString() const
         operatorPayoutAddress = EncodeDestination(dest);
     }
 
-    return strprintf("CSimplifiedMNListEntry(nVersion=%d, nType=%d, proRegTxHash=%s, confirmedHash=%s, "
+    return strprintf("CSimplifiedMNListEntry(nVersion=%d, nType=%d, proRegTxHash=%s, confirmedHash=%s, netInfo=%s, "
                      "pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, "
-                     "platformHTTPPort=%d, platformNodeID=%s)\n"
-                     "  %s",
-                     nVersion, ToUnderlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(),
+                     "platformHTTPPort=%d, platformNodeID=%s)\n",
+                     nVersion, ToUnderlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(), netInfo->ToString(),
                      pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress,
-                     operatorPayoutAddress, platformHTTPPort, platformNodeID.ToString(), netInfo->ToString());
+                     operatorPayoutAddress, platformHTTPPort, platformNodeID.ToString());
 }
 
 CSimplifiedMNList::CSimplifiedMNList(std::vector<std::unique_ptr<CSimplifiedMNListEntry>>&& smlEntries)

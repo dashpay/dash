@@ -11,9 +11,13 @@
 
 #include <variant>
 
+class CDeterministicMNStateDiff;
 class CService;
 
 class UniValue;
+
+//! Maximum entries that can be stored in an ExtNetInfo
+static constexpr uint8_t MAX_ENTRIES_EXTNETINFO{4};
 
 enum class NetInfoStatus : uint8_t {
     // Managing entries
@@ -219,6 +223,55 @@ private:
     }
 };
 
+class ExtNetInfo final : public NetInfoInterface
+{
+private:
+    NetInfoStatus ProcessCandidate(const NetInfoEntry& candidate);
+    static NetInfoStatus ValidateService(const CService& service);
+
+private:
+    NetInfoList m_data{};
+
+public:
+    ExtNetInfo() = default;
+    template <typename Stream>
+    ExtNetInfo(deserialize_type, Stream& s) { s >> *this; }
+
+    ~ExtNetInfo() = default;
+
+    SERIALIZE_METHODS(ExtNetInfo, obj)
+    {
+        READWRITE(obj.m_data);
+    }
+
+    NetInfoStatus AddEntry(const std::string& input) override;
+    NetInfoList GetEntries() const override;
+
+    CService GetPrimary() const override;
+    bool IsEmpty() const override { return m_data.empty(); }
+    bool CanStorePlatform() const override
+    {
+        // TODO: Store Platform fields, reporting as true as used to differentiate
+        //       with legacy implementation
+        return true;
+    }
+    NetInfoStatus Validate() const override;
+    UniValue ToJson() const override;
+    std::string ToString() const override;
+
+    void Clear() override { m_data.clear(); }
+
+private:
+    // operator== and operator!= are defined by the parent which then leverage the child's IsEqual() override
+    // IsEqual() should only be called by NetInfoInterface::operator== otherwise static_cast assumption could fail
+    bool IsEqual(const NetInfoInterface& rhs) const override
+    {
+        ASSERT_IF_DEBUG(typeid(*this) == typeid(rhs));
+        const auto& rhs_obj{static_cast<const ExtNetInfo&>(rhs)};
+        return m_data == rhs_obj.m_data;
+    }
+};
+
 class NetInfoSerWrapper
 {
 private:
@@ -232,8 +285,6 @@ public:
         m_data{data},
         m_is_extended{is_extended}
     {
-        // TODO: Remove when extended addresses implementation is added in
-        assert(!m_is_extended);
     }
 
     ~NetInfoSerWrapper() = default;
@@ -241,7 +292,9 @@ public:
     template <typename Stream>
     void Serialize(Stream& s) const
     {
-        if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
+        if (const auto ptr{std::dynamic_pointer_cast<ExtNetInfo>(m_data)}) {
+            s << *ptr;
+        } else if (const auto ptr{std::dynamic_pointer_cast<MnNetInfo>(m_data)}) {
             s << *ptr;
         } else {
             // NetInfoInterface::MakeNetInfo() supplied an unexpected implementation or we didn't call it and
@@ -253,7 +306,11 @@ public:
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        m_data = std::make_shared<MnNetInfo>(deserialize, s);
+        if (m_is_extended) {
+            m_data = std::make_shared<ExtNetInfo>(deserialize, s);
+        } else {
+            m_data = std::make_shared<MnNetInfo>(deserialize, s);
+        }
     }
 };
 
