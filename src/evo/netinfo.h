@@ -188,7 +188,7 @@ public:
     virtual ~NetInfoInterface() = default;
 
     virtual NetInfoStatus AddEntry(const NetInfoPurpose purpose, const std::string& service) = 0;
-    virtual NetInfoList GetEntries() const = 0;
+    virtual NetInfoList GetEntries(std::optional<NetInfoPurpose> purpose_opt = std::nullopt) const = 0;
 
     virtual CService GetPrimary() const = 0;
     virtual bool CanStorePlatform() const = 0;
@@ -246,7 +246,7 @@ public:
     }
 
     NetInfoStatus AddEntry(const NetInfoPurpose purpose, const std::string& service) override;
-    NetInfoList GetEntries() const override;
+    NetInfoList GetEntries(std::optional<NetInfoPurpose> purpose_opt = std::nullopt) const override;
 
     CService GetPrimary() const override;
     bool HasEntries(NetInfoPurpose purpose) const override { return purpose == NetInfoPurpose::CORE_P2P && !IsEmpty(); }
@@ -330,7 +330,7 @@ public:
     }
 
     NetInfoStatus AddEntry(const NetInfoPurpose purpose, const std::string& input) override;
-    NetInfoList GetEntries() const override;
+    NetInfoList GetEntries(std::optional<NetInfoPurpose> purpose_opt = std::nullopt) const override;
 
     CService GetPrimary() const override;
     bool HasEntries(NetInfoPurpose purpose) const override;
