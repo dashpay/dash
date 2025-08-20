@@ -7,6 +7,7 @@
 
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
+#include <llmq/signhash.h>
 
 #include <chainparams.h>
 #include <consensus/params.h>
@@ -21,11 +22,6 @@
 
 using node::BlockManager;
 
-namespace llmq
-{
-// forward declaration to avoid circular dependency
-uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash);
-} // llmq
 
 /**
  *  Common code for Asset Lock and Asset Unlock
@@ -150,7 +146,7 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint
 
     const uint256 requestId = ::SerializeHash(std::make_pair(ASSETUNLOCK_REQUESTID_PREFIX, index));
 
-    if (const uint256 signHash = llmq::BuildSignHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
+    if (const uint256 signHash = llmq::SignHash(llmqType, quorum->qc->quorumHash, requestId, msgHash).Get();
             quorumSig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash)) {
         return true;
     }
