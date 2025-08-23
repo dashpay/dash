@@ -6,8 +6,8 @@
 #include <evo/specialtx.h>
 
 #include <llmq/commitment.h>
-#include <llmq/signing.h>
 #include <llmq/quorums.h>
+#include <llmq/signhash.h>
 
 #include <chainparams.h>
 #include <consensus/params.h>
@@ -21,6 +21,7 @@
 #include <algorithm>
 
 using node::BlockManager;
+
 
 /**
  *  Common code for Asset Lock and Asset Unlock
@@ -145,8 +146,8 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint
 
     const uint256 requestId = ::SerializeHash(std::make_pair(ASSETUNLOCK_REQUESTID_PREFIX, index));
 
-    if (const uint256 signHash = llmq::BuildSignHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
-            quorumSig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash)) {
+    if (const llmq::SignHash signHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
+            quorumSig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash.Get())) {
         return true;
     }
 

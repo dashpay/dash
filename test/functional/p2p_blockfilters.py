@@ -9,6 +9,12 @@ NODE_COMPACT_FILTERS and can serve cfilters, cfheaders and cfcheckpts.
 """
 
 from test_framework.messages import (
+    CAssetLockTx,
+    COIN,
+    COutPoint,
+    CTransaction,
+    CTxIn,
+    CTxOut,
     FILTER_TYPE_BASIC,
     NODE_COMPACT_FILTERS,
     hash256,
@@ -16,13 +22,23 @@ from test_framework.messages import (
     msg_getcfheaders,
     msg_getcfilters,
     ser_uint256,
+    tx_from_hex,
     uint256_from_str,
 )
 from test_framework.p2p import P2PInterface
+from test_framework.script import (
+    CScript,
+    OP_RETURN,
+)
+from test_framework.script_util import (
+    key_to_p2pkh_script,
+)
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
 )
+from test_framework.key import ECKey
+from decimal import Decimal
 
 class FiltersClient(P2PInterface):
     def __init__(self):
@@ -50,13 +66,23 @@ class CompactFiltersTest(BitcoinTestFramework):
             ["-blockfilterindex"],
         ]
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         # Node 0 supports COMPACT_FILTERS, node 1 does not.
         peer_0 = self.nodes[0].add_p2p_connection(FiltersClient())
         peer_1 = self.nodes[1].add_p2p_connection(FiltersClient())
 
+        # Ensure node 0 has a wallet so block rewards are saved for later use
+        if not self.nodes[0].listwallets():
+            self.nodes[0].createwallet(wallet_name="")
+
+        # Get an address to mine to so we receive the rewards
+        mining_addr = self.nodes[0].getnewaddress()
+
         # Nodes 0 & 1 share the same first 999 blocks in the chain.
-        self.generate(self.nodes[0], 999)
+        self.generatetoaddress(self.nodes[0], 999, mining_addr)
 
         # Stale blocks by disconnecting nodes 0 & 1, mining, then reconnecting
         self.disconnect_nodes(0, 1)
@@ -279,6 +305,227 @@ class CompactFiltersTest(BitcoinTestFramework):
             'Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.',
             extra_args=['-blockfilterindex', '-reindex-chainstate'],
         )
+
+        self.test_special_transactions_in_filters()
+
+    def create_simple_assetlock(self, amount_locked):
+        """Create a simple AssetLockTx for testing"""
+        node = self.nodes[0]
+
+        # Get a coin to lock
+        unspent = node.listunspent()[0]
+
+        # Create a key for the credit outputs
+        key = ECKey()
+        key.generate()
+        pubkey = key.get_pubkey().get_bytes()
+
+        # Create the AssetLockTx
+        inputs = [CTxIn(COutPoint(int(unspent["txid"], 16), unspent["vout"]))]
+
+        # Credit outputs (what will be credited on Platform)
+        credit_outputs = [CTxOut(int(amount_locked * COIN), key_to_p2pkh_script(pubkey))]
+
+        # AssetLock payload
+        lock_tx_payload = CAssetLockTx(1, credit_outputs)
+
+        # Calculate remaining amount (minus small fee)
+        fee = Decimal("0.0001")
+        remaining = Decimal(str(unspent['amount'])) - amount_locked - fee
+
+        # Create the transaction
+        lock_tx = CTransaction()
+        lock_tx.vin = inputs
+
+        # Add change output if there's remaining amount
+        if remaining > 0:
+            change_addr = node.getnewaddress()
+            change_script = bytes.fromhex(node.validateaddress(change_addr)['scriptPubKey'])
+            lock_tx.vout = [CTxOut(int(remaining * COIN), change_script)]
+
+        # Add OP_RETURN output with the locked amount
+        lock_tx.vout.append(CTxOut(int(amount_locked * COIN), CScript([OP_RETURN, b""])))
+
+        lock_tx.nVersion = 3
+        lock_tx.nType = 8  # asset lock type
+        lock_tx.vExtraPayload = lock_tx_payload.serialize()
+
+        # Sign the transaction
+        tx_hex = lock_tx.serialize().hex()
+        signed_tx = node.signrawtransactionwithwallet(tx_hex)
+        return tx_from_hex(signed_tx["hex"]), pubkey
+
+    def test_special_transactions_in_filters(self):
+        """Test that special transactions are included in block filters.
+
+        Note: This functional test only covers AssetLockTx transactions because:
+        - ProRegTx requires 1000 DASH collateral and masternode setup
+        - ProUpServTx/ProUpRegTx/ProUpRevTx require existing masternodes
+        - All special transaction types are comprehensively tested in unit tests
+          (see src/test/blockfilter_tests.cpp)
+
+        The test verifies filter functionality by comparing filter sizes between
+        blocks with and without special transactions, as GCS filter decoding
+        is not readily available in Python test framework.
+        """
+        self.log.info("Test that special transactions are included in block filters")
+
+        # Restart node 0 with blockfilterindex enabled
+        self.restart_node(0, extra_args=["-blockfilterindex", "-peerblockfilters"])
+
+        # Test AssetLockTx transactions
+        self.test_assetlock_basic()
+        self.test_assetlock_multiple_outputs()
+
+        self.log.info("Special transaction block filter test completed successfully")
+
+    def test_assetlock_basic(self):
+        """Test that AssetLockTx credit outputs are included in block filters"""
+        self.log.info("Testing AssetLockTx in block filters...")
+
+        node = self.nodes[0]
+
+        # Create an AssetLockTx
+        amount_to_lock = Decimal("0.1")
+        lock_tx, pubkey = self.create_simple_assetlock(amount_to_lock)
+
+        # Send the transaction
+        txid = node.sendrawtransaction(lock_tx.serialize().hex())
+
+        # Verify it's recognized as an AssetLockTx
+        tx_details = node.getrawtransaction(txid, True)
+        assert tx_details.get('type') == 8, f"Expected type 8 (AssetLockTx), got {tx_details.get('type')}"
+        # Note: vExtraPayload may not appear in RPC output but the transaction is still valid
+
+        # Mine it into a block
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+
+        # Verify the transaction is in the block with the assetLockTx field
+        block = node.getblock(block_hash, 2)
+        found_tx = None
+        for tx in block['tx']:
+            if tx['txid'] == txid:
+                found_tx = tx
+                break
+
+        assert found_tx is not None, f"Transaction {txid} not found in block"
+        assert 'assetLockTx' in found_tx, "Mined transaction should have assetLockTx field"
+        assert 'creditOutputs' in found_tx['assetLockTx'], "AssetLockTx should have creditOutputs"
+        assert len(found_tx['assetLockTx']['creditOutputs']) >= 1, "Expected at least one credit output"
+
+        # Get the filter
+        filter_result = node.getblockfilter(block_hash, 'basic')
+        assert 'filter' in filter_result, "Block should have a filter"
+
+        # To properly verify, we'll create a control block without special tx
+        # and compare filter sizes
+        control_block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        control_filter = node.getblockfilter(control_block_hash, 'basic')
+
+        # The block with AssetLockTx should have a larger filter due to credit outputs
+        special_filter_size = len(filter_result['filter'])
+        control_filter_size = len(control_filter['filter'])
+
+        self.log.debug(f"Filter with AssetLockTx: {special_filter_size} hex chars")
+        self.log.debug(f"Control filter: {control_filter_size} hex chars")
+
+        # The filter with special tx should be larger (credit outputs add data)
+        assert special_filter_size > control_filter_size, \
+            "Filter with AssetLockTx credit outputs should be larger than control"
+
+        self.log.info("AssetLockTx basic test passed")
+
+    def test_assetlock_multiple_outputs(self):
+        """Test that multiple AssetLockTx credit outputs are all included in block filters"""
+        self.log.info("Testing AssetLockTx with multiple credit outputs...")
+
+        node = self.nodes[0]
+
+        # Create an AssetLockTx with multiple credit outputs
+        # This tests that all credit outputs are properly included in the filter
+
+        # Create keys for multiple credit outputs
+        key1 = ECKey()
+        key1.generate()
+        pubkey1 = key1.get_pubkey().get_bytes()
+
+        key2 = ECKey()
+        key2.generate()
+        pubkey2 = key2.get_pubkey().get_bytes()
+
+        # Get a coin to lock
+        unspent = node.listunspent()[0]
+
+        # Create the AssetLockTx with multiple credit outputs
+        inputs = [CTxIn(COutPoint(int(unspent["txid"], 16), unspent["vout"]))]
+
+        # Multiple credit outputs
+        amount1 = Decimal("0.03")
+        amount2 = Decimal("0.04")
+        credit_outputs = [
+            CTxOut(int(amount1 * COIN), key_to_p2pkh_script(pubkey1)),
+            CTxOut(int(amount2 * COIN), key_to_p2pkh_script(pubkey2))
+        ]
+
+        # AssetLock payload
+        lock_tx_payload = CAssetLockTx(1, credit_outputs)
+
+        # Calculate remaining amount
+        fee = Decimal("0.0001")
+        total_locked = amount1 + amount2
+        remaining = Decimal(str(unspent['amount'])) - total_locked - fee
+
+        # Create the transaction
+        lock_tx = CTransaction()
+        lock_tx.vin = inputs
+
+        # Add change output
+        if remaining > 0:
+            change_addr = node.getnewaddress()
+            change_script = bytes.fromhex(node.validateaddress(change_addr)['scriptPubKey'])
+            lock_tx.vout = [CTxOut(int(remaining * COIN), change_script)]
+
+        # Add OP_RETURN output
+        lock_tx.vout.append(CTxOut(int(total_locked * COIN), CScript([OP_RETURN, b""])))
+
+        lock_tx.nVersion = 3
+        lock_tx.nType = 8  # asset lock type
+        lock_tx.vExtraPayload = lock_tx_payload.serialize()
+
+        # Sign and send the transaction
+        signed_hex = node.signrawtransactionwithwallet(lock_tx.serialize().hex())["hex"]
+        txid = node.sendrawtransaction(signed_hex)
+
+        # Mine it into a block
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+
+        # Verify our tx is included and has the expected special payload
+        block = node.getblock(block_hash, 2)
+        tx = next((t for t in block["tx"] if t["txid"] == txid), None)
+        assert tx is not None, f"AssetLockTx {txid} not found in block {block_hash}"
+        assert "assetLockTx" in tx, "Mined transaction should have assetLockTx field"
+        assert "creditOutputs" in tx["assetLockTx"], "AssetLockTx should have creditOutputs"
+
+        # Get the filter to verify it was created
+        filter_result = node.getblockfilter(block_hash, 'basic')
+        assert 'filter' in filter_result, "Block should have a filter"
+
+        # Compare with a control block to verify multiple credit outputs increase filter size
+        control_block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        control_filter = node.getblockfilter(control_block_hash, 'basic')
+
+        # Filter with multiple credit outputs should be larger than control
+        multi_output_filter_size = len(filter_result['filter'])
+        control_filter_size = len(control_filter['filter'])
+
+        self.log.debug(f"Filter with multiple outputs: {multi_output_filter_size} hex chars")
+        self.log.debug(f"Control filter: {control_filter_size} hex chars")
+
+        assert multi_output_filter_size > control_filter_size, \
+            "Filter with multiple AssetLockTx credit outputs should be larger than control"
+
+        self.log.info("AssetLockTx multiple outputs test passed")
+
 
 def compute_last_header(prev_header, hashes):
     """Compute the last filter header from a starting header and a sequence of filter hashes."""
