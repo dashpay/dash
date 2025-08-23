@@ -194,6 +194,7 @@ BITCOIN_CORE_H = \
   evo/providertx.h \
   evo/simplifiedmns.h \
   evo/specialtx.h \
+  evo/specialtx_filter.h \
   evo/specialtxman.h \
   dsnotificationinterface.h \
   governance/governance.h \
@@ -460,6 +461,7 @@ libbitcoin_server_a_SOURCES = \
   evo/providertx.cpp \
   evo/simplifiedmns.cpp \
   evo/specialtx.cpp \
+  evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \
   flatfile.cpp \
   governance/classes.cpp \
