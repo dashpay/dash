@@ -132,7 +132,7 @@ CTransactionBuilder::CTransactionBuilder(CWallet& wallet, const CompactTallyItem
     // Create dummy tx to calculate the exact required fees upfront for accurate amount and fee calculations
     CMutableTransaction dummyTx;
     // Select all tallyItem outputs in the coinControl so that CreateTransaction knows what to use
-    for (const auto& outpoint : tallyItem.outpoints) {
+    for (const auto& [_, outpoint] : tallyItem.coins) {
         coinControl.Select(outpoint);
         dummyTx.vin.emplace_back(outpoint, CScript());
     }

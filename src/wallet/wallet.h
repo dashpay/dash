@@ -128,12 +128,11 @@ class ReserveDestination;
 
 extern RecursiveMutex cs_main;
 
-/** (client) version numbers for particular wallet features */
 struct CompactTallyItem
 {
     CTxDestination txdest;
     CAmount nAmount{0};
-    std::vector<COutPoint> outpoints;
+    std::vector<std::pair<CAmount, COutPoint>> coins{};
     CompactTallyItem() = default;
 };
 

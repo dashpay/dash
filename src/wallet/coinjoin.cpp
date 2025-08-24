@@ -169,7 +169,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
 
             auto itTallyItem = mapTally.find(txdest);
             if (nMaxOutpointsPerAddress != -1 && itTallyItem != mapTally.end() &&
-                int64_t(itTallyItem->second.outpoints.size()) >= nMaxOutpointsPerAddress) {
+                int64_t(itTallyItem->second.coins.size()) >= nMaxOutpointsPerAddress) {
                 continue;
             }
 
@@ -194,7 +194,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
                 itTallyItem->second.txdest = txdest;
             }
             itTallyItem->second.nAmount += wtx.tx->vout[i].nValue;
-            itTallyItem->second.outpoints.emplace_back(COutPoint{outpoint.hash, i});
+            itTallyItem->second.coins.emplace_back(wtx.tx->vout[i].nValue, COutPoint{outpoint.hash, i});
         }
     }
 
