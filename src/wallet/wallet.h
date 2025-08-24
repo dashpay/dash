@@ -650,7 +650,7 @@ public:
     void ReacceptWalletTransactions() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void ResendWalletTransactions();
 
-    CAmount GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfirmed) const;
+    CAmount GetAnonymizableBalance(bool fSkipDenominated, bool fSkipMnCollateral, bool fSkipUnconfirmed) const;
     float GetAverageAnonymizedRounds() const;
     CAmount GetNormalizedAnonymizedBalance() const;
 

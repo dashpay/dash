@@ -431,9 +431,9 @@ public:
         return true;
     }
     CAmount getBalance() override { return GetBalance(*m_wallet).m_mine_trusted; }
-    CAmount getAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfirmed) override
+    CAmount getAnonymizableBalance(bool fSkipDenominated, bool fSkipMnCollateral, bool fSkipUnconfirmed) override
     {
-        return m_wallet->GetAnonymizableBalance(fSkipDenominated, fSkipUnconfirmed);
+        return m_wallet->GetAnonymizableBalance(fSkipDenominated, fSkipMnCollateral, fSkipUnconfirmed);
     }
     CAmount getNormalizedAnonymizedBalance() override
     {

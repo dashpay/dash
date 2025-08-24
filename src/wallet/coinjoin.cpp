@@ -181,7 +181,6 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
             if (fAnonymizable) {
                 // ignore collaterals
                 if (CoinJoin::IsCollateralAmount(wtx.tx->vout[i].nValue)) continue;
-                if (fMasternodeMode && dmn_types::IsCollateralAmount(wtx.tx->vout[i].nValue)) continue;
                 // ignore outputs that are 10 times smaller then the smallest denomination
                 // otherwise they will just lead to higher fee / lower priority
                 if (wtx.tx->vout[i].nValue <= nSmallestDenom / 10) continue;
@@ -431,7 +430,7 @@ CAmount GetBalanceAnonymized(const CWallet& wallet, const CCoinControl& coinCont
     return anonymized_amount;
 }
 
-CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfirmed) const
+CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipMnCollateral, bool fSkipUnconfirmed) const
 {
     if (!CCoinJoinClientOptions::IsEnabled()) return 0;
 
@@ -447,7 +446,15 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
         bool fIsDenominated = CoinJoin::IsDenominatedAmount(item.nAmount);
         if (fSkipDenominated && fIsDenominated) continue;
         // assume that the fee to create denoms should be mixing collateral at max
-        if (item.nAmount >= nSmallestDenom + (fIsDenominated ? 0 : nMixingCollateral)) nTotal += item.nAmount;
+        if (item.nAmount < nSmallestDenom + (fIsDenominated ? 0 : nMixingCollateral)) continue;
+        nTotal += item.nAmount;
+        if (!fSkipMnCollateral) continue;
+        // Exclude collateral outpoints value from total
+        for (const auto& [amount, _] : item.coins) {
+            if (dmn_types::IsCollateralAmount(amount)) {
+                nTotal -= amount;
+            }
+        }
     }
 
     return nTotal;
