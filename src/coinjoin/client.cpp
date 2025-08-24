@@ -849,7 +849,8 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
         }
 
         // including denoms but applying some restrictions
-        CAmount nBalanceAnonymizable = m_wallet->GetAnonymizableBalance();
+        const CAmount nBalanceAnonymizable{m_wallet->GetAnonymizableBalance(
+            /*fSkipDenominated=*/false, /*fSkipUnconfirmed=*/true)};
 
         // mixable balance is way too small
         if (nBalanceAnonymizable < nValueMin) {
@@ -859,12 +860,14 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
         }
 
         // excluding denoms
-        CAmount nBalanceAnonimizableNonDenom = m_wallet->GetAnonymizableBalance(true);
+        const CAmount nBalanceAnonimizableNonDenom{m_wallet->GetAnonymizableBalance(
+            /*fSkipDenominated=*/true, /*fSkipUnconfirmed=*/true)};
+
         // denoms
-        CAmount nBalanceDenominatedConf = bal.m_denominated_trusted;
-        CAmount nBalanceDenominatedUnconf = bal.m_denominated_untrusted_pending;
-        CAmount nBalanceDenominated = nBalanceDenominatedConf + nBalanceDenominatedUnconf;
-        CAmount nBalanceToDenominate = CCoinJoinClientOptions::GetAmount() * COIN - nBalanceDenominated;
+        const CAmount nBalanceDenominatedConf{bal.m_denominated_trusted};
+        const CAmount nBalanceDenominatedUnconf{bal.m_denominated_untrusted_pending};
+        const CAmount nBalanceDenominated{nBalanceDenominatedConf + nBalanceDenominatedUnconf};
+        const CAmount nBalanceToDenominate{CCoinJoinClientOptions::GetAmount() * COIN - nBalanceDenominated};
 
         // adjust nBalanceNeedsAnonymized to consume final denom
         if (nBalanceDenominated - nBalanceAnonymized > nBalanceNeedsAnonymized) {
