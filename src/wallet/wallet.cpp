@@ -1477,7 +1477,7 @@ bool CWallet::CanGetAddresses(bool internal) const
 {
     LOCK(cs_wallet);
     if (m_spk_managers.empty()) return false;
-    auto spk_man = GetScriptPubKeyMan(internal);
+    auto spk_man = GetScriptPubKeyMan(internal ? InternalKey::Internal : InternalKey::External);
     if (spk_man && spk_man->CanGetAddresses(internal)) {
         return true;
     }
@@ -2354,7 +2354,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
 util::Result<CTxDestination> CWallet::GetNewDestination(const std::string label)
 {
     LOCK(cs_wallet);
-    auto spk_man = GetScriptPubKeyMan(false /* internal */);
+    auto spk_man = GetScriptPubKeyMan(InternalKey::External);
     if (!spk_man) {
         return util::Error{_("Error: No addresses available.")};
     }
@@ -2447,7 +2447,7 @@ std::set<std::string> CWallet::ListAddrBookLabels(const std::string& purpose) co
 
 util::Result<CTxDestination> ReserveDestination::GetReservedDestination(bool fInternalIn)
 {
-    m_spk_man = pwallet->GetScriptPubKeyMan(fInternalIn);
+    m_spk_man = pwallet->GetScriptPubKeyMan(fInternalIn ? InternalKey::Internal : InternalKey::External);
     if (!m_spk_man) {
         return util::Error{_("Error: No addresses available.")};
     }
@@ -3638,7 +3638,7 @@ bool CWallet::Unlock(const CKeyingMaterial& vMasterKeyIn, bool fForMixingOnly, b
 std::set<ScriptPubKeyMan*> CWallet::GetActiveScriptPubKeyMans() const
 {
     std::set<ScriptPubKeyMan*> spk_mans;
-    for (bool internal : {false, true}) {
+    for (auto internal : {InternalKey::Internal, InternalKey::External, InternalKey::CoinJoin}) {
         auto spk_man = GetScriptPubKeyMan(internal);
         if (spk_man) {
             spk_mans.insert(spk_man);
@@ -3656,13 +3656,18 @@ std::set<ScriptPubKeyMan*> CWallet::GetAllScriptPubKeyMans() const
     return spk_mans;
 }
 
-ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(bool internal) const
+ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(InternalKey internal) const
 {
-    const auto spk_manager = internal ? m_internal_spk_managers : m_external_spk_managers;
-    if (spk_manager == nullptr) {
-        return nullptr;
-    }
-    return spk_manager;
+    switch (internal)
+    {
+    case InternalKey::Internal:
+        return m_internal_spk_managers;
+    case InternalKey::External:
+        return m_external_spk_managers;
+    case InternalKey::CoinJoin:
+        return m_coinjoin_spk_managers;
+    } // no default to let compiler warn us
+    return nullptr;
 }
 
 std::set<ScriptPubKeyMan*> CWallet::GetScriptPubKeyMans(const CScript& script, SignatureData& sigdata) const
@@ -3787,7 +3792,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
     CExtKey master_key;
     master_key.SetSeed(MakeByteSpan(seed_key));
 
-    for (bool internal : {false, true}) {
+    for (auto internal : {InternalKey::External, InternalKey::Internal, InternalKey::CoinJoin}) {
         { // OUTPUT_TYPE is only one: LEGACY
             auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this));
             if (IsCrypted()) {
@@ -3806,7 +3811,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
     }
 }
 
-void CWallet::AddActiveScriptPubKeyMan(uint256 id, bool internal)
+void CWallet::AddActiveScriptPubKeyMan(uint256 id, InternalKey internal)
 {
     WalletBatch batch(GetDatabase());
     if (!batch.WriteActiveScriptPubKeyMan(id, internal)) {
@@ -3815,29 +3820,48 @@ void CWallet::AddActiveScriptPubKeyMan(uint256 id, bool internal)
     LoadActiveScriptPubKeyMan(id, internal);
 }
 
-void CWallet::LoadActiveScriptPubKeyMan(uint256 id, bool internal)
+void CWallet::LoadActiveScriptPubKeyMan(uint256 id, InternalKey internal)
 {
     // Activating ScriptPubKeyManager for a given output and change type is incompatible with legacy wallets.
     // Legacy wallets have only one ScriptPubKeyManager and it's active for all output and change types.
     Assert(IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
 
-    WalletLogPrintf("Setting spkMan to active: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(OutputType::LEGACY), internal ? "true" : "false");
-    auto& spk_mans = internal ? m_internal_spk_managers : m_external_spk_managers;
-    auto& spk_mans_other = internal ? m_external_spk_managers : m_internal_spk_managers;
-    auto spk_man = m_spk_managers.at(id).get();
-    spk_mans = spk_man;
+    WalletLogPrintf("Setting spkMan to active: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(OutputType::LEGACY), internal == InternalKey::Internal ? "true" : "false");
 
-    if (spk_mans_other == spk_man) {
-        spk_mans_other = nullptr;
+    auto spk_man = m_spk_managers.at(id).get();
+    switch (internal) {
+    case InternalKey::Internal:
+        m_internal_spk_managers = spk_man;
+        break;
+
+    case InternalKey::External:
+        m_external_spk_managers = spk_man;
+        break;
+    case InternalKey::CoinJoin:
+        m_coinjoin_spk_managers = spk_man;
+        break;
+    }
+
+    // no default case to let compiler hint it
+    if (internal != InternalKey::Internal && m_internal_spk_managers == spk_man) {
+        m_internal_spk_managers = nullptr;
+    }
+
+    if (internal != InternalKey::External && m_external_spk_managers == spk_man) {
+        m_external_spk_managers = nullptr;
+    }
+    if (internal != InternalKey::CoinJoin && m_coinjoin_spk_managers == spk_man) {
+        m_coinjoin_spk_managers = nullptr;
     }
 
     NotifyCanGetAddressesChanged();
 
 }
 
+// TODO: probably need to support InternalKey here
 void CWallet::DeactivateScriptPubKeyMan(uint256 id, bool internal)
 {
-    auto spk_man = GetScriptPubKeyMan(internal);
+    auto spk_man = GetScriptPubKeyMan(internal ? InternalKey::Internal : InternalKey::External);
     if (spk_man != nullptr && spk_man->GetID() == id) {
         WalletLogPrintf("Deactivate spkMan: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(OutputType::LEGACY), internal ? "true" : "false");
         WalletBatch batch(GetDatabase());

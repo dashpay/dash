@@ -394,6 +394,7 @@ private:
 
     ScriptPubKeyMan* m_external_spk_managers{nullptr};
     ScriptPubKeyMan* m_internal_spk_managers{nullptr};
+    ScriptPubKeyMan* m_coinjoin_spk_managers{nullptr};
 
     // Indexed by a unique identifier produced by each ScriptPubKeyMan using
     // ScriptPubKeyMan::GetID. In many cases it will be the hash of an internal structure
@@ -984,7 +985,7 @@ public:
     std::set<ScriptPubKeyMan*> GetAllScriptPubKeyMans() const;
 
     //! Get the ScriptPubKeyMan for internal/external chain.
-    ScriptPubKeyMan* GetScriptPubKeyMan(bool internal) const;
+    ScriptPubKeyMan* GetScriptPubKeyMan(InternalKey internal) const;
 
     //! Get the ScriptPubKeyMan for a script
     ScriptPubKeyMan* GetScriptPubKeyMan(const CScript& script) const;
@@ -1039,12 +1040,12 @@ public:
     //! Adds the active ScriptPubKeyMan for the specified type and internal. Writes it to the wallet file
     //! @param[in] id The unique id for the ScriptPubKeyMan
     //! @param[in] internal Whether this ScriptPubKeyMan provides change addresses
-    void AddActiveScriptPubKeyMan(uint256 id, bool internal);
+    void AddActiveScriptPubKeyMan(uint256 id, InternalKey internal);
 
     //! Loads an active ScriptPubKeyMan for the specified type and internal. (used by LoadWallet)
     //! @param[in] id The unique id for the ScriptPubKeyMan
     //! @param[in] internal Whether this ScriptPubKeyMan provides change addresses
-    void LoadActiveScriptPubKeyMan(uint256 id, bool internal);
+    void LoadActiveScriptPubKeyMan(uint256 id, InternalKey internal);
 
     //! Remove specified ScriptPubKeyMan from set of active SPK managers. Writes the change to the wallet file.
     //! @param[in] id The unique id for the ScriptPubKeyMan

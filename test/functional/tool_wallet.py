@@ -266,7 +266,8 @@ class ToolWalletTest(BitcoinTestFramework):
         shasum_before = self.wallet_shasum()
         timestamp_before = self.wallet_timestamp()
         self.log.debug('Wallet file timestamp before calling create: {}'.format(timestamp_before))
-        out = "Topping up keypool...\n" + self.get_expected_info_output(name="foo", keypool=2000)
+        keypool_size = 3000 if self.options.descriptors else 2000
+        out = "Topping up keypool...\n" + self.get_expected_info_output(name="foo", keypool=keypool_size)
         self.assert_tool_output(out, '-wallet=foo', 'create')
         shasum_after = self.wallet_shasum()
         timestamp_after = self.wallet_timestamp()

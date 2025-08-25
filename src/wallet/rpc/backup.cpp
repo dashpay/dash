@@ -1783,7 +1783,7 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             if (!w_desc.descriptor->GetOutputType()) {
                 warnings.push_back("Unknown output type, cannot set descriptor to active.");
             } else {
-                wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), internal);
+                wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), internal ? InternalKey::Internal : InternalKey::External);
             }
         } else {
             if (w_desc.descriptor->GetOutputType()) {
@@ -1976,6 +1976,7 @@ RPCHelpMan listdescriptors()
                     {RPCResult::Type::NUM, "timestamp", "The creation time of the descriptor"},
                     {RPCResult::Type::BOOL, "active", "Whether this descriptor is currently used to generate new addresses"},
                     {RPCResult::Type::BOOL, "internal", /*optional=*/true, "True if this descriptor is used to generate change addresses. False if this descriptor is used to generate receiving addresses; defined only for active descriptors"},
+                    {RPCResult::Type::BOOL, "coinjoin", /*optional=*/true, "True if this descriptor is used to generate CoinJoin addresses. False if this descriptor is used to generate receiving addresses; defined only for active descriptors"},
                     {RPCResult::Type::ARR_FIXED, "range", /*optional=*/true, "Defined only for ranged descriptors", {
                         {RPCResult::Type::NUM, "", "Range start inclusive"},
                         {RPCResult::Type::NUM, "", "Range end inclusive"},
@@ -2034,7 +2035,10 @@ RPCHelpMan listdescriptors()
         spk.pushKV("active", active);
         const auto& type = wallet_descriptor.descriptor->GetOutputType();
         if (active && type != std::nullopt) {
-            spk.pushKV("internal", wallet->GetScriptPubKeyMan(true) == desc_spk_man);
+            spk.pushKV("internal", wallet->GetScriptPubKeyMan(InternalKey::Internal) == desc_spk_man);
+        }
+        if (active && type != std::nullopt) {
+            spk.pushKV("coinjoin", wallet->GetScriptPubKeyMan(InternalKey::CoinJoin) == desc_spk_man);
         }
         if (wallet_descriptor.descriptor->IsRange()) {
             UniValue range(UniValue::VARR);

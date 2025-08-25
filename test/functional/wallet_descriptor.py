@@ -41,7 +41,7 @@ class WalletDescriptorTest(BitcoinTestFramework):
         wallet_info = self.nodes[0].getwalletinfo()
         assert_equal(wallet_info['format'], 'sqlite')
         assert_equal(wallet_info['keypoolsize'], 100)
-        assert_equal(wallet_info['keypoolsize_hd_internal'], 100)
+        assert_equal(wallet_info['keypoolsize_hd_internal'], 200)
         assert 'keypoololdest' not in wallet_info
 
         # Check that getnewaddress works

@@ -152,9 +152,10 @@ class CreateWalletTest(BitcoinTestFramework):
         # There should only be 1 key for legacy, 1 for descriptors (dash has only one type of addresses)
         walletinfo = w6.getwalletinfo()
         keys = 1 if self.options.descriptors else 1
+        cj_keys = 1 if self.options.descriptors else 0
         assert_equal(walletinfo['keypoolsize'], keys)
         # hd_internals are not refilled by default for descriptor wallets atm
-        assert_equal(walletinfo['keypoolsize_hd_internal'], keys)
+        assert_equal(walletinfo['keypoolsize_hd_internal'], keys + cj_keys)
         # Allow empty passphrase, but there should be a warning
         resp = self.nodes[0].createwallet(wallet_name='w7', disable_private_keys=False, blank=False, passphrase='')
         assert 'Empty string given as passphrase, wallet will not be encrypted.' in resp['warning']

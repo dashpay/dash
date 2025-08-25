@@ -31,7 +31,7 @@ class CMasterKey;
 class CWallet;
 class CWalletTx;
 struct WalletContext;
-
+enum class InternalKey;
 /**
  * Overview of wallet database classes:
  *
@@ -61,6 +61,7 @@ namespace DBKeys {
 extern const std::string ACENTRY;
 extern const std::string ACTIVEEXTERNALSPK;
 extern const std::string ACTIVEINTERNALSPK;
+extern const std::string ACTIVECOINJOINSPK;
 extern const std::string BESTBLOCK;
 extern const std::string BESTBLOCK_NOMERKLE;
 extern const std::string CRYPTED_HDCHAIN;
@@ -229,7 +230,7 @@ public:
     /// Erase destination data tuple from wallet database
     bool EraseDestData(const std::string &address, const std::string &key);
 
-    bool WriteActiveScriptPubKeyMan(const uint256& id, bool internal);
+    bool WriteActiveScriptPubKeyMan(const uint256& id, InternalKey internal);
     bool EraseActiveScriptPubKeyMan(bool internal);
 
     DBErrors LoadWallet(CWallet* pwallet);

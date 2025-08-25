@@ -86,8 +86,8 @@ class KeyPoolTest(BitcoinTestFramework):
         nodes[0].walletlock()
         wi = nodes[0].getwalletinfo()
         if self.options.descriptors:
-            # this counters are zero, bitcoin have here 6 * 3 (3 different types)
-            assert_equal(wi['keypoolsize_hd_internal'], 6)
+            # dash has only 1 type of output addresses + cj addresses
+            assert_equal(wi['keypoolsize_hd_internal'], 6 + 6)
             assert_equal(wi['keypoolsize'], 6)
         else:
             assert_equal(wi['keypoolsize_hd_internal'], 6)
@@ -153,8 +153,8 @@ class KeyPoolTest(BitcoinTestFramework):
         nodes[0].keypoolrefill(100)
         wi = nodes[0].getwalletinfo()
         if self.options.descriptors:
-            # dash has only 1 type of output addresses
-            assert_equal(wi['keypoolsize_hd_internal'], 100)
+            # dash has only 1 type of output addresses + cj addresses
+            assert_equal(wi['keypoolsize_hd_internal'], 100 + 100)
             assert_equal(wi['keypoolsize'], 100)
         else:
             assert_equal(wi['keypoolsize_hd_internal'], 100)
