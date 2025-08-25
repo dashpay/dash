@@ -1529,6 +1529,8 @@ class DashTestFramework(BitcoinTestFramework):
         # This is EXPIRATION_TIMEOUT + EXPIRATION_BIAS in CQuorumDataRequest
         self.quorum_data_request_expiration_timeout = 360
 
+        # used by helper mine_cycle_quorum
+        self.cycle_quorum_is_ready = False
 
     def delay_v20_and_mn_rr(self, height=None):
         self.v20_height = height
@@ -1930,7 +1932,7 @@ class DashTestFramework(BitcoinTestFramework):
     # due to privacy reasons random delay is used before sending transaction by network
     # most times is just 2-5 seconds, but once in 1000 it's up to 1000 seconds.
     # it's recommended to bump mocktime for 30 seconds before wait_for_instantlock
-    def wait_for_instantlock(self, txid, node, expected=True, timeout=60):
+    def wait_for_instantlock(self, txid, node, timeout=60):
 
         def check_instantlock():
             try:
@@ -1939,8 +1941,7 @@ class DashTestFramework(BitcoinTestFramework):
                 return False
 
         self.log.info(f"Expecting InstantLock for {txid}")
-        if self.wait_until(check_instantlock, timeout=timeout, do_assert=expected) and not expected:
-            raise AssertionError("waiting unexpectedly succeeded")
+        self.wait_until(check_instantlock, timeout=timeout)
 
     def wait_for_chainlocked_block(self, node, block_hash, expected=True, timeout=15):
         def check_chainlocked_block():
@@ -2195,7 +2196,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         return new_quorum
 
-    def mine_cycle_quorum(self, is_first=True):
+    def mine_cycle_quorum(self):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -2218,9 +2219,11 @@ class DashTestFramework(BitcoinTestFramework):
 
         skip_count = cycle_length - (cur_block % cycle_length)
         # move forward to next 3 DKG rounds for the first quorum
-        extra_blocks = 24 * 3 if is_first else 0
+        extra_blocks = 0 if self.cycle_quorum_is_ready else 24 * 3
         self.move_blocks(nodes, extra_blocks + skip_count)
         self.log.info('Moved from block %d to %d' % (cur_block, self.nodes[0].getblockcount()))
+
+        self.cycle_quorum_is_ready = True
 
         q_0 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_0 at:" + str(self.nodes[0].getblockcount()))
