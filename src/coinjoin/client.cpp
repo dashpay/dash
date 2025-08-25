@@ -1430,7 +1430,8 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
     // Knowing that each CTxIn is at least 148 B big, 400 inputs should take 400 x ~148 B = ~60 kB.
     // This still leaves more than enough room for another data of typical MakeCollateralAmounts tx.
-    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(false, false, true, 400);
+    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(
+        /*fSkipDenominated=*/false, /*fAnonymizable=*/false, /*fSkipUnconfirmed=*/true, /*nMaxOutpointsPerAddress=*/400);
     if (vecTally.empty()) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::MakeCollateralAmounts -- SelectCoinsGroupedByAddresses can't find any inputs!\n");
         return false;
@@ -1602,7 +1603,8 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate)
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
     // Knowing that each CTxIn is at least 148 B big, 400 inputs should take 400 x ~148 B = ~60 kB.
     // This still leaves more than enough room for another data of typical CreateDenominated tx.
-    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(true, true, true, 400);
+    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(
+        /*fSkipDenominated=*/true, /*fAnonymizable=*/true, /*fSkipUnconfirmed=*/true, /*nMaxOutpointsPerAddress=*/400);
     if (vecTally.empty()) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::CreateDenominated -- SelectCoinsGroupedByAddresses can't find any inputs!\n");
         return false;

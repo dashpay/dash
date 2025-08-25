@@ -122,15 +122,15 @@ bool CWallet::SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& set
 }
 
 std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipDenominated, bool fAnonymizable,
-                                                                     bool fSkipUnconfirmed, int nMaxOupointsPerAddress) const
+                                                                     bool fSkipUnconfirmed, int nMaxOutpointsPerAddress) const
 {
     LOCK(cs_wallet);
 
     isminefilter filter = ISMINE_SPENDABLE;
 
     // Try using the cache for already confirmed mixable inputs.
-    // This should only be used if nMaxOupointsPerAddress was NOT specified.
-    if (nMaxOupointsPerAddress == -1 && fAnonymizable && fSkipUnconfirmed) {
+    // This should only be used if nMaxOutpointsPerAddress was NOT specified.
+    if (nMaxOutpointsPerAddress == -1 && fAnonymizable && fSkipUnconfirmed) {
         if (fSkipDenominated && fAnonymizableTallyCachedNonDenom) {
             LogPrint(BCLog::SELECTCOINS, "SelectCoinsGroupedByAddresses - using cache for non-denom inputs %d\n",
                      vecAnonymizableTallyCachedNonDenom.size());
@@ -168,8 +168,8 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
             if (!(mine & filter)) continue;
 
             auto itTallyItem = mapTally.find(txdest);
-            if (nMaxOupointsPerAddress != -1 && itTallyItem != mapTally.end() &&
-                int64_t(itTallyItem->second.outpoints.size()) >= nMaxOupointsPerAddress) {
+            if (nMaxOutpointsPerAddress != -1 && itTallyItem != mapTally.end() &&
+                int64_t(itTallyItem->second.outpoints.size()) >= nMaxOutpointsPerAddress) {
                 continue;
             }
 
@@ -207,8 +207,8 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
     }
 
     // Cache already confirmed mixable entries for later use.
-    // This should only be used if nMaxOupointsPerAddress was NOT specified.
-    if (nMaxOupointsPerAddress == -1 && fAnonymizable && fSkipUnconfirmed) {
+    // This should only be used if nMaxOutpointsPerAddress was NOT specified.
+    if (nMaxOutpointsPerAddress == -1 && fAnonymizable && fSkipUnconfirmed) {
         if (fSkipDenominated) {
             vecAnonymizableTallyCachedNonDenom = vecTallyRet;
             fAnonymizableTallyCachedNonDenom = true;
@@ -435,7 +435,8 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
 {
     if (!CCoinJoinClientOptions::IsEnabled()) return 0;
 
-    std::vector<CompactTallyItem> vecTally = SelectCoinsGroupedByAddresses(fSkipDenominated, true, fSkipUnconfirmed);
+    std::vector<CompactTallyItem> vecTally = SelectCoinsGroupedByAddresses(fSkipDenominated, /*fAnonymizable=*/true,
+                                                                           fSkipUnconfirmed);
     if (vecTally.empty()) return 0;
 
     CAmount nTotal = 0;
