@@ -76,6 +76,8 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
+#include <active/context.h>
+#include <active/notificationinterface.h>
 #include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/context.h>
@@ -321,6 +323,7 @@ void PrepareShutdown(NodeContext& node)
 
     // After all scheduled tasks have been flushed, destroy pointers
     // and reset all to nullptr.
+    node.active_ctx.reset();
     node.mn_sync.reset();
     node.sporkman.reset();
     node.govman.reset();
@@ -374,10 +377,11 @@ void PrepareShutdown(NodeContext& node)
         g_ds_notification_interface.reset();
     }
 
-    if (node.mn_activeman) {
-        UnregisterValidationInterface(node.mn_activeman.get());
-        node.mn_activeman.reset();
+    if (g_active_notification_interface) {
+        UnregisterValidationInterface(g_active_notification_interface.get());
+        g_active_notification_interface.reset();
     }
+    node.mn_activeman.reset();
 
     node.chain_clients.clear();
 
@@ -1692,19 +1696,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
     }
 
-    fMasternodeMode = false;
     std::string strMasterNodeBLSPrivKey = args.GetArg("-masternodeblsprivkey", "");
     if (!strMasterNodeBLSPrivKey.empty()) {
         CBLSSecretKey keyOperator(ParseHex(strMasterNodeBLSPrivKey));
         if (!keyOperator.IsValid()) {
             return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
         }
-        fMasternodeMode = true;
-        {
-            // Create and register mn_activeman, will init later in ThreadImport
-            node.mn_activeman = std::make_unique<CActiveMasternodeManager>(keyOperator, *node.connman, node.dmnman);
-            RegisterValidationInterface(node.mn_activeman.get());
-        }
+        // Create and register mn_activeman, will init later in ThreadImport
+        node.mn_activeman = std::make_unique<CActiveMasternodeManager>(keyOperator, *node.connman, node.dmnman);
     }
 
     // Check port numbers
@@ -2149,7 +2148,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.peerman = PeerManager::make(chainparams, *node.connman, *node.addrman, node.banman.get(),
                                      chainman, *node.mempool, *node.mn_metaman, *node.mn_sync,
                                      *node.govman, *node.sporkman, node.mn_activeman.get(), node.dmnman,
-                                     node.cj_ctx, node.llmq_ctx, ignores_incoming_txs);
+                                     node.active_ctx, node.cj_ctx, node.llmq_ctx, ignores_incoming_txs);
     RegisterValidationInterface(node.peerman.get());
 
     g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
@@ -2159,11 +2158,22 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7c: Setup CoinJoin
 
-    node.cj_ctx = std::make_unique<CJContext>(chainman, *node.connman, *node.dmnman, *node.mn_metaman, *node.mempool,
-                                              node.mn_activeman.get(), *node.mn_sync, *node.llmq_ctx->isman, node.peerman,
+    node.cj_ctx = std::make_unique<CJContext>(chainman, *node.dmnman, *node.mn_metaman, *node.mempool,
+                                              node.mn_activeman.get(), *node.mn_sync, *node.llmq_ctx->isman,
                                               !ignores_incoming_txs);
 
-    // ********************************************************* Step 7d: Setup other Dash services
+    // ********************************************************* Step 7d: Setup masternode mode
+    assert(!node.active_ctx);
+    assert(!g_active_notification_interface);
+    if (node.mn_activeman) {
+        node.active_ctx = std::make_unique<ActiveContext>(chainman, *node.connman, *node.dmnman, *node.cj_ctx->dstxman, *node.mn_metaman, *node.mnhf_manager,
+                                                          *node.llmq_ctx, *node.sporkman, *node.mempool, *node.peerman, *node.mn_activeman,
+                                                          *node.mn_sync);
+        g_active_notification_interface = std::make_unique<ActiveNotificationInterface>(*node.active_ctx, *node.mn_activeman);
+        RegisterValidationInterface(g_active_notification_interface.get());
+    }
+
+    // ********************************************************* Step 7e: Setup other Dash services
 
     bool fLoadCacheFiles = !(fReindex || fReindexChainState) && (chainman.ActiveChain().Tip() != nullptr);
 
@@ -2272,7 +2282,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     if (node.mn_activeman) {
-        node.scheduler->scheduleEvery(std::bind(&CCoinJoinServer::DoMaintenance, std::ref(*node.cj_ctx->server)), std::chrono::seconds{1});
+        node.scheduler->scheduleEvery(std::bind(&CCoinJoinServer::DoMaintenance, std::ref(*node.active_ctx->cj_server)), std::chrono::seconds{1});
         node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.llmq_ctx->qdkgsman)), std::chrono::hours{1});
 #ifdef ENABLE_WALLET
     } else if (!ignores_incoming_txs) {
@@ -2428,6 +2438,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     connOptions.nMaxOutboundLimit = *opt_max_upload;
     connOptions.m_peer_connect_timeout = peer_connect_timeout;
     connOptions.socketEventsMode = ::g_socket_events_mode;
+    connOptions.m_active_masternode = node.mn_activeman != nullptr;
 
     // Port to bind to if `-bind=addr` is provided without a `:port` suffix.
     const uint16_t default_bind_port =

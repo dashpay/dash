@@ -4,6 +4,7 @@
 
 #include <node/context.h>
 
+#include <active/context.h>
 #include <addrman.h>
 #include <banman.h>
 #include <coinjoin/context.h>

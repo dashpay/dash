@@ -393,9 +393,9 @@ void OverviewPage::updateCoinJoinProgress()
         return;
     }
 
-    CAmount nAnonymizableBalance = walletModel->wallet().getAnonymizableBalance(false, false);
-
-    CAmount nMaxToAnonymize = nAnonymizableBalance + m_balances.anonymized_balance;
+    const CAmount nAnonymizableBalance{walletModel->wallet().getAnonymizableBalance(
+        /*fSkipDenominated=*/false, /*fSkipMnCollateral=*/clientModel->node().isMasternode(), /*fSkipUnconfirmed=*/false)};
+    CAmount nMaxToAnonymize{nAnonymizableBalance + m_balances.anonymized_balance};
 
     // If it's more than the anon threshold, limit to that.
     if (nMaxToAnonymize > clientModel->coinJoinOptions().getAmount() * COIN) nMaxToAnonymize = clientModel->coinJoinOptions().getAmount() * COIN;

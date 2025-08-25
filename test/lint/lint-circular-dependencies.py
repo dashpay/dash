@@ -22,6 +22,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "wallet/wallet -> wallet/walletdb -> wallet/wallet",
     "node/coinstats -> validation -> node/coinstats",
     # Dash
+    "coinjoin/coinjoin -> instantsend/instantsend -> net_processing -> coinjoin/context -> coinjoin/coinjoin",
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorums -> net -> banman",
     "chainlock/chainlock -> instantsend/instantsend -> chainlock/chainlock",
     "chainlock/chainlock -> instantsend/instantsend -> instantsend/signing -> chainlock/chainlock",

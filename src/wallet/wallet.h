@@ -128,12 +128,11 @@ class ReserveDestination;
 
 extern RecursiveMutex cs_main;
 
-/** (client) version numbers for particular wallet features */
 struct CompactTallyItem
 {
     CTxDestination txdest;
     CAmount nAmount{0};
-    std::vector<COutPoint> outpoints;
+    std::vector<std::pair<CAmount, COutPoint>> coins{};
     CompactTallyItem() = default;
 };
 
@@ -538,7 +537,7 @@ public:
     bool SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet);
     bool SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& setAmountsRet) const;
 
-    std::vector<CompactTallyItem> SelectCoinsGroupedByAddresses(bool fSkipDenominated = true, bool fAnonymizable = true, bool fSkipUnconfirmed = true, int nMaxOupointsPerAddress = -1) const;
+    std::vector<CompactTallyItem> SelectCoinsGroupedByAddresses(bool fSkipDenominated, bool fAnonymizable, bool fSkipUnconfirmed, int nMaxOutpointsPerAddress = -1) const;
 
     bool HasCollateralInputs(bool fOnlyConfirmed = true) const;
     int  CountInputsWithAmount(CAmount nInputAmount) const;
@@ -651,7 +650,7 @@ public:
     void ReacceptWalletTransactions() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void ResendWalletTransactions();
 
-    CAmount GetAnonymizableBalance(bool fSkipDenominated = false, bool fSkipUnconfirmed = true) const;
+    CAmount GetAnonymizableBalance(bool fSkipDenominated, bool fSkipMnCollateral, bool fSkipUnconfirmed) const;
     float GetAverageAnonymizedRounds() const;
     CAmount GetNormalizedAnonymizedBalance() const;
 

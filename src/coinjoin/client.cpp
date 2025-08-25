@@ -849,7 +849,8 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
         }
 
         // including denoms but applying some restrictions
-        CAmount nBalanceAnonymizable = m_wallet->GetAnonymizableBalance();
+        const CAmount nBalanceAnonymizable{m_wallet->GetAnonymizableBalance(
+            /*fSkipDenominated=*/false, /*fSkipMnCollateral=*/false, /*fSkipUnconfirmed=*/true)};
 
         // mixable balance is way too small
         if (nBalanceAnonymizable < nValueMin) {
@@ -859,12 +860,14 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
         }
 
         // excluding denoms
-        CAmount nBalanceAnonimizableNonDenom = m_wallet->GetAnonymizableBalance(true);
+        const CAmount nBalanceAnonimizableNonDenom{m_wallet->GetAnonymizableBalance(
+            /*fSkipDenominated=*/true, /*fSkipMnCollateral=*/false, /*fSkipUnconfirmed=*/true)};
+
         // denoms
-        CAmount nBalanceDenominatedConf = bal.m_denominated_trusted;
-        CAmount nBalanceDenominatedUnconf = bal.m_denominated_untrusted_pending;
-        CAmount nBalanceDenominated = nBalanceDenominatedConf + nBalanceDenominatedUnconf;
-        CAmount nBalanceToDenominate = CCoinJoinClientOptions::GetAmount() * COIN - nBalanceDenominated;
+        const CAmount nBalanceDenominatedConf{bal.m_denominated_trusted};
+        const CAmount nBalanceDenominatedUnconf{bal.m_denominated_untrusted_pending};
+        const CAmount nBalanceDenominated{nBalanceDenominatedConf + nBalanceDenominatedUnconf};
+        const CAmount nBalanceToDenominate{CCoinJoinClientOptions::GetAmount() * COIN - nBalanceDenominated};
 
         // adjust nBalanceNeedsAnonymized to consume final denom
         if (nBalanceDenominated - nBalanceAnonymized > nBalanceNeedsAnonymized) {
@@ -1430,7 +1433,8 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
     // Knowing that each CTxIn is at least 148 B big, 400 inputs should take 400 x ~148 B = ~60 kB.
     // This still leaves more than enough room for another data of typical MakeCollateralAmounts tx.
-    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(false, false, true, 400);
+    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(
+        /*fSkipDenominated=*/false, /*fAnonymizable=*/false, /*fSkipUnconfirmed=*/true, /*nMaxOutpointsPerAddress=*/400);
     if (vecTally.empty()) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::MakeCollateralAmounts -- SelectCoinsGroupedByAddresses can't find any inputs!\n");
         return false;
@@ -1469,12 +1473,12 @@ bool CCoinJoinClientSession::MakeCollateralAmounts(const CompactTallyItem& tally
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
 
     // Denominated input is always a single one, so we can check its amount directly and return early
-    if (!fTryDenominated && tallyItem.outpoints.size() == 1 && CoinJoin::IsDenominatedAmount(tallyItem.nAmount)) {
+    if (!fTryDenominated && tallyItem.coins.size() == 1 && CoinJoin::IsDenominatedAmount(tallyItem.nAmount)) {
         return false;
     }
 
     // Skip single inputs that can be used as collaterals already
-    if (tallyItem.outpoints.size() == 1 && CoinJoin::IsCollateralAmount(tallyItem.nAmount)) {
+    if (tallyItem.coins.size() == 1 && CoinJoin::IsCollateralAmount(tallyItem.nAmount)) {
         return false;
     }
 
@@ -1602,7 +1606,8 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate)
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
     // Knowing that each CTxIn is at least 148 B big, 400 inputs should take 400 x ~148 B = ~60 kB.
     // This still leaves more than enough room for another data of typical CreateDenominated tx.
-    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(true, true, true, 400);
+    std::vector<CompactTallyItem> vecTally = m_wallet->SelectCoinsGroupedByAddresses(
+        /*fSkipDenominated=*/true, /*fAnonymizable=*/true, /*fSkipUnconfirmed=*/true, /*nMaxOutpointsPerAddress=*/400);
     if (vecTally.empty()) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::CreateDenominated -- SelectCoinsGroupedByAddresses can't find any inputs!\n");
         return false;
@@ -1632,7 +1637,7 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
 
     // denominated input is always a single one, so we can check its amount directly and return early
-    if (tallyItem.outpoints.size() == 1 && CoinJoin::IsDenominatedAmount(tallyItem.nAmount)) {
+    if (tallyItem.coins.size() == 1 && CoinJoin::IsDenominatedAmount(tallyItem.nAmount)) {
         return false;
     }
 

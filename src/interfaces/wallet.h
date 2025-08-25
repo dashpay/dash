@@ -236,7 +236,7 @@ public:
     virtual CAmount getBalance() = 0;
 
     //! Get anonymizable balance.
-    virtual CAmount getAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfirmed) = 0;
+    virtual CAmount getAnonymizableBalance(bool fSkipDenominated, bool fSkipMnCollateral, bool fSkipUnconfirmed) = 0;
 
     //! Get normalized anonymized balance.
     virtual CAmount getNormalizedAnonymizedBalance() = 0;
