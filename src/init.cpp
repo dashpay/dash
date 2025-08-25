@@ -77,6 +77,7 @@
 #include <walletinitinterface.h>
 
 #include <active/context.h>
+#include <active/notificationinterface.h>
 #include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/context.h>
@@ -376,10 +377,11 @@ void PrepareShutdown(NodeContext& node)
         g_ds_notification_interface.reset();
     }
 
-    if (node.mn_activeman) {
-        UnregisterValidationInterface(node.mn_activeman.get());
-        node.mn_activeman.reset();
+    if (g_active_notification_interface) {
+        UnregisterValidationInterface(g_active_notification_interface.get());
+        g_active_notification_interface.reset();
     }
+    node.mn_activeman.reset();
 
     node.chain_clients.clear();
 
@@ -1702,7 +1704,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
         // Create and register mn_activeman, will init later in ThreadImport
         node.mn_activeman = std::make_unique<CActiveMasternodeManager>(keyOperator, *node.connman, node.dmnman);
-        RegisterValidationInterface(node.mn_activeman.get());
     }
 
     // Check port numbers
@@ -2163,10 +2164,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7d: Setup masternode mode
     assert(!node.active_ctx);
+    assert(!g_active_notification_interface);
     if (node.mn_activeman) {
         node.active_ctx = std::make_unique<ActiveContext>(chainman, *node.connman, *node.dmnman, *node.cj_ctx->dstxman, *node.mn_metaman,
                                                           *node.llmq_ctx, *node.sporkman, *node.mempool, *node.peerman, *node.mn_activeman,
                                                           *node.mn_sync);
+        g_active_notification_interface = std::make_unique<ActiveNotificationInterface>(*node.mn_activeman);
+        RegisterValidationInterface(g_active_notification_interface.get());
     }
 
     // ********************************************************* Step 7e: Setup other Dash services

@@ -136,6 +136,7 @@ endif
 # dash core #
 BITCOIN_CORE_H = \
   active/context.h \
+  active/notificationinterface.h \
   addrdb.h \
   addressindex.h \
   spentindex.h \
@@ -452,6 +453,7 @@ libbitcoin_node_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS
 libbitcoin_node_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_node_a_SOURCES = \
   active/context.cpp \
+  active/notificationinterface.cpp \
   addrdb.cpp \
   addressindex.cpp \
   addrman.cpp \
