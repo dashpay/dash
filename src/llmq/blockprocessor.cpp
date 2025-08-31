@@ -272,6 +272,11 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     }
 
     const auto* pQuorumBaseBlockIndex = m_chainstate.m_blockman.LookupBlockIndex(qc.quorumHash);
+    if (pQuorumBaseBlockIndex == nullptr) {
+        LogPrint(BCLog::LLMQ, "%s -- unexpectedly failed due to no known pindex for hash[%s]\n", __func__,
+                 qc.quorumHash.ToString());
+        return false;
+    }
 
     if (!qc.Verify(m_dmnman, m_qsnapman, pQuorumBaseBlockIndex, /*checkSigs=*/fBLSChecks)) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, quorumPublicKey=%s qc verify failed.\n", __func__,
