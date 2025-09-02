@@ -147,7 +147,7 @@ public:
     }
 };
 
-enum class InternalKey
+enum class InternalKey : uint8_t
 {
     External,
     Internal,

@@ -31,7 +31,7 @@ class CMasterKey;
 class CWallet;
 class CWalletTx;
 struct WalletContext;
-enum class InternalKey;
+enum class InternalKey : uint8_t;
 /**
  * Overview of wallet database classes:
  *
