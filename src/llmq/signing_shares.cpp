@@ -18,6 +18,7 @@
 #include <netmessagemaker.h>
 #include <spork.h>
 #include <util/irange.h>
+#include <util/check.h>
 #include <util/thread.h>
 #include <util/time.h>
 #include <util/underlying.h>
@@ -93,7 +94,9 @@ std::string CBatchedSigShares::ToInvString() const
     // we use 400 here no matter what the real size is. We don't really care about that size as we just want to call ToString()
     inv.Init(400);
     for (const auto& sigShare : sigShares) {
-        inv.inv[sigShare.first] = true;
+        if (Assume(sigShare.first < inv.inv.size())) {
+            inv.inv[sigShare.first] = true;
+        }
     }
     return inv.ToString();
 }
@@ -1088,7 +1091,7 @@ void CSigSharesManager::CollectSigSharesToAnnounce(const CConnman& connman,
 
             auto& session = nodeState.GetOrCreateSessionFromShare(*sigShare);
 
-            if (session.knows.inv[quorumMember]) {
+            if (Assume(quorumMember < session.knows.inv.size()) && session.knows.inv[quorumMember]) {
                 // he already knows that one
                 continue;
             }
@@ -1099,8 +1102,12 @@ void CSigSharesManager::CollectSigSharesToAnnounce(const CConnman& connman,
                 assert(llmq_params_opt.has_value());
                 inv.Init(llmq_params_opt->size);
             }
-            inv.inv[quorumMember] = true;
-            session.knows.inv[quorumMember] = true;
+            if (Assume(quorumMember < inv.inv.size())) {
+                inv.inv[quorumMember] = true;
+            }
+            if (Assume(quorumMember < session.knows.inv.size())) {
+                session.knows.inv[quorumMember] = true;
+            }
         }
     });
 
