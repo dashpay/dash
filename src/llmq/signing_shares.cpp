@@ -17,8 +17,8 @@
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <spork.h>
-#include <util/irange.h>
 #include <util/check.h>
+#include <util/irange.h>
 #include <util/thread.h>
 #include <util/time.h>
 #include <util/underlying.h>
