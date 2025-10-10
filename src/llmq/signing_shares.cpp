@@ -1493,7 +1493,7 @@ void CSigSharesManager::WorkThreadMain(CConnman& connman, PeerManager& peerman)
         bool fMoreWork = ProcessPendingSigShares(peerman, connman);
         SignPendingSigShares(connman, peerman);
 
-        if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - lastSendTime > 100) {
+        if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - lastSendTime > 10) {
             SendMessages(connman);
             lastSendTime = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
         }
@@ -1501,7 +1501,7 @@ void CSigSharesManager::WorkThreadMain(CConnman& connman, PeerManager& peerman)
         Cleanup(connman);
 
         // TODO Wakeup when pending signing is needed?
-        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(10))) {
             return;
         }
     }
