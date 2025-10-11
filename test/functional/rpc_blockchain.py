@@ -221,7 +221,7 @@ class BlockchainTest(BitcoinTestFramework):
                     'min_activation_height': 0,
                     'since': 0,
                     'status': 'defined',
-                    'status-next': 'defined',
+                    'status_next': 'defined',
                     'ehf': True,
                 },
                 'active': False
@@ -235,7 +235,7 @@ class BlockchainTest(BitcoinTestFramework):
                     'min_activation_height': 0,
                     'since': 144,
                     'status': 'started',
-                    'status-next': status_next,
+                    'status_next': status_next,
                     'statistics': {
                         'period': 144,
                         'threshold': 108,
