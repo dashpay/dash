@@ -688,9 +688,8 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const llmq::CInstantSendManag
     ret.pushKV("bytes", (int64_t)pool.GetTotalTxSize());
     ret.pushKV("usage", (int64_t)pool.DynamicMemoryUsage());
     ret.pushKV("total_fee", ValueFromAmount(pool.GetTotalFee()));
-    int64_t maxmempool{gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE_MB) * 1000000};
-    ret.pushKV("maxmempool", maxmempool);
-    ret.pushKV("mempoolminfee", ValueFromAmount(std::max(pool.GetMinFee(maxmempool), ::minRelayTxFee).GetFeePerK()));
+    ret.pushKV("maxmempool", pool.m_max_size_bytes);
+    ret.pushKV("mempoolminfee", ValueFromAmount(std::max(pool.GetMinFee(), ::minRelayTxFee).GetFeePerK()));
     ret.pushKV("minrelaytxfee", ValueFromAmount(::minRelayTxFee.GetFeePerK()));
     ret.pushKV("instantsendlocks", isman.GetInstantSendLockCount());
     ret.pushKV("unbroadcastcount", pool.GetUnbroadcastTxs().size());

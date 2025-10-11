@@ -433,7 +433,8 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
 
 CTxMemPool::CTxMemPool(const Options& opts)
     : m_check_ratio{opts.check_ratio},
-      minerPolicyEstimator{opts.estimator}
+      minerPolicyEstimator{opts.estimator},
+      m_max_size_bytes{opts.max_size_bytes}
 {
     _clear(); //lock free clear
 }

@@ -870,7 +870,6 @@ static void StartupNotify(const ArgsManager& args)
 static void PeriodicStats(NodeContext& node)
 {
     assert(::g_stats_client->active());
-    const ArgsManager& args = *Assert(node.args);
     ChainstateManager& chainman = *Assert(node.chainman);
     const CTxMemPool& mempool = *Assert(node.mempool);
     const llmq::CInstantSendManager& isman = *Assert(node.llmq_ctx->isman);
@@ -924,7 +923,7 @@ static void PeriodicStats(NodeContext& node)
         ::g_stats_client->gauge("transactions.mempool.totalTransactions", mempool.size(), 1.0f);
         ::g_stats_client->gauge("transactions.mempool.totalTxBytes", (int64_t) mempool.GetTotalTxSize(), 1.0f);
         ::g_stats_client->gauge("transactions.mempool.memoryUsageBytes", (int64_t) mempool.DynamicMemoryUsage(), 1.0f);
-        ::g_stats_client->gauge("transactions.mempool.minFeePerKb", mempool.GetMinFee(args.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE_MB) * 1000000).GetFeePerK(), 1.0f);
+        ::g_stats_client->gauge("transactions.mempool.minFeePerKb", mempool.GetMinFee().GetFeePerK(), 1.0f);
     }
     ::g_stats_client->gauge("transactions.mempool.lockedTransactions", isman.GetInstantSendLockCount(), 1.0f);
 }
