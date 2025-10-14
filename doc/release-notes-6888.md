@@ -9,3 +9,9 @@ Updated RPCs
   a future release. Note that in either case, the `status` field
   now reflects the status of the current block rather than the next
   block.
+
+New REST endpoint
+-----------------
+
+- A new `/rest/deploymentinfo` endpoint has been added for fetching various
+  state info regarding deployments of consensus changes.
