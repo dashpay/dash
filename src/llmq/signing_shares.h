@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <condition_variable>
 
 class CNode;
 class CConnman;
@@ -379,6 +380,10 @@ private:
 
     std::thread workThread;
     CThreadInterrupt workInterrupt;
+    // Event to wake the worker thread when new work arrives
+    Mutex workMutex;
+    std::condition_variable_any workCv;
+    std::atomic<uint64_t> workEpoch{0};
 
     SigShareMap<CSigShare> sigShares GUARDED_BY(cs);
     Uint256HashMap<CSignedSession> signedSessions GUARDED_BY(cs);
@@ -486,8 +491,9 @@ private:
     void CollectSigSharesToAnnounce(const CConnman& connman,
                                     std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void SignPendingSigShares(const CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
-    void WorkThreadMain(CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
+    void SignPendingSigShares(const CConnman& connman, PeerManager& peerman);
+    void WorkThreadMain(CConnman& connman, PeerManager& peerman);
+    void NotifyWorker();
 };
 } // namespace llmq
 

@@ -431,6 +431,8 @@ MessageProcessingResult CSigningManager::ProcessMessage(NodeId from, std::string
     }
 
     pendingRecoveredSigs[from].emplace_back(recoveredSig);
+    workEpoch.fetch_add(1, std::memory_order_acq_rel);
+    NotifyWorker();
     return ret;
 }
 
@@ -521,6 +523,13 @@ bool CSigningManager::ProcessPendingRecoveredSigs(PeerManager& peerman)
     const size_t nMaxBatchSize{32};
     CollectPendingRecoveredSigsToVerify(nMaxBatchSize, recSigsByNode, quorums);
     if (recSigsByNode.empty()) {
+        // Check if reconstructed queue has work pending so the caller can keep looping
+        {
+            LOCK(cs_pending);
+            if (!pendingReconstructedRecoveredSigs.empty() || !pendingRecoveredSigs.empty()) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -573,7 +582,13 @@ bool CSigningManager::ProcessPendingRecoveredSigs(PeerManager& peerman)
         }
     }
 
-    return recSigsByNode.size() >= nMaxBatchSize;
+    // If we still have pending items in queues, report more work to avoid sleeping
+    bool more_in_queues = false;
+    {
+        LOCK(cs_pending);
+        more_in_queues = !pendingReconstructedRecoveredSigs.empty() || !pendingRecoveredSigs.empty();
+    }
+    return more_in_queues || recSigsByNode.size() >= nMaxBatchSize;
 }
 
 // signature must be verified already
@@ -625,12 +640,16 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
     }
 
     GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
+    workEpoch.fetch_add(1, std::memory_order_acq_rel);
+    NotifyWorker();
 }
 
 void CSigningManager::PushReconstructedRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig)
 {
     LOCK(cs_pending);
     pendingReconstructedRecoveredSigs.emplace(std::piecewise_construct, std::forward_as_tuple(recoveredSig->GetHash()), std::forward_as_tuple(recoveredSig));
+    workEpoch.fetch_add(1, std::memory_order_acq_rel);
+    NotifyWorker();
 }
 
 void CSigningManager::TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
@@ -809,18 +828,38 @@ void CSigningManager::StopWorkerThread()
 void CSigningManager::InterruptWorkerThread()
 {
     workInterrupt();
+    workCv.notify_all();
 }
 
 void CSigningManager::WorkThreadMain(PeerManager& peerman)
 {
     while (!workInterrupt) {
+        uint64_t startEpoch = workEpoch.load(std::memory_order_acquire);
         bool fMoreWork = ProcessPendingRecoveredSigs(peerman);
 
         Cleanup();
 
-        // TODO Wakeup when pending signing is needed?
-        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
-            return;
+        if (fMoreWork) continue;
+        std::unique_lock<Mutex> l(workMutex);
+        // Compute next cleanup deadline (~5s cadence) and wait event-driven until either
+        // new work arrives or the deadline is reached.
+        auto next_deadline = std::chrono::steady_clock::time_point::max();
+        {
+            int64_t now_ms = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+            int64_t target_ms = lastCleanupTime + 5000;
+            if (target_ms > now_ms) {
+                auto delta_ms = target_ms - now_ms;
+                next_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(delta_ms);
+            }
+        }
+        if (next_deadline == std::chrono::steady_clock::time_point::max()) {
+            workCv.wait(l, [this, startEpoch]{
+                return bool(workInterrupt) || workEpoch.load(std::memory_order_acquire) != startEpoch;
+            });
+        } else {
+            workCv.wait_until(l, next_deadline, [this, startEpoch]{
+                return bool(workInterrupt) || workEpoch.load(std::memory_order_acquire) != startEpoch;
+            });
         }
     }
 }

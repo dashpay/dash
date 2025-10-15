@@ -163,6 +163,7 @@ MessageProcessingResult CInstantSendManager::ProcessMessage(NodeId from, std::st
 
     LOCK(cs_pendingLocks);
     pendingInstantSendLocks.emplace(hash, std::make_pair(from, islock));
+    NotifyWorker();
     return ret;
 }
 
@@ -458,6 +459,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
     } else {
         RemoveMempoolConflictsForLock(::SerializeHash(*islock), *islock);
     }
+    NotifyWorker();
 }
 
 void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
@@ -475,6 +477,7 @@ void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& t
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- transaction %s was removed from mempool\n", __func__,
              tx->GetHash().ToString());
     RemoveConflictingLock(::SerializeHash(*islock), *islock);
+    NotifyWorker();
 }
 
 void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
@@ -505,12 +508,14 @@ void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pb
     }
 
     db.WriteBlockInstantSendLocks(pblock, pindex);
+    NotifyWorker();
 }
 
 void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock,
                                             const CBlockIndex* pindexDisconnected)
 {
     db.RemoveBlockInstantSendLocks(pblock, pindexDisconnected);
+    NotifyWorker();
 }
 
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
@@ -553,6 +558,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, pindexMined=%s\n", __func__,
              tx->GetHash().ToString(), pindexMined ? pindexMined->GetBlockHash().ToString() : "");
+    NotifyWorker();
 }
 
 void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChildren)
@@ -593,6 +599,7 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, retryChildren=%d, retryChildrenCount=%d\n",
              __func__, txid.ToString(), retryChildren, retryChildrenCount);
+    NotifyWorker();
 }
 
 void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
@@ -601,6 +608,7 @@ void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
     if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
         signer->ClearInputsFromQueue(GetIdsFromLockable(tx.vin));
     }
+    NotifyWorker();
 }
 
 void CInstantSendManager::TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock)
@@ -622,11 +630,13 @@ void CInstantSendManager::TryEmplacePendingLock(const uint256& hash, const NodeI
     if (!pendingInstantSendLocks.count(hash)) {
         pendingInstantSendLocks.emplace(hash, std::make_pair(id, islock));
     }
+    NotifyWorker();
 }
 
 void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 {
     HandleFullyConfirmedBlock(pindexChainLock);
+    NotifyWorker();
 }
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
@@ -644,6 +654,7 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
     if (pindex) {
         HandleFullyConfirmedBlock(pindex);
     }
+    NotifyWorker();
 }
 
 void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
@@ -920,6 +931,7 @@ size_t CInstantSendManager::GetInstantSendLockCount() const
 void CInstantSendManager::WorkThreadMain(PeerManager& peerman)
 {
     while (!workInterrupt) {
+        uint64_t startEpoch = workEpoch.load(std::memory_order_acquire);
         bool fMoreWork = [&]() -> bool {
             if (!IsInstantSendEnabled()) return false;
             auto [more_work, peer_activity] = ProcessPendingInstantSendLocks();
@@ -947,10 +959,11 @@ void CInstantSendManager::WorkThreadMain(PeerManager& peerman)
             signer->ProcessPendingRetryLockTxs(txns);
             return more_work;
         }();
-
-        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
-            return;
-        }
+        if (fMoreWork) continue;
+        std::unique_lock<Mutex> l(workMutex);
+        workCv.wait(l, [this, startEpoch]{
+            return bool(workInterrupt) || workEpoch.load(std::memory_order_acquire) != startEpoch;
+        });
     }
 }
 
