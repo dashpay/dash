@@ -66,6 +66,10 @@ private:
 
     std::thread workThread;
     CThreadInterrupt workInterrupt;
+    // Event to wake the worker thread when new work arrives
+    Mutex workMutex;
+    std::condition_variable_any workCv;
+    std::atomic<uint64_t> workEpoch{0};
 
     mutable Mutex cs_pendingLocks;
     // Incoming and not verified yet
@@ -110,7 +114,7 @@ public:
 
     void Start(PeerManager& peerman);
     void Stop();
-    void InterruptWorkerThread() { workInterrupt(); };
+    void InterruptWorkerThread() { workInterrupt(); workCv.notify_all(); };
 
 private:
     instantsend::PendingState ProcessPendingInstantSendLocks()
@@ -139,6 +143,10 @@ private:
 
     void WorkThreadMain(PeerManager& peerman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+    void NotifyWorker() { 
+        workEpoch.fetch_add(1, std::memory_order_acq_rel);
+        workCv.notify_one(); 
+    }
 
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);

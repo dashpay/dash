@@ -24,6 +24,8 @@
 #include <string_view>
 #include <thread>
 #include <unordered_map>
+#include <atomic>
+#include <condition_variable>
 
 class CChainState;
 class CDataStream;
@@ -241,13 +243,17 @@ public:
 private:
     std::thread workThread;
     CThreadInterrupt workInterrupt;
-    void Cleanup(); // called from the worker thread of CSigSharesManager
-    void WorkThreadMain(PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_pending, !cs_listeners);
+    // Event to wake the worker thread when new work arrives
+    Mutex workMutex;
+    std::condition_variable_any workCv;
+    std::atomic<uint64_t> workEpoch{0};
+    void WorkThreadMain(PeerManager& peerman);
 
 public:
     void StartWorkerThread(PeerManager& peerman);
     void StopWorkerThread();
     void InterruptWorkerThread();
+    void NotifyWorker() { workEpoch.fetch_add(1, std::memory_order_acq_rel); workCv.notify_one(); }
 };
 
 template<typename NodesContainer, typename Continue, typename Callback>

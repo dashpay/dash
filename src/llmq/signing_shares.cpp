@@ -231,6 +231,8 @@ void CSigSharesManager::UnregisterAsRecoveredSigsListener()
 void CSigSharesManager::InterruptWorkerThread()
 {
     workInterrupt();
+    // Wake the worker to allow prompt shutdown
+    workCv.notify_all();
 }
 
 void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
@@ -310,6 +312,9 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             return;
         }
     }
+
+    // New inbound messages can create work (requests, shares, announcements)
+    NotifyWorker();
 }
 
 bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann)
@@ -738,6 +743,7 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         return;
     }
 
+    bool queued_announce = false;
     {
         LOCK(cs);
 
@@ -746,6 +752,7 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         }
         if (!isAllMembersConnectedEnabled) {
             sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
+            queued_announce = true;
         }
 
         // Update the time we've seen the last sigShare
@@ -765,6 +772,10 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         if (sigShareCount >= size_t(quorum->params.threshold)) {
             canTryRecovery = true;
         }
+    }
+
+    if (queued_announce) {
+        NotifyWorker();
     }
 
     if (canTryRecovery) {
@@ -1573,6 +1584,8 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     });
     nodeState.requestedSigShares.Clear();
     nodeState.banned = true;
+    // Banning affects request routing and can create immediate work
+    NotifyWorker();
 }
 
 void CSigSharesManager::WorkThreadMain()
@@ -1580,22 +1593,64 @@ void CSigSharesManager::WorkThreadMain()
     int64_t lastSendTime = 0;
 
     while (!workInterrupt) {
+        // capture epoch at loop start to detect intervening notifications
+        uint64_t startEpoch = workEpoch.load(std::memory_order_acquire);
         RemoveBannedNodeStates();
 
         bool fMoreWork = ProcessPendingSigShares();
         SignPendingSigShares();
 
+        bool didSend = false;
         if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - lastSendTime > 10) {
-            SendMessages();
+            didSend = SendMessages();
             lastSendTime = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
         }
 
         Cleanup();
 
-        // TODO Wakeup when pending signing is needed?
-        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(10))) {
-            return;
+        // If there is more work or we just sent something, iterate again without waiting
+        if (fMoreWork || didSend) {
+            continue;
         }
+
+        // Compute next wake-up deadline for periodic tasks (recovery attempts and cleanup cadence)
+        auto next_deadline = std::chrono::steady_clock::time_point::max();
+        // Respect cleanup cadence (~5s) even when idle
+        {
+            auto now_tp = std::chrono::steady_clock::now();
+            int64_t now_s = GetTime<std::chrono::seconds>().count();
+            int64_t target_s = lastCleanupTime + 5;
+            if (target_s > now_s) {
+                auto delta_ms = (target_s - now_s) * 1000;
+                auto cand = now_tp + std::chrono::milliseconds(delta_ms);
+                if (cand < next_deadline) next_deadline = cand;
+            }
+        }
+        {
+            // Consider next recovery attempt times for signed sessions to avoid polling
+            LOCK(cs);
+            int64_t cur_ms = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+            for (const auto& [_, s] : signedSessions) {
+                if (s.nextAttemptTime > cur_ms) {
+                    auto d = s.nextAttemptTime - cur_ms;
+                    auto cand = std::chrono::steady_clock::now() + std::chrono::milliseconds(d);
+                    if (cand < next_deadline) next_deadline = cand;
+                }
+            }
+        }
+
+        // Wait event-driven until notified or deadline reached, or interrupted
+        std::unique_lock<Mutex> l(workMutex);
+        if (next_deadline == std::chrono::steady_clock::time_point::max()) {
+            workCv.wait_for(l, std::chrono::milliseconds(10), [this, startEpoch]{
+                return bool(workInterrupt) || workEpoch.load(std::memory_order_acquire) != startEpoch;
+            });
+        } else {
+            workCv.wait_until(l, next_deadline, [this, startEpoch]{
+                return bool(workInterrupt) || workEpoch.load(std::memory_order_acquire) != startEpoch;
+            });
+        }
+        // If epoch changed while we were waiting, loop will process immediately
     }
 }
 
@@ -1603,6 +1658,8 @@ void CSigSharesManager::AsyncSign(CQuorumCPtr quorum, const uint256& id, const u
 {
     LOCK(cs_pendingSigns);
     pendingSigns.emplace_back(std::move(quorum), id, msgHash);
+    // Wake worker to handle new pending sign immediately
+    NotifyWorker();
 }
 
 void CSigSharesManager::SignPendingSigShares()
@@ -1627,6 +1684,8 @@ void CSigSharesManager::SignPendingSigShares()
             }
         }
     }
+    // New sig shares or recovery attempts may be available
+    NotifyWorker();
 }
 
 std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const
@@ -1724,6 +1783,8 @@ void CSigSharesManager::ForceReAnnouncement(const CQuorum& quorum, Consensus::LL
         // we need to use a new session id as we don't know if the other node has run into a timeout already
         session->sendSessionId = UNINITIALIZED_SESSION_ID;
     }
+    // Wake worker so announcements are sent promptly
+    NotifyWorker();
 }
 
 MessageProcessingResult CSigSharesManager::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
@@ -1731,6 +1792,15 @@ MessageProcessingResult CSigSharesManager::HandleNewRecoveredSig(const llmq::CRe
     auto signHash = recoveredSig.buildSignHash().Get();
     LOCK(cs);
     RemoveSigSharesForSession(signHash);
+    // Cleaning up a session can free resources; wake worker to proceed
+    NotifyWorker();
     return {};
+}
+
+void CSigSharesManager::NotifyWorker()
+{
+    // Avoid spurious wake-ups causing contention; simple notify is fine
+    workEpoch.fetch_add(1, std::memory_order_acq_rel);
+    workCv.notify_one();
 }
 } // namespace llmq
