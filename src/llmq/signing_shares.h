@@ -491,7 +491,8 @@ private:
     void CollectSigSharesToAnnounce(const CConnman& connman,
                                     std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void SignPendingSigShares(const CConnman& connman, PeerManager& peerman);
+    void SignPendingSigShares(const CConnman& connman, PeerManager& peerman)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     void WorkThreadMain(CConnman& connman, PeerManager& peerman);
     void NotifyWorker();
 };
