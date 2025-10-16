@@ -137,9 +137,9 @@ private:
 
     void WorkThreadMain(PeerManager& peerman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-    void NotifyWorker() { 
+    void NotifyWorker() {
         workEpoch.fetch_add(1, std::memory_order_acq_rel);
-        workCv.notify_one(); 
+        workCv.notify_one();
     }
 
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
