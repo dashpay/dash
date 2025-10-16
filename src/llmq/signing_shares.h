@@ -495,7 +495,7 @@ private:
     void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
     void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
-    void WorkThreadMain();
+    void WorkThreadMain() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     void NotifyWorker();
 };
 } // namespace llmq
