@@ -494,7 +494,7 @@ private:
     void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void SignPendingSigShares();
+    void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     void WorkThreadMain();
     void NotifyWorker();
 };
