@@ -168,7 +168,7 @@ MessageProcessingResult CInstantSendManager::ProcessMessage(NodeId from, std::st
     }
 
     LOCK(cs_pendingLocks);
-    pendingInstantSendLocks.emplace(hash, std::make_pair(from, islock));
+    pendingInstantSendLocks.emplace(hash, instantsend::PendingISLockFromPeer{from, islock});
     NotifyWorker();
     return ret;
 }
@@ -240,7 +240,7 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
 
 Uint256HashSet CInstantSendManager::ProcessPendingInstantSendLocks(
     const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
-    const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend,
+    const Uint256HashMap<instantsend::PendingISLockFromPeer>& pend,
     std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
 {
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, true, 8);
@@ -250,8 +250,8 @@ Uint256HashSet CInstantSendManager::ProcessPendingInstantSendLocks(
     size_t alreadyVerified = 0;
     for (const auto& p : pend) {
         const auto& hash = p.first;
-        auto nodeId = p.second.first;
-        const auto& islock = p.second.second;
+        auto nodeId = p.second.node_id;
+        const auto& islock = p.second.islock;
 
         if (batchVerifier.badSources.count(nodeId)) {
             continue;
@@ -322,8 +322,8 @@ Uint256HashSet CInstantSendManager::ProcessPendingInstantSendLocks(
     }
     for (const auto& p : pend) {
         const auto& hash = p.first;
-        auto nodeId = p.second.first;
-        const auto& islock = p.second.second;
+        auto nodeId = p.second.node_id;
+        const auto& islock = p.second.islock;
 
         if (batchVerifier.badMessages.count(hash)) {
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: invalid sig in islock, peer=%d\n",
@@ -400,7 +400,7 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
     } else {
         // put it in a separate pending map and try again later
         LOCK(cs_pendingLocks);
-        pendingNoTxInstantSendLocks.try_emplace(hash, std::make_pair(from, islock));
+        pendingNoTxInstantSendLocks.try_emplace(hash, instantsend::PendingISLockFromPeer{from, islock});
     }
 
     // This will also add children TXs to pendingRetryTxs
@@ -443,11 +443,11 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
         LOCK(cs_pendingLocks);
         auto it = pendingNoTxInstantSendLocks.begin();
         while (it != pendingNoTxInstantSendLocks.end()) {
-            if (it->second.second->txid == tx->GetHash()) {
+            if (it->second.islock->txid == tx->GetHash()) {
                 // we received an islock earlier
                 LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
                          tx->GetHash().ToString(), it->first.ToString());
-                islock = it->second.second;
+                islock = it->second.islock;
                 pendingInstantSendLocks.try_emplace(it->first, it->second);
                 pendingNoTxInstantSendLocks.erase(it);
                 break;
@@ -544,7 +544,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
         LOCK(cs_pendingLocks);
         auto it = pendingNoTxInstantSendLocks.begin();
         while (it != pendingNoTxInstantSendLocks.end()) {
-            if (it->second.second->txid == tx->GetHash()) {
+            if (it->second.islock->txid == tx->GetHash()) {
                 // we received an islock earlier, let's put it back into pending and verify/lock
                 LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
                          tx->GetHash().ToString(), it->first.ToString());
@@ -634,7 +634,7 @@ void CInstantSendManager::TryEmplacePendingLock(const uint256& hash, const NodeI
     if (db.KnownInstantSendLock(hash)) return;
     LOCK(cs_pendingLocks);
     if (!pendingInstantSendLocks.count(hash)) {
-        pendingInstantSendLocks.emplace(hash, std::make_pair(id, islock));
+        pendingInstantSendLocks.emplace(hash, instantsend::PendingISLockFromPeer{id, islock});
     }
     NotifyWorker();
 }
@@ -859,11 +859,11 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, instants
         LOCK(cs_pendingLocks);
         auto it = pendingInstantSendLocks.find(hash);
         if (it != pendingInstantSendLocks.end()) {
-            islock = it->second.second;
+            islock = it->second.islock;
         } else {
             auto itNoTx = pendingNoTxInstantSendLocks.find(hash);
             if (itNoTx != pendingNoTxInstantSendLocks.end()) {
-                islock = itNoTx->second.second;
+                islock = itNoTx->second.islock;
             } else {
                 return false;
             }
@@ -900,7 +900,7 @@ bool CInstantSendManager::IsWaitingForTx(const uint256& txHash) const
     LOCK(cs_pendingLocks);
     auto it = pendingNoTxInstantSendLocks.begin();
     while (it != pendingNoTxInstantSendLocks.end()) {
-        if (it->second.second->txid == txHash) {
+        if (it->second.islock->txid == txHash) {
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__, txHash.ToString(),
                      it->first.ToString());
             return true;
