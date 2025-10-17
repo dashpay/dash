@@ -253,6 +253,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
         for (const auto& sigShare : receivedSigShares) {
             ProcessMessageSigShare(pfrom.GetId(), sigShare);
         }
+        NotifyWorker();
     }
 
     if (msg_type == NetMsgType::QSIGSESANN) {
@@ -268,6 +269,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
+        NotifyWorker();
     } else if (msg_type == NetMsgType::QSIGSHARESINV) {
         std::vector<CSigSharesInv> msgs;
         vRecv >> msgs;
@@ -281,6 +283,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
+        NotifyWorker();
     } else if (msg_type == NetMsgType::QGETSIGSHARES) {
         std::vector<CSigSharesInv> msgs;
         vRecv >> msgs;
@@ -294,6 +297,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
+        NotifyWorker();
     } else if (msg_type == NetMsgType::QBSIGSHARES) {
         std::vector<CBatchedSigShares> msgs;
         vRecv >> msgs;
@@ -311,10 +315,8 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
+        NotifyWorker();
     }
-
-    // New inbound messages can create work (requests, shares, announcements)
-    NotifyWorker();
 }
 
 bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann)
@@ -743,7 +745,6 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         return;
     }
 
-    bool queued_announce = false;
     {
         LOCK(cs);
 
@@ -752,7 +753,6 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         }
         if (!isAllMembersConnectedEnabled) {
             sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
-            queued_announce = true;
         }
 
         // Update the time we've seen the last sigShare
@@ -774,9 +774,9 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         }
     }
 
-    if (queued_announce) {
-        NotifyWorker();
-    }
+    // Note: Don't call NotifyWorker() here even when queued_announce is true
+    // When called from worker thread: SendMessages() will handle announcements in same iteration
+    // When called from external thread: ProcessMessage() already calls NotifyWorker() (line 303)
 
     if (canTryRecovery) {
         TryRecoverSig(*quorum, sigShare.getId(), sigShare.getMsgHash());
@@ -1124,7 +1124,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
         proTxToNode.try_emplace(verifiedProRegTxHash, pnode);
     }
 
-    auto curTime = GetTime<std::chrono::milliseconds>().count();
+    auto curTime = std::chrono::steady_clock::now();
 
     for (auto& [_, signedSession] : signedSessions) {
         if (!IsAllMembersConnectedEnabled(signedSession.quorum->params.type, m_sporkman)) {
@@ -1138,7 +1138,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
         if (curTime >= signedSession.nextAttemptTime) {
             int64_t waitTime = exp2(signedSession.attempt) * EXP_SEND_FOR_RECOVERY_TIMEOUT;
             waitTime = std::min(MAX_SEND_FOR_RECOVERY_TIMEOUT, waitTime);
-            signedSession.nextAttemptTime = curTime + waitTime;
+            signedSession.nextAttemptTime = curTime + std::chrono::milliseconds(waitTime);
             auto dmn = SelectMemberForRecovery(*signedSession.quorum, signedSession.sigShare.getId(), signedSession.attempt);
             signedSession.attempt++;
 
@@ -1522,6 +1522,7 @@ void CSigSharesManager::Cleanup()
     }
 
     lastCleanupTime = GetTime<std::chrono::seconds>().count();
+    lastCleanupTimeSteady = std::chrono::steady_clock::now();
 }
 
 void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
@@ -1617,24 +1618,19 @@ void CSigSharesManager::WorkThreadMain()
         auto next_deadline = std::chrono::steady_clock::time_point::max();
         // Respect cleanup cadence (~5s) even when idle
         {
-            auto now_tp = std::chrono::steady_clock::now();
-            int64_t now_s = GetTime<std::chrono::seconds>().count();
-            int64_t target_s = lastCleanupTime + 5;
-            if (target_s > now_s) {
-                auto delta_ms = (target_s - now_s) * 1000;
-                auto cand = now_tp + std::chrono::milliseconds(delta_ms);
-                if (cand < next_deadline) next_deadline = cand;
+            auto now_steady = std::chrono::steady_clock::now();
+            auto next_cleanup = lastCleanupTimeSteady + std::chrono::seconds(5);
+            if (next_cleanup > now_steady) {
+                if (next_cleanup < next_deadline) next_deadline = next_cleanup;
             }
         }
         {
             // Consider next recovery attempt times for signed sessions to avoid polling
             LOCK(cs);
-            int64_t cur_ms = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+            auto now_steady = std::chrono::steady_clock::now();
             for (const auto& [_, s] : signedSessions) {
-                if (s.nextAttemptTime > cur_ms) {
-                    auto d = s.nextAttemptTime - cur_ms;
-                    auto cand = std::chrono::steady_clock::now() + std::chrono::milliseconds(d);
-                    if (cand < next_deadline) next_deadline = cand;
+                if (s.nextAttemptTime > now_steady) {
+                    if (s.nextAttemptTime < next_deadline) next_deadline = s.nextAttemptTime;
                 }
             }
         }
@@ -1679,13 +1675,13 @@ void CSigSharesManager::SignPendingSigShares()
                 auto& session = signedSessions[sigShare.GetSignHash()];
                 session.sigShare = sigShare;
                 session.quorum = pQuorum;
-                session.nextAttemptTime = 0;
+                session.nextAttemptTime = std::chrono::steady_clock::time_point{};
                 session.attempt = 0;
             }
         }
     }
-    // New sig shares or recovery attempts may be available
-    NotifyWorker();
+    // Note: Don't call NotifyWorker() here as this function is called by the worker thread itself
+    // NotifyWorker() is only needed when external threads add work
 }
 
 std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const

@@ -180,6 +180,7 @@ private:
     FastRandomContext rnd GUARDED_BY(cs_pending);
 
     int64_t lastCleanupTime{0};
+    std::chrono::steady_clock::time_point lastCleanupTimeSteady{};
 
     mutable Mutex cs_listeners;
     std::vector<CRecoveredSigsListener*> recoveredSigsListeners GUARDED_BY(cs_listeners);

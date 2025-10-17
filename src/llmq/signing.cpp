@@ -432,7 +432,6 @@ MessageProcessingResult CSigningManager::ProcessMessage(NodeId from, std::string
     }
 
     pendingRecoveredSigs[from].emplace_back(recoveredSig);
-    workEpoch.fetch_add(1, std::memory_order_acq_rel);
     NotifyWorker();
     return ret;
 }
@@ -524,13 +523,9 @@ bool CSigningManager::ProcessPendingRecoveredSigs(PeerManager& peerman)
     const size_t nMaxBatchSize{32};
     CollectPendingRecoveredSigsToVerify(nMaxBatchSize, recSigsByNode, quorums);
     if (recSigsByNode.empty()) {
-        // Check if reconstructed queue has work pending so the caller can keep looping
-        {
-            LOCK(cs_pending);
-            if (!pendingReconstructedRecoveredSigs.empty() || !pendingRecoveredSigs.empty()) {
-                return true;
-            }
-        }
+        // No work in this batch. Don't proactively check queues for work that may have been
+        // added by listeners during processing, as this causes busy-wait when combined with
+        // epoch changes. External threads will call NotifyWorker() to wake us if needed.
         return false;
     }
 
@@ -583,13 +578,10 @@ bool CSigningManager::ProcessPendingRecoveredSigs(PeerManager& peerman)
         }
     }
 
-    // If we still have pending items in queues, report more work to avoid sleeping
-    bool more_in_queues = false;
-    {
-        LOCK(cs_pending);
-        more_in_queues = !pendingReconstructedRecoveredSigs.empty() || !pendingRecoveredSigs.empty();
-    }
-    return more_in_queues || recSigsByNode.size() >= nMaxBatchSize;
+    // Only report more work if we processed a full batch, indicating there's likely more
+    // work from the original collection. Don't check queues for work added by listeners
+    // during processing, as that would cause busy-wait with epoch-based wake conditions.
+    return recSigsByNode.size() >= nMaxBatchSize;
 }
 
 // signature must be verified already
@@ -637,15 +629,14 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
     }
 
     GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
-    workEpoch.fetch_add(1, std::memory_order_acq_rel);
-    NotifyWorker();
+    // Note: Don't call NotifyWorker() here as this function is called by the worker thread itself
+    // NotifyWorker() is only needed when external threads add work
 }
 
 void CSigningManager::PushReconstructedRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig)
 {
     LOCK(cs_pending);
     pendingReconstructedRecoveredSigs.emplace(std::piecewise_construct, std::forward_as_tuple(recoveredSig->GetHash()), std::forward_as_tuple(recoveredSig));
-    workEpoch.fetch_add(1, std::memory_order_acq_rel);
     NotifyWorker();
 }
 
@@ -667,6 +658,7 @@ void CSigningManager::Cleanup()
     db.CleanupOldVotes(maxAge);
 
     lastCleanupTime = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+    lastCleanupTimeSteady = std::chrono::steady_clock::now();
 }
 
 void CSigningManager::RegisterRecoveredSigsListener(CRecoveredSigsListener* l)
@@ -768,11 +760,10 @@ void CSigningManager::WorkThreadMain(PeerManager& peerman)
         // new work arrives or the deadline is reached.
         auto next_deadline = std::chrono::steady_clock::time_point::max();
         {
-            int64_t now_ms = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
-            int64_t target_ms = lastCleanupTime + 5000;
-            if (target_ms > now_ms) {
-                auto delta_ms = target_ms - now_ms;
-                next_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(delta_ms);
+            auto now_steady = std::chrono::steady_clock::now();
+            auto next_cleanup = lastCleanupTimeSteady + std::chrono::milliseconds(5000);
+            if (next_cleanup > now_steady) {
+                next_deadline = next_cleanup;
             }
         }
         if (next_deadline == std::chrono::steady_clock::time_point::max()) {

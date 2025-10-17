@@ -356,7 +356,7 @@ public:
     CSigShare sigShare;
     CQuorumCPtr quorum;
 
-    int64_t nextAttemptTime{0};
+    std::chrono::steady_clock::time_point nextAttemptTime{};
     int attempt{0};
 };
 
@@ -418,6 +418,7 @@ private:
     const CSporkManager& m_sporkman;
 
     int64_t lastCleanupTime{0};
+    std::chrono::steady_clock::time_point lastCleanupTimeSteady{};
     std::atomic<uint32_t> recoveredSigsCounter{0};
 
 public:
