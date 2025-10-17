@@ -20,6 +20,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 class CBlockIndex;
 class CChainState;
@@ -126,7 +127,7 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
 
     Uint256HashSet ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
-                                                  const Uint256HashMap<instantsend::PendingISLockFromPeer>& pend,
+                                                  const std::vector<std::pair<uint256, instantsend::PendingISLockFromPeer>>& pend,
                                                   std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
     MessageProcessingResult ProcessInstantSendLock(NodeId from, const uint256& hash,

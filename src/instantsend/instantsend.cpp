@@ -175,7 +175,7 @@ MessageProcessingResult CInstantSendManager::ProcessMessage(NodeId from, std::st
 
 instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
 {
-    decltype(pendingInstantSendLocks) pend;
+    std::vector<std::pair<uint256, instantsend::PendingISLockFromPeer>> pend;
     instantsend::PendingState ret;
 
     if (!IsInstantSendEnabled()) {
@@ -190,6 +190,7 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
         // The keys of the removed values are temporaily stored here to avoid invalidating an iterator
         std::vector<uint256> removed;
         removed.reserve(maxCount);
+        pend.reserve(maxCount);
 
         for (const auto& [islockHash, nodeid_islptr_pair] : pendingInstantSendLocks) {
             // Check if we've reached max count
@@ -197,7 +198,7 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
                 ret.m_pending_work = true;
                 break;
             }
-            pend.emplace(islockHash, std::move(nodeid_islptr_pair));
+            pend.emplace_back(islockHash, std::move(nodeid_islptr_pair));
             removed.emplace_back(islockHash);
         }
 
@@ -223,16 +224,17 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
     if (!badISLocks.empty()) {
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- doing verification on old active set\n", __func__);
 
-        // filter out valid IS locks from "pend"
-        for (auto it = pend.begin(); it != pend.end();) {
-            if (!badISLocks.count(it->first)) {
-                it = pend.erase(it);
-            } else {
-                ++it;
+        // filter out valid IS locks from "pend" - keep only bad ones
+        std::vector<std::pair<uint256, instantsend::PendingISLockFromPeer>> filteredPend;
+        filteredPend.reserve(badISLocks.size());
+        for (auto& p : pend) {
+            if (badISLocks.contains(p.first)) {
+                filteredPend.push_back(std::move(p));
             }
         }
+        
         // Now check against the previous active set and perform banning if this fails
-        ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, pend, ret.m_peer_activity);
+        ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, filteredPend, ret.m_peer_activity);
     }
 
     return ret;
@@ -240,7 +242,7 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
 
 Uint256HashSet CInstantSendManager::ProcessPendingInstantSendLocks(
     const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
-    const Uint256HashMap<instantsend::PendingISLockFromPeer>& pend,
+    const std::vector<std::pair<uint256, instantsend::PendingISLockFromPeer>>& pend,
     std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
 {
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, true, 8);
