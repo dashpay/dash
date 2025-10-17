@@ -211,12 +211,9 @@ public:
 
     T& GetOrAdd(const SigShareKey& k)
     {
-        T* v = Get(k);
-        if (!v) {
-            Add(k, T());
-            v = Get(k);
-        }
-        return *v;
+        auto& m = internalMap[k.first]; // Get or create outer map entry
+        auto result = m.emplace(k.second, T()); // Try to insert, returns pair<iterator, bool>
+        return result.first->second; // Return reference to the value (new or existing)
     }
 
     const T* GetFirst() const
