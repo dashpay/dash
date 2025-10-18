@@ -665,9 +665,12 @@ bool CSigSharesManager::ProcessPendingSigShares()
                 continue;
             }
 
+            // Materialize the signature once. Get() internally validates, so if it returns an invalid signature,
+            // we know it's malformed. This avoids calling Get() twice (once for IsValid(), once for PushMessage).
+            CBLSSignature sig = sigShare.sigShare.Get();
             // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
             // deserialization in the message thread
-            if (!sigShare.sigShare.Get().IsValid()) {
+            if (!sig.IsValid()) {
                 BanNode(nodeId);
                 // don't process any additional shares from this node
                 break;
@@ -683,7 +686,7 @@ bool CSigSharesManager::ProcessPendingSigShares()
                 assert(false);
             }
 
-            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sigShare.sigShare.Get(), pubKeyShare);
+            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sig, pubKeyShare);
             verifyCount++;
         }
     }
