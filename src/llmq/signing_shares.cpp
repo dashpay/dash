@@ -635,8 +635,11 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
         return nullptr;
     }
 
-    std::vector<CBLSSignature> sigSharesForRecovery;
+    // For the multi-member case, collect lazy signatures under the lock and defer the expensive
+    // BLS deserialization (Get) until after the lock is released to minimize time spent holding cs.
+    std::vector<CBLSLazySignature> lazySignatures;
     std::vector<CBLSId> idsForRecovery;
+
     {
         LOCK(cs);
 
@@ -646,8 +649,8 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
             return nullptr;
         }
 
-        std::shared_ptr<CRecoveredSig> singleMemberRecoveredSig;
         if (quorum.params.is_single_member()) {
+            // Single share means a single Get(); no contention benefit to deferring it, so recover inline.
             if (sigSharesForSignHash->empty()) {
                 LogPrint(BCLog::LLMQ_SIGS, /* Continued */
                          "CSigSharesManager::%s -- impossible to recover single-node signature - no shares yet. id=%s, "
@@ -656,29 +659,34 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
                 return nullptr;
             }
             const auto& sigShare = sigSharesForSignHash->begin()->second;
-            CBLSSignature recoveredSig = sigShare.sigShare.Get();
             LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- recover single-node signature. id=%s, msgHash=%s\n",
                      __func__, id.ToString(), msgHash.ToString());
-
-            singleMemberRecoveredSig = std::make_shared<CRecoveredSig>(quorum.params.type, quorum.qc->quorumHash, id, msgHash,
-                                                      recoveredSig);
+            return std::make_shared<CRecoveredSig>(quorum.params.type, quorum.qc->quorumHash, id, msgHash,
+                                                   sigShare.sigShare.Get());
         }
 
-        sigSharesForRecovery.reserve((size_t) quorum.params.threshold);
+        // Collect lazy signatures and IDs under the lock (cheap); materialize them outside.
+        lazySignatures.reserve((size_t) quorum.params.threshold);
         idsForRecovery.reserve((size_t) quorum.params.threshold);
-        for (auto it = sigSharesForSignHash->begin(); it != sigSharesForSignHash->end() && sigSharesForRecovery.size() < size_t(quorum.params.threshold); ++it) {
+        for (auto it = sigSharesForSignHash->begin();
+             it != sigSharesForSignHash->end() && lazySignatures.size() < size_t(quorum.params.threshold);
+             ++it) {
             const auto& sigShare = it->second;
-            sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
+            lazySignatures.emplace_back(sigShare.sigShare); // Collect lazy wrapper, defer BLS deserialization
             idsForRecovery.emplace_back(quorum.members[sigShare.getQuorumMember()]->proTxHash);
         }
 
         // check if we can recover the final signature
-        if (sigSharesForRecovery.size() < size_t(quorum.params.threshold)) {
+        if (lazySignatures.size() < size_t(quorum.params.threshold)) {
             return nullptr;
         }
-        if (quorum.params.is_single_member()) {
-            return singleMemberRecoveredSig; // end of single-quorum processing
-        }
+    } // Release lock before expensive materialization
+
+    // Materialize signatures outside the critical section (expensive BLS operations)
+    std::vector<CBLSSignature> sigSharesForRecovery;
+    sigSharesForRecovery.reserve(lazySignatures.size());
+    for (const auto& lazySig : lazySignatures) {
+        sigSharesForRecovery.emplace_back(lazySig.Get()); // Expensive, but outside lock
     }
 
     // now recover it
