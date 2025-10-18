@@ -82,27 +82,27 @@ public:
         }
 
         // revert to per-source verification
-        for (const auto& p : messagesBySource) {
+        for (const auto& [from, message_map] : messagesBySource) {
             bool batchValid = false;
 
             // no need to verify it again if there was just one source
             if (messagesBySource.size() != 1) {
                 byMessageHash.clear();
-                for (auto it = p.second.begin(); it != p.second.end(); ++it) {
+                for (auto it = message_map.begin(); it != message_map.end(); ++it) {
                     byMessageHash[(*it)->second.msgHash].emplace_back(*it);
                 }
                 batchValid = VerifyBatch(byMessageHash);
             }
             if (!batchValid) {
-                badSources.emplace(p.first);
+                badSources.emplace(from);
 
                 if (perMessageFallback) {
                     // revert to per-message verification
-                    if (p.second.size() == 1) {
+                    if (message_map.size() == 1) {
                         // no need to re-verify a single message
-                        badMessages.emplace(p.second[0]->second.msgId);
+                        badMessages.emplace(message_map[0]->second.msgId);
                     } else {
-                        for (const auto& msgIt : p.second) {
+                        for (const auto& msgIt : message_map) {
                             if (badMessages.count(msgIt->first)) {
                                 // same message might be invalid from different source, so no need to re-verify it
                                 continue;
