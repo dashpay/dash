@@ -386,7 +386,6 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
 }
 
 #ifndef BUILD_BITCOIN_INTERNAL
-
 static std::once_flag init_flag;
 static mt_pooled_secure_allocator<uint8_t>* secure_allocator_instance;
 static void create_secure_allocator()
@@ -423,12 +422,11 @@ static void secure_free(void* p)
     size_t n = *reinterpret_cast<size_t*>(ptr);
     return get_secure_allocator().deallocate(ptr, n);
 }
-#endif
+#endif // BUILD_BITCOIN_INTERNAL
 
-bool BLSInit()
+void BLSInit()
 {
 #ifndef BUILD_BITCOIN_INTERNAL
     bls::BLS::SetSecureAllocator(secure_allocate, secure_free);
-#endif
-    return true;
+#endif // BUILD_BITCOIN_INTERNAL
 }
