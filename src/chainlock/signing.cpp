@@ -26,6 +26,9 @@ ChainLockSigner::ChainLockSigner(CChainState& chainstate, ChainLockSignerParent&
     m_sporkman{sporkman},
     m_mn_sync{mn_sync}
 {
+    // Initialize cached tip pointer
+    LOCK(::cs_main);
+    m_cached_tip.store(m_chainstate.m_chain.Tip(), std::memory_order_release);
 }
 
 ChainLockSigner::~ChainLockSigner() = default;
@@ -38,6 +41,11 @@ void ChainLockSigner::Start()
 void ChainLockSigner::Stop()
 {
     m_sigman.UnregisterRecoveredSigsListener(this);
+}
+
+void ChainLockSigner::UpdatedBlockTip(const CBlockIndex* pindexNew)
+{
+    m_cached_tip.store(pindexNew, std::memory_order_release);
 }
 
 void ChainLockSigner::TrySignChainTip(const llmq::CInstantSendManager& isman)
@@ -55,7 +63,7 @@ void ChainLockSigner::TrySignChainTip(const llmq::CInstantSendManager& isman)
         return;
     }
 
-    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
+    const CBlockIndex* pindex = m_cached_tip.load(std::memory_order_acquire);
 
     if (!pindex || !pindex->pprev) {
         return;

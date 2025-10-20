@@ -8,6 +8,7 @@
 #include <chainlock/clsig.h>
 #include <llmq/signing.h>
 
+class CBlockIndex;
 class CMasternodeSync;
 class CSporkManager;
 struct MessageProcessingResult;
@@ -62,6 +63,9 @@ private:
     uint256 lastSignedRequestId GUARDED_BY(cs_signer);
     uint256 lastSignedMsgHash GUARDED_BY(cs_signer);
 
+    // Cached tip pointer to avoid cs_main acquisition in TrySignChainTip
+    std::atomic<const CBlockIndex*> m_cached_tip{nullptr};
+
 public:
     ChainLockSigner() = delete;
     ChainLockSigner(const ChainLockSigner&) = delete;
@@ -72,6 +76,8 @@ public:
 
     void Start();
     void Stop();
+
+    void UpdatedBlockTip(const CBlockIndex* pindexNew);
 
     void EraseFromBlockHashTxidMap(const uint256& hash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_signer);

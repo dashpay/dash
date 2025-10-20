@@ -217,6 +217,12 @@ void CChainLocksHandler::AcceptedBlockHeader(gsl::not_null<const CBlockIndex*> p
 
 void CChainLocksHandler::UpdatedBlockTip(const llmq::CInstantSendManager& isman)
 {
+    // Update the cached tip in the signer before scheduling
+    const CBlockIndex* pindexNew = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
+    if (auto signer = m_signer.load(std::memory_order_acquire); signer && pindexNew) {
+        signer->UpdatedBlockTip(pindexNew);
+    }
+
     // don't call TrySignChainTip directly but instead let the scheduler call it. This way we ensure that cs_main is
     // never locked and TrySignChainTip is not called twice in parallel. Also avoids recursive calls due to
     // EnforceBestChainLock switching chains.
