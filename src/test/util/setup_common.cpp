@@ -441,9 +441,9 @@ TestChainSetup::TestChainSetup(int num_blocks, const std::string& chain_name, co
     this->mineBlocks(num_blocks);
 
     // Initialize transaction index *after* chain has been constructed
-    g_txindex = std::make_unique<TxIndex>(1 << 20, true);
+    g_txindex = std::make_unique<TxIndex>(interfaces::MakeChain(m_node), 1 << 20, true);
     assert(!g_txindex->BlockUntilSyncedToCurrentChain());
-    if (!g_txindex->Start(m_node.chainman->ActiveChainstate())) {
+    if (!g_txindex->Start()) {
         throw std::runtime_error("TxIndex::Start() failed.");
     }
     IndexWaitSynced(*g_txindex);

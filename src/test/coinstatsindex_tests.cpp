@@ -4,6 +4,7 @@
 
 #include <chainparams.h>
 #include <index/coinstatsindex.h>
+#include <interfaces/chain.h>
 #include <test/util/index.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
@@ -16,7 +17,7 @@ BOOST_AUTO_TEST_SUITE(coinstatsindex_tests)
 
 BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
 {
-    CoinStatsIndex coin_stats_index{1 << 20, true};
+    CoinStatsIndex coin_stats_index{interfaces::MakeChain(m_node), 1 << 20, true};
 
     const CBlockIndex* block_index;
     {
@@ -31,7 +32,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
     // is started.
     BOOST_CHECK(!coin_stats_index.BlockUntilSyncedToCurrentChain());
 
-    BOOST_REQUIRE(coin_stats_index.Start(m_node.chainman->ActiveChainstate()));
+    BOOST_REQUIRE(coin_stats_index.Start());
 
     IndexWaitSynced(coin_stats_index);
 
@@ -81,8 +82,8 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
     CChainState& chainstate = Assert(m_node.chainman)->ActiveChainstate();
     const CChainParams& params = Params();
     {
-        CoinStatsIndex index{1 << 20};
-        BOOST_REQUIRE(index.Start(chainstate));
+        CoinStatsIndex index{interfaces::MakeChain(m_node), 1 << 20};
+        BOOST_REQUIRE(index.Start());
         IndexWaitSynced(index);
         std::shared_ptr<const CBlock> new_block;
         CBlockIndex* new_block_index = nullptr;
@@ -107,9 +108,9 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
     }
 
     {
-        CoinStatsIndex index{1 << 20};
+        CoinStatsIndex index{interfaces::MakeChain(m_node), 1 << 20};
         // Make sure the index can be loaded.
-        BOOST_REQUIRE(index.Start(chainstate));
+        BOOST_REQUIRE(index.Start());
         index.Stop();
     }
 }
