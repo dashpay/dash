@@ -300,7 +300,6 @@ BITCOIN_CORE_H = \
   masternode/payments.h \
   masternode/sync.h \
   masternode/utils.h \
-  mempool_args.h \
   memusage.h \
   merkleblock.h \
   messagesigner.h \
@@ -321,13 +320,14 @@ BITCOIN_CORE_H = \
   node/connection_types.h \
   node/context.h \
   node/eviction.h \
+  node/interface_ui.h \
+  node/mempool_args.h \
   node/miner.h \
   node/minisketchwrapper.h \
   node/psbt.h \
   node/sync_manager.h \
   node/transaction.h \
   node/txreconciliation.h \
-  node/interface_ui.h \
   node/utxo_snapshot.h \
   noui.h \
   outputtype.h \
@@ -571,7 +571,6 @@ libbitcoin_node_a_SOURCES = \
   masternode/payments.cpp \
   masternode/sync.cpp \
   masternode/utils.cpp \
-  mempool_args.cpp \
   net.cpp \
   netfulfilledman.cpp \
   netgroup.cpp \
@@ -583,14 +582,15 @@ libbitcoin_node_a_SOURCES = \
   node/connection_types.cpp \
   node/context.cpp \
   node/eviction.cpp \
+  node/interface_ui.cpp \
   node/interfaces.cpp \
+  node/mempool_args.cpp \
   node/miner.cpp \
   node/minisketchwrapper.cpp \
   node/psbt.cpp \
   node/sync_manager.cpp \
   node/transaction.cpp \
   node/txreconciliation.cpp \
-  node/interface_ui.cpp \
   noui.cpp \
   policy/fees.cpp \
   policy/fees_args.cpp \

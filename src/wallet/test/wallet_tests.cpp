@@ -1137,8 +1137,6 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
 {
-    minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
-
     auto runTest = [&](const int nTestId, const CAmount nFeeRate, const std::map<int, std::pair<bool, ChangeTest>>& mapExpected) {
         coinControl.m_feerate = CFeeRate(nFeeRate);
         const std::map<int, std::vector<std::pair<CAmount, bool>>> mapTestCases{

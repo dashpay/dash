@@ -66,9 +66,10 @@ FUZZ_TARGET(transaction, .init = initialize_transaction)
         Assert(res == state_with_dupe_check.IsValid());
     }
 
+    const CFeeRate dust_relay_fee{DUST_RELAY_TX_FEE};
     std::string reason;
-    const bool is_standard_with_permit_bare_multisig = IsStandardTx(tx, reason);
-    const bool is_standard_without_permit_bare_multisig = IsStandardTx(tx, reason);
+    const bool is_standard_with_permit_bare_multisig = IsStandardTx(tx, std::nullopt, /*permit_bare_multisig=*/true, dust_relay_fee, reason);
+    const bool is_standard_without_permit_bare_multisig = IsStandardTx(tx, std::nullopt, /*permit_bare_multisig=*/false, dust_relay_fee, reason);
     if (is_standard_without_permit_bare_multisig) {
         assert(is_standard_with_permit_bare_multisig);
     }
@@ -86,7 +87,6 @@ FUZZ_TARGET(transaction, .init = initialize_transaction)
     (void)EncodeHexTx(tx);
     (void)GetLegacySigOpCount(tx);
     (void)IsFinalTx(tx, /* nBlockHeight= */ 1024, /* nBlockTime= */ 1024);
-    (void)IsStandardTx(tx, reason);
     (void)RecursiveDynamicUsage(tx);
 
     CCoinsView coins_view;
