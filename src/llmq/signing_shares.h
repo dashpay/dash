@@ -362,6 +362,23 @@ public:
     int attempt{0};
 };
 
+enum class PreVerifyResult {
+    Success,
+    QuorumTooOld,
+    NotAMember,
+    MissingVerificationVector,
+    DuplicateMember,
+    QuorumMemberOutOfBounds,
+    QuorumMemberNotValid
+};
+
+struct PreVerifyBatchedResult {
+    PreVerifyResult result;
+    bool should_ban;
+
+    [[nodiscard]] bool IsSuccess() const { return result == PreVerifyResult::Success; }
+};
+
 class CSigSharesManager : public llmq::CRecoveredSigsListener
 {
 private:
@@ -467,8 +484,8 @@ private:
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                          const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
+    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
+                                                             const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares);
 
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
