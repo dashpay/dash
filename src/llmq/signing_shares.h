@@ -369,6 +369,23 @@ struct PendingSignatureData {
     }
 };
 
+enum class PreVerifyResult {
+    Success,
+    QuorumTooOld,
+    NotAMember,
+    MissingVerificationVector,
+    DuplicateMember,
+    QuorumMemberOutOfBounds,
+    QuorumMemberNotValid
+};
+
+struct PreVerifyBatchedResult {
+    PreVerifyResult result;
+    bool should_ban;
+
+    [[nodiscard]] bool IsSuccess() const { return result == PreVerifyResult::Success; }
+};
+
 class CSigSharesManager : public llmq::CRecoveredSigsListener
 {
 private:
@@ -454,6 +471,10 @@ public:
 
     // if ProcessMessageSigShare returns false the node should be banned
     bool ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
+                                                             const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares);
 
     // CollectPendingSigSharesToVerify returns true if there's more work to do
     bool CollectPendingSigSharesToVerify(
