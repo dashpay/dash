@@ -248,7 +248,7 @@ class AssetLocksTest(DashTestFramework):
 
         self.set_sporks()
 
-        assert_equal(self.nodes[0].getblockchaininfo()['softforks']['v20']['active'], True)
+        assert_equal(self.nodes[0].getdeploymentinfo()['deployments']['v20']['active'], True)
 
         for _ in range(2):
             self.dynamically_add_masternode(evo=True)

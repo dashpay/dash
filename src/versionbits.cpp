@@ -137,21 +137,25 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
     return state;
 }
 
-BIP9Stats AbstractThresholdConditionChecker::GetStateStatisticsFor(const CBlockIndex* pindex, const Consensus::Params& params, ThresholdConditionCache& cache) const
+BIP9Stats AbstractThresholdConditionChecker::GetStateStatisticsFor(const CBlockIndex* pindex, const Consensus::Params& params, ThresholdConditionCache& cache, std::vector<bool>* signalling_blocks) const
 {
     BIP9Stats stats = {};
 
     stats.period = Period(params);
     stats.threshold = Threshold(params, 0);
 
-    if (pindex == nullptr)
-        return stats;
+    if (pindex == nullptr) return stats;
 
     // Find beginning of period
-    const CBlockIndex* pindexEndOfPrevPeriod = pindex->GetAncestor(pindex->nHeight - ((pindex->nHeight + 1) % stats.period));
-    stats.elapsed = pindex->nHeight - pindexEndOfPrevPeriod->nHeight;
+    int blocks_in_period = 1 + (pindex->nHeight % stats.period);
+
+    // Reset signalling_blocks
+    if (signalling_blocks) {
+        signalling_blocks->assign(blocks_in_period, false);
+    }
 
     // Re-calculate current threshold
+    const CBlockIndex* pindexEndOfPrevPeriod = pindex->GetAncestor(pindex->nHeight - ((pindex->nHeight + 1) % stats.period));
     int nAttempt{0};
     const ThresholdState state = GetStateFor(pindexEndOfPrevPeriod, params, cache);
     if (state == ThresholdState::STARTED) {
@@ -161,14 +165,20 @@ BIP9Stats AbstractThresholdConditionChecker::GetStateStatisticsFor(const CBlockI
     stats.threshold = Threshold(params, nAttempt);
 
     // Count from current block to beginning of period
+    int elapsed = 0;
     int count = 0;
     const CBlockIndex* currentIndex = pindex;
-    while (pindexEndOfPrevPeriod->nHeight != currentIndex->nHeight){
-        if (Condition(currentIndex, params))
-            count++;
+    do {
+        ++elapsed;
+        --blocks_in_period;
+        if (Condition(currentIndex, params)) {
+            ++count;
+            if (signalling_blocks) signalling_blocks->at(blocks_in_period) = true;
+        }
         currentIndex = currentIndex->pprev;
-    }
+    } while (blocks_in_period > 0);
 
+    stats.elapsed = elapsed;
     stats.count = count;
     stats.possible = (stats.period - stats.threshold ) >= (stats.elapsed - count);
 
@@ -269,10 +279,10 @@ ThresholdState VersionBitsCache::State(const CBlockIndex* pindexPrev, const Cons
     return VersionBitsConditionChecker(pos).GetStateFor(pindexPrev, params, m_caches[pos]);
 }
 
-BIP9Stats VersionBitsCache::Statistics(const CBlockIndex* pindexPrev, const Consensus::Params& params, Consensus::DeploymentPos pos)
+BIP9Stats VersionBitsCache::Statistics(const CBlockIndex* pindex, const Consensus::Params& params, Consensus::DeploymentPos pos, std::vector<bool>* signalling_blocks)
 {
     LOCK(m_mutex);
-    return VersionBitsConditionChecker(pos).GetStateStatisticsFor(pindexPrev, params, m_caches[pos]);
+    return VersionBitsConditionChecker(pos).GetStateStatisticsFor(pindex, params, m_caches[pos], signalling_blocks);
 }
 
 int VersionBitsCache::StateSinceHeight(const CBlockIndex* pindexPrev, const Consensus::Params& params, Consensus::DeploymentPos pos)
