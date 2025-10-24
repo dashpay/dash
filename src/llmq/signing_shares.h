@@ -472,6 +472,12 @@ public:
 
     void NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman,
+                                                            const CQuorumManager& quorum_manager,
+                                                            const CSigSharesNodeState::SessionInfo& session,
+                                                            const CBatchedSigShares& batchedSigShares);
+
 private:
     std::optional<CSigShare> CreateSigShareForSingleMember(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const;
 
@@ -482,10 +488,6 @@ private:
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                                             const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares);
 
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
