@@ -429,8 +429,10 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
     return true;
 }
 
-PreVerifyBatchedResult CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                                                    const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares)
+PreVerifyBatchedResult CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman,
+                                                                    const CQuorumManager& quorum_manager,
+                                                                    const CSigSharesNodeState::SessionInfo& session,
+                                                                    const CBatchedSigShares& batchedSigShares)
 {
     if (!IsQuorumActive(session.llmqType, quorum_manager, session.quorum->qc->quorumHash)) {
         // quorum is too old

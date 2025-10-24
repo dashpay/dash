@@ -458,6 +458,15 @@ public:
     bool AsyncSignIfMember(Consensus::LLMQType llmqType, CSigningManager& sigman, const uint256& id,
                            const uint256& msgHash, const uint256& quorumHash = uint256(), bool allowReSign = false,
                            bool allowDiffMsgHashSigning = false) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
+
+    void NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman,
+                                                            const CQuorumManager& quorum_manager,
+                                                            const CSigSharesNodeState::SessionInfo& session,
+                                                            const CBatchedSigShares& batchedSigShares);
+
 private:
     std::optional<CSigShare> CreateSigShareForSingleMember(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const;
 
@@ -471,10 +480,6 @@ public:
 
     // if ProcessMessageSigShare returns false the node should be banned
     bool ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                                             const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares);
 
     // CollectPendingSigSharesToVerify returns true if there's more work to do
     bool CollectPendingSigSharesToVerify(

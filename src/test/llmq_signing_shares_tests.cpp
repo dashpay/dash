@@ -2,13 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
 #include <test/util/llmq_tests.h>
+#include <test/util/setup_common.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
+#include <llmq/context.h>
 #include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/signing.h>
@@ -21,13 +22,13 @@ using namespace llmq;
 using namespace llmq::testutils;
 
 // Test fixture with helper functions
-struct LLMQSigningSharesTestFixture : public TestingSetup
-{
+struct LLMQSigningSharesTestFixture : public TestingSetup {
     std::unique_ptr<CBLSWorker> blsWorker;
     CBLSSecretKey sk;
     std::unique_ptr<CActiveMasternodeManager> mn_activeman;
 
-    LLMQSigningSharesTestFixture() : TestingSetup()
+    LLMQSigningSharesTestFixture() :
+        TestingSetup(CBaseChainParams::REGTEST)
     {
         blsWorker = std::make_unique<CBLSWorker>();
 
@@ -38,8 +39,7 @@ struct LLMQSigningSharesTestFixture : public TestingSetup
 
     // Helper to create a minimal test quorum
     CQuorumCPtr CreateMinimalTestQuorum(int size, bool hasVerificationVector = true,
-                                         const std::vector<bool>& validMembers = {},
-                                         bool includeOurProTxHash = false)
+                                        const std::vector<bool>& validMembers = {}, bool includeOurProTxHash = false)
     {
         const auto& params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST_V17);
 
@@ -123,12 +123,8 @@ BOOST_AUTO_TEST_CASE(preverify_missing_verification_vector)
 
     // Call PreVerifyBatchedSigShares - it should detect missing verification vector
     // (if it gets past the earlier checks for quorum activity and membership)
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // We expect it to fail (not be successful)
     BOOST_CHECK(!result.IsSuccess());
@@ -149,12 +145,8 @@ BOOST_AUTO_TEST_CASE(preverify_duplicate_member)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 0, 2});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // We expect failure
     BOOST_CHECK(!result.IsSuccess());
@@ -177,12 +169,8 @@ BOOST_AUTO_TEST_CASE(preverify_member_out_of_bounds)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 10});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // We expect failure
     BOOST_CHECK(!result.IsSuccess());
@@ -205,12 +193,8 @@ BOOST_AUTO_TEST_CASE(preverify_invalid_quorum_member)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // We expect failure
     BOOST_CHECK(!result.IsSuccess());
@@ -232,12 +216,8 @@ BOOST_AUTO_TEST_CASE(preverify_valid_batch_structure)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2, 3, 4});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // The batch structure is valid, but we may fail on QuorumTooOld or NotAMember
     // This test ensures that valid batch structure doesn't cause crashes
@@ -247,8 +227,7 @@ BOOST_AUTO_TEST_CASE(preverify_valid_batch_structure)
     // (not a ban-worthy failure from structure validation)
     if (!result.IsSuccess()) {
         // If not successful, it should be due to quorum checks, not structure validation
-        BOOST_CHECK(result.result == PreVerifyResult::QuorumTooOld ||
-                    result.result == PreVerifyResult::NotAMember ||
+        BOOST_CHECK(result.result == PreVerifyResult::QuorumTooOld || result.result == PreVerifyResult::NotAMember ||
                     result.result == PreVerifyResult::MissingVerificationVector);
     }
 }
@@ -264,12 +243,8 @@ BOOST_AUTO_TEST_CASE(preverify_empty_batch)
     auto batchedSigShares = CreateTestBatchedSigShares({});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // Empty batch should not trigger ban-worthy errors related to member validation
     // It may fail early checks (QuorumTooOld, NotAMember), but shouldn't trigger
@@ -291,12 +266,8 @@ BOOST_AUTO_TEST_CASE(preverify_multiple_duplicates)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2, 1, 3, 2, 4});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // We expect failure
     BOOST_CHECK(!result.IsSuccess());
@@ -318,12 +289,8 @@ BOOST_AUTO_TEST_CASE(preverify_boundary_max_member)
     auto batchedSigShares = CreateTestBatchedSigShares({0, static_cast<uint16_t>(quorum_size - 1)});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // This should not trigger QuorumMemberOutOfBounds since the max index is valid
     if (!result.IsSuccess()) {
@@ -343,12 +310,8 @@ BOOST_AUTO_TEST_CASE(preverify_all_members_invalid)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2});
 
     // Call PreVerifyBatchedSigShares
-    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
-        *mn_activeman,
-        *Assert(m_node.llmq_ctx->qman),
-        sessionInfo,
-        batchedSigShares
-    );
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(*mn_activeman, *Assert(m_node.llmq_ctx->qman),
+                                                               sessionInfo, batchedSigShares);
 
     // We expect failure
     BOOST_CHECK(!result.IsSuccess());
