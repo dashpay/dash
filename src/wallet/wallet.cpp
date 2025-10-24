@@ -2112,7 +2112,7 @@ bool CWallet::SignGovernanceVote(const CKeyID& keyID, CGovernanceVote& vote) con
     const auto opt_decoded = DecodeBase64(signature);
     CHECK_NONFATAL(opt_decoded.has_value()); // DecodeBase64 should not fail
 
-    vote.SetSignature(std::vector<unsigned char>(opt_decoded->data(), opt_decoded->data() + opt_decoded->size()));
+    vote.SetSignature(*opt_decoded);
     return true;
 }
 

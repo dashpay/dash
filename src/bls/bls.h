@@ -166,8 +166,7 @@ public:
     template <typename Stream>
     inline void Serialize(Stream& s, const bool specificLegacyScheme) const
     {
-        const auto bytes{ToBytes(specificLegacyScheme)};
-        s.write(AsBytes(Span{bytes.data(), SerSize}));
+        s.write(MakeByteSpan(ToBytes(specificLegacyScheme)));
     }
 
     template <typename Stream>
@@ -245,7 +244,7 @@ struct CBLSIdImplicit : public uint256
     {
         return {begin(), end()};
     }
-    [[nodiscard]] std::array<uint8_t, 32> SerializeToArray(const bool fLegacy) const { return m_data; }
+    [[nodiscard]] std::array<uint8_t, BLS_CURVE_ID_SIZE> SerializeToArray(const bool fLegacy) const { return m_data; }
 };
 
 class CBLSId : public CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_SIZE, CBLSId>

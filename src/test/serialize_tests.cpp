@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <bls/bls.h>
 #include <hash.h>
 #include <serialize.h>
 #include <streams.h>
@@ -304,6 +305,98 @@ BOOST_AUTO_TEST_CASE(class_methods)
         BOOST_CHECK_EQUAL(out.at(1), std::byte{'b'});
         BOOST_CHECK_EQUAL(out_3, std::byte{'c'});
     }
+}
+
+BOOST_AUTO_TEST_CASE(array_serialization_bytes)
+{
+    // Test std::array<uint8_t, N> serialization (byte arrays)
+    std::array<uint8_t, 4> arr_in = {0x01, 0x02, 0x03, 0x04};
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << arr_in;
+    
+    // Should serialize without size prefix for byte arrays
+    BOOST_CHECK_EQUAL(ss.size(), 4);
+    
+    std::array<uint8_t, 4> arr_out;
+    ss >> arr_out;
+    BOOST_CHECK(arr_in == arr_out);
+}
+
+BOOST_AUTO_TEST_CASE(array_serialization_integers)
+{
+    // Test std::array<int32_t, N> serialization
+    std::array<int32_t, 3> arr_in = {100, 200, 300};
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << arr_in;
+    
+    std::array<int32_t, 3> arr_out;
+    ss >> arr_out;
+    BOOST_CHECK(arr_in == arr_out);
+}
+
+BOOST_AUTO_TEST_CASE(array_serialization_bools)
+{
+    // Test std::array<bool, N> serialization
+    std::array<bool, 5> arr_in = {true, false, true, true, false};
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << arr_in;
+    
+    std::array<bool, 5> arr_out;
+    ss >> arr_out;
+    BOOST_CHECK(arr_in == arr_out);
+}
+
+BOOST_AUTO_TEST_CASE(array_serialization_empty)
+{
+    // Test zero-sized array
+    std::array<uint8_t, 0> arr_in;
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << arr_in;
+    BOOST_CHECK_EQUAL(ss.size(), 0);
+    
+    std::array<uint8_t, 0> arr_out;
+    ss >> arr_out;
+}
+
+BOOST_AUTO_TEST_CASE(array_serialization_bls_signature)
+{
+    // Test large byte array (BLS signature size)
+    std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr_in;
+    for (size_t i = 0; i < BLS_CURVE_SIG_SIZE; ++i) {
+        arr_in[i] = static_cast<uint8_t>(i);
+    }
+    
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << arr_in;
+    BOOST_CHECK_EQUAL(ss.size(), BLS_CURVE_SIG_SIZE);
+    
+    std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr_out;
+    ss >> arr_out;
+    BOOST_CHECK(arr_in == arr_out);
+}
+
+BOOST_AUTO_TEST_CASE(array_serialization_multiple)
+{
+    // Test round-trip with multiple arrays (BLS pubkey and signature sizes)
+    std::array<uint8_t, BLS_CURVE_PUBKEY_SIZE> arr1;
+    std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr2;
+    std::array<int32_t, 2> arr3 = {42, 84};
+    
+    for (size_t i = 0; i < BLS_CURVE_PUBKEY_SIZE; ++i) arr1[i] = static_cast<uint8_t>(i);
+    for (size_t i = 0; i < BLS_CURVE_SIG_SIZE; ++i) arr2[i] = static_cast<uint8_t>(255 - i);
+    
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << arr1 << arr2 << arr3;
+    
+    std::array<uint8_t, BLS_CURVE_PUBKEY_SIZE> arr1_out;
+    std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr2_out;
+    std::array<int32_t, 2> arr3_out;
+    
+    ss >> arr1_out >> arr2_out >> arr3_out;
+    
+    BOOST_CHECK(arr1 == arr1_out);
+    BOOST_CHECK(arr2 == arr2_out);
+    BOOST_CHECK(arr3 == arr3_out);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

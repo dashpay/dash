@@ -839,6 +839,12 @@ template<typename Stream, typename T, typename A> inline void Serialize(Stream& 
 template<typename Stream, typename T, typename A> inline void Unserialize(Stream& is, std::vector<T, A>& v);
 
 /**
+ * array
+ */
+template<typename Stream, typename T, size_t N> void Serialize(Stream& os, const std::array<T, N>& a);
+template<typename Stream, typename T, size_t N> void Unserialize(Stream& is, std::array<T, N>& a);
+
+/**
  * pair
  */
 template<typename Stream, typename K, typename T> void Serialize(Stream& os, const std::pair<K, T>& item);
@@ -1066,6 +1072,51 @@ void Unserialize(Stream& is, std::vector<T, A>& v)
         }
     } else {
         Unserialize(is, Using<VectorFormatter<DefaultFormatter>>(v));
+    }
+}
+
+/**
+ * array
+ */
+template<typename Stream, typename T, size_t N>
+void Serialize(Stream& os, const std::array<T, N>& a)
+{
+    if constexpr (std::is_same_v<T, unsigned char>) {
+        // Directly write the byte data without writing the size
+        if constexpr (N > 0) {
+            os.write(MakeByteSpan(a));
+        }
+    } else if constexpr (std::is_same_v<T, bool>) {
+        // Serialize each bool individually
+        for (const bool& elem : a) {
+            ::Serialize(os, elem);
+        }
+    } else {
+        // Serialize each element using the default Serialize function
+        for (const T& elem : a) {
+            ::Serialize(os, elem);
+        }
+    }
+}
+
+template<typename Stream, typename T, size_t N>
+void Unserialize(Stream& is, std::array<T, N>& a)
+{
+    if constexpr (std::is_same_v<T, unsigned char>) {
+        // Directly read the byte data without reading the size
+        if constexpr (N > 0) {
+            is.read(AsWritableBytes(Span{a}));
+        }
+    } else if constexpr (std::is_same_v<T, bool>) {
+        // Unserialize each bool individually
+        for (bool& elem : a) {
+            ::Unserialize(is, elem);
+        }
+    } else {
+        // Unserialize each element using the default Unserialize function
+        for (T& elem : a) {
+            ::Unserialize(is, elem);
+        }
     }
 }
 
