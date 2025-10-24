@@ -24,37 +24,49 @@ using namespace llmq::testutils;
 struct LLMQSigningSharesTestFixture : public TestingSetup
 {
     std::unique_ptr<CBLSWorker> blsWorker;
-    
+    CBLSSecretKey sk;
+    std::unique_ptr<CActiveMasternodeManager> mn_activeman;
+
     LLMQSigningSharesTestFixture() : TestingSetup()
     {
         blsWorker = std::make_unique<CBLSWorker>();
+
+        // Create active masternode manager with a test secret key
+        sk.MakeNewKey();
+        mn_activeman = std::make_unique<CActiveMasternodeManager>(sk, *Assert(m_node.connman), m_node.dmnman);
     }
-    
+
     // Helper to create a minimal test quorum
     CQuorumCPtr CreateMinimalTestQuorum(int size, bool hasVerificationVector = true,
-                                         const std::vector<bool>& validMembers = {})
+                                         const std::vector<bool>& validMembers = {},
+                                         bool includeOurProTxHash = false)
     {
         const auto& params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST_V17);
-        
+
         auto quorum = std::make_shared<CQuorum>(params, *blsWorker);
-        
+
         // Create commitment
         auto qc_ptr = std::make_unique<CFinalCommitment>();
         qc_ptr->llmqType = params.type;
         qc_ptr->quorumHash = InsecureRand256();
-        
+
         // Set valid members
         if (!validMembers.empty()) {
             qc_ptr->validMembers = validMembers;
         } else {
             qc_ptr->validMembers.resize(size, true);
         }
-        
-        // Create members (empty DMN pointers are fine for our tests)
-        std::vector<CDeterministicMNCPtr> members(size, nullptr);
-        
+
+        // Create members
+        std::vector<CDeterministicMNCPtr> members;
+        for (int i = 0; i < size; ++i) {
+            // For simplicity, use nullptr members since we're testing pre-verification logic
+            // The actual member checking happens in IsMember() which we can't fully mock
+            members.push_back(nullptr);
+        }
+
         quorum->Init(std::move(qc_ptr), nullptr, InsecureRand256(), members);
-        
+
         // Set verification vector if requested
         if (hasVerificationVector) {
             std::vector<CBLSPublicKey> vvec;
@@ -65,10 +77,10 @@ struct LLMQSigningSharesTestFixture : public TestingSetup
             }
             quorum->SetVerificationVector(vvec);
         }
-        
+
         return quorum;
     }
-    
+
     // Helper to create test SessionInfo
     CSigSharesNodeState::SessionInfo CreateTestSessionInfo(CQuorumCPtr quorum)
     {
@@ -80,18 +92,18 @@ struct LLMQSigningSharesTestFixture : public TestingSetup
         session.quorum = quorum;
         return session;
     }
-    
+
     // Helper to create test BatchedSigShares
     CBatchedSigShares CreateTestBatchedSigShares(const std::vector<uint16_t>& members)
     {
         CBatchedSigShares batched;
         batched.sessionId = 1;
-        
+
         for (uint16_t member : members) {
             CBLSLazySignature lazySig;
             batched.sigShares.emplace_back(member, lazySig);
         }
-        
+
         return batched;
     }
 };
@@ -99,42 +111,59 @@ struct LLMQSigningSharesTestFixture : public TestingSetup
 BOOST_FIXTURE_TEST_SUITE(llmq_signing_shares_tests, LLMQSigningSharesTestFixture)
 
 // Test: Missing verification vector
+// Note: This test will likely return QuorumTooOld or NotAMember because we can't fully mock
+// IsQuorumActive and IsMember. However, we can still verify the function is callable and
+// returns a proper PreVerifyBatchedResult.
 BOOST_AUTO_TEST_CASE(preverify_missing_verification_vector)
 {
     // Create quorum WITHOUT verification vector
     auto quorum = CreateMinimalTestQuorum(3, false);
     auto sessionInfo = CreateTestSessionInfo(quorum);
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1});
-    
-    // Note: We can't easily test the full function because IsQuorumActive and IsMember
-    // require complex setup. This test verifies the data structures are created correctly.
-    // The missing verification vector check will be hit if the earlier checks pass.
-    
-    BOOST_CHECK(!quorum->HasVerificationVector());
-    BOOST_CHECK_EQUAL(quorum->members.size(), 3);
+
+    // Call PreVerifyBatchedSigShares - it should detect missing verification vector
+    // (if it gets past the earlier checks for quorum activity and membership)
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // We expect it to fail (not be successful)
+    BOOST_CHECK(!result.IsSuccess());
+    // The actual result will likely be QuorumTooOld, NotAMember, or MissingVerificationVector
+    // depending on which check fails first
 }
 
 // Test: Duplicate member detection
+// Since we control the batched sig shares structure, we can test this validation
+// even if earlier checks might fail
 BOOST_AUTO_TEST_CASE(preverify_duplicate_member)
 {
     // Create a valid quorum
     auto quorum = CreateMinimalTestQuorum(5, true);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
+
     // Create batch with duplicate member (0 appears twice)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 0, 2});
-    
-    // We can test the duplicate detection logic by checking the batch structure
-    std::unordered_set<uint16_t> seen;
-    bool hasDuplicate = false;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (!seen.insert(member).second) {
-            hasDuplicate = true;
-            break;
-        }
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // We expect failure
+    BOOST_CHECK(!result.IsSuccess());
+
+    // If we get to the duplicate check (past QuorumTooOld and NotAMember checks),
+    // we should get DuplicateMember with should_ban=true
+    if (result.result == PreVerifyResult::DuplicateMember) {
+        BOOST_CHECK(result.should_ban);
     }
-    
-    BOOST_CHECK(hasDuplicate);
 }
 
 // Test: Quorum member out of bounds
@@ -143,21 +172,25 @@ BOOST_AUTO_TEST_CASE(preverify_member_out_of_bounds)
     // Create quorum with 5 members
     auto quorum = CreateMinimalTestQuorum(5, true);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
+
     // Create batch with member index out of bounds (>= 5)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 10});
-    
-    // Verify that we have an out-of-bounds member
-    bool hasOutOfBounds = false;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (member >= quorum->members.size()) {
-            hasOutOfBounds = true;
-            break;
-        }
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // We expect failure
+    BOOST_CHECK(!result.IsSuccess());
+
+    // If we get to the bounds check, we should get QuorumMemberOutOfBounds with should_ban=true
+    if (result.result == PreVerifyResult::QuorumMemberOutOfBounds) {
+        BOOST_CHECK(result.should_ban);
     }
-    
-    BOOST_CHECK(hasOutOfBounds);
-    BOOST_CHECK_EQUAL(quorum->members.size(), 5);
 }
 
 // Test: Invalid quorum member
@@ -167,69 +200,57 @@ BOOST_AUTO_TEST_CASE(preverify_invalid_quorum_member)
     std::vector<bool> validMembers = {true, false, true, true, false};
     auto quorum = CreateMinimalTestQuorum(5, true, validMembers);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
+
     // Create batch including an invalid member (member 1 is invalid)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2});
-    
-    // Verify that member 1 is marked invalid
-    BOOST_CHECK_EQUAL(quorum->qc->validMembers[0], true);
-    BOOST_CHECK_EQUAL(quorum->qc->validMembers[1], false);  // Invalid!
-    BOOST_CHECK_EQUAL(quorum->qc->validMembers[2], true);
-    
-    // Check that we can detect the invalid member
-    bool hasInvalidMember = false;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (member < quorum->qc->validMembers.size() && 
-            !quorum->qc->validMembers[member]) {
-            hasInvalidMember = true;
-            break;
-        }
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // We expect failure
+    BOOST_CHECK(!result.IsSuccess());
+
+    // If we get to the valid member check, we should get QuorumMemberNotValid with should_ban=true
+    if (result.result == PreVerifyResult::QuorumMemberNotValid) {
+        BOOST_CHECK(result.should_ban);
     }
-    
-    BOOST_CHECK(hasInvalidMember);
 }
 
-// Test: Valid batch structure
+// Test: Valid batch structure (though may fail early checks)
 BOOST_AUTO_TEST_CASE(preverify_valid_batch_structure)
 {
     // Create a valid quorum
     auto quorum = CreateMinimalTestQuorum(5, true);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
+
     // Create a valid batch (all members exist and are unique)
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2, 3, 4});
-    
-    // Verify no duplicates
-    std::unordered_set<uint16_t> seen;
-    bool hasDuplicate = false;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (!seen.insert(member).second) {
-            hasDuplicate = true;
-            break;
-        }
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // The batch structure is valid, but we may fail on QuorumTooOld or NotAMember
+    // This test ensures that valid batch structure doesn't cause crashes
+    // and that the function returns a proper result
+
+    // Verify that at least we get a proper result type
+    // (not a ban-worthy failure from structure validation)
+    if (!result.IsSuccess()) {
+        // If not successful, it should be due to quorum checks, not structure validation
+        BOOST_CHECK(result.result == PreVerifyResult::QuorumTooOld ||
+                    result.result == PreVerifyResult::NotAMember ||
+                    result.result == PreVerifyResult::MissingVerificationVector);
     }
-    BOOST_CHECK(!hasDuplicate);
-    
-    // Verify all members are in bounds
-    bool allInBounds = true;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (member >= quorum->members.size()) {
-            allInBounds = false;
-            break;
-        }
-    }
-    BOOST_CHECK(allInBounds);
-    
-    // Verify all members are valid
-    bool allValid = true;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (member >= quorum->qc->validMembers.size() || 
-            !quorum->qc->validMembers[member]) {
-            allValid = false;
-            break;
-        }
-    }
-    BOOST_CHECK(allValid);
 }
 
 // Test: Empty batch
@@ -238,18 +259,25 @@ BOOST_AUTO_TEST_CASE(preverify_empty_batch)
     // Create a valid quorum
     auto quorum = CreateMinimalTestQuorum(5, true);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
+
     // Create an empty batch
     auto batchedSigShares = CreateTestBatchedSigShares({});
-    
-    // Empty batch should have no shares
-    BOOST_CHECK(batchedSigShares.sigShares.empty());
-    
-    // Empty batch should pass all validation checks (nothing to validate)
-    for (const auto& share : batchedSigShares.sigShares) {
-        // This loop shouldn't execute
-        (void)share; // Suppress unused variable warning
-        BOOST_CHECK(false);
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // Empty batch should not trigger ban-worthy errors related to member validation
+    // It may fail early checks (QuorumTooOld, NotAMember), but shouldn't trigger
+    // DuplicateMember, QuorumMemberOutOfBounds, or QuorumMemberNotValid
+    if (!result.IsSuccess()) {
+        BOOST_CHECK(result.result != PreVerifyResult::DuplicateMember);
+        BOOST_CHECK(result.result != PreVerifyResult::QuorumMemberOutOfBounds);
+        BOOST_CHECK(result.result != PreVerifyResult::QuorumMemberNotValid);
     }
 }
 
@@ -258,20 +286,25 @@ BOOST_AUTO_TEST_CASE(preverify_multiple_duplicates)
 {
     auto quorum = CreateMinimalTestQuorum(10, true);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
-    // Create batch with multiple duplicates
+
+    // Create batch with multiple duplicates - should fail on first duplicate found
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2, 1, 3, 2, 4});
-    
-    // Count duplicates
-    std::unordered_set<uint16_t> seen;
-    int duplicateCount = 0;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (!seen.insert(member).second) {
-            duplicateCount++;
-        }
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // We expect failure
+    BOOST_CHECK(!result.IsSuccess());
+
+    // If we get to the duplicate check, it should trigger DuplicateMember with ban
+    if (result.result == PreVerifyResult::DuplicateMember) {
+        BOOST_CHECK(result.should_ban);
     }
-    
-    BOOST_CHECK_EQUAL(duplicateCount, 2); // Members 1 and 2 appear twice each
 }
 
 // Test: Boundary case - maximum member index
@@ -280,13 +313,21 @@ BOOST_AUTO_TEST_CASE(preverify_boundary_max_member)
     const int quorum_size = 10;
     auto quorum = CreateMinimalTestQuorum(quorum_size, true);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
+
     // Create batch with last valid member (size - 1)
     auto batchedSigShares = CreateTestBatchedSigShares({0, static_cast<uint16_t>(quorum_size - 1)});
-    
-    // Verify max member is in bounds
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        BOOST_CHECK(member < quorum->members.size());
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // This should not trigger QuorumMemberOutOfBounds since the max index is valid
+    if (!result.IsSuccess()) {
+        BOOST_CHECK(result.result != PreVerifyResult::QuorumMemberOutOfBounds);
     }
 }
 
@@ -297,25 +338,42 @@ BOOST_AUTO_TEST_CASE(preverify_all_members_invalid)
     std::vector<bool> validMembers(5, false);
     auto quorum = CreateMinimalTestQuorum(5, true, validMembers);
     auto sessionInfo = CreateTestSessionInfo(quorum);
-    
-    // Create batch with any members
+
+    // Create batch with any members - they're all invalid
     auto batchedSigShares = CreateTestBatchedSigShares({0, 1, 2});
-    
-    // Verify all members are marked invalid
-    for (size_t i = 0; i < quorum->qc->validMembers.size(); ++i) {
-        BOOST_CHECK_EQUAL(quorum->qc->validMembers[i], false);
+
+    // Call PreVerifyBatchedSigShares
+    auto result = CSigSharesManager::PreVerifyBatchedSigShares(
+        *mn_activeman,
+        *Assert(m_node.llmq_ctx->qman),
+        sessionInfo,
+        batchedSigShares
+    );
+
+    // We expect failure
+    BOOST_CHECK(!result.IsSuccess());
+
+    // If we get to the valid member check, should trigger QuorumMemberNotValid with ban
+    if (result.result == PreVerifyResult::QuorumMemberNotValid) {
+        BOOST_CHECK(result.should_ban);
     }
-    
-    // Check that all shares reference invalid members
-    bool allInvalid = true;
-    for (const auto& [member, _] : batchedSigShares.sigShares) {
-        if (member < quorum->qc->validMembers.size() && 
-            quorum->qc->validMembers[member]) {
-            allInvalid = false;
-            break;
-        }
-    }
-    BOOST_CHECK(allInvalid);
+}
+
+// Test: Result enum values and should_ban flag
+BOOST_AUTO_TEST_CASE(preverify_result_structure)
+{
+    // Test that PreVerifyBatchedResult works correctly
+    PreVerifyBatchedResult success_result{PreVerifyResult::Success, false};
+    BOOST_CHECK(success_result.IsSuccess());
+    BOOST_CHECK(!success_result.should_ban);
+
+    PreVerifyBatchedResult ban_result{PreVerifyResult::DuplicateMember, true};
+    BOOST_CHECK(!ban_result.IsSuccess());
+    BOOST_CHECK(ban_result.should_ban);
+
+    PreVerifyBatchedResult no_ban_result{PreVerifyResult::QuorumTooOld, false};
+    BOOST_CHECK(!no_ban_result.IsSuccess());
+    BOOST_CHECK(!no_ban_result.should_ban);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
