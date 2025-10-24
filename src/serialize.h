@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <array>
 #include <concepts>
 #include <cstdint>
 #include <cstring>

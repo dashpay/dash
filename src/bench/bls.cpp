@@ -364,7 +364,7 @@ static void BLS_ToBytes_Signature(benchmark::Bench& bench)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     auto sig = sk.Sign(uint256::ONE, false);
-    
+
     bench.run([&] {
         auto bytes = sig.ToBytes(false);
         ankerl::nanobench::doNotOptimizeAway(bytes);
@@ -376,7 +376,7 @@ static void BLS_ToByteVector_Signature(benchmark::Bench& bench)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     auto sig = sk.Sign(uint256::ONE, false);
-    
+
     bench.run([&] {
         auto bytes = sig.ToByteVector(false);
         ankerl::nanobench::doNotOptimizeAway(bytes);
@@ -388,7 +388,7 @@ static void BLS_ToBytes_PubKey(benchmark::Bench& bench)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     auto pk = sk.GetPublicKey();
-    
+
     bench.run([&] {
         auto bytes = pk.ToBytes(false);
         ankerl::nanobench::doNotOptimizeAway(bytes);
@@ -400,7 +400,7 @@ static void BLS_ToByteVector_PubKey(benchmark::Bench& bench)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     auto pk = sk.GetPublicKey();
-    
+
     bench.run([&] {
         auto bytes = pk.ToByteVector(false);
         ankerl::nanobench::doNotOptimizeAway(bytes);
@@ -412,7 +412,7 @@ static void BLS_Serialize_Signature_Array(benchmark::Bench& bench)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     auto sig = sk.Sign(uint256::ONE, false);
-    
+
     bench.run([&] {
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << sig;
@@ -425,7 +425,7 @@ static void BLS_Serialize_Signature_Vector(benchmark::Bench& bench)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     auto sig = sk.Sign(uint256::ONE, false);
-    
+
     bench.run([&] {
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         auto vec = sig.ToByteVector(false);

@@ -313,10 +313,10 @@ BOOST_AUTO_TEST_CASE(array_serialization_bytes)
     std::array<uint8_t, 4> arr_in = {0x01, 0x02, 0x03, 0x04};
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << arr_in;
-    
+
     // Should serialize without size prefix for byte arrays
     BOOST_CHECK_EQUAL(ss.size(), 4);
-    
+
     std::array<uint8_t, 4> arr_out;
     ss >> arr_out;
     BOOST_CHECK(arr_in == arr_out);
@@ -328,7 +328,7 @@ BOOST_AUTO_TEST_CASE(array_serialization_integers)
     std::array<int32_t, 3> arr_in = {100, 200, 300};
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << arr_in;
-    
+
     std::array<int32_t, 3> arr_out;
     ss >> arr_out;
     BOOST_CHECK(arr_in == arr_out);
@@ -340,7 +340,7 @@ BOOST_AUTO_TEST_CASE(array_serialization_bools)
     std::array<bool, 5> arr_in = {true, false, true, true, false};
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << arr_in;
-    
+
     std::array<bool, 5> arr_out;
     ss >> arr_out;
     BOOST_CHECK(arr_in == arr_out);
@@ -353,7 +353,7 @@ BOOST_AUTO_TEST_CASE(array_serialization_empty)
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << arr_in;
     BOOST_CHECK_EQUAL(ss.size(), 0);
-    
+
     std::array<uint8_t, 0> arr_out;
     ss >> arr_out;
 }
@@ -365,11 +365,11 @@ BOOST_AUTO_TEST_CASE(array_serialization_bls_signature)
     for (size_t i = 0; i < BLS_CURVE_SIG_SIZE; ++i) {
         arr_in[i] = static_cast<uint8_t>(i);
     }
-    
+
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << arr_in;
     BOOST_CHECK_EQUAL(ss.size(), BLS_CURVE_SIG_SIZE);
-    
+
     std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr_out;
     ss >> arr_out;
     BOOST_CHECK(arr_in == arr_out);
@@ -381,19 +381,19 @@ BOOST_AUTO_TEST_CASE(array_serialization_multiple)
     std::array<uint8_t, BLS_CURVE_PUBKEY_SIZE> arr1;
     std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr2;
     std::array<int32_t, 2> arr3 = {42, 84};
-    
+
     for (size_t i = 0; i < BLS_CURVE_PUBKEY_SIZE; ++i) arr1[i] = static_cast<uint8_t>(i);
     for (size_t i = 0; i < BLS_CURVE_SIG_SIZE; ++i) arr2[i] = static_cast<uint8_t>(255 - i);
-    
+
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << arr1 << arr2 << arr3;
-    
+
     std::array<uint8_t, BLS_CURVE_PUBKEY_SIZE> arr1_out;
     std::array<uint8_t, BLS_CURVE_SIG_SIZE> arr2_out;
     std::array<int32_t, 2> arr3_out;
-    
+
     ss >> arr1_out >> arr2_out >> arr3_out;
-    
+
     BOOST_CHECK(arr1 == arr1_out);
     BOOST_CHECK(arr2 == arr2_out);
     BOOST_CHECK(arr3 == arr3_out);

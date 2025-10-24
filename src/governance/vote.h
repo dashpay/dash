@@ -7,6 +7,7 @@
 
 #include <hash.h>
 #include <primitives/transaction.h>
+#include <span.h>
 #include <uint256.h>
 #include <util/string.h>
 
