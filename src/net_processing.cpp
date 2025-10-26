@@ -595,6 +595,11 @@ public:
                     const std::unique_ptr<ActiveContext>& active_ctx, CJWalletManager* const cj_walletman,
                     const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs);
 
+    ~PeerManagerImpl() {
+        // probably do some disassignment
+//        m_handlers.clear();
+    }
+
     /** Overridden from CValidationInterface. */
     void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex);
@@ -636,6 +641,11 @@ public:
     void UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds) override;
     bool IsBanned(NodeId pnode) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
     size_t GetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void AddExtraHandler(std::unique_ptr<NetHandler>&& handler) override;
+
+    /** Implement PeerManagerInternal */
+    void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override;
+    void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override;
 private:
     void _RelayTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
 
@@ -1065,6 +1075,8 @@ private:
     std::vector<std::pair<uint256, CTransactionRef>> vExtraTxnForCompact GUARDED_BY(g_msgproc_mutex);
     /** Offset into vExtraTxnForCompact to insert the next tx */
     size_t vExtraTxnForCompactIt GUARDED_BY(g_msgproc_mutex) = 0;
+
+    std::vector<std::unique_ptr<NetHandler>> m_handlers;
 };
 
 // Keeps track of the time (in microseconds) when transactions were requested last time
@@ -1621,6 +1633,12 @@ size_t PeerManagerImpl::GetRequestedObjectCount(NodeId nodeid) const
         return 0;
 
     return state->m_object_download.m_object_process_time.size();
+}
+
+void PeerManagerImpl::AddExtraHandler(std::unique_ptr<NetHandler>&& handler)
+{
+    assert(handler != nullptr);
+    m_handlers.emplace_back(std::move(handler));
 }
 
 void PeerManagerImpl::UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds)
@@ -5389,7 +5407,9 @@ void PeerManagerImpl::ProcessMessage(
             return; // CLSIG
         }
 
-        PostProcessMessage(m_llmq_ctx->isman->ProcessMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());
+        for (const auto& handler : m_handlers) {
+            handler->ProcessMessage(pfrom, msg_type, vRecv);
+        }
         return;
     }
 
@@ -6464,4 +6484,14 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
         }
     } // release cs_main
     return true;
+}
+
+void PeerManagerImpl::PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message)
+{
+    Misbehaving(pnode, howmuch, message);
+}
+
+void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)
+{
+    EraseObjectRequest(nodeid, inv);
 }
