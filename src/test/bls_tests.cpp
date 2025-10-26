@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "span.h"
 #include <bls/bls.h>
 #include <bls/bls_batchverifier.h>
 #include <clientversion.h>
@@ -671,7 +672,7 @@ BOOST_AUTO_TEST_CASE(bls_signature_array_serialization)
     std::array<uint8_t, BLS_CURVE_SIG_SIZE> sig_array = sig.ToBytes(false);
 
     // Construct signature from array via Span
-    CBLSSignature sig3(Span{sig_array}, false);
+    CBLSSignature sig3(MakeUCharSpan(sig_array), false);
     BOOST_CHECK(sig == sig3);
 }
 
