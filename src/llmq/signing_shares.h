@@ -478,6 +478,11 @@ public:
                                                             const CSigSharesNodeState::SessionInfo& session,
                                                             const CBatchedSigShares& batchedSigShares);
 
+    // Validates the structure of batched sig shares (duplicates, bounds, member validity)
+    // This is extracted for testability - it's the pure validation logic without external dependencies
+    static PreVerifyBatchedResult ValidateBatchedSigSharesStructure(const CQuorum& quorum,
+                                                                     const CBatchedSigShares& batchedSigShares);
+
 private:
     std::optional<CSigShare> CreateSigShareForSingleMember(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const;
 

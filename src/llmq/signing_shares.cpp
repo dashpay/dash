@@ -551,6 +551,28 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), sigShare.getQuorumMember(), fromId);
 }
 
+PreVerifyBatchedResult CSigSharesManager::ValidateBatchedSigSharesStructure(const CQuorum& quorum,
+                                                                            const CBatchedSigShares& batchedSigShares)
+{
+    std::unordered_set<uint16_t> dupMembers;
+
+    for (const auto& [quorumMember, _] : batchedSigShares.sigShares) {
+        if (!dupMembers.emplace(quorumMember).second) {
+            return {PreVerifyResult::DuplicateMember, true};
+        }
+
+        if (quorumMember >= quorum.members.size()) {
+            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
+            return {PreVerifyResult::QuorumMemberOutOfBounds, true};
+        }
+        if (!quorum.qc->validMembers[quorumMember]) {
+            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember not valid\n", __func__);
+            return {PreVerifyResult::QuorumMemberNotValid, true};
+        }
+    }
+    return {PreVerifyResult::Success, false};
+}
+
 PreVerifyBatchedResult CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman,
                                                                     const CQuorumManager& quorum_manager,
                                                                     const CSigSharesNodeState::SessionInfo& session,
@@ -571,23 +593,7 @@ PreVerifyBatchedResult CSigSharesManager::PreVerifyBatchedSigShares(const CActiv
         return {PreVerifyResult::MissingVerificationVector, false};
     }
 
-    std::unordered_set<uint16_t> dupMembers;
-
-    for (const auto& [quorumMember, _] : batchedSigShares.sigShares) {
-        if (!dupMembers.emplace(quorumMember).second) {
-            return {PreVerifyResult::DuplicateMember, true};
-        }
-
-        if (quorumMember >= session.quorum->members.size()) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
-            return {PreVerifyResult::QuorumMemberOutOfBounds, true};
-        }
-        if (!session.quorum->qc->validMembers[quorumMember]) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember not valid\n", __func__);
-            return {PreVerifyResult::QuorumMemberNotValid, true};
-        }
-    }
-    return {PreVerifyResult::Success, false};
+    return ValidateBatchedSigSharesStructure(*session.quorum, batchedSigShares);
 }
 
 bool CSigSharesManager::CollectPendingSigSharesToVerify(
