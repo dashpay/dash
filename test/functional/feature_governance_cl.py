@@ -128,6 +128,8 @@ class DashGovernanceTest (DashTestFramework):
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash())
 
         self.log.info("Mine (superblock cycle + 1) blocks on non-isolated nodes to forget about this trigger")
+        # disable spork to prevent accidental creation of new triggers in this cycle
+        self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 4070908800)
         for _ in range(sb_cycle):
             self.bump_mocktime(156)
             self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:5]))
@@ -136,6 +138,8 @@ class DashGovernanceTest (DashTestFramework):
         assert not have_trigger_for_height(self.nodes[0:5], sb_block_height + sb_cycle)
         self.bump_mocktime(156)
         self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:5]))
+        # re-enable spork and continue
+        self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 0)
         # Trigger scheduler to mark old triggers for deletion
         self.bump_mocktime(5 * 60)
         # Let it do the job
