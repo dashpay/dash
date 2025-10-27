@@ -19,6 +19,7 @@
 #include <interfaces/chain.h>
 #include <net.h>
 #include <net_processing.h>
+#include <net_instantsend.h>
 #include <noui.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
@@ -364,6 +365,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                        *m_node.govman, *m_node.sporkman, /*mn_activeman=*/nullptr, m_node.dmnman,
                                        /*active_ctx=*/nullptr, m_node.cj_walletman.get(), m_node.llmq_ctx,
                                        /*ignore_incoming_txs=*/false);
+    m_node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(m_node.peerman.get(), *m_node.llmq_ctx->isman));
     {
         CConnman::Options options;
         options.m_msgproc = m_node.peerman.get();

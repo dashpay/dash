@@ -37,6 +37,7 @@
 #include <net.h>
 #include <net_permissions.h>
 #include <net_processing.h>
+#include <net_instantsend.h>
 #include <netbase.h>
 #include <netgroup.h>
 #include <node/blockstorage.h>
@@ -2157,6 +2158,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                      *node.govman, *node.sporkman, node.mn_activeman.get(), node.dmnman,
                                      node.active_ctx, node.cj_walletman.get(), node.llmq_ctx, ignores_incoming_txs);
     RegisterValidationInterface(node.peerman.get());
+
+    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman));
 
     g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
         *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman, node.llmq_ctx

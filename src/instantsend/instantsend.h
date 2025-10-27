@@ -142,7 +142,10 @@ public:
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
 
-    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv)
+    // It return negative number if
+    int GetCycleBlockHeight(const uint256& cycle_hash) const;
+    bool IsKnownInstantSend(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    void EnqueueInstantSendLock(NodeId from, const uint256& hash, const std::shared_ptr<instantsend::InstantSendLock>& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     void TransactionAddedToMempool(const CTransactionRef& tx)

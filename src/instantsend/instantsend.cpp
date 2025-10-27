@@ -103,53 +103,31 @@ void CInstantSendManager::Stop()
     }
 }
 
-bool ShouldReportISLockTiming() {
+bool ShouldReportISLockTiming()
+{
     return g_stats_client->active() || LogAcceptDebug(BCLog::INSTANTSEND);
 }
 
-MessageProcessingResult CInstantSendManager::ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv)
+int CInstantSendManager::GetCycleBlockHeight(const uint256& cycle_hash) const
 {
-    if (!IsInstantSendEnabled() || msg_type != NetMsgType::ISDLOCK) {
-        return {};
-    }
-
-    const auto islock = std::make_shared<instantsend::InstantSendLock>();
-    vRecv >> *islock;
-
-    auto hash = ::SerializeHash(*islock);
-
-    MessageProcessingResult ret{};
-    ret.m_to_erase = CInv{MSG_ISDLOCK, hash};
-
-    if (!islock->TriviallyValid()) {
-        ret.m_error = MisbehavingError{100};
-        return ret;
-    }
-
-    const auto blockIndex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
+    const auto blockIndex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(cycle_hash));
     if (blockIndex == nullptr) {
-        // Maybe we don't have the block yet or maybe some peer spams invalid values for cycleHash
-        ret.m_error = MisbehavingError{1};
-        return ret;
+        return -1;
     }
+    return blockIndex->nHeight;
+}
 
-    // Deterministic islocks MUST use rotation based llmq
-    auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
-    assert(llmq_params_opt);
-    if (blockIndex->nHeight % llmq_params_opt->dkgInterval != 0) {
-        ret.m_error = MisbehavingError{100};
-        return ret;
-    }
-
+bool CInstantSendManager::IsKnownInstantSend(const uint256& hash) const
+{
     if (WITH_LOCK(cs_pendingLocks, return pendingInstantSendLocks.count(hash) || pendingNoTxInstantSendLocks.count(hash)) ||
         db.KnownInstantSendLock(hash)) {
-        return ret;
+        return true;
     }
+    return false;
+}
 
-    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: received islock, peer=%d\n", __func__,
-             islock->txid.ToString(), hash.ToString(), from);
-
+void CInstantSendManager::EnqueueInstantSendLock(NodeId from, const uint256& hash, const std::shared_ptr<instantsend::InstantSendLock>& islock)
+{
     if (ShouldReportISLockTiming()) {
         auto time_diff = [&]() -> int64_t {
             LOCK(cs_timingsTxSeen);
@@ -169,7 +147,6 @@ MessageProcessingResult CInstantSendManager::ProcessMessage(NodeId from, std::st
 
     LOCK(cs_pendingLocks);
     pendingInstantSendLocks.emplace(hash, std::make_pair(from, islock));
-    return ret;
 }
 
 instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
