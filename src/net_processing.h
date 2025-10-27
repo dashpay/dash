@@ -154,6 +154,7 @@ public:
     virtual size_t GetRequestedObjectCount(NodeId nodeid) const = 0;
 
     virtual void AddExtraHandler(std::unique_ptr<NetHandler>&& handler) = 0;
+    virtual void RemoveHandlers() = 0;
 };
 
 #endif // BITCOIN_NET_PROCESSING_H

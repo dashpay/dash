@@ -270,6 +270,8 @@ void PrepareShutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
+    node.peerman->RemoveHandlers();
+
     if (node.active_ctx) node.active_ctx->Stop();
     if (node.llmq_ctx) node.llmq_ctx->Stop();
 
@@ -2159,8 +2161,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                      node.active_ctx, node.cj_walletman.get(), node.llmq_ctx, ignores_incoming_txs);
     RegisterValidationInterface(node.peerman.get());
 
-    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman));
-
     g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
         *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman, node.llmq_ctx
     );
@@ -2176,6 +2176,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         g_active_notification_interface = std::make_unique<ActiveNotificationInterface>(*node.active_ctx, *node.mn_activeman);
         RegisterValidationInterface(g_active_notification_interface.get());
     }
+    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman));
+
 
     // ********************************************************* Step 7d: Setup other Dash services
 

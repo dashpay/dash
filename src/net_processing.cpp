@@ -642,6 +642,7 @@ public:
     bool IsBanned(NodeId pnode) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
     size_t GetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     void AddExtraHandler(std::unique_ptr<NetHandler>&& handler) override;
+    void RemoveHandlers() override;
 
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override;
@@ -1639,6 +1640,11 @@ void PeerManagerImpl::AddExtraHandler(std::unique_ptr<NetHandler>&& handler)
 {
     assert(handler != nullptr);
     m_handlers.emplace_back(std::move(handler));
+}
+
+void PeerManagerImpl::RemoveHandlers()
+{
+    m_handlers.clear();
 }
 
 void PeerManagerImpl::UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds)
