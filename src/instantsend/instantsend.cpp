@@ -4,23 +4,17 @@
 
 #include <instantsend/instantsend.h>
 
+#include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <node/blockstorage.h>
-#include <txmempool.h>
-#include <validation.h>
-
-#include <bls/bls_batchverifier.h>
-#include <chainlock/chainlock.h>
 #include <instantsend/signing.h>
-#include <llmq/commitment.h>
-#include <llmq/quorums.h>
-#include <llmq/signhash.h>
 #include <masternode/sync.h>
+#include <node/blockstorage.h>
 #include <spork.h>
 #include <stats/client.h>
-
-#include <cxxtimer.hpp>
+#include <txmempool.h>
+#include <validation.h>
+#include <validationinterface.h>
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
@@ -118,151 +112,35 @@ void CInstantSendManager::EnqueueInstantSendLock(NodeId from, const uint256& has
 
 instantsend::PendingState CInstantSendManager::GetPendingLocks()
 {
-    decltype(pendingInstantSendLocks) pend;
     instantsend::PendingState ret;
-    ret.m_pending_work = false;
-
 
     if (!IsInstantSendEnabled()) {
         return ret;
     }
-    {
-        LOCK(cs_pendingLocks);
-        // only process a max 32 locks at a time to avoid duplicate verification of recovered signatures which have been
-        // verified by CSigningManager in parallel
-        const size_t maxCount = 32;
-        // The keys of the removed values are temporaily stored here to avoid invalidating an iterator
-        std::vector<uint256> removed;
-        removed.reserve(maxCount);
 
-        for (const auto& [islockHash, nodeid_islptr_pair] : pendingInstantSendLocks) {
-            // Check if we've reached max count
-            if (pend.size() >= maxCount) {
-                ret.m_pending_work = true;
-                break;
-            }
-            pend.emplace(islockHash, std::move(nodeid_islptr_pair));
-            removed.emplace_back(islockHash);
-        }
+    LOCK(cs_pendingLocks);
+    // only process a max 32 locks at a time to avoid duplicate verification of recovered signatures which have been
+    // verified by CSigningManager in parallel
+    const size_t maxCount = 32;
+    // The keys of the removed values are temporaily stored here to avoid invalidating an iterator
+    std::vector<uint256> removed;
+    removed.reserve(maxCount);
 
-        for (const auto& islockHash : removed) {
-            pendingInstantSendLocks.erase(islockHash);
+    for (const auto& [islockHash, nodeid_islptr_pair] : pendingInstantSendLocks) {
+        // Check if we've reached max count
+        if (ret.m_pending_is.size() >= maxCount) {
+            ret.m_pending_work = true;
+            break;
         }
+        ret.m_pending_is.emplace(islockHash, std::move(nodeid_islptr_pair));
+        removed.emplace_back(islockHash);
     }
 
-    return pend;
-}
-
-Uint256HashSet CInstantSendManager::ProcessPendingInstantSendLocks(
-    const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
-    const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend,
-    std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
-{
-    CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, true, 8);
-    Uint256HashMap<CRecoveredSig> recSigs;
-
-    size_t verifyCount = 0;
-    size_t alreadyVerified = 0;
-    for (const auto& p : pend) {
-        const auto& hash = p.first;
-        auto nodeId = p.second.first;
-        const auto& islock = p.second.second;
-
-        if (batchVerifier.badSources.count(nodeId)) {
-            continue;
-        }
-
-        if (!islock->sig.Get().IsValid()) {
-            batchVerifier.badSources.emplace(nodeId);
-            continue;
-        }
-
-        auto id = islock->GetRequestId();
-
-        // no need to verify an ISLOCK if we already have verified the recovered sig that belongs to it
-        if (sigman.HasRecoveredSig(llmq_params.type, id, islock->txid)) {
-            alreadyVerified++;
-            continue;
-        }
-
-        const auto blockIndex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(islock->cycleHash));
-        if (blockIndex == nullptr) {
-            batchVerifier.badSources.emplace(nodeId);
-            continue;
-        }
-
-        int nSignHeight{-1};
-        const auto dkgInterval = llmq_params.dkgInterval;
-        if (blockIndex->nHeight + dkgInterval < m_chainstate.m_chain.Height()) {
-            nSignHeight = blockIndex->nHeight + dkgInterval - 1;
-        }
-        // For RegTest non-rotating quorum cycleHash has directly quorum hash
-        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_chainstate.m_chain, qman,
-                                                                             id, nSignHeight, signOffset)
-                                              : qman.GetQuorum(llmq_params.type, islock->cycleHash);
-
-        if (!quorum) {
-            // should not happen, but if one fails to select, all others will also fail to select
-            return {};
-        }
-        uint256 signHash = llmq::SignHash{llmq_params.type, quorum->qc->quorumHash, id, islock->txid}.Get();
-        batchVerifier.PushMessage(nodeId, hash, signHash, islock->sig.Get(), quorum->qc->quorumPublicKey);
-        verifyCount++;
-
-        // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
-        // avoids unnecessary double-verification of the signature. We however only do this when verification here
-        // turns out to be good (which is checked further down)
-        if (!sigman.HasRecoveredSigForId(llmq_params.type, id)) {
-            recSigs.try_emplace(hash,
-                                CRecoveredSig(llmq_params.type, quorum->qc->quorumHash, id, islock->txid, islock->sig));
-        }
+    for (const auto& islockHash : removed) {
+        pendingInstantSendLocks.erase(islockHash);
     }
 
-    cxxtimer::Timer verifyTimer(true);
-    batchVerifier.Verify();
-    verifyTimer.stop();
-
-    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- verified locks. count=%d, alreadyVerified=%d, vt=%d, nodes=%d\n", __func__,
-            verifyCount, alreadyVerified, verifyTimer.count(), batchVerifier.GetUniqueSourceCount());
-
-    Uint256HashSet badISLocks;
-
-    if (ban && !batchVerifier.badSources.empty()) {
-        LOCK(::cs_main);
-        for (const auto& nodeId : batchVerifier.badSources) {
-            // Let's not be too harsh, as the peer might simply be unlucky and might have sent us an old lock which
-            // does not validate anymore due to changed quorums
-            peer_activity.emplace_back(nodeId, MisbehavingError{20});
-        }
-    }
-    for (const auto& p : pend) {
-        const auto& hash = p.first;
-        auto nodeId = p.second.first;
-        const auto& islock = p.second.second;
-
-        if (batchVerifier.badMessages.count(hash)) {
-            LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: invalid sig in islock, peer=%d\n",
-                     __func__, islock->txid.ToString(), hash.ToString(), nodeId);
-            badISLocks.emplace(hash);
-            continue;
-        }
-
-        peer_activity.emplace_back(nodeId, ProcessInstantSendLock(nodeId, hash, islock));
-
-        // See comment further on top. We pass a reconstructed recovered sig to the signing manager to avoid
-        // double-verification of the sig.
-        auto it = recSigs.find(hash);
-        if (it != recSigs.end()) {
-            auto recSig = std::make_shared<CRecoveredSig>(std::move(it->second));
-            if (!sigman.HasRecoveredSigForId(llmq_params.type, recSig->getId())) {
-                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: passing reconstructed recSig to signing mgr, peer=%d\n", __func__,
-                         islock->txid.ToString(), hash.ToString(), nodeId);
-                sigman.PushReconstructedRecoveredSig(recSig);
-            }
-        }
-    }
-
-    return badISLocks;
+    return ret;
 }
 
 MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash,
@@ -520,8 +398,9 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
 std::vector<CTransactionRef> CInstantSendManager::PrepareTxToRetry()
 {
     std::vector<CTransactionRef> txns{};
+
     LOCK2(cs_nonLocked, cs_pendingRetry);
-    if (pendingRetryTxs.empty()) return more_work;
+    if (pendingRetryTxs.empty()) return txns;
     txns.reserve(pendingRetryTxs.size());
     for (const auto& txid : pendingRetryTxs) {
         if (auto it = nonLockedTxs.find(txid); it != nonLockedTxs.end()) {
@@ -531,7 +410,9 @@ std::vector<CTransactionRef> CInstantSendManager::PrepareTxToRetry()
             }
         }
     }
+    return txns;
 }
+
 void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
 {
     RemoveNonLockedTx(tx.GetHash(), false);

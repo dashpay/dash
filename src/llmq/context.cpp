@@ -44,7 +44,6 @@ LLMQContext::~LLMQContext() {
 }
 
 void LLMQContext::Interrupt() {
-    isman->InterruptWorkerThread();
     sigman->InterruptWorkerThread();
 }
 
@@ -53,12 +52,10 @@ void LLMQContext::Start(PeerManager& peerman)
     qman->Start();
     sigman->StartWorkerThread(peerman);
     clhandler->Start(*isman);
-    isman->Start(peerman);
 }
 
 void LLMQContext::Stop()
 {
-    isman->Stop();
     clhandler->Stop();
     sigman->StopWorkerThread();
     qman->Stop();

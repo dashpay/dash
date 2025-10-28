@@ -3,7 +3,15 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <net_instantsend.h>
+
+#include <bls/bls_batchverifier.h>
+#include <cxxtimer.hpp>
 #include <instantsend/instantsend.h>
+#include <llmq/commitment.h>
+#include <llmq/quorums.h>
+#include <llmq/signhash.h>
+#include <llmq/signing.h>
+#include <validation.h>
 #include <util/thread.h>
 
 void NetInstantSend::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
@@ -72,7 +80,7 @@ void NetInstantSend::Stop()
         signer->Stop();
     }
 
-    // make sure to call InterruptWorkerThread() first
+    // make sure to call Interrupt() first
     if (!workInterrupt) {
         assert(false);
     }
@@ -82,8 +90,121 @@ void NetInstantSend::Stop()
     }
 }
 
+Uint256HashSet NetInstantSend::ProcessPendingInstantSendLocks(
+    const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
+    const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend)
+{
+    CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, true, 8);
+    Uint256HashMap<llmq::CRecoveredSig> recSigs;
 
-void NetInstantSend::ProcessPendingISLocks(const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& locks_to_process)
+    size_t verifyCount = 0;
+    size_t alreadyVerified = 0;
+    for (const auto& p : pend) {
+        const auto& hash = p.first;
+        auto nodeId = p.second.first;
+        const auto& islock = p.second.second;
+
+        if (batchVerifier.badSources.count(nodeId)) {
+            continue;
+        }
+
+        if (!islock->sig.Get().IsValid()) {
+            batchVerifier.badSources.emplace(nodeId);
+            continue;
+        }
+
+        auto id = islock->GetRequestId();
+
+        // no need to verify an ISLOCK if we already have verified the recovered sig that belongs to it
+        if (m_is_manager.Sigman().HasRecoveredSig(llmq_params.type, id, islock->txid)) {
+            alreadyVerified++;
+            continue;
+        }
+
+        const auto blockIndex = WITH_LOCK(::cs_main, return m_is_manager.Chainstate().m_blockman.LookupBlockIndex(islock->cycleHash));
+        if (blockIndex == nullptr) {
+            batchVerifier.badSources.emplace(nodeId);
+            continue;
+        }
+
+        int nSignHeight{-1};
+        const auto dkgInterval = llmq_params.dkgInterval;
+        if (blockIndex->nHeight + dkgInterval < m_is_manager.Chainstate().m_chain.Height()) {
+            nSignHeight = blockIndex->nHeight + dkgInterval - 1;
+        }
+        // For RegTest non-rotating quorum cycleHash has directly quorum hash
+        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_is_manager.Chainstate().m_chain, m_is_manager.Qman(),
+                                                                             id, nSignHeight, signOffset)
+                                              : m_is_manager.Qman().GetQuorum(llmq_params.type, islock->cycleHash);
+
+        if (!quorum) {
+            // should not happen, but if one fails to select, all others will also fail to select
+            return {};
+        }
+        uint256 signHash = llmq::SignHash{llmq_params.type, quorum->qc->quorumHash, id, islock->txid}.Get();
+        batchVerifier.PushMessage(nodeId, hash, signHash, islock->sig.Get(), quorum->qc->quorumPublicKey);
+        verifyCount++;
+
+        // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
+        // avoids unnecessary double-verification of the signature. We however only do this when verification here
+        // turns out to be good (which is checked further down)
+        if (!m_is_manager.Sigman().HasRecoveredSigForId(llmq_params.type, id)) {
+            recSigs.try_emplace(hash,
+                                llmq::CRecoveredSig(llmq_params.type, quorum->qc->quorumHash, id, islock->txid, islock->sig));
+        }
+    }
+
+    cxxtimer::Timer verifyTimer(true);
+    batchVerifier.Verify();
+    verifyTimer.stop();
+
+    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- verified locks. count=%d, alreadyVerified=%d, vt=%d, nodes=%d\n", __func__,
+            verifyCount, alreadyVerified, verifyTimer.count(), batchVerifier.GetUniqueSourceCount());
+
+    Uint256HashSet badISLocks;
+
+    if (ban && !batchVerifier.badSources.empty()) {
+        LOCK(::cs_main);
+        for (const auto& nodeId : batchVerifier.badSources) {
+            // Let's not be too harsh, as the peer might simply be unlucky and might have sent us an old lock which
+            // does not validate anymore due to changed quorums
+            m_peer_manager->PeerMisbehaving(nodeId, 20);
+        }
+    }
+    for (const auto& p : pend) {
+        const auto& hash = p.first;
+        auto nodeId = p.second.first;
+        const auto& islock = p.second.second;
+
+        if (batchVerifier.badMessages.count(hash)) {
+            LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: invalid sig in islock, peer=%d\n",
+                     __func__, islock->txid.ToString(), hash.ToString(), nodeId);
+            badISLocks.emplace(hash);
+            continue;
+        }
+
+        // TODO - remove it
+        std::vector<std::pair<NodeId, MessageProcessingResult>> peer_activity;
+        peer_activity.emplace_back(nodeId, ProcessInstantSendLock(nodeId, hash, islock));
+
+        // See comment further on top. We pass a reconstructed recovered sig to the signing manager to avoid
+        // double-verification of the sig.
+        auto it = recSigs.find(hash);
+        if (it != recSigs.end()) {
+            auto recSig = std::make_shared<llmq::CRecoveredSig>(std::move(it->second));
+            if (!m_is_manager.Sigman().HasRecoveredSigForId(llmq_params.type, recSig->getId())) {
+                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: passing reconstructed recSig to signing mgr, peer=%d\n", __func__,
+                         islock->txid.ToString(), hash.ToString(), nodeId);
+                m_is_manager.Sigman().PushReconstructedRecoveredSig(recSig);
+            }
+        }
+    }
+
+    return badISLocks;
+}
+
+
+void NetInstantSend::ProcessPendingISLocks(Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>&& locks_to_process)
 {
     // TODO Investigate if leaving this is ok
     auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
@@ -117,7 +238,7 @@ void NetInstantSend::WorkThreadMain()
             if (!m_is_manager.IsInstantSendEnabled()) return false;
 
             auto [more_work, locks] = m_is_manager.GetPendingLocks();
-            ProcessPendingISLocks(locks);
+            ProcessPendingISLocks(std::move(locks));
             /*
             for (auto& [node_id, mpr] : peer_activity) {
                 m_peer_manager.PostProcessMessage(std::move(mpr), node_id);

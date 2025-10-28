@@ -235,6 +235,9 @@ void Interrupt(NodeContext& node)
     if (node.active_ctx) {
         node.active_ctx->Interrupt();
     }
+    if (node.peerman) {
+        node.peerman->InterruptHandlers();
+    }
     if (node.llmq_ctx) {
         node.llmq_ctx->Interrupt();
     }
@@ -273,6 +276,7 @@ void PrepareShutdown(NodeContext& node)
     node.peerman->RemoveHandlers();
 
     if (node.active_ctx) node.active_ctx->Stop();
+    if (node.peerman) node.peerman->StopHandlers();
     if (node.llmq_ctx) node.llmq_ctx->Stop();
 
     for (const auto& client : node.chain_clients) {
@@ -2273,6 +2277,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // ********************************************************* Step 10a: schedule Dash-specific tasks
 
     node.llmq_ctx->Start(*node.peerman);
+    node.peerman->StartHandlers();
     if (node.active_ctx) node.active_ctx->Start(*node.connman, *node.peerman);
 
     node.scheduler->scheduleEvery(std::bind(&CNetFulfilledRequestManager::DoMaintenance, std::ref(*node.netfulfilledman)), std::chrono::minutes{1});

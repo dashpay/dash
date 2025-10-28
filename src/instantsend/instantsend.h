@@ -36,7 +36,7 @@ class InstantSendSigner;
 
 struct PendingState {
     bool m_pending_work{false};
-    std::vector<std::pair<NodeId, MessageProcessingResult>> m_peer_activity{};
+    Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>> m_pending_is;
 };
 } // namespace instantsend
 
@@ -100,14 +100,8 @@ public:
 
     instantsend::InstantSendSigner* Signer() const { return m_signer.load(); }
 
-    instantsend::PendingState ProcessPendingInstantSendLocks()
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
 private:
 
-    Uint256HashSet ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
-                                                  const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend,
-                                                  std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
     MessageProcessingResult ProcessInstantSendLock(NodeId from, const uint256& hash,
                                                    const instantsend::InstantSendLockPtr& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
@@ -140,6 +134,10 @@ public:
     void EnqueueInstantSendLock(NodeId from, const uint256& hash, const std::shared_ptr<instantsend::InstantSendLock>& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     std::vector<CTransactionRef> PrepareTxToRetry() EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, cs_pendingRetry);
+    instantsend::PendingState GetPendingLocks();
+    CSigningManager& Sigman() { return sigman; }
+    CQuorumManager& Qman() { return qman; }
+    CChainState& Chainstate() { return m_chainstate; }
     //----
     //
     void TransactionAddedToMempool(const CTransactionRef& tx)

@@ -9,11 +9,17 @@
 #include <net_processing.h>
 
 #include <util/threadinterrupt.h>
+
+namespace instantsend
+{
+struct InstantSendLock;
+using InstantSendLockPtr = std::shared_ptr<InstantSendLock>;
+} // namespace instantsend
 namespace llmq {
 class CInstantSendManager;
-}
+} // namespace llmq
 
-class NetInstantSend : public NetHandler
+class NetInstantSend final : public NetHandler
 {
 public:
     NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager)
@@ -24,14 +30,17 @@ public:
 
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
 
-    void Start();
-    void Stop();
-    void InterruptWorkerThread() { workInterrupt(); };
+    void Start() override;
+    void Stop() override;
+    void Interrupt() override { workInterrupt(); };
 
     void WorkThreadMain();
 private:
-    void ProcessPendingISLocks(const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& locks_to_process);
+    void ProcessPendingISLocks(Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>&& locks_to_process);
 
+    Uint256HashSet ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
+                                                  const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend);
+    //    EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
     llmq::CInstantSendManager& m_is_manager;
 
     std::thread workThread;
