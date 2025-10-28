@@ -5,21 +5,22 @@
 #ifndef BITCOIN_INSTANTSEND_INSTANTSEND_H
 #define BITCOIN_INSTANTSEND_INSTANTSEND_H
 
+#include <instantsend/db.h>
+#include <instantsend/lock.h>
+#include <instantsend/signing.h>
+
 #include <net_types.h>
 #include <primitives/transaction.h>
 #include <protocol.h>
 #include <sync.h>
 #include <threadsafety.h>
-
-#include <instantsend/db.h>
-#include <instantsend/lock.h>
-#include <instantsend/signing.h>
 #include <unordered_lru_cache.h>
 
 #include <atomic>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
+#include <vector>
 
 class CBlockIndex;
 class CChainState;
@@ -102,10 +103,6 @@ public:
 
 private:
 
-    MessageProcessingResult ProcessInstantSendLock(NodeId from, const uint256& hash,
-                                                   const instantsend::InstantSendLockPtr& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
@@ -138,6 +135,11 @@ public:
     CSigningManager& Sigman() { return sigman; }
     CQuorumManager& Qman() { return qman; }
     CChainState& Chainstate() { return m_chainstate; }
+    std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
+            NodeId from, const uint256& hash,
+            const instantsend::InstantSendLockPtr& islock)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+
     //----
     //
     void TransactionAddedToMempool(const CTransactionRef& tx)

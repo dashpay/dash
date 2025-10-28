@@ -143,7 +143,7 @@ instantsend::PendingState CInstantSendManager::GetPendingLocks()
     return ret;
 }
 
-MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash,
+std::variant<uint256, CTransactionRef, std::monostate> CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash,
                                                                     const instantsend::InstantSendLockPtr& islock)
 {
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: processing islock, peer=%d\n",
@@ -153,12 +153,12 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
         signer->ClearLockFromQueue(islock);
     }
     if (db.KnownInstantSendLock(hash)) {
-        return {};
+        return std::monostate{};
     }
 
     if (const auto sameTxIsLock = db.GetInstantSendLockByTxid(islock->txid)) {
         // can happen, nothing to do
-        return {};
+        return std::monostate{};
     }
     for (const auto& in : islock->inputs) {
         const auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
@@ -181,7 +181,7 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
         if (pindexMined != nullptr && clhandler.HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a ChainLock in block %s, peer=%d\n", __func__,
                      islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
-            return {};
+            return std::monostate{};
         }
     }
 
@@ -212,17 +212,10 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
         mempool.AddTransactionsUpdated(1);
     }
 
-    MessageProcessingResult ret{};
-    CInv inv(MSG_ISDLOCK, hash);
     if (found_transaction) {
-        ret.m_inv_filter = std::make_pair(inv, tx);
-    } else {
-        // we don't have the TX yet, so we only filter based on txid. Later when that TX arrives, we will re-announce
-        // with the TX taken into account.
-        ret.m_inv_filter = std::make_pair(inv, islock->txid);
-        ret.m_request_tx = islock->txid;
+        return tx;
     }
-    return ret;
+    return islock->txid;
 }
 
 void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)

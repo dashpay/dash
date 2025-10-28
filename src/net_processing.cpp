@@ -650,6 +650,9 @@ public:
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override;
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override;
+    void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override;
+    void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override;
+    void PeerAskPeersForTransaction(const uint256& txid) override;
 private:
     void _RelayTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
 
@@ -3563,19 +3566,6 @@ void PeerManagerImpl::PostProcessMessage(MessageProcessingResult&& result, NodeI
     }
     for (const auto& dsq : result.m_dsq) {
         RelayDSQ(dsq);
-    }
-    if (result.m_inv_filter) {
-        const auto& [inv, filter] = result.m_inv_filter.value();
-        if (std::holds_alternative<CTransactionRef>(filter)) {
-            RelayInvFiltered(inv, *std::get<CTransactionRef>(filter));
-        } else if (std::holds_alternative<uint256>(filter)) {
-            RelayInvFiltered(inv, std::get<uint256>(filter));
-        } else {
-            assert(false);
-        }
-    }
-    if (result.m_request_tx) {
-        AskPeersForTransaction(result.m_request_tx.value());
     }
 }
 
@@ -6524,4 +6514,17 @@ void PeerManagerImpl::PeerMisbehaving(const NodeId pnode, const int howmuch, con
 void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)
 {
     EraseObjectRequest(nodeid, inv);
+}
+void PeerManagerImpl::PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx)
+{
+    RelayInvFiltered(inv, relatedTx);
+}
+void PeerManagerImpl::PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash)
+{
+    RelayInvFiltered(inv, relatedTxHash);
+}
+
+void PeerManagerImpl::PeerAskPeersForTransaction(const uint256& txid)
+{
+    AskPeersForTransaction(txid);
 }

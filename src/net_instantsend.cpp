@@ -183,9 +183,16 @@ Uint256HashSet NetInstantSend::ProcessPendingInstantSendLocks(
             continue;
         }
 
-        // TODO - remove it
-        std::vector<std::pair<NodeId, MessageProcessingResult>> peer_activity;
-        peer_activity.emplace_back(nodeId, ProcessInstantSendLock(nodeId, hash, islock));
+        CInv inv(MSG_ISDLOCK, hash);
+        auto ret = m_is_manager.ProcessInstantSendLock(nodeId, hash, islock);
+        if (std::holds_alternative<uint256>(ret)) {
+            m_peer_manager->PeerRelayInvFiltered(inv, std::get<uint256>(ret));
+            m_peer_manager->PeerAskPeersForTransaction(islock->txid);
+        } else if (std::holds_alternative<CTransactionRef>(ret)) {
+            m_peer_manager->PeerRelayInvFiltered(inv, *std::get<CTransactionRef>(ret));
+        } else {
+            assert(std::holds_alternative<std::monostate>(ret));
+        }
 
         // See comment further on top. We pass a reconstructed recovered sig to the signing manager to avoid
         // double-verification of the sig.
@@ -214,7 +221,7 @@ void NetInstantSend::ProcessPendingISLocks(Uint256HashMap<std::pair<NodeId, inst
     auto dkgInterval = llmq_params.dkgInterval;
 
     // First check against the current active set and don't ban
-    auto bad_is_locks = ProcessPendingInstantSendLocks(llmq_params, /*signOffset=*/0, /*ban=*/false, locks_to_process, ret.m_peer_activity);
+    auto bad_is_locks = ProcessPendingInstantSendLocks(llmq_params, /*signOffset=*/0, /*ban=*/false, locks_to_process);
     if (!bad_is_locks.empty()) {
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- doing verification on old active set\n", __func__);
 
@@ -227,7 +234,7 @@ void NetInstantSend::ProcessPendingISLocks(Uint256HashMap<std::pair<NodeId, inst
             }
         }
         // Now check against the previous active set and perform banning if this fails
-        ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, locks_to_process, ret.m_peer_activity);
+        ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, locks_to_process);
     }
 }
 

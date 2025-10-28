@@ -7,14 +7,12 @@
 
 #include <coinjoin/coinjoin.h>
 
-#include <primitives/transaction.h>
 #include <protocol.h>
 #include <uint256.h>
 
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 struct MisbehavingError
@@ -53,12 +51,6 @@ struct MessageProcessingResult
 
     //! @m_dsq will relay DSQs to connected peers
     std::vector<CCoinJoinQueue> m_dsq;
-
-    //! @m_inv_filter will relay this inventory if filter matches to connected peers if not nullopt
-    std::optional<std::pair<CInv, std::variant<CTransactionRef, uint256>>> m_inv_filter;
-
-    //! @m_request_tx will ask connected peers to relay transaction if not nullopt
-    std::optional<uint256> m_request_tx;
 
     //! @m_transactions will relay transactions to peers which is ready to accept it (some peers does not accept transactions)
     std::vector<uint256> m_transactions;

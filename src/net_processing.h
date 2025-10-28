@@ -60,6 +60,9 @@ class PeerManagerInternal
 public:
     virtual void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") = 0;
     virtual void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) = 0;
+    virtual void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) = 0;
+    virtual void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) = 0;
+    virtual void PeerAskPeersForTransaction(const uint256& txid) = 0;
 };
 
 class NetHandler
