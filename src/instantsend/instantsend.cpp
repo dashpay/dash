@@ -168,6 +168,7 @@ std::variant<uint256, CTransactionRef, std::monostate> CInstantSendManager::Proc
     }
 
     uint256 hashBlock{};
+    // TODO: move GetTransaction to NetInstantsend ; keep it here
     const auto tx = GetTransaction(nullptr, &mempool, islock->txid, Params().GetConsensus(), hashBlock);
     const CBlockIndex* pindexMined{nullptr};
     const bool found_transaction{tx != nullptr};
