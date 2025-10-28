@@ -297,6 +297,7 @@ BITCOIN_CORE_H = \
   net_permissions.h \
   net_processing.h \
   net_instantsend.h \
+  net_signing.h \
   net_types.h \
   netaddress.h \
   netbase.h \
@@ -559,6 +560,7 @@ libbitcoin_node_a_SOURCES = \
   netgroup.cpp \
   net_processing.cpp \
   net_instantsend.cpp \
+  net_signing.cpp \
   node/blockstorage.cpp \
   node/caches.cpp \
   node/chainstate.cpp \

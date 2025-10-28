@@ -38,6 +38,7 @@
 #include <net_permissions.h>
 #include <net_processing.h>
 #include <net_instantsend.h>
+#include <net_signing.h>
 #include <netbase.h>
 #include <netgroup.h>
 #include <node/blockstorage.h>
@@ -2181,6 +2182,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         RegisterValidationInterface(g_active_notification_interface.get());
     }
     node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, *node.llmq_ctx->qman));
+    node.peerman->AddExtraHandler(std::make_unique<NetSigning>(node.peerman.get(), *node.llmq_ctx->sigman));
 
 
     // ********************************************************* Step 7d: Setup other Dash services

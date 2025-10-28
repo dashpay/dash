@@ -20,6 +20,7 @@
 #include <net.h>
 #include <net_processing.h>
 #include <net_instantsend.h>
+#include <net_signing.h>
 #include <noui.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
@@ -366,6 +367,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                        /*active_ctx=*/nullptr, m_node.cj_walletman.get(), m_node.llmq_ctx,
                                        /*ignore_incoming_txs=*/false);
     m_node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(m_node.peerman.get(), *m_node.llmq_ctx->isman, *m_node.llmq_ctx->qman));
+    m_node.peerman->AddExtraHandler(std::make_unique<NetSigning>(m_node.peerman.get(), *m_node.llmq_ctx->sigman));
     {
         CConnman::Options options;
         options.m_msgproc = m_node.peerman.get();

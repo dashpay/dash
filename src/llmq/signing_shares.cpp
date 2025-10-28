@@ -804,7 +804,16 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 
             auto rs = std::make_shared<CRecoveredSig>(quorum->params.type, quorum->qc->quorumHash, id, msgHash,
                                                       recoveredSig);
-            sigman.ProcessRecoveredSig(rs, m_peerman);
+            if (sigman.ProcessRecoveredSig(rs )) {
+                // TODO: remove duplicated code with NetSigning
+                auto listeners = sigman.GetListeners();
+                for (auto& l : listeners) {
+                    // TODO: simplify it to std::variant<CInv, CTransaction, std::monostate>
+                    m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+                }
+
+                GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
+            }
             return; // end of single-quorum processing
         }
 
@@ -850,7 +859,16 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
         }
     }
 
-    sigman.ProcessRecoveredSig(rs, m_peerman);
+    if (sigman.ProcessRecoveredSig(rs)) {
+        // TODO: remove duplicated code with NetSigning
+        auto listeners = sigman.GetListeners();
+        for (auto& l : listeners) {
+            // TODO: simplify it to std::variant<CInv, CTransaction, std::monostate>
+            m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+        }
+
+        GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
+    }
 }
 
 CDeterministicMNCPtr CSigSharesManager::SelectMemberForRecovery(const CQuorumCPtr& quorum, const uint256 &id, int attempt)

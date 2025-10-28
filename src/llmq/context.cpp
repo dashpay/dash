@@ -30,7 +30,7 @@ LLMQContext::LLMQContext(ChainstateManager& chainman, CDeterministicMNManager& d
     qman{std::make_unique<llmq::CQuorumManager>(*bls_worker, chainman.ActiveChainstate(), dmnman, *qdkgsman, evo_db,
                                                 *quorum_block_processor, *qsnapman, mn_activeman, mn_sync, sporkman,
                                                 unit_tests, wipe)},
-    sigman{std::make_unique<llmq::CSigningManager>(chainman.ActiveChainstate(), *qman, unit_tests, wipe)},
+    sigman{std::make_unique<llmq::CSigningManager>(*qman, unit_tests, wipe)},
     clhandler{std::make_unique<llmq::CChainLocksHandler>(chainman.ActiveChainstate(), *qman, sporkman, mempool, mn_sync)},
     isman{std::make_unique<llmq::CInstantSendManager>(*clhandler, chainman.ActiveChainstate(), *sigman, sporkman,
                                                       mempool, mn_sync, unit_tests, wipe)}
@@ -44,19 +44,16 @@ LLMQContext::~LLMQContext() {
 }
 
 void LLMQContext::Interrupt() {
-    sigman->InterruptWorkerThread();
 }
 
 void LLMQContext::Start(PeerManager& peerman)
 {
     qman->Start();
-    sigman->StartWorkerThread(peerman);
     clhandler->Start(*isman);
 }
 
 void LLMQContext::Stop()
 {
     clhandler->Stop();
-    sigman->StopWorkerThread();
     qman->Stop();
 }
