@@ -69,7 +69,10 @@ class NetHandler
 {
 public:
     NetHandler(PeerManagerInternal* peer_manager) : m_peer_manager{Assert(peer_manager)} {}
-    virtual ~NetHandler() {}
+    virtual ~NetHandler() {
+        Interrupt();
+        Stop();
+    }
 
     virtual void Start() {}
     virtual void Stop() {}
