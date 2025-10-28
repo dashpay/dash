@@ -6,10 +6,8 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <net_processing.h>
 #include <node/blockstorage.h>
 #include <txmempool.h>
-#include <util/thread.h>
 #include <validation.h>
 
 #include <bls/bls_batchverifier.h>
@@ -68,40 +66,9 @@ CInstantSendManager::CInstantSendManager(CChainLocksHandler& _clhandler, CChainS
     mempool{_mempool},
     m_mn_sync{mn_sync}
 {
-    workInterrupt.reset();
 }
 
 CInstantSendManager::~CInstantSendManager() = default;
-
-void CInstantSendManager::Start(PeerManager& peerman)
-{
-    // can't start new thread if we have one running already
-    if (workThread.joinable()) {
-        assert(false);
-    }
-
-    workThread = std::thread(&util::TraceThread, "isman", [this, &peerman] { WorkThreadMain(peerman); });
-
-    if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
-        signer->Start();
-    }
-}
-
-void CInstantSendManager::Stop()
-{
-    if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
-        signer->Stop();
-    }
-
-    // make sure to call InterruptWorkerThread() first
-    if (!workInterrupt) {
-        assert(false);
-    }
-
-    if (workThread.joinable()) {
-        workThread.join();
-    }
-}
 
 bool ShouldReportISLockTiming()
 {
@@ -149,15 +116,16 @@ void CInstantSendManager::EnqueueInstantSendLock(NodeId from, const uint256& has
     pendingInstantSendLocks.emplace(hash, std::make_pair(from, islock));
 }
 
-instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
+instantsend::PendingState CInstantSendManager::GetPendingLocks()
 {
     decltype(pendingInstantSendLocks) pend;
     instantsend::PendingState ret;
+    ret.m_pending_work = false;
+
 
     if (!IsInstantSendEnabled()) {
         return ret;
     }
-
     {
         LOCK(cs_pendingLocks);
         // only process a max 32 locks at a time to avoid duplicate verification of recovered signatures which have been
@@ -182,36 +150,7 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
         }
     }
 
-    if (pend.empty()) {
-        ret.m_pending_work = false;
-        return ret;
-    }
-
-    // TODO Investigate if leaving this is ok
-    auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
-    assert(llmq_params_opt);
-    const auto& llmq_params = llmq_params_opt.value();
-    auto dkgInterval = llmq_params.dkgInterval;
-
-    // First check against the current active set and don't ban
-    auto badISLocks = ProcessPendingInstantSendLocks(llmq_params, /*signOffset=*/0, /*ban=*/false, pend, ret.m_peer_activity);
-    if (!badISLocks.empty()) {
-        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- doing verification on old active set\n", __func__);
-
-        // filter out valid IS locks from "pend"
-        for (auto it = pend.begin(); it != pend.end();) {
-            if (!badISLocks.count(it->first)) {
-                it = pend.erase(it);
-            } else {
-                ++it;
-            }
-        }
-        // Now check against the previous active set and perform banning if this fails
-        ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, pend, ret.m_peer_activity);
-    }
-
-    return ret;
+    return pend;
 }
 
 Uint256HashSet CInstantSendManager::ProcessPendingInstantSendLocks(
@@ -578,6 +517,21 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
              __func__, txid.ToString(), retryChildren, retryChildrenCount);
 }
 
+std::vector<CTransactionRef> CInstantSendManager::PrepareTxToRetry()
+{
+    std::vector<CTransactionRef> txns{};
+    LOCK2(cs_nonLocked, cs_pendingRetry);
+    if (pendingRetryTxs.empty()) return more_work;
+    txns.reserve(pendingRetryTxs.size());
+    for (const auto& txid : pendingRetryTxs) {
+        if (auto it = nonLockedTxs.find(txid); it != nonLockedTxs.end()) {
+            const auto& [_, tx_info] = *it;
+            if (tx_info.tx) {
+                txns.push_back(tx_info.tx);
+            }
+        }
+    }
+}
 void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
 {
     RemoveNonLockedTx(tx.GetHash(), false);
@@ -898,43 +852,6 @@ instantsend::InstantSendLockPtr CInstantSendManager::GetConflictingLock(const CT
 size_t CInstantSendManager::GetInstantSendLockCount() const
 {
     return db.GetInstantSendLockCount();
-}
-
-void CInstantSendManager::WorkThreadMain(PeerManager& peerman)
-{
-    while (!workInterrupt) {
-        bool fMoreWork = [&]() -> bool {
-            if (!IsInstantSendEnabled()) return false;
-            auto [more_work, peer_activity] = ProcessPendingInstantSendLocks();
-            for (auto& [node_id, mpr] : peer_activity) {
-                peerman.PostProcessMessage(std::move(mpr), node_id);
-            }
-            auto signer = m_signer.load(std::memory_order_acquire);
-            if (!signer) return more_work;
-            // Construct set of non-locked transactions that are pending to retry
-            std::vector<CTransactionRef> txns{};
-            {
-                LOCK2(cs_nonLocked, cs_pendingRetry);
-                if (pendingRetryTxs.empty()) return more_work;
-                txns.reserve(pendingRetryTxs.size());
-                for (const auto& txid : pendingRetryTxs) {
-                    if (auto it = nonLockedTxs.find(txid); it != nonLockedTxs.end()) {
-                        const auto& [_, tx_info] = *it;
-                        if (tx_info.tx) {
-                            txns.push_back(tx_info.tx);
-                        }
-                    }
-                }
-            }
-            // Retry processing them
-            signer->ProcessPendingRetryLockTxs(txns);
-            return more_work;
-        }();
-
-        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
-            return;
-        }
-    }
 }
 
 bool CInstantSendManager::IsInstantSendEnabled() const

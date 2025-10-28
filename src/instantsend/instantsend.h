@@ -10,7 +10,6 @@
 #include <protocol.h>
 #include <sync.h>
 #include <threadsafety.h>
-#include <util/threadinterrupt.h>
 
 #include <instantsend/db.h>
 #include <instantsend/lock.h>
@@ -18,6 +17,7 @@
 #include <unordered_lru_cache.h>
 
 #include <atomic>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -27,7 +27,6 @@ class CDataStream;
 class CMasternodeSync;
 class CSporkManager;
 class CTxMemPool;
-class PeerManager;
 namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
@@ -60,9 +59,6 @@ private:
     const CMasternodeSync& m_mn_sync;
 
     std::atomic<instantsend::InstantSendSigner*> m_signer{nullptr};
-
-    std::thread workThread;
-    CThreadInterrupt workInterrupt;
 
     mutable Mutex cs_pendingLocks;
     // Incoming and not verified yet
@@ -102,13 +98,11 @@ public:
     }
     void DisconnectSigner() { m_signer.store(nullptr, std::memory_order_release); }
 
-    void Start(PeerManager& peerman);
-    void Stop();
-    void InterruptWorkerThread() { workInterrupt(); };
+    instantsend::InstantSendSigner* Signer() const { return m_signer.load(); }
 
-private:
     instantsend::PendingState ProcessPendingInstantSendLocks()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+private:
 
     Uint256HashSet ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
                                                   const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend,
@@ -131,9 +125,6 @@ private:
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
 
-    void WorkThreadMain(PeerManager& peerman)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 
@@ -142,12 +133,15 @@ public:
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
 
-    // It return negative number if
+    /* Helpers for communications between CInstantSendManager & NetInstantSend */
+    // GetCycleBlockHeight returns negative number if cycle_hash is now known
     int GetCycleBlockHeight(const uint256& cycle_hash) const;
     bool IsKnownInstantSend(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     void EnqueueInstantSendLock(NodeId from, const uint256& hash, const std::shared_ptr<instantsend::InstantSendLock>& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
-
+    std::vector<CTransactionRef> PrepareTxToRetry() EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, cs_pendingRetry);
+    //----
+    //
     void TransactionAddedToMempool(const CTransactionRef& tx)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen);
     void TransactionRemovedFromMempool(const CTransactionRef& tx);
