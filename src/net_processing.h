@@ -68,6 +68,9 @@ public:
     NetHandler(PeerManagerInternal* peer_manager) : m_peer_manager{Assert(peer_manager)} {}
     virtual ~NetHandler() {}
 
+    virtual void Start() {}
+    virtual void Stop() {}
+    virtual void Interrupt() {}
     virtual void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) = 0;
 protected:
     PeerManagerInternal* m_peer_manager;
@@ -155,6 +158,9 @@ public:
 
     virtual void AddExtraHandler(std::unique_ptr<NetHandler>&& handler) = 0;
     virtual void RemoveHandlers() = 0;
+    virtual void StartHandlers() = 0;
+    virtual void StopHandlers() = 0;
+    virtual void InterruptHandlers() = 0;
 };
 
 #endif // BITCOIN_NET_PROCESSING_H

@@ -240,6 +240,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
     cpoolman.reset();
     cpoolman = std::make_unique<CCreditPoolManager>(*evodb);
 
+    // TODO: reconnect handlers!
     if (llmq_ctx) {
         llmq_ctx->Interrupt();
         llmq_ctx->Stop();
@@ -255,6 +256,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
     chain_helper = std::make_unique<CChainstateHelper>(*cpoolman, *dmnman, *mnhf_manager, govman, *(llmq_ctx->isman), *(llmq_ctx->quorum_block_processor),
                                                        *(llmq_ctx->qsnapman), chainman, consensus_params, mn_sync, sporkman, *(llmq_ctx->clhandler),
                                                        *(llmq_ctx->qman));
+
 }
 
 void DashChainstateSetupClose(std::unique_ptr<CChainstateHelper>& chain_helper,

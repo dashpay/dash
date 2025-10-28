@@ -643,6 +643,9 @@ public:
     size_t GetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     void AddExtraHandler(std::unique_ptr<NetHandler>&& handler) override;
     void RemoveHandlers() override;
+    void StartHandlers() override;
+    void StopHandlers() override;
+    void InterruptHandlers() override;
 
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override;
@@ -1645,6 +1648,27 @@ void PeerManagerImpl::AddExtraHandler(std::unique_ptr<NetHandler>&& handler)
 void PeerManagerImpl::RemoveHandlers()
 {
     m_handlers.clear();
+}
+
+void PeerManagerImpl::StartHandlers()
+{
+    for (auto& handler : m_handlers) {
+        handler->Start();
+    }
+}
+
+void PeerManagerImpl::StopHandlers()
+{
+    for (auto& handler : m_handlers) {
+        handler->Stop();
+    }
+}
+
+void PeerManagerImpl::InterruptHandlers()
+{
+    for (auto& handler : m_handlers) {
+        handler->Interrupt();
+    }
 }
 
 void PeerManagerImpl::UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds)
