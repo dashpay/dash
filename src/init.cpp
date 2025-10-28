@@ -273,7 +273,7 @@ void PrepareShutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
-    node.peerman->RemoveHandlers();
+    if (node.peerman) node.peerman->RemoveHandlers();
 
     if (node.active_ctx) node.active_ctx->Stop();
     if (node.peerman) node.peerman->StopHandlers();
