@@ -1650,6 +1650,8 @@ void PeerManagerImpl::AddExtraHandler(std::unique_ptr<NetHandler>&& handler)
 
 void PeerManagerImpl::RemoveHandlers()
 {
+    InterruptHandlers();
+    StopHandlers();
     m_handlers.clear();
 }
 
