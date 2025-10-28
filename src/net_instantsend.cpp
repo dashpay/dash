@@ -133,9 +133,9 @@ Uint256HashSet NetInstantSend::ProcessPendingInstantSendLocks(
             nSignHeight = blockIndex->nHeight + dkgInterval - 1;
         }
         // For RegTest non-rotating quorum cycleHash has directly quorum hash
-        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_is_manager.Chainstate().m_chain, m_is_manager.Qman(),
+        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_is_manager.Chainstate().m_chain, m_qman,
                                                                              id, nSignHeight, signOffset)
-                                              : m_is_manager.Qman().GetQuorum(llmq_params.type, islock->cycleHash);
+                                              : m_qman.GetQuorum(llmq_params.type, islock->cycleHash);
 
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select

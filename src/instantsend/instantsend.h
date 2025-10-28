@@ -43,7 +43,6 @@ struct PendingState {
 
 namespace llmq {
 class CChainLocksHandler;
-class CQuorumManager;
 class CSigningManager;
 
 class CInstantSendManager final : public instantsend::InstantSendSignerParent
@@ -53,7 +52,6 @@ private:
 
     CChainLocksHandler& clhandler;
     CChainState& m_chainstate;
-    CQuorumManager& qman;
     CSigningManager& sigman;
     CSporkManager& spork_manager;
     CTxMemPool& mempool;
@@ -86,7 +84,7 @@ private:
     Uint256HashMap<int64_t> timingsTxSeen GUARDED_BY(cs_timingsTxSeen);
 
 public:
-    explicit CInstantSendManager(CChainLocksHandler& _clhandler, CChainState& chainstate, CQuorumManager& _qman,
+    explicit CInstantSendManager(CChainLocksHandler& _clhandler, CChainState& chainstate,
                                  CSigningManager& _sigman, CSporkManager& sporkman, CTxMemPool& _mempool,
                                  const CMasternodeSync& mn_sync, bool unitTests, bool fWipe);
     ~CInstantSendManager();
@@ -133,7 +131,6 @@ public:
     std::vector<CTransactionRef> PrepareTxToRetry() EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, cs_pendingRetry);
     instantsend::PendingState GetPendingLocks();
     CSigningManager& Sigman() { return sigman; }
-    CQuorumManager& Qman() { return qman; }
     CChainState& Chainstate() { return m_chainstate; }
     std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
             NodeId from, const uint256& hash,

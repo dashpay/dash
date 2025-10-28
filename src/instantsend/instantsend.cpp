@@ -48,13 +48,12 @@ Uint256HashSet GetIdsFromLockable(const std::vector<T>& vec)
 }
 } // anonymous namespace
 
-CInstantSendManager::CInstantSendManager(CChainLocksHandler& _clhandler, CChainState& chainstate, CQuorumManager& _qman,
+CInstantSendManager::CInstantSendManager(CChainLocksHandler& _clhandler, CChainState& chainstate,
                                          CSigningManager& _sigman, CSporkManager& sporkman, CTxMemPool& _mempool,
                                          const CMasternodeSync& mn_sync, bool unitTests, bool fWipe) :
     db{unitTests, fWipe},
     clhandler{_clhandler},
     m_chainstate{chainstate},
-    qman{_qman},
     sigman{_sigman},
     spork_manager{sporkman},
     mempool{_mempool},
