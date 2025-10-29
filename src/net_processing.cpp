@@ -3567,8 +3567,8 @@ void PeerManagerImpl::PostProcessMessage(MessageProcessingResult&& result, NodeI
     for (const auto& inv : result.m_inventory) {
         RelayInv(inv);
     }
-    if (result.m_dsq.has_value()) {
-        RelayDSQ(result.m_dsq.value());
+    for (const auto& dsq : result.m_dsq) {
+        RelayDSQ(dsq);
     }
 }
 

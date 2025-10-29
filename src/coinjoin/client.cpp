@@ -135,7 +135,7 @@ MessageProcessingResult CCoinJoinClientQueueManager::ProcessMessage(NodeId from,
             WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
         }
     } // cs_ProcessDSQueue
-    ret.m_dsq = dsq;
+    ret.m_dsq.push_back(dsq);
     return ret;
 }
 
