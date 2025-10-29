@@ -278,8 +278,6 @@ public:
                                 const std::unique_ptr<CDeterministicMNManager>& dmnman, CMasternodeSync& mn_sync);
     ~CGovernanceManager();
 
-    void Schedule(CScheduler& scheduler, CConnman& connman, PeerManager& peerman);
-
     bool LoadCache(bool load_cache);
 
     bool IsValid() const override { return is_valid; }
@@ -311,8 +309,6 @@ public:
 
     void AddGovernanceObject(CGovernanceObject& govobj, const CNode* pfrom = nullptr) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
-
-    void CheckAndRemove();
 
     UniValue ToJson() const;
 
@@ -393,6 +389,13 @@ public:
     std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+    // used by NetGovernance
+    void RequestOrphanObjects(CConnman& connman);
+    void CleanOrphanObjects();
+    void CheckAndRemove();
+    //! This method clears internal data structure and returns a copy
+    std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
+    CMasternodeSync& GetMNSync() { return m_mn_sync; }
 private:
     //! Internal functions that require locks to be held
     CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -416,10 +419,6 @@ private:
     void RebuildIndexes();
 
     void AddCachedTriggers();
-
-    void RequestOrphanObjects(CConnman& connman);
-
-    void CleanOrphanObjects();
 
     void RemoveInvalidVotes();
 };

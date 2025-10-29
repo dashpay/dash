@@ -646,10 +646,12 @@ public:
     void StartHandlers() override;
     void StopHandlers() override;
     void InterruptHandlers() override;
+    void ScheduleHandlers(CScheduler& scheduler) override;
 
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override;
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override;
+    void PeerRelayInv(const CInv& inv) override;
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override;
     void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override;
     void PeerAskPeersForTransaction(const uint256& txid) override;
@@ -1677,6 +1679,12 @@ void PeerManagerImpl::InterruptHandlers()
     }
 }
 
+void PeerManagerImpl::ScheduleHandlers(CScheduler& scheduler)
+{
+    for (auto& handler : m_handlers) {
+        handler->Schedule(scheduler, m_connman);
+    }
+}
 void PeerManagerImpl::UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds)
 {
     LOCK(cs_main);
@@ -6517,10 +6525,17 @@ void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& in
 {
     EraseObjectRequest(nodeid, inv);
 }
+
+void PeerManagerImpl::PeerRelayInv(const CInv& inv)
+{
+    RelayInv(inv);
+}
+
 void PeerManagerImpl::PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx)
 {
     RelayInvFiltered(inv, relatedTx);
 }
+
 void PeerManagerImpl::PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash)
 {
     RelayInvFiltered(inv, relatedTxHash);

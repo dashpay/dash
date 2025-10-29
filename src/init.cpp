@@ -37,6 +37,7 @@
 #include <net.h>
 #include <net_permissions.h>
 #include <net_processing.h>
+#include <net_governance.h>
 #include <net_instantsend.h>
 #include <net_signing.h>
 #include <netbase.h>
@@ -2183,7 +2184,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
     node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, *node.llmq_ctx->qman));
     node.peerman->AddExtraHandler(std::make_unique<NetSigning>(node.peerman.get(), *node.llmq_ctx->sigman));
-
+    node.peerman->AddExtraHandler(std::make_unique<NetGovernance>(node.peerman.get(), *node.govman));
 
     // ********************************************************* Step 7d: Setup other Dash services
 
@@ -2287,9 +2288,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.scheduler->scheduleEvery(std::bind(&CMasternodeUtils::DoMaintenance, std::ref(*node.connman), std::ref(*node.dmnman), std::ref(*node.mn_sync), node.cj_walletman.get()), std::chrono::minutes{1});
     node.scheduler->scheduleEvery(std::bind(&CDeterministicMNManager::DoMaintenance, std::ref(*node.dmnman)), std::chrono::seconds{10});
 
-    if (node.govman->IsValid()) {
-        node.govman->Schedule(*node.scheduler, *node.connman, *node.peerman);
-    }
+
+    node.peerman->ScheduleHandlers(*node.scheduler);
 
     if (node.mn_activeman) {
         node.scheduler->scheduleEvery(std::bind(&CCoinJoinServer::DoMaintenance, std::ref(*node.active_ctx->cj_server)), std::chrono::seconds{1});
