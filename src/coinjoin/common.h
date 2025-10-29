@@ -7,10 +7,13 @@
 
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
+#include <timedata.h>
 
 #include <array>
 #include <string>
 #include <util/ranges.h>
+
+class CBLSPublicKey;
 
 /** Holds a mixing input
  */
@@ -129,7 +132,59 @@ constexpr int CalculateAmountPriority(CAmount nInputAmount)
     //nondenom return largest first
     return -1 * (nInputAmount / COIN);
 }
-
 } // namespace CoinJoin
+
+/**
+ * A currently in progress mixing merge and denomination information
+ */
+static constexpr int COINJOIN_QUEUE_TIMEOUT = 30;
+class CCoinJoinQueue
+// TODO: move it inside CoinJoin namespace
+{
+public:
+    int nDenom{0};
+    COutPoint masternodeOutpoint;
+    uint256 m_protxHash;
+    int64_t nTime{0};
+    bool fReady{false}; //ready for submit
+    std::vector<unsigned char> vchSig;
+    // memory only
+    bool fTried{false};
+
+    CCoinJoinQueue() = default;
+
+    CCoinJoinQueue(int nDenom, const COutPoint& outpoint, const uint256& proTxHash, int64_t nTime, bool fReady) :
+        nDenom(nDenom),
+        masternodeOutpoint(outpoint),
+        m_protxHash(proTxHash),
+        nTime(nTime),
+        fReady(fReady)
+    {
+    }
+
+    SERIALIZE_METHODS(CCoinJoinQueue, obj)
+    {
+        READWRITE(obj.nDenom, obj.m_protxHash, obj.nTime, obj.fReady);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(obj.vchSig);
+        }
+    }
+
+    [[nodiscard]] uint256 GetHash() const;
+    [[nodiscard]] uint256 GetSignatureHash() const;
+
+    /// Check if we have a valid Masternode address
+    [[nodiscard]] bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
+
+    /// Check if a queue is too old or too far into the future
+    [[nodiscard]] bool IsTimeOutOfBounds(int64_t current_time = GetAdjustedTime()) const;
+
+    [[nodiscard]] std::string ToString() const;
+
+    friend bool operator==(const CCoinJoinQueue& a, const CCoinJoinQueue& b)
+    {
+        return a.nDenom == b.nDenom && a.masternodeOutpoint == b.masternodeOutpoint && a.nTime == b.nTime && a.fReady == b.fReady;
+    }
+};
 
 #endif // BITCOIN_COINJOIN_COMMON_H

@@ -188,7 +188,7 @@ MessageProcessingResult CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream
         TRY_LOCK(cs_vecqueue, lockRecv);
         if (!lockRecv) return ret;
         vecCoinJoinQueue.push_back(dsq);
-        ret.m_dsq.push_back(dsq);
+        ret.m_dsq = dsq;
     }
     return ret;
 }

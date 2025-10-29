@@ -5,8 +5,7 @@
 #ifndef BITCOIN_MSG_RESULT_H
 #define BITCOIN_MSG_RESULT_H
 
-#include <coinjoin/coinjoin.h>
-
+#include <coinjoin/common.h>
 #include <protocol.h>
 #include <uint256.h>
 
@@ -50,7 +49,7 @@ struct MessageProcessingResult
     std::vector<CInv> m_inventory;
 
     //! @m_dsq will relay DSQs to connected peers
-    std::vector<CCoinJoinQueue> m_dsq;
+    std::optional<CCoinJoinQueue> m_dsq;
 
     //! @m_transactions will relay transactions to peers which is ready to accept it (some peers does not accept transactions)
     std::vector<uint256> m_transactions;

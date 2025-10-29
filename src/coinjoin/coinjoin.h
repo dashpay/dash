@@ -39,7 +39,6 @@ extern RecursiveMutex cs_main;
 // timeouts
 static constexpr int COINJOIN_AUTO_TIMEOUT_MIN = 5;
 static constexpr int COINJOIN_AUTO_TIMEOUT_MAX = 15;
-static constexpr int COINJOIN_QUEUE_TIMEOUT = 30;
 static constexpr int COINJOIN_SIGNING_TIMEOUT = 15;
 
 static constexpr size_t COINJOIN_ENTRY_MAX_SIZE = 9;
@@ -170,57 +169,6 @@ public:
     bool AddScriptSig(const CTxIn& txin);
 };
 
-
-/**
- * A currently in progress mixing merge and denomination information
- */
-class CCoinJoinQueue
-{
-public:
-    int nDenom{0};
-    COutPoint masternodeOutpoint;
-    uint256 m_protxHash;
-    int64_t nTime{0};
-    bool fReady{false}; //ready for submit
-    std::vector<unsigned char> vchSig;
-    // memory only
-    bool fTried{false};
-
-    CCoinJoinQueue() = default;
-
-    CCoinJoinQueue(int nDenom, const COutPoint& outpoint, const uint256& proTxHash, int64_t nTime, bool fReady) :
-        nDenom(nDenom),
-        masternodeOutpoint(outpoint),
-        m_protxHash(proTxHash),
-        nTime(nTime),
-        fReady(fReady)
-    {
-    }
-
-    SERIALIZE_METHODS(CCoinJoinQueue, obj)
-    {
-        READWRITE(obj.nDenom, obj.m_protxHash, obj.nTime, obj.fReady);
-        if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
-        }
-    }
-
-    [[nodiscard]] uint256 GetHash() const;
-    [[nodiscard]] uint256 GetSignatureHash() const;
-
-    /// Check if we have a valid Masternode address
-    [[nodiscard]] bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
-
-    /// Check if a queue is too old or too far into the future
-    [[nodiscard]] bool IsTimeOutOfBounds(int64_t current_time = GetAdjustedTime()) const;
-
-    [[nodiscard]] std::string ToString() const;
-
-    friend bool operator==(const CCoinJoinQueue& a, const CCoinJoinQueue& b)
-    {
-        return a.nDenom == b.nDenom && a.masternodeOutpoint == b.masternodeOutpoint && a.nTime == b.nTime && a.fReady == b.fReady;
-    }
-};
 
 /** Helper class to store mixing transaction (tx) information.
  */
