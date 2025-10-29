@@ -804,15 +804,15 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 
             auto rs = std::make_shared<CRecoveredSig>(quorum->params.type, quorum->qc->quorumHash, id, msgHash,
                                                       recoveredSig);
-            if (sigman.ProcessRecoveredSig(rs )) {
+            if (sigman.ProcessRecoveredSig(rs)) {
                 // TODO: remove duplicated code with NetSigning
                 auto listeners = sigman.GetListeners();
                 for (auto& l : listeners) {
                     // TODO: simplify it to std::variant<CInv, CTransaction, std::monostate>
-                    m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+                    m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*rs));
                 }
 
-                GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
+                GetMainSignals().NotifyRecoveredSig(rs, rs->GetHash().ToString());
             }
             return; // end of single-quorum processing
         }
@@ -864,10 +864,10 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
         auto listeners = sigman.GetListeners();
         for (auto& l : listeners) {
             // TODO: simplify it to std::variant<CInv, CTransaction, std::monostate>
-            m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+            m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*rs));
         }
 
-        GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
+        GetMainSignals().NotifyRecoveredSig(rs, rs->GetHash().ToString());
     }
 }
 

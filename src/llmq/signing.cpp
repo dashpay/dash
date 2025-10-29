@@ -10,15 +10,12 @@
 
 #include <chainparams.h>
 #include <dbwrapper.h>
-#include <hash.h>
-#include <masternode/node.h>
 #include <streams.h>
 #include <util/system.h>
-#include <util/thread.h>
 #include <util/time.h>
-#include <util/underlying.h>
 
 #include <algorithm>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace llmq

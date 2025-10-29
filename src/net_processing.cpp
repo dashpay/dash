@@ -653,6 +653,7 @@ public:
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override;
     void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override;
     void PeerAskPeersForTransaction(const uint256& txid) override;
+    void PeerPostProcessMessage(MessageProcessingResult&& ret) override;
 private:
     void _RelayTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
 
@@ -6528,4 +6529,9 @@ void PeerManagerImpl::PeerRelayInvFiltered(const CInv& inv, const uint256& relat
 void PeerManagerImpl::PeerAskPeersForTransaction(const uint256& txid)
 {
     AskPeersForTransaction(txid);
+}
+
+void PeerManagerImpl::PeerPostProcessMessage(MessageProcessingResult&& ret)
+{
+    PostProcessMessage(std::move(ret), -1);
 }

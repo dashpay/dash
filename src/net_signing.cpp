@@ -6,10 +6,13 @@
 
 #include <bls/bls_batchverifier.h>
 #include <cxxtimer.hpp>
-#include <logging.h>
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
+#include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <logging.h>
+#include <streams.h>
+#include <util/thread.h>
 #include <validationinterface.h>
 
 #include <unordered_map>
@@ -37,13 +40,13 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
     auto recoveredSig = std::make_shared<llmq::CRecoveredSig>();
     vRecv >> *recoveredSig;
 
-    m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(), CInv{MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()};
+    m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(), CInv{MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()});
 
-    auto llmqType = recoveredSig.getLlmqType();
+    auto llmqType = recoveredSig->getLlmqType();
     if (!Params().GetLLMQ(llmqType).has_value()) {
         m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
     }
-    if (!PreVerifyRecoveredSig(llmqType, m_sig_manager.Qman(), *recoveredSig, ban)) {
+    if (!PreVerifyRecoveredSig(llmqType, m_sig_manager.Qman(), *recoveredSig)) {
         return;
     }
 
@@ -80,7 +83,7 @@ void NetSigning::ProcessRecoveredSig(const std::shared_ptr<const llmq::CRecovere
     auto listeners = m_sig_manager.GetListeners();
     for (auto& l : listeners) {
         // TODO: simplify it to std::variant<CInv, CTransaction, std::monostate>
-        m_peer_manager->PostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+        m_peer_manager->PeerPostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
     }
 
     GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
