@@ -551,18 +551,14 @@ const CGovernanceObject* CGovernanceManager::FindConstGovernanceObject(const uin
     return nullptr;
 }
 
-CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash)
+CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& hash)
 {
     AssertLockNotHeld(cs);
     LOCK(cs);
-    return FindGovernanceObjectInternal(nHash);
-}
+    auto it = mapObjects.find(hash);
+    if (it == mapObjects.end()) return nullptr;
 
-CGovernanceObject* CGovernanceManager::FindGovernanceObjectInternal(const uint256& nHash)
-{
-    AssertLockHeld(cs);
-    if (mapObjects.count(nHash)) return &mapObjects[nHash];
-    return nullptr;
+    return &it->second;
 }
 
 CGovernanceObject* CGovernanceManager::FindGovernanceObjectByDataHash(const uint256 &nDataHash)
@@ -1430,11 +1426,11 @@ bool CGovernanceManager::AddNewTrigger(uint256 nHash)
 
     CSuperblock_sptr pSuperblock;
     try {
-        const CGovernanceObject* pGovObj = FindGovernanceObjectInternal(nHash);
-        if (!pGovObj) {
+        const auto& gov_obj = mapObjects.find(nHash);
+        if (gov_obj == mapObjects.end()) {
             throw std::runtime_error("CSuperblock: Failed to find Governance Object");
         }
-        pSuperblock = std::make_shared<CSuperblock>(*pGovObj, nHash);
+        pSuperblock = std::make_shared<CSuperblock>(gov_obj->second, nHash);
     } catch (std::exception& e) {
         LogPrintf("CGovernanceManager::%s -- Error creating superblock: %s\n", __func__, e.what());
         return false;
@@ -1466,16 +1462,18 @@ void CGovernanceManager::CleanAndRemoveTriggers()
     auto it = mapTrigger.begin();
     while (it != mapTrigger.end()) {
         bool remove = false;
-        CGovernanceObject* pObj = nullptr;
+        CGovernanceObject* pObj{nullptr};
         const CSuperblock_sptr& pSuperblock = it->second;
         if (!pSuperblock) {
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- nullptr superblock\n", __func__);
             remove = true;
         } else {
-            pObj = FindGovernanceObjectInternal(it->first);
-            if (!pObj || pObj->GetObjectType() != GovernanceObject::TRIGGER) {
+            auto gov_obj_it = mapObjects.find(it->first);
+            if (gov_obj_it == mapObjects.end() || gov_obj_it->second.GetObjectType() != GovernanceObject::TRIGGER) {
                 LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- Unknown or non-trigger superblock\n", __func__);
                 pSuperblock->SetStatus(SeenObjectStatus::ErrorInvalid);
+            } else {
+                pObj = &gov_obj_it->second;
             }
 
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- superblock status = %d\n", __func__,
@@ -1539,8 +1537,7 @@ std::vector<CSuperblock_sptr> CGovernanceManager::GetActiveTriggersInternal() co
 
     // LOOK AT THESE OBJECTS AND COMPILE A VALID LIST OF TRIGGERS
     for (const auto& pair : mapTrigger) {
-        const CGovernanceObject* pObj = FindConstGovernanceObject(pair.first);
-        if (pObj) {
+        if (mapObjects.find(pair.first) != mapObjects.end()) {
             vecResults.push_back(pair.second);
         }
     }
@@ -1567,13 +1564,12 @@ bool CGovernanceManager::IsSuperblockTriggered(const CDeterministicMNList& tip_m
             continue;
         }
 
-        CGovernanceObject* pObj = FindGovernanceObjectInternal(pSuperblock->GetGovernanceObjHash());
-        if (!pObj) {
-            LogPrintf("IsSuperblockTriggered -- pObj == nullptr, continuing\n");
+        auto gov_obj_it = mapObjects.find(pSuperblock->GetGovernanceObjHash());
+        if (gov_obj_it == mapObjects.end()) {
+            LogPrintf("IsSuperblockTriggered -- superblock is in mapObject, continuing\n");
             continue;
         }
-
-        LogPrint(BCLog::GOBJECT, "IsSuperblockTriggered -- data = %s\n", pObj->GetDataAsPlainString());
+        LogPrint(BCLog::GOBJECT, "IsSuperblockTriggered -- data = %s\n", gov_obj_it->second.GetDataAsPlainString());
 
         // note : 12.1 - is epoch calculation correct?
 
@@ -1587,9 +1583,9 @@ bool CGovernanceManager::IsSuperblockTriggered(const CDeterministicMNList& tip_m
 
         // MAKE SURE THIS TRIGGER IS ACTIVE VIA FUNDING CACHE FLAG
 
-        pObj->UpdateSentinelVariables(tip_mn_list);
+        gov_obj_it->second.UpdateSentinelVariables(tip_mn_list);
 
-        if (pObj->IsSetCachedFunding()) {
+        if (gov_obj_it->second.IsSetCachedFunding()) {
             LogPrint(BCLog::GOBJECT, "IsSuperblockTriggered -- fCacheFunding = true, returning true\n");
             return true;
         } else {
@@ -1624,17 +1620,15 @@ bool CGovernanceManager::GetBestSuperblockInternal(const CDeterministicMNList& t
             continue;
         }
 
-        const CGovernanceObject* pObj = FindGovernanceObjectInternal(pSuperblock->GetGovernanceObjHash());
-        if (!pObj) {
-            continue;
-        }
+        if (const auto& gov_obj_it = mapObjects.find(pSuperblock->GetGovernanceObjHash());
+                gov_obj_it != mapObjects.end()) {
+            // DO WE HAVE A NEW WINNER?
 
-        // DO WE HAVE A NEW WINNER?
-
-        int nTempYesCount = pObj->GetAbsoluteYesCount(tip_mn_list, VOTE_SIGNAL_FUNDING);
-        if (nTempYesCount > nYesCount) {
-            nYesCount = nTempYesCount;
-            pSuperblockRet = pSuperblock;
+            int nTempYesCount = gov_obj_it->second.GetAbsoluteYesCount(tip_mn_list, VOTE_SIGNAL_FUNDING);
+            if (nTempYesCount > nYesCount) {
+                nYesCount = nTempYesCount;
+                pSuperblockRet = pSuperblock;
+            }
         }
     }
 

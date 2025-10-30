@@ -395,7 +395,6 @@ public:
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
 private:
     //! Internal functions that require locks to be held
-    CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
                                    int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
