@@ -35,7 +35,7 @@
 #include <util/system.h>
 #include <util/threadinterrupt.h>
 #include <util/wpipe.h>
-#include <consensus/params.h>
+#include <llmq/params.h>
 
 #include <atomic>
 #include <condition_variable>

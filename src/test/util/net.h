@@ -7,8 +7,6 @@
 
 #include <compat/compat.h>
 #include <net.h>
-#include <net_permissions.h>
-#include <net_processing.h>
 #include <netaddress.h>
 #include <node/connection_types.h>
 #include <node/eviction.h>
@@ -23,10 +21,10 @@
 #include <cstring>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 class FastRandomContext;
+class PeerManager;
 
 template <typename C>
 class Span;
