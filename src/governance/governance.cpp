@@ -222,11 +222,6 @@ MessageProcessingResult CGovernanceManager::ProcessMessage(CNode& peer, CConnman
         MessageProcessingResult ret{};
         ret.m_to_erase = CInv{MSG_GOVERNANCE_OBJECT, nHash};
 
-        if (!m_mn_sync.IsBlockchainSynced()) {
-            LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- masternode list not synced\n");
-            return ret;
-        }
-
         std::string strHash = nHash.ToString();
 
         LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- Received object: %s\n", strHash);
@@ -288,12 +283,6 @@ MessageProcessingResult CGovernanceManager::ProcessMessage(CNode& peer, CConnman
 
         MessageProcessingResult ret{};
         ret.m_to_erase = CInv{MSG_GOVERNANCE_OBJECT_VOTE, nHash};
-
-        // Ignore such messages until masternode list is synced
-        if (!m_mn_sync.IsBlockchainSynced()) {
-            LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- masternode list not synced\n");
-            return ret;
-        }
 
         LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- Received vote: %s\n", vote.ToString(tip_mn_list));
 
