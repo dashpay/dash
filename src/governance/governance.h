@@ -394,7 +394,6 @@ public:
     void CheckAndRemove();
     //! This method clears internal data structure and returns a copy
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
-    CMasternodeSync& GetMNSync() { return m_mn_sync; }
 private:
     //! Internal functions that require locks to be held
     CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
