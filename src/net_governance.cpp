@@ -5,12 +5,15 @@
 #include <net_governance.h>
 
 #include <chainparams.h>
-#include <shutdown.h>
 #include <governance/governance.h>
 #include <logging.h>
+#include <net.h>
+#include <netfulfilledman.h>
 #include <netmessagemaker.h>
+#include <node/interface_ui.h>
 #include <node/sync.h>
 #include <scheduler.h>
+#include <shutdown.h>
 
 class CConnman;
 
@@ -49,7 +52,7 @@ void NetGovernance::Schedule(CScheduler& scheduler, CConnman& connman)
         Params().IsMockableChain() ? std::chrono::seconds{1} : std::chrono::seconds{5});
 }
 
-void NetGovernance::SendGovernanceSyncRequest(CNode* pnode) const
+void NetGovernance::SendGovernanceSyncRequest(CNode* pnode, CConnman& connman) const
 {
     CNetMsgMaker msgMaker(pnode->GetCommonVersion());
     CBloomFilter filter;
@@ -84,14 +87,16 @@ void NetGovernance::ProcessTick(CConnman& connman)
     const CConnman::NodesSnapshot snap{connman, /* cond = */ CConnman::FullyConnectedOnly};
 
     // gradually request the rest of the votes after sync finished
-    if(IsSynced()) {
-        m_gov_manager.RequestGovernanceObjectVotes(snap.Nodes(), connman, *m_peer_mananger);
+    if(m_node_sync.IsSynced()) {
+        m_gov_manager.RequestGovernanceObjectVotes(snap.Nodes(), connman, *m_peer_manager);
         return;
     }
 
     // Calculate "progress" for LOG reporting / GUI notification
-    double nSyncProgress = double(nTriedPeerCount + (nCurrentAsset - 1) * 8) / (8*4);
-    LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTriedPeerCount %d nSyncProgress %f\n", nTick, nCurrentAsset, nTriedPeerCount, nSyncProgress);
+    int attempt = m_node_sync.GetAttempt();
+    int asset_id = m_node_sync.GetAssetID();
+    double nSyncProgress = double(attempt + (asset_id - 1) * 8) / (8*4);
+    LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d asset_id %d nTriedPeerCount %d nSyncProgress %f\n", nTick, asset_id, attempt, nSyncProgress);
     uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     for (auto& pnode : snap.Nodes())
@@ -125,12 +130,12 @@ void NetGovernance::ProcessTick(CConnman& connman)
                 m_netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
                 // get current network sporks
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS));
-                LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- requesting sporks from peer=%d\n", nTick, nCurrentAsset, pnode->GetId());
+                LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d asset_id %d -- requesting sporks from peer=%d\n", nTick, asset_id, pnode->GetId());
             }
 
-            if (nCurrentAsset == NODE_SYNC_BLOCKCHAIN) {
+            if (asset_id == NODE_SYNC_BLOCKCHAIN) {
                 int64_t nTimeSyncTimeout = snap.Nodes().size() > 3 ? NODE_SYNC_TICK_SECONDS : NODE_SYNC_TIMEOUT_SECONDS;
-                if (fReachedBestHeader && (GetTime() - nTimeLastBumped > nTimeSyncTimeout)) {
+                if (m_node_sync.IsReachedBestHeader() && (GetTime() - m_node_sync.GetLastBump() > nTimeSyncTimeout)) {
                     // At this point we know that:
                     // a) there are peers (because we are looping on at least one of them);
                     // b) we waited for at least NODE_SYNC_TICK_SECONDS/NODE_SYNC_TIMEOUT_SECONDS
@@ -140,7 +145,7 @@ void NetGovernance::ProcessTick(CConnman& connman)
                     //    for at least NODE_SYNC_TICK_SECONDS/NODE_SYNC_TIMEOUT_SECONDS (depending on
                     //    the number of connected peers).
                     // We must be at the tip already, let's move to the next asset.
-                    SwitchToNextAsset();
+                    m_node_sync.SwitchToNextAsset();
                     uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
                     if (gArgs.GetBoolArg("-syncmempool", DEFAULT_SYNC_MEMPOOL)) {
@@ -150,7 +155,7 @@ void NetGovernance::ProcessTick(CConnman& connman)
                             if (!pNodeTmp->IsInboundConn() && !fRequestedEarlier && !pNodeTmp->IsBlockRelayOnly()) {
                                 m_netfulfilledman.AddFulfilledRequest(pNodeTmp->addr, "mempool-sync");
                                 connman.PushMessage(pNodeTmp, msgMaker.Make(NetMsgType::MEMPOOL));
-                                LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- syncing mempool from peer=%d\n", nTick, nCurrentAsset, pNodeTmp->GetId());
+                                LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d asset_id %d -- syncing mempool from peer=%d\n", nTick, asset_id, pNodeTmp->GetId());
                             }
                         }
                     }
@@ -159,21 +164,21 @@ void NetGovernance::ProcessTick(CConnman& connman)
 
             // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
 
-            if(nCurrentAsset == NODE_SYNC_GOVERNANCE) {
-                if (!govman.IsValid()) {
-                    SwitchToNextAsset();
+            if(asset_id == NODE_SYNC_GOVERNANCE) {
+                if (!m_gov_manager.IsValid()) {
+                    m_node_sync.SwitchToNextAsset();
                     return;
                 }
-                LogPrint(BCLog::GOBJECT, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
+                LogPrint(BCLog::GOBJECT, "CMasternodeSync::ProcessTick -- nTick %d asset_id %d last_bump %lld GetTime() %lld diff %lld\n", nTick, asset_id, m_node_sync.GetLastBump(), GetTime(), GetTime() - m_node_sync.GetLastBump());
 
                 // check for timeout first
-                if(GetTime() - nTimeLastBumped > NODE_SYNC_TIMEOUT_SECONDS) {
-                    LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
-                    if(nTriedPeerCount == 0) {
-                        LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
+                if(GetTime() - m_node_sync.GetLastBump() > NODE_SYNC_TIMEOUT_SECONDS) {
+                    LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d asset_id %d -- timeout\n", nTick, asset_id);
+                    if(attempt == 0) {
+                        LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync %s\n", m_node_sync.GetAssetName());
                         // it's kind of ok to skip this for now, hopefully we'll catch up later?
                     }
-                    SwitchToNextAsset();
+                    m_node_sync.SwitchToNextAsset();
                     return;
                 }
 
@@ -185,9 +190,9 @@ void NetGovernance::ProcessTick(CConnman& connman)
                 }
                 m_netfulfilledman.AddFulfilledRequest(pnode->addr, "governance-sync");
 
-                nTriedPeerCount++;
+                m_node_sync.BumpAttempt();
 
-                SendGovernanceSyncRequest(pnode);
+                SendGovernanceSyncRequest(pnode, connman);
 
                 break; //this will cause each peer to get one request each six seconds for the various assets we need
             }
@@ -195,7 +200,7 @@ void NetGovernance::ProcessTick(CConnman& connman)
     }
 
 
-    if (nCurrentAsset != NODE_SYNC_GOVERNANCE) {
+    if (asset_id != NODE_SYNC_GOVERNANCE) {
         // looped through all nodes and not syncing governance yet/already, release them
         return;
     }
@@ -205,7 +210,7 @@ void NetGovernance::ProcessTick(CConnman& connman)
         if(!m_netfulfilledman.HasFulfilledRequest(pnode->addr, "governance-sync")) {
             continue; // to early for this node
         }
-        int nObjsLeftToAsk = govman.RequestGovernanceObjectVotes(*pnode, connman, peerman);
+        int nObjsLeftToAsk = m_gov_manager.RequestGovernanceObjectVotes(*pnode, connman, *m_peer_manager);
         // check for data
         if(nObjsLeftToAsk == 0) {
             static int64_t nTimeNoObjectsLeft = 0;
@@ -218,19 +223,19 @@ void NetGovernance::ProcessTick(CConnman& connman)
             // make sure the condition below is checked only once per tick
             if(nLastTick == nTick) continue;
             if (GetTime() - nTimeNoObjectsLeft > NODE_SYNC_TIMEOUT_SECONDS &&
-                govman.GetVoteCount() - nLastVotes < std::max(int(0.0001 * nLastVotes), NODE_SYNC_TICK_SECONDS)) {
+                m_gov_manager.GetVoteCount() - nLastVotes < std::max(int(0.0001 * nLastVotes), NODE_SYNC_TICK_SECONDS)) {
                 // We already asked for all objects, waited for NODE_SYNC_TIMEOUT_SECONDS
                 // after that and less then 0.01% or NODE_SYNC_TICK_SECONDS
                 // (i.e. 1 per second) votes were received during the last tick.
                 // We can be pretty sure that we are done syncing.
-                LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- asked for all objects, nothing to do\n", nTick, NODE_SYNC_GOVERNANCE);
+                LogPrintf("CMasternodeSync::ProcessTick -- nTick %d asset_id %d -- asked for all objects, nothing to do\n", nTick, NODE_SYNC_GOVERNANCE);
                 // reset nTimeNoObjectsLeft to be able to use the same condition on resync
                 nTimeNoObjectsLeft = 0;
-                SwitchToNextAsset();
+                m_node_sync.SwitchToNextAsset();
                 return;
             }
             nLastTick = nTick;
-            nLastVotes = govman.GetVoteCount();
+            nLastVotes = m_gov_manager.GetVoteCount();
         }
     }
 }
