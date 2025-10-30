@@ -7,8 +7,6 @@
 
 #include <net_processing.h>
 
-//#include <util/threadinterrupt.h>
-
 class CGovernanceManager;
 
 class NetGovernance final : public NetHandler

@@ -32,7 +32,6 @@ template<typename T>
 class CFlatDB;
 class CInv;
 class CNode;
-class CScheduler;
 class PeerManager;
 
 class CDeterministicMNList;
