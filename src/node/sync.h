@@ -25,6 +25,9 @@ static constexpr int NODE_SYNC_TICK_SECONDS    = 6;
 static constexpr int NODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes so 30 seconds should be fine
 static constexpr int NODE_SYNC_RESET_SECONDS   = 900; // Reset fReachedBestHeader in CMasternodeSync::Reset if UpdateBlockTip hasn't been called for this seconds
 
+/** Default for -syncmempool */
+static const bool DEFAULT_SYNC_MEMPOOL = true;
+
 //
 // CMasternodeSync : Sync masternode assets in stages
 //
@@ -60,10 +63,13 @@ public:
 
     int GetAssetID() const { return nCurrentAsset; }
     int GetAttempt() const { return nTriedPeerCount; }
+    void BumpAttempt() { ++nTriedPeerCount; }
     void BumpAssetLastTime(const std::string& strFuncName);
+    int64_t GetLastBump() const { return nTimeLastBumped; }
     int64_t GetAssetStartTime() const { return nTimeAssetSyncStarted; }
     std::string GetAssetName() const;
     std::string GetSyncStatus() const;
+    bool IsReachedBestHeader() const { return fReachedBestHeader; }
 
     void Reset(bool fForce = false, bool fNotifyReset = true);
     void SwitchToNextAsset();

@@ -9,7 +9,6 @@
 #include <node/interface_ui.h>
 #include <util/time.h>
 #include <util/translation.h>
-#include <validation.h>
 
 CMasternodeSync::CMasternodeSync(CConnman& _connman, CNetFulfilledRequestManager& netfulfilledman) :
     nTimeAssetSyncStarted(GetTime()),
