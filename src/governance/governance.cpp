@@ -1052,12 +1052,6 @@ void CGovernanceManager::AddInvalidVote(const CGovernanceVote& vote)
     cmapInvalidVotes.Insert(vote.GetHash(), vote);
 }
 
-int CGovernanceManager::RequestGovernanceObjectVotes(CNode& peer, CConnman& connman, const PeerManager& peerman) const
-{
-    const std::vector<CNode*> vNodeCopy{&peer};
-    return RequestGovernanceObjectVotes(vNodeCopy, connman, peerman);
-}
-
 int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy, CConnman& connman,
                                                      const PeerManager& peerman) const
 {
