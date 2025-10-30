@@ -26,11 +26,11 @@ void CMasternodeSync::Reset(bool fForce, bool fNotifyReset)
 {
     // Avoid resetting the sync process if we just "recently" received a new block
     if (!fForce) {
-        if (GetTime() - nTimeLastUpdateBlockTip < MASTERNODE_SYNC_RESET_SECONDS) {
+        if (GetTime() - nTimeLastUpdateBlockTip < NODE_SYNC_RESET_SECONDS) {
             return;
         }
     }
-    nCurrentAsset = MASTERNODE_SYNC_BLOCKCHAIN;
+    nCurrentAsset = NODE_SYNC_BLOCKCHAIN;
     nTriedPeerCount = 0;
     nTimeAssetSyncStarted = GetTime();
     nTimeLastBumped = GetTime();
@@ -52,10 +52,10 @@ std::string CMasternodeSync::GetAssetName() const
 {
     switch(nCurrentAsset)
     {
-        case(MASTERNODE_SYNC_BLOCKCHAIN):   return "MASTERNODE_SYNC_BLOCKCHAIN";
-        case(MASTERNODE_SYNC_GOVERNANCE):   return "MASTERNODE_SYNC_GOVERNANCE";
-        case MASTERNODE_SYNC_FINISHED:      return "MASTERNODE_SYNC_FINISHED";
-        default:                            return "UNKNOWN";
+        case NODE_SYNC_BLOCKCHAIN: return "NODE_SYNC_BLOCKCHAIN";
+        case NODE_SYNC_GOVERNANCE: return "NODE_SYNC_GOVERNANCE";
+        case NODE_SYNC_FINISHED:   return "NODE_SYNC_FINISHED";
+        default:                   return "UNKNOWN";
     }
 }
 
@@ -65,14 +65,14 @@ void CMasternodeSync::SwitchToNextAsset()
 
     switch(nCurrentAsset)
     {
-        case(MASTERNODE_SYNC_BLOCKCHAIN):
+        case(NODE_SYNC_BLOCKCHAIN):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
-            nCurrentAsset = MASTERNODE_SYNC_GOVERNANCE;
+            nCurrentAsset = NODE_SYNC_GOVERNANCE;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
-        case(MASTERNODE_SYNC_GOVERNANCE):
+        case(NODE_SYNC_GOVERNANCE):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
-            nCurrentAsset = MASTERNODE_SYNC_FINISHED;
+            nCurrentAsset = NODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
 
             connman.ForEachNode(CConnman::AllNodes, [this](const CNode* pnode) {
@@ -90,9 +90,9 @@ void CMasternodeSync::SwitchToNextAsset()
 std::string CMasternodeSync::GetSyncStatus() const
 {
     switch (nCurrentAsset) {
-        case MASTERNODE_SYNC_BLOCKCHAIN:    return _("Synchronizing blockchain…").translated;
-        case MASTERNODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects…").translated;
-        case MASTERNODE_SYNC_FINISHED:      return _("Synchronization finished").translated;
+        case NODE_SYNC_BLOCKCHAIN:    return _("Synchronizing blockchain…").translated;
+        case NODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects…").translated;
+        case NODE_SYNC_FINISHED:      return _("Synchronization finished").translated;
         default:                            return "";
     }
 }
@@ -131,7 +131,7 @@ void CMasternodeSync::ProcessTick(const PeerManager& peerman, const CGovernanceM
         return;
     }
 
-    if(GetTime() - nTimeLastProcess < MASTERNODE_SYNC_TICK_SECONDS) {
+    if(GetTime() - nTimeLastProcess < NODE_SYNC_TICK_SECONDS) {
         // too early, nothing to do here
         return;
     }
@@ -184,16 +184,16 @@ void CMasternodeSync::ProcessTick(const PeerManager& peerman, const CGovernanceM
                 LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- requesting sporks from peer=%d\n", nTick, nCurrentAsset, pnode->GetId());
             }
 
-            if (nCurrentAsset == MASTERNODE_SYNC_BLOCKCHAIN) {
-                int64_t nTimeSyncTimeout = snap.Nodes().size() > 3 ? MASTERNODE_SYNC_TICK_SECONDS : MASTERNODE_SYNC_TIMEOUT_SECONDS;
+            if (nCurrentAsset == NODE_SYNC_BLOCKCHAIN) {
+                int64_t nTimeSyncTimeout = snap.Nodes().size() > 3 ? NODE_SYNC_TICK_SECONDS : NODE_SYNC_TIMEOUT_SECONDS;
                 if (fReachedBestHeader && (GetTime() - nTimeLastBumped > nTimeSyncTimeout)) {
                     // At this point we know that:
                     // a) there are peers (because we are looping on at least one of them);
-                    // b) we waited for at least MASTERNODE_SYNC_TICK_SECONDS/MASTERNODE_SYNC_TIMEOUT_SECONDS
+                    // b) we waited for at least NODE_SYNC_TICK_SECONDS/NODE_SYNC_TIMEOUT_SECONDS
                     //    (depending on the number of connected peers) since we reached the headers tip the last
                     //    time (i.e. since fReachedBestHeader has been set to true);
                     // c) there were no blocks (UpdatedBlockTip, NotifyHeaderTip) or headers (AcceptedBlockHeader)
-                    //    for at least MASTERNODE_SYNC_TICK_SECONDS/MASTERNODE_SYNC_TIMEOUT_SECONDS (depending on
+                    //    for at least NODE_SYNC_TICK_SECONDS/NODE_SYNC_TIMEOUT_SECONDS (depending on
                     //    the number of connected peers).
                     // We must be at the tip already, let's move to the next asset.
                     SwitchToNextAsset();
@@ -215,7 +215,7 @@ void CMasternodeSync::ProcessTick(const PeerManager& peerman, const CGovernanceM
 
             // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
 
-            if(nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
+            if(nCurrentAsset == NODE_SYNC_GOVERNANCE) {
                 if (!govman.IsValid()) {
                     SwitchToNextAsset();
                     return;
@@ -223,7 +223,7 @@ void CMasternodeSync::ProcessTick(const PeerManager& peerman, const CGovernanceM
                 LogPrint(BCLog::GOBJECT, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
 
                 // check for timeout first
-                if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
+                if(GetTime() - nTimeLastBumped > NODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrint(BCLog::MNSYNC, "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
                     if(nTriedPeerCount == 0) {
                         LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
@@ -251,7 +251,7 @@ void CMasternodeSync::ProcessTick(const PeerManager& peerman, const CGovernanceM
     }
 
 
-    if (nCurrentAsset != MASTERNODE_SYNC_GOVERNANCE) {
+    if (nCurrentAsset != NODE_SYNC_GOVERNANCE) {
         // looped through all nodes and not syncing governance yet/already, release them
         return;
     }
@@ -273,13 +273,13 @@ void CMasternodeSync::ProcessTick(const PeerManager& peerman, const CGovernanceM
             }
             // make sure the condition below is checked only once per tick
             if(nLastTick == nTick) continue;
-            if (GetTime() - nTimeNoObjectsLeft > MASTERNODE_SYNC_TIMEOUT_SECONDS &&
-                govman.GetVoteCount() - nLastVotes < std::max(int(0.0001 * nLastVotes), MASTERNODE_SYNC_TICK_SECONDS)) {
-                // We already asked for all objects, waited for MASTERNODE_SYNC_TIMEOUT_SECONDS
-                // after that and less then 0.01% or MASTERNODE_SYNC_TICK_SECONDS
+            if (GetTime() - nTimeNoObjectsLeft > NODE_SYNC_TIMEOUT_SECONDS &&
+                govman.GetVoteCount() - nLastVotes < std::max(int(0.0001 * nLastVotes), NODE_SYNC_TICK_SECONDS)) {
+                // We already asked for all objects, waited for NODE_SYNC_TIMEOUT_SECONDS
+                // after that and less then 0.01% or NODE_SYNC_TICK_SECONDS
                 // (i.e. 1 per second) votes were received during the last tick.
                 // We can be pretty sure that we are done syncing.
-                LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- asked for all objects, nothing to do\n", nTick, MASTERNODE_SYNC_GOVERNANCE);
+                LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- asked for all objects, nothing to do\n", nTick, NODE_SYNC_GOVERNANCE);
                 // reset nTimeNoObjectsLeft to be able to use the same condition on resync
                 nTimeNoObjectsLeft = 0;
                 SwitchToNextAsset();

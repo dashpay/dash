@@ -1,8 +1,8 @@
 // Copyright (c) 2014-2024 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef BITCOIN_MASTERNODE_SYNC_H
-#define BITCOIN_MASTERNODE_SYNC_H
+#ifndef BITCOIN_NODE_SYNC_H
+#define BITCOIN_NODE_SYNC_H
 
 #include <atomic>
 #include <memory>
@@ -17,15 +17,15 @@ class CNetFulfilledRequestManager;
 class CNode;
 class PeerManager;
 
-static constexpr int MASTERNODE_SYNC_BLOCKCHAIN      = 1;
-static constexpr int MASTERNODE_SYNC_GOVERNANCE      = 4;
-static constexpr int MASTERNODE_SYNC_GOVOBJ          = 10;
-static constexpr int MASTERNODE_SYNC_GOVOBJ_VOTE     = 11;
-static constexpr int MASTERNODE_SYNC_FINISHED        = 999;
+static constexpr int NODE_SYNC_BLOCKCHAIN      = 1;
+static constexpr int NODE_SYNC_GOVERNANCE      = 4;
+static constexpr int NODE_SYNC_GOVOBJ          = 10;
+static constexpr int NODE_SYNC_GOVOBJ_VOTE     = 11;
+static constexpr int NODE_SYNC_FINISHED        = 999;
 
-static constexpr int MASTERNODE_SYNC_TICK_SECONDS    = 6;
-static constexpr int MASTERNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes so 30 seconds should be fine
-static constexpr int MASTERNODE_SYNC_RESET_SECONDS   = 900; // Reset fReachedBestHeader in CMasternodeSync::Reset if UpdateBlockTip hasn't been called for this seconds
+static constexpr int NODE_SYNC_TICK_SECONDS    = 6;
+static constexpr int NODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes so 30 seconds should be fine
+static constexpr int NODE_SYNC_RESET_SECONDS   = 900; // Reset fReachedBestHeader in CMasternodeSync::Reset if UpdateBlockTip hasn't been called for this seconds
 
 //
 // CMasternodeSync : Sync masternode assets in stages
@@ -35,7 +35,7 @@ class CMasternodeSync
 {
 private:
     // Keep track of current asset
-    std::atomic<int> nCurrentAsset{MASTERNODE_SYNC_BLOCKCHAIN};
+    std::atomic<int> nCurrentAsset{NODE_SYNC_BLOCKCHAIN};
     // Count peers we've requested the asset from
     std::atomic<int> nTriedPeerCount{0};
 
@@ -57,8 +57,8 @@ public:
 
     void SendGovernanceSyncRequest(CNode* pnode) const;
 
-    bool IsBlockchainSynced() const { return nCurrentAsset > MASTERNODE_SYNC_BLOCKCHAIN; }
-    bool IsSynced() const { return nCurrentAsset == MASTERNODE_SYNC_FINISHED; }
+    bool IsBlockchainSynced() const { return nCurrentAsset > NODE_SYNC_BLOCKCHAIN; }
+    bool IsSynced() const { return nCurrentAsset == NODE_SYNC_FINISHED; }
 
     int GetAssetID() const { return nCurrentAsset; }
     int GetAttempt() const { return nTriedPeerCount; }
@@ -80,4 +80,4 @@ public:
     void DoMaintenance(const PeerManager& peerman, const CGovernanceManager& govman);
 };
 
-#endif // BITCOIN_MASTERNODE_SYNC_H
+#endif // BITCOIN_NODE_SYNC_H

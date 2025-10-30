@@ -737,7 +737,7 @@ MessageProcessingResult CGovernanceManager::SyncSingleObjVotes(CNode& peer, cons
     }
 
     CNetMsgMaker msgMaker(peer.GetCommonVersion());
-    connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE,
+    connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, NODE_SYNC_GOVOBJ_VOTE,
                                              static_cast<int>(ret.m_inventory.size())));
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- sent %d votes to peer=%d\n", __func__, ret.m_inventory.size(),
              peer.GetId());
@@ -785,7 +785,7 @@ MessageProcessingResult CGovernanceManager::SyncObjects(CNode& peer, CConnman& c
     }
 
     CNetMsgMaker msgMaker(peer.GetCommonVersion());
-    connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ,
+    connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, NODE_SYNC_GOVOBJ,
                                              static_cast<int>(ret.m_inventory.size())));
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- sent %d objects to peer=%d\n", __func__, ret.m_inventory.size(),
              peer.GetId());
