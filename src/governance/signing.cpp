@@ -7,7 +7,7 @@
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
 #include <masternode/node.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 
 #include <chainparams.h>
 #include <logging.h>

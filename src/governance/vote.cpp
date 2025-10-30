@@ -7,7 +7,7 @@
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <messagesigner.h>
 
 #include <chainparams.h>

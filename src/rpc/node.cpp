@@ -32,7 +32,7 @@
 #include <util/system.h>
 #include <validation.h>
 
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <spork.h>
 
 #include <stdint.h>

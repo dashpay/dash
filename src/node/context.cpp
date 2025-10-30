@@ -20,7 +20,7 @@
 #include <masternode/active/context.h>
 #include <masternode/meta.h>
 #include <masternode/node.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <net.h>
 #include <netfulfilledman.h>
 #include <net_processing.h>

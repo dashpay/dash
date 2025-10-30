@@ -5,7 +5,7 @@
 #include <net_governance.h>
 
 #include <governance/governance.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <scheduler.h>
 
 class CConnman;

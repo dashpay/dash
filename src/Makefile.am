@@ -287,7 +287,6 @@ BITCOIN_CORE_H = \
   masternode/node.h \
   masternode/meta.h \
   masternode/payments.h \
-  masternode/sync.h \
   masternode/utils.h \
   memusage.h \
   merkleblock.h \
@@ -316,6 +315,7 @@ BITCOIN_CORE_H = \
   node/miner.h \
   node/minisketchwrapper.h \
   node/psbt.h \
+  sync/sync.h \
   node/transaction.h \
   node/txreconciliation.h \
   node/interface_ui.h \
@@ -554,7 +554,6 @@ libbitcoin_node_a_SOURCES = \
   masternode/node.cpp \
   masternode/meta.cpp \
   masternode/payments.cpp \
-  masternode/sync.cpp \
   masternode/utils.cpp \
   net.cpp \
   netfulfilledman.cpp \
@@ -575,6 +574,7 @@ libbitcoin_node_a_SOURCES = \
   node/miner.cpp \
   node/minisketchwrapper.cpp \
   node/psbt.cpp \
+  node/sync.cpp \
   node/transaction.cpp \
   node/txreconciliation.cpp \
   node/interface_ui.cpp \

@@ -12,7 +12,7 @@
 #include <governance/vote.h>
 #include <index/txindex.h>
 #include <masternode/node.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <node/context.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>

@@ -10,7 +10,7 @@
 #include <core_io.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <net.h>
 #include <netmessagemaker.h>
 #include <rpc/evo_util.h>

@@ -41,7 +41,7 @@
 #include <util/wpipe.h>
 
 #include <masternode/meta.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <evo/deterministicmns.h>
 
 #include <stats/client.h>

@@ -12,7 +12,7 @@
 #include <governance/governance.h>
 #include <key_io.h>
 #include <logging.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <primitives/block.h>
 #include <script/standard.h>
 #include <tinyformat.h>

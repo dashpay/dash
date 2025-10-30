@@ -10,7 +10,7 @@
 
 #include <coinjoin/walletman.h>
 #include <evo/deterministicmns.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 
 void CMasternodeUtils::DoMaintenance(CConnman& connman, CDeterministicMNManager& dmnman, const CMasternodeSync& mn_sync,
                                      CJWalletManager* const cj_walletman)

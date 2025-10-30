@@ -14,7 +14,7 @@
 #include <governance/common.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <net_processing.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>

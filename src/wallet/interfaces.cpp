@@ -32,7 +32,7 @@
 #include <wallet/wallet.h>
 #include <governance/validators.h>
 #include <evo/deterministicmns.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <txdb.h>
 #include <node/context.h>
 

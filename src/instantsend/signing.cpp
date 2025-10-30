@@ -14,7 +14,7 @@
 #include <chainlock/chainlock.h>
 #include <llmq/quorums.h>
 #include <llmq/signing_shares.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <spork.h>
 
 // Forward declaration to break dependency over node/transaction.h

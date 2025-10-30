@@ -25,7 +25,7 @@
 #include <instantsend/instantsend.h>
 #include <llmq/context.h>
 #include <mapport.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>

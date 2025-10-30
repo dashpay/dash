@@ -46,7 +46,7 @@
 
 #include <governance/classes.h>
 #include <governance/governance.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 
 #include <memory>
 #include <stdint.h>

@@ -61,7 +61,7 @@
 #include <llmq/snapshot.h>
 #include <masternode/active/context.h>
 #include <masternode/meta.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <msg_result.h>
 #include <spork.h>
 #include <stats/client.h>

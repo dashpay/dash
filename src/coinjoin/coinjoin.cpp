@@ -16,7 +16,7 @@
 #include <bls/bls.h>
 #include <chainlock/chainlock.h>
 #include <instantsend/instantsend.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 
 #include <string>
 

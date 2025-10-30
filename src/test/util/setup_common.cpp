@@ -66,7 +66,7 @@
 #include <llmq/context.h>
 #include <masternode/active/context.h>
 #include <masternode/meta.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <netfulfilledman.h>
 #include <spork.h>
 #include <stats/client.h>

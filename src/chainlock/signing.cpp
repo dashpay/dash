@@ -10,7 +10,7 @@
 #include <chainlock/clsig.h>
 #include <instantsend/instantsend.h>
 #include <llmq/signing_shares.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <spork.h>
 
 using node::ReadBlockFromDisk;

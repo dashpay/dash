@@ -9,7 +9,7 @@
 #include <governance/governance.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 
 #include <chainparams.h>
 #include <core_io.h>

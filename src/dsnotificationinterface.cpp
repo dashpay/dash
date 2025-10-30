@@ -18,7 +18,7 @@
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/ehf_signals.h>
 #include <llmq/quorums.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 
 CDSNotificationInterface::CDSNotificationInterface(CConnman& connman,
                                                    CDSTXManager& dstxman,

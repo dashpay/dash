@@ -18,7 +18,7 @@
 
 #include <instantsend/instantsend.h>
 #include <llmq/quorums.h>
-#include <masternode/sync.h>
+#include <node/sync.h>
 #include <spork.h>
 #include <stats/client.h>
 
