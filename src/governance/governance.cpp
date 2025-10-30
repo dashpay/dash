@@ -595,26 +595,26 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     const CGovernanceObject& govobj = it->second;
 
     const auto tip_mn_list = Assert(m_dmnman)->GetListAtChainTip();
-    std::map<COutPoint, CDeterministicMNCPtr> mapMasternodes;
+    std::set<COutPoint> masternodes;
     if (mnCollateralOutpointFilter.IsNull()) {
-        tip_mn_list.ForEachMNShared(false, [&](const CDeterministicMNCPtr& dmn) {
-            mapMasternodes.emplace(dmn->collateralOutpoint, dmn);
+        tip_mn_list.ForEachMN(false, [&](const CDeterministicMN& mn) {
+            masternodes.emplace(mn.collateralOutpoint);
         });
     } else {
         auto dmn = tip_mn_list.GetMNByCollateral(mnCollateralOutpointFilter);
         if (dmn) {
-            mapMasternodes.emplace(dmn->collateralOutpoint, dmn);
+            masternodes.insert(mnCollateralOutpointFilter);
         }
     }
 
     // Loop through each MN collateral outpoint and get the votes for the `nParentHash` governance object
-    for (const auto& mnpair : mapMasternodes) {
+    for (const auto& collateral : masternodes) {
         // get a vote_rec_t from the govobj
         vote_rec_t voteRecord;
-        if (!govobj.GetCurrentMNVotes(mnpair.first, voteRecord)) continue;
+        if (!govobj.GetCurrentMNVotes(collateral, voteRecord)) continue;
 
         for (const auto& [signal, vote_instance] : voteRecord.mapInstances) {
-            CGovernanceVote vote = CGovernanceVote(mnpair.first, nParentHash, (vote_signal_enum_t)signal,
+            CGovernanceVote vote = CGovernanceVote(collateral, nParentHash, (vote_signal_enum_t)signal,
                                                    vote_instance.eOutcome);
             vote.SetTime(vote_instance.nCreationTime);
             vecResult.push_back(vote);
