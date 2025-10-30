@@ -4,6 +4,7 @@
 
 #include <node/sync.h>
 
+#include <chain.h>
 #include <net.h>
 #include <netfulfilledman.h>
 #include <node/interface_ui.h>
