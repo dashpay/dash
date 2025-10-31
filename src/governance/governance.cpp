@@ -15,17 +15,17 @@
 #include <governance/validators.h>
 #include <masternode/meta.h>
 #include <node/sync.h>
-#include <net_processing.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>
 #include <protocol.h>
 #include <shutdown.h>
 #include <spork.h>
 #include <timedata.h>
+#include <util/check.h>
 #include <util/ranges.h>
 #include <util/thread.h>
 #include <util/time.h>
-#include <validation.h>
+#include <validationinterface.h>
 
 int nSubmittedFinalBudget;
 
@@ -531,6 +531,11 @@ void CGovernanceManager::CheckAndRemove()
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- %s, m_requested_hash_time size=%d\n",
              ToString(), m_requested_hash_time.size());
+}
+
+CDeterministicMNManager& CGovernanceManager::GetMNManager()
+{
+    return *Assert(m_dmnman);
 }
 
 std::vector<CInv> CGovernanceManager::FetchRelayInventory()
@@ -1048,43 +1053,16 @@ void CGovernanceManager::AddInvalidVote(const CGovernanceVote& vote)
     cmapInvalidVotes.Insert(vote.GetHash(), vote);
 }
 
-int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy, CConnman& connman,
-                                                     const PeerManager& peerman) const
+std::pair<std::vector<uint256>, std::vector<uint256>> CGovernanceManager::PrepareVotesToRequest(const std::vector<CNode*>& vNodesCopy, std::map<uint256, std::map<CService, int64_t>>& mapAskedRecently, int64_t nNow, size_t peers_per_hash_max) const
 {
-    static std::map<uint256, std::map<CService, int64_t> > mapAskedRecently;
-    // Maximum number of nodes to request votes from for the same object hash on real networks
-    // (mainnet, testnet, devnets). Keep this low to avoid unnecessary bandwidth usage.
-    static constexpr size_t REALNET_PEERS_PER_HASH{3};
-    // Maximum number of nodes to request votes from for the same object hash on regtest.
-    // During testing, nodes are isolated to create conflicting triggers. Using the real
-    // networks limit of 3 nodes often results in querying only "non-isolated" nodes, missing the
-    // isolated ones we need to test. This high limit ensures all available nodes are queried.
-    static constexpr size_t REGTEST_PEERS_PER_HASH{std::numeric_limits<size_t>::max()};
-
-    if (vNodesCopy.empty()) return -1;
-
-    int64_t nNow = GetTime();
-    int nTimeout = 60 * 60;
-    size_t nPeersPerHashMax = Params().IsMockableChain() ? REGTEST_PEERS_PER_HASH : REALNET_PEERS_PER_HASH;
-
-    std::vector<uint256> vTriggerObjHashes;
-    std::vector<uint256> vOtherObjHashes;
-
-    // This should help us to get some idea about an impact this can bring once deployed on mainnet.
-    // Testnet is ~40 times smaller in masternode count, but only ~1000 masternodes usually vote,
-    // so 1 obj on mainnet == ~10 objs or ~1000 votes on testnet. However we want to test a higher
-    // number of votes to make sure it's robust enough, so aim at 2000 votes per masternode per request.
-    // On mainnet nMaxObjRequestsPerNode is always set to 1.
-    int nMaxObjRequestsPerNode = 1;
-    size_t nProjectedVotes = 2000;
-    if (Params().NetworkIDString() != CBaseChainParams::MAIN) {
-        nMaxObjRequestsPerNode = std::max(1, int(nProjectedVotes / std::max(1, (int)Assert(m_dmnman)->GetListAtChainTip().GetValidMNsCount())));
-    }
+    std::pair<std::vector<uint256>, std::vector<uint256>> ret;
+    std::vector<uint256> &vTriggerObjHashes = ret.first;
+    std::vector<uint256> &vOtherObjHashes = ret.second;
 
     {
         LOCK(cs);
 
-        if (mapObjects.empty()) return -2;
+        if (mapObjects.empty()) return ret;
 
         for (const auto& [nHash, govobj] : mapObjects) {
             if (govobj.IsSetCachedDelete()) continue;
@@ -1097,7 +1075,7 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
                         ++it;
                     }
                 }
-                if (mapAskedRecently[nHash].size() >= nPeersPerHashMax) continue;
+                if (mapAskedRecently[nHash].size() >= peers_per_hash_max) continue;
             }
 
             if (govobj.GetObjectType() == GovernanceObject::TRIGGER) {
@@ -1108,55 +1086,13 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
         }
     }
 
-    LogPrint(BCLog::GOBJECT, "CGovernanceManager::RequestGovernanceObjectVotes -- start: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
+    LogPrint(BCLog::GOBJECT, "CGovernanceManager::PrepareVotesToRequest -- start: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
         vTriggerObjHashes.size(), vOtherObjHashes.size(), mapAskedRecently.size());
 
     Shuffle(vTriggerObjHashes.begin(), vTriggerObjHashes.end(), FastRandomContext());
     Shuffle(vOtherObjHashes.begin(), vOtherObjHashes.end(), FastRandomContext());
 
-    for (int i = 0; i < nMaxObjRequestsPerNode; ++i) {
-        uint256 nHashGovobj;
-
-        // ask for triggers first
-        if (!vTriggerObjHashes.empty()) {
-            nHashGovobj = vTriggerObjHashes.back();
-        } else {
-            if (vOtherObjHashes.empty()) break;
-            nHashGovobj = vOtherObjHashes.back();
-        }
-        bool fAsked = false;
-        for (const auto& pnode : vNodesCopy) {
-            // Don't try to sync any data from outbound non-relay "masternode" connections.
-            // Inbound connection this early is most likely a "masternode" connection
-            // initiated from another node, so skip it too.
-            if (!pnode->CanRelay() || (connman.IsActiveMasternode() && pnode->IsInboundConn())) continue;
-            // stop early to prevent setAskFor overflow
-            {
-                LOCK(::cs_main);
-                size_t nProjectedSize = peerman.GetRequestedObjectCount(pnode->GetId()) + nProjectedVotes;
-                if (nProjectedSize > MAX_INV_SZ) continue;
-                // to early to ask the same node
-                if (mapAskedRecently[nHashGovobj].count(pnode->addr)) continue;
-            }
-
-            RequestGovernanceObject(pnode, nHashGovobj, connman, true);
-            mapAskedRecently[nHashGovobj][pnode->addr] = nNow + nTimeout;
-            fAsked = true;
-            // stop loop if max number of peers per obj was asked
-            if (mapAskedRecently[nHashGovobj].size() >= nPeersPerHashMax) break;
-        }
-        // NOTE: this should match `if` above (the one before `while`)
-        if (!vTriggerObjHashes.empty()) {
-            vTriggerObjHashes.pop_back();
-        } else {
-            vOtherObjHashes.pop_back();
-        }
-        if (!fAsked) i--;
-    }
-    LogPrint(BCLog::GOBJECT, "CGovernanceManager::RequestGovernanceObjectVotes -- end: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
-        vTriggerObjHashes.size(), vOtherObjHashes.size(), mapAskedRecently.size());
-
-    return int(vTriggerObjHashes.size() + vOtherObjHashes.size());
+    return ret;
 }
 
 bool CGovernanceManager::AcceptMessage(const uint256& nHash)

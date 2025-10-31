@@ -32,7 +32,7 @@ template<typename T>
 class CFlatDB;
 class CInv;
 class CNode;
-class PeerManager;
+class CService;
 
 class CDeterministicMNList;
 class CDeterministicMNManager;
@@ -349,8 +349,7 @@ public:
 
     void InitOnLoad();
 
-    int RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy, CConnman& connman,
-                                     const PeerManager& peerman) const;
+    std::pair<std::vector<uint256>, std::vector<uint256>> PrepareVotesToRequest(const std::vector<CNode*>& vNodesCopy, std::map<uint256, std::map<CService, int64_t>>& mapAskedRecently, int64_t now, size_t peers_per_hash_max) const;
 
     /*
      * Trigger Management (formerly CGovernanceTriggerManager)
@@ -391,8 +390,10 @@ public:
     void RequestOrphanObjects(CConnman& connman);
     void CleanOrphanObjects();
     void CheckAndRemove();
+    CDeterministicMNManager& GetMNManager();
     //! This method clears internal data structure and returns a copy
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
+    void RequestGovernanceObject(CNode* pfrom, const uint256& nHash, CConnman& connman, bool fUseFilter = false) const;
 private:
     //! Internal functions that require locks to be held
     std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -400,8 +401,6 @@ private:
                                    int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight);
-
-    void RequestGovernanceObject(CNode* pfrom, const uint256& nHash, CConnman& connman, bool fUseFilter = false) const;
 
     void AddInvalidVote(const CGovernanceVote& vote);
 

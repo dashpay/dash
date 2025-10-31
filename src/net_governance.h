@@ -25,6 +25,7 @@ public:
 private:
     void ProcessTick(CConnman& connman);
     void SendGovernanceSyncRequest(CNode* pnode, CConnman& connman) const;
+    int RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy, CConnman& connman) const;
 
     CGovernanceManager& m_gov_manager;
     CMasternodeSync& m_node_sync;
