@@ -40,7 +40,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
     auto recoveredSig = std::make_shared<llmq::CRecoveredSig>();
     vRecv >> *recoveredSig;
 
-    m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(), CInv{MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()});
+    WITH_LOCK(cs_main, m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(), CInv{MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()}));
 
     auto llmqType = recoveredSig->getLlmqType();
     if (!Params().GetLLMQ(llmqType).has_value()) {
