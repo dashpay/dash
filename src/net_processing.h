@@ -63,6 +63,7 @@ public:
     virtual void PeerRelayInv(const CInv& inv) = 0;
     virtual void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) = 0;
     virtual void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) = 0;
+    virtual void PeerRelayRecoveredSig(const uint256& sig_hash) = 0;
     virtual void PeerAskPeersForTransaction(const uint256& txid) = 0;
     virtual size_t PeerGetRequestedObjectCount(NodeId nodeid) const = 0;
     // TODO: remove it!

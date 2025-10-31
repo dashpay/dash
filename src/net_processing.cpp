@@ -654,6 +654,7 @@ public:
     void PeerRelayInv(const CInv& inv) override;
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override;
     void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override;
+    void PeerRelayRecoveredSig(const uint256& sig_hash) override;
     void PeerAskPeersForTransaction(const uint256& txid) override;
     size_t PeerGetRequestedObjectCount(NodeId nodeid) const override;
     void PeerPostProcessMessage(MessageProcessingResult&& ret) override;
@@ -1649,6 +1650,9 @@ size_t PeerManagerImpl::GetRequestedObjectCount(NodeId nodeid) const
 void PeerManagerImpl::AddExtraHandler(std::unique_ptr<NetHandler>&& handler)
 {
     assert(handler != nullptr);
+    if (auto i = dynamic_cast<CValidationInterface*>(handler.get()); i != nullptr) {
+        RegisterValidationInterface(i);
+    }
     m_handlers.emplace_back(std::move(handler));
 }
 
@@ -1669,6 +1673,9 @@ void PeerManagerImpl::StartHandlers()
 void PeerManagerImpl::StopHandlers()
 {
     for (auto& handler : m_handlers) {
+        if (auto i = dynamic_cast<CValidationInterface*>(handler.get()); i != nullptr) {
+            UnregisterValidationInterface(i);
+        }
         handler->Stop();
     }
 }
@@ -6555,4 +6562,9 @@ size_t PeerManagerImpl::PeerGetRequestedObjectCount(NodeId nodeid) const
 void PeerManagerImpl::PeerPostProcessMessage(MessageProcessingResult&& ret)
 {
     PostProcessMessage(std::move(ret), -1);
+}
+
+void PeerManagerImpl::PeerRelayRecoveredSig(const uint256& sig_hash)
+{
+    RelayRecoveredSig(sig_hash);
 }

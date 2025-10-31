@@ -171,3 +171,8 @@ void NetSigning::WorkThreadMain()
         }
     }
 }
+
+void NetSigning::NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig)
+{
+    m_peer_manager->PeerRelayRecoveredSig(Assert(sig)->GetHash());
+}

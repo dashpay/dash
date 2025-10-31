@@ -7,13 +7,15 @@
 #define BITCOIN_NET_SIGNING_H
 
 #include <net_processing.h>
-
+#include <validationinterface.h>
 #include <util/threadinterrupt.h>
+
+#include <memory>
 
 namespace llmq {
 class CSigningManager;
 } // namespace llmq
-class NetSigning final : public NetHandler
+class NetSigning final : public NetHandler, public CValidationInterface
 {
 public:
     NetSigning(PeerManagerInternal* peer_manager, llmq::CSigningManager& sig_manager)
@@ -26,6 +28,11 @@ public:
     bool ProcessPendingRecoveredSigs();
     void ProcessRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig);
 
+protected:
+    // CValidationInterface
+    void NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig) override;
+
+    // NetSigning
     void Start() override;
     void Stop() override;
     void Interrupt() override { workInterrupt(); };
