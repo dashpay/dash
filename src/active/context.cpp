@@ -77,7 +77,6 @@ void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();
     is_signer->RegisterRecoveryInterface();
-    shareman->RegisterRecoveryInterface();
 
     RegisterValidationInterface(cl_signer.get());
 }
@@ -86,7 +85,6 @@ void ActiveContext::Stop()
 {
     UnregisterValidationInterface(cl_signer.get());
 
-    shareman->UnregisterRecoveryInterface();
     is_signer->UnregisterRecoveryInterface();
     cl_signer->UnregisterRecoveryInterface();
     cl_signer->Stop();
@@ -117,9 +115,4 @@ void ActiveContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIn
     gov_signer->UpdatedBlockTip(pindexNew);
     qdkgsman->UpdatedBlockTip(pindexNew, fInitialDownload);
     qman_handler->UpdatedBlockTip(pindexNew, fInitialDownload);
-}
-
-void ActiveContext::NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig, bool proactive_relay)
-{
-    shareman->NotifyRecoveredSig(sig, proactive_relay);
 }

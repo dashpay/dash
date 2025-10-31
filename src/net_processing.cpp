@@ -659,6 +659,7 @@ public:
     void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayDSQ(const CCoinJoinQueue& queue) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    void PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerAskPeersForTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     size_t PeerGetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, ::cs_main);
     void PeerPostProcessMessage(MessageProcessingResult&& ret) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -2565,7 +2566,8 @@ void PeerManagerImpl::_RelayTransaction(const uint256& txid)
     };
 }
 
-void PeerManagerImpl::RelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) {
+void PeerManagerImpl::RelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay)
+{
     if (proactive_relay) {
         // We were the peer that recovered this; avoid a bunch of `inv` -> `GetData` spam by proactively sending
         m_connman.ForEachNode([this, &sig](CNode* pnode) -> bool {
@@ -6634,4 +6636,9 @@ size_t PeerManagerImpl::PeerGetRequestedObjectCount(NodeId nodeid) const
 void PeerManagerImpl::PeerPostProcessMessage(MessageProcessingResult&& ret)
 {
     PostProcessMessage(std::move(ret), /*node=*/-1);
+}
+
+void PeerManagerImpl::PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay)
+{
+    RelayRecoveredSig(sig, proactive_relay);
 }

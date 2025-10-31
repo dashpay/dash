@@ -1004,11 +1004,6 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigning
     return true;
 }
 
-void CSigSharesManager::NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay) const
-{
-    m_peerman.RelayRecoveredSig(*Assert(sig), proactive_relay);
-}
-
 void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToRequest)
 {
     AssertLockHeld(cs);

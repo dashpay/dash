@@ -72,6 +72,7 @@ public:
     virtual void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) = 0;
     virtual void PeerRelayTransaction(const uint256& txid) = 0;
     virtual void PeerRelayDSQ(const CCoinJoinQueue& queue) = 0;
+    virtual void PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) = 0;
     virtual void PeerAskPeersForTransaction(const uint256& txid) = 0;
     virtual size_t PeerGetRequestedObjectCount(NodeId nodeid) const = 0;
     virtual void PeerPostProcessMessage(MessageProcessingResult&& ret) = 0;

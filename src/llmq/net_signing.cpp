@@ -151,3 +151,8 @@ void NetSigning::WorkThreadMain()
         }
     }
 }
+
+void NetSigning::NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig, bool proactive_relay)
+{
+    m_peer_manager->PeerRelayRecoveredSig(*sig, proactive_relay);
+}
