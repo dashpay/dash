@@ -46,13 +46,13 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         if (receivedSigShares.size() > CSigSharesManager::MAX_MSGS_SIG_SHARES) {
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QSIGSHARE message. cnt=%d, max=%d, node=%d\n",
                      __func__, receivedSigShares.size(), CSigSharesManager::MAX_MSGS_SIG_SHARES, pfrom.GetId());
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
 
         for (const auto& sigShare : receivedSigShares) {
             if (!m_shares_manager->ProcessMessageSigShare(pfrom.GetId(), sigShare)) {
-                m_shares_manager->BanNode(pfrom.GetId());
+                BanNode(pfrom.GetId());
             }
         }
     }
@@ -64,13 +64,13 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             LogPrint(BCLog::LLMQ_SIGS, /* Continued */
                      "NetSigning::%s -- too many announcements in QSIGSESANN message. cnt=%d, max=%d, node=%d\n",
                      __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSESANN, pfrom.GetId());
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
         if (!ranges::all_of(msgs, [this, &pfrom](const auto& ann) {
                 return m_shares_manager->ProcessMessageSigSesAnn(pfrom, ann);
             })) {
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
     } else if (msg_type == NetMsgType::QSIGSHARESINV || msg_type == NetMsgType::QGETSIGSHARES) {
@@ -79,13 +79,13 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES) {
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many invs in %s message. cnt=%d, max=%d, node=%d\n",
                      __func__, msg_type, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES, pfrom.GetId());
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
         if (!ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
                 return m_shares_manager->ProcessMessageSigShares(pfrom, inv, msg_type);
             })) {
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
     } else if (msg_type == NetMsgType::QBSIGSHARES) {
@@ -98,13 +98,13 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         if (totalSigsCount > CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS) {
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n",
                      __func__, msgs.size(), CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
         if (!ranges::all_of(msgs, [this, &pfrom](const auto& bs) {
                 return m_shares_manager->ProcessMessageBatchedSigShares(pfrom, bs);
             })) {
-            m_shares_manager->BanNode(pfrom.GetId());
+            BanNode(pfrom.GetId());
             return;
         }
     }
@@ -252,12 +252,35 @@ void NetSigning::WorkThreadSigning()
     }
 }
 
+void NetSigning::RemoveBannedNodeStates()
+{
+    assert(m_shares_manager != nullptr);
+    // Called regularly to cleanup local node states for banned nodes
+    std::vector<NodeId> nodes = m_shares_manager->GetAllNodes();
+    for (NodeId node_id : nodes) {
+        if (m_peer_manager->PeerIsBanned(node_id)) {
+            m_shares_manager->RemoveAsBanned(node_id);
+        }
+    }
+}
+
+void NetSigning::BanNode(NodeId nodeId)
+{
+    if (nodeId == -1) return;
+
+    m_peer_manager->PeerMisbehaving(nodeId, 100);
+    if (m_shares_manager) {
+        m_shares_manager->MarkAsBanned(nodeId);
+    }
+}
+
 void NetSigning::WorkThreadCleaning()
 {
     assert(m_shares_manager);
 
     while (!workInterrupt) {
-        m_shares_manager->RemoveBannedNodeStates();
+        RemoveBannedNodeStates();
+
         m_shares_manager->SendMessages();
         m_shares_manager->Cleanup();
 
@@ -335,7 +358,7 @@ bool NetSigning::ProcessPendingSigShares()
             // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
             // deserialization in the message thread
             if (!sig.IsValid()) {
-                m_shares_manager->BanNode(nodeId);
+                BanNode(nodeId);
                 // don't process any additional shares from this node
                 break;
             }
@@ -368,7 +391,7 @@ bool NetSigning::ProcessPendingSigShares()
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- invalid sig shares from other node, banning peer=%d\n",
                      __func__, nodeId);
             // this will also cause re-requesting of the shares that were sent by this node
-            m_shares_manager->BanNode(nodeId);
+            BanNode(nodeId);
             continue;
         }
 

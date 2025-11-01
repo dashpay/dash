@@ -488,7 +488,9 @@ private:
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
-    void BanNode(NodeId nodeId) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::vector<NodeId> GetAllNodes() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void RemoveAsBanned(NodeId node_id) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void MarkAsBanned(NodeId nodeId) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:
     void CollectSigSharesToRequest(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToRequest)
@@ -501,7 +503,6 @@ private:
 
 public:
     void Cleanup() EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void RemoveBannedNodeStates() EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool SendMessages() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // Dispatcher functions

@@ -54,6 +54,9 @@ private:
 
     bool ProcessPendingSigShares();
 
+    void RemoveBannedNodeStates();
+    void BanNode(NodeId nodeid);
+
 private:
     CSigningManager& m_sig_manager;
     CSigSharesManager* m_shares_manager;
