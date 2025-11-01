@@ -15,7 +15,6 @@
 #include <saltedhasher.h>
 #include <serialize.h>
 #include <sync.h>
-#include <util/threadinterrupt.h>
 #include <uint256.h>
 
 #include <atomic>
@@ -23,7 +22,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -379,9 +377,6 @@ private:
 
     RecursiveMutex cs;
 
-    std::thread workThread;
-    CThreadInterrupt workInterrupt;
-
     SigShareMap<CSigShare> sigShares GUARDED_BY(cs);
     Uint256HashMap<CSignedSession> signedSessions GUARDED_BY(cs);
 
@@ -424,11 +419,8 @@ public:
 
     CSigSharesManager() = delete;
 
-    void StartWorkerThread();
-    void StopWorkerThread();
     void RegisterAsRecoveredSigsListener();
     void UnregisterAsRecoveredSigsListener();
-    void InterruptWorkerThread();
 
     void ProcessMessage(const CNode& pnode, const std::string& msg_type, CDataStream& vRecv);
 
@@ -446,6 +438,13 @@ public:
                            bool allowDiffMsgHashSigning = false)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
 
+    // Used by NetSigning
+    void RemoveBannedNodeStates();
+    bool ProcessPendingSigShares();
+    void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
+    bool SendMessages();
+    void Cleanup();
+
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
     bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann);
@@ -461,8 +460,6 @@ private:
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
-    bool ProcessPendingSigShares();
-
     void ProcessPendingSigShares(
         const std::vector<CSigShare>& sigSharesToProcess,
         const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums);
@@ -473,13 +470,10 @@ private:
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo);
     static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in);
 
-    void Cleanup();
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void RemoveBannedNodeStates();
 
     void BanNode(NodeId nodeId);
 
-    bool SendMessages();
     void CollectSigSharesToRequest(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToSend(std::unordered_map<NodeId, Uint256HashMap<CBatchedSigShares>>& sigSharesToSend)
@@ -487,8 +481,6 @@ private:
     void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
-    void WorkThreadMain() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
 };
 } // namespace llmq
 

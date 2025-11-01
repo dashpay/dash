@@ -13,13 +13,14 @@
 #include <memory>
 
 namespace llmq {
+class CSigSharesManager;
 class CSigningManager;
 } // namespace llmq
 class NetSigning final : public NetHandler, public CValidationInterface
 {
 public:
-    NetSigning(PeerManagerInternal* peer_manager, llmq::CSigningManager& sig_manager)
-       : NetHandler(peer_manager), m_sig_manager(sig_manager)
+    NetSigning(PeerManagerInternal* peer_manager, llmq::CSigningManager& sig_manager, llmq::CSigSharesManager* shares_manager)
+       : NetHandler(peer_manager), m_sig_manager(sig_manager), m_shares_manager(shares_manager)
     {
         workInterrupt.reset();
     }
@@ -37,11 +38,15 @@ protected:
     void Stop() override;
     void Interrupt() override { workInterrupt(); };
 
-    void WorkThreadMain();
+    void WorkThreadSigning();
+    void WorkThreadShares();
 private:
     llmq::CSigningManager& m_sig_manager;
+    llmq::CSigSharesManager* m_shares_manager;
 
-    std::thread workThread;
+    std::thread signing_thread;
+    std::thread shares_thread;
+
     CThreadInterrupt workInterrupt;
 };
 

@@ -191,32 +191,9 @@ CSigSharesManager::CSigSharesManager(CConnman& connman, CChainState& chainstate,
     qman{_qman},
     m_sporkman{sporkman}
 {
-    workInterrupt.reset();
 }
 
 CSigSharesManager::~CSigSharesManager() = default;
-
-void CSigSharesManager::StartWorkerThread()
-{
-    // can't start new thread if we have one running already
-    if (workThread.joinable()) {
-        assert(false);
-    }
-
-    workThread = std::thread(&util::TraceThread, "sigshares", [this] { WorkThreadMain(); });
-}
-
-void CSigSharesManager::StopWorkerThread()
-{
-    // make sure to call InterruptWorkerThread() first
-    if (!workInterrupt) {
-        assert(false);
-    }
-
-    if (workThread.joinable()) {
-        workThread.join();
-    }
-}
 
 void CSigSharesManager::RegisterAsRecoveredSigsListener()
 {
@@ -226,11 +203,6 @@ void CSigSharesManager::RegisterAsRecoveredSigsListener()
 void CSigSharesManager::UnregisterAsRecoveredSigsListener()
 {
     sigman.UnregisterRecoveredSigsListener(this);
-}
-
-void CSigSharesManager::InterruptWorkerThread()
-{
-    workInterrupt();
 }
 
 void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
@@ -1586,30 +1558,6 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     });
     nodeState.requestedSigShares.Clear();
     nodeState.banned = true;
-}
-
-void CSigSharesManager::WorkThreadMain()
-{
-    int64_t lastSendTime = 0;
-
-    while (!workInterrupt) {
-        RemoveBannedNodeStates();
-
-        bool fMoreWork = ProcessPendingSigShares();
-        SignPendingSigShares();
-
-        if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - lastSendTime > 100) {
-            SendMessages();
-            lastSendTime = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
-        }
-
-        Cleanup();
-
-        // TODO Wakeup when pending signing is needed?
-        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
-            return;
-        }
-    }
 }
 
 void CSigSharesManager::AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash)

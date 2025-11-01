@@ -48,19 +48,16 @@ ActiveContext::~ActiveContext()
 
 void ActiveContext::Interrupt()
 {
-    shareman->InterruptWorkerThread();
 }
 
 void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
 {
     m_llmq_ctx.qdkgsman->StartThreads(connman, peerman);
     shareman->RegisterAsRecoveredSigsListener();
-    shareman->StartWorkerThread();
 }
 
 void ActiveContext::Stop()
 {
-    shareman->StopWorkerThread();
     shareman->UnregisterAsRecoveredSigsListener();
     m_llmq_ctx.qdkgsman->StopThreads();
 }

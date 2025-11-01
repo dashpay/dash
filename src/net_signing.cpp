@@ -10,6 +10,7 @@
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <llmq/signing_shares.h>
 #include <logging.h>
 #include <streams.h>
 #include <util/thread.h>
@@ -57,11 +58,13 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
 void NetSigning::Start()
 {
     // can't start new thread if we have one running already
-    if (workThread.joinable()) {
-        assert(false);
-    }
+    assert(!signing_thread.joinable());
+    assert(!shares_thread.joinable());
 
-    workThread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadMain(); });
+    signing_thread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadSigning(); });
+    if (m_shares_manager) {
+        shares_thread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadShares(); });
+    }
 }
 
 void NetSigning::Stop()
@@ -71,8 +74,11 @@ void NetSigning::Stop()
         assert(false);
     }
 
-    if (workThread.joinable()) {
-        workThread.join();
+    if (shares_thread.joinable()) {
+        shares_thread.join();
+    }
+    if (signing_thread.joinable()) {
+        signing_thread.join();
     }
 }
 
@@ -158,12 +164,38 @@ bool NetSigning::ProcessPendingRecoveredSigs()
     return recSigsByNode.size() >= nMaxBatchSize;
 }
 
-void NetSigning::WorkThreadMain()
+void NetSigning::WorkThreadSigning()
 {
     while (!workInterrupt) {
         bool fMoreWork = ProcessPendingRecoveredSigs();
 
         m_sig_manager.Cleanup();
+
+        // TODO Wakeup when pending signing is needed?
+        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+            return;
+        }
+    }
+}
+
+void NetSigning::WorkThreadShares()
+{
+    int64_t lastSendTime = 0;
+
+    assert(m_shares_manager);
+
+    while (!workInterrupt) {
+        m_shares_manager->RemoveBannedNodeStates();
+
+        bool fMoreWork = m_shares_manager->ProcessPendingSigShares();
+        m_shares_manager->SignPendingSigShares();
+
+        if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - lastSendTime > 100) {
+            m_shares_manager->SendMessages();
+            lastSendTime = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+        }
+
+        m_shares_manager->Cleanup();
 
         // TODO Wakeup when pending signing is needed?
         if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
