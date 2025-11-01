@@ -205,7 +205,7 @@ void CSigSharesManager::UnregisterAsRecoveredSigsListener()
     sigman.UnregisterRecoveredSigsListener(this);
 }
 
-bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann)
+bool CSigSharesManager::ProcessMessageSigSesAnn(const CSigSesAnn& ann, NodeId node_id)
 {
     auto llmqType = ann.getLlmqType();
     if (!Params().GetLLMQ(llmqType).has_value()) {
@@ -215,18 +215,18 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
         return false;
     }
 
-    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- ann={%s}, node=%d\n", __func__, ann.ToString(), pfrom.GetId());
+    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- ann={%s}, node=%d\n", __func__, ann.ToString(), node_id);
 
     auto quorum = qman.GetQuorum(llmqType, ann.getQuorumHash());
     if (!quorum) {
         // TODO should we ban here?
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorum %s not found, node=%d\n", __func__,
-                  ann.getQuorumHash().ToString(), pfrom.GetId());
+                  ann.getQuorumHash().ToString(), node_id);
         return true; // let's still try other announcements from the same message
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom.GetId()];
+    auto& nodeState = nodeStates[node_id];
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.getSessionId());
@@ -243,10 +243,10 @@ bool CSigSharesManager::VerifySigSharesInv(Consensus::LLMQType llmqType, const C
     return llmq_params_opt.has_value() && (inv.inv.size() == size_t(llmq_params_opt->size));
 }
 
-bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv)
+bool CSigSharesManager::ProcessMessageSigSharesInv(const CSigSharesInv& inv, NodeId node_id)
 {
     CSigSharesNodeState::SessionInfo sessionInfo;
-    if (!GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId, sessionInfo)) {
+    if (!GetSessionInfoByRecvId(node_id, inv.sessionId, sessionInfo)) {
         return true;
     }
 
@@ -260,17 +260,17 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSi
     }
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-            sessionInfo.signHash.ToString(), inv.ToString(), pfrom.GetId());
+            sessionInfo.signHash.ToString(), inv.ToString(), node_id);
 
     if (!sessionInfo.quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n", __func__,
-                  sessionInfo.quorumHash.ToString(), pfrom.GetId());
+                  sessionInfo.quorumHash.ToString(), node_id);
         return true;
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom.GetId()];
+    auto& nodeState = nodeStates[node_id];
     auto* session = nodeState.GetSessionByRecvId(inv.sessionId);
     if (session == nullptr) {
         return true;
@@ -364,47 +364,42 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
     return true;
 }
 
-void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare)
+bool CSigSharesManager::ProcessMessageSigShare(const CSigShare& sigShare, NodeId fromId)
 {
     auto quorum = qman.GetQuorum(sigShare.getLlmqType(), sigShare.getQuorumHash());
     if (!quorum) {
-        return;
+        return true;
     }
     if (!IsQuorumActive(sigShare.getLlmqType(), qman, quorum->qc->quorumHash)) {
         // quorum is too old
-        return;
+        return true;
     }
     if (!quorum->IsMember(m_mn_activeman.GetProTxHash())) {
         // we're not a member so we can't verify it (we actually shouldn't have received it)
-        return;
+        return true;
     }
     if (!quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, no verification possible. node=%d\n", __func__,
                  quorum->qc->quorumHash.ToString(), fromId);
-        return;
+        return true;
     }
 
     if (sigShare.getQuorumMember() >= quorum->members.size()) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
-        BanNode(fromId);
-        return;
+        return false;
     }
     if (!quorum->qc->validMembers[sigShare.getQuorumMember()]) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember not valid\n", __func__);
-        BanNode(fromId);
-        return;
+        return false;
     }
 
     {
         LOCK(cs);
 
-        if (sigShares.Has(sigShare.GetKey())) {
-            return;
-        }
-
-        if (sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
-            return;
+        if (sigShares.Has(sigShare.GetKey()) ||
+                sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+            return true;
         }
 
         auto& nodeState = nodeStates[fromId];
@@ -413,6 +408,7 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, id=%s, msgHash=%s, member=%d, node=%d\n", __func__,
              sigShare.GetSignHash().ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), sigShare.getQuorumMember(), fromId);
+    return true;
 }
 
 bool CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
@@ -1455,14 +1451,8 @@ void CSigSharesManager::RemoveBannedNodeStates()
     }
 }
 
-void CSigSharesManager::BanNode(NodeId nodeId)
+void CSigSharesManager::MarkAsBanned(NodeId nodeId)
 {
-    if (nodeId == -1) {
-        return;
-    }
-
-    m_peerman.Misbehaving(nodeId, 100);
-
     LOCK(cs);
     auto it = nodeStates.find(nodeId);
     if (it == nodeStates.end()) {
@@ -1470,7 +1460,7 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     }
 
     auto& nodeState = it->second;
-    // Whatever we requested from him, let's request it from someone else now
+    // Whatever we requested from him, let's request it better from someone else now
     // TODO: remove NO_THREAD_SAFETY_ANALYSIS
     // using here template ForEach makes impossible to use lock annotation
     nodeState.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) NO_THREAD_SAFETY_ANALYSIS {

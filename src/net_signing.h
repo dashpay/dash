@@ -26,9 +26,6 @@ public:
     }
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
 
-    bool ProcessPendingRecoveredSigs();
-    void ProcessRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig);
-
 protected:
     // CValidationInterface
     void NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig) override;
@@ -40,6 +37,12 @@ protected:
 
     void WorkThreadSigning();
     void WorkThreadShares();
+
+private:
+    bool ProcessPendingRecoveredSigs();
+    void ProcessRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig);
+    void BanNode(NodeId id);
+
 private:
     llmq::CSigningManager& m_sig_manager;
     llmq::CSigSharesManager* m_shares_manager;

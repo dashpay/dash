@@ -360,20 +360,20 @@ public:
 
 class CSigSharesManager : public CRecoveredSigsListener
 {
-private:
-    static constexpr int64_t SESSION_NEW_SHARES_TIMEOUT{60};
-    static constexpr int64_t SIG_SHARE_REQUEST_TIMEOUT{5};
-
+public:
     // we try to keep total message size below 10k
     static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
     static constexpr size_t MAX_MSGS_CNT_QGETSIGSHARES{200};
     static constexpr size_t MAX_MSGS_CNT_QSIGSHARESINV{200};
     // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
     static constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
+    static constexpr size_t MAX_MSGS_SIG_SHARES{32};
+private:
+    static constexpr int64_t SESSION_NEW_SHARES_TIMEOUT{60};
+    static constexpr int64_t SIG_SHARE_REQUEST_TIMEOUT{5};
 
     static constexpr int64_t EXP_SEND_FOR_RECOVERY_TIMEOUT{2000};
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
-    static constexpr size_t MAX_MSGS_SIG_SHARES{32};
 
     RecursiveMutex cs;
 
@@ -444,14 +444,21 @@ public:
     void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     bool SendMessages();
     void Cleanup();
+    const CActiveMasternodeManager& ActiveMNManager() { return m_mn_activeman; }
+    const CSporkManager& SporkManager() { return m_sporkman; }
+    void MarkAsBanned(NodeId nodeId);
 
-private:
-    // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
-    bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann);
-    bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv);
+    bool ProcessSigShares(const std::vector<CSigShare>& receivedSigShares, NodeId node_id);
+    // It returns true if message is generally valid but we can't process it
+    // if it returns false, the sender peer should be banned
+    bool ProcessMessageSigShare(const CSigShare& sigShare, NodeId node_id);
+
+    // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages). The sender should be banned
+    bool ProcessMessageSigSesAnn(const CSigSesAnn& ann, NodeId node_id);
+    bool ProcessMessageSigSharesInv(const CSigSharesInv& inv, NodeId node_id);
     bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv);
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares);
-    void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare);
+private:
 
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
@@ -472,8 +479,6 @@ private:
 
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    void BanNode(NodeId nodeId);
-
     void CollectSigSharesToRequest(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToSend(std::unordered_map<NodeId, Uint256HashMap<CBatchedSigShares>>& sigSharesToSend)
@@ -481,6 +486,8 @@ private:
     void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    void BanNode(NodeId id) { assert(false); } /// TODO REMOVE IT
 };
 } // namespace llmq
 

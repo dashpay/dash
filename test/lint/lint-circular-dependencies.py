@@ -59,7 +59,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler -> llmq/dkgsession",
     "llmq/dkgsessionhandler -> net_processing -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler",
     "llmq/ehf_signals -> llmq/signing_shares -> net_processing -> masternode/active/context -> llmq/ehf_signals",
-    "llmq/signing_shares -> net_processing -> llmq/signing_shares",
     "llmq/signing_shares -> net_processing -> masternode/active/context -> llmq/signing_shares",
     "masternode/payments -> validation -> masternode/payments",
     "net -> netmessagemaker -> net",

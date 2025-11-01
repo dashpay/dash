@@ -57,7 +57,7 @@
 #include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/signing.h>
-#include <llmq/signing_shares.h>
+#include <llmq/signhash.h>
 #include <llmq/snapshot.h>
 #include <masternode/active/context.h>
 #include <masternode/meta.h>
@@ -5423,7 +5423,6 @@ void PeerManagerImpl::ProcessMessage(
         }
         if (m_active_ctx) {
             PostProcessMessage(m_active_ctx->cj_server->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
-            m_active_ctx->shareman->ProcessMessage(pfrom, msg_type, vRecv);
         }
         PostProcessMessage(m_sporkman.ProcessMessage(pfrom, m_connman, msg_type, vRecv), pfrom.GetId());
         m_mn_sync.ProcessMessage(pfrom, msg_type, vRecv);
