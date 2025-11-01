@@ -17,6 +17,7 @@
 #include <index/txindex.h>
 #include <init.h>
 #include <interfaces/chain.h>
+#include <masternode/active/context.h>
 #include <net.h>
 #include <net_processing.h>
 #include <net_instantsend.h>
@@ -366,8 +367,12 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                        *m_node.govman, *m_node.sporkman, /*mn_activeman=*/nullptr, m_node.dmnman,
                                        /*active_ctx=*/nullptr, m_node.cj_walletman.get(), m_node.llmq_ctx,
                                        /*ignore_incoming_txs=*/false);
+    /*
+     * TODO - do we really need them here in reg-tests? probably not same as active_ctx=nullptr
     m_node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(m_node.peerman.get(), *m_node.llmq_ctx->isman, *m_node.llmq_ctx->qman));
-    m_node.peerman->AddExtraHandler(std::make_unique<NetSigning>(m_node.peerman.get(), *m_node.llmq_ctx->sigman));
+    m_node.peerman->AddExtraHandler(std::make_unique<NetSigning>(m_node.peerman.get(), *m_node.llmq_ctx->sigman, nullptr));
+    node.peerman->AddExtraHandler(std::make_unique<NetGovernance>(node.peerman.get(), *node.govman, *node.mn_sync, *node.netfulfilledman));
+    */
     {
         CConnman::Options options;
         options.m_msgproc = m_node.peerman.get();
