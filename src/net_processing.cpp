@@ -650,6 +650,7 @@ public:
 
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override;
+    bool PeerIsBanned(const NodeId node_id) override;
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override;
     void PeerRelayInv(const CInv& inv) override;
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override;
@@ -6526,6 +6527,11 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
 void PeerManagerImpl::PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message)
 {
     Misbehaving(pnode, howmuch, message);
+}
+
+bool PeerManagerImpl::PeerIsBanned(const NodeId node_id)
+{
+    return IsBanned(node_id);
 }
 
 void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)

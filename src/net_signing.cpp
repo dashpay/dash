@@ -276,6 +276,18 @@ void NetSigning::WorkThreadSigning()
     }
 }
 
+void NetSigning::RemoveBannedNodeStates()
+{
+    assert(m_shares_manager != nullptr);
+    // Called regularly to cleanup local node states for banned nodes
+    std::vector<NodeId> nodes = m_shares_manager->GetAllNodes();
+    for (NodeId node_id : nodes) {
+        if (m_peer_manager->PeerIsBanned(node_id)) {
+            m_shares_manager->RemoveAsBanned(node_id);
+        }
+    }
+}
+
 void NetSigning::WorkThreadShares()
 {
     int64_t lastSendTime = 0;
@@ -283,7 +295,7 @@ void NetSigning::WorkThreadShares()
     assert(m_shares_manager);
 
     while (!workInterrupt) {
-        m_shares_manager->RemoveBannedNodeStates();
+        RemoveBannedNodeStates();
 
         bool fMoreWork = m_shares_manager->ProcessPendingSigShares();
         m_shares_manager->SignPendingSigShares();

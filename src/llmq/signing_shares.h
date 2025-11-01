@@ -375,7 +375,7 @@ private:
     static constexpr int64_t EXP_SEND_FOR_RECOVERY_TIMEOUT{2000};
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
 
-    RecursiveMutex cs;
+    mutable RecursiveMutex cs;
 
     SigShareMap<CSigShare> sigShares GUARDED_BY(cs);
     Uint256HashMap<CSignedSession> signedSessions GUARDED_BY(cs);
@@ -439,14 +439,15 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
 
     // Used by NetSigning
-    void RemoveBannedNodeStates();
     bool ProcessPendingSigShares();
     void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     bool SendMessages();
     void Cleanup();
     const CActiveMasternodeManager& ActiveMNManager() { return m_mn_activeman; }
     const CSporkManager& SporkManager() { return m_sporkman; }
-    void MarkAsBanned(NodeId nodeId);
+    void MarkAsBanned(NodeId node_id) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void RemoveAsBanned(NodeId node_id) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::vector<NodeId> GetAllNodes() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     bool ProcessSigShares(const std::vector<CSigShare>& receivedSigShares, NodeId node_id);
     // It returns true if message is generally valid but we can't process it

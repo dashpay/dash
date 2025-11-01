@@ -42,6 +42,7 @@ private:
     bool ProcessPendingRecoveredSigs();
     void ProcessRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig);
     void BanNode(NodeId id);
+    void RemoveBannedNodeStates();
 
 private:
     llmq::CSigningManager& m_sig_manager;
