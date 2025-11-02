@@ -523,22 +523,6 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
     return true;
 }
 
-// It's ensured that no duplicates are passed to this method
-void CSigSharesManager::ProcessPendingSigShares(
-    const std::vector<CSigShare>& sigSharesToProcess,
-    const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums)
-{
-    cxxtimer::Timer t(true);
-    for (const auto& sigShare : sigSharesToProcess) {
-        auto quorumKey = std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash());
-        ProcessSigShare(sigShare, quorums.at(quorumKey));
-    }
-    t.stop();
-
-    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- processed sigShare batch. shares=%d, time=%ds\n", __func__,
-             sigSharesToProcess.size(), t.count());
-}
-
 // sig shares are already verified when entering this method
 void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum)
 {

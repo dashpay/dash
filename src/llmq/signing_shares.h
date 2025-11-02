@@ -463,16 +463,13 @@ public:
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
-    void ProcessPendingSigShares(
-        const std::vector<CSigShare>& sigSharesToProcess,
-        const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums);
+    void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum);
 
 private:
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
                                           const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum);
     std::shared_ptr<CRecoveredSig> TryRecoverSig(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
 
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo);

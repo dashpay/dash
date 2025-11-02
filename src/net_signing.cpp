@@ -343,7 +343,7 @@ bool NetSigning::ProcessPendingSigShares()
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- verified sig shares. count=%d, pt=%d, vt=%d, nodes=%d\n", __func__, verifyCount, prepareTimer.count(), verifyTimer.count(), sigSharesByNodes.size());
 
-    for (const auto& [nodeId, v] : sigSharesByNodes) {
+    for (const auto& [nodeId, sigSharesToProcess] : sigSharesByNodes) {
         if (batchVerifier.badSources.count(nodeId) != 0) {
             LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- invalid sig shares from other node, banning peer=%d\n",
                      __func__, nodeId);
@@ -352,11 +352,21 @@ bool NetSigning::ProcessPendingSigShares()
             continue;
         }
 
-        m_shares_manager->ProcessPendingSigShares(v, quorums);
+        // It's ensured that no duplicates are passed to this method
+        cxxtimer::Timer t(true);
+        for (const auto& sigShare : sigSharesToProcess) {
+            auto quorumKey = std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash());
+            m_shares_manager->ProcessSigShare(sigShare, quorums.at(quorumKey));
+        }
+        t.stop();
+
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- processed sigShare batch. shares=%d, time=%ds\n", __func__,
+                 sigSharesToProcess.size(), t.count());
     }
 
     return sigSharesByNodes.size() >= nMaxBatchSize;
 }
+
 void NetSigning::WorkThreadShares()
 {
     int64_t lastSendTime = 0;
