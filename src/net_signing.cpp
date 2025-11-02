@@ -384,7 +384,10 @@ void NetSigning::WorkThreadShares()
         {
             const std::vector<llmq::PendingSignatureData> datas = m_shares_manager->FetchPendingSigShares();
             for (const auto& pending_data : datas) {
-                m_shares_manager->SignPendingSigShare(pending_data);
+                auto rs = m_shares_manager->SignPendingSigShare(pending_data);
+                if (rs != nullptr) {
+                    ProcessRecoveredSig(rs);
+                }
             }
         } // scope of data is over here to release memory
 

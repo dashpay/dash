@@ -439,7 +439,7 @@ public:
 
     // Used by NetSigning
     std::vector<llmq::PendingSignatureData> FetchPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
-    std::shared_ptr<CRecoveredSig> SignPendingSigShare(const llmq::PendingSignatureData& v);
+    [[nodiscard]] std::shared_ptr<CRecoveredSig> SignPendingSigShare(const llmq::PendingSignatureData& v);
     bool SendMessages();
     void Cleanup();
     const CActiveMasternodeManager& ActiveMNManager() { return m_mn_activeman; }
