@@ -458,7 +458,7 @@ public:
     bool ProcessMessageSigSharesInv(const CSigSharesInv& inv, NodeId node_id);
     bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv);
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares);
-    bool CollectPendingSigSharesToVerify(
+    void CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
 

@@ -215,10 +215,7 @@ bool NetSigning::ProcessPendingRecoveredSigs()
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, false);
 
     size_t verifyCount = 0;
-    for (const auto& p : recSigsByNode) {
-        NodeId nodeId = p.first;
-        const auto& v = p.second;
-
+    for (const auto& [nodeId, v]: recSigsByNode) {
         for (const auto& recSig : v) {
             // we didn't verify the lazy signature until now
             if (!recSig->sig.Get().IsValid()) {
@@ -240,10 +237,7 @@ bool NetSigning::ProcessPendingRecoveredSigs()
     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- verified recovered sig(s). count=%d, vt=%d, nodes=%d\n", __func__, verifyCount, verifyTimer.count(), recSigsByNode.size());
 
     Uint256HashSet processed;
-    for (const auto& p : recSigsByNode) {
-        NodeId nodeId = p.first;
-        const auto& v = p.second;
-
+    for (const auto& [nodeId, v] : recSigsByNode) {
         if (batchVerifier.badSources.count(nodeId)) {
             LogPrint(BCLog::LLMQ, "CSigningManager::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
             m_peer_manager->PeerMisbehaving(nodeId, 100);
@@ -296,8 +290,8 @@ bool NetSigning::ProcessPendingSigShares()
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, llmq::CQuorumCPtr, StaticSaltedHasher> quorums;
 
     const size_t nMaxBatchSize{32};
-    bool collect_status = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
-    if (!collect_status || sigSharesByNodes.empty()) {
+    m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+    if (sigSharesByNodes.empty()) {
         return false;
     }
 

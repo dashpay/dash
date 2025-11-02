@@ -448,14 +448,14 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager
     return true;
 }
 
-bool CSigSharesManager::CollectPendingSigSharesToVerify(
+void CSigSharesManager::CollectPendingSigSharesToVerify(
     size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
 {
     {
         LOCK(cs);
         if (nodeStates.empty()) {
-            return false;
+            return;
         }
 
         // This will iterate node states in random order and pick one sig share at a time. This avoids processing
@@ -488,7 +488,7 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             rnd);
 
         if (retSigShares.empty()) {
-            return false;
+            return;
         }
     }
 
@@ -510,13 +510,13 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             if (!quorum) {
                 LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
                           ToUnderlying(llmqType), sigShare.getQuorumHash().ToString());
-                return false;
+                retSigShares.clear();
+                retQuorums.clear();
+                return;
             }
             retQuorums.try_emplace(k, quorum);
         }
     }
-
-    return true;
 }
 
 // sig shares are already verified when entering this method
