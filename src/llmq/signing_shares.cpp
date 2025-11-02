@@ -1205,36 +1205,22 @@ void CSigSharesManager::Cleanup()
     }
 
     {
+        Uint256HashSet sessions_to_remove;
         // Now delete sessions which are for inactive quorums
         LOCK(cs);
-        Uint256HashSet inactiveQuorumSessions;
-        sigShares.ForEach([&quorums, &inactiveQuorumSessions](const SigShareKey&, const CSigShare& sigShare) {
+        sigShares.ForEach([this, &quorums, &sessions_to_remove](const SigShareKey&, const CSigShare& sigShare) {
             if (quorums.count(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash())) == 0) {
-                inactiveQuorumSessions.emplace(sigShare.GetSignHash());
+                sessions_to_remove.emplace(sigShare.GetSignHash());
+            } else if (sigman.HasRecoveredSigForSession(sigShare.GetSignHash())) {
+                sessions_to_remove.emplace(sigShare.GetSignHash());
             }
         });
         for (const auto& signHash : inactiveQuorumSessions) {
             RemoveSigSharesForSession(signHash);
         }
     }
-
     {
         LOCK(cs);
-
-        // Remove sessions which were successfully recovered
-        Uint256HashSet doneSessions;
-        sigShares.ForEach([&doneSessions, this](const SigShareKey&, const CSigShare& sigShare) {
-            if (doneSessions.count(sigShare.GetSignHash()) != 0) {
-                return;
-            }
-            if (sigman.HasRecoveredSigForSession(sigShare.GetSignHash())) {
-                doneSessions.emplace(sigShare.GetSignHash());
-            }
-        });
-        for (const auto& signHash : doneSessions) {
-            RemoveSigSharesForSession(signHash);
-        }
-
         // Remove sessions which timed out
         Uint256HashSet timeoutSessions;
         for (const auto& [signHash, lastSeenTime] : timeSeenForSessions) {
