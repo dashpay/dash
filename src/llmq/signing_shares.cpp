@@ -667,7 +667,7 @@ CDeterministicMNCPtr CSigSharesManager::SelectMemberForRecovery(const CQuorumCPt
     return v[attempt % v.size()].second;
 }
 
-bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigningManager& sigman, const uint256& id,
+bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint256& id,
                                           const uint256& msgHash, const uint256& quorumHash, bool allowReSign,
                                           bool allowDiffMsgHashSigning)
 {

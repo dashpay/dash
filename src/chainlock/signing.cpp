@@ -141,7 +141,7 @@ void ChainLockSigner::TrySignChainTip(const llmq::CInstantSendManager& isman)
         lastSignedMsgHash = msgHash;
     }
 
-    m_shareman.AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, m_sigman, requestId, msgHash);
+    m_shareman.AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, requestId, msgHash);
 }
 
 void ChainLockSigner::EraseFromBlockHashTxidMap(const uint256& hash)

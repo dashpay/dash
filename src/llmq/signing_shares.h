@@ -432,7 +432,7 @@ public:
 
     static CDeterministicMNCPtr SelectMemberForRecovery(const CQuorumCPtr& quorum, const uint256& id, int attempt);
 
-    bool AsyncSignIfMember(Consensus::LLMQType llmqType, CSigningManager& sigman, const uint256& id,
+    bool AsyncSignIfMember(Consensus::LLMQType llmqType, const uint256& id,
                            const uint256& msgHash, const uint256& quorumHash = uint256(), bool allowReSign = false,
                            bool allowDiffMsgHashSigning = false)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
