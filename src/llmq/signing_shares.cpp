@@ -1048,25 +1048,6 @@ bool CSigSharesManager::SendMessages()
             }
         }
 
-        if (const auto it = sigSharesToRequest.find(pnode->GetId()); it != sigSharesToRequest.end()) {
-            std::vector<CSigSharesInv> msgs;
-            for (const auto& [signHash, inv] : it->second) {
-                assert(inv.CountSet() != 0);
-                LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QGETSIGSHARES signHash=%s, inv={%s}, node=%d\n",
-                         signHash.ToString(), inv.ToString(), pnode->GetId());
-                msgs.emplace_back(inv);
-                if (msgs.size() == MAX_MSGS_CNT_QSIGSHARES) {
-                    m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs));
-                    msgs.clear();
-                    didSend = true;
-                }
-            }
-            if (!msgs.empty()) {
-                m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs));
-                didSend = true;
-            }
-        }
-
         if (const auto jt = sigShareBatchesToSend.find(pnode->GetId()); jt != sigShareBatchesToSend.end()) {
             size_t totalSigsCount = 0;
             std::vector<CBatchedSigShares> msgs;
@@ -1089,25 +1070,29 @@ bool CSigSharesManager::SendMessages()
             }
         }
 
-        if (const auto kt = sigSharesToAnnounce.find(pnode->GetId()); kt != sigSharesToAnnounce.end()) {
-            std::vector<CSigSharesInv> msgs;
-            for (const auto& [signHash, inv] : kt->second) {
-                assert(inv.CountSet() != 0);
-                LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QSIGSHARESINV signHash=%s, inv={%s}, node=%d\n",
-                         signHash.ToString(), inv.ToString(), pnode->GetId());
-                msgs.emplace_back(inv);
-                if (msgs.size() == MAX_MSGS_CNT_QSIGSHARES) {
-                    m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs));
-                    msgs.clear();
+        for (const auto& [msg, sig_shares] : {
+                std::make_pair(NetMsgType::QSIGSHARESINV, sigSharesToAnnounce),
+                std::make_pair(NetMsgType::QGETSIGSHARES, sigSharesToRequest)})
+        {
+            if (const auto kt = sig_shares.find(pnode->GetId()); kt != sig_shares.end()) {
+                std::vector<CSigSharesInv> msgs;
+                for (const auto& [signHash, inv] : kt->second) {
+                    assert(inv.CountSet() != 0);
+                    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- %s signHash=%s, inv={%s}, node=%d\n",
+                             msg, signHash.ToString(), inv.ToString(), pnode->GetId());
+                    msgs.emplace_back(inv);
+                    if (msgs.size() == MAX_MSGS_CNT_QSIGSHARES) {
+                        m_connman.PushMessage(pnode, msgMaker.Make(msg, msgs));
+                        msgs.clear();
+                        didSend = true;
+                    }
+                }
+                if (!msgs.empty()) {
+                    m_connman.PushMessage(pnode, msgMaker.Make(msg, msgs));
                     didSend = true;
                 }
             }
-            if (!msgs.empty()) {
-                m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs));
-                didSend = true;
-            }
         }
-
         auto lt = sigSharesToSend.find(pnode->GetId());
         if (lt != sigSharesToSend.end()) {
             std::vector<CSigShare> msgs;
