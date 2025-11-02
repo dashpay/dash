@@ -39,6 +39,7 @@ protected:
     void WorkThreadShares();
 
 private:
+    bool ProcessPendingSigShares();
     bool ProcessPendingRecoveredSigs();
     void ProcessRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig);
     void BanNode(NodeId id);

@@ -439,7 +439,6 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
 
     // Used by NetSigning
-    bool ProcessPendingSigShares();
     std::vector<llmq::PendingSignatureData> FetchPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     void SignPendingSigShare(const llmq::PendingSignatureData& v);
     bool SendMessages();
@@ -460,18 +459,17 @@ public:
     bool ProcessMessageSigSharesInv(const CSigSharesInv& inv, NodeId node_id);
     bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv);
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares);
-private:
-
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                          const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
-
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
     void ProcessPendingSigShares(
         const std::vector<CSigShare>& sigSharesToProcess,
         const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums);
+
+private:
+    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
+                                          const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
     void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum);
     void TryRecoverSig(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
@@ -488,8 +486,6 @@ private:
     void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
-
-    void BanNode(NodeId id) { assert(false); } /// TODO REMOVE IT
 };
 } // namespace llmq
 

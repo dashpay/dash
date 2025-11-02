@@ -288,6 +288,75 @@ void NetSigning::RemoveBannedNodeStates()
     }
 }
 
+// TODO These 2 methods (ProcessPendingSigShares, ProcessPendingRecoveredSigs) have
+// a lot in common; consider to refactor it to split common parts or make it template / parameter based
+bool NetSigning::ProcessPendingSigShares()
+{
+    std::unordered_map<NodeId, std::vector<llmq::CSigShare>> sigSharesByNodes;
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, llmq::CQuorumCPtr, StaticSaltedHasher> quorums;
+
+    const size_t nMaxBatchSize{32};
+    bool collect_status = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+    if (!collect_status || sigSharesByNodes.empty()) {
+        return false;
+    }
+
+    // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
+    // which are not craftable by individual entities, making the rogue public key attack impossible
+    CBLSBatchVerifier<NodeId, llmq::SigShareKey> batchVerifier(false, true);
+
+    cxxtimer::Timer prepareTimer(true);
+    size_t verifyCount = 0;
+    for (const auto& [nodeId, v] : sigSharesByNodes) {
+        for (const auto& sigShare : v) {
+            if (m_sig_manager.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+                continue;
+            }
+
+            // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
+            // deserialization in the message thread
+            if (!sigShare.sigShare.Get().IsValid()) {
+                BanNode(nodeId);
+                // don't process any additional shares from this node
+                break;
+            }
+
+            auto quorum = quorums.at(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash()));
+            auto pubKeyShare = quorum->GetPubKeyShare(sigShare.getQuorumMember());
+
+            if (!pubKeyShare.IsValid()) {
+                // this should really not happen (we already ensured we have the quorum vvec,
+                // so we should also be able to create all pubkey shares)
+                LogPrintf("CSigSharesManager::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
+                assert(false);
+            }
+
+            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sigShare.sigShare.Get(), pubKeyShare);
+            verifyCount++;
+        }
+    }
+    prepareTimer.stop();
+
+    cxxtimer::Timer verifyTimer(true);
+    batchVerifier.Verify();
+    verifyTimer.stop();
+
+    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- verified sig shares. count=%d, pt=%d, vt=%d, nodes=%d\n", __func__, verifyCount, prepareTimer.count(), verifyTimer.count(), sigSharesByNodes.size());
+
+    for (const auto& [nodeId, v] : sigSharesByNodes) {
+        if (batchVerifier.badSources.count(nodeId) != 0) {
+            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- invalid sig shares from other node, banning peer=%d\n",
+                     __func__, nodeId);
+            // this will also cause re-requesting of the shares that were sent by this node
+            BanNode(nodeId);
+            continue;
+        }
+
+        m_shares_manager->ProcessPendingSigShares(v, quorums);
+    }
+
+    return sigSharesByNodes.size() >= nMaxBatchSize;
+}
 void NetSigning::WorkThreadShares()
 {
     int64_t lastSendTime = 0;
@@ -297,7 +366,7 @@ void NetSigning::WorkThreadShares()
     while (!workInterrupt) {
         RemoveBannedNodeStates();
 
-        bool fMoreWork = m_shares_manager->ProcessPendingSigShares();
+        bool fMoreWork = ProcessPendingSigShares();
 
         {
             const std::vector<llmq::PendingSignatureData> datas = m_shares_manager->FetchPendingSigShares();
