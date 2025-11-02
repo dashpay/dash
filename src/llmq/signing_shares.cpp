@@ -1215,7 +1215,7 @@ void CSigSharesManager::Cleanup()
                 sessions_to_remove.emplace(sigShare.GetSignHash());
             }
         });
-        for (const auto& signHash : inactiveQuorumSessions) {
+        for (const auto& signHash : sessions_to_remove) {
             RemoveSigSharesForSession(signHash);
         }
     }
