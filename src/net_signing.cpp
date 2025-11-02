@@ -356,7 +356,10 @@ bool NetSigning::ProcessPendingSigShares()
         cxxtimer::Timer t(true);
         for (const auto& sigShare : sigSharesToProcess) {
             auto quorumKey = std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash());
-            m_shares_manager->ProcessSigShare(sigShare, quorums.at(quorumKey));
+            auto rs = m_shares_manager->ProcessSigShare(sigShare, quorums.at(quorumKey));
+            if (rs != nullptr) {
+                ProcessRecoveredSig(rs);
+            }
         }
         t.stop();
 

@@ -31,7 +31,6 @@ class CNode;
 class CConnman;
 class CDeterministicMN;
 class CSporkManager;
-class PeerManager;
 
 namespace llmq
 {
@@ -403,7 +402,6 @@ private:
     CConnman& m_connman;
     CChainState& m_chainstate;
     CSigningManager& sigman;
-    PeerManager& m_peerman;
     const CActiveMasternodeManager& m_mn_activeman;
     const CQuorumManager& qman;
     const CSporkManager& m_sporkman;
@@ -413,7 +411,7 @@ private:
 
 public:
     explicit CSigSharesManager(CConnman& connman, CChainState& chainstate, CSigningManager& _sigman,
-                               PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
+                               const CActiveMasternodeManager& mn_activeman,
                                const CQuorumManager& _qman, const CSporkManager& sporkman);
     ~CSigSharesManager() override;
 
@@ -441,7 +439,7 @@ public:
 
     // Used by NetSigning
     std::vector<llmq::PendingSignatureData> FetchPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
-    void SignPendingSigShare(const llmq::PendingSignatureData& v);
+    std::shared_ptr<CRecoveredSig> SignPendingSigShare(const llmq::PendingSignatureData& v);
     bool SendMessages();
     void Cleanup();
     const CActiveMasternodeManager& ActiveMNManager() { return m_mn_activeman; }
@@ -450,10 +448,10 @@ public:
     void RemoveAsBanned(NodeId node_id) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     std::vector<NodeId> GetAllNodes() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    bool ProcessSigShares(const std::vector<CSigShare>& receivedSigShares, NodeId node_id);
     // It returns true if message is generally valid but we can't process it
     // if it returns false, the sender peer should be banned
     bool ProcessMessageSigShare(const CSigShare& sigShare, NodeId node_id);
+    std::shared_ptr<CRecoveredSig> ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum);
 
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages). The sender should be banned
     bool ProcessMessageSigSesAnn(const CSigSesAnn& ann, NodeId node_id);
@@ -463,7 +461,6 @@ public:
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
-    void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum);
 
 private:
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
