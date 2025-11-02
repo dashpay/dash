@@ -1485,26 +1485,29 @@ void CSigSharesManager::AsyncSign(const CQuorumCPtr& quorum, const uint256& id, 
     pendingSigns.emplace_back(quorum, id, msgHash);
 }
 
-void CSigSharesManager::SignPendingSigShares()
+std::vector<PendingSignatureData> CSigSharesManager::FetchPendingSigShares()
 {
     std::vector<PendingSignatureData> v;
     WITH_LOCK(cs_pendingSigns, v.swap(pendingSigns));
+    return v;
+}
 
-    for (const auto& [pQuorum, id, msgHash] : v) {
-        auto opt_sigShare = CreateSigShare(pQuorum, id, msgHash);
+void CSigSharesManager::SignPendingSigShare(const llmq::PendingSignatureData& data)
+{
+    const auto& [pQuorum, id, msgHash] = data;
+    auto opt_sigShare = CreateSigShare(pQuorum, id, msgHash);
 
-        if (opt_sigShare.has_value() && opt_sigShare->sigShare.Get().IsValid()) {
-            auto sigShare = *opt_sigShare;
-            ProcessSigShare(sigShare, pQuorum);
+    if (opt_sigShare.has_value() && opt_sigShare->sigShare.Get().IsValid()) {
+        auto sigShare = *opt_sigShare;
+        ProcessSigShare(sigShare, pQuorum);
 
-            if (IsAllMembersConnectedEnabled(pQuorum->params.type, m_sporkman)) {
-                LOCK(cs);
-                auto& session = signedSessions[sigShare.GetSignHash()];
-                session.sigShare = sigShare;
-                session.quorum = pQuorum;
-                session.nextAttemptTime = 0;
-                session.attempt = 0;
-            }
+        if (IsAllMembersConnectedEnabled(pQuorum->params.type, m_sporkman)) {
+            LOCK(cs);
+            auto& session = signedSessions[sigShare.GetSignHash()];
+            session.sigShare = sigShare;
+            session.quorum = pQuorum;
+            session.nextAttemptTime = 0;
+            session.attempt = 0;
         }
     }
 }

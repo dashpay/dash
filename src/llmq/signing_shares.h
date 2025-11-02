@@ -358,6 +358,14 @@ public:
     int attempt{0};
 };
 
+struct PendingSignatureData {
+    const CQuorumCPtr quorum;
+    const uint256 id;
+    const uint256 msgHash;
+
+    PendingSignatureData(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash) : quorum(std::move(quorum)), id(id), msgHash(msgHash){}
+};
+
 class CSigSharesManager : public CRecoveredSigsListener
 {
 public:
@@ -386,14 +394,6 @@ private:
     std::unordered_map<NodeId, CSigSharesNodeState> nodeStates GUARDED_BY(cs);
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs);
     SigShareMap<bool> sigSharesQueuedToAnnounce GUARDED_BY(cs);
-
-    struct PendingSignatureData {
-        const CQuorumCPtr quorum;
-        const uint256 id;
-        const uint256 msgHash;
-
-        PendingSignatureData(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash) : quorum(std::move(quorum)), id(id), msgHash(msgHash){}
-    };
 
     Mutex cs_pendingSigns;
     std::vector<PendingSignatureData> pendingSigns GUARDED_BY(cs_pendingSigns);
@@ -440,7 +440,8 @@ public:
 
     // Used by NetSigning
     bool ProcessPendingSigShares();
-    void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
+    std::vector<llmq::PendingSignatureData> FetchPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
+    void SignPendingSigShare(const llmq::PendingSignatureData& v);
     bool SendMessages();
     void Cleanup();
     const CActiveMasternodeManager& ActiveMNManager() { return m_mn_activeman; }

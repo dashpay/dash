@@ -298,7 +298,13 @@ void NetSigning::WorkThreadShares()
         RemoveBannedNodeStates();
 
         bool fMoreWork = m_shares_manager->ProcessPendingSigShares();
-        m_shares_manager->SignPendingSigShares();
+
+        {
+            const std::vector<llmq::PendingSignatureData> datas = m_shares_manager->FetchPendingSigShares();
+            for (const auto& pending_data : datas) {
+                m_shares_manager->SignPendingSigShare(pending_data);
+            }
+        } // scope of data is over here to release memory
 
         if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - lastSendTime > 100) {
             m_shares_manager->SendMessages();
