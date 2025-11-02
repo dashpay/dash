@@ -415,10 +415,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
         }
     }
 
-    for (auto& p : retSigShares) {
-        NodeId nodeId = p.first;
-        auto& v = p.second;
-
+    for (auto& [nodeId, v] : retSigShares) {
         for (auto it = v.begin(); it != v.end();) {
             const auto& recSig = *it;
 
