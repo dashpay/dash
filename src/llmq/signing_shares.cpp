@@ -729,7 +729,7 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const ui
             }
         }
 
-        if (db.HasRecoveredSigForId(llmqType, id)) {
+        if (sigman.HasRecoveredSigForId(llmqType, id)) {
             // no need to sign it if we already have a recovered sig
             return true;
         }
@@ -742,7 +742,9 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const ui
         // make us re-announce all known shares (other nodes might have run into a timeout)
         ForceReAnnouncement(quorum, llmqType, id, msgHash);
     }
-    AsyncSign(quorum, id, msgHash);
+
+    LOCK(cs_pendingSigns);
+    pendingSigns.emplace_back(quorum, id, msgHash);
 
     return true;
 }
@@ -1355,12 +1357,6 @@ void CSigSharesManager::MarkAsBanned(NodeId nodeId)
     });
     nodeState.requestedSigShares.Clear();
     nodeState.banned = true;
-}
-
-void CSigSharesManager::AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash)
-{
-    LOCK(cs_pendingSigns);
-    pendingSigns.emplace_back(quorum, id, msgHash);
 }
 
 std::vector<PendingSignatureData> CSigSharesManager::FetchPendingSigShares()

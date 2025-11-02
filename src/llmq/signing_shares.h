@@ -422,8 +422,6 @@ public:
 
     void ProcessMessage(const CNode& pnode, const std::string& msg_type, CDataStream& vRecv);
 
-    void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     std::optional<CSigShare> CreateSigShare(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash) const;
     void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
 
