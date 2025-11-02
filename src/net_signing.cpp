@@ -108,28 +108,16 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
                             [&shares_manager, &pfrom](const auto& ann){ return shares_manager.ProcessMessageSigSesAnn(ann, pfrom.GetId()); })) {
             BanNode(pfrom.GetId());
         }
-    } else if (msg_type == NetMsgType::QSIGSHARESINV) {
+    } else if (msg_type == NetMsgType::QSIGSHARESINV || msg_type == NetMsgType::QGETSIGSHARES) {
         std::vector<llmq::CSigSharesInv> msgs;
         vRecv >> msgs;
-        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSHARESINV) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- too many invs in QSIGSHARESINV message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSHARESINV, pfrom.GetId());
+        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES) {
+            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- too many invs in %s message. cnt=%d, max=%d, node=%d\n", __func__, msg_type, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES, pfrom.GetId());
             BanNode(pfrom.GetId());
             return;
         }
         if (!ranges::all_of(msgs,
-                            [&shares_manager, &pfrom](const auto& inv){ return shares_manager.ProcessMessageSigSharesInv(inv, pfrom.GetId()); })) {
-            BanNode(pfrom.GetId());
-        }
-    } else if (msg_type == NetMsgType::QGETSIGSHARES) {
-        std::vector<llmq::CSigSharesInv> msgs;
-        vRecv >> msgs;
-        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QGETSIGSHARES) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- too many invs in QGETSIGSHARES message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QGETSIGSHARES, pfrom.GetId());
-            BanNode(pfrom.GetId());
-            return;
-        }
-        if (!ranges::all_of(msgs,
-                            [&shares_manager, &pfrom](const auto& inv){ return shares_manager.ProcessMessageGetSigShares(pfrom, inv); })) {
+                            [&shares_manager, msg_type, &pfrom](const auto& inv){ return shares_manager.ProcessMessageSigShares(inv, pfrom.GetId(), /*requested=*/msg_type == NetMsgType::QGETSIGSHARES); })) {
             BanNode(pfrom.GetId());
             return;
         }

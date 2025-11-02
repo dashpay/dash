@@ -370,8 +370,7 @@ class CSigSharesManager : public CRecoveredSigsListener
 public:
     // we try to keep total message size below 10k
     static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
-    static constexpr size_t MAX_MSGS_CNT_QGETSIGSHARES{200};
-    static constexpr size_t MAX_MSGS_CNT_QSIGSHARESINV{200};
+    static constexpr size_t MAX_MSGS_CNT_QSIGSHARES{200};
     // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
     static constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
     static constexpr size_t MAX_MSGS_SIG_SHARES{32};
@@ -453,15 +452,13 @@ public:
 
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages). The sender should be banned
     bool ProcessMessageSigSesAnn(const CSigSesAnn& ann, NodeId node_id);
-    bool ProcessMessageSigSharesInv(const CSigSharesInv& inv, NodeId node_id);
-    bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv);
+    bool ProcessMessageSigShares(const CSigSharesInv& inv, NodeId node_id, bool requested);
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares);
     void CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
 
 private:
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
                                           const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
