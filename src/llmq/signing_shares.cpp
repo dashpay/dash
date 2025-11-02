@@ -14,9 +14,7 @@
 #include <evo/deterministicmns.h>
 #include <masternode/node.h>
 #include <netmessagemaker.h>
-#include <spork.h>
 #include <util/irange.h>
-#include <util/thread.h>
 #include <util/time.h>
 #include <util/underlying.h>
 #include <validation.h>
