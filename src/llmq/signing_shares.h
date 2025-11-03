@@ -365,6 +365,11 @@ struct PendingSignatureData {
     PendingSignatureData(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash) : quorum(std::move(quorum)), id(id), msgHash(msgHash){}
 };
 
+
+// TODO: drop all class CSigSharesManager; replace it by std::vector<Pending signatures>
+// and move it to llmq/signing.h;
+// Keep only methods AsyncSignIfMember & CreateSigShare in that
+// Move everything else to NetSigning ; in this file keep only CSigShare & related classes
 class CSigSharesManager : public CRecoveredSigsListener
 {
 public:
