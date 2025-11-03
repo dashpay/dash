@@ -315,7 +315,7 @@ BITCOIN_CORE_H = \
   node/miner.h \
   node/minisketchwrapper.h \
   node/psbt.h \
-  sync/sync.h \
+  node/sync.h \
   node/transaction.h \
   node/txreconciliation.h \
   node/interface_ui.h \
