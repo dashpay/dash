@@ -248,6 +248,7 @@ private:
     Mutex workMutex;
     std::condition_variable_any workCv;
     std::atomic<uint64_t> workEpoch{0};
+    void Cleanup(); // called from the worker thread
     void WorkThreadMain(PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_pending, !cs_listeners);
 
 public:
