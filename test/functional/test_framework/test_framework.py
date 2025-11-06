@@ -2104,11 +2104,10 @@ class DashTestFramework(BitcoinTestFramework):
         self.generate(self.nodes[0], num_blocks, sync_fun=lambda: self.sync_blocks(nodes))
 
     def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False):
-        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
-            expected_connections = (self.llmq_size - 1) if spork21_active else 2
+            expected_connections = self.llmq_size - 1
         if expected_members is None:
             expected_members = self.llmq_size
         if expected_contributions is None:
@@ -2194,13 +2193,12 @@ class DashTestFramework(BitcoinTestFramework):
         return new_quorum
 
     def mine_cycle_quorum(self):
-        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
         llmq_type_name="llmq_test_dip0024"
         llmq_type=103
         llmq_cycle_len = 24
-        expected_connections = (self.llmq_size_dip0024 - 1) if spork21_active else 2
+        expected_connections = self.llmq_size_dip0024 - 1
         expected_members = self.llmq_size_dip0024
         expected_contributions = self.llmq_size_dip0024
         expected_commitments = self.llmq_size_dip0024

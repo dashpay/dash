@@ -52,7 +52,6 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
 
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        self.nodes[0].sporkupdate("SPORK_21_QUORUM_ALL_CONNECTED", 0)
         # Turn mempool IS signing off
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 1)
         self.wait_for_sporks_same()
