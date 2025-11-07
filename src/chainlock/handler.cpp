@@ -56,15 +56,40 @@ ChainlockHandler::~ChainlockHandler()
     scheduler_thread->join();
 }
 
-void ChainlockHandler::Start()
+void ChainlockHandler::Start(const llmq::CQuorumManager& qman)
 {
     scheduler->scheduleEvery(
         [&]() {
             CheckActiveState();
+            ProcessPendingCoinbaseChainLocks(qman);
             EnforceBestChainLock();
             Cleanup();
         },
         std::chrono::seconds{5});
+}
+
+void ChainlockHandler::ProcessPendingCoinbaseChainLocks(const llmq::CQuorumManager& qman)
+{
+    AssertLockNotHeld(cs);
+    AssertLockNotHeld(cs_main);
+
+    if (!isEnabled) {
+        return;
+    }
+
+    auto pending = m_chainlocks.DrainPendingCoinbaseChainLocks();
+    for (const auto& clsig : pending) {
+        const uint256 hash = ::SerializeHash(clsig);
+        // Skip if it was already processed via the network in the meantime.
+        if (WITH_LOCK(cs, return seenChainLocks.count(hash) != 0)) {
+            continue;
+        }
+        if (clsig.getHeight() <= m_chainlocks.GetBestChainLockHeight()) {
+            continue;
+        }
+        // Process as if we discovered it locally (from = -1 means internal/coinbase).
+        (void)ProcessNewChainLock(-1, clsig, qman, hash);
+    }
 }
 
 void ChainlockHandler::Stop() { scheduler->stop(); }

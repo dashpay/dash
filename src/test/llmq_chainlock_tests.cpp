@@ -9,6 +9,7 @@
 #include <util/strencodings.h>
 
 #include <chainlock/chainlock.h>
+#include <spork.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -165,6 +166,26 @@ BOOST_AUTO_TEST_CASE(chainlock_malformed_data_test)
             // Expected for most truncation points
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(coinbase_chainlock_queueing_test)
+{
+    // Verify the coinbase-chainlock queue on chainlock::Chainlocks accepts
+    // entries without errors when chainlocks are disabled (default in this fixture),
+    // matching the behavior used by block validation. Actual processing and
+    // height/duplicate filtering are exercised in feature_llmq_chainlocks.py.
+    CSporkManager sporkman;
+    chainlock::Chainlocks chainlocks(sporkman);
+
+    ChainLockSig clsig = CreateChainLock(100, GetTestBlockHash(100));
+    BOOST_CHECK(!clsig.IsNull());
+    chainlocks.QueueCoinbaseChainLock(clsig);
+
+    ChainLockSig clsig2 = CreateChainLock(101, GetTestBlockHash(101));
+    chainlocks.QueueCoinbaseChainLock(clsig2);
+
+    // With chainlocks disabled, the queue stays empty.
+    BOOST_CHECK(chainlocks.DrainPendingCoinbaseChainLocks().empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

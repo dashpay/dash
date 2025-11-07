@@ -18,7 +18,7 @@ CChainstateHelper::CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmn
                                      llmq::CInstantSendManager& isman, llmq::CQuorumBlockProcessor& qblockman,
                                      llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                      const Consensus::Params& consensus_params, const CMasternodeSync& mn_sync,
-                                     const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman) :
+                                     chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman) :
     isman{isman},
     credit_pool_manager{std::make_unique<CCreditPoolManager>(evodb, chainman)},
     m_chainlocks{chainlocks},

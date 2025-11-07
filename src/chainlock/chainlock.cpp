@@ -171,4 +171,33 @@ void Chainlocks::AcceptedBlockHeader(gsl::not_null<const CBlockIndex*> pindexNew
         bestChainLockBlockIndex = pindexNew;
     }
 }
+
+void Chainlocks::QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
+{
+    LOCK(cs);
+
+    if (!IsEnabled()) {
+        return;
+    }
+
+    // Only queue if it's potentially newer than what we have
+    if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+        return;
+    }
+
+    pendingCoinbaseChainLocks.push_back(clsig);
+}
+
+std::vector<chainlock::ChainLockSig> Chainlocks::DrainPendingCoinbaseChainLocks()
+{
+    LOCK(cs);
+    std::vector<chainlock::ChainLockSig> drained;
+    drained.reserve(pendingCoinbaseChainLocks.size());
+    while (!pendingCoinbaseChainLocks.empty()) {
+        drained.push_back(std::move(pendingCoinbaseChainLocks.front()));
+        pendingCoinbaseChainLocks.pop_front();
+    }
+    return drained;
+}
+
 } // namespace chainlock

@@ -68,7 +68,7 @@ public:
                               const CMasternodeSync& mn_sync);
     ~ChainlockHandler();
 
-    void Start();
+    void Start(const llmq::CQuorumManager& qman);
     void Stop();
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -100,6 +100,7 @@ protected:
 
 private:
     void Cleanup() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void ProcessPendingCoinbaseChainLocks(const llmq::CQuorumManager& qman) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 } // namespace chainlock
 
