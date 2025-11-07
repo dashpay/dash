@@ -20,11 +20,11 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
-#include <deque>
 #include <map>
 #include <memory>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 class CBlock;
 class CBlockIndex;
@@ -71,7 +71,7 @@ private:
     std::atomic<std::chrono::seconds> lastCleanupTime{0s};
 
     // Queue for coinbase chainlocks to be processed asynchronously
-    std::deque<chainlock::ChainLockSig> pendingCoinbaseChainLocks GUARDED_BY(cs);
+    std::vector<chainlock::ChainLockSig> pendingCoinbaseChainLocks GUARDED_BY(cs);
 
 public:
     CChainLocksHandler() = delete;

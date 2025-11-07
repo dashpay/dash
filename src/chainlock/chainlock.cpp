@@ -16,8 +16,6 @@
 #include <validation.h>
 #include <validationinterface.h>
 
-#include <vector>
-
 #include <instantsend/instantsend.h>
 #include <llmq/quorums.h>
 #include <masternode/sync.h>
@@ -532,25 +530,26 @@ void CChainLocksHandler::ProcessPendingCoinbaseChainLocks()
             return;
         }
 
-        // Move all pending chainlocks to a local vector for processing
-        toProcess.reserve(pendingCoinbaseChainLocks.size());
-        while (!pendingCoinbaseChainLocks.empty()) {
-            toProcess.push_back(pendingCoinbaseChainLocks.front());
-            pendingCoinbaseChainLocks.pop_front();
-        }
+        // Swap to avoid copying - O(1) operation
+        toProcess.swap(pendingCoinbaseChainLocks);
     }
 
-    // Process each chainlock outside the lock
-    for (const auto& clsig : toProcess) {
-        const uint256 hash = ::SerializeHash(clsig);
+    // Process in LIFO order (newest first) to minimize wasted work during reindex
+    // Once a newer chainlock is accepted, older ones will fail the height check early
+    for (auto it = toProcess.rbegin(); it != toProcess.rend(); ++it) {
+        const auto& clsig = *it;
 
-        // Check again if we still want to process this (might have been processed via network)
+        // Check height first (cheap), then hash and check if seen (if height passed)
+        uint256 hash;
         {
             LOCK(cs);
-            if (seenChainLocks.count(hash) != 0) {
+            // Fast height check to skip old chainlocks without hashing
+            if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
                 continue;
             }
-            if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+            // Only compute hash if height check passed
+            hash = ::SerializeHash(clsig);
+            if (seenChainLocks.count(hash) != 0) {
                 continue;
             }
         }
