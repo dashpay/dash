@@ -132,14 +132,12 @@ public:
 
     // Queue a coinbase chainlock for asynchronous processing
     // This is called during block validation to avoid blocking
-    void QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:
     void Cleanup()
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void ProcessPendingCoinbaseChainLocks()
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void ProcessPendingCoinbaseChainLocks() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 
 bool AreChainLocksEnabled(const CSporkManager& sporkman);

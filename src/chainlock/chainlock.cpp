@@ -496,24 +496,23 @@ void CChainLocksHandler::Cleanup()
 
 void CChainLocksHandler::QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
 {
-    AssertLockNotHeld(cs);
     LOCK(cs);
-    
+
     if (!IsEnabled()) {
         return;
     }
-    
+
     // Only queue if it's potentially newer than what we have
     if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
         return;
     }
-    
+
     // Check if we've already seen this chainlock
     const uint256 hash = ::SerializeHash(clsig);
     if (seenChainLocks.count(hash) != 0) {
         return;
     }
-    
+
     pendingCoinbaseChainLocks.push_back(clsig);
 }
 
@@ -521,18 +520,18 @@ void CChainLocksHandler::ProcessPendingCoinbaseChainLocks()
 {
     AssertLockNotHeld(cs);
     AssertLockNotHeld(cs_main);
-    
+
     if (!IsEnabled()) {
         return;
     }
-    
+
     std::vector<chainlock::ChainLockSig> toProcess;
     {
         LOCK(cs);
         if (pendingCoinbaseChainLocks.empty()) {
             return;
         }
-        
+
         // Move all pending chainlocks to a local vector for processing
         toProcess.reserve(pendingCoinbaseChainLocks.size());
         while (!pendingCoinbaseChainLocks.empty()) {
@@ -540,11 +539,11 @@ void CChainLocksHandler::ProcessPendingCoinbaseChainLocks()
             pendingCoinbaseChainLocks.pop_front();
         }
     }
-    
+
     // Process each chainlock outside the lock
     for (const auto& clsig : toProcess) {
         const uint256 hash = ::SerializeHash(clsig);
-        
+
         // Check again if we still want to process this (might have been processed via network)
         {
             LOCK(cs);
@@ -555,7 +554,7 @@ void CChainLocksHandler::ProcessPendingCoinbaseChainLocks()
                 continue;
             }
         }
-        
+
         // Process as if it came from a coinbase (from = -1 means internal)
         // Ignore return value as we're processing internally from coinbase
         (void)ProcessNewChainLock(-1, clsig, hash);

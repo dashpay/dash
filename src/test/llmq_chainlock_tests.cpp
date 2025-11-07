@@ -8,8 +8,8 @@
 #include <streams.h>
 #include <util/strencodings.h>
 
-#include <chainlock/clsig.h>
 #include <chainlock/chainlock.h>
+#include <chainlock/clsig.h>
 #include <llmq/context.h>
 #include <validation.h>
 
@@ -174,35 +174,30 @@ BOOST_AUTO_TEST_CASE(coinbase_chainlock_queueing_test)
 {
     // Test that coinbase chainlocks can be queued for processing
     // This test verifies the queueing mechanism works without requiring full block processing
-    
+
     TestingSetup test_setup(CBaseChainParams::REGTEST);
-    
+
     // Create a chainlock handler
-    llmq::CChainLocksHandler handler(
-        test_setup.m_node.chainman->ActiveChainstate(),
-        *test_setup.m_node.llmq_ctx->qman,
-        *test_setup.m_node.sporkman,
-        *test_setup.m_node.mempool,
-        *test_setup.m_node.mn_sync
-    );
-    
+    llmq::CChainLocksHandler handler(test_setup.m_node.chainman->ActiveChainstate(), *test_setup.m_node.llmq_ctx->qman,
+                                     *test_setup.m_node.sporkman, *test_setup.m_node.mempool, *test_setup.m_node.mn_sync);
+
     // Create a test chainlock
     int32_t height = 100;
     uint256 blockHash = GetTestBlockHash(100);
     ChainLockSig clsig = CreateChainLock(height, blockHash);
-    
+
     // Verify the chainlock is not null
     BOOST_CHECK(!clsig.IsNull());
     BOOST_CHECK_EQUAL(clsig.getHeight(), height);
-    
+
     // Queue the chainlock (this should not fail even if chainlocks are disabled)
     // The handler will check if chainlocks are enabled internally
     handler.QueueCoinbaseChainLock(clsig);
-    
+
     // Create a newer chainlock
     ChainLockSig clsig2 = CreateChainLock(height + 1, GetTestBlockHash(101));
     handler.QueueCoinbaseChainLock(clsig2);
-    
+
     // Queueing should succeed without errors
     // Note: Actual processing requires chainlocks to be enabled and the scheduler to run,
     // which is tested in functional tests (feature_llmq_chainlocks.py)

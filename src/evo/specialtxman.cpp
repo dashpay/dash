@@ -651,7 +651,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                 const CBlockIndex* pindexCL = pindex->GetAncestor(curBlockCoinbaseCLHeight);
                 if (pindexCL) {
                     uint256 curBlockCoinbaseCLBlockHash = pindexCL->GetBlockHash();
-                    chainlock::ChainLockSig clsig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, opt_cbTx->bestCLSignature);
+                    chainlock::ChainLockSig clsig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash,
+                                                  opt_cbTx->bestCLSignature);
                     m_clhandler.QueueCoinbaseChainLock(clsig);
                 }
             }
