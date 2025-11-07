@@ -191,12 +191,9 @@ void Chainlocks::QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
 std::vector<chainlock::ChainLockSig> Chainlocks::DrainPendingCoinbaseChainLocks()
 {
     LOCK(cs);
+    // O(1) zero-copy swap rather than per-element copy.
     std::vector<chainlock::ChainLockSig> drained;
-    drained.reserve(pendingCoinbaseChainLocks.size());
-    while (!pendingCoinbaseChainLocks.empty()) {
-        drained.push_back(std::move(pendingCoinbaseChainLocks.front()));
-        pendingCoinbaseChainLocks.pop_front();
-    }
+    drained.swap(pendingCoinbaseChainLocks);
     return drained;
 }
 

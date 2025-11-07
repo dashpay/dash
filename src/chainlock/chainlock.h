@@ -11,7 +11,6 @@
 #include <sync.h>
 #include <uint256.h>
 
-#include <deque>
 #include <vector>
 
 class CBlockIndex;
@@ -61,7 +60,7 @@ private:
     chainlock::ChainLockSig bestChainLockWithKnownBlock GUARDED_BY(cs);
 
     // Queue for coinbase chainlocks pending asynchronous processing by ChainlockHandler
-    std::deque<chainlock::ChainLockSig> pendingCoinbaseChainLocks GUARDED_BY(cs);
+    std::vector<chainlock::ChainLockSig> pendingCoinbaseChainLocks GUARDED_BY(cs);
 
 public:
     Chainlocks(const CSporkManager& sporkman);

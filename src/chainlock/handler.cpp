@@ -78,13 +78,17 @@ void ChainlockHandler::ProcessPendingCoinbaseChainLocks(const llmq::CQuorumManag
     }
 
     auto pending = m_chainlocks.DrainPendingCoinbaseChainLocks();
-    for (const auto& clsig : pending) {
-        const uint256 hash = ::SerializeHash(clsig);
-        // Skip if it was already processed via the network in the meantime.
-        if (WITH_LOCK(cs, return seenChainLocks.count(hash) != 0)) {
+    // Process newest first (LIFO): once a newer chainlock is accepted, older
+    // ones short-circuit on the cheap height check below.
+    for (auto it = pending.rbegin(); it != pending.rend(); ++it) {
+        const auto& clsig = *it;
+        // Cheap height check before computing a hash; during reindex this
+        // skips ~all queued entries without paying for SHA256.
+        if (clsig.getHeight() <= m_chainlocks.GetBestChainLockHeight()) {
             continue;
         }
-        if (clsig.getHeight() <= m_chainlocks.GetBestChainLockHeight()) {
+        const uint256 hash = ::SerializeHash(clsig);
+        if (WITH_LOCK(cs, return seenChainLocks.count(hash) != 0)) {
             continue;
         }
         // Process as if we discovered it locally (from = -1 means internal/coinbase).
