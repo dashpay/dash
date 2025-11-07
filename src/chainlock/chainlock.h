@@ -20,6 +20,7 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <deque>
 #include <map>
 #include <memory>
 #include <thread>
@@ -68,6 +69,9 @@ private:
     std::map<uint256, std::chrono::seconds> seenChainLocks GUARDED_BY(cs);
 
     std::atomic<std::chrono::seconds> lastCleanupTime{0s};
+
+    // Queue for coinbase chainlocks to be processed asynchronously
+    std::deque<chainlock::ChainLockSig> pendingCoinbaseChainLocks GUARDED_BY(cs);
 
 public:
     CChainLocksHandler() = delete;
@@ -126,8 +130,15 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     [[nodiscard]] bool IsEnabled() const override { return isEnabled; }
 
+    // Queue a coinbase chainlock for asynchronous processing
+    // This is called during block validation to avoid blocking
+    void QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
 private:
     void Cleanup()
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void ProcessPendingCoinbaseChainLocks()
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 

@@ -45,14 +45,14 @@ private:
     llmq::CQuorumSnapshotManager& m_qsnapman;
     const ChainstateManager& m_chainman;
     const Consensus::Params& m_consensus_params;
-    const llmq::CChainLocksHandler& m_clhandler;
+    llmq::CChainLocksHandler& m_clhandler;
     const llmq::CQuorumManager& m_qman;
 
 public:
     explicit CSpecialTxProcessor(CCreditPoolManager& cpoolman, CDeterministicMNManager& dmnman, CMNHFManager& mnhfman,
                                  llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
                                  const ChainstateManager& chainman, const Consensus::Params& consensus_params,
-                                 const llmq::CChainLocksHandler& clhandler, const llmq::CQuorumManager& qman) :
+                                 llmq::CChainLocksHandler& clhandler, const llmq::CQuorumManager& qman) :
         m_cpoolman(cpoolman),
         m_dmnman{dmnman},
         m_mnhfman{mnhfman},

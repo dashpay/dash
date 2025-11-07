@@ -16,6 +16,8 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <vector>
+
 #include <instantsend/instantsend.h>
 #include <llmq/quorums.h>
 #include <masternode/sync.h>
@@ -71,6 +73,7 @@ void CChainLocksHandler::Start(const llmq::CInstantSendManager& isman)
         [&]() {
             auto signer = m_signer.load(std::memory_order_acquire);
             CheckActiveState();
+            ProcessPendingCoinbaseChainLocks();
             EnforceBestChainLock();
             Cleanup();
             // regularly retry signing the current chaintip as it might have failed before due to missing islocks
@@ -488,6 +491,74 @@ void CChainLocksHandler::Cleanup()
         } else {
             ++it;
         }
+    }
+}
+
+void CChainLocksHandler::QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
+{
+    AssertLockNotHeld(cs);
+    LOCK(cs);
+    
+    if (!IsEnabled()) {
+        return;
+    }
+    
+    // Only queue if it's potentially newer than what we have
+    if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+        return;
+    }
+    
+    // Check if we've already seen this chainlock
+    const uint256 hash = ::SerializeHash(clsig);
+    if (seenChainLocks.count(hash) != 0) {
+        return;
+    }
+    
+    pendingCoinbaseChainLocks.push_back(clsig);
+}
+
+void CChainLocksHandler::ProcessPendingCoinbaseChainLocks()
+{
+    AssertLockNotHeld(cs);
+    AssertLockNotHeld(cs_main);
+    
+    if (!IsEnabled()) {
+        return;
+    }
+    
+    std::vector<chainlock::ChainLockSig> toProcess;
+    {
+        LOCK(cs);
+        if (pendingCoinbaseChainLocks.empty()) {
+            return;
+        }
+        
+        // Move all pending chainlocks to a local vector for processing
+        toProcess.reserve(pendingCoinbaseChainLocks.size());
+        while (!pendingCoinbaseChainLocks.empty()) {
+            toProcess.push_back(pendingCoinbaseChainLocks.front());
+            pendingCoinbaseChainLocks.pop_front();
+        }
+    }
+    
+    // Process each chainlock outside the lock
+    for (const auto& clsig : toProcess) {
+        const uint256 hash = ::SerializeHash(clsig);
+        
+        // Check again if we still want to process this (might have been processed via network)
+        {
+            LOCK(cs);
+            if (seenChainLocks.count(hash) != 0) {
+                continue;
+            }
+            if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+                continue;
+            }
+        }
+        
+        // Process as if it came from a coinbase (from = -1 means internal)
+        // Ignore return value as we're processing internally from coinbase
+        (void)ProcessNewChainLock(-1, clsig, hash);
     }
 }
 } // namespace llmq

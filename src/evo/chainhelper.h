@@ -33,7 +33,7 @@ class CChainstateHelper
 {
 private:
     llmq::CInstantSendManager& isman;
-    const llmq::CChainLocksHandler& clhandler;
+    llmq::CChainLocksHandler& clhandler;
 
 public:
     CChainstateHelper() = delete;
@@ -44,7 +44,7 @@ public:
                                llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
                                const ChainstateManager& chainman, const Consensus::Params& consensus_params,
                                const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
-                               const llmq::CChainLocksHandler& clhandler, const llmq::CQuorumManager& qman);
+                               llmq::CChainLocksHandler& clhandler, const llmq::CQuorumManager& qman);
     ~CChainstateHelper();
 
     /** Passthrough functions to CChainLocksHandler */
