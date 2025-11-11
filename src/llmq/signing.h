@@ -22,6 +22,7 @@
 #include <gsl/pointers.h>
 
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
@@ -135,8 +136,8 @@ public:
     bool HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
     bool HasRecoveredSigForSession(const uint256& signHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
     bool HasRecoveredSigForHash(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
-    bool GetRecoveredSigByHash(const uint256& hash, CRecoveredSig& ret) const;
-    bool GetRecoveredSigById(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const;
+    std::optional<CRecoveredSig> GetRecoveredSigByHash(const uint256& hash) const;
+    std::optional<CRecoveredSig> GetRecoveredSigById(Consensus::LLMQType llmqType, const uint256& id) const;
     void WriteRecoveredSig(const CRecoveredSig& recSig) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
     void TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
@@ -144,13 +145,13 @@ public:
 
     // votes are removed when the recovered sig is written to the db
     bool HasVotedOnId(Consensus::LLMQType llmqType, const uint256& id) const;
-    bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const;
+    std::optional<uint256> GetVoteForId(Consensus::LLMQType llmqType, const uint256& id) const;
     void WriteVoteForId(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
 
     void CleanupOldVotes(int64_t maxAge);
 
 private:
-    bool ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const;
+    std::optional<CRecoveredSig> ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id) const;
     void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey,
                             bool deleteTimeKey) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 };
@@ -192,7 +193,7 @@ public:
     ~CSigningManager();
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
-    bool GetRecoveredSigForGetData(const uint256& hash, CRecoveredSig& ret) const;
+    std::optional<CRecoveredSig> GetRecoveredSigForGetData(const uint256& hash) const;
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
@@ -234,10 +235,10 @@ public:
     bool HasRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
     bool HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const;
     bool HasRecoveredSigForSession(const uint256& signHash) const;
-    bool GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& retRecSig) const;
+    std::optional<CRecoveredSig> GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const;
     bool IsConflicting(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
 
-    bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const;
+    std::optional<uint256> GetVoteForId(Consensus::LLMQType llmqType, const uint256& id) const;
 
 private:
     std::thread workThread;

@@ -923,26 +923,25 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigning
         auto& db = sigman.GetDb();
         bool hasVoted = db.HasVotedOnId(llmqType, id);
         if (hasVoted) {
-            uint256 prevMsgHash;
-            db.GetVoteForId(llmqType, id, prevMsgHash);
-            if (msgHash != prevMsgHash) {
+            auto prevMsgHashOpt = db.GetVoteForId(llmqType, id);
+            if (prevMsgHashOpt.has_value() && msgHash != *prevMsgHashOpt) {
                 if (allowDiffMsgHashSigning) {
                     LogPrintf("%s -- already voted for id=%s and msgHash=%s. Signing for different " /* Continued */
                               "msgHash=%s\n",
-                              __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
+                              __func__, id.ToString(), prevMsgHashOpt->ToString(), msgHash.ToString());
                     hasVoted = false;
                 } else {
                     LogPrintf("%s -- already voted for id=%s and msgHash=%s. Not voting on " /* Continued */
                               "conflicting msgHash=%s\n",
-                              __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
+                              __func__, id.ToString(), prevMsgHashOpt->ToString(), msgHash.ToString());
                     return false;
                 }
             } else if (allowReSign) {
                 LogPrint(BCLog::LLMQ, "%s -- already voted for id=%s and msgHash=%s. Resigning!\n", __func__,
-                         id.ToString(), prevMsgHash.ToString());
+                         id.ToString(), prevMsgHashOpt.has_value() ? prevMsgHashOpt->ToString() : "unknown");
             } else {
                 LogPrint(BCLog::LLMQ, "%s -- already voted for id=%s and msgHash=%s. Not voting again.\n", __func__,
-                         id.ToString(), prevMsgHash.ToString());
+                         id.ToString(), prevMsgHashOpt.has_value() ? prevMsgHashOpt->ToString() : "unknown");
                 return false;
             }
         }

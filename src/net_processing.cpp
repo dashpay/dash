@@ -2925,9 +2925,8 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         }
 
         if (!push && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
-            llmq::CRecoveredSig o;
-            if (m_llmq_ctx->sigman->GetRecoveredSigForGetData(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QSIGREC, o));
+            if (auto opt_rec_sig = m_llmq_ctx->sigman->GetRecoveredSigForGetData(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QSIGREC, *opt_rec_sig));
                 push = true;
             }
         }
