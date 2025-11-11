@@ -11,6 +11,8 @@
 #include <threadsafety.h>
 #include <validationinterface.h>
 
+#include <optional>
+
 class CConnman;
 class CDeterministicMNManager;
 
@@ -81,7 +83,7 @@ public:
 
 private:
     void InitInternal(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    bool GetLocalAddress(CService& addrRet) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::optional<CService> GetLocalAddress() EXCLUSIVE_LOCKS_REQUIRED(cs);
 };
 
 #endif // BITCOIN_MASTERNODE_NODE_H

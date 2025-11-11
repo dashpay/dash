@@ -123,7 +123,9 @@ void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
         return;
     }
 
-    if (!GetLocalAddress(m_info.service)) {
+    if (auto opt_addr = GetLocalAddress()) {
+        m_info.service = *opt_addr;
+    } else {
         m_state = MasternodeState::SOME_ERROR;
         return;
     }
@@ -213,7 +215,7 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
     }
 }
 
-bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
+std::optional<CService> CActiveMasternodeManager::GetLocalAddress()
 {
     AssertLockHeld(cs);
     // First try to find whatever our own local address is known internally.
@@ -221,6 +223,7 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
     // or added by TorController. Use some random dummy IPv4 peer to prefer the one
     // reachable via IPv4.
     bool fFoundLocal{false};
+    CService addrRet;
     if (auto peerAddr = LookupHost("8.8.8.8", false); peerAddr.has_value()) {
         fFoundLocal = GetLocal(addrRet, &peerAddr.value()) && IsValidNetAddr(addrRet);
     }
@@ -247,10 +250,13 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
         if (empty) {
             m_error = "Can't detect valid external address. Please consider using the externalip configuration option if problem persists. Make sure to use IPv4 address only.";
             LogPrintf("CActiveMasternodeManager::GetLocalAddress -- ERROR: %s\n", m_error);
-            return false;
+            return std::nullopt;
         }
     }
-    return true;
+    if (!fFoundLocal) {
+        return std::nullopt;
+    }
+    return addrRet;
 }
 
 bool CActiveMasternodeManager::IsValidNetAddr(const CService& addrIn)
@@ -294,3 +300,4 @@ template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjec
     READ_LOCK(cs);
     return m_info.blsPubKeyOperator;
 }
+
