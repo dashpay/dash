@@ -7,8 +7,8 @@
 
 #include <bls/bls.h>
 #include <bls/bls_worker.h>
-#include <llmq/dkgtypes.h>
 #include <llmq/dkgsessionhandler.h>
+#include <llmq/dkgtypes.h>
 #include <msg_result.h>
 #include <net_types.h>
 

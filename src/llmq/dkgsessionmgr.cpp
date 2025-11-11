@@ -205,8 +205,7 @@ bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
 
 std::optional<CDKGContribution> CDKGSessionManager::GetContribution(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return std::nullopt;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -223,8 +222,7 @@ std::optional<CDKGContribution> CDKGSessionManager::GetContribution(const uint25
 
 std::optional<CDKGComplaint> CDKGSessionManager::GetComplaint(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return std::nullopt;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -241,8 +239,7 @@ std::optional<CDKGComplaint> CDKGSessionManager::GetComplaint(const uint256& has
 
 std::optional<CDKGJustification> CDKGSessionManager::GetJustification(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return std::nullopt;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -259,8 +256,7 @@ std::optional<CDKGJustification> CDKGSessionManager::GetJustification(const uint
 
 std::optional<CDKGPrematureCommitment> CDKGSessionManager::GetPrematureCommitment(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return std::nullopt;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;

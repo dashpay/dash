@@ -300,4 +300,3 @@ template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjec
     READ_LOCK(cs);
     return m_info.blsPubKeyOperator;
 }
-

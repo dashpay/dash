@@ -92,8 +92,7 @@ public:
 
     bool AlreadyHave(const CInv& inv) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    std::optional<chainlock::ChainLockSig> GetChainLockByHash(const uint256& hash) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::optional<chainlock::ChainLockSig> GetChainLockByHash(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     chainlock::ChainLockSig GetBestChainLock() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void UpdateTxFirstSeenMap(const Uint256HashSet& tx, const int64_t& time) override EXCLUSIVE_LOCKS_REQUIRED(!cs);

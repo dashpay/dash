@@ -363,12 +363,14 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSi
         }
 
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-                sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
+                 sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
 
         if (!sessionInfo->quorum->HasVerificationVector()) {
             // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n", __func__,
-                      sessionInfo->quorumHash.ToString(), pfrom.GetId());
+            LogPrint(BCLog::LLMQ_SIGS,
+                     "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. "
+                     "node=%d\n",
+                     __func__, sessionInfo->quorumHash.ToString(), pfrom.GetId());
             return true;
         }
 
@@ -398,7 +400,7 @@ bool CSigSharesManager::ProcessMessageGetSigShares(const CNode& pfrom, const CSi
         }
 
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-                sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
+                 sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
 
         LOCK(cs);
         auto& nodeState = nodeStates[pfrom.GetId()];
@@ -448,8 +450,9 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
             }
         }
 
-        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, shares=%d, new=%d, inv={%s}, node=%d\n", __func__,
-                 sessionInfo->signHash.ToString(), batchedSigShares.sigShares.size(), sigSharesToProcess.size(), batchedSigShares.ToInvString(), pfrom.GetId());
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, shares=%d, new=%d, inv={%s}, node=%d\n",
+                 __func__, sessionInfo->signHash.ToString(), batchedSigShares.sigShares.size(),
+                 sigSharesToProcess.size(), batchedSigShares.ToInvString(), pfrom.GetId());
 
         if (sigSharesToProcess.empty()) {
             return true;
