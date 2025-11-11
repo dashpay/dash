@@ -15,6 +15,7 @@
 #include <llmq/commitment.h>
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 namespace llmq
@@ -29,7 +30,6 @@ public:
     BLSVerificationVectorPtr vvec;
     std::shared_ptr<CBLSIESMultiRecipientObjects<CBLSSecretKey>> contributions;
     CBLSSignature sig;
-
 public:
     template<typename Stream>
     inline void SerializeWithoutSig(Stream& s) const
