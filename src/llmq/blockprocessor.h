@@ -73,7 +73,7 @@ public:
     //! it returns hash of commitment if it should be relay, otherwise nullopt
     std::optional<CInv> AddMineableCommitment(const CFinalCommitment& fqc) EXCLUSIVE_LOCKS_REQUIRED(!minableCommitmentsCs);
     bool HasMineableCommitment(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!minableCommitmentsCs);
-    bool GetMineableCommitmentByHash(const uint256& commitmentHash, CFinalCommitment& ret) const
+    std::optional<CFinalCommitment> GetMineableCommitmentByHash(const uint256& commitmentHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!minableCommitmentsCs);
     std::optional<std::vector<CFinalCommitment>> GetMineableCommitments(const Consensus::LLMQParams& llmqParams,
                                                                         int nHeight) const

@@ -720,15 +720,14 @@ std::optional<CInv> CQuorumBlockProcessor::AddMineableCommitment(const CFinalCom
     return relay ? std::make_optional(CInv{MSG_QUORUM_FINAL_COMMITMENT, commitmentHash}) : std::nullopt;
 }
 
-bool CQuorumBlockProcessor::GetMineableCommitmentByHash(const uint256& commitmentHash, llmq::CFinalCommitment& ret) const
+std::optional<llmq::CFinalCommitment> CQuorumBlockProcessor::GetMineableCommitmentByHash(const uint256& commitmentHash) const
 {
     LOCK(minableCommitmentsCs);
     auto it = minableCommitments.find(commitmentHash);
     if (it == minableCommitments.end()) {
-        return false;
+        return std::nullopt;
     }
-    ret = it->second;
-    return true;
+    return it->second;
 }
 
 // Will return nullopt if no commitment should be mined

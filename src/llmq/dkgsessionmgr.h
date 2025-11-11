@@ -7,12 +7,14 @@
 
 #include <bls/bls.h>
 #include <bls/bls_worker.h>
+#include <llmq/dkgtypes.h>
 #include <llmq/dkgsessionhandler.h>
 #include <msg_result.h>
 #include <net_types.h>
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 template <class T>
@@ -100,10 +102,10 @@ public:
     [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type,
                                                          CDataStream& vRecv);
     bool AlreadyHave(const CInv& inv) const;
-    bool GetContribution(const uint256& hash, CDKGContribution& ret) const;
-    bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const;
-    bool GetJustification(const uint256& hash, CDKGJustification& ret) const;
-    bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const;
+    std::optional<CDKGContribution> GetContribution(const uint256& hash) const;
+    std::optional<CDKGComplaint> GetComplaint(const uint256& hash) const;
+    std::optional<CDKGJustification> GetJustification(const uint256& hash) const;
+    std::optional<CDKGPrematureCommitment> GetPrematureCommitment(const uint256& hash) const;
 
     // Contributions are written while in the DKG
     void WriteVerifiedVvecContribution(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& proTxHash, const BLSVerificationVectorPtr& vvec);

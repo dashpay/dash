@@ -617,10 +617,10 @@ bool CInstantSendManager::AlreadyHave(const CInv& inv) const
            db.KnownInstantSendLock(inv.hash);
 }
 
-bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, instantsend::InstantSendLock& ret) const
+std::optional<instantsend::InstantSendLock> CInstantSendManager::GetInstantSendLockByHash(const uint256& hash) const
 {
     if (!IsInstantSendEnabled()) {
-        return false;
+        return std::nullopt;
     }
 
     auto islock = db.GetInstantSendLockByHash(hash);
@@ -634,12 +634,11 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, instants
             if (itNoTx != pendingNoTxInstantSendLocks.end()) {
                 islock = itNoTx->second.islock;
             } else {
-                return false;
+                return std::nullopt;
             }
         }
     }
-    ret = *islock;
-    return true;
+    return *islock;
 }
 
 instantsend::InstantSendLockPtr CInstantSendManager::GetInstantSendLockByTxid(const uint256& txid) const

@@ -627,48 +627,44 @@ void CDKGSessionHandler::PhaseHandlerThread(CConnman& connman, PeerManager& peer
     }
 }
 
-bool CDKGSessionHandler::GetContribution(const uint256& hash, CDKGContribution& ret) const
+std::optional<CDKGContribution> CDKGSessionHandler::GetContribution(const uint256& hash) const
 {
     LOCK(curSession->invCs);
     auto it = curSession->contributions.find(hash);
     if (it != curSession->contributions.end()) {
-        ret = it->second;
-        return true;
+        return it->second;
     }
-    return false;
+    return std::nullopt;
 }
 
-bool CDKGSessionHandler::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
+std::optional<CDKGComplaint> CDKGSessionHandler::GetComplaint(const uint256& hash) const
 {
     LOCK(curSession->invCs);
     auto it = curSession->complaints.find(hash);
     if (it != curSession->complaints.end()) {
-        ret = it->second;
-        return true;
+        return it->second;
     }
-    return false;
+    return std::nullopt;
 }
 
-bool CDKGSessionHandler::GetJustification(const uint256& hash, CDKGJustification& ret) const
+std::optional<CDKGJustification> CDKGSessionHandler::GetJustification(const uint256& hash) const
 {
     LOCK(curSession->invCs);
     auto it = curSession->justifications.find(hash);
     if (it != curSession->justifications.end()) {
-        ret = it->second;
-        return true;
+        return it->second;
     }
-    return false;
+    return std::nullopt;
 }
 
-bool CDKGSessionHandler::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
+std::optional<CDKGPrematureCommitment> CDKGSessionHandler::GetPrematureCommitment(const uint256& hash) const
 {
     LOCK(curSession->invCs);
     auto it = curSession->prematureCommitments.find(hash);
     if (it != curSession->prematureCommitments.end() && curSession->validCommitments.count(hash)) {
-        ret = it->second;
-        return true;
+        return it->second;
     }
-    return false;
+    return std::nullopt;
 }
 
 } // namespace llmq

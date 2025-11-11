@@ -7,6 +7,7 @@
 
 #include <msg_result.h>
 
+#include <llmq/dkgtypes.h>
 #include <net.h> // for NodeId
 #include <net_processing.h>
 
@@ -175,10 +176,10 @@ public:
     void StartThread(CConnman& connman, PeerManager& peerman);
     void StopThread();
 
-    bool GetContribution(const uint256& hash, CDKGContribution& ret) const;
-    bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const;
-    bool GetJustification(const uint256& hash, CDKGJustification& ret) const;
-    bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const;
+    std::optional<CDKGContribution> GetContribution(const uint256& hash) const;
+    std::optional<CDKGComplaint> GetComplaint(const uint256& hash) const;
+    std::optional<CDKGJustification> GetJustification(const uint256& hash) const;
+    std::optional<CDKGPrematureCommitment> GetPrematureCommitment(const uint256& hash) const;
 
 private:
     bool InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex);
