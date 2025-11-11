@@ -25,7 +25,9 @@
 #include <util/time.h>
 #include <util/underlying.h>
 #include <validation.h>
+#include <validationinterface.h>
 
+#include <algorithm>
 #include <cxxtimer.hpp>
 
 namespace llmq
@@ -207,6 +209,82 @@ bool CQuorum::ReadContributions(const CDBWrapper& db)
     return true;
 }
 
+size_t CQuorumManager::ComputeAncestorCacheMaxSize()
+{
+    size_t max_size = 0;
+    for (const auto& llmq : Params().GetConsensus().llmqs) {
+        size_t size = llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart) + 128;
+        max_size = std::max(max_size, size);
+    }
+    // Clamp to reasonable bounds
+    return std::clamp(max_size, size_t(512), size_t(4096));
+}
+
+CQuorumManager::ActiveChainView CQuorumManager::GetActiveChainView() const
+{
+    LOCK(cs_active_chain_view);
+    return m_active_chain_view;
+}
+
+const CBlockIndex* CQuorumManager::FindAncestorFast(const ActiveChainView& view, int target_height) const
+{
+    if (target_height < 0 || target_height > view.height || !view.tip) {
+        return nullptr;
+    }
+    LOCK(cs_ancestor_cache);
+    if (m_lru_tip_hash != view.hash) {
+        // Distinguish extension vs reorg (or skipped updates).
+        // If the previous tip hash is an ancestor of the current tip at the recorded height,
+        // this is an extension (possibly by multiple blocks) and the cache remains valid.
+        // Otherwise, clear the cache to avoid cross-fork pollution.
+        bool is_extension = false;
+        if (m_lru_tip_height >= 0) {
+            const CBlockIndex* old_tip_as_ancestor = view.tip->GetAncestor(m_lru_tip_height);
+            if (old_tip_as_ancestor && old_tip_as_ancestor->GetBlockHash() == m_lru_tip_hash) {
+                is_extension = true;
+            }
+        }
+        if (!is_extension) {
+            m_ancestor_lru.clear();
+        }
+        m_lru_tip_hash = view.hash;
+        m_lru_tip_height = view.height;
+    }
+    const CBlockIndex* out;
+    if (m_ancestor_lru.get(target_height, out)) {
+        return out;
+    }
+    out = view.tip->GetAncestor(target_height);
+    if (out) {
+        m_ancestor_lru.insert(target_height, out);
+    }
+    return out;
+}
+
+void CQuorumManager::ChainViewSubscriber::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
+{
+    if (!pindexNew) return;
+
+    // Update snapshot
+    {
+        LOCK(m_qman.cs_active_chain_view);
+        m_qman.m_active_chain_view.tip = pindexNew;
+        m_qman.m_active_chain_view.height = pindexNew->nHeight;
+        m_qman.m_active_chain_view.hash = pindexNew->GetBlockHash();
+    }
+
+    // Handle ancestor cache: clear on reorg, keep on extension
+    {
+        LOCK(m_qman.cs_ancestor_cache);
+        if (pindexFork != pindexNew->pprev) {
+            // Reorg detected: clear cache
+            m_qman.m_ancestor_lru.clear();
+        }
+        m_qman.m_lru_tip_hash = pindexNew->GetBlockHash();
+        m_qman.m_lru_tip_height = pindexNew->nHeight;
+    }
+}
+
 CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, CDeterministicMNManager& dmnman,
                                CDKGSessionManager& _dkgManager, CEvoDB& _evoDb,
                                CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
@@ -222,16 +300,36 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, 
     m_qsnapman{qsnapman},
     m_mn_activeman{mn_activeman},
     m_mn_sync{mn_sync},
-    m_sporkman{sporkman}
+    m_sporkman{sporkman},
+    m_ancestor_lru{ComputeAncestorCacheMaxSize()}
 {
     utils::InitQuorumsCache(mapQuorumsCache, false);
     quorumThreadInterrupt.reset();
     MigrateOldQuorumDB(_evoDb);
+
+    // Initialize snapshot from current tip (under cs_main for bootstrap)
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* tip = m_chainstate.m_chain.Tip();
+        if (tip) {
+            LOCK(cs_active_chain_view);
+            m_active_chain_view.tip = tip;
+            m_active_chain_view.height = tip->nHeight;
+            m_active_chain_view.hash = tip->GetBlockHash();
+        }
+    }
+
+    // Register ValidationInterface subscriber
+    m_chain_view_subscriber = std::make_unique<ChainViewSubscriber>(*this);
+    RegisterValidationInterface(m_chain_view_subscriber.get());
 }
 
 CQuorumManager::~CQuorumManager()
 {
     Stop();
+    if (m_chain_view_subscriber) {
+        UnregisterValidationInterface(m_chain_view_subscriber.get());
+    }
 }
 
 void CQuorumManager::Start()
@@ -523,7 +621,8 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQ
 
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
 {
-    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
+    auto view = GetActiveChainView();
+    const CBlockIndex* pindex = view.tip ? view.tip : WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
     return ScanQuorums(llmqType, pindex, nCountRequested);
 }
 
@@ -547,10 +646,16 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         // too early for this cycle, use the previous one
         // bail out if it's below genesis block
         if (quorumCycleMiningEndHeight < llmq_params_opt->dkgInterval) return {};
-        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
+        auto view = GetActiveChainView();
+        const CBlockIndex* ancestor = view.tip ? FindAncestorFast(view, quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval) : pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
+        if (!ancestor) return {};
+        pindexStore = ancestor;
     } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
         // we are past the mining phase of this cycle, use it
-        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
+        auto view = GetActiveChainView();
+        const CBlockIndex* ancestor = view.tip ? FindAncestorFast(view, quorumCycleMiningEndHeight) : pindexStart->GetAncestor(quorumCycleMiningEndHeight);
+        if (!ancestor) return {};
+        pindexStore = ancestor;
     }
     // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
 
@@ -1210,7 +1315,21 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
     size_t poolSize = llmq_params.signingActiveQuorumCount;
 
     CBlockIndex* pindexStart;
-    {
+    auto view = qman.GetActiveChainView();
+    if (view.tip) {
+        if (signHeight == -1) {
+            signHeight = view.height;
+        }
+        int startBlockHeight = signHeight - signOffset;
+        if (startBlockHeight > view.height || startBlockHeight < 0) {
+            return {};
+        }
+        const CBlockIndex* ancestor = qman.FindAncestorFast(view, startBlockHeight);
+        if (!ancestor) {
+            return {};
+        }
+        pindexStart = const_cast<CBlockIndex*>(ancestor);
+    } else {
         LOCK(::cs_main);
         if (signHeight == -1) {
             signHeight = active_chain.Height();
