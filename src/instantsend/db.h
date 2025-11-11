@@ -32,7 +32,7 @@ namespace instantsend {
 class CInstantSendDb
 {
 private:
-    mutable Mutex cs_db;
+    mutable SharedMutex cs_db;
 
     static constexpr int CURRENT_VERSION{1};
 
@@ -68,17 +68,17 @@ private:
      * @param parent The hash of the parent IS Lock
      * @return Returns a vector of IS Lock hashes
      */
-    std::vector<uint256> GetInstantSendLocksByParent(const uint256& parent) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+    std::vector<uint256> GetInstantSendLocksByParent(const uint256& parent) const SHARED_LOCKS_REQUIRED(cs_db);
 
     /**
      * See GetInstantSendLockByHash
      */
-    InstantSendLockPtr GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+    InstantSendLockPtr GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache = true) const SHARED_LOCKS_REQUIRED(cs_db);
 
     /**
      * See GetInstantSendLockHashByTxid
      */
-    uint256 GetInstantSendLockHashByTxidInternal(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+    uint256 GetInstantSendLockHashByTxidInternal(const uint256& txid) const SHARED_LOCKS_REQUIRED(cs_db);
 
 
     void Upgrade(const util::DbWrapperParams& db_params) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
@@ -112,21 +112,21 @@ public:
     void RemoveArchivedInstantSendLocks(int nUntilHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
     void WriteBlockInstantSendLocks(const gsl::not_null<std::shared_ptr<const CBlock>>& pblock, gsl::not_null<const CBlockIndex*> pindexConnected) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
     void RemoveBlockInstantSendLocks(const gsl::not_null<std::shared_ptr<const CBlock>>& pblock, gsl::not_null<const CBlockIndex*> pindexDisconnected) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
-    bool KnownInstantSendLock(const uint256& islockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    bool KnownInstantSendLock(const uint256& islockHash) const LOCKS_EXCLUDED(cs_db);
     /**
      * Gets the number of IS Locks which have not been confirmed by a block
      * @return size_t value of the number of IS Locks not confirmed by a block
      */
-    size_t GetInstantSendLockCount() const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    size_t GetInstantSendLockCount() const LOCKS_EXCLUDED(cs_db);
     /**
      * Gets a pointer to the IS Lock based on the hash
      * @param hash The hash of the IS Lock
      * @param use_cache Should we try using the cache first or not
      * @return A Pointer object to the IS Lock, returns nullptr if it doesn't exist
      */
-    InstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db)
+    InstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const LOCKS_EXCLUDED(cs_db)
     {
-        LOCK(cs_db);
+        READ_LOCK(cs_db);
         return GetInstantSendLockByHashInternal(hash, use_cache);
     };
     /**
@@ -134,9 +134,9 @@ public:
      * @param txid The txid which is being searched for
      * @return Returns the hash the IS Lock of the specified txid, returns uint256() if it doesn't exist
      */
-    uint256 GetInstantSendLockHashByTxid(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db)
+    uint256 GetInstantSendLockHashByTxid(const uint256& txid) const LOCKS_EXCLUDED(cs_db)
     {
-        LOCK(cs_db);
+        READ_LOCK(cs_db);
         return GetInstantSendLockHashByTxidInternal(txid);
     };
     /**
@@ -144,13 +144,13 @@ public:
      * @param txid The txid for which the IS Lock Pointer is being returned
      * @return Returns the IS Lock Pointer associated with the txid, returns nullptr if it doesn't exist
      */
-    InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const LOCKS_EXCLUDED(cs_db);
     /**
      * Gets an IS Lock pointer from an input given
      * @param outpoint Since all inputs are really just outpoints that are being spent
      * @return IS Lock Pointer associated with that input.
      */
-    InstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    InstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint) const LOCKS_EXCLUDED(cs_db);
     /**
      * Called when a ChainLock invalidated a IS Lock, removes any chained/children IS Locks and the invalidated IS Lock
      * @param islockHash IS Lock hash which has been invalidated

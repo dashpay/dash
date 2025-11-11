@@ -236,14 +236,14 @@ void CInstantSendDb::RemoveBlockInstantSendLocks(const gsl::not_null<std::shared
 
 bool CInstantSendDb::KnownInstantSendLock(const uint256& islockHash) const
 {
-    LOCK(cs_db);
+    READ_LOCK(cs_db);
     return GetInstantSendLockByHashInternal(islockHash) != nullptr ||
            db->Exists(std::make_tuple(DB_ARCHIVED_BY_HASH, islockHash));
 }
 
 size_t CInstantSendDb::GetInstantSendLockCount() const
 {
-    LOCK(cs_db);
+    READ_LOCK(cs_db);
     auto it = std::unique_ptr<CDBIterator>(db->NewIterator());
     auto firstKey = std::make_tuple(std::string{DB_ISLOCK_BY_HASH}, uint256());
 
@@ -266,7 +266,7 @@ size_t CInstantSendDb::GetInstantSendLockCount() const
 
 InstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache) const
 {
-    AssertLockHeld(cs_db);
+    AssertSharedLockHeld(cs_db);
     if (hash.IsNull()) {
         return nullptr;
     }
@@ -291,7 +291,7 @@ InstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint25
 
 uint256 CInstantSendDb::GetInstantSendLockHashByTxidInternal(const uint256& txid) const
 {
-    AssertLockHeld(cs_db);
+    AssertSharedLockHeld(cs_db);
     uint256 islockHash;
     if (!txidCache.get(txid, islockHash)) {
         if (!db->Read(std::make_tuple(DB_HASH_BY_TXID, txid), islockHash)) {
@@ -304,13 +304,13 @@ uint256 CInstantSendDb::GetInstantSendLockHashByTxidInternal(const uint256& txid
 
 InstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid) const
 {
-    LOCK(cs_db);
+    READ_LOCK(cs_db);
     return GetInstantSendLockByHashInternal(GetInstantSendLockHashByTxidInternal(txid));
 }
 
 InstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& outpoint) const
 {
-    LOCK(cs_db);
+    READ_LOCK(cs_db);
     uint256 islockHash;
     if (!outpointCache.get(outpoint, islockHash)) {
         if (!db->Read(std::make_tuple(DB_HASH_BY_OUTPOINT, outpoint), islockHash)) {
@@ -323,7 +323,7 @@ InstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& ou
 
 std::vector<uint256> CInstantSendDb::GetInstantSendLocksByParent(const uint256& parent) const
 {
-    AssertLockHeld(cs_db);
+    AssertSharedLockHeld(cs_db);
     auto it = std::unique_ptr<CDBIterator>(db->NewIterator());
     auto firstKey = std::make_tuple(std::string{DB_HASH_BY_OUTPOINT}, COutPoint(parent, 0));
     it->Seek(firstKey);
