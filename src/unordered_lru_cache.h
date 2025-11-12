@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -56,15 +57,14 @@ public:
         _emplace(key, v);
     }
 
-    bool get(const Key& key, Value& value)
+    std::optional<Value> get(const Key& key)
     {
         auto it = cacheMap.find(key);
         if (it != cacheMap.end()) {
             it->second.second = accessCounter++;
-            value = it->second.first;
-            return true;
+            return std::make_optional(it->second.first);
         }
-        return false;
+        return std::nullopt;
     }
 
     bool exists(const Key& key)

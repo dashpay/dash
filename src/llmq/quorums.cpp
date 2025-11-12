@@ -571,8 +571,8 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             }
         }
         auto& cache = scanQuorumsCache[llmqType];
-        bool fCacheExists = cache.get(pindexStore->GetBlockHash(), vecResultQuorums);
-        if (fCacheExists) {
+        if (auto cached = cache.get(pindexStore->GetBlockHash())) {
+            vecResultQuorums = *cached;
             // We have exactly what requested so just return it
             if (vecResultQuorums.size() == nCountRequested) {
                 return vecResultQuorums;
@@ -642,12 +642,15 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint25
         // We cannot hold cs_quorumBaseBlockIndexCache the whole time as that creates lock-order inversion with cs_main;
         // We cannot acquire cs_main if we have cs_quorumBaseBlockIndexCache held
         const CBlockIndex* pindex;
-        if (!WITH_LOCK(cs_quorumBaseBlockIndexCache, return quorumBaseBlockIndexCache.get(quorumHash, pindex))) {
+        auto cached = WITH_LOCK(cs_quorumBaseBlockIndexCache, return quorumBaseBlockIndexCache.get(quorumHash));
+        if (!cached.has_value()) {
             pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(quorumHash));
             if (pindex) {
                 LOCK(cs_quorumBaseBlockIndexCache);
                 quorumBaseBlockIndexCache.insert(quorumHash, pindex);
             }
+        } else {
+            pindex = *cached;
         }
         return pindex;
     }();
@@ -668,9 +671,8 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_nul
         return nullptr;
     }
 
-    CQuorumPtr pQuorum;
-    if (LOCK(cs_map_quorums); mapQuorumsCache[llmqType].get(quorumHash, pQuorum)) {
-        return pQuorum;
+    if (LOCK(cs_map_quorums); auto cached = mapQuorumsCache[llmqType].get(quorumHash)) {
+        return *cached;
     }
 
     return BuildQuorumFromCommitment(llmqType, pQuorumBaseBlockIndex, populate_cache);
@@ -833,9 +835,12 @@ MessageProcessingResult CQuorumManager::ProcessMessage(CNode& pfrom, CConnman& c
 
         CQuorumPtr pQuorum;
         {
-            if (LOCK(cs_map_quorums); !mapQuorumsCache[request.GetLLMQType()].get(request.GetQuorumHash(), pQuorum)) {
+            LOCK(cs_map_quorums);
+            auto cached = mapQuorumsCache[request.GetLLMQType()].get(request.GetQuorumHash());
+            if (!cached.has_value()) {
                 return errorHandler("Quorum not found", 0); // Don't bump score because we asked for it
             }
+            pQuorum = *cached;
         }
 
         // Check if request has QUORUM_VERIFICATION_VECTOR data
@@ -1118,9 +1123,8 @@ void CQuorumManager::StartCleanupOldQuorumDataThread(const CBlockIndex* pIndex) 
             const CBlockIndex* pindex_loop{pIndex};
             std::set<uint256> quorum_keys;
             while (pindex_loop != nullptr && pIndex->nHeight - pindex_loop->nHeight < params.max_store_depth()) {
-                uint256 quorum_key;
-                if (cache.get(pindex_loop->GetBlockHash(), quorum_key)) {
-                    quorum_keys.insert(quorum_key);
+                if (auto quorum_key = cache.get(pindex_loop->GetBlockHash())) {
+                    quorum_keys.insert(*quorum_key);
                     if (quorum_keys.size() >= static_cast<size_t>(params.keepOldKeys)) break; // extra safety belt
                 }
                 pindex_loop = pindex_loop->pprev;

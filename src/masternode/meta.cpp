@@ -139,12 +139,10 @@ bool CMasternodeMetaMan::AlreadyHavePlatformBan(const uint256& inv_hash) const
 std::optional<PlatformBanMessage> CMasternodeMetaMan::GetPlatformBan(const uint256& inv_hash) const
 {
     LOCK(cs);
-    PlatformBanMessage ret;
-    if (!m_seen_platform_bans.get(inv_hash, ret)) {
-        return std::nullopt;
+    if (auto cached = m_seen_platform_bans.get(inv_hash)) {
+        return *cached;
     }
-
-    return ret;
+    return std::nullopt;
 }
 
 void CMasternodeMetaMan::RememberPlatformBan(const uint256& inv_hash, PlatformBanMessage&& msg)

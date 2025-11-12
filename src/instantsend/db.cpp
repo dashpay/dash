@@ -271,10 +271,13 @@ InstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint25
         return nullptr;
     }
 
-    InstantSendLockPtr ret;
-    if (use_cache && islockCache.get(hash, ret)) {
-        return ret;
+    if (use_cache) {
+        if (auto cached = islockCache.get(hash)) {
+            return *cached;
+        }
     }
+
+    InstantSendLockPtr ret;
 
     ret = std::make_shared<InstantSendLock>();
     bool exists = db->Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
@@ -292,13 +295,14 @@ InstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint25
 uint256 CInstantSendDb::GetInstantSendLockHashByTxidInternal(const uint256& txid) const
 {
     AssertLockHeld(cs_db);
-    uint256 islockHash;
-    if (!txidCache.get(txid, islockHash)) {
-        if (!db->Read(std::make_tuple(DB_HASH_BY_TXID, txid), islockHash)) {
-            return {};
-        }
-        txidCache.insert(txid, islockHash);
+    if (auto cached = txidCache.get(txid)) {
+        return *cached;
     }
+    uint256 islockHash;
+    if (!db->Read(std::make_tuple(DB_HASH_BY_TXID, txid), islockHash)) {
+        return {};
+    }
+    txidCache.insert(txid, islockHash);
     return islockHash;
 }
 
@@ -311,13 +315,14 @@ InstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid)
 InstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& outpoint) const
 {
     LOCK(cs_db);
-    uint256 islockHash;
-    if (!outpointCache.get(outpoint, islockHash)) {
-        if (!db->Read(std::make_tuple(DB_HASH_BY_OUTPOINT, outpoint), islockHash)) {
-            return nullptr;
-        }
-        outpointCache.insert(outpoint, islockHash);
+    if (auto cached = outpointCache.get(outpoint)) {
+        return GetInstantSendLockByHashInternal(*cached);
     }
+    uint256 islockHash;
+    if (!db->Read(std::make_tuple(DB_HASH_BY_OUTPOINT, outpoint), islockHash)) {
+        return nullptr;
+    }
+    outpointCache.insert(outpoint, islockHash);
     return GetInstantSendLockByHashInternal(islockHash);
 }
 

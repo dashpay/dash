@@ -86,7 +86,9 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
             uint256 block_hash{blockIndex->GetBlockHash()};
 
             std::pair<uint256, int> qc_hash;
-            if (!qc_hashes_cached[llmqType].get(block_hash, qc_hash)) {
+            if (auto cached = qc_hashes_cached[llmqType].get(block_hash)) {
+                qc_hash = *cached;
+            } else {
                 auto [pqc, dummy_hash] = quorum_block_processor.GetMinedCommitment(llmqType, block_hash);
                 if (dummy_hash == uint256::ZERO) {
                     // this should never happen

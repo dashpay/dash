@@ -70,8 +70,8 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
     static Mutex cache_mutex;
     static Uint256LruHashMap<CreditPoolDataPerBlock> block_data_cache GUARDED_BY(cache_mutex){
         static_cast<size_t>(Params().CreditPoolPeriodBlocks()) * 2};
-    if (LOCK(cache_mutex); block_data_cache.get(block_index->GetBlockHash(), blockData)) {
-        return blockData;
+    if (LOCK(cache_mutex); auto cached = block_data_cache.get(block_index->GetBlockHash())) {
+        return *cached;
     }
 
     CBlock block;
@@ -123,8 +123,8 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
     CCreditPool pool;
     {
         LOCK(cache_mutex);
-        if (creditPoolCache.get(block_hash, pool)) {
-            return pool;
+        if (auto cached = creditPoolCache.get(block_hash)) {
+            return *cached;
         }
     }
     if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0) {
