@@ -622,7 +622,16 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQ
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
 {
     auto view = GetActiveChainView();
-    const CBlockIndex* pindex = view.tip ? view.tip : WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
+    const CBlockIndex* pindex = view.tip;
+    if (pindex == nullptr) {
+        pindex = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
+    } else {
+        // If the cached view lags behind the active chain, prefer the up-to-date tip for correctness.
+        const int active_height = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Height());
+        if (view.height < active_height) {
+            pindex = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
+        }
+    }
     return ScanQuorums(llmqType, pindex, nCountRequested);
 }
 
