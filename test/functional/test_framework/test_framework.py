@@ -1929,22 +1929,25 @@ class DashTestFramework(BitcoinTestFramework):
 
         def check_instantlock():
             try:
+                self.bump_mocktime(1)
                 return node.getrawtransaction(txid, True)["instantlock"]
             except:
                 return False
 
         self.log.info(f"Expecting InstantLock for {txid}")
-        self.wait_until(check_instantlock, timeout=timeout)
+        self.wait_until(check_instantlock, timeout=timeout, sleep=1)
 
     def wait_for_chainlocked_block(self, node, block_hash, expected=True, timeout=15):
         def check_chainlocked_block():
             try:
+                self.bump_mocktime(1)
                 block = node.getblock(block_hash)
                 return block["confirmations"] > 0 and block["chainlock"]
             except:
                 return False
+
         self.log.info(f"Expecting ChainLock for {block_hash}")
-        if self.wait_until(check_chainlocked_block, timeout=timeout, do_assert=expected) and not expected:
+        if self.wait_until(check_chainlocked_block, timeout=timeout, sleep=1, do_assert=expected) and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
     def wait_for_chainlocked_block_all_nodes(self, block_hash, timeout=15):
