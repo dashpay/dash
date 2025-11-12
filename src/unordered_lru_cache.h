@@ -102,11 +102,12 @@ private:
             vec.emplace_back(it);
         }
         // sort by last access time (descending order)
-        std::sort(vec.begin(), vec.end(), [](const Iterator& it1, const Iterator& it2) {
+        const size_t keep = std::min(maxSize, vec.size());
+        std::nth_element(vec.begin(), vec.begin() + keep, vec.end(), [](const Iterator& it1, const Iterator& it2) {
             return it1->second.second > it2->second.second;
         });
-
-        for (size_t i = maxSize; i < vec.size(); i++) {
+        // Erase all but the first `keep` most recently accessed entries
+        for (size_t i = keep; i < vec.size(); i++) {
             cacheMap.erase(vec[i]);
         }
     }
