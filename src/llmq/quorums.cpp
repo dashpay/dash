@@ -1325,53 +1325,53 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
     size_t poolSize = llmq_params.signingActiveQuorumCount;
 
     CBlockIndex* pindexStart;
-    auto view = qman.GetActiveChainView();
-    if (view.tip) {
-        // Prefer cs_main-free path via active chain view when it can satisfy the requested height.
-        if (signHeight == -1) {
-            signHeight = view.height;
-        }
-        int startBlockHeight = signHeight - signOffset;
-        if (startBlockHeight >= 0) {
-            if (startBlockHeight <= view.height) {
-                const CBlockIndex* ancestor = qman.FindAncestorFast(view, startBlockHeight);
-                if (ancestor != nullptr) {
-                    pindexStart = const_cast<CBlockIndex*>(ancestor);
-                } else {
-                    // Fallback to cs_main if cache missed (e.g. during reorg/initialization)
-                    LOCK(::cs_main);
-                    if (signHeight == -1) {
-                        signHeight = active_chain.Height();
-                    }
-                    if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
-                        return {};
-                    }
-                    pindexStart = active_chain[startBlockHeight];
-                }
-            } else {
-                // View is behind requested height; fallback to cs_main
-                LOCK(::cs_main);
-                if (signHeight == -1) {
-                    signHeight = active_chain.Height();
-                }
-                if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
-                    return {};
-                }
-                pindexStart = active_chain[startBlockHeight];
-            }
-        } else {
-            return {};
-        }
-    } else {
+    // If caller provided an explicit signHeight, always resolve relative to the active chain
+    // to guarantee correctness during rapid tip changes and rotations.
+    if (signHeight != -1) {
         LOCK(::cs_main);
-        if (signHeight == -1) {
-            signHeight = active_chain.Height();
-        }
         int startBlockHeight = signHeight - signOffset;
         if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
             return {};
         }
         pindexStart = active_chain[startBlockHeight];
+    } else {
+        // No explicit height: prefer cs_main-free path via active chain view
+        auto view = qman.GetActiveChainView();
+        if (view.tip) {
+            signHeight = view.height;
+            int startBlockHeight = signHeight - signOffset;
+            if (startBlockHeight < 0) {
+                return {};
+            }
+            if (startBlockHeight <= view.height) {
+                const CBlockIndex* ancestor = qman.FindAncestorFast(view, startBlockHeight);
+                if (!ancestor) {
+                    // Fallback to cs_main if cache missed (e.g. during reorg/initialization)
+                    LOCK(::cs_main);
+                    if (startBlockHeight > active_chain.Height()) {
+                        return {};
+                    }
+                    pindexStart = active_chain[startBlockHeight];
+                } else {
+                    pindexStart = const_cast<CBlockIndex*>(ancestor);
+                }
+            } else {
+                // View is behind requested height; fallback to cs_main
+                LOCK(::cs_main);
+                if (startBlockHeight > active_chain.Height()) {
+                    return {};
+                }
+                pindexStart = active_chain[startBlockHeight];
+            }
+        } else {
+        LOCK(::cs_main);
+            signHeight = active_chain.Height();
+            int startBlockHeight = signHeight - signOffset;
+            if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
+                return {};
+            }
+            pindexStart = active_chain[startBlockHeight];
+        }
     }
 
     if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
