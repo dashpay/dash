@@ -646,16 +646,17 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         // too early for this cycle, use the previous one
         // bail out if it's below genesis block
         if (quorumCycleMiningEndHeight < llmq_params_opt->dkgInterval) return {};
-        auto view = GetActiveChainView();
-        const CBlockIndex* ancestor = view.tip ? FindAncestorFast(view, quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval) : pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
-        if (!ancestor) return {};
-        pindexStore = ancestor;
+        // IMPORTANT: compute ancestors strictly relative to pindexStart's chain context
+        // to avoid cross-fork/cross-tip contamination from global cached views.
+        const CBlockIndex* ancestor = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
+        if (ancestor == nullptr) return {};
+        pindexStore = gsl::not_null<const CBlockIndex*>{ancestor};
     } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
         // we are past the mining phase of this cycle, use it
-        auto view = GetActiveChainView();
-        const CBlockIndex* ancestor = view.tip ? FindAncestorFast(view, quorumCycleMiningEndHeight) : pindexStart->GetAncestor(quorumCycleMiningEndHeight);
-        if (!ancestor) return {};
-        pindexStore = ancestor;
+        // See note above: stay on pindexStart's chain
+        const CBlockIndex* ancestor = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
+        if (ancestor == nullptr) return {};
+        pindexStore = gsl::not_null<const CBlockIndex*>{ancestor};
     }
     // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
 
@@ -1317,18 +1318,41 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
     CBlockIndex* pindexStart;
     auto view = qman.GetActiveChainView();
     if (view.tip) {
+        // Prefer cs_main-free path via active chain view when it can satisfy the requested height.
         if (signHeight == -1) {
             signHeight = view.height;
         }
         int startBlockHeight = signHeight - signOffset;
-        if (startBlockHeight > view.height || startBlockHeight < 0) {
+        if (startBlockHeight >= 0) {
+            if (startBlockHeight <= view.height) {
+                const CBlockIndex* ancestor = qman.FindAncestorFast(view, startBlockHeight);
+                if (ancestor != nullptr) {
+                    pindexStart = const_cast<CBlockIndex*>(ancestor);
+                } else {
+                    // Fallback to cs_main if cache missed (e.g. during reorg/initialization)
+                    LOCK(::cs_main);
+                    if (signHeight == -1) {
+                        signHeight = active_chain.Height();
+                    }
+                    if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
+                        return {};
+                    }
+                    pindexStart = active_chain[startBlockHeight];
+                }
+            } else {
+                // View is behind requested height; fallback to cs_main
+                LOCK(::cs_main);
+                if (signHeight == -1) {
+                    signHeight = active_chain.Height();
+                }
+                if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
+                    return {};
+                }
+                pindexStart = active_chain[startBlockHeight];
+            }
+        } else {
             return {};
         }
-        const CBlockIndex* ancestor = qman.FindAncestorFast(view, startBlockHeight);
-        if (!ancestor) {
-            return {};
-        }
-        pindexStart = const_cast<CBlockIndex*>(ancestor);
     } else {
         LOCK(::cs_main);
         if (signHeight == -1) {
