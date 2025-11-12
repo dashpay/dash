@@ -277,9 +277,7 @@ InstantSendLockPtr CInstantSendDb::GetInstantSendLockByHashInternal(const uint25
         }
     }
 
-    InstantSendLockPtr ret;
-
-    ret = std::make_shared<InstantSendLock>();
+    InstantSendLockPtr ret{std::make_shared<InstantSendLock>()};
     bool exists = db->Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
     if (!exists || (::SerializeHash(*ret) != hash)) {
         ret = std::make_shared<InstantSendLock>();

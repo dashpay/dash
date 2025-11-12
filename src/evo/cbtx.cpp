@@ -85,23 +85,20 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
         for (const auto& blockIndex : vecBlockIndexes) {
             uint256 block_hash{blockIndex->GetBlockHash()};
 
-            std::pair<uint256, int> qc_hash;
-            if (auto cached = qc_hashes_cached[llmqType].get(block_hash)) {
-                qc_hash = *cached;
-            } else {
+            std::optional<std::pair<uint256, int>> qc_hash = qc_hashes_cached[llmqType].get(block_hash);
+            if (!qc_hash.has_value()) {
                 auto [pqc, dummy_hash] = quorum_block_processor.GetMinedCommitment(llmqType, block_hash);
                 if (dummy_hash == uint256::ZERO) {
                     // this should never happen
                     return std::nullopt;
                 }
-                qc_hash.first = ::SerializeHash(pqc);
-                qc_hash.second = rotation_enabled ? pqc.quorumIndex : 0;
-                qc_hashes_cached[llmqType].insert(block_hash, qc_hash);
+                qc_hash = {::SerializeHash(pqc), rotation_enabled ? pqc.quorumIndex : 0};
+                qc_hashes_cached[llmqType].insert(block_hash, *qc_hash);
             }
             if (rotation_enabled) {
-                map_indexed_hashes[qc_hash.second] = qc_hash.first;
+                map_indexed_hashes[qc_hash->second] = qc_hash->first;
             } else {
-                vec_hashes.emplace_back(qc_hash.first);
+                vec_hashes.emplace_back(qc_hash->first);
             }
         }
     }
