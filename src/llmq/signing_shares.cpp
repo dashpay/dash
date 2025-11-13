@@ -33,55 +33,6 @@ void CSigShare::UpdateKey()
     key.second = quorumMember;
 }
 
-void CSigSharesInv::Merge(const CSigSharesInv& inv2)
-{
-    for (const auto i : irange::range(inv.size())) {
-        if (inv2.inv[i]) {
-            inv[i] = inv2.inv[i];
-        }
-    }
-}
-
-size_t CSigSharesInv::CountSet() const
-{
-    return (size_t)std::count(inv.begin(), inv.end(), true);
-}
-
-std::string CSigSharesInv::ToString() const
-{
-    std::string str = "(";
-    bool first = true;
-    for (const auto i : irange::range(inv.size())) {
-        if (!inv[i]) {
-            continue;
-        }
-
-        if (!first) {
-            str += ",";
-        }
-        first = false;
-        str += strprintf("%d", i);
-    }
-    str += ")";
-    return str;
-}
-
-void CSigSharesInv::Init(size_t size)
-{
-    inv.resize(size, false);
-}
-
-void CSigSharesInv::Set(uint16_t quorumMember, bool v)
-{
-    assert(quorumMember < inv.size());
-    inv[quorumMember] = v;
-}
-
-void CSigSharesInv::SetAll(bool v)
-{
-    std::fill(inv.begin(), inv.end(), v);
-}
-
 void CSigSharesNodeState::RemoveSession(const uint256& signHash)
 {
     if (const auto it = sessions.find(signHash); it != sessions.end()) {

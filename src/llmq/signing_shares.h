@@ -85,31 +85,6 @@ public:
     }
 };
 
-class CSigSharesInv
-{
-public:
-    uint32_t sessionId{UNINITIALIZED_SESSION_ID};
-    std::vector<bool> inv;
-
-public:
-    SERIALIZE_METHODS(CSigSharesInv, obj)
-    {
-        uint64_t invSize = obj.inv.size();
-        READWRITE(VARINT(obj.sessionId), COMPACTSIZE(invSize));
-        autobitset_t bitset = std::make_pair(obj.inv, (size_t)invSize);
-        READWRITE(AUTOBITSET(bitset));
-        SER_READ(obj, obj.inv = bitset.first);
-    }
-
-    void Init(size_t size);
-    void Set(uint16_t quorumMember, bool v);
-    void SetAll(bool v);
-    void Merge(const CSigSharesInv& inv2);
-
-    [[nodiscard]] size_t CountSet() const;
-    [[nodiscard]] std::string ToString() const;
-};
-
 template<typename T>
 class SigShareMap
 {
@@ -266,10 +241,6 @@ public:
         llmq::SignHash signHash;
 
         CQuorumCPtr quorum;
-
-        CSigSharesInv announced;
-        CSigSharesInv requested;
-        CSigSharesInv knows;
     };
     // TODO limit number of sessions per node
     Uint256HashMap<Session> sessions;
