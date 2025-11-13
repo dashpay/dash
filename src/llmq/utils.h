@@ -40,7 +40,7 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2);
 Uint256HashSet GetQuorumConnections(const Consensus::LLMQParams& llmqParams, CDeterministicMNManager& dmnman,
-                                    CQuorumSnapshotManager& qsnapman, const CSporkManager& sporkman,
+                                    CQuorumSnapshotManager& qsnapman,
                                     gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, const uint256& forMember,
                                     bool onlyOutbound);
 Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, CDeterministicMNManager& dmnman,
@@ -50,7 +50,7 @@ Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, CD
 std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, size_t memberCount, size_t connectionCount);
 
 bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman,
-                             CDeterministicMNManager& dmnman, const CSporkManager& sporkman,
+                             CDeterministicMNManager& dmnman,
                              CQuorumSnapshotManager& qsnapman, const CDeterministicMNList& tip_mn_list,
                              gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, const uint256& myProTxHash,
                              bool is_masternode);

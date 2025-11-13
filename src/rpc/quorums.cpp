@@ -322,7 +322,6 @@ static RPCHelpMan quorum_dkgstatus()
     const ChainstateManager& chainman = EnsureChainman(node);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
     const CConnman& connman = EnsureConnman(node);
-    CHECK_NONFATAL(node.sporkman);
 
     int detailLevel = 0;
     if (!request.params[0].isNull()) {
@@ -364,10 +363,10 @@ static RPCHelpMan quorum_dkgstatus()
                     obj.pushKV("pindexTip", pindexTip->nHeight);
 
                     auto allConnections = llmq::utils::GetQuorumConnections(llmq_params, *node.dmnman,
-                                                                            *llmq_ctx.qsnapman, *node.sporkman,
+                                                                            *llmq_ctx.qsnapman,
                                                                             pQuorumBaseBlockIndex, proTxHash, false);
                     auto outboundConnections = llmq::utils::GetQuorumConnections(llmq_params, *node.dmnman,
-                                                                                 *llmq_ctx.qsnapman, *node.sporkman,
+                                                                                 *llmq_ctx.qsnapman,
                                                                                  pQuorumBaseBlockIndex, proTxHash, true);
                     std::map<uint256, CAddress> foundConnections;
                     connman.ForEachNode([&](const CNode* pnode) {

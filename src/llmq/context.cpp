@@ -28,7 +28,7 @@ LLMQContext::LLMQContext(ChainstateManager& chainman, CDeterministicMNManager& d
                                                         mn_metaman, *quorum_block_processor, *qsnapman, mn_activeman,
                                                         sporkman, db_params)},
     qman{std::make_unique<llmq::CQuorumManager>(*bls_worker, chainman.ActiveChainstate(), dmnman, *qdkgsman, evo_db,
-                                                *quorum_block_processor, *qsnapman, mn_activeman, mn_sync, sporkman,
+                                                *quorum_block_processor, *qsnapman, mn_activeman, mn_sync,
                                                 db_params)},
     sigman{std::make_unique<llmq::CSigningManager>(chainman.ActiveChainstate(), *qman, db_params)},
     clhandler{std::make_unique<llmq::CChainLocksHandler>(chainman.ActiveChainstate(), *qman, sporkman, mempool, mn_sync)},

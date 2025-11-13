@@ -30,8 +30,6 @@
 class CActiveMasternodeManager;
 class CNode;
 class CConnman;
-class CDeterministicMN;
-class CSporkManager;
 class PeerManager;
 
 namespace llmq
@@ -305,7 +303,6 @@ private:
     PeerManager& m_peerman;
     const CActiveMasternodeManager& m_mn_activeman;
     const CQuorumManager& qman;
-    const CSporkManager& m_sporkman;
 
     int64_t lastCleanupTime{0};
     std::atomic<uint32_t> recoveredSigsCounter{0};
@@ -316,7 +313,7 @@ public:
     CSigSharesManager& operator=(const CSigSharesManager&) = delete;
     explicit CSigSharesManager(CConnman& connman, CChainState& chainstate, CSigningManager& _sigman,
                                PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
-                               const CQuorumManager& _qman, const CSporkManager& sporkman);
+                               const CQuorumManager& _qman);
     ~CSigSharesManager() override;
 
     void StartWorkerThread() EXCLUSIVE_LOCKS_REQUIRED(!cs);

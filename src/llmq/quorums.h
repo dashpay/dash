@@ -36,7 +36,6 @@ class CDBWrapper;
 class CEvoDB;
 class CMasternodeSync;
 class CNode;
-class CSporkManager;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -243,7 +242,6 @@ private:
     CQuorumSnapshotManager& m_qsnapman;
     const CActiveMasternodeManager* const m_mn_activeman;
     const CMasternodeSync& m_mn_sync;
-    const CSporkManager& m_sporkman;
 
     mutable Mutex cs_map_quorums;
     mutable std::map<Consensus::LLMQType, Uint256LruHashMap<CQuorumPtr>> mapQuorumsCache GUARDED_BY(cs_map_quorums);
@@ -269,7 +267,7 @@ public:
                             CDKGSessionManager& _dkgManager, CEvoDB& _evoDb,
                             CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
                             const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
-                            const CSporkManager& sporkman, const util::DbWrapperParams& db_params);
+                            const util::DbWrapperParams& db_params);
     ~CQuorumManager();
 
     void Start();

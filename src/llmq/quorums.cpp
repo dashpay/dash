@@ -211,7 +211,7 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, 
                                CDKGSessionManager& _dkgManager, CEvoDB& _evoDb,
                                CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
                                const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
-                               const CSporkManager& sporkman, const util::DbWrapperParams& db_params) :
+                               const util::DbWrapperParams& db_params) :
     db{util::MakeDbWrapper(
         {db_params.path / "llmq" / "quorumdb", db_params.memory, db_params.wipe, /*cache_size=*/1 << 20})},
     blsWorker{_blsWorker},
@@ -221,8 +221,7 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, 
     quorumBlockProcessor{_quorumBlockProcessor},
     m_qsnapman{qsnapman},
     m_mn_activeman{mn_activeman},
-    m_mn_sync{mn_sync},
-    m_sporkman{sporkman}
+    m_mn_sync{mn_sync}
 {
     utils::InitQuorumsCache(mapQuorumsCache, false);
     quorumThreadInterrupt.reset();
@@ -366,7 +365,7 @@ void CQuorumManager::CheckQuorumConnections(CConnman& connman, const Consensus::
                     });
 
     for (const auto& quorum : lastQuorums) {
-        if (utils::EnsureQuorumConnections(llmqParams, connman, m_dmnman, m_sporkman, m_qsnapman,
+        if (utils::EnsureQuorumConnections(llmqParams, connman, m_dmnman, m_qsnapman,
                                            m_dmnman.GetListAtChainTip(), quorum->m_quorum_base_block_index, myProTxHash,
                                            /* is_masternode = */ m_mn_activeman != nullptr)) {
             if (connmanQuorumsToDelete.erase(quorum->qc->quorumHash) > 0) {

@@ -16,7 +16,6 @@
 #include <masternode/node.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
-#include <spork.h>
 #include <util/irange.h>
 #include <util/thread.h>
 #include <util/time.h>
@@ -46,14 +45,13 @@ void CSigSharesNodeState::RemoveSession(const uint256& signHash)
 
 CSigSharesManager::CSigSharesManager(CConnman& connman, CChainState& chainstate, CSigningManager& _sigman,
                                      PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
-                                     const CQuorumManager& _qman, const CSporkManager& sporkman) :
+                                     const CQuorumManager& _qman) :
     m_connman{connman},
     m_chainstate{chainstate},
     sigman{_sigman},
     m_peerman{peerman},
     m_mn_activeman{mn_activeman},
-    qman{_qman},
-    m_sporkman{sporkman}
+    qman{_qman}
 {
     workInterrupt.reset();
 }
@@ -564,10 +562,6 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
     auto curTime = GetTime<std::chrono::milliseconds>().count();
 
     for (auto& [_, signedSession] : signedSessions) {
-        if (!IsAllMembersConnectedEnabled(signedSession.quorum->params.type, m_sporkman)) {
-            continue;
-        }
-
         if (signedSession.attempt >= signedSession.quorum->params.recoveryMembers) {
             continue;
         }
@@ -848,14 +842,12 @@ void CSigSharesManager::SignPendingSigShares()
             auto sigShare = *opt_sigShare;
             ProcessSigShare(sigShare, pQuorum);
 
-            if (IsAllMembersConnectedEnabled(pQuorum->params.type, m_sporkman)) {
-                LOCK(cs);
-                auto& session = signedSessions[sigShare.GetSignHash()];
-                session.sigShare = sigShare;
-                session.quorum = pQuorum;
-                session.nextAttemptTime = 0;
-                session.attempt = 0;
-            }
+            LOCK(cs);
+            auto& session = signedSessions[sigShare.GetSignHash()];
+            session.sigShare = sigShare;
+            session.quorum = pQuorum;
+            session.nextAttemptTime = 0;
+            session.attempt = 0;
         }
     }
 }

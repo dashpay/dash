@@ -730,29 +730,26 @@ uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256
 }
 
 Uint256HashSet GetQuorumConnections(const Consensus::LLMQParams& llmqParams, CDeterministicMNManager& dmnman,
-                                    CQuorumSnapshotManager& qsnapman, const CSporkManager& sporkman,
+                                    CQuorumSnapshotManager& qsnapman,
                                     gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, const uint256& forMember,
                                     bool onlyOutbound)
 {
-    if (IsAllMembersConnectedEnabled(llmqParams.type, sporkman)) {
-        auto mns = GetAllQuorumMembers(llmqParams.type, dmnman, qsnapman, pQuorumBaseBlockIndex);
-        Uint256HashSet result;
+    auto mns = GetAllQuorumMembers(llmqParams.type, dmnman, qsnapman, pQuorumBaseBlockIndex);
+    Uint256HashSet result;
 
-        for (const auto& dmn : mns) {
-            if (dmn->proTxHash == forMember) {
-                continue;
-            }
-            // Determine which of the two MNs (forMember vs dmn) should initiate the outbound connection and which
-            // one should wait for the inbound connection. We do this in a deterministic way, so that even when we
-            // end up with both connecting to each other, we know which one to disconnect
-            uint256 deterministicOutbound = DeterministicOutboundConnection(forMember, dmn->proTxHash);
-            if (!onlyOutbound || deterministicOutbound == dmn->proTxHash) {
-                result.emplace(dmn->proTxHash);
-            }
+    for (const auto& dmn : mns) {
+        if (dmn->proTxHash == forMember) {
+            continue;
         }
-        return result;
+        // Determine which of the two MNs (forMember vs dmn) should initiate the outbound connection and which
+        // one should wait for the inbound connection. We do this in a deterministic way, so that even when we
+        // end up with both connecting to each other, we know which one to disconnect
+        uint256 deterministicOutbound = DeterministicOutboundConnection(forMember, dmn->proTxHash);
+        if (!onlyOutbound || deterministicOutbound == dmn->proTxHash) {
+            result.emplace(dmn->proTxHash);
+        }
     }
-    return GetQuorumRelayMembers(llmqParams, dmnman, qsnapman, pQuorumBaseBlockIndex, forMember, onlyOutbound);
+    return result;
 }
 
 Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, CDeterministicMNManager& dmnman,
@@ -834,7 +831,7 @@ std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
 }
 
 bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman,
-                             CDeterministicMNManager& dmnman, const CSporkManager& sporkman,
+                             CDeterministicMNManager& dmnman,
                              CQuorumSnapshotManager& qsnapman, const CDeterministicMNList& tip_mn_list,
                              gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, const uint256& myProTxHash,
                              bool is_masternode)
@@ -860,7 +857,7 @@ bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& 
     Uint256HashSet connections;
     Uint256HashSet relayMembers;
     if (isMember) {
-        connections = GetQuorumConnections(llmqParams, dmnman, qsnapman, sporkman, pQuorumBaseBlockIndex, myProTxHash,
+        connections = GetQuorumConnections(llmqParams, dmnman, qsnapman, pQuorumBaseBlockIndex, myProTxHash,
                                            true);
         relayMembers = GetQuorumRelayMembers(llmqParams, dmnman, qsnapman, pQuorumBaseBlockIndex, myProTxHash, true);
     } else {

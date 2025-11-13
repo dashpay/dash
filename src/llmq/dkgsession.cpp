@@ -478,13 +478,12 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) const
         protoMap.emplace(verifiedProRegTxHash, pnode->nVersion);
     });
 
-    bool fShouldAllMembersBeConnected = IsAllMembersConnectedEnabled(params.type, m_sporkman);
     for (const auto& m : members) {
         if (m->dmn->proTxHash == myProTxHash) {
             continue;
         }
         if (auto it = protoMap.find(m->dmn->proTxHash); it == protoMap.end()) {
-            m->badConnection = fShouldAllMembersBeConnected;
+            m->badConnection = true;
             if (m->badConnection) {
                 logger.Batch("%s is not connected to us, badConnection=1", m->dmn->proTxHash.ToString());
             }
