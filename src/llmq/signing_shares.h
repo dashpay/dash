@@ -85,34 +85,6 @@ public:
     }
 };
 
-// Nodes will first announce a signing session with a sessionId to be used in all future P2P messages related to that
-// session. We locally keep track of the mapping for each node. We also assign new sessionIds for outgoing sessions
-// and send QSIGSESANN messages appropriately. All values except the max value for uint32_t are valid as sessionId
-class CSigSesAnn : virtual public CSigBase
-{
-private:
-    uint32_t sessionId{UNINITIALIZED_SESSION_ID};
-
-public:
-    CSigSesAnn(uint32_t _sessionId, Consensus::LLMQType _llmqType, const uint256& _quorumHash, const uint256& _id,
-               const uint256& _msgHash) : CSigBase(_llmqType, _quorumHash, _id, _msgHash), sessionId(_sessionId) {};
-    // ONLY FOR SERIALIZATION
-    CSigSesAnn() = default;
-
-
-
-    [[nodiscard]] auto getSessionId() const {
-        return sessionId;
-    }
-
-    SERIALIZE_METHODS(CSigSesAnn, obj)
-    {
-        READWRITE(VARINT(obj.sessionId), obj.llmqType, obj.quorumHash, obj.id, obj.msgHash);
-    }
-
-    [[nodiscard]] std::string ToString() const;
-};
-
 class CSigSharesInv
 {
 public:
@@ -286,23 +258,8 @@ public:
 class CSigSharesNodeState
 {
 public:
-    // Used to avoid holding locks too long
-    struct SessionInfo
-    {
-        Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
-        uint256 quorumHash;
-        uint256 id;
-        uint256 msgHash;
-        llmq::SignHash signHash;
-
-        CQuorumCPtr quorum;
-    };
-
     struct Session {
-        uint32_t recvSessionId{UNINITIALIZED_SESSION_ID};
-        uint32_t sendSessionId{UNINITIALIZED_SESSION_ID};
-
-        Consensus::LLMQType llmqType;
+        Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
         uint256 quorumHash;
         uint256 id;
         uint256 msgHash;
@@ -317,18 +274,10 @@ public:
     // TODO limit number of sessions per node
     Uint256HashMap<Session> sessions;
 
-    std::unordered_map<uint32_t, Session*> sessionByRecvId;
-
     SigShareMap<CSigShare> pendingIncomingSigShares;
     SigShareMap<int64_t> requestedSigShares;
 
     bool banned{false};
-
-    Session& GetOrCreateSessionFromShare(const CSigShare& sigShare);
-    Session& GetOrCreateSessionFromAnn(const CSigSesAnn& ann);
-    Session* GetSessionBySignHash(const uint256& signHash);
-    Session* GetSessionByRecvId(uint32_t sessionId);
-    bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
 
     void RemoveSession(const uint256& signHash);
 };
@@ -348,10 +297,6 @@ class CSigSharesManager : public CRecoveredSigsListener
 private:
     static constexpr int64_t SESSION_NEW_SHARES_TIMEOUT{60};
     static constexpr int64_t SIG_SHARE_REQUEST_TIMEOUT{5};
-
-    // we try to keep total message size below 10k
-    static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
-    static constexpr size_t MAX_MSGS_CNT_QSIGSHARESINV{200};
 
     static constexpr int64_t EXP_SEND_FOR_RECOVERY_TIMEOUT{2000};
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
@@ -429,11 +374,7 @@ public:
 
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
-    bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
 
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
@@ -449,10 +390,6 @@ private:
     void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void TryRecoverSig(const CQuorum& quorum, const uint256& id, const uint256& msgHash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in);
-
     void Cleanup() EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void RemoveBannedNodeStates() EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -461,8 +398,6 @@ private:
 
     bool SendMessages() EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
-        EXCLUSIVE_LOCKS_REQUIRED(cs);
     void SignPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
     void WorkThreadMain() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
 };
