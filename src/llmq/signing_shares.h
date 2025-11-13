@@ -417,8 +417,6 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
     std::optional<CSigShare> CreateSigShare(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void ForceReAnnouncement(const CQuorum& quorum, Consensus::LLMQType llmqType, const uint256& id,
-                             const uint256& msgHash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);

@@ -784,10 +784,6 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigning
         }
     }
 
-    if (allowReSign) {
-        // make us re-announce all known shares (other nodes might have run into a timeout)
-        ForceReAnnouncement(*quorum, llmqType, id, msgHash);
-    }
     AsyncSign(std::move(quorum), id, msgHash);
 
     return true;
@@ -1340,33 +1336,6 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum
               signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), ToUnderlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
 
     return sigShare;
-}
-
-// causes all known sigShares to be re-announced
-void CSigSharesManager::ForceReAnnouncement(const CQuorum& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash)
-{
-    if (IsAllMembersConnectedEnabled(llmqType, m_sporkman)) {
-        return;
-    }
-
-    LOCK(cs);
-    auto signHash = SignHash(llmqType, quorum.qc->quorumHash, id, msgHash).Get();
-    if (const auto *const sigs = sigShares.GetAllForSignHash(signHash)) {
-        for (const auto& [quorumMemberIndex, _] : *sigs) {
-            // re-announce every sigshare to every node
-            sigSharesQueuedToAnnounce.Add(std::make_pair(signHash, quorumMemberIndex), true);
-        }
-    }
-    for (auto& [_, nodeState] : nodeStates) {
-        auto* session = nodeState.GetSessionBySignHash(signHash);
-        if (session == nullptr) {
-            continue;
-        }
-        // pretend that the other node doesn't know about any shares so that we re-announce everything
-        session->knows.SetAll(false);
-        // we need to use a new session id as we don't know if the other node has run into a timeout already
-        session->sendSessionId = UNINITIALIZED_SESSION_ID;
-    }
 }
 
 MessageProcessingResult CSigSharesManager::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
