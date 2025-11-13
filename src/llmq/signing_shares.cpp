@@ -584,9 +584,6 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
         if (!sigShares.Add(sigShare.GetKey(), sigShare)) {
             return;
         }
-        if (!isAllMembersConnectedEnabled) {
-            sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
-        }
 
         // Update the time we've seen the last sigShare
         timeSeenForSessions[sigShare.GetSignHash()] = GetTime<std::chrono::seconds>().count();
@@ -841,59 +838,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
 
 void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
 {
-    AssertLockHeld(cs);
-
-    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, std::unordered_set<NodeId>, StaticSaltedHasher> quorumNodesMap;
-
-    // TODO: remove NO_THREAD_SAFETY_ANALYSIS
-    // using here template ForEach makes impossible to use lock annotation
-    sigSharesQueuedToAnnounce.ForEach([this, &quorumNodesMap, &sigSharesToAnnounce](const SigShareKey& sigShareKey,
-                                                                                    bool) NO_THREAD_SAFETY_ANALYSIS {
-        AssertLockHeld(cs);
-        const auto& signHash = sigShareKey.first;
-        auto quorumMember = sigShareKey.second;
-        const CSigShare* sigShare = sigShares.Get(sigShareKey);
-        if (sigShare == nullptr) {
-            return;
-        }
-
-        // announce to the nodes which we know through the intra-quorum-communication system
-        auto quorumKey = std::make_pair(sigShare->getLlmqType(), sigShare->getQuorumHash());
-        auto it = quorumNodesMap.find(quorumKey);
-        if (it == quorumNodesMap.end()) {
-            auto nodeIds = m_connman.GetMasternodeQuorumNodes(quorumKey.first, quorumKey.second);
-            it = quorumNodesMap.emplace(std::piecewise_construct, std::forward_as_tuple(quorumKey), std::forward_as_tuple(nodeIds.begin(), nodeIds.end())).first;
-        }
-
-        const auto& quorumNodes = it->second;
-
-        for (const auto& nodeId : quorumNodes) {
-            auto& nodeState = nodeStates[nodeId];
-
-            if (nodeState.banned) {
-                continue;
-            }
-
-            auto& session = nodeState.GetOrCreateSessionFromShare(*sigShare);
-
-            if (session.knows.inv[quorumMember]) {
-                // he already knows that one
-                continue;
-            }
-
-            auto& inv = sigSharesToAnnounce[nodeId][signHash];
-            if (inv.inv.empty()) {
-                const auto& llmq_params_opt = Params().GetLLMQ(sigShare->getLlmqType());
-                assert(llmq_params_opt.has_value());
-                inv.Init(llmq_params_opt->size);
-            }
-            inv.inv[quorumMember] = true;
-            session.knows.inv[quorumMember] = true;
-        }
-    });
-
-    // don't announce these anymore
-    sigSharesQueuedToAnnounce.Clear();
+    // Do nothing
 }
 
 bool CSigSharesManager::SendMessages()
@@ -1153,7 +1098,6 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
         nodeState.RemoveSession(signHash);
     }
 
-    sigSharesQueuedToAnnounce.EraseAllForSignHash(signHash);
     sigShares.EraseAllForSignHash(signHash);
     signedSessions.erase(signHash);
     timeSeenForSessions.erase(signHash);
