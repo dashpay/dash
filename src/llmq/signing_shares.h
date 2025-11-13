@@ -138,22 +138,6 @@ public:
     [[nodiscard]] std::string ToString() const;
 };
 
-// sent through the message QBSIGSHARES as a vector of multiple batches
-class CBatchedSigShares
-{
-public:
-    uint32_t sessionId{UNINITIALIZED_SESSION_ID};
-    std::vector<std::pair<uint16_t, CBLSLazySignature>> sigShares;
-
-public:
-    SERIALIZE_METHODS(CBatchedSigShares, obj)
-    {
-        READWRITE(VARINT(obj.sessionId), obj.sigShares);
-    }
-
-    [[nodiscard]] std::string ToInvString() const;
-};
-
 template<typename T>
 class SigShareMap
 {
@@ -368,8 +352,6 @@ private:
     // we try to keep total message size below 10k
     static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
     static constexpr size_t MAX_MSGS_CNT_QSIGSHARESINV{200};
-    // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
-    static constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
 
     static constexpr int64_t EXP_SEND_FOR_RECOVERY_TIMEOUT{2000};
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
@@ -453,13 +435,9 @@ private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
     bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                          const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
@@ -486,8 +464,6 @@ private:
     void BanNode(NodeId nodeId) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     bool SendMessages() EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void CollectSigSharesToSend(std::unordered_map<NodeId, Uint256HashMap<CBatchedSigShares>>& sigSharesToSend)
-        EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToAnnounce(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToAnnounce)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
