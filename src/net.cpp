@@ -4318,32 +4318,6 @@ Uint256HashSet CConnman::GetMasternodeQuorums(Consensus::LLMQType llmqType) cons
     return result;
 }
 
-std::vector<NodeId> CConnman::GetMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash) const
-{
-    READ_LOCK(m_nodes_mutex);
-    LOCK(cs_vPendingMasternodes);
-    auto it = masternodeQuorumNodes.find(std::make_pair(llmqType, quorumHash));
-    if (it == masternodeQuorumNodes.end()) {
-        return {};
-    }
-    const auto& proRegTxHashes = it->second;
-
-    std::vector<NodeId> nodes;
-
-    auto IsMasternodeQuorumNode = [&](const CNode* n) {
-        if (n->fDisconnect) return false;
-        const auto h = n->GetVerifiedProRegTxHash();
-        return n->qwatch || (!h.IsNull() && proRegTxHashes.contains(h));
-    };
-
-    for (NodeId id : m_nodes
-        | std::views::filter(IsMasternodeQuorumNode)
-        | std::views::transform([](const CNode* n){ return n->GetId(); })) {
-        nodes.push_back(id);
-    }
-    return nodes;
-}
-
 void CConnman::RemoveMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash)
 {
     LOCK(cs_vPendingMasternodes);

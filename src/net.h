@@ -1468,8 +1468,6 @@ public:
     void SetMasternodeQuorumRelayMembers(Consensus::LLMQType llmqType, const uint256& quorumHash, const Uint256HashSet& proTxHashes) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     bool HasMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
     Uint256HashSet GetMasternodeQuorums(Consensus::LLMQType llmqType) const;
-    // also returns QWATCH nodes
-    std::vector<NodeId> GetMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     void RemoveMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash);
     bool IsMasternodeQuorumNode(const CNode* pnode, const CDeterministicMNList& tip_mn_list) const;
     bool IsMasternodeQuorumRelayMember(const uint256& protxHash);

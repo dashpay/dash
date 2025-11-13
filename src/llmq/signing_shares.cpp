@@ -341,15 +341,6 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
     auto llmqType = quorum->params.type;
     bool canTryRecovery = false;
 
-    const bool isAllMembersConnectedEnabled = IsAllMembersConnectedEnabled(llmqType, m_sporkman);
-
-    // prepare node set for direct-push in case this is our sig share
-    std::vector<NodeId> quorumNodes;
-    if (!isAllMembersConnectedEnabled &&
-        sigShare.getQuorumMember() == quorum->GetMemberIndex(m_mn_activeman.GetProTxHash())) {
-        quorumNodes = m_connman.GetMasternodeQuorumNodes(sigShare.getLlmqType(), sigShare.getQuorumHash());
-    }
-
     if (sigman.HasRecoveredSigForId(llmqType, sigShare.getId())) {
         return;
     }
@@ -363,12 +354,6 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
 
         // Update the time we've seen the last sigShare
         timeSeenForSessions[sigShare.GetSignHash()] = GetTime<std::chrono::seconds>().count();
-
-        // don't announce and wait for other nodes to request this share and directly send it to them
-        // there is no way the other nodes know about this share as this is the one created on this node
-        for (auto _: quorumNodes) {
-            // quorumNodes is always empty because isAllMembersConnectedEnabled is always true
-        }
 
         size_t sigShareCount = sigShares.CountForSignHash(sigShare.GetSignHash());
         if (sigShareCount >= size_t(quorum->params.threshold)) {
