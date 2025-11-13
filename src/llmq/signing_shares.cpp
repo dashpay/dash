@@ -1139,13 +1139,6 @@ void CSigSharesManager::Cleanup()
         if (it == nodeStates.end()) {
             continue;
         }
-        // remove global requested state to force a re-request from another node
-        // TODO: remove NO_THREAD_SAFETY_ANALYSIS
-        // using here template ForEach makes impossible to use lock annotation
-        it->second.requestedSigShares.ForEach([this](const SigShareKey& k, bool) NO_THREAD_SAFETY_ANALYSIS {
-            AssertLockHeld(cs);
-            sigSharesRequested.Erase(k);
-        });
         nodeStates.erase(nodeId);
     }
 
@@ -1160,7 +1153,6 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
         nodeState.RemoveSession(signHash);
     }
 
-    sigSharesRequested.EraseAllForSignHash(signHash);
     sigSharesQueuedToAnnounce.EraseAllForSignHash(signHash);
     sigShares.EraseAllForSignHash(signHash);
     signedSessions.erase(signHash);
@@ -1174,13 +1166,6 @@ void CSigSharesManager::RemoveBannedNodeStates()
     LOCK(cs);
     for (auto it = nodeStates.begin(); it != nodeStates.end();) {
         if (m_peerman.IsBanned(it->first)) {
-            // re-request sigshares from other nodes
-            // TODO: remove NO_THREAD_SAFETY_ANALYSIS
-            // using here template ForEach makes impossible to use lock annotation
-            it->second.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) NO_THREAD_SAFETY_ANALYSIS {
-                AssertLockHeld(cs);
-                sigSharesRequested.Erase(k);
-            });
             it = nodeStates.erase(it);
         } else {
             ++it;
@@ -1203,13 +1188,6 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     }
 
     auto& nodeState = it->second;
-    // Whatever we requested from him, let's request it from someone else now
-    // TODO: remove NO_THREAD_SAFETY_ANALYSIS
-    // using here template ForEach makes impossible to use lock annotation
-    nodeState.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) NO_THREAD_SAFETY_ANALYSIS {
-        AssertLockHeld(cs);
-        sigSharesRequested.Erase(k);
-    });
     nodeState.requestedSigShares.Clear();
     nodeState.banned = true;
 }

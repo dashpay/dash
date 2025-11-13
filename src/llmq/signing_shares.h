@@ -369,7 +369,6 @@ private:
     Uint256HashMap<int64_t> timeSeenForSessions GUARDED_BY(cs);
 
     std::unordered_map<NodeId, CSigSharesNodeState> nodeStates GUARDED_BY(cs);
-    SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs);
     SigShareMap<bool> sigSharesQueuedToAnnounce GUARDED_BY(cs);
 
     struct PendingSignatureData {
