@@ -137,16 +137,6 @@ public:
         return &jt->second;
     }
 
-    T& GetOrAdd(const SigShareKey& k)
-    {
-        T* v = Get(k);
-        if (!v) {
-            Add(k, T());
-            v = Get(k);
-        }
-        return *v;
-    }
-
     const T* GetFirst() const
     {
         if (internalMap.empty()) {
@@ -193,28 +183,6 @@ public:
     }
 
     template<typename F>
-    void EraseIf(F&& f)
-    {
-        for (auto it = internalMap.begin(); it != internalMap.end(); ) {
-            SigShareKey k;
-            k.first = it->first;
-            for (auto jt = it->second.begin(); jt != it->second.end(); ) {
-                k.second = jt->first;
-                if (f(k, jt->second)) {
-                    jt = it->second.erase(jt);
-                } else {
-                    ++jt;
-                }
-            }
-            if (it->second.empty()) {
-                it = internalMap.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-
-    template<typename F>
     void ForEach(F&& f)
     {
         for (auto& p : internalMap) {
@@ -244,7 +212,6 @@ public:
     Uint256HashMap<Session> sessions;
 
     SigShareMap<CSigShare> pendingIncomingSigShares;
-    SigShareMap<int64_t> requestedSigShares;
 
     bool banned{false};
 
@@ -265,7 +232,6 @@ class CSigSharesManager : public CRecoveredSigsListener
 {
 private:
     static constexpr int64_t SESSION_NEW_SHARES_TIMEOUT{60};
-    static constexpr int64_t SIG_SHARE_REQUEST_TIMEOUT{5};
 
     static constexpr int64_t EXP_SEND_FOR_RECOVERY_TIMEOUT{2000};
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};

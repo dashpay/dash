@@ -34,10 +34,7 @@ void CSigShare::UpdateKey()
 
 void CSigSharesNodeState::RemoveSession(const uint256& signHash)
 {
-    if (const auto it = sessions.find(signHash); it != sessions.end()) {
-        sessions.erase(it);
-    }
-    requestedSigShares.EraseAllForSignHash(signHash);
+    sessions.erase(signHash);
     pendingIncomingSigShares.EraseAllForSignHash(signHash);
 }
 
@@ -796,7 +793,6 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     }
 
     auto& nodeState = it->second;
-    nodeState.requestedSigShares.Clear();
     nodeState.banned = true;
 }
 
