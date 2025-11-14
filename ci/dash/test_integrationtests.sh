@@ -69,7 +69,7 @@ if [ "$BASEDIR" != "" ]; then
       mv "testdatadirs/$BASEDIR/$d/$f" "$d2/"
     done
     # Remove test datadir after extracting logs to free up CI disk space
-    rm -rf "testdatadirs/$BASEDIR/$d"
+    rm -rf "testdatadirs/$BASEDIR/$d" || echo "Warning: Failed to remove test datadir $d"
   done
 fi
 
