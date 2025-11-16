@@ -16,6 +16,7 @@ import argparse
 from collections import deque
 import configparser
 import datetime
+import itertools
 import os
 import time
 import shutil
@@ -546,9 +547,10 @@ def main():
         failfast=args.failfast,
         use_term_control=args.ansi,
         skipunit=args.skipunit,
+        ci=args.ci,
     )
 
-def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enable_coverage=False, args=None, combined_logs_len=0, failfast=False, use_term_control, skipunit=False):
+def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enable_coverage=False, args=None, combined_logs_len=0, failfast=False, use_term_control, skipunit=False, ci=False):
     args = args or []
 
     # Warn if dashd is already running
@@ -621,6 +623,19 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enab
             done_str = f"{len(test_results)}/{test_count} - {BOLD[1]}{test_result.name}{BOLD[0]}"
             if test_result.status == "Passed":
                 logging.debug("%s passed, Duration: %s s" % (done_str, test_result.time))
+                # Remove blocks folder from test datadir to free up CI disk space
+                if ci and os.path.isdir(testdir):
+                    for i in itertools.count():
+                        blocksdir = f"{testdir}/node{i}/regtest/blocks"
+                        if not os.path.isdir(blocksdir):
+                            break
+                        if os.path.islink(blocksdir):
+                            # Skip symlinks to avoid breaking custom test setups
+                            continue
+                        try:
+                            shutil.rmtree(blocksdir)
+                        except (OSError, PermissionError) as e:
+                            logging.debug(f"Failed to remove {blocksdir}: {e}")
             elif test_result.status == "Skipped":
                 logging.debug(f"{done_str} skipped ({skip_reason})")
             else:
