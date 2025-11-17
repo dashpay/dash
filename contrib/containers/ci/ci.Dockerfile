@@ -102,7 +102,7 @@ RUN set -ex; \
 # Nix-supplied compilers won't search for distro-installed libraries without explicit
 # specification and we can't run binaries built with those compilers without specifying
 # where their runtime dependencies are
-ENV LD_LIBRARY_PATH="/usr/local/lib64/gcc-14:/usr/local/lib/gcc-14:/usr/local/lib64/gcc-11:/usr/local/lib/gcc-11:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib64/gcc-15:/usr/local/lib/gcc-15:/usr/local/lib64/gcc-11:/usr/local/lib/gcc-11:${LD_LIBRARY_PATH}"
 ENV LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/lib/multiarch:/usr/lib"
 
 RUN \

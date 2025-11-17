@@ -16,7 +16,7 @@ pkgsUnstable.buildEnv {
   ignoreCollisions = true;
   paths = [
     pkgsLegacy.gcc11
-    pkgsUnstable.gcc14
+    pkgsUnstable.gcc15
   ];
 
   postBuild = ''
@@ -62,9 +62,9 @@ pkgsUnstable.buildEnv {
         ln -sf "${pkgsLegacy.gcc11}/bin/$binary" "$out/bin/$binary-11"
         ln -sf "${pkgsLegacy.gcc11}/bin/$binary" "$out/bin/$target_triple-$binary-11"
       fi
-      if [ -f "${pkgsUnstable.gcc14}/bin/$binary" ]; then
-        ln -sf "${pkgsUnstable.gcc14}/bin/$binary" "$out/bin/$binary-14"
-        ln -sf "${pkgsUnstable.gcc14}/bin/$binary" "$out/bin/$target_triple-$binary-14"
+      if [ -f "${pkgsUnstable.gcc15}/bin/$binary" ]; then
+        ln -sf "${pkgsUnstable.gcc15}/bin/$binary" "$out/bin/$binary-15"
+        ln -sf "${pkgsUnstable.gcc15}/bin/$binary" "$out/bin/$target_triple-$binary-15"
       fi
       rm -f "$out/bin/$binary"
     done
@@ -76,11 +76,11 @@ pkgsUnstable.buildEnv {
     if [ -d "${pkgsLegacy.gcc11.cc.lib}/lib64" ]; then
       ln -sf "${pkgsLegacy.gcc11.cc.lib}/lib64" "$out/lib64/gcc-11"
     fi
-    if [ -d "${pkgsUnstable.gcc14.cc.lib}/lib" ]; then
-      ln -sf "${pkgsUnstable.gcc14.cc.lib}/lib" "$out/lib/gcc-14"
+    if [ -d "${pkgsUnstable.gcc15.cc.lib}/lib" ]; then
+      ln -sf "${pkgsUnstable.gcc15.cc.lib}/lib" "$out/lib/gcc-15"
     fi
-    if [ -d "${pkgsUnstable.gcc14.cc.lib}/lib64" ]; then
-      ln -sf "${pkgsUnstable.gcc14.cc.lib}/lib64" "$out/lib64/gcc-14"
+    if [ -d "${pkgsUnstable.gcc15.cc.lib}/lib64" ]; then
+      ln -sf "${pkgsUnstable.gcc15.cc.lib}/lib64" "$out/lib64/gcc-15"
     fi
   '';
 }
