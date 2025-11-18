@@ -111,6 +111,8 @@ jobs:
         run: |
           export BUILD_TARGET="${{ inputs.build-target }}"
           export BUNDLE_KEY="build-${BUILD_TARGET}-$(git rev-parse --short=8 HEAD)"
+          export BASE_DIR="$(pwd)"
+          ./ci/dash/build_patch.sh
           ./ci/dash/bundle-artifacts.sh create
           echo "key=${BUNDLE_KEY}" >> "${GITHUB_OUTPUT}"
 
