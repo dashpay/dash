@@ -111,6 +111,34 @@ std::string CAssetLockPayload::ToString() const
 
 const std::string ASSETUNLOCK_REQUESTID_PREFIX = "plwdtx";
 
+bool CheckAssetUnlockTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state, UTXO, or signatures
+    if (tx.nType != TRANSACTION_ASSET_UNLOCK) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlocktx-type");
+    }
+
+    if (!tx.vin.empty()) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlocktx-have-input");
+    }
+
+    if (tx.vout.size() > CAssetUnlockPayload::MAXIMUM_WITHDRAWALS) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlocktx-too-many-outs");
+    }
+
+    const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
+    if (!opt_assetUnlockTx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlocktx-payload");
+    }
+    auto& assetUnlockTx = *opt_assetUnlockTx;
+
+    if (assetUnlockTx.getVersion() == 0 || assetUnlockTx.getVersion() > CAssetUnlockPayload::CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlocktx-version");
+    }
+
+    return true;
+}
+
 bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint256& msgHash, gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state) const
 {
     // That quourm hash must be active at `requestHeight`,

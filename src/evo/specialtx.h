@@ -14,6 +14,10 @@
 #include <optional>
 #include <vector>
 
+class TxValidationState;
+
+bool CheckSpecialTxBasic(const CTransaction& tx, TxValidationState& state);
+
 template <typename T>
 std::optional<T> GetTxPayload(const std::vector<unsigned char>& payload)
 {

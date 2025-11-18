@@ -155,6 +155,7 @@ public:
 };
 
 bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state);
+bool CheckAssetUnlockTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, TxValidationState& state);
 bool CheckAssetLockUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, TxValidationState& state);
 bool GetAssetUnlockFee(const CTransaction& tx, CAmount& txfee, TxValidationState& state);

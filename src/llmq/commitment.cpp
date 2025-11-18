@@ -213,6 +213,36 @@ bool CFinalCommitment::VerifySizes(const Consensus::LLMQParams& params) const
     return true;
 }
 
+bool CheckLLMQCommitmentBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (tx.nType != TRANSACTION_QUORUM_COMMITMENT) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-type");
+    }
+
+    const auto opt_qcTx = GetTxPayload<CFinalCommitmentTxPayload>(tx);
+    if (!opt_qcTx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-payload");
+    }
+    auto& qcTx = *opt_qcTx;
+
+    const auto& llmq_params_opt = Params().GetLLMQ(qcTx.commitment.llmqType);
+    if (!llmq_params_opt.has_value()) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-commitment-type");
+    }
+
+    if (qcTx.nVersion == 0 || qcTx.nVersion > CFinalCommitmentTxPayload::CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-version");
+    }
+
+    // Basic size validation (context-free)
+    if (!qcTx.commitment.IsNull() && !qcTx.commitment.VerifySizes(llmq_params_opt.value())) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-invalid-sizes");
+    }
+
+    return true;
+}
+
 bool CheckLLMQCommitment(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                          const ChainstateManager& chainman, const CTransaction& tx,
                          gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state)

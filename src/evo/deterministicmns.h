@@ -767,9 +767,13 @@ private:
                             RecalcDiffsResult& result) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 
+bool CheckProRegTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs);
+bool CheckProUpServTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, bool check_sigs);
+bool CheckProUpRegTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs);
+bool CheckProUpRevTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckProUpRevTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, bool check_sigs);
 
 #endif // BITCOIN_EVO_DETERMINISTICMNS_H

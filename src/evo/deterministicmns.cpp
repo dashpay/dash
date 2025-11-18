@@ -1090,6 +1090,21 @@ bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ui
     return true;
 }
 
+bool CheckProRegTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (tx.nType != CProRegTx::SPECIALTX_TYPE) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-type");
+    }
+
+    auto opt_ptx = GetTxPayload<CProRegTx>(tx);
+    if (!opt_ptx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-payload");
+    }
+
+    return true;
+}
+
 bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs)
 {
     const auto opt_ptx = GetValidatedPayload<CProRegTx>(tx, pindexPrev, state);
@@ -1223,6 +1238,21 @@ bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl:
     return true;
 }
 
+bool CheckProUpServTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (tx.nType != CProUpServTx::SPECIALTX_TYPE) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-type");
+    }
+
+    auto opt_ptx = GetTxPayload<CProUpServTx>(tx);
+    if (!opt_ptx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-payload");
+    }
+
+    return true;
+}
+
 bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, bool check_sigs)
 {
     const auto opt_ptx = GetValidatedPayload<CProUpServTx>(tx, pindexPrev, state);
@@ -1299,6 +1329,21 @@ bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, g
     return true;
 }
 
+bool CheckProUpRegTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (tx.nType != CProUpRegTx::SPECIALTX_TYPE) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-type");
+    }
+
+    auto opt_ptx = GetTxPayload<CProUpRegTx>(tx);
+    if (!opt_ptx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-payload");
+    }
+
+    return true;
+}
+
 bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs)
 {
     const auto opt_ptx = GetValidatedPayload<CProUpRegTx>(tx, pindexPrev, state);
@@ -1364,6 +1409,21 @@ bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
     if (check_sigs && !CheckHashSig(*opt_ptx, PKHash(dmn->pdmnState->keyIDOwner), state)) {
         // pass the state returned by the function above
         return false;
+    }
+
+    return true;
+}
+
+bool CheckProUpRevTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (tx.nType != CProUpRevTx::SPECIALTX_TYPE) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-type");
+    }
+
+    auto opt_ptx = GetTxPayload<CProUpRevTx>(tx);
+    if (!opt_ptx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-payload");
     }
 
     return true;
