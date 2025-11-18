@@ -140,13 +140,14 @@ class DashGovernanceTest (DashTestFramework):
         assert len(self.nodes[0].gobject("list", "valid", "triggers")) >= 1
         assert not have_trigger_for_height(self.nodes[0:5], sb_block_height + sb_cycle)
         self.bump_mocktime(156)
-        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:5]))
 
         self.log.info("Bump mocktime to trigger governance cleanup")
         for delta, expected in (
             (5 * 60, ['UpdateCachesAndClean -- Governance Objects:']),  # mark old triggers for deletion
             (10 * 60, ['UpdateCachesAndClean -- Governance Objects: 0']),  # deletion after delay
         ):
+            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:5]))
+
             self.mocktime += delta
             for node in self.nodes:
                 with node.assert_debug_log(expected_msgs=expected):
