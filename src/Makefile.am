@@ -616,6 +616,10 @@ if !ENABLE_WALLET
 libbitcoin_node_a_SOURCES += dummywallet.cpp
 endif
 
+# Workaround for LLVM 18.1.8 bug: reduce debug level for rpc/evo.cpp to avoid crash
+# in debug info generation for complex std::function template
+rpc/libbitcoin_node_a-evo.$(OBJEXT): CXXFLAGS += -g0
+
 if ENABLE_ZMQ
 libbitcoin_zmq_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(ZMQ_CFLAGS)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
