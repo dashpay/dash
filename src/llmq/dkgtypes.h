@@ -9,10 +9,9 @@
 #include <bls/bls_ies.h>
 #include <consensus/params.h>
 #include <hash.h>
+#include <llmq/commitment.h>
 #include <serialize.h>
 #include <util/underlying.h>
-
-#include <llmq/commitment.h>
 
 #include <algorithm>
 #include <memory>
@@ -190,4 +189,3 @@ public:
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_DKGTYPES_H
-
