@@ -23,6 +23,7 @@
 #include <validation.h>
 
 #include <algorithm>
+#include <optional>
 #include <unordered_set>
 
 namespace llmq
@@ -96,37 +97,38 @@ bool CRecoveredSigsDb::HasRecoveredSigForHash(const uint256& hash) const
     return ret;
 }
 
-bool CRecoveredSigsDb::ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const
+std::optional<CRecoveredSig> CRecoveredSigsDb::ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id) const
 {
     auto k = std::make_tuple(std::string("rs_r"), llmqType, id);
 
     CDataStream ds(SER_DISK, CLIENT_VERSION);
     if (!db->ReadDataStream(k, ds)) {
-        return false;
+        return std::nullopt;
     }
 
     try {
+        CRecoveredSig ret;
         ret.Unserialize(ds);
-        return true;
+        return ret;
     } catch (std::exception&) {
-        return false;
+        return std::nullopt;
     }
 }
 
-bool CRecoveredSigsDb::GetRecoveredSigByHash(const uint256& hash, CRecoveredSig& ret) const
+std::optional<CRecoveredSig> CRecoveredSigsDb::GetRecoveredSigByHash(const uint256& hash) const
 {
     auto k1 = std::make_tuple(std::string("rs_h"), hash);
     std::pair<Consensus::LLMQType, uint256> k2;
     if (!db->Read(k1, k2)) {
-        return false;
+        return std::nullopt;
     }
 
-    return ReadRecoveredSig(k2.first, k2.second, ret);
+    return ReadRecoveredSig(k2.first, k2.second);
 }
 
-bool CRecoveredSigsDb::GetRecoveredSigById(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const
+std::optional<CRecoveredSig> CRecoveredSigsDb::GetRecoveredSigById(Consensus::LLMQType llmqType, const uint256& id) const
 {
-    return ReadRecoveredSig(llmqType, id, ret);
+    return ReadRecoveredSig(llmqType, id);
 }
 
 void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
@@ -168,10 +170,11 @@ void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
 
 void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey, bool deleteTimeKey)
 {
-    CRecoveredSig recSig;
-    if (!ReadRecoveredSig(llmqType, id, recSig)) {
+    auto recSigOpt = ReadRecoveredSig(llmqType, id);
+    if (!recSigOpt.has_value()) {
         return;
     }
+    const auto& recSig = *recSigOpt;
 
     auto signHash = recSig.buildSignHash();
 
@@ -271,10 +274,14 @@ bool CRecoveredSigsDb::HasVotedOnId(Consensus::LLMQType llmqType, const uint256&
     return db->Exists(k);
 }
 
-bool CRecoveredSigsDb::GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const
+std::optional<uint256> CRecoveredSigsDb::GetVoteForId(Consensus::LLMQType llmqType, const uint256& id) const
 {
     auto k = std::make_tuple(std::string("rs_v"), llmqType, id);
-    return db->Read(k, msgHashRet);
+    uint256 msgHashRet;
+    if (!db->Read(k, msgHashRet)) {
+        return std::nullopt;
+    }
+    return msgHashRet;
 }
 
 void CRecoveredSigsDb::WriteVoteForId(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash)
@@ -357,16 +364,18 @@ bool CSigningManager::AlreadyHave(const CInv& inv) const
     return db.HasRecoveredSigForHash(inv.hash);
 }
 
-bool CSigningManager::GetRecoveredSigForGetData(const uint256& hash, CRecoveredSig& ret) const
+std::optional<CRecoveredSig> CSigningManager::GetRecoveredSigForGetData(const uint256& hash) const
 {
-    if (!db.GetRecoveredSigByHash(hash, ret)) {
-        return false;
+    auto retOpt = db.GetRecoveredSigByHash(hash);
+    if (!retOpt.has_value()) {
+        return std::nullopt;
     }
+    const auto& ret = *retOpt;
     if (!IsQuorumActive(ret.getLlmqType(), qman, ret.getQuorumHash())) {
         // we don't want to propagate sigs from inactive quorums
-        return false;
+        return std::nullopt;
     }
-    return true;
+    return ret;
 }
 
 static bool PreVerifyRecoveredSig(const CQuorumManager& quorum_manager, const CRecoveredSig& recoveredSig, bool& retBan)
@@ -600,8 +609,9 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
             signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString());
 
     if (db.HasRecoveredSigForId(llmqType, recoveredSig->getId())) {
-        CRecoveredSig otherRecoveredSig;
-        if (db.GetRecoveredSigById(llmqType, recoveredSig->getId(), otherRecoveredSig)) {
+        auto otherRecoveredSigOpt = db.GetRecoveredSigById(llmqType, recoveredSig->getId());
+        if (otherRecoveredSigOpt.has_value()) {
+            const auto& otherRecoveredSig = *otherRecoveredSigOpt;
             auto otherSignHash = otherRecoveredSig.buildSignHash();
             if (signHash.Get() != otherSignHash.Get()) {
                 // this should really not happen, as each masternode is participating in only one vote,
@@ -684,12 +694,9 @@ bool CSigningManager::HasRecoveredSigForSession(const uint256& signHash) const
     return db.HasRecoveredSigForSession(signHash);
 }
 
-bool CSigningManager::GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id, llmq::CRecoveredSig& retRecSig) const
+std::optional<CRecoveredSig> CSigningManager::GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const
 {
-    if (!db.GetRecoveredSigById(llmqType, id, retRecSig)) {
-        return false;
-    }
-    return true;
+    return db.GetRecoveredSigById(llmqType, id);
 }
 
 bool CSigningManager::IsConflicting(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const
@@ -708,9 +715,9 @@ bool CSigningManager::IsConflicting(Consensus::LLMQType llmqType, const uint256&
     return false;
 }
 
-bool CSigningManager::GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const
+std::optional<uint256> CSigningManager::GetVoteForId(Consensus::LLMQType llmqType, const uint256& id) const
 {
-    return db.GetVoteForId(llmqType, id, msgHashRet);
+    return db.GetVoteForId(llmqType, id);
 }
 
 void CSigningManager::StartWorkerThread(PeerManager& peerman)

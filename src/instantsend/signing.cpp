@@ -299,11 +299,10 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
         auto id = GenInputLockRequestId(in.prevout);
         ids.emplace_back(id);
 
-        uint256 otherTxHash;
-        if (m_sigman.GetVoteForId(params.llmqTypeDIP0024InstantSend, id, otherTxHash)) {
-            if (otherTxHash != tx.GetHash()) {
+        if (auto otherTxHashOpt = m_sigman.GetVoteForId(params.llmqTypeDIP0024InstantSend, id)) {
+            if (*otherTxHashOpt != tx.GetHash()) {
                 LogPrintf("%s -- txid=%s: input %s is conflicting with previous vote for tx %s\n", __func__,
-                          tx.GetHash().ToString(), in.prevout.ToStringShort(), otherTxHash.ToString());
+                          tx.GetHash().ToString(), in.prevout.ToStringShort(), otherTxHashOpt->ToString());
                 return false;
             }
             alreadyVotedCount++;

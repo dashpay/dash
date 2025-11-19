@@ -2884,66 +2884,57 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         }
 
         if (!push && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
-            llmq::CFinalCommitment o;
-            if (m_llmq_ctx->quorum_block_processor->GetMineableCommitmentByHash(
-                    inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
+            if (auto opt_commitment = m_llmq_ctx->quorum_block_processor->GetMineableCommitmentByHash(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, *opt_commitment));
                 push = true;
             }
         }
 
         if (!push && (inv.type == MSG_QUORUM_CONTRIB)) {
-            llmq::CDKGContribution o;
-            if (m_llmq_ctx->qdkgsman->GetContribution(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
+            if (auto opt_contrib = m_llmq_ctx->qdkgsman->GetContribution(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCONTRIB, *opt_contrib));
                 push = true;
             }
         }
 
         if (!push && (inv.type == MSG_QUORUM_COMPLAINT)) {
-            llmq::CDKGComplaint o;
-            if (m_llmq_ctx->qdkgsman->GetComplaint(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
+            if (auto opt_complaint = m_llmq_ctx->qdkgsman->GetComplaint(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, *opt_complaint));
                 push = true;
             }
         }
 
         if (!push && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
-            llmq::CDKGJustification o;
-            if (m_llmq_ctx->qdkgsman->GetJustification(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
+            if (auto opt_justification = m_llmq_ctx->qdkgsman->GetJustification(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, *opt_justification));
                 push = true;
             }
         }
 
         if (!push && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
-            llmq::CDKGPrematureCommitment o;
-            if (m_llmq_ctx->qdkgsman->GetPrematureCommitment(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
+            if (auto opt_premature = m_llmq_ctx->qdkgsman->GetPrematureCommitment(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, *opt_premature));
                 push = true;
             }
         }
 
         if (!push && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
-            llmq::CRecoveredSig o;
-            if (m_llmq_ctx->sigman->GetRecoveredSigForGetData(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QSIGREC, o));
+            if (auto opt_rec_sig = m_llmq_ctx->sigman->GetRecoveredSigForGetData(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QSIGREC, *opt_rec_sig));
                 push = true;
             }
         }
 
         if (!push && (inv.type == MSG_CLSIG)) {
-            chainlock::ChainLockSig o;
-            if (m_llmq_ctx->clhandler->GetChainLockByHash(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+            if (auto opt_clsig = m_llmq_ctx->clhandler->GetChainLockByHash(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::CLSIG, *opt_clsig));
                 push = true;
             }
         }
 
         if (!push && inv.type == MSG_ISDLOCK) {
-            instantsend::InstantSendLock o;
-            if (m_llmq_ctx->isman->GetInstantSendLockByHash(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, o));
+            if (auto opt_islock = m_llmq_ctx->isman->GetInstantSendLockByHash(inv.hash)) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, *opt_islock));
                 push = true;
             }
         }

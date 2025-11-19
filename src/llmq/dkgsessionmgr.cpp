@@ -203,10 +203,9 @@ bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
     return false;
 }
 
-bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& ret) const
+std::optional<CDKGContribution> CDKGSessionManager::GetContribution(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return false;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -214,17 +213,16 @@ bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& 
         if (dkgType.phase < QuorumPhase::Initialized || dkgType.phase > QuorumPhase::Contribute) {
             continue;
         }
-        if (dkgType.GetContribution(hash, ret)) {
-            return true;
+        if (auto opt = dkgType.GetContribution(hash)) {
+            return opt;
         }
     }
-    return false;
+    return std::nullopt;
 }
 
-bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
+std::optional<CDKGComplaint> CDKGSessionManager::GetComplaint(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return false;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -232,17 +230,16 @@ bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) c
         if (dkgType.phase < QuorumPhase::Contribute || dkgType.phase > QuorumPhase::Complain) {
             continue;
         }
-        if (dkgType.GetComplaint(hash, ret)) {
-            return true;
+        if (auto opt = dkgType.GetComplaint(hash)) {
+            return opt;
         }
     }
-    return false;
+    return std::nullopt;
 }
 
-bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification& ret) const
+std::optional<CDKGJustification> CDKGSessionManager::GetJustification(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return false;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -250,17 +247,16 @@ bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification
         if (dkgType.phase < QuorumPhase::Complain || dkgType.phase > QuorumPhase::Justify) {
             continue;
         }
-        if (dkgType.GetJustification(hash, ret)) {
-            return true;
+        if (auto opt = dkgType.GetJustification(hash)) {
+            return opt;
         }
     }
-    return false;
+    return std::nullopt;
 }
 
-bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
+std::optional<CDKGPrematureCommitment> CDKGSessionManager::GetPrematureCommitment(const uint256& hash) const
 {
-    if (!IsQuorumDKGEnabled(spork_manager))
-        return false;
+    if (!IsQuorumDKGEnabled(spork_manager)) return std::nullopt;
 
     for (const auto& p : dkgSessionHandlers) {
         const auto& dkgType = p.second;
@@ -268,11 +264,11 @@ bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematu
         if (dkgType.phase < QuorumPhase::Justify || dkgType.phase > QuorumPhase::Commit) {
             continue;
         }
-        if (dkgType.GetPrematureCommitment(hash, ret)) {
-            return true;
+        if (auto opt = dkgType.GetPrematureCommitment(hash)) {
+            return opt;
         }
     }
-    return false;
+    return std::nullopt;
 }
 
 void CDKGSessionManager::WriteVerifiedVvecContribution(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& proTxHash, const BLSVerificationVectorPtr& vvec)

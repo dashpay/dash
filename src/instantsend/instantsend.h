@@ -17,6 +17,7 @@
 #include <unordered_lru_cache.h>
 
 #include <atomic>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
@@ -152,7 +153,7 @@ public:
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
-    bool GetInstantSendLockByHash(const uint256& hash, instantsend::InstantSendLock& ret) const
+    std::optional<instantsend::InstantSendLock> GetInstantSendLockByHash(const uint256& hash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 

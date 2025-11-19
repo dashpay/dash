@@ -345,7 +345,7 @@ public:
     Session& GetOrCreateSessionFromAnn(const CSigSesAnn& ann);
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
-    bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
+    std::optional<SessionInfo> GetSessionInfoByRecvId(uint32_t sessionId);
 
     void RemoveSession(const uint256& signHash);
 };
@@ -478,7 +478,7 @@ private:
     void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void TryRecoverSig(const CQuorum& quorum, const uint256& id, const uint256& msgHash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo)
+    std::optional<CSigSharesNodeState::SessionInfo> GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in);
 

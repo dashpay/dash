@@ -262,6 +262,7 @@ BITCOIN_CORE_H = \
   llmq/commitment.h \
   llmq/context.h \
   llmq/debug.h \
+  llmq/dkgtypes.h \
   llmq/dkgsession.h \
   llmq/dkgsessionhandler.h \
   llmq/dkgsessionmgr.h \

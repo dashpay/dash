@@ -23,6 +23,7 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <unordered_map>
 
@@ -91,8 +92,7 @@ public:
 
     bool AlreadyHave(const CInv& inv) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool GetChainLockByHash(const uint256& hash, chainlock::ChainLockSig& ret) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::optional<chainlock::ChainLockSig> GetChainLockByHash(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     chainlock::ChainLockSig GetBestChainLock() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void UpdateTxFirstSeenMap(const Uint256HashSet& tx, const int64_t& time) override EXCLUSIVE_LOCKS_REQUIRED(!cs);

@@ -152,20 +152,20 @@ CSigSharesNodeState::Session* CSigSharesNodeState::GetSessionByRecvId(uint32_t s
     return it->second;
 }
 
-bool CSigSharesNodeState::GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo)
+std::optional<CSigSharesNodeState::SessionInfo> CSigSharesNodeState::GetSessionInfoByRecvId(uint32_t sessionId)
 {
     const auto* s = GetSessionByRecvId(sessionId);
     if (s == nullptr) {
-        return false;
+        return std::nullopt;
     }
+    SessionInfo retInfo;
     retInfo.llmqType = s->llmqType;
     retInfo.quorumHash = s->quorumHash;
     retInfo.id = s->id;
     retInfo.msgHash = s->msgHash;
     retInfo.signHash = s->signHash;
     retInfo.quorum = s->quorum;
-
-    return true;
+    return retInfo;
 }
 
 void CSigSharesNodeState::RemoveSession(const uint256& signHash)
@@ -352,27 +352,28 @@ bool CSigSharesManager::VerifySigSharesInv(Consensus::LLMQType llmqType, const C
 
 bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv)
 {
-    CSigSharesNodeState::SessionInfo sessionInfo;
-    if (!GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId, sessionInfo)) {
+    auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId);
+    if (!sessionInfo) {
         return true;
     }
 
-    if (!VerifySigSharesInv(sessionInfo.llmqType, inv)) {
+    if (!VerifySigSharesInv(sessionInfo->llmqType, inv)) {
         return false;
     }
 
     // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-    if (sigman.HasRecoveredSigForSession(sessionInfo.signHash.Get())) {
+    if (sigman.HasRecoveredSigForSession(sessionInfo->signHash.Get())) {
         return true;
     }
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-            sessionInfo.signHash.ToString(), inv.ToString(), pfrom.GetId());
+                sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
 
-    if (!sessionInfo.quorum->HasVerificationVector()) {
+    if (!sessionInfo->quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
-        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n", __func__,
-                  sessionInfo.quorumHash.ToString(), pfrom.GetId());
+        LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                    "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n",
+                    __func__, sessionInfo->quorumHash.ToString(), pfrom.GetId());
         return true;
     }
 
@@ -389,22 +390,22 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSi
 
 bool CSigSharesManager::ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv)
 {
-    CSigSharesNodeState::SessionInfo sessionInfo;
-    if (!GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId, sessionInfo)) {
+    auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId);
+    if (!sessionInfo) {
         return true;
     }
 
-    if (!VerifySigSharesInv(sessionInfo.llmqType, inv)) {
+    if (!VerifySigSharesInv(sessionInfo->llmqType, inv)) {
         return false;
     }
 
     // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-    if (sigman.HasRecoveredSigForSession(sessionInfo.signHash.Get())) {
+    if (sigman.HasRecoveredSigForSession(sessionInfo->signHash.Get())) {
         return true;
     }
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-            sessionInfo.signHash.ToString(), inv.ToString(), pfrom.GetId());
+                sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
 
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom.GetId()];
@@ -419,12 +420,12 @@ bool CSigSharesManager::ProcessMessageGetSigShares(const CNode& pfrom, const CSi
 
 bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
 {
-    CSigSharesNodeState::SessionInfo sessionInfo;
-    if (!GetSessionInfoByRecvId(pfrom.GetId(), batchedSigShares.sessionId, sessionInfo)) {
+    auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), batchedSigShares.sessionId);
+    if (!sessionInfo) {
         return true;
     }
 
-    if (bool ban{false}; !PreVerifyBatchedSigShares(m_mn_activeman, qman, sessionInfo, batchedSigShares, ban)) {
+    if (bool ban{false}; !PreVerifyBatchedSigShares(m_mn_activeman, qman, *sessionInfo, batchedSigShares, ban)) {
         return !ban;
     }
 
@@ -436,7 +437,7 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
         auto& nodeState = nodeStates[pfrom.GetId()];
 
         for (const auto& sigSharetmp : batchedSigShares.sigShares) {
-            CSigShare sigShare = RebuildSigShare(sessionInfo, sigSharetmp);
+            CSigShare sigShare = RebuildSigShare(*sessionInfo, sigSharetmp);
             nodeState.requestedSigShares.Erase(sigShare.GetKey());
 
             // TODO track invalid sig shares received for PoSe?
@@ -456,8 +457,10 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
         }
     }
 
-    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, shares=%d, new=%d, inv={%s}, node=%d\n", __func__,
-             sessionInfo.signHash.ToString(), batchedSigShares.sigShares.size(), sigSharesToProcess.size(), batchedSigShares.ToInvString(), pfrom.GetId());
+    LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                "CSigSharesManager::%s -- signHash=%s, shares=%d, new=%d, inv={%s}, node=%d\n",
+                __func__, sessionInfo->signHash.ToString(), batchedSigShares.sigShares.size(),
+                sigSharesToProcess.size(), batchedSigShares.ToInvString(), pfrom.GetId());
 
     if (sigSharesToProcess.empty()) {
         return true;
@@ -923,26 +926,25 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigning
         auto& db = sigman.GetDb();
         bool hasVoted = db.HasVotedOnId(llmqType, id);
         if (hasVoted) {
-            uint256 prevMsgHash;
-            db.GetVoteForId(llmqType, id, prevMsgHash);
-            if (msgHash != prevMsgHash) {
+            auto prevMsgHashOpt = db.GetVoteForId(llmqType, id);
+            if (prevMsgHashOpt.has_value() && msgHash != *prevMsgHashOpt) {
                 if (allowDiffMsgHashSigning) {
                     LogPrintf("%s -- already voted for id=%s and msgHash=%s. Signing for different " /* Continued */
                               "msgHash=%s\n",
-                              __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
+                              __func__, id.ToString(), prevMsgHashOpt->ToString(), msgHash.ToString());
                     hasVoted = false;
                 } else {
                     LogPrintf("%s -- already voted for id=%s and msgHash=%s. Not voting on " /* Continued */
                               "conflicting msgHash=%s\n",
-                              __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
+                              __func__, id.ToString(), prevMsgHashOpt->ToString(), msgHash.ToString());
                     return false;
                 }
             } else if (allowReSign) {
                 LogPrint(BCLog::LLMQ, "%s -- already voted for id=%s and msgHash=%s. Resigning!\n", __func__,
-                         id.ToString(), prevMsgHash.ToString());
+                         id.ToString(), prevMsgHashOpt.has_value() ? prevMsgHashOpt->ToString() : "unknown");
             } else {
                 LogPrint(BCLog::LLMQ, "%s -- already voted for id=%s and msgHash=%s. Not voting again.\n", __func__,
-                         id.ToString(), prevMsgHash.ToString());
+                         id.ToString(), prevMsgHashOpt.has_value() ? prevMsgHashOpt->ToString() : "unknown");
                 return false;
             }
         }
@@ -1380,10 +1382,10 @@ bool CSigSharesManager::SendMessages()
     return didSend;
 }
 
-bool CSigSharesManager::GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo)
+std::optional<CSigSharesNodeState::SessionInfo> CSigSharesManager::GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId)
 {
     LOCK(cs);
-    return nodeStates[nodeId].GetSessionInfoByRecvId(sessionId, retInfo);
+    return nodeStates[nodeId].GetSessionInfoByRecvId(sessionId);
 }
 
 CSigShare CSigSharesManager::RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in)
