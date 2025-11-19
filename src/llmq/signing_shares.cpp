@@ -352,118 +352,124 @@ bool CSigSharesManager::VerifySigSharesInv(Consensus::LLMQType llmqType, const C
 
 bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv)
 {
-    if (auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId)) {
-        if (!VerifySigSharesInv(sessionInfo->llmqType, inv)) {
-            return false;
-        }
-
-        // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-        if (sigman.HasRecoveredSigForSession(sessionInfo->signHash.Get())) {
-            return true;
-        }
-
-        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-                 sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
-
-        if (!sessionInfo->quorum->HasVerificationVector()) {
-            // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
-            LogPrint(BCLog::LLMQ_SIGS, /* Continued */
-                     "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n",
-                     __func__, sessionInfo->quorumHash.ToString(), pfrom.GetId());
-            return true;
-        }
-
-        LOCK(cs);
-        auto& nodeState = nodeStates[pfrom.GetId()];
-        auto* session = nodeState.GetSessionByRecvId(inv.sessionId);
-        if (session == nullptr) {
-            return true;
-        }
-        session->announced.Merge(inv);
-        session->knows.Merge(inv);
+    auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId);
+    if (!sessionInfo) {
         return true;
     }
+
+    if (!VerifySigSharesInv(sessionInfo->llmqType, inv)) {
+        return false;
+    }
+
+    // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
+    if (sigman.HasRecoveredSigForSession(sessionInfo->signHash.Get())) {
+        return true;
+    }
+
+    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
+                sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
+
+    if (!sessionInfo->quorum->HasVerificationVector()) {
+        // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
+        LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                    "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n",
+                    __func__, sessionInfo->quorumHash.ToString(), pfrom.GetId());
+        return true;
+    }
+
+    LOCK(cs);
+    auto& nodeState = nodeStates[pfrom.GetId()];
+    auto* session = nodeState.GetSessionByRecvId(inv.sessionId);
+    if (session == nullptr) {
+        return true;
+    }
+    session->announced.Merge(inv);
+    session->knows.Merge(inv);
     return true;
 }
 
 bool CSigSharesManager::ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv)
 {
-    if (auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId)) {
-        if (!VerifySigSharesInv(sessionInfo->llmqType, inv)) {
-            return false;
-        }
-
-        // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-        if (sigman.HasRecoveredSigForSession(sessionInfo->signHash.Get())) {
-            return true;
-        }
-
-        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-                 sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
-
-        LOCK(cs);
-        auto& nodeState = nodeStates[pfrom.GetId()];
-        auto* session = nodeState.GetSessionByRecvId(inv.sessionId);
-        if (session == nullptr) {
-            return true;
-        }
-        session->requested.Merge(inv);
-        session->knows.Merge(inv);
+    auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId);
+    if (!sessionInfo) {
         return true;
     }
+
+    if (!VerifySigSharesInv(sessionInfo->llmqType, inv)) {
+        return false;
+    }
+
+    // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
+    if (sigman.HasRecoveredSigForSession(sessionInfo->signHash.Get())) {
+        return true;
+    }
+
+    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
+                sessionInfo->signHash.ToString(), inv.ToString(), pfrom.GetId());
+
+    LOCK(cs);
+    auto& nodeState = nodeStates[pfrom.GetId()];
+    auto* session = nodeState.GetSessionByRecvId(inv.sessionId);
+    if (session == nullptr) {
+        return true;
+    }
+    session->requested.Merge(inv);
+    session->knows.Merge(inv);
     return true;
 }
 
 bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
 {
-    if (auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), batchedSigShares.sessionId)) {
-        if (bool ban{false}; !PreVerifyBatchedSigShares(m_mn_activeman, qman, *sessionInfo, batchedSigShares, ban)) {
-            return !ban;
-        }
+    auto sessionInfo = GetSessionInfoByRecvId(pfrom.GetId(), batchedSigShares.sessionId);
+    if (!sessionInfo) {
+        return true;
+    }
 
-        std::vector<CSigShare> sigSharesToProcess;
-        sigSharesToProcess.reserve(batchedSigShares.sigShares.size());
+    if (bool ban{false}; !PreVerifyBatchedSigShares(m_mn_activeman, qman, *sessionInfo, batchedSigShares, ban)) {
+        return !ban;
+    }
 
-        {
-            LOCK(cs);
-            auto& nodeState = nodeStates[pfrom.GetId()];
+    std::vector<CSigShare> sigSharesToProcess;
+    sigSharesToProcess.reserve(batchedSigShares.sigShares.size());
 
-            for (const auto& sigSharetmp : batchedSigShares.sigShares) {
-                CSigShare sigShare = RebuildSigShare(*sessionInfo, sigSharetmp);
-                nodeState.requestedSigShares.Erase(sigShare.GetKey());
-
-                // TODO track invalid sig shares received for PoSe?
-                // It's important to only skip seen *valid* sig shares here. If a node sends us a
-                // batch of mostly valid sig shares with a single invalid one and thus batched
-                // verification fails, we'd skip the valid ones in the future if received from other nodes
-                if (sigShares.Has(sigShare.GetKey())) {
-                    continue;
-                }
-
-                // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-                if (sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
-                    continue;
-                }
-
-                sigSharesToProcess.emplace_back(sigShare);
-            }
-        }
-
-        LogPrint(BCLog::LLMQ_SIGS, /* Continued */
-                 "CSigSharesManager::%s -- signHash=%s, shares=%d, new=%d, inv={%s}, node=%d\n",
-                 __func__, sessionInfo->signHash.ToString(), batchedSigShares.sigShares.size(),
-                 sigSharesToProcess.size(), batchedSigShares.ToInvString(), pfrom.GetId());
-
-        if (sigSharesToProcess.empty()) {
-            return true;
-        }
-
+    {
         LOCK(cs);
         auto& nodeState = nodeStates[pfrom.GetId()];
-        for (const auto& s : sigSharesToProcess) {
-            nodeState.pendingIncomingSigShares.Add(s.GetKey(), s);
+
+        for (const auto& sigSharetmp : batchedSigShares.sigShares) {
+            CSigShare sigShare = RebuildSigShare(*sessionInfo, sigSharetmp);
+            nodeState.requestedSigShares.Erase(sigShare.GetKey());
+
+            // TODO track invalid sig shares received for PoSe?
+            // It's important to only skip seen *valid* sig shares here. If a node sends us a
+            // batch of mostly valid sig shares with a single invalid one and thus batched
+            // verification fails, we'd skip the valid ones in the future if received from other nodes
+            if (sigShares.Has(sigShare.GetKey())) {
+                continue;
+            }
+
+            // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
+            if (sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+                continue;
+            }
+
+            sigSharesToProcess.emplace_back(sigShare);
         }
+    }
+
+    LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                "CSigSharesManager::%s -- signHash=%s, shares=%d, new=%d, inv={%s}, node=%d\n",
+                __func__, sessionInfo->signHash.ToString(), batchedSigShares.sigShares.size(),
+                sigSharesToProcess.size(), batchedSigShares.ToInvString(), pfrom.GetId());
+
+    if (sigSharesToProcess.empty()) {
         return true;
+    }
+
+    LOCK(cs);
+    auto& nodeState = nodeStates[pfrom.GetId()];
+    for (const auto& s : sigSharesToProcess) {
+        nodeState.pendingIncomingSigShares.Add(s.GetKey(), s);
     }
     return true;
 }
