@@ -1,7 +1,17 @@
 [main]
 host = https://www.transifex.com
 
+# --- Resource Configuration ---
+# Format: [o:<organization_slug>:p:<project_slug>:r:<resource_slug>]
+# Example: [o:dash:p:dash:r:dash_ents]
 [o:dash:p:dash:r:dash_ents]
+# File filter pattern defining where translated files reside in the local repository.
+# The <lang> placeholder will be replaced by the two-letter language code (e.g., 'es', 'tr').
 file_filter = src/qt/locale/dash_<lang>.ts
+
+# The master file containing the source strings. 
+# XLIFF (.xlf) is a standardized file format for localization tools.
 source_file = src/qt/locale/dash_en.xlf
+
+# The source language used in the source_file.
 source_lang = en
