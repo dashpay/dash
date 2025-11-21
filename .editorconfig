@@ -1,25 +1,35 @@
 # This is the top-most EditorConfig file.
 root = true
 
-# For all files.
+# --- Global Settings for All Files ---
 [*]
 charset = utf-8
+# Enforce Unix-style line endings (LF) for cross-platform consistency.
 end_of_line = lf
+# Default indentation style is space.
 indent_style = space
+# Ensure all files end with a single newline character.
 insert_final_newline = true
+# Remove unnecessary whitespace at the end of lines.
 trim_trailing_whitespace = true
 
-# Source code files
+# --- Language-Specific Indentation ---
+
+# Source code files (C++, Python, Shell scripts)
 [*.{h,cpp,py,sh}]
 indent_size = 4
 
-# .cirrus.yml, .fuzzbuzz.yml, etc.
-[*.yml]
+# Configuration files (YAML, JSON, Markdown)
+# Uses 2 spaces, which is standard for web/configuration files.
+[*.{yml,json,md}]
 indent_size = 2
 
-# Makefiles
-[{*.am,Makefile.*.include}]
+# --- Special File Handling ---
+
+# Makefiles and their includes MUST use tabs. This is a critical rule for Make.
+[{*.am,Makefile.*.include,Makefile}] # Added 'Makefile' for general consistency
 indent_style = tab
+indent_size = 8 # Tabs are typically interpreted as 8 columns for display purposes
 
 # Autoconf scripts
 [configure.ac]
