@@ -80,6 +80,7 @@ jobs:
           export HOST="${{ steps.setup.outputs.HOST  }}"
           if [ "${HOST}" = "x86_64-apple-darwin" ]; then
             ./contrib/containers/guix/scripts/setup-sdk
+            unset LIBRARY_PATH LD_LIBRARY_PATH
           fi
           env ${{ steps.setup.outputs.DEP_OPTS }} make -j$(nproc) -C depends
 
