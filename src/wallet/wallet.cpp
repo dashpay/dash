@@ -55,6 +55,10 @@
 using interfaces::FoundBlock;
 
 namespace wallet {
+// Static wallet backup configuration
+int CWallet::nWalletBackups = DEFAULT_N_WALLET_BACKUPS;
+int CWallet::nMaxWalletBackups = DEFAULT_MAX_BACKUPS;
+
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
         "You need to rescan the blockchain in order to correctly mark used "
@@ -3349,13 +3353,65 @@ void CWallet::postInitProcess()
     chain().requestMempoolTransactions(*this);
 }
 
+std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type, fs::path>& backups, int nWalletBackups, int maxBackups)
+{
+    std::vector<fs::path> paths_to_delete;
+
+    if (backups.size() <= (size_t)nWalletBackups) {
+        return paths_to_delete;
+    }
+
+    // Sort backups by time descending (newest first)
+    std::vector<std::pair<fs::file_time_type, fs::path>> sorted_backups;
+    for (const auto& entry : backups) {
+        sorted_backups.push_back(entry);
+    }
+    std::reverse(sorted_backups.begin(), sorted_backups.end());
+
+    std::vector<size_t> indices_to_keep;
+    for (size_t i = 0; i < sorted_backups.size(); ++i) {
+        bool keep = false;
+        if (i < (size_t)nWalletBackups) {
+            keep = true;
+        } else {
+            // Check if (i + 1) is power of 2
+            size_t rank = i + 1;
+            if ((rank & (rank - 1)) == 0) {
+                keep = true;
+            }
+        }
+
+        if (keep) {
+            indices_to_keep.push_back(i);
+        }
+    }
+
+    if (indices_to_keep.size() > (size_t)maxBackups) {
+        indices_to_keep.resize(maxBackups);
+    }
+
+    size_t keep_idx = 0;
+    for (size_t i = 0; i < sorted_backups.size(); ++i) {
+        if (keep_idx < indices_to_keep.size() && indices_to_keep[keep_idx] == i) {
+            keep_idx++;
+        } else {
+            paths_to_delete.push_back(sorted_backups[i].second);
+        }
+    }
+
+    return paths_to_delete;
+}
+
 void CWallet::InitAutoBackup()
 {
     if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return;
 
-    nWalletBackups = gArgs.GetIntArg("-createwalletbackups", 10);
-    nWalletBackups = std::max(0, std::min(10, nWalletBackups));
+    nWalletBackups = gArgs.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
+    nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
+
+    nMaxWalletBackups = gArgs.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
+    nMaxWalletBackups = std::max(0, nMaxWalletBackups);
 }
 
 bool CWallet::BackupWallet(const std::string& strDest) const
@@ -3487,20 +3543,15 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error
         }
     }
 
-    // Loop backward through backup files and keep the N newest ones (1 <= N <= 10)
-    int counter{0};
-    for (const auto& [entry_time, entry] : folder_set | std::views::reverse) {
-        counter++;
-        if (counter > nWalletBackups) {
-            // More than nWalletBackups backups: delete oldest one(s)
-            try {
-                fs::remove(entry);
-                WalletLogPrintf("Old backup deleted: %s\n", fs::PathToString(entry));
-            } catch(fs::filesystem_error &error) {
-                warnings.push_back(strprintf(_("Failed to delete backup, error: %s"), fsbridge::get_filesystem_error_message(error)));
-                WalletLogPrintf("%s\n", Join(warnings, Untranslated("\n")).original);
-                return false;
-            }
+    std::vector<fs::path> backupsToDelete = GetBackupsToDelete(folder_set, nWalletBackups, nMaxWalletBackups);
+    for (const auto& path : backupsToDelete) {
+        try {
+            fs::remove(path);
+            WalletLogPrintf("Old backup deleted: %s\n", fs::PathToString(path));
+        } catch(fs::filesystem_error &error) {
+            warnings.push_back(strprintf(_("Failed to delete backup, error: %s"), fsbridge::get_filesystem_error_message(error)));
+            WalletLogPrintf("%s\n", Join(warnings, Untranslated("\n")).original);
+            return false;
         }
     }
 
@@ -3708,7 +3759,10 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
                 if(nWalletBackups == -2) {
                     TopUpKeyPool();
                     WalletLogPrintf("Keypool replenished, re-initializing automatic backups.\n");
-                    nWalletBackups = m_args.GetIntArg("-createwalletbackups", 10);
+                    nWalletBackups = m_args.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
+                    nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
+                    nMaxWalletBackups = m_args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
+                    nMaxWalletBackups = std::max(0, nMaxWalletBackups);
                 }
                 return true;
             }
