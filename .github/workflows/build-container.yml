@@ -3,6 +3,10 @@ name: Build container
 on:
   workflow_call:
     inputs:
+      build-contexts:
+        description: "Paths to additional build contexts"
+        required: false
+        type: string
       context:
         description: "Path to use for build context"
         required: true
@@ -56,6 +60,7 @@ jobs:
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.file }}
+          build-contexts: ${{ inputs.build-contexts }}
           push: true
           tags: |
             ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ hashFiles(inputs.file) }}

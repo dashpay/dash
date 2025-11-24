@@ -18,8 +18,6 @@ RUN set -ex; \
     bsdmainutils \
     ccache \
     cmake \
-    g++-11 \
-    g++-14 \
     g++-arm-linux-gnueabihf \
     g++-mingw-w64-x86-64 \
     gawk \
@@ -66,6 +64,46 @@ RUN set -ex; \
     cmake -G 'Unix Makefiles' -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${LLVM_VERSION} ..; \
     make install -j "$(( $(nproc) - 1 ))"; \
     cd /opt && rm -rf /opt/iwyu;
+
+# Install Nix to fetch versioned GCC releases
+RUN set -ex; \
+    curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux \
+    --determinate \
+    --extra-conf "sandbox = false" \
+    --no-confirm \
+    --init none
+ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}" \
+    NIX_CONF_DIR="/etc/nix"
+COPY --from=docker_root ./nix.custom.conf /etc/nix/nix.custom.conf
+COPY --from=docker_root ./default.nix /etc/nix/
+RUN set -ex; \
+    nix-env -f /etc/nix/default.nix -i; \
+    nix-collect-garbage -d; \
+    nix-store --optimise;
+RUN set -ex; \
+    chmod -R o+rX /nix/store /nix/var/nix/profiles/default; \
+    mkdir -p /usr/local/bin /usr/local/lib /usr/local/lib64; \
+    for bin in /nix/var/nix/profiles/default/bin/*; do \
+        if [ -f "$bin" ]; then \
+            ln -sf "$bin" "/usr/local/bin/$(basename "$bin")"; \
+        fi; \
+    done; \
+    for dir in /nix/var/nix/profiles/default/lib/*; do \
+        if [ -d "$dir" ]; then \
+            ln -sf "$dir" "/usr/local/lib/$(basename "$dir")"; \
+        fi; \
+    done; \
+    for dir in /nix/var/nix/profiles/default/lib64/*; do \
+        if [ -d "$dir" ]; then \
+            ln -sf "$dir" "/usr/local/lib64/$(basename "$dir")"; \
+        fi; \
+    done; \
+    ln -sf "/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" "/usr/lib/multiarch"
+# Nix-supplied compilers won't search for distro-installed libraries without explicit
+# specification and we can't run binaries built with those compilers without specifying
+# where their runtime dependencies are
+ENV LD_LIBRARY_PATH="/usr/local/lib64/gcc-15:/usr/local/lib/gcc-15:/usr/local/lib64/gcc-11:/usr/local/lib/gcc-11:${LD_LIBRARY_PATH}"
+ENV LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/lib/multiarch:/usr/lib"
 
 RUN \
   mkdir -p /cache/ccache && \

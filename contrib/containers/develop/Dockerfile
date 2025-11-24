@@ -28,7 +28,6 @@ RUN set -ex; \
     openssh-client \
     screen \
     sudo \
-    zsh \
     && \
     rm -rf /var/lib/apt/lists/*
 

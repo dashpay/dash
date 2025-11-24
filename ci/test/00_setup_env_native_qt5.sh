@@ -9,10 +9,10 @@ export LC_ALL=C.UTF-8
 export CONTAINER_NAME=ci_native_qt5
 export HOST=x86_64-pc-linux-gnu
 export PACKAGES="python3-zmq qtbase5-dev qttools5-dev-tools libdbus-1-dev libharfbuzz-dev"
-export DEP_OPTS=""
+export DEP_OPTS="CC=gcc-11 CXX=g++-11"
 export TEST_RUNNER_EXTRA="--previous-releases --coverage --extended --exclude feature_pruning,feature_dbcrash"  # Run extended tests so that coverage does not fail, but exclude the very slow dbcrash
 export RUN_UNIT_TESTS_SEQUENTIAL="true"
 export RUN_UNIT_TESTS="false"
 export GOAL="install"
 export DOWNLOAD_PREVIOUS_RELEASES="true"
-export BITCOIN_CONFIG="--enable-zmq --with-libs=no --enable-reduce-exports LDFLAGS=-static-libstdc++ --with-boost-process"
+export BITCOIN_CONFIG="--enable-zmq --with-libs=no --enable-reduce-exports LDFLAGS=-static-libstdc++ --with-boost-process CC=gcc CXX=g++"

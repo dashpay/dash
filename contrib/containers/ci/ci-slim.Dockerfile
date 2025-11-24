@@ -45,6 +45,7 @@ RUN set -ex; \
     libsqlite3-dev \
     libssl-dev \
     make \
+    patchelf \
     xz-utils \
     zlib1g-dev \
     zstd \

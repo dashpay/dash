@@ -46,6 +46,8 @@ jobs:
       context: ./contrib/containers/ci
       file: ./contrib/containers/ci/ci.Dockerfile
       name: dashcore-ci-runner
+      build-contexts: |
+        docker_root=./contrib/containers/ci
 
   container-slim:
     name: Build slim container
