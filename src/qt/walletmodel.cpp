@@ -212,6 +212,9 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return TransactionCreationFailed;
     }
 
+    // Check if duplicate recipients are allowed (debug/testing feature)
+    bool fAllowDuplicateDestAddr = gArgs.GetBoolArg("-allowduplicaterecipients", false);
+
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
 
@@ -239,7 +242,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             total += rcp.amount;
         }
     }
-    if(setAddress.size() != nAddresses)
+    if(setAddress.size() != nAddresses && !fAllowDuplicateDestAddr)
     {
         return DuplicateAddress;
     }
