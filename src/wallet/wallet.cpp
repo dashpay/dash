@@ -3420,7 +3420,7 @@ void CWallet::InitAutoBackup()
 
     nMaxWalletBackups = gArgs.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
     nMaxWalletBackups = std::max(0, nMaxWalletBackups);
-    
+
     // Enforce nWalletBackups <= nMaxWalletBackups
     if (nWalletBackups > nMaxWalletBackups) {
         nWalletBackups = nMaxWalletBackups;
@@ -3776,7 +3776,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
                     nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
                     nMaxWalletBackups = m_args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
                     nMaxWalletBackups = std::max(0, nMaxWalletBackups);
-                    
+
                     // Enforce nWalletBackups <= nMaxWalletBackups
                     if (nWalletBackups > nMaxWalletBackups) {
                         nWalletBackups = nMaxWalletBackups;

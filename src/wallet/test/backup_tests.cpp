@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     };
 
     std::multimap<fs::file_time_type, fs::path> backups;
-    
+
     // Case 1: Less than nWalletBackups (10)
     for (int i = 0; i < 5; ++i) {
         backups.insert({make_time(i * 100), make_path(i)});
@@ -51,12 +51,12 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     // If we have 20 backups all created seconds apart, the algorithm doesn't care about time.
     // It just keeps: indices 0-9 (latest 10), then index 15 (16th backup)
     // All others are deleted.
-    
+
     backups.clear();
     for (int i = 0; i < 20; ++i) {
         // 20 backups, 1 second apart.
         // 0 is oldest, 19 is newest.
-        backups.insert({make_time(200 - i * 10), make_path(i)}); 
+        backups.insert({make_time(200 - i * 10), make_path(i)});
     }
     // Times:
     // i=0: 200s ago (Oldest)
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     // i=0 to 3 and i=5 to 9 are deleted (9 backups deleted).
     // Total kept: 11, deleted: 9.
     BOOST_CHECK_EQUAL(to_delete.size(), 9);
-    
+
     // Case 4: Index-based exponential distribution
     backups.clear();
     // Create 18 backups with varied ages (not that it matters for index-based logic)
