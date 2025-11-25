@@ -57,6 +57,9 @@ using interfaces::FoundBlock;
 
 namespace wallet {
 // Static wallet backup configuration
+// Ensure compile-time invariant: nWalletBackups <= nMaxWalletBackups when nMaxWalletBackups > 0
+static_assert(DEFAULT_MAX_BACKUPS == 0 || DEFAULT_N_WALLET_BACKUPS <= DEFAULT_MAX_BACKUPS,
+              "DEFAULT_N_WALLET_BACKUPS must not exceed DEFAULT_MAX_BACKUPS when DEFAULT_MAX_BACKUPS > 0");
 int CWallet::nWalletBackups = DEFAULT_N_WALLET_BACKUPS;
 int CWallet::nMaxWalletBackups = DEFAULT_MAX_BACKUPS;
 
@@ -3497,6 +3500,11 @@ std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type,
 {
     std::vector<fs::path> paths_to_delete;
 
+    // Early guard: if maxBackups <= 0, don't delete any backups
+    if (maxBackups <= 0) {
+        return paths_to_delete;
+    }
+
     if (backups.size() <= (size_t)nWalletBackups) {
         return paths_to_delete;
     }
@@ -3552,6 +3560,11 @@ void CWallet::InitAutoBackup()
 
     nMaxWalletBackups = gArgs.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
     nMaxWalletBackups = std::max(0, nMaxWalletBackups);
+    
+    // Enforce nWalletBackups <= nMaxWalletBackups
+    if (nWalletBackups > nMaxWalletBackups) {
+        nWalletBackups = nMaxWalletBackups;
+    }
 }
 
 bool CWallet::BackupWallet(const std::string& strDest) const
@@ -3903,6 +3916,11 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
                     nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
                     nMaxWalletBackups = m_args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
                     nMaxWalletBackups = std::max(0, nMaxWalletBackups);
+                    
+                    // Enforce nWalletBackups <= nMaxWalletBackups
+                    if (nWalletBackups > nMaxWalletBackups) {
+                        nWalletBackups = nMaxWalletBackups;
+                    }
                 }
                 return true;
             }
