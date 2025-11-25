@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
 {
     // Helper to create a dummy timestamp
     auto make_time = [](int64_t seconds_ago) {
-        return fs::file_time_type(std::chrono::seconds(std::time(nullptr) - seconds_ago));
+        return fs::file_time_type{std::chrono::file_clock::time_point{std::chrono::seconds(seconds_ago)}};
     };
 
     // Helper to create a dummy path
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     to_delete = GetBackupsToDelete(backups, 10, 50);
     // Should keep latest 10 (indices 0-9 in descending sorted order = i=10 to 19).
     // Then keep index 15 (16th backup = i=4).
-    // i=0 to 3 and i=5 to 9 are deleted (10 total).
+    // i=0 to 3 and i=5 to 9 are deleted (9 backups deleted).
     // Total kept: 11, deleted: 9.
     BOOST_CHECK_EQUAL(to_delete.size(), 9);
     
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
 BOOST_AUTO_TEST_CASE(hard_max_limit)
 {
     auto make_time = [](int64_t seconds_ago) {
-        return fs::file_time_type(std::chrono::seconds(std::time(nullptr) - seconds_ago));
+        return fs::file_time_type{std::chrono::file_clock::time_point{std::chrono::seconds(seconds_ago)}};
     };
     auto make_path = [](int i) {
         return fs::u8path("backup_" + std::to_string(i) + ".dat");
@@ -132,6 +132,31 @@ BOOST_AUTO_TEST_CASE(hard_max_limit)
 
     auto to_delete = GetBackupsToDelete(backups, 10, 50);
     BOOST_CHECK_EQUAL(to_delete.size(), 87);
+}
+
+BOOST_AUTO_TEST_CASE(hard_max_limit_caps_retention)
+{
+    auto make_time = [](int64_t seconds_ago) {
+        return fs::file_time_type::clock::now() - std::chrono::seconds(seconds_ago);
+    };
+    auto make_path = [](int i) {
+        return fs::u8path("backup_" + std::to_string(i) + ".dat");
+    };
+
+    std::multimap<fs::file_time_type, fs::path> backups;
+
+    // Test that maxBackups hard cap limits retention when exponential/index-based
+    // retention would keep more than maxBackups. With 50 backups and nWalletBackups=10,
+    // exponential logic would keep indices 0-9 (latest 10), 15 (16th), 31 (32nd) = 13 backups.
+    // But with maxBackups=12, the hard cap should limit kept backups to 12, resulting in 38 deletions.
+
+    backups.clear();
+    for (int i = 0; i < 50; ++i) {
+        backups.insert({make_time(1000 - i), make_path(i)});
+    }
+
+    auto to_delete = GetBackupsToDelete(backups, 10, 12);
+    BOOST_CHECK_EQUAL(to_delete.size(), 38); // 50 - 12 = 38
 }
 
 BOOST_AUTO_TEST_SUITE_END()
