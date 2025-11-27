@@ -14,13 +14,13 @@ XCODE_VERSION="${XCODE_VERSION:-26.1.1}"
 XCODE_RELEASE="${XCODE_RELEASE:-17B100}"
 XCODE_ARCHIVE="Xcode-${XCODE_VERSION}-${XCODE_RELEASE}-extracted-SDK-with-libcxx-headers"
 XCODE_AR_HASH="${XCODE_AR_HASH:-f4c65b01e2807372b61553c71036dbfef492d7c79d4c380a5afb61aa1018e555}"
-XCODE_AR_PATH="${SDK_SOURCES}/${XCODE_ARCHIVE}.tar.gz"
+XCODE_AR_PATH="${SDK_SOURCES}/${XCODE_ARCHIVE}.tar"
 
 if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
     if [ ! -f "${XCODE_AR_PATH}" ]; then
         echo "Downloading macOS SDK..."
         mkdir -p "${SDK_SOURCES}"
-        curl --location --fail "${SDK_URL}/${XCODE_ARCHIVE}.tar.gz" -o "${XCODE_AR_PATH}"
+        curl --location --fail "${SDK_URL}/${XCODE_ARCHIVE}.tar" -o "${XCODE_AR_PATH}"
     fi
     echo "Verifying macOS SDK..."
     if [ "$(sha256sum "${XCODE_AR_PATH}" | cut -d' ' -f1)" != "${XCODE_AR_HASH}" ]; then
