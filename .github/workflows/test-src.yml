@@ -37,6 +37,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8

@@ -4,6 +4,10 @@ on:
   pull_request:
     branches:
       - develop
+
+permissions:
+  contents: read
+
 jobs:
   ClangFormat:
     runs-on: ubuntu-latest
@@ -12,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Fetch git
         run: git fetch --no-tags -fu origin develop:develop
       - name: Run Clang-Format-Diff.py
