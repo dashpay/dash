@@ -33,12 +33,14 @@ jobs:
 
       - name: Commit variables
         id: prepare
+        env:
+          GITHUB_REPOSITORY_LC: ${{ github.repository }}
         run: |
           echo "hash=$(sha256sum ./dash/contrib/containers/guix/Dockerfile | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
           echo "host_user_id=$(id -u)" >> $GITHUB_OUTPUT
           echo "host_group_id=$(id -g)" >> $GITHUB_OUTPUT
           BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(echo "${GITHUB_REPOSITORY_LC}" | tr '[:upper:]' '[:lower:]')
           echo "image-tag=${BRANCH_NAME}" >> $GITHUB_OUTPUT
           echo "repo-name=${REPO_NAME}" >> $GITHUB_OUTPUT
 
@@ -115,14 +117,19 @@ jobs:
 
       - name: Run Guix build
         timeout-minutes: 480
+        env:
+          WORKSPACE: ${{ github.workspace }}
+          REPO_NAME: ${{ needs.build-image.outputs.repo-name }}
+          IMAGE_TAG: ${{ needs.build-image.outputs.image-tag }}
+          BUILD_TARGET: ${{ matrix.build_target }}
         run: |
           docker run --privileged -d --rm -t \
             --name guix-daemon \
-            -v ${{ github.workspace }}/dash:/src/dash \
-            -v ${{ github.workspace }}/.cache:/home/ubuntu/.cache \
+            -v "${WORKSPACE}/dash:/src/dash" \
+            -v "${WORKSPACE}/.cache:/home/ubuntu/.cache" \
             -w /src/dash \
-            ghcr.io/${{ needs.build-image.outputs.repo-name }}/dashcore-guix-builder:${{ needs.build-image.outputs.image-tag }} && \
-          docker exec guix-daemon bash -c 'HOSTS=${{ matrix.build_target }} /usr/local/bin/guix-start /src/dash'
+            "ghcr.io/${REPO_NAME}/dashcore-guix-builder:${IMAGE_TAG}" && \
+          docker exec guix-daemon bash -c "HOSTS=${BUILD_TARGET} /usr/local/bin/guix-start /src/dash"
 
       - name: Ensure build passes
         run: |
@@ -133,8 +140,11 @@ jobs:
 
       - name: Compute SHA256 checksums
         continue-on-error: true # It will complain on depending on only some hosts
+        env:
+          BUILD_TARGET: ${{ matrix.build_target }}
+          WORKSPACE: ${{ github.workspace }}
         run: |
-          HOSTS=${{ matrix.build_target }} ./dash/contrib/containers/guix/scripts/guix-check ${{ github.workspace }}/dash
+          HOSTS="${BUILD_TARGET}" ./dash/contrib/containers/guix/scripts/guix-check "${WORKSPACE}/dash"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

@@ -28,17 +28,21 @@ jobs:
 
     - name: Set raw tag
       id: get_tag
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
       run: |
-        TAG=${{ github.event.release.tag_name }}
+        TAG="${RELEASE_TAG}"
         echo "build_tag=${TAG#v}" >> $GITHUB_OUTPUT
 
     - name: Set suffix
       uses: actions/github-script@v6
       id: suffix
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
       with:
         result-encoding: string
         script: |
-          const fullTag = '${{ github.event.release.tag_name }}';
+          const fullTag = process.env.RELEASE_TAG;
           if (fullTag.includes('-')) {
             const [, fullSuffix] = fullTag.split('-');
             const [suffix] = fullSuffix.split('.');
@@ -79,4 +83,6 @@ jobs:
         platforms: linux/amd64,linux/arm64
 
     - name: Image digest
-      run: echo ${{ steps.docker_build.outputs.digest }}
+      env:
+        DIGEST: ${{ steps.docker_build.outputs.digest }}
+      run: echo "${DIGEST}"

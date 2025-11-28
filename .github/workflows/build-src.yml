@@ -38,13 +38,15 @@ jobs:
 
       - name: Initial setup
         id: setup
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
           git config --global --add safe.directory "$PWD"
           git fetch -fu origin develop:develop
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           echo "HOST=${HOST}" >> $GITHUB_OUTPUT
-          echo "PR_BASE_SHA=${{ github.event.pull_request.base.sha || '' }}" >> $GITHUB_OUTPUT
+          echo "PR_BASE_SHA=${PR_BASE_SHA}" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Restore SDKs cache
@@ -75,12 +77,13 @@ jobs:
             ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-
 
       - name: Build source
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
           CCACHE_MAXSIZE="400M"
           CACHE_DIR="/cache"
           mkdir /output
           BASE_OUTDIR="/output"
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/build_src.sh
           ccache -X 9
@@ -89,24 +92,27 @@ jobs:
 
       - name: Run linters
         if: inputs.build-target == 'linux64_multiprocess'
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          export BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/lint-tidy.sh
         shell: bash
 
       - name: Run unit tests
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
           BASE_OUTDIR="/output"
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/test_unittests.sh
         shell: bash
 
       - name: Bundle artifacts
         id: bundle
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          export BUILD_TARGET="${{ inputs.build-target }}"
           export BUNDLE_KEY="build-${BUILD_TARGET}-$(git rev-parse --short=8 HEAD)"
           ./ci/dash/bundle-artifacts.sh create
           echo "key=${BUNDLE_KEY}" >> "${GITHUB_OUTPUT}"
