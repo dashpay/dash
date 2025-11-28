@@ -10,9 +10,6 @@
 
 namespace wallet {
 
-// Forward declaration of the function we want to test (will be implemented in wallet.cpp)
-std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type, fs::path>& backups, int nWalletBackups, int maxBackups);
-
 BOOST_FIXTURE_TEST_SUITE(backup_tests, WalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(exponential_backup_logic)
