@@ -52,8 +52,9 @@ jobs:
 
       - name: Compute cache key
         id: setup
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           echo "DEP_OPTS=${DEP_OPTS}" >> "${GITHUB_OUTPUT}"
           echo "HOST=${HOST}" >> "${GITHUB_OUTPUT}"
@@ -127,9 +128,14 @@ jobs:
             depends-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}-${{ inputs.build-target }}-
 
       - name: Build depends
+        env:
+          HOST: ${{ steps.setup.outputs.HOST }}
+          DEP_OPTS: ${{ steps.setup.outputs.DEP_OPTS }}
         run: |
-          export HOST="${{ needs.check-cache.outputs.host }}"
-          env ${{ needs.check-cache.outputs.dep-opts }} make -j$(nproc) -C depends
+          if [ "${HOST}" = "x86_64-apple-darwin" ]; then
+            ./contrib/containers/guix/scripts/setup-sdk
+          fi
+          env ${DEP_OPTS} make -j$(nproc) -C depends
 
       - name: Save depends cache
         uses: actions/cache/save@v5
