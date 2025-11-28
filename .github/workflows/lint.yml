@@ -21,6 +21,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 50
+          persist-credentials: false
 
       - name: Initial setup
         run: |

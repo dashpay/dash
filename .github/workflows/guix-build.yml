@@ -1,19 +1,20 @@
 name: Guix Build
 
-permissions:
-  packages: write
-  id-token: write
-  attestations: write
-
 on:
   pull_request_target:
   pull_request:
     types: [labeled]
   push:
 
+permissions:
+  contents: read
+
 jobs:
   build-image:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
     if: |
       (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || vars.RUN_GUIX_ON_ALL_PUSH == 'true')) ||
       contains(github.event.pull_request.labels.*.name, 'guix-build')
@@ -27,6 +28,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: dash
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -72,6 +74,10 @@ jobs:
     needs: build-image
     # runs-on: [ "self-hosted", "linux", "x64", "ubuntu-core" ]
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       matrix:
         build_target: [x86_64-linux-gnu, arm-linux-gnueabihf, aarch64-linux-gnu, riscv64-linux-gnu, powerpc64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
@@ -88,6 +94,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: dash
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Cache depends sources
         uses: actions/cache@v4
