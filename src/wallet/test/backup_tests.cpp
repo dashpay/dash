@@ -6,6 +6,7 @@
 #include <chrono>
 #include <vector>
 #include <map>
+#include <util/string.h>
 
 namespace wallet {
 
@@ -23,7 +24,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
 
     // Helper to create a dummy path
     auto make_path = [](int i) {
-        return fs::u8path("backup_" + std::to_string(i) + ".dat");
+        return fs::u8path("backup_" + ToString(i) + ".dat");
     };
 
     std::multimap<fs::file_time_type, fs::path> backups;
@@ -61,7 +62,7 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     // Times:
     // i=0: 200s ago (Oldest)
     // i=19: 10s ago (Newest)
-    
+
     to_delete = GetBackupsToDelete(backups, 10, 50);
     // Should keep latest 10 (indices 0-9 in descending sorted order = i=10 to 19).
     // Then keep index 15 (16th backup = i=4).
@@ -107,7 +108,7 @@ BOOST_AUTO_TEST_CASE(hard_max_limit)
         return fs::file_time_type{std::chrono::file_clock::time_point{std::chrono::seconds(seconds_ago)}};
     };
     auto make_path = [](int i) {
-        return fs::u8path("backup_" + std::to_string(i) + ".dat");
+        return fs::u8path("backup_" + ToString(i) + ".dat");
     };
 
     std::multimap<fs::file_time_type, fs::path> backups;
@@ -140,7 +141,7 @@ BOOST_AUTO_TEST_CASE(hard_max_limit_caps_retention)
         return fs::file_time_type::clock::now() - std::chrono::seconds(seconds_ago);
     };
     auto make_path = [](int i) {
-        return fs::u8path("backup_" + std::to_string(i) + ".dat");
+        return fs::u8path("backup_" + ToString(i) + ".dat");
     };
 
     std::multimap<fs::file_time_type, fs::path> backups;
