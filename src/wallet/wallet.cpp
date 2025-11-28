@@ -3370,34 +3370,45 @@ std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type,
     }
 
     // Sort backups by time descending (newest first)
-    std::vector<std::pair<fs::file_time_type, fs::path>> sorted_backups;
-    for (const auto& entry : backups) {
-        sorted_backups.push_back(entry);
-    }
-    std::reverse(sorted_backups.begin(), sorted_backups.end());
+    std::vector<std::pair<fs::file_time_type, fs::path>> sorted_backups(backups.rbegin(), backups.rend());
 
     std::vector<size_t> indices_to_keep;
-    for (size_t i = 0; i < sorted_backups.size(); ++i) {
-        bool keep = false;
-        if (i < (size_t)nWalletBackups) {
-            keep = true;
-        } else {
-            // Check if (i + 1) is power of 2
-            size_t rank = i + 1;
-            if ((rank & (rank - 1)) == 0) {
-                keep = true;
-            }
-        }
 
-        if (keep) {
-            indices_to_keep.push_back(i);
-        }
+    // Keep latest nWalletBackups
+    for (size_t i = 0; i < sorted_backups.size() && i < (size_t)nWalletBackups; ++i) {
+        indices_to_keep.push_back(i);
     }
 
+    // For exponential ranges, keep the oldest backup in each range [2^k, 2^(k+1))
+    // Start from nWalletBackups (e.g., 10) up to the next power of 2 (16)
+    // Then 16-32, 32-64, etc.
+    size_t range_start = nWalletBackups;
+    size_t range_end = 16;
+
+    // Find first power of 2 >= nWalletBackups
+    while (range_end < (size_t)nWalletBackups) {
+        range_end *= 2;
+    }
+
+    while (range_start < sorted_backups.size()) {
+        // Keep the oldest backup in range [range_start, range_end)
+        // That's the highest valid index in the range
+        size_t oldest_in_range = std::min(range_end - 1, sorted_backups.size() - 1);
+        if (oldest_in_range >= range_start) {
+            indices_to_keep.push_back(oldest_in_range);
+        }
+
+        range_start = range_end;
+        range_end *= 2;
+    }
+
+    // Enforce hard max limit
     if (indices_to_keep.size() > (size_t)maxBackups) {
         indices_to_keep.resize(maxBackups);
     }
 
+    // Build deletion list
+    std::sort(indices_to_keep.begin(), indices_to_keep.end());
     size_t keep_idx = 0;
     for (size_t i = 0; i < sorted_backups.size(); ++i) {
         if (keep_idx < indices_to_keep.size() && indices_to_keep[keep_idx] == i) {

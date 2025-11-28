@@ -41,14 +41,35 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     to_delete = GetBackupsToDelete(backups, 10, 50);
     BOOST_CHECK(to_delete.empty());
 
+    // Case 2b: 11 backups - the critical edge case that proves exponential retention works
+    // Before the fix, the 11th backup would always be deleted, never allowing accumulation.
+    // With the fix, we keep the oldest in range [10,16), so index 10 is kept.
+    backups.clear();
+    for (int i = 0; i < 11; ++i) {
+        backups.insert({make_time(i * 100), make_path(i)});
+    }
+    to_delete = GetBackupsToDelete(backups, 10, 50);
+    // Keep indices 0-9 (latest 10) + index 10 (oldest in [10,16)) = 11 total
+    // Nothing to delete!
+    BOOST_CHECK(to_delete.empty());
+
+    // Case 2c: 12 backups - now we start deleting
+    backups.clear();
+    for (int i = 0; i < 12; ++i) {
+        backups.insert({make_time(i * 100), make_path(i)});
+    }
+    to_delete = GetBackupsToDelete(backups, 10, 50);
+    // Keep indices 0-9 (latest 10) + index 11 (oldest in [10,16)) = 11 total
+    // Delete index 10
+    BOOST_CHECK_EQUAL(to_delete.size(), 1);
+
     // Case 3: More than 10, all very recent
-    // Logic: INDEX-BASED retention (not time-based)
+    // Logic: INDEX-BASED retention with exponential ranges
     // Keep the latest 10 (indices 0-9 when sorted newest first)
-    // Then keep backups at ranks that are powers of 2: 16th, 32nd, 64th, etc.
-    // (i.e., indices 15, 31, 63, ... when 0-indexed)
-    // If we have 20 backups all created seconds apart, the algorithm doesn't care about time.
-    // It just keeps: indices 0-9 (latest 10), then index 15 (16th backup)
-    // All others are deleted.
+    // For older backups, keep the oldest in each exponential range:
+    //   [10,16): keep index 15 (or highest available)
+    //   [16,32): keep index 19 (highest available, capped by size-1)
+    // Total kept: 12 (indices 0-9, 15, 19), deleted: 8
 
     backups.clear();
     for (int i = 0; i < 20; ++i) {
@@ -61,18 +82,17 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
     // i=19: 10s ago (Newest)
 
     to_delete = GetBackupsToDelete(backups, 10, 50);
-    // Should keep latest 10 (indices 0-9 in descending sorted order = i=10 to 19).
-    // Then keep index 15 (16th backup = i=4).
-    // i=0 to 3 and i=5 to 9 are deleted (9 backups deleted).
-    // Total kept: 11, deleted: 9.
-    BOOST_CHECK_EQUAL(to_delete.size(), 9);
+    // Keep: indices 0-9 (latest 10), 15 (oldest in [10,16)), 19 (oldest in [16,32))
+    // Delete: indices 10-14, 16-18 (8 backups deleted).
+    // Total kept: 12, deleted: 8.
+    BOOST_CHECK_EQUAL(to_delete.size(), 8);
 
     // Case 4: Index-based exponential distribution
     backups.clear();
     // Create 18 backups with varied ages (not that it matters for index-based logic)
     // After sorting newest first, we get indices 0-17
-    // Keep: indices 0-9 (latest 10), index 15 (16th backup)
-    // Delete: indices 10-14, 16-17 (7 total)
+    // Keep: indices 0-9 (latest 10), 15 (oldest in [10,16)), 17 (oldest in [16,32))
+    // Delete: indices 10-14, 16 (6 total)
 
     std::vector<int64_t> ages;
     for(int i=0; i<10; ++i) ages.push_back(i * 3600); // 0 to 9 hours
@@ -94,9 +114,9 @@ BOOST_AUTO_TEST_CASE(exponential_backup_logic)
 
     // Total files: 18
     // After sorting by time (newest first), we have indices 0-17
-    // Keep indices: 0-9 (latest 10), 15 (16th backup, power of 2)
-    // Delete: 10-14, 16-17 = 7 files
-    BOOST_CHECK_EQUAL(to_delete.size(), 7);
+    // Keep indices: 0-9 (latest 10), 15 (oldest in [10,16)), 17 (oldest in [16,32))
+    // Delete: 10-14, 16 = 6 files
+    BOOST_CHECK_EQUAL(to_delete.size(), 6);
 }
 
 BOOST_AUTO_TEST_CASE(hard_max_limit)
@@ -110,14 +130,15 @@ BOOST_AUTO_TEST_CASE(hard_max_limit)
 
     std::multimap<fs::file_time_type, fs::path> backups;
 
-    // Test INDEX-BASED exponential retention:
+    // Test INDEX-BASED exponential retention with ranges:
     // - Keep latest nWalletBackups (10) backups
-    // - For older backups, keep those at ranks that are powers of 2 (16th, 32nd, 64th, etc.)
+    // - For older backups, keep oldest in each exponential range
     // - Enforce hard max limit (maxBackups)
     //
     // With 100 backups and nWalletBackups=10:
-    // Keep indices: 0-9 (latest 10), 15 (16th), 31 (32nd), 63 (64th)
-    // Total kept: 13, deleted: 87
+    // Keep indices: 0-9 (latest 10), 15 (oldest in [10,16)), 31 (oldest in [16,32)),
+    //               63 (oldest in [32,64)), 99 (oldest in [64,128))
+    // Total kept: 14, deleted: 86
 
     backups.clear();
     for (int i = 0; i < 100; ++i) {
@@ -125,17 +146,17 @@ BOOST_AUTO_TEST_CASE(hard_max_limit)
     }
 
     // GetBackupsToDelete should return everything EXCEPT:
-    // Indices 0-9 (latest 10), 15 (16th), 31 (32nd), 63 (64th)
-    // Total kept: 13, deleted: 87
+    // Indices 0-9, 15, 31, 63, 99
+    // Total kept: 14, deleted: 86
 
     auto to_delete = GetBackupsToDelete(backups, 10, 50);
-    BOOST_CHECK_EQUAL(to_delete.size(), 87);
+    BOOST_CHECK_EQUAL(to_delete.size(), 86);
 }
 
 BOOST_AUTO_TEST_CASE(hard_max_limit_caps_retention)
 {
     auto make_time = [](int64_t seconds_ago) {
-        return fs::file_time_type::clock::now() - std::chrono::seconds(seconds_ago);
+        return fs::file_time_type{std::chrono::file_clock::time_point{std::chrono::seconds(seconds_ago)}};
     };
     auto make_path = [](int i) {
         return fs::u8path("backup_" + ToString(i) + ".dat");
@@ -145,7 +166,7 @@ BOOST_AUTO_TEST_CASE(hard_max_limit_caps_retention)
 
     // Test that maxBackups hard cap limits retention when exponential/index-based
     // retention would keep more than maxBackups. With 50 backups and nWalletBackups=10,
-    // exponential logic would keep indices 0-9 (latest 10), 15 (16th), 31 (32nd) = 13 backups.
+    // exponential logic would keep indices 0-9 (latest 10), 15, 31, 49 = 13 backups.
     // But with maxBackups=12, the hard cap should limit kept backups to 12, resulting in 38 deletions.
 
     backups.clear();
