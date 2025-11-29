@@ -498,9 +498,10 @@ void OverviewPage::coinJoinStatus(bool fForce)
     if (!fForce && (clientModel->node().shutdownRequested() || !clientModel->masternodeSync().isBlockchainSynced())) return;
 
     // Disable any PS UI for masternode or when autobackup is disabled or failed for whatever reason
-    if (clientModel->node().isMasternode() || nWalletBackups <= 0) {
+    int backupStatus = walletModel->wallet().getWalletBackupStatus();
+    if (clientModel->node().isMasternode() || backupStatus <= 0) {
         DisableCoinJoinCompletely();
-        if (nWalletBackups <= 0) {
+        if (backupStatus <= 0) {
             ui->labelCoinJoinEnabled->setToolTip(tr("Automatic backups are disabled, no mixing available!"));
         }
         return;
@@ -595,7 +596,7 @@ void OverviewPage::coinJoinStatus(bool fForce)
 
     // Warn user that wallet is running out of keys
     // NOTE: we do NOT warn user and do NOT create autobackups if mixing is not running
-    if (walletModel->wallet().isLegacy() && nWalletBackups > 0 && walletModel->getKeysLeftSinceAutoBackup() < COINJOIN_KEYS_THRESHOLD_WARNING) {
+    if (walletModel->wallet().isLegacy() && walletModel->wallet().getWalletBackupStatus() > 0 && walletModel->getKeysLeftSinceAutoBackup() < COINJOIN_KEYS_THRESHOLD_WARNING) {
         QSettings settings;
         if(settings.value("fLowKeysWarning").toBool()) {
             QString strWarn =   tr("Very low number of keys left since last automatic backup!") + "<br><br>" +
@@ -639,7 +640,8 @@ void OverviewPage::coinJoinStatus(bool fForce)
     ui->labelCoinJoinEnabled->setText(strEnabled);
 
     if (walletModel->wallet().isLegacy()) {
-        if(nWalletBackups == -1) {
+        int backupStatus = walletModel->wallet().getWalletBackupStatus();
+        if (backupStatus == -1) {
             // Automatic backup failed, nothing else we can do until user fixes the issue manually
             DisableCoinJoinCompletely();
 
@@ -649,7 +651,7 @@ void OverviewPage::coinJoinStatus(bool fForce)
             ui->labelCoinJoinEnabled->setToolTip(strError);
 
             return;
-        } else if(nWalletBackups == -2) {
+        } else if (backupStatus == -2) {
             // We were able to create automatic backup but keypool was not replenished because wallet is locked.
             QString strWarning = tr("WARNING! Failed to replenish keypool, please unlock your wallet to do so.");
             ui->labelCoinJoinEnabled->setToolTip(strWarning);
@@ -754,7 +756,7 @@ void OverviewPage::DisableCoinJoinCompletely()
 
     ui->toggleCoinJoin->setText("(" + tr("Disabled") + ")");
     ui->frameCoinJoin->setEnabled(false);
-    if (nWalletBackups <= 0) {
+    if (walletModel && walletModel->wallet().getWalletBackupStatus() <= 0) {
         ui->labelCoinJoinEnabled->setText("<span style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR) + "'>(" + tr("Disabled") + ")</span>");
     }
     walletModel->coinJoin()->stopMixing();

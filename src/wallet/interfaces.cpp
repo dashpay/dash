@@ -181,6 +181,7 @@ public:
         return m_wallet->AutoBackupWallet(wallet_path, error_string, warnings);
     }
     int64_t getKeysLeftSinceAutoBackup() override { return m_wallet->nKeysLeftSinceAutoBackup; }
+    int getWalletBackupStatus() override { return CWallet::nWalletBackups; }
     std::string getWalletName() override { return m_wallet->GetName(); }
     util::Result<CTxDestination> getNewDestination(const std::string& label) override
     {

@@ -78,15 +78,6 @@ const int64_t nStartupTime = GetTime();
 //Dash only features
 const std::string gCoinJoinName = "CoinJoin";
 
-/**
-    nWalletBackups:
-        1..10   - number of automatic backups to keep
-        0       - disabled by command-line
-        -1      - disabled because of some error during run-time
-        -2      - disabled because wallet was locked and we were not able to replenish keypool
-*/
-int nWalletBackups = 10;
-
 const char * const BITCOIN_CONF_FILENAME = "dash.conf";
 const char * const BITCOIN_SETTINGS_FILENAME = "settings.json";
 
