@@ -87,10 +87,10 @@ static constexpr int MAX_N_WALLET_BACKUPS = 20;
 
 /**
  * Determine which backup files to delete based on retention policy.
- * Keeps the latest nWalletBackups.
- * For older backups, keeps the oldest backup in each exponential range:
- *   [nWalletBackups, 16), [16, 32), [32, 64), etc.
- * This allows exponential retention to work from the first backup beyond nWalletBackups.
+ * Keeps the latest nWalletBackups by count.
+ * For older backups, keeps the oldest backup in each exponential time range (in days):
+ *   [1,2), [2,4), [4,8), [8,16), [16,32), [32,64), etc.
+ * This allows backups to accumulate naturally over time with exponential spacing.
  * Enforces a hard limit of maxBackups.
  */
 std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type, fs::path>& backups, int nWalletBackups, int maxBackups = DEFAULT_MAX_BACKUPS);

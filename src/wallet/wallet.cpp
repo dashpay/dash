@@ -3360,7 +3360,7 @@ std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type,
 {
     std::vector<fs::path> paths_to_delete;
 
-    // Early guard: if maxBackups <= 0, don't delete any backups
+    // Early guards
     if (maxBackups <= 0) {
         return paths_to_delete;
     }
@@ -3369,51 +3369,69 @@ std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type,
         return paths_to_delete;
     }
 
-    // Sort backups by time descending (newest first)
+    // Sort by time descending (newest first)
     std::vector<std::pair<fs::file_time_type, fs::path>> sorted_backups(backups.rbegin(), backups.rend());
 
-    std::vector<size_t> indices_to_keep;
+    std::set<size_t> indices_to_keep;
 
-    // Keep latest nWalletBackups
-    for (size_t i = 0; i < sorted_backups.size() && i < (size_t)nWalletBackups; ++i) {
-        indices_to_keep.push_back(i);
+    // Always keep the latest nWalletBackups (by count, not time)
+    for (size_t i = 0; i < std::min(sorted_backups.size(), (size_t)nWalletBackups); ++i) {
+        indices_to_keep.insert(i);
     }
 
-    // For exponential ranges, keep the oldest backup in each range [2^k, 2^(k+1))
-    // Start from nWalletBackups (e.g., 10) up to the next power of 2 (16)
-    // Then 16-32, 32-64, etc.
-    size_t range_start = nWalletBackups;
-    size_t range_end = 16;
+    // For older backups (beyond the latest nWalletBackups), apply time-based exponential retention
+    if (sorted_backups.size() > (size_t)nWalletBackups) {
+        auto now = sorted_backups[0].first; // newest backup time
 
-    // Find first power of 2 >= nWalletBackups
-    while (range_end < (size_t)nWalletBackups) {
-        range_end *= 2;
-    }
+        using days = std::chrono::duration<int64_t, std::ratio<86400>>;
 
-    while (range_start < sorted_backups.size()) {
-        // Keep the oldest backup in range [range_start, range_end)
-        // That's the highest valid index in the range
-        size_t oldest_in_range = std::min(range_end - 1, sorted_backups.size() - 1);
-        if (oldest_in_range >= range_start) {
-            indices_to_keep.push_back(oldest_in_range);
+        // Define exponential day ranges: [1,2), [2,4), [4,8), [8,16), [16,32), [32,64), etc.
+        // We start from 1 day because the latest nWalletBackups are already kept
+        int range_start_days = 1;
+        int range_end_days = 2;
+
+        // Process exponential time ranges until we hit maxBackups limit or run out of old backups
+        while (indices_to_keep.size() < (size_t)maxBackups) {
+            std::optional<size_t> oldest_in_range;
+
+            // Search through backups beyond the latest nWalletBackups
+            for (size_t i = nWalletBackups; i < sorted_backups.size(); ++i) {
+                auto age_duration = now - sorted_backups[i].first;
+                auto age_days = std::chrono::duration_cast<days>(age_duration).count();
+
+                if (age_days >= range_start_days && age_days < range_end_days) {
+                    // Keep searching - we want the oldest (highest index) in this range
+                    oldest_in_range = i;
+                }
+            }
+
+            if (oldest_in_range.has_value()) {
+                indices_to_keep.insert(*oldest_in_range);
+            } else {
+                // No backups in this range, check if there are any older backups left
+                bool has_older_backups = false;
+                for (size_t i = nWalletBackups; i < sorted_backups.size(); ++i) {
+                    auto age_duration = now - sorted_backups[i].first;
+                    auto age_days = std::chrono::duration_cast<days>(age_duration).count();
+                    if (age_days >= range_end_days) {
+                        has_older_backups = true;
+                        break;
+                    }
+                }
+                if (!has_older_backups) {
+                    break; // No more old backups to consider
+                }
+            }
+
+            // Move to next exponential range
+            range_start_days = range_end_days;
+            range_end_days *= 2;
         }
-
-        range_start = range_end;
-        range_end *= 2;
-    }
-
-    // Enforce hard max limit
-    if (indices_to_keep.size() > (size_t)maxBackups) {
-        indices_to_keep.resize(maxBackups);
     }
 
     // Build deletion list
-    std::sort(indices_to_keep.begin(), indices_to_keep.end());
-    size_t keep_idx = 0;
     for (size_t i = 0; i < sorted_backups.size(); ++i) {
-        if (keep_idx < indices_to_keep.size() && indices_to_keep[keep_idx] == i) {
-            keep_idx++;
-        } else {
+        if (indices_to_keep.find(i) == indices_to_keep.end()) {
             paths_to_delete.push_back(sorted_backups[i].second);
         }
     }
