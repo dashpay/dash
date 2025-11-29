@@ -3439,15 +3439,15 @@ std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type,
     return paths_to_delete;
 }
 
-void CWallet::InitAutoBackup()
+void CWallet::InitAutoBackup(const ArgsManager& args)
 {
-    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
+    if (args.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return;
 
-    nWalletBackups = gArgs.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
+    nWalletBackups = args.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
     nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
 
-    nMaxWalletBackups = gArgs.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
+    nMaxWalletBackups = args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
     nMaxWalletBackups = std::max(0, nMaxWalletBackups);
 
     // Enforce nWalletBackups <= nMaxWalletBackups
@@ -3801,15 +3801,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
                 if(nWalletBackups == -2) {
                     TopUpKeyPool();
                     WalletLogPrintf("Keypool replenished, re-initializing automatic backups.\n");
-                    nWalletBackups = m_args.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
-                    nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
-                    nMaxWalletBackups = m_args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
-                    nMaxWalletBackups = std::max(0, nMaxWalletBackups);
-
-                    // Enforce nWalletBackups <= nMaxWalletBackups
-                    if (nWalletBackups > nMaxWalletBackups) {
-                        nWalletBackups = nMaxWalletBackups;
-                    }
+                    InitAutoBackup(m_args);
                 }
                 return true;
             }
