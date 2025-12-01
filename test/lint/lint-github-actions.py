@@ -68,12 +68,12 @@ def generate_config():
     # Add disabled audits
     for audit in DISABLED:
         lines.append(f'  {audit}:')
-        lines.append(f'    disable: true')
+        lines.append('    disable: true')
 
     # Add ignored findings
     for audit, locations in IGNORED.items():
         lines.append(f'  {audit}:')
-        lines.append(f'    ignore:')
+        lines.append('    ignore:')
         for loc in locations:
             lines.append(f'      - {loc}')
 
