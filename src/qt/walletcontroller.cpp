@@ -7,12 +7,14 @@
 #include <qt/askpassphrasedialog.h>
 #include <qt/clientmodel.h>
 #include <qt/createwalletdialog.h>
+#include <qt/mnemonicverificationdialog.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 
 #include <coinjoin/client.h>
 #include <node/context.h>
+#include <external_signer.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
 #include <util/string.h>
@@ -34,6 +36,7 @@
 
 using wallet::WALLET_FLAG_BLANK_WALLET;
 using wallet::WALLET_FLAG_DESCRIPTORS;
+using wallet::WALLET_FLAG_EXTERNAL_SIGNER;
 using wallet::WALLET_FLAG_DISABLE_PRIVATE_KEYS;
 
 WalletController::WalletController(ClientModel& client_model, QObject* parent)
@@ -78,14 +81,6 @@ std::map<std::string, bool> WalletController::listWalletDir() const
     return wallets;
 }
 
-void WalletController::removeWallet(WalletModel* wallet_model)
-{
-    // Once the wallet is successfully removed from the node, the model will emit the 'WalletModel::unload' signal.
-    // This signal is already connected and will complete the removal of the view from the GUI.
-    // Look at 'WalletController::getOrCreateWallet' for the signal connection.
-    wallet_model->wallet().remove();
-}
-
 void WalletController::closeWallet(WalletModel* wallet_model, QWidget* parent)
 {
     QMessageBox box(parent);
@@ -96,7 +91,10 @@ void WalletController::closeWallet(WalletModel* wallet_model, QWidget* parent)
     box.setDefaultButton(QMessageBox::Yes);
     if (box.exec() != QMessageBox::Yes) return;
 
-    removeWallet(wallet_model);
+    // First remove wallet from node.
+    wallet_model->wallet().remove();
+    // Now release the model.
+    removeAndDeleteWallet(wallet_model);
 }
 
 void WalletController::closeAllWallets(QWidget* parent)
@@ -109,8 +107,11 @@ void WalletController::closeAllWallets(QWidget* parent)
 
     QMutexLocker locker(&m_mutex);
     for (WalletModel* wallet_model : m_wallets) {
-        removeWallet(wallet_model);
+        wallet_model->wallet().remove();
+        Q_EMIT walletRemoved(wallet_model);
+        delete wallet_model;
     }
+    m_wallets.clear();
 }
 
 WalletModel* WalletController::getOrCreateWallet(std::unique_ptr<interfaces::Wallet> wallet)
@@ -259,6 +260,9 @@ void CreateWalletActivity::createWallet()
     if (m_create_wallet_dialog->isDescriptorWalletChecked()) {
         flags |= WALLET_FLAG_DESCRIPTORS;
     }
+    if (m_create_wallet_dialog->isExternalSignerChecked()) {
+        flags |= WALLET_FLAG_EXTERNAL_SIGNER;
+    }
 
     QTimer::singleShot(500ms, worker(), [this, name, flags] {
         auto wallet{node().walletLoader().createWallet(name, m_passphrase, flags, m_warning_message)};
@@ -281,7 +285,83 @@ void CreateWalletActivity::finish()
         QMessageBox::warning(m_parent_widget, tr("Create wallet warning"), QString::fromStdString(Join(m_warning_message, Untranslated("\n")).translated));
     }
 
-    if (m_wallet_model) Q_EMIT created(m_wallet_model);
+    if (m_wallet_model) {
+        // Check if wallet is HD-enabled (has mnemonic) and requires verification
+        // Skip verification for blank wallets or wallets with disabled private keys
+        if (!m_wallet_model->wallet().hdEnabled() ||
+            m_wallet_model->wallet().privateKeysDisabled() ||
+            !m_wallet_model->wallet().canGetAddresses()) {
+            // Not an HD wallet - skip verification
+            Q_EMIT created(m_wallet_model);
+            Q_EMIT finished();
+            return;
+        }
+
+        // Unlock wallet if encrypted (needed to retrieve mnemonic)
+        // Note: Newly created wallet can only be locked (if encrypted) or unencrypted.
+        // Mixing-only unlock state is not possible at wallet creation time.
+        const bool was_locked = (m_wallet_model->getEncryptionStatus() == WalletModel::Locked);
+        if (was_locked) {
+            // Unlock to retrieve mnemonic using passphrase from wallet creation
+            if (!m_wallet_model->setWalletLocked(false, m_passphrase, false)) {
+                QMessageBox::warning(m_parent_widget, tr("Unlock failed"),
+                    tr("Failed to unlock wallet for mnemonic verification. Wallet creation completed but verification skipped."));
+                Q_EMIT created(m_wallet_model);
+                Q_EMIT finished();
+                return;
+            }
+        }
+
+        // Check if wallet has a mnemonic and requires verification
+        SecureString mnemonic;
+        SecureString mnemonic_passphrase;
+        bool has_mnemonic = m_wallet_model->wallet().getMnemonic(mnemonic, mnemonic_passphrase);
+
+        if (!has_mnemonic || mnemonic.empty()) {
+            // No mnemonic found - log warning and skip verification
+            if (was_locked) {
+                m_wallet_model->setWalletLocked(true);
+            }
+            // Clear sensitive data before showing message
+            mnemonic.assign(mnemonic.size(), 0);
+            mnemonic_passphrase.assign(mnemonic_passphrase.size(), 0);
+            QMessageBox::warning(m_parent_widget, tr("Mnemonic retrieval failed"),
+                tr("Could not retrieve mnemonic phrase from wallet. Wallet creation completed but verification skipped."));
+            Q_EMIT created(m_wallet_model);
+            Q_EMIT finished();
+            return;
+        }
+
+        // Wallet has mnemonic - show verification dialog
+        MnemonicVerificationDialog verify_dialog(mnemonic, m_parent_widget);
+        verify_dialog.setWindowModality(Qt::ApplicationModal);
+
+        // Clear mnemonic from local variables after dialog has copied it
+        // The dialog will manage its own copy securely
+        const size_t mnemonic_size = mnemonic.size();
+        const size_t passphrase_size = mnemonic_passphrase.size();
+        mnemonic.assign(mnemonic_size, 0);
+        mnemonic_passphrase.assign(passphrase_size, 0);
+
+        if (verify_dialog.exec() == QDialog::Accepted) {
+            // Verification successful
+            if (was_locked) {
+                m_wallet_model->setWalletLocked(true);
+            }
+            Q_EMIT created(m_wallet_model);
+        } else {
+            // User cancelled verification
+            if (was_locked) {
+                m_wallet_model->setWalletLocked(true);
+            }
+            QMessageBox::warning(m_parent_widget, tr("Verification cancelled"),
+                tr("You cancelled mnemonic verification. Please make sure you have saved your mnemonic phrase safely."));
+            Q_EMIT created(m_wallet_model);
+        }
+    } else {
+        // Wallet creation failed - no wallet model
+        // Already showed error message above
+    }
 
     Q_EMIT finished();
 }
@@ -289,6 +369,19 @@ void CreateWalletActivity::finish()
 void CreateWalletActivity::create()
 {
     m_create_wallet_dialog = new CreateWalletDialog(m_parent_widget);
+
+    std::vector<std::unique_ptr<interfaces::ExternalSigner>> signers;
+    try {
+        signers = node().listExternalSigners();
+    } catch (const std::runtime_error& e) {
+        QMessageBox::critical(nullptr, tr("Can't list signers"), e.what());
+    }
+    if (signers.size() > 1) {
+        QMessageBox::critical(nullptr, tr("Too many external signers found"), QString::fromStdString("More than one external signer found. Please connect only one at a time."));
+        signers.clear();
+    }
+    m_create_wallet_dialog->setSigners(signers);
+
     m_create_wallet_dialog->setWindowModality(Qt::ApplicationModal);
     m_create_wallet_dialog->show();
 

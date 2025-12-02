@@ -49,8 +49,9 @@ bool GetLocal(CService& addr, const CNetAddr* paddrPeer)
 }
 } // anonymous namespace
 
-CActiveMasternodeManager::CActiveMasternodeManager(const CBLSSecretKey& sk, CConnman& connman, const std::unique_ptr<CDeterministicMNManager>& dmnman) :
-    m_info(sk, sk.GetPublicKey()),
+CActiveMasternodeManager::CActiveMasternodeManager(const CBLSSecretKey& sk, CConnman& connman,
+                                                   const std::unique_ptr<CDeterministicMNManager>& dmnman) :
+    m_info{sk, sk.GetPublicKey()},
     m_connman{connman},
     m_dmnman{dmnman}
 {
@@ -59,6 +60,8 @@ CActiveMasternodeManager::CActiveMasternodeManager(const CBLSSecretKey& sk, CCon
             m_info.blsPubKeyOperator.ToString(/*specificLegacyScheme=*/ true),
             m_info.blsPubKeyOperator.ToString(/*specificLegacyScheme=*/ false));
 }
+
+CActiveMasternodeManager::~CActiveMasternodeManager() = default;
 
 std::string CActiveMasternodeManager::GetStateString() const
 {
@@ -274,6 +277,14 @@ template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjec
 {
     AssertLockNotHeld(cs);
     return WITH_READ_LOCK(cs, return m_info.blsKeyOperator.Sign(hash, is_legacy));
+}
+
+[[nodiscard]] std::vector<uint8_t> CActiveMasternodeManager::SignBasic(const uint256& hash) const
+{
+    AssertLockNotHeld(cs);
+    auto sig = Sign(hash, /*is_legacy=*/false);
+    assert(sig.IsValid());
+    return sig.ToByteVector(/*specificLegacyScheme=*/false);
 }
 
 // We need to pass a copy as opposed to a const ref because CBLSPublicKeyVersionWrapper

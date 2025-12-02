@@ -49,6 +49,8 @@ private:
     std::vector<SigVerifyJob> sigVerifyQueue;
 
 public:
+    CBLSWorker(const CBLSWorker&) = delete;
+    CBLSWorker& operator=(CBLSWorker const&) = delete;
     CBLSWorker();
     ~CBLSWorker();
 

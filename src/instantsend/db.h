@@ -24,6 +24,9 @@ class CBlockIndex;
 class CDBBatch;
 class CDBWrapper;
 class COutPoint;
+namespace util {
+struct DbWrapperParams;
+} // namespace util
 
 namespace instantsend {
 class CInstantSendDb
@@ -78,10 +81,10 @@ private:
     uint256 GetInstantSendLockHashByTxidInternal(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
 
 
-    void Upgrade(bool unitTests) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    void Upgrade(const util::DbWrapperParams& db_params) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
 
 public:
-    explicit CInstantSendDb(bool unitTests, bool fWipe);
+    explicit CInstantSendDb(const util::DbWrapperParams& db_params);
     ~CInstantSendDb();
 
     /**

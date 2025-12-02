@@ -11,6 +11,7 @@
 #include <threadsafety.h>
 #include <validationinterface.h>
 
+class CConnman;
 class CDeterministicMNManager;
 
 struct CActiveMasternodeInfo {
@@ -50,7 +51,11 @@ private:
     const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
 
 public:
+    CActiveMasternodeManager() = delete;
+    CActiveMasternodeManager(const CActiveMasternodeManager&) = delete;
+    CActiveMasternodeManager& operator=(const CActiveMasternodeManager&) = delete;
     explicit CActiveMasternodeManager(const CBLSSecretKey& sk, CConnman& connman, const std::unique_ptr<CDeterministicMNManager>& dmnman);
+    ~CActiveMasternodeManager();
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -66,6 +71,7 @@ public:
     [[nodiscard]] bool Decrypt(const EncryptedObj<Obj>& obj, size_t idx, Obj& ret_obj, int version) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     [[nodiscard]] CBLSSignature Sign(const uint256& hash, const bool is_legacy) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    [[nodiscard]] std::vector<uint8_t> SignBasic(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /* TODO: Reconsider external locking */
     [[nodiscard]] COutPoint GetOutPoint() const { READ_LOCK(cs); return m_info.outpoint; }

@@ -70,7 +70,7 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
     }
     {
         FuzzedAutoFileProvider fuzzed_auto_file_provider = ConsumeAutoFile(fuzzed_data_provider);
-        CAutoFile fuzzed_auto_file = fuzzed_auto_file_provider.open();
+        AutoFile fuzzed_auto_file{fuzzed_auto_file_provider.open()};
         block_policy_estimator.Write(fuzzed_auto_file);
         block_policy_estimator.Read(fuzzed_auto_file);
     }

@@ -31,69 +31,88 @@ ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
 # Build and base stuff
 ENV APT_ARGS="-y --no-install-recommends --no-upgrade"
 
-# Packages needed to build Python and extract artifacts
+# Packages needed for builds and tests
 RUN set -ex; \
     apt-get update && apt-get install ${APT_ARGS} \
+    bsdmainutils \
     build-essential \
     ca-certificates \
     curl \
     g++ \
     git \
     libbz2-dev \
-    libffi-dev \
     liblzma-dev \
-    libncurses5-dev \
-    libncursesw5-dev \
     libreadline-dev \
     libsqlite3-dev \
     libssl-dev \
     make \
-    tk-dev \
+    parallel \
     xz-utils \
     zlib1g-dev \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python and set it as default
-ENV PYENV_ROOT="/usr/local/pyenv"
-ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
+# Install uv by copying from the official Docker image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Install Python to a system-wide location and set it as default
 # PYTHON_VERSION should match the value in .python-version
-ARG PYTHON_VERSION=3.9.18
+ARG PYTHON_VERSION=3.10.14
+ENV UV_PYTHON_INSTALL_DIR=/usr/local/python
+RUN uv python install ${PYTHON_VERSION}
+
+# Create symlinks to make python available system-wide
 RUN set -ex; \
-    curl https://pyenv.run | bash \
-    && pyenv update \
-    && pyenv install ${PYTHON_VERSION} \
-    && pyenv global ${PYTHON_VERSION} \
-    && pyenv rehash
+    PYTHON_PATH=$(uv python find ${PYTHON_VERSION}); \
+    PYTHON_DIR=$(dirname $PYTHON_PATH); \
+    ln -sf $PYTHON_DIR/python3 /usr/local/bin/python3; \
+    ln -sf $PYTHON_DIR/python3 /usr/local/bin/python; \
+    ln -sf $PYTHON_DIR/pip3 /usr/local/bin/pip3 2>/dev/null || true; \
+    ln -sf $PYTHON_DIR/pip /usr/local/bin/pip 2>/dev/null || true
+
+# Use system Python for installations
+ENV UV_SYSTEM_PYTHON=1
 
 # Install Python packages
-RUN set -ex; \
-    pip3 install --no-cache-dir \
-    codespell==1.17.1 \
-    flake8==3.8.3 \
+RUN uv pip install --system --break-system-packages \
+    codespell==2.1.0 \
+    flake8==4.0.1 \
     jinja2 \
     lief==0.13.2 \
     multiprocess \
-    mypy==0.910 \
-    pyzmq==22.3.0 \
-    vulture==2.3
+    mypy==0.981 \
+    pyzmq==24.0.1 \
+    vulture==2.6
 
 # Install packages relied on by tests
 ARG DASH_HASH_VERSION=1.4.0
 RUN set -ex; \
     cd /tmp; \
     git clone --depth 1 --no-tags --branch=${DASH_HASH_VERSION} https://github.com/dashpay/dash_hash; \
-    cd dash_hash && pip3 install -r requirements.txt .; \
+    cd dash_hash && uv pip install --system --break-system-packages -r requirements.txt .; \
     cd .. && rm -rf dash_hash
 
-ARG SHELLCHECK_VERSION=v0.7.1
+# Symlink all Python package executables to /usr/local/bin
+RUN set -ex; \
+    PYTHON_PATH=$(uv python find ${PYTHON_VERSION}); \
+    PYTHON_BIN=$(dirname $PYTHON_PATH); \
+    for exe in $PYTHON_BIN/*; do \
+        if [ -x "$exe" ] && [ -f "$exe" ]; then \
+            basename_exe=$(basename $exe); \
+            if [ "$basename_exe" != "python" ] && [ "$basename_exe" != "python3" ] && [ "$basename_exe" != "pip" ] && [ "$basename_exe" != "pip3" ]; then \
+                ln -sf "$exe" "/usr/local/bin/$basename_exe"; \
+            fi; \
+        fi; \
+    done
+
+ARG SHELLCHECK_VERSION=v0.8.0
 RUN set -ex; \
     curl -fL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" -o /tmp/shellcheck.tar.xz; \
     mkdir -p /opt/shellcheck && tar -xf /tmp/shellcheck.tar.xz -C /opt/shellcheck --strip-components=1 && rm /tmp/shellcheck.tar.xz
 ENV PATH="/opt/shellcheck:${PATH}"
 
 # Packages needed to be able to run sanitizer builds
-ARG LLVM_VERSION=18
+ARG LLVM_VERSION=19
 RUN set -ex; \
     . /etc/os-release; \
     curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key > /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
@@ -106,7 +125,7 @@ RUN set -ex; \
 ARG USER_ID=1000 \
     GROUP_ID=1000
 RUN set -ex; \
-    groupmod -g ${GROUP_ID} -n dash ubuntu; \
+    (getent group ${GROUP_ID} && usermod -g ${GROUP_ID} ubuntu) || groupmod -g ${GROUP_ID} -n dash ubuntu; \
     usermod -u ${USER_ID} -md /home/dash -l dash ubuntu; \
     chown ${USER_ID}:${GROUP_ID} -R /home/dash; \
     mkdir -p /src/dash && \

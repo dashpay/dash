@@ -8,10 +8,13 @@
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <fs.h>
+#include <kernel/coinstats.h>
 #include <streams.h>
 #include <sync.h>
 
-#include <stdint.h>
+#include <cstdint>
+#include <functional>
+#include <optional>
 #include <vector>
 
 extern RecursiveMutex cs_main;
@@ -19,7 +22,10 @@ extern RecursiveMutex cs_main;
 class CBlock;
 class CBlockIndex;
 class CChainState;
-class UniValue;
+class CCoinsView;
+namespace kernel {
+enum class CoinStatsHashType : uint8_t;
+}
 namespace llmq {
 class CChainLocksHandler;
 class CInstantSendManager;
@@ -28,6 +34,8 @@ namespace node {
 class BlockManager;
 struct NodeContext;
 } // namespace node
+
+class UniValue;
 
 static constexpr int NUM_GETBLOCKSTATS_PERCENTILES = 5;
 
@@ -58,8 +66,19 @@ void CalculatePercentilesBySize(CAmount result[NUM_GETBLOCKSTATS_PERCENTILES], s
 UniValue CreateUTXOSnapshot(
     node::NodeContext& node,
     CChainState& chainstate,
-    CAutoFile& afile,
+    AutoFile& afile,
     const fs::path& path,
     const fs::path& tmppath);
+
+/**
+ * Calculate statistics about the unspent transaction output set
+ *
+ * @param[in] index_requested Signals if the coinstatsindex should be used (when available).
+ */
+std::optional<kernel::CCoinsStats> GetUTXOStats(CCoinsView* view, node::BlockManager& blockman,
+                                                kernel::CoinStatsHashType hash_type,
+                                                const std::function<void()>& interruption_point = {},
+                                                const CBlockIndex* pindex = nullptr,
+                                                bool index_requested = true);
 
 #endif // BITCOIN_RPC_BLOCKCHAIN_H

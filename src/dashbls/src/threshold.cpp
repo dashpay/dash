@@ -92,10 +92,17 @@ namespace bls {
 
     struct PolyOpsBase {
         bn_t order;
+        bn_t iv;
 
         PolyOpsBase() {
             bn_new(order);
             gt_get_ord(order);
+            bn_new(iv);
+        }
+
+        ~PolyOpsBase() {
+            bn_free(iv);
+            bn_free(order);
         }
 
         void MulFP(bn_t& r, const bn_t& a, const bn_t& b) {
@@ -114,8 +121,6 @@ namespace bls {
         }
 
         void DivFP(bn_t& r, const bn_t& a, const bn_t& b) {
-            bn_t iv;
-            bn_new(iv);
             fp_inv_exgcd_bn(iv, b, order);
             bn_mul(r, a, iv);
             ModOrder(r);
@@ -143,7 +148,7 @@ namespace bls {
     template<>
     struct PolyOps<G1Element> : PolyOpsBase {
         G1Element Add(const G1Element& a, const G1Element& b) {
-            return pThresholdScheme->Aggregate({a, b});
+            return a + b;
         }
 
         G1Element Mul(const G1Element& a, const bn_t& b) {
@@ -154,7 +159,7 @@ namespace bls {
     template<>
     struct PolyOps<G2Element> : PolyOpsBase {
         G2Element Add(const G2Element& a, const G2Element& b) {
-            return pThresholdScheme->Aggregate({a, b});
+            return a + b;
         }
 
         G2Element Mul(const G2Element& a, bn_t& b) {

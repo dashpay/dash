@@ -12,13 +12,12 @@
 #include <serialize.h>
 #include <uint256.h>
 
-#include <cstddef>
+#include <algorithm>
 #include <cstdint>
-#include <ios>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 

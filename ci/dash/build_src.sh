@@ -13,27 +13,13 @@ source ./ci/dash/matrix.sh
 
 unset CC CXX DISPLAY;
 
-if [ "$PULL_REQUEST" != "false" ]; then test/lint/commit-script-check.sh "$COMMIT_RANGE"; fi
-
-if [ "$CHECK_DOC" = 1 ]; then
-    # TODO: Verify subtrees
-    #test/lint/git-subtree-check.sh src/crypto/ctaes
-    #test/lint/git-subtree-check.sh src/secp256k1
-    #test/lint/git-subtree-check.sh src/univalue
-    #test/lint/git-subtree-check.sh src/leveldb
-    # TODO: Check docs (re-enable after all Bitcoin PRs have been merged and docs fully fixed)
-    #test/lint/check-doc.py
-    # Run all linters
-    test/lint/all-lint.py
-fi
-
 ccache --zero-stats
 
 if [ -n "$CONFIG_SHELL" ]; then
   export CONFIG_SHELL="$CONFIG_SHELL"
 fi
 
-BITCOIN_CONFIG_ALL="--disable-dependency-tracking --prefix=$DEPENDS_DIR/$HOST --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
+BITCOIN_CONFIG_ALL="--enable-external-signer --disable-dependency-tracking --prefix=$DEPENDS_DIR/$HOST --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
 if [ -z "$NO_WERROR" ]; then
   BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --enable-werror"
 fi

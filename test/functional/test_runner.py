@@ -145,6 +145,8 @@ BASE_SCRIPTS = [
     'feature_governance_cl.py --descriptors',
     'rpc_verifyislock.py',
     'feature_notifications.py',
+    'rpc_signer.py',
+    'wallet_signer.py --descriptors',
     # vv Tests less than 60s vv
     'p2p_platform_ban.py', # NOTE: needs dash_hash to pass
     'p2p_sendheaders.py', # NOTE: needs dash_hash to pass
@@ -195,6 +197,8 @@ BASE_SCRIPTS = [
     'wallet_listtransactions.py --descriptors',
     'wallet_watchonly.py --legacy-wallet',
     'wallet_watchonly.py --usecli --legacy-wallet',
+    'wallet_conflicts.py --legacy-wallet',
+    'wallet_conflicts.py --descriptors',
     'interface_http.py',
     'interface_rpc.py',
     'interface_usdt_coinselection.py',
@@ -373,7 +377,6 @@ BASE_SCRIPTS = [
     'p2p_ping.py',
     'p2p_sendtxrcncl.py',
     'rpc_scantxoutset.py',
-    'feature_txindex_compatibility.py',
     'feature_unsupported_utxo_db.py',
     'feature_logging.py',
     'feature_anchors.py',
@@ -393,6 +396,7 @@ BASE_SCRIPTS = [
     'rpc_getdescriptorinfo.py',
     'rpc_getpeerinfo_deprecation.py',
     'rpc_mempool_entry_fee_fields_deprecation.py',
+    'rpc_mempool_info.py',
     'rpc_help.py',
     'feature_dirsymlinks.py',
     'feature_help.py',

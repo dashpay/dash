@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, ubuntu-20.04 ]
+        os: [ macos-latest, ubuntu-latest ]
         builder: [ cmake, autotools ]
         compiler:
           - cc: gcc
@@ -53,7 +53,7 @@ jobs:
       if: startsWith(matrix.builder, 'cmake')
       run: |
         mkdir -p build && cd build
-        CC=${{ matrix.compiler.cc }} CXX=${{ matrix.compiler.cxx }} cmake .. -DBUILD_BLS_PYTHON_BINDINGS=0 -DARITH=${{ matrix.backend }}
+        CC=${{ matrix.compiler.cc }} CXX=${{ matrix.compiler.cxx }} cmake .. -DARITH=${{ matrix.backend }} -DBUILD_BLS_PYTHON_BINDINGS=0 -DCMAKE_BUILD_TYPE=Debug
         cmake --build . -- -j 6
         mv src/runtest ..
 

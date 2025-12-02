@@ -21,10 +21,19 @@ fi
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}"
 iwyu_tool.py \
   "src/compat" \
+  "src/dbwrapper.cpp" \
   "src/init" \
+  "src/node/chainstate.cpp" \
+  "src/node/minisketchwrapper.cpp" \
+  "src/policy/feerate.cpp" \
+  "src/policy/packages.cpp" \
+  "src/policy/settings.cpp" \
+  "src/primitives/transaction.cpp" \
+  "src/random.cpp" \
   "src/rpc/fees.cpp" \
   "src/rpc/signmessage.cpp" \
   "src/test/fuzz/txorphan.cpp" \
+  "src/threadinterrupt.cpp" \
   "src/util/bip32.cpp" \
   "src/util/bytevectorhash.cpp" \
   "src/util/check.cpp" \
@@ -35,11 +44,14 @@ iwyu_tool.py \
   "src/util/moneystr.cpp" \
   "src/util/serfloat.cpp" \
   "src/util/spanparsing.cpp" \
+  "src/util/string.cpp" \
   "src/util/strencodings.cpp" \
   "src/util/syserror.cpp" \
   "src/util/url.cpp" \
+  "src/zmq" \
   -p . "${MAKEJOBS}" \
   -- -Xiwyu --cxx17ns -Xiwyu --mapping_file="${BASE_ROOT_DIR}/contrib/devtools/iwyu/bitcoin.core.imp" \
+  -Xiwyu --max_line_length=160 \
   2>&1 | tee "/tmp/iwyu_ci.out"
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"

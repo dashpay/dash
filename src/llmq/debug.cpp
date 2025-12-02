@@ -109,6 +109,8 @@ UniValue CDKGDebugSessionStatus::ToJson(CDeterministicMNManager& dmnman, CQuorum
 
 CDKGDebugManager::CDKGDebugManager() = default;
 
+CDKGDebugManager::~CDKGDebugManager() = default;
+
 UniValue CDKGDebugStatus::ToJson(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                                  const ChainstateManager& chainman, int detailLevel) const
 {

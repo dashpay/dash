@@ -19,6 +19,7 @@
 #include <interfaces/ipc.h>
 #include <key_io.h>
 #include <net.h>
+#include <net_processing.h>
 #include <node/context.h>
 #include <rpc/index_util.h>
 #include <rpc/server.h>
@@ -190,7 +191,7 @@ static RPCHelpMan spork()
         return ret;
     }
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -220,18 +221,19 @@ static RPCHelpMan sporkupdate()
     }
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
-    PeerManager& peerman = EnsurePeerman(node);
     CHECK_NONFATAL(node.sporkman);
 
     // SPORK VALUE
     int64_t nValue = request.params[1].getInt<int64_t>();
 
-    // broadcast new spork
-    if (node.sporkman->UpdateSpork(peerman, nSporkID, nValue)) {
+    auto inv{node.sporkman->UpdateSpork(nSporkID, nValue)};
+    if (inv.has_value()) {
+        PeerManager& peerman = EnsurePeerman(node);
+        peerman.RelayInv(inv.value());
         return "success";
     }
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -272,7 +274,7 @@ static RPCHelpMan setmocktime()
         }
     }
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -825,7 +827,7 @@ static RPCHelpMan mockscheduler()
         {
             {"delta_time", RPCArg::Type::NUM, RPCArg::Optional::NO, "Number of seconds to forward the scheduler into the future." },
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -845,7 +847,7 @@ static RPCHelpMan mockscheduler()
     CHECK_NONFATAL(node_context->scheduler);
     node_context->scheduler->MockForward(std::chrono::seconds(delta_seconds));
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }

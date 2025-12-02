@@ -238,8 +238,6 @@ case "$HOST" in
     *mingw*)  HOST_LDFLAGS="-Wl,--no-insert-timestamp" ;;
 esac
 
-# Make $HOST-specific native binaries from depends available in $PATH
-export PATH="${BASEPREFIX}/${HOST}/native/bin:${PATH}"
 mkdir -p "$DISTSRC"
 (
     cd "$DISTSRC"
@@ -343,6 +341,61 @@ mkdir -p "$DISTSRC"
                     find "${DISTNAME}/bin" -type f -executable -print0
                     find "${DISTNAME}/lib" -type f -print0
                 } | xargs -0 -P"$JOBS" -I{} "${DISTSRC}/contrib/devtools/split-debug.sh" {} {} {}.dbg
+
+                case "$HOST" in
+                    *linux*)
+                        # Compress DWARF sections in debug files and set proper permissions
+                        find "${DISTNAME}" -name "*.dbg" -type f -print0 | xargs -0 -P"$JOBS" -I{} sh -c "${HOST}-objcopy --compress-debug-sections=zlib \"\$1\" \"\$1.tmp\" && mv \"\$1.tmp\" \"\$1\" && chmod 644 \"\$1\"" _ {}
+
+                        # Create .build-id tree for perf auto-discovery
+                        mkdir -p "${DISTNAME}/usr/lib/debug/.build-id"
+                        {
+                            find "${DISTNAME}/bin" -type f -executable -print0
+                            find "${DISTNAME}/lib" -type f -print0
+                        } | while IFS= read -r -d '' elf; do
+                            if file "$elf" | grep -q "ELF.*executable\|ELF.*shared object"; then
+                                build_id=$("${HOST}"-readelf -n "$elf" 2>/dev/null | awk '/Build ID/ {print $3; exit}')
+                                if [ -n "$build_id" ] && [ -f "${elf}.dbg" ]; then
+                                    dir="${DISTNAME}/usr/lib/debug/.build-id/${build_id:0:2}"
+                                    mkdir -p "$dir"
+                                    cp "${elf}.dbg" "${dir}/${build_id:2}.debug"
+                                    chmod 644 "${dir}/${build_id:2}.debug"
+                                fi
+                            fi
+                        done
+
+                        # Verify build-ids and debug links
+                        verification_output=$(
+                            {
+                                find "${DISTNAME}/bin" -type f -executable -print0
+                                find "${DISTNAME}/lib" -type f -print0
+                            } | {
+                                verification_failed=0
+                                while IFS= read -r -d '' elf; do
+                                    if file "$elf" | grep -q "ELF.*executable\|ELF.*shared object"; then
+                                        # Check for build-id
+                                        if ! "${HOST}"-readelf -n "$elf" 2>/dev/null | grep -q "Build ID"; then
+                                            echo "ERROR: No build-id found in $elf" >&2
+                                            verification_failed=1
+                                        fi
+
+                                        # Check for .gnu_debuglink
+                                        if ! "${HOST}"-readelf --string-dump=.gnu_debuglink "$elf" >/dev/null 2>&1; then
+                                            echo "ERROR: No .gnu_debuglink found in $elf" >&2
+                                            verification_failed=1
+                                        fi
+                                    fi
+                                done
+                                exit "$verification_failed"
+                            } 2>&1
+                        )
+                        verification_status=$?
+                        if [ "$verification_status" -ne 0 ]; then
+                            echo "$verification_output" >&2
+                            exit 1
+                        fi
+                        ;;
+                esac
                 ;;
         esac
 
@@ -354,6 +407,12 @@ mkdir -p "$DISTSRC"
                 cp "${DISTSRC}/README.md" "${DISTNAME}/"
                 ;;
         esac
+
+        # copy over the example dash.conf file. if contrib/devtools/gen-dash-conf.sh
+        # has not been run before buildling, this file will be a stub
+        cp "${DISTSRC}/contrib/debian/examples/dash.conf" "${DISTNAME}/"
+
+        cp -r "${DISTSRC}/share/rpcauth" "${DISTNAME}/share/"
 
         # Finally, deterministically produce {non-,}debug binary tarballs ready
         # for release
@@ -373,12 +432,14 @@ mkdir -p "$DISTSRC"
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" && exit 1 )
                 ;;
             *linux*)
-                find "${DISTNAME}" -not -name "*.dbg" -print0 \
+                # Main (non-debug) tarball: exclude separate debug files and the build-id debug tree
+                find "${DISTNAME}" -not -name "*.dbg" -not -path "${DISTNAME}/usr/lib/debug/*" -print0 \
                     | sort --zero-terminated \
                     | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" \
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" && exit 1 )
-                find "${DISTNAME}" -name "*.dbg" -print0 \
+                # Debug tarball: include .dbg files and the build-id debug tree
+                find "${DISTNAME}" \( -name "*.dbg" -o -path "${DISTNAME}/usr/lib/debug/*" \) -print0 \
                     | sort --zero-terminated \
                     | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" \

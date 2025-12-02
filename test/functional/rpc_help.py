@@ -32,7 +32,7 @@ def process_mapping(fname):
                 if line.startswith('};'):
                     in_rpcs = False
                 elif '{' in line and '"' in line:
-                    m = re.search(r'{ *("[^"]*"), *([0-9]+) *, *("[^"]*") *},', line)
+                    m = re.search(r'{ *("[^"]*"), *([0-9]+) *, *("[^"]*")(?:, *(true|false))? *},', line)
                     assert m, 'No match to table expression: %s' % line
                     name = parse_string(m.group(1))
                     idx = int(m.group(2))
@@ -59,6 +59,8 @@ class HelpRpcTest(BitcoinTestFramework):
         mapping_client = process_mapping(file_conversion_table)
         # Ignore echojson in client table
         mapping_client = [m for m in mapping_client if m[0] != 'echojson']
+        # Filter out composite commands
+        mapping_client = [m for m in mapping_client if ' ' not in m[0]]
 
         mapping_server = self.nodes[0].help("dump_all_command_conversions")
         # Filter all RPCs whether they need conversion
@@ -92,7 +94,7 @@ class HelpRpcTest(BitcoinTestFramework):
         assert_raises_rpc_error(-1, 'help', node.help, 'foo', 'bar', 'foobar')
 
         # invalid argument
-        assert_raises_rpc_error(-1, 'JSON value is not a string as expected', node.help, 0)
+        assert_raises_rpc_error(-3, "JSON value of type number is not of expected type string", node.help, 0)
 
         # help of unknown command
         assert_equal(node.help('foo'), 'help: unknown command: foo')
@@ -105,10 +107,13 @@ class HelpRpcTest(BitcoinTestFramework):
         if self.is_wallet_compiled():
             components.append('Wallet')
 
+        if self.is_external_signer_compiled():
+            components.append('Signer')
+
         if self.is_zmq_compiled():
             components.append('Zmq')
 
-        assert_equal(titles, components)
+        assert_equal(titles, sorted(components))
 
     def dump_help(self):
         dump_dir = os.path.join(self.options.tmpdir, 'rpc_help_dump')

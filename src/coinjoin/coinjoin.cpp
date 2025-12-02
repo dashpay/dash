@@ -16,7 +16,6 @@
 #include <bls/bls.h>
 #include <chainlock/chainlock.h>
 #include <instantsend/instantsend.h>
-#include <masternode/node.h>
 #include <masternode/sync.h>
 
 #include <string>
@@ -45,18 +44,6 @@ uint256 CCoinJoinQueue::GetSignatureHash() const
 }
 uint256 CCoinJoinQueue::GetHash() const { return SerializeHash(*this, SER_NETWORK, PROTOCOL_VERSION); }
 
-bool CCoinJoinQueue::Sign(const CActiveMasternodeManager& mn_activeman)
-{
-    uint256 hash = GetSignatureHash();
-    CBLSSignature sig = mn_activeman.Sign(hash, /*is_legacy=*/ false);
-    if (!sig.IsValid()) {
-        return false;
-    }
-    vchSig = sig.ToByteVector(false);
-
-    return true;
-}
-
 bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
     if (!CBLSSignature(Span{vchSig}, false).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
@@ -82,18 +69,6 @@ bool CCoinJoinQueue::IsTimeOutOfBounds(int64_t current_time) const
 uint256 CCoinJoinBroadcastTx::GetSignatureHash() const
 {
     return SerializeHash(*this, SER_GETHASH, PROTOCOL_VERSION);
-}
-
-bool CCoinJoinBroadcastTx::Sign(const CActiveMasternodeManager& mn_activeman)
-{
-    uint256 hash = GetSignatureHash();
-    CBLSSignature sig = mn_activeman.Sign(hash, /*is_legacy=*/ false);
-    if (!sig.IsValid()) {
-        return false;
-    }
-    vchSig = sig.ToByteVector(false);
-
-    return true;
 }
 
 bool CCoinJoinBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
@@ -146,6 +121,10 @@ void CCoinJoinBaseSession::SetNull()
     finalMutableTransaction.vout.clear();
     nTimeLastSuccessfulStep = GetTime();
 }
+
+CCoinJoinBaseManager::CCoinJoinBaseManager() = default;
+
+CCoinJoinBaseManager::~CCoinJoinBaseManager() = default;
 
 void CCoinJoinBaseManager::SetNull()
 {
@@ -418,6 +397,10 @@ bilingual_str CoinJoin::GetMessageByID(PoolMessage nMessageID)
         return _("Unknown response.");
     }
 }
+
+CDSTXManager::CDSTXManager() = default;
+
+CDSTXManager::~CDSTXManager() = default;
 
 void CDSTXManager::AddDSTX(const CCoinJoinBroadcastTx& dstx)
 {

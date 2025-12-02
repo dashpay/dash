@@ -12,9 +12,9 @@
 #include <script/signingprovider.h>
 #include <tinyformat.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+#include <util/system.h>
 #include <util/translation.h>
 
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";
@@ -65,11 +65,8 @@ void RPCTypeCheckObj(const UniValue& o,
         if (!fAllowNull && v.isNull())
             throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing %s", t.first));
 
-        if (!(t.second.typeAny || v.type() == t.second.type || (fAllowNull && v.isNull()))) {
-            std::string err = strprintf("Expected type %s for %s, got %s",
-                uvTypeName(t.second.type), t.first, uvTypeName(v.type()));
-            throw JSONRPCError(RPC_TYPE_ERROR, err);
-        }
+        if (!(t.second.typeAny || v.type() == t.second.type || (fAllowNull && v.isNull())))
+            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("JSON value of type %s for field %s is not of expected type %s", uvTypeName(v.type()),  t.first, uvTypeName(t.second.type)));
     }
 
     if (fStrict)
@@ -99,7 +96,7 @@ CAmount AmountFromValue(const UniValue& value, int decimals)
 
 uint256 ParseHashV(const UniValue& v, std::string strName)
 {
-    std::string strHex{v.get_str()};
+    const std::string& strHex(v.get_str());
     if (64 != strHex.length())
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be of length %d (not %d, for '%s')", strName, 64, strHex.length(), strHex));
     if (!IsHex(strHex)) // Note: IsHex("") is false
@@ -126,7 +123,7 @@ std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKey)
 
 int32_t ParseInt32V(const UniValue& v, const std::string &strName)
 {
-    std::string strNum = v.getValStr();
+    const std::string& strNum = v.getValStr();
     int32_t num;
     if (!ParseInt32(strNum, &num))
         throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a 32bit integer (not '"+strNum+"')");
@@ -135,7 +132,7 @@ int32_t ParseInt32V(const UniValue& v, const std::string &strName)
 
 int64_t ParseInt64V(const UniValue& v, const std::string &strName)
 {
-    std::string strNum = v.getValStr();
+    const std::string& strNum = v.getValStr();
     int64_t num;
     if (!ParseInt64(strNum, &num))
         throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a 64bit integer (not '"+strNum+"')");
@@ -297,8 +294,7 @@ CTxDestination AddAndGetMultisigDestination(const int required, const std::vecto
 class DescribeAddressVisitor
 {
 public:
-
-    explicit DescribeAddressVisitor() {}
+    explicit DescribeAddressVisitor() = default;
 
     UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
 
@@ -376,7 +372,7 @@ struct Sections {
             if (arg.m_type_str.size() != 0 && push_name) {
                 left += "\"" + arg.GetName() + "\": " + arg.m_type_str.at(0);
             } else {
-                left += push_name ? arg.ToStringObj(/* oneline */ false) : arg.ToString(/* oneline */ false);
+                left += push_name ? arg.ToStringObj(/*oneline=*/false) : arg.ToString(/*oneline=*/false);
             }
             left += ",";
             PushSection({left, arg.ToDescriptionString()});
@@ -537,7 +533,11 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
     if (request.mode == JSONRPCRequest::GET_HELP || !IsValidNumArgs(request.params.size())) {
         throw std::runtime_error(ToString());
     }
-    return m_fun(*this, request);
+    const UniValue ret = m_fun(*this, request);
+    if (gArgs.GetBoolArg("-rpcdoccheck", DEFAULT_RPC_DOC_CHECK)) {
+        CHECK_NONFATAL(std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); }));
+    }
+    return ret;
 }
 
 bool RPCHelpMan::IsValidNumArgs(size_t num_args) const
@@ -579,7 +579,7 @@ std::string RPCHelpMan::ToString() const
             if (was_optional) ret += ") ";
             was_optional = false;
         }
-        ret += arg.ToString(/* oneline */ true);
+        ret += arg.ToString(/*oneline=*/true);
     }
     if (was_optional) ret += " )";
 

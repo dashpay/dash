@@ -22,14 +22,12 @@
 #include <optional>
 #include <utility>
 
-class CActiveMasternodeManager;
 class CChainState;
 class CBLSPublicKey;
 class CBlockIndex;
 class ChainstateManager;
 class CMasternodeSync;
 class CTxMemPool;
-class TxValidationState;
 
 namespace llmq {
 class CChainLocksHandler;
@@ -209,14 +207,7 @@ public:
 
     [[nodiscard]] uint256 GetHash() const;
     [[nodiscard]] uint256 GetSignatureHash() const;
-    /** Sign this mixing transaction
-     *  return true if all conditions are met:
-     *     1) we have an active Masternode,
-     *     2) we have a valid Masternode private key,
-     *     3) we signed the message successfully, and
-     *     4) we verified the message successfully
-     */
-    bool Sign(const CActiveMasternodeManager& mn_activeman);
+
     /// Check if we have a valid Masternode address
     [[nodiscard]] bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
@@ -284,7 +275,6 @@ public:
 
     [[nodiscard]] uint256 GetSignatureHash() const;
 
-    bool Sign(const CActiveMasternodeManager& mn_activeman);
     [[nodiscard]] bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     // Used only for unit tests
@@ -341,7 +331,8 @@ protected:
     void CheckQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
 public:
-    CCoinJoinBaseManager() = default;
+    CCoinJoinBaseManager();
+    virtual ~CCoinJoinBaseManager();
 
     int GetQueueSize() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue) { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
     bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
@@ -381,7 +372,11 @@ class CDSTXManager
     std::map<uint256, CCoinJoinBroadcastTx> mapDSTX GUARDED_BY(cs_mapdstx);
 
 public:
-    CDSTXManager() = default;
+    CDSTXManager(const CDSTXManager&) = delete;
+    CDSTXManager& operator=(const CDSTXManager&) = delete;
+    CDSTXManager();
+    ~CDSTXManager();
+
     void AddDSTX(const CCoinJoinBroadcastTx& dstx) EXCLUSIVE_LOCKS_REQUIRED(!cs_mapdstx);
     CCoinJoinBroadcastTx GetDSTX(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs_mapdstx);
 

@@ -45,7 +45,7 @@ CMutableTransaction MNHFTxPayload::PrepareTx() const
 }
 
 CMNHFManager::CMNHFManager(CEvoDB& evoDb) :
-    m_evoDb(evoDb)
+    m_evoDb{evoDb}
 {
     assert(globalInstance == nullptr);
     globalInstance = this;

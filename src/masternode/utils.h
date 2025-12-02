@@ -8,13 +8,13 @@
 class CConnman;
 class CDeterministicMNManager;
 class CMasternodeSync;
-struct CJContext;
+class CJWalletManager;
 
 class CMasternodeUtils
 {
 public:
-    static void DoMaintenance(CConnman &connman, CDeterministicMNManager& dmnman,
-                              const CMasternodeSync& mn_sync, const CJContext& cj_ctx);
+    static void DoMaintenance(CConnman& connman, CDeterministicMNManager& dmnman, const CMasternodeSync& mn_sync,
+                              CJWalletManager* const cj_walletman);
 };
 
 #endif // BITCOIN_MASTERNODE_UTILS_H

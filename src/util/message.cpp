@@ -8,7 +8,6 @@
 #include <key_io.h>
 #include <pubkey.h>
 #include <script/standard.h>
-#include <serialize.h>
 #include <uint256.h>
 #include <util/message.h>
 #include <util/strencodings.h>
@@ -74,7 +73,7 @@ bool MessageSign(
 
 uint256 MessageHash(const std::string& message)
 {
-    CHashWriter hasher(SER_GETHASH, 0);
+    HashWriter hasher{};
     hasher << MESSAGE_MAGIC << message;
 
     return hasher.GetHash();

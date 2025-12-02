@@ -6,6 +6,7 @@
 #ifndef BITCOIN_SCRIPT_STANDARD_H
 #define BITCOIN_SCRIPT_STANDARD_H
 
+#include <pubkey.h>
 #include <script/interpreter.h>
 #include <uint256.h>
 #include <util/hash_type.h>
@@ -107,6 +108,11 @@ bool IsValidDestination(const CTxDestination& dest);
 
 /** Get the name of a TxoutType as a C string, or nullptr if unknown. */
 std::string GetTxnOutputType(TxoutType t);
+
+constexpr bool IsPushdataOp(opcodetype opcode)
+{
+    return opcode > OP_FALSE && opcode <= OP_PUSHDATA4;
+}
 
 /**
  * Parse a scriptPubKey and identify script type for standard scripts. If

@@ -41,11 +41,11 @@ struct CLockLocation {
         const char* pszFile,
         int nLine,
         bool fTryIn,
-        const std::string& thread_name)
+        std::string&& thread_name)
         : fTry(fTryIn),
           mutexName(pszName),
           sourceFile(pszFile),
-          m_thread_name(thread_name),
+          m_thread_name(std::move(thread_name)),
           sourceLine(nLine) {}
 
     std::string ToString() const
@@ -64,7 +64,7 @@ private:
     bool fTry;
     std::string mutexName;
     std::string sourceFile;
-    const std::string& m_thread_name;
+    const std::string m_thread_name;
     int sourceLine;
 };
 
@@ -286,6 +286,15 @@ void AssertLockHeldInternal(const char* pszName, const char* pszFile, int nLine,
 template void AssertLockHeldInternal(const char*, const char*, int, Mutex*);
 template void AssertLockHeldInternal(const char*, const char*, int, RecursiveMutex*);
 template void AssertLockHeldInternal(const char*, const char*, int, SharedMutex*);
+
+template <typename MutexType>
+void AssertSharedLockHeldInternal(const char* pszName, const char* pszFile, int nLine, MutexType* cs)
+{
+    if (LockHeld(cs)) return;
+    tfm::format(std::cerr, "Assertion failed: shared lock %s not held in %s:%i; locks held:\n%s", pszName, pszFile, nLine, LocksHeld());
+    abort();
+}
+template void AssertSharedLockHeldInternal(const char*, const char*, int, SharedMutex*);
 
 template <typename MutexType>
 void AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLine, MutexType* cs)

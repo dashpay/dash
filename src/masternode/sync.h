@@ -53,7 +53,11 @@ private:
     CNetFulfilledRequestManager& m_netfulfilledman;
 
 public:
+    CMasternodeSync() = delete;
+    CMasternodeSync(const CMasternodeSync&) = delete;
+    CMasternodeSync& operator=(const CMasternodeSync&) = delete;
     explicit CMasternodeSync(CConnman& _connman, CNetFulfilledRequestManager& netfulfilledman);
+    ~CMasternodeSync();
 
     void SendGovernanceSyncRequest(CNode* pnode) const;
 

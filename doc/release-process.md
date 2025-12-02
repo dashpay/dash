@@ -1,8 +1,9 @@
 Release Process
 ====================
 
-* [ ] Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/master/doc/translation_process.md#synchronising-translations).
-* [ ] Update manpages (after rebuilding the binaries), see [gen-manpages.py](https://github.com/bitcoin/bitcoin/blob/master/contrib/devtools/README.md#gen-manpagespy).
+* [ ] Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/develop/doc/translation_process.md#synchronising-translations).
+* [ ] Update manpages (after rebuilding the binaries), see [gen-manpages.py](https://github.com/dashpay/dash/blob/develop/contrib/devtools/README.md#gen-manpagespy).
+* [ ] Update dash.conf and commit, see [gen-dash-conf.sh](https://github.com/dashpay/dash/blob/develop/contrib/devtools/README.md#gen-dash-confsh).
 
 Before every minor and major release:
 
@@ -10,6 +11,7 @@ Before every minor and major release:
 * [ ] Update DIPs with any changes introduced by this release (see [this pull request](https://github.com/dashpay/dips/pull/142) for an example)
 * [ ] Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`)
 * [ ] Write release notes (see below). To clear the release notes: `cp doc/release-notes-empty-template.md doc/release-notes.md`
+* [ ] Update flatpak [metainfo file](contrib/flatpak/org.dash.dash-core.metainfo.xml) with latest release tag and estimated release date
 * [ ] Update `src/chainparams.cpp` `nMinimumChainWork` with information from the `getblockchaininfo` rpc.
 * [ ] Update `src/chainparams.cpp` `defaultAssumeValid` with information from the `getblockhash` rpc.
   - The selected value must not be orphaned so it may be useful to set the value two blocks back from the tip.
@@ -148,7 +150,7 @@ However if this is done, once the release has been tagged in the dash-detached-s
 ### Windows and macOS codesigners only: Commit the detached codesign payloads
 
 ```sh
-pushd ~/dashcore-detached-sigs
+pushd ~/dash-detached-sigs
 # checkout the appropriate branch for this release series
 git checkout "v${VERSION}"
 rm -rf *

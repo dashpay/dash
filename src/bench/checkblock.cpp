@@ -9,6 +9,7 @@
 #include <consensus/validation.h>
 #include <stats/client.h>
 #include <streams.h>
+#include <util/system.h>
 #include <validation.h>
 
 #include <memory>

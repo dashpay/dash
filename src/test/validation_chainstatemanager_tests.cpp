@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
         /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
     WITH_LOCK(::cs_main, c1.InitCoinsCache(1 << 23));
 
-    DashChainstateSetup(manager, m_node, /*fReset=*/false, /*fReindexChainState=*/false, consensus_params);
+    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false, consensus_params);
 
     BOOST_CHECK(!manager.IsSnapshotActive());
     BOOST_CHECK(WITH_LOCK(::cs_main, return !manager.IsSnapshotValidated()));
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     );
     chainstates.push_back(&c2);
 
-    DashChainstateSetup(manager, m_node, /*fReset=*/false, /*fReindexChainState=*/false, consensus_params);
+    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false, consensus_params);
 
     BOOST_CHECK_EQUAL(manager.SnapshotBlockhash().value(), snapshot_blockhash);
 
@@ -218,7 +218,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, TestChain100Setup)
 
     // Should not load malleated snapshots
     BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
-        m_node, m_path_root, [](CAutoFile& auto_infile, SnapshotMetadata& metadata) {
+        m_node, m_path_root, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
             // A UTXO is missing but count is correct
             metadata.m_coins_count -= 1;
 
@@ -229,22 +229,22 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, TestChain100Setup)
             auto_infile >> coin;
     }));
     BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
-        m_node, m_path_root, [](CAutoFile& auto_infile, SnapshotMetadata& metadata) {
+        m_node, m_path_root, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
             // Coins count is larger than coins in file
             metadata.m_coins_count += 1;
     }));
     BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
-        m_node, m_path_root, [](CAutoFile& auto_infile, SnapshotMetadata& metadata) {
+        m_node, m_path_root, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
             // Coins count is smaller than coins in file
             metadata.m_coins_count -= 1;
     }));
     BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
-        m_node, m_path_root, [](CAutoFile& auto_infile, SnapshotMetadata& metadata) {
+        m_node, m_path_root, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
             // Wrong hash
             metadata.m_base_blockhash = uint256::ZERO;
     }));
     BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
-        m_node, m_path_root, [](CAutoFile& auto_infile, SnapshotMetadata& metadata) {
+        m_node, m_path_root, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
             // Wrong hash
             metadata.m_base_blockhash = uint256::ONE;
     }));
@@ -339,7 +339,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, TestChain100Setup)
 
 //! Test LoadBlockIndex behavior when multiple chainstates are in use.
 //!
-//! - First, verfiy that setBlockIndexCandidates is as expected when using a single,
+//! - First, verify that setBlockIndexCandidates is as expected when using a single,
 //!   fully-validating chainstate.
 //!
 //! - Then mark a region of the chain BLOCK_ASSUMED_VALID and introduce a second chainstate

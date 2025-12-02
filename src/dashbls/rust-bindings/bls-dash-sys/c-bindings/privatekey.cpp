@@ -20,12 +20,12 @@
 #include "utils.hpp"
 
 // private key bindings implementation
-PrivateKey PrivateKeyFromBytes(const void* data, const bool modOrder, bool* didErr) {
+PrivateKey PrivateKeyFromBytes(const void* data, size_t len, const bool modOrder, bool* didErr) {
     bls::PrivateKey* skPtr = nullptr;
     try {
         skPtr = new bls::PrivateKey(
             bls::PrivateKey::FromBytes(
-                bls::Bytes((uint8_t*)data, bls::PrivateKey::PRIVATE_KEY_SIZE),
+                bls::Bytes((uint8_t*)data, len),
                 modOrder
             )
         );

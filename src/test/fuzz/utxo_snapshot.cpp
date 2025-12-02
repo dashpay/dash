@@ -38,13 +38,13 @@ FUZZ_TARGET(utxo_snapshot, .init = initialize_chain)
     Assert(!chainman.SnapshotBlockhash());
 
     {
-        CAutoFile outfile{fsbridge::fopen(snapshot_path, "wb"), SER_DISK, CLIENT_VERSION};
+        AutoFile outfile{fsbridge::fopen(snapshot_path, "wb")};
         const auto file_data{ConsumeRandomLengthByteVector(fuzzed_data_provider)};
         outfile << Span<const uint8_t>{file_data};
     }
 
     const auto ActivateFuzzedSnapshot{[&] {
-        CAutoFile infile{fsbridge::fopen(snapshot_path, "rb"), SER_DISK, CLIENT_VERSION};
+        AutoFile infile{fsbridge::fopen(snapshot_path, "rb")};
         SnapshotMetadata metadata;
         try {
             infile >> metadata;

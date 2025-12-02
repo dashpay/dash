@@ -51,7 +51,7 @@ bool CFinalCommitment::VerifySignatureAsync(CDeterministicMNManager& dmnman, CQu
         LogPrint(BCLog::LLMQ, "CFinalCommitment::%s members[%s] quorumPublicKey[%s] commitmentHash[%s]\n", __func__,
                  ss3.str(), quorumPublicKey.ToString(), commitmentHash.ToString());
     }
-    if (llmq_params.size == 1) {
+    if (llmq_params.is_single_member()) {
         LogPrintf("pubkey operator: %s\n", members[0]->pdmnState->pubKeyOperator.Get().ToString());
         if (!membersSig.VerifyInsecure(members[0]->pdmnState->pubKeyOperator.Get(), commitmentHash)) {
             LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid member signature\n", quorumHash.ToString());
@@ -138,7 +138,7 @@ bool CFinalCommitment::Verify(CDeterministicMNManager& dmnman, CQuorumSnapshotMa
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid quorumPublicKey\n", quorumHash.ToString());
         return false;
     }
-    if (llmq_params.size != 1 && quorumVvecHash.IsNull()) {
+    if (!llmq_params.is_single_member() && quorumVvecHash.IsNull()) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid quorumVvecHash\n", quorumHash.ToString());
         return false;
     }

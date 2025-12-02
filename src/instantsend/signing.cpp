@@ -13,6 +13,7 @@
 
 #include <chainlock/chainlock.h>
 #include <llmq/quorums.h>
+#include <llmq/signing_shares.h>
 #include <masternode/sync.h>
 #include <spork.h>
 
@@ -203,16 +204,28 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
         return false;
     }
 
-    const CBlockIndex* pindexMined;
-    int nTxAge;
-    {
-        LOCK(::cs_main);
-        pindexMined = m_chainstate.m_blockman.LookupBlockIndex(hashBlock);
-        nTxAge = m_chainstate.m_chain.Height() - pindexMined->nHeight + 1;
+    const auto blockHeight = m_isman.GetBlockHeight(hashBlock);
+    if (!blockHeight) {
+        if (printDebug) {
+            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n", __func__,
+                     txHash.ToString(), outpoint.hash.ToString());
+        }
+        return false;
     }
 
-    if (nTxAge < nInstantSendConfirmationsRequired &&
-        !m_clhandler.HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
+    const int tipHeight = m_isman.GetTipHeight();
+
+    if (tipHeight < *blockHeight) {
+        if (printDebug) {
+            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: cached tip height %d is below block height %d for parent TX %s\n",
+                     __func__, txHash.ToString(), tipHeight, *blockHeight, outpoint.hash.ToString());
+        }
+        return false;
+    }
+
+    const int nTxAge = tipHeight - *blockHeight + 1;
+
+    if (nTxAge < nInstantSendConfirmationsRequired && !m_clhandler.HasChainLock(*blockHeight, hashBlock)) {
         if (printDebug) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nInstantSendConfirmationsRequired=%d\n", __func__,
                      txHash.ToString(), outpoint.ToStringShort(), nTxAge, nInstantSendConfirmationsRequired);
@@ -295,7 +308,7 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
 
     size_t alreadyVotedCount = 0;
     for (const auto& in : tx.vin) {
-        auto id = GenInputLockRequestId(in);
+        auto id = GenInputLockRequestId(in.prevout);
         ids.emplace_back(id);
 
         uint256 otherTxHash;
@@ -330,7 +343,7 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
         WITH_LOCK(cs_input_requests, inputRequestIds.emplace(id));
         LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: trying to vote on input %s with id %s. fRetroactive=%d\n",
                  __func__, tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), fRetroactive);
-        if (m_sigman.AsyncSignIfMember(llmqType, m_shareman, id, tx.GetHash(), {}, fRetroactive)) {
+        if (m_shareman.AsyncSignIfMember(llmqType, m_sigman, id, tx.GetHash(), {}, fRetroactive)) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: voted on input %s with id %s\n", __func__,
                      tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString());
         }
@@ -344,7 +357,7 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
     const auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
 
     for (const auto& in : tx.vin) {
-        auto id = GenInputLockRequestId(in);
+        auto id = GenInputLockRequestId(in.prevout);
         if (!m_sigman.HasRecoveredSig(llmqType, id, tx.GetHash())) {
             return;
         }
@@ -388,6 +401,6 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
         txToCreatingInstantSendLocks.emplace(tx.GetHash(), &e.first->second);
     }
 
-    m_sigman.AsyncSignIfMember(llmqType, m_shareman, id, tx.GetHash(), quorum->m_quorum_base_block_index->GetBlockHash());
+    m_shareman.AsyncSignIfMember(llmqType, m_sigman, id, tx.GetHash(), quorum->m_quorum_base_block_index->GetBlockHash());
 }
 } // namespace instantsend

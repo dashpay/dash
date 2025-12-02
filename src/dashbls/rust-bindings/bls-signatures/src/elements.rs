@@ -75,7 +75,7 @@ impl G1Element {
         }
         Ok(G1Element {
             c_element: c_err_to_result(|did_err| unsafe {
-                G1ElementFromBytes(bytes.as_ptr() as *const _, legacy, did_err)
+                G1ElementFromBytes(bytes.as_ptr() as *const _, bytes.len(), legacy, did_err)
             })?,
         })
     }
@@ -234,7 +234,7 @@ impl G2Element {
         }
         Ok(G2Element {
             c_element: c_err_to_result(|did_err| unsafe {
-                G2ElementFromBytes(bytes.as_ptr() as *const _, legacy, did_err)
+                G2ElementFromBytes(bytes.as_ptr() as *const _, bytes.len(), legacy, did_err)
             })?,
         })
     }

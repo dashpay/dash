@@ -5,12 +5,13 @@
 #ifndef BITCOIN_QT_GOVERNANCELIST_H
 #define BITCOIN_QT_GOVERNANCELIST_H
 
-#include <governance/object.h>
-#include <governance/vote.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
 #include <qt/bitcoinunits.h>
 #include <sync.h>
 #include <util/system.h>
+
+#include <governance/object.h>
 
 #include <QAbstractTableModel>
 #include <QDateTime>
@@ -28,11 +29,13 @@ namespace Ui {
 class GovernanceList;
 }
 
-class CDeterministicMNList;
 class ClientModel;
 class ProposalModel;
 class WalletModel;
 class ProposalWizard;
+
+class CDeterministicMNList;
+enum vote_outcome_enum_t : int;
 
 /** Governance Manager page widget */
 class GovernanceList : public QWidget

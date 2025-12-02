@@ -6,7 +6,6 @@
 #define BITCOIN_TEST_FUZZ_UTIL_H
 
 #include <arith_uint256.h>
-#include <attributes.h>
 #include <chainparamsbase.h>
 #include <coins.h>
 #include <compat/compat.h>
@@ -148,6 +147,7 @@ template<typename B = uint8_t>
 {
     const size_t n_elements = fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, max_vector_size);
     std::vector<std::string> r;
+    r.reserve(n_elements);
     for (size_t i = 0; i < n_elements; ++i) {
         r.push_back(fuzzed_data_provider.ConsumeRandomLengthString(max_string_length));
     }
@@ -159,6 +159,7 @@ template <typename T>
 {
     const size_t n_elements = fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, max_vector_size);
     std::vector<T> r;
+    r.reserve(n_elements);
     for (size_t i = 0; i < n_elements; ++i) {
         r.push_back(fuzzed_data_provider.ConsumeIntegral<T>());
     }
@@ -390,17 +391,16 @@ public:
 
 class FuzzedAutoFileProvider
 {
-    FuzzedDataProvider& m_fuzzed_data_provider;
     FuzzedFileProvider m_fuzzed_file_provider;
 
 public:
-    FuzzedAutoFileProvider(FuzzedDataProvider& fuzzed_data_provider) : m_fuzzed_data_provider{fuzzed_data_provider}, m_fuzzed_file_provider{fuzzed_data_provider}
+    FuzzedAutoFileProvider(FuzzedDataProvider& fuzzed_data_provider) : m_fuzzed_file_provider{fuzzed_data_provider}
     {
     }
 
-    CAutoFile open()
+    AutoFile open()
     {
-        return {m_fuzzed_file_provider.open(), m_fuzzed_data_provider.ConsumeIntegral<int>(), m_fuzzed_data_provider.ConsumeIntegral<int>()};
+        return AutoFile{m_fuzzed_file_provider.open()};
     }
 };
 

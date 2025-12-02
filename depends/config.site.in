@@ -131,6 +131,13 @@ if test "@host_os@" = darwin; then
   fi
 fi
 
+if test "@host_os@" = mingw32; then
+  if test -n "@WINDRES@"; then
+    WINDRES="@WINDRES@"
+    ac_cv_path_WINDRES="${WINDRES}"
+  fi
+fi
+
 if test -n "@debug@"; then
   enable_reduce_exports=no
 fi

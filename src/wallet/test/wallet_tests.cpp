@@ -11,7 +11,6 @@
 #include <vector>
 
 #include <coinjoin/client.h>
-#include <coinjoin/context.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <key_io.h>
@@ -49,7 +48,6 @@ extern RPCHelpMan addmultisigaddress();
 // Ensure that fee levels defined in the wallet are at least as high
 // as the default levels for node policy.
 static_assert(DEFAULT_TRANSACTION_MINFEE >= DEFAULT_MIN_RELAY_TX_FEE, "wallet minimum fee is smaller than default relay fee");
-static_assert(WALLET_INCREMENTAL_RELAY_FEE >= DEFAULT_INCREMENTAL_RELAY_FEE, "wallet incremental fee is smaller than default incremental relay fee");
 
 BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 
@@ -67,9 +65,6 @@ static std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context)
         AddWallet(context, wallet);
     }
     NotifyWalletLoaded(context, wallet);
-    if (context.chain) {
-        wallet->postInitProcess();
-    }
     return wallet;
 }
 
@@ -786,6 +781,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     // being blocked
     wallet = TestLoadWallet(context);
     BOOST_CHECK(rescan_completed);
+    // AddToWallet events for block_tx and mempool_tx
     BOOST_CHECK_EQUAL(addtx_count, 2);
     {
         LOCK(wallet->cs_wallet);
@@ -798,6 +794,8 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     // transactionAddedToMempool events are processed
     promise.set_value();
     SyncWithValidationInterfaceQueue();
+    // AddToWallet events for block_tx and mempool_tx events are counted a
+    // second time as the notification queue is processed
     BOOST_CHECK_EQUAL(addtx_count, 4);
 
     TestUnloadWallet(context, std::move(wallet));
@@ -820,7 +818,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
             SyncWithValidationInterfaceQueue();
         });
     wallet = TestLoadWallet(context);
-    BOOST_CHECK_EQUAL(addtx_count, 4);
+    BOOST_CHECK_EQUAL(addtx_count, 2);
     {
         LOCK(wallet->cs_wallet);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);

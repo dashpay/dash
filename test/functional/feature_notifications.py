@@ -34,11 +34,14 @@ class NotificationsTest(DashTestFramework):
         self.alertnotify_dir = os.path.join(self.options.tmpdir, "alertnotify")
         self.blocknotify_dir = os.path.join(self.options.tmpdir, "blocknotify")
         self.walletnotify_dir = os.path.join(self.options.tmpdir, "walletnotify")
+        self.shutdownnotify_dir = os.path.join(self.options.tmpdir, "shutdownnotify")
+        self.shutdownnotify_file = os.path.join(self.shutdownnotify_dir, "shutdownnotify.txt")
         self.chainlocknotify_dir = os.path.join(self.options.tmpdir, "chainlocknotify")
         self.instantsendnotify_dir = os.path.join(self.options.tmpdir, "instantsendnotify")
         os.mkdir(self.alertnotify_dir)
         os.mkdir(self.blocknotify_dir)
         os.mkdir(self.walletnotify_dir)
+        os.mkdir(self.shutdownnotify_dir)
         os.mkdir(self.chainlocknotify_dir)
         os.mkdir(self.instantsendnotify_dir)
 
@@ -47,6 +50,7 @@ class NotificationsTest(DashTestFramework):
         self.extra_args = [[
             f"-alertnotify=echo > {os.path.join(self.alertnotify_dir, '%s')}",
             f"-blocknotify=echo > {os.path.join(self.blocknotify_dir, '%s')}",
+            f"-shutdownnotify=echo > {self.shutdownnotify_file}",
             f"-chainlocknotify=echo > {os.path.join(self.chainlocknotify_dir, '%s')}",
         ], [
             "-rescan",
@@ -144,6 +148,10 @@ class NotificationsTest(DashTestFramework):
             assert_equal(sorted(txids_rpc), sorted(os.listdir(self.instantsendnotify_dir)))
 
         # TODO: add test for `-alertnotify` large fork notifications
+
+        self.log.info("test -shutdownnotify")
+        self.stop_nodes()
+        self.wait_until(lambda: os.path.isfile(self.shutdownnotify_file), timeout=10)
 
     def expect_wallet_notify(self, tx_details):
         self.wait_until(lambda: len(os.listdir(self.walletnotify_dir)) >= len(tx_details), timeout=10)

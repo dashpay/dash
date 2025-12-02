@@ -9,6 +9,7 @@
 
 #include <chainlock/clsig.h>
 #include <instantsend/instantsend.h>
+#include <llmq/signing_shares.h>
 #include <masternode/sync.h>
 #include <spork.h>
 
@@ -140,7 +141,7 @@ void ChainLockSigner::TrySignChainTip(const llmq::CInstantSendManager& isman)
         lastSignedMsgHash = msgHash;
     }
 
-    m_sigman.AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, m_shareman, requestId, msgHash);
+    m_shareman.AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, m_sigman, requestId, msgHash);
 }
 
 void ChainLockSigner::EraseFromBlockHashTxidMap(const uint256& hash)

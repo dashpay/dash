@@ -27,7 +27,7 @@ typedef void* PrivateKey;
 
 // G1Element
 int G1ElementSize();
-G1Element G1ElementFromBytes(const void* data, const bool legacy, bool* didErr);
+G1Element G1ElementFromBytes(const void* data, size_t len, const bool legacy, bool* didErr);
 G1Element G1ElementGenerator();
 bool G1ElementIsValid(const G1Element el);
 uint32_t G1ElementGetFingerprint(const G1Element el, const bool legacy);
@@ -41,7 +41,7 @@ void G1ElementFree(const G1Element el);
 
 // G2Element
 int G2ElementSize();
-G2Element G2ElementFromBytes(const void* data, const bool legacy, bool* didErr);
+G2Element G2ElementFromBytes(const void* data, size_t len, const bool legacy, bool* didErr);
 G2Element G2ElementGenerator();
 bool G2ElementIsValid(const G2Element el);
 bool G2ElementIsEqual(const G2Element el1, const G2Element el2);

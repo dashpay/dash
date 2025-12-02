@@ -9,9 +9,9 @@ print-%: FORCE
 
 DIST_SUBDIRS = secp256k1
 
-AM_LDFLAGS = $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS) $(GPROF_LDFLAGS) $(SANITIZER_LDFLAGS) $(CORE_LDFLAGS)
-AM_CFLAGS = $(DEBUG_CFLAGS)
-AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(HARDENED_CXXFLAGS) $(WARN_CXXFLAGS) $(NOWARN_CXXFLAGS) $(ERROR_CXXFLAGS) $(GPROF_CXXFLAGS) $(SANITIZER_CXXFLAGS) $(CORE_CXXFLAGS)
+AM_LDFLAGS = $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS) $(GPROF_LDFLAGS) $(SANITIZER_LDFLAGS) $(CORE_LDFLAGS) $(BACKTRACE_LDFLAGS)
+AM_CFLAGS = $(DEBUG_CFLAGS) $(BACKTRACE_FLAGS)
+AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(HARDENED_CXXFLAGS) $(WARN_CXXFLAGS) $(NOWARN_CXXFLAGS) $(ERROR_CXXFLAGS) $(GPROF_CXXFLAGS) $(SANITIZER_CXXFLAGS) $(CORE_CXXFLAGS) $(BACKTRACE_FLAGS)
 AM_OBJCXXFLAGS = $(AM_CXXFLAGS)
 AM_CPPFLAGS = $(DEBUG_CPPFLAGS) $(HARDENED_CPPFLAGS) $(CORE_CPPFLAGS)
 AM_LIBTOOLFLAGS = --preserve-dup-deps
@@ -36,16 +36,10 @@ if TARGET_WINDOWS
 LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,_assert -Wl,-wrap,_wassert
 else
 LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
-endif
-endif
-endif
-
-if TARGET_WINDOWS
-BACKTRACE_LIB = -ldbghelp -lbacktrace
-else
-BACKTRACE_LIB = -lbacktrace
-endif
-endif #ENABLE_STACKTRACES
+endif # TARGET_WINDOWS
+endif # CRASH_HOOKS_WRAPPED_CXX_ABI
+endif # ENABLE_CRASH_HOOKS
+endif # ENABLE_STACKTRACES
 
 BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
 BITCOIN_INCLUDES+=-isystem$(srcdir)/dashbls/include -isystem$(srcdir)/dashbls/depends/relic/include -isystem$(srcdir)/dashbls/depends/minialloc/include
@@ -179,12 +173,13 @@ BITCOIN_CORE_H = \
   coinjoin/coinjoin.h \
   coinjoin/client.h \
   coinjoin/common.h \
-  coinjoin/context.h \
   coinjoin/options.h \
   coinjoin/server.h \
   coinjoin/util.h \
+  coinjoin/walletman.h \
   coins.h \
   common/bloom.h \
+  common/run_command.h \
   compat/assumptions.h \
   compat/byteswap.h \
   compat/compat.h \
@@ -221,12 +216,14 @@ BITCOIN_CORE_H = \
   evo/specialtx_filter.h \
   evo/specialtxman.h \
   evo/types.h \
+  external_signer.h \
   dsnotificationinterface.h \
-  governance/governance.h \
   governance/classes.h \
   governance/common.h \
+  governance/governance.h \
   governance/exceptions.h \
   governance/object.h \
+  governance/signing.h \
   governance/validators.h \
   governance/vote.h \
   governance/votedb.h \
@@ -257,7 +254,9 @@ BITCOIN_CORE_H = \
   instantsend/db.h \
   instantsend/instantsend.h \
   instantsend/lock.h \
+  instantsend/net_instantsend.h \
   instantsend/signing.h \
+  kernel/coinstats.h \
   key.h \
   key_io.h \
   limitedmap.h \
@@ -291,6 +290,7 @@ BITCOIN_CORE_H = \
   memusage.h \
   merkleblock.h \
   messagesigner.h \
+  msg_result.h \
   net.h \
   net_permissions.h \
   net_processing.h \
@@ -304,7 +304,6 @@ BITCOIN_CORE_H = \
   node/caches.h \
   node/chainstate.h \
   node/coin.h \
-  node/coinstats.h \
   node/connection_types.h \
   node/context.h \
   node/eviction.h \
@@ -345,6 +344,7 @@ BITCOIN_CORE_H = \
   scheduler.h \
   script/descriptor.h \
   script/keyorigin.h \
+  script/miniscript.h \
   script/sigcache.h \
   script/sign.h \
   script/signingprovider.h \
@@ -405,6 +405,7 @@ BITCOIN_CORE_H = \
   util/sock.h \
   util/string.h \
   util/spanparsing.h \
+  util/subprocess.hpp \
   util/syserror.h \
   util/system.h \
   util/time.h \
@@ -432,6 +433,7 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/dump.h \
+  wallet/external_signer_scriptpubkeyman.h \
   wallet/fees.h \
   wallet/hdchain.h \
   wallet/ismine.h \
@@ -484,8 +486,8 @@ libbitcoin_node_a_SOURCES = \
   chainlock/clsig.cpp \
   chainlock/signing.cpp \
   coinjoin/coinjoin.cpp \
-  coinjoin/context.cpp \
   coinjoin/server.cpp \
+  coinjoin/walletman.cpp \
   consensus/tx_verify.cpp \
   dbwrapper.cpp \
   deploymentstatus.cpp \
@@ -510,6 +512,7 @@ libbitcoin_node_a_SOURCES = \
   governance/exceptions.cpp \
   governance/governance.cpp \
   governance/object.cpp \
+  governance/signing.cpp \
   governance/validators.cpp \
   governance/vote.cpp \
   governance/votedb.cpp \
@@ -525,7 +528,9 @@ libbitcoin_node_a_SOURCES = \
   instantsend/db.cpp \
   instantsend/instantsend.cpp \
   instantsend/lock.cpp \
+  instantsend/net_instantsend.cpp \
   instantsend/signing.cpp \
+  kernel/coinstats.cpp \
   llmq/blockprocessor.cpp \
   llmq/commitment.cpp \
   llmq/context.cpp \
@@ -557,7 +562,6 @@ libbitcoin_node_a_SOURCES = \
   node/caches.cpp \
   node/chainstate.cpp \
   node/coin.cpp \
-  node/coinstats.cpp \
   node/connection_types.cpp \
   node/context.cpp \
   node/eviction.cpp \
@@ -643,6 +647,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/dump.cpp \
+  wallet/external_signer_scriptpubkeyman.cpp \
   wallet/fees.cpp \
   wallet/hdchain.cpp \
   wallet/interfaces.cpp \
@@ -888,7 +893,7 @@ libbitcoin_consensus_a_SOURCES = \
   version.h
 
 # common: shared between dashd, and dash-qt and non-server tools
-libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   base58.cpp \
@@ -896,16 +901,19 @@ libbitcoin_common_a_SOURCES = \
   chainparams.cpp \
   coins.cpp \
   common/bloom.cpp \
+  common/run_command.cpp \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
   deploymentinfo.cpp \
   evo/core_write.cpp \
   evo/netinfo.cpp \
+  external_signer.cpp \
   governance/common.cpp \
   init/common.cpp \
   key.cpp \
   key_io.cpp \
+  llmq/core_write.cpp \
   merkleblock.cpp \
   net_types.cpp \
   netaddress.cpp \
@@ -918,10 +926,12 @@ libbitcoin_common_a_SOURCES = \
   psbt.cpp \
   rpc/evo_util.cpp \
   rpc/rawtransaction_util.cpp \
+  rpc/external_signer.cpp \
   rpc/util.cpp \
   saltedhasher.cpp \
   scheduler.cpp \
   script/descriptor.cpp \
+  script/miniscript.cpp \
   script/sign.cpp \
   script/signingprovider.cpp \
   script/standard.cpp \
@@ -1022,7 +1032,7 @@ bitcoin_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoin_bin_ldadd += $(BACKTRACE_LIB) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS)
+bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS)
 
 dashd_SOURCES = $(bitcoin_daemon_sources) init/bitcoind.cpp
 dashd_CPPFLAGS = $(bitcoin_bin_cppflags)
@@ -1051,7 +1061,7 @@ dash_cli_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
-dash_cli_LDADD += $(BACKTRACE_LIB) $(EVENT_LIBS) $(GMP_LIBS)
+dash_cli_LDADD += $(BACKTRACE_LIBS) $(EVENT_LIBS) $(GMP_LIBS)
 #
 
 # dash-tx binary #
@@ -1073,7 +1083,7 @@ dash_tx_LDADD = \
   $(LIBDASHBLS) \
   $(LIBSECP256K1)
 
-dash_tx_LDADD += $(BACKTRACE_LIB) $(GMP_LIBS)
+dash_tx_LDADD += $(BACKTRACE_LIBS) $(GMP_LIBS)
 #
 
 # dash-wallet binary #
@@ -1081,7 +1091,21 @@ dash_wallet_SOURCES = bitcoin-wallet.cpp
 dash_wallet_CPPFLAGS = $(bitcoin_bin_cppflags)
 dash_wallet_CXXFLAGS = $(bitcoin_bin_cxxflags)
 dash_wallet_LDFLAGS = $(bitcoin_bin_ldflags)
-dash_wallet_LDADD = $(LIBBITCOIN_WALLET_TOOL) $(bitcoin_bin_ldadd)
+dash_wallet_LDADD = \
+  $(LIBBITCOIN_WALLET_TOOL) \
+  $(LIBBITCOIN_WALLET) \
+  $(LIBBITCOIN_COMMON) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBUNIVALUE) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBDASHBLS) \
+  $(LIBSECP256K1) \
+  $(BACKTRACE_LIBS) \
+  $(BOOST_LIBS) \
+  $(BDB_LIBS) \
+  $(SQLITE_LIBS) \
+  $(GMP_LIBS)
 
 if TARGET_WINDOWS
 dash_wallet_SOURCES += dash-wallet-res.rc
@@ -1156,7 +1180,7 @@ clean-local:
 	-rm -rf *.dSYM test/*.dSYM bench/*.dSYM qt/*.dSYM qt/test/*.dSYM
 
 .rc.o:
-	@test -f $(WINDRES) || (echo "windres $(WINDRES) not found, but is required to compile windows resource files"; exit 1)
+	@command -v $(WINDRES) || (echo "windres $(WINDRES) not found, but is required to compile windows resource files"; exit 1)
 	## FIXME: How to get the appropriate modulename_CPPFLAGS in here?
 	$(AM_V_GEN) $(WINDRES) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(CPPFLAGS) -DWINDRES_PREPROC -i $< -o $@
 

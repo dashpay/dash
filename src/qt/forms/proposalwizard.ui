@@ -33,21 +33,6 @@
     <widget class="QStackedWidget" name="stackedWidget">
      <widget class="QWidget" name="pageDetails">
       <layout class="QVBoxLayout" name="detailsLayout">
-       <property name="leftMargin">
-        <number>0</number>
-       </property>
-       <property name="topMargin">
-        <number>8</number>
-       </property>
-        <property name="rightMargin">
-        <number>0</number>
-       </property>
-       <property name="bottomMargin">
-        <number>0</number>
-       </property>
-       <property name="spacing">
-        <number>8</number>
-       </property>
        <item>
         <widget class="QLabel" name="labelHeader">
          <property name="text">
@@ -110,7 +95,7 @@
              </sizepolicy>
             </property>
            <property name="placeholderText">
-            <string>short-unique-name</string>
+            <string notr="true">short-unique-name</string>
            </property>
             <property name="maximumHeight">
              <number>24</number>
@@ -136,7 +121,7 @@
              </sizepolicy>
             </property>
            <property name="placeholderText">
-            <string>https://example.com/my-proposal</string>
+            <string notr="true">https://example.com/my-proposal</string>
            </property>
             <property name="maximumHeight">
              <number>24</number>
@@ -255,7 +240,7 @@
           <item row="6" column="1">
            <widget class="QLabel" name="labelTotalValue">
             <property name="text">
-             <string>0</string>
+             <string notr="true">0</string>
             </property>
            </widget>
           </item>
@@ -330,6 +315,9 @@
          <property name="maximumHeight">
           <number>120</number>
          </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item>
@@ -337,12 +325,15 @@
          <property name="placeholderText">
           <string>Hex-encoded JSON</string>
          </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item>
         <widget class="QLabel" name="labelValidateStatus">
          <property name="text">
-          <string>-</string>
+          <string notr="true">-</string>
          </property>
         </widget>
        </item>
@@ -368,19 +359,6 @@
            <widget class="QPushButton" name="btnBack1">
            <property name="text">
             <string>Back</string>
-           </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>28</height>
-             </size>
-            </property>
-          </widget>
-         </item>
-         <item>
-           <widget class="QPushButton" name="btnValidate">
-           <property name="text">
-            <string>Validate</string>
            </property>
             <property name="minimumSize">
              <size>
@@ -427,7 +405,7 @@
          <item>
           <widget class="QLabel" name="labelTxidCaption">
            <property name="text">
-            <string>TxID:</string>
+            <string notr="true">TxID:</string>
            </property>
           </widget>
          </item>
@@ -437,7 +415,7 @@
             <bool>true</bool>
            </property>
            <property name="placeholderText">
-            <string>-</string>
+            <string notr="true">-</string>
            </property>
             <property name="maximumHeight">
              <number>24</number>
@@ -661,7 +639,7 @@
             <bool>true</bool>
            </property>
            <property name="placeholderText">
-            <string>-</string>
+            <string notr="true">-</string>
            </property>
             <property name="maximumHeight">
              <number>24</number>
@@ -762,7 +740,6 @@
    <tabstop>plainJson</tabstop>
    <tabstop>editHex</tabstop>
    <tabstop>btnBack1</tabstop>
-   <tabstop>btnValidate</tabstop>
    <tabstop>btnNext2</tabstop>
    <tabstop>editTxid</tabstop>
    <tabstop>btnCopyTxid</tabstop>

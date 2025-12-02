@@ -31,6 +31,7 @@ fi
 
 BITCOIN_DAEMON_NAME=dashd
 BITCOIN_GUI_NAME=dash-qt
+BITCOIN_TEST_NAME=test_dash
 BITCOIN_CLI_NAME=dash-cli
 BITCOIN_TX_NAME=dash-tx
 BITCOIN_WALLET_TOOL_NAME=dash-wallet
@@ -236,12 +237,6 @@ AC_ARG_ENABLE([lcov-branch-coverage],
   [use_lcov_branch=yes],
   [use_lcov_branch=no])
 
-AC_ARG_ENABLE([threadlocal],
-  [AS_HELP_STRING([--enable-threadlocal],
-  [enable features that depend on the c++ thread_local keyword (currently just thread names in debug logs). (default is to enable if there is platform support)])],
-  [use_thread_local=$enableval],
-  [use_thread_local=auto])
-
 AC_ARG_ENABLE([zmq],
   [AS_HELP_STRING([--disable-zmq],
   [disable ZMQ notifications])],
@@ -324,10 +319,10 @@ AC_ARG_ENABLE([werror],
     [enable_werror=$enableval],
     [enable_werror=no])
 
-AC_ARG_WITH([boost-process],
-    [AS_HELP_STRING([--with-boost-process],[Opt in to using Boost Process (default is no)])],
-    [boost_process=$withval],
-    [boost_process=no])
+AC_ARG_ENABLE([external-signer],
+    [AS_HELP_STRING([--enable-external-signer],[compile external signer support (default is yes)])],
+    [use_external_signer=$enableval],
+    [use_external_signer=yes])
 
 AC_LANG_PUSH([C++])
 
@@ -359,7 +354,7 @@ if test "$enable_debug" = "yes"; then
   dnl them, to prevent autoconfs "-g -O2" being added. Otherwise we'd end up
   dnl with "-O0 -g3 -g -O2".
   if test "$CXXFLAGS_overridden" = "no"; then
-	CXXFLAGS=""
+  CXXFLAGS=""
   fi
 
   dnl Disable all optimizations
@@ -375,6 +370,7 @@ if test "$enable_debug" = "yes"; then
   AX_CHECK_PREPROC_FLAG([-DDEBUG_CORE], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DDEBUG_CORE"], [], [$CXXFLAG_WERROR])
   AX_CHECK_PREPROC_FLAG([-DDEBUG_LOCKORDER], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DDEBUG_LOCKORDER"], [], [$CXXFLAG_WERROR])
   AX_CHECK_PREPROC_FLAG([-DDEBUG_LOCKCONTENTION], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DDEBUG_LOCKCONTENTION"], [], [$CXXFLAG_WERROR])
+  AX_CHECK_PREPROC_FLAG([-DRPC_DOC_CHECK], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DRPC_DOC_CHECK"], [], [$CXXFLAG_WERROR])
   AX_CHECK_PREPROC_FLAG([-DABORT_ON_FAILED_ASSUME], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DABORT_ON_FAILED_ASSUME"], [], [$CXXFLAG_WERROR])
   AX_CHECK_COMPILE_FLAG([-ftrapv], [DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -ftrapv"], [], [$CXXFLAG_WERROR])
 else
@@ -391,29 +387,6 @@ else
     if test "$GXX" = "yes"; then
         DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -g1 -fno-omit-frame-pointer"
     fi
-fi
-
-if test "$enable_stacktraces" != no; then
-  AC_CHECK_HEADERS([execinfo.h], [], [enable_stacktraces=no])
-fi
-
-AM_CONDITIONAL([ENABLE_STACKTRACES], [test "$enable_stacktraces" = "yes"])
-if test "$enable_stacktraces" = "yes"; then
-    AC_DEFINE(ENABLE_STACKTRACES, 1, [Define this symbol if stacktraces should be enabled])
-else
-    enable_crashhooks=no
-fi
-
-AM_CONDITIONAL([ENABLE_CRASH_HOOKS], [test "$enable_crashhooks" = "yes"])
-if test "$enable_crashhooks" = "yes"; then
-    AC_DEFINE(ENABLE_CRASH_HOOKS, 1, [Define this symbol if crash hooks should be enabled])
-fi
-
-AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=yes],,,)
-AM_CONDITIONAL([CRASH_HOOKS_WRAPPED_CXX_ABI],[test $LINK_WRAP_SUPPORTED = "yes"])
-
-if test "$LINK_WRAP_SUPPORTED" = "yes"; then
-  AC_DEFINE(CRASH_HOOKS_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])
 fi
 
 # Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
@@ -452,6 +425,15 @@ if test "$enable_werror" = "yes"; then
     AC_MSG_ERROR([enable-werror set but -Werror is not usable])
   fi
   ERROR_CXXFLAGS=$CXXFLAG_WERROR
+
+  dnl -Wdeprecated-literal-operator cause problems with clang 20. Do not treat these warnings as errors.
+  dnl TODO: remove it once we update hana
+  AX_CHECK_COMPILE_FLAG([-Wdeprecated-literal-operator], [NOWARN_CXXFLAGS="$NOWARN_CXXFLAGS -Wno-error=deprecated-literal-operator"], [], [$CXXFLAG_WERROR], [AC_LANG_SOURCE([
+    #if !defined(__clang__) || defined(__INTEL_COMPILER)
+      #error Non-clang compiler detected, not setting flag
+    #endif
+    int main(void) { return 0; }
+  ])])
 
   dnl -Wattributes cause problems with some versions of GCC. Do not treat these warnings as errors.
   AX_CHECK_COMPILE_FLAG([-Wattributes], [NOWARN_CXXFLAGS="$NOWARN_CXXFLAGS -Wno-error=attributes"], [], [$CXXFLAG_WERROR], [AC_LANG_SOURCE([
@@ -882,11 +864,17 @@ case $host in
            export PKG_CONFIG_PATH="$($BREW --prefix qt@5 2>/dev/null)/lib/pkgconfig:$PKG_CONFIG_PATH"
          fi
 
-         gmp_prefix=$($BREW --prefix gmp 2>/dev/null)
-         if test "$gmp_prefix" != ""; then
-           CORE_CPPFLAGS="$CORE_CPPFLAGS -I$gmp_prefix/include"
-           CORE_LDFLAGS="$CORE_LDFLAGS -L$gmp_prefix/lib"
-         fi
+        gmp_prefix=$($BREW --prefix gmp 2>/dev/null)
+        if test "$gmp_prefix" != ""; then
+          if test "$suppress_external_warnings" != "no"; then
+            GMP_CPPFLAGS="-isystem $gmp_prefix/include"
+          else
+            GMP_CPPFLAGS="-I$gmp_prefix/include"
+          fi
+          GMP_LDFLAGS="-L$gmp_prefix/lib"
+          CORE_CPPFLAGS="$CORE_CPPFLAGS $GMP_CPPFLAGS"
+          CORE_LDFLAGS="$CORE_LDFLAGS $GMP_LDFLAGS"
+        fi
 
          case $host in
            *aarch64*)
@@ -957,6 +945,9 @@ case $host in
      ;;
    *linux*)
      TARGET_OS=linux
+     ;;
+   *freebsd*)
+     TARGET_OS=freebsd
      ;;
 esac
 
@@ -1110,12 +1101,11 @@ if test "$use_hardening" != "no"; then
   AX_CHECK_LINK_FLAG([-Wl,-z,now], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,now"], [], [$LDFLAG_WERROR])
   AX_CHECK_LINK_FLAG([-Wl,-z,separate-code], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,separate-code"], [], [$LDFLAG_WERROR])
   AX_CHECK_LINK_FLAG([-fPIE -pie], [PIE_FLAGS="-fPIE"; HARDENED_LDFLAGS="$HARDENED_LDFLAGS -pie"], [], [$CXXFLAG_WERROR])
+fi
 
-  case $host in
-    *mingw*)
-       AC_CHECK_LIB([ssp], [main], [], [AC_MSG_ERROR([libssp missing])])
-    ;;
-  esac
+dnl Add build-id for perf and debug symbol matching (Linux only)
+if test "$TARGET_OS" = "linux"; then
+  AX_CHECK_LINK_FLAG([-Wl,--build-id=sha1], [CORE_LDFLAGS="$CORE_LDFLAGS -Wl,--build-id=sha1"], [], [$LDFLAG_WERROR])
 fi
 
 dnl These flags are specific to ld64, and may cause issues with other linkers.
@@ -1201,43 +1191,91 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
   [AC_MSG_RESULT([no])]
 )
 
-if test "$use_thread_local" = "yes" || test "$use_thread_local" = "auto"; then
-  TEMP_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$TEMP_LDFLAGS $PTHREAD_CFLAGS"
-  AC_MSG_CHECKING([for thread_local support])
-  AC_LINK_IFELSE([AC_LANG_SOURCE([
-    #include <thread>
-    static thread_local int foo = 0;
-    static void run_thread() { foo++;}
-    int main(){
-    for(int i = 0; i < 10; i++) { std::thread(run_thread).detach();}
-    return foo;
-    }
-    ])],
-    [
-     case $host in
-       *mingw*)
-          dnl mingw32's implementation of thread_local has also been shown to behave
-          dnl erroneously under concurrent usage; see:
-          dnl https://gist.github.com/jamesob/fe9a872051a88b2025b1aa37bfa98605
-          AC_MSG_RESULT([no])
-          ;;
-        *freebsd*)
-          dnl FreeBSD's implementation of thread_local is also buggy (per
-          dnl https://groups.google.com/d/msg/bsdmailinglist/22ncTZAbDp4/Dii_pII5AwAJ)
-          AC_MSG_RESULT([no])
-          ;;
-        *)
-          AC_DEFINE([HAVE_THREAD_LOCAL], [1], [Define if thread_local is supported.])
-          AC_MSG_RESULT([yes])
-          ;;
-      esac
-    ],
-    [
-      AC_MSG_RESULT([no])
-    ]
-  )
-  LDFLAGS="$TEMP_LDFLAGS"
+BACKTRACE_FLAGS=
+BACKTRACE_LDFLAGS=
+BACKTRACE_LIBS=
+if test "$enable_stacktraces" != "no"; then
+  AC_CHECK_HEADERS([backtrace.h], [
+    if test "$TARGET_OS" = "windows"; then
+      BACKTRACE_LIBS="$BACKTRACE_LIBS -ldbghelp"
+    else
+      AC_CHECK_HEADERS([execinfo.h], [
+        case $host in
+          *bsd*)
+            AC_SEARCH_LIBS([backtrace], [execinfo], [
+              BACKTRACE_LIBS="$BACKTRACE_LIBS -lexecinfo"
+            ], [
+              if test "$enable_stacktraces" = "yes"; then
+                AC_MSG_ERROR([--enable-stacktraces was specified but cannot locate libexecinfo])
+              fi
+              AC_MSG_WARN([cannot locate libexecinfo, stacktraces will be disabled])
+              enable_stacktraces=no
+            ])
+            ;;
+        esac
+        AX_CHECK_LINK_FLAG([-Wl,-export-dynamic], [BACKTRACE_LDFLAGS="$BACKTRACE_LDFLAGS -Wl,-export-dynamic"], [
+          AX_CHECK_LINK_FLAG([-rdynamic], [BACKTRACE_LDFLAGS="$BACKTRACE_LDFLAGS -rdynamic"], [
+            if test "$enable_stacktraces" = "yes"; then
+              AC_MSG_ERROR([--enable-stacktraces was specified but cannot set requisite linker flags])
+            fi
+            AC_MSG_WARN([cannot set requisite linker flags, stacktraces will be disabled])
+            enable_stacktraces=no
+          ], [$LDFLAG_WERROR])
+        ], [$LDFLAG_WERROR])
+      ], [
+        if test "$enable_stacktraces" = "yes"; then
+          AC_MSG_ERROR([--enable-stacktraces was specified but execinfo.h was not found])
+        fi
+        AC_MSG_WARN([execinfo.h was not found, stacktraces will be disabled])
+        enable_stacktraces=no
+      ])
+    fi
+    BACKTRACE_LIBS="$BACKTRACE_LIBS -lbacktrace"
+    dnl More modern compilers may emit DWARF 5 binaries by default, use DWARF 4 out of precaution
+    if test "$TARGET_OS" != "windows"; then
+      AX_CHECK_COMPILE_FLAG([-gdwarf-4], [BACKTRACE_FLAGS="$BACKTRACE_FLAGS -gdwarf-4"], [
+        if test "$enable_stacktraces" = "yes"; then
+          AC_MSG_ERROR([--enable-stacktraces was specified but cannot set -gdwarf-4])
+        fi
+        AC_MSG_WARN([cannot set -gdwarf-4, stacktraces will be disabled])
+        enable_stacktraces=no
+      ], [$CXXFLAG_WERROR])
+    fi
+    if test "$TARGET_OS" = "darwin"; then
+      AX_CHECK_COMPILE_FLAG([-fno-standalone-debug], [BACKTRACE_FLAGS="$BACKTRACE_FLAGS -fno-standalone-debug"], [
+        if test "$enable_stacktraces" = "yes"; then
+          AC_MSG_ERROR([--enable-stacktraces was specified but cannot set -fno-standalone-debug])
+        fi
+        AC_MSG_WARN([cannot set -fno-standalone-debug, stacktraces will be disabled])
+        enable_stacktraces=no
+      ], [$CXXFLAG_WERROR])
+    fi
+  ], [
+    if test "$enable_stacktraces" = "yes"; then
+      AC_MSG_ERROR([--enable-stacktraces was specified but backtrace.h was not found])
+    fi
+    AC_MSG_WARN([backtrace.h was not found, stacktraces will be disabled])
+    enable_stacktraces=no
+  ])
+fi
+
+AM_CONDITIONAL([ENABLE_STACKTRACES], [test "$enable_stacktraces" = "yes"])
+if test "$enable_stacktraces" = "yes"; then
+    AC_DEFINE(ENABLE_STACKTRACES, 1, [Define this symbol if stacktraces should be enabled])
+else
+    enable_crashhooks=no
+fi
+
+AM_CONDITIONAL([ENABLE_CRASH_HOOKS], [test "$enable_crashhooks" = "yes"])
+if test "$enable_crashhooks" = "yes"; then
+    AC_DEFINE(ENABLE_CRASH_HOOKS, 1, [Define this symbol if crash hooks should be enabled])
+fi
+
+AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=yes],,,)
+AM_CONDITIONAL([CRASH_HOOKS_WRAPPED_CXX_ABI],[test "$LINK_WRAP_SUPPORTED" = "yes"])
+
+if test "$LINK_WRAP_SUPPORTED" = "yes"; then
+  AC_DEFINE(CRASH_HOOKS_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])
 fi
 
 dnl Check for different ways of gathering OS randomness
@@ -1280,15 +1318,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
  [ AC_MSG_RESULT([yes]); AC_DEFINE([HAVE_SYSCTL_ARND], [1], [Define this symbol if the BSD sysctl(KERN_ARND) is available]) ],
  [ AC_MSG_RESULT([no])]
 )
-
-dnl ensure backtrace() is found, check -lexecinfo if necessary
-if test "$TARGET_OS" != "windows"; then
-  if test "$enable_stacktraces" != "no"; then
-    AC_SEARCH_LIBS([backtrace], [execinfo], [], [
-      AC_MSG_ERROR([Unable to find backtrace()])
-    ])
-  fi
-fi
 
 AC_MSG_CHECKING([for fdatasync])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <unistd.h>]],
@@ -1408,6 +1437,7 @@ if test "$enable_fuzz" = "yes"; then
   bitcoin_enable_qt_dbus=no
   use_bench=no
   use_tests=no
+  use_external_signer=no
   use_upnp=no
   use_natpmp=no
   use_zmq=no
@@ -1499,6 +1529,12 @@ if test "$use_usdt" != "no"; then
 fi
 AM_CONDITIONAL([ENABLE_USDT_TRACEPOINTS], [test "$use_usdt" = "yes"])
 
+if test "$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests" = "nononono"; then
+  use_upnp=no
+  use_natpmp=no
+  use_zmq=no
+fi
+
 dnl Check for libminiupnpc (optional)
 if test "$use_upnp" != "no"; then
   TEMP_CPPFLAGS="$CPPFLAGS"
@@ -1508,14 +1544,15 @@ if test "$use_upnp" != "no"; then
     [AC_CHECK_LIB([miniupnpc], [upnpDiscover], [MINIUPNPC_LIBS="$MINIUPNPC_LIBS -lminiupnpc"], [have_miniupnpc=no], [$MINIUPNPC_LIBS])],
     [have_miniupnpc=no]
   )
-  dnl The minimum supported miniUPnPc API version is set to 10. This keeps compatibility
-  dnl with Ubuntu 16.04 LTS and Debian 8 libminiupnpc-dev packages.
+
+  dnl The minimum supported miniUPnPc API version is set to 17. This excludes
+  dnl versions with known vulnerabilities.
   if test "$have_miniupnpc" != "no"; then
     AC_MSG_CHECKING([whether miniUPnPc API version is supported])
     AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[
         @%:@include <miniupnpc/miniupnpc.h>
       ]], [[
-        #if MINIUPNPC_API_VERSION >= 10
+        #if MINIUPNPC_API_VERSION >= 17
         // Everything is okay
         #else
         #  error miniUPnPc API version is too old
@@ -1524,7 +1561,7 @@ if test "$use_upnp" != "no"; then
         AC_MSG_RESULT([yes])
       ],[
       AC_MSG_RESULT([no])
-      AC_MSG_WARN([miniUPnPc API version < 10 is unsupported, disabling UPnP support.])
+      AC_MSG_WARN([miniUPnPc API version < 17 is unsupported, disabling UPnP support.])
       have_miniupnpc=no
     ])
   fi
@@ -1542,18 +1579,18 @@ if test "$use_natpmp" != "no"; then
 fi
 
 if test "$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench$enable_fuzz_binary" = "nononononononono"; then
-    use_boost=no
+  use_boost=no
 else
-    use_boost=yes
+  use_boost=yes
 fi
 
 if test "$use_boost" = "yes"; then
 
-dnl Check for Boost headers
-AX_BOOST_BASE([1.73.0],[],[AC_MSG_ERROR([Boost is not available!])])
-if test "$want_boost" = "no"; then
-    AC_MSG_ERROR([[only libdashconsensus can be built without boost]])
-fi
+  dnl Check for Boost headers
+  AX_BOOST_BASE([1.73.0],[],[AC_MSG_ERROR([Boost is not available!])])
+  if test "$want_boost" = "no"; then
+      AC_MSG_ERROR([[only libdashconsensus can be built without boost]])
+  fi
 
   dnl we don't use multi_index serialization
   BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_DISABLE_SERIALIZATION"
@@ -1562,27 +1599,28 @@ fi
     BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE"
   fi
 
-dnl Prevent use of std::unary_function, which was removed in C++17,
-dnl and will generate warnings with newer compilers for Boost
-dnl older than 1.80.
-dnl See: https://github.com/boostorg/config/pull/430.
-AX_CHECK_PREPROC_FLAG([-DBOOST_NO_CXX98_FUNCTION_BASE], [BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"], [], [$CXXFLAG_WERROR],
-                      [AC_LANG_PROGRAM([[#include <boost/config.hpp>]])])
-
-dnl Opt-in to Boost Process
-if test "$boost_process" != "no"; then
-AC_MSG_CHECKING(for Boost Process)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <boost/process.hpp>]],
- [[ boost::process::child* child = new boost::process::child; delete child; ]])],
- [ AC_MSG_RESULT(yes); AC_DEFINE([HAVE_BOOST_PROCESS],,[define if Boost::Process is available])],
- [ AC_MSG_ERROR([Boost::Process is not available!])]
-)
-fi
+  dnl Prevent use of std::unary_function, which was removed in C++17,
+  dnl and will generate warnings with newer compilers for Boost
+  dnl older than 1.80.
+  dnl See: https://github.com/boostorg/config/pull/430.
+  AX_CHECK_PREPROC_FLAG([-DBOOST_NO_CXX98_FUNCTION_BASE], [BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"], [], [$CXXFLAG_WERROR],
+                        [AC_LANG_PROGRAM([[#include <boost/config.hpp>]])])
 
   if test "$suppress_external_warnings" != "no"; then
     BOOST_CPPFLAGS=SUPPRESS_WARNINGS($BOOST_CPPFLAGS)
+  fi
 fi
+
+case $host in
+  dnl Re-enable it after enabling Windows support in cpp-subprocess.
+  *mingw*)
+    use_external_signer="no"
+  ;;
+esac
+if test "$use_external_signer" = "yes"; then
+  AC_DEFINE([ENABLE_EXTERNAL_SIGNER], [1], [Define if external signer support is enabled])
 fi
+AM_CONDITIONAL([ENABLE_EXTERNAL_SIGNER], [test "$use_external_signer" = "yes"])
 
 dnl Check for reduced exports
 if test "$use_reduce_exports" = "yes"; then
@@ -1658,8 +1696,14 @@ if test "$use_zmq" = "yes"; then
 fi
 
 dnl check if libgmp is present
+TEMP_CPPFLAGS="$CPPFLAGS"
+TEMP_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $GMP_CPPFLAGS"
+LDFLAGS="$LDFLAGS $GMP_LDFLAGS"
 AC_CHECK_HEADER([gmp.h],, AC_MSG_ERROR(libgmp headers missing))
 AC_CHECK_LIB([gmp],  [__gmpz_init],GMP_LIBS=-lgmp, AC_MSG_ERROR(libgmp missing))
+CPPFLAGS="$TEMP_CPPFLAGS"
+LDFLAGS="$TEMP_LDFLAGS"
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "$use_zmq" = "yes"])
 
@@ -1929,6 +1973,7 @@ AC_SUBST(COPYRIGHT_HOLDERS_SUBSTITUTION, "_COPYRIGHT_HOLDERS_SUBSTITUTION")
 AC_SUBST(COPYRIGHT_HOLDERS_FINAL, "_COPYRIGHT_HOLDERS_FINAL")
 AC_SUBST(BITCOIN_DAEMON_NAME)
 AC_SUBST(BITCOIN_GUI_NAME)
+AC_SUBST(BITCOIN_TEST_NAME)
 AC_SUBST(BITCOIN_CLI_NAME)
 AC_SUBST(BITCOIN_TX_NAME)
 AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
@@ -1969,11 +2014,15 @@ AC_SUBST(ARM_SHANI_CXXFLAGS)
 AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_SQLITE)
 AC_SUBST(USE_BDB)
+AC_SUBST(ENABLE_EXTERNAL_SIGNER)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
 AC_SUBST(TESTDEFS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)
+AC_SUBST(BACKTRACE_FLAGS)
+AC_SUBST(BACKTRACE_LDFLAGS)
+AC_SUBST(BACKTRACE_LIBS)
 AC_SUBST(GMP_LIBS)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
@@ -1996,6 +2045,9 @@ AC_CONFIG_LINKS([test/functional/test_runner.py:test/functional/test_runner.py])
 AC_CONFIG_LINKS([test/fuzz/test_runner.py:test/fuzz/test_runner.py])
 AC_CONFIG_LINKS([test/util/test_runner.py:test/util/test_runner.py])
 AC_CONFIG_LINKS([test/util/rpcauth-test.py:test/util/rpcauth-test.py])
+AC_CONFIG_LINKS([src/qt/Makefile:src/qt/Makefile])
+AC_CONFIG_LINKS([src/qt/test/Makefile:src/qt/test/Makefile])
+AC_CONFIG_LINKS([src/test/Makefile:src/test/Makefile])
 
 dnl boost's m4 checks do something really nasty: they export these vars. As a
 dnl result, they leak into secp256k1's configure and crazy things happen.
@@ -2030,7 +2082,7 @@ esac
 
 echo
 echo "Options used to compile and link:"
-echo "  boost process       = $with_boost_process"
+echo "  external signer     = $use_external_signer"
 echo "  multiprocess        = $build_multiprocess"
 echo "  with libs           = $build_bitcoin_libs"
 echo "  with wallet         = $enable_wallet"
@@ -2040,36 +2092,36 @@ if test "$enable_wallet" != "no"; then
 fi
 echo "  with gui / qt       = $bitcoin_enable_qt"
 if test $bitcoin_enable_qt != "no"; then
-    echo "    with qr           = $use_qr"
+    echo "    with qr       = $use_qr"
 fi
-echo "  with zmq            = $use_zmq"
+echo "  with zmq        = $use_zmq"
 if test $enable_fuzz = "no"; then
-    echo "  with test           = $use_tests"
+    echo "  with test       = $use_tests"
 else
-    echo "  with test           = not building test_dash because fuzzing is enabled"
+    echo "  with test       = not building test_dash because fuzzing is enabled"
 fi
-echo "  with fuzz binary    = $enable_fuzz_binary"
-echo "  with bench          = $use_bench"
-echo "  with upnp           = $use_upnp"
-echo "  with natpmp         = $use_natpmp"
-echo "  USDT tracing        = $use_usdt"
-echo "  sanitizers          = $use_sanitizers"
-echo "  debug enabled       = $enable_debug"
-echo "  stacktraces enabled = $enable_stacktraces"
-echo "  crash hooks enabled = $enable_crashhooks"
-echo "  miner enabled       = $enable_miner"
-echo "  gprof enabled       = $enable_gprof"
-echo "  werror              = $enable_werror"
+echo "  with fuzz binary= $enable_fuzz_binary"
+echo "  with bench      = $use_bench"
+echo "  with upnp       = $use_upnp"
+echo "  with natpmp     = $use_natpmp"
+echo "  USDT tracing    = $use_usdt"
+echo "  sanitizers      = $use_sanitizers"
+echo "  debug enabled   = $enable_debug"
+echo "  stacktraces     = $enable_stacktraces"
+echo "  crash hooks     = $enable_crashhooks"
+echo "  miner enabled   = $enable_miner"
+echo "  gprof enabled   = $enable_gprof"
+echo "  werror          = $enable_werror"
 echo
-echo "  target os           = $host_os"
-echo "  build os            = $build_os"
+echo "  target os       = $host_os"
+echo "  build os        = $build_os"
 echo
-echo "  CC                  = $CC"
-echo "  CFLAGS              = $DEBUG_CFLAGS $PTHREAD_CFLAGS $CFLAGS"
-echo "  CPPFLAGS            = $DEBUG_CPPFLAGS $HARDENED_CPPFLAGS $CORE_CPPFLAGS $CPPFLAGS"
-echo "  CXX                 = $CXX"
-echo "  CXXFLAGS            = $DEBUG_CXXFLAGS $HARDENED_CXXFLAGS $WARN_CXXFLAGS $NOWARN_CXXFLAGS $ERROR_CXXFLAGS $GPROF_CXXFLAGS $CORE_CXXFLAGS $CXXFLAGS"
-echo "  LDFLAGS             = $PTHREAD_LIBS $HARDENED_LDFLAGS $GPROF_LDFLAGS $CORE_LDFLAGS $LDFLAGS"
-echo "  AR                  = $AR"
-echo "  ARFLAGS             = $ARFLAGS"
+echo "  CC              = $CC"
+echo "  CFLAGS          = $DEBUG_CFLAGS $PTHREAD_CFLAGS $BACKTRACE_FLAGS $CFLAGS"
+echo "  CPPFLAGS        = $DEBUG_CPPFLAGS $HARDENED_CPPFLAGS $CORE_CPPFLAGS $CPPFLAGS"
+echo "  CXX             = $CXX"
+echo "  CXXFLAGS        = $DEBUG_CXXFLAGS $HARDENED_CXXFLAGS $WARN_CXXFLAGS $NOWARN_CXXFLAGS $ERROR_CXXFLAGS $GPROF_CXXFLAGS $CORE_CXXFLAGS $BACKTRACE_FLAGS $CXXFLAGS"
+echo "  LDFLAGS         = $PTHREAD_LIBS $HARDENED_LDFLAGS $GPROF_LDFLAGS $CORE_LDFLAGS $BACKTRACE_LDFLAGS $LDFLAGS"
+echo "  AR              = $AR"
+echo "  ARFLAGS         = $ARFLAGS"
 echo

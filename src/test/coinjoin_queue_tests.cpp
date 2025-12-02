@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(queue_sign_and_verify)
     q.fReady = false;
 
     // Sign and verify with corresponding pubkey
-    BOOST_CHECK(q.Sign(mn_activeman));
+    q.vchSig = mn_activeman.SignBasic(q.GetSignatureHash());
     const CBLSPublicKey pub = mn_activeman.GetPubKey();
     BOOST_CHECK(q.CheckSignature(pub));
 }

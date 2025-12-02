@@ -295,14 +295,14 @@ static void SeedHardwareSlow(CSHA512& hasher) noexcept {
 }
 
 /** Use repeated SHA512 to strengthen the randomness in seed32, and feed into hasher. */
-static void Strengthen(const unsigned char (&seed)[32], int microseconds, CSHA512& hasher) noexcept
+static void Strengthen(const unsigned char (&seed)[32], SteadyClock::duration dur, CSHA512& hasher) noexcept
 {
     CSHA512 inner_hasher;
     inner_hasher.Write(seed, sizeof(seed));
 
     // Hash loop
     unsigned char buffer[64];
-    int64_t stop = GetTimeMicros() + microseconds;
+    const auto stop{SteadyClock::now() + dur};
     do {
         for (int i = 0; i < 1000; ++i) {
             inner_hasher.Finalize(buffer);
@@ -312,7 +312,7 @@ static void Strengthen(const unsigned char (&seed)[32], int microseconds, CSHA51
         // Benchmark operation and feed it into outer hasher.
         int64_t perf = GetPerformanceCounter();
         hasher.Write((const unsigned char*)&perf, sizeof(perf));
-    } while (GetTimeMicros() < stop);
+    } while (SteadyClock::now() < stop);
 
     // Produce output from inner state and feed it to outer hasher.
     inner_hasher.Finalize(buffer);
@@ -443,9 +443,7 @@ public:
         InitHardwareRand();
     }
 
-    ~RNGState()
-    {
-    }
+    ~RNGState() = default;
 
     void AddEvent(uint32_t event_info) noexcept EXCLUSIVE_LOCKS_REQUIRED(!m_events_mutex)
     {
@@ -568,13 +566,13 @@ static void SeedSlow(CSHA512& hasher, RNGState& rng) noexcept
 }
 
 /** Extract entropy from rng, strengthen it, and feed it into hasher. */
-static void SeedStrengthen(CSHA512& hasher, RNGState& rng, int microseconds) noexcept
+static void SeedStrengthen(CSHA512& hasher, RNGState& rng, SteadyClock::duration dur) noexcept
 {
     // Generate 32 bytes of entropy from the RNG, and a copy of the entropy already in hasher.
     unsigned char strengthen_seed[32];
     rng.MixExtract(strengthen_seed, sizeof(strengthen_seed), CSHA512(hasher), false);
     // Strengthen the seed, and feed it into hasher.
-    Strengthen(strengthen_seed, microseconds, hasher);
+    Strengthen(strengthen_seed, dur, hasher);
 }
 
 static void SeedPeriodic(CSHA512& hasher, RNGState& rng) noexcept
@@ -594,7 +592,7 @@ static void SeedPeriodic(CSHA512& hasher, RNGState& rng) noexcept
     LogPrint(BCLog::RANDOM, "Feeding %i bytes of dynamic environment data into RNG\n", hasher.Size() - old_size);
 
     // Strengthen for 10 ms
-    SeedStrengthen(hasher, rng, 10000);
+    SeedStrengthen(hasher, rng, 10ms);
 }
 
 static void SeedStartup(CSHA512& hasher, RNGState& rng) noexcept
@@ -614,7 +612,7 @@ static void SeedStartup(CSHA512& hasher, RNGState& rng) noexcept
     LogPrint(BCLog::RANDOM, "Feeding %i bytes of environment data into RNG\n", hasher.Size() - old_size);
 
     // Strengthen for 100 ms
-    SeedStrengthen(hasher, rng, 100000);
+    SeedStrengthen(hasher, rng, 100ms);
 }
 
 enum class RNGLevel {

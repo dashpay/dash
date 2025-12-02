@@ -7,29 +7,28 @@
 
 #include <validationinterface.h>
 
-class CActiveMasternodeManager;
 class CConnman;
+class CDSTXManager;
 class CDeterministicMNManager;
 class CGovernanceManager;
 class ChainstateManager;
 class CMasternodeSync;
-class PeerManager;
-struct CJContext;
 struct LLMQContext;
 
 class CDSNotificationInterface : public CValidationInterface
 {
 public:
+    CDSNotificationInterface() = delete;
+    CDSNotificationInterface(const CDSNotificationInterface&) = delete;
+    CDSNotificationInterface& operator=(const CDSNotificationInterface&) = delete;
     explicit CDSNotificationInterface(CConnman& connman,
+                                      CDSTXManager& dstxman,
                                       CMasternodeSync& mn_sync,
                                       CGovernanceManager& govman,
-                                      PeerManager& peerman,
                                       const ChainstateManager& chainman,
-                                      const CActiveMasternodeManager* const mn_activeman,
                                       const std::unique_ptr<CDeterministicMNManager>& dmnman,
-                                      const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                      const std::unique_ptr<CJContext>& cj_ctx);
-    virtual ~CDSNotificationInterface() = default;
+                                      const std::unique_ptr<LLMQContext>& llmq_ctx);
+    virtual ~CDSNotificationInterface();
 
     // a small helper to initialize current block height in sub-modules on startup
     void InitializeCurrentBlockTip();
@@ -50,14 +49,12 @@ protected:
 
 private:
     CConnman& m_connman;
+    CDSTXManager& m_dstxman;
     CMasternodeSync& m_mn_sync;
     CGovernanceManager& m_govman;
-    PeerManager& m_peerman;
     const ChainstateManager& m_chainman;
-    const CActiveMasternodeManager* const m_mn_activeman;
     const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
     const std::unique_ptr<LLMQContext>& m_llmq_ctx;
-    const std::unique_ptr<CJContext>& m_cj_ctx;
 };
 
 extern std::unique_ptr<CDSNotificationInterface> g_ds_notification_interface;

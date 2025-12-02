@@ -13,13 +13,9 @@ cd "$WORKSPACE_PATH"
 
 source "contrib/guix/libexec/prelude.bash"
 
-printf "\nBinaries:\n\n"
-( \
-SRC_PATH_PREFIX="${VERSION_BASE}/distsrc-" && \
-sha256sum ${SRC_PATH_PREFIX}*/src/dash{d,-cli,-tx,-wallet}{,.exe} && \
-sha256sum ${SRC_PATH_PREFIX}*/src/qt/dash-qt{,.exe} && \
-sha256sum ${SRC_PATH_PREFIX}*/src/test/test_dash{,.exe} \
-) | sort -k 2
-
-printf "\nArchives:\n\n"
-find "${OUTDIR_BASE}" -type f | grep -v SHA256 | xargs sha256sum | sort -k 2
+GUIX_SIGS_REPO="$(mktemp -d)"
+trap 'rm -rf -- "$GUIX_SIGS_REPO"' EXIT
+SIGNER=dummy
+env GUIX_SIGS_REPO="${GUIX_SIGS_REPO}" NO_SIGN=1 SIGNER=${SIGNER} ./contrib/guix/guix-attest
+SHASUM_LOC="${GUIX_SIGS_REPO}/${VERSION}/${SIGNER}"
+cat "${SHASUM_LOC}/all.sha256sums" 2>/dev/null || cat "${SHASUM_LOC}/noncodesigned.SHA256SUMS"

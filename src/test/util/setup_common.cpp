@@ -48,7 +48,8 @@
 #include <walletinitinterface.h>
 
 #include <bls/bls.h>
-#include <coinjoin/context.h>
+#include <coinjoin/coinjoin.h>
+#include <coinjoin/walletman.h>
 #include <evo/cbtx.h>
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
@@ -124,14 +125,14 @@ std::ostream& operator<<(std::ostream& os, const uint256& num)
 
 void DashChainstateSetup(ChainstateManager& chainman,
                          NodeContext& node,
-                         bool fReset,
-                         bool fReindexChainState,
+                         bool llmq_dbs_in_memory,
+                         bool llmq_dbs_wipe,
                          const Consensus::Params& consensus_params)
 {
     DashChainstateSetup(chainman, *Assert(node.govman.get()), *Assert(node.mn_metaman.get()), *Assert(node.mn_sync.get()),
                         *Assert(node.sporkman.get()), node.mn_activeman, node.chain_helper, node.cpoolman, node.dmnman,
-                        node.evodb, node.mnhf_manager, node.llmq_ctx, Assert(node.mempool.get()), fReset, fReindexChainState,
-                        consensus_params);
+                        node.evodb, node.mnhf_manager, node.llmq_ctx, Assert(node.mempool.get()), node.args->GetDataDirNet(),
+                        llmq_dbs_in_memory, llmq_dbs_wipe, consensus_params);
 }
 
 void DashChainstateSetupClose(NodeContext& node)
@@ -188,8 +189,8 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     SetupNetworking();
     InitSignatureCache();
     InitScriptExecutionCache();
-    m_node.chain = interfaces::MakeChain(m_node);
 
+    m_node.chain = interfaces::MakeChain(m_node);
     m_node.netgroupman = std::make_unique<NetGroupManager>(/*asmap=*/std::vector<bool>());
     m_node.addrman = std::make_unique<AddrMan>(*m_node.netgroupman,
                                                /*deterministic=*/false,
@@ -202,6 +203,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
             strprintf("Invalid -socketevents ('%s') specified. Only these modes are supported: %s",
                       sem_str, GetSupportedSocketEventsStr()));
     }
+
     {
         auto stats_client = StatsdClient::make(*m_node.args);
         if (!stats_client) {
@@ -213,32 +215,43 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman); // Deterministic randomness for tests.
 
     fCheckBlockIndex = true;
-    m_node.evodb = std::make_unique<CEvoDB>(1 << 20, true, true);
-    m_node.mnhf_manager = std::make_unique<CMNHFManager>(*m_node.evodb);
+
+    m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>();
+    m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
+    m_node.sporkman = std::make_unique<CSporkManager>();
+    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = true, .wipe = true});
     m_node.cpoolman = std::make_unique<CCreditPoolManager>(*m_node.evodb);
+    m_node.mnhf_manager = std::make_unique<CMNHFManager>(*m_node.evodb);
+
     static bool noui_connected = false;
     if (!noui_connected) {
         noui_connect();
         noui_connected = true;
     }
+
     bls::bls_legacy_scheme.store(true);
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
     SetMockTime(0s); // Reset mocktime for following tests
-    m_node.cpoolman.reset();
-    m_node.mnhf_manager.reset();
-    m_node.evodb.reset();
-    ::g_socket_events_mode = SocketEventsMode::Unknown;
-    m_node.connman.reset();
-    m_node.addrman.reset();
-    m_node.netgroupman.reset();
-    ::g_stats_client.reset();
-
     LogInstance().DisconnectTestLogger();
     fs::remove_all(m_path_root);
     gArgs.ClearArgs();
+
+    m_node.mnhf_manager.reset();
+    m_node.cpoolman.reset();
+    m_node.evodb.reset();
+    m_node.sporkman.reset();
+    m_node.netfulfilledman.reset();
+    m_node.mn_metaman.reset();
+    m_node.connman.reset();
+    ::g_stats_client.reset();
+    ::g_socket_events_mode = SocketEventsMode::Unknown;
+    m_node.addrman.reset();
+    m_node.netgroupman.reset();
+    m_node.args = nullptr;
+
     ECC_Stop();
 }
 
@@ -259,9 +272,6 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_node.chainman = std::make_unique<ChainstateManager>();
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
 
-    m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>();
-    m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
-    m_node.sporkman = std::make_unique<CSporkManager>();
     m_node.mn_sync = std::make_unique<CMasternodeSync>(*m_node.connman, *m_node.netfulfilledman);
     m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.netfulfilledman, *m_node.chainman, m_node.dmnman, *m_node.mn_sync);
 
@@ -277,15 +287,12 @@ ChainTestingSetup::~ChainTestingSetup()
     StopScriptCheckWorkerThreads();
     GetMainSignals().FlushBackgroundCallbacks();
     GetMainSignals().UnregisterBackgroundSignalScheduler();
-    m_node.mn_sync.reset();
     m_node.govman.reset();
-    m_node.sporkman.reset();
-    m_node.netfulfilledman.reset();
-    m_node.mn_metaman.reset();
-    m_node.args = nullptr;
-    m_node.mempool.reset();
-    m_node.scheduler.reset();
+    m_node.mn_sync.reset();
     m_node.chainman.reset();
+    m_node.mempool.reset();
+    m_node.fee_estimator.reset();
+    m_node.scheduler.reset();
 }
 
 TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
@@ -310,6 +317,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            m_node.mnhf_manager,
                                            m_node.llmq_ctx,
                                            Assert(m_node.mempool.get()),
+                                           Assert(m_node.args)->GetDataDirNet(),
                                            fPruneMode,
                                            m_args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX),
                                            !m_args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE),
@@ -323,7 +331,8 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            m_cache_sizes.coins_db,
                                            m_cache_sizes.coins,
                                            /*block_tree_db_in_memory=*/true,
-                                           /*coins_db_in_memory=*/true);
+                                           /*coins_db_in_memory=*/true,
+                                           /*dash_dbs_in_memory=*/true);
     assert(!maybe_load_error.has_value());
 
     auto maybe_verify_error = VerifyLoadedChainstate(
@@ -340,23 +349,13 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
         });
     assert(!maybe_verify_error.has_value());
 
-    m_node.banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
-    m_node.peerman = PeerManager::make(chainparams, *m_node.connman, *m_node.addrman, m_node.banman.get(),
-                                       *m_node.chainman, *m_node.mempool, *m_node.mn_metaman, *m_node.mn_sync,
-                                       *m_node.govman, *m_node.sporkman, /*mn_activeman=*/nullptr, m_node.dmnman,
-                                       /*active_ctx=*/nullptr, m_node.cj_ctx, m_node.llmq_ctx, /*ignore_incoming_txs=*/false);
-    {
-        CConnman::Options options;
-        options.m_msgproc = m_node.peerman.get();
-        options.socketEventsMode = ::g_socket_events_mode;
-        m_node.connman->Init(options);
-    }
-
-    m_node.cj_ctx = std::make_unique<CJContext>(*m_node.chainman, *m_node.dmnman, *m_node.mn_metaman, *m_node.mempool,
-                                                /*mn_activeman=*/nullptr, *m_node.mn_sync, *m_node.llmq_ctx->isman,
-                                                /*relay_txes=*/true);
-
+    m_node.dstxman = std::make_unique<CDSTXManager>();
 #ifdef ENABLE_WALLET
+    // The test suite doesn't use masternode mode, so we may initialize it
+    m_node.cj_walletman = CJWalletManager::make(*m_node.chainman, *m_node.dmnman, *m_node.mn_metaman, *m_node.mempool,
+                                                *m_node.mn_sync, *m_node.llmq_ctx->isman, /*relay_txes=*/true);
+    assert(m_node.cj_walletman);
+
     // WalletInit::Construct()-like logic needed for wallet tests that run on
     // TestingSetup and its children (e.g. TestChain100Setup) instead of
     // WalletTestingSetup
@@ -367,6 +366,19 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
     m_node.chain_clients.emplace_back(std::move(wallet_loader));
 #endif // ENABLE_WALLET
 
+    m_node.banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
+    m_node.peerman = PeerManager::make(chainparams, *m_node.connman, *m_node.addrman, m_node.banman.get(), *m_node.dstxman,
+                                       *m_node.chainman, *m_node.mempool, *m_node.mn_metaman, *m_node.mn_sync,
+                                       *m_node.govman, *m_node.sporkman, /*mn_activeman=*/nullptr, m_node.dmnman,
+                                       /*active_ctx=*/nullptr, m_node.cj_walletman.get(), m_node.llmq_ctx,
+                                       /*ignore_incoming_txs=*/false);
+    {
+        CConnman::Options options;
+        options.m_msgproc = m_node.peerman.get();
+        options.socketEventsMode = ::g_socket_events_mode;
+        m_node.connman->Init(options);
+    }
+
     BlockValidationState state;
     if (!m_node.chainman->ActiveChainstate().ActivateBestChain(state)) {
         throw std::runtime_error(strprintf("ActivateBestChain failed. (%s)", state.ToString()));
@@ -375,15 +387,17 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
 
 TestingSetup::~TestingSetup()
 {
+    m_node.peerman.reset();
+    m_node.banman.reset();
 #ifdef ENABLE_WALLET
     for (auto& client : m_node.chain_clients) {
         client.reset();
     }
     m_node.wallet_loader = nullptr;
-
     m_node.coinjoin_loader.reset();
+    m_node.cj_walletman.reset();
 #endif // ENABLE_WALLET
-    m_node.cj_ctx.reset();
+    m_node.dstxman.reset();
 
     // Interrupt() and PrepareShutdown() routines
     if (m_node.llmq_ctx) {
@@ -397,9 +411,6 @@ TestingSetup::~TestingSetup()
     // DashChainstateSetup() is called by LoadChainstate() internally but
     // winding them down is our responsibility
     DashChainstateSetupClose(m_node);
-
-    m_node.peerman.reset();
-    m_node.banman.reset();
 }
 
 TestChain100Setup::TestChain100Setup(const std::string& chain_name, const std::vector<const char*>& extra_args)

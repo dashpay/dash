@@ -18,14 +18,13 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(validation_chainstate_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(validation_chainstate_tests, ChainTestingSetup)
 
 //! Test resizing coins-related CChainState caches during runtime.
 //!
 BOOST_AUTO_TEST_CASE(validation_chainstate_resize_caches)
 {
-    ChainstateManager manager;
-    WITH_LOCK(::cs_main, manager.m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(1 << 20, true));
+    ChainstateManager& manager = *Assert(m_node.chainman);
     CTxMemPool& mempool = *Assert(m_node.mempool);
 
     //! Create and add a Coin with DynamicMemoryUsage of 80 bytes to the given view.

@@ -620,51 +620,34 @@ static bool rest_chaininfo(const CoreContext& context, HTTPRequest* req, const s
     }
 }
 
-static bool rest_mempool_info(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_mempool(const CoreContext& context, HTTPRequest* req, const std::string& str_uri_part)
 {
     if (!CheckWarmup(req))
         return false;
+
+    std::string param;
+    const RESTResponseFormat rf = ParseDataFormat(param, str_uri_part);
+    if (param != "contents" && param != "info") {
+        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid URI format. Expected /rest/mempool/<info|contents>.json");
+    }
+
     const CTxMemPool* mempool = GetMemPool(context, req);
     if (!mempool) return false;
-    std::string param;
-    const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
 
     switch (rf) {
     case RESTResponseFormat::JSON: {
         const LLMQContext* llmq_ctx = GetLLMQContext(context, req);
         if (!llmq_ctx) return false;
 
-        UniValue mempoolInfoObject = MempoolInfoToJSON(*mempool, *llmq_ctx->isman);
+        std::string str_json;
+        if (param == "contents") {
+            str_json = MempoolToJSON(*mempool, llmq_ctx->isman.get(), true).write() + "\n";
+        } else {
+            str_json = MempoolInfoToJSON(*mempool, *llmq_ctx->isman).write() + "\n";
+        }
 
-        std::string strJSON = mempoolInfoObject.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
-        return true;
-    }
-    default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: json)");
-    }
-    }
-}
-
-static bool rest_mempool_contents(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
-{
-    if (!CheckWarmup(req)) return false;
-    const CTxMemPool* mempool = GetMemPool(context, req);
-    if (!mempool) return false;
-    std::string param;
-    const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
-
-    switch (rf) {
-    case RESTResponseFormat::JSON: {
-        const LLMQContext* llmq_ctx = GetLLMQContext(context, req);
-        if (!llmq_ctx) return false;
-
-        UniValue mempoolObject = MempoolToJSON(*mempool, llmq_ctx->isman.get(), true);
-
-        std::string strJSON = mempoolObject.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        req->WriteReply(HTTP_OK, str_json);
         return true;
     }
     default: {
@@ -691,7 +674,7 @@ static bool rest_tx(const CoreContext& context, HTTPRequest* req, const std::str
     const NodeContext* const node = GetNodeContext(context, req);
     if (!node) return false;
     uint256 hashBlock = uint256();
-    const CTransactionRef tx = GetTransaction(/* block_index */ nullptr, node->mempool.get(), hash, Params().GetConsensus(), hashBlock);
+    const CTransactionRef tx = GetTransaction(/*block_index=*/nullptr, node->mempool.get(), hash, Params().GetConsensus(), hashBlock);
     if (!tx) {
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
     }
@@ -982,8 +965,7 @@ static const struct {
       {"/rest/blockfilter/", rest_block_filter},
       {"/rest/blockfilterheaders/", rest_filter_header},
       {"/rest/chaininfo", rest_chaininfo},
-      {"/rest/mempool/info", rest_mempool_info},
-      {"/rest/mempool/contents", rest_mempool_contents},
+      {"/rest/mempool/", rest_mempool},
       {"/rest/headers/", rest_headers},
       {"/rest/getutxos", rest_getutxos},
       {"/rest/blockhashbyheight/", rest_blockhash_by_height},

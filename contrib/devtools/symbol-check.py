@@ -163,7 +163,8 @@ PE_ALLOWED_LIBRARIES = {
 'msvcrt.dll', # C standard library for MSVC
 'SHELL32.dll', # shell API
 'WS2_32.dll', # sockets
-'bcrypt.dll',
+'bcrypt.dll', # crypto API
+'dbghelp.dll', # debugging routines
 # bitcoin-qt only
 'dwmapi.dll', # desktop window manager
 'GDI32.dll', # graphics device interface
@@ -252,7 +253,7 @@ def check_MACHO_sdk(binary) -> bool:
     return False
 
 def check_MACHO_lld(binary) -> bool:
-    if binary.build_version.tools[0].version == [18, 1, 8]:
+    if binary.build_version.tools[0].version == [19, 1, 4]:
         return True
     return False
 
@@ -285,7 +286,8 @@ def check_ELF_ABI(binary) -> bool:
 CHECKS = {
 lief.EXE_FORMATS.ELF: [
     ('IMPORTED_SYMBOLS', check_imported_symbols),
-    ('EXPORTED_SYMBOLS', check_exported_symbols),
+    # Dash: We export symbols aggressively to aid in backtrace generation
+    # ('EXPORTED_SYMBOLS', check_exported_symbols),
     ('LIBRARY_DEPENDENCIES', check_ELF_libraries),
     ('INTERPRETER_NAME', check_ELF_interpreter),
     ('ABI', check_ELF_ABI),

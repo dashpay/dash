@@ -196,9 +196,8 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
                 from_node=node,
                 utxos_to_spend=utxos_to_spend,
                 num_outputs=3,
-                fee_per_output=FEE // 3
+                fee_per_output=FEE // 3,
             )
-
             num_transactions += 1
 
     def run_test(self):

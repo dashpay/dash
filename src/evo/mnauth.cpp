@@ -36,15 +36,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
     if (Params().NetworkIDString() != CBaseChainParams::MAIN && gArgs.IsArgSet("-pushversion")) {
         nOurNodeVersion = gArgs.GetIntArg("-pushversion", PROTOCOL_VERSION);
     }
-    auto pk = mn_activeman.GetPubKey();
-    const CBLSPublicKey pubKey(pk);
-    uint256 signHash = [&]() {
-        if (peer.nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {
-            return ::SerializeHash(std::make_tuple(pubKey, receivedMNAuthChallenge, peer.IsInboundConn()));
-        } else {
-            return ::SerializeHash(std::make_tuple(pubKey, receivedMNAuthChallenge, peer.IsInboundConn(), nOurNodeVersion));
-        }
-    }();
+    const uint256 signHash{::SerializeHash(std::make_tuple(mn_activeman.GetPubKey(), receivedMNAuthChallenge, peer.IsInboundConn(), nOurNodeVersion))};
 
     mnauth.proRegTxHash = mn_activeman.GetProTxHash();
 
@@ -97,18 +89,9 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
         return MisbehavingError{10, "missing mnauth masternode"};
     }
 
-    uint256 signHash;
-    int nOurNodeVersion{PROTOCOL_VERSION};
-    if (Params().NetworkIDString() != CBaseChainParams::MAIN && gArgs.IsArgSet("-pushversion")) {
-        nOurNodeVersion = gArgs.GetIntArg("-pushversion", PROTOCOL_VERSION);
-    }
     const CBLSPublicKey pubKey(dmn->pdmnState->pubKeyOperator.Get());
     // See comment in PushMNAUTH (fInbound is negated here as we're on the other side of the connection)
-    if (peer.nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {
-        signHash = ::SerializeHash(std::make_tuple(pubKey, peer.GetSentMNAuthChallenge(), !peer.IsInboundConn()));
-    } else {
-        signHash = ::SerializeHash(std::make_tuple(pubKey, peer.GetSentMNAuthChallenge(), !peer.IsInboundConn(), peer.nVersion.load()));
-    }
+    const uint256 signHash{::SerializeHash(std::make_tuple(pubKey, peer.GetSentMNAuthChallenge(), !peer.IsInboundConn(), peer.nVersion.load()))};
     LogPrint(BCLog::NET_NETCONN, "CMNAuth::%s -- constructed signHash for nVersion %d, peer=%d\n", __func__, peer.nVersion, peer.GetId());
 
     if (!mnauth.sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator.Get(), signHash, false)) {
@@ -118,7 +101,7 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
     }
 
     if (!peer.IsInboundConn()) {
-        mn_metaman.GetMetaInfo(mnauth.proRegTxHash)->SetLastOutboundSuccess(GetTime<std::chrono::seconds>().count());
+        mn_metaman.SetLastOutboundSuccess(mnauth.proRegTxHash, GetTime<std::chrono::seconds>().count());
         if (peer.m_masternode_probe_connection) {
             LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- Masternode probe successful for %s, disconnecting. peer=%d\n",
                      mnauth.proRegTxHash.ToString(), peer.GetId());

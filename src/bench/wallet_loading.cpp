@@ -19,14 +19,12 @@
 using wallet::CWallet;
 using wallet::DatabaseFormat;
 using wallet::DatabaseOptions;
-using wallet::ISMINE_SPENDABLE;
-using wallet::MakeWalletDatabase;
 using wallet::TxStateInactive;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 using wallet::WalletContext;
 using wallet::WalletDatabase;
 
-static const std::shared_ptr<CWallet> BenchLoadWallet(std::unique_ptr<WalletDatabase> database, WalletContext& context, DatabaseOptions& options)
+static std::shared_ptr<CWallet> BenchLoadWallet(std::unique_ptr<WalletDatabase> database, WalletContext& context, DatabaseOptions& options)
 {
     bilingual_str error;
     std::vector<bilingual_str> warnings;

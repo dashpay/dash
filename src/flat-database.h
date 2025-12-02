@@ -49,9 +49,9 @@ private:
         uint256 hash = Hash(ssObj);
         ssObj << hash;
 
-        // open output file, and associate with CAutoFile
+        // open output file, and associate with AutoFile
         FILE *file = fsbridge::fopen(pathDB, "wb");
-        CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
+        AutoFile fileout{file};
         if (fileout.IsNull()) {
             return error("%s: Failed to open file %s", __func__, fs::PathToString(pathDB));
         }
@@ -76,9 +76,9 @@ private:
         //LOCK(objToLoad.cs);
 
         const auto start{SteadyClock::now()};
-        // open input file, and associate with CAutoFile
+        // open input file, and associate with AutoFile
         FILE *file = fsbridge::fopen(pathDB, "rb");
-        CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
+        AutoFile filein{file};
         if (filein.IsNull()) {
             // It is not actually error, maybe it's a first initialization of core.
             return ReadResult::FileError;

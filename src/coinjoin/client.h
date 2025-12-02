@@ -8,6 +8,7 @@
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/util.h>
 #include <evo/types.h>
+#include <msg_result.h>
 
 #include <net_types.h>
 #include <protocol.h>
@@ -29,7 +30,6 @@ class CMasternodeSync;
 class CNode;
 class CoinJoinWalletManager;
 class CTxMemPool;
-class PeerManager;
 
 class UniValue;
 
@@ -75,36 +75,25 @@ public:
     using wallet_name_cjman_map = std::map<const std::string, std::unique_ptr<CCoinJoinClientManager>>;
 
 public:
-    CoinJoinWalletManager(ChainstateManager& chainman, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
-                          const CTxMemPool& mempool, const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                          const std::unique_ptr<CCoinJoinClientQueueManager>& queueman, bool is_masternode) :
-        m_chainman(chainman),
-        m_dmnman(dmnman),
-        m_mn_metaman(mn_metaman),
-        m_mempool(mempool),
-        m_mn_sync(mn_sync),
-        m_isman{isman},
-        m_queueman(queueman),
-        m_is_masternode{is_masternode}
-    {}
+    CoinJoinWalletManager() = delete;
+    CoinJoinWalletManager(const CoinJoinWalletManager&) = delete;
+    CoinJoinWalletManager& operator=(const CoinJoinWalletManager&) = delete;
+    explicit CoinJoinWalletManager(ChainstateManager& chainman, CDeterministicMNManager& dmnman,
+                                   CMasternodeMetaMan& mn_metaman, const CTxMemPool& mempool,
+                                   const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
+                                   const std::unique_ptr<CCoinJoinClientQueueManager>& queueman);
+    ~CoinJoinWalletManager();
 
-    ~CoinJoinWalletManager() {
-        LOCK(cs_wallet_manager_map);
-        for (auto& [wallet_name, cj_man] : m_wallet_manager_map) {
-            cj_man.reset();
-        }
-    }
+    void Add(const std::shared_ptr<wallet::CWallet>& wallet) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    void DoMaintenance(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
-    void Add(const std::shared_ptr<wallet::CWallet>& wallet);
-    void DoMaintenance(CConnman& connman);
+    void Remove(const std::string& name) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    void Flush(const std::string& name) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
-    void Remove(const std::string& name);
-    void Flush(const std::string& name);
-
-    CCoinJoinClientManager* Get(const std::string& name) const;
+    CCoinJoinClientManager* Get(const std::string& name) const EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     template <typename Callable>
-    void ForEachCJClientMan(Callable&& func)
+    void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
     {
         LOCK(cs_wallet_manager_map);
         for (auto&& [_, clientman] : m_wallet_manager_map) {
@@ -113,7 +102,7 @@ public:
     };
 
     template <typename Callable>
-    bool ForAnyCJClientMan(Callable&& func)
+    bool ForAnyCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
     {
         LOCK(cs_wallet_manager_map);
         return ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(pair.second); });
@@ -127,8 +116,6 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
     const std::unique_ptr<CCoinJoinClientQueueManager>& m_queueman;
-
-    const bool m_is_masternode;
 
     mutable Mutex cs_wallet_manager_map;
     wallet_name_cjman_map m_wallet_manager_map GUARDED_BY(cs_wallet_manager_map);
@@ -144,9 +131,6 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
     const std::unique_ptr<CCoinJoinClientQueueManager>& m_queueman;
-
-    // Track node type
-    const bool m_is_masternode;
 
     std::vector<COutPoint> vecOutPointLocked;
 
@@ -202,7 +186,7 @@ public:
     explicit CCoinJoinClientSession(const std::shared_ptr<wallet::CWallet>& wallet, CCoinJoinClientManager& clientman,
                                     CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                     const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                    const std::unique_ptr<CCoinJoinClientQueueManager>& queueman, bool is_masternode);
+                                    const std::unique_ptr<CCoinJoinClientQueueManager>& queueman);
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv);
 
@@ -239,21 +223,18 @@ private:
     const CMasternodeSync& m_mn_sync;
 
     mutable Mutex cs_ProcessDSQueue;
-    const bool m_is_masternode;
 
 public:
+    CCoinJoinClientQueueManager() = delete;
+    CCoinJoinClientQueueManager(const CCoinJoinClientQueueManager&) = delete;
+    CCoinJoinClientQueueManager& operator=(const CCoinJoinClientQueueManager&) = delete;
     explicit CCoinJoinClientQueueManager(CoinJoinWalletManager& walletman, CDeterministicMNManager& dmnman,
-                                         CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync,
-                                         bool is_masternode) :
-        m_walletman(walletman),
-        m_dmnman(dmnman),
-        m_mn_metaman(mn_metaman),
-        m_mn_sync(mn_sync),
-        m_is_masternode{is_masternode} {};
+                                         CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync);
+    ~CCoinJoinClientQueueManager();
 
-    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, CConnman& connman, PeerManager& peerman, std::string_view msg_type,
+    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, CConnman& connman, std::string_view msg_type,
                                                          CDataStream& vRecv)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue, !cs_ProcessDSQueue);
     void DoMaintenance();
 };
 
@@ -268,12 +249,6 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
     const std::unique_ptr<CCoinJoinClientQueueManager>& m_queueman;
-
-    // Track node type
-    const bool m_is_masternode;
-
-    // Keep track of the used Masternodes
-    std::vector<COutPoint> vecMasternodesUsed;
 
     mutable Mutex cs_deqsessions;
     // TODO: or map<denom, CCoinJoinClientSession> ??
@@ -298,22 +273,13 @@ public:
     bool fCreateAutoBackups{true}; // builtin support for automatic backups
 
     CCoinJoinClientManager() = delete;
-    CCoinJoinClientManager(CCoinJoinClientManager const&) = delete;
-    CCoinJoinClientManager& operator=(CCoinJoinClientManager const&) = delete;
-
+    CCoinJoinClientManager(const CCoinJoinClientManager&) = delete;
+    CCoinJoinClientManager& operator=(const CCoinJoinClientManager&) = delete;
     explicit CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet, CDeterministicMNManager& dmnman,
                                     CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync,
                                     const llmq::CInstantSendManager& isman,
-                                    const std::unique_ptr<CCoinJoinClientQueueManager>& queueman, bool is_masternode) :
-        m_wallet(wallet),
-        m_dmnman(dmnman),
-        m_mn_metaman(mn_metaman),
-        m_mn_sync(mn_sync),
-        m_isman{isman},
-        m_queueman(queueman),
-        m_is_masternode{is_masternode}
-    {
-    }
+                                    const std::unique_ptr<CCoinJoinClientQueueManager>& queueman);
+    ~CCoinJoinClientManager();
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
@@ -338,7 +304,7 @@ public:
 
     void ProcessPendingDsaRequest(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
-    void AddUsedMasternode(const COutPoint& outpointMn);
+    void AddUsedMasternode(const uint256& proTxHash);
     CDeterministicMNCPtr GetRandomNotUsedMasternode();
 
     void UpdatedSuccessBlock();

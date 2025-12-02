@@ -5,20 +5,42 @@ terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
 -----------------------------------------------------------------------------*/
 
-/* test file for valgrind support.
+/* test file for valgrind/asan support.
+
+   VALGRIND:
+   ----------
    Compile in an "out/debug" folder:
 
    > cd out/debug
-   > cmake ../.. -DMI_VALGRIND=1
+   > cmake ../.. -DMI_TRACK_VALGRIND=1
    > make -j8
 
-   and then compile this file as: 
+   and then compile this file as:
 
    > gcc -g -o test-wrong -I../../include ../../test/test-wrong.c libmimalloc-valgrind-debug.a -lpthread
 
    and test as:
 
    > valgrind ./test-wrong
+
+   
+   ASAN
+   ----------
+   Compile in an "out/debug" folder:
+
+   > cd out/debug
+   > cmake ../.. -DMI_TRACK_ASAN=1
+   > make -j8
+
+   and then compile this file as:
+
+   > clang -g -o test-wrong -I../../include ../../test/test-wrong.c libmimalloc-asan-debug.a -lpthread -fsanitize=address -fsanitize-recover=address
+
+   and test as:
+
+   > ASAN_OPTIONS=verbosity=1:halt_on_error=0 ./test-wrong
+
+
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,9 +53,9 @@ terms of the MIT license. A copy of the license can be found in the file
 #endif
 
 int main(int argc, char** argv) {
-  int* p = mi(malloc)(3*sizeof(int));
-  
-  int* r = mi_malloc_aligned(8,16);
+  int* p = (int*)mi(malloc)(3*sizeof(int));
+
+  int* r = (int*)mi_malloc_aligned(8,16);
   mi_free(r);
 
   // illegal byte wise read
@@ -42,12 +64,12 @@ int main(int argc, char** argv) {
   mi(free)(c);
 
   // undefined access
-  int* q = mi(malloc)(sizeof(int));
+  int* q = (int*)mi(malloc)(sizeof(int));
   printf("undefined: %d\n", *q);
 
   // illegal int read
   printf("invalid: over: %d, under: %d\n", q[1], q[-1]);
-  
+
   *q = 42;
 
   // buffer overflow
@@ -55,7 +77,7 @@ int main(int argc, char** argv) {
 
   // buffer underflow
   q[-1] = 44;
-  
+
   mi(free)(q);
 
   // double free
@@ -66,5 +88,5 @@ int main(int argc, char** argv) {
 
   // leak p
   // mi_free(p)
-  return 0;  
+  return 0;
 }

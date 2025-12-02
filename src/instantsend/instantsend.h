@@ -5,21 +5,24 @@
 #ifndef BITCOIN_INSTANTSEND_INSTANTSEND_H
 #define BITCOIN_INSTANTSEND_INSTANTSEND_H
 
+#include <instantsend/db.h>
+#include <instantsend/lock.h>
+#include <instantsend/signing.h>
+
 #include <net_types.h>
 #include <primitives/transaction.h>
 #include <protocol.h>
 #include <sync.h>
 #include <threadsafety.h>
-#include <util/threadinterrupt.h>
-
-#include <instantsend/db.h>
-#include <instantsend/lock.h>
-#include <instantsend/signing.h>
 #include <unordered_lru_cache.h>
 
 #include <atomic>
-#include <unordered_map>
+#include <optional>
 #include <unordered_set>
+#include <variant>
+#include <vector>
+
+#include <saltedhasher.h>
 
 class CBlockIndex;
 class CChainState;
@@ -27,23 +30,29 @@ class CDataStream;
 class CMasternodeSync;
 class CSporkManager;
 class CTxMemPool;
-class PeerManager;
 namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
+namespace util {
+struct DbWrapperParams;
+} // namespace util
 
 namespace instantsend {
 class InstantSendSigner;
 
+struct PendingISLockFromPeer {
+    NodeId node_id;
+    InstantSendLockPtr islock;
+};
+
 struct PendingState {
     bool m_pending_work{false};
-    std::vector<std::pair<NodeId, MessageProcessingResult>> m_peer_activity{};
+    std::vector<std::pair<uint256, PendingISLockFromPeer>> m_pending_is;
 };
 } // namespace instantsend
 
 namespace llmq {
 class CChainLocksHandler;
-class CQuorumManager;
 class CSigningManager;
 
 class CInstantSendManager final : public instantsend::InstantSendSignerParent
@@ -53,7 +62,6 @@ private:
 
     CChainLocksHandler& clhandler;
     CChainState& m_chainstate;
-    CQuorumManager& qman;
     CSigningManager& sigman;
     CSporkManager& spork_manager;
     CTxMemPool& mempool;
@@ -61,14 +69,11 @@ private:
 
     std::atomic<instantsend::InstantSendSigner*> m_signer{nullptr};
 
-    std::thread workThread;
-    CThreadInterrupt workInterrupt;
-
     mutable Mutex cs_pendingLocks;
     // Incoming and not verified yet
-    Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>> pendingInstantSendLocks GUARDED_BY(cs_pendingLocks);
+    Uint256HashMap<instantsend::PendingISLockFromPeer> pendingInstantSendLocks GUARDED_BY(cs_pendingLocks);
     // Tried to verify but there is no tx yet
-    Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>> pendingNoTxInstantSendLocks GUARDED_BY(cs_pendingLocks);
+    Uint256HashMap<instantsend::PendingISLockFromPeer> pendingNoTxInstantSendLocks GUARDED_BY(cs_pendingLocks);
 
     // TXs which are neither IS locked nor ChainLocked. We use this to determine for which TXs we need to retry IS
     // locking of child TXs
@@ -88,10 +93,21 @@ private:
     mutable Mutex cs_timingsTxSeen;
     Uint256HashMap<int64_t> timingsTxSeen GUARDED_BY(cs_timingsTxSeen);
 
+    mutable Mutex cs_height_cache;
+    static constexpr size_t MAX_BLOCK_HEIGHT_CACHE{16384};
+    mutable unordered_lru_cache<uint256, int, StaticSaltedHasher, MAX_BLOCK_HEIGHT_CACHE> m_cached_block_heights
+        GUARDED_BY(cs_height_cache);
+    mutable int m_cached_tip_height GUARDED_BY(cs_height_cache){-1};
+
+    void CacheBlockHeightInternal(const CBlockIndex* const block_index) const EXCLUSIVE_LOCKS_REQUIRED(cs_height_cache);
+
 public:
-    explicit CInstantSendManager(CChainLocksHandler& _clhandler, CChainState& chainstate, CQuorumManager& _qman,
-                                 CSigningManager& _sigman, CSporkManager& sporkman, CTxMemPool& _mempool,
-                                 const CMasternodeSync& mn_sync, bool unitTests, bool fWipe);
+    CInstantSendManager() = delete;
+    CInstantSendManager(const CInstantSendManager&) = delete;
+    CInstantSendManager& operator=(const CInstantSendManager&) = delete;
+    explicit CInstantSendManager(CChainLocksHandler& _clhandler, CChainState& chainstate, CSigningManager& _sigman,
+                                 CSporkManager& sporkman, CTxMemPool& _mempool, const CMasternodeSync& mn_sync,
+                                 const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
     void ConnectSigner(gsl::not_null<instantsend::InstantSendSigner*> signer)
@@ -102,24 +118,11 @@ public:
     }
     void DisconnectSigner() { m_signer.store(nullptr, std::memory_order_release); }
 
-    void Start(PeerManager& peerman);
-    void Stop();
-    void InterruptWorkerThread() { workInterrupt(); };
+    instantsend::InstantSendSigner* Signer() const { return m_signer.load(); }
 
 private:
-    instantsend::PendingState ProcessPendingInstantSendLocks()
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-
-    Uint256HashSet ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
-                                                  const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend,
-                                                  std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-    MessageProcessingResult ProcessInstantSendLock(NodeId from, const uint256& hash,
-                                                   const instantsend::InstantSendLockPtr& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     void RemoveConflictedTx(const CTransaction& tx)
@@ -129,10 +132,7 @@ private:
     void RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-
-    void WorkThreadMain(PeerManager& peerman)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
 
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
@@ -142,14 +142,25 @@ public:
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
 
-    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv);
+    /* Helpers for communications between CInstantSendManager & NetInstantSend */
+    // This helper returns up to 32 pending locks and remove them from queue of pending
+    [[nodiscard]] instantsend::PendingState FetchPendingLocks() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    void EnqueueInstantSendLock(NodeId from, const uint256& hash, std::shared_ptr<instantsend::InstantSendLock> islock)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    [[nodiscard]] std::vector<CTransactionRef> PrepareTxToRetry()
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+    CSigningManager& Sigman() { return sigman; }
+    [[nodiscard]] std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
+        NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
 
     void TransactionAddedToMempool(const CTransactionRef& tx)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-    void TransactionRemovedFromMempool(const CTransactionRef& tx);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen);
+    void TransactionRemovedFromMempool(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-    void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen, !cs_height_cache);
+    void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     bool GetInstantSendLockByHash(const uint256& hash, instantsend::InstantSendLock& ret) const
@@ -159,13 +170,19 @@ public:
     void NotifyChainLock(const CBlockIndex* pindexChainLock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     void UpdatedBlockTip(const CBlockIndex* pindexNew)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_height_cache);
 
-    void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock);
+    void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     size_t GetInstantSendLockCount() const;
+
+    void CacheBlockHeight(const CBlockIndex* const block_index) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    std::optional<int> GetBlockHeight(const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    void CacheTipHeight(const CBlockIndex* const tip) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    int GetTipHeight() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     bool IsInstantSendEnabled() const override;
     /**

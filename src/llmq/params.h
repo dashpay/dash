@@ -121,6 +121,7 @@ public:
 
     // For how many blocks recent DKG info should be kept
     [[nodiscard]] constexpr int max_store_depth() const { return max_cycles(keepOldKeys) * dkgInterval; }
+    [[nodiscard]] constexpr bool is_single_member() const { return size == 1; }
 };
 
 //static_assert(std::is_trivial_v<Consensus::LLMQParams>, "LLMQParams is not a trivial type");

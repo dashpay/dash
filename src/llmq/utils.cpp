@@ -912,7 +912,7 @@ void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman
         if (dmn->proTxHash == myProTxHash) {
             continue;
         }
-        auto lastOutbound = mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundSuccess();
+        auto lastOutbound = mn_metaman.GetLastOutboundSuccess(dmn->proTxHash);
         if (curTime - lastOutbound < 10 * 60) {
             // avoid re-probing nodes too often
             continue;

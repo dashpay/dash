@@ -42,7 +42,7 @@ impl ExtendedPublicKey {
         }
         Ok(ExtendedPublicKey {
             c_extended_public_key: c_err_to_result(|did_err| unsafe {
-                BIP32ExtendedPublicKeyFromBytes(bytes.as_ptr() as *const _, legacy, did_err)
+                BIP32ExtendedPublicKeyFromBytes(bytes.as_ptr() as *const _, bytes.len(), legacy, did_err)
             })?,
         })
     }

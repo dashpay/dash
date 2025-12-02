@@ -317,7 +317,7 @@ class DashGovernanceTest (DashTestFramework):
         self.bump_mocktime(GOVERNANCE_UPDATE_MIN + 1, update_schedulers=False)
 
         self.log.info("Move another block inside the Superblock maturity window")
-        with self.nodes[1].assert_debug_log(["CGovernanceManager::VoteGovernanceTriggers"]):
+        with self.nodes[1].assert_debug_log(["VoteGovernanceTriggers --"]):
             self.bump_mocktime(1)
             self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
 
@@ -349,12 +349,18 @@ class DashGovernanceTest (DashTestFramework):
             assert_equal(self.nodes[0].gobject("list", "valid", "triggers")[isolated_trigger_hash]['NoCount'], self.mn_count - 1)
 
         block_count = self.nodes[0].getblockcount()
-        n = sb_cycle - block_count % sb_cycle
+        n = sb_immaturity_window - block_count % sb_cycle
+        assert n > 0
 
-        self.log.info("Move remaining n blocks until the next Superblock")
-        for _ in range(n - 1):
+        self.log.info("Move remaining n blocks until the next maturity window")
+        self.bump_mocktime(n)
+        self.generate(self.nodes[0], n, sync_fun=self.sync_blocks())
+
+        self.log.info("Move inside maturity window until the next Superblock")
+        for _ in range(sb_maturity_window - 1):
             self.bump_mocktime(1)
             self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
+            self.wait_until(lambda: have_trigger_for_height(self.nodes, 180), timeout=1, do_assert=False)
         self.log.info("Wait for new trigger and votes")
         self.wait_until(lambda: have_trigger_for_height(self.nodes, 180))
         self.log.info("Mine superblock")
@@ -365,11 +371,14 @@ class DashGovernanceTest (DashTestFramework):
 
         self.log.info("Mine and check a couple more superblocks")
         for i in range(2):
-            for _ in range(sb_cycle - 1):
+            sb_block_height = 180 + (i + 1) * sb_cycle
+            self.bump_mocktime(sb_immaturity_window)
+            self.generate(self.nodes[0], sb_immaturity_window, sync_fun=self.sync_blocks())
+            for _ in range(sb_maturity_window - 1):
                 self.bump_mocktime(1)
                 self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
+                self.wait_until(lambda: have_trigger_for_height(self.nodes, sb_block_height), timeout=1, do_assert=False)
             # Wait for new trigger and votes
-            sb_block_height = 180 + (i + 1) * sb_cycle
             self.wait_until(lambda: have_trigger_for_height(self.nodes, sb_block_height))
             # Mine superblock
             self.bump_mocktime(1)

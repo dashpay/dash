@@ -5,8 +5,8 @@
 #include <interfaces/coinjoin.h>
 
 #include <coinjoin/client.h>
-#include <coinjoin/context.h>
 #include <coinjoin/options.h>
+#include <coinjoin/walletman.h>
 #include <node/context.h>
 #include <util/check.h>
 #include <walletinitinterface.h>
@@ -77,9 +77,9 @@ public:
 class CoinJoinLoaderImpl : public interfaces::CoinJoin::Loader
 {
 private:
-    CoinJoinWalletManager& walletman()
+    CJWalletManager& manager()
     {
-        return *Assert(Assert(m_node.cj_ctx)->walletman);
+        return *Assert(m_node.cj_walletman);
     }
 
     interfaces::WalletLoader& wallet_loader()
@@ -97,21 +97,21 @@ public:
 
     void AddWallet(const std::shared_ptr<CWallet>& wallet) override
     {
-        walletman().Add(wallet);
+        manager().addWallet(wallet);
         g_wallet_init_interface.InitCoinJoinSettings(*this, wallet_loader());
     }
     void RemoveWallet(const std::string& name) override
     {
-        walletman().Remove(name);
+        manager().removeWallet(name);
         g_wallet_init_interface.InitCoinJoinSettings(*this, wallet_loader());
     }
     void FlushWallet(const std::string& name) override
     {
-        walletman().Flush(name);
+        manager().flushWallet(name);
     }
     std::unique_ptr<interfaces::CoinJoin::Client> GetClient(const std::string& name) override
     {
-        auto clientman = walletman().Get(name);
+        auto clientman = manager().getClient(name);
         return clientman ? std::make_unique<CoinJoinClientImpl>(*clientman) : nullptr;
     }
 

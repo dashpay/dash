@@ -304,7 +304,7 @@ class BIP32PubkeyProvider final : public PubkeyProvider
     {
         if (!GetExtKey(arg, xprv)) return false;
         for (auto entry : m_path) {
-            xprv.Derive(xprv, entry);
+            if (!xprv.Derive(xprv, entry)) return false;
             if (entry >> 31) {
                 last_hardened = xprv;
             }
@@ -364,14 +364,13 @@ public:
             }
         } else {
             for (auto entry : m_path) {
-                der = parent_extkey.Derive(parent_extkey, entry);
-                assert(der);
+                if (!parent_extkey.Derive(parent_extkey, entry)) return false;
             }
             final_extkey = parent_extkey;
             if (m_derive == DeriveType::UNHARDENED) der = parent_extkey.Derive(final_extkey, pos);
             assert(m_derive != DeriveType::HARDENED);
         }
-        assert(der);
+        if (!der) return false;
 
         final_info_out = final_info_out_tmp;
         key_out = final_extkey.pubkey;
@@ -474,8 +473,8 @@ public:
         CExtKey extkey;
         CExtKey dummy;
         if (!GetDerivedExtKey(arg, extkey, dummy)) return false;
-        if (m_derive == DeriveType::UNHARDENED) extkey.Derive(extkey, pos);
-        if (m_derive == DeriveType::HARDENED) extkey.Derive(extkey, pos | 0x80000000UL);
+        if (m_derive == DeriveType::UNHARDENED && !extkey.Derive(extkey, pos)) return false;
+        if (m_derive == DeriveType::HARDENED && !extkey.Derive(extkey, pos | 0x80000000UL)) return false;
         key = extkey.key;
         return true;
     }
@@ -548,7 +547,7 @@ public:
             if (pos++) ret += ",";
             std::string tmp;
             if (!scriptarg->ToStringHelper(arg, tmp, type, cache)) return false;
-            ret += std::move(tmp);
+            ret += tmp;
         }
         return true;
     }
@@ -572,7 +571,7 @@ public:
                     tmp = pubkey->ToString();
                     break;
             }
-            ret += std::move(tmp);
+            ret += tmp;
         }
         std::string subscript;
         if (!ToStringSubScriptHelper(arg, subscript, type, cache)) return false;
@@ -620,7 +619,7 @@ public:
             assert(outscripts.size() == 1);
             subscripts.emplace_back(std::move(outscripts[0]));
         }
-        out = Merge(std::move(out), std::move(subprovider));
+        out.Merge(std::move(subprovider));
 
         std::vector<CPubKey> pubkeys;
         pubkeys.reserve(entries.size());
@@ -938,19 +937,28 @@ std::unique_ptr<DescriptorImpl> ParseScript(uint32_t& key_exp_index, Span<const 
     bool sorted_multi = false;
     if (Func("pk", expr)) {
         auto pubkey = ParsePubkey(key_exp_index, expr, ctx, out, error);
-        if (!pubkey) return nullptr;
+        if (!pubkey) {
+            error = strprintf("pk(): %s", error);
+            return nullptr;
+        }
         ++key_exp_index;
         return std::make_unique<PKDescriptor>(std::move(pubkey));
     }
     if (Func("pkh", expr)) {
         auto pubkey = ParsePubkey(key_exp_index, expr, ctx, out, error);
-        if (!pubkey) return nullptr;
+        if (!pubkey) {
+            error = strprintf("pkh(): %s", error);
+            return nullptr;
+        }
         ++key_exp_index;
         return std::make_unique<PKHDescriptor>(std::move(pubkey));
     }
     if (ctx == ParseScriptContext::TOP && Func("combo", expr)) {
         auto pubkey = ParsePubkey(key_exp_index, expr, ctx, out, error);
-        if (!pubkey) return nullptr;
+        if (!pubkey) {
+            error = strprintf("combo(): %s", error);
+            return nullptr;
+        }
         ++key_exp_index;
         return std::make_unique<ComboDescriptor>(std::move(pubkey));
     } else if (Func("combo", expr)) {
@@ -973,7 +981,10 @@ std::unique_ptr<DescriptorImpl> ParseScript(uint32_t& key_exp_index, Span<const 
             }
             auto arg = Expr(expr);
             auto pk = ParsePubkey(key_exp_index, arg, ctx, out, error);
-            if (!pk) return nullptr;
+            if (!pk) {
+                error = strprintf("Multi: %s", error);
+                return nullptr;
+            }
             script_size += pk->GetSize() + 1;
             providers.emplace_back(std::move(pk));
             key_exp_index++;

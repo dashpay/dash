@@ -12,7 +12,9 @@
 #include <coinjoin/common.h>
 #include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
+#include <governance/classes.h>
 #include <governance/exceptions.h>
+#include <external_signer.h>
 #include <governance/governance.h>
 #include <governance/object.h>
 #include <governance/vote.h>
@@ -147,9 +149,9 @@ public:
     }
     bool processVoteAndRelay(const CGovernanceVote& vote, std::string& error) override
     {
-        if (context().govman != nullptr && context().connman != nullptr && context().peerman != nullptr) {
+        if (context().govman != nullptr && context().connman != nullptr) {
             CGovernanceException exception;
-            bool result = context().govman->ProcessVoteAndRelay(vote, exception, *context().connman, *context().peerman);
+            bool result = context().govman->ProcessVoteAndRelay(vote, exception, *context().connman);
             if (!result) {
                 error = exception.GetMessage();
             }
@@ -234,12 +236,11 @@ public:
             }
         }
         if (!Assert(context().govman)->MasternodeRateCheck(govobj)) { error = "Object creation rate limit exceeded"; return false; }
-        PeerManager& peerman = EnsurePeerman(context());
         if (fMissingConfirmations) {
             context().govman->AddPostponedObject(govobj);
-            govobj.Relay(peerman, *Assert(context().mn_sync));
+            context().govman->RelayObject(govobj);
         } else {
-            context().govman->AddGovernanceObject(govobj, peerman);
+            context().govman->AddGovernanceObject(govobj);
         }
         out_object_hash = govobj.GetHash().ToString();
         return true;
@@ -398,6 +399,17 @@ public:
     }
 };
 
+#ifdef ENABLE_EXTERNAL_SIGNER
+class ExternalSignerImpl : public interfaces::ExternalSigner
+{
+public:
+    ExternalSignerImpl(::ExternalSigner signer) : m_signer(std::move(signer)) {}
+    std::string getName() override { return m_signer.m_name; }
+private:
+    ::ExternalSigner m_signer;
+};
+#endif
+
 class NodeImpl : public Node
 {
 private:
@@ -444,6 +456,46 @@ public:
         }
     }
     bool shutdownRequested() override { return ShutdownRequested(); }
+    bool isSettingIgnored(const std::string& name) override
+    {
+        bool ignored = false;
+        gArgs.LockSettings([&](util::Settings& settings) {
+            if (auto* options = util::FindKey(settings.command_line_options, name)) {
+                ignored = !options->empty();
+            }
+        });
+        return ignored;
+    }
+    util::SettingsValue getPersistentSetting(const std::string& name) override { return gArgs.GetPersistentSetting(name); }
+    void updateRwSetting(const std::string& name, const util::SettingsValue& value) override
+    {
+        gArgs.LockSettings([&](util::Settings& settings) {
+            if (value.isNull()) {
+                settings.rw_settings.erase(name);
+            } else {
+                settings.rw_settings[name] = value;
+            }
+        });
+        gArgs.WriteSettingsFile();
+    }
+    void forceSetting(const std::string& name, const util::SettingsValue& value) override
+    {
+        gArgs.LockSettings([&](util::Settings& settings) {
+            if (value.isNull()) {
+                settings.forced_settings.erase(name);
+            } else {
+                settings.forced_settings[name] = value;
+            }
+        });
+    }
+    void resetSettings() override
+    {
+        gArgs.WriteSettingsFile(/*errors=*/nullptr, /*backup=*/true);
+        gArgs.LockSettings([&](util::Settings& settings) {
+            settings.rw_settings.clear();
+        });
+        gArgs.WriteSettingsFile();
+    }
     void mapPort(bool use_upnp, bool use_natpmp) override { StartMapPort(use_upnp, use_natpmp); }
     bool getProxy(Network net, Proxy& proxy_info) override { return GetProxy(net, proxy_info); }
     size_t getNodeCount(ConnectionDirection flags) override
@@ -514,6 +566,28 @@ public:
             return m_context->connman->DisconnectNode(id);
         }
         return false;
+    }
+    std::vector<std::unique_ptr<interfaces::ExternalSigner>> listExternalSigners() override
+    {
+#ifdef ENABLE_EXTERNAL_SIGNER
+        std::vector<ExternalSigner> signers = {};
+        const std::string command = gArgs.GetArg("-signer", "");
+        if (command == "") return {};
+        ExternalSigner::Enumerate(command, signers, Params().NetworkIDString());
+        std::vector<std::unique_ptr<interfaces::ExternalSigner>> result;
+        for (auto& signer : signers) {
+            result.emplace_back(std::make_unique<ExternalSignerImpl>(std::move(signer)));
+        }
+        return result;
+#else
+        // This result is undistinguisable from a succesful call that returns
+        // no signers. For the current GUI this doesn't matter, because the wallet
+        // creation dialog disables the external signer checkbox in both
+        // cases. The return type could be changed to std::optional<std::vector>
+        // (or something that also includes error messages) if this distinction
+        // becomes important.
+        return {};
+#endif // ENABLE_EXTERNAL_SIGNER
     }
     int64_t getTotalBytesRecv() override { return m_context->connman ? m_context->connman->GetTotalBytesRecv() : 0; }
     int64_t getTotalBytesSent() override { return m_context->connman ? m_context->connman->GetTotalBytesSent() : 0; }
@@ -828,7 +902,7 @@ public:
     std::optional<int> getHeight() override
     {
         LOCK(::cs_main);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
+        const CChain& active = chainman().ActiveChain();
         int height = active.Height();
         if (height >= 0) {
             return height;
@@ -838,7 +912,7 @@ public:
     uint256 getBlockHash(int height) override
     {
         LOCK(::cs_main);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
+        const CChain& active = chainman().ActiveChain();
         CBlockIndex* block = active[height];
         assert(block != nullptr);
         return block->GetBlockHash();
@@ -846,7 +920,7 @@ public:
     bool haveBlockOnDisk(int height) override
     {
         LOCK(::cs_main);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
+        const CChain& active = chainman().ActiveChain();
         CBlockIndex* block = active[height];
         return block && ((block->nStatus & BLOCK_HAVE_DATA) != 0) && block->nTx > 0;
     }
@@ -883,7 +957,7 @@ public:
     std::optional<int> findLocatorFork(const CBlockLocator& locator) override
     {
         LOCK(::cs_main);
-        const CChainState& active = Assert(m_node.chainman)->ActiveChainstate();
+        const CChainState& active = chainman().ActiveChainstate();
         if (const CBlockIndex* fork = active.FindForkInGlobalIndex(locator)) {
             return fork->nHeight;
         }
@@ -918,20 +992,20 @@ public:
     bool findBlock(const uint256& hash, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
-        return FillBlock(m_node.chainman->m_blockman.LookupBlockIndex(hash), block, lock, active);
+        const CChain& active = chainman().ActiveChain();
+        return FillBlock(chainman().m_blockman.LookupBlockIndex(hash), block, lock, active);
     }
     bool findFirstBlockWithTimeAndHeight(int64_t min_time, int min_height, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
+        const CChain& active = chainman().ActiveChain();
         return FillBlock(active.FindEarliestAtLeast(min_time, min_height), block, lock, active);
     }
     bool findAncestorByHeight(const uint256& block_hash, int ancestor_height, const FoundBlock& ancestor_out) override
     {
         WAIT_LOCK(cs_main, lock);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
-        if (const CBlockIndex* block = m_node.chainman->m_blockman.LookupBlockIndex(block_hash)) {
+        const CChain& active = chainman().ActiveChain();
+        if (const CBlockIndex* block = chainman().m_blockman.LookupBlockIndex(block_hash)) {
             if (const CBlockIndex* ancestor = block->GetAncestor(ancestor_height)) {
                 return FillBlock(ancestor, ancestor_out, lock, active);
             }
@@ -941,18 +1015,18 @@ public:
     bool findAncestorByHash(const uint256& block_hash, const uint256& ancestor_hash, const FoundBlock& ancestor_out) override
     {
         WAIT_LOCK(cs_main, lock);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
-        const CBlockIndex* block = m_node.chainman->m_blockman.LookupBlockIndex(block_hash);
-        const CBlockIndex* ancestor = m_node.chainman->m_blockman.LookupBlockIndex(ancestor_hash);
+        const CChain& active = chainman().ActiveChain();
+        const CBlockIndex* block = chainman().m_blockman.LookupBlockIndex(block_hash);
+        const CBlockIndex* ancestor = chainman().m_blockman.LookupBlockIndex(ancestor_hash);
         if (block && ancestor && block->GetAncestor(ancestor->nHeight) != ancestor) ancestor = nullptr;
         return FillBlock(ancestor, ancestor_out, lock, active);
     }
     bool findCommonAncestor(const uint256& block_hash1, const uint256& block_hash2, const FoundBlock& ancestor_out, const FoundBlock& block1_out, const FoundBlock& block2_out) override
     {
         WAIT_LOCK(cs_main, lock);
-        const CChain& active = Assert(m_node.chainman)->ActiveChain();
-        const CBlockIndex* block1 = m_node.chainman->m_blockman.LookupBlockIndex(block_hash1);
-        const CBlockIndex* block2 = m_node.chainman->m_blockman.LookupBlockIndex(block_hash2);
+        const CChain& active = chainman().ActiveChain();
+        const CBlockIndex* block1 = chainman().m_blockman.LookupBlockIndex(block_hash1);
+        const CBlockIndex* block2 = chainman().m_blockman.LookupBlockIndex(block_hash2);
         const CBlockIndex* ancestor = block1 && block2 ? LastCommonAncestor(block1, block2) : nullptr;
         // Using & instead of && below to avoid short circuiting and leaving
         // output uninitialized. Cast bool to int to avoid -Wbitwise-instead-of-logical
@@ -1055,7 +1129,7 @@ public:
     bool havePruned() override
     {
         LOCK(::cs_main);
-        return m_node.chainman->m_blockman.m_have_pruned;
+        return chainman().m_blockman.m_have_pruned;
     }
     bool isReadyToBroadcast() override { return !node::fImporting && !node::fReindex && !isInitialBlockDownload(); }
     bool isInitialBlockDownload() override {
@@ -1077,7 +1151,7 @@ public:
     {
         if (!old_tip.IsNull()) {
             LOCK(::cs_main);
-            const CChain& active = Assert(m_node.chainman)->ActiveChain();
+            const CChain& active = chainman().ActiveChain();
             if (old_tip == active.Tip()->GetBlockHash()) return;
         }
         SyncWithValidationInterfaceQueue();
@@ -1130,7 +1204,7 @@ public:
     }
     bool hasAssumedValidChain() override
     {
-        return Assert(m_node.chainman)->IsSnapshotActive();
+        return chainman().IsSnapshotActive();
     }
 
     NodeContext& m_node;

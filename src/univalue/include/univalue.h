@@ -20,6 +20,11 @@ class UniValue {
 public:
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
+    class type_error : public std::runtime_error
+    {
+        using std::runtime_error::runtime_error;
+    };
+
     UniValue() { typ = VNULL; }
     UniValue(UniValue::VType type, std::string str = {}) : typ{type}, val{std::move(str)} {}
     template <typename Ref, typename T = std::remove_cv_t<std::remove_reference_t<Ref>>,
@@ -62,7 +67,6 @@ public:
 
     size_t size() const { return values.size(); }
 
-    bool getBool() const { return isTrue(); }
     void getObjMap(std::map<std::string,UniValue>& kv) const;
     bool checkObject(const std::map<std::string,UniValue::VType>& memberTypes) const;
     const UniValue& operator[](const std::string& key) const;
@@ -78,14 +82,14 @@ public:
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
 
-    void push_back(const UniValue& val);
+    void push_back(UniValue val);
     void push_backV(const std::vector<UniValue>& vec);
     template <class It>
     void push_backV(It first, It last);
 
-    void __pushKV(const std::string& key, const UniValue& val);
-    void pushKV(const std::string& key, const UniValue& val);
-    void pushKVs(const UniValue& obj);
+    void __pushKV(std::string key, UniValue val);
+    void pushKV(std::string key, UniValue val);
+    void pushKVs(UniValue obj);
 
     std::string write(unsigned int prettyIndent = 0,
                       unsigned int indentLevel = 0) const;
@@ -100,6 +104,7 @@ private:
     std::vector<std::string> keys;
     std::vector<UniValue> values;
 
+    void checkType(const VType& expected) const;
     bool findKey(const std::string& key, size_t& retIdx) const;
     void writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
     void writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
@@ -110,19 +115,7 @@ public:
     const std::vector<std::string>& getKeys() const;
     const std::vector<UniValue>& getValues() const;
     template <typename Int>
-    auto getInt() const
-    {
-        static_assert(std::is_integral<Int>::value);
-        if (typ != VNUM) {
-            throw std::runtime_error("JSON value is not an integer as expected");
-        }
-        Int result;
-        const auto [first_nonmatching, error_condition] = std::from_chars(val.data(), val.data() + val.size(), result);
-        if (first_nonmatching != val.data() + val.size() || error_condition != std::errc{}) {
-            throw std::runtime_error("JSON integer out of range");
-        }
-        return result;
-    }
+    Int getInt() const;
     bool get_bool() const;
     const std::string& get_str() const;
     double get_real() const;
@@ -136,8 +129,21 @@ public:
 template <class It>
 void UniValue::push_backV(It first, It last)
 {
-    if (typ != VARR) throw std::runtime_error{"JSON value is not an array as expected"};
+    checkType(VARR);
     values.insert(values.end(), first, last);
+}
+
+template <typename Int>
+Int UniValue::getInt() const
+{
+    static_assert(std::is_integral<Int>::value);
+    checkType(VNUM);
+    Int result;
+    const auto [first_nonmatching, error_condition] = std::from_chars(val.data(), val.data() + val.size(), result);
+    if (first_nonmatching != val.data() + val.size() || error_condition != std::errc{}) {
+        throw std::runtime_error("JSON integer out of range");
+    }
+    return result;
 }
 
 enum jtokentype {

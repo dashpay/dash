@@ -18,10 +18,12 @@ class CBlockPolicyEstimator;
 class CConnman;
 class CCreditPoolManager;
 class CDeterministicMNManager;
+class CDSTXManager;
 class CChainstateHelper;
 class ChainstateManager;
 class CEvoDB;
 class CGovernanceManager;
+class CJWalletManager;
 class CMasternodeMetaMan;
 class CMasternodeSync;
 class CNetFulfilledRequestManager;
@@ -32,7 +34,6 @@ class CMNHFManager;
 class NetGroupManager;
 class PeerManager;
 struct ActiveContext;
-struct CJContext;
 struct LLMQContext;
 
 namespace interfaces {
@@ -80,6 +81,8 @@ struct NodeContext {
     //! Dash managers
     std::unique_ptr<CActiveMasternodeManager> mn_activeman;
     std::unique_ptr<CCreditPoolManager> cpoolman;
+    std::unique_ptr<CJWalletManager> cj_walletman;
+    std::unique_ptr<CDSTXManager> dstxman;
     std::unique_ptr<CEvoDB> evodb;
     std::unique_ptr<CChainstateHelper> chain_helper;
     std::unique_ptr<CDeterministicMNManager> dmnman;
@@ -91,7 +94,6 @@ struct NodeContext {
     std::unique_ptr<CSporkManager> sporkman;
     //! Dash contexts
     std::unique_ptr<ActiveContext> active_ctx;
-    std::unique_ptr<CJContext> cj_ctx;
     std::unique_ptr<LLMQContext> llmq_ctx;
 
     //! Declare default constructor and destructor that are not inline, so code

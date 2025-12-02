@@ -41,7 +41,7 @@ struct ConnmanTestMsg : public CConnman {
 
     std::vector<CNode*> TestNodes()
     {
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex);
         return m_nodes;
     }
 

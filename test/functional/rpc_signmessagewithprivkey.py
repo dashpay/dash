@@ -4,27 +4,44 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test RPC commands for signing messages with private key."""
 
+from test_framework.descriptors import (
+    descsum_create,
+)
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
 )
 
+
 class SignMessagesWithPrivTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 1
+
+    def addresses_from_privkey(self, priv_key):
+        '''Return addresses for a given WIF private key in legacy (P2PKH),
+           and script-to-hash (P2SH) forman.'''
+        descriptors = f'pkh({priv_key})' , f'sh(pkh({priv_key}))'
+        return [self.nodes[0].deriveaddresses(descsum_create(desc))[0] for desc in descriptors]
 
     def run_test(self):
         message = 'This is just a test message'
 
         self.log.info('test signing with priv_key')
         priv_key = 'cU4zhap7nPJAWeMFu4j6jLrfPmqakDAzy8zn8Fhb3oEevdm4e5Lc'
-        address = 'yeMpGzMj3rhtnz48XsfpB8itPHhHtgxLc3'
         expected_signature = 'ICzMhjIUmmXcPWy2+9nw01zQMawo+s5FIy6F7VMkL+TmIeNq1j3AMEuw075os29kh5KYLbysKkDlDD+EAqERBd4='
         signature = self.nodes[0].signmessagewithprivkey(priv_key, message)
         assert_equal(expected_signature, signature)
-        assert self.nodes[0].verifymessage(address, signature, message)
+
+        self.log.info('test that verifying with P2PKH address succeeds')
+        addresses = self.addresses_from_privkey(priv_key)
+        assert_equal(addresses[0], 'yeMpGzMj3rhtnz48XsfpB8itPHhHtgxLc3')
+        assert self.nodes[0].verifymessage(addresses[0], signature, message)
+
+        self.log.info('test that verifying with non-P2PKH addresses throws error')
+        for non_p2pkh_address in addresses[1:]:
+            assert_raises_rpc_error(-3, "Address does not refer to key", self.nodes[0].verifymessage, non_p2pkh_address, signature, message)
 
         self.log.info('test parameter validity and error codes')
         # signmessagewithprivkey has two required parameters
@@ -41,6 +58,7 @@ class SignMessagesWithPrivTest(BitcoinTestFramework):
         # malformed signature provided
 
         assert_raises_rpc_error(-3, "Malformed base64 encoding", self.nodes[0].verifymessage, 'yeMpGzMj3rhtnz48XsfpB8itPHhHtgxLc3', "invalid_sig", message)
+
 
 if __name__ == '__main__':
     SignMessagesWithPrivTest().main()

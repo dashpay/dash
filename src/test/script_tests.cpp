@@ -113,8 +113,7 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, uint32_t flag
     bool expect = (scriptError == SCRIPT_ERR_OK);
     ScriptError err;
     const CTransaction txCredit{BuildCreditingTransaction(scriptPubKey)};
-    CMutableTransaction tx = BuildSpendingTransaction(scriptSig, txCredit);
-    CMutableTransaction tx2 = tx;
+    const CMutableTransaction tx = BuildSpendingTransaction(scriptSig, txCredit);
     BOOST_CHECK_MESSAGE(VerifyScript(scriptSig, scriptPubKey, flags, MutableTransactionSignatureChecker(&tx, 0, txCredit.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL), &err) == expect, message);
     BOOST_CHECK_MESSAGE(err == scriptError, FormatScriptError(err) + " where " + FormatScriptError((ScriptError_t)scriptError) + " expected: " + message);
 
@@ -129,7 +128,7 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, uint32_t flag
 
 #if defined(HAVE_CONSENSUS_LIB)
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << tx2;
+    stream << tx;
     uint32_t libconsensus_flags{flags & dashconsensus_SCRIPT_FLAGS_VERIFY_ALL};
     if (libconsensus_flags == flags) {
         int expectedSuccessCode = expect ? 1 : 0;
@@ -219,11 +218,11 @@ private:
     CScript scriptPubKey;
     CTransactionRef creditTx;
     CMutableTransaction spendTx;
-    bool havePush;
+    bool havePush{false};
     std::vector<unsigned char> push;
     std::string comment;
     uint32_t flags;
-    int scriptError;
+    int scriptError{SCRIPT_ERR_OK};
 
     void DoPush()
     {
@@ -241,7 +240,7 @@ private:
     }
 
 public:
-    TestBuilder(const CScript& script_, const std::string& comment_, uint32_t flags_, bool P2SH = false) : scriptPubKey(script_), havePush(false), comment(comment_), flags(flags_), scriptError(SCRIPT_ERR_OK)
+    TestBuilder(const CScript& script_, const std::string& comment_, uint32_t flags_, bool P2SH = false) : scriptPubKey(script_), comment(comment_), flags(flags_)
     {
         if (P2SH) {
             creditTx = MakeTransactionRef(BuildCreditingTransaction(CScript() << OP_HASH160 << ToByteVector(CScriptID(script_)) << OP_EQUAL));
@@ -881,7 +880,7 @@ BOOST_AUTO_TEST_CASE(script_json_test)
     UniValue tests = read_json(std::string(json_tests::script_tests, json_tests::script_tests + sizeof(json_tests::script_tests)));
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
-        UniValue test = tests[idx];
+        const UniValue& test = tests[idx];
         std::string strTest = test.write();
         if (test.size() < 4) // Allow size > 3; extra stuff ignored (useful for comments)
         {
@@ -1090,7 +1089,7 @@ SignatureData CombineSignatures(const CTxOut& txout, const CMutableTransaction& 
     SignatureData data;
     data.MergeSignatureData(scriptSig1);
     data.MergeSignatureData(scriptSig2);
-    ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(&tx, 0, txout.nValue), txout.scriptPubKey, data);
+    ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(tx, 0, txout.nValue), txout.scriptPubKey, data);
     return data;
 }
 

@@ -11,6 +11,8 @@ mingw32_NM = $(host_toolchain)gcc-nm
 mingw32_RANLIB = $(host_toolchain)gcc-ranlib
 endif
 
+mingw32_WINDRES = $(host_toolchain)windres
+
 mingw32_release_CFLAGS=-O2
 mingw32_release_CXXFLAGS=$(mingw32_release_CFLAGS)
 

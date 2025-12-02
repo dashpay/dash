@@ -13,7 +13,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <string>
 
 
 NonFatalCheckError::NonFatalCheckError(const char* msg, const char* file, int line, const char* func)

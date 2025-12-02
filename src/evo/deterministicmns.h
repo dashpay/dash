@@ -5,9 +5,8 @@
 #ifndef BITCOIN_EVO_DETERMINISTICMNS_H
 #define BITCOIN_EVO_DETERMINISTICMNS_H
 
-#include <evo/dmnstate.h>
-
 #include <evo/dmn_types.h>
+#include <evo/dmnstate.h>
 #include <evo/providertx.h>
 #include <evo/types.h>
 
@@ -35,7 +34,10 @@ class CEvoDB;
 class CSimplifiedMNList;
 class CSimplifiedMNListEntry;
 class CMasternodeMetaMan;
+class ChainstateManager;
+class CSpecialTxProcessor;
 class TxValidationState;
+struct RPCResult;
 
 extern RecursiveMutex cs_main;
 
@@ -86,6 +88,8 @@ public:
 
     [[nodiscard]] CSimplifiedMNListEntry to_sml_entry() const;
     [[nodiscard]] std::string ToString() const;
+
+    [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 };
 
@@ -160,7 +164,7 @@ private:
     mutable std::shared_ptr<const CSimplifiedMNList> m_cached_sml GUARDED_BY(m_cached_sml_mutex);
 
     // Private helper method to invalidate SML cache
-    void InvalidateSMLCache()
+    void InvalidateSMLCache() EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex)
     {
         LOCK(m_cached_sml_mutex);
         m_cached_sml = nullptr;
@@ -191,6 +195,7 @@ public:
 
     // Assignment operator
     CDeterministicMNList& operator=(const CDeterministicMNList& other)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex, !other.m_cached_sml_mutex)
     {
         if (this != &other) {
             blockHash = other.blockHash;
@@ -227,7 +232,7 @@ public:
     }
 
     template <typename Stream>
-    void Unserialize(Stream& s)
+    void Unserialize(Stream& s) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex)
     {
         Clear();
 
@@ -238,7 +243,7 @@ public:
         }
     }
 
-    void Clear()
+    void Clear() EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex)
     {
         blockHash = uint256{};
         nHeight = -1;
@@ -370,7 +375,7 @@ public:
      * Calculates CSimplifiedMNList for current list and cache it
      * Thread safety: Uses internal mutex for thread-safe cache access
      */
-    gsl::not_null<std::shared_ptr<const CSimplifiedMNList>> to_sml() const;
+    gsl::not_null<std::shared_ptr<const CSimplifiedMNList>> to_sml() const EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
     /**
      * Calculates the maximum penalty which is allowed at the height of this MN list. It is dynamic and might change
@@ -391,14 +396,14 @@ public:
      * Penalty scores are only increased when the MN is not already banned, which means that after banning the penalty
      * might appear lower then the current max penalty, while the MN is still banned.
      */
-    void PoSePunish(const uint256& proTxHash, int penalty, bool debugLogs);
+    void PoSePunish(const uint256& proTxHash, int penalty, bool debugLogs) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
-    void DecreaseScores();
+    void DecreaseScores() EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
     /**
      * Decrease penalty score of MN by 1.
      * Only allowed on non-banned MNs.
      */
-    void PoSeDecrease(const CDeterministicMN& dmn);
+    void PoSeDecrease(const CDeterministicMN& dmn) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
     [[nodiscard]] CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
     /**
@@ -406,13 +411,17 @@ public:
      * It is more efficient than creating a copy due to heavy copy constructor.
      * Calculating for old block may require up to {DISK_SNAPSHOT_PERIOD} object copy & destroy.
      */
-    void ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNListDiff& diff);
+    void ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNListDiff& diff)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
-    void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true);
-    void UpdateMN(const CDeterministicMN& oldDmn, const std::shared_ptr<const CDeterministicMNState>& pdmnState);
-    void UpdateMN(const uint256& proTxHash, const std::shared_ptr<const CDeterministicMNState>& pdmnState);
-    void UpdateMN(const CDeterministicMN& oldDmn, const CDeterministicMNStateDiff& stateDiff);
-    void RemoveMN(const uint256& proTxHash);
+    void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
+    void UpdateMN(const CDeterministicMN& oldDmn, const std::shared_ptr<const CDeterministicMNState>& pdmnState)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
+    void UpdateMN(const uint256& proTxHash, const std::shared_ptr<const CDeterministicMNState>& pdmnState)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
+    void UpdateMN(const CDeterministicMN& oldDmn, const CDeterministicMNStateDiff& stateDiff)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
+    void RemoveMN(const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
     template <typename T>
     [[nodiscard]] bool HasUniqueProperty(const T& v) const
@@ -427,6 +436,46 @@ public:
             return nullptr;
         }
         return GetMN(p->first);
+    }
+
+    // Compare two masternode lists for equality, ignoring non-deterministic members.
+    // Non-deterministic members (nTotalRegisteredCount, internalId) can differ between
+    // nodes due to different sync histories, but don't affect consensus validity.
+    bool IsEqual(const CDeterministicMNList& rhs) const
+    {
+        // Compare deterministic metadata
+        if (blockHash != rhs.blockHash ||
+            nHeight != rhs.nHeight ||
+            mnUniquePropertyMap != rhs.mnUniquePropertyMap) {
+            return false;
+        }
+
+        // Compare map sizes (actual entries compared below)
+        // Note: Not comparing nTotalRegisteredCount (non-deterministic)
+        if (mnMap.size() != rhs.mnMap.size() ||
+            mnInternalIdMap.size() != rhs.mnInternalIdMap.size()) {
+            return false;
+        }
+
+        // Compare each masternode entry
+        for (const auto& [proTxHash, dmn] : mnMap) {
+            auto dmn_rhs = rhs.mnMap.find(proTxHash);
+            if (dmn_rhs == nullptr) {
+                return false;
+            }
+
+            // Compare deterministic masternode fields
+            // Note: Not comparing internalId (non-deterministic)
+            if (dmn->proTxHash != dmn_rhs->get()->proTxHash ||
+                dmn->collateralOutpoint != dmn_rhs->get()->collateralOutpoint ||
+                dmn->nOperatorReward != dmn_rhs->get()->nOperatorReward ||
+                dmn->nType != dmn_rhs->get()->nType ||
+                // Use SerializeHash for pdmnState to avoid enumerating all state fields
+                SerializeHash(*dmn->pdmnState) != SerializeHash(*dmn_rhs->get()->pdmnState)) {
+                return false;
+            }
+        }
+        return true;
     }
 
 private:
@@ -647,12 +696,11 @@ private:
     const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
 
 public:
-    explicit CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaMan& mn_metaman) :
-        m_evoDb(evoDb),
-        m_mn_metaman(mn_metaman)
-    {
-    }
-    ~CDeterministicMNManager() = default;
+    CDeterministicMNManager() = delete;
+    CDeterministicMNManager(const CDeterministicMNManager&) = delete;
+    CDeterministicMNManager& operator=(const CDeterministicMNManager&) = delete;
+    explicit CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaMan& mn_metaman);
+    ~CDeterministicMNManager();
 
     bool ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state,
                       const CDeterministicMNList& newList, std::optional<MNListUpdates>& updatesRet)
@@ -670,7 +718,34 @@ public:
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     static bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
-    void DoMaintenance() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void DoMaintenance() EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cleanup);
+
+    // Recalculate and optionally repair diffs between snapshots
+    struct RecalcDiffsResult {
+        int start_height{0};
+        int stop_height{0};
+        int diffs_recalculated{0};
+        int snapshots_verified{0};
+        std::vector<std::string> verification_errors;
+        std::vector<std::string> repair_errors;
+    };
+
+    // Callback type for building a new MN list from a block
+    using BuildListFromBlockFunc = std::function<bool(
+        const CBlock& block,
+        gsl::not_null<const CBlockIndex*> pindexPrev,
+        const CDeterministicMNList& prevList,
+        const CCoinsViewCache& view,
+        bool debugLogs,
+        BlockValidationState& state,
+        CDeterministicMNList& mnListRet)>;
+
+    [[nodiscard]] RecalcDiffsResult RecalculateAndRepairDiffs(const CBlockIndex* start_index,
+                                                              const CBlockIndex* stop_index, ChainstateManager& chainman,
+                                                              BuildListFromBlockFunc build_list_func, bool repair)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    [[nodiscard]] bool IsRepaired() const;
+    void CompleteRepair();
 
     // Migration support for nVersion-first CDeterministicMNStateDiff format
     [[nodiscard]] bool IsMigrationRequired() const EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
@@ -679,6 +754,18 @@ public:
 private:
     void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    // Helper methods for RecalculateAndRepairDiffs
+    std::vector<const CBlockIndex*> CollectSnapshotBlocks(const CBlockIndex* start_index, const CBlockIndex* stop_index,
+                                                          const Consensus::Params& consensus_params);
+    bool VerifySnapshotPair(const CBlockIndex* from_index, const CBlockIndex* to_index,
+                            const CDeterministicMNList& from_snapshot, const CDeterministicMNList& to_snapshot,
+                            RecalcDiffsResult& result);
+    std::vector<std::pair<uint256, CDeterministicMNListDiff>> RepairSnapshotPair(
+        const CBlockIndex* from_index, const CBlockIndex* to_index, const CDeterministicMNList& from_snapshot,
+        const CDeterministicMNList& to_snapshot, BuildListFromBlockFunc build_list_func, RecalcDiffsResult& result);
+    void WriteRepairedDiffs(const std::vector<std::pair<uint256, CDeterministicMNListDiff>>& recalculated_diffs,
+                            RecalcDiffsResult& result) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 
 bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs);

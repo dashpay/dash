@@ -314,8 +314,7 @@ std::map<std::string,std::string> ParseTorReplyMapping(const std::string &s)
 
 TorController::TorController(struct event_base* _base, const std::string& tor_control_center, const CService& target):
     base(_base),
-    m_tor_control_center(tor_control_center), conn(base), reconnect(true), reconnect_ev(nullptr),
-    reconnect_timeout(RECONNECT_TIMEOUT_START),
+    m_tor_control_center(tor_control_center), conn(base), reconnect(true), reconnect_timeout(RECONNECT_TIMEOUT_START),
     m_target(target)
 {
     reconnect_ev = event_new(base, -1, 0, reconnect_cb, this);
@@ -351,7 +350,7 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
     std::string socks_location;
     if (reply.code == 250) {
         for (const auto& line : reply.lines) {
-            if (0 == line.compare(0, 20, "net/listeners/socks=")) {
+            if (line.starts_with("net/listeners/socks=")) {
                 const std::string port_list_str = line.substr(20);
                 std::vector<std::string> port_list = SplitString(port_list_str, ' ');
 
@@ -362,7 +361,7 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
                         if (portstr.empty()) continue;
                     }
                     socks_location = portstr;
-                    if (0 == portstr.compare(0, 10, "127.0.0.1:")) {
+                    if (portstr.starts_with("127.0.0.1:")) {
                         // Prefer localhost - ignore other ports
                         break;
                     }

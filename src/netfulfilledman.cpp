@@ -12,6 +12,12 @@ CNetFulfilledRequestManager::CNetFulfilledRequestManager() :
 {
 }
 
+CNetFulfilledRequestManager::~CNetFulfilledRequestManager()
+{
+    if (!is_valid) return;
+    m_db->Store(*this);
+}
+
 bool CNetFulfilledRequestManager::LoadCache(bool load_cache)
 {
     assert(m_db != nullptr);
@@ -20,12 +26,6 @@ bool CNetFulfilledRequestManager::LoadCache(bool load_cache)
         CheckAndRemove();
     }
     return is_valid;
-}
-
-CNetFulfilledRequestManager::~CNetFulfilledRequestManager()
-{
-    if (!is_valid) return;
-    m_db->Store(*this);
 }
 
 void CNetFulfilledRequestManager::AddFulfilledRequest(const CService& addr, const std::string& strRequest)

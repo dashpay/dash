@@ -15,7 +15,6 @@
 #include <config/bitcoin-config.h>
 #endif
 
-#include <attributes.h>
 #include <compat/assumptions.h>
 #include <compat/compat.h>
 #include <consensus/amount.h>
@@ -114,16 +113,6 @@ std::string ShellEscape(const std::string& arg);
 #if HAVE_SYSTEM
 void runCommand(const std::string& strCommand);
 #endif
-#ifdef HAVE_BOOST_PROCESS
-/**
- * Execute a command which returns JSON, and parse the result.
- *
- * @param str_command The command to execute, including any arguments
- * @param str_std_in string to pass to stdin
- * @return parsed JSON
- */
-UniValue RunCommandParseJSON(const std::string& str_command, const std::string& str_std_in="");
-#endif // HAVE_BOOST_PROCESS
 
 /**
  * Most paths passed as configuration arguments are treated as relative to
@@ -174,6 +163,10 @@ struct SectionInfo
     std::string m_file;
     int m_line;
 };
+
+std::string SettingToString(const util::SettingsValue&, const std::string&);
+int64_t SettingToInt(const util::SettingsValue&, int64_t);
+bool SettingToBool(const util::SettingsValue&, bool);
 
 class ArgsManager
 {
@@ -293,7 +286,7 @@ protected:
     /**
      * Return the map of all the args passed via the command line
      */
-    const std::map<std::string, std::vector<util::SettingsValue>> GetCommandLineArgs() const;
+    std::map<std::string, std::vector<util::SettingsValue>> GetCommandLineArgs() const;
 
     /**
      * Get blocks directory path
@@ -469,7 +462,7 @@ protected:
      * Get settings file path, or return false if read-write settings were
      * disabled with -nosettings.
      */
-    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false) const;
+    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false, bool backup = false) const;
 
     /**
      * Read settings file. Push errors to vector, or log them if null.
@@ -477,9 +470,16 @@ protected:
     bool ReadSettingsFile(std::vector<std::string>* errors = nullptr);
 
     /**
-     * Write settings file. Push errors to vector, or log them if null.
+     * Write settings file or backup settings file. Push errors to vector, or
+     * log them if null.
      */
-    bool WriteSettingsFile(std::vector<std::string>* errors = nullptr) const;
+    bool WriteSettingsFile(std::vector<std::string>* errors = nullptr, bool backup = false) const;
+
+    /**
+     * Get current setting from config file or read/write settings file,
+     * ignoring nonpersistent command line or forced settings values.
+     */
+    util::SettingsValue GetPersistentSetting(const std::string& name) const;
 
     /**
      * Access settings with lock held.

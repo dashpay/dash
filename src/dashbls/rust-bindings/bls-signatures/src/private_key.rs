@@ -137,7 +137,7 @@ impl PrivateKey {
         }
 
         let c_private_key = c_err_to_result(|did_err| unsafe {
-            PrivateKeyFromBytes(bytes.as_ptr() as *const c_void, mod_order, did_err)
+            PrivateKeyFromBytes(bytes.as_ptr() as *const c_void, bytes.len(), mod_order, did_err)
         })?;
 
         Ok(PrivateKey { c_private_key })

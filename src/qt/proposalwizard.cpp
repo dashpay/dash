@@ -60,7 +60,7 @@ ProposalWizard::ProposalWizard(interfaces::Node& node, WalletModel* walletModel,
     // Initialize fields
     // Populate payments dropdown (mainnet 1..12 by default; adjust by network later if needed)
     for (int i = 1; i <= 12; ++i) {
-        m_ui->comboPayments->addItem(tr("%1").arg(i), i);
+        m_ui->comboPayments->addItem(QString().setNum(i), i);
     }
     m_ui->comboPayments->setCurrentIndex(0);
 
@@ -90,7 +90,6 @@ ProposalWizard::ProposalWizard(interfaces::Node& node, WalletModel* walletModel,
     connect(m_ui->paymentAmount, &BitcoinAmountField::valueChanged, this, &ProposalWizard::updateLabels);
     connect(m_ui->btnNext1, &QPushButton::clicked, this, &ProposalWizard::onNextFromDetails);
     connect(m_ui->btnBack1, &QPushButton::clicked, this, &ProposalWizard::onBackToDetails);
-    connect(m_ui->btnValidate, &QPushButton::clicked, this, &ProposalWizard::onValidateJson);
     connect(m_ui->btnNext2, &QPushButton::clicked, this, &ProposalWizard::onNextFromReview);
     connect(m_ui->btnBack2, &QPushButton::clicked, this, &ProposalWizard::onBackToReview);
     connect(m_ui->btnPrepare, &QPushButton::clicked, this, &ProposalWizard::onPrepare);
@@ -199,6 +198,7 @@ void ProposalWizard::onNextFromDetails()
 {
     buildJsonAndHex();
     m_ui->stackedWidget->setCurrentIndex(1);
+    onValidateJson(); // Automatically validate when entering the review page
 }
 
 void ProposalWizard::onBackToDetails() { m_ui->stackedWidget->setCurrentIndex(0); }
@@ -290,8 +290,8 @@ void ProposalWizard::onMaybeAdvanceAfterConfirmations()
             if (m_confirmTimer) m_confirmTimer->stop();
         } else {
             const auto mins = (secs + 59) / 60;
-            m_ui->labelEta->setText(tr("Estimated time remaining: %1 min").arg(mins));
-            m_ui->labelEta2->setText(tr("Estimated time remaining: %1 min").arg(mins));
+            m_ui->labelEta->setText(tr("Estimated time remaining: %n minute(s)", "", mins));
+            m_ui->labelEta2->setText(tr("Estimated time remaining: %n minute(s)", "", mins));
         }
     }
     // Allow submitting (relay/postpone) at 1 confirmation and enable Next to proceed
@@ -321,7 +321,8 @@ void ProposalWizard::onSubmit()
     const QString govId = QString::fromStdString(obj_hash);
     m_ui->editGovObjId->setText(govId);
     QMessageBox::information(this, tr("Proposal submitted"),
-                             tr("Your proposal was submitted successfully.\nID: %1").arg(govId));
+                             tr("Your proposal was submitted successfully.") +
+                             QString("\nID: %1").arg(govId));
     m_submitted = true;
     m_ui->btnSubmit->setEnabled(false);
     // When 6 confs are reached show a final success message

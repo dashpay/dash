@@ -6,7 +6,6 @@
 #include <util/bip32.h>
 #include <util/strencodings.h>
 
-#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <sstream>

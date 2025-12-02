@@ -43,10 +43,10 @@ FUZZ_SUITE_LD_COMMON = \
  $(LIBTEST_FUZZ) \
  $(LIBTEST_UTIL) \
  $(LIBBITCOIN_NODE) \
+ $(LIBBITCOIN_WALLET) \
  $(LIBBITCOIN_COMMON) \
  $(LIBBITCOIN_UTIL) \
  $(LIBBITCOIN_CONSENSUS) \
- $(LIBBITCOIN_WALLET) \
  $(LIBBITCOIN_CRYPTO) \
  $(LIBBITCOIN_CLI) \
  $(LIBDASHBLS) \
@@ -60,7 +60,7 @@ FUZZ_SUITE_LD_COMMON = \
  $(EVENT_LIBS) \
  $(EVENT_PTHREADS_LIBS) \
  $(GMP_LIBS) \
- $(BACKTRACE_LIB)
+ $(BACKTRACE_LIBS)
 
 if USE_UPNP
 FUZZ_SUITE_LD_COMMON += $(MINIUPNPC_LIBS)
@@ -145,6 +145,7 @@ BITCOIN_TESTS =\
   test/mempool_tests.cpp \
   test/merkle_tests.cpp \
   test/merkleblock_tests.cpp \
+  test/miniscript_tests.cpp \
   test/minisketch_tests.cpp \
   test/miner_tests.cpp \
   test/multisig_tests.cpp \
@@ -218,10 +219,10 @@ BITCOIN_TESTS += \
   wallet/test/availablecoins_tests.cpp \
   wallet/test/init_tests.cpp \
   wallet/test/ismine_tests.cpp \
+  wallet/test/rpc_util_tests.cpp \
   wallet/test/scriptpubkeyman_tests.cpp
 
 FUZZ_SUITE_LD_COMMON +=\
- $(LIBBITCOIN_WALLET) \
  $(SQLITE_LIBS) \
  $(BDB_LIBS)
 
@@ -231,7 +232,8 @@ endif
 
 FUZZ_WALLET_SRC = \
  wallet/test/fuzz/coincontrol.cpp \
- wallet/test/fuzz/coinselection.cpp
+ wallet/test/fuzz/coinselection.cpp \
+ wallet/test/fuzz/parse_iso8601.cpp
 
 if USE_SQLITE
 FUZZ_WALLET_SRC += \
@@ -255,7 +257,7 @@ test_test_dash_LDADD += $(LIBBITCOIN_WALLET)
 test_test_dash_CPPFLAGS += $(BDB_CPPFLAGS)
 endif
 test_test_dash_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
-  $(LIBDASHBLS) $(LIBLEVELDB) $(LIBMEMENV) $(BACKTRACE_LIB) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
+  $(LIBDASHBLS) $(LIBLEVELDB) $(LIBMEMENV) $(BACKTRACE_LIBS) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
 test_test_dash_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 test_test_dash_LDADD += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(SQLITE_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(GMP_LIBS)
@@ -320,6 +322,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/locale.cpp \
  test/fuzz/merkleblock.cpp \
  test/fuzz/message.cpp \
+ test/fuzz/miniscript.cpp \
  test/fuzz/minisketch.cpp \
  test/fuzz/muhash.cpp \
  test/fuzz/multiplication_overflow.cpp \
@@ -330,7 +333,6 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/node_eviction.cpp \
  test/fuzz/p2p_transport_serialization.cpp \
  test/fuzz/parse_hd_keypath.cpp \
- test/fuzz/parse_iso8601.cpp \
  test/fuzz/parse_numbers.cpp \
  test/fuzz/parse_script.cpp \
  test/fuzz/parse_univalue.cpp \

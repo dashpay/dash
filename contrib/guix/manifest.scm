@@ -92,17 +92,7 @@ chain for " target " development."))
       (home-page (package-home-page xgcc))
       (license (package-license xgcc)))))
 
-(define base-gcc
-  (package
-    (inherit gcc-12) ;; 12.3.0
-    (version "12.4.0")
-    (source (origin
-              (method url-fetch)
-              (uri (string-append "mirror://gnu/gcc/gcc-"
-                                  version "/gcc-" version ".tar.xz"))
-              (sha256
-               (base32
-                "0xcida8l2wykvvzvpcrcn649gj0ijn64gwxbplacpg6c0hk6akvh"))))))
+(define base-gcc gcc-12) ;; 12.4.0
 
 (define base-linux-kernel-headers linux-libre-headers-6.1)
 
@@ -431,12 +421,8 @@ inspecting signatures in Mach-O binaries.")
           `(append ,flags
             ;; https://gcc.gnu.org/install/configure.html
             (list "--enable-threads=posix",
-                  building-on)))
-        ((#:make-flags flags)
-          ;; Uses the SSP functions from glibc instead of from libssp.so.
-          ;; Our 'symbol-check' script will complain if we link against libssp.so,
-          ;; and thus will ensure that this works properly.
-          `(cons "gcc_cv_libc_provides_ssp=yes" ,flags))))))
+                  "--enable-default-ssp=yes",
+                  building-on)))))))
 
 (define-public linux-base-gcc
   (package
@@ -465,9 +451,9 @@ inspecting signatures in Mach-O binaries.")
                #t))))))))
 
 (define-public glibc-2.31
-  (let ((commit "8e30f03744837a85e33d84ccd34ed3abe30d37c3"))
+  (let ((commit "7b27c450c34563a28e634cccb399cd415e71ebfe"))
   (package
-    (inherit glibc) ;; 2.35
+    (inherit glibc) ;; 2.39
     (version "2.31")
     (source (origin
               (method git-fetch)
@@ -477,8 +463,9 @@ inspecting signatures in Mach-O binaries.")
               (file-name (git-file-name "glibc" commit))
               (sha256
                (base32
-                "1zi0s9yy5zkisw823vivn7zlj8w6g9p3mm7lmlqiixcxdkz4dbn6"))
-              (patches (search-our-patches "glibc-guix-prefix.patch"))))
+                "017qdpr5id7ddb4lpkzj2li1abvw916m3fc6n7nw28z4h5qbv2n0"))
+              (patches (search-our-patches "glibc-guix-prefix.patch"
+                                           "glibc-riscv-jumptarget.patch"))))
     (arguments
       (substitute-keyword-arguments (package-arguments glibc)
         ((#:configure-flags flags)
@@ -487,6 +474,8 @@ inspecting signatures in Mach-O binaries.")
             (list "--enable-stack-protector=all",
                   "--enable-bind-now",
                   "--disable-werror",
+                  "--disable-timezone-tools",
+                  "--disable-profile",
                   building-on)))
     ((#:phases phases)
         `(modify-phases ,phases
@@ -521,7 +510,6 @@ inspecting signatures in Mach-O binaries.")
         moreutils
         ;; Compression and archiving
         tar
-        bzip2
         gzip
         xz
         ;; Build tools
@@ -550,9 +538,9 @@ inspecting signatures in Mach-O binaries.")
                  (list gcc-toolchain-12 "static")
                  (make-bitcoin-cross-toolchain target)))
           ((string-contains target "darwin")
-           (list clang-toolchain-18
-                 lld-18
-                 (make-lld-wrapper lld-18 #:lld-as-ld? #t)
+           (list clang-toolchain-19
+                 lld-19
+                 (make-lld-wrapper lld-19 #:lld-as-ld? #t)
                  python-signapple
                  zip))
           (else '())))))

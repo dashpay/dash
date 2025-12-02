@@ -6,6 +6,8 @@
 #define BITCOIN_EVO_MNAUTH_H
 
 #include <bls/bls.h>
+#include <msg_result.h>
+
 #include <protocol.h>
 #include <serialize.h>
 #include <uint256.h>

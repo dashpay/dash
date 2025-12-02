@@ -3,16 +3,18 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/ehf_signals.h>
-#include <llmq/quorums.h>
-#include <llmq/commitment.h>
 
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
-#include <evo/mnhftx.h>
 #include <index/txindex.h> // g_txindex
 #include <primitives/transaction.h>
 #include <validation.h>
+
+#include <evo/mnhftx.h>
+#include <llmq/commitment.h>
+#include <llmq/quorums.h>
+#include <llmq/signing_shares.h>
 
 namespace llmq {
 CEHFSignalsHandler::CEHFSignalsHandler(ChainstateManager& chainman, CMNHFManager& mnhfman, CSigningManager& sigman,
@@ -76,7 +78,7 @@ void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pind
     const uint256 msgHash = mnhfPayload.PrepareTx().GetHash();
 
     WITH_LOCK(cs, ids.insert(requestId));
-    sigman.AsyncSignIfMember(llmqType, shareman, requestId, msgHash, quorum->qc->quorumHash, false, true);
+    shareman.AsyncSignIfMember(llmqType, sigman, requestId, msgHash, quorum->qc->quorumHash, false, true);
 }
 
 MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)

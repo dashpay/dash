@@ -18,6 +18,7 @@ on:
 
 env:
   INTEGRATION_TESTS_ARGS: "--extended --exclude feature_pruning,feature_dbcrash"
+  CI_FAILFAST_TEST_LEAVE_DANGLING: 1  # GHA does not care about dangling processes and setting this variable avoids killing the CI script itself on error
 
 jobs:
   test-src:

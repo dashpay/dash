@@ -72,20 +72,18 @@ private:
     std::condition_variable cond GUARDED_BY(cs);
     std::deque<std::unique_ptr<WorkItem>> queue GUARDED_BY(cs);
     std::deque<std::unique_ptr<WorkItem>> external_queue GUARDED_BY(cs);
-    bool running GUARDED_BY(cs);
+    bool running GUARDED_BY(cs){true};
     const size_t maxDepth;
     const size_t m_external_depth;
 
 public:
-    explicit WorkQueue(size_t _maxDepth, size_t external_depth) : running(true),
+    explicit WorkQueue(size_t _maxDepth, size_t external_depth) :
                                  maxDepth(_maxDepth), m_external_depth(external_depth)
     {
     }
     /** Precondition: worker threads have all stopped (they have been joined).
      */
-    ~WorkQueue()
-    {
-    }
+    ~WorkQueue() = default;
     /** Enqueue a work item */
     bool Enqueue(WorkItem* item, bool is_external) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
@@ -159,7 +157,7 @@ static std::unique_ptr<WorkQueue<HTTPClosure>> g_work_queue{nullptr};
 //! List of 'external' RPC users (global variable, used by httprpc)
 std::vector<std::string> g_external_usernames;
 //! Handlers for (sub)paths
-static Mutex g_httppathhandlers_mutex;
+static GlobalMutex g_httppathhandlers_mutex;
 static std::vector<HTTPPathHandler> pathHandlers GUARDED_BY(g_httppathhandlers_mutex);
 //! Bound listening sockets
 static std::vector<evhttp_bound_socket *> boundSockets;

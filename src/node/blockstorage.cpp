@@ -448,7 +448,7 @@ void CleanupBlockRevFiles()
     // Remove the rev files immediately and insert the blk file paths into an
     // ordered map keyed by block file index.
     LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
-    fs::path blocksdir = gArgs.GetBlocksDirPath();
+    const fs::path& blocksdir = gArgs.GetBlocksDirPath();
     for (fs::directory_iterator it(blocksdir); it != fs::directory_iterator(); it++) {
         const std::string path = fs::PathToString(it->path().filename());
         if (fs::is_regular_file(*it) &&
@@ -505,7 +505,7 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     fileout << blockundo;
 
     // calculate & write checksum
-    CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
+    HashWriter hasher{};
     hasher << hashBlock;
     hasher << blockundo;
     fileout << hasher.GetHash();
@@ -589,12 +589,14 @@ void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune)
 
 static FlatFileSeq BlockFileSeq()
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "blk", gArgs.GetBoolArg("-fastprune", false) ? 0x4000 /* 16kb */ : BLOCKFILE_CHUNK_SIZE);
+    return FlatFileSeq(gArgs.GetBlocksDirPath(), "blk",
+                       gArgs.GetBoolArg("-fastprune", false) ? 0x4000 /* 16kb */ :
+                        (gArgs.GetBoolArg("-tinyblk", false) ? 0x10000 /* 64kb */ : BLOCKFILE_CHUNK_SIZE));
 }
 
 static FlatFileSeq UndoFileSeq()
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "rev", UNDOFILE_CHUNK_SIZE);
+    return FlatFileSeq(gArgs.GetBlocksDirPath(), "rev", gArgs.GetBoolArg("-tinyblk", false) ? 0x10000 /* 64kb */ : UNDOFILE_CHUNK_SIZE);
 }
 
 FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly)

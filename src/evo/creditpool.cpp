@@ -91,7 +91,7 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
         LogPrintf("%s: WARNING: No valid CbTx at height=%d\n", __func__, block_index->nHeight);
         return std::nullopt;
     }
-    for (CTransactionRef tx : block.vtx) {
+    for (const CTransactionRef& tx : block.vtx) {
         if (!tx->IsSpecialTxVersion() || tx->nType != TRANSACTION_ASSET_UNLOCK) continue;
 
         CAmount unlocked{0};
@@ -238,10 +238,12 @@ CCreditPool CCreditPoolManager::GetCreditPool(const CBlockIndex* block_index, co
     return *poolTmp;
 }
 
-CCreditPoolManager::CCreditPoolManager(CEvoDB& _evoDb)
-: evoDb(_evoDb)
+CCreditPoolManager::CCreditPoolManager(CEvoDB& _evoDb) :
+    evoDb{_evoDb}
 {
 }
+
+CCreditPoolManager::~CCreditPoolManager() = default;
 
 CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexPrev,
                                  const Consensus::Params& consensusParams, const CAmount blockSubsidy) :

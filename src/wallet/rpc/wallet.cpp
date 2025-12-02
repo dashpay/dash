@@ -64,7 +64,7 @@ static RPCHelpMan listaddressbalances()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     LOCK(pwallet->cs_wallet);
 
@@ -96,7 +96,7 @@ static RPCHelpMan setcoinjoinrounds()
                 "The default number of rounds is " + ToString(DEFAULT_COINJOIN_ROUNDS) +
                 " Cannot be more than " + ToString(MAX_COINJOIN_ROUNDS) + " nor less than " + ToString(MIN_COINJOIN_ROUNDS)},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{
             HelpExampleCli("setcoinjoinrounds", "4")
     + HelpExampleRpc("setcoinjoinrounds", "16")
@@ -104,7 +104,7 @@ static RPCHelpMan setcoinjoinrounds()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     int nRounds = request.params[0].getInt<int>();
 
@@ -113,7 +113,7 @@ static RPCHelpMan setcoinjoinrounds()
 
     CCoinJoinClientOptions::SetRounds(nRounds);
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -127,7 +127,7 @@ static RPCHelpMan setcoinjoinamount()
                 "The default amount is " + ToString(DEFAULT_COINJOIN_AMOUNT) +
                 " Cannot be more than " + ToString(MAX_COINJOIN_AMOUNT) + " nor less than " + ToString(MIN_COINJOIN_AMOUNT)},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{
             HelpExampleCli("setcoinjoinamount", "500")
     + HelpExampleRpc("setcoinjoinamount", "208")
@@ -135,7 +135,7 @@ static RPCHelpMan setcoinjoinamount()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     int nAmount = request.params[0].getInt<int>();
 
@@ -144,7 +144,7 @@ static RPCHelpMan setcoinjoinamount()
 
     CCoinJoinClientOptions::SetAmount(nAmount);
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -191,6 +191,7 @@ static RPCHelpMan getwalletinfo()
                                      {RPCResult::Type::NUM, "progress", "scanning progress percentage [0.0, 1.0]"},
                                 }},
                             {RPCResult::Type::BOOL, "descriptors", "whether this wallet uses descriptors for scriptPubKey management"},
+                            {RPCResult::Type::BOOL, "external_signer", "whether this wallet is configured to use an external signer such as a hardware wallet"},
                         },
                 },
                 RPCExamples{
@@ -200,7 +201,7 @@ static RPCHelpMan getwalletinfo()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -268,6 +269,7 @@ static RPCHelpMan getwalletinfo()
         obj.pushKV("scanning", false);
     }
     obj.pushKV("descriptors", pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
+    obj.pushKV("external_signer", pwallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER));
     return obj;
 },
     };
@@ -365,7 +367,7 @@ static RPCHelpMan upgradetohd()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     bool generate_mnemonic = request.params[0].isNull() || request.params[0].get_str().empty();
     bool mnemonic_passphrase_has_null{false};
@@ -570,7 +572,7 @@ static RPCHelpMan setwalletflag()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
 
     std::string flag_str = request.params[0].get_str();
@@ -623,6 +625,7 @@ static RPCHelpMan createwallet()
             {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{false}, "Keep track of coin reuse, and treat dirty and clean coins differently with privacy considerations in mind."},
             {"descriptors", RPCArg::Type::BOOL, RPCArg::Default{false}, "Create a native descriptor wallet. The wallet will use descriptors internally to handle address creation. This feature is well-tested but still considered experimental."},
             {"load_on_startup", RPCArg::Type::BOOL, RPCArg::Optional::OMITTED_NAMED_ARG, "Save wallet name to persistent settings and load on startup. True to add wallet to startup list, false to remove, null to leave unchanged."},
+            {"external_signer", RPCArg::Type::BOOL, RPCArg::Default{false}, "Use an external signer such as a hardware wallet. Requires -signer to be configured. Wallet creation will fail if keys cannot be fetched. Requires disable_private_keys and descriptors set to true."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -671,6 +674,13 @@ static RPCHelpMan createwallet()
         }
         flags |= WALLET_FLAG_DESCRIPTORS;
         warnings.emplace_back(Untranslated("Wallet is an experimental descriptor wallet"));
+    }
+    if (!request.params[7].isNull() && request.params[7].get_bool()) {
+#ifdef ENABLE_EXTERNAL_SIGNER
+        flags |= WALLET_FLAG_EXTERNAL_SIGNER;
+#else
+        throw JSONRPCError(RPC_WALLET_ERROR, "Compiled without external signing support (required for external signing)");
+#endif
     }
 
 #ifndef USE_BDB
@@ -776,7 +786,7 @@ static RPCHelpMan wipewallettxes()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
     CWallet* const pwallet = wallet.get();
 
     WalletRescanReserver reserver(*pwallet);
@@ -825,7 +835,7 @@ static RPCHelpMan wipewallettxes()
 
     pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions…").translated, pwallet->GetDisplayName()), 100);
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -854,7 +864,7 @@ static RPCHelpMan sethdseed()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     LegacyScriptPubKeyMan& spk_man = EnsureLegacyScriptPubKeyMan(*pwallet, true);
 
@@ -902,7 +912,7 @@ static RPCHelpMan sethdseed()
 
     if (flush_key_pool) spk_man.NewKeyPool();
 
-    return NullUniValue;
+    return UniValue::VNULL;
 },
     };
 }
@@ -933,7 +943,7 @@ static RPCHelpMan upgradewallet()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     RPCTypeCheck(request.params, {UniValue::VNUM}, true);
 
@@ -1094,6 +1104,9 @@ RPCHelpMan keypoolrefill();
 RPCHelpMan newkeypool();
 RPCHelpMan getaddressesbylabel();
 RPCHelpMan listlabels();
+#ifdef ENABLE_EXTERNAL_SIGNER
+RPCHelpMan walletdisplayaddress();
+#endif // ENABLE_EXTERNAL_SIGNER
 
 // backup
 RPCHelpMan dumpprivkey();
@@ -1153,81 +1166,80 @@ RPCHelpMan abortrescan();
 
 Span<const CRPCCommand> GetWalletRPCCommands()
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  ------------------    ------------------------
-    { "rawtransactions",    &fundrawtransaction,             },
-    { "wallet",             &abandontransaction,             },
-    { "wallet",             &abortrescan,                    },
-    { "wallet",             &addmultisigaddress,             },
-    { "wallet",             &backupwallet,                   },
-    { "wallet",             &createwallet,                   },
-    { "wallet",             &restorewallet,                  },
-    { "wallet",             &dumphdinfo,                     },
-    { "wallet",             &dumpprivkey,                    },
-    { "wallet",             &dumpwallet,                     },
-    { "wallet",             &encryptwallet,                  },
-    { "wallet",             &getaddressesbylabel,            },
-    { "wallet",             &getaddressinfo,                 },
-    { "wallet",             &getbalance,                     },
-    { "wallet",             &getnewaddress,                  },
-    { "wallet",             &getrawchangeaddress,            },
-    { "wallet",             &getreceivedbyaddress,           },
-    { "wallet",             &getreceivedbylabel,             },
-    { "wallet",             &gettransaction,                 },
-    { "wallet",             &getunconfirmedbalance,          },
-    { "wallet",             &getbalances,                    },
-    { "wallet",             &getwalletinfo,                  },
-    { "wallet",             &importaddress,                  },
-    { "wallet",             &importelectrumwallet,           },
-    { "wallet",             &importdescriptors,              },
-    { "wallet",             &importmulti,                    },
-    { "wallet",             &importprivkey,                  },
-    { "wallet",             &importprunedfunds,              },
-    { "wallet",             &importpubkey,                   },
-    { "wallet",             &importwallet,                   },
-    { "wallet",             &keypoolrefill,                  },
-    { "wallet",             &listaddressbalances,            },
-    { "wallet",             &listaddressgroupings,           },
-    { "wallet",             &listdescriptors,                },
-    { "wallet",             &listlabels,                     },
-    { "wallet",             &listlockunspent,                },
-    { "wallet",             &listreceivedbyaddress,          },
-    { "wallet",             &listreceivedbylabel,            },
-    { "wallet",             &listsinceblock,                 },
-    { "wallet",             &listtransactions,               },
-    { "wallet",             &listunspent,                    },
-    { "wallet",             &listwalletdir,                  },
-    { "wallet",             &listwallets,                    },
-    { "wallet",             &loadwallet,                     },
-    { "wallet",             &lockunspent,                    },
-    { "wallet",             &newkeypool,                     },
-    { "wallet",             &removeprunedfunds,              },
-    { "wallet",             &rescanblockchain,               },
-    { "wallet",             &send,                           },
-    { "wallet",             &sendmany,                       },
-    { "wallet",             &sendtoaddress,                  },
-    { "wallet",             &sethdseed,                      },
-    { "wallet",             &setcoinjoinrounds,              },
-    { "wallet",             &setcoinjoinamount,              },
-    { "wallet",             &setlabel,                       },
-    { "wallet",             &settxfee,                       },
-    { "wallet",             &setwalletflag,                  },
-    { "wallet",             &signmessage,                    },
-    { "wallet",             &signrawtransactionwithwallet,   },
-    { "wallet",             &simulaterawtransaction,         },
-    { "wallet",             &unloadwallet,                   },
-    { "wallet",             &upgradewallet,                  },
-    { "wallet",             &upgradetohd,                    },
-    { "wallet",             &walletlock,                     },
-    { "wallet",             &walletpassphrasechange,         },
-    { "wallet",             &walletpassphrase,               },
-    { "wallet",             &walletprocesspsbt,              },
-    { "wallet",             &walletcreatefundedpsbt,         },
-    { "wallet",             &wipewallettxes,                 },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"rawtransactions", &fundrawtransaction},
+        {"wallet", &abandontransaction},
+        {"wallet", &abortrescan},
+        {"wallet", &addmultisigaddress},
+        {"wallet", &backupwallet},
+        {"wallet", &createwallet},
+        {"wallet", &restorewallet},
+        {"wallet", &dumphdinfo},
+        {"wallet", &dumpprivkey},
+        {"wallet", &dumpwallet},
+        {"wallet", &encryptwallet},
+        {"wallet", &getaddressesbylabel},
+        {"wallet", &getaddressinfo},
+        {"wallet", &getbalance},
+        {"wallet", &getnewaddress},
+        {"wallet", &getrawchangeaddress},
+        {"wallet", &getreceivedbyaddress},
+        {"wallet", &getreceivedbylabel},
+        {"wallet", &gettransaction},
+        {"wallet", &getunconfirmedbalance},
+        {"wallet", &getbalances},
+        {"wallet", &getwalletinfo},
+        {"wallet", &importaddress},
+        {"wallet", &importelectrumwallet},
+        {"wallet", &importdescriptors},
+        {"wallet", &importmulti},
+        {"wallet", &importprivkey},
+        {"wallet", &importprunedfunds},
+        {"wallet", &importpubkey},
+        {"wallet", &importwallet},
+        {"wallet", &keypoolrefill},
+        {"wallet", &listaddressbalances},
+        {"wallet", &listaddressgroupings},
+        {"wallet", &listdescriptors},
+        {"wallet", &listlabels},
+        {"wallet", &listlockunspent},
+        {"wallet", &listreceivedbyaddress},
+        {"wallet", &listreceivedbylabel},
+        {"wallet", &listsinceblock},
+        {"wallet", &listtransactions},
+        {"wallet", &listunspent},
+        {"wallet", &listwalletdir},
+        {"wallet", &listwallets},
+        {"wallet", &loadwallet},
+        {"wallet", &lockunspent},
+        {"wallet", &newkeypool},
+        {"wallet", &removeprunedfunds},
+        {"wallet", &rescanblockchain},
+        {"wallet", &send},
+        {"wallet", &sendmany},
+        {"wallet", &sendtoaddress},
+        {"wallet", &sethdseed},
+        {"wallet", &setcoinjoinrounds},
+        {"wallet", &setcoinjoinamount},
+        {"wallet", &setlabel},
+        {"wallet", &settxfee},
+        {"wallet", &setwalletflag},
+        {"wallet", &signmessage},
+        {"wallet", &signrawtransactionwithwallet},
+        {"wallet", &simulaterawtransaction},
+        {"wallet", &unloadwallet},
+        {"wallet", &upgradewallet},
+        {"wallet", &upgradetohd},
+#ifdef ENABLE_EXTERNAL_SIGNER
+        {"wallet", &walletdisplayaddress},
+#endif // ENABLE_EXTERNAL_SIGNER
+        {"wallet", &walletlock},
+        {"wallet", &walletpassphrasechange},
+        {"wallet", &walletpassphrase},
+        {"wallet", &walletprocesspsbt},
+        {"wallet", &walletcreatefundedpsbt},
+        {"wallet", &wipewallettxes},
+    };
     return commands;
 }
 } // namespace wallet

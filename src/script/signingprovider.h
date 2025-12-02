@@ -6,6 +6,7 @@
 #ifndef BITCOIN_SCRIPT_SIGNINGPROVIDER_H
 #define BITCOIN_SCRIPT_SIGNINGPROVIDER_H
 
+#include <attributes.h>
 #include <key.h>
 #include <pubkey.h>
 #include <script/keyorigin.h>
@@ -54,9 +55,9 @@ struct FlatSigningProvider final : public SigningProvider
     bool GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const override;
     bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const override;
     bool GetKey(const CKeyID& keyid, CKey& key) const override;
-};
 
-FlatSigningProvider Merge(const FlatSigningProvider& a, const FlatSigningProvider& b);
+    FlatSigningProvider& Merge(FlatSigningProvider&& b) LIFETIMEBOUND;
+};
 
 /** Fillable signing provider that keeps keys in an address->secret map */
 class FillableSigningProvider : public SigningProvider

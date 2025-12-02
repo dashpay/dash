@@ -17,67 +17,6 @@ namespace llmq {
 
 static const std::string DB_QUORUM_SNAPSHOT = "llmq_S";
 
-UniValue CQuorumSnapshot::ToJson() const
-{
-    UniValue obj(UniValue::VOBJ);
-    UniValue activeQ(UniValue::VARR);
-    for (const bool h : activeQuorumMembers) {
-        // cppcheck-suppress useStlAlgorithm
-        activeQ.push_back(h);
-    }
-    obj.pushKV("activeQuorumMembers", activeQ);
-    obj.pushKV("mnSkipListMode", mnSkipListMode);
-    UniValue skipList(UniValue::VARR);
-    for (const auto& h : mnSkipList) {
-        // cppcheck-suppress useStlAlgorithm
-        skipList.push_back(h);
-    }
-    obj.pushKV("mnSkipList", skipList);
-    return obj;
-}
-
-UniValue CQuorumRotationInfo::ToJson() const
-{
-    UniValue obj(UniValue::VOBJ);
-    obj.pushKV("extraShare", extraShare);
-
-    obj.pushKV("quorumSnapshotAtHMinusC", quorumSnapshotAtHMinusC.ToJson());
-    obj.pushKV("quorumSnapshotAtHMinus2C", quorumSnapshotAtHMinus2C.ToJson());
-    obj.pushKV("quorumSnapshotAtHMinus3C", quorumSnapshotAtHMinus3C.ToJson());
-
-    if (extraShare) {
-        obj.pushKV("quorumSnapshotAtHMinus4C", quorumSnapshotAtHMinus4C.ToJson());
-    }
-
-    obj.pushKV("mnListDiffTip", mnListDiffTip.ToJson());
-    obj.pushKV("mnListDiffH", mnListDiffH.ToJson());
-    obj.pushKV("mnListDiffAtHMinusC", mnListDiffAtHMinusC.ToJson());
-    obj.pushKV("mnListDiffAtHMinus2C", mnListDiffAtHMinus2C.ToJson());
-    obj.pushKV("mnListDiffAtHMinus3C", mnListDiffAtHMinus3C.ToJson());
-
-    if (extraShare) {
-        obj.pushKV("mnListDiffAtHMinus4C", mnListDiffAtHMinus4C.ToJson());
-    }
-    UniValue hqclists(UniValue::VARR);
-    for (const auto& qc : lastCommitmentPerIndex) {
-        hqclists.push_back(qc.ToJson());
-    }
-    obj.pushKV("lastCommitmentPerIndex", hqclists);
-
-    UniValue snapshotlist(UniValue::VARR);
-    for (const auto& snap : quorumSnapshotList) {
-        snapshotlist.push_back(snap.ToJson());
-    }
-    obj.pushKV("quorumSnapshotList", snapshotlist);
-
-    UniValue mnlistdifflist(UniValue::VARR);
-    for (const auto& mnlist : mnListDiffList) {
-        mnlistdifflist.push_back(mnlist.ToJson());
-    }
-    obj.pushKV("mnListDiffList", mnlistdifflist);
-    return obj;
-}
-
 bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                              const ChainstateManager& chainman, const CQuorumManager& qman,
                              const CQuorumBlockProcessor& qblockman, const CGetQuorumRotationInfo& request,
@@ -270,17 +209,16 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
             response.quorumSnapshotAtHMinus4C = std::move(snapshotHMinus4C.value());
         }
 
-        CSimplifiedMNListDiff mn4c;
         if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
                                        GetLastBaseBlockHash(baseBlockIndexes, pWorkBlockHMinus4CIndex,
                                                             use_legacy_construction),
-                                       pWorkBlockHMinus4CIndex->GetBlockHash(), mn4c, errorRet)) {
+                                       pWorkBlockHMinus4CIndex->GetBlockHash(), response.mnListDiffAtHMinus4C, errorRet)) {
+            response.mnListDiffAtHMinus4C = {};
             return false;
         }
         if (!use_legacy_construction) {
             baseBlockIndexes.push_back(pWorkBlockHMinus4CIndex);
         }
-        response.mnListDiffAtHMinus4C = std::move(mn4c);
     } else {
         response.extraShare = false;
     }
@@ -396,6 +334,14 @@ uint256 GetLastBaseBlockHash(Span<const CBlockIndex*> baseBlockIndexes, const CB
     }
     return hash;
 }
+
+CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& evoDb) :
+    m_evoDb{evoDb},
+    quorumSnapshotCache{32}
+{
+}
+
+CQuorumSnapshotManager::~CQuorumSnapshotManager() = default;
 
 std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {

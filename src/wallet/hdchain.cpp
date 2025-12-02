@@ -129,6 +129,14 @@ uint256 CHDChain::GetSeedHash()
     return Hash(vchSeed);
 }
 
+//! Try to derive an extended key, throw if it fails.
+static void DeriveExtKey(CExtKey& key_in, unsigned int index, CExtKey& key_out)
+{
+    if (!key_in.Derive(key_out, index)) {
+        throw std::runtime_error("Could not derive extended key");
+    }
+}
+
 void CHDChain::DeriveChildExtKey(uint32_t nAccountIndex, bool fInternal, uint32_t nChildIndex, CExtKey& extKeyRet, KeyOriginInfo& key_origin)
 {
     LOCK(cs);
@@ -146,15 +154,15 @@ void CHDChain::DeriveChildExtKey(uint32_t nAccountIndex, bool fInternal, uint32_
     // (keys >= 0x80000000 are hardened after bip32)
 
     // derive m/purpose'
-    masterKey.Derive(purposeKey, 44 | 0x80000000);
+    DeriveExtKey(masterKey, 44 | 0x80000000, purposeKey);
     // derive m/purpose'/coin_type'
-    purposeKey.Derive(cointypeKey, Params().ExtCoinType() | 0x80000000);
+    DeriveExtKey(purposeKey, Params().ExtCoinType() | 0x80000000, cointypeKey);
     // derive m/purpose'/coin_type'/account'
-    cointypeKey.Derive(accountKey, nAccountIndex | 0x80000000);
+    DeriveExtKey(cointypeKey, nAccountIndex | 0x80000000, accountKey);
     // derive m/purpose'/coin_type'/account'/change
-    accountKey.Derive(changeKey, fInternal ? 1 : 0);
+    DeriveExtKey(accountKey, fInternal ? 1 : 0, changeKey);
     // derive m/purpose'/coin_type'/account'/change/address_index
-    changeKey.Derive(extKeyRet, nChildIndex);
+    DeriveExtKey(changeKey, nChildIndex, extKeyRet);
 
 #ifdef ENABLE_WALLET
     // We should never ever update an already existing key_origin here

@@ -4,6 +4,9 @@ services:
     build:
       context: '..'
       dockerfile: './develop/Dockerfile'
+      args:
+        USER_ID: 1000   # set this to $(id -u) of the host
+        GROUP_ID: 1000  # set this to $(id -g) of the host
     ports:
       - "9998:9998"           # Mainnet Ports
       - "9999:9999"
@@ -13,19 +16,8 @@ services:
       - seccomp:unconfined
     stdin_open: true  # Equivalent to -i
     tty: true         # Equivalent to -t
-
-# A note about volumes:
-#
-# If Docker is interacting with your operating system directly
-# without an intermediate VM, then you do not need to change anything
-#
-# But if not, then you'll need to mount your system's root directory
-# (i.e. /) into the boot2docker instance if you want to mirror the exact
-# filesystem structure of your host.
-#
     volumes:
       - type: bind
-#        source: /host/$PWD # Workaround needed on non-Linux hosts
         source: ../../..
         target: /src/dash
 

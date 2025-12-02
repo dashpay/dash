@@ -16,6 +16,7 @@ typedef void* BIP32ExtendedPublicKey;
 // ExtendedPublicKey
 BIP32ExtendedPublicKey BIP32ExtendedPublicKeyFromBytes(
     const void* data,
+    size_t len,
     const bool legacy,
     bool* didErr);
 BIP32ExtendedPublicKey BIP32ExtendedPublicKeyPublicChild(

@@ -36,7 +36,6 @@ using node::ReadBlockFromDisk;
 #ifdef ENABLE_WALLET
 using wallet::CCoinControl;
 using wallet::CoinType;
-using wallet::COutput;
 using wallet::CWallet;
 using wallet::GetWalletForJSONRPCRequest;
 #endif // ENABLE_WALLET
@@ -49,7 +48,9 @@ static RPCHelpMan masternode_connect()
             {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address of the masternode to connect"},
             {"v2transport", RPCArg::Type::BOOL, RPCArg::DefaultHint{"set by -v2transport"}, "Attempt to connect using BIP324 v2 transport protocol"},
         },
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::STR, "status", "Returns 'successfully connected' if successful"
+        },
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -85,7 +86,28 @@ static RPCHelpMan masternode_count()
     return RPCHelpMan{"masternode count",
         "Get information about number of masternodes.\n",
         {},
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "total", "Total number of Masternodes"},
+                {RPCResult::Type::NUM, "enabled", "Number of enabled Masternodes"},
+                {RPCResult::Type::OBJ, "details", "Breakdown of masternodes by type",
+                    {{RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "regular", "Details for regular masternodes",
+                            {
+                                {RPCResult::Type::NUM, "total", "Total number of regular Masternodes"},
+                                {RPCResult::Type::NUM, "enabled", "Number of enabled regular Masternodes"}
+                        }},
+                        {RPCResult::Type::OBJ, "evo", "Details for Evo nodes",
+                            {
+                                {RPCResult::Type::NUM, "total", "Total number of Evo nodes"},
+                                {RPCResult::Type::NUM, "enabled", "Number of enabled Evo nodes"}
+                        }},
+                    }},
+                    }}
+            }
+        },
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -135,7 +157,7 @@ static RPCHelpMan masternode_outputs()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     // Find possible candidates
     CCoinControl coin_control(CoinType::ONLY_MASTERNODE_COLLATERAL);
@@ -157,7 +179,13 @@ static RPCHelpMan masternode_status()
     return RPCHelpMan{"masternode status",
         "Print masternode status information\n",
         {},
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                // TODO: implement proper type validator instead ELISION
+                {RPCResult::Type::ELISION, "", ""}
+            }
+        },
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -177,6 +205,7 @@ static RPCHelpMan masternode_status()
         mnObj.pushKV("type", std::string(GetMnType(dmn->nType).description));
         mnObj.pushKV("collateralHash", dmn->collateralOutpoint.hash.ToString());
         mnObj.pushKV("collateralIndex", dmn->collateralOutpoint.n);
+        // TODO: Use CDeterministicMNState::GetJsonHelp() for dmnState
         mnObj.pushKV("dmnState", dmn->pdmnState->ToJson(dmn->nType));
     }
     mnObj.pushKV("state", node.mn_activeman->GetStateString());
@@ -231,7 +260,12 @@ static RPCHelpMan masternode_winners()
             {"count", RPCArg::Type::NUM, RPCArg::Default{10}, "number of last winners to return"},
             {"filter", RPCArg::Type::STR, RPCArg::Default{""}, "filter for returned winners"},
         },
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::OBJ_DYN, "", "Keys are block heights (as strings); values describe the payees for that height",
+            {
+                {RPCResult::Type::STR, "payee", "Payee for the height"}
+            }
+        },
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -241,7 +275,7 @@ static RPCHelpMan masternode_winners()
     {
         LOCK(::cs_main);
         pindexTip = chainman.ActiveChain().Tip();
-        if (!pindexTip) return NullUniValue;
+        if (!pindexTip) return UniValue::VNULL;
     }
 
     int nCount = 10;
@@ -453,7 +487,7 @@ static RPCHelpMan masternode_help()
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -490,7 +524,13 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             {"mode", RPCArg::Type::STR, RPCArg::DefaultHint{"json"}, "The mode to run list in"},
             {"filter", RPCArg::Type::STR, RPCArg::Default{""}, "Filter results. Partial match by outpoint by default in all modes, additional matches in some modes are also available"},
         },
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                // TODO: implement proper type validator instead ELISION
+                {RPCResult::Type::ELISION, "", ""}
+            }
+        },
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -678,33 +718,25 @@ static RPCHelpMan masternodelist_composite()
 #ifdef ENABLE_WALLET
 Span<const CRPCCommand> GetWalletMasternodeRPCCommands()
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  --------------------- -----------------------
-    { "dash",               &masternode_outputs,       },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"dash", &masternode_outputs},
+    };
     return commands;
 }
 #endif // ENABLE_WALLET
 
 void RegisterMasternodeRPCCommands(CRPCTable &t)
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  --------------------- -----------------------
-    { "dash",               &masternode_help,          },
-    { "dash",               &masternodelist_composite, },
-    { "dash",               &masternodelist,           },
-    { "dash",               &masternode_connect,       },
-    { "dash",               &masternode_count,         },
-    { "dash",               &masternode_status,        },
-    { "dash",               &masternode_payments,      },
-    { "dash",               &masternode_winners,       },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"dash", &masternode_help},
+        {"dash", &masternodelist_composite},
+        {"dash", &masternodelist},
+        {"dash", &masternode_connect},
+        {"dash", &masternode_count},
+        {"dash", &masternode_status},
+        {"dash", &masternode_payments},
+        {"dash", &masternode_winners},
+    };
     for (const auto& command : commands) {
         t.appendCommand(command.name, &command);
     }

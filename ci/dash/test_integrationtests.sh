@@ -20,10 +20,10 @@ fi
 
 export LD_LIBRARY_PATH=$DEPENDS_DIR/$HOST/lib
 
-if [ -n "$PREVIOUS_RELEASES_TO_DOWNLOAD" ]; then
-  echo "Downloading previous releases: $PREVIOUS_RELEASES_TO_DOWNLOAD"
+if [ "$DOWNLOAD_PREVIOUS_RELEASES" = "true" ]; then
+  echo "Downloading previous releases..."
   # shellcheck disable=SC2086
-  ./test/get_previous_releases.py -b -t "$PREVIOUS_RELEASES_DIR" ${PREVIOUS_RELEASES_TO_DOWNLOAD}
+  ./test/get_previous_releases.py -b -t "$PREVIOUS_RELEASES_DIR"
 fi
 
 cd "build-ci/dashcore-$BUILD_TARGET"

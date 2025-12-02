@@ -48,9 +48,8 @@ std::ostream& operator<<(typename std::enable_if<std::is_enum<T>::value, std::os
 /**
  * This global and the helpers that use it are not thread-safe.
  *
- * If thread-safety is needed, the global could be made thread_local (given
- * that thread_local is supported on all architectures we support) or a
- * per-thread instance could be used in the multi-threaded test.
+ * If thread-safety is needed, a per-thread instance could be
+ * used in the multi-threaded test.
  */
 extern FastRandomContext g_insecure_rand_ctx;
 
@@ -87,8 +86,8 @@ static constexpr CAmount CENT{1000000};
 /** Initialize Dash-specific components during chainstate initialization (NodeContext-friendly aliases) */
 void DashChainstateSetup(ChainstateManager& chainman,
                          node::NodeContext& node,
-                         bool fReset,
-                         bool fReindexChainState,
+                         bool llmq_dbs_in_memory,
+                         bool llmq_dbs_wipe,
                          const Consensus::Params& consensus_params);
 void DashChainstateSetupClose(node::NodeContext& node);
 

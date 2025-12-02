@@ -35,6 +35,7 @@ from test_framework.blocktools import (
 from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.messages import (
     CBlockHeader,
+    dashhash,
     from_hex,
     msg_block,
 )
@@ -58,6 +59,7 @@ TIME_RANGE_STEP = 156  # two and a half minute steps
 TIME_RANGE_MTP = TIME_GENESIS_BLOCK + (HEIGHT - 6) * TIME_RANGE_STEP
 TIME_RANGE_TIP = TIME_GENESIS_BLOCK + (HEIGHT - 1) * TIME_RANGE_STEP
 TIME_RANGE_END = TIME_GENESIS_BLOCK + HEIGHT * TIME_RANGE_STEP
+DIFFICULTY_ADJUSTMENT_INTERVAL = 2016
 
 
 class BlockchainTest(BitcoinTestFramework):
@@ -263,12 +265,12 @@ class BlockchainTest(BitcoinTestFramework):
         assert_raises_rpc_error(-1, 'getchaintxstats', self.nodes[0].getchaintxstats, 0, '', 0)
 
         # Test `getchaintxstats` invalid `nblocks`
-        assert_raises_rpc_error(-1, "JSON value is not an integer as expected", self.nodes[0].getchaintxstats, '')
+        assert_raises_rpc_error(-3, "JSON value of type string is not of expected type number", self.nodes[0].getchaintxstats, '')
         assert_raises_rpc_error(-8, "Invalid block count: should be between 0 and the block's height - 1", self.nodes[0].getchaintxstats, -1)
         assert_raises_rpc_error(-8, "Invalid block count: should be between 0 and the block's height - 1", self.nodes[0].getchaintxstats, self.nodes[0].getblockcount())
 
         # Test `getchaintxstats` invalid `blockhash`
-        assert_raises_rpc_error(-1, "JSON value is not a string as expected", self.nodes[0].getchaintxstats, blockhash=0)
+        assert_raises_rpc_error(-3, "JSON value of type number is not of expected type string", self.nodes[0].getchaintxstats, blockhash=0)
         assert_raises_rpc_error(-8, "blockhash must be of length 64 (not 1, for '0')", self.nodes[0].getchaintxstats, blockhash='0')
         assert_raises_rpc_error(-8, "blockhash must be hexadecimal string (not 'ZZZ0000000000000000000000000000000000000000000000000000000000000')", self.nodes[0].getchaintxstats, blockhash='ZZZ0000000000000000000000000000000000000000000000000000000000000')
         assert_raises_rpc_error(-5, "Block not found", self.nodes[0].getchaintxstats, blockhash='0000000000000000000000000000000000000000000000000000000000000000')
@@ -430,6 +432,15 @@ class BlockchainTest(BitcoinTestFramework):
         # This should be 2 hashes every 2.6 minutes (156 seconds) or 1/78
         assert abs(hashes_per_second * 78 - 1) < 0.0001
 
+        # Test setting the first param of getnetworkhashps to negative value returns the average network
+        # hashes per second from the last difficulty change.
+        current_block_height = self.nodes[0].getmininginfo()['blocks']
+        blocks_since_last_diff_change = current_block_height % DIFFICULTY_ADJUSTMENT_INTERVAL + 1
+        expected_hashes_per_second_since_diff_change = self.nodes[0].getnetworkhashps(blocks_since_last_diff_change)
+
+        assert_equal(self.nodes[0].getnetworkhashps(-1), expected_hashes_per_second_since_diff_change)
+        assert_equal(self.nodes[0].getnetworkhashps(-2), expected_hashes_per_second_since_diff_change)
+
     def _test_stopatheight(self):
         assert_equal(self.nodes[0].getblockcount(), HEIGHT)
         self.generate(self.wallet, 6)
@@ -491,6 +502,10 @@ class BlockchainTest(BitcoinTestFramework):
         self.wallet.send_self_transfer(fee_rate=fee_per_kb, from_node=node)
         blockhash = self.generate(node, 1)[0]
 
+        def assert_hexblock_hashes(verbosity):
+            block = node.getblock(blockhash, verbosity)
+            assert_equal(blockhash, dashhash(bytes.fromhex(block[:160]))[::-1].hex())
+
         def assert_fee_not_in_block(verbosity):
             block = node.getblock(blockhash, verbosity)
             assert 'fee' not in block['tx'][1]
@@ -525,8 +540,13 @@ class BlockchainTest(BitcoinTestFramework):
                 for vin in tx["vin"]:
                     assert "prevout" not in vin
 
+        self.log.info("Test that getblock with verbosity 0 hashes to expected value")
+        assert_hexblock_hashes(0)
+        assert_hexblock_hashes(False)
+
         self.log.info("Test that getblock with verbosity 1 doesn't include fee")
         assert_fee_not_in_block(1)
+        assert_fee_not_in_block(True)
 
         self.log.info('Test that getblock with verbosity 2 and 3 includes expected fee')
         assert_fee_in_block(2)
@@ -543,7 +563,7 @@ class BlockchainTest(BitcoinTestFramework):
         datadir = get_datadir_path(self.options.tmpdir, 0)
 
         self.log.info("Test that getblock with invalid verbosity type returns proper error message")
-        assert_raises_rpc_error(-1, "JSON value is not an integer as expected", node.getblock, blockhash, "2")
+        assert_raises_rpc_error(-3, "JSON value of type string is not of expected type number", node.getblock, blockhash, "2")
 
         def move_block_file(old, new):
             old_path = os.path.join(datadir, self.chain, 'blocks', old)

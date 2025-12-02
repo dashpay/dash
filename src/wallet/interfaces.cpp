@@ -30,7 +30,8 @@
 #include <wallet/rpc/wallet.h>
 #include <wallet/spend.h>
 #include <wallet/wallet.h>
-#include <governance/object.h>
+#include <wallet/hdchain.h>
+#include <wallet/scriptpubkeyman.h>
 #include <governance/validators.h>
 #include <evo/deterministicmns.h>
 #include <masternode/sync.h>
@@ -265,6 +266,11 @@ public:
         LOCK(m_wallet->cs_wallet);
         WalletBatch batch{m_wallet->GetDatabase()};
         return m_wallet->SetAddressReceiveRequest(batch, dest, id, value);
+    }
+    bool displayAddress(const CTxDestination& dest) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->DisplayAddress(dest);
     }
     bool lockCoin(const COutPoint& output, const bool write_to_db) override
     {
@@ -517,6 +523,7 @@ public:
     unsigned int getConfirmTarget() override { return m_wallet->m_confirm_target; }
     bool hdEnabled() override { return m_wallet->IsHDEnabled(); }
     bool canGetAddresses() override { return m_wallet->CanGetAddresses(); }
+    bool hasExternalSigner() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER); }
     bool privateKeysDisabled() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS); }
     CAmount getDefaultMaxTxFee() override { return m_wallet->m_default_max_tx_fee; }
     void remove() override
@@ -524,6 +531,49 @@ public:
         RemoveWallet(m_context, m_wallet, false /* load_on_start */);
     }
     bool isLegacy() override { return m_wallet->IsLegacy(); }
+    bool getMnemonic(SecureString& mnemonic_out, SecureString& mnemonic_passphrase_out) override
+    {
+        LOCK(m_wallet->cs_wallet);
+
+        mnemonic_out.clear();
+        mnemonic_passphrase_out.clear();
+
+        if (m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
+            return false;
+        }
+
+        if (m_wallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+            // Descriptor wallet
+            for (auto spk_man : m_wallet->GetActiveScriptPubKeyMans()) {
+                if (auto desc_spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man)) {
+                    if (desc_spk_man->GetMnemonicString(mnemonic_out, mnemonic_passphrase_out)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else {
+            // Legacy wallet
+            auto spk_man = m_wallet->GetLegacyScriptPubKeyMan();
+            if (!spk_man) {
+                return false;
+            }
+
+            CHDChain hdChainCurrent;
+            if (!spk_man->GetHDChain(hdChainCurrent)) {
+                return false;
+            }
+
+            // Get decrypted HD chain if wallet is encrypted
+            if (m_wallet->IsCrypted()) {
+                if (!spk_man->GetDecryptedHDChain(hdChainCurrent)) {
+                    return false;
+                }
+            }
+
+            return hdChainCurrent.GetMnemonic(mnemonic_out, mnemonic_passphrase_out);
+        }
+    }
     std::unique_ptr<Handler> handleUnload(UnloadFn fn) override
     {
         return MakeHandler(m_wallet->NotifyUnload.connect(fn));

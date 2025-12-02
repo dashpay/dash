@@ -8,13 +8,14 @@
 
 BIP32ExtendedPublicKey BIP32ExtendedPublicKeyFromBytes(
     const void* data,
+    size_t len,
     const bool legacy,
     bool* didErr)
 {
     bls::ExtendedPublicKey* el = nullptr;
     try {
         el = new bls::ExtendedPublicKey(bls::ExtendedPublicKey::FromBytes(
-            bls::Bytes((uint8_t*)(data), bls::ExtendedPublicKey::SIZE),
+            bls::Bytes((uint8_t*)data, len),
             legacy));
     } catch (const std::exception& ex) {
         gErrMsg = ex.what();

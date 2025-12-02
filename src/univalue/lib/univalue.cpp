@@ -101,45 +101,46 @@ void UniValue::setObject()
     typ = VOBJ;
 }
 
-void UniValue::push_back(const UniValue& val_)
+void UniValue::push_back(UniValue val)
 {
-    if (typ != VARR) throw std::runtime_error{"JSON value is not an array as expected"};
+    checkType(VARR);
 
-    values.push_back(val_);
+    values.push_back(std::move(val));
 }
 
 void UniValue::push_backV(const std::vector<UniValue>& vec)
 {
-    if (typ != VARR) throw std::runtime_error{"JSON value is not an array as expected"};
+    checkType(VARR);
 
     values.insert(values.end(), vec.begin(), vec.end());
 }
 
-void UniValue::__pushKV(const std::string& key, const UniValue& val_)
+void UniValue::__pushKV(std::string key, UniValue val)
 {
-    if (typ != VOBJ) throw std::runtime_error{"JSON value is not an object as expected"};
+    checkType(VOBJ);
 
-    keys.push_back(key);
-    values.push_back(val_);
+    keys.push_back(std::move(key));
+    values.push_back(std::move(val));
 }
 
-void UniValue::pushKV(const std::string& key, const UniValue& val_)
+void UniValue::pushKV(std::string key, UniValue val)
 {
-    if (typ != VOBJ) throw std::runtime_error{"JSON value is not an object as expected"};
+    checkType(VOBJ);
 
     size_t idx;
     if (findKey(key, idx))
-        values[idx] = val_;
+        values[idx] = std::move(val);
     else
-        __pushKV(key, val_);
+        __pushKV(std::move(key), std::move(val));
 }
 
-void UniValue::pushKVs(const UniValue& obj)
+void UniValue::pushKVs(UniValue obj)
 {
-    if (typ != VOBJ || obj.typ != VOBJ) throw std::runtime_error{"JSON value is not an object as expected"};
+    checkType(VOBJ);
+    obj.checkType(VOBJ);
 
     for (size_t i = 0; i < obj.keys.size(); i++)
-        __pushKV(obj.keys[i], obj.values.at(i));
+        __pushKV(std::move(obj.keys.at(i)), std::move(obj.values.at(i)));
 }
 
 void UniValue::getObjMap(std::map<std::string,UniValue>& kv) const
@@ -204,6 +205,14 @@ const UniValue& UniValue::operator[](size_t index) const
         return NullUniValue;
 
     return values.at(index);
+}
+
+void UniValue::checkType(const VType& expected) const
+{
+    if (typ != expected) {
+        throw type_error{"JSON value of type " + std::string{uvTypeName(typ)} + " is not of expected type " +
+                                 std::string{uvTypeName(expected)}};
+    }
 }
 
 const char *uvTypeName(UniValue::VType t)

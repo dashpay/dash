@@ -50,8 +50,6 @@ using node::NodeContext;
 using wallet::CWallet;
 #ifdef ENABLE_WALLET
 using wallet::CCoinControl;
-using wallet::CoinType;
-using wallet::COutput;
 using wallet::CRecipient;
 using wallet::DEFAULT_DISABLE_WALLET;
 using wallet::GetWalletForJSONRPCRequest;
@@ -683,7 +681,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     const bool isEvoRequested = mnType == MnType::Evo;
 
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     if (action == ProTxRegisterAction::External || action == ProTxRegisterAction::Fund) {
         EnsureWalletIsUnlocked(*pwallet);
@@ -888,7 +886,7 @@ static RPCHelpMan protx_register_submit()
     CChainstateHelper& chain_helper = *CHECK_NONFATAL(node.chain_helper);
 
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     EnsureWalletIsUnlocked(*wallet);
 
@@ -997,7 +995,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
 
     const bool isEvoRequested = mnType == MnType::Evo;
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     EnsureWalletIsUnlocked(*wallet);
 
@@ -1131,7 +1129,7 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     CChainstateHelper& chain_helper = *CHECK_NONFATAL(node.chain_helper);
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     EnsureWalletIsUnlocked(*wallet);
 
@@ -1251,7 +1249,7 @@ static RPCHelpMan protx_revoke()
     CChainstateHelper& chain_helper = *CHECK_NONFATAL(node.chain_helper);
 
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return UniValue::VNULL;
 
     EnsureWalletIsUnlocked(*pwallet);
 
@@ -1379,8 +1377,7 @@ static UniValue BuildDMNListEntry(const CWallet* const pwallet, const CDetermini
     }
 #endif
 
-    const auto metaInfo = mn_metaman.GetMetaInfo(dmn.proTxHash);
-    o.pushKV("metaInfo", metaInfo->ToJson());
+    o.pushKV("metaInfo", mn_metaman.GetInfo(dmn.proTxHash).ToJson());
 
     return o;
 }
@@ -1404,7 +1401,16 @@ static RPCHelpMan protx_list()
             {"detailed", RPCArg::Type::BOOL, RPCArg::Default{false}, "If not specified, only the hashes of the ProTx will be returned."},
             {"height", RPCArg::Type::NUM, RPCArg::DefaultHint{"current chain-tip"}, ""},
         },
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::ARR, "", "List of masternodes",
+            {
+                RPCResult{"when detailed=false", RPCResult::Type::STR, "", "ProTx hash"},
+                RPCResult{"when detailed=true", RPCResult::Type::OBJ, "", "",
+                    {
+                        // TODO: document fields of the detailed entry
+                        {RPCResult::Type::ELISION, "", ""}
+                    }},
+            }},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1511,6 +1517,7 @@ static RPCHelpMan protx_info()
         RPCResult{
             RPCResult::Type::OBJ, "", "Details about a specific deterministic masternode",
             {
+                // TODO: implement proper doc for protx info
                 {RPCResult::Type::ELISION, "", ""}
             }
         },
@@ -1586,7 +1593,7 @@ static RPCHelpMan protx_diff()
             {"block", RPCArg::Type::NUM, RPCArg::Optional::NO, "The ending block height."},
             {"extended", RPCArg::Type::BOOL, RPCArg::Optional::OMITTED, "Show additional fields."},
         },
-        RPCResults{},
+        CSimplifiedMNListDiff::GetJsonHelp(/*key=*/"", /*optional=*/false),
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1644,8 +1651,40 @@ static RPCHelpMan protx_listdiff()
                        {"baseBlock", RPCArg::Type::NUM, RPCArg::Optional::NO, "The starting block height."},
                        {"block", RPCArg::Type::NUM, RPCArg::Optional::NO, "The ending block height."},
                },
-               RPCResults{},
-               RPCExamples{""},
+                RPCResult {
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "baseHeight", "Height of base (starting) block"},
+                        {RPCResult::Type::NUM, "blockHeight", "Height of target (ending) block"},
+                        {RPCResult::Type::ARR, "addedMNs", "Added masternodes",
+                            {
+                                {RPCResult::Type::OBJ, "", "",
+                                {
+                                    // TODO: list fields of output for RPC help instead ELISION
+                                    {RPCResult::Type::ELISION, "", ""}
+                                }},
+                            },
+                        },
+                        {RPCResult::Type::ARR, "removedMns", "Removed masternodes",
+                            {
+                                {RPCResult::Type::STR_HEX, "protx", "ProTx of removed masternode"},
+                            },
+                        },
+                        {RPCResult::Type::ARR, "updatedMNs", "Updated masternodes",
+                            {
+                                {RPCResult::Type::OBJ, "", "",
+                                {
+                                    {RPCResult::Type::OBJ, "protx", "ProTx of updated masternode",
+                                    {
+                                        // TODO: list fields of output for RPC help instead ELISION
+                                        {RPCResult::Type::ELISION, "", ""}
+                                    }},
+                                }},
+                            },
+                        },
+                    },
+                },
+                RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -1679,6 +1718,7 @@ static RPCHelpMan protx_listdiff()
     for(const auto& mn : mnDiff.addedMNs) {
         jaddedMNs.push_back(mn->ToJson());
     }
+    // TODO: Use CDeterministicMN::GetJsonHelp() for mn
     ret.pushKV("addedMNs", jaddedMNs);
 
     UniValue jremovedMNs(UniValue::VARR);
@@ -1701,9 +1741,179 @@ static RPCHelpMan protx_listdiff()
         obj.pushKV(dmn->proTxHash.ToString(), stateDiff.ToJson(dmn->nType));
         jupdatedMNs.push_back(obj);
     }
+    // TODO: Use CDeterministicMNStateDiff::GetJsonHelp() for stateDiff
     ret.pushKV("updatedMNs", jupdatedMNs);
 
     return ret;
+},
+    };
+}
+
+// Helper function for evodb verify/repair commands
+static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool repair)
+{
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    ChainstateManager& chainman = EnsureChainman(node);
+    CDeterministicMNManager& dmnman = *CHECK_NONFATAL(node.dmnman);
+    CChainstateHelper& chain_helper = *CHECK_NONFATAL(node.chain_helper);
+
+    const CBlockIndex* start_index;
+    const CBlockIndex* stop_index;
+
+    {
+        LOCK(::cs_main);
+        // Default to DIP0003 activation height if startBlock not specified
+        if (request.params[0].isNull()) {
+            const auto& consensus_params = Params().GetConsensus();
+            start_index = chainman.ActiveChain()[consensus_params.DIP0003Height];
+            if (!start_index) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot find DIP0003 activation block");
+            }
+        } else {
+            uint256 start_block_hash = ParseBlock(request.params[0], chainman, "startBlock");
+            start_index = chainman.m_blockman.LookupBlockIndex(start_block_hash);
+            if (!start_index) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Start block not found");
+            }
+        }
+
+        // Default to chain tip if stopBlock not specified
+        if (request.params[1].isNull()) {
+            stop_index = chainman.ActiveChain().Tip();
+            if (!stop_index) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot find chain tip");
+            }
+        } else {
+            uint256 stop_block_hash = ParseBlock(request.params[1], chainman, "stopBlock");
+            stop_index = chainman.m_blockman.LookupBlockIndex(stop_block_hash);
+            if (!stop_index) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Stop block not found");
+            }
+        }
+    }
+
+    int start_height = start_index->nHeight;
+    int stop_height = stop_index->nHeight;
+
+    // Validation
+    if (stop_height < start_height) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "stopBlock must be >= startBlock");
+    }
+
+    // Create a callback that wraps CSpecialTxProcessor::RebuildListFromBlock
+    auto build_list_func = [&chain_helper](const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                           const CDeterministicMNList& prevList, const CCoinsViewCache& view,
+                                           bool debugLogs, BlockValidationState& state,
+                                           CDeterministicMNList& mnListRet) -> bool {
+        return chain_helper.special_tx->RebuildListFromBlock(block, pindexPrev, prevList, view, debugLogs, state, mnListRet);
+    };
+
+    // Call the dmnman method to do the work
+    auto recalc_result = dmnman.RecalculateAndRepairDiffs(start_index, stop_index, chainman, build_list_func, repair);
+
+    // Convert result to UniValue
+    UniValue result(UniValue::VOBJ);
+    UniValue verification_errors(UniValue::VARR);
+
+    for (const auto& error : recalc_result.verification_errors) {
+        verification_errors.push_back(error);
+    }
+
+    result.pushKV("startHeight", recalc_result.start_height);
+    result.pushKV("stopHeight", recalc_result.stop_height);
+    result.pushKV("diffsRecalculated", recalc_result.diffs_recalculated);
+    result.pushKV("snapshotsVerified", recalc_result.snapshots_verified);
+    result.pushKV("verificationErrors", verification_errors);
+
+    // Only include repair errors if we're in repair mode
+    if (repair) {
+        UniValue repair_errors(UniValue::VARR);
+        for (const auto& error : recalc_result.repair_errors) {
+            repair_errors.push_back(error);
+        }
+        result.pushKV("repairErrors", repair_errors);
+    }
+
+    return result;
+}
+
+static RPCHelpMan evodb_verify()
+{
+    return RPCHelpMan{"evodb verify",
+        "\nVerifies evodb diff records between specified block heights.\n"
+        "Checks that all diffs applied between snapshots in the range match the saved snapshots in evodb.\n"
+        "This is a read-only operation that does not modify the database.\n"
+        "If no heights are specified, defaults to the full range from DIP0003 activation to chain tip.\n",
+        {
+            {"startBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The starting block height (defaults to DIP0003 activation height)."},
+            {"stopBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The ending block height (defaults to current chain tip)."},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "startHeight", "Actual starting block height (may differ from input if clamped to DIP0003 activation)"},
+                {RPCResult::Type::NUM, "stopHeight", "Ending block height"},
+                {RPCResult::Type::NUM, "diffsRecalculated", "Number of diffs recalculated (always 0 for verify-only mode)"},
+                {RPCResult::Type::NUM, "snapshotsVerified", "Number of snapshot pairs that passed verification"},
+                {RPCResult::Type::ARR, "verificationErrors", "List of verification errors (empty if verification passed)",
+                    {
+                        {RPCResult::Type::STR, "", "Error message"},
+                    }
+                },
+            }
+        },
+        RPCExamples{
+            HelpExampleCli("evodb verify", "")
+            + HelpExampleCli("evodb verify", "1000 2000")
+            + HelpExampleRpc("evodb", "\"verify\"")
+            + HelpExampleRpc("evodb", "\"verify\", 1000, 2000")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    return evodb_verify_or_repair_impl(request, false);
+},
+    };
+}
+
+static RPCHelpMan evodb_repair()
+{
+    return RPCHelpMan{"evodb repair",
+        "\nRepairs corrupted evodb diff records between specified block heights.\n"
+        "First verifies all diffs applied between snapshots in the range.\n"
+        "If verification fails, recalculates diffs from blockchain data and replaces corrupted records.\n"
+        "If no heights are specified, defaults to the full range from DIP0003 activation to chain tip.\n",
+        {
+            {"startBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The starting block height (defaults to DIP0003 activation height)."},
+            {"stopBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The ending block height (defaults to current chain tip)."},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "startHeight", "Actual starting block height (may differ from input if clamped to DIP0003 activation)"},
+                {RPCResult::Type::NUM, "stopHeight", "Ending block height"},
+                {RPCResult::Type::NUM, "diffsRecalculated", "Number of diffs successfully recalculated and written to database"},
+                {RPCResult::Type::NUM, "snapshotsVerified", "Number of snapshot pairs that passed verification"},
+                {RPCResult::Type::ARR, "verificationErrors", "Errors encountered during verification phase (empty if verification passed)",
+                    {
+                        {RPCResult::Type::STR, "", "Error message"},
+                    }
+                },
+                {RPCResult::Type::ARR, "repairErrors", "Critical errors encountered during repair phase (non-empty means full reindex required)",
+                    {
+                        {RPCResult::Type::STR, "", "Error message"},
+                    }
+                },
+            }
+        },
+        RPCExamples{
+            HelpExampleCli("evodb repair", "")
+            + HelpExampleCli("evodb repair", "1000 2000")
+            + HelpExampleRpc("evodb", "\"repair\"")
+            + HelpExampleRpc("evodb", "\"repair\", 1000, 2000")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    return evodb_verify_or_repair_impl(request, true);
 },
     };
 }
@@ -1741,7 +1951,7 @@ static RPCHelpMan protx_help()
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1831,7 +2041,7 @@ static RPCHelpMan bls_help()
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1843,52 +2053,45 @@ static RPCHelpMan bls_help()
 #ifdef ENABLE_WALLET
 Span<const CRPCCommand> GetWalletEvoRPCCommands()
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  --------------------- -----------------------
-    { "evo",                &protx_list,                       },
-    { "evo",                &protx_info,                       },
-    { "evo",                &protx_register,                   },
-    { "evo",                &protx_register_evo,               },
-    { "evo",                &protx_register_fund,              },
-    { "evo",                &protx_register_fund_evo,          },
-    { "evo",                &protx_register_prepare,           },
-    { "evo",                &protx_register_prepare_evo,       },
-    { "evo",                &protx_update_service,             },
-    { "evo",                &protx_update_service_evo,         },
-    { "evo",                &protx_register_submit,            },
-    { "evo",                &protx_update_registrar,           },
-    { "evo",                &protx_revoke,                     },
-    { "hidden",             &protx_register_legacy,            },
-    { "hidden",             &protx_register_fund_legacy,       },
-    { "hidden",             &protx_register_prepare_legacy,    },
-    { "hidden",             &protx_update_registrar_legacy,    },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"evo", &protx_list},
+        {"evo", &protx_info},
+        {"evo", &protx_register},
+        {"evo", &protx_register_evo},
+        {"evo", &protx_register_fund},
+        {"evo", &protx_register_fund_evo},
+        {"evo", &protx_register_prepare},
+        {"evo", &protx_register_prepare_evo},
+        {"evo", &protx_update_service},
+        {"evo", &protx_update_service_evo},
+        {"evo", &protx_register_submit},
+        {"evo", &protx_update_registrar},
+        {"evo", &protx_revoke},
+        {"hidden", &protx_register_legacy},
+        {"hidden", &protx_register_fund_legacy},
+        {"hidden", &protx_register_prepare_legacy},
+        {"hidden", &protx_update_registrar_legacy},
+    };
     return commands;
 }
 #endif // ENABLE_WALLET
 
 void RegisterEvoRPCCommands(CRPCTable& tableRPC)
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  --------------------- -----------------------
-    { "evo",                &bls_help,                         },
-    { "evo",                &bls_generate,                     },
-    { "evo",                &bls_fromsecret,                   },
-    { "evo",                &protx_help,                       },
-    { "evo",                &protx_diff,                       },
-    { "evo",                &protx_listdiff,                   },
-};
-static const CRPCCommand commands_wallet[] =
-{
-    { "evo",                &protx_list,                       },
-    { "evo",                &protx_info,                       },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"evo", &bls_help},
+        {"evo", &bls_generate},
+        {"evo", &bls_fromsecret},
+        {"evo", &protx_help},
+        {"evo", &protx_diff},
+        {"evo", &protx_listdiff},
+        {"hidden", &evodb_verify},
+        {"hidden", &evodb_repair},
+    };
+    static const CRPCCommand commands_wallet[]{
+        {"evo", &protx_list},
+        {"evo", &protx_info},
+    };
     for (const auto& command : commands) {
         tableRPC.appendCommand(command.name, &command);
     }

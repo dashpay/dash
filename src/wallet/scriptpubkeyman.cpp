@@ -222,7 +222,7 @@ bool LegacyScriptPubKeyMan::CheckDecryptionKey(const CKeyingMaterial& master_key
             return false;
         }
 
-        if(!m_hd_chain.IsNull() && !m_hd_chain.IsCrypted()) {
+        if(!m_hd_chain.IsNull() && m_hd_chain.IsCrypted()) {
             // try to decrypt seed and make sure it matches
             CHDChain hdChainTmp;
             if (!DecryptHDChain(master_key, hdChainTmp) || (m_hd_chain.GetID() != hdChainTmp.GetSeedHash())) {
@@ -244,9 +244,13 @@ bool LegacyScriptPubKeyMan::Encrypt(const CKeyingMaterial& master_key, WalletBat
         return false;
     }
 
-    // must get current HD chain before EncryptKeys
     CHDChain hdChainCurrent;
     GetHDChain(hdChainCurrent);
+
+    if (!hdChainCurrent.IsNull() && hdChainCurrent.IsCrypted()) {
+        encrypted_batch = nullptr;
+        return false;
+    }
 
     KeyMap keys_to_encrypt;
     keys_to_encrypt.swap(mapKeys); // Clear mapKeys so AddCryptedKeyInner will succeed.
@@ -340,10 +344,13 @@ void LegacyScriptPubKeyMan::UpgradeKeyMetadata()
     CHDChain hdChainCurrent;
     if (!GetHDChain(hdChainCurrent))
         throw std::runtime_error(std::string(__func__) + ": GetHDChain failed");
-    if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
-            return DecryptHDChain(encryption_key, hdChainCurrent);
-        })) {
-        throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
+
+    if (hdChainCurrent.IsCrypted()) {
+        if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
+                return DecryptHDChain(encryption_key, hdChainCurrent);
+            })) {
+            throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
+        }
     }
 
     CExtKey masterKey;
@@ -398,7 +405,7 @@ void LegacyScriptPubKeyMan::GenerateNewHDChain(const SecureString& secureMnemoni
 
     // Encryption routine if vMasterKey has been supplied
     if (vMasterKeyOpt.has_value()) {
-        auto vMasterKey = vMasterKeyOpt.value();
+        const auto& vMasterKey = vMasterKeyOpt.value();
         if (vMasterKey.size() != WALLET_CRYPTO_KEY_SIZE) {
             throw std::runtime_error(strprintf("%s : invalid vMasterKey size, got %zd (expected %lld)", __func__, vMasterKey.size(), WALLET_CRYPTO_KEY_SIZE));
         }
@@ -427,11 +434,11 @@ void LegacyScriptPubKeyMan::GenerateNewHDChain(const SecureString& secureMnemoni
     }
 }
 
-bool LegacyScriptPubKeyMan::LoadHDChain(const CHDChain& chain)
+bool LegacyScriptPubKeyMan::LoadHDChain(const CHDChain& chain, bool skip_encryption_check)
 {
     LOCK(cs_KeyStore);
 
-    if (m_storage.HasEncryptionKeys() != chain.IsCrypted()) return false;
+    if (!skip_encryption_check && m_storage.HasEncryptionKeys() != chain.IsCrypted()) return false;
 
     m_hd_chain = chain;
     return true;
@@ -475,10 +482,12 @@ bool LegacyScriptPubKeyMan::GetDecryptedHDChain(CHDChain& hdChainRet) const
         return false;
     }
 
-    if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
-            return DecryptHDChain(encryption_key, hdChainTmp);
-        })) {
-        return false;
+    if (hdChainTmp.IsCrypted()) {
+        if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
+                return DecryptHDChain(encryption_key, hdChainTmp);
+            })) {
+            return false;
+        }
     }
 
     // make sure seed matches this chain
@@ -493,12 +502,9 @@ bool LegacyScriptPubKeyMan::GetDecryptedHDChain(CHDChain& hdChainRet) const
 bool LegacyScriptPubKeyMan::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn, CHDChain& chain)
 {
     LOCK(cs_KeyStore);
-    // should call EncryptKeys first
-    if (!m_storage.HasEncryptionKeys())
-        return false;
 
     if (chain.IsCrypted())
-        return true;
+        return false;
 
     // make sure seed matches this chain
     if (chain.GetID() != chain.GetSeedHash())
@@ -541,28 +547,37 @@ bool LegacyScriptPubKeyMan::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn, 
 bool LegacyScriptPubKeyMan::DecryptHDChain(const CKeyingMaterial& vMasterKeyIn, CHDChain& hdChainRet) const
 {
     LOCK(cs_KeyStore);
-    if (!m_storage.HasEncryptionKeys())
-        return true;
 
-    if (m_hd_chain.IsNull())
+    if (m_hd_chain.IsNull()) {
+        WalletLogPrintf("%s: ERROR: no HD chain\n", __func__);
         return false;
+    }
 
-    if (!m_hd_chain.IsCrypted())
+    if (!m_hd_chain.IsCrypted()) {
+        WalletLogPrintf("%s: ERROR: HD chain is not encrypted\n", __func__);
         return false;
+    }
 
     SecureVector vchSecureSeed;
     SecureVector vchSecureCryptedSeed = m_hd_chain.GetSeed();
     std::vector<unsigned char> vchCryptedSeed(vchSecureCryptedSeed.begin(), vchSecureCryptedSeed.end());
-    if (!DecryptSecret(vMasterKeyIn, vchCryptedSeed, m_hd_chain.GetID(), vchSecureSeed))
+    if (!DecryptSecret(vMasterKeyIn, vchCryptedSeed, m_hd_chain.GetID(), vchSecureSeed)) {
+        WalletLogPrintf("%s: ERROR: DecryptSecret failed on seed decryption\n", __func__);
         return false;
+    }
 
     hdChainRet = m_hd_chain;
-    if (!hdChainRet.SetSeed(vchSecureSeed, false))
+    if (!hdChainRet.SetSeed(vchSecureSeed, false)) {
+        WalletLogPrintf("%s: ERROR: SetSeed failed\n", __func__);
         return false;
+    }
 
     // hash of decrypted seed must match chain id
-    if (hdChainRet.GetSeedHash() != m_hd_chain.GetID())
+    if (hdChainRet.GetSeedHash() != m_hd_chain.GetID()) {
+        WalletLogPrintf("%s: ERROR: hash of decrypted seed %s doesn't match chain ID %s\n",
+                        __func__, hdChainRet.GetSeedHash().ToString(), m_hd_chain.GetID().ToString());
         return false;
+    }
 
     SecureVector vchSecureCryptedMnemonic;
     SecureVector vchSecureCryptedMnemonicPassphrase;
@@ -575,13 +590,20 @@ bool LegacyScriptPubKeyMan::DecryptHDChain(const CKeyingMaterial& vMasterKeyIn, 
         std::vector<unsigned char> vchCryptedMnemonic(vchSecureCryptedMnemonic.begin(), vchSecureCryptedMnemonic.end());
         std::vector<unsigned char> vchCryptedMnemonicPassphrase(vchSecureCryptedMnemonicPassphrase.begin(), vchSecureCryptedMnemonicPassphrase.end());
 
-        if (!vchCryptedMnemonic.empty() && !DecryptSecret(vMasterKeyIn, vchCryptedMnemonic, m_hd_chain.GetID(), vchSecureMnemonic))
+        if (!vchCryptedMnemonic.empty() && !DecryptSecret(vMasterKeyIn, vchCryptedMnemonic, m_hd_chain.GetID(), vchSecureMnemonic)) {
+            WalletLogPrintf("%s: ERROR: DecryptSecret failed on mnemonic decryption\n", __func__);
             return false;
-        if (!vchCryptedMnemonicPassphrase.empty() && !DecryptSecret(vMasterKeyIn, vchCryptedMnemonicPassphrase, m_hd_chain.GetID(), vchSecureMnemonicPassphrase))
-            return false;
+        }
 
-        if (!hdChainRet.SetMnemonic(vchSecureMnemonic, vchSecureMnemonicPassphrase, false))
+        if (!vchCryptedMnemonicPassphrase.empty() && !DecryptSecret(vMasterKeyIn, vchCryptedMnemonicPassphrase, m_hd_chain.GetID(), vchSecureMnemonicPassphrase)) {
+            WalletLogPrintf("%s: ERROR: DecryptSecret failed on mnemonic passphrase decryption\n", __func__);
             return false;
+        }
+
+        if (!hdChainRet.SetMnemonic(vchSecureMnemonic, vchSecureMnemonicPassphrase, false)) {
+            WalletLogPrintf("%s: ERROR: SetMnemonic failed\n", __func__);
+            return false;
+        }
     }
 
     hdChainRet.SetCrypted(false);
@@ -1170,10 +1192,12 @@ bool LegacyScriptPubKeyMan::GetKey(const CKeyID &address, CKey& keyOut) const
         CHDChain hdChainCurrent;
         if (!GetHDChain(hdChainCurrent))
             throw std::runtime_error(std::string(__func__) + ": GetHDChain failed");
-        if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
-                return DecryptHDChain(encryption_key, hdChainCurrent);
-            })) {
-            throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
+        if (hdChainCurrent.IsCrypted()) {
+            if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
+                    return DecryptHDChain(encryption_key, hdChainCurrent);
+                })) {
+                throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
+            }
         }
         // make sure seed matches this chain
         if (hdChainCurrent.GetID() != hdChainCurrent.GetSeedHash())
@@ -1285,10 +1309,12 @@ void LegacyScriptPubKeyMan::DeriveNewChildKey(WalletBatch &batch, CKeyMetadata& 
         throw std::runtime_error(std::string(__func__) + ": GetHDChain failed");
     }
 
-    if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
-            return DecryptHDChain(encryption_key, hdChainTmp);
-        })) {
-        throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
+    if (hdChainTmp.IsCrypted()) {
+        if (!m_storage.WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
+                return DecryptHDChain(encryption_key, hdChainTmp);
+            })) {
+            throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
+        }
     }
     // make sure seed matches this chain
     if (hdChainTmp.GetID() != hdChainTmp.GetSeedHash())
@@ -1926,7 +1952,7 @@ std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
     AssertLockHeld(cs_desc_man);
     if (m_storage.HasEncryptionKeys() && !m_storage.IsLocked(true)) {
         KeyMap keys;
-        for (auto key_pair : m_map_crypted_keys) {
+        for (const auto& key_pair : m_map_crypted_keys) {
             const CPubKey& pubkey = key_pair.second.first;
             const std::vector<unsigned char>& crypted_secret = key_pair.second.second;
             CKey key;
@@ -2209,7 +2235,7 @@ std::unique_ptr<FlatSigningProvider> DescriptorScriptPubKeyMan::GetSigningProvid
     // Fetch SigningProvider from cache to avoid re-deriving
     auto it = m_map_signing_providers.find(index);
     if (it != m_map_signing_providers.end()) {
-        *out_keys = Merge(*out_keys, it->second);
+        out_keys->Merge(FlatSigningProvider{it->second});
     } else {
         // Get the scripts, keys, and key origins for this script
         std::vector<CScript> scripts_temp;
@@ -2246,7 +2272,7 @@ bool DescriptorScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const s
         if (!coin_keys) {
             continue;
         }
-        *keys = Merge(*keys, *coin_keys);
+        keys->Merge(std::move(*coin_keys));
     }
 
     return ::SignTransaction(tx, keys.get(), coins, sighash, input_errors);
@@ -2318,7 +2344,7 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
         std::unique_ptr<FlatSigningProvider> keys = std::make_unique<FlatSigningProvider>();
         std::unique_ptr<FlatSigningProvider> script_keys = GetSigningProvider(script, sign);
         if (script_keys) {
-            *keys = Merge(*keys, *script_keys);
+            keys->Merge(std::move(*script_keys));
         } else {
             // Maybe there are pubkeys listed that we can sign for
             script_keys = std::make_unique<FlatSigningProvider>();
@@ -2326,7 +2352,7 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
                 const CPubKey& pubkey = pk_pair.first;
                 std::unique_ptr<FlatSigningProvider> pk_keys = GetSigningProvider(pubkey);
                 if (pk_keys) {
-                    *keys = Merge(*keys, *pk_keys);
+                    keys->Merge(std::move(*pk_keys));
                 }
             }
         }

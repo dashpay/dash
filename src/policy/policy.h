@@ -33,7 +33,7 @@ static constexpr unsigned int MAX_P2SH_SIGOPS{15};
 static constexpr unsigned int MAX_STANDARD_TX_SIGOPS{4000};
 /** Default for -maxmempool, maximum megabytes of mempool memory usage */
 static constexpr unsigned int DEFAULT_MAX_MEMPOOL_SIZE{300};
-/** Default for -incrementalrelayfee, which sets the minimum feerate increase for mempool limiting or BIP 125 replacement **/
+/** Default for -incrementalrelayfee, which sets the minimum feerate increase for mempool limiting **/
 static constexpr unsigned int DEFAULT_INCREMENTAL_RELAY_FEE{1000};
 /** Default for -bytespersigop */
 static constexpr unsigned int DEFAULT_BYTES_PER_SIGOP{20};

@@ -14,8 +14,6 @@
 
 package blschia
 
-// #cgo LDFLAGS: -ldashbls -lrelic_s -lmimalloc-secure -lgmp
-// #cgo CXXFLAGS: -std=c++14
 // #include <stdlib.h>
 // #include "threshold.h"
 // #include "blschia.h"

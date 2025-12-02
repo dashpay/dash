@@ -8,6 +8,7 @@
 #include <node/interface_ui.h>
 #include <shutdown.h>
 #include <tinyformat.h>
+#include <util/system.h>
 #include <util/thread.h>
 #include <util/translation.h>
 #include <validation.h>

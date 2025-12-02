@@ -51,7 +51,8 @@ def small_txpuzzle_randfee(
         raise RuntimeError(f"Insufficient funds: need {amount + fee}, have {total_in}")
     tx = wallet.create_self_transfer_multi(
         utxos_to_spend=utxos_to_spend,
-        fee_per_output=0)["tx"]
+        fee_per_output=0,
+    )["tx"]
     tx.vout[0].nValue = int((total_in - amount - fee) * COIN)
     tx.vout.append(deepcopy(tx.vout[0]))
     tx.vout[1].nValue = int(amount * COIN)
@@ -60,7 +61,7 @@ def small_txpuzzle_randfee(
     unconflist.append({"txid": txid, "vout": 0, "value": total_in - amount - fee})
     unconflist.append({"txid": txid, "vout": 1, "value": amount})
 
-    return (tx.serialize().hex(), fee)
+    return (tx.get_vsize(), fee)
 
 
 def check_raw_estimates(node, fees_seen):
@@ -147,7 +148,7 @@ class EstimateFeeTest(BitcoinTestFramework):
             random.shuffle(self.confutxo)
             for _ in range(random.randrange(100 - 50, 100 + 50)):
                 from_index = random.randint(1, 2)
-                (txhex, fee) = small_txpuzzle_randfee(
+                (tx_bytes, fee) = small_txpuzzle_randfee(
                     self.wallet,
                     self.nodes[from_index],
                     self.confutxo,
@@ -156,7 +157,7 @@ class EstimateFeeTest(BitcoinTestFramework):
                     min_fee,
                     min_fee,
                 )
-                tx_kbytes = (len(txhex) // 2) / 1000.0
+                tx_kbytes = tx_bytes / 1000.0
                 self.fees_per_kb.append(float(fee) / tx_kbytes)
             self.sync_mempools(wait=0.1)
             mined = mining_node.getblock(self.generate(mining_node, 1)[0], True)["tx"]

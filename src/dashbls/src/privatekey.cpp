@@ -300,7 +300,9 @@ G2Element PrivateKey::SignG2(
 {
     CheckKeyData();
 
-    g2_st* pt = Util::SecAlloc<g2_st>(1);
+    g2_t pt;
+    g2_null(pt);
+    g2_new(pt);
 
     if (fLegacy) {
         ep2_map_legacy(pt, msg, BLS::MESSAGE_HASH_LEN);
@@ -310,7 +312,7 @@ G2Element PrivateKey::SignG2(
     
     g2_mul(pt, pt, keydata);
     G2Element ret = G2Element::FromNative(pt);
-    Util::SecFree(pt);
+    g2_free(pt);
     return ret;
 }
 

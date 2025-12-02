@@ -32,7 +32,6 @@ using node::GetTransaction;
 
 namespace llmq {
 namespace {
-static constexpr auto CLEANUP_INTERVAL{30s};
 static constexpr auto CLEANUP_SEEN_TIMEOUT{24h};
 //! How long to wait for islocks until we consider a block with non-islocked TXs to be safe to sign
 static constexpr auto WAIT_FOR_ISLOCK_TIMEOUT{10min};
@@ -43,8 +42,8 @@ bool AreChainLocksEnabled(const CSporkManager& sporkman)
     return sporkman.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED);
 }
 
-CChainLocksHandler::CChainLocksHandler(CChainState& chainstate, CQuorumManager& _qman, CSigningManager& _sigman,
-                                       CSporkManager& sporkman, CTxMemPool& _mempool, const CMasternodeSync& mn_sync) :
+CChainLocksHandler::CChainLocksHandler(CChainState& chainstate, CQuorumManager& _qman, CSporkManager& sporkman,
+                                       CTxMemPool& _mempool, const CMasternodeSync& mn_sync) :
     m_chainstate{chainstate},
     qman{_qman},
     spork_manager{sporkman},
@@ -135,7 +134,7 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
         }
 
         if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
-            // no need to process/relay older CLSIGs
+            // no need to process older/same CLSIGs
             return {};
         }
     }
@@ -154,6 +153,11 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
 
     {
         LOCK(cs);
+        // newer chainlock could be processed via another thread while we were not holding the lock, re-verify
+        if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+            // no need to process older/same CLSIGs
+            return {};
+        }
         bestChainLockHash = hash;
         bestChainLock = clsig;
 
@@ -433,14 +437,14 @@ bool CChainLocksHandler::HasConflictingChainLock(int nHeight, const uint256& blo
 
 void CChainLocksHandler::Cleanup()
 {
+    constexpr auto CLEANUP_INTERVAL{30s};
     if (!m_mn_sync.IsBlockchainSynced()) {
         return;
     }
 
-    if (GetTime<std::chrono::seconds>() - lastCleanupTime.load() < CLEANUP_INTERVAL) {
+    if (!cleanupThrottler.TryCleanup(CLEANUP_INTERVAL)) {
         return;
     }
-    lastCleanupTime = GetTime<std::chrono::seconds>();
 
     {
         LOCK(cs);

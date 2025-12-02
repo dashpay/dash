@@ -9,6 +9,10 @@
 #include <sync.h>
 
 class uint256;
+namespace util {
+struct DbWrapperParams;
+} // namespace util
+
 // "b_b" was used in the initial version of deterministic MN storage
 // "b_b2" was used after compact diffs were introduced
 // "b_b3" was used after masternode type introduction in evoDB
@@ -36,7 +40,7 @@ class CEvoDB
 public:
     Mutex cs;
 private:
-    CDBWrapper db;
+    std::unique_ptr<CDBWrapper> db;
 
     using RootTransaction = CDBTransaction<CDBWrapper, CDBBatch>;
     using CurTransaction = CDBTransaction<RootTransaction, RootTransaction>;
@@ -46,7 +50,11 @@ private:
     CurTransaction curDBTransaction;
 
 public:
-    explicit CEvoDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
+    CEvoDB() = delete;
+    CEvoDB(const CEvoDB&) = delete;
+    CEvoDB& operator=(const CEvoDB&) = delete;
+    explicit CEvoDB(const util::DbWrapperParams& db_params);
+    ~CEvoDB();
 
     std::unique_ptr<CEvoDBScopedCommitter> BeginTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
@@ -90,7 +98,7 @@ public:
 
     CDBWrapper& GetRawDB()
     {
-        return db;
+        return *db;
     }
 
     [[nodiscard]] size_t GetMemoryUsage() const
@@ -100,7 +108,7 @@ public:
 
     bool CommitRootTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    bool IsEmpty() { return db.IsEmpty(); }
+    bool IsEmpty() { return db->IsEmpty(); }
 
     bool VerifyBestBlock(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void WriteBestBlock(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);

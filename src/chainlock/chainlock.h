@@ -12,13 +12,18 @@
 #include <protocol.h>
 #include <saltedhasher.h>
 #include <sync.h>
+#include <util/time.h>
 
 #include <chainlock/signing.h>
 
 #include <gsl/pointers.h>
 
 #include <atomic>
+#include <cassert>
+#include <chrono>
 #include <map>
+#include <memory>
+#include <thread>
 #include <unordered_map>
 
 class CBlock;
@@ -63,11 +68,14 @@ private:
 
     std::map<uint256, std::chrono::seconds> seenChainLocks GUARDED_BY(cs);
 
-    std::atomic<std::chrono::seconds> lastCleanupTime{0s};
+    CleanupThrottler<NodeClock> cleanupThrottler;
 
 public:
-    explicit CChainLocksHandler(CChainState& chainstate, CQuorumManager& _qman, CSigningManager& _sigman,
-                                CSporkManager& sporkman, CTxMemPool& _mempool, const CMasternodeSync& mn_sync);
+    CChainLocksHandler() = delete;
+    CChainLocksHandler(const CChainLocksHandler&) = delete;
+    CChainLocksHandler& operator=(const CChainLocksHandler&) = delete;
+    explicit CChainLocksHandler(CChainState& chainstate, CQuorumManager& _qman, CSporkManager& sporkman,
+                                CTxMemPool& _mempool, const CMasternodeSync& mn_sync);
     ~CChainLocksHandler();
 
     void ConnectSigner(gsl::not_null<chainlock::ChainLockSigner*> signer)

@@ -23,11 +23,11 @@ int CG1ElementSize() {
     return bls::G1Element::SIZE;
 }
 
-CG1Element CG1ElementFromBytes(const void* data, bool* didErr) {
+CG1Element CG1ElementFromBytes(const void* data, size_t len, bool* didErr) {
     bls::G1Element* el = nullptr;
     try {
         el = new bls::G1Element(
-            bls::G1Element::FromBytes(bls::Bytes((uint8_t*)(data), bls::G1Element::SIZE))
+            bls::G1Element::FromBytes(bls::Bytes((uint8_t*)data, len))
         );
     } catch(const std::exception& ex) {
         gErrMsg = ex.what();
@@ -93,11 +93,11 @@ int CG2ElementSize() {
     return bls::G2Element::SIZE;
 }
 
-CG2Element CG2ElementFromBytes(const void* data, bool* didErr) {
+CG2Element CG2ElementFromBytes(const void* data, size_t len, bool* didErr) {
     bls::G2Element* el = nullptr;
     try {
         el = new bls::G2Element(
-            bls::G2Element::FromBytes(bls::Bytes((uint8_t*)data, bls::G2Element::SIZE))
+            bls::G2Element::FromBytes(bls::Bytes((uint8_t*)data, len))
         );
         *didErr = false;
     } catch(const std::exception& ex) {

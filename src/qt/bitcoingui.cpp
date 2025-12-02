@@ -44,6 +44,7 @@
 #include <validation.h>
 
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QComboBox>
@@ -393,6 +394,8 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(tr("&Change Passphrase…"), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
+    showMnemonicAction = new QAction(tr("&Show Recovery Phrase…"), this);
+    showMnemonicAction->setStatusTip(tr("Show the recovery phrase (mnemonic seed) for this wallet"));
     unlockWalletAction = new QAction(tr("&Unlock Wallet…"), this);
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
     lockWalletAction = new QAction(tr("&Lock Wallet"), this);
@@ -501,6 +504,7 @@ void BitcoinGUI::createActions()
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
+        connect(showMnemonicAction, &QAction::triggered, walletFrame, &WalletFrame::showMnemonic);
         connect(unlockWalletAction, &QAction::triggered, walletFrame, &WalletFrame::unlockWallet);
         connect(lockWalletAction, &QAction::triggered, walletFrame, &WalletFrame::lockWallet);
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
@@ -619,6 +623,7 @@ void BitcoinGUI::createMenuBar()
     {
         settings->addAction(encryptWalletAction);
         settings->addAction(changePassphraseAction);
+        settings->addAction(showMnemonicAction);
         settings->addAction(unlockWalletAction);
         settings->addAction(lockWalletAction);
         settings->addSeparator();
@@ -1039,6 +1044,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
+    showMnemonicAction->setEnabled(enabled);
     unlockWalletAction->setEnabled(enabled);
     lockWalletAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
@@ -1935,6 +1941,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         encryptWalletAction->setChecked(false);
         changePassphraseAction->setEnabled(false);
         encryptWalletAction->setEnabled(false);
+        showMnemonicAction->setEnabled(false);
         break;
     case WalletModel::Unencrypted:
         labelWalletEncryptionIcon->show();

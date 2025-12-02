@@ -123,23 +123,26 @@ public:
     static constexpr CAmount LimitAmountV22 = 2000 * COIN;
     static constexpr CAmount LimitAmountV24 = 4000 * COIN;
 
+    CCreditPoolManager() = delete;
+    CCreditPoolManager(const CCreditPoolManager&) = delete;
+    CCreditPoolManager& operator=(const CCreditPoolManager&) = delete;
     explicit CCreditPoolManager(CEvoDB& _evoDb);
-
-    ~CCreditPoolManager() = default;
+    ~CCreditPoolManager();
 
     /**
       * @return CCreditPool with data or with empty depends on activation V19 at that block
       * In case if block is invalid the function GetCreditPool throws an exception
       * it can happen if there limits of withdrawal (unlock) exceed
       */
-    CCreditPool GetCreditPool(const CBlockIndex* block, const Consensus::Params& consensusParams);
+    CCreditPool GetCreditPool(const CBlockIndex* block, const Consensus::Params& consensusParams)
+        EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
 
 private:
-    std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index);
-    void AddToCache(const uint256& block_hash, int height, const CCreditPool& pool);
+    std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
+    void AddToCache(const uint256& block_hash, int height, const CCreditPool& pool) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
 
     CCreditPool ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev,
-                                    const Consensus::Params& consensusParams);
+                                    const Consensus::Params& consensusParams) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
 };
 
 std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpoolman, const node::BlockManager& blockman, const llmq::CQuorumManager& qman,

@@ -395,7 +395,7 @@ std::string BCLog::Logger::LogTimestampStr(const std::string& str)
     if (m_started_new_line) {
         int64_t nTimeMicros = GetTimeMicros();
         strStamped = FormatISO8601DateTime(nTimeMicros/1000000);
-        if (m_log_time_micros) {
+        if (m_log_time_micros && !strStamped.empty()) {
             strStamped.pop_back();
             strStamped += strprintf(".%06dZ", nTimeMicros%1000000);
         }
@@ -462,8 +462,9 @@ void BCLog::Logger::LogPrintStr(const std::string& str, const std::string& loggi
     }
 
     if (m_log_threadnames && m_started_new_line) {
+        const auto& threadname = util::ThreadGetInternalName();
         // 16 chars total, "dash-" is 5 of them and another 1 is a NUL terminator
-        str_prefixed.insert(0, "[" + strprintf("%10s", util::ThreadGetInternalName()) + "] ");
+        str_prefixed.insert(0, "[" + strprintf("%10s", (threadname.empty() ? "unknown" : threadname)) + "] ");
     }
 
     str_prefixed = LogTimestampStr(str_prefixed);

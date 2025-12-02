@@ -12,7 +12,6 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <core_io.h>
-#include <evo/creditpool.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <key_io.h>
@@ -27,7 +26,6 @@
 #include <primitives/transaction.h>
 #include <psbt.h>
 #include <rpc/blockchain.h>
-#include <rpc/index_util.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
@@ -46,17 +44,23 @@
 #include <util/vector.h>
 #include <validation.h>
 #include <validationinterface.h>
-#include <util/irange.h>
 
 #include <chainlock/chainlock.h>
+#include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
+#include <evo/creditpool.h>
+#include <evo/mnhftx.h>
+#include <evo/providertx.h>
 #include <evo/specialtx.h>
-#include <instantsend/lock.h>
 #include <instantsend/instantsend.h>
+#include <instantsend/lock.h>
+#include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <rpc/index_util.h>
+#include <util/irange.h>
 
+#include <cstdint>
 #include <numeric>
-#include <stdint.h>
 
 #include <univalue.h>
 
@@ -144,8 +148,8 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
                 {RPCResult::Type::NUM, "vout", /*optional=*/true, "The output number (if not coinbase transaction)"},
                 {RPCResult::Type::OBJ, "scriptSig", /*optional=*/true, "The script (if not coinbase transaction)",
                 {
-                    {RPCResult::Type::STR, "asm", "asm"},
-                    {RPCResult::Type::STR_HEX, "hex", "hex"},
+                    {RPCResult::Type::STR, "asm", "Disassembly of the signature script"},
+                    {RPCResult::Type::STR_HEX, "hex", "The raw signature script bytes, hex-encoded"},
                 }},
                 {RPCResult::Type::NUM, "sequence", "The script sequence number"},
             }},
@@ -158,9 +162,9 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
                 {RPCResult::Type::NUM, "n", "index"},
                 {RPCResult::Type::OBJ, "scriptPubKey", "",
                 {
-                    {RPCResult::Type::STR, "asm", "the asm"},
+                    {RPCResult::Type::STR, "asm", "Disassembly of the public key script"},
                     {RPCResult::Type::STR, "desc", "Inferred descriptor for the output"},
-                    {RPCResult::Type::STR_HEX, "hex", "the hex"},
+                    {RPCResult::Type::STR_HEX, "hex", "The raw public key script bytes, hex-encoded"},
                     {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
                     {RPCResult::Type::STR, "address", /*optional=*/true, "The Dash address (only if a well-defined address exists)"},
                 }},
@@ -168,6 +172,15 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
         }},
         {RPCResult::Type::NUM, "extraPayloadSize", /*optional=*/true, "Size of DIP2 extra payload. Only present if it's a special TX"},
         {RPCResult::Type::STR_HEX, "extraPayload", /*optional=*/true, "Hex-encoded DIP2 extra payload data. Only present if it's a special TX"},
+        CProRegTx::GetJsonHelp(/*key=*/"proRegTx", /*optional=*/true),
+        CProUpServTx::GetJsonHelp(/*key=*/"proUpServTx", /*optional=*/true),
+        CProUpRegTx::GetJsonHelp(/*key=*/"proUpRegTx", /*optional=*/true),
+        CProUpRevTx::GetJsonHelp(/*key=*/"proUpRevTx", /*optional=*/true),
+        CCbTx::GetJsonHelp(/*key=*/"cbTx", /*optional=*/true),
+        llmq::CFinalCommitmentTxPayload::GetJsonHelp(/*key=*/"qcTx", /*optional=*/true),
+        MNHFTxPayload::GetJsonHelp(/*key=*/"mnhfTx", /*optional=*/true),
+        CAssetLockPayload::GetJsonHelp(/*key=*/"assetLockTx", /*optional=*/true),
+        CAssetUnlockPayload::GetJsonHelp(/*key=*/"assetUnlockTx", /*optional=*/true),
     };
 }
 
@@ -345,8 +358,19 @@ static RPCHelpMan getrawtransactionmulti() {
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false},
                      "If false, return a string, otherwise return a json object"},
             },
-            // TODO: replace RPCResults to proper annotation
-            RPCResults{},
+            RPCResult{
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {"If verbose is not set or set to false",
+                        RPCResult::Type::STR_HEX, "txid", "The serialized, hex-encoded data for 'txid'"},
+                    {"if verbose is set to true",
+                        RPCResult::Type::OBJ, "txid", "The decoded network-serialized transaction.",
+                        {
+                            {RPCResult::Type::ELISION, "", "The layout is the same as the output of getrawtransaction."},
+                        }},
+                    {"If tx is unknown", RPCResult::Type::STR, "txid", "None"},
+                },
+            },
             RPCExamples{
                     HelpExampleCli("getrawtransactionmulti",
                                    R"('{"blockhash1":["txid1","txid2"], "0":["txid3"]}')")
@@ -643,8 +667,9 @@ static RPCHelpMan getassetunlockstatuses()
     }
     else {
         const auto pBlockIndexBestCL = [&]() -> const CBlockIndex* {
-            if (!llmq_ctx.clhandler->GetBestChainLock().IsNull()) {
-                return pTipBlockIndex->GetAncestor(llmq_ctx.clhandler->GetBestChainLock().getHeight());
+            const auto best_clsig = llmq_ctx.clhandler->GetBestChainLock();
+            if (!best_clsig.IsNull()) {
+                return pTipBlockIndex->GetAncestor(best_clsig.getHeight());
             }
             // If no CL info is available, try to use CbTx CL information
             if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex)) {
@@ -897,7 +922,7 @@ static RPCHelpMan combinerawtransaction()
                 sigdata.MergeSignatureData(DataFromTransaction(txv, i, coin.out));
             }
         }
-        ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(&mergedTx, i, coin.out.nValue, 1), coin.out.scriptPubKey, sigdata);
+        ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(mergedTx, i, coin.out.nValue, 1), coin.out.scriptPubKey, sigdata);
 
         UpdateInput(txin, sigdata);
     }
@@ -1004,6 +1029,112 @@ static RPCHelpMan signrawtransactionwithkey()
     };
 }
 
+const RPCResult decodepsbt_inputs{
+    RPCResult::Type::ARR, "inputs", "",
+    {
+        {RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::OBJ, "non_witness_utxo", /*optional=*/true, "Decoded network transaction for non-witness UTXOs",
+            {
+                {RPCResult::Type::ELISION, "",""},
+            }},
+            {RPCResult::Type::OBJ_DYN, "partial_signatures", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "pubkey", "The public key and signature that corresponds to it."},
+            }},
+            {RPCResult::Type::STR, "sighash", /*optional=*/true, "The sighash type to be used"},
+            {RPCResult::Type::OBJ, "redeem_script", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "asm", "Disassembly of the redeem script"},
+                {RPCResult::Type::STR_HEX, "hex", "The raw redeem script bytes, hex-encoded"},
+                {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+            }},
+            {RPCResult::Type::ARR, "bip32_derivs", /*optional=*/true, "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR, "pubkey", "The public key with the derivation path as the value."},
+                    {RPCResult::Type::STR, "master_fingerprint", "The fingerprint of the master key"},
+                    {RPCResult::Type::STR, "path", "The path"},
+                }},
+            }},
+            {RPCResult::Type::OBJ, "final_scriptSig", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "asm", "Disassembly of the final signature script"},
+                {RPCResult::Type::STR_HEX, "hex", "The raw final signature script bytes, hex-encoded"},
+            }},
+            {RPCResult::Type::OBJ_DYN, "ripemd160_preimages", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
+            }},
+            {RPCResult::Type::OBJ_DYN, "sha256_preimages", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
+            }},
+            {RPCResult::Type::OBJ_DYN, "hash160_preimages", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
+            }},
+            {RPCResult::Type::OBJ_DYN, "hash256_preimages", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
+            }},
+            {RPCResult::Type::OBJ_DYN, "unknown", /*optional=*/true, "The unknown input fields",
+            {
+                {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
+            }},
+            {RPCResult::Type::ARR, "proprietary", /*optional=*/true, "The input proprietary map",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "identifier", "The hex string for the proprietary identifier"},
+                    {RPCResult::Type::NUM, "subtype", "The number for the subtype"},
+                    {RPCResult::Type::STR_HEX, "key", "The hex for the key"},
+                    {RPCResult::Type::STR_HEX, "value", "The hex for the value"},
+                }},
+            }},
+        }},
+    }
+};
+
+const RPCResult decodepsbt_outputs{
+    RPCResult::Type::ARR, "outputs", "",
+    {
+        {RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::OBJ, "redeem_script", /*optional=*/true, "",
+            {
+                {RPCResult::Type::STR, "asm", "Disassembly of the redeem script"},
+                {RPCResult::Type::STR_HEX, "hex", "The raw redeem script bytes, hex-encoded"},
+                {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+            }},
+            {RPCResult::Type::ARR, "bip32_derivs", /*optional=*/true, "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR, "pubkey", "The public key this path corresponds to"},
+                    {RPCResult::Type::STR, "master_fingerprint", "The fingerprint of the master key"},
+                    {RPCResult::Type::STR, "path", "The path"},
+                }},
+            }},
+            {RPCResult::Type::OBJ_DYN, "unknown", /*optional=*/true, "The unknown global fields",
+            {
+                {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
+            }},
+            {RPCResult::Type::ARR, "proprietary", /*optional=*/true, "The output proprietary map",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "identifier", "The hex string for the proprietary identifier"},
+                    {RPCResult::Type::NUM, "subtype", "The number for the subtype"},
+                    {RPCResult::Type::STR_HEX, "key", "The hex for the key"},
+                    {RPCResult::Type::STR_HEX, "value", "The hex for the value"},
+                }},
+            }},
+        }},
+    }
+};
+
 static RPCHelpMan decodepsbt()
 {
     return RPCHelpMan{
@@ -1043,106 +1174,8 @@ static RPCHelpMan decodepsbt()
                 {
                      {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
                 }},
-                {RPCResult::Type::ARR, "inputs", "",
-                {
-                    {RPCResult::Type::OBJ, "", "",
-                    {
-                        {RPCResult::Type::OBJ, "non_witness_utxo", /*optional=*/true, "Decoded network transaction for non-witness UTXOs",
-                        {
-                            {RPCResult::Type::ELISION, "",""},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "partial_signatures", /*optional=*/true, "",
-                        {
-                            {RPCResult::Type::STR, "pubkey", "The public key and signature that corresponds to it."},
-                        }},
-                        {RPCResult::Type::STR, "sighash", /*optional=*/true, "The sighash type to be used"},
-                        {RPCResult::Type::OBJ, "redeem_script", /*optional=*/true, "",
-                        {
-                            {RPCResult::Type::STR, "asm", "The asm"},
-                            {RPCResult::Type::STR_HEX, "hex", "The hex"},
-                            {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
-                        }},
-                        {RPCResult::Type::ARR, "bip32_derivs", /*optional=*/true, "",
-                        {
-                            {RPCResult::Type::OBJ, "", "",
-                            {
-                                {RPCResult::Type::STR, "pubkey", "The public key with the derivation path as the value."},
-                                {RPCResult::Type::STR, "master_fingerprint", "The fingerprint of the master key"},
-                                {RPCResult::Type::STR, "path", "The path"},
-                            }},
-                        }},
-                        {RPCResult::Type::OBJ, "final_scriptSig", /*optional=*/true, "",
-                        {
-                            {RPCResult::Type::STR, "asm", "The asm"},
-                            {RPCResult::Type::STR, "hex", "The hex"},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "ripemd160_preimages", /*optional=*/ true, "",
-                        {
-                            {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "sha256_preimages", /*optional=*/ true, "",
-                        {
-                            {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "hash160_preimages", /*optional=*/ true, "",
-                        {
-                            {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "hash256_preimages", /*optional=*/ true, "",
-                        {
-                            {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "unknown", /*optional=*/ true, "The unknown input fields",
-                        {
-                            {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
-                        }},
-                        {RPCResult::Type::ARR, "proprietary", /*optional=*/ true, "The input proprietary map",
-                        {
-                            {RPCResult::Type::OBJ, "", "",
-                            {
-                                {RPCResult::Type::STR_HEX, "identifier", "The hex string for the proprietary identifier"},
-                                {RPCResult::Type::NUM, "subtype", "The number for the subtype"},
-                                {RPCResult::Type::STR_HEX, "key", "The hex for the key"},
-                                {RPCResult::Type::STR_HEX, "value", "The hex for the value"},
-                            }},
-                        }},
-                    }},
-                }},
-                {RPCResult::Type::ARR, "outputs", "",
-                {
-                    {RPCResult::Type::OBJ, "", "",
-                    {
-                        {RPCResult::Type::OBJ, "redeem_script", /*optional=*/true, "",
-                        {
-                            {RPCResult::Type::STR, "asm", "The asm"},
-                            {RPCResult::Type::STR_HEX, "hex", "The hex"},
-                            {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
-                        }},
-                        {RPCResult::Type::ARR, "bip32_derivs", /*optional=*/true, "",
-                        {
-                            {RPCResult::Type::OBJ, "", "",
-                            {
-                                {RPCResult::Type::STR, "pubkey", "The public key this path corresponds to"},
-                                {RPCResult::Type::STR, "master_fingerprint", "The fingerprint of the master key"},
-                                {RPCResult::Type::STR, "path", "The path"},
-                            }},
-                        }},
-                        {RPCResult::Type::OBJ_DYN, "unknown", /*optional=*/true, "The unknown global fields",
-                        {
-                            {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
-                        }},
-                        {RPCResult::Type::ARR, "proprietary", /*optional=*/true, "The output proprietary map",
-                        {
-                            {RPCResult::Type::OBJ, "", "",
-                            {
-                                {RPCResult::Type::STR_HEX, "identifier", "The hex string for the proprietary identifier"},
-                                {RPCResult::Type::NUM, "subtype", "The number for the subtype"},
-                                {RPCResult::Type::STR_HEX, "key", "The hex for the key"},
-                                {RPCResult::Type::STR_HEX, "value", "The hex for the value"},
-                            }},
-                        }},
-                    }},
-                }},
+                decodepsbt_inputs,
+                decodepsbt_outputs,
                 {RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "The transaction fee paid if all UTXOs slots in the PSBT have been filled."},
             }
         },
@@ -1896,32 +1929,28 @@ static RPCHelpMan analyzepsbt()
     };
 }
 
-void RegisterRawTransactionRPCCommands(CRPCTable &t)
+void RegisterRawTransactionRPCCommands(CRPCTable& t)
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category               actor (function)
-  //  ---------------------  -----------------------
-    { "rawtransactions",     &getassetunlockstatuses,     },
-    { "rawtransactions",     &getrawtransaction,          },
-    { "rawtransactions",     &getrawtransactionmulti,     },
-    { "rawtransactions",     &getislocks,                 },
-    { "rawtransactions",     &gettxchainlocks,            },
-    { "rawtransactions",     &createrawtransaction,       },
-    { "rawtransactions",     &decoderawtransaction,       },
-    { "rawtransactions",     &decodescript,               },
-    { "rawtransactions",     &combinerawtransaction,      },
-    { "rawtransactions",     &signrawtransactionwithkey,  },
-    { "rawtransactions",     &decodepsbt,                 },
-    { "rawtransactions",     &combinepsbt,                },
-    { "rawtransactions",     &finalizepsbt,               },
-    { "rawtransactions",     &createpsbt,                 },
-    { "rawtransactions",     &converttopsbt,              },
-    { "rawtransactions",     &utxoupdatepsbt,             },
-    { "rawtransactions",     &joinpsbts,                  },
-    { "rawtransactions",     &analyzepsbt,                },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"rawtransactions", &getassetunlockstatuses},
+        {"rawtransactions", &getrawtransaction},
+        {"rawtransactions", &getrawtransactionmulti},
+        {"rawtransactions", &getislocks},
+        {"rawtransactions", &gettxchainlocks},
+        {"rawtransactions", &createrawtransaction},
+        {"rawtransactions", &decoderawtransaction},
+        {"rawtransactions", &decodescript},
+        {"rawtransactions", &combinerawtransaction},
+        {"rawtransactions", &signrawtransactionwithkey},
+        {"rawtransactions", &decodepsbt},
+        {"rawtransactions", &combinepsbt},
+        {"rawtransactions", &finalizepsbt},
+        {"rawtransactions", &createpsbt},
+        {"rawtransactions", &converttopsbt},
+        {"rawtransactions", &utxoupdatepsbt},
+        {"rawtransactions", &joinpsbts},
+        {"rawtransactions", &analyzepsbt},
+    };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
     }

@@ -6,12 +6,12 @@
 #include "../error.h"
 #include "bls.hpp"
 
-BIP32ExtendedPrivateKey BIP32ExtendedPrivateKeyFromBytes(const void* data, bool* didErr)
+BIP32ExtendedPrivateKey BIP32ExtendedPrivateKeyFromBytes(const void* data, size_t len, bool* didErr)
 {
     bls::ExtendedPrivateKey* el = nullptr;
     try {
         el = new bls::ExtendedPrivateKey(bls::ExtendedPrivateKey::FromBytes(
-            bls::Bytes((uint8_t*)(data), bls::ExtendedPrivateKey::SIZE)));
+            bls::Bytes((uint8_t*)data, len)));
     } catch (const std::exception& ex) {
         gErrMsg = ex.what();
         *didErr = true;
@@ -26,7 +26,7 @@ BIP32ExtendedPrivateKey BIP32ExtendedPrivateKeyFromSeed(const void* data, const 
     bls::ExtendedPrivateKey* el = nullptr;
     try {
         el = new bls::ExtendedPrivateKey(bls::ExtendedPrivateKey::FromSeed(
-            bls::Bytes((uint8_t*)(data), len)));
+            bls::Bytes((uint8_t*)data, len)));
     } catch (const std::exception& ex) {
         gErrMsg = ex.what();
         *didErr = true;

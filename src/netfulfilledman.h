@@ -50,7 +50,9 @@ private:
     bool is_valid{false};
 
 public:
-    explicit CNetFulfilledRequestManager();
+    CNetFulfilledRequestManager(const CNetFulfilledRequestManager&) = delete;
+    CNetFulfilledRequestManager& operator=(const CNetFulfilledRequestManager&) = delete;
+    CNetFulfilledRequestManager();
     ~CNetFulfilledRequestManager();
 
     bool LoadCache(bool load_cache);

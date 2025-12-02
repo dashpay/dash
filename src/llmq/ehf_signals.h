@@ -6,6 +6,7 @@
 #define BITCOIN_LLMQ_EHF_SIGNALS_H
 
 #include <llmq/signing.h>
+#include <msg_result.h>
 
 #include <set>
 

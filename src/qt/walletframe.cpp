@@ -62,9 +62,7 @@ WalletFrame::WalletFrame(QWidget* parent)
     walletStack->addWidget(governanceListPage);
 }
 
-WalletFrame::~WalletFrame()
-{
-}
+WalletFrame::~WalletFrame() = default;
 
 void WalletFrame::setClientModel(ClientModel *_clientModel)
 {
@@ -310,6 +308,13 @@ void WalletFrame::changePassphrase()
     WalletView *walletView = currentWalletView();
     if (walletView)
         walletView->changePassphrase();
+}
+
+void WalletFrame::showMnemonic()
+{
+    WalletView *walletView = currentWalletView();
+    if (walletView)
+        walletView->showMnemonic();
 }
 
 void WalletFrame::unlockWallet()

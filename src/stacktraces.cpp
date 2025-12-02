@@ -131,7 +131,7 @@ static backtrace_state* GetLibBacktraceState()
     // libbacktrace is not able to handle the DWARF debuglink in the .exe
     // but luckily we can just specify the .dbg file here as it's a valid PE/XCOFF file
     static std::string debugFileName = g_exeFileName + ".dbg";
-    static const char* exeFileNamePtr = fs::exists(debugFileName) ? debugFileName.c_str() : g_exeFileName.c_str();
+    static const char* exeFileNamePtr = fs::exists(fs::absolute(fs::PathFromString(debugFileName))) ? debugFileName.c_str() : g_exeFileName.c_str();
 #else
     static const char* exeFileNamePtr = g_exeFileName.empty() ? nullptr : g_exeFileName.c_str();
 #endif
@@ -167,9 +167,9 @@ static uint64_t ConvertAddress(uint64_t addr)
 static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t skip, size_t max_frames, const CONTEXT* pContext = nullptr)
 {
 #ifdef ENABLE_STACKTRACES
-    // We can't use libbacktrace for stack unwinding on Windows as it returns invalid addresses (like 0x1 or 0xffffffff)
-    static BOOL symInitialized = SymInitialize(GetCurrentProcess(), nullptr, TRUE);
+    volatile size_t skip_frames = skip;
 
+    // We can't use libbacktrace for stack unwinding on Windows as it returns invalid addresses (like 0x1 or 0xffffffff)
     // dbghelp is not thread safe
     static StdMutex m;
     StdLockGuard l(m);
@@ -207,7 +207,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
     stackframe.AddrStack.Offset = context.Rsp;
     stackframe.AddrStack.Mode = AddrModeFlat;
     if (!pContext) {
-        skip++; // skip this method
+        skip_frames = skip_frames + 1; // skip this method
     }
 #else
 #error unsupported architecture
@@ -225,7 +225,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
         if (!result) {
             break;
         }
-        if (i >= skip) {
+        if (i >= skip_frames) {
             uint64_t pc = ConvertAddress(stackframe.AddrPC.Offset);
             if (pc == 0) {
                 pc = stackframe.AddrPC.Offset;
@@ -428,7 +428,7 @@ std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
 {
     static uint64_t basePtr = GetBaseAddress();
 
-    auto opt_buf = DecodeBase32(ciStr.c_str());
+    auto opt_buf = DecodeBase32(ciStr);
     if (!opt_buf.has_value() || opt_buf->empty()) {
         return "Error while deserializing crash info";
     }
@@ -471,7 +471,13 @@ std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
 
 static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
 {
-    if (ci.stackframeInfos.empty()) {
+    // Check if we have any useful debug information at all
+    // libbacktrace may return stackframe_info entries but with empty filenames and functions
+    // when it can find the binary but can't resolve symbols
+    bool hasUsefulInfo = std::any_of(ci.stackframeInfos.begin(), ci.stackframeInfos.end(),
+                                     [](const auto& si) { return !si.filename.empty() || !si.function.empty(); });
+
+    if (!hasUsefulInfo) {
         return GetCrashInfoStrNoDebugInfo(ci);
     }
 

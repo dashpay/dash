@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <set>
 
@@ -26,21 +27,23 @@ using std::vector;
 
 namespace bls {
 
-static void HashPubKeys(bn_t* computedTs, std::vector<Bytes> vecPubKeyBytes)
+template <typename GetBytesFn>
+static void HashPubKeys(bn_t* computedTs, size_t nPubKeys, GetBytesFn getBytes)
 {
     bn_t order;
     bn_new(order);
     g2_get_ord(order);
 
-    std::vector<uint8_t> vecBuffer(vecPubKeyBytes.size() * G1Element::SIZE);
+    std::vector<uint8_t> vecBuffer(nPubKeys * G1Element::SIZE);
 
-    for (size_t i = 0; i < vecPubKeyBytes.size(); i++) {
-        memcpy(vecBuffer.data() + i * G1Element::SIZE, vecPubKeyBytes[i].begin(), G1Element::SIZE);
+    for (size_t i = 0; i < nPubKeys; i++) {
+        const uint8_t* pkBytes = getBytes(i);
+        memcpy(vecBuffer.data() + i * G1Element::SIZE, pkBytes, G1Element::SIZE);
     }
 
     uint8_t pkHash[32];
-    Util::Hash256(pkHash, vecBuffer.data(), vecPubKeyBytes.size() * G1Element::SIZE);
-    for (size_t i = 0; i < vecPubKeyBytes.size(); ++i) {
+    Util::Hash256(pkHash, vecBuffer.data(), nPubKeys * G1Element::SIZE);
+    for (size_t i = 0; i < nPubKeys; ++i) {
         uint8_t hash[32];
         uint8_t buffer[4 + 32];
         memset(buffer, 0, 4);
@@ -53,6 +56,7 @@ static void HashPubKeys(bn_t* computedTs, std::vector<Bytes> vecPubKeyBytes)
         bn_read_bin(computedTs[i], hash, 32);
         bn_mod_basic(computedTs[i], computedTs[i], order);
     }
+    bn_free(order);
 }
 
 enum InvariantResult { BAD=false, GOOD=true, CONTINUE };
@@ -133,39 +137,41 @@ bool CoreMPL::Verify(const G1Element& pubkey, const Bytes& message, const G2Elem
 {
     const G2Element hashedPoint = G2Element::FromMessage(message, (const uint8_t*)strCiphersuiteId.c_str(), strCiphersuiteId.length());
 
-    std::vector<g1_st> vecG1(2);
-    std::vector<g2_st> vecG2(2);
+    std::array<g1_t, 2> g1s;
+    std::array<g2_t, 2> g2s;
 
-    G1Element::Generator().Negate().ToNative(&vecG1[0]);
+    G1Element::Generator().Negate().ToNative(g1s[0]);
     if (!pubkey.IsValid()) {
         return false;
     }
     if (!signature.IsValid()) {
         return false;
     }
-    pubkey.ToNative(&vecG1[1]);
-    signature.ToNative(&vecG2[0]);
-    hashedPoint.ToNative(&vecG2[1]);
+    pubkey.ToNative(g1s[1]);
+    signature.ToNative(g2s[0]);
+    hashedPoint.ToNative(g2s[1]);
 
-    return CoreMPL::NativeVerify((g1_t*)vecG1.data(), (g2_t*)vecG2.data(), 2);
+    return CoreMPL::NativeVerify(g1s.data(), g2s.data(), 2);
 }
 
-vector<uint8_t> CoreMPL::Aggregate(const vector<vector<uint8_t>> &signatures)
+std::array<uint8_t, G2Element::SIZE> CoreMPL::Aggregate(const vector<vector<uint8_t>> &signatures)
 {
     vector<G2Element> elements;
+    elements.reserve(signatures.size());
     for (const vector<uint8_t>& signature : signatures) {
         elements.push_back(G2Element::FromByteVector(signature));
     }
-    return CoreMPL::Aggregate(elements).Serialize();
+    return CoreMPL::Aggregate(elements).SerializeToArray();
 }
 
-vector<uint8_t> CoreMPL::Aggregate(const vector<Bytes>& signatures)
+std::array<uint8_t, G2Element::SIZE> CoreMPL::Aggregate(const vector<Bytes>& signatures)
 {
     vector<G2Element> elements;
+    elements.reserve(signatures.size());
     for (const Bytes& signature : signatures) {
         elements.push_back(G2Element::FromBytes(signature));
     }
-    return CoreMPL::Aggregate(elements).Serialize();
+    return CoreMPL::Aggregate(elements).SerializeToArray();
 }
 
 G2Element CoreMPL::Aggregate(const vector<G2Element> &signatures)
@@ -195,22 +201,17 @@ G2Element CoreMPL::AggregateSecure(std::vector<G1Element> const &vecPublicKeys,
     }
 
     bn_t* computedTs = new bn_t[vecPublicKeys.size()];
-    std::vector<std::pair<vector<uint8_t>, const G2Element*>> vecSorted(vecPublicKeys.size());
+    std::vector<std::pair<std::array<uint8_t, G1Element::SIZE>, const G2Element*>> vecSorted(vecPublicKeys.size());
     for (size_t i = 0; i < vecPublicKeys.size(); i++) {
         bn_new(computedTs[i]);
-        vecSorted[i] = std::make_pair(vecPublicKeys[i].Serialize(fLegacy), &vecSignatures[i]);
+        vecSorted[i] = std::make_pair(vecPublicKeys[i].SerializeToArray(fLegacy), &vecSignatures[i]);
     }
     std::sort(vecSorted.begin(), vecSorted.end(), [](const auto& a, const auto& b) {
         return std::memcmp(a.first.data(), b.first.data(), G1Element::SIZE) < 0;
     });
 
-    std::vector<Bytes> vecPublicKeyBytes;
-    vecPublicKeyBytes.reserve(vecPublicKeys.size());
-    for (const auto& it : vecSorted) {
-        vecPublicKeyBytes.push_back(Bytes{it.first});
-    }
-
-    HashPubKeys(computedTs, vecPublicKeyBytes);
+    HashPubKeys(computedTs, vecSorted.size(),
+                [&](size_t i) { return vecSorted[i].first.data(); });
 
     // Raise all signatures to power of the corresponding t's and aggregate the results into aggSig
     // Also accumulates aggregation info for each signature
@@ -222,6 +223,9 @@ G2Element CoreMPL::AggregateSecure(std::vector<G1Element> const &vecPublicKeys,
 
     G2Element aggSig = CoreMPL::Aggregate(expSigs);
 
+    for (size_t i = 0; i < vecPublicKeys.size(); i++) {
+        bn_free(computedTs[i]);
+    }
     delete[] computedTs;
 
     return aggSig;
@@ -237,30 +241,28 @@ bool CoreMPL::VerifySecure(const std::vector<G1Element>& vecPublicKeys,
                            const G2Element& signature,
                            const Bytes& message,
                            const bool fLegacy) {
-    bn_t one;
-    bn_new(one);
-    bn_zero(one);
-    bn_set_dig(one, 1);
-
     bn_t* computedTs = new bn_t[vecPublicKeys.size()];
-    std::vector<vector<uint8_t>> vecSorted(vecPublicKeys.size());
+    std::vector<std::array<uint8_t, G1Element::SIZE>> vecSorted(vecPublicKeys.size());
     for (size_t i = 0; i < vecPublicKeys.size(); i++) {
         bn_new(computedTs[i]);
-        vecSorted[i] = vecPublicKeys[i].Serialize(fLegacy);
+        vecSorted[i] = vecPublicKeys[i].SerializeToArray(fLegacy);
     }
     std::sort(vecSorted.begin(), vecSorted.end(), [](const auto& a, const auto& b) -> bool {
         return std::memcmp(a.data(), b.data(), G1Element::SIZE) < 0;
     });
 
-    HashPubKeys(computedTs, {vecSorted.begin(), vecSorted.end()});
+    HashPubKeys(computedTs, vecSorted.size(),
+                [&](size_t i) { return vecSorted[i].data(); });
 
     G1Element publicKey;
     for (size_t i = 0; i < vecSorted.size(); ++i) {
         G1Element g1 = G1Element::FromBytes(Bytes(vecSorted[i]), fLegacy);
-        publicKey = CoreMPL::Aggregate({publicKey, g1 * computedTs[i]});
+        publicKey += g1 * computedTs[i];
     }
 
-    bn_free(one);
+    for (size_t i = 0; i < vecPublicKeys.size(); i++) {
+        bn_free(computedTs[i]);
+    }
     delete[] computedTs;
 
     return AggregateVerify({publicKey}, {message}, {signature});
@@ -293,6 +295,7 @@ bool CoreMPL::AggregateVerify(const vector<Bytes>& pubkeys,
     }
 
     vector<G1Element> pubkeyElements;
+    pubkeyElements.reserve(nPubKeys);
     for (size_t i = 0; i < nPubKeys; ++i) {
         pubkeyElements.push_back(G1Element::FromBytes(pubkeys[i]));
     }
@@ -573,14 +576,14 @@ bool AugSchemeMPL::AggregateVerify(const vector<G1Element>& pubkeys,
 G2Element PopSchemeMPL::PopProve(const PrivateKey &seckey)
 {
     const G1Element& pk = seckey.GetG1Element();
-    const G2Element hashedKey = G2Element::FromMessage(pk.Serialize(), (const uint8_t *)POP_CIPHERSUITE_ID.c_str(), POP_CIPHERSUITE_ID.length());
+    const G2Element hashedKey = G2Element::FromMessage(pk.SerializeToArray(), (const uint8_t *)POP_CIPHERSUITE_ID.c_str(), POP_CIPHERSUITE_ID.length());
     return seckey.GetG2Power(hashedKey);
 }
 
 
 bool PopSchemeMPL::PopVerify(const G1Element &pubkey, const G2Element &signature_proof)
 {
-    const G2Element hashedPoint = G2Element::FromMessage(pubkey.Serialize(), (const uint8_t*)POP_CIPHERSUITE_ID.c_str(), POP_CIPHERSUITE_ID.length());
+    const G2Element hashedPoint = G2Element::FromMessage(pubkey.SerializeToArray(), (const uint8_t*)POP_CIPHERSUITE_ID.c_str(), POP_CIPHERSUITE_ID.length());
 
     g1_t g1s[2];
     g2_t g2s[2];

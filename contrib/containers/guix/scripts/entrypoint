@@ -5,10 +5,21 @@ set -eo pipefail
 # Read instructions
 cat /etc/motd
 
+SERVERS=(
+  # Official substitution servers
+  https://berlin.guix.gnu.org
+  https://bordeaux.guix.gnu.org
+  https://ci.guix.gnu.org
+
+  # Mirrors of Bordeaux substitution server
+  https://bordeaux-singapore-mirror.cbaines.net
+  https://bordeaux-us-east-mirror.cbaines.net
+  https://hydra-guix-129.guix.gnu.org
+)
+
 # Start the Guix daemon
-sudo env PATH=${PATH} guix-daemon \
-  --build-users-group='guixbuild' \
-  --substitute-urls='https://bordeaux.guix.gnu.org https://ci.guix.gnu.org' < /dev/null 2>&1 |
+sudo env PATH=${PATH} \
+  guix-daemon --build-users-group='guixbuild' --substitute-urls="$(IFS=' '; echo "${SERVERS[*]}")" < /dev/null 2>&1 |
   sudo tee /var/log/guix.log > /dev/null &
 
 # Hand over control

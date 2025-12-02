@@ -23,6 +23,27 @@
 
 #include <univalue.h>
 
+CCoinJoinServer::CCoinJoinServer(ChainstateManager& chainman, CConnman& _connman, CDeterministicMNManager& dmnman,
+                                 CDSTXManager& dstxman, CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool,
+                                 PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
+                                 const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman) :
+    m_chainman{chainman},
+    connman{_connman},
+    m_dmnman{dmnman},
+    m_dstxman{dstxman},
+    m_mn_metaman{mn_metaman},
+    mempool{mempool},
+    m_peerman{peerman},
+    m_mn_activeman{mn_activeman},
+    m_mn_sync{mn_sync},
+    m_isman{isman},
+    vecSessionCollaterals{},
+    fUnitTest{false}
+{
+}
+
+CCoinJoinServer::~CCoinJoinServer() = default;
+
 MessageProcessingResult CCoinJoinServer::ProcessMessage(CNode& peer, std::string_view msg_type, CDataStream& vRecv)
 {
     if (!m_mn_sync.IsBlockchainSynced()) return {};
@@ -78,9 +99,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
             }
         }
 
-        int64_t nLastDsq = m_mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
-        int64_t nDsqThreshold = m_mn_metaman.GetDsqThreshold(dmn->proTxHash, mnList.GetValidMNsCount());
-        if (nLastDsq != 0 && nDsqThreshold > m_mn_metaman.GetDsqCount()) {
+        if (m_mn_metaman.IsMixingThresholdExceeded(dmn->proTxHash, mnList.GetValidMNsCount())) {
             if (fLogIPs) {
                 LogPrint(BCLog::COINJOIN, "DSACCEPT -- last dsq too recent, must wait: peer=%d, addr=%s\n",
                          peer.GetId(), peer.addr.ToStringAddrPort());
@@ -173,11 +192,8 @@ MessageProcessingResult CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream
     }
 
     if (!dsq.fReady) {
-        int64_t nLastDsq = m_mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
-        int64_t nDsqThreshold = m_mn_metaman.GetDsqThreshold(dmn->proTxHash, tip_mn_list.GetValidMNsCount());
-        LogPrint(BCLog::COINJOIN, "DSQUEUE -- nLastDsq: %d  nDsqThreshold: %d  nDsqCount: %d\n", nLastDsq, nDsqThreshold, m_mn_metaman.GetDsqCount());
         //don't allow a few nodes to dominate the queuing process
-        if (nLastDsq != 0 && nDsqThreshold > m_mn_metaman.GetDsqCount()) {
+        if (m_mn_metaman.IsMixingThresholdExceeded(dmn->proTxHash, tip_mn_list.GetValidMNsCount())) {
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- node sending too many dsq messages, masternode=%s\n", dmn->proTxHash.ToString());
             return ret;
         }
@@ -188,7 +204,7 @@ MessageProcessingResult CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream
         TRY_LOCK(cs_vecqueue, lockRecv);
         if (!lockRecv) return ret;
         vecCoinJoinQueue.push_back(dsq);
-        m_peerman.RelayDSQ(dsq);
+        ret.m_dsq.push_back(dsq);
     }
     return ret;
 }
@@ -345,7 +361,7 @@ void CCoinJoinServer::CommitFinalTransaction()
     if (!m_dstxman.GetDSTX(hashTx)) {
         CCoinJoinBroadcastTx dstxNew(finalTransaction, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(),
                                      GetAdjustedTime());
-        dstxNew.Sign(m_mn_activeman);
+        dstxNew.vchSig = m_mn_activeman.SignBasic(dstxNew.GetSignatureHash());
         m_dstxman.AddDSTX(dstxNew);
     }
 
@@ -504,7 +520,7 @@ void CCoinJoinServer::CheckForCompleteQueue()
                            GetAdjustedTime(), true);
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckForCompleteQueue -- queue is ready, signing and relaying (%s) " /* Continued */
                                      "with %d participants\n", dsq.ToString(), vecSessionCollaterals.size());
-        dsq.Sign(m_mn_activeman);
+        dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peerman.RelayDSQ(dsq);
         WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
     }
@@ -714,7 +730,7 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& 
         CCoinJoinQueue dsq(nSessionDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(),
                            GetAdjustedTime(), false);
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
-        dsq.Sign(m_mn_activeman);
+        dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peerman.RelayDSQ(dsq);
         LOCK(cs_vecqueue);
         vecCoinJoinQueue.push_back(dsq);

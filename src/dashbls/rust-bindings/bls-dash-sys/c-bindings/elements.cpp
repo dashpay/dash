@@ -23,11 +23,11 @@ int G1ElementSize() {
     return bls::G1Element::SIZE;
 }
 
-G1Element G1ElementFromBytes(const void* data, bool legacy, bool* didErr) {
+G1Element G1ElementFromBytes(const void* data, size_t len, bool legacy, bool* didErr) {
     bls::G1Element* el = nullptr;
     try {
         el = new bls::G1Element(
-            bls::G1Element::FromBytes(bls::Bytes((uint8_t*)(data), bls::G1Element::SIZE), legacy)
+            bls::G1Element::FromBytes(bls::Bytes((uint8_t*)data, len), legacy)
         );
     } catch(const std::exception& ex) {
         gErrMsg = ex.what();
@@ -97,11 +97,11 @@ int G2ElementSize() {
     return bls::G2Element::SIZE;
 }
 
-G2Element G2ElementFromBytes(const void* data, const bool legacy, bool* didErr) {
+G2Element G2ElementFromBytes(const void* data, size_t len, const bool legacy, bool* didErr) {
     bls::G2Element* el = nullptr;
     try {
         el = new bls::G2Element(
-            bls::G2Element::FromBytes(bls::Bytes((uint8_t*)data, bls::G2Element::SIZE), legacy)
+            bls::G2Element::FromBytes(bls::Bytes((uint8_t*)data, len), legacy)
         );
         *didErr = false;
     } catch(const std::exception& ex) {

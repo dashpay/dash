@@ -47,7 +47,7 @@ impl ExtendedPrivateKey {
         }
         Ok(ExtendedPrivateKey {
             c_extended_private_key: c_err_to_result(|did_err| unsafe {
-                BIP32ExtendedPrivateKeyFromBytes(bytes.as_ptr() as *const _, did_err)
+                BIP32ExtendedPrivateKeyFromBytes(bytes.as_ptr() as *const _, bytes.len(), did_err)
             })?,
         })
     }

@@ -15,12 +15,14 @@
 #include <validation.h>
 
 CMasternodeSync::CMasternodeSync(CConnman& _connman, CNetFulfilledRequestManager& netfulfilledman) :
-    nTimeAssetSyncStarted(GetTime()),
-    nTimeLastBumped(GetTime()),
-    connman(_connman),
-    m_netfulfilledman(netfulfilledman)
+    nTimeAssetSyncStarted{GetTime()},
+    nTimeLastBumped{GetTime()},
+    connman{_connman},
+    m_netfulfilledman{netfulfilledman}
 {
 }
+
+CMasternodeSync::~CMasternodeSync() = default;
 
 void CMasternodeSync::Reset(bool fForce, bool fNotifyReset)
 {

@@ -63,6 +63,9 @@ private:
     uint256 lastSignedMsgHash GUARDED_BY(cs_signer);
 
 public:
+    ChainLockSigner() = delete;
+    ChainLockSigner(const ChainLockSigner&) = delete;
+    ChainLockSigner& operator=(const ChainLockSigner&) = delete;
     explicit ChainLockSigner(CChainState& chainstate, ChainLockSignerParent& clhandler, llmq::CSigningManager& sigman,
                              llmq::CSigSharesManager& shareman, CSporkManager& sporkman, const CMasternodeSync& mn_sync);
     ~ChainLockSigner();

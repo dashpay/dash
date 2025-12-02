@@ -2,43 +2,42 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <coinjoin/coinjoin.h>
-#ifdef ENABLE_WALLET
-#include <coinjoin/client.h>
-#endif // ENABLE_WALLET
-#include <coinjoin/context.h>
+
 #include <dsnotificationinterface.h>
-#include <governance/governance.h>
-#include <masternode/sync.h>
+
+#include <util/check.h>
 #include <validation.h>
 
 #include <chainlock/chainlock.h>
+#include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
+#include <governance/governance.h>
 #include <instantsend/instantsend.h>
 #include <llmq/context.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/ehf_signals.h>
 #include <llmq/quorums.h>
+#include <masternode/sync.h>
 
 CDSNotificationInterface::CDSNotificationInterface(CConnman& connman,
+                                                   CDSTXManager& dstxman,
                                                    CMasternodeSync& mn_sync,
                                                    CGovernanceManager& govman,
-                                                   PeerManager& peerman,
                                                    const ChainstateManager& chainman,
-                                                   const CActiveMasternodeManager* const mn_activeman,
                                                    const std::unique_ptr<CDeterministicMNManager>& dmnman,
-                                                   const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                                   const std::unique_ptr<CJContext>& cj_ctx)
-  : m_connman(connman),
-    m_mn_sync(mn_sync),
-    m_govman(govman),
-    m_peerman(peerman),
-    m_chainman(chainman),
-    m_mn_activeman(mn_activeman),
-    m_dmnman(dmnman),
-    m_llmq_ctx(llmq_ctx),
-    m_cj_ctx(cj_ctx) {}
+                                                   const std::unique_ptr<LLMQContext>& llmq_ctx) :
+    m_connman{connman},
+    m_dstxman{dstxman},
+    m_mn_sync{mn_sync},
+    m_govman{govman},
+    m_chainman{chainman},
+    m_dmnman{dmnman},
+    m_llmq_ctx{llmq_ctx}
+{
+}
+
+CDSNotificationInterface::~CDSNotificationInterface() = default;
 
 void CDSNotificationInterface::InitializeCurrentBlockTip()
 {
@@ -48,9 +47,7 @@ void CDSNotificationInterface::InitializeCurrentBlockTip()
 
 void CDSNotificationInterface::AcceptedBlockHeader(const CBlockIndex *pindexNew)
 {
-    assert(m_llmq_ctx);
-
-    m_llmq_ctx->clhandler->AcceptedBlockHeader(pindexNew);
+    Assert(m_llmq_ctx)->clhandler->AcceptedBlockHeader(pindexNew);
     m_mn_sync.AcceptedBlockHeader(pindexNew);
 }
 
@@ -61,18 +58,14 @@ void CDSNotificationInterface::NotifyHeaderTip(const CBlockIndex *pindexNew, boo
 
 void CDSNotificationInterface::SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload)
 {
-    assert(m_dmnman);
-
     if (pindexNew == pindexFork) // blocks were disconnected without any new ones
         return;
 
-    m_dmnman->UpdatedBlockTip(pindexNew);
+    Assert(m_dmnman)->UpdatedBlockTip(pindexNew);
 }
 
 void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload)
 {
-    assert(m_cj_ctx && m_llmq_ctx);
-
     if (pindexNew == pindexFork) // blocks were disconnected without any new ones
         return;
 
@@ -81,57 +74,44 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     if (fInitialDownload)
         return;
 
-    m_cj_ctx->dstxman->UpdatedBlockTip(pindexNew, *m_llmq_ctx->clhandler, m_mn_sync);
-#ifdef ENABLE_WALLET
-    m_cj_ctx->walletman->ForEachCJClientMan(
-        [&pindexNew](std::unique_ptr<CCoinJoinClientManager>& clientman) { clientman->UpdatedBlockTip(pindexNew); });
-#endif // ENABLE_WALLET
+    m_dstxman.UpdatedBlockTip(pindexNew, *Assert(m_llmq_ctx)->clhandler, m_mn_sync);
 
     m_llmq_ctx->isman->UpdatedBlockTip(pindexNew);
     m_llmq_ctx->clhandler->UpdatedBlockTip(*m_llmq_ctx->isman);
-
-    m_llmq_ctx->qman->UpdatedBlockTip(pindexNew, m_connman, fInitialDownload);
     m_llmq_ctx->qdkgsman->UpdatedBlockTip(pindexNew, fInitialDownload);
+    m_llmq_ctx->qman->UpdatedBlockTip(pindexNew, m_connman, fInitialDownload);
 
     if (m_govman.IsValid()) {
-        m_govman.UpdatedBlockTip(pindexNew, m_connman, m_peerman, m_mn_activeman);
+        m_govman.UpdatedBlockTip(pindexNew);
     }
 }
 
 void CDSNotificationInterface::TransactionAddedToMempool(const CTransactionRef& ptx, int64_t nAcceptTime,
                                                          uint64_t mempool_sequence)
 {
-    assert(m_cj_ctx && m_llmq_ctx);
-
-    m_llmq_ctx->isman->TransactionAddedToMempool(ptx);
+    Assert(m_llmq_ctx)->isman->TransactionAddedToMempool(ptx);
     m_llmq_ctx->clhandler->TransactionAddedToMempool(ptx, nAcceptTime);
-    m_cj_ctx->dstxman->TransactionAddedToMempool(ptx);
+    m_dstxman.TransactionAddedToMempool(ptx);
 }
 
 void CDSNotificationInterface::TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason,
                                                              uint64_t mempool_sequence)
 {
-    assert(m_llmq_ctx);
-
-    m_llmq_ctx->isman->TransactionRemovedFromMempool(ptx);
+    Assert(m_llmq_ctx)->isman->TransactionRemovedFromMempool(ptx);
 }
 
 void CDSNotificationInterface::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
-    assert(m_cj_ctx && m_llmq_ctx);
-
-    m_llmq_ctx->isman->BlockConnected(pblock, pindex);
+    Assert(m_llmq_ctx)->isman->BlockConnected(pblock, pindex);
     m_llmq_ctx->clhandler->BlockConnected(pblock, pindex);
-    m_cj_ctx->dstxman->BlockConnected(pblock, pindex);
+    m_dstxman.BlockConnected(pblock, pindex);
 }
 
 void CDSNotificationInterface::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
 {
-    assert(m_cj_ctx && m_llmq_ctx);
-
-    m_llmq_ctx->isman->BlockDisconnected(pblock, pindexDisconnected);
+    Assert(m_llmq_ctx)->isman->BlockDisconnected(pblock, pindexDisconnected);
     m_llmq_ctx->clhandler->BlockDisconnected(pblock, pindexDisconnected);
-    m_cj_ctx->dstxman->BlockDisconnected(pblock, pindexDisconnected);
+    m_dstxman.BlockDisconnected(pblock, pindexDisconnected);
 }
 
 void CDSNotificationInterface::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff)
@@ -145,10 +125,8 @@ void CDSNotificationInterface::NotifyMasternodeListChanged(bool undo, const CDet
 void CDSNotificationInterface::NotifyChainLock(const CBlockIndex* pindex,
                                                const std::shared_ptr<const chainlock::ChainLockSig>& clsig)
 {
-    assert(m_cj_ctx && m_llmq_ctx);
-
-    m_llmq_ctx->isman->NotifyChainLock(pindex);
-    m_cj_ctx->dstxman->NotifyChainLock(pindex, *m_llmq_ctx->clhandler, m_mn_sync);
+    Assert(m_llmq_ctx)->isman->NotifyChainLock(pindex);
+    m_dstxman.NotifyChainLock(pindex, *m_llmq_ctx->clhandler, m_mn_sync);
 }
 
 std::unique_ptr<CDSNotificationInterface> g_ds_notification_interface;

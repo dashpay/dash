@@ -99,7 +99,7 @@ class RESTTest (BitcoinTestFramework):
         self.wallet.rescan_utxos()
 
         self.log.info("Broadcast test transaction and sync nodes")
-        txid, _ = self.wallet.send_to(from_node=self.nodes[0], scriptPubKey=getnewdestination()[1], amount=int(0.1 * COIN))
+        txid = self.wallet.send_to(from_node=self.nodes[0], scriptPubKey=getnewdestination()[1], amount=int(0.1 * COIN))["txid"]
         self.sync_all()
 
         self.log.info("Test the /tx URI")
@@ -177,7 +177,7 @@ class RESTTest (BitcoinTestFramework):
         # found with or without /checkmempool.
 
         # do a tx and don't sync
-        txid, _ = self.wallet.send_to(from_node=self.nodes[0], scriptPubKey=getnewdestination()[1], amount=int(0.1 * COIN))
+        txid = self.wallet.send_to(from_node=self.nodes[0], scriptPubKey=getnewdestination()[1], amount=int(0.1 * COIN))["txid"]
         json_obj = self.test_rest_request(f"/tx/{txid}")
         # get the spent output to later check for utxo (should be spent by then)
         spent = (json_obj['vin'][0]['txid'], json_obj['vin'][0]['vout'])
@@ -336,6 +336,9 @@ class RESTTest (BitcoinTestFramework):
         assert_greater_than(json_obj['bytes'], 240)
 
         mempool_info = self.nodes[0].getmempoolinfo()
+        # pop unstable unbroadcastcount before check
+        for obj in [json_obj, mempool_info]:
+            obj.pop("unbroadcastcount")
         assert_equal(json_obj, mempool_info)
 
         # Check that there are our submitted transactions in the TX memory pool

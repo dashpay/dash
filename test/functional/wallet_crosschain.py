@@ -5,6 +5,7 @@
 
 import os
 
+from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
 
@@ -21,7 +22,7 @@ class WalletCrossChain(BitcoinTestFramework):
 
         # Switch node 1 to testnet before starting it.
         self.nodes[1].chain = 'testnet3'
-        self.nodes[1].extra_args = ['-maxconnections=0'] # disable testnet sync
+        self.nodes[1].extra_args = ['-maxconnections=0', '-prune=945'] # disable testnet sync
         with open(self.nodes[1].bitcoinconf, 'r', encoding='utf8') as conf:
             conf_data = conf.read()
         with open (self.nodes[1].bitcoinconf, 'w', encoding='utf8') as conf:
@@ -58,11 +59,14 @@ class WalletCrossChain(BitcoinTestFramework):
 
         if not self.options.descriptors:
             self.log.info("Override cross-chain wallet load protection")
+            self.nodes[1].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
             self.stop_nodes()
-            self.start_nodes([['-walletcrosschain']] * self.num_nodes)
+            self.start_nodes([['-walletcrosschain', '-prune=945']] * self.num_nodes)
             self.nodes[0].loadwallet(node1_wallet)
             self.nodes[1].loadwallet(node0_wallet)
 
+        for idx in range(self.num_nodes):
+            self.nodes[idx].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE if not self.options.descriptors or (self.options.descriptors and idx == 1) else "")
 
 if __name__ == '__main__':
     WalletCrossChain().main()

@@ -33,12 +33,12 @@ if [ -z "${SKIP_PYTHON_INSTALL}" ]; then
     python3 --version
 fi
 
-${CI_RETRY_EXE} pip3 install codespell==2.0.0
-${CI_RETRY_EXE} pip3 install flake8==3.8.3
+${CI_RETRY_EXE} pip3 install codespell==2.2.1
+${CI_RETRY_EXE} pip3 install flake8==4.0.1
 ${CI_RETRY_EXE} pip3 install lief==0.13.1
-${CI_RETRY_EXE} pip3 install mypy==0.910
-${CI_RETRY_EXE} pip3 install pyzmq==22.3.0
-${CI_RETRY_EXE} pip3 install vulture==2.3
+${CI_RETRY_EXE} pip3 install mypy==0.981
+${CI_RETRY_EXE} pip3 install pyzmq==24.0.1
+${CI_RETRY_EXE} pip3 install vulture==2.6
 
 SHELLCHECK_VERSION=v0.8.0
 curl -sL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" | \

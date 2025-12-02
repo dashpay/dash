@@ -15,6 +15,7 @@ extern "C" {
 
     pub fn G1ElementFromBytes(
         data: *const ::std::os::raw::c_void,
+        len: usize,
         legacy: bool,
         didErr: *mut bool,
     ) -> G1Element;
@@ -43,6 +44,7 @@ extern "C" {
 
     pub fn G2ElementFromBytes(
         data: *const ::std::os::raw::c_void,
+        len: usize,
         legacy: bool,
         didErr: *mut bool,
     ) -> G2Element;
@@ -67,6 +69,7 @@ extern "C" {
 
     pub fn PrivateKeyFromBytes(
         data: *const ::std::os::raw::c_void,
+        len: usize,
         modOrder: bool,
         didErr: *mut bool,
     ) -> PrivateKey;
@@ -355,6 +358,7 @@ extern "C" {
 
     pub fn BIP32ExtendedPublicKeyFromBytes(
         data: *const ::std::os::raw::c_void,
+        len: usize,
         legacy: bool,
         didErr: *mut bool,
     ) -> BIP32ExtendedPublicKey;
@@ -385,6 +389,7 @@ extern "C" {
 
     pub fn BIP32ExtendedPrivateKeyFromBytes(
         data: *const ::std::os::raw::c_void,
+        len: usize,
         didErr: *mut bool,
     ) -> BIP32ExtendedPrivateKey;
 

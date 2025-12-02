@@ -15,6 +15,7 @@
 #ifndef SRC_BLSSCHEMES_HPP_
 #define SRC_BLSSCHEMES_HPP_
 
+#include <array>
 #include <iostream>
 #include <vector>
 
@@ -65,8 +66,8 @@ public:
 
     virtual bool Verify(const G1Element& pubkey, const Bytes& message, const G2Element& signature);
 
-    virtual vector<uint8_t> Aggregate(const vector<vector<uint8_t>> &signatures);
-    virtual vector<uint8_t> Aggregate(const vector<Bytes>& signatures);
+    virtual std::array<uint8_t, G2Element::SIZE> Aggregate(const vector<vector<uint8_t>> &signatures);
+    virtual std::array<uint8_t, G2Element::SIZE> Aggregate(const vector<Bytes>& signatures);
 
     virtual G2Element Aggregate(const vector<G2Element> &signatures);
 
@@ -243,7 +244,7 @@ public:
     bool Verify(const Bytes& pubkey, const Bytes& message, const Bytes& signature) final { throw std::runtime_error("Not supported in LegacySchemeMPL"); }
     bool Verify(const G1Element &pubkey, const Bytes& message, const G2Element &signature) final;
 
-    vector<uint8_t> Aggregate(const vector<vector<uint8_t>> &signatures) final { throw std::runtime_error("Not supported in LegacySchemeMPL"); }
+    std::array<uint8_t, G2Element::SIZE> Aggregate(const vector<vector<uint8_t>> &signatures) final { throw std::runtime_error("Not supported in LegacySchemeMPL"); }
 
     G2Element AggregateSecure(const std::vector<G1Element>& vecPublicKeys,
                               const std::vector<G2Element>& vecSignatures,

@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <coinjoin/context.h>
 #include <coinjoin/server.h>
+#include <coinjoin/walletman.h>
 #include <masternode/active/context.h>
 #include <node/context.h>
 #include <rpc/server.h>
@@ -15,7 +15,6 @@
 #include <walletinitinterface.h>
 
 #ifdef ENABLE_WALLET
-#include <coinjoin/client.h>
 #include <coinjoin/options.h>
 #include <interfaces/coinjoin.h>
 #endif // ENABLE_WALLET
@@ -59,7 +58,7 @@ static RPCHelpMan coinjoin()
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -83,7 +82,7 @@ static RPCHelpMan coinjoin_reset()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
 
@@ -117,7 +116,7 @@ static RPCHelpMan coinjoin_start()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
 
@@ -158,7 +157,7 @@ static RPCHelpMan coinjoin_status()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
 
@@ -174,7 +173,7 @@ static RPCHelpMan coinjoin_status()
     }
 
     UniValue ret(UniValue::VARR);
-    for (auto str_status : cj_clientman->getSessionStatuses()) {
+    for (const auto& str_status : cj_clientman->getSessionStatuses()) {
         ret.push_back(str_status);
     }
     return ret;
@@ -197,7 +196,7 @@ static RPCHelpMan coinjoin_stop()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
 
@@ -231,7 +230,7 @@ static RPCHelpMan coinjoinsalt()
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
-        RPCResults{},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -258,7 +257,7 @@ static RPCHelpMan coinjoinsalt_generate()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const auto str_wallet = wallet->GetName();
     if (wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
@@ -322,7 +321,7 @@ static RPCHelpMan coinjoinsalt_get()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const auto str_wallet = wallet->GetName();
     if (wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
@@ -360,7 +359,7 @@ static RPCHelpMan coinjoinsalt_set()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return UniValue::VNULL;
 
     const auto salt{ParseHashV(request.params[0], "salt")};
     if (salt == uint256::ZERO) {
@@ -473,8 +472,10 @@ static RPCHelpMan getcoinjoininfo()
 #ifdef ENABLE_WALLET
     CCoinJoinClientOptions::GetJsonInfo(obj);
 
-    if (node.cj_ctx->queueman) {
-        obj.pushKV("queue_size", node.cj_ctx->queueman->GetQueueSize());
+    if (node.cj_walletman) {
+        if (auto queue_size = node.cj_walletman->getQueueSize()) {
+            obj.pushKV("queue_size", queue_size.value());
+        }
     }
 
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
@@ -503,35 +504,27 @@ static RPCHelpMan getcoinjoininfo()
 #ifdef ENABLE_WALLET
 Span<const CRPCCommand> GetWalletCoinJoinRPCCommands()
 {
-// clang-format off
-static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  --------------------- -----------------------
-    { "dash",                &coinjoin,               },
-    { "dash",                &coinjoin_reset,         },
-    { "dash",                &coinjoin_start,         },
-    { "dash",                &coinjoin_status,        },
-    { "dash",                &coinjoin_stop,          },
-    { "dash",                &coinjoinsalt,           },
-    { "dash",                &coinjoinsalt_generate,  },
-    { "dash",                &coinjoinsalt_get,       },
-    { "dash",                &coinjoinsalt_set,       },
-    { "dash",                &getcoinjoininfo,        },
-};
-// clang-format on
+    static const CRPCCommand commands[]{
+        {"dash", &coinjoin},
+        {"dash", &coinjoin_reset},
+        {"dash", &coinjoin_start},
+        {"dash", &coinjoin_status},
+        {"dash", &coinjoin_stop},
+        {"dash", &coinjoinsalt},
+        {"dash", &coinjoinsalt_generate},
+        {"dash", &coinjoinsalt_get},
+        {"dash", &coinjoinsalt_set},
+        {"dash", &getcoinjoininfo},
+    };
     return commands;
 }
 #endif // ENABLE_WALLET
 
 void RegisterCoinJoinRPCCommands(CRPCTable& t)
 {
-// clang-format off
-static const CRPCCommand commands_wallet[] =
-{ //  category               actor (function)
-  //  ---------------------  -----------------------
-    { "dash",                &getcoinjoininfo,        },
-};
-// clang-format on
+    static const CRPCCommand commands_wallet[]{
+        {"dash", &getcoinjoininfo},
+    };
     // If we aren't compiling with wallet support, we still need to register RPCs that are
     // capable of working without wallet support. We have to do this even if wallet support
     // is compiled in but is disabled at runtime because runtime disablement prohibits

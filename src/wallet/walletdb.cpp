@@ -340,8 +340,7 @@ public:
     std::map<std::pair<uint256, CKeyID>, std::pair<std::vector<unsigned char>, std::vector<unsigned char>>> crypted_mnemonics;
     bool tx_corrupt{false};
 
-    CWalletScanState() {
-    }
+    CWalletScanState() = default;
 };
 
 static bool
@@ -573,9 +572,10 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CHDChain chain;
             ssValue >> chain;
             assert ((strType == DBKeys::CRYPTED_HDCHAIN) == chain.IsCrypted());
-            if (!pwallet->GetOrCreateLegacyScriptPubKeyMan()->LoadHDChain(chain))
-            {
-                strErr = "Error reading wallet database: SetHDChain failed";
+            // Skip encryption check during loading as MASTER_KEY records may not be loaded yet.
+            // Consistency will be validated after all records are loaded.
+            if (!pwallet->GetOrCreateLegacyScriptPubKeyMan()->LoadHDChain(chain, /*skip_encryption_check=*/true)) {
+                strErr = "Error reading wallet database: LoadHDChain failed";
                 return false;
             }
         } else if (strType == DBKeys::HDPUBKEY) {
@@ -820,6 +820,13 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
             }
         }
 
+#ifndef ENABLE_EXTERNAL_SIGNER
+        if (pwallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER)) {
+            pwallet->WalletLogPrintf("Error: External signer wallet being loaded without external signer support compiled\n");
+            return DBErrors::EXTERNAL_SIGNER_SUPPORT_REQUIRED;
+        }
+#endif
+
         // Get cursor
         if (!m_batch->StartCursor())
         {
@@ -876,6 +883,23 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
     }
     m_batch->CloseCursor();
 
+    // Validate HD chain encryption consistency now that all data is loaded
+    if (auto spk_man = pwallet->GetLegacyScriptPubKeyMan()) {
+        CHDChain hdChain;
+        if (spk_man->GetHDChain(hdChain)) {
+            // If HD chain exists, validate encryption consistency
+            bool fHasMasterKeys = pwallet->HasEncryptionKeys();
+            bool fChainCrypted = hdChain.IsCrypted();
+
+            if (fHasMasterKeys != fChainCrypted) {
+                pwallet->WalletLogPrintf("Error: HD chain encryption state (%s) inconsistent with wallet encryption state (%s)\n",
+                    fChainCrypted ? "encrypted" : "not encrypted",
+                    fHasMasterKeys ? "encrypted" : "not encrypted");
+                return DBErrors::CORRUPT;
+            }
+        }
+    }
+
     // Set the active ScriptPubKeyMans
     for (auto spk_man : wss.m_active_external_spks) {
         pwallet->LoadActiveScriptPubKeyMan(spk_man.second, /*internal=*/false);
@@ -885,14 +909,14 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
     }
 
     // Set the descriptor caches
-    for (auto desc_cache_pair : wss.m_descriptor_caches) {
+    for (const auto& desc_cache_pair : wss.m_descriptor_caches) {
         auto spk_man = pwallet->GetScriptPubKeyMan(desc_cache_pair.first);
         assert(spk_man);
         ((DescriptorScriptPubKeyMan*)spk_man)->SetCache(desc_cache_pair.second);
     }
 
     // Set the descriptor keys
-    for (auto desc_key_pair : wss.m_descriptor_keys) {
+    for (const auto& desc_key_pair : wss.m_descriptor_keys) {
         auto spk_man = pwallet->GetScriptPubKeyMan(desc_key_pair.first.first);
         auto it = wss.mnemonics.find(desc_key_pair.first);
         if (it == wss.mnemonics.end()) {
@@ -902,7 +926,7 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
         }
     }
 
-    for (auto desc_key_pair : wss.m_descriptor_crypt_keys) {
+    for (const auto& desc_key_pair : wss.m_descriptor_crypt_keys) {
         auto spk_man = pwallet->GetScriptPubKeyMan(desc_key_pair.first.first);
         auto it = wss.crypted_mnemonics.find(desc_key_pair.first);
         if (it == wss.crypted_mnemonics.end()) {

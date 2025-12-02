@@ -8,6 +8,8 @@
 #include <instantsend/lock.h>
 #include <llmq/signing.h>
 
+#include <optional>
+
 class CMasternodeSync;
 class CSporkManager;
 class CTxMemPool;
@@ -34,6 +36,8 @@ public:
     virtual bool IsLocked(const uint256& txHash) const = 0;
     virtual InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const = 0;
     virtual void TryEmplacePendingLock(const uint256& hash, const NodeId id, const InstantSendLockPtr& islock) = 0;
+    virtual std::optional<int> GetBlockHeight(const uint256& hash) const = 0;
+    virtual int GetTipHeight() const = 0;
 };
 
 class InstantSendSigner final : public llmq::CRecoveredSigsListener
@@ -69,6 +73,9 @@ private:
     Uint256HashMap<InstantSendLock*> txToCreatingInstantSendLocks GUARDED_BY(cs_creating);
 
 public:
+    InstantSendSigner() = delete;
+    InstantSendSigner(const InstantSendSigner&) = delete;
+    InstantSendSigner& operator=(const InstantSendSigner&) = delete;
     explicit InstantSendSigner(CChainState& chainstate, llmq::CChainLocksHandler& clhandler,
                                InstantSendSignerParent& isman, llmq::CSigningManager& sigman,
                                llmq::CSigSharesManager& shareman, llmq::CQuorumManager& qman, CSporkManager& sporkman,

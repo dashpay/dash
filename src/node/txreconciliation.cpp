@@ -15,7 +15,7 @@ namespace {
 
 /** Static salt component used to compute short txids for sketch construction, see BIP-330. */
 const std::string RECON_STATIC_SALT = "Tx Relay Salting";
-const CHashWriter RECON_SALT_HASHER = TaggedHash(RECON_STATIC_SALT);
+const HashWriter RECON_SALT_HASHER = TaggedHash(RECON_STATIC_SALT);
 
 /**
  * Salt (specified by BIP-330) constructed from contributions from both peers. It is used
