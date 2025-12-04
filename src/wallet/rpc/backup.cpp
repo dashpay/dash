@@ -92,7 +92,7 @@ RPCHelpMan importprivkey()
     "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
     "may report that the imported key exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
     "The rescan parameter can be set to false if the key was never used to create transactions. If it is set to false,\n"
-    "but the key was used to create transactions, rescanwallet needs to be called with the appropriate block range.\n"
+    "but the key was used to create transactions, rescanblockchain needs to be called with the appropriate block range.\n"
     "Note: This command is only compatible with legacy wallets. Use \"importdescriptors\" with \"combo(X)\" for descriptor wallets.\n",
         {
             {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The private key (see dumpprivkey)"},
@@ -211,7 +211,7 @@ RPCHelpMan importaddress()
     "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
     "may report that the imported address exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
     "The rescan parameter can be set to false if the key was never used to create transactions. If it is set to false,\n"
-    "but the key was used to create transactions, rescanwallet needs to be called with the appropriate block range.\n"
+    "but the key was used to create transactions, rescanblockchain needs to be called with the appropriate block range.\n"
     "If you have the full public key, you should call importpubkey instead of this.\n"
     "Hint: use importmulti to import more than one address.\n"
     "\nNote: If you import a non-standard raw script in hex form, outputs sending to it will be treated\n"
@@ -409,7 +409,7 @@ RPCHelpMan importpubkey()
     "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
     "may report that the imported pubkey exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
     "The rescan parameter can be set to false if the key was never used to create transactions. If it is set to false,\n"
-    "but the key was used to create transactions, rescanwallet needs to be called with the appropriate block range.\n"
+    "but the key was used to create transactions, rescanblockchain needs to be called with the appropriate block range.\n"
     "Note: This command is only compatible with legacy wallets. Use \"importdescriptors\" with \"combo(X)\" for descriptor wallets.\n",
         {
             {"pubkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The hex-encoded public key"},
@@ -1482,7 +1482,7 @@ RPCHelpMan importmulti()
         "If an address/script is imported without all of the private keys required to spend from that address, it will be watchonly. The 'watchonly' option must be set to true in this case or a warning will be returned.\n"
         "Conversely, if all the private keys are provided and the address/script is spendable, the watchonly option must be set to false, or a warning will be returned.\n"
         "The rescan parameter can be set to false if the key was never used to create transactions. If it is set to false,\n"
-        "but the key was used to create transactions, rescanwallet needs to be called with the appropriate block range.\n"
+        "but the key was used to create transactions, rescanblockchain needs to be called with the appropriate block range.\n"
         "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
         "may report that the imported keys, addresses or scripts exists but related transactions are still missing.\n"
         "Note: This command is only compatible with legacy wallets. Use \"importdescriptors\" for descriptor wallets.\n",
