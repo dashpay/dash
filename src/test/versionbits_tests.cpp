@@ -7,7 +7,6 @@
 #include <consensus/params.h>
 #include <deploymentstatus.h>
 #include <test/util/setup_common.h>
-#include <validation.h>
 #include <versionbits.h>
 
 #include <boost/test/unit_test.hpp>
@@ -185,7 +184,7 @@ public:
     CBlockIndex* Tip() { return vpblock.empty() ? nullptr : vpblock.back(); }
 };
 
-BOOST_FIXTURE_TEST_SUITE(versionbits_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(versionbits_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(versionbits_test)
 {
