@@ -163,7 +163,7 @@ static RPCHelpMan masternode_outputs()
     CCoinControl coin_control(CoinType::ONLY_MASTERNODE_COLLATERAL);
 
     UniValue outputsArr(UniValue::VARR);
-    for (const auto& out : WITH_LOCK(wallet->cs_wallet, return AvailableCoinsListUnspent(*wallet, &coin_control).all())) {
+    for (const auto& out : WITH_LOCK(wallet->cs_wallet, return AvailableCoinsListUnspent(*wallet, &coin_control).All())) {
         outputsArr.push_back(out.outpoint.ToStringShort());
     }
 

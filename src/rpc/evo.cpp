@@ -292,7 +292,7 @@ static void FundSpecialTx(CWallet& wallet, CMutableTransaction& tx, const Specia
     coinControl.destChange = fundDest;
     coinControl.fRequireAllInputs = false;
 
-    for (const auto& out : AvailableCoinsListUnspent(wallet).all()) {
+    for (const auto& out : AvailableCoinsListUnspent(wallet).All()) {
         CTxDestination txDest;
         if (ExtractDestination(out.txout.scriptPubKey, txDest) && txDest == fundDest) {
             coinControl.Select(out.outpoint);

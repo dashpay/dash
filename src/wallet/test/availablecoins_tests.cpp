@@ -62,8 +62,8 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, AvailableCoinsTestingSetup)
     // Verify our wallet has one usable coinbase UTXO before starting
     // This UTXO is a P2PK, so it should show up in the Other bucket
     available_coins = AvailableCoins(*wallet);
-    BOOST_CHECK_EQUAL(available_coins.size(), 1U);
-    BOOST_CHECK_EQUAL(available_coins.other.size(), 1U);
+    BOOST_CHECK_EQUAL(available_coins.Size(), 1U);
+    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::UNKNOWN].size(), 1U);
 
     // We will create a self transfer for each of the OutputTypes and
     // verify it is put in the correct bucket after running GetAvailablecoins
@@ -77,7 +77,7 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, AvailableCoinsTestingSetup)
     BOOST_ASSERT(dest);
     AddTx(CRecipient{{GetScriptForDestination(*dest)}, 4 * COIN, /*fSubtractFeeFromAmount=*/true});
     available_coins = AvailableCoins(*wallet);
-    BOOST_CHECK_EQUAL(available_coins.legacy.size(), 2U);
+    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::LEGACY].size(), 2U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

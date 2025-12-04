@@ -58,7 +58,7 @@ bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::ve
     CAmount nValueTotal{0};
     CCoinControl coin_control(CoinType::ONLY_READY_TO_MIX);
     std::set<uint256> setRecentTxIds;
-    std::vector<COutput> vCoins{AvailableCoinsListUnspent(*this, &coin_control).all()};
+    std::vector<COutput> vCoins{AvailableCoinsListUnspent(*this, &coin_control).All()};
 
     WalletCJLogPrint(this, "CWallet::%s -- vCoins.size(): %d\n", __func__, vCoins.size());
 
@@ -104,7 +104,7 @@ bool CWallet::SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& set
     CAmount nValueTotal{0};
     CCoinControl coin_control(CoinType::ONLY_READY_TO_MIX);
     // CompareByPriority() cares about effective value, which is only calculable when supplied a feerate
-    std::vector<COutput> vCoins{AvailableCoins(*this, &coin_control, /*feerate=*/CFeeRate(0)).all()};
+    std::vector<COutput> vCoins{AvailableCoins(*this, &coin_control, /*feerate=*/CFeeRate(0)).All()};
 
     // larger denoms first
     std::sort(vCoins.rbegin(), vCoins.rend(), CompareByPriority());
@@ -235,7 +235,7 @@ bool CWallet::HasCollateralInputs(bool fOnlyConfirmed) const
     CCoinControl coin_control(CoinType::ONLY_COINJOIN_COLLATERAL);
     coin_control.m_include_unsafe_inputs = !fOnlyConfirmed;
 
-    return AvailableCoinsListUnspent(*this, &coin_control).size() > 0;
+    return AvailableCoinsListUnspent(*this, &coin_control).Size() > 0;
 }
 
 int CWallet::CountInputsWithAmount(CAmount nInputAmount) const

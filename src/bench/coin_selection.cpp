@@ -57,7 +57,7 @@ static void CoinSelection(benchmark::Bench& bench)
     wallet::CoinsResult available_coins;
     for (const auto& wtx : wtxs) {
         const auto txout = wtx->tx->vout.at(0);
-        available_coins.legacy.emplace_back(COutPoint(wtx->GetHash(), 0), txout, /*depth=*/6 * 24, CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr), /*spendable=*/true, /*solvable=*/true, /*safe=*/true, wtx->GetTxTime(), /*from_me=*/true, /*fees=*/ 0);
+        available_coins.coins[OutputType::LEGACY].emplace_back(COutPoint(wtx->GetHash(), 0), txout, /*depth=*/6 * 24, CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr), /*spendable=*/true, /*solvable=*/true, /*safe=*/true, wtx->GetTxTime(), /*from_me=*/true, /*fees=*/ 0);
     }
     const CoinEligibilityFilter filter_standard(1, 6, 0);
     FastRandomContext rand{};
