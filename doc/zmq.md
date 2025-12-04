@@ -104,7 +104,7 @@ The option to set the PUB socket's outbound message high water mark
     -zmqpubrawgovernanceobjecthwm=n
     -zmqpubrawinstantsenddoublespendhwm=n
     -zmqpubrawrecoveredsighwm=n
-    -zmqpubsequencehwm=address
+    -zmqpubsequencehwm=n
 
 The high water mark value must be an integer greater than or equal to 0.
 
