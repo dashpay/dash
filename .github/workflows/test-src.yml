@@ -33,6 +33,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -49,10 +50,11 @@ jobs:
 
       - name: Run functional tests
         id: test
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          BUNDLE_KEY: ${{ inputs.bundle-key }}
         run: |
           git config --global --add safe.directory "$PWD"
-          export BUILD_TARGET="${{ inputs.build-target }}"
-          export BUNDLE_KEY="${{ inputs.bundle-key }}"
           ./ci/dash/bundle-artifacts.sh extract
           ./ci/dash/slim-workspace.sh
           source ./ci/dash/matrix.sh
@@ -62,8 +64,9 @@ jobs:
       - name: Bundle test logs
         id: bundle
         if: success() || (failure() && steps.test.outcome == 'failure')
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          export BUILD_TARGET="${{ inputs.build-target }}"
           echo "short-sha=$(git rev-parse --short=8 HEAD)" >> "${GITHUB_OUTPUT}"
           ( [ -d "testlogs" ] && echo "upload-logs=true" >> "${GITHUB_OUTPUT}" && ./ci/dash/bundle-logs.sh ) \
                               || echo "upload-logs=false" >> "${GITHUB_OUTPUT}"

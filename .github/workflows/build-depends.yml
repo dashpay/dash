@@ -30,18 +30,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Initial setup
         id: setup
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           echo "DEP_OPTS=${DEP_OPTS}" >> "${GITHUB_OUTPUT}"
           echo "HOST=${HOST}" >> "${GITHUB_OUTPUT}"
           DEP_HASH="$(echo -n "${BUILD_TARGET}" "${DEP_OPTS}" "${HOST}" | sha256sum | head -c 64)"
           echo "\"${BUILD_TARGET}\" has HOST=\"${HOST}\" and DEP_OPTS=\"${DEP_OPTS}\" with hash \"${DEP_HASH}\""
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
-
         shell: bash
 
       - name: Restore depends sources
@@ -76,12 +77,14 @@ jobs:
             depends-${{ hashFiles('contrib/containers/ci/ci.Dockerfile') }}-${{ inputs.build-target }}-
 
       - name: Build depends
+        env:
+          HOST: ${{ steps.setup.outputs.HOST }}
+          DEP_OPTS: ${{ steps.setup.outputs.DEP_OPTS }}
         run: |
-          export HOST="${{ steps.setup.outputs.HOST  }}"
           if [ "${HOST}" = "x86_64-apple-darwin" ]; then
             ./contrib/containers/guix/scripts/setup-sdk
           fi
-          env ${{ steps.setup.outputs.DEP_OPTS }} make -j$(nproc) -C depends
+          env ${DEP_OPTS} make -j$(nproc) -C depends
 
       - name: Save depends cache
         uses: actions/cache/save@v4

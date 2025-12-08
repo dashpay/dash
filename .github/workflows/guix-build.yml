@@ -1,18 +1,19 @@
 name: Guix Build
 
-permissions:
-  packages: write
-  id-token: write
-  attestations: write
-
 on:
   pull_request_target:
     types: [labeled]
   push:
 
+permissions:
+  contents: read
+
 jobs:
   build-image:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
     if: |
       (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || vars.RUN_GUIX_ON_ALL_PUSH == 'true')) ||
       contains(github.event.pull_request.labels.*.name, 'guix-build')
@@ -26,18 +27,21 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           path: dash
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Commit variables
         id: prepare
+        env:
+          GITHUB_REPOSITORY_LC: ${{ github.repository }}
         run: |
           echo "hash=$(sha256sum ./dash/contrib/containers/guix/Dockerfile | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
           echo "host_user_id=$(id -u)" >> $GITHUB_OUTPUT
           echo "host_group_id=$(id -g)" >> $GITHUB_OUTPUT
           BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(echo "${GITHUB_REPOSITORY_LC}" | tr '[:upper:]' '[:lower:]')
           echo "image-tag=${BRANCH_NAME}" >> $GITHUB_OUTPUT
           echo "repo-name=${REPO_NAME}" >> $GITHUB_OUTPUT
 
@@ -69,6 +73,10 @@ jobs:
     needs: build-image
     # runs-on: [ "self-hosted", "linux", "x64", "ubuntu-core" ]
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       matrix:
         build_target: [x86_64-linux-gnu, arm-linux-gnueabihf, aarch64-linux-gnu, riscv64-linux-gnu, powerpc64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
@@ -85,6 +93,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           path: dash
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Cache depends sources
         uses: actions/cache@v4
@@ -114,14 +123,19 @@ jobs:
 
       - name: Run Guix build
         timeout-minutes: 480
+        env:
+          WORKSPACE: ${{ github.workspace }}
+          REPO_NAME: ${{ needs.build-image.outputs.repo-name }}
+          IMAGE_TAG: ${{ needs.build-image.outputs.image-tag }}
+          BUILD_TARGET: ${{ matrix.build_target }}
         run: |
           docker run --privileged -d --rm -t \
             --name guix-daemon \
-            -v ${{ github.workspace }}/dash:/src/dash \
-            -v ${{ github.workspace }}/.cache:/home/ubuntu/.cache \
+            -v "${WORKSPACE}/dash:/src/dash" \
+            -v "${WORKSPACE}/.cache:/home/ubuntu/.cache" \
             -w /src/dash \
-            ghcr.io/${{ needs.build-image.outputs.repo-name }}/dashcore-guix-builder:${{ needs.build-image.outputs.image-tag }} && \
-          docker exec guix-daemon bash -c 'HOSTS=${{ matrix.build_target }} /usr/local/bin/guix-start /src/dash'
+            "ghcr.io/${REPO_NAME}/dashcore-guix-builder:${IMAGE_TAG}" && \
+          docker exec guix-daemon bash -c "HOSTS=${BUILD_TARGET} /usr/local/bin/guix-start /src/dash"
 
       - name: Ensure build passes
         run: |
@@ -132,8 +146,11 @@ jobs:
 
       - name: Compute SHA256 checksums
         continue-on-error: true # It will complain on depending on only some hosts
+        env:
+          BUILD_TARGET: ${{ matrix.build_target }}
+          WORKSPACE: ${{ github.workspace }}
         run: |
-          HOSTS=${{ matrix.build_target }} ./dash/contrib/containers/guix/scripts/guix-check ${{ github.workspace }}/dash
+          HOSTS="${BUILD_TARGET}" ./dash/contrib/containers/guix/scripts/guix-check "${WORKSPACE}/dash"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

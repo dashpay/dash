@@ -21,6 +21,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 50
+          persist-credentials: false
 
       - name: Initial setup
         run: |
@@ -29,15 +30,18 @@ jobs:
         shell: bash
 
       - name: Run linters
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
         run: |
           export BUILD_TARGET="linux64"
           export CHECK_DOC=1
 
           # Determine if this is a PR and set commit range accordingly
-          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+          if [ "${EVENT_NAME}" = "pull_request_target" ]; then
             export COMMIT_RANGE="$(git merge-base origin/develop HEAD)..HEAD"
             export PULL_REQUEST="true"
-          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" != "refs/heads/develop" ] && [ "${{ github.ref }}" != "refs/heads/master" ]; then
+          elif [ "${EVENT_NAME}" = "push" ] && [ "${REF}" != "refs/heads/develop" ] && [ "${REF}" != "refs/heads/master" ]; then
             # For push events on feature branches, check against develop
             export COMMIT_RANGE="$(git merge-base origin/develop HEAD)..HEAD"
             export PULL_REQUEST="true"
@@ -47,8 +51,8 @@ jobs:
             export PULL_REQUEST="false"
           fi
 
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
+          echo "Event name: ${EVENT_NAME}"
+          echo "Ref: ${REF}"
           echo "COMMIT_RANGE=${COMMIT_RANGE}"
           echo "PULL_REQUEST=${PULL_REQUEST}"
           echo "Running git log for commit range:"

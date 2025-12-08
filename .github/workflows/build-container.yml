@@ -32,12 +32,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Prepare variables
         id: prepare
+        env:
+          GITHUB_REPOSITORY_LC: ${{ github.repository }}
         run: |
           BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(echo "${GITHUB_REPOSITORY_LC}" | tr '[:upper:]' '[:lower:]')
           echo "tag=${BRANCH_NAME}" >> $GITHUB_OUTPUT
           echo "repo=${REPO_NAME}" >> $GITHUB_OUTPUT
 

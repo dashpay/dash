@@ -26,11 +26,15 @@ jobs:
     steps:
       - name: Check skip environment variables
         id: skip-check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SKIP_ON_PUSH: ${{ vars.SKIP_ON_PUSH }}
+          SKIP_ON_PR: ${{ vars.SKIP_ON_PR }}
         run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ vars.SKIP_ON_PUSH }}" != "" ]]; then
+          if [[ "${EVENT_NAME}" == "push" && "${SKIP_ON_PUSH}" != "" ]]; then
             echo "Skipping build on push due to SKIP_ON_PUSH environment variable"
             echo "skip=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "pull_request_target" && "${{ vars.SKIP_ON_PR }}" != "" ]]; then
+          elif [[ "${EVENT_NAME}" == "pull_request_target" && "${SKIP_ON_PR}" != "" ]]; then
             echo "Skipping build on pull request due to SKIP_ON_PR environment variable"
             echo "skip=true" >> $GITHUB_OUTPUT
           else

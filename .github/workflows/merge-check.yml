@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Git
         run: |
@@ -24,20 +25,26 @@ jobs:
           git config user.email "noreply@example.com"
 
       - name: Check merge --ff-only
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          if [[ "${{ github.ref_name }}" == "master" ]]; then
+          if [[ "${REF_NAME}" == "master" ]]; then
             echo "Already on master, no need to check --ff-only"
           else
             git fetch --no-tags origin master:master
-            if [[ "${{ github.event_name }}" == "pull_request"* ]]; then
-              git fetch --no-tags origin ${{ github.event.pull_request.base.ref }}:base_branch
+            if [[ "${EVENT_NAME}" == "pull_request"* ]]; then
+              git fetch --no-tags origin "${PR_BASE_REF}":base_branch
               git checkout base_branch
-              git pull --rebase=false origin pull/${{ github.event.pull_request.number }}/head
+              git pull --rebase=false origin "pull/${PR_NUMBER}/head"
               git checkout master
               git merge --ff-only base_branch
             else
               git checkout master
-              git merge --ff-only ${{ github.sha }}
+              git merge --ff-only "${COMMIT_SHA}"
             fi
           fi
 

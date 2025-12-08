@@ -82,7 +82,8 @@ RUN uv pip install --system --break-system-packages \
     multiprocess \
     mypy==0.981 \
     pyzmq==24.0.1 \
-    vulture==2.6
+    vulture==2.6 \
+    zizmor==1.17.0
 
 # Install packages relied on by tests
 ARG DASH_HASH_VERSION=1.4.0
