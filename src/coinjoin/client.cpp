@@ -510,8 +510,8 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
         }
     }
 
-    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SendDenominate -- Submitting partial tx with %d inputs, %d outputs: %s",
-                     vecTxDSInTmp.size(), vecTxOutTmp.size(), tx.ToString()); /* Continued */
+    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SendDenominate -- Submitting partial tx with %d inputs, %d outputs: %s\n",
+                     vecTxDSInTmp.size(), vecTxOutTmp.size(), tx.ToString());
 
     // store our entry for later use
     LOCK(cs_coinjoin);
@@ -997,8 +997,7 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
                 // Verify we have enough fully-mixed coins for promotion
                 auto vecCoins = m_wallet->SelectFullyMixedForPromotion(nSmallerDenom, CoinJoin::PROMOTION_RATIO);
                 if (static_cast<int>(vecCoins.size()) >= CoinJoin::PROMOTION_RATIO) {
-                    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::DoAutomaticDenominating -- Promotion opportunity: "
-                        "%d x %s -> 1 x %s\n",
+                    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::DoAutomaticDenominating -- Promotion opportunity: %d x %s -> 1 x %s\n",
                         CoinJoin::PROMOTION_RATIO,
                         CoinJoin::DenominationToString(nSmallerDenom),
                         CoinJoin::DenominationToString(nLargerDenom));
@@ -1016,8 +1015,7 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
 
             // Check if we should demote larger -> smaller
             if (m_clientman.ShouldDemote(nLargerDenom, nSmallerDenom)) {
-                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::DoAutomaticDenominating -- Demotion opportunity: "
-                    "1 x %s -> %d x %s\n",
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::DoAutomaticDenominating -- Demotion opportunity: 1 x %s -> %d x %s\n",
                     CoinJoin::DenominationToString(nLargerDenom),
                     CoinJoin::PROMOTION_RATIO,
                     CoinJoin::DenominationToString(nSmallerDenom));
@@ -1264,8 +1262,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
             for (const auto& txdsin : vecTxDSInTmp) {
                 m_vecPromotionInputs.push_back(txdsin.prevout);
             }
-            WalletCJLogPrint(m_wallet,
-                             "CCoinJoinClientSession::JoinExistingQueue -- pending PROMOTION connection, masternode=%s, nSessionDenom=%d (%s), %d inputs\n",
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- pending PROMOTION connection, masternode=%s, nSessionDenom=%d (%s), %d inputs\n",
                              dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom),
                              m_vecPromotionInputs.size());
         } else if (fDemotion) {
@@ -1274,13 +1271,11 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
             if (!vecTxDSInTmp.empty()) {
                 m_vecPromotionInputs.push_back(vecTxDSInTmp[0].prevout);
             }
-            WalletCJLogPrint(m_wallet,
-                             "CCoinJoinClientSession::JoinExistingQueue -- pending DEMOTION connection, masternode=%s, nSessionDenom=%d (%s)\n",
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- pending DEMOTION connection, masternode=%s, nSessionDenom=%d (%s)\n",
                              dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
         } else {
             m_vecPromotionInputs.clear();
-            WalletCJLogPrint(m_wallet, /* Continued */
-                             "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
                              dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
         }
         strAutoDenomResult = _("Trying to connect…");
@@ -1481,8 +1476,7 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
             m_vecPromotionInputs.push_back(txdsin.prevout);
         }
 
-        WalletCJLogPrint(m_wallet,
-                         "CCoinJoinClientSession::StartNewQueue -- pending %s connection, masternode=%s, nSessionDenom=%d (%s), %zu inputs\n",
+        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- pending %s connection, masternode=%s, nSessionDenom=%d (%s), %zu inputs\n",
                          fPromotion ? "PROMOTION" : "DEMOTION",
                          dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom),
                          m_vecPromotionInputs.size());
