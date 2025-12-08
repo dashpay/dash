@@ -29,6 +29,7 @@ RUN set -ex; \
     wine-stable \
     wine64 \
     zip \
+    libexpat1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Clang + LLVM and set it as default
