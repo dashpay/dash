@@ -21,6 +21,7 @@
              ((gnu packages python-crypto) #:select (python-asn1crypto))
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
+             ((gnu packages xml) #:select (expat))
              (guix build-system cmake)
              (guix build-system gnu)
              (guix build-system python)
@@ -536,7 +537,8 @@ inspecting signatures in Mach-O binaries.")
           ((string-contains target "-linux-")
            (list bison
                  (list gcc-toolchain-12 "static")
-                 (make-bitcoin-cross-toolchain target)))
+                 (make-bitcoin-cross-toolchain target)
+                 expat))
           ((string-contains target "darwin")
            (list clang-toolchain-19
                  lld-19
