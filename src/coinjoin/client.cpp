@@ -5,6 +5,7 @@
 #include <coinjoin/client.h>
 
 #include <coinjoin/options.h>
+#include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
@@ -22,6 +23,7 @@
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/translation.h>
+#include <validation.h>
 #include <version.h>
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
@@ -291,6 +293,11 @@ void CCoinJoinClientSession::SetNull()
     mixingMasternode = nullptr;
     pendingDsaRequest = CPendingDsaRequest();
 
+    // Post-V24: Clear promotion/demotion session state
+    m_fPromotion = false;
+    m_fDemotion = false;
+    m_vecPromotionInputs.clear();
+
     CCoinJoinBaseSession::SetNull();
 }
 
@@ -490,13 +497,21 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
     std::vector<CTxOut> vecTxOutTmp;
 
     for (const auto& [txDsIn, txOut] : vecPSInOutPairsIn) {
-        vecTxDSInTmp.emplace_back(txDsIn);
-        vecTxOutTmp.emplace_back(txOut);
-        tx.vin.emplace_back(txDsIn);
-        tx.vout.emplace_back(txOut);
+        // For promotion/demotion, filter out empty inputs/outputs
+        // Promotion: 10 inputs with only 1 real output (others are empty)
+        // Demotion: 1 input with 10 outputs (only first has real input)
+        if (!txDsIn.prevout.IsNull()) {
+            vecTxDSInTmp.emplace_back(txDsIn);
+            tx.vin.emplace_back(txDsIn);
+        }
+        if (txOut.nValue > 0) {
+            vecTxOutTmp.emplace_back(txOut);
+            tx.vout.emplace_back(txOut);
+        }
     }
 
-    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SendDenominate -- Submitting partial tx %s", tx.ToString()); /* Continued */
+    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SendDenominate -- Submitting partial tx with %d inputs, %d outputs: %s",
+                     vecTxDSInTmp.size(), vecTxOutTmp.size(), tx.ToString()); /* Continued */
 
     // store our entry for later use
     LOCK(cs_coinjoin);
@@ -961,6 +976,64 @@ bool CCoinJoinClientSession::DoAutomaticDenominating(ChainstateManager& chainman
         }
     } // LOCK(m_wallet->cs_wallet);
 
+    // Post-V24: Check if we should promote or demote denominations
+    // This helps maintain optimal denomination distribution as coins are spent
+    bool fV24Active{false};
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* pindex = chainman.ActiveChain().Tip();
+        fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+    }
+
+    if (fV24Active) {
+        // Check all adjacent denomination pairs for promotion/demotion opportunities
+        // Denominations: 10, 1, 0.1, 0.01, 0.001 (indices 0-4, smaller index = larger denom)
+        for (int i = 0; i < 4; ++i) {
+            int nLargerDenom = 1 << i;       // Larger denomination (e.g., 10 DASH)
+            int nSmallerDenom = 1 << (i + 1); // Smaller denomination (e.g., 1 DASH)
+
+            // Check if we should promote smaller -> larger
+            if (m_clientman.ShouldPromote(nSmallerDenom, nLargerDenom)) {
+                // Verify we have enough fully-mixed coins for promotion
+                auto vecCoins = m_wallet->SelectFullyMixedForPromotion(nSmallerDenom, CoinJoin::PROMOTION_RATIO);
+                if (static_cast<int>(vecCoins.size()) >= CoinJoin::PROMOTION_RATIO) {
+                    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::DoAutomaticDenominating -- Promotion opportunity: "
+                        "%d x %s -> 1 x %s\n",
+                        CoinJoin::PROMOTION_RATIO,
+                        CoinJoin::DenominationToString(nSmallerDenom),
+                        CoinJoin::DenominationToString(nLargerDenom));
+
+                    // Try to join an existing queue for promotion
+                    if (JoinExistingQueue(nBalanceNeedsAnonymized, connman, nSmallerDenom, /*fPromotion=*/true)) {
+                        return true;
+                    }
+                    // No existing queue found - try to start a new one for promotion
+                    if (StartNewQueue(nBalanceNeedsAnonymized, connman, nSmallerDenom, /*fPromotion=*/true, /*fDemotion=*/false)) {
+                        return true;
+                    }
+                }
+            }
+
+            // Check if we should demote larger -> smaller
+            if (m_clientman.ShouldDemote(nLargerDenom, nSmallerDenom)) {
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::DoAutomaticDenominating -- Demotion opportunity: "
+                    "1 x %s -> %d x %s\n",
+                    CoinJoin::DenominationToString(nLargerDenom),
+                    CoinJoin::PROMOTION_RATIO,
+                    CoinJoin::DenominationToString(nSmallerDenom));
+
+                // Try to join an existing queue for demotion
+                if (JoinExistingQueue(nBalanceNeedsAnonymized, connman, nSmallerDenom, /*fPromotion=*/false, /*fDemotion=*/true)) {
+                    return true;
+                }
+                // No existing queue found - try to start a new one for demotion
+                if (StartNewQueue(nBalanceNeedsAnonymized, connman, nSmallerDenom, /*fPromotion=*/false, /*fDemotion=*/true)) {
+                    return true;
+                }
+            }
+        }
+    }
+
     // Always attempt to join an existing queue
     if (JoinExistingQueue(nBalanceNeedsAnonymized, connman)) {
         return true;
@@ -1072,10 +1145,14 @@ static int WinnersToSkip()
             ? 1 : 8;
 }
 
-bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
+bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman,
+                                                int nTargetDenom, bool fPromotion, bool fDemotion)
 {
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
     if (m_queueman == nullptr) return false;
+
+    // Promotion and demotion are mutually exclusive
+    assert(!(fPromotion && fDemotion));
 
     const auto mnList = m_dmnman.GetListAtChainTip();
     const int nWeightedMnCount = mnList.GetCounts().m_valid_weighted;
@@ -1102,12 +1179,64 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
 
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- trying queue: %s\n", dsq.ToString());
 
+        // For promotion/demotion, we need a queue with the target denomination
+        if ((fPromotion || fDemotion) && nTargetDenom != 0) {
+            if (dsq.nDenom != nTargetDenom) {
+                continue; // Skip queues with wrong denomination
+            }
+        }
+
         std::vector<CTxDSIn> vecTxDSInTmp;
 
-        // Try to match their denominations if possible, select exact number of denominations
-        if (!m_wallet->SelectTxDSInsByDenomination(dsq.nDenom, nBalanceNeedsAnonymized, vecTxDSInTmp)) {
-            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- Couldn't match denomination %d (%s)\n", dsq.nDenom, CoinJoin::DenominationToString(dsq.nDenom));
-            continue;
+        if (fPromotion && nTargetDenom != 0) {
+            // Promotion: select 10 fully-mixed coins of the smaller denomination
+            auto vecCoins = m_wallet->SelectFullyMixedForPromotion(nTargetDenom, CoinJoin::PROMOTION_RATIO);
+            if (static_cast<int>(vecCoins.size()) < CoinJoin::PROMOTION_RATIO) {
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- Not enough fully-mixed coins for promotion\n");
+                continue;
+            }
+            // Convert COutPoints to CTxDSIn
+            LOCK(m_wallet->cs_wallet);
+            for (const auto& outpoint : vecCoins) {
+                const auto it = m_wallet->mapWallet.find(outpoint.hash);
+                if (it != m_wallet->mapWallet.end()) {
+                    const wallet::CWalletTx& wtx = it->second;
+                    CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
+                                   m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
+                    vecTxDSInTmp.push_back(txdsin);
+                }
+            }
+            if (static_cast<int>(vecTxDSInTmp.size()) < CoinJoin::PROMOTION_RATIO) {
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- Failed to build promotion inputs\n");
+                continue;
+            }
+        } else if (fDemotion && nTargetDenom != 0) {
+            // Demotion: select 1 coin of the larger denomination
+            const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nTargetDenom);
+            if (nLargerDenom == 0) {
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- No larger adjacent denom for demotion\n");
+                continue;
+            }
+            // Select 1 coin of the larger denomination
+            // Prefer fully-mixed coins first (they're "done" mixing), then fall back to ready-to-mix
+            // According to plan: "Splitting allows unmixed" - demotion can use any denominated coin
+            if (!m_wallet->SelectTxDSInsByDenomination(nLargerDenom, CoinJoin::DenominationToAmount(nLargerDenom), vecTxDSInTmp, CoinType::ONLY_FULLY_MIXED)) {
+                // No fully-mixed coins available, try ready-to-mix
+                if (!m_wallet->SelectTxDSInsByDenomination(nLargerDenom, CoinJoin::DenominationToAmount(nLargerDenom), vecTxDSInTmp, CoinType::ONLY_READY_TO_MIX)) {
+                    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- Couldn't find coin for demotion\n");
+                    continue;
+                }
+            }
+            // Keep only 1 input for demotion
+            if (vecTxDSInTmp.size() > 1) {
+                vecTxDSInTmp.resize(1);
+            }
+        } else {
+            // Standard mixing: try to match their denominations if possible
+            if (!m_wallet->SelectTxDSInsByDenomination(dsq.nDenom, nBalanceNeedsAnonymized, vecTxDSInTmp)) {
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- Couldn't match denomination %d (%s)\n", dsq.nDenom, CoinJoin::DenominationToString(dsq.nDenom));
+                continue;
+            }
         }
 
         m_clientman.AddUsedMasternode(dmn->proTxHash);
@@ -1124,9 +1253,36 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         connman.AddPendingMasternode(dmn->proTxHash);
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTime();
-        WalletCJLogPrint(m_wallet, /* Continued */
-                         "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
-                         dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+
+        // Set promotion/demotion session state
+        m_fPromotion = fPromotion;
+        m_fDemotion = fDemotion;
+
+        // Store promotion inputs for use in PreparePromotionEntry
+        if (fPromotion) {
+            m_vecPromotionInputs.clear();
+            for (const auto& txdsin : vecTxDSInTmp) {
+                m_vecPromotionInputs.push_back(txdsin.prevout);
+            }
+            WalletCJLogPrint(m_wallet,
+                             "CCoinJoinClientSession::JoinExistingQueue -- pending PROMOTION connection, masternode=%s, nSessionDenom=%d (%s), %d inputs\n",
+                             dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom),
+                             m_vecPromotionInputs.size());
+        } else if (fDemotion) {
+            // For demotion, store the single input
+            m_vecPromotionInputs.clear();
+            if (!vecTxDSInTmp.empty()) {
+                m_vecPromotionInputs.push_back(vecTxDSInTmp[0].prevout);
+            }
+            WalletCJLogPrint(m_wallet,
+                             "CCoinJoinClientSession::JoinExistingQueue -- pending DEMOTION connection, masternode=%s, nSessionDenom=%d (%s)\n",
+                             dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+        } else {
+            m_vecPromotionInputs.clear();
+            WalletCJLogPrint(m_wallet, /* Continued */
+                             "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
+                             dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+        }
         strAutoDenomResult = _("Trying to connect…");
         return true;
     }
@@ -1216,6 +1372,127 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
     return false;
 }
 
+bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman,
+                                           int nTargetDenom, bool fPromotion, bool fDemotion)
+{
+    assert(m_mn_metaman.IsValid());
+
+    if (!CCoinJoinClientOptions::IsEnabled()) return false;
+    if (nTargetDenom == 0) return false;
+
+    // For promotion/demotion, verify we have the required coins before starting a queue
+    std::vector<CTxDSIn> vecTxDSInTmp;
+
+    if (fPromotion) {
+        // Promotion: need 10 fully-mixed coins of the target (smaller) denomination
+        auto vecCoins = m_wallet->SelectFullyMixedForPromotion(nTargetDenom, CoinJoin::PROMOTION_RATIO);
+        if (static_cast<int>(vecCoins.size()) < CoinJoin::PROMOTION_RATIO) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- Not enough fully-mixed coins for promotion\n");
+            return false;
+        }
+        // Convert to CTxDSIn for storage
+        LOCK(m_wallet->cs_wallet);
+        for (const auto& outpoint : vecCoins) {
+            const auto it = m_wallet->mapWallet.find(outpoint.hash);
+            if (it != m_wallet->mapWallet.end()) {
+                const wallet::CWalletTx& wtx = it->second;
+                CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
+                               m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
+                vecTxDSInTmp.push_back(txdsin);
+            }
+        }
+        if (static_cast<int>(vecTxDSInTmp.size()) < CoinJoin::PROMOTION_RATIO) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- Failed to build promotion inputs\n");
+            return false;
+        }
+    } else if (fDemotion) {
+        // Demotion: need 1 coin of the larger denomination
+        const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nTargetDenom);
+        if (nLargerDenom == 0) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- No larger adjacent denom for demotion\n");
+            return false;
+        }
+        // Prefer fully-mixed coins first, then fall back to ready-to-mix
+        if (!m_wallet->SelectTxDSInsByDenomination(nLargerDenom, CoinJoin::DenominationToAmount(nLargerDenom), vecTxDSInTmp, CoinType::ONLY_FULLY_MIXED)) {
+            if (!m_wallet->SelectTxDSInsByDenomination(nLargerDenom, CoinJoin::DenominationToAmount(nLargerDenom), vecTxDSInTmp, CoinType::ONLY_READY_TO_MIX)) {
+                WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- Couldn't find coin for demotion\n");
+                return false;
+            }
+        }
+        if (vecTxDSInTmp.size() > 1) {
+            vecTxDSInTmp.resize(1);
+        }
+    } else {
+        // Neither promotion nor demotion - shouldn't use this overload
+        return false;
+    }
+
+    int nTries = 0;
+    const auto mnList = m_dmnman.GetListAtChainTip();
+    const int nMnCount = mnList.GetValidMNsCount();
+    const int nWeightedMnCount = mnList.GetValidWeightedMNsCount();
+
+    while (nTries < 10) {
+        auto dmn = m_clientman.GetRandomNotUsedMasternode();
+        if (!dmn) {
+            strAutoDenomResult = _("Can't find random Masternode.");
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- %s\n", strAutoDenomResult.original);
+            return false;
+        }
+
+        m_clientman.AddUsedMasternode(dmn->proTxHash);
+
+        // skip next mn payments winners
+        if (dmn->pdmnState->nLastPaidHeight + nWeightedMnCount < mnList.GetHeight() + WinnersToSkip()) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
+            nTries++;
+            continue;
+        }
+
+        if (m_mn_metaman.IsMixingThresholdExceeded(dmn->proTxHash, nMnCount)) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- too early to mix with node masternode=%s\n",
+                             dmn->proTxHash.ToString());
+            nTries++;
+            continue;
+        }
+
+        if (connman.IsMasternodeOrDisconnectRequested(dmn->pdmnState->netInfo->GetPrimary())) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- skipping connection, masternode=%s\n",
+                             dmn->proTxHash.ToString());
+            nTries++;
+            continue;
+        }
+
+        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- attempting %s connection, masternode=%s, tries=%d\n",
+                         fPromotion ? "PROMOTION" : "DEMOTION", dmn->proTxHash.ToString(), nTries);
+
+        nSessionDenom = nTargetDenom;
+        mixingMasternode = dmn;
+        connman.AddPendingMasternode(dmn->proTxHash);
+        pendingDsaRequest = CPendingDsaRequest(dmn->proTxHash, CCoinJoinAccept(nSessionDenom, txMyCollateral));
+        SetState(POOL_STATE_QUEUE);
+        nTimeLastSuccessfulStep = GetTime();
+
+        // Store promotion/demotion state and inputs
+        m_fPromotion = fPromotion;
+        m_fDemotion = fDemotion;
+        m_vecPromotionInputs.clear();
+        for (const auto& txdsin : vecTxDSInTmp) {
+            m_vecPromotionInputs.push_back(txdsin.prevout);
+        }
+
+        WalletCJLogPrint(m_wallet,
+                         "CCoinJoinClientSession::StartNewQueue -- pending %s connection, masternode=%s, nSessionDenom=%d (%s), %zu inputs\n",
+                         fPromotion ? "PROMOTION" : "DEMOTION",
+                         dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom),
+                         m_vecPromotionInputs.size());
+        strAutoDenomResult = _("Trying to connect…");
+        return true;
+    }
+    strAutoDenomResult = _("Failed to start a new mixing queue");
+    return false;
+}
+
 bool CCoinJoinClientSession::ProcessPendingDsaRequest(CConnman& connman)
 {
     if (!pendingDsaRequest) return false;
@@ -1293,8 +1570,31 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
     LOCK(m_wallet->cs_wallet);
 
     std::string strError;
-    std::vector<CTxDSIn> vecTxDSIn;
     std::vector<std::pair<CTxDSIn, CTxOut> > vecPSInOutPairsTmp;
+
+    // Post-V24: Handle promotion/demotion entries
+    if (m_fPromotion) {
+        if (PreparePromotionEntry(strError, vecPSInOutPairsTmp)) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Promotion entry prepared, sending\n");
+            return SendDenominate(vecPSInOutPairsTmp, connman);
+        }
+        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- PreparePromotionEntry failed: %s\n", strError);
+        strAutoDenomResult = Untranslated(strError);
+        return false;
+    }
+
+    if (m_fDemotion) {
+        if (PrepareDemotionEntry(strError, vecPSInOutPairsTmp)) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Demotion entry prepared, sending\n");
+            return SendDenominate(vecPSInOutPairsTmp, connman);
+        }
+        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- PrepareDemotionEntry failed: %s\n", strError);
+        strAutoDenomResult = Untranslated(strError);
+        return false;
+    }
+
+    // Standard 1:1 mixing
+    std::vector<CTxDSIn> vecTxDSIn;
 
     if (!SelectDenominate(strError, vecTxDSIn)) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- SelectDenominate failed, error: %s\n", strError);
@@ -1418,6 +1718,128 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
         m_wallet->LockCoin(txDsIn.prevout);
         vecOutPointLocked.push_back(txDsIn.prevout);
     }
+
+    return true;
+}
+
+bool CCoinJoinClientSession::PreparePromotionEntry(std::string& strErrorRet, std::vector<std::pair<CTxDSIn, CTxOut>>& vecPSInOutPairsRet)
+{
+    AssertLockHeld(m_wallet->cs_wallet);
+
+    vecPSInOutPairsRet.clear();
+
+    if (m_vecPromotionInputs.size() != static_cast<size_t>(CoinJoin::PROMOTION_RATIO)) {
+        strErrorRet = strprintf("Invalid promotion input count: %d (expected %d)", m_vecPromotionInputs.size(), CoinJoin::PROMOTION_RATIO);
+        return false;
+    }
+
+    // Session denom is the smaller denom (inputs), get the larger adjacent denom for output
+    const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nSessionDenom);
+    if (nLargerDenom == 0) {
+        strErrorRet = "No larger adjacent denomination for promotion";
+        return false;
+    }
+    const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
+
+    // Create 10 inputs from stored promotion inputs
+    for (const auto& outpoint : m_vecPromotionInputs) {
+        const auto it = m_wallet->mapWallet.find(outpoint.hash);
+        if (it == m_wallet->mapWallet.end()) {
+            strErrorRet = "Promotion input not found in wallet";
+            return false;
+        }
+        const wallet::CWalletTx& wtx = it->second;
+        if (outpoint.n >= wtx.tx->vout.size()) {
+            strErrorRet = "Invalid promotion input index";
+            return false;
+        }
+
+        CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
+                       m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
+
+        // For promotion, outputs are created but only 1 matters (the larger denom)
+        // We'll use empty CTxOut for all but the first to signal "no output for this input"
+        // Actually, for promotion entry: 10 inputs, 1 output
+        // We need to pair each input with an "empty" output, except the last gets the real output
+        vecPSInOutPairsRet.emplace_back(txdsin, CTxOut());
+    }
+
+    // Now set the single output (larger denomination) on the last entry
+    CScript scriptDenom = keyHolderStorage.AddKey(m_wallet.get());
+    if (!vecPSInOutPairsRet.empty()) {
+        // Replace the last output with the actual promotion output
+        vecPSInOutPairsRet.back().second = CTxOut(nLargerAmount, scriptDenom);
+    }
+
+    // Lock all inputs
+    for (const auto& [txDsIn, txDsOut] : vecPSInOutPairsRet) {
+        m_wallet->LockCoin(txDsIn.prevout);
+        vecOutPointLocked.push_back(txDsIn.prevout);
+    }
+
+    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::PreparePromotionEntry -- Prepared %d inputs for promotion to %s\n",
+                     vecPSInOutPairsRet.size(), CoinJoin::DenominationToString(nLargerDenom));
+
+    return true;
+}
+
+bool CCoinJoinClientSession::PrepareDemotionEntry(std::string& strErrorRet, std::vector<std::pair<CTxDSIn, CTxOut>>& vecPSInOutPairsRet)
+{
+    AssertLockHeld(m_wallet->cs_wallet);
+
+    vecPSInOutPairsRet.clear();
+
+    if (m_vecPromotionInputs.size() != 1) {
+        strErrorRet = strprintf("Invalid demotion input count: %d (expected 1)", m_vecPromotionInputs.size());
+        return false;
+    }
+
+    // Session denom is the smaller denom (outputs)
+    const CAmount nSmallerAmount = CoinJoin::DenominationToAmount(nSessionDenom);
+    const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nSessionDenom);
+    if (nLargerDenom == 0) {
+        strErrorRet = "No larger adjacent denomination for demotion";
+        return false;
+    }
+
+    // Get the single input (larger denom)
+    const COutPoint& outpoint = m_vecPromotionInputs[0];
+    const auto it = m_wallet->mapWallet.find(outpoint.hash);
+    if (it == m_wallet->mapWallet.end()) {
+        strErrorRet = "Demotion input not found in wallet";
+        return false;
+    }
+    const wallet::CWalletTx& wtx = it->second;
+    if (outpoint.n >= wtx.tx->vout.size()) {
+        strErrorRet = "Invalid demotion input index";
+        return false;
+    }
+
+    CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
+                   m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
+
+    // Create 10 outputs of smaller denomination
+    // For demotion: 1 input, 10 outputs
+    // The first pair has the real input, subsequent pairs have empty inputs
+    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
+        CScript scriptDenom = keyHolderStorage.AddKey(m_wallet.get());
+        CTxOut txout(nSmallerAmount, scriptDenom);
+
+        if (i == 0) {
+            // First entry has the real input
+            vecPSInOutPairsRet.emplace_back(txdsin, txout);
+        } else {
+            // Subsequent entries have empty inputs (will be filtered out when building entry)
+            vecPSInOutPairsRet.emplace_back(CTxDSIn(), txout);
+        }
+    }
+
+    // Lock the input
+    m_wallet->LockCoin(txdsin.prevout);
+    vecOutPointLocked.push_back(txdsin.prevout);
+
+    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::PrepareDemotionEntry -- Prepared 1 input for demotion to %d x %s\n",
+                     CoinJoin::PROMOTION_RATIO, CoinJoin::DenominationToString(nSessionDenom));
 
     return true;
 }
@@ -1891,6 +2313,70 @@ void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
         }
     }
     obj.pushKV("sessions", arrSessions);
+}
+
+bool CCoinJoinClientManager::ShouldPromote(int nSmallerDenom, int nLargerDenom) const
+{
+    // Validate denominations are adjacent
+    if (!CoinJoin::AreAdjacentDenominations(nSmallerDenom, nLargerDenom)) {
+        return false;
+    }
+
+    const int nGoal = CCoinJoinClientOptions::GetDenomsGoal();
+    const int nHalfGoal = nGoal / 2;
+
+    const int nSmallerCount = m_wallet->CountCoinsByDenomination(nSmallerDenom, /*fFullyMixedOnly=*/false);
+    const int nLargerCount = m_wallet->CountCoinsByDenomination(nLargerDenom, /*fFullyMixedOnly=*/false);
+
+    // Don't sacrifice a denomination that's still being built up
+    if (nSmallerCount < nHalfGoal) {
+        return false;
+    }
+
+    // Calculate how far each is from goal (0 if at or above goal)
+    const int nSmallerDeficit = std::max(0, nGoal - nSmallerCount);
+    const int nLargerDeficit = std::max(0, nGoal - nLargerCount);
+
+    // Promote if:
+    // 1. Smaller denom has at least half the goal (above check)
+    // 2. Larger denomination is further from goal (needs more help)
+    // 3. Gap exceeds threshold to prevent oscillation
+    // 4. Have 10 fully-mixed coins to promote
+    const int nFullyMixedCount = m_wallet->CountCoinsByDenomination(nSmallerDenom, /*fFullyMixedOnly=*/true);
+    if (nFullyMixedCount < CoinJoin::PROMOTION_RATIO) {
+        return false;
+    }
+
+    return (nLargerDeficit > nSmallerDeficit + CoinJoin::GAP_THRESHOLD);
+}
+
+bool CCoinJoinClientManager::ShouldDemote(int nLargerDenom, int nSmallerDenom) const
+{
+    // Validate denominations are adjacent
+    if (!CoinJoin::AreAdjacentDenominations(nLargerDenom, nSmallerDenom)) {
+        return false;
+    }
+
+    const int nGoal = CCoinJoinClientOptions::GetDenomsGoal();
+    const int nHalfGoal = nGoal / 2;
+
+    const int nLargerCount = m_wallet->CountCoinsByDenomination(nLargerDenom, /*fFullyMixedOnly=*/false);
+    const int nSmallerCount = m_wallet->CountCoinsByDenomination(nSmallerDenom, /*fFullyMixedOnly=*/false);
+
+    // Don't sacrifice a denomination that's still being built up
+    if (nLargerCount < nHalfGoal) {
+        return false;
+    }
+
+    // Calculate how far each is from goal (0 if at or above goal)
+    const int nSmallerDeficit = std::max(0, nGoal - nSmallerCount);
+    const int nLargerDeficit = std::max(0, nGoal - nLargerCount);
+
+    // Demote if:
+    // 1. Larger denom has at least half the goal (above check)
+    // 2. Smaller denomination is further from goal (needs more help)
+    // 3. Gap exceeds threshold to prevent oscillation
+    return (nSmallerDeficit > nLargerDeficit + CoinJoin::GAP_THRESHOLD);
 }
 
 CoinJoinWalletManager::CoinJoinWalletManager(ChainstateManager& chainman, CDeterministicMNManager& dmnman,

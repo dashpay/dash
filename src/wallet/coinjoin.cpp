@@ -47,6 +47,11 @@ bool CWallet::SetCoinJoinSalt(const uint256& cj_salt)
 
 bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet)
 {
+    return SelectTxDSInsByDenomination(nDenom, nValueMax, vecTxDSInRet, CoinType::ONLY_READY_TO_MIX);
+}
+
+bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet, CoinType nCoinType)
+{
     LOCK(cs_wallet);
 
     vecTxDSInRet.clear();
@@ -56,11 +61,11 @@ bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::ve
 
     CAmount nDenomAmount{CoinJoin::DenominationToAmount(nDenom)};
     CAmount nValueTotal{0};
-    CCoinControl coin_control(CoinType::ONLY_READY_TO_MIX);
+    CCoinControl coin_control(nCoinType);
     std::set<uint256> setRecentTxIds;
     std::vector<COutput> vCoins{AvailableCoinsListUnspent(*this, &coin_control).all()};
 
-    WalletCJLogPrint(this, "CWallet::%s -- vCoins.size(): %d\n", __func__, vCoins.size());
+    WalletCJLogPrint(this, "CWallet::%s -- vCoins.size(): %d, CoinType: %d\n", __func__, vCoins.size(), static_cast<int>(nCoinType));
 
     Shuffle(vCoins.rbegin(), vCoins.rend(), FastRandomContext());
 
@@ -404,6 +409,65 @@ bool CWallet::IsFullyMixed(const COutPoint& outpoint) const
     }
 
     return true;
+}
+
+int CWallet::CountCoinsByDenomination(int nDenom, bool fFullyMixedOnly) const
+{
+    if (!CCoinJoinClientOptions::IsEnabled()) return 0;
+
+    const CAmount nDenomAmount = CoinJoin::DenominationToAmount(nDenom);
+    if (nDenomAmount <= 0) return 0;
+
+    int nCount = 0;
+
+    LOCK(cs_wallet);
+    for (const auto& outpoint : setWalletUTXO) {
+        const auto it{mapWallet.find(outpoint.hash)};
+        if (it == mapWallet.end()) continue;
+
+        const CAmount nValue = it->second.tx->vout[outpoint.n].nValue;
+        if (nValue != nDenomAmount) continue;
+
+        // Skip unconfirmed or conflicted
+        if (GetTxDepthInMainChain(it->second) < 1) continue;
+
+        // Skip if we need fully mixed and this isn't
+        if (fFullyMixedOnly && !IsFullyMixed(outpoint)) continue;
+
+        nCount++;
+    }
+
+    return nCount;
+}
+
+std::vector<COutPoint> CWallet::SelectFullyMixedForPromotion(int nDenom, int nCount) const
+{
+    std::vector<COutPoint> vecRet;
+    if (!CCoinJoinClientOptions::IsEnabled()) return vecRet;
+
+    const CAmount nDenomAmount = CoinJoin::DenominationToAmount(nDenom);
+    if (nDenomAmount <= 0) return vecRet;
+
+    LOCK(cs_wallet);
+    for (const auto& outpoint : setWalletUTXO) {
+        if (static_cast<int>(vecRet.size()) >= nCount) break;
+
+        const auto it{mapWallet.find(outpoint.hash)};
+        if (it == mapWallet.end()) continue;
+
+        const CAmount nValue = it->second.tx->vout[outpoint.n].nValue;
+        if (nValue != nDenomAmount) continue;
+
+        // Skip unconfirmed or conflicted
+        if (GetTxDepthInMainChain(it->second) < 1) continue;
+
+        // Must be fully mixed for promotion
+        if (!IsFullyMixed(outpoint)) continue;
+
+        vecRet.push_back(outpoint);
+    }
+
+    return vecRet;
 }
 
 void CWallet::RecalculateMixedCredit(const uint256 hash)

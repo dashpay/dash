@@ -5,6 +5,8 @@
 #include <coinjoin/server.h>
 
 #include <active/masternode.h>
+#include <chainparams.h>
+#include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
@@ -222,6 +224,18 @@ void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
     vRecv >> entry;
 
     LogPrint(BCLog::COINJOIN, "DSVIN -- txCollateral %s", entry.txCollateral->ToString()); /* Continued */
+
+    // Post-V24: Check if unbalanced entries (promotion/demotion) are allowed
+    if (entry.vecTxDSIn.size() != entry.vecTxOut.size()) {
+        // This is a promotion or demotion entry - requires V24 activation
+        const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
+        const bool fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+        if (!fV24Active) {
+            LogPrint(BCLog::COINJOIN, "DSVIN -- promotion/demotion entry rejected: V24 not active\n");
+            PushStatus(peer, STATUS_REJECTED, ERR_MODE);
+            return;
+        }
+    }
 
     PoolMessage nMessageID = MSG_NOERR;
 
@@ -599,8 +613,14 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         return false;
     }
 
-    if (entry.vecTxDSIn.size() > COINJOIN_ENTRY_MAX_SIZE) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), COINJOIN_ENTRY_MAX_SIZE);
+    // Post-V24: allow up to PROMOTION_RATIO (10) inputs for promotion entries
+    // Pre-V24: max COINJOIN_ENTRY_MAX_SIZE (9) inputs
+    const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
+    const bool fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+    const size_t nMaxEntryInputs = fV24Active ? CoinJoin::PROMOTION_RATIO : COINJOIN_ENTRY_MAX_SIZE;
+
+    if (entry.vecTxDSIn.size() > nMaxEntryInputs) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), nMaxEntryInputs);
         nMessageIDRet = ERR_MAXIMUM;
         ConsumeCollateral(entry.txCollateral);
         return false;
