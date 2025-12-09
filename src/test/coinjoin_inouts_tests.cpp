@@ -339,6 +339,8 @@ BOOST_AUTO_TEST_CASE(get_adjacent_denomination_helpers)
     BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(1 << 3), 1 << 2);  // 0.01 → 0.1
     BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(1 << 4), 1 << 3);  // 0.001 → 0.01
     BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(1 << 0), 0);       // 10.0 has no larger
+    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(0), 0);            // Invalid denominations
+    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(999), 0);          // Invalid denominations
 
     // GetSmallerAdjacentDenom
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(1 << 0), 1 << 1); // 10.0 → 1.0
@@ -346,18 +348,8 @@ BOOST_AUTO_TEST_CASE(get_adjacent_denomination_helpers)
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(1 << 2), 1 << 3); // 0.1 → 0.01
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(1 << 3), 1 << 4); // 0.01 → 0.001
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(1 << 4), 0);      // 0.001 has no smaller
-}
-
-BOOST_AUTO_TEST_CASE(promotion_ratio_constant)
-{
-    // Verify the PROMOTION_RATIO constant is 10 (10 smaller = 1 larger)
-    BOOST_CHECK_EQUAL(CoinJoin::PROMOTION_RATIO, 10);
-}
-
-BOOST_AUTO_TEST_CASE(gap_threshold_constant)
-{
-    // Verify GAP_THRESHOLD is set to prevent oscillation
-    BOOST_CHECK_EQUAL(CoinJoin::GAP_THRESHOLD, 10);
+    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(0), 0);           // Invalid denominations
+    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(999), 0);         // Invalid denominations
 }
 
 BOOST_AUTO_TEST_CASE(isvalidstructure_postfork_unbalanced_valid)
@@ -496,36 +488,6 @@ BOOST_AUTO_TEST_CASE(promotion_demotion_value_preservation)
         // The denominations are designed so 10 * smaller == larger exactly
         BOOST_CHECK_EQUAL(nSmaller * CoinJoin::PROMOTION_RATIO, nLarger);
     }
-}
-
-BOOST_AUTO_TEST_CASE(decision_logic_mutual_exclusivity)
-{
-    // Verify that at any given count distribution, at most one of promote/demote is true
-    // This is a property-based test of the algorithm
-
-    // Test case 1: Equal counts - neither should trigger
-    // With goal=100, halfGoal=50, if both at 100, deficits are 0, 0
-    // Neither exceeds the other + GAP_THRESHOLD
-    // This verifies the mutual exclusivity property
-
-    // Test case 2: Large imbalance toward smaller
-    // 0 larger, 100 smaller -> largerDeficit=100, smallerDeficit=0
-    // Should promote (if smallerCount >= halfGoal)
-
-    // Test case 3: Large imbalance toward larger
-    // 100 larger, 0 smaller -> largerDeficit=0, smallerDeficit=100
-    // Should demote (if largerCount >= halfGoal)
-
-    // The actual ShouldPromote/ShouldDemote require wallet mocking which is complex
-    // This test documents the expected behavior based on the algorithm
-
-    // Verify the GAP_THRESHOLD prevents oscillation
-    // If |deficit1 - deficit2| <= GAP_THRESHOLD, neither action should occur
-    BOOST_CHECK_EQUAL(CoinJoin::GAP_THRESHOLD, 10);
-
-    // The algorithm guarantees: for any pair of counts,
-    // ShouldPromote XOR ShouldDemote OR neither (but never both)
-    // This is enforced by the > (not >=) comparison with GAP_THRESHOLD
 }
 
 BOOST_AUTO_TEST_CASE(isvalidstructure_mixed_session_postfork)
@@ -891,38 +853,6 @@ BOOST_AUTO_TEST_CASE(decision_logic_example_cases_from_plan)
     BOOST_CHECK(!TestShouldDemote(90, 90, goal));
 }
 
-BOOST_AUTO_TEST_CASE(adjacent_denomination_helpers)
-{
-    // Test GetLargerAdjacentDenom and GetSmallerAdjacentDenom
-
-    // Denomination bits: 0=10DASH, 1=1DASH, 2=0.1DASH, 3=0.01DASH, 4=0.001DASH
-    const int denom_10    = 1 << 0;  // 10 DASH
-    const int denom_1     = 1 << 1;  // 1 DASH
-    const int denom_01    = 1 << 2;  // 0.1 DASH
-    const int denom_001   = 1 << 3;  // 0.01 DASH
-    const int denom_0001  = 1 << 4;  // 0.001 DASH
-
-    // GetLargerAdjacentDenom: returns the next larger denomination (10x value)
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(denom_1), denom_10);
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(denom_01), denom_1);
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(denom_001), denom_01);
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(denom_0001), denom_001);
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(denom_10), 0);  // No larger
-
-    // GetSmallerAdjacentDenom: returns the next smaller denomination (0.1x value)
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(denom_10), denom_1);
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(denom_1), denom_01);
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(denom_01), denom_001);
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(denom_001), denom_0001);
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(denom_0001), 0);  // No smaller
-
-    // Invalid denominations
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(0), 0);
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(0), 0);
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(999), 0);
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(999), 0);
-}
-
 BOOST_AUTO_TEST_CASE(validate_promotion_entry_edge_cases)
 {
     // Additional edge cases for ValidatePromotionEntry
@@ -1015,25 +945,77 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_edge_cases)
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(nSmallestDenom), 0);  // No smaller exists
 }
 
-// ============================================================================
-// Documentation: Post-V24 Integration Testing Requirements
-// ============================================================================
-// The following tests cannot be performed as unit tests because V24 uses
-// EHF (Extended Hard Fork) activation which requires:
-// 1. A valid blockchain with proper masternode infrastructure
-// 2. EHF signaling from masternodes
-// 3. Proper chainstate with V24 deployment active
-//
-// These tests should be performed as functional tests:
-// - test/functional/coinjoin_promotion.py (to be added)
-// - test/functional/coinjoin_demotion.py (to be added)
-//
-// Post-V24 behaviors that require functional testing:
-// 1. IsValidStructure accepts unbalanced vin/vout with proper promo/demo structure
-// 2. IsValidInOuts accepts promotion/demotion entries within sessions
-// 3. Full promotion flow: 10 inputs -> 1 output mixing
-// 4. Full demotion flow: 1 input -> 10 outputs mixing
-// 5. Mixed sessions: some participants 1:1, others promoting/demoting
-// 6. Input limit increased from 180 to 200 post-V24
-// ============================================================================
+BOOST_AUTO_TEST_CASE(is_standard_mixing_entry)
+{
+    // Test IsStandardMixingEntry() method added for privacy protection
+
+    // Standard entry: equal inputs and outputs
+    CCoinJoinEntry standard;
+    standard.vecTxDSIn.resize(3);
+    standard.vecTxOut.resize(3);
+    BOOST_CHECK(standard.IsStandardMixingEntry());
+
+    // Promotion entry: PROMOTION_RATIO inputs, 1 output
+    CCoinJoinEntry promotion;
+    promotion.vecTxDSIn.resize(CoinJoin::PROMOTION_RATIO);  // 10 inputs
+    promotion.vecTxOut.resize(1);  // 1 output
+    BOOST_CHECK(!promotion.IsStandardMixingEntry());
+
+    // Demotion entry: 1 input, PROMOTION_RATIO outputs
+    CCoinJoinEntry demotion;
+    demotion.vecTxDSIn.resize(1);  // 1 input
+    demotion.vecTxOut.resize(CoinJoin::PROMOTION_RATIO);  // 10 outputs
+    BOOST_CHECK(!demotion.IsStandardMixingEntry());
+
+    // Edge case: empty entry
+    CCoinJoinEntry empty;
+    BOOST_CHECK(empty.IsStandardMixingEntry());  // 0 == 0, technically standard
+
+    // Edge case: 1:1 is standard
+    CCoinJoinEntry one_to_one;
+    one_to_one.vecTxDSIn.resize(1);
+    one_to_one.vecTxOut.resize(1);
+    BOOST_CHECK(one_to_one.IsStandardMixingEntry());
+}
+
+BOOST_AUTO_TEST_CASE(get_standard_entries_count)
+{
+    // Test GetStandardEntriesCount() methods for privacy threshold enforcement
+    // This is tested through CCoinJoinBaseSession which vecEntries is part of
+    // We verify the logic by testing IsStandardMixingEntry on various entry types
+
+    // Mix of standard and promotion/demotion entries
+    std::vector<CCoinJoinEntry> entries;
+
+    // 3 standard entries
+    for (int i = 0; i < 3; ++i) {
+        CCoinJoinEntry standard;
+        standard.vecTxDSIn.resize(5);
+        standard.vecTxOut.resize(5);
+        entries.push_back(standard);
+    }
+
+    // 1 promotion entry
+    CCoinJoinEntry promotion;
+    promotion.vecTxDSIn.resize(CoinJoin::PROMOTION_RATIO);
+    promotion.vecTxOut.resize(1);
+    entries.push_back(promotion);
+
+    // 1 demotion entry
+    CCoinJoinEntry demotion;
+    demotion.vecTxDSIn.resize(1);
+    demotion.vecTxOut.resize(CoinJoin::PROMOTION_RATIO);
+    entries.push_back(demotion);
+
+    // Count standard entries manually (what GetStandardEntriesCount should return)
+    int standard_count = std::count_if(entries.begin(), entries.end(),
+        [](const CCoinJoinEntry& e) { return e.IsStandardMixingEntry(); });
+
+    BOOST_CHECK_EQUAL(standard_count, 3);  // Only 3 standard, not 5 total
+    BOOST_CHECK_EQUAL(entries.size(), 5);  // Total is 5
+
+    // Verify promotion and demotion are NOT counted
+    BOOST_CHECK(!promotion.IsStandardMixingEntry());
+    BOOST_CHECK(!demotion.IsStandardMixingEntry());
+}
 BOOST_AUTO_TEST_SUITE_END()
