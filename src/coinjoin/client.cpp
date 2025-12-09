@@ -1190,10 +1190,8 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- trying queue: %s\n", dsq.ToString());
 
         // For promotion/demotion, we need a queue with the target denomination
-        if ((fPromotion || fDemotion) && nTargetDenom != 0) {
-            if (dsq.nDenom != nTargetDenom) {
-                continue; // Skip queues with wrong denomination
-            }
+        if ((fPromotion || fDemotion) && nTargetDenom != 0 && dsq.nDenom != nTargetDenom) {
+            continue; // Skip queues with wrong denomination
         }
 
         std::vector<CTxDSIn> vecTxDSInTmp;

@@ -102,10 +102,8 @@ bool CCoinJoinBroadcastTx::IsValidStructure(const CBlockIndex* pindex) const
 
     // Pre-V24: require balanced input/output counts (1:1 mixing only)
     // Post-V24: allow unbalanced counts (promotion/demotion)
-    if (!fV24Active) {
-        if (tx->vin.size() != tx->vout.size()) {
-            return false;
-        }
+    if (!fV24Active && tx->vin.size() != tx->vout.size()) {
+        return false;
     }
 
     if (tx->vin.size() < size_t(CoinJoin::GetMinPoolParticipants())) {
