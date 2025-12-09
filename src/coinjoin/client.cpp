@@ -293,7 +293,19 @@ void CCoinJoinClientSession::SetNull()
     mixingMasternode = nullptr;
     pendingDsaRequest = CPendingDsaRequest();
 
-    // Post-V24: Clear promotion/demotion session state
+    // Post-V24: Unlock promotion/demotion inputs before clearing state
+    // These coins were locked in JoinExistingQueue/StartNewQueue but may not
+    // have been added to vecOutPointLocked yet if the session failed early
+    if (!m_vecPromotionInputs.empty()) {
+        // Add to vecOutPointLocked so UnlockCoins() will handle them properly
+        // with its retry mechanism if the wallet is locked
+        for (const auto& outpoint : m_vecPromotionInputs) {
+            // Only add if not already in the list (avoid duplicates)
+            if (std::find(vecOutPointLocked.begin(), vecOutPointLocked.end(), outpoint) == vecOutPointLocked.end()) {
+                vecOutPointLocked.push_back(outpoint);
+            }
+        }
+    }
     m_fPromotion = false;
     m_fDemotion = false;
     m_vecPromotionInputs.clear();
@@ -1208,6 +1220,11 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
                 WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- Failed to build promotion inputs\n");
                 continue;
             }
+            // Lock promotion inputs immediately to prevent race conditions
+            // with other concurrent CoinJoin sessions
+            for (const auto& outpoint : vecCoins) {
+                m_wallet->LockCoin(outpoint);
+            }
         } else if (fDemotion && nTargetDenom != 0) {
             // Demotion: select 1 coin of the larger denomination
             const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nTargetDenom);
@@ -1228,6 +1245,11 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
             // Keep only 1 input for demotion
             if (vecTxDSInTmp.size() > 1) {
                 vecTxDSInTmp.resize(1);
+            }
+            // Lock demotion input immediately to prevent race conditions
+            if (!vecTxDSInTmp.empty()) {
+                LOCK(m_wallet->cs_wallet);
+                m_wallet->LockCoin(vecTxDSInTmp[0].prevout);
             }
         } else {
             // Standard mixing: try to match their denominations if possible
@@ -1400,6 +1422,10 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- Failed to build promotion inputs\n");
             return false;
         }
+        // Lock promotion inputs immediately to prevent race conditions
+        for (const auto& outpoint : vecCoins) {
+            m_wallet->LockCoin(outpoint);
+        }
     } else if (fDemotion) {
         // Demotion: need 1 coin of the larger denomination
         const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nTargetDenom);
@@ -1416,6 +1442,11 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         }
         if (vecTxDSInTmp.size() > 1) {
             vecTxDSInTmp.resize(1);
+        }
+        // Lock demotion input immediately to prevent race conditions
+        if (!vecTxDSInTmp.empty()) {
+            LOCK(m_wallet->cs_wallet);
+            m_wallet->LockCoin(vecTxDSInTmp[0].prevout);
         }
     } else {
         // Neither promotion nor demotion - shouldn't use this overload
@@ -1748,6 +1779,12 @@ bool CCoinJoinClientSession::PreparePromotionEntry(std::string& strErrorRet, std
             return false;
         }
 
+        // Validate the UTXO is still spendable
+        if (m_wallet->IsSpent(outpoint)) {
+            strErrorRet = "Promotion input has been spent";
+            return false;
+        }
+
         CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
                        m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
 
@@ -1765,9 +1802,13 @@ bool CCoinJoinClientSession::PreparePromotionEntry(std::string& strErrorRet, std
         vecPSInOutPairsRet.back().second = CTxOut(nLargerAmount, scriptDenom);
     }
 
-    // Lock all inputs
+    // Lock all inputs (should already be locked from JoinExistingQueue/StartNewQueue)
+    // Add to vecOutPointLocked for proper cleanup in SetNull()
     for (const auto& [txDsIn, txDsOut] : vecPSInOutPairsRet) {
-        m_wallet->LockCoin(txDsIn.prevout);
+        if (!m_wallet->IsLockedCoin(txDsIn.prevout)) {
+            // Defensive: lock if not already locked
+            m_wallet->LockCoin(txDsIn.prevout);
+        }
         vecOutPointLocked.push_back(txDsIn.prevout);
     }
 
@@ -1809,6 +1850,12 @@ bool CCoinJoinClientSession::PrepareDemotionEntry(std::string& strErrorRet, std:
         return false;
     }
 
+    // Validate the UTXO is still spendable
+    if (m_wallet->IsSpent(outpoint)) {
+        strErrorRet = "Demotion input has been spent";
+        return false;
+    }
+
     CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
                    m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
 
@@ -1828,8 +1875,12 @@ bool CCoinJoinClientSession::PrepareDemotionEntry(std::string& strErrorRet, std:
         }
     }
 
-    // Lock the input
-    m_wallet->LockCoin(txdsin.prevout);
+    // Lock the input (should already be locked from JoinExistingQueue/StartNewQueue)
+    // Add to vecOutPointLocked for proper cleanup in SetNull()
+    if (!m_wallet->IsLockedCoin(txdsin.prevout)) {
+        // Defensive: lock if not already locked
+        m_wallet->LockCoin(txdsin.prevout);
+    }
     vecOutPointLocked.push_back(txdsin.prevout);
 
     WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::PrepareDemotionEntry -- Prepared 1 input for demotion to %d x %s\n",
