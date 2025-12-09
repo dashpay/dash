@@ -173,6 +173,15 @@ public:
     }
 
     bool AddScriptSig(const CTxIn& txin);
+
+    // Check if this is a standard mixing entry (not promotion/demotion)
+    // Standard: equal number of inputs and outputs
+    // Promotion: PROMOTION_RATIO inputs, 1 output
+    // Demotion: 1 input, PROMOTION_RATIO outputs
+    bool IsStandardMixingEntry() const
+    {
+        return vecTxDSIn.size() == vecTxOut.size();
+    }
 };
 
 
@@ -320,6 +329,20 @@ public:
 
     int GetEntriesCount() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin) { LOCK(cs_coinjoin); return vecEntries.size(); }
     int GetEntriesCountLocked() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin) { return vecEntries.size(); }
+
+    // Count only standard mixing entries (not promotion/demotion) for privacy threshold
+    int GetStandardEntriesCount() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return std::count_if(vecEntries.begin(), vecEntries.end(),
+                             [](const CCoinJoinEntry& entry) { return entry.IsStandardMixingEntry(); });
+    }
+
+    int GetStandardEntriesCountLocked() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin)
+    {
+        return std::count_if(vecEntries.begin(), vecEntries.end(),
+                             [](const CCoinJoinEntry& entry) { return entry.IsStandardMixingEntry(); });
+    }
 };
 
 // base class
