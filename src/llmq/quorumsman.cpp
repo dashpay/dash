@@ -82,7 +82,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     quorum->Init(std::make_unique<CFinalCommitment>(std::move(qc)), pQuorumBaseBlockIndex, minedBlockHash, members);
 
     if (populate_cache && llmq_params_opt->size == 1) {
-        WITH_LOCK(cs_map_quorums, mapQuorumsCache[llmqType].insert(quorumHash, quorum));
+        WITH_LOCK(m_cs_maps, mapQuorumsCache[llmqType].insert(quorumHash, quorum));
 
         return quorum;
     }
@@ -106,7 +106,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         QueueQuorumForWarming(quorum);
     }
 
-    WITH_LOCK(cs_map_quorums, mapQuorumsCache[llmqType].insert(quorumHash, quorum));
+    WITH_LOCK(m_cs_maps, mapQuorumsCache[llmqType].insert(quorumHash, quorum));
 
     return quorum;
 }
@@ -230,7 +230,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     std::vector<CQuorumCPtr> vecResultQuorums;
 
     {
-        LOCK(cs_scan_quorums);
+        LOCK(m_cs_maps);
         if (scanQuorumsCache.empty()) {
             for (const auto& llmq : Params().GetConsensus().llmqs) {
                 // NOTE: We store it for each block hash in the DKG mining phase here
@@ -293,7 +293,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
     const size_t nCountResult{vecResultQuorums.size()};
     if (nCountResult > 0) {
-        LOCK(cs_scan_quorums);
+        LOCK(m_cs_maps);
         // Don't cache more than keepOldConnections elements
         // because signing by old quorums requires the exact quorum hash
         // to be specified and quorum scanning isn't needed there.
@@ -399,7 +399,7 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_nul
     }
 
     CQuorumPtr pQuorum;
-    if (LOCK(cs_map_quorums); mapQuorumsCache[llmqType].get(quorumHash, pQuorum)) {
+    if (LOCK(m_cs_maps); mapQuorumsCache[llmqType].get(quorumHash, pQuorum)) {
         return pQuorum;
     }
 
@@ -530,7 +530,7 @@ MessageProcessingResult CQuorumManager::ProcessMessage(CNode& pfrom, CConnman& c
 
         CQuorumPtr pQuorum;
         {
-            if (LOCK(cs_map_quorums); !mapQuorumsCache[request.GetLLMQType()].get(request.GetQuorumHash(), pQuorum)) {
+            if (LOCK(m_cs_maps); !mapQuorumsCache[request.GetLLMQType()].get(request.GetQuorumHash(), pQuorum)) {
                 // Don't bump score because we asked for it
                 LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- %s: Quorum not found, from peer=%d\n", __func__, msg_type, pfrom.GetId());
                 return {};
