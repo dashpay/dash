@@ -298,7 +298,7 @@ static RPCHelpMan quorum_info()
 
 static RPCResult quorum_dkgstatus_help()
 {
-    auto ret = llmq::CDKGDebugStatus::GetJsonHelp(/*key=*/"", /*optional=*/false, /*inner_optional=*/true);
+    auto ret = llmq::CDKGDebugManager::GetJsonHelp(/*key=*/"", /*optional=*/false, /*inner_optional=*/true);
     auto mod_inner = ret.m_inner;
     mod_inner.push_back({RPCResult::Type::ARR, "quorumConnections", "Array of objects containing quorum connection information", {
         {RPCResult::Type::OBJ, "", "", {
@@ -347,18 +347,16 @@ static RPCHelpMan quorum_dkgstatus()
     UniValue quorumArrConnections(UniValue::VARR);
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
-    const ChainstateManager& chainman = EnsureChainman(node);
-    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
     if (const auto* debugman = node.active_ctx ? node.active_ctx->dkgdbgman.get()
                                                : node.observer_ctx ? node.observer_ctx->dkgdbgman.get()
                                                                    : nullptr; debugman) {
-        llmq::CDKGDebugStatus status;
-        debugman->GetLocalDebugStatus(status);
-        ret = status.ToJson(*CHECK_NONFATAL(node.dmnman), *llmq_ctx.qsnapman, chainman, detailLevel);
+        ret = debugman->ToJson(detailLevel);
     }
 
     const CConnman& connman = EnsureConnman(node);
+    const ChainstateManager& chainman = EnsureChainman(node);
     const CBlockIndex* const pindexTip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
     const int tipHeight = pindexTip->nHeight;
     const uint256 proTxHash = node.active_ctx ? node.active_ctx->nodeman->GetProTxHash() : uint256{};
     for (const auto& type : llmq::GetEnabledQuorumTypes(chainman, pindexTip)) {
@@ -1005,10 +1003,8 @@ static RPCHelpMan quorum_dkginfo()
     }
     const auto& dkgdbgman = *(node.active_ctx ? node.active_ctx->dkgdbgman.get() : node.observer_ctx->dkgdbgman.get());
 
-    llmq::CDKGDebugStatus status;
-    dkgdbgman.GetLocalDebugStatus(status);
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("active_dkgs", status.sessions.size());
+    ret.pushKV("active_dkgs", dkgdbgman.GetSessionCount());
 
     const ChainstateManager& chainman = EnsureChainman(node);
     const int nTipHeight{WITH_LOCK(cs_main, return chainman.ActiveChain().Height())};
