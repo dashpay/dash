@@ -19,6 +19,30 @@
 
 using node::ReadBlockFromDisk;
 
+bool CheckCbTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (!tx.IsCoinBase()) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-invalid");
+    }
+
+    if (tx.nType != TRANSACTION_COINBASE) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-type");
+    }
+
+    const auto opt_cbTx = GetTxPayload<CCbTx>(tx);
+    if (!opt_cbTx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
+    }
+
+    auto& cbTx = *opt_cbTx;
+    if (cbTx.nVersion == CCbTx::Version::INVALID || cbTx.nVersion >= CCbTx::Version::UNKNOWN) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
+    }
+
+    return true;
+}
+
 bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationState& state)
 {
     if (cbTx.nVersion == CCbTx::Version::INVALID || cbTx.nVersion >= CCbTx::Version::UNKNOWN) {

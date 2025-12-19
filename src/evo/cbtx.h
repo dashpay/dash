@@ -68,6 +68,7 @@ public:
 };
 template<> struct is_serializable_enum<CCbTx::Version> : std::true_type {};
 
+bool CheckCbTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationState& state);
 
 bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev,

@@ -164,6 +164,7 @@ public:
     [[nodiscard]] UniValue ToJson() const;
 };
 
+bool CheckLLMQCommitmentBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckLLMQCommitment(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                          const ChainstateManager& chainman, const CTransaction& tx,
                          gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state);

@@ -169,6 +169,7 @@ private:
 };
 
 std::optional<uint8_t> extractEHFSignal(const CTransaction& tx);
+bool CheckMNHFTxBasic(const CTransaction& tx, TxValidationState& state);
 bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state);
 
 #endif // BITCOIN_EVO_MNHFTX_H

@@ -110,6 +110,25 @@ bool MNHFTx::Verify(const llmq::CQuorumManager& qman, const uint256& quorumHash,
     return true;
 }
 
+bool CheckMNHFTxBasic(const CTransaction& tx, TxValidationState& state)
+{
+    // Context-free basic validation - no chain state
+    if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_MNHF_SIGNAL) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-type");
+    }
+
+    const auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
+    if (!opt_mnhfTx) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-payload");
+    }
+    auto& mnhfTx = *opt_mnhfTx;
+    if (mnhfTx.nVersion == 0 || mnhfTx.nVersion > MNHFTxPayload::CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-version");
+    }
+
+    return true;
+}
+
 bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
 {
     if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_MNHF_SIGNAL) {
