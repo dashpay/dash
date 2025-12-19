@@ -14,11 +14,10 @@
 #include <utility>
 #include <vector>
 
-#include <addressindex.h>
+#include <kernel/mempool_options.h>
+
 #include <coins.h>
 #include <consensus/amount.h>
-#include <evo/netinfo.h>
-#include <gsl/pointers.h>
 #include <indirectmap.h>
 #include <netaddress.h>
 #include <policy/feerate.h>
@@ -26,10 +25,15 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <random.h>
-#include <spentindex.h>
 #include <sync.h>
 #include <util/epochguard.h>
 #include <util/hasher.h>
+
+#include <addressindex.h>
+#include <evo/netinfo.h>
+#include <spentindex.h>
+
+#include <gsl/pointers.h>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/identity.hpp>
@@ -567,15 +571,14 @@ public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
     std::map<uint256, CAmount> mapDeltas GUARDED_BY(cs);
 
+    using Options = kernel::MemPoolOptions;
+
     /** Create a new CTxMemPool.
      * Sanity checks will be off by default for performance, because otherwise
      * accepting transactions becomes O(N^2) where N is the number of transactions
      * in the pool.
-     *
-     * @param[in] estimator is used to estimate appropriate transaction fees.
-     * @param[in] check_ratio is the ratio used to determine how often sanity checks will run.
      */
-    explicit CTxMemPool(CBlockPolicyEstimator* estimator = nullptr, int check_ratio = 0);
+    explicit CTxMemPool(const Options& opts);
 
     /**
      * Set CDeterministicMNManager and CInstantSendManager pointers.

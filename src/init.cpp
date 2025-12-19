@@ -35,6 +35,7 @@
 #include <interfaces/wallet.h>
 #include <kernel/coinstats.h>
 #include <mapport.h>
+#include <mempool_args.h>
 #include <node/miner.h>
 #include <net.h>
 #include <net_permissions.h>
@@ -1986,10 +1987,16 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.chainman);
     assert(!node.govman);
     assert(!node.mn_sync);
-    const int mempool_check_ratio = std::clamp<int>(args.GetIntArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0, 1000000);
+
+    CTxMemPool::Options mempool_opts{
+        .estimator = node.fee_estimator.get(),
+        .check_ratio = chainparams.DefaultConsistencyChecks() ? 1 : 0,
+    };
+    ApplyArgsManOptions(args, mempool_opts);
+    mempool_opts.check_ratio = std::clamp<int>(mempool_opts.check_ratio, 0, 1'000'000);
 
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
-        node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), mempool_check_ratio);
+        node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
         node.chainman = std::make_unique<ChainstateManager>(chainparams);
         ChainstateManager& chainman = *node.chainman;
