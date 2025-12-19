@@ -36,17 +36,16 @@ bool CRecoveredSigsDb::HasRecoveredSig(Consensus::LLMQType llmqType, const uint2
 bool CRecoveredSigsDb::HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const
 {
     auto cacheKey = std::make_pair(llmqType, id);
-    bool ret;
     {
         LOCK(cs_cache);
-        if (hasSigForIdCache.get(cacheKey, ret)) {
-            return ret;
+        if (auto cached = hasSigForIdCache.get(cacheKey)) {
+            return *cached;
         }
     }
 
 
     auto k = std::make_tuple(std::string("rs_r"), llmqType, id);
-    ret = db->Exists(k);
+    bool ret = db->Exists(k);
 
     LOCK(cs_cache);
     hasSigForIdCache.insert(cacheKey, ret);
@@ -55,16 +54,15 @@ bool CRecoveredSigsDb::HasRecoveredSigForId(Consensus::LLMQType llmqType, const 
 
 bool CRecoveredSigsDb::HasRecoveredSigForSession(const uint256& signHash) const
 {
-    bool ret;
     {
         LOCK(cs_cache);
-        if (hasSigForSessionCache.get(signHash, ret)) {
-            return ret;
+        if (auto cached = hasSigForSessionCache.get(signHash)) {
+            return *cached;
         }
     }
 
     auto k = std::make_tuple(std::string("rs_s"), signHash);
-    ret = db->Exists(k);
+    bool ret = db->Exists(k);
 
     LOCK(cs_cache);
     hasSigForSessionCache.insert(signHash, ret);
@@ -73,16 +71,15 @@ bool CRecoveredSigsDb::HasRecoveredSigForSession(const uint256& signHash) const
 
 bool CRecoveredSigsDb::HasRecoveredSigForHash(const uint256& hash) const
 {
-    bool ret;
     {
         LOCK(cs_cache);
-        if (hasSigForHashCache.get(hash, ret)) {
-            return ret;
+        if (auto cached = hasSigForHashCache.get(hash)) {
+            return *cached;
         }
     }
 
     auto k = std::make_tuple(std::string("rs_h"), hash);
-    ret = db->Exists(k);
+    bool ret = db->Exists(k);
 
     LOCK(cs_cache);
     hasSigForHashCache.insert(hash, ret);

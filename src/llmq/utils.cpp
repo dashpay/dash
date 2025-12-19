@@ -215,8 +215,8 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
         }
         if (reset_cache) {
             mapQuorumMembers[llmqType].clear();
-        } else if (mapQuorumMembers[llmqType].get(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers)) {
-            return quorumMembers;
+        } else if (auto cached = mapQuorumMembers[llmqType].get(pQuorumBaseBlockIndex->GetBlockHash())) {
+            return *cached;
         }
     }
 
@@ -251,7 +251,8 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
         if (reset_cache) {
             LOCK(cs_indexed_members);
             mapIndexedQuorumMembers[llmqType].clear();
-        } else if (LOCK(cs_indexed_members); mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
+        } else if (LOCK(cs_indexed_members); auto cached = mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex))) {
+            quorumMembers = *cached;
             LOCK(cs_members);
             mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
             return quorumMembers;

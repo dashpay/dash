@@ -351,8 +351,8 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
 
     LOCK(snapshotCacheCs);
     // try using cache before reading from disk
-    if (quorumSnapshotCache.get(snapshotHash, snapshot)) {
-        return snapshot;
+    if (auto cached = quorumSnapshotCache.get(snapshotHash)) {
+        return *cached;
     }
     if (m_evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
         quorumSnapshotCache.insert(snapshotHash, snapshot);

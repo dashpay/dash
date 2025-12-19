@@ -149,7 +149,9 @@ MessageProcessingResult CDKGSessionManager::ProcessMessage(CNode& pfrom, bool is
         if (indexedQuorumsCache.empty()) {
             utils::InitQuorumsCache(indexedQuorumsCache);
         }
-        indexedQuorumsCache[llmqType].get(quorumHash, quorumIndex);
+        if (auto cached = indexedQuorumsCache[llmqType].get(quorumHash)) {
+            quorumIndex = *cached;
+        }
     }
 
     // No luck, try to compute
