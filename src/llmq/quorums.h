@@ -17,10 +17,12 @@
 #include <saltedhasher.h>
 #include <util/threadinterrupt.h>
 #include <util/time.h>
+#include <validationinterface.h>
 
 #include <gsl/pointers.h>
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <utility>
 
@@ -258,6 +260,33 @@ private:
     // it maps `quorum_hash` to `pindex`
     mutable Uint256LruHashMap<const CBlockIndex*, 128 /*max_size*/> quorumBaseBlockIndexCache;
 
+    // Active chain snapshot to avoid cs_main contention
+    struct ActiveChainView {
+        const CBlockIndex* tip{nullptr};
+        int height{-1};
+        uint256 hash;
+    };
+    mutable Mutex cs_active_chain_view;
+    ActiveChainView m_active_chain_view GUARDED_BY(cs_active_chain_view);
+
+    // Ancestor lookup cache (height -> CBlockIndex*) for current tip
+    mutable Mutex cs_ancestor_cache;
+    mutable unordered_lru_cache<int, const CBlockIndex*, std::hash<int>> m_ancestor_lru GUARDED_BY(cs_ancestor_cache);
+    mutable uint256 m_lru_tip_hash GUARDED_BY(cs_ancestor_cache);
+    mutable int m_lru_tip_height GUARDED_BY(cs_ancestor_cache){-1};
+    static size_t ComputeAncestorCacheMaxSize();
+
+    // ValidationInterface subscriber for tip updates
+    class ChainViewSubscriber : public CValidationInterface {
+    public:
+        explicit ChainViewSubscriber(CQuorumManager& qman) : m_qman(qman) {}
+        virtual ~ChainViewSubscriber() = default;
+        void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
+    private:
+        CQuorumManager& m_qman;
+    };
+    std::unique_ptr<ChainViewSubscriber> m_chain_view_subscriber;
+
     mutable ctpl::thread_pool workerPool;
     mutable CThreadInterrupt quorumThreadInterrupt;
 
@@ -276,10 +305,10 @@ public:
     void Stop();
 
     void TriggerQuorumDataRecoveryThreads(CConnman& connman, const CBlockIndex* pIndex) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_scan_quorums, !cs_map_quorums);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_scan_quorums, !cs_map_quorums, !cs_active_chain_view, !cs_ancestor_cache);
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew, CConnman& connman, bool fInitialDownload) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_scan_quorums, !cs_map_quorums);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_scan_quorums, !cs_map_quorums, !cs_active_chain_view, !cs_ancestor_cache);
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& pfrom, CConnman& connman, std::string_view msg_type,
                                                          CDataStream& vRecv)
@@ -294,17 +323,21 @@ public:
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums);
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !cs_active_chain_view, !cs_ancestor_cache);
 
     // this one is cs_main-free
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart,
                                          size_t nCountRequested) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !cs_active_chain_view, !cs_ancestor_cache);
+
+    // Active chain snapshot accessors (public for use by SelectQuorumForSigning)
+    ActiveChainView GetActiveChainView() const EXCLUSIVE_LOCKS_REQUIRED(!cs_active_chain_view);
+    const CBlockIndex* FindAncestorFast(const ActiveChainView& view, int target_height) const EXCLUSIVE_LOCKS_REQUIRED(!cs_ancestor_cache);
 
 private:
     // all private methods here are cs_main-free
     void CheckQuorumConnections(CConnman& connman, const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindexNew) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_scan_quorums, !cs_map_quorums);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_scan_quorums, !cs_map_quorums, !cs_active_chain_view, !cs_ancestor_cache);
 
     CQuorumPtr BuildQuorumFromCommitment(Consensus::LLMQType llmqType,
                                          gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
