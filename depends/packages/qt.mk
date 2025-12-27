@@ -4,7 +4,7 @@ $(package)_download_path=https://download.qt.io/archive/qt/5.15/$($(package)_ver
 $(package)_suffix=everywhere-opensource-src-$($(package)_version).tar.xz
 $(package)_file_name=qtbase-$($(package)_suffix)
 $(package)_sha256_hash=7b632550ea1048fc10c741e46e2e3b093e5ca94dfa6209e9e0848800e247023b
-$(package)_linux_dependencies := freetype fontconfig libxcb libxkbcommon libxcb_util libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm
+$(package)_linux_dependencies := freetype fontconfig libxcb libxkbcommon libxcb_util libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm wayland libglvnd
 $(package)_freebsd_dependencies := $($(package)_linux_dependencies)
 $(package)_qt_libs=corelib network widgets gui plugins testlib
 $(package)_linguist_tools = lrelease lupdate lconvert
@@ -34,8 +34,12 @@ $(package)_qttranslations_sha256_hash=e5625757913caf66a9d702ba102ae92cb165d8dde1
 $(package)_qttools_file_name=qttools-$($(package)_suffix)
 $(package)_qttools_sha256_hash=931e0969d9f9d8f233e5e9bf9db0cea9ce9914d49982f1795fe6191010113568
 
+$(package)_qtwayland_file_name = qtwayland-$($(package)_suffix)
+$(package)_qtwayland_sha256_hash = 83f00d2b83bc9badd18add6e9c650c41f2aeb6483eb19013dbdae21e4d7bf81d
+
 $(package)_extra_sources  = $($(package)_qttranslations_file_name)
 $(package)_extra_sources += $($(package)_qttools_file_name)
+$(package)_extra_sources += $($(package)_qtwayland_file_name)
 
 define $(package)_set_vars
 $(package)_config_env = QT_MAC_SDK_NO_VERSION_CHECK=1
@@ -49,7 +53,6 @@ $(package)_config_opts += -confirm-license
 $(package)_config_opts += -hostprefix $(build_prefix)
 $(package)_config_opts += -no-compile-examples
 $(package)_config_opts += -no-cups
-$(package)_config_opts += -no-egl
 $(package)_config_opts += -no-eglfs
 $(package)_config_opts += -no-evdev
 $(package)_config_opts += -no-gif
@@ -131,6 +134,7 @@ $(package)_config_opts += -no-feature-wizard
 $(package)_config_opts += -no-feature-xml
 
 $(package)_config_opts_darwin = -no-dbus
+$(package)_config_opts_darwin += -no-egl
 $(package)_config_opts_darwin += -no-opengl
 $(package)_config_opts_darwin += -pch
 $(package)_config_opts_darwin += -no-feature-corewlan
@@ -156,9 +160,22 @@ $(package)_config_opts_linux += -no-xcb-xlib
 $(package)_config_opts_linux += -no-feature-xlib
 $(package)_config_opts_linux += -system-freetype
 $(package)_config_opts_linux += -fontconfig
-$(package)_config_opts_linux += -no-opengl
 $(package)_config_opts_linux += -no-feature-vulkan
 $(package)_config_opts_linux += -dbus-runtime
+
+# Wayland-specific options:
+$(package)_config_opts_linux += -egl
+$(package)_config_opts_linux += -opengl es2
+$(package)_config_opts_linux += -no-opengles3
+$(package)_config_opts_linux += -no-feature-wayland-drm-egl-server-buffer
+$(package)_config_opts_linux += -no-feature-wayland-shm-emulation-server-buffer
+$(package)_config_opts_linux += -no-feature-wayland-client-fullscreen-shell-v1
+$(package)_config_opts_linux += -no-feature-wayland-client-ivi-shell
+$(package)_config_opts_linux += -no-feature-wayland-client-wl-shell
+$(package)_config_opts_linux += -no-feature-wayland-client-xdg-shell-v5
+$(package)_config_opts_linux += -no-feature-wayland-client-xdg-shell-v6
+$(package)_config_opts_linux += -no-feature-wayland-server
+
 ifneq ($(LTO),)
 $(package)_config_opts_linux += -ltcg
 endif
@@ -175,6 +192,7 @@ else
 endif
 
 $(package)_config_opts_mingw32 = -no-opengl
+$(package)_config_opts_mingw32 += -no-egl
 $(package)_config_opts_mingw32 += -no-dbus
 $(package)_config_opts_mingw32 += -no-freetype
 $(package)_config_opts_mingw32 += -xplatform win32-g++
@@ -212,7 +230,8 @@ endef
 define $(package)_fetch_cmds
 $(call fetch_file,$(package),$($(package)_download_path),$($(package)_download_file),$($(package)_file_name),$($(package)_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_download_path),$($(package)_qttranslations_file_name),$($(package)_qttranslations_file_name),$($(package)_qttranslations_sha256_hash)) && \
-$(call fetch_file,$(package),$($(package)_download_path),$($(package)_qttools_file_name),$($(package)_qttools_file_name),$($(package)_qttools_sha256_hash))
+$(call fetch_file,$(package),$($(package)_download_path),$($(package)_qttools_file_name),$($(package)_qttools_file_name),$($(package)_qttools_sha256_hash)) && \
+$(call fetch_file,$(package),$($(package)_download_path),$($(package)_qtwayland_file_name),$($(package)_qtwayland_file_name),$($(package)_qtwayland_sha256_hash))
 endef
 
 define $(package)_extract_cmds
@@ -220,13 +239,16 @@ define $(package)_extract_cmds
   echo "$($(package)_sha256_hash)  $($(package)_source)" > $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_qttranslations_sha256_hash)  $($(package)_source_dir)/$($(package)_qttranslations_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_qttools_sha256_hash)  $($(package)_source_dir)/$($(package)_qttools_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  echo "$($(package)_qtwayland_sha256_hash)  $($(package)_source_dir)/$($(package)_qtwayland_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   $(build_SHA256SUM) -c $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   mkdir qtbase && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source) -C qtbase && \
   mkdir qttranslations && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttranslations_file_name) -C qttranslations && \
   mkdir qttools && \
-  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools
+  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools && \
+  mkdir qtwayland && \
+  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland
 endef
 
 # Preprocessing steps work as follows:
@@ -291,6 +313,10 @@ define $(package)_stage_cmds
   $(MAKE) -C qttools/src/linguist INSTALL_ROOT=$($(package)_staging_dir) $(addsuffix -install_subtargets,$(addprefix sub-,$($(package)_linguist_tools))) && \
   $(MAKE) -C qttranslations INSTALL_ROOT=$($(package)_staging_dir) install_subtargets
 endef
+
+ifeq ($(host_os),linux)
+  $(package)_stage_cmds += && $(MAKE) -C qtwayland/src INSTALL_ROOT=$($(package)_staging_dir) sub-plugins-install_subtargets
+endif
 
 define $(package)_postprocess_cmds
   rm -rf native/mkspecs/ native/lib/ lib/cmake/ && \
