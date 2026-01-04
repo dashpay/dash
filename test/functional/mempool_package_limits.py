@@ -306,10 +306,11 @@ class MempoolPackageLimitsTest(BitcoinTestFramework):
         parents_tx = []
         target_weight = 1000 * 30 # 30KvB
         high_fee = Decimal("0.003") # 10 sats/vB
+        fee_rate=Decimal("0.01")
         self.log.info("Check that in-mempool and in-package ancestor size limits are calculated properly in packages")
         # Mempool transactions A and B
         for _ in range(2):
-            bulked_tx = self.wallet.create_self_transfer(target_weight=target_weight)
+            bulked_tx = self.wallet.create_self_transfer(target_weight=target_weight, fee_rate=fee_rate)
             self.wallet.sendrawtransaction(from_node=node, tx_hex=bulked_tx["hex"])
             parent_utxos.append(bulked_tx["new_utxo"])
 
@@ -317,7 +318,7 @@ class MempoolPackageLimitsTest(BitcoinTestFramework):
         pc_tx = self.wallet.create_self_transfer_multi(utxos_to_spend=parent_utxos, fee_per_output=int(high_fee * COIN), target_weight=target_weight)
 
         # Package transaction D
-        pd_tx = self.wallet.create_self_transfer(utxo_to_spend=pc_tx["new_utxos"][0], target_weight=target_weight)
+        pd_tx = self.wallet.create_self_transfer(utxo_to_spend=pc_tx["new_utxos"][0], target_weight=target_weight, fee_rate=fee_rate)
 
         assert_equal(2, node.getmempoolinfo()["size"])
         testres_too_heavy = node.testmempoolaccept(rawtxs=[pc_tx["hex"], pd_tx["hex"]])

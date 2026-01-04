@@ -319,8 +319,9 @@ class MiniWallet:
         assert send_value > 0
 
         # create tx
-        tx = self.create_self_transfer_multi(utxos_to_spend=[utxo_to_spend], locktime=locktime, sequence=sequence, amount_per_output=int(COIN * send_value))
-        assert_equal(tx["tx"].get_vsize(), vsize)
+        tx = self.create_self_transfer_multi(utxos_to_spend=[utxo_to_spend], locktime=locktime, sequence=sequence, amount_per_output=int(COIN * send_value), target_weight=target_weight)
+        if not target_weight:
+            assert_equal(tx["tx"].get_vsize(), vsize)
 
         return {"txid": tx["txid"], "hex": tx["hex"], "tx": tx["tx"], "new_utxo": tx["new_utxos"][0]}
 
