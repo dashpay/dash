@@ -517,6 +517,7 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
     const fs::path wallet_path = fsbridge::AbsPathJoin(GetWalletDir(), fs::u8path(wallet_name));
     auto wallet_file = wallet_path / "wallet.dat";
     std::shared_ptr<CWallet> wallet;
+    bool wallet_file_copied = false;
     bool created_parent_dir = false;
 
     try {
@@ -526,14 +527,34 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
             return nullptr;
         }
 
-        if (fs::exists(wallet_path) || !TryCreateDirectories(wallet_path)) {
-            error = Untranslated(strprintf("Failed to create database path '%s'. Database already exists.", fs::PathToString(wallet_path)));
-            status = DatabaseStatus::FAILED_ALREADY_EXISTS;
-            return nullptr;
+        // Wallet directories are allowed to exist, but must not contain a .dat file.
+        // Any existing wallet database is treated as a hard failure to prevent overwriting.
+        if (fs::exists(wallet_path)) {
+            // If this is a file, it is the db and we don't want to overwrite it.
+            if (!fs::is_directory(wallet_path)) {
+                error = Untranslated(strprintf("Failed to restore wallet. Database file exists '%s'.", fs::PathToString(wallet_path)));
+                status = DatabaseStatus::FAILED_ALREADY_EXISTS;
+                return nullptr;
+            }
+
+            // Check we are not going to overwrite an existing db file
+            if (fs::exists(wallet_file)) {
+                error = Untranslated(strprintf("Failed to restore wallet. Database file exists in '%s'.", fs::PathToString(wallet_file)));
+                status = DatabaseStatus::FAILED_ALREADY_EXISTS;
+                return nullptr;
+            }
+        } else {
+            // The directory doesn't exist, create it
+            if (!TryCreateDirectories(wallet_path)) {
+                error = Untranslated(strprintf("Failed to restore database path '%s'.", fs::PathToString(wallet_path)));
+                status = DatabaseStatus::FAILED_ALREADY_EXISTS;
+                return nullptr;
+            }
+            created_parent_dir = true;
         }
 
-        created_parent_dir = true;
         fs::copy_file(backup_file, wallet_file, fs::copy_options::none);
+        wallet_file_copied = true;
 
         wallet = LoadWallet(context, wallet_name, load_on_start, options, status, error, warnings);
     } catch (const std::exception& e) {
@@ -542,8 +563,19 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
         error += strprintf(Untranslated("Unexpected exception: %s"), e.what());
         status = DatabaseStatus::FAILED_LOAD;
     }
-    if (!wallet && created_parent_dir) {
-        fs::remove_all(wallet_path);
+
+    // Remove created wallet path only when loading fails
+    if (!wallet) {
+        if (wallet_file_copied) fs::remove(wallet_file);
+        // Clean up the parent directory if we created it during restoration.
+        // Verifying a corrupt BDB file leaves its environment files (db.log,
+        // .walletlock, database/) next to the wallet file, so the directory is
+        // not necessarily empty. It did not exist before this call, so removing
+        // it recursively only touches what this restore created.
+        // TODO(bitcoin#28710): once BDB is gone nothing but wallet.dat can be
+        //       created here; restore upstream's `Assume(fs::is_empty(wallet_path));
+        //       fs::remove(wallet_path);` (bitcoin#34156, 4ed0693a3f).
+        if (created_parent_dir) fs::remove_all(wallet_path);
     }
 
     return wallet;
@@ -5022,6 +5054,15 @@ bool CWallet::CanGrindR() const
     return !IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER);
 }
 
+// Returns wallet prefix for migration.
+// Used to name the backup file and newly created wallets.
+// E.g. a watch-only wallet is named "<prefix>_watchonly".
+static std::string MigrationPrefixName(CWallet& wallet)
+{
+    const std::string& name{wallet.GetName()};
+    return name.empty() ? "default_wallet" : name;
+}
+
 bool DoMigration(CWallet& wallet, WalletContext& context, bilingual_str& error, MigrationResult& res) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     AssertLockHeld(wallet.cs_wallet);
@@ -5053,7 +5094,7 @@ bool DoMigration(CWallet& wallet, WalletContext& context, bilingual_str& error, 
 
             DatabaseStatus status;
             std::vector<bilingual_str> warnings;
-            std::string wallet_name = wallet.GetName() + "_watchonly";
+            std::string wallet_name = MigrationPrefixName(wallet) + "_watchonly";
             std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(wallet_name, options, status, error);
             if (!database) {
                 error = strprintf(_("Wallet file creation failed: %s"), error);
@@ -5090,7 +5131,7 @@ bool DoMigration(CWallet& wallet, WalletContext& context, bilingual_str& error, 
 
             DatabaseStatus status;
             std::vector<bilingual_str> warnings;
-            std::string wallet_name = wallet.GetName() + "_solvables";
+            std::string wallet_name = MigrationPrefixName(wallet) + "_solvables";
             std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(wallet_name, options, status, error);
             if (!database) {
                 error = strprintf(_("Wallet file creation failed: %s"), error);
@@ -5171,7 +5212,12 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         std::string name = to_reload->GetName();
         to_reload.reset();
         to_reload = LoadWallet(context, name, /*load_on_start=*/std::nullopt, options, status, error, warnings);
-        return to_reload != nullptr;
+        if (!to_reload) {
+            LogError("Failed to load wallet '%s' after migration. Rolling back migration to preserve consistency. "
+                     "Error cause: %s\n", wallet_name, error.original);
+            return false;
+        }
+        return true;
     };
 
     // Before anything else, check if there is something to migrate.
@@ -5184,10 +5230,13 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
 
     // Make a backup of the DB in the wallet's directory with a unique filename
     // based on the wallet name and current timestamp. The backup filename uses
-    // the basename of the wallet path (or "wallet" if the name is blank) so that
-    // path-style wallet names cannot escape the wallet directory.
-    // TODO: backport bitcoin/bitcoin#32273 to also move the backup into the
-    //       top-level walletdir and unify with upstream.
+    // the basename of the wallet path (or "default_wallet" if the name is blank)
+    // so that path-style wallet names cannot escape the wallet directory.
+    // TODO(bitcoin#32273): backups move to the top-level walletdir and are named
+    //       from the wallet path. When backported, drop the basename reduction
+    //       below, replace test_wallet_name_with_slashes with upstream's path
+    //       tests, re-derive the bitcoin#34226 path cases from master, then
+    //       take bitcoin#33104 and bitcoin#33122.
     fs::path this_wallet_dir = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename())).parent_path();
     std::string backup_prefix;
     if (!wallet_name.empty()) {
@@ -5196,9 +5245,9 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         backup_prefix = fs::PathToString(legacy_wallet_path.filename());
     }
     // Fall back when the name was blank or canonicalizes to an empty filename
-    // (e.g. "/", "."), so we never emit a file like "-1748432384.legacy.bak".
-    if (backup_prefix.empty()) backup_prefix = "wallet";
-    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", backup_prefix, GetTime()));
+    // (e.g. "/", "."), so we never emit a file like "_1748432384.legacy.bak".
+    if (backup_prefix.empty()) backup_prefix = MigrationPrefixName(*local_wallet);
+    fs::path backup_filename = fs::PathFromString(strprintf("%s_%d.legacy.bak", backup_prefix, GetTime()));
     fs::path backup_path = this_wallet_dir / backup_filename;
     if (!local_wallet->BackupWallet(fs::PathToString(backup_path))) {
         if (was_loaded) {
@@ -5235,26 +5284,44 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         success = DoMigration(*local_wallet, context, error, res);
     }
 
-    // In case of reloading failure, we need to remember the wallet dirs to remove
-    // Set is used as it may be populated with the same wallet directory paths multiple times,
-    // both before and after reloading. This ensures the set is complete even if one of the wallets
-    // fails to reload.
-    std::set<fs::path> wallet_dirs;
+    // In case of loading failure, we need to remember the wallet files we have created to remove.
+    // A `set` is used as it may be populated with the same wallet directory paths multiple times,
+    // both before and after loading. This ensures the set is complete even if one of the wallets
+    // fails to load.
+    std::set<fs::path> wallet_files_to_remove;
+    std::set<fs::path> wallet_empty_dirs_to_remove;
+
+    // Helper to track wallet files and directories for cleanup on failure.
+    // Only directories of wallets created during migration (not the main wallet) are tracked.
+    auto track_for_cleanup = [&](const CWallet& wallet) {
+        const auto files = wallet.GetDatabase().Files();
+        wallet_files_to_remove.insert(files.begin(), files.end());
+        if (wallet.GetName() != wallet_name) {
+            // If this isn’t the main wallet, mark its directory for removal.
+            // This applies to the watch-only and solvable wallets.
+            // Wallets stored directly as files in the top-level directory
+            // (e.g. default unnamed wallets) don’t have a removable parent directory.
+            wallet_empty_dirs_to_remove.insert(fs::PathFromString(wallet.GetDatabase().Filename()).parent_path());
+        }
+    };
+
+
     if (success) {
         // Migration successful, unload all wallets locally, then reload them.
         // Reload the main wallet
-        wallet_dirs.insert(fs::PathFromString(local_wallet->GetDatabase().Filename()).parent_path());
+        LogInfo("Loading new wallets after migration...\n");
+        track_for_cleanup(*local_wallet);
         success = reload_wallet(local_wallet);
         res.wallet = local_wallet;
         res.wallet_name = wallet_name;
         if (success && res.watchonly_wallet) {
             // Reload watchonly
-            wallet_dirs.insert(fs::PathFromString(res.watchonly_wallet->GetDatabase().Filename()).parent_path());
+            track_for_cleanup(*res.watchonly_wallet);
             success = reload_wallet(res.watchonly_wallet);
         }
         if (success && res.solvables_wallet) {
             // Reload solvables
-            wallet_dirs.insert(fs::PathFromString(res.solvables_wallet->GetDatabase().Filename()).parent_path());
+            track_for_cleanup(*res.solvables_wallet);
             success = reload_wallet(res.solvables_wallet);
         }
     }
@@ -5262,7 +5329,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         // Migration failed, cleanup
         // Copy the backup to the actual wallet dir
         fs::path temp_backup_location = fsbridge::AbsPathJoin(GetWalletDir(), backup_filename);
-        fs::copy_file(backup_path, temp_backup_location, fs::copy_options::none);
+        fs::rename(backup_path, temp_backup_location);
 
         // Drop the second reference to the reloaded main wallet: UnloadWallet() below
         // waits until the last reference is gone, and this one would only die on return.
@@ -5278,8 +5345,8 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         if (res.solvables_wallet) created_wallets.push_back(std::move(res.solvables_wallet));
 
         // Get the directories to remove after unloading
-        for (std::shared_ptr<CWallet>& w : created_wallets) {
-            wallet_dirs.emplace(fs::PathFromString(w->GetDatabase().Filename()).parent_path());
+        for (std::shared_ptr<CWallet>& wallet : created_wallets) {
+            track_for_cleanup(*wallet);
         }
 
         // Unload the wallets
@@ -5298,9 +5365,15 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
             }
         }
 
-        // Delete the wallet directories
-        for (const fs::path& dir : wallet_dirs) {
-            fs::remove_all(dir);
+        // First, delete the db files we have created throughout this process and nothing else
+        for (const fs::path& file : wallet_files_to_remove) {
+            fs::remove(file);
+        }
+
+        // Second, delete the created wallet directories and nothing else. They must be empty at this point.
+        for (const fs::path& dir : wallet_empty_dirs_to_remove) {
+            Assume(fs::is_empty(dir));
+            fs::remove(dir);
         }
 
         // Restore the backup
@@ -5312,8 +5385,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         }
 
         // Move the backup to the wallet dir
-        fs::copy_file(temp_backup_location, backup_path, fs::copy_options::none);
-        fs::remove(temp_backup_location);
+        fs::rename(temp_backup_location, backup_path);
 
         return util::Error{error};
     }
