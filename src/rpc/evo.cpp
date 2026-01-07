@@ -1010,8 +1010,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     }
 
     ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpServTx>(
-        WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
-        /*is_basic_override=*/dmn->pdmnState->nVersion > ProTxVersion::LegacyBLS);
+        WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman);
     ptx.netInfo = NetInfoInterface::MakeNetInfo(ptx.nVersion);
 
     ProcessNetInfoCore(ptx, request.params[1], /*optional=*/false);
@@ -1252,6 +1251,10 @@ static RPCHelpMan protx_revoke()
 
     EnsureWalletIsUnlocked(*pwallet);
 
+    const bool isV19active{DeploymentActiveAfter(
+        WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip();),
+        chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
+
     CProUpRevTx ptx;
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
@@ -1260,9 +1263,7 @@ static RPCHelpMan protx_revoke()
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRevTx>(
-        WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
-        /*is_basic_override=*/dmn->pdmnState->nVersion >= ProTxVersion::BasicBLS);
+    ptx.nVersion = ProTxVersion::GetMax(isV19active, /*is_extended_addr=*/false);
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey");
 
@@ -1306,7 +1307,7 @@ static RPCHelpMan protx_revoke()
         fSubmit = ParseBoolV(request.params[4], "submit");
     }
 
-    SignSpecialTxPayloadByHash(tx, ptx, keyOperator, /*use_legacy=*/ptx.nVersion == ProTxVersion::LegacyBLS);
+    SignSpecialTxPayloadByHash(tx, ptx, keyOperator, /*use_legacy=*/!isV19active);
     SetTxPayload(tx, ptx);
 
     return SignAndSendSpecialTx(request, chain_helper, chainman, tx, fSubmit);
