@@ -349,6 +349,7 @@ BASE_SCRIPTS = [
     'p2p_ibd_txrelay.py',
     'rpc_coinjoin.py',
     'rpc_masternode.py',
+    'rpc_protx_legacy_bls.py',
     'rpc_mnauth.py',
     'rpc_verifychainlock.py',
     'wallet_create_tx.py --legacy-wallet',
