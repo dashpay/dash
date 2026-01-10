@@ -121,24 +121,6 @@ std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKey)
     return ParseHexV(o.find_value(strKey), strKey);
 }
 
-int32_t ParseInt32V(const UniValue& v, const std::string &strName)
-{
-    const std::string& strNum = v.getValStr();
-    int32_t num;
-    if (!ParseInt32(strNum, &num))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a 32bit integer (not '"+strNum+"')");
-    return num;
-}
-
-int64_t ParseInt64V(const UniValue& v, const std::string &strName)
-{
-    const std::string& strNum = v.getValStr();
-    int64_t num;
-    if (!ParseInt64(strNum, &num))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a 64bit integer (not '"+strNum+"')");
-    return num;
-}
-
 bool ParseBoolV(const UniValue& v, const std::string &strName)
 {
     std::string strBool;
