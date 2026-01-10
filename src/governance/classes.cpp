@@ -233,14 +233,7 @@ bool CSuperblock::GetPayment(int nPaymentIndex, CGovernancePayment& paymentRet)
 
 CAmount CSuperblock::GetPaymentsTotalAmount()
 {
-    CAmount nPaymentsTotalAmount = 0;
-    int nPayments = CountPayments();
-
-    for (int i = 0; i < nPayments; i++) {
-        nPaymentsTotalAmount += vecPayments[i].nAmount;
-    }
-
-    return nPaymentsTotalAmount;
+    return std23::ranges::fold_left(vecPayments, CAmount{0}, [](CAmount s, const auto& p) { return s + p.nAmount; });
 }
 
 /**

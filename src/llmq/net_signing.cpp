@@ -4,18 +4,20 @@
 
 #include <llmq/net_signing.h>
 
+#include <bls/bls_batchverifier.h>
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
-#include <llmq/signing.h>
 #include <llmq/signing_shares.h>
-
-#include <bls/bls_batchverifier.h>
-#include <cxxtimer.hpp>
-#include <logging.h>
+#include <llmq/signing.h>
 #include <spork.h>
+#include <util/std23.h>
+
+#include <logging.h>
 #include <streams.h>
 #include <util/thread.h>
 #include <validationinterface.h>
+
+#include <cxxtimer.hpp>
 
 #include <algorithm>
 #include <ranges>
@@ -93,10 +95,9 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
     } else if (msg_type == NetMsgType::QBSIGSHARES) {
         std::vector<CBatchedSigShares> msgs;
         vRecv >> msgs;
-        size_t totalSigsCount = 0;
-        for (const auto& bs : msgs) {
-            totalSigsCount += bs.sigShares.size();
-        }
+        const size_t totalSigsCount = std23::ranges::fold_left(msgs, size_t{0}, [](size_t s, const auto& bs) {
+            return s + bs.sigShares.size();
+        });
         if (totalSigsCount > CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS) {
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n",
                      __func__, msgs.size(), CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
