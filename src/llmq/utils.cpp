@@ -11,19 +11,19 @@
 #include <llmq/types.h>
 #include <masternode/meta.h>
 #include <util/irange.h>
-#include <util/ranges.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <net.h>
 #include <random.h>
-#include <util/std23.h>
 #include <util/time.h>
 #include <validation.h>
 
 #include <atomic>
 #include <map>
 #include <optional>
+#include <ranges>
 
 /**
  * Forward declarations
@@ -790,7 +790,8 @@ bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& 
         return false;
     }
 
-    bool isMember = ranges::find_if(members, [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) != members.end();
+    bool isMember = std::ranges::find_if(members, [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) !=
+                    members.end();
 
     if (!isMember && !quorums_watch) {
         return false;

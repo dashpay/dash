@@ -7,6 +7,8 @@
 
 #include <coinjoin/common.h>
 
+#include <util/ranges.h>
+
 #include <core_io.h>
 #include <netaddress.h>
 #include <primitives/block.h>
@@ -346,7 +348,7 @@ public:
     std::optional<CCoinJoinQueue> GetQueueFromHash(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
     {
         LOCK(cs_vecqueue);
-        return ranges::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q) { return q.GetHash() == queueHash; });
+        return util::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q) { return q.GetHash() == queueHash; });
     }
 };
 

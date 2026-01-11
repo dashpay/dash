@@ -8,7 +8,6 @@
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
-#include <util/ranges.h>
 
 #include <core_io.h>
 #include <net.h>
@@ -24,6 +23,8 @@
 #include <validation.h>
 
 #include <univalue.h>
+
+#include <ranges>
 
 CCoinJoinServer::CCoinJoinServer(PeerManagerInternal* peer_manager, ChainstateManager& chainman, CConnman& _connman,
                                  CDeterministicMNManager& dmnman, CDSTXManager& dstxman, CMasternodeMetaMan& mn_metaman,
@@ -91,8 +92,8 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
 
             auto mnOutpoint = m_mn_activeman.GetOutPoint();
 
-            if (ranges::any_of(vecCoinJoinQueue,
-                               [&mnOutpoint](const auto& q){return q.masternodeOutpoint == mnOutpoint;})) {
+            if (std::ranges::any_of(vecCoinJoinQueue,
+                                    [&mnOutpoint](const auto& q) { return q.masternodeOutpoint == mnOutpoint; })) {
                 // refuse to create another queue this often
                 LogPrint(BCLog::COINJOIN, "DSACCEPT -- last dsq is still in queue, refuse to mix\n");
                 PushStatus(peer, STATUS_REJECTED, ERR_RECENT);
@@ -408,7 +409,7 @@ void CCoinJoinServer::ChargeFees() const
     if (nState == POOL_STATE_ACCEPTING_ENTRIES) {
         LOCK(cs_coinjoin);
         for (const auto& txCollateral : vecSessionCollaterals) {
-            bool fFound = ranges::any_of(vecEntries, [&txCollateral](const auto& entry){
+            bool fFound = std::ranges::any_of(vecEntries, [&txCollateral](const auto& entry) {
                 return *entry.txCollateral == *txCollateral;
             });
 
@@ -610,10 +611,8 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- txin=%s\n", __func__, txin.ToString());
         LOCK(cs_coinjoin);
         for (const auto& inner_entry : vecEntries) {
-            if (ranges::any_of(inner_entry.vecTxDSIn,
-                            [&txin](const auto& txdsin){
-                                    return txdsin.prevout == txin.prevout;
-                            })) {
+            if (std::ranges::any_of(inner_entry.vecTxDSIn,
+                                    [&txin](const auto& txdsin) { return txdsin.prevout == txin.prevout; })) {
                 LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: already have this txin in entries\n", __func__);
                 nMessageIDRet = ERR_ALREADY_HAVE;
                 // Two peers sent the same input? Can't really say who is the malicious one here,
@@ -650,8 +649,8 @@ bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
 
     LOCK(cs_coinjoin);
     for (const auto& entry : vecEntries) {
-        if (ranges::any_of(entry.vecTxDSIn,
-                        [&txinNew](const auto& txdsin){ return txdsin.scriptSig == txinNew.scriptSig; })){
+        if (std::ranges::any_of(entry.vecTxDSIn,
+                                [&txinNew](const auto& txdsin) { return txdsin.scriptSig == txinNew.scriptSig; })) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- already exists\n");
             return false;
         }
@@ -687,8 +686,8 @@ bool CCoinJoinServer::IsSignaturesComplete() const
     AssertLockNotHeld(cs_coinjoin);
     LOCK(cs_coinjoin);
 
-    return ranges::all_of(vecEntries, [](const auto& entry){
-        return ranges::all_of(entry.vecTxDSIn, [](const auto& txdsin){return txdsin.fHasSig;});
+    return std::ranges::all_of(vecEntries, [](const auto& entry) {
+        return std::ranges::all_of(entry.vecTxDSIn, [](const auto& txdsin) { return txdsin.fHasSig; });
     });
 }
 

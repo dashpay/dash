@@ -16,6 +16,7 @@
 #include <validation.h>
 
 #include <algorithm>
+#include <ranges>
 
 namespace {
 constexpr std::chrono::seconds GOVERNANCE_FUDGE_WINDOW{2h};
@@ -182,7 +183,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
         if (vote_rec_t voteRecord; trigger_opt.value().GetCurrentMNVotes(m_mn_activeman.GetOutPoint(), voteRecord)) {
             const auto& strFunc = __func__;
             // Let's see if there is a VOTE_SIGNAL_FUNDING vote from us already
-            voted_already = ranges::any_of(voteRecord.mapInstances, [&](const auto& voteInstancePair) {
+            voted_already = std::ranges::any_of(voteRecord.mapInstances, [&](const auto& voteInstancePair) {
                 if (voteInstancePair.first == VOTE_SIGNAL_FUNDING) {
                     if (voteInstancePair.second.eOutcome == VOTE_OUTCOME_YES) {
                         votedFundingYesTriggerHash = gov_sb_hash;
@@ -236,7 +237,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
         }
         if (vote_rec_t voteRecord; govobj->GetCurrentMNVotes(m_mn_activeman.GetOutPoint(), voteRecord)) {
             const auto& strFunc = __func__;
-            if (ranges::any_of(voteRecord.mapInstances, [&](const auto& voteInstancePair) {
+            if (std::ranges::any_of(voteRecord.mapInstances, [&](const auto& voteInstancePair) {
                     if (voteInstancePair.first == VOTE_SIGNAL_FUNDING) {
                         LogPrint(BCLog::GOBJECT, /* Continued */
                                  "%s -- Not voting NO-FUNDING for trigger:%s, we voted %s for it already\n", strFunc,

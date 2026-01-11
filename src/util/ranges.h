@@ -8,9 +8,7 @@
 #include <optional>
 #include <ranges>
 
-namespace ranges {
-using namespace std::ranges;
-
+namespace util {
 template <typename X, typename Z>
 constexpr inline auto find_if_opt(const X& ds, const Z& fn)
 {
@@ -20,6 +18,6 @@ constexpr inline auto find_if_opt(const X& ds, const Z& fn)
     }
     return std::optional<std::decay_t<decltype(*it)>>{};
 }
-}
+} // namespace util
 
 #endif // BITCOIN_UTIL_RANGES_H

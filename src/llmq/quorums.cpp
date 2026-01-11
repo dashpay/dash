@@ -10,6 +10,7 @@
 #include <dbwrapper.h>
 
 #include <memory>
+#include <ranges>
 
 namespace llmq {
 const std::string DB_QUORUM_SK_SHARE = "q_Qsk";
@@ -134,9 +135,7 @@ bool CQuorum::SetSecretKeyShare(const CBLSSecretKey& secretKeyShare, const uint2
 
 bool CQuorum::IsMember(const uint256& proTxHash) const
 {
-    return ranges::any_of(members, [&proTxHash](const auto& dmn){
-        return dmn->proTxHash == proTxHash;
-    });
+    return std::ranges::any_of(members, [&proTxHash](const auto& dmn) { return dmn->proTxHash == proTxHash; });
 }
 
 bool CQuorum::IsValidMember(const uint256& proTxHash) const

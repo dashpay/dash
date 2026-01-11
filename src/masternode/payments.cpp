@@ -4,22 +4,23 @@
 
 #include <masternode/payments.h>
 
-#include <chain.h>
-#include <consensus/amount.h>
-#include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
 #include <governance/governance.h>
+#include <masternode/sync.h>
+
+#include <chain.h>
+#include <consensus/amount.h>
+#include <deploymentstatus.h>
 #include <key_io.h>
 #include <logging.h>
-#include <masternode/sync.h>
 #include <primitives/block.h>
 #include <script/standard.h>
 #include <tinyformat.h>
-#include <util/ranges.h>
 #include <validation.h>
 
 #include <cassert>
+#include <ranges>
 #include <string>
 
 CAmount PlatformShare(const CAmount reward)
@@ -123,7 +124,7 @@ CAmount PlatformShare(const CAmount reward)
     }
 
     for (const auto& txout : voutMasternodePayments) {
-        bool found = ranges::any_of(txNew.vout, [&txout](const auto& txout2) {return txout == txout2;});
+        bool found = std::ranges::any_of(txNew.vout, [&txout](const auto& txout2) { return txout == txout2; });
         if (!found) {
             std::string str_payout;
             if (CTxDestination dest; ExtractDestination(txout.scriptPubKey, dest)) {

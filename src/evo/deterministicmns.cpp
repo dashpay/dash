@@ -118,8 +118,9 @@ CDeterministicMNCPtr CDeterministicMNList::GetValidMN(const uint256& proTxHash) 
 
 CDeterministicMNCPtr CDeterministicMNList::GetMNByOperatorKey(const CBLSPublicKey& pubKey) const
 {
-    const auto it = ranges::find_if(mnMap,
-                              [&pubKey](const auto& p){return p.second->pdmnState->pubKeyOperator.Get() == pubKey;});
+    const auto it = std::ranges::find_if(mnMap, [&pubKey](const auto& p) {
+        return p.second->pdmnState->pubKeyOperator.Get() == pubKey;
+    });
     if (it == mnMap.end()) {
         return nullptr;
     }
@@ -853,13 +854,13 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             mnListsCache.emplace(snapshot_hash, snapshot);
         } else {
             // keep snapshots for yet alive quorums
-            if (ranges::any_of(Params().GetConsensus().llmqs,
-                               [&snapshot, this](const auto& params) EXCLUSIVE_LOCKS_REQUIRED(cs) {
-                                   AssertLockHeld(cs);
-                                   return (snapshot.GetHeight() % params.dkgInterval == 0) &&
-                                          (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >=
-                                           tipIndex->nHeight);
-                               })) {
+            if (std::ranges::any_of(Params().GetConsensus().llmqs, [&snapshot, this](
+                                                                       const auto& params) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+                    AssertLockHeld(cs);
+                    return (snapshot.GetHeight() % params.dkgInterval == 0) &&
+                           (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >=
+                            tipIndex->nHeight);
+                })) {
                 mnListsCache.emplace(snapshot_hash, snapshot);
             }
         }
@@ -919,7 +920,7 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
             // it's a snapshot for the tip, keep it
             continue;
         }
-        bool fQuorumCache = ranges::any_of(Params().GetConsensus().llmqs, [&nHeight, &p](const auto& params){
+        bool fQuorumCache = std::ranges::any_of(Params().GetConsensus().llmqs, [&nHeight, &p](const auto& params) {
             return (p.second.GetHeight() % params.dkgInterval == 0) &&
                    (p.second.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >= nHeight);
         });

@@ -4,31 +4,33 @@
 
 #include <coinjoin/client.h>
 
-#include <chain.h>
-#include <chainparams.h>
 #include <coinjoin/options.h>
-#include <core_io.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
+#include <rpc/evo_util.h>
+#include <util/irange.h>
+#include <wallet/coinjoin.h>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <core_io.h>
 #include <net.h>
 #include <netmessagemaker.h>
-#include <rpc/evo_util.h>
 #include <shutdown.h>
 #include <util/check.h>
-#include <util/irange.h>
 #include <util/moneystr.h>
-#include <util/ranges.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <version.h>
 #include <wallet/coincontrol.h>
-#include <wallet/coinjoin.h>
 #include <wallet/coinselection.h>
 #include <wallet/receive.h>
 #include <wallet/spend.h>
 
 #include <memory>
+#include <ranges>
+
 #include <univalue.h>
 
 using wallet::CCoinControl;
@@ -601,9 +603,8 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, CChainState& acti
     for (const auto &entry: vecEntries) {
         // Check that the final transaction has all our outputs
         for (const auto &txout: entry.vecTxOut) {
-            bool fFound = ranges::any_of(finalMutableTransaction.vout, [&txout](const auto& txoutFinal){
-                return txoutFinal == txout;
-            });
+            bool fFound = std::ranges::any_of(finalMutableTransaction.vout,
+                                              [&txout](const auto& txoutFinal) { return txoutFinal == txout; });
             if (!fFound) {
                 // Something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
                 // better than signing if the transaction doesn't look like what we wanted.
@@ -1445,14 +1446,14 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
     });
 
     // First try to use only non-denominated funds
-    if (ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
+    if (std::ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
             return MakeCollateralAmounts(item, false);
         })) {
         return true;
     }
 
     // There should be at least some denominated funds we should be able to break in pieces to continue mixing
-    if (ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
+    if (std::ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
             return MakeCollateralAmounts(item, true);
         })) {
         return true;

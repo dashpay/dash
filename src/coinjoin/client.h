@@ -12,12 +12,12 @@
 
 #include <net_types.h>
 #include <protocol.h>
-#include <util/ranges.h>
 #include <util/translation.h>
 
 #include <atomic>
 #include <deque>
 #include <memory>
+#include <ranges>
 #include <utility>
 
 class CCoinJoinClientManager;
@@ -105,7 +105,7 @@ public:
     bool ForAnyCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
     {
         LOCK(cs_wallet_manager_map);
-        return ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(pair.second); });
+        return std::ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(pair.second); });
     };
 
 private:

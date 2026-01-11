@@ -17,6 +17,8 @@
 #include <util/thread.h>
 #include <validationinterface.h>
 
+#include <algorithm>
+#include <ranges>
 #include <unordered_map>
 
 namespace llmq {
@@ -67,7 +69,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom](const auto& ann) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& ann) {
                 return m_shares_manager->ProcessMessageSigSesAnn(pfrom, ann);
             })) {
             BanNode(pfrom.GetId());
@@ -82,7 +84,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
                 return m_shares_manager->ProcessMessageSigShares(pfrom, inv, msg_type);
             })) {
             BanNode(pfrom.GetId());
@@ -101,7 +103,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom](const auto& bs) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& bs) {
                 return m_shares_manager->ProcessMessageBatchedSigShares(pfrom, bs);
             })) {
             BanNode(pfrom.GetId());

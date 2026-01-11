@@ -24,6 +24,8 @@
 
 #include <cxxtimer.hpp>
 
+#include <ranges>
+
 namespace llmq
 {
 void CSigShare::UpdateKey()
@@ -1027,8 +1029,8 @@ bool CSigSharesManager::SendMessages()
         assert(session);
         while (session->sendSessionId == UNINITIALIZED_SESSION_ID) {
             const uint32_t session_id{GetRand<uint32_t>()};
-            if (ranges::all_of(nodeState.sessions,
-                               [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
+            if (std::ranges::all_of(nodeState.sessions,
+                                    [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
                 // No session is using this id yet
                 session->sendSessionId = session_id;
                 sigSessionAnnouncements[nodeId].emplace_back(

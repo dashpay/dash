@@ -22,9 +22,11 @@
 
 #include <cxxtimer.hpp>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <type_traits>
 
 namespace llmq {
@@ -210,7 +212,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGContribution& qc)
 
     receivedVvecs[member->idx] = qc.vvec;
 
-    int receivedCount = ranges::count_if(members, [](const auto& m){return !m->contributions.empty();});
+    int receivedCount = std::ranges::count_if(members, [](const auto& m) { return !m->contributions.empty(); });
 
     logger.Batch("received and relayed contribution. received=%d/%d, time=%d", receivedCount, members.size(), t1.count());
 
@@ -593,7 +595,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& q
         return true;
     });
 
-    int receivedCount = ranges::count_if(members, [](const auto& m){ return !m->prematureCommitments.empty(); });
+    int receivedCount = std::ranges::count_if(members, [](const auto& m) { return !m->prematureCommitments.empty(); });
 
     t1.stop();
 

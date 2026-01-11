@@ -57,6 +57,7 @@
 #include <evo/specialtxman.h>
 #include <masternode/payments.h>
 #include <stats/client.h>
+#include <util/std23.h>
 
 #include <algorithm>
 #include <cassert>

@@ -9,7 +9,6 @@
 #include <serialize.h>
 #include <uint256.h>
 #include <util/strencodings.h>
-#include <util/ranges.h>
 
 // bls-dash uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
@@ -23,10 +22,9 @@
 #undef SEED
 
 #include <array>
-#include <mutex>
-#include <unistd.h>
-
 #include <atomic>
+#include <mutex>
+#include <ranges>
 
 namespace bls {
     extern std::atomic<bool> bls_legacy_scheme;
@@ -106,7 +104,7 @@ public:
             return;
         }
 
-        if (ranges::all_of(vecBytes, [](uint8_t c) { return c == 0; })) {
+        if (std::ranges::all_of(vecBytes, [](uint8_t c) { return c == 0; })) {
             Reset();
         } else {
             try {

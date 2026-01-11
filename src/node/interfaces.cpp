@@ -78,8 +78,10 @@
 
 #include <boost/signals2/signal.hpp>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <utility>
 #include <variant>
 
@@ -472,7 +474,7 @@ public:
             return 0;
         }
         LOCK(context().mempool->cs);
-        return static_cast<size_t>(ranges::count_if(context().mempool->mapTx, [](const auto& entry) {
+        return static_cast<size_t>(std::ranges::count_if(context().mempool->mapTx, [](const auto& entry) {
             return entry.GetTx().IsPlatformTransfer();
         }));
     }
