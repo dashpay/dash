@@ -14,7 +14,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <msg_result.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <netmessagemaker.h>
@@ -42,7 +42,7 @@ std::string CSigSesAnn::ToString() const
 
 void CSigSharesInv::Merge(const CSigSharesInv& inv2)
 {
-    for (const auto i : irange::range(inv.size())) {
+    for (const auto i : util::irange(inv.size())) {
         if (inv2.inv[i]) {
             inv[i] = inv2.inv[i];
         }
@@ -58,7 +58,7 @@ std::string CSigSharesInv::ToString() const
 {
     std::string str = "(";
     bool first = true;
-    for (const auto i : irange::range(inv.size())) {
+    for (const auto i : util::irange(inv.size())) {
         if (!inv[i]) {
             continue;
         }
@@ -811,7 +811,7 @@ void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, Uin
                 continue;
             }
 
-            for (const auto i : irange::range(session.announced.inv.size())) {
+            for (const auto i : util::irange(session.announced.inv.size())) {
                 if (!session.announced.inv[i]) {
                     continue;
                 }
@@ -884,7 +884,7 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, Uint25
 
             CBatchedSigShares batchedSigShares;
 
-            for (const auto i : irange::range(session.requested.inv.size())) {
+            for (const auto i : util::irange(session.requested.inv.size())) {
                 if (!session.requested.inv[i]) {
                     continue;
                 }
@@ -1273,7 +1273,7 @@ void CSigSharesManager::Cleanup()
                 if (LogAcceptDebug(BCLog::LLMQ_SIGS)) {
                     if (const auto quorumIt = quorums.find(std::make_pair(oneSigShare.getLlmqType(), oneSigShare.getQuorumHash())); quorumIt != quorums.end()) {
                         const auto& quorum = quorumIt->second;
-                        for (const auto i : irange::range(quorum->members.size())) {
+                        for (const auto i : util::irange(quorum->members.size())) {
                             if (m->count((uint16_t)i) == 0) {
                                 const auto& dmn = quorum->members[i];
                                 strMissingMembers += strprintf("\n  %s", dmn->proTxHash.ToString());

@@ -9,7 +9,7 @@
 #include <llmq/signing_shares.h>
 #include <masternode/sync.h>
 #include <spork.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 
 #include <chain.h>
 #include <chainparams.h>
@@ -340,7 +340,7 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
     LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: trying to vote on %d inputs\n", __func__, tx.GetHash().ToString(),
              tx.vin.size());
 
-    for (const auto i : irange::range(tx.vin.size())) {
+    for (const auto i : util::irange(tx.vin.size())) {
         const auto& in = tx.vin[i];
         auto& id = ids[i];
         WITH_LOCK(cs_input_requests, inputRequestIds.emplace(id));

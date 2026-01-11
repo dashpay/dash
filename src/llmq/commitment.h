@@ -8,7 +8,7 @@
 #include <bls/bls.h>
 #include <llmq/params.h>
 #include <llmq/types.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <primitives/transaction.h>
@@ -137,7 +137,7 @@ private:
     static std::string BitsVectorToHexStr(const std::vector<bool>& vBits)
     {
         std::vector<uint8_t> vBytes((vBits.size() + 7) / 8);
-        for (const auto i : irange::range(vBits.size())) {
+        for (const auto i : util::irange(vBits.size())) {
             vBytes[i / 8] |= vBits[i] << (i % 8);
         }
         return HexStr(vBytes);

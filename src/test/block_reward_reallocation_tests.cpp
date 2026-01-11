@@ -9,7 +9,7 @@
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <masternode/payments.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -186,7 +186,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         // Creating blocks by different ways
         const auto pblocktemplate = BlockAssembler(m_node.chainman->ActiveChainstate(), m_node, m_node.mempool.get(), Params()).CreateNewBlock(coinbasePubKey);
     }
-    for ([[maybe_unused]] auto _ : irange::range(499)) {
+    for ([[maybe_unused]] auto _ : util::irange(499)) {
         CreateAndProcessBlock({}, coinbasePubKey);
         LOCK(cs_main);
         dmnman.UpdatedBlockTip(m_node.chainman->ActiveChain().Tip());
@@ -218,7 +218,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         BOOST_CHECK_EQUAL(pblocktemplate->voutMasternodePayments[0].nValue, masternode_payment);
     }
 
-    for ([[maybe_unused]] auto _ : irange::range(consensus_params.nSuperblockCycle - 1)) {
+    for ([[maybe_unused]] auto _ : util::irange(consensus_params.nSuperblockCycle - 1)) {
         CreateAndProcessBlock({}, coinbasePubKey);
     }
 
@@ -235,9 +235,9 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     }
 
     // Reallocation should kick-in with the superblock after 19 adjustments, 3 superblocks long each
-    for ([[maybe_unused]] auto i : irange::range(19)) {
-        for ([[maybe_unused]] auto j : irange::range(3)) {
-            for ([[maybe_unused]] auto k : irange::range(consensus_params.nSuperblockCycle)) {
+    for ([[maybe_unused]] auto i : util::irange(19)) {
+        for ([[maybe_unused]] auto j : util::irange(3)) {
+            for ([[maybe_unused]] auto k : util::irange(consensus_params.nSuperblockCycle)) {
                 CreateAndProcessBlock({}, coinbasePubKey);
             }
             LOCK(cs_main);
@@ -273,8 +273,8 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
 
     // Reward split should stay ~75/25 after reallocation is done,
     // check 10 next superblocks
-    for ([[maybe_unused]] auto i : irange::range(10)) {
-        for ([[maybe_unused]] auto k : irange::range(consensus_params.nSuperblockCycle)) {
+    for ([[maybe_unused]] auto i : util::irange(10)) {
+        for ([[maybe_unused]] auto k : util::irange(consensus_params.nSuperblockCycle)) {
             CreateAndProcessBlock({}, coinbasePubKey);
         }
         LOCK(cs_main);

@@ -15,7 +15,7 @@
 #include <llmq/params.h>
 #include <llmq/signhash.h>
 #include <llmq/utils.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -587,7 +587,7 @@ void CQuorumManager::CacheWarmingThreadMain() const
                  pQuorum->m_quorum_base_block_index->GetBlockHash().ToString());
 
         // when then later some other thread tries to get keys, it will be much faster
-        for (const auto i : irange::range(pQuorum->members.size())) {
+        for (const auto i : util::irange(pQuorum->members.size())) {
             if (m_cache_interrupt) {
                 break;
             }
@@ -723,7 +723,7 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
 
         std::vector<std::pair<uint256, size_t>> scores;
         scores.reserve(quorums.size());
-        for (const auto i : irange::range(quorums.size())) {
+        for (const auto i : util::irange(quorums.size())) {
             CHashWriter h(SER_NETWORK, 0);
             h << llmq_params.type;
             h << quorums[i]->qc->quorumHash;

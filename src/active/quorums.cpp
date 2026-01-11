@@ -14,6 +14,7 @@
 #include <llmq/quorums.h>
 #include <llmq/utils.h>
 #include <masternode/sync.h>
+#include <util/ranges.h>
 
 #include <chain.h>
 #include <chainparams.h>
@@ -100,7 +101,7 @@ size_t QuorumParticipant::GetQuorumRecoveryStartOffset(const CQuorum& quorum, gs
     size_t nIndex{0};
     {
         auto my_protx_hash = m_mn_activeman.GetProTxHash();
-        for (const auto i : irange::range(vecProTxHashes.size())) {
+        for (const auto i : util::irange(vecProTxHashes.size())) {
             // cppcheck-suppress useStlAlgorithm
             if (my_protx_hash == vecProTxHashes[i]) {
                 nIndex = i;
@@ -160,7 +161,7 @@ MessageProcessingResult QuorumParticipant::ProcessContribQDATA(CNode& pfrom, CDa
 
         std::vector<CBLSSecretKey> vecSecretKeys;
         vecSecretKeys.resize(vecEncrypted.size());
-        for (const auto i : irange::range(vecEncrypted.size())) {
+        for (const auto i : util::irange(vecEncrypted.size())) {
             if (!m_mn_activeman.Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION)) {
                 return MisbehavingError{10, "failed to decrypt"};
             }

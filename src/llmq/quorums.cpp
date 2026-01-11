@@ -6,6 +6,7 @@
 
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
+#include <util/ranges.h>
 
 #include <dbwrapper.h>
 
@@ -140,7 +141,7 @@ bool CQuorum::IsMember(const uint256& proTxHash) const
 
 bool CQuorum::IsValidMember(const uint256& proTxHash) const
 {
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
             return qc->validMembers[i];
@@ -177,7 +178,7 @@ CBLSSecretKey CQuorum::GetSkShare() const
 
 int CQuorum::GetMemberIndex(const uint256& proTxHash) const
 {
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
             return int(i);
@@ -216,7 +217,7 @@ bool CQuorum::ReadContributions(const CDBWrapper& db)
     size_t vvec_size = ReadCompactSize(s);
     CBLSPublicKey pubkey;
     std::vector<CBLSPublicKey> qv;
-    for ([[maybe_unused]] size_t _ : irange::range(vvec_size)) {
+    for ([[maybe_unused]] size_t _ : util::irange(vvec_size)) {
         s >> CBLSPublicKeyVersionWrapper(pubkey, false);
         qv.emplace_back(pubkey);
     }

@@ -12,7 +12,7 @@
 #include <llmq/options.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -96,14 +96,14 @@ bool CDKGSession::Init(const uint256& _myProTxHash, int _quorumIndex)
     receivedSkContributions.resize(members.size());
     vecEncryptedContributions.resize(members.size());
 
-    for (const auto i : irange::range(mns.size())) {
+    for (const auto i : util::irange(mns.size())) {
         members[i] = std::make_unique<CDKGMember>(mns[i], i);
         membersMap.emplace(members[i]->dmn->proTxHash, i);
         memberIds[i] = members[i]->id;
     }
 
     if (!_myProTxHash.IsNull()) {
-        for (const auto i : irange::range(members.size())) {
+        for (const auto i : util::irange(members.size())) {
             const auto& m = members[i];
             if (m->dmn->proTxHash == _myProTxHash) {
                 myIdx = i;
@@ -307,7 +307,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGComplaint& qc)
     if (!should_process) return inv;
 
     int receivedCount = 0;
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         if (qc.badMembers[i]) {
             logger.Batch("%s voted for %s to be bad", member->dmn->proTxHash.ToString(), m->dmn->proTxHash.ToString());

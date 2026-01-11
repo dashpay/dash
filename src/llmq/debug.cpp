@@ -6,7 +6,7 @@
 
 #include <evo/deterministicmns.h>
 #include <llmq/utils.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -80,7 +80,7 @@ UniValue CDKGDebugSessionStatus::ToJson(CDeterministicMNManager& dmnman, CQuorum
         }
     };
 
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         add(badMembers, i, m.statusBits.bad);
         add(weComplain, i, m.statusBits.weComplain);

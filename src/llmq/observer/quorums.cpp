@@ -12,6 +12,7 @@
 #include <masternode/sync.h>
 #include <msg_result.h>
 #include <unordered_lru_cache.h>
+#include <util/ranges.h>
 
 #include <chain.h>
 #include <chainparams.h>
@@ -84,7 +85,7 @@ Uint256HashSet QuorumObserver::GetQuorumsToDelete(const Consensus::LLMQParams& l
         int cycleIndexTipHeight = pindexNew->nHeight % llmqParams.dkgInterval;
         int cycleQuorumBaseHeight = pindexNew->nHeight - cycleIndexTipHeight;
         std::stringstream ss;
-        for (const auto quorumIndex : irange::range(llmqParams.signingActiveQuorumCount)) {
+        for (const auto quorumIndex : util::irange(llmqParams.signingActiveQuorumCount)) {
             if (quorumIndex <= cycleIndexTipHeight) {
                 int curDkgHeight = cycleQuorumBaseHeight + quorumIndex;
                 auto curDkgBlock = pindexNew->GetAncestor(curDkgHeight)->GetBlockHash();

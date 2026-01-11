@@ -9,7 +9,7 @@
 #include <bls/bls_worker.h>
 #include <llmq/dkgsessionhandler.h>
 #include <msg_result.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 
 #include <net_types.h>
 
@@ -105,7 +105,7 @@ public:
         const Consensus::Params& consensus_params = Params().GetConsensus();
         for (const auto& params : consensus_params.llmqs) {
             auto session_count = (params.useRotation) ? params.signingActiveQuorumCount : 1;
-            for (const auto i : irange::range(session_count)) {
+            for (const auto i : util::irange(session_count)) {
                 dkgSessionHandlers.emplace(SessionHandlerKey{params.type, i}, handler_fn(params, i));
             }
         }

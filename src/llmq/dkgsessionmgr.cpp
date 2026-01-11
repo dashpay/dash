@@ -11,7 +11,7 @@
 #include <llmq/utils.h>
 #include <spork.h>
 #include <unordered_lru_cache.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -286,7 +286,7 @@ bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, 
 
     // NOTE: the `cs_main` should not be locked under scope of `contributionsCacheCs`
     LOCK(contributionsCacheCs);
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         if (validMembers[i]) {
             const uint256& proTxHash = members[i]->proTxHash;
             ContributionsCacheKey cacheKey = {llmqType, pQuorumBaseBlockIndex->GetBlockHash(), proTxHash};
@@ -302,7 +302,7 @@ bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, 
                 size_t vvec_size = ReadCompactSize(s);
                 CBLSPublicKey pubkey;
                 std::vector<CBLSPublicKey> qv;
-                for ([[maybe_unused]] size_t _ : irange::range(vvec_size)) {
+                for ([[maybe_unused]] size_t _ : util::irange(vvec_size)) {
                     s >> CBLSPublicKeyVersionWrapper(pubkey, false);
                     qv.emplace_back(pubkey);
                 }
@@ -330,7 +330,7 @@ bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType,
     vecRet.reserve(members.size());
 
     size_t nRequestedMemberIdx{std::numeric_limits<size_t>::max()};
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == nProTxHash) {
             nRequestedMemberIdx = i;
@@ -342,7 +342,7 @@ bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType,
         return false;
     }
 
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         if (validMembers[i]) {
             CBLSIESMultiRecipientObjects<CBLSSecretKey> encryptedContributions;
             if (!db->Read(std::make_tuple(DB_ENC_CONTRIB, llmqType, pQuorumBaseBlockIndex->GetBlockHash(), members[i]->proTxHash), encryptedContributions)) {

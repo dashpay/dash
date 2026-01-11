@@ -401,7 +401,6 @@ BITCOIN_CORE_H = \
   util/golombrice.h \
   util/hasher.h \
   util/hash_type.h \
-  util/irange.h \
   util/asmap.h \
   util/getuniquepath.h \
   util/macros.h \

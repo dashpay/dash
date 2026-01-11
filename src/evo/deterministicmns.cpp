@@ -12,8 +12,8 @@
 #include <evo/specialtx.h>
 #include <masternode/meta.h>
 #include <stats/client.h>
-#include <util/irange.h>
 #include <util/pointer.h>
+#include <util/ranges.h>
 
 #include <chainparams.h>
 #include <coins.h>
@@ -243,7 +243,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
                 // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
                 if (dmn->nType == MnType::Evo && dmn->pdmnState->nConsecutivePayments < dmn_types::Evo.voting_weight) {
                     remaining_evo_payments = dmn_types::Evo.voting_weight - dmn->pdmnState->nConsecutivePayments;
-                    for ([[maybe_unused]] auto _ : irange::range(remaining_evo_payments)) {
+                    for ([[maybe_unused]] auto _ : util::irange(remaining_evo_payments)) {
                         result.emplace_back(dmn);
                         evo_to_be_skipped = dmn;
                     }
@@ -254,14 +254,14 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
 
     ForEachMNShared(/*onlyValid=*/true, [&](const auto& dmn) {
         if (dmn == evo_to_be_skipped) return;
-        for ([[maybe_unused]] auto _ : irange::range(isMNRewardReallocation ? 1 : GetMnType(dmn->nType).voting_weight)) {
+        for ([[maybe_unused]] auto _ : util::irange(isMNRewardReallocation ? 1 : GetMnType(dmn->nType).voting_weight)) {
             result.emplace_back(dmn);
         }
     });
 
     if (evo_to_be_skipped != nullptr) {
         // if EvoNode is in the middle of payments, add entries for already paid ones to the end of the list
-        for ([[maybe_unused]] auto _ : irange::range(evo_to_be_skipped->pdmnState->nConsecutivePayments)) {
+        for ([[maybe_unused]] auto _ : util::irange(evo_to_be_skipped->pdmnState->nConsecutivePayments)) {
             result.emplace_back(evo_to_be_skipped);
         }
     }

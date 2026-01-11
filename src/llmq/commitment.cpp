@@ -8,6 +8,7 @@
 #include <evo/specialtx.h>
 #include <llmq/options.h>
 #include <llmq/utils.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -60,7 +61,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
         }
     } else {
         std::vector<CBLSPublicKey> memberPubKeys;
-        for (const auto i : irange::range(members.size())) {
+        for (const auto i : util::irange(members.size())) {
             if (!signers[i]) {
                 continue;
             }
@@ -156,7 +157,7 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
     if (LogAcceptDebug(BCLog::LLMQ)) {
         std::stringstream ss;
         std::stringstream ss2;
-        for (const auto i: irange::range(llmq_params.size)) {
+        for (const auto i : util::irange(llmq_params.size)) {
             ss << "v[" << i << "]=" << validMembers[i];
             ss2 << "s[" << i << "]=" << signers[i];
         }
@@ -234,7 +235,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CTransac
 
     if (LogAcceptDebug(BCLog::LLMQ)) {
         std::stringstream ss;
-        for (const auto i: irange::range(llmq_params_opt->size)) {
+        for (const auto i : util::irange(llmq_params_opt->size)) {
             ss << "v[" << i << "]=" << qcTx.commitment.validMembers[i];
         }
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- %s llmqType[%d] validMembers[%s] signers[]\n", __func__,

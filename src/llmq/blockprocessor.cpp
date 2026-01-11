@@ -9,6 +9,7 @@
 #include <llmq/commitment.h>
 #include <llmq/options.h>
 #include <llmq/utils.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chain.h>
@@ -22,7 +23,6 @@
 #include <primitives/transaction.h>
 #include <saltedhasher.h>
 #include <sync.h>
-#include <util/irange.h>
 #include <validation.h>
 
 #include <map>
@@ -475,7 +475,7 @@ size_t CQuorumBlockProcessor::GetNumCommitmentsRequired(const Consensus::LLMQPar
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
     size_t ret{0};
 
-    for (const auto quorumIndex : irange::range(quorums_num)) {
+    for (const auto quorumIndex : util::irange(quorums_num)) {
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, m_chainstate.m_chain, nHeight, quorumIndex);
         if (!quorumHash.IsNull() && !HasMinedCommitment(llmqParams.type, quorumHash)) ++ret;
     }
@@ -625,7 +625,7 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsPe
     assert(llmq_params_opt.has_value());
     std::vector<const CBlockIndex*> ret;
 
-    for (const auto quorumIndex : irange::range(llmq_params_opt->signingActiveQuorumCount)) {
+    for (const auto quorumIndex : util::irange(llmq_params_opt->signingActiveQuorumCount)) {
         std::optional<const CBlockIndex*> q = GetLastMinedCommitmentsByQuorumIndexUntilBlock(llmqType, pindex, quorumIndex, cycle);
         if (q.has_value()) {
             ret.emplace_back(q.value());
@@ -741,7 +741,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
 
     std::stringstream ss;
-    for (const auto quorumIndex : irange::range(quorums_num)) {
+    for (const auto quorumIndex : util::irange(quorums_num)) {
         CFinalCommitment cf;
 
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, m_chainstate.m_chain, nHeight, quorumIndex);

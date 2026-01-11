@@ -18,6 +18,12 @@ constexpr inline auto find_if_opt(const X& ds, const Z& fn)
     }
     return std::optional<std::decay_t<decltype(*it)>>{};
 }
+
+template <typename T>
+constexpr inline auto irange(const T& max)
+{
+    return std::views::iota(T{0}, max);
+}
 } // namespace util
 
 #endif // BITCOIN_UTIL_RANGES_H

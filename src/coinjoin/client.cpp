@@ -9,7 +9,7 @@
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <rpc/evo_util.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <wallet/coinjoin.h>
 
 #include <chain.h>
@@ -621,7 +621,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, CChainState& acti
             int nMyInputIndex = -1;
             CScript prevPubKey = CScript();
 
-            for (const auto i : irange::range(finalMutableTransaction.vin.size())) {
+            for (const auto i : util::irange(finalMutableTransaction.vin.size())) {
                 // cppcheck-suppress useStlAlgorithm
                 if (finalMutableTransaction.vin[i] == txdsin) {
                     nMyInputIndex = i;
@@ -1304,7 +1304,7 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
 
     std::vector<std::pair<int, size_t> > vecInputsByRounds;
 
-    for (const auto i : irange::range(CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds())) {
+    for (const auto i : util::irange(CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds())) {
         if (PrepareDenominate(i, i, strError, vecTxDSIn, vecPSInOutPairsTmp, true)) {
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", i);
             vecInputsByRounds.emplace_back(i, vecPSInOutPairsTmp.size());
@@ -1770,7 +1770,7 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- 2 - nBalanceToDenominate: %f, nDenomValue: %f, denomsToCreateValue: %d, denomsToCreateBal: %d\n",
                                          __func__, (float) nBalanceToDenominate / COIN, (float) nDenomValue / COIN, denomsToCreateValue, denomsToCreateBal);
             auto it = mapDenomCount.find(nDenomValue);
-            for (const auto i : irange::range(denomsToCreate)) {
+            for (const auto i : util::irange(denomsToCreate)) {
                 // Never go above the cap unless it's the largest denom
                 if (nDenomValue != nLargestDenomValue && it->second >= CCoinJoinClientOptions::GetDenomsHardCap()) break;
 
