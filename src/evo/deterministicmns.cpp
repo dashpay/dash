@@ -27,6 +27,7 @@
 #include <functional>
 #include <optional>
 #include <memory>
+#include <ranges>
 
 #include <univalue.h>
 
@@ -1000,7 +1001,7 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
     CDeterministicMNList snapshot;
 
     const auto start_height{Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
-    for (auto current_height : irange::range(start_height, tip_index->nHeight + 1)) {
+    for (auto current_height : std::views::iota(start_height, tip_index->nHeight + 1)) {
         auto current_index = tip_index->GetAncestor(current_height);
         auto target_key{std::make_tuple(DB_LIST_DIFF_LEGACY, current_index->GetBlockHash())};
         pcursor->Seek(target_key);

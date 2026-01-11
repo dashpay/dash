@@ -17,6 +17,8 @@
 #include <logging.h>
 #include <validation.h>
 
+#include <ranges>
+
 namespace llmq
 {
 
@@ -161,7 +163,7 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
         LogPrint(BCLog::LLMQ, "CFinalCommitment::%s mns[%d] validMembers[%s] signers[%s]\n", __func__, members.size(), ss.str(), ss2.str());
     }
 
-    for (const auto i : irange::range(members.size(), size_t(llmq_params.size))) {
+    for (const auto i : std::views::iota(members.size(), size_t(llmq_params.size))) {
         if (validMembers[i]) {
             LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid validMembers bitset. bit %d should not be set\n", quorumHash.ToString(), i);
             return false;
