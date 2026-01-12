@@ -58,6 +58,37 @@ RUN set -ex; \
 # LD_LIBRARY_PATH is empty by default, this is the first entry
 ENV LD_LIBRARY_PATH="/usr/lib/llvm-${LLVM_VERSION}/lib"
 
+# Install Rust
+ARG RUSTUP_VERSION=1.28.2 \
+    RUST_VERSION=1.82.0
+ENV RUSTUP_HOME="/opt/rust/rustup" \
+    CARGO_HOME="/opt/rust/cargo"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+RUN dpkgArch="$(dpkg --print-architecture)"; \
+    case "${dpkgArch##*-}" in \
+        amd64) rustArch='x86_64-unknown-linux-gnu';; \
+        armhf) rustArch='armv7-unknown-linux-gnueabihf';; \
+        arm64) rustArch='aarch64-unknown-linux-gnu';; \
+        *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
+    esac; \
+    curl -fL "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/${rustArch}/rustup-init" -o /tmp/rustup-init; \
+    chmod +x /tmp/rustup-init; \
+    /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --default-host ${rustArch}; \
+    rm /tmp/rustup-init; \
+    chmod -R a+w "${RUSTUP_HOME}" "${CARGO_HOME}"; \
+    rustup target add \
+        # Linux
+        aarch64-unknown-linux-gnu \
+        x86_64-unknown-linux-gnu \
+        # Windows
+        x86_64-pc-windows-gnu; \
+    rustup --version; \
+    cargo --version; \
+    rustc --version; \
+    rm -rf "${CARGO_HOME}/registry/cache"
+COPY --from=docker_root ./config.toml "${CARGO_HOME}/config.toml"
+
+# Install IWYU
 RUN set -ex; \
     git clone --depth=1 "https://github.com/include-what-you-use/include-what-you-use" -b "clang_${LLVM_VERSION}" /opt/iwyu; \
     cd /opt/iwyu; \

@@ -57,6 +57,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.context }}
+          build-contexts: |
+            docker_root=${{ github.workspace }}/dash/contrib/containers/ci
           file: ${{ inputs.file }}
           push: true
           platforms: linux/amd64
@@ -101,6 +103,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.context }}
+          build-contexts: |
+            docker_root=${{ github.workspace }}/dash/contrib/containers/ci
           file: ${{ inputs.file }}
           push: true
           platforms: linux/arm64
