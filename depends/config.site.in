@@ -129,6 +129,10 @@ if test "@host_os@" = darwin; then
     DSYMUTIL="@DSYMUTIL@"
     ac_cv_path_DSYMUTIL="${DSYMUTIL}"
   fi
+
+  if test -n "@OSX_MIN_VERSION@"; then
+    OSX_MIN_VERSION="@OSX_MIN_VERSION@"
+  fi
 fi
 
 if test "@host_os@" = mingw32; then

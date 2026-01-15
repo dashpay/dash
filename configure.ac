@@ -1731,6 +1731,15 @@ case $host in
     ;;
 esac
 
+RUST_MACOS_DEPLOYMENT_TARGET=""
+case $host in
+  *darwin*)
+    AC_MSG_CHECKING([for target macOS version])
+    RUST_MACOS_DEPLOYMENT_TARGET="${OSX_MIN_VERSION:-$(sw_vers -productVersion)}"
+    AC_MSG_RESULT([$RUST_MACOS_DEPLOYMENT_TARGET])
+    ;;
+esac
+
 RUST_TARGET=""
 AC_MSG_CHECKING([for Rust target])
 case $host in
@@ -2058,6 +2067,7 @@ AC_SUBST(BITCOIN_MP_NODE_NAME)
 AC_SUBST(BITCOIN_MP_GUI_NAME)
 
 AC_SUBST(RUST_LIBS)
+AC_SUBST(RUST_MACOS_DEPLOYMENT_TARGET)
 AC_SUBST(RUST_TARGET)
 
 AC_SUBST(RELDFLAGS)
@@ -2212,4 +2222,5 @@ echo "  CARGO_INCREMENTAL            = $CARGO_INCREMENTAL"
 echo "  CXXBRIDGE                    = $CXXBRIDGE"
 echo "  RUSTC                        = $RUSTC"
 echo "  RUSTFLAGS                    = $RUSTFLAGS"
+echo "  RUST_MACOS_DEPLOYMENT_TARGET = $RUST_MACOS_DEPLOYMENT_TARGET"
 echo
