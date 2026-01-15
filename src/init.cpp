@@ -113,6 +113,8 @@
 #include <coinjoin/options.h>
 #endif // ENABLE_WALLET
 
+#include <rust/chirp/lib.h>
+
 #include <algorithm>
 #include <condition_variable>
 #include <cstdint>
@@ -1504,6 +1506,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // Detailed error printed inside StartLogging().
         return false;
     }
+
+    LogPrintf("%s\n", std::string(chirp::chirp()));
 
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
 
