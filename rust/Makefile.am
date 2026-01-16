@@ -10,7 +10,8 @@ CARGO_ENV = \
   RUSTC="$(RUSTC)" \
   RUSTFLAGS="$(RUSTFLAGS)" \
   TERM="dumb" \
-  ${RUST_OSX_SDK+SDKROOT="$(RUST_OSX_SDK)"}
+  ${RUST_OSX_SDK+SDKROOT="$(RUST_OSX_SDK)"} \
+  ${RUSTUP_TOOLCHAIN+RUSTUP_TOOLCHAIN="$(RUSTUP_TOOLCHAIN)"}
 
 # 'cargo' needs uppercase
 RUST_NATIVE_ENV_UPPER = $(shell echo '$(RUST_NATIVE)' | tr 'a-z-' 'A-Z_')
