@@ -3,6 +3,12 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+if ENABLE_DEBUG
+CARGO_PROFILE=debug
+else
+CARGO_PROFILE=release
+endif
+
 include $(top_srcdir)/rust/Makefile.chirp.include
 
 LIBRUSTDEPS_A = \

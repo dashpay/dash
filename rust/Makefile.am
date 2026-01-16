@@ -3,7 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-CARGO_BUILD_OPTS = --release --locked --target $(RUST_TARGET)
+CARGO_BUILD_OPTS = --locked --target $(RUST_TARGET)
 CARGO_ENV = \
   AR="$(AR)" \
   CC="$(CC)" \
@@ -16,6 +16,10 @@ CARGO_ENV = \
   RUSTFLAGS="$(RUSTFLAGS)" \
   TERM="dumb" \
   ${RUST_OSX_SDK+SDKROOT="$(RUST_OSX_SDK)"}
+
+if !ENABLE_DEBUG
+CARGO_BUILD_OPTS += --release
+endif # !ENABLE_DEBUG
 
 if !SILENT_RULES
 CARGO_BUILD_OPTS += --verbose

@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 LIBRUST_CHIRP_TARGET_DIR = $(abs_top_builddir)/rust/chirp/target
-LIBRUST_CHIRP = $(LIBRUST_CHIRP_TARGET_DIR)/$(RUST_TARGET)/release/libchirp.a
+LIBRUST_CHIRP = $(LIBRUST_CHIRP_TARGET_DIR)/$(RUST_TARGET)/$(CARGO_PROFILE)/libchirp.a
 
 LIBRUST_CHIRP_CARGO_ENV = $(CARGO_ENV) CARGO_TARGET_DIR="$(LIBRUST_CHIRP_TARGET_DIR)"
 LIBRUST_CHIRP_CRATE_DIR = $(top_srcdir)/rust/chirp
