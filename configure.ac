@@ -301,6 +301,7 @@ AC_ARG_ENABLE([debug],
                     [use compiler flags and macros suited for debugging (default is no)])],
     [enable_debug=$enableval],
     [enable_debug=no])
+AM_CONDITIONAL([ENABLE_DEBUG], [test "$enable_debug" = "yes"])
 
 dnl Enable exception stacktraces
 AC_ARG_ENABLE([stacktraces],
