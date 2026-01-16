@@ -83,7 +83,7 @@ $(1)_download_path_fixed=$(subst :,\:,$$($(1)_download_path))
 #default commands
 # The default behavior for tar will try to set ownership when running as uid 0 and may not succeed, --no-same-owner disables this behavior
 $(1)_fetch_cmds ?= $(call fetch_file,$(1),$(subst \:,:,$$($(1)_download_path_fixed)),$$($(1)_download_file),$($(1)_file_name),$($(1)_sha256_hash))
-$(1)_extract_cmds ?= mkdir -p $$($(1)_extract_dir) && echo "$$($(1)_sha256_hash)  $$($(1)_source)" > $$($(1)_extract_dir)/.$$($(1)_file_name).hash &&  $(build_SHA256SUM) -c $$($(1)_extract_dir)/.$$($(1)_file_name).hash && $(build_TAR) --no-same-owner --strip-components=1 -xf $$($(1)_source)
+$(1)_extract_cmds ?= mkdir -p $$($(1)_extract_dir) && echo "$$($(1)_sha256_hash)  $$($(1)_source)" > $$($(1)_extract_dir)/.$$($(1)_file_name).hash &&  $(build_SHA256SUM) -c $$($(1)_extract_dir)/.$$($(1)_file_name).hash && $(build_TAR) -P --no-same-owner --strip-components=1 -xf $$($(1)_source)
 $(1)_preprocess_cmds ?= true
 $(1)_build_cmds ?= true
 $(1)_config_cmds ?= true
@@ -288,10 +288,10 @@ $(1)_vendored_archive = $(SOURCES_PATH)/$($(1)_vendored_file_name)
 vendor-$(1)-crates: $(native_rust_cached) $($(1)_fetched)
 	@rm -rf $(WORK_PATH)/vendor-$(1)
 	@mkdir -p $(WORK_PATH)/vendor-$(1)
-	@$(build_TAR) --no-same-owner -xf $(native_rust_cached) -C $(WORK_PATH)/vendor-$(1)
+	@$(build_TAR) -P --no-same-owner -xf $(native_rust_cached) -C $(WORK_PATH)/vendor-$(1)
 	@echo "Vendoring $(1) crates..."
 	@mkdir -p $(WORK_PATH)/vendor-$(1)/src
-	@cd $(WORK_PATH)/vendor-$(1)/src && $(build_TAR) --no-same-owner --strip-components=1 -xf $(SOURCES_PATH)/$($(1)_file_name)
+	@cd $(WORK_PATH)/vendor-$(1)/src && $(build_TAR) -P --no-same-owner --strip-components=1 -xf $(SOURCES_PATH)/$($(1)_file_name)
 	@cp $(PATCHES_PATH)/$(1)/Cargo.lock $(WORK_PATH)/vendor-$(1)/src/
 	@$(WORK_PATH)/vendor-$(1)/native/bin/cargo vendor --locked --manifest-path $(WORK_PATH)/vendor-$(1)/src/$($(1)_cargo_manifest) $(WORK_PATH)/vendor-$(1)/src/vendored
 	@cd $(WORK_PATH)/vendor-$(1)/src; find vendored | sort | $(build_TAR) --no-recursion -czf $$($(1)_vendored_archive) -T -
@@ -323,7 +323,7 @@ define int_cargo_preprocess_ext
 $(1)_preprocess_cmds += && \
   if test -f $(SOURCES_PATH)/$($(1)_vendored_file_name); then \
     echo "Extracting vendored crates for $(1)..." && \
-    $(build_TAR) xf $(SOURCES_PATH)/$($(1)_vendored_file_name) && \
+    $(build_TAR) -P -xf $(SOURCES_PATH)/$($(1)_vendored_file_name) && \
     mkdir -p .cargo && \
     cp $(PATCHES_PATH)/$(1)/cargo-config.toml .cargo/config.toml; \
   fi

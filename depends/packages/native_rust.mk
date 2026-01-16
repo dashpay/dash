@@ -97,9 +97,9 @@ define $(package)_extract_cmds
   echo "$($(package)_sha256_hash_$(build_arch)_$(build_os))  $($(package)_source_dir)/$($(package)_file_name_$(build_arch)_$(build_os))" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   $(build_SHA256SUM) -c $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   mkdir $(canonical_host) && \
-  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_exact_file_name) -C $(canonical_host) && \
+  $(build_TAR) -P --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_exact_file_name) -C $(canonical_host) && \
   mkdir buildos && \
-  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_file_name_$(build_arch)_$(build_os)) -C buildos
+  $(build_TAR) -P --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_file_name_$(build_arch)_$(build_os)) -C buildos
 endef
 
 define $(package)_stage_cmds
