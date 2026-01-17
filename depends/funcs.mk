@@ -195,6 +195,18 @@ $(1)_cmake += -DCMAKE_C_COMPILER_TARGET=$(host)
 $(1)_cmake += -DCMAKE_CXX_COMPILER_TARGET=$(host)
 endif
 endif
+
+$(1)_cargo=env CC="$$($(1)_cc)" \
+               CXX="$$($(1)_cxx)" \
+               CFLAGS="$$($(1)_cppflags) $$($(1)_cflags)" \
+               CXXFLAGS="$$($(1)_cppflags) $$($(1)_cxxflags)" \
+               LDFLAGS="$$($(1)_ldflags)" \
+               RUSTFLAGS="-C linker=$$(firstword $($(1)_cc))" \
+               LD_LIBRARY_PATH="$$($($(1)_type)_prefix)/lib"
+ifeq ($(host_os),darwin)
+$(1)_cargo += SDKROOT="$(OSX_SDK)"
+endif
+$(1)_cargo += cargo
 endef
 
 define int_add_cmds
