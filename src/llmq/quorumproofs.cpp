@@ -17,6 +17,7 @@
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
 #include <primitives/block.h>
+#include <tinyformat.h>
 
 #include <algorithm>
 #include <set>
@@ -582,7 +583,7 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
     // This prevents an attacker from mixing headers from different blockchain forks
     for (size_t i = 1; i < proof.headers.size(); ++i) {
         if (proof.headers[i].hashPrevBlock != proof.headers[i - 1].GetHash()) {
-            result.error = "Header chain is not continuous - prevBlockHash mismatch at index " + std::to_string(i);
+            result.error = strprintf("Header chain is not continuous - prevBlockHash mismatch at index %d", i);
             return result;
         }
     }
@@ -605,7 +606,7 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
 
         // Get the chainlock that covers this commitment
         if (qProof.chainlockIndex >= proof.chainlocks.size()) {
-            result.error = "Invalid chainlock index " + std::to_string(qProof.chainlockIndex);
+            result.error = strprintf("Invalid chainlock index %d", qProof.chainlockIndex);
             return result;
         }
         const auto& chainlock = proof.chainlocks[qProof.chainlockIndex];
@@ -613,7 +614,7 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
         // Verify chainlock signature if we haven't verified this chainlock yet
         if (!verifiedChainlockHeights.count(chainlock.nHeight)) {
             if (!chainlock.signature.IsValid()) {
-                result.error = "Invalid chainlock signature format at height " + std::to_string(chainlock.nHeight);
+                result.error = strprintf("Invalid chainlock signature format at height %d", chainlock.nHeight);
                 return result;
             }
 
@@ -628,9 +629,7 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
             const bool signatureVerified = std::any_of(knownQuorumPubKeys.begin(), knownQuorumPubKeys.end(), verifyAgainstKey);
 
             if (!signatureVerified) {
-                result.error = "Chainlock signature verification failed at height " +
-                              std::to_string(chainlock.nHeight) +
-                              " - signature does not match any known quorum key";
+                result.error = strprintf("Chainlock signature verification failed at height %d - signature does not match any known quorum key", chainlock.nHeight);
                 return result;
             }
 
@@ -642,21 +641,21 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
 
         // Verify coinbase tx is in the block via merkle proof
         if (!qProof.coinbaseTx) {
-            result.error = "Missing coinbase transaction in proof " + std::to_string(proofIdx);
+            result.error = strprintf("Missing coinbase transaction in proof %d", proofIdx);
             return result;
         }
 
         const uint256 coinbaseTxHash = qProof.coinbaseTx->GetHash();
         if (!VerifyMerkleProof(coinbaseTxHash, qProof.coinbaseMerklePath,
                                qProof.coinbaseMerklePathSide, header.hashMerkleRoot)) {
-            result.error = "Coinbase merkle proof verification failed in proof " + std::to_string(proofIdx);
+            result.error = strprintf("Coinbase merkle proof verification failed in proof %d", proofIdx);
             return result;
         }
 
         // Extract merkleRootQuorums from cbtx
         auto opt_cbtx = GetTxPayload<CCbTx>(*qProof.coinbaseTx);
         if (!opt_cbtx.has_value()) {
-            result.error = "Invalid coinbase transaction payload in proof " + std::to_string(proofIdx);
+            result.error = strprintf("Invalid coinbase transaction payload in proof %d", proofIdx);
             return result;
         }
 
@@ -665,7 +664,7 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
         // Verify the quorum commitment merkle proof against merkleRootQuorums
         uint256 commitmentHash = ::SerializeHash(qProof.commitment);
         if (!qProof.quorumMerkleProof.Verify(commitmentHash, cbtx.merkleRootQuorums)) {
-            result.error = "Quorum commitment merkle proof verification failed in proof " + std::to_string(proofIdx);
+            result.error = strprintf("Quorum commitment merkle proof verification failed in proof %d", proofIdx);
             return result;
         }
 
