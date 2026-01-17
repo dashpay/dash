@@ -99,6 +99,7 @@
 #include <llmq/net_signing.h>
 #include <llmq/options.h>
 #include <llmq/observer/context.h>
+#include <llmq/quorumproofs.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <masternode/utils.h>
@@ -2170,6 +2171,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     ChainstateManager& chainman = *Assert(node.chainman);
+
+    // Migrate chainlock index for quorum proof generation (one-time on first run after upgrade)
+    if (node.llmq_ctx && node.llmq_ctx->quorum_proof_manager) {
+        LOCK(cs_main);
+        node.llmq_ctx->quorum_proof_manager->MigrateChainlockIndex(chainman.ActiveChain(), chainparams);
+    }
 
     assert(!node.dstxman);
     node.dstxman = std::make_unique<CDSTXManager>();

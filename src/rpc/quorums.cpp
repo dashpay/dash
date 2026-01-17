@@ -1385,7 +1385,7 @@ static RPCHelpMan getquorumproofchain()
     }
 
     auto proofChain = llmq_ctx.quorum_proof_manager->BuildProofChain(
-        checkpoint, targetType, targetQuorumHash, *llmq_ctx.qman, chainman.ActiveChain());
+        checkpoint, targetType, targetQuorumHash, *llmq_ctx.qman, chainman.ActiveChain(), chainman.m_blockman);
 
     if (!proofChain.has_value()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Failed to build proof chain - quorum not found or no chainlock coverage");

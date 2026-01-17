@@ -274,6 +274,10 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "protx update_service_evo", 2, "coreP2PAddrs", true },
     { "protx update_service_evo", 5, "platformP2PAddrs", true },
     { "protx update_service_evo", 6, "platformHTTPSAddrs", true },
+    { "getquorumproofchain", 0, "checkpoint" },
+    { "getquorumproofchain", 2, "llmq_type" },
+    { "verifyquorumproofchain", 0, "checkpoint" },
+    { "verifyquorumproofchain", 3, "llmq_type" },
 };
 // clang-format on
 

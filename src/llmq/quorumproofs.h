@@ -13,11 +13,17 @@
 #include <serialize.h>
 #include <uint256.h>
 
+#include <set>
 #include <vector>
 
 class CBlockIndex;
 class CChain;
+class CChainParams;
 class CEvoDB;
+
+namespace node {
+class BlockManager;
+} // namespace node
 
 namespace llmq {
 
@@ -169,6 +175,14 @@ private:
     // Helper to find the first chainlock covering a block
     [[nodiscard]] int32_t FindChainlockCoveringBlock(const CBlockIndex* pMinedBlock) const;
 
+    // Helper to find a chainlock covering a block that is signed by a known quorum
+    // This allows us to skip intermediate quorums when a direct path exists
+    [[nodiscard]] int32_t FindChainlockSignedByKnownQuorum(
+        const CBlockIndex* pMinedBlock,
+        const std::set<CBLSPublicKey>& knownQuorumPubKeys,
+        const CChain& active_chain,
+        const CQuorumManager& qman) const;
+
 public:
     CQuorumProofManager(CEvoDB& evoDb, const CQuorumBlockProcessor& quorum_block_processor)
         : m_evoDb(evoDb), m_quorum_block_processor(quorum_block_processor) {}
@@ -196,7 +210,8 @@ public:
         Consensus::LLMQType targetQuorumType,
         const uint256& targetQuorumHash,
         const CQuorumManager& qman,
-        const CChain& active_chain) const;
+        const CChain& active_chain,
+        const node::BlockManager& block_man) const;
 
     // Proof Chain Verification
     [[nodiscard]] QuorumProofVerifyResult VerifyProofChain(
@@ -204,10 +219,21 @@ public:
         const QuorumProofChain& proof,
         Consensus::LLMQType expectedType,
         const uint256& expectedQuorumHash) const;
+
+    // Migration: Build chainlock index from historical blocks
+    // Should be called once during startup after chain is loaded
+    void MigrateChainlockIndex(const CChain& active_chain, const CChainParams& chainparams);
 };
 
 // Database key prefix for chainlock index
 static const std::string DB_CHAINLOCK_BY_HEIGHT = "q_clh";
+
+// Database key for chainlock index version (for migration tracking)
+static const std::string DB_CHAINLOCK_INDEX_VERSION = "q_clv";
+
+// Current version of the chainlock index
+// Increment this when the index format changes to trigger re-migration
+static constexpr int CHAINLOCK_INDEX_VERSION = 2;
 
 // Maximum merkle path length (DoS protection)
 // A path of 32 levels can support 2^32 leaves, which is more than sufficient
@@ -215,7 +241,7 @@ static constexpr size_t MAX_MERKLE_PATH_LENGTH = 32;
 
 // Maximum proof chain length (DoS protection)
 // Limits how many intermediate quorums can be proven in a single chain
-static constexpr size_t MAX_PROOF_CHAIN_LENGTH = 50;
+static constexpr size_t MAX_PROOF_CHAIN_LENGTH = 500;
 
 // Maximum height offset to search for a chainlock covering a block
 // This limits how far forward we search from a block's height to find coverage
