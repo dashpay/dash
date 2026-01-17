@@ -16,6 +16,7 @@
 #include <consensus/params.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
+#include <hash.h>
 #include <net.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -523,6 +524,61 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
         return {CFinalCommitment{}, uint256::ZERO};
     }
     return ret;
+}
+
+uint256 CQuorumBlockProcessor::GetMinedCommitmentTxHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+{
+    auto key = std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorumHash));
+    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+    ssKey << key;
+
+    // Fast path: try to read raw data from disk to avoid deserializing BLS keys
+    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+    if (m_evoDb.GetRawDB().ReadDataStream(ssKey, ssValue)) {
+        // The data in DB is std::pair<CFinalCommitment, uint256>
+        // It's serialized as: [CFinalCommitment serialized data][uint256 serialized data]
+        // uint256 is exactly 32 bytes
+        if (ssValue.size() > 32) {
+            // We just want the hash of the CFinalCommitment part
+            // SerializeHash uses SER_GETHASH, but we have SER_DISK bytes.
+            // CFinalCommitment serialization is identical for both (as long as nVersion matches).
+            // We trust the data in DB is consistent.
+            return Hash(MakeByteSpan(ssValue).first(ssValue.size() - 32));
+        }
+    }
+
+    // Fallback: use slow path (read from memory/cache or if disk read failed)
+    // This will deserialize the full object
+    auto [commitment, _] = GetMinedCommitment(llmqType, quorumHash);
+    if (commitment.IsNull()) {
+        return uint256::ZERO;
+    }
+    return ::SerializeHash(commitment);
+}
+
+uint256 CQuorumBlockProcessor::GetMinedCommitmentBlockHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+{
+    auto key = std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorumHash));
+    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+    ssKey << key;
+
+    // Fast path: try to read raw data from disk
+    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+    if (m_evoDb.GetRawDB().ReadDataStream(ssKey, ssValue)) {
+        // The data in DB is std::pair<CFinalCommitment, uint256>
+        // It's serialized as: [CFinalCommitment serialized data][uint256 serialized data]
+        // uint256 is exactly 32 bytes and it is at the end
+        if (ssValue.size() >= 32) {
+             uint256 blockHash;
+             // Read last 32 bytes
+             std::memcpy(blockHash.begin(), ssValue.data() + ssValue.size() - 32, 32);
+             return blockHash;
+        }
+    }
+
+    // Fallback: use slow path
+    auto [_, blockHash] = GetMinedCommitment(llmqType, quorumHash);
+    return blockHash;
 }
 
 // The returned quorums are in reversed order, so the most recent one is at index 0
