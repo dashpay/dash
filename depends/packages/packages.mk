@@ -1,6 +1,8 @@
-packages:=gmp backtrace
+packages:=gmp backtrace rustcxx
 
 boost_packages = boost
+
+rust_native_packages = native_rust native_cxxbridge
 
 libevent_packages = libevent
 

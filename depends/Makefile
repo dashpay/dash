@@ -179,6 +179,7 @@ usdt_packages_$(NO_USDT) = $(usdt_$(host_os)_packages)
 
 packages += $($(host_arch)_$(host_os)_packages) $($(host_os)_packages) $(boost_packages_) $(libevent_packages_) $(qt_packages_) $(wallet_packages_) $(upnp_packages_) $(natpmp_packages_) $(usdt_packages_)
 native_packages += $($(host_arch)_$(host_os)_native_packages) $($(host_os)_native_packages)
+native_packages += $(rust_native_packages)
 
 ifneq ($(zmq_packages_),)
 packages += $(zmq_packages)
