@@ -13,6 +13,7 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <chainlock/chainlock.h>
 #include <core_io.h>
 #include <init/common.h>
 #include <node/blockstorage.h>
@@ -24,11 +25,28 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+// Temporary added, filter & clean-up:
+#include <evo/chainhelper.h>
+#include <evo/creditpool.h>
+#include <evo/deterministicmns.h>
+#include <evo/evodb.h>
+#include <governance/governance.h>
+#include <llmq/context.h>
+#include <masternode/meta.h>
+#include <masternode/sync.h>
+#include <netfulfilledman.h>
+#include <spork.h>
+// ----------
+
 #include <filesystem>
 #include <functional>
 #include <iosfwd>
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
+
+// TODO: probably remove stats
+#include <stats/client.h>
+std::unique_ptr<StatsdClient> g_stats_client{std::make_unique<StatsdClient>()};
 
 int main(int argc, char* argv[])
 {
@@ -72,25 +90,77 @@ int main(int argc, char* argv[])
 
 
     // SETUP: Chainstate
-    ChainstateManager chainman;
+    ChainstateManager chainman{chainparams};
 
-    auto rv = node::LoadChainstate(false,
+    // DASH SPECIFIC; maybe remove some
+    CMasternodeMetaMan metaman;
+    bool dash_dbs_in_memory = false;
+    bool fReset = false;
+    bool fReindexChainState = false;
+/*    CEvoDB evodb(util::DbWrapperParams{.path = gArgs.GetDataDirNet(),
+        .memory = dash_dbs_in_memory, .wipe = fReset || fReindexChainState});
+    std::unique_ptr<CDeterministicMNManager> dmnman = std::make_unique<CDeterministicMNManager>(evodb, metaman);
+    CGovernanceManager govman(metaman, chainman, dmnman, mn_sync);
+    */
+
+    std::unique_ptr<CEvoDB> evodb;
+    std::unique_ptr<CDeterministicMNManager> dmnman;
+    CMasternodeSync mn_sync{std::make_unique<NullNodeSyncNotifier>()};
+    CGovernanceManager govman(metaman, chainman, dmnman, mn_sync);
+
+
+    CSporkManager sporkman;
+    chainlock::Chainlocks chainlocks(sporkman);
+
+    // try to drop govman, mn_payment, mempool
+    int bls_threads = 1;
+    int max_sigs_age = 1;
+    int worker_count = 1;
+    const auto data_dir = gArgs.GetDataDirNet();
+    /*
+    util::DbWrapperParams db_params{.path = data_dir, .memory = llmq_dbs_in_memory, .wipe = llmq_dbs_wipe};
+    */
+//    LLMQContext llmq_ctx{*dmnman, evodb, sporkman, chainman, mn_sync, db_params, bls_threads, max_sigs_age, worker_count};
+//    CChainstateHelper chain_helper(evodb, *dmnman, govman, *llmq_ctx.isman, *llmq_ctx.quorum_block_processor, *llmq_ctx.qsnapman, chainman, chanparams.GetConsensus(), mn_sync, sporkman, chainlocks, *llmq_ctx.qman);
+    // --- DASH
+
+    std::unique_ptr<LLMQContext> llmq_ctx;
+    std::unique_ptr<CChainstateHelper> chain_helper;
+    auto rv = node::LoadChainstate(fReset,
                                    std::ref(chainman),
-                                   nullptr,
-                                   false,
+                                   govman,
+                                   metaman,
+                                   sporkman,
+                                   chainlocks,
+                                   chain_helper,
+                                   dmnman,
+                                   evodb,
+                                   llmq_ctx,
+                                   nullptr, // mempool
+                                   gArgs.GetDataDirNet(),
+                                   false, // fPruneMode
+                                   false, // index
+                                   false, // index
+                                   false, // index
                                    chainparams.GetConsensus(),
-                                   false,
+                                   fReindexChainState,
                                    2 << 20,
                                    2 << 22,
                                    (450 << 20) - (2 << 20) - (2 << 22),
                                    false,
                                    false,
-                                   []() { return false; });
+                                   dash_dbs_in_memory,
+                                   bls_threads, // bls threads
+                                   worker_count,
+                                   max_sigs_age,
+                                   []() { return false; }, // shutdown_requested
+                                   []() { return false; }); // this corner case be added to
     if (rv.has_value()) {
         std::cerr << "Failed to load Chain state from your datadir." << std::endl;
         goto epilogue;
     } else {
         auto maybe_verify_error = node::VerifyLoadedChainstate(std::ref(chainman),
+                                                               *evodb,
                                                                false,
                                                                false,
                                                                chainparams.GetConsensus(),
@@ -161,12 +231,14 @@ int main(int argc, char* argv[])
             }
         }
 
-        {
+        if constexpr (false) { // it's for segwit
+                               /*
             LOCK(cs_main);
             const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock);
             if (pindex) {
                 UpdateUncommittedBlockStructures(block, pindex, chainparams.GetConsensus());
             }
+            */
         }
 
         // Adapted from rpc/mining.cpp
@@ -192,7 +264,7 @@ int main(int argc, char* argv[])
         bool new_block;
         auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
         RegisterSharedValidationInterface(sc);
-        bool accepted = chainman.ProcessNewBlock(chainparams, blockptr, /* force_processing */ true, /* new_block */ &new_block);
+        bool accepted = chainman.ProcessNewBlock(blockptr, /*force_processing=*/true, /*new_block=*/&new_block);
         UnregisterSharedValidationInterface(sc);
         if (!new_block && accepted) {
             std::cerr << "duplicate" << std::endl;
@@ -234,6 +306,9 @@ int main(int argc, char* argv[])
         case BlockValidationResult::BLOCK_CHECKPOINT:
             std::cerr << "the block failed to meet one of our checkpoints" << std::endl;
             break;
+        case BlockValidationResult::BLOCK_CHAINLOCK:
+            std::cerr << "the block conflicts with the ChainLock" << std::endl;
+            break;
         }
     }
 
@@ -256,7 +331,8 @@ epilogue:
     }
     GetMainSignals().UnregisterBackgroundSignalScheduler();
 
-    UnloadBlockIndex(nullptr, chainman);
+    // removed by 22564
+//    chainman.UnloadBlockIndex();
 
     init::UnsetGlobals();
 }
