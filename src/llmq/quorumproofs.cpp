@@ -524,71 +524,121 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         }
 
         // Look up the block where the commitment was actually mined
-        // This is different from the quorum's base block (where the quorum was formed)
         const CBlockIndex* pMinedBlock = WITH_LOCK(cs_main, return block_man.LookupBlockIndex(currentQuorum->minedBlockHash));
         if (!pMinedBlock) {
             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not find mined block %s for quorum %s\n",
                      __func__, currentQuorum->minedBlockHash.ToString(), currentQuorum->qc->quorumHash.ToString());
             return std::nullopt;
         }
-        LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Quorum %s: formed at height %d, commitment mined at height %d\n",
-                 __func__, currentQuorum->qc->quorumHash.ToString(),
-                 currentQuorum->m_quorum_base_block_index ? currentQuorum->m_quorum_base_block_index->nHeight : -1,
-                 pMinedBlock->nHeight);
 
-        // First, try to find a chainlock signed by a KNOWN quorum (direct path)
-        // This is the key optimization: instead of taking any chainlock and hoping
-        // its signer is known, we actively search for one signed by a known quorum
-        int32_t chainlockHeight = FindChainlockSignedByKnownQuorum(pMinedBlock, knownQuorumPubKeys, active_chain, qman);
+        // OPTIMIZATION: Search for the best block to prove this quorum
+        // We can use ANY block where the quorum is active, not just the mined block.
+        // We prioritize:
+        // 1. Blocks signed by a KNOWN quorum (direct bridge)
+        // 2. Blocks that are NOT superblocks (small proof size)
+        // 3. Blocks signed by the oldest possible quorum (maximize jump)
 
-        if (chainlockHeight >= 0) {
-            // Found a direct path! The signing quorum is already known
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Found DIRECT path via chainlock at height %d\n",
-                     __func__, chainlockHeight);
-            proofSteps.push_back({currentQuorum, pMinedBlock, chainlockHeight});
-            break; // Chain complete!
+        const auto llmq_params = Params().GetLLMQ(currentQuorum->qc->llmqType).value();
+        // Quorum is active for signingActiveQuorumCount * dkgInterval blocks
+        int activeDuration = std::min(llmq_params.signingActiveQuorumCount * llmq_params.dkgInterval, 100);
+        int maxSearchHeight = std::min(active_chain.Height(), pMinedBlock->nHeight + activeDuration);
+
+        int32_t bestBlockHeight = -1;
+        int32_t bestChainlockHeight = -1;
+        CQuorumCPtr bestSigningQuorum = nullptr;
+
+        // Metrics for selection
+        bool foundKnownSigner = false;
+        bool foundNonSuperblock = false;
+        int32_t oldestSignerHeight = std::numeric_limits<int32_t>::max();
+
+        // Search window. For performance, if we don't find a known signer quickly, we might limit search.
+        // But finding a known signer is the biggest optimization, so we search aggressively.
+        for (int32_t h = pMinedBlock->nHeight; h <= maxSearchHeight; ++h) {
+            // Get chainlock for this height
+            auto clEntry = GetChainlockByHeight(h);
+            if (!clEntry.has_value()) continue;
+
+            // Determine signer
+            CQuorumCPtr signer = DetermineChainlockSigningQuorum(h, active_chain, qman);
+            if (!signer) continue;
+
+            bool isKnown = knownQuorumPubKeys.count(signer->qc->quorumPublicKey);
+            // Check for superblock (heuristic: check if height is superblock cycle)
+            // We can't easily check actual coinbase size without reading block, but we know schedule.
+            bool isSuperblock = (h % Params().GetConsensus().nSuperblockCycle == 0); // Simplified check
+
+            if (isKnown) {
+                // Found a direct bridge!
+                if (!foundKnownSigner) {
+                    // First known signer found, take it!
+                    bestBlockHeight = h;
+                    bestChainlockHeight = h; // Chainlock is at height h
+                    bestSigningQuorum = signer;
+                    foundKnownSigner = true;
+                    // Preference: Non-superblock if possible
+                    if (!isSuperblock) foundNonSuperblock = true;
+                } else {
+                    // Already found a known signer, but prefer non-superblock
+                    if (!foundNonSuperblock && !isSuperblock) {
+                        bestBlockHeight = h;
+                        bestChainlockHeight = h;
+                        bestSigningQuorum = signer;
+                        foundNonSuperblock = true;
+                    }
+                }
+                // If we found a known signer that is not a superblock, we are golden.
+                if (foundKnownSigner && foundNonSuperblock) break;
+            } else if (!foundKnownSigner) {
+                // Not known, but maybe better than current best?
+                // We want oldest signer (closest to checkpoint)
+                // And prefer non-superblock
+                int32_t signerHeight = signer->m_quorum_base_block_index->nHeight;
+
+                bool isBetter = false;
+                if (bestBlockHeight == -1) {
+                    isBetter = true;
+                } else {
+                    // Logic: Prefer Non-Superblock >> Oldest Signer
+                    if (!foundNonSuperblock && !isSuperblock) {
+                        isBetter = true; // Found a non-superblock!
+                    } else if (foundNonSuperblock == !isSuperblock) {
+                        // Both are same class (both SB or both non-SB), pick oldest signer
+                        if (signerHeight < oldestSignerHeight) {
+                            isBetter = true;
+                        }
+                    }
+                }
+
+                if (isBetter) {
+                    bestBlockHeight = h;
+                    bestChainlockHeight = h;
+                    bestSigningQuorum = signer;
+                    oldestSignerHeight = signerHeight;
+                    if (!isSuperblock) foundNonSuperblock = true;
+                }
+            }
         }
 
-        // No direct path found - fall back to finding any chainlock
-        // and adding the signing quorum to the proof chain
-        chainlockHeight = FindChainlockCoveringBlock(pMinedBlock);
-        if (chainlockHeight < 0) {
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No chainlock found covering block at height %d (searched up to %d)\n",
-                     __func__, pMinedBlock->nHeight, pMinedBlock->nHeight + MAX_CHAINLOCK_SEARCH_OFFSET);
-            return std::nullopt; // No chainlock found covering this quorum
-        }
-        LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No direct path, using chainlock at height %d\n",
-                 __func__, chainlockHeight);
-
-        proofSteps.push_back({currentQuorum, pMinedBlock, chainlockHeight});
-
-        // Determine which quorum signed this chainlock
-        CQuorumCPtr signingQuorum = DetermineChainlockSigningQuorum(chainlockHeight, active_chain, qman);
-        if (!signingQuorum) {
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not determine signing quorum for chainlock at height %d\n",
-                     __func__, chainlockHeight);
-            return std::nullopt; // Could not determine signing quorum
-        }
-        LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Chainlock signed by quorum %s (type %d) pubkey=%s\n",
-                 __func__, signingQuorum->qc->quorumHash.ToString(), static_cast<int>(signingQuorum->qc->llmqType),
-                 signingQuorum->qc->quorumPublicKey.ToString().substr(0, 32) + "...");
-
-        // The signing quorum is NOT in the checkpoint (we already checked via FindChainlockSignedByKnownQuorum)
-        // We need to prove this intermediate quorum too
-        // NOTE: We don't add the signing quorum's pubkey to knownQuorumPubKeys here because
-        // verification happens in reverse order - intermediate quorums are proven AFTER the
-        // quorums that depend on them, so they can't be used as trust anchors during building.
-
-        // Safety check: this should never match since FindChainlockSignedByKnownQuorum already searched
-        if (knownQuorumPubKeys.count(signingQuorum->qc->quorumPublicKey)) {
-            // We've reached a quorum that's in the checkpoint - done!
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
-            break;
+        if (bestBlockHeight == -1) {
+             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No suitable chainlock found in active window [%d, %d]\n",
+                     __func__, pMinedBlock->nHeight, maxSearchHeight);
+             return std::nullopt;
         }
 
-        LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum not in checkpoint, need to prove it too\n", __func__);
-        // The signing quorum is not in the checkpoint, so we need to prove it first
-        currentQuorum = signingQuorum;
+        const CBlockIndex* pProofBlock = active_chain[bestBlockHeight];
+        LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Selected proof block %d (mined %d). KnownSigner=%d, SignerHeight=%d\n",
+                 __func__, bestBlockHeight, pMinedBlock->nHeight, foundKnownSigner, bestSigningQuorum->m_quorum_base_block_index->nHeight);
+
+        proofSteps.push_back({currentQuorum, pProofBlock, bestChainlockHeight});
+
+        if (foundKnownSigner) {
+             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
+             break;
+        }
+
+        // Need to prove the signer
+        currentQuorum = bestSigningQuorum;
     }
 
     // Phase 3: Build proofs in forward order (reverse the dependency chain)
