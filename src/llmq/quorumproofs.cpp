@@ -280,39 +280,6 @@ std::optional<ChainlockIndexEntry> CQuorumProofManager::GetChainlockByHeight(int
 }
 
 /**
- * Verify a merkle proof by computing the root from a leaf hash and comparing to expected.
- * @param leafHash The hash of the leaf element
- * @param merklePath The sibling hashes from leaf to root
- * @param merklePathSide Side indicators (true = sibling on right, false = sibling on left)
- * @param expectedRoot The expected merkle root
- * @return true if proof is valid
- */
-static bool VerifyMerkleProof(const uint256& leafHash,
-                               const std::vector<uint256>& merklePath,
-                               const std::vector<bool>& merklePathSide,
-                               const uint256& expectedRoot)
-{
-    if (merklePath.size() != merklePathSide.size()) {
-        return false;
-    }
-
-    if (merklePath.size() > MAX_MERKLE_PATH_LENGTH) {
-        return false;
-    }
-
-    uint256 current = leafHash;
-    for (size_t i = 0; i < merklePath.size(); ++i) {
-        if (merklePathSide[i]) {
-            current = Hash(current, merklePath[i]);
-        } else {
-            current = Hash(merklePath[i], current);
-        }
-    }
-
-    return current == expectedRoot;
-}
-
-/**
  * Helper function to build merkle proof with path tracking.
  * Returns the merkle path (sibling hashes) and side indicators.
  *
@@ -930,8 +897,8 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
         }
 
         const uint256 coinbaseTxHash = qProof.coinbaseTx->GetHash();
-        if (!VerifyMerkleProof(coinbaseTxHash, qProof.coinbaseMerklePath,
-                               qProof.coinbaseMerklePathSide, header.hashMerkleRoot)) {
+        QuorumMerkleProof coinbaseMerkleProof{qProof.coinbaseMerklePath, qProof.coinbaseMerklePathSide};
+        if (!coinbaseMerkleProof.Verify(coinbaseTxHash, header.hashMerkleRoot)) {
             result.error = strprintf("Coinbase merkle proof verification failed in proof %d", proofIdx);
             return result;
         }
