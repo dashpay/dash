@@ -549,7 +549,6 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
 
         // Metrics for selection
         bool foundKnownSigner = false;
-        bool foundNonSuperblock = false;
         int32_t oldestSignerHeight = std::numeric_limits<int32_t>::max();
 
         // Search window. For performance, if we don't find a known signer quickly, we might limit search.
@@ -564,49 +563,27 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             if (!signer) continue;
 
             bool isKnown = knownQuorumPubKeys.count(signer->qc->quorumPublicKey);
-            // Check for superblock (heuristic: check if height is superblock cycle)
-            // We can't easily check actual coinbase size without reading block, but we know schedule.
-            bool isSuperblock = (h % Params().GetConsensus().nSuperblockCycle == 0); // Simplified check
 
             if (isKnown) {
                 // Found a direct bridge!
-                if (!foundKnownSigner) {
-                    // First known signer found, take it!
-                    bestBlockHeight = h;
-                    bestChainlockHeight = h; // Chainlock is at height h
-                    bestSigningQuorum = signer;
-                    foundKnownSigner = true;
-                    // Preference: Non-superblock if possible
-                    if (!isSuperblock) foundNonSuperblock = true;
-                } else {
-                    // Already found a known signer, but prefer non-superblock
-                    if (!foundNonSuperblock && !isSuperblock) {
-                        bestBlockHeight = h;
-                        bestChainlockHeight = h;
-                        bestSigningQuorum = signer;
-                        foundNonSuperblock = true;
-                    }
-                }
-                // If we found a known signer that is not a superblock, we are golden.
-                if (foundKnownSigner && foundNonSuperblock) break;
+                bestBlockHeight = h;
+                bestChainlockHeight = h; // Chainlock is at height h
+                bestSigningQuorum = signer;
+                foundKnownSigner = true;
+                break; // Found a known signer, we are done searching for this step.
             } else if (!foundKnownSigner) {
-                // Not known, but maybe better than current best?
-                // We want oldest signer (closest to checkpoint)
-                // And prefer non-superblock
+                // Not known. We want the one that maximizes the jump back.
+                // The jump size is determined by the signer's creation height.
+                // We want the signer with the lowest creation height (oldest).
                 int32_t signerHeight = signer->m_quorum_base_block_index->nHeight;
 
                 bool isBetter = false;
                 if (bestBlockHeight == -1) {
                     isBetter = true;
                 } else {
-                    // Logic: Prefer Non-Superblock >> Oldest Signer
-                    if (!foundNonSuperblock && !isSuperblock) {
-                        isBetter = true; // Found a non-superblock!
-                    } else if (foundNonSuperblock == !isSuperblock) {
-                        // Both are same class (both SB or both non-SB), pick oldest signer
-                        if (signerHeight < oldestSignerHeight) {
-                            isBetter = true;
-                        }
+                    // Pick oldest signer
+                    if (signerHeight < oldestSignerHeight) {
+                        isBetter = true;
                     }
                 }
 
@@ -615,7 +592,6 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                     bestChainlockHeight = h;
                     bestSigningQuorum = signer;
                     oldestSignerHeight = signerHeight;
-                    if (!isSuperblock) foundNonSuperblock = true;
                 }
             }
         }
