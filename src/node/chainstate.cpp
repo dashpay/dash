@@ -249,7 +249,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
     chain_helper.reset();
     chain_helper = std::make_unique<CChainstateHelper>(*cpoolman, *dmnman, *mnhf_manager, govman, *(llmq_ctx->isman), *(llmq_ctx->quorum_block_processor),
                                                        *(llmq_ctx->qsnapman), chainman, consensus_params, mn_sync, sporkman, *(llmq_ctx->clhandler),
-                                                       *(llmq_ctx->qman));
+                                                       *(llmq_ctx->qman), *(llmq_ctx->quorum_proof_manager));
 }
 
 void DashChainstateSetupClose(std::unique_ptr<CChainstateHelper>& chain_helper,

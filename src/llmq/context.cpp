@@ -8,6 +8,7 @@
 #include <chainlock/chainlock.h>
 #include <instantsend/instantsend.h>
 #include <llmq/blockprocessor.h>
+#include <llmq/quorumproofs.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing.h>
 #include <llmq/snapshot.h>
@@ -22,6 +23,7 @@ LLMQContext::LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSpork
                                                                          *qsnapman, bls_threads)},
     qman{std::make_unique<llmq::CQuorumManager>(*bls_worker, dmnman, evo_db, *quorum_block_processor, *qsnapman,
                                                 chainman, db_params)},
+    quorum_proof_manager{std::make_unique<llmq::CQuorumProofManager>(evo_db, *quorum_block_processor)},
     sigman{std::make_unique<llmq::CSigningManager>(*qman, db_params, max_recsigs_age)},
     clhandler{std::make_unique<llmq::CChainLocksHandler>(chainman.ActiveChainstate(), *qman, sporkman, mempool, mn_sync)},
     isman{std::make_unique<llmq::CInstantSendManager>(*clhandler, chainman.ActiveChainstate(), *sigman, sporkman,
