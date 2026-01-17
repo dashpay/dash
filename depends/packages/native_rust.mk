@@ -103,12 +103,24 @@ define $(package)_extract_cmds
 endef
 
 define $(package)_stage_cmds
-  bash ./install.sh --destdir=$($(package)_staging_dir) --prefix=$(build_prefix) $($(package)_stage_opts) $($(package)_stage_build_opts) && \
-  bash ../$(canonical_host)/install.sh --destdir=$($(package)_staging_dir) --prefix=$(build_prefix) $($(package)_stage_opts)
+  mkdir -p $($(package)_staging_dir)/$(host_prefix)/native/bin && \
+  mkdir -p $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib && \
+  cp cargo/bin/cargo $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
+  cp rustc/bin/rustc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
+  cp rustc/bin/rustdoc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
+  cp -r rustc/lib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/ && \
+  cp -r rust-std-*/lib/rustlib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/ && \
+  cp -r ../$(canonical_host)/rust-std-$($(package)_rust_target)/lib/rustlib/$($(package)_rust_target) $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/
 endef
 else
 
 define $(package)_stage_cmds
-  bash ./install.sh --destdir=$($(package)_staging_dir) --prefix=$(build_prefix) $($(package)_stage_opts) $($(package)_stage_build_opts)
+  mkdir -p $($(package)_staging_dir)/$(host_prefix)/native/bin && \
+  mkdir -p $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib && \
+  cp cargo/bin/cargo $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
+  cp rustc/bin/rustc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
+  cp rustc/bin/rustdoc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
+  cp -r rustc/lib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/ && \
+  cp -r rust-std-*/lib/rustlib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/
 endef
 endif
