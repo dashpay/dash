@@ -317,7 +317,8 @@ static std::pair<std::vector<uint256>, std::vector<bool>> BuildMerkleProofPath(
 std::optional<QuorumMerkleProof> CQuorumProofManager::BuildQuorumMerkleProof(
     const CBlockIndex* pindex,
     Consensus::LLMQType llmqType,
-    const uint256& quorumHash) const
+    const uint256& quorumHash,
+    const CBlock* pBlock) const
 {
     if (pindex == nullptr || pindex->pprev == nullptr) {
         return std::nullopt;
@@ -351,10 +352,15 @@ std::optional<QuorumMerkleProof> CQuorumProofManager::BuildQuorumMerkleProof(
 
     // Now add commitments from the current block's transactions (matching CalcCbTxMerkleRootQuorums logic)
     // This is necessary because GetMinedAndActiveCommitmentsUntilBlock uses pindexPrev
-    CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
-        return std::nullopt;
+    CBlock block_local;
+    const CBlock* block_ptr = pBlock;
+    if (!block_ptr) {
+        if (!ReadBlockFromDisk(block_local, pindex, Params().GetConsensus())) {
+            return std::nullopt;
+        }
+        block_ptr = &block_local;
     }
+    const CBlock& block = *block_ptr;
 
     for (size_t i = 1; i < block.vtx.size(); ++i) {
         const auto& tx = block.vtx[i];
@@ -496,6 +502,7 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         CQuorumCPtr quorum;
         const CBlockIndex* pMinedBlockIndex;  // Block where commitment was actually mined
         int32_t chainlockHeight;
+        std::optional<ChainlockIndexEntry> chainlockEntry;
     };
     std::vector<ProofStep> proofSteps;
     std::set<uint256> visitedQuorums; // Cycle detection
@@ -546,6 +553,7 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         int32_t bestBlockHeight = -1;
         int32_t bestChainlockHeight = -1;
         CQuorumCPtr bestSigningQuorum = nullptr;
+        std::optional<ChainlockIndexEntry> bestChainlockEntry;
 
         // Metrics for selection
         bool foundKnownSigner = false;
@@ -554,28 +562,38 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         // Search window. For performance, if we don't find a known signer quickly, we might limit search.
         // But finding a known signer is the biggest optimization, so we search aggressively.
         for (int32_t h = pMinedBlock->nHeight; h <= maxSearchHeight; ++h) {
-            // Get chainlock for this height
-            auto clEntry = GetChainlockByHeight(h);
-            if (!clEntry.has_value()) continue;
-
             // Determine signer
             CQuorumCPtr signer = DetermineChainlockSigningQuorum(h, active_chain, qman);
             if (!signer) continue;
 
             bool isKnown = knownQuorumPubKeys.count(signer->qc->quorumPublicKey);
+            int32_t signerHeight = signer->m_quorum_base_block_index->nHeight;
+
+            // Optimization: Skip DB lookup if this signer is not interesting
+            // We are interested if:
+            // 1. It's a known signer (direct bridge)
+            // 2. We haven't found any candidate yet
+            // 3. It's strictly better (older) than our current best candidate
+            bool isInteresting = isKnown || bestBlockHeight == -1 || signerHeight < oldestSignerHeight;
+
+            if (!isInteresting) continue;
+
+            // Get chainlock for this height
+            auto clEntry = GetChainlockByHeight(h);
+            if (!clEntry.has_value()) continue;
 
             if (isKnown) {
                 // Found a direct bridge!
                 bestBlockHeight = h;
                 bestChainlockHeight = h; // Chainlock is at height h
                 bestSigningQuorum = signer;
+                bestChainlockEntry = clEntry;
                 foundKnownSigner = true;
                 break; // Found a known signer, we are done searching for this step.
             } else if (!foundKnownSigner) {
                 // Not known. We want the one that maximizes the jump back.
                 // The jump size is determined by the signer's creation height.
                 // We want the signer with the lowest creation height (oldest).
-                int32_t signerHeight = signer->m_quorum_base_block_index->nHeight;
 
                 bool isBetter = false;
                 if (bestBlockHeight == -1) {
@@ -591,6 +609,7 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                     bestBlockHeight = h;
                     bestChainlockHeight = h;
                     bestSigningQuorum = signer;
+                    bestChainlockEntry = clEntry;
                     oldestSignerHeight = signerHeight;
                 }
             }
@@ -606,7 +625,7 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Selected proof block %d (mined %d). KnownSigner=%d, SignerHeight=%d\n",
                  __func__, bestBlockHeight, pMinedBlock->nHeight, foundKnownSigner, bestSigningQuorum->m_quorum_base_block_index->nHeight);
 
-        proofSteps.push_back({currentQuorum, pProofBlock, bestChainlockHeight});
+        proofSteps.push_back({currentQuorum, pProofBlock, bestChainlockHeight, bestChainlockEntry});
 
         if (foundKnownSigner) {
              LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
@@ -627,7 +646,10 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
     for (const auto& step : proofSteps) {
         // Add chainlock entry if not already included
         if (!includedChainlockHeights.count(step.chainlockHeight)) {
-            auto clEntry = GetChainlockByHeight(step.chainlockHeight);
+            std::optional<ChainlockIndexEntry> clEntry = step.chainlockEntry;
+            if (!clEntry.has_value()) {
+                clEntry = GetChainlockByHeight(step.chainlockHeight);
+            }
             if (!clEntry.has_value()) {
                 return std::nullopt;
             }
@@ -652,14 +674,14 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         // Build the quorum commitment proof - use the MINED block where the commitment is
         const CBlockIndex* pMinedBlock = step.pMinedBlockIndex;
 
-        auto merkleProof = BuildQuorumMerkleProof(pMinedBlock, step.quorum->qc->llmqType, step.quorum->qc->quorumHash);
-        if (!merkleProof.has_value()) {
-            return std::nullopt;
-        }
-
         // Read the block to get coinbase transaction
         CBlock block;
         if (!ReadBlockFromDisk(block, pMinedBlock, Params().GetConsensus())) {
+            return std::nullopt;
+        }
+
+        auto merkleProof = BuildQuorumMerkleProof(pMinedBlock, step.quorum->qc->llmqType, step.quorum->qc->quorumHash, &block);
+        if (!merkleProof.has_value()) {
             return std::nullopt;
         }
 
