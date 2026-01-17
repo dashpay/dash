@@ -163,6 +163,25 @@ struct QuorumProofVerifyResult {
 using CommitmentHashCache = std::map<std::pair<Consensus::LLMQType, uint256>, uint256>;
 
 /**
+ * Pre-computed proof data for a quorum commitment.
+ * Stored in DB when a commitment is mined and retrieved for proof chain generation.
+ * This avoids expensive disk reads and merkle proof computations at query time.
+ */
+struct QuorumProofData {
+    QuorumMerkleProof quorumMerkleProof;       // Proof within merkleRootQuorums
+    CTransactionRef coinbaseTx;                 // The coinbase transaction containing merkleRootQuorums
+    std::vector<uint256> coinbaseMerklePath;    // Proof that coinbaseTx is in block's merkle root
+    std::vector<bool> coinbaseMerklePathSide;   // Side indicators for coinbase merkle proof
+    CBlockHeader header;                        // Block header where quorum was mined
+
+    SERIALIZE_METHODS(QuorumProofData, obj) {
+        READWRITE(obj.quorumMerkleProof, obj.coinbaseTx,
+                  obj.coinbaseMerklePath, DYNBITSET(obj.coinbaseMerklePathSide),
+                  obj.header);
+    }
+};
+
+/**
  * Manager for chainlock indexing and quorum proof generation/verification.
  */
 class CQuorumProofManager {
@@ -229,6 +248,25 @@ public:
     // Migration: Build chainlock index from historical blocks
     // Should be called once during startup after chain is loaded
     void MigrateChainlockIndex(const CChain& active_chain, const CChainParams& chainparams);
+
+    // Migration: Build quorum proof data index from historical commitments
+    // Should be called once during startup after chain is loaded
+    void MigrateQuorumProofIndex(const CChain& active_chain, const CChainParams& chainparams,
+                                  const node::BlockManager& block_man);
+
+    // Quorum Proof Data Index Management
+    void StoreQuorumProofData(Consensus::LLMQType llmqType, const uint256& quorumHash,
+                               const QuorumProofData& proofData);
+    void EraseQuorumProofData(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    [[nodiscard]] std::optional<QuorumProofData> GetQuorumProofData(Consensus::LLMQType llmqType,
+                                                                     const uint256& quorumHash) const;
+
+    // Helper to compute proof data for a commitment at mining time
+    [[nodiscard]] std::optional<QuorumProofData> ComputeQuorumProofData(
+        const CBlockIndex* pMinedBlock,
+        Consensus::LLMQType llmqType,
+        const uint256& quorumHash,
+        const CBlock& block) const;
 };
 
 // Database key prefix for chainlock index
@@ -252,6 +290,16 @@ static constexpr size_t MAX_PROOF_CHAIN_LENGTH = 500;
 // Maximum height offset to search for a chainlock covering a block
 // This limits how far forward we search from a block's height to find coverage
 static constexpr int32_t MAX_CHAINLOCK_SEARCH_OFFSET = 100;
+
+// Database key prefix for quorum proof data index
+static const std::string DB_QUORUM_PROOF_DATA = "q_qpd";
+
+// Database key for quorum proof index version (for migration tracking)
+static const std::string DB_QUORUM_PROOF_INDEX_VERSION = "q_qpv";
+
+// Current version of the quorum proof index
+// Increment this when the index format changes to trigger re-migration
+static constexpr int QUORUM_PROOF_INDEX_VERSION = 1;
 
 } // namespace llmq
 

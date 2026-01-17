@@ -2176,6 +2176,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (node.llmq_ctx && node.llmq_ctx->quorum_proof_manager) {
         LOCK(cs_main);
         node.llmq_ctx->quorum_proof_manager->MigrateChainlockIndex(chainman.ActiveChain(), chainparams);
+        // Migrate quorum proof data index for fast proof chain generation
+        node.llmq_ctx->quorum_proof_manager->MigrateQuorumProofIndex(chainman.ActiveChain(), chainparams,
+                                                                       chainman.m_blockman);
     }
 
     assert(!node.dstxman);

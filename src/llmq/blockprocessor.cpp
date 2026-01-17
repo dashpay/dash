@@ -5,6 +5,7 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
+#include <llmq/quorumproofs.h>
 #include <llmq/utils.h>
 
 #include <evo/evodb.h>
@@ -163,6 +164,52 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
     return ret;
 }
 
+/**
+ * Helper function to build merkle proof with path tracking.
+ * Returns the merkle path (sibling hashes) and side indicators.
+ */
+static std::pair<std::vector<uint256>, std::vector<bool>> BuildMerkleProofPath(
+    const std::vector<uint256>& hashes, size_t targetIndex)
+{
+    std::vector<uint256> merklePath;
+    std::vector<bool> merklePathSide;
+
+    if (hashes.empty()) {
+        return {merklePath, merklePathSide};
+    }
+
+    std::vector<uint256> current = hashes;
+    size_t index = targetIndex;
+
+    while (current.size() > 1) {
+        std::vector<uint256> next;
+        size_t nextIndex = 0;
+
+        for (size_t i = 0; i < current.size(); i += 2) {
+            size_t left = i;
+            size_t right = (i + 1 < current.size()) ? i + 1 : i;
+
+            if (index == left || index == right) {
+                if (index == left) {
+                    merklePath.push_back(current[right]);
+                    merklePathSide.push_back(true);
+                } else {
+                    merklePath.push_back(current[left]);
+                    merklePathSide.push_back(false);
+                }
+                nextIndex = next.size();
+            }
+
+            next.push_back(Hash(current[left], current[right]));
+        }
+
+        index = nextIndex;
+        current = std::move(next);
+    }
+
+    return {merklePath, merklePathSide};
+}
+
 bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state, bool fJustCheck, bool fBLSChecks)
 {
     AssertLockHeld(::cs_main);
@@ -228,6 +275,78 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
         if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck)) {
             LogPrintf("[ProcessBlock] failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, ToUnderlying(qc.llmqType), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
             return false;
+        }
+    }
+
+    // Store quorum proof data for fast proof chain generation (only for actual block processing, not just checking)
+    if (!fJustCheck) {
+        // Get active commitments up to this block's previous block (matching CalcCbTxMerkleRootQuorums logic)
+        auto commitmentsMap = GetMinedAndActiveCommitmentsUntilBlock(pindex->pprev);
+
+        // Collect all commitment hashes for merkle root calculation
+        std::vector<uint256> allCommitmentHashes;
+        for (const auto& [type, blockIndexes] : commitmentsMap) {
+            for (const auto* blockIndex : blockIndexes) {
+                uint256 commitmentHash = GetMinedCommitmentTxHash(type, blockIndex->GetBlockHash());
+                if (commitmentHash != uint256::ZERO) {
+                    allCommitmentHashes.push_back(commitmentHash);
+                }
+            }
+        }
+
+        // Add commitments from current block
+        for (size_t i = 1; i < block.vtx.size(); ++i) {
+            const auto& tx = block.vtx[i];
+            if (tx->IsSpecialTxVersion() && tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
+                const auto opt_qc = GetTxPayload<CFinalCommitmentTxPayload>(*tx);
+                if (opt_qc && !opt_qc->commitment.IsNull()) {
+                    allCommitmentHashes.push_back(::SerializeHash(opt_qc->commitment));
+                }
+            }
+        }
+
+        // Sort to match CalcCbTxMerkleRootQuorums
+        std::sort(allCommitmentHashes.begin(), allCommitmentHashes.end());
+
+        // Build coinbase merkle proof (same for all commitments in this block)
+        std::vector<uint256> txHashes;
+        txHashes.reserve(block.vtx.size());
+        for (const auto& tx : block.vtx) {
+            txHashes.push_back(tx->GetHash());
+        }
+        auto [cbPath, cbSide] = BuildMerkleProofPath(txHashes, 0);
+
+        // Store proof data for each non-null commitment in this block
+        for (const auto& [type, qc] : qcs) {
+            if (qc.IsNull()) continue;
+
+            // Find commitment hash in sorted list
+            uint256 targetHash = ::SerializeHash(qc);
+            auto it = std::find(allCommitmentHashes.begin(), allCommitmentHashes.end(), targetHash);
+            if (it == allCommitmentHashes.end()) {
+                LogPrint(BCLog::LLMQ, "[ProcessBlock] Could not find commitment hash for %s in active set\n",
+                         qc.quorumHash.ToString());
+                continue;
+            }
+            size_t targetIndex = std::distance(allCommitmentHashes.begin(), it);
+
+            // Build quorum merkle proof
+            auto [qPath, qSide] = BuildMerkleProofPath(allCommitmentHashes, targetIndex);
+
+            // Store proof data
+            QuorumProofData proofData;
+            proofData.quorumMerkleProof.merklePath = std::move(qPath);
+            proofData.quorumMerkleProof.merklePathSide = std::move(qSide);
+            proofData.coinbaseTx = block.vtx[0];
+            proofData.coinbaseMerklePath = cbPath;  // Copy since reused
+            proofData.coinbaseMerklePathSide = cbSide;
+            proofData.header = block.GetBlockHeader();
+
+            auto proofKey = std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(qc.llmqType, qc.quorumHash));
+            m_evoDb.Write(proofKey, proofData);
+
+            LogPrint(BCLog::LLMQ, "[ProcessBlock] Stored proof data for quorum %s type=%d\n",
+                     qc.quorumHash.ToString(), ToUnderlying(qc.llmqType));
         }
     }
 
@@ -399,6 +518,9 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
         }
 
         m_evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
+
+        // Also erase the cached proof data
+        m_evoDb.Erase(std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(qc.llmqType, qc.quorumHash)));
 
         const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
         assert(llmq_params_opt.has_value());

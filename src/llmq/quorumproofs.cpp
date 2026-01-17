@@ -758,28 +758,6 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             includedChainlockHeights.insert(step.chainlockHeight);
         }
 
-        // Build the quorum commitment proof - use the MINED block where the commitment is
-        const CBlockIndex* pMinedBlock = step.pMinedBlockIndex;
-
-        // Read the block to get coinbase transaction
-        CBlock block;
-        if (!ReadBlockFromDisk(block, pMinedBlock, Params().GetConsensus())) {
-            return std::nullopt;
-        }
-
-        auto merkleProof = BuildQuorumMerkleProof(pMinedBlock, step.commitment.llmqType, step.commitment.quorumHash, &block, &commitmentHashCache);
-        if (!merkleProof.has_value()) {
-            return std::nullopt;
-        }
-
-        // Build coinbase merkle proof
-        std::vector<uint256> txHashes;
-        for (const auto& tx : block.vtx) {
-            txHashes.push_back(tx->GetHash());
-        }
-
-        auto [cbPath, cbSide] = BuildMerkleProofPath(txHashes, 0); // Coinbase is at index 0
-
         // Find the chainlock index for this proof step
         uint32_t chainlockIndex = 0;
         for (size_t i = 0; i < chain.chainlocks.size(); ++i) {
@@ -789,18 +767,58 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             }
         }
 
-        QuorumCommitmentProof commitmentProof;
-        commitmentProof.commitment = step.commitment;
-        commitmentProof.chainlockIndex = chainlockIndex;
-        commitmentProof.quorumMerkleProof = merkleProof.value();
-        commitmentProof.coinbaseTx = block.vtx[0];
-        commitmentProof.coinbaseMerklePath = std::move(cbPath);
-        commitmentProof.coinbaseMerklePathSide = std::move(cbSide);
+        // Try to get pre-computed proof data from the index (fast path)
+        auto proofData = GetQuorumProofData(step.commitment.llmqType, step.commitment.quorumHash);
 
-        chain.quorumProofs.push_back(commitmentProof);
+        if (proofData.has_value()) {
+            // Use pre-computed proof data
+            QuorumCommitmentProof commitmentProof;
+            commitmentProof.commitment = step.commitment;
+            commitmentProof.chainlockIndex = chainlockIndex;
+            commitmentProof.quorumMerkleProof = proofData->quorumMerkleProof;
+            commitmentProof.coinbaseTx = proofData->coinbaseTx;
+            commitmentProof.coinbaseMerklePath = proofData->coinbaseMerklePath;
+            commitmentProof.coinbaseMerklePathSide = proofData->coinbaseMerklePathSide;
 
-        // Add the block header
-        chain.headers.push_back(block.GetBlockHeader());
+            chain.quorumProofs.push_back(commitmentProof);
+            chain.headers.push_back(proofData->header);
+        } else {
+            // Fallback: compute proof data on-the-fly (slow path - for backwards compatibility)
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No cached proof data for quorum %s, computing on-the-fly\n",
+                     __func__, step.commitment.quorumHash.ToString());
+
+            const CBlockIndex* pMinedBlock = step.pMinedBlockIndex;
+
+            // Read the block to get coinbase transaction
+            CBlock block;
+            if (!ReadBlockFromDisk(block, pMinedBlock, Params().GetConsensus())) {
+                return std::nullopt;
+            }
+
+            auto merkleProof = BuildQuorumMerkleProof(pMinedBlock, step.commitment.llmqType, step.commitment.quorumHash, &block, &commitmentHashCache);
+            if (!merkleProof.has_value()) {
+                return std::nullopt;
+            }
+
+            // Build coinbase merkle proof
+            std::vector<uint256> txHashes;
+            for (const auto& tx : block.vtx) {
+                txHashes.push_back(tx->GetHash());
+            }
+
+            auto [cbPath, cbSide] = BuildMerkleProofPath(txHashes, 0); // Coinbase is at index 0
+
+            QuorumCommitmentProof commitmentProof;
+            commitmentProof.commitment = step.commitment;
+            commitmentProof.chainlockIndex = chainlockIndex;
+            commitmentProof.quorumMerkleProof = merkleProof.value();
+            commitmentProof.coinbaseTx = block.vtx[0];
+            commitmentProof.coinbaseMerklePath = std::move(cbPath);
+            commitmentProof.coinbaseMerklePathSide = std::move(cbSide);
+
+            chain.quorumProofs.push_back(commitmentProof);
+            chain.headers.push_back(block.GetBlockHeader());
+        }
     }
 
     return chain;
@@ -1038,6 +1056,160 @@ void CQuorumProofManager::MigrateChainlockIndex(const CChain& active_chain, cons
 
     LogPrintf("CQuorumProofManager: Chainlock index migration complete. Processed %d blocks, indexed %d chainlocks\n",
              blocks_processed, indexed_count);
+}
+
+void CQuorumProofManager::StoreQuorumProofData(Consensus::LLMQType llmqType, const uint256& quorumHash,
+                                                const QuorumProofData& proofData)
+{
+    auto key = std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(llmqType, quorumHash));
+    m_evoDb.Write(key, proofData);
+}
+
+void CQuorumProofManager::EraseQuorumProofData(Consensus::LLMQType llmqType, const uint256& quorumHash)
+{
+    auto key = std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(llmqType, quorumHash));
+    m_evoDb.Erase(key);
+}
+
+std::optional<QuorumProofData> CQuorumProofManager::GetQuorumProofData(Consensus::LLMQType llmqType,
+                                                                        const uint256& quorumHash) const
+{
+    auto key = std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(llmqType, quorumHash));
+    QuorumProofData proofData;
+    if (m_evoDb.Read(key, proofData)) {
+        return proofData;
+    }
+    return std::nullopt;
+}
+
+std::optional<QuorumProofData> CQuorumProofManager::ComputeQuorumProofData(
+    const CBlockIndex* pMinedBlock,
+    Consensus::LLMQType llmqType,
+    const uint256& quorumHash,
+    const CBlock& block) const
+{
+    if (pMinedBlock == nullptr) {
+        return std::nullopt;
+    }
+
+    // Build the quorum merkle proof
+    auto merkleProof = BuildQuorumMerkleProof(pMinedBlock, llmqType, quorumHash, &block);
+    if (!merkleProof.has_value()) {
+        LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Failed to build quorum merkle proof for %s\n",
+                 __func__, quorumHash.ToString());
+        return std::nullopt;
+    }
+
+    // Build the coinbase merkle proof
+    std::vector<uint256> txHashes;
+    txHashes.reserve(block.vtx.size());
+    for (const auto& tx : block.vtx) {
+        txHashes.push_back(tx->GetHash());
+    }
+    auto [cbPath, cbSide] = BuildMerkleProofPath(txHashes, 0);  // Coinbase is at index 0
+
+    QuorumProofData proofData;
+    proofData.quorumMerkleProof = merkleProof.value();
+    proofData.coinbaseTx = block.vtx[0];
+    proofData.coinbaseMerklePath = std::move(cbPath);
+    proofData.coinbaseMerklePathSide = std::move(cbSide);
+    proofData.header = block.GetBlockHeader();
+
+    return proofData;
+}
+
+void CQuorumProofManager::MigrateQuorumProofIndex(const CChain& active_chain, const CChainParams& chainparams,
+                                                   const node::BlockManager& block_man)
+{
+    // Check if migration is needed
+    int version{0};
+    if (m_evoDb.Read(DB_QUORUM_PROOF_INDEX_VERSION, version) && version >= QUORUM_PROOF_INDEX_VERSION) {
+        LogPrintf("CQuorumProofManager: Quorum proof index is up to date (version %d)\n", version);
+        return;
+    }
+
+    LogPrintf("CQuorumProofManager: Building quorum proof index from historical commitments...\n");
+
+    // Show initial progress in UI
+    uiInterface.ShowProgress(_("Building quorum proof index…").translated, 0, false);
+
+    int indexed_count = 0;
+    int skipped_count = 0;
+
+    // Iterate through ALL LLMQ types that have mined commitments
+    for (const auto& llmq_params : chainparams.GetConsensus().llmqs) {
+        const auto llmqType = llmq_params.type;
+        LogPrintf("CQuorumProofManager: Processing LLMQ type %d...\n", static_cast<int>(llmqType));
+
+        // Use GetMinedCommitmentsUntilBlock to get all commitments up to the tip
+        // We use a large maxCount to get all of them
+        const CBlockIndex* pTip = active_chain.Tip();
+        if (!pTip) continue;
+
+        auto commitmentIndexes = m_quorum_block_processor.GetMinedCommitmentsUntilBlock(llmqType, pTip, 100000);
+
+        for (const CBlockIndex* pQuorumBaseBlockIndex : commitmentIndexes) {
+            const uint256& quorumHash = pQuorumBaseBlockIndex->GetBlockHash();
+
+            // Check if proof data already exists (skip if so)
+            auto proofKey = std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(llmqType, quorumHash));
+            if (m_evoDb.Exists(proofKey)) {
+                skipped_count++;
+                continue;
+            }
+
+            // Get the mined commitment and the block where it was mined
+            auto [qc, minedBlockHash] = m_quorum_block_processor.GetMinedCommitment(llmqType, quorumHash);
+            if (qc.IsNull()) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Commitment not found for %s\n",
+                         __func__, quorumHash.ToString());
+                continue;
+            }
+
+            // Get the mined block index
+            const CBlockIndex* pMinedBlock = WITH_LOCK(cs_main, return block_man.LookupBlockIndex(minedBlockHash));
+            if (!pMinedBlock) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Mined block %s not found for quorum %s\n",
+                         __func__, minedBlockHash.ToString(), quorumHash.ToString());
+                continue;
+            }
+
+            // Read block from disk
+            CBlock block;
+            if (!ReadBlockFromDisk(block, pMinedBlock, chainparams.GetConsensus())) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Failed to read block %s from disk\n",
+                         __func__, minedBlockHash.ToString());
+                continue;
+            }
+
+            // Compute and store proof data
+            auto proofData = ComputeQuorumProofData(pMinedBlock, llmqType, quorumHash, block);
+            if (!proofData.has_value()) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Failed to compute proof data for %s\n",
+                         __func__, quorumHash.ToString());
+                continue;
+            }
+
+            StoreQuorumProofData(llmqType, quorumHash, proofData.value());
+            indexed_count++;
+
+            // Update progress periodically
+            if (indexed_count % 100 == 0) {
+                int percentageDone = std::max(1, std::min(99, indexed_count / 10));  // Rough estimate
+                uiInterface.ShowProgress(_("Building quorum proof index…").translated, percentageDone, false);
+                LogPrintf("CQuorumProofManager: Migration progress: %d quorums indexed\n", indexed_count);
+            }
+        }
+    }
+
+    // Write version to mark migration complete
+    m_evoDb.Write(DB_QUORUM_PROOF_INDEX_VERSION, QUORUM_PROOF_INDEX_VERSION);
+
+    // Hide progress indicator
+    uiInterface.ShowProgress("", 100, false);
+
+    LogPrintf("CQuorumProofManager: Quorum proof index migration complete. Indexed %d quorums, skipped %d (already indexed)\n",
+              indexed_count, skipped_count);
 }
 
 } // namespace llmq
