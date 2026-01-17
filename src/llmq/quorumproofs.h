@@ -158,6 +158,10 @@ struct QuorumProofVerifyResult {
     [[nodiscard]] UniValue ToJson() const;
 };
 
+// Type alias for commitment hash cache used in proof building
+// Maps (llmqType, quorumHash) -> SerializeHash(commitment)
+using CommitmentHashCache = std::map<std::pair<Consensus::LLMQType, uint256>, uint256>;
+
 /**
  * Manager for chainlock indexing and quorum proof generation/verification.
  */
@@ -203,7 +207,8 @@ public:
         const CBlockIndex* pindex,
         Consensus::LLMQType llmqType,
         const uint256& quorumHash,
-        const CBlock* pBlock = nullptr) const;
+        const CBlock* pBlock = nullptr,
+        CommitmentHashCache* pHashCache = nullptr) const;
 
     // Proof Chain Generation
     [[nodiscard]] std::optional<QuorumProofChain> BuildProofChain(
