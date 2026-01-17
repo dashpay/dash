@@ -167,7 +167,7 @@ private:
     const CQuorumBlockProcessor& m_quorum_block_processor;
 
     // Helper to determine which quorum signed a chainlock at a given height
-    [[nodiscard]] CQuorumCPtr DetermineChainlockSigningQuorum(
+    [[nodiscard]] std::optional<CFinalCommitment> DetermineChainlockSigningCommitment(
         int32_t chainlockHeight,
         const CChain& active_chain,
         const CQuorumManager& qman) const;
