@@ -4,12 +4,20 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 CARGO_BUILD_OPTS = --locked --target $(RUST_TARGET)
+
+# 'cc' needs preserved case
+RUST_TARGET_ENV_LOWER = $(shell echo '$(RUST_TARGET)' | tr '-' '_')
 CARGO_ENV = \
   AR="$(AR)" \
+  AR_$(RUST_TARGET_ENV_LOWER)="$(AR)" \
   CC="$(CC)" \
+  CC_$(RUST_TARGET_ENV_LOWER)="$(CC)" \
   CFLAGS="$(CFLAGS)" \
+  CFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CFLAGS)" \
   CXX="$(CXX)" \
+  CXX_$(RUST_TARGET_ENV_LOWER)="$(CXX)" \
   CXXFLAGS="$(CXXFLAGS)" \
+  CXXFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CXXFLAGS)" \
   MACOSX_DEPLOYMENT_TARGET="$(RUST_MACOS_DEPLOYMENT_TARGET)" \
   CARGO_INCREMENTAL="$(CARGO_INCREMENTAL)" \
   RUSTC="$(RUSTC)" \
