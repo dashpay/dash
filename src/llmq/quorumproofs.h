@@ -202,7 +202,8 @@ public:
     [[nodiscard]] std::optional<QuorumMerkleProof> BuildQuorumMerkleProof(
         const CBlockIndex* pindex,
         Consensus::LLMQType llmqType,
-        const uint256& quorumHash) const;
+        const uint256& quorumHash,
+        const CBlock* pBlock = nullptr) const;
 
     // Proof Chain Generation
     [[nodiscard]] std::optional<QuorumProofChain> BuildProofChain(
