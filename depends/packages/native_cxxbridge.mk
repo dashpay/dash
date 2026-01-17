@@ -26,5 +26,6 @@ define $(package)_build_cmds
 endef
 
 define $(package)_stage_cmds
-  $($(package)_cargo) install --locked --path=. --bin=cxxbridge --root=$($(package)_staging_prefix_dir)
+  $($(package)_cargo) install --locked --path=. --bin=cxxbridge --root=$($(package)_staging_prefix_dir) && \
+  mkdir -p $($(package)_staging_prefix_dir)/lib
 endef
