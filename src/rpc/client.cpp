@@ -331,6 +331,10 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "quorum sign", 5, "submit" },
     { "quorum verify", 1, "llmqType" },
     { "quorum verify", 6, "signHeight" },
+    { "getquorumproofchain", 0, "checkpoint" },
+    { "getquorumproofchain", 2, "llmq_type" },
+    { "verifyquorumproofchain", 0, "checkpoint" },
+    { "verifyquorumproofchain", 3, "llmq_type" },
 };
 // clang-format on
 
