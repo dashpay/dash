@@ -13,8 +13,10 @@ OSX_SDK=$(SDK_PATH)/Xcode-$(XCODE_VERSION)-$(XCODE_BUILD_ID)-extracted-SDK-with-
 # distro releases.
 #
 # Source: https://lists.gnu.org/archive/html/bug-make/2017-11/msg00017.html
-clang_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang")
-clangxx_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang++")
+clang_prog:=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang")
+clangxx_prog:=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang++")
+
+clang_resource_dir:=$(shell $(SHELL) $(.SHELLFLAGS) "$(clang_prog) -print-resource-dir")
 
 darwin_AR=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-ar")
 darwin_DSYMUTIL=$(shell $(SHELL) $(.SHELLFLAGS) "command -v dsymutil")
@@ -52,12 +54,14 @@ darwin_STRIP=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-strip")
 #         non-determinism issues with the Identifier field.
 
 darwin_CC=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH $(clang_prog) --target=$(host) \
-              -isysroot$(OSX_SDK) -nostdlibinc \
+              -isysroot$(OSX_SDK) -nostdinc \
+              -isystem$(clang_resource_dir)/include \
               -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
 darwin_CXX=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH $(clangxx_prog) --target=$(host) \
-               -isysroot$(OSX_SDK) -nostdlibinc \
+               -isysroot$(OSX_SDK) -nostdinc -nostdinc++ \
                -iwithsysroot/usr/include/c++/v1 \
+               -isystem$(clang_resource_dir)/include \
                -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
 darwin_CFLAGS=-pipe -std=$(C_STANDARD) -mmacos-version-min=$(OSX_MIN_VERSION)
