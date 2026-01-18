@@ -282,6 +282,7 @@ BITCOIN_CORE_H = \
   llmq/ehf_signals.h \
   llmq/options.h \
   llmq/params.h \
+  llmq/quorumproofdata.h \
   llmq/quorumproofs.h \
   llmq/quorums.h \
   llmq/quorumsman.h \

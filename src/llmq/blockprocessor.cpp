@@ -5,7 +5,7 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
-#include <llmq/quorumproofs.h>
+#include <llmq/quorumproofdata.h>
 #include <llmq/utils.h>
 
 #include <evo/evodb.h>

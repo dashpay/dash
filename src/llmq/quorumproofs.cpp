@@ -555,12 +555,12 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
     // For the first step, we need the full commitment object and we need to know where it was mined.
     // We use GetMinedCommitment which gives us both.
     auto [targetQc, targetMinedHash] = m_quorum_block_processor.GetMinedCommitment(targetQuorumType, targetQuorumHash);
-    
+
     if (targetQc.IsNull()) {
         LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Target quorum not found\n", __func__);
         return std::nullopt;
     }
-    
+
     CFinalCommitment currentCommitment = targetQc;
     uint256 currentMinedBlockHash = targetMinedHash;
 
