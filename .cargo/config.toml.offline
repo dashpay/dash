@@ -1,17 +1,17 @@
 # Linux
-[target.aarch64-unknown-linux-gnu]
+[target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-gnu-gcc"
 
-[target.armv7-unknown-linux-gnueabihf]
+[target.armv7-unknown-linux-musleabihf]
 linker = "arm-linux-gnueabihf-gcc"
 
-[target.powerpc64le-unknown-linux-gnu]
+[target.powerpc64le-unknown-linux-musl]
 linker = "powerpc64le-linux-gnu-gcc"
 
-[target.riscv64gc-unknown-linux-gnu]
+[target.riscv64gc-unknown-linux-musl]
 linker = "riscv64-linux-gnu-gcc"
 
-[target.x86_64-unknown-linux-gnu]
+[target.x86_64-unknown-linux-musl]
 linker = "x86-64-linux-gnu-gcc"
 
 # Windows
