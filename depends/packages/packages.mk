@@ -1,4 +1,4 @@
-packages:=gmp backtrace rustcxx
+packages:=gmp backtrace rustcxx rust_stdlib
 
 boost_packages = boost
 

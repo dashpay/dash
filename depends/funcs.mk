@@ -301,6 +301,14 @@ vendor-$(1)-crates: $(native_rust_cached) $($(1)_fetched)
 endif
 endef
 
+define download_rust_std_target
+([ -f "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" ] && \
+  echo "Already have rust-std-$(rust_stdlib_version)-$(1).tar.gz" || \
+  (echo "Downloading rust-std-$(rust_stdlib_version)-$(1).tar.gz..." && \
+    $(build_DOWNLOAD) "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" "$(rust_stdlib_download_path)/rust-std-$(rust_stdlib_version)-$(1).tar.gz")) && \
+echo "$(rust_stdlib_sha256_hash_$(1))  rust-std-$(rust_stdlib_version)-$(1).tar.gz" > "$(SOURCES_PATH)/download-stamps/.stamp_fetched-rust_stdlib-$(rust_stdlib_version)-$(rust_stdlib_sha256_hash_$(1)).hash"
+endef
+
 # These functions create the build targets for each package. They must be
 # broken down into small steps so that each part is done for all packages
 # before moving on to the next step. Otherwise, a package's info
