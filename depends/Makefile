@@ -343,15 +343,8 @@ download-win:
 	@$(MAKE) -s HOST=x86_64-w64-mingw32 download-one
 download-rust-std:
 	@mkdir -p $(SOURCES_PATH)
-	@for target in $(native_rust_rust_std_targets); do \
-		file="rust-std-$(native_rust_version)-$${target}.tar.gz"; \
-		if [ ! -f "$(SOURCES_PATH)/$${file}" ]; then \
-			echo "Downloading $${file}..."; \
-			curl -L -o "$(SOURCES_PATH)/$${file}" "$(native_rust_download_path)/$${file}" || exit 1; \
-		else \
-			echo "Already have $${file}"; \
-		fi; \
-	done
+	@mkdir -p $(SOURCES_PATH)/download-stamps
+	@$(foreach target,$(rust_stdlib_targets),$(call download_rust_std_target,$(target)) && ) true
 download: download-osx download-linux download-win download-rust-std
 
 $(foreach package,$(all_packages),$(eval $(call ext_add_stages,$(package))))

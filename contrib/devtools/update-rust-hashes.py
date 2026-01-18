@@ -75,29 +75,36 @@ def update_rust_hash(makefile_path: Path, rust_version: str, rust_target: str, m
 def update_stdlib_hash(makefile_path: Path, rust_version: str, rust_target: str) -> None:
     url = f"https://static.rust-lang.org/dist/rust-std-{rust_version}-{rust_target}.tar.gz"
     hash_value = compute_sha256(url)
-    update_hash_in_file(makefile_path, f"rust_std_sha256_hash_{rust_target}", hash_value)
-    print(f"  Updated rust_std_sha256_hash_{rust_target}")
+    update_hash_in_file(makefile_path, f"sha256_hash_{rust_target}", hash_value)
+    print(f"  Updated sha256_hash_{rust_target}")
 
 
 def main() -> int:
     script_dir = Path(__file__).resolve().parent
-    makefile_path = script_dir / "../../depends/packages/native_rust.mk"
-    makefile_path = makefile_path.resolve()
+    native_rust_path = script_dir / "../../depends/packages/native_rust.mk"
+    native_rust_path = native_rust_path.resolve()
+    rust_stdlib_path = script_dir / "../../depends/packages/rust_stdlib.mk"
+    rust_stdlib_path = rust_stdlib_path.resolve()
 
-    if not makefile_path.exists():
-        print(f"Error: {makefile_path} not found", file=sys.stderr)
+    if not native_rust_path.exists():
+        print(f"Error: {native_rust_path} not found", file=sys.stderr)
         return 1
 
-    rust_version = get_rust_version(makefile_path)
+    if not rust_stdlib_path.exists():
+        print(f"Error: {rust_stdlib_path} not found", file=sys.stderr)
+        return 1
+
+    rust_version = get_rust_version(native_rust_path)
 
     print(f"Rust version: {rust_version}\n")
     print("Updating native compiler hashes:")
 
     for rust_target, makefile_id in NATIVE_TARGETS:
-        update_rust_hash(makefile_path, rust_version, rust_target, makefile_id)
+        update_rust_hash(native_rust_path, rust_version, rust_target, makefile_id)
 
+    print("\nUpdating stdlib hashes:")
     for rust_target in CROSS_TARGETS:
-        update_stdlib_hash(makefile_path, rust_version, rust_target)
+        update_stdlib_hash(rust_stdlib_path, rust_version, rust_target)
 
     print("\nDone!")
     return 0
