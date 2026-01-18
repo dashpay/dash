@@ -1777,6 +1777,20 @@ case $host in
 esac
 AC_MSG_RESULT([$RUST_TARGET])
 
+RUST_OSX_SDK=""
+case $host in
+  *darwin*)
+    AC_MSG_CHECKING([for Xcode SDK])
+    if test -z "$OSX_SDK"; then
+      if test "$cross_compiling" = "yes"; then
+        AC_MSG_ERROR([Cross-compilation requires OSX_SDK to be set to path of Xcode SDK, cannot continue!])
+      fi
+    fi
+    RUST_OSX_SDK="${OSX_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
+    AC_MSG_RESULT([$RUST_OSX_SDK])
+   ;;
+esac
+
 dnl check if libgmp is present
 TEMP_CPPFLAGS="$CPPFLAGS"
 TEMP_LDFLAGS="$LDFLAGS"
@@ -2069,6 +2083,7 @@ AC_SUBST(BITCOIN_MP_GUI_NAME)
 
 AC_SUBST(RUST_LIBS)
 AC_SUBST(RUST_MACOS_DEPLOYMENT_TARGET)
+AC_SUBST(RUST_OSX_SDK)
 AC_SUBST(RUST_TARGET)
 
 AC_SUBST(RELDFLAGS)
@@ -2224,4 +2239,5 @@ echo "  CXXBRIDGE                    = $CXXBRIDGE"
 echo "  RUSTC                        = $RUSTC"
 echo "  RUSTFLAGS                    = $RUSTFLAGS"
 echo "  RUST_MACOS_DEPLOYMENT_TARGET = $RUST_MACOS_DEPLOYMENT_TARGET"
+echo "  RUST_OSX_SDK                 = $RUST_OSX_SDK"
 echo

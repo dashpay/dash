@@ -133,6 +133,10 @@ if test "@host_os@" = darwin; then
   if test -n "@OSX_MIN_VERSION@"; then
     OSX_MIN_VERSION="@OSX_MIN_VERSION@"
   fi
+
+  if test -n "@OSX_SDK@"; then
+    OSX_SDK="@OSX_SDK@"
+  fi
 fi
 
 if test "@host_os@" = mingw32; then
