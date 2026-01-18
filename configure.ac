@@ -1768,12 +1768,12 @@ AC_DEFUN([RS_SET_TRIPLE], [
   case $2 in
     x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
     aarch64-*-linux*|arm64-*-linux*)
-                          $1="aarch64-unknown-linux-gnu" ;;
-    arm-*-linux*)         $1="armv7-unknown-linux-gnueabihf" ;;
-    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
-    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-gnu" ;;
-    riscv64-*-linux*)     $1="riscv64gc-unknown-linux-gnu" ;;
-    x86_64-*-linux*)      $1="x86_64-unknown-linux-gnu" ;;
+                          $1="aarch64-unknown-linux-$3" ;;
+    arm-*-linux*)         $1="armv7-unknown-linux-$3eabihf" ;;
+    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-$3" ;;
+    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-$3" ;;
+    riscv64-*-linux*)     $1="riscv64gc-unknown-linux-$3" ;;
+    x86_64-*-linux*)      $1="x86_64-unknown-linux-$3" ;;
     x86_64-*-darwin*)     $1="x86_64-apple-darwin" ;;
     aarch64-*-darwin*|arm64-*-darwin*)
                           $1="aarch64-apple-darwin" ;;
@@ -1783,7 +1783,7 @@ AC_DEFUN([RS_SET_TRIPLE], [
 ])
 
 AC_MSG_CHECKING([for Rust target])
-RS_SET_TRIPLE([RUST_TARGET], [$host])
+RS_SET_TRIPLE([RUST_TARGET], [$host], [musl])
 if test "$RUST_TARGET" = ""; then
   AC_MSG_RESULT([unknown])
   AC_MSG_ERROR([Unsupported target for Rust: $host])
@@ -1805,7 +1805,7 @@ case $host in
 esac
 
 AC_MSG_CHECKING([for Rust host])
-RS_SET_TRIPLE([RUST_NATIVE], [$build])
+RS_SET_TRIPLE([RUST_NATIVE], [$build], [gnu])
 if test "$RUST_NATIVE" = ""; then
   if test "$cross_compiling" = "yes"; then
     AC_MSG_RESULT([unknown])

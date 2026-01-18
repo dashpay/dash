@@ -16,11 +16,11 @@ CROSS_TARGETS = [
     # FreeBSD
     "x86_64-unknown-freebsd",
     # Linux
-    "aarch64-unknown-linux-gnu",
-    "armv7-unknown-linux-gnueabihf",
-    "powerpc64le-unknown-linux-gnu",
-    "riscv64gc-unknown-linux-gnu",
-    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "armv7-unknown-linux-musleabihf",
+    "powerpc64le-unknown-linux-musl",
+    "riscv64gc-unknown-linux-musl",
+    "x86_64-unknown-linux-musl",
     # Windows
     "x86_64-pc-windows-gnu",
     # macOS
