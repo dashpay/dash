@@ -7,9 +7,8 @@
 
 #include <bls/bls.h>
 #include <llmq/commitment.h>
+#include <llmq/quorumproofdata.h>
 #include <llmq/types.h>
-#include <primitives/block.h>
-#include <primitives/transaction.h>
 #include <serialize.h>
 #include <uint256.h>
 
@@ -56,29 +55,6 @@ struct ChainlockProofEntry {
     SERIALIZE_METHODS(ChainlockProofEntry, obj) {
         READWRITE(obj.nHeight, obj.blockHash, obj.signature);
     }
-
-    [[nodiscard]] UniValue ToJson() const;
-};
-
-/**
- * Merkle proof for a quorum commitment within the merkleRootQuorums.
- * Allows verification that a commitment is included in a block's cbtx.
- */
-struct QuorumMerkleProof {
-    std::vector<uint256> merklePath;      // Sibling hashes from leaf to root
-    std::vector<bool> merklePathSide;     // true = right sibling, false = left
-
-    SERIALIZE_METHODS(QuorumMerkleProof, obj) {
-        READWRITE(obj.merklePath, DYNBITSET(obj.merklePathSide));
-    }
-
-    /**
-     * Verify the merkle proof for a given leaf hash against an expected root.
-     * @param leafHash The hash of the commitment (SerializeHash of CFinalCommitment)
-     * @param expectedRoot The merkleRootQuorums from the cbtx
-     * @return true if the proof is valid
-     */
-    [[nodiscard]] bool Verify(const uint256& leafHash, const uint256& expectedRoot) const;
 
     [[nodiscard]] UniValue ToJson() const;
 };
@@ -161,25 +137,6 @@ struct QuorumProofVerifyResult {
 // Type alias for commitment hash cache used in proof building
 // Maps (llmqType, quorumHash) -> SerializeHash(commitment)
 using CommitmentHashCache = std::map<std::pair<Consensus::LLMQType, uint256>, uint256>;
-
-/**
- * Pre-computed proof data for a quorum commitment.
- * Stored in DB when a commitment is mined and retrieved for proof chain generation.
- * This avoids expensive disk reads and merkle proof computations at query time.
- */
-struct QuorumProofData {
-    QuorumMerkleProof quorumMerkleProof;       // Proof within merkleRootQuorums
-    CTransactionRef coinbaseTx;                 // The coinbase transaction containing merkleRootQuorums
-    std::vector<uint256> coinbaseMerklePath;    // Proof that coinbaseTx is in block's merkle root
-    std::vector<bool> coinbaseMerklePathSide;   // Side indicators for coinbase merkle proof
-    CBlockHeader header;                        // Block header where quorum was mined
-
-    SERIALIZE_METHODS(QuorumProofData, obj) {
-        READWRITE(obj.quorumMerkleProof, obj.coinbaseTx,
-                  obj.coinbaseMerklePath, DYNBITSET(obj.coinbaseMerklePathSide),
-                  obj.header);
-    }
-};
 
 /**
  * Manager for chainlock indexing and quorum proof generation/verification.
@@ -279,10 +236,6 @@ static const std::string DB_CHAINLOCK_INDEX_VERSION = "q_clv";
 // Increment this when the index format changes to trigger re-migration
 static constexpr int CHAINLOCK_INDEX_VERSION = 2;
 
-// Maximum merkle path length (DoS protection)
-// A path of 32 levels can support 2^32 leaves, which is more than sufficient
-static constexpr size_t MAX_MERKLE_PATH_LENGTH = 32;
-
 // Maximum proof chain length (DoS protection)
 // Limits how many intermediate quorums can be proven in a single chain
 static constexpr size_t MAX_PROOF_CHAIN_LENGTH = 500;
@@ -290,9 +243,6 @@ static constexpr size_t MAX_PROOF_CHAIN_LENGTH = 500;
 // Maximum height offset to search for a chainlock covering a block
 // This limits how far forward we search from a block's height to find coverage
 static constexpr int32_t MAX_CHAINLOCK_SEARCH_OFFSET = 100;
-
-// Database key prefix for quorum proof data index
-static const std::string DB_QUORUM_PROOF_DATA = "q_qpd";
 
 // Database key for quorum proof index version (for migration tracking)
 static const std::string DB_QUORUM_PROOF_INDEX_VERSION = "q_qpv";

@@ -8,7 +8,7 @@
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
-#include <llmq/quorumproofs.h>
+#include <llmq/quorumproofdata.h>
 #include <llmq/utils.h>
 #include <util/helpers.h>
 #include <util/std23.h>
