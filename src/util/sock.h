@@ -284,9 +284,9 @@ public:
      * Auxiliary requested/occurred events to wait for in `WaitMany()`.
      */
     struct Events {
-        explicit Events(Event req, Event ocr = 0) : requested{req}, occurred{ocr} {}
+        explicit Events(Event req, Event ocr = 0) : requested{req} {}
         Event requested;
-        Event occurred;
+        Event occurred{0};
     };
 
     /**

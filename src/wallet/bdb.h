@@ -189,9 +189,9 @@ private:
     bool HasKey(CDataStream&& key) override;
 
 protected:
-    Db* pdb;
+    Db* pdb{nullptr};
     std::string strFile;
-    DbTxn* activeTxn;
+    DbTxn* activeTxn{nullptr};
     Dbc* m_cursor;
     bool fReadOnly;
     bool fFlushOnClose;
