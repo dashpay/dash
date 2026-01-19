@@ -36,7 +36,6 @@ namespace node {
 static constexpr bool DEFAULT_ADDRESSINDEX{false};
 static constexpr bool DEFAULT_SPENTINDEX{false};
 static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
-static constexpr bool DEFAULT_TIMESTAMPINDEX{false};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
@@ -58,8 +57,6 @@ extern uint64_t nPruneTarget;
 
 /** True if we're running in -addressindex mode. */
 extern bool fAddressIndex;
-/** True if we're running in -timestampindex mode. */
-extern bool fTimestampIndex;
 /** True if we're running in -spentindex mode. */
 extern bool fSpentIndex;
 

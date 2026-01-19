@@ -44,9 +44,4 @@ bool GetSpentIndex(CBlockTreeDB& block_tree_db, const CTxMemPool& mempool, const
                    CSpentIndexValue& value)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-//! throws JSONRPCError if timestamp index is unavailable
-bool GetTimestampIndex(CBlockTreeDB& block_tree_db, const uint32_t high, const uint32_t low,
-                       std::vector<uint256>& hashes)
-    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
 #endif // BITCOIN_RPC_INDEX_UTIL_H

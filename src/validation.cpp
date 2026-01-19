@@ -77,13 +77,11 @@ using node::CBlockIndexHeightOnlyComparator;
 using node::CBlockIndexWorkComparator;
 using node::DEFAULT_ADDRESSINDEX;
 using node::DEFAULT_SPENTINDEX;
-using node::DEFAULT_TIMESTAMPINDEX;
 using node::fAddressIndex;
 using node::fImporting;
 using node::fPruneMode;
 using node::fReindex;
 using node::fSpentIndex;
-using node::fTimestampIndex;
 using node::ReadBlockFromDisk;
 using node::SnapshotMetadata;
 using node::UndoReadFromDisk;
@@ -2141,13 +2139,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         }
     }
 
-    if (fTimestampIndex) {
-        if (!m_blockman.m_block_tree_db->EraseTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash()))) {
-            AbortNode("Failed to delete timestamp index");
-            return DISCONNECT_FAILED;
-        }
-    }
-
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
     m_evoDb.WriteBestBlock(pindex->pprev->GetBlockHash());
@@ -2692,10 +2683,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     if (fSpentIndex)
         if (!m_blockman.m_block_tree_db->UpdateSpentIndex(spentIndex))
             return AbortNode(state, "Failed to write transaction index");
-
-    if (fTimestampIndex)
-        if (!m_blockman.m_block_tree_db->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
-            return AbortNode(state, "Failed to write timestamp index");
 
     int64_t nTime8 = GetTimeMicros(); nTimeIndexWrite += nTime8 - nTime7;
     LogPrint(BCLog::BENCHMARK, "      - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime8 - nTime7), nTimeIndexWrite * MICRO, nTimeIndexWrite * MILLI / nBlocksTotal);
@@ -4822,11 +4809,6 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
             return error("RollforwardBlock(DASH): Failed to write transaction index");
     }
 
-    if (fTimestampIndex) {
-        if (!m_blockman.m_block_tree_db->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
-            return error("RollforwardBlock(DASH): Failed to write timestamp index");
-    }
-
     return true;
 }
 
@@ -5011,10 +4993,6 @@ void ChainstateManager::InitAdditionalIndexes()
     // Use the provided setting for -addressindex in the new database
     fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
     m_blockman.m_block_tree_db->WriteFlag("addressindex", fAddressIndex);
-
-    // Use the provided setting for -timestampindex in the new database
-    fTimestampIndex = gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
-    m_blockman.m_block_tree_db->WriteFlag("timestampindex", fTimestampIndex);
 
     // Use the provided setting for -spentindex in the new database
     fSpentIndex = gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);

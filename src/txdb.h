@@ -10,7 +10,6 @@
 #include <dbwrapper.h>
 #include <spentindex.h>
 #include <sync.h>
-#include <timestampindex.h>
 
 #include <memory>
 #include <optional>
@@ -101,10 +100,6 @@ public:
     bool ReadAddressIndex(const uint160& addressHash, const AddressType type,
                           std::vector<CAddressIndexEntry>& addressIndex,
                           const int32_t start = 0, const int32_t end = 0);
-
-    bool WriteTimestampIndex(const CTimestampIndexKey& timestampIndex);
-    bool EraseTimestampIndex(const CTimestampIndexKey& timestampIndex);
-    bool ReadTimestampIndex(const uint32_t high, const uint32_t low, std::vector<uint256>& hashes);
 
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);

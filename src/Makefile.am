@@ -253,6 +253,8 @@ BITCOIN_CORE_H = \
   index/blockfilterindex.h \
   index/coinstatsindex.h \
   index/disktxpos.h \
+  index/timestampindex.h \
+  index/timestampindex_types.h \
   index/txindex.h \
   indirectmap.h \
   init.h \
@@ -381,7 +383,6 @@ BITCOIN_CORE_H = \
   support/events.h \
   support/lockedpool.h \
   sync.h \
-  timestampindex.h \
   threadsafety.h \
   timedata.h \
   torcontrol.h \
@@ -538,6 +539,7 @@ libbitcoin_node_a_SOURCES = \
   index/base.cpp \
   index/blockfilterindex.cpp \
   index/coinstatsindex.cpp \
+  index/timestampindex.cpp \
   index/txindex.cpp \
   init.cpp \
   instantsend/db.cpp \

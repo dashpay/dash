@@ -29,6 +29,7 @@
 #include <interfaces/chain.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <interfaces/init.h>
 #include <interfaces/node.h>
@@ -151,7 +152,6 @@ using node::DEFAULT_ADDRESSINDEX;
 using node::DEFAULT_PRINTPRIORITY;
 using node::DEFAULT_SPENTINDEX;
 using node::DEFAULT_STOPAFTERBLOCKIMPORT;
-using node::DEFAULT_TIMESTAMPINDEX;
 using node::LoadChainstate;
 using node::NodeContext;
 using node::ThreadImport;
@@ -160,7 +160,6 @@ using node::fAddressIndex;
 using node::fPruneMode;
 using node::fReindex;
 using node::fSpentIndex;
-using node::fTimestampIndex;
 using node::nPruneTarget;
 #ifdef ENABLE_WALLET
 using wallet::DEFAULT_DISABLE_WALLET;
@@ -261,6 +260,9 @@ void Interrupt(NodeContext& node)
         node.connman->Interrupt();
     if (g_txindex) {
         g_txindex->Interrupt();
+    }
+    if (g_timestampindex) {
+        g_timestampindex->Interrupt();
     }
     ForEachBlockFilterIndex([](BlockFilterIndex& index) { index.Interrupt(); });
     if (g_coin_stats_index) {
@@ -379,6 +381,10 @@ void PrepareShutdown(NodeContext& node)
     if (g_txindex) {
         g_txindex->Stop();
         g_txindex.reset();
+    }
+    if (g_timestampindex) {
+        g_timestampindex->Stop();
+        g_timestampindex.reset();
     }
     if (g_coin_stats_index) {
         g_coin_stats_index->Stop();
@@ -1032,8 +1038,7 @@ void InitParameterInteraction(ArgsManager& args)
     // (we must reconnect blocks whenever we disconnect them for these indexes to work)
     bool fAdditionalIndexes =
         args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) ||
-        args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) ||
-        args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+        args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
 
     if (fAdditionalIndexes && args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL) < 4) {
         args.ForceSetArg("-checklevel", "4");
@@ -1945,6 +1950,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
         LogPrintf("* Using %.1f MiB for transaction index database\n", cache_sizes.tx_index * (1.0 / 1024 / 1024));
     }
+    if (args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
+        LogPrintf("* Using %.1f MiB for timestamp index database\n", cache_sizes.timestamp_index * (1.0 / 1024 / 1024));
+    }
     for (BlockFilterType filter_type : g_enabled_filter_types) {
         LogPrintf("* Using %.1f MiB for %s block filter index database\n",
                   cache_sizes.filter_index * (1.0 / 1024 / 1024), BlockFilterTypeName(filter_type));
@@ -1999,7 +2007,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                               fPruneMode,
                                               args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX),
                                               args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX),
-                                              args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX),
                                               chainparams.GetConsensus(),
                                               fReindexChainState,
                                               cache_sizes.block_tree_db,
@@ -2047,9 +2054,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             case ChainstateLoadingError::ERROR_SPENTIDX_NEEDS_REINDEX:
                 strLoadError = _("You need to rebuild the database using -reindex to enable -spentindex");
                 break;
-            case ChainstateLoadingError::ERROR_TIMEIDX_NEEDS_REINDEX:
-                strLoadError = _("You need to rebuild the database using -reindex to enable -timestampindex");
-                break;
             case ChainstateLoadingError::ERROR_PRUNED_NEEDS_REINDEX:
                 strLoadError = _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
                 break;
@@ -2083,7 +2087,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             }
         } else {
             LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
-            LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
             LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
 
             std::optional<ChainstateLoadVerifyError> maybe_verify_error;
@@ -2261,6 +2264,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
         g_txindex = std::make_unique<TxIndex>(cache_sizes.tx_index, false, fReindex);
         if (!g_txindex->Start(chainman.ActiveChainstate())) {
+            return false;
+        }
+    }
+
+    if (args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
+        g_timestampindex = std::make_unique<TimestampIndex>(cache_sizes.timestamp_index, false, fReindex);
+        if (!g_timestampindex->Start(chainman.ActiveChainstate())) {
             return false;
         }
     }

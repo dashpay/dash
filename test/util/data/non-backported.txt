@@ -18,6 +18,7 @@ src/evo/*.cpp
 src/evo/*.h
 src/governance/*.cpp
 src/governance/*.h
+src/index/timestamp*.h
 src/instantsend/*.cpp
 src/instantsend/*.h
 src/llmq/*.cpp

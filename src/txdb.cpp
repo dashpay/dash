@@ -23,7 +23,6 @@ static constexpr uint8_t DB_COIN{'C'};
 static constexpr uint8_t DB_BLOCK_FILES{'f'};
 static constexpr uint8_t DB_ADDRESSINDEX{'a'};
 static constexpr uint8_t DB_ADDRESSUNSPENTINDEX{'u'};
-static constexpr uint8_t DB_TIMESTAMPINDEX{'s'};
 static constexpr uint8_t DB_SPENTINDEX{'p'};
 static constexpr uint8_t DB_BLOCK_INDEX{'b'};
 
@@ -370,37 +369,6 @@ bool CBlockTreeDB::ReadAddressIndex(const uint160& addressHash, const AddressTyp
             } else {
                 return error("failed to get address index value");
             }
-        } else {
-            break;
-        }
-    }
-
-    return true;
-}
-
-bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey& timestampIndex) {
-    CDBBatch batch(*this);
-    batch.Write(std::make_pair(DB_TIMESTAMPINDEX, timestampIndex), 0);
-    return WriteBatch(batch);
-}
-
-bool CBlockTreeDB::EraseTimestampIndex(const CTimestampIndexKey& timestampIndex)
-{
-    CDBBatch batch(*this);
-    batch.Erase(std::make_pair(DB_TIMESTAMPINDEX, timestampIndex));
-    return WriteBatch(batch);
-}
-
-bool CBlockTreeDB::ReadTimestampIndex(const uint32_t high, const uint32_t low, std::vector<uint256>& hashes) {
-    std::unique_ptr<CDBIterator> pcursor(NewIterator());
-
-    pcursor->Seek(std::make_pair(DB_TIMESTAMPINDEX, CTimestampIndexIteratorKey(low)));
-
-    while (pcursor->Valid()) {
-        std::pair<uint8_t, CTimestampIndexKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_TIMESTAMPINDEX && key.second.m_block_time <= high) {
-            hashes.push_back(key.second.m_block_hash);
-            pcursor->Next();
         } else {
             break;
         }

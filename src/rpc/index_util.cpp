@@ -82,15 +82,3 @@ bool GetSpentIndex(CBlockTreeDB& block_tree_db, const CTxMemPool& mempool, const
 
     return block_tree_db.ReadSpentIndex(key, value);
 }
-
-bool GetTimestampIndex(CBlockTreeDB& block_tree_db, const uint32_t high, const uint32_t low,
-                       std::vector<uint256>& hashes)
-{
-    AssertLockHeld(::cs_main);
-
-    if (!node::fTimestampIndex) {
-        throw JSONRPCError(RPC_INVALID_REQUEST, "Timestamp index is disabled. You should run Dash Core with -timestampindex (requires reindex)");
-    }
-
-    return block_tree_db.ReadTimestampIndex(high, low, hashes);
-}

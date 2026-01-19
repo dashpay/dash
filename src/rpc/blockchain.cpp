@@ -20,6 +20,7 @@
 #include <fs.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <kernel/coinstats.h>
 #include <logging/timer.h>
@@ -553,13 +554,16 @@ static RPCHelpMan getblockhashes()
         },
     [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
+    if (!g_timestampindex) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Timestamp index is not enabled. Start with -timestampindex to enable.");
+    }
+
     unsigned int high = request.params[0].getInt<int>();
     unsigned int low = request.params[1].getInt<int>();
     std::vector<uint256> blockHashes;
 
-    ChainstateManager& chainman = EnsureAnyChainman(request.context);
-    if (LOCK(::cs_main); !GetTimestampIndex(*chainman.m_blockman.m_block_tree_db, high, low, blockHashes)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
+    if (!g_timestampindex->GetBlockHashes(high, low, blockHashes)) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Timestamp index is still syncing. Try again later.");
     }
 
     UniValue result(UniValue::VARR);
