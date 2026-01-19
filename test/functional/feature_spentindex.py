@@ -19,7 +19,6 @@ from test_framework.messages import (
 from test_framework.script_util import (
     keyhash_to_p2pkh_script,
 )
-from test_framework.test_node import ErrorMatch
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 
@@ -50,14 +49,12 @@ class SpentIndexTest(BitcoinTestFramework):
         self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
-        self.log.info("Test that settings can be disabled without -reindex...")
+        self.log.info("Test that settings can be disabled and re-enabled...")
         self.restart_node(1, ["-spentindex=0"])
         self.connect_nodes(0, 1)
         self.sync_all()
-        self.log.info("Test that settings can't be enabled without -reindex...")
-        self.stop_node(1)
-        self.nodes[1].assert_start_raises_init_error(["-spentindex"], "You need to rebuild the database using -reindex to enable -spentindex", match=ErrorMatch.PARTIAL_REGEX)
-        self.start_node(1, ["-spentindex", "-reindex"])
+        # SpentIndex is now async, so it can be enabled without -reindex
+        self.restart_node(1, ["-spentindex"])
         self.connect_nodes(0, 1)
         self.sync_all()
 
@@ -126,6 +123,14 @@ class SpentIndexTest(BitcoinTestFramework):
         assert_equal(txVerbose3["vin"][0]["value"], Decimal(unspent[0]["amount"]) - tx_fee)
         assert_equal(txVerbose3["vin"][0]["valueSat"], amount)
 
+        self.log.info("Testing getspentinfo with mempool data...")
+        # Check that getspentinfo returns mempool spend info for unconfirmed transactions
+        # The output from txid is now spent by txid2 (which is in mempool, not yet mined)
+        info_mempool = self.nodes[1].getspentinfo({"txid": txid, "index": 0})
+        assert_equal(info_mempool["txid"], txid2)
+        assert_equal(info_mempool["index"], 0)
+        assert_equal(info_mempool["height"], -1)  # Height -1 indicates mempool transaction
+
         # Check the database index
         self.generate(self.nodes[0], 1)
 
@@ -133,6 +138,36 @@ class SpentIndexTest(BitcoinTestFramework):
         assert_equal(txVerbose4["vin"][0]["address"], address2)
         assert_equal(txVerbose4["vin"][0]["value"], Decimal(unspent[0]["amount"]) - tx_fee)
         assert_equal(txVerbose4["vin"][0]["valueSat"], amount)
+
+        self.log.info("Testing reorg handling...")
+        # Get the block hash containing txid
+        block_hash = self.nodes[1].getblockhash(106)
+
+        # Verify spent info exists before reorg
+        info_before = self.nodes[1].getspentinfo({"txid": unspent[0]["txid"], "index": unspent[0]["vout"]})
+        assert_equal(info_before["txid"], txid)
+
+        # Invalidate the block containing the spending transaction on all nodes
+        for node in self.nodes:
+            node.invalidateblock(block_hash)
+
+        # After invalidation, transactions go back to mempool
+        # getspentinfo should still find the spend in mempool with height -1
+        info_after_invalidate = self.nodes[1].getspentinfo({"txid": unspent[0]["txid"], "index": unspent[0]["vout"]})
+        assert_equal(info_after_invalidate["txid"], txid)
+        assert_equal(info_after_invalidate["index"], 0)
+        assert_equal(info_after_invalidate["height"], -1)  # Now in mempool
+
+        # Reconsider the block on all nodes
+        for node in self.nodes:
+            node.reconsiderblock(block_hash)
+        self.sync_all()
+
+        # Verify spent info is back after reconsider
+        info_after = self.nodes[1].getspentinfo({"txid": unspent[0]["txid"], "index": unspent[0]["vout"]})
+        assert_equal(info_after["txid"], txid)
+        assert_equal(info_after["index"], 0)
+        assert_equal(info_after["height"], 106)
 
         self.log.info("Passed")
 
