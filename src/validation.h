@@ -70,8 +70,6 @@ namespace llmq {
 class CChainLocksHandler;
 } // namespace llmq
 
-/** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
-static const unsigned int DEFAULT_MEMPOOL_EXPIRY = 336;
 /** Maximum number of dedicated script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 15;
 /** -par default (number of script-checking threads, 0 = auto) */
@@ -121,7 +119,6 @@ extern uint256 g_best_block;
  * False indicates all script checking is done on the main threadMessageHandler thread.
  */
 extern bool g_parallel_script_checks;
-extern bool fRequireStandard;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
 /** If the tip is older than this (in seconds), the node is considered to be in initial block download. */
@@ -152,10 +149,11 @@ double ConvertBitsToDouble(unsigned int nBits);
  * When pindex points to a genesis block GetBlockSubsidy() returns a pre-calculated value.
  * For other blocks it calls GetBlockSubsidyInner() using nBits and nHeight of a pindex->pprev block.
  */
-CAmount GetBlockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fV20Active);
-CAmount GetSuperblockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fV20Active);
-CAmount GetBlockSubsidy(const CBlockIndex* const pindex, const Consensus::Params& consensusParams);
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active);
+CAmount GetBlockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams,
+                             std::optional<bool> is_v20_active_override = std::nullopt);
+CAmount GetSuperblockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams);
+CAmount GetBlockSubsidy(int nHeight, int nPrevBits, const Consensus::Params& consensusParams);
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensus_params);
 
 bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});
 

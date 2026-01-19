@@ -26,11 +26,13 @@
 #include <vector>
 
 class CChainParams;
+class CChainState;
 namespace Consensus {
 struct Params;
-};
-
-class CChainState;
+}; // namespace Consensus
+namespace kernel {
+struct MemPoolOptions;
+}; // namespace kernel
 
 /** This is connected to the logger. Can be used to redirect logs to any other log */
 extern const std::function<void(const std::string&)> G_TEST_LOG_FUN;
@@ -102,7 +104,7 @@ void DashChainstateSetupClose(node::NodeContext& node);
  * This just configures logging, data dir and chain parameters.
  */
 struct BasicTestingSetup {
-    node::NodeContext m_node;
+    node::NodeContext m_node; // keep as first member to be destructed last
 
     explicit BasicTestingSetup(const std::string& chainName = CBaseChainParams::MAIN, const std::vector<const char*>& extra_args = {});
     ~BasicTestingSetup();
@@ -110,6 +112,8 @@ struct BasicTestingSetup {
     const fs::path m_path_root;
     ArgsManager m_args;
 };
+
+kernel::MemPoolOptions MemPoolOptionsForTest(const node::NodeContext& node);
 
 /** Testing setup that performs all steps up until right before
  * ChainstateManager gets initialized. Meant for testing ChainstateManager

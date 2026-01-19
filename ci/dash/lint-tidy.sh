@@ -88,6 +88,7 @@ iwyu_tool.py \
   "src/init" \
   "src/node/chainstate.cpp" \
   "src/node/minisketchwrapper.cpp" \
+  "src/node/mempool_args.cpp" \
   "src/policy/feerate.cpp" \
   "src/policy/packages.cpp" \
   "src/policy/settings.cpp" \

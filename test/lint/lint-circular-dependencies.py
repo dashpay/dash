@@ -20,6 +20,9 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "qt/transactiontablemodel -> qt/walletmodel -> qt/transactiontablemodel",
     "wallet/wallet -> wallet/walletdb -> wallet/wallet",
     "kernel/coinstats -> validation -> kernel/coinstats",
+    # Temporary, removed in followup https://github.com/bitcoin/bitcoin/pull/24230
+    "index/base -> node/context -> net_processing -> index/blockfilterindex -> index/base",
+    "index/base -> node/context -> net_processing -> index/txindex -> index/base",
     # Dash
     "active/context -> llmq/signing_shares -> net_processing -> active/context",
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorumsman -> net -> banman",
@@ -39,6 +42,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "consensus/tx_verify -> evo/assetlocktx -> llmq/commitment -> validation -> txmempool -> consensus/tx_verify",
     "evo/assetlocktx -> llmq/commitment -> validation -> txmempool -> evo/assetlocktx",
     "evo/chainhelper -> evo/specialtxman -> validation -> evo/chainhelper",
+    "evo/deterministicmns -> index/txindex -> index/base -> node/context -> evo/deterministicmns",
     "evo/deterministicmns -> validation -> evo/deterministicmns",
     "evo/deterministicmns -> validation -> txmempool -> evo/deterministicmns",
     "evo/netinfo -> evo/providertx -> evo/netinfo",

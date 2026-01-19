@@ -268,7 +268,12 @@ BITCOIN_CORE_H = \
   instantsend/lock.h \
   instantsend/net_instantsend.h \
   instantsend/signing.h \
+  kernel/chain.h \
+  kernel/checks.h \
   kernel/coinstats.h \
+  kernel/context.h \
+  kernel/mempool_limits.h \
+  kernel/mempool_options.h \
   key.h \
   key_io.h \
   limitedmap.h \
@@ -320,18 +325,20 @@ BITCOIN_CORE_H = \
   node/connection_types.h \
   node/context.h \
   node/eviction.h \
+  node/interface_ui.h \
+  node/mempool_args.h \
   node/miner.h \
   node/minisketchwrapper.h \
   node/psbt.h \
   node/sync_manager.h \
   node/transaction.h \
   node/txreconciliation.h \
-  node/interface_ui.h \
   node/utxo_snapshot.h \
   noui.h \
   outputtype.h \
   policy/feerate.h \
   policy/fees.h \
+  policy/fees_args.h \
   policy/packages.h \
   policy/policy.h \
   policy/settings.h \
@@ -546,7 +553,10 @@ libbitcoin_node_a_SOURCES = \
   instantsend/lock.cpp \
   instantsend/net_instantsend.cpp \
   instantsend/signing.cpp \
+  kernel/chain.cpp \
+  kernel/checks.cpp \
   kernel/coinstats.cpp \
+  kernel/context.cpp \
   llmq/blockprocessor.cpp \
   llmq/commitment.cpp \
   llmq/context.cpp \
@@ -582,16 +592,18 @@ libbitcoin_node_a_SOURCES = \
   node/connection_types.cpp \
   node/context.cpp \
   node/eviction.cpp \
+  node/interface_ui.cpp \
   node/interfaces.cpp \
+  node/mempool_args.cpp \
   node/miner.cpp \
   node/minisketchwrapper.cpp \
   node/psbt.cpp \
   node/sync_manager.cpp \
   node/transaction.cpp \
   node/txreconciliation.cpp \
-  node/interface_ui.cpp \
   noui.cpp \
   policy/fees.cpp \
+  policy/fees_args.cpp \
   policy/packages.cpp \
   policy/policy.cpp \
   policy/settings.cpp \

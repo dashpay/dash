@@ -620,6 +620,46 @@ static bool rest_chaininfo(const CoreContext& context, HTTPRequest* req, const s
     }
 }
 
+RPCHelpMan getdeploymentinfo();
+
+static bool rest_deploymentinfo(const CoreContext& context, HTTPRequest* req, const std::string& str_uri_part)
+{
+    if (!CheckWarmup(req)) return false;
+
+    std::string hash_str;
+    const RESTResponseFormat rf = ParseDataFormat(hash_str, str_uri_part);
+
+    switch (rf) {
+    case RESTResponseFormat::JSON: {
+        JSONRPCRequest jsonRequest;
+        jsonRequest.context = context;
+        jsonRequest.params = UniValue(UniValue::VARR);
+
+        if (!hash_str.empty()) {
+            uint256 hash;
+            if (!ParseHashStr(hash_str, hash)) {
+                return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hash_str);
+            }
+
+            const ChainstateManager* chainman = GetChainman(context, req);
+            if (!chainman) return false;
+            if (!WITH_LOCK(::cs_main, return chainman->m_blockman.LookupBlockIndex(ParseHashV(hash_str, "blockhash")))) {
+                return RESTERR(req, HTTP_BAD_REQUEST, "Block not found");
+            }
+
+            jsonRequest.params.pushKV("blockhash", hash_str);
+        }
+
+        req->WriteHeader("Content-Type", "application/json");
+        req->WriteReply(HTTP_OK, getdeploymentinfo().HandleRequest(jsonRequest).write() + "\n");
+        return true;
+    }
+    default: {
+        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: json)");
+    }
+    }
+}
+
 static bool rest_mempool(const CoreContext& context, HTTPRequest* req, const std::string& str_uri_part)
 {
     if (!CheckWarmup(req))
@@ -968,6 +1008,8 @@ static const struct {
       {"/rest/mempool/", rest_mempool},
       {"/rest/headers/", rest_headers},
       {"/rest/getutxos", rest_getutxos},
+      {"/rest/deploymentinfo/", rest_deploymentinfo},
+      {"/rest/deploymentinfo", rest_deploymentinfo},
       {"/rest/blockhashbyheight/", rest_blockhash_by_height},
 };
 

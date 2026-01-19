@@ -18,15 +18,15 @@
 
 #include <boost/test/unit_test.hpp>
 
+// Helpers:
+static bool IsStandardTx(const CTransaction& tx, std::string& reason)
+{
+    return IsStandardTx(tx, MAX_OP_RETURN_RELAY, DEFAULT_PERMIT_BAREMULTISIG, CFeeRate{DUST_RELAY_TX_FEE}, reason);
+}
 
-//
-// Helper: create two dummy transactions, each with
-// two outputs.  The first has 11 and 50 CENT outputs
-// paid to a TX_PUBKEY, the second 21 and 22 CENT outputs
-// paid to a TX_PUBKEYHASH.
-//
-static std::vector<CMutableTransaction>
-SetupDummyInputs(FillableSigningProvider& keystoreRet, CCoinsViewCache& coinsRet)
+// Create two dummy transactions, each with two outputs.  The first has 11 and 50 CENT outputs
+// paid to a TX_PUBKEY, the second 21 and 22 CENT outputs paid to a TX_PUBKEYHASH.
+static std::vector<CMutableTransaction> SetupDummyInputs(FillableSigningProvider& keystoreRet, CCoinsViewCache& coinsRet)
 {
     std::vector<CMutableTransaction> dummyTransactions;
     dummyTransactions.resize(2);

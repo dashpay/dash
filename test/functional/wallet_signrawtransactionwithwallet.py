@@ -130,7 +130,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         getcontext().prec = 8
 
         # Make sure CSV is active
-        assert self.nodes[0].getblockchaininfo()['softforks']['csv']['active']
+        assert self.nodes[0].getdeploymentinfo()['deployments']['csv']['active']
 
         # Create a P2SH script with CSV
         script = CScript([1, OP_CHECKSEQUENCEVERIFY, OP_DROP, OP_TRUE])
@@ -160,7 +160,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         getcontext().prec = 8
 
         # Make sure CLTV is active
-        assert self.nodes[0].getblockchaininfo()['softforks']['bip65']['active']
+        assert self.nodes[0].getdeploymentinfo()['deployments']['bip65']['active']
 
         # Create a P2SH script with CLTV
         script = CScript([100, OP_CHECKLOCKTIMEVERIFY, OP_DROP, OP_TRUE])

@@ -32,6 +32,7 @@
 #include <netaddress.h>
 #include <netbase.h>
 #include <node/blockstorage.h>
+#include <kernel/chain.h>
 #include <node/coin.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
@@ -532,8 +533,16 @@ public:
     uint64_t getLogCategories() override { return LogInstance().GetCategoryMask(); }
     bool baseInitialize() override
     {
-        return AppInitBasicSetup(gArgs) && AppInitParameterInteraction(gArgs) && AppInitSanityChecks() &&
-               AppInitLockDataDirectory() && AppInitInterfaces(*m_context);
+        if (!AppInitBasicSetup(gArgs)) return false;
+        if (!AppInitParameterInteraction(gArgs)) return false;
+
+        m_context->kernel = std::make_unique<kernel::Context>();
+        if (!AppInitSanityChecks(*m_context->kernel)) return false;
+
+        if (!AppInitLockDataDirectory()) return false;
+        if (!AppInitInterfaces(*m_context)) return false;
+
+        return true;
     }
     bool appInitMain(interfaces::BlockAndHeaderTipInfo* tip_info) override
     {
@@ -697,7 +706,7 @@ public:
     int64_t getTotalBytesSent() override { return m_context->connman ? m_context->connman->GetTotalBytesSent() : 0; }
     size_t getMempoolSize() override { return m_context->mempool ? m_context->mempool->size() : 0; }
     size_t getMempoolDynamicUsage() override { return m_context->mempool ? m_context->mempool->DynamicMemoryUsage() : 0; }
-    size_t getMempoolMaxUsage() override { return gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000; }
+    size_t getMempoolMaxUsage() override { return m_context->mempool ? m_context->mempool->m_max_size_bytes : 0; }
     bool getHeaderTip(int& height, int64_t& block_time) override
     {
         LOCK(::cs_main);
@@ -766,7 +775,11 @@ public:
         }
     }
     bool getNetworkActive() override { return m_context->connman && m_context->connman->GetNetworkActive(); }
-    CFeeRate getDustRelayFee() override { return ::dustRelayFee; }
+    CFeeRate getDustRelayFee() override
+    {
+        if (!m_context->mempool) return CFeeRate{DUST_RELAY_TX_FEE};
+        return m_context->mempool->m_dust_relay_feerate;
+    }
     UniValue executeRpc(const std::string& command, const UniValue& params, const std::string& uri) override
     {
         JSONRPCRequest req;
@@ -892,6 +905,7 @@ bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<Rec
     if (block.m_max_time) *block.m_max_time = index->GetBlockTimeMax();
     if (block.m_mtp_time) *block.m_mtp_time = index->GetMedianTimePast();
     if (block.m_in_active_chain) *block.m_in_active_chain = active[index->nHeight] == index;
+    if (block.m_locator) { *block.m_locator = active.GetLocator(index); }
     if (block.m_next_block) FillBlock(active[index->nHeight] == index ? active[index->nHeight + 1] : nullptr, *block.m_next_block, lock, active);
     if (block.m_data) {
         REVERSE_LOCK(lock);
@@ -917,11 +931,11 @@ public:
     }
     void BlockConnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* index) override
     {
-        m_notifications->blockConnected(*block, index->nHeight);
+        m_notifications->blockConnected(kernel::MakeBlockInfo(index, block.get()));
     }
     void BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* index) override
     {
-        m_notifications->blockDisconnected(*block, index->nHeight);
+        m_notifications->blockDisconnected(kernel::MakeBlockInfo(index, block.get()));
     }
     void UpdatedBlockTip(const CBlockIndex* index, const CBlockIndex* fork_index, bool is_ibd) override
     {
@@ -1193,8 +1207,12 @@ public:
     }
     void getPackageLimits(unsigned int& limit_ancestor_count, unsigned int& limit_descendant_count) override
     {
-        limit_ancestor_count = gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-        limit_descendant_count = gArgs.GetIntArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
+        const CTxMemPool::Limits default_limits{};
+
+        const CTxMemPool::Limits& limits{m_node.mempool ? m_node.mempool->m_limits : default_limits};
+
+        limit_ancestor_count = limits.ancestor_count;
+        limit_descendant_count = limits.descendant_count;
     }
     bool checkChainLimits(const CTransactionRef& tx) override
     {
@@ -1202,15 +1220,12 @@ public:
         LockPoints lp;
         CTxMemPoolEntry entry(tx, 0, 0, 0, false, 0, lp);
         CTxMemPool::setEntries ancestors;
-        auto limit_ancestor_count = gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-        auto limit_ancestor_size = gArgs.GetIntArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
-        auto limit_descendant_count = gArgs.GetIntArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-        auto limit_descendant_size = gArgs.GetIntArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
+        const CTxMemPool::Limits& limits{m_node.mempool->m_limits};
         std::string unused_error_string;
         LOCK(m_node.mempool->cs);
         return m_node.mempool->CalculateMemPoolAncestors(
-            entry, ancestors, limit_ancestor_count, limit_ancestor_size,
-            limit_descendant_count, limit_descendant_size, unused_error_string);
+            entry, ancestors, limits.ancestor_count, limits.ancestor_size_vbytes,
+            limits.descendant_count, limits.descendant_size_vbytes, unused_error_string);
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {
@@ -1225,11 +1240,23 @@ public:
     CFeeRate mempoolMinFee() override
     {
         if (!m_node.mempool) return {};
-        return m_node.mempool->GetMinFee(gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000);
+        return m_node.mempool->GetMinFee();
     }
-    CFeeRate relayMinFee() override { return ::minRelayTxFee; }
-    CFeeRate relayIncrementalFee() override { return ::incrementalRelayFee; }
-    CFeeRate relayDustFee() override { return ::dustRelayFee; }
+    CFeeRate relayMinFee() override
+    {
+        if (!m_node.mempool) return CFeeRate{DEFAULT_MIN_RELAY_TX_FEE};
+        return m_node.mempool->m_min_relay_feerate;
+    }
+    CFeeRate relayIncrementalFee() override
+    {
+        if (!m_node.mempool) return CFeeRate{DEFAULT_INCREMENTAL_RELAY_FEE};
+        return m_node.mempool->m_incremental_relay_feerate;
+    }
+    CFeeRate relayDustFee() override
+    {
+        if (!m_node.mempool) return CFeeRate{DUST_RELAY_TX_FEE};
+        return m_node.mempool->m_dust_relay_feerate;
+    }
     bool havePruned() override
     {
         LOCK(::cs_main);
@@ -1311,6 +1338,7 @@ public:
         return chainman().IsSnapshotActive();
     }
 
+    NodeContext* context() override { return &m_node; }
     NodeContext& m_node;
 };
 } // namespace

@@ -8,7 +8,6 @@
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
-#include <policy/settings.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
 #include <rpc/server.h>
@@ -86,8 +85,8 @@ static RPCHelpMan estimatesmartfee()
     FeeCalculation feeCalc;
     CFeeRate feeRate{fee_estimator.estimateSmartFee(conf_target, &feeCalc, conservative)};
     if (feeRate != CFeeRate(0)) {
-        CFeeRate min_mempool_feerate{mempool.GetMinFee(gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000)};
-        CFeeRate min_relay_feerate{::minRelayTxFee};
+        CFeeRate min_mempool_feerate{mempool.GetMinFee()};
+        CFeeRate min_relay_feerate{mempool.m_min_relay_feerate};
         feeRate = std::max({feeRate, min_mempool_feerate, min_relay_feerate});
         result.pushKV("feerate", ValueFromAmount(feeRate.GetFeePerK()));
     } else {

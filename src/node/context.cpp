@@ -26,6 +26,7 @@
 #include <evo/mnhftx.h>
 #include <governance/governance.h>
 #include <interfaces/coinjoin.h>
+#include <kernel/context.h>
 #include <llmq/context.h>
 #include <llmq/observer/context.h>
 #include <masternode/meta.h>

@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/validation.h>
+#include <node/context.h>
+#include <node/mempool_args.h>
 #include <node/miner.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
@@ -123,6 +125,20 @@ void MockTime(FuzzedDataProvider& fuzzed_data_provider, const CChainState& chain
     SetMockTime(time);
 }
 
+CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
+{
+    // Take the default options for tests...
+    CTxMemPool::Options mempool_opts{MemPoolOptionsForTest(node)};
+
+    // ...override specific options for this specific fuzz suite
+    mempool_opts.estimator = nullptr;
+    mempool_opts.check_ratio = 1;
+    mempool_opts.require_standard = fuzzed_data_provider.ConsumeBool();
+
+    // ...and construct a CTxMemPool from it
+    return CTxMemPool{mempool_opts};
+}
+
 FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
@@ -144,7 +160,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
     // The sum of the values of all spendable outpoints
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 50 * COIN};
 
-    CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1};
+    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
@@ -232,7 +248,6 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
         auto txr = std::make_shared<TransactionsDelta>(removed, added);
         RegisterSharedValidationInterface(txr);
         const bool bypass_limits = fuzzed_data_provider.ConsumeBool();
-        ::fRequireStandard = fuzzed_data_provider.ConsumeBool();
 
         // Make sure ProcessNewPackage on one transaction works.
         // The result is not guaranteed to be the same as what is returned by ATMP.
@@ -320,7 +335,7 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
         txids.push_back(ConsumeUInt256(fuzzed_data_provider));
     }
 
-    CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1};
+    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
@@ -348,7 +363,6 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
 
         const auto tx = MakeTransactionRef(mut_tx);
         const bool bypass_limits = fuzzed_data_provider.ConsumeBool();
-        ::fRequireStandard = fuzzed_data_provider.ConsumeBool();
         const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false));
         const bool accepted = res.m_result_type == MempoolAcceptResult::ResultType::VALID;
         if (accepted) {

@@ -238,7 +238,6 @@ BOOST_FIXTURE_TEST_CASE(CTransactionBuilderTest, CTransactionBuilderTestSetup)
     // Therefore base size (i.e. for a tx with 1 input, 0 outputs) is expected to be
     // 4(n32bitVersion) + 1(vin size) + 179(vin[0]) + 1(vout size) + 4(nLockTime) = 189 bytes.
 
-    minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
     // Tests with single outpoint tallyItem
     {
         CompactTallyItem tallyItem = GetTallyItem({4999});

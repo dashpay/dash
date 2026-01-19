@@ -31,8 +31,6 @@ static constexpr unsigned int MIN_STANDARD_TX_SIZE{83};
 static constexpr unsigned int MAX_P2SH_SIGOPS{15};
 /** The maximum number of sigops we're willing to relay/mine in a single tx */
 static constexpr unsigned int MAX_STANDARD_TX_SIGOPS{4000};
-/** Default for -maxmempool, maximum megabytes of mempool memory usage */
-static constexpr unsigned int DEFAULT_MAX_MEMPOOL_SIZE{300};
 /** Default for -incrementalrelayfee, which sets the minimum feerate increase for mempool limiting **/
 static constexpr unsigned int DEFAULT_INCREMENTAL_RELAY_FEE{1000};
 /** Default for -bytespersigop */
@@ -41,8 +39,8 @@ static constexpr unsigned int DEFAULT_BYTES_PER_SIGOP{20};
 static constexpr bool DEFAULT_PERMIT_BAREMULTISIG{true};
 /** The maximum size of a standard ScriptSig */
 static constexpr unsigned int MAX_STANDARD_SCRIPTSIG_SIZE{1650};
-/** Min feerate for defining dust. Historically this has been based on the
- * minRelayTxFee, however changing the dust limit changes which transactions are
+/** Min feerate for defining dust.
+ * Changing the dust limit changes which transactions are
  * standard and should be done with care and ideally rarely. It makes sense to
  * only increase the dust limit after prior releases were already not creating
  * outputs below the new threshold */
@@ -52,11 +50,11 @@ static constexpr unsigned int DEFAULT_MIN_RELAY_TX_FEE{1000};
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
 static constexpr unsigned int DEFAULT_ANCESTOR_LIMIT{25};
 /** Default for -limitancestorsize, maximum kilobytes of tx + all in-mempool ancestors */
-static constexpr unsigned int DEFAULT_ANCESTOR_SIZE_LIMIT{101};
+static constexpr unsigned int DEFAULT_ANCESTOR_SIZE_LIMIT_KVB{101};
 /** Default for -limitdescendantcount, max number of in-mempool descendants */
 static constexpr unsigned int DEFAULT_DESCENDANT_LIMIT{25};
 /** Default for -limitdescendantsize, maximum kilobytes of in-mempool descendants */
-static constexpr unsigned int DEFAULT_DESCENDANT_SIZE_LIMIT{101};
+static constexpr unsigned int DEFAULT_DESCENDANT_SIZE_LIMIT_KVB{101};
 /**
  * An extra transaction can be added to a package, as long as it only has one
  * ancestor and is no larger than this. Not really any reason to make this
@@ -91,7 +89,7 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFee);
 
 bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFee);
 
-bool IsStandard(const CScript& scriptPubKey, TxoutType& whichType);
+bool IsStandard(const CScript& scriptPubKey, const std::optional<unsigned>& max_datacarrier_bytes, TxoutType& whichType);
 
 
 // Changing the default transaction version requires a two step process: first
@@ -103,7 +101,7 @@ static constexpr decltype(CTransaction::nVersion) TX_MAX_STANDARD_VERSION{3};
 * Check for standard transaction types
 * @return True if all outputs (scriptPubKeys) use only standard transaction forms
 */
-bool IsStandardTx(const CTransaction& tx, bool permit_bare_multisig, const CFeeRate& dust_relay_fee, std::string& reason);
+bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_datacarrier_bytes, bool permit_bare_multisig, const CFeeRate& dust_relay_fee, std::string& reason);
 /**
  * Check for standard transaction types
  * @param[in] mapInputs    Map of previous transactions that have outputs we're spending
