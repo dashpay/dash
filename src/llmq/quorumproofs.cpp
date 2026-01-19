@@ -48,9 +48,9 @@ struct CachedCommitmentInfo {
  * @param llmq_params The LLMQ parameters
  * @param commitments Cached commitment info (must be non-empty)
  * @param selectionHash The request ID for the chainlock (GenSigRequestId(height))
- * @return Index into commitments vector of the selected quorum
+ * @return Index into commitments vector of the selected quorum, or std::nullopt if not found
  */
-static size_t ComputeSigningCommitmentIndex(
+static std::optional<size_t> ComputeSigningCommitmentIndex(
     const Consensus::LLMQParams& llmq_params,
     const std::vector<CachedCommitmentInfo>& commitments,
     const uint256& selectionHash)
@@ -68,7 +68,7 @@ static size_t ComputeSigningCommitmentIndex(
                 return i;
             }
         }
-        return 0; // Fallback to first if not found
+        return std::nullopt; // Quorum index not found in rotated quorums
     } else {
         // For non-rotated quorums, selection is based on hash score
         std::vector<std::pair<uint256, size_t>> scores;
@@ -544,7 +544,6 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
     // the chainlock height that covers its mined block
     struct ProofStep {
         CFinalCommitment commitment;
-        const CBlockIndex* pMinedBlockIndex;  // Block where commitment was actually mined
         int32_t chainlockHeight;
         std::optional<ChainlockIndexEntry> chainlockEntry;
     };
@@ -656,7 +655,13 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         for (int32_t h = pMinedBlock->nHeight; h <= maxSearchHeight; ++h) {
             // Compute which commitment would sign this height using cached data
             const uint256 requestId = chainlock::GenSigRequestId(h);
-            size_t signerIdx = ComputeSigningCommitmentIndex(llmq_params, cachedCommitments, requestId);
+            auto signerIdxOpt = ComputeSigningCommitmentIndex(llmq_params, cachedCommitments, requestId);
+            if (!signerIdxOpt.has_value()) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not determine signing quorum for height %d\n",
+                         __func__, h);
+                continue;
+            }
+            size_t signerIdx = signerIdxOpt.value();
             const auto& signer = cachedCommitments[signerIdx];
 
             bool isKnown = knownQuorumPubKeys.count(signer.publicKey);
@@ -696,11 +701,10 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
              return std::nullopt;
         }
 
-        const CBlockIndex* pProofBlock = active_chain[bestBlockHeight];
         LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Selected proof block %d (mined %d). KnownSigner=%d\n",
                  __func__, bestBlockHeight, pMinedBlock->nHeight, foundKnownSigner);
 
-        proofSteps.push_back({currentCommitment, pProofBlock, bestChainlockHeight, bestChainlockEntry});
+        proofSteps.push_back({currentCommitment, bestChainlockHeight, bestChainlockEntry});
 
         if (foundKnownSigner) {
              LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
@@ -725,10 +729,6 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
     // Phase 4: Construct the QuorumProofChain
     QuorumProofChain chain;
     std::set<int32_t> includedChainlockHeights;
-
-    // Cache commitment hashes across proof steps to avoid repeated DB reads
-    // Consecutive steps often share many of the same active commitments
-    CommitmentHashCache commitmentHashCache;
 
     for (const auto& step : proofSteps) {
         // Add chainlock entry if not already included
@@ -783,41 +783,9 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             chain.quorumProofs.push_back(commitmentProof);
             chain.headers.push_back(proofData->header);
         } else {
-            // Fallback: compute proof data on-the-fly (slow path - for backwards compatibility)
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No cached proof data for quorum %s, computing on-the-fly\n",
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No cached proof data for quorum %s\n",
                      __func__, step.commitment.quorumHash.ToString());
-
-            const CBlockIndex* pMinedBlock = step.pMinedBlockIndex;
-
-            // Read the block to get coinbase transaction
-            CBlock block;
-            if (!ReadBlockFromDisk(block, pMinedBlock, Params().GetConsensus())) {
-                return std::nullopt;
-            }
-
-            auto merkleProof = BuildQuorumMerkleProof(pMinedBlock, step.commitment.llmqType, step.commitment.quorumHash, &block, &commitmentHashCache);
-            if (!merkleProof.has_value()) {
-                return std::nullopt;
-            }
-
-            // Build coinbase merkle proof
-            std::vector<uint256> txHashes;
-            for (const auto& tx : block.vtx) {
-                txHashes.push_back(tx->GetHash());
-            }
-
-            auto [cbPath, cbSide] = BuildMerkleProofPath(txHashes, 0); // Coinbase is at index 0
-
-            QuorumCommitmentProof commitmentProof;
-            commitmentProof.commitment = step.commitment;
-            commitmentProof.chainlockIndex = chainlockIndex;
-            commitmentProof.quorumMerkleProof = merkleProof.value();
-            commitmentProof.coinbaseTx = block.vtx[0];
-            commitmentProof.coinbaseMerklePath = std::move(cbPath);
-            commitmentProof.coinbaseMerklePathSide = std::move(cbSide);
-
-            chain.quorumProofs.push_back(commitmentProof);
-            chain.headers.push_back(block.GetBlockHeader());
+            return std::nullopt;
         }
     }
 
@@ -846,15 +814,6 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
     if (proof.headers.size() != proof.quorumProofs.size()) {
         result.error = "Headers count does not match quorum proofs count";
         return result;
-    }
-
-    // Verify header chain continuity - each header's prevBlockHash must match the previous header's hash
-    // This prevents an attacker from mixing headers from different blockchain forks
-    for (size_t i = 1; i < proof.headers.size(); ++i) {
-        if (proof.headers[i].hashPrevBlock != proof.headers[i - 1].GetHash()) {
-            result.error = strprintf("Header chain is not continuous - prevBlockHash mismatch at index %d", i);
-            return result;
-        }
     }
 
     // Phase 1: Build initial set of known chainlock quorum public keys from checkpoint

@@ -1283,15 +1283,11 @@ static RPCHelpMan getchainlockbyheight()
     }
 
     // Get the block hash at the chainlocked height
-    uint256 blockHash;
-    {
-        LOCK(cs_main);
-        const CBlockIndex* pindex = chainman.ActiveChain()[height];
-        if (pindex == nullptr) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found at height");
-        }
-        blockHash = pindex->GetBlockHash();
+    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return chainman.ActiveChain()[height]);
+    if (pindex == nullptr) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found at height");
     }
+    uint256 blockHash = pindex->GetBlockHash();
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("height", height);
@@ -1319,7 +1315,7 @@ static llmq::QuorumCheckpoint ParseCheckpointFromRPC(const UniValue& checkpointO
         const UniValue& q = quorumsArr[i];
         llmq::QuorumCheckpoint::QuorumEntry entry;
         entry.quorumHash = ParseHashV(q["quorum_hash"], "quorum_hash");
-        entry.quorumType = static_cast<Consensus::LLMQType>(q["quorum_type"].getInt<int>());
+        entry.quorumType = static_cast<Consensus::LLMQType>(q["quorum_type"].getInt<uint8_t>());
         if (!entry.publicKey.SetHexStr(q["public_key"].get_str(), /*specificLegacyScheme=*/false)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid public_key format");
         }
@@ -1433,11 +1429,13 @@ static RPCHelpMan verifyquorumproofchain()
             RPCResult::Type::OBJ, "", "",
             {
                 {RPCResult::Type::BOOL, "valid", "Whether the proof is valid"},
-                {RPCResult::Type::STR_HEX, "quorum_public_key", /* optional */ true, "Verified public key (if valid)"},
-                {RPCResult::Type::STR, "error", /* optional */ true, "Error message (if invalid)"},
+                {RPCResult::Type::STR_HEX, "quorum_public_key", /*optional=*/ true, "Verified public key (if valid)"},
+                {RPCResult::Type::STR, "error", /*optional=*/ true, "Error message (if invalid)"},
             }},
         RPCExamples{
-            HelpExampleCli("verifyquorumproofchain", "'{...}' \"proof_hex\" \"quorum_hash\" 104")
+            HelpExampleCli("verifyquorumproofchain",
+                "'{\"block_hash\":\"0000...\",\"height\":100,\"chainlock_quorums\":[{\"quorum_hash\":\"abcd...\",\"quorum_type\":104,\"public_key\":\"1234...\"}]}' "
+                "\"<proof_hex>\" \"<quorum_hash>\" 104")
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1461,7 +1459,11 @@ static RPCHelpMan verifyquorumproofchain()
     }
 
     const uint256 expectedQuorumHash = ParseHashV(request.params[2], "quorum_hash");
-    const Consensus::LLMQType expectedType = static_cast<Consensus::LLMQType>(request.params[3].getInt<int>());
+    const Consensus::LLMQType expectedType = static_cast<Consensus::LLMQType>(request.params[3].getInt<uint8_t>());
+
+    if (!Params().GetLLMQ(expectedType).has_value()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid LLMQ type");
+    }
 
     auto verifyResult = llmq_ctx.quorum_proof_manager->VerifyProofChain(
         checkpoint, proofChain, expectedType, expectedQuorumHash);

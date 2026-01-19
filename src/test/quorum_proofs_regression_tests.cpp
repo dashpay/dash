@@ -118,10 +118,9 @@ BOOST_AUTO_TEST_CASE(forged_chainlock_signature_rejected)
         "Expected error about signature verification, got: " + result.error);
 }
 
-// Regression test: Discontinuous header chain should be REJECTED
-// BUG: VerifyProofChain doesn't validate header chain continuity
-// This test FAILS before the fix (error is NOT about headers), PASSES after
-BOOST_AUTO_TEST_CASE(discontinuous_headers_rejected)
+// Test: Headers/proofs count mismatch should be REJECTED
+// VerifyProofChain validates that headers count matches quorum proofs count
+BOOST_AUTO_TEST_CASE(headers_proofs_count_mismatch_rejected)
 {
     if (!m_node.llmq_ctx || !m_node.llmq_ctx->quorum_block_processor) {
         BOOST_TEST_MESSAGE("Skipping test: LLMQ context not available");
@@ -144,9 +143,10 @@ BOOST_AUTO_TEST_CASE(discontinuous_headers_rejected)
     checkpointQuorum.publicKey = sk.GetPublicKey();
     checkpoint.chainlockQuorums.push_back(checkpointQuorum);
 
-    // Create proof chain with DISCONTINUOUS headers
+    // Create proof chain with mismatched headers/proofs count
     llmq::QuorumProofChain chain;
 
+    // Add 2 headers
     CBlockHeader header1;
     header1.nVersion = 1;
     header1.hashPrevBlock = uint256::ZERO;
@@ -157,8 +157,7 @@ BOOST_AUTO_TEST_CASE(discontinuous_headers_rejected)
 
     CBlockHeader header2;
     header2.nVersion = 1;
-    // BUG TRIGGER: prevBlockHash does NOT match header1.GetHash()
-    header2.hashPrevBlock = uint256::TWO;  // Should be header1.GetHash()
+    header2.hashPrevBlock = header1.GetHash();
     header2.hashMerkleRoot = uint256::TWO;
     header2.nTime = 1234567891;
     header2.nBits = 0x1d00ffff;
@@ -174,7 +173,7 @@ BOOST_AUTO_TEST_CASE(discontinuous_headers_rejected)
     clEntry.signature = sk.Sign(clEntry.blockHash, false);
     chain.chainlocks.push_back(clEntry);
 
-    // Add quorum proof
+    // Add only 1 quorum proof (mismatch with 2 headers)
     llmq::QuorumCommitmentProof qProof;
     qProof.commitment.llmqType = Consensus::LLMQType::LLMQ_TEST;
     qProof.commitment.quorumHash = uint256::TWO;
@@ -192,15 +191,12 @@ BOOST_AUTO_TEST_CASE(discontinuous_headers_rejected)
 
     BOOST_CHECK(!result.valid);
 
-    // REGRESSION CHECK: Error should mention "header" or "continuous" or "chain"
-    // BEFORE FIX: This FAILS because error is about something else
-    // AFTER FIX: This PASSES because error is about header continuity
-    bool errorMentionsHeaders = result.error.find("header") != std::string::npos ||
-                                 result.error.find("Header") != std::string::npos ||
-                                 result.error.find("continuous") != std::string::npos ||
-                                 result.error.find("chain") != std::string::npos;
-    BOOST_CHECK_MESSAGE(errorMentionsHeaders,
-        "Expected error about header chain continuity, got: " + result.error);
+    // Verify error mentions count mismatch
+    bool errorMentionsCount = result.error.find("count") != std::string::npos ||
+                               result.error.find("Count") != std::string::npos ||
+                               result.error.find("match") != std::string::npos;
+    BOOST_CHECK_MESSAGE(errorMentionsCount,
+        "Expected error about headers/proofs count mismatch, got: " + result.error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

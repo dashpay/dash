@@ -668,7 +668,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
             // This prevents indexing chainlocks from blocks during a reorg
             if (!fJustCheck && opt_cbTx->bestCLSignature.IsValid() &&
                 m_chainman.ActiveChain().Contains(pindex)) {
-                int32_t chainlockedHeight = pindex->nHeight - static_cast<int32_t>(opt_cbTx->bestCLHeightDiff) - 1;
+                int chainlockedHeight = pindex->nHeight - static_cast<int>(opt_cbTx->bestCLHeightDiff) - 1;
                 const CBlockIndex* pChainlockedBlock = pindex->GetAncestor(chainlockedHeight);
                 if (pChainlockedBlock) {
                     m_quorum_proof_manager.IndexChainlock(
@@ -741,7 +741,7 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const CBlock& block, const CBloc
         // Remove chainlock index for this block's cbtx
         if (block.vtx.size() > 0 && block.vtx[0]->nType == TRANSACTION_COINBASE) {
             if (const auto opt_cbTx = GetTxPayload<CCbTx>(*block.vtx[0]); opt_cbTx && opt_cbTx->bestCLSignature.IsValid()) {
-                int32_t chainlockedHeight = pindex->nHeight - static_cast<int32_t>(opt_cbTx->bestCLHeightDiff) - 1;
+                int chainlockedHeight = pindex->nHeight - static_cast<int>(opt_cbTx->bestCLHeightDiff) - 1;
                 m_quorum_proof_manager.RemoveChainlockIndex(chainlockedHeight);
             }
         }
