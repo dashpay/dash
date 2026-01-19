@@ -7,7 +7,12 @@
 #include <txdb.h>
 
 #include <chain.h>
+#include <index/addressindex_types.h>
+#include <index/spentindex_types.h>
+#include <index/timestampindex_types.h>
+#include <logging.h>
 #include <pow.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <random.h>
 #include <shutdown.h>
@@ -35,6 +40,12 @@ static constexpr uint8_t DB_COINS{'c'};
 // CBlockTreeDB::DB_TXINDEX_BLOCK{'T'};
 // CBlockTreeDB::DB_TXINDEX{'t'}
 // CBlockTreeDB::ReadFlag("txindex")
+
+// Old synchronous index keys (deprecated):
+static constexpr uint8_t DB_ADDRESSINDEX{'a'};
+static constexpr uint8_t DB_ADDRESSUNSPENTINDEX{'u'};
+static constexpr uint8_t DB_SPENTINDEX{'p'};
+static constexpr uint8_t DB_TIMESTAMPINDEX{'s'};
 
 bool CCoinsViewDB::NeedsUpgrade()
 {
@@ -324,6 +335,251 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
         } else {
             break;
         }
+    }
+
+    return true;
+}
+
+/**
+ * Template helper to migrate a single index type from the old block index database
+ * to a new async index database.
+ *
+ * @tparam DbKey         The key prefix byte for this index type
+ * @tparam KeyType       The index key struct type
+ * @tparam ValueType     The index value type
+ * @param source_db      The old database to migrate from (CBlockTreeDB)
+ * @param target_db      The new database to migrate to
+ * @param index_name     Human-readable name for logging
+ * @param batch_size     Maximum batch size before flushing
+ * @return               Number of entries migrated, or -1 on error
+ */
+template <uint8_t DbKey, typename KeyType, typename ValueType>
+static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper& target_db,
+                            const char* index_name, size_t batch_size)
+{
+    using KeyPair = std::pair<uint8_t, KeyType>;
+
+    size_t count = 0;
+    CDBBatch new_batch(target_db);
+    CDBBatch erase_batch(source_db);
+
+    KeyPair start = std::make_pair(DbKey, KeyType());
+    KeyPair key;
+    ValueType value;
+
+    // Compact after erasing this much data to reclaim disk space
+    const size_t compact_threshold = 256 << 20; // 256 MiB
+    size_t erased_since_compact = 0;
+
+    std::unique_ptr<CDBIterator> pcursor(source_db.NewIterator());
+    pcursor->Seek(start);
+
+    while (pcursor->Valid()) {
+        if (pcursor->GetKey(key) && key.first == DbKey) {
+            if (!pcursor->GetValue(value)) {
+                LogPrintf("Failed to read %s value\n", index_name);
+                return -1;
+            }
+
+            new_batch.Write(key, value);
+            erase_batch.Erase(key);
+            count++;
+            pcursor->Next();
+
+            if (new_batch.SizeEstimate() > batch_size) {
+                LogPrintf("Migrating partial batch of %s entries (%.2f MiB, %d entries)...\n",
+                         index_name, new_batch.SizeEstimate() * (1.0 / 1048576.0), count);
+                erased_since_compact += erase_batch.SizeEstimate();
+                if (!target_db.WriteBatch(new_batch)) {
+                    LogPrintf("Failed to write %s batch to new database\n", index_name);
+                    return -1;
+                }
+                if (!source_db.WriteBatch(erase_batch)) {
+                    LogPrintf("Failed to erase old %s data\n", index_name);
+                    return -1;
+                }
+                new_batch.Clear();
+                erase_batch.Clear();
+
+                // Compact periodically to reclaim disk space
+                if (erased_since_compact >= compact_threshold) {
+                    // Close iterator before compaction so LevelDB can delete old SST files
+                    pcursor.reset();
+                    source_db.CompactRange(start, key);
+                    erased_since_compact = 0;
+
+                    // Reopen iterator - seek to start finds next unprocessed key since we erased previous ones
+                    pcursor.reset(source_db.NewIterator());
+                    pcursor->Seek(start);
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Always write final batch with sync to ensure durability
+    if (!target_db.WriteBatch(new_batch, true)) {
+        LogPrintf("Failed to write final %s batch\n", index_name);
+        return -1;
+    }
+    if (!source_db.WriteBatch(erase_batch, true)) {
+        LogPrintf("Failed to erase final %s batch\n", index_name);
+        return -1;
+    }
+    new_batch.Clear();
+    erase_batch.Clear();
+
+    // Close iterator before final compaction
+    pcursor.reset();
+
+    // Compact final range if we migrated any keys
+    if (count > 0) {
+        source_db.CompactRange(start, key);
+    }
+
+    return static_cast<int64_t>(count);
+}
+
+/**
+ * Write best block locator to an index database.
+ * Note: Source database compaction is done incrementally in MigrateIndex.
+ */
+static bool FinalizeMigration(CDBWrapper& target_db, const uint256& best_block_hash,
+                              const char* index_name)
+{
+    if (!best_block_hash.IsNull()) {
+        CBlockLocator locator;
+        locator.vHave.push_back(best_block_hash);
+        CDBBatch best_block_batch(target_db);
+        best_block_batch.Write(DB_BEST_BLOCK, locator);
+        if (!target_db.WriteBatch(best_block_batch, true)) {
+            return error("%s: Failed to write best block for %s", __func__, index_name);
+        }
+        LogPrintf("Set %s best block to %s\n", index_name, best_block_hash.ToString());
+    }
+
+    return true;
+}
+
+bool CBlockTreeDB::MigrateOldIndexData()
+{
+    // Migrate old synchronous index data that was stored in the block index database
+    // to new async indexes in separate databases under indexes/{timestampindex,spentindex,addressindex}/
+    // This preserves existing index data so users don't need to rebuild.
+    // Indexes are migrated independently since they can be enabled individually.
+
+    // Only migrate indexes that are actually enabled via command-line flags
+    // NOTE: not using DEFAULT_* constants here to avoid circular dependencies
+    const bool fTimestampIndex = gArgs.GetBoolArg("-timestampindex", false);
+    const bool fSpentIndex = gArgs.GetBoolArg("-spentindex", false);
+    const bool fAddressIndex = gArgs.GetBoolArg("-addressindex", false);
+
+    if (!fTimestampIndex && !fSpentIndex && !fAddressIndex) {
+        // No indexes enabled, skip migration entirely
+        return true;
+    }
+
+    LogPrintf("Checking for old index data in block index database...\n");
+
+    size_t batch_size = (size_t)gArgs.GetIntArg("-dbbatchsize", nDefaultDbBatchSize);
+    size_t total_count = 0;
+    const fs::path indexes_path = gArgs.GetDataDirNet() / "indexes";
+
+    // Read the best block hash from coins database to set as best block for migrated indexes
+    // Old synchronous indexes were updated during ConnectBlock, so they're synced to the active chain tip
+    uint256 best_block_hash;
+    {
+        fs::path chainstate_path = gArgs.GetDataDirNet() / "chainstate";
+        CDBWrapper coins_db(chainstate_path, 0, false, false);
+        if (!coins_db.Read(DB_BEST_BLOCK, best_block_hash)) {
+            // If we can't read the best block, the indexes will resync from scratch
+            LogPrintf("Warning: Could not read best block from chainstate, migrated indexes will resync\n");
+            best_block_hash.SetNull();
+        } else {
+            LogPrintf("Migrating indexes with best block: %s\n", best_block_hash.ToString());
+        }
+    }
+
+    // Migrate timestamp index (only if enabled)
+    if (fTimestampIndex) {
+        const fs::path db_path = indexes_path / "timestampindex";
+        CDBWrapper timestamp_db(db_path, 0, false, false);
+
+        int64_t count = MigrateIndex<DB_TIMESTAMPINDEX, CTimestampIndexKey, bool>(
+            *this, timestamp_db, "timestamp index", batch_size);
+        if (count < 0) {
+            return error("%s: Failed to migrate timestamp index", __func__);
+        }
+        if (count > 0) {
+            LogPrintf("Migrated %d timestamp index entries\n", count);
+            total_count += count;
+            if (!FinalizeMigration(timestamp_db, best_block_hash, "timestamp index")) {
+                return false;
+            }
+        }
+    }
+
+    // Migrate spent index (only if enabled)
+    if (fSpentIndex) {
+        const fs::path db_path = indexes_path / "spentindex";
+        CDBWrapper spent_db(db_path, 0, false, false);
+
+        int64_t count = MigrateIndex<DB_SPENTINDEX, CSpentIndexKey, CSpentIndexValue>(
+            *this, spent_db, "spent index", batch_size);
+        if (count < 0) {
+            return error("%s: Failed to migrate spent index", __func__);
+        }
+        if (count > 0) {
+            LogPrintf("Migrated %d spent index entries\n", count);
+            total_count += count;
+            if (!FinalizeMigration(spent_db, best_block_hash, "spent index")) {
+                return false;
+            }
+        }
+    }
+
+    // Migrate address index (includes both address and unspent indexes) (only if enabled)
+    if (fAddressIndex) {
+        const fs::path db_path = indexes_path / "addressindex";
+        CDBWrapper address_db(db_path, 0, false, false);
+
+        // Migrate address index (transaction history)
+        int64_t address_count = MigrateIndex<DB_ADDRESSINDEX, CAddressIndexKey, CAmount>(
+            *this, address_db, "address index", batch_size);
+        if (address_count < 0) {
+            return error("%s: Failed to migrate address index", __func__);
+        }
+        if (address_count > 0) {
+            LogPrintf("Migrated %d address index entries\n", address_count);
+            total_count += address_count;
+        }
+
+        // Migrate address unspent index
+        int64_t unspent_count = MigrateIndex<DB_ADDRESSUNSPENTINDEX, CAddressUnspentKey, CAddressUnspentValue>(
+            *this, address_db, "address unspent index", batch_size);
+        if (unspent_count < 0) {
+            return error("%s: Failed to migrate address unspent index", __func__);
+        }
+        if (unspent_count > 0) {
+            LogPrintf("Migrated %d address unspent index entries\n", unspent_count);
+            total_count += unspent_count;
+        }
+
+        // Write best block locator if we migrated any address index data
+        if (address_count > 0 || unspent_count > 0) {
+            if (!FinalizeMigration(address_db, best_block_hash, "address and address unspent indexes")) {
+                return false;
+            }
+        }
+    }
+
+    if (total_count > 0) {
+        LogPrintf("Compacting remaining block index database...\n");
+        CompactFull();
+        LogPrintf("Successfully migrated %d index entries to new databases\n", total_count);
+    } else {
+        LogPrintf("No old index data found\n");
     }
 
     return true;

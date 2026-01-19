@@ -92,6 +92,9 @@ public:
     bool ReadFlag(const std::string &name, bool &fValue);
     bool LoadBlockIndexGuts(const Consensus::Params& consensusParams, std::function<CBlockIndex*(const uint256&)> insertBlockIndex)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    /// Migrate old synchronous index data to new async index databases
+    bool MigrateOldIndexData();
 };
 
 #endif // BITCOIN_TXDB_H
