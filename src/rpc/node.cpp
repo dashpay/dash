@@ -12,6 +12,7 @@
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
 #include <index/spentindex.h>
+#include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <interfaces/chain.h>
@@ -1183,6 +1184,18 @@ static RPCHelpMan getindexinfo()
     ForEachBlockFilterIndex([&result, &index_name](const BlockFilterIndex& index) {
         result.pushKVs(SummaryToJSON(index.GetSummary(), index_name));
     });
+
+    if (g_addressindex) {
+        result.pushKVs(SummaryToJSON(g_addressindex->GetSummary(), index_name));
+    }
+
+    if (g_timestampindex) {
+        result.pushKVs(SummaryToJSON(g_timestampindex->GetSummary(), index_name));
+    }
+
+    if (g_spentindex) {
+        result.pushKVs(SummaryToJSON(g_spentindex->GetSummary(), index_name));
+    }
 
     return result;
 },
