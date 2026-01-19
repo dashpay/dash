@@ -4,7 +4,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <index/addressindex.h>
 #include <chainparams.h>
 #include <consensus/consensus.h>
 #include <evo/mnauth.h>
