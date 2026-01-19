@@ -76,12 +76,10 @@ using node::BlockMap;
 using node::CBlockIndexHeightOnlyComparator;
 using node::CBlockIndexWorkComparator;
 using node::DEFAULT_ADDRESSINDEX;
-using node::DEFAULT_SPENTINDEX;
 using node::fAddressIndex;
 using node::fImporting;
 using node::fPruneMode;
 using node::fReindex;
-using node::fSpentIndex;
 using node::ReadBlockFromDisk;
 using node::SnapshotMetadata;
 using node::UndoReadFromDisk;
@@ -1065,9 +1063,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     }
 
     // Add memory spent index
-    if (fSpentIndex) {
-        m_pool.addSpentIndex(*entry, m_view);
-    }
+    m_pool.addSpentIndex(*entry, m_view);
 
     // trim mempool and check if tx was trimmed
     // If we are validating a package, don't trim here because we could evict a previous transaction
@@ -2093,11 +2089,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
                 const CTxIn input = tx.vin[j];
 
-                if (fSpentIndex) {
-                    // undo and delete the spent index
-                    spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
-                }
-
                 if (fAddressIndex) {
                     const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
                     const CTxOut &prevout = coin.out;
@@ -2117,14 +2108,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 }
             }
             // At this point, all of txundo.vprevout should have been moved out.
-        }
-    }
-
-
-    if (fSpentIndex) {
-        if (!m_blockman.m_block_tree_db->UpdateSpentIndex(spentIndex)) {
-            AbortNode("Failed to delete spent index");
-            return DISCONNECT_FAILED;
         }
     }
 
@@ -2483,7 +2466,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal");
             }
 
-            if (fAddressIndex || fSpentIndex)
+            if (fAddressIndex)
             {
                 int64_t nTime2_index1 = GetTimeMicros();
 
@@ -2497,18 +2480,12 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
                     AddressBytesFromScript(prevout.scriptPubKey, address_type, address_bytes);
 
-                    if (fAddressIndex && address_type != AddressType::UNKNOWN) {
+                    if (address_type != AddressType::UNKNOWN) {
                         // record spending activity
                         addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
 
                         // remove address from unspent index
                         addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
-                    }
-
-                    if (fSpentIndex) {
-                        // add the spent index to determine the txid and input that spent an output
-                        // and to find the amount and address from an input
-                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, address_type, address_bytes)));
                     }
                 }
                 nTime2_index += GetTimeMicros() - nTime2_index1;
@@ -2679,10 +2656,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             return AbortNode(state, "Failed to write address unspent index");
         }
     }
-
-    if (fSpentIndex)
-        if (!m_blockman.m_block_tree_db->UpdateSpentIndex(spentIndex))
-            return AbortNode(state, "Failed to write transaction index");
 
     int64_t nTime8 = GetTimeMicros(); nTimeIndexWrite += nTime8 - nTime7;
     LogPrint(BCLog::BENCHMARK, "      - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime8 - nTime7), nTimeIndexWrite * MICRO, nTimeIndexWrite * MILLI / nBlocksTotal);
@@ -4740,7 +4713,7 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
 
         if (!tx->IsCoinBase()) {
             // Update indexes
-            if (fAddressIndex || fSpentIndex) {
+            if (fAddressIndex) {
                 for (size_t j = 0; j < tx->vin.size(); j++) {
                     const CTxIn input = tx->vin[j];
                     const Coin& coin = inputs.AccessCoin(tx->vin[j].prevout);
@@ -4751,18 +4724,12 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
 
                     AddressBytesFromScript(prevout.scriptPubKey, address_type, address_bytes);
 
-                    if (fAddressIndex && address_type != AddressType::UNKNOWN) {
+                    if (address_type != AddressType::UNKNOWN) {
                         // record spending activity
                         addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
 
                         // remove address from unspent index
                         addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
-                    }
-
-                    if (fSpentIndex) {
-                        // add the spent index to determine the txid and input that spent an output
-                        // and to find the amount and address from an input
-                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, address_type, address_bytes)));
                     }
                 }
             }
@@ -4802,11 +4769,6 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
         if (!m_blockman.m_block_tree_db->UpdateAddressUnspentIndex(addressUnspentIndex)) {
             return error("RollforwardBlock(DASH): Failed to write address unspent index");
         }
-    }
-
-    if (fSpentIndex) {
-        if (!m_blockman.m_block_tree_db->UpdateSpentIndex(spentIndex))
-            return error("RollforwardBlock(DASH): Failed to write transaction index");
     }
 
     return true;
@@ -4993,11 +4955,6 @@ void ChainstateManager::InitAdditionalIndexes()
     // Use the provided setting for -addressindex in the new database
     fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
     m_blockman.m_block_tree_db->WriteFlag("addressindex", fAddressIndex);
-
-    // Use the provided setting for -spentindex in the new database
-    fSpentIndex = gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
-    m_blockman.m_block_tree_db->WriteFlag("spentindex", fSpentIndex);
-
 }
 
 bool CChainState::AddGenesisBlock(const CBlock& block, BlockValidationState& state)

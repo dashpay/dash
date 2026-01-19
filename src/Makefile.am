@@ -158,7 +158,6 @@ BITCOIN_CORE_H = \
   active/quorums.h \
   addrdb.h \
   addressindex.h \
-  spentindex.h \
   addrman.h \
   addrman_impl.h \
   attributes.h \
@@ -253,6 +252,8 @@ BITCOIN_CORE_H = \
   index/blockfilterindex.h \
   index/coinstatsindex.h \
   index/disktxpos.h \
+  index/spentindex.h \
+  index/spentindex_types.h \
   index/timestampindex.h \
   index/timestampindex_types.h \
   index/txindex.h \
@@ -539,6 +540,7 @@ libbitcoin_node_a_SOURCES = \
   index/base.cpp \
   index/blockfilterindex.cpp \
   index/coinstatsindex.cpp \
+  index/spentindex.cpp \
   index/timestampindex.cpp \
   index/txindex.cpp \
   init.cpp \

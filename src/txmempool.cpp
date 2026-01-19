@@ -28,8 +28,13 @@
 #include <instantsend/instantsend.h>
 
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <ranges>
+
+// Forward declarations for index globals and utilities
+class SpentIndex;
+extern std::unique_ptr<SpentIndex> g_spentindex;
 
 bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
 {
@@ -598,6 +603,8 @@ void CTxMemPool::removeAddressIndex(const uint256 txhash)
 
 void CTxMemPool::addSpentIndex(const CTxMemPoolEntry& entry, const CCoinsViewCache& view)
 {
+    if (!g_spentindex) return;
+
     LOCK(cs);
 
     const CTransaction& tx = entry.GetTx();

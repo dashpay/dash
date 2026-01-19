@@ -48,7 +48,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      const fs::path& data_dir,
                                                      bool fPruneMode,
                                                      bool is_addrindex_enabled,
-                                                     bool is_spentindex_enabled,
                                                      const Consensus::Params& consensus_params,
                                                      bool fReindexChainState,
                                                      int64_t nBlockTreeDBCache,
@@ -119,11 +118,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
         // Check for changed -addressindex state
         if (!fAddressIndex && fAddressIndex != is_addrindex_enabled) {
             return ChainstateLoadingError::ERROR_ADDRIDX_NEEDS_REINDEX;
-        }
-
-        // Check for changed -spentindex state
-        if (!fSpentIndex && fSpentIndex != is_spentindex_enabled) {
-            return ChainstateLoadingError::ERROR_SPENTIDX_NEEDS_REINDEX;
         }
     }
 

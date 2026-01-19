@@ -6,9 +6,9 @@
 #ifndef BITCOIN_TXDB_H
 #define BITCOIN_TXDB_H
 
+#include <addressindex.h>
 #include <coins.h>
 #include <dbwrapper.h>
-#include <spentindex.h>
 #include <sync.h>
 
 #include <memory>
@@ -87,9 +87,6 @@ public:
     bool ReadLastBlockFile(int &nFile);
     bool WriteReindexing(bool fReindexing);
     void ReadReindexing(bool &fReindexing);
-
-    bool ReadSpentIndex(const CSpentIndexKey key, CSpentIndexValue& value);
-    bool UpdateSpentIndex(const std::vector<CSpentIndexEntry>& vect);
 
     bool ReadAddressUnspentIndex(const uint160& addressHash, const AddressType type,
                                  std::vector<CAddressUnspentIndexEntry>& vect);

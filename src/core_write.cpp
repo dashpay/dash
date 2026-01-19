@@ -20,7 +20,7 @@
 #include <util/system.h>
 
 #include <addressindex.h>
-#include <spentindex.h>
+#include <index/spentindex.h>
 
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>

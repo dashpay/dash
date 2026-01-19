@@ -11,6 +11,7 @@
 #include <httpserver.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/spentindex.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <interfaces/chain.h>
@@ -801,12 +802,34 @@ static RPCHelpMan getspentinfo()
     uint256 txid = ParseHashV(txidValue, "txid");
     int outputIndex = indexValue.getInt<int>();
 
+    if (!g_spentindex) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Spent index is not enabled. Start with -spentindex to enable.");
+    }
+
     CSpentIndexKey key(txid, outputIndex);
     CSpentIndexValue value;
+    bool found = false;
 
-    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    // Check the async index first
+    if (g_spentindex->GetSpentInfo(key, value)) {
+        found = true;
+    }
+
+    // Check mempool for unconfirmed spends.
+    //
+    // Mempool entry overwrites index entry if present.
+    // During reorg, mempool may have newer state than index (which updates asynchronously).
     CTxMemPool& mempool = EnsureAnyMemPool(request.context);
-    if (LOCK(::cs_main); !GetSpentIndex(*chainman.m_blockman.m_block_tree_db, mempool, key, value)) {
+    {
+        LOCK(mempool.cs);
+        CSpentIndexValue mempoolValue;
+        if (mempool.getSpentIndex(key, mempoolValue)) {
+            value = mempoolValue;  // Overwrite with mempool entry (current state)
+            found = true;
+        }
+    }
+
+    if (!found) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get spent info");
     }
 

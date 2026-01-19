@@ -29,6 +29,7 @@
 #include <interfaces/chain.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/spentindex.h>
 #include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <interfaces/init.h>
@@ -150,7 +151,6 @@ using node::ChainstateLoadVerifyError;
 using node::DashChainstateSetupClose;
 using node::DEFAULT_ADDRESSINDEX;
 using node::DEFAULT_PRINTPRIORITY;
-using node::DEFAULT_SPENTINDEX;
 using node::DEFAULT_STOPAFTERBLOCKIMPORT;
 using node::LoadChainstate;
 using node::NodeContext;
@@ -159,7 +159,6 @@ using node::VerifyLoadedChainstate;
 using node::fAddressIndex;
 using node::fPruneMode;
 using node::fReindex;
-using node::fSpentIndex;
 using node::nPruneTarget;
 #ifdef ENABLE_WALLET
 using wallet::DEFAULT_DISABLE_WALLET;
@@ -263,6 +262,9 @@ void Interrupt(NodeContext& node)
     }
     if (g_timestampindex) {
         g_timestampindex->Interrupt();
+    }
+    if (g_spentindex) {
+        g_spentindex->Interrupt();
     }
     ForEachBlockFilterIndex([](BlockFilterIndex& index) { index.Interrupt(); });
     if (g_coin_stats_index) {
@@ -385,6 +387,10 @@ void PrepareShutdown(NodeContext& node)
     if (g_timestampindex) {
         g_timestampindex->Stop();
         g_timestampindex.reset();
+    }
+    if (g_spentindex) {
+        g_spentindex->Stop();
+        g_spentindex.reset();
     }
     if (g_coin_stats_index) {
         g_coin_stats_index->Stop();
@@ -579,7 +585,7 @@ void SetupServerArgs(ArgsManager& argsman)
         -GetNumCores(), llmq::MAX_BLSCHECK_THREADS, llmq::DEFAULT_BLSCHECK_THREADS), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-persistmempool", strprintf("Whether to save the mempool on shutdown and load on restart (default: %u)", DEFAULT_PERSIST_MEMPOOL), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-pid=<file>", strprintf("Specify pid file. Relative paths will be prefixed by a net-specific datadir location. (default: %s)", BITCOIN_PID_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
-    argsman.AddArg("-prune=<n>", strprintf("Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex, -rescan and -disablegovernance=false. "
+    argsman.AddArg("-prune=<n>", strprintf("Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex, -spentindex, -rescan and -disablegovernance=false. "
             "Warning: Reverting this setting requires re-downloading the entire blockchain. "
             "(default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, >%u = automatically prune block files to stay under the specified target size in MiB)", MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-settings=<file>", strprintf("Specify path to dynamic settings data file. Can be disabled with -nosettings. File is written at runtime and not meant to be edited by users (use %s instead for custom settings). Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME, BITCOIN_SETTINGS_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -1037,8 +1043,7 @@ void InitParameterInteraction(ArgsManager& args)
     // Make sure additional indexes are recalculated correctly in VerifyDB
     // (we must reconnect blocks whenever we disconnect them for these indexes to work)
     bool fAdditionalIndexes =
-        args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) ||
-        args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
 
     if (fAdditionalIndexes && args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL) < 4) {
         args.ForceSetArg("-checklevel", "4");
@@ -1202,6 +1207,8 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     if (args.GetIntArg("-prune", 0)) {
         if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX))
             return InitError(_("Prune mode is incompatible with -txindex."));
+        if (args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX))
+            return InitError(_("Prune mode is incompatible with -spentindex."));
         if (args.GetBoolArg("-reindex-chainstate", false)) {
             return InitError(_("Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead."));
         }
@@ -1953,6 +1960,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
         LogPrintf("* Using %.1f MiB for timestamp index database\n", cache_sizes.timestamp_index * (1.0 / 1024 / 1024));
     }
+    if (args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
+        LogPrintf("* Using %.1f MiB for spent index database\n", cache_sizes.spent_index * (1.0 / 1024 / 1024));
+    }
     for (BlockFilterType filter_type : g_enabled_filter_types) {
         LogPrintf("* Using %.1f MiB for %s block filter index database\n",
                   cache_sizes.filter_index * (1.0 / 1024 / 1024), BlockFilterTypeName(filter_type));
@@ -2006,7 +2016,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                               args.GetDataDirNet(),
                                               fPruneMode,
                                               args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX),
-                                              args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX),
                                               chainparams.GetConsensus(),
                                               fReindexChainState,
                                               cache_sizes.block_tree_db,
@@ -2051,9 +2060,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             case ChainstateLoadingError::ERROR_ADDRIDX_NEEDS_REINDEX:
                 strLoadError = _("You need to rebuild the database using -reindex to enable -addressindex");
                 break;
-            case ChainstateLoadingError::ERROR_SPENTIDX_NEEDS_REINDEX:
-                strLoadError = _("You need to rebuild the database using -reindex to enable -spentindex");
-                break;
             case ChainstateLoadingError::ERROR_PRUNED_NEEDS_REINDEX:
                 strLoadError = _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
                 break;
@@ -2087,7 +2093,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             }
         } else {
             LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
-            LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
 
             std::optional<ChainstateLoadVerifyError> maybe_verify_error;
             try {
@@ -2271,6 +2276,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
         g_timestampindex = std::make_unique<TimestampIndex>(cache_sizes.timestamp_index, false, fReindex);
         if (!g_timestampindex->Start(chainman.ActiveChainstate())) {
+            return false;
+        }
+    }
+
+    if (args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
+        g_spentindex = std::make_unique<SpentIndex>(cache_sizes.spent_index, false, fReindex);
+        if (!g_spentindex->Start(chainman.ActiveChainstate())) {
             return false;
         }
     }

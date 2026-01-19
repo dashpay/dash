@@ -8,7 +8,6 @@
 
 #include <consensus/amount.h>
 #include <addressindex.h>
-#include <spentindex.h>
 #include <sync.h>
 #include <threadsafety.h>
 
@@ -38,10 +37,5 @@ bool GetMempoolAddressDeltaIndex(const CTxMemPool& mempool,
                                  const std::vector<CMempoolAddressDeltaKey>& addressDeltaIndex,
                                  std::vector<CMempoolAddressDeltaEntry>& addressDeltaEntries,
                                  const bool timestamp_sort = false);
-
-//! throws JSONRPCError if spent index is unavailable
-bool GetSpentIndex(CBlockTreeDB& block_tree_db, const CTxMemPool& mempool, const CSpentIndexKey& key,
-                   CSpentIndexValue& value)
-    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 #endif // BITCOIN_RPC_INDEX_UTIL_H

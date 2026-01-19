@@ -30,7 +30,6 @@ bool fPruneMode = false;
 uint64_t nPruneTarget = 0;
 
 bool fAddressIndex = DEFAULT_ADDRESSINDEX;
-bool fSpentIndex = DEFAULT_SPENTINDEX;
 
 bool CBlockIndexWorkComparator::operator()(const CBlockIndex* pa, const CBlockIndex* pb) const
 {
@@ -396,8 +395,6 @@ bool BlockManager::LoadBlockIndexDB()
 
     // Check whether we have an address index
     m_block_tree_db->ReadFlag("addressindex", fAddressIndex);
-    // Check whether we have a spent index
-    m_block_tree_db->ReadFlag("spentindex", fSpentIndex);
     return true;
 }
 

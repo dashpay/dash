@@ -34,7 +34,6 @@ struct Params;
 
 namespace node {
 static constexpr bool DEFAULT_ADDRESSINDEX{false};
-static constexpr bool DEFAULT_SPENTINDEX{false};
 static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
@@ -57,8 +56,6 @@ extern uint64_t nPruneTarget;
 
 /** True if we're running in -addressindex mode. */
 extern bool fAddressIndex;
-/** True if we're running in -spentindex mode. */
-extern bool fSpentIndex;
 
 // Because validation code takes pointers to the map's CBlockIndex objects, if
 // we ever switch to another associative container, we need to either use a

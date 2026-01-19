@@ -23,7 +23,6 @@ static constexpr uint8_t DB_COIN{'C'};
 static constexpr uint8_t DB_BLOCK_FILES{'f'};
 static constexpr uint8_t DB_ADDRESSINDEX{'a'};
 static constexpr uint8_t DB_ADDRESSUNSPENTINDEX{'u'};
-static constexpr uint8_t DB_SPENTINDEX{'p'};
 static constexpr uint8_t DB_BLOCK_INDEX{'b'};
 
 static constexpr uint8_t DB_BEST_BLOCK{'B'};
@@ -273,22 +272,6 @@ bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockF
         batch.Write(std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
     }
     return WriteBatch(batch, true);
-}
-
-bool CBlockTreeDB::ReadSpentIndex(const CSpentIndexKey key, CSpentIndexValue& value) {
-    return Read(std::make_pair(DB_SPENTINDEX, key), value);
-}
-
-bool CBlockTreeDB::UpdateSpentIndex(const std::vector<CSpentIndexEntry>& vect) {
-    CDBBatch batch(*this);
-    for (const auto& [key, value] : vect) {
-        if (value.IsNull()) {
-            batch.Erase(std::make_pair(DB_SPENTINDEX, key));
-        } else {
-            batch.Write(std::make_pair(DB_SPENTINDEX, key), value);
-        }
-    }
-    return WriteBatch(batch);
 }
 
 bool CBlockTreeDB::UpdateAddressUnspentIndex(const std::vector<CAddressUnspentIndexEntry>& vect) {

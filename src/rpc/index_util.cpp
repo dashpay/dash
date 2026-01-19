@@ -67,18 +67,3 @@ bool GetMempoolAddressDeltaIndex(const CTxMemPool& mempool,
 
     return true;
 }
-
-bool GetSpentIndex(CBlockTreeDB& block_tree_db, const CTxMemPool& mempool, const CSpentIndexKey& key,
-                   CSpentIndexValue& value)
-{
-    AssertLockHeld(::cs_main);
-
-    if (!node::fSpentIndex) {
-        throw JSONRPCError(RPC_INVALID_REQUEST, "Spent index is disabled. You should run Dash Core with -spentindex (requires reindex)");
-    }
-
-    if (mempool.getSpentIndex(key, value))
-        return true;
-
-    return block_tree_db.ReadSpentIndex(key, value);
-}

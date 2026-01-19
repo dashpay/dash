@@ -19,6 +19,7 @@
 #include <consensus/amount.h>
 #include <evo/netinfo.h>
 #include <gsl/pointers.h>
+#include <index/spentindex_types.h>
 #include <indirectmap.h>
 #include <netaddress.h>
 #include <policy/feerate.h>
@@ -26,7 +27,6 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <random.h>
-#include <spentindex.h>
 #include <sync.h>
 #include <util/epochguard.h>
 #include <util/hasher.h>
