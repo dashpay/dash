@@ -500,6 +500,11 @@ static RPCHelpMan getaddressutxos()
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
 
+    const IndexSummary summary = g_addressindex->GetSummary();
+    if (!summary.synced) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    }
+
     std::vector<CAddressUnspentIndexEntry> unspentOutputs;
 
     for (const auto& address : addresses) {
@@ -587,6 +592,12 @@ static RPCHelpMan getaddressdeltas()
     if (!g_addressindex) {
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
+
+    const IndexSummary summary = g_addressindex->GetSummary();
+    if (!summary.synced) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    }
+
     for (const auto& address : addresses) {
         if (start <= 0 || end <= 0) { start = 0; end = 0; }
         if (!g_addressindex->GetAddressIndex(address.first, address.second,
@@ -654,20 +665,21 @@ static RPCHelpMan getaddressbalance()
     if (!g_addressindex) {
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
+
+    // Check sync status first to return a clear error message
+    // Use the index's best block height instead of chain tip to avoid inconsistency
+    const IndexSummary summary = g_addressindex->GetSummary();
+    if (!summary.synced) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    }
+    int nHeight = summary.best_block_height;
+
     for (const auto& address : addresses) {
         if (!g_addressindex->GetAddressIndex(address.first, address.second, addressIndex,
                                              /*start=*/0, /*end=*/0)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
     }
-
-    // Use the index's best block height instead of chain tip to avoid inconsistency
-    // The async index may be behind the chain tip during sync
-    IndexSummary summary = g_addressindex->GetSummary();
-    if (!summary.synced) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Address index not yet synced");
-    }
-    int nHeight = summary.best_block_height;
 
 
     CAmount balance = 0;
@@ -742,6 +754,12 @@ static RPCHelpMan getaddresstxids()
     if (!g_addressindex) {
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
+
+    const IndexSummary summary = g_addressindex->GetSummary();
+    if (!summary.synced) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    }
+
     for (const auto& address : addresses) {
         if (start <= 0 || end <= 0) { start = 0; end = 0; }
         if (!g_addressindex->GetAddressIndex(address.first, address.second,
@@ -824,7 +842,7 @@ static RPCHelpMan getspentinfo()
     CSpentIndexValue value;
     bool found = false;
 
-    // Check the async index first
+    // Check the async index first (may return false if still syncing)
     if (g_spentindex->GetSpentInfo(key, value)) {
         found = true;
     }
@@ -844,6 +862,10 @@ static RPCHelpMan getspentinfo()
     }
 
     if (!found) {
+        const IndexSummary summary = g_spentindex->GetSummary();
+        if (!summary.synced) {
+            throw JSONRPCError(RPC_MISC_ERROR, strprintf("Unable to get spent info. Spent index is syncing, current height: %d", summary.best_block_height));
+        }
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get spent info");
     }
 

@@ -557,12 +557,17 @@ static RPCHelpMan getblockhashes()
         throw JSONRPCError(RPC_MISC_ERROR, "Timestamp index is not enabled. Start with -timestampindex to enable.");
     }
 
+    const IndexSummary summary = g_timestampindex->GetSummary();
+    if (!summary.synced) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Timestamp index is syncing. Current height: %d", summary.best_block_height));
+    }
+
     unsigned int high = request.params[0].getInt<int>();
     unsigned int low = request.params[1].getInt<int>();
     std::vector<uint256> blockHashes;
 
     if (!g_timestampindex->GetBlockHashes(high, low, blockHashes)) {
-        throw JSONRPCError(RPC_MISC_ERROR, "Timestamp index is still syncing. Try again later.");
+        throw JSONRPCError(RPC_MISC_ERROR, "Failed to read timestamp index.");
     }
 
     UniValue result(UniValue::VARR);
