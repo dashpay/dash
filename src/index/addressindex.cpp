@@ -4,10 +4,10 @@
 
 #include <index/addressindex.h>
 
-#include <index/addressindex_util.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <hash.h>
+#include <index/addressindex_util.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <undo.h>
@@ -47,8 +47,7 @@ bool AddressIndex::DB::WriteBatch(const std::vector<CAddressIndexEntry>& address
 }
 
 bool AddressIndex::DB::ReadAddressIndex(const uint160& address_hash, const AddressType type,
-                                       std::vector<CAddressIndexEntry>& entries,
-                                       const int32_t start, const int32_t end)
+                                        std::vector<CAddressIndexEntry>& entries, const int32_t start, const int32_t end)
 {
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
@@ -60,8 +59,8 @@ bool AddressIndex::DB::ReadAddressIndex(const uint160& address_hash, const Addre
 
     while (pcursor->Valid()) {
         std::pair<uint8_t, CAddressIndexKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX &&
-            key.second.m_address_type == type && key.second.m_address_bytes == address_hash) {
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.m_address_type == type &&
+            key.second.m_address_bytes == address_hash) {
             if (end > 0 && key.second.m_block_height > end) {
                 break;
             }
@@ -81,8 +80,7 @@ bool AddressIndex::DB::ReadAddressIndex(const uint160& address_hash, const Addre
 }
 
 bool AddressIndex::DB::ReadAddressUnspentIndex(const uint160& address_hash, const AddressType type,
-                                              std::vector<CAddressUnspentIndexEntry>& entries,
-                                              const bool height_sort)
+                                               std::vector<CAddressUnspentIndexEntry>& entries, const bool height_sort)
 {
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
@@ -90,8 +88,8 @@ bool AddressIndex::DB::ReadAddressUnspentIndex(const uint160& address_hash, cons
 
     while (pcursor->Valid()) {
         std::pair<uint8_t, CAddressUnspentKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX &&
-            key.second.m_address_type == type && key.second.m_address_bytes == address_hash) {
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX && key.second.m_address_type == type &&
+            key.second.m_address_bytes == address_hash) {
             CAddressUnspentValue value;
             if (pcursor->GetValue(value)) {
                 entries.emplace_back(key.second, value);
@@ -106,9 +104,9 @@ bool AddressIndex::DB::ReadAddressUnspentIndex(const uint160& address_hash, cons
 
     if (height_sort) {
         std::sort(entries.begin(), entries.end(),
-            [](const CAddressUnspentIndexEntry& a, const CAddressUnspentIndexEntry& b) {
-                return a.second.m_block_height < b.second.m_block_height;
-            });
+                  [](const CAddressUnspentIndexEntry& a, const CAddressUnspentIndexEntry& b) {
+                      return a.second.m_block_height < b.second.m_block_height;
+                  });
     }
 
     return true;
@@ -140,8 +138,8 @@ bool AddressIndex::DB::UpdateAddressUnspentIndex(const std::vector<CAddressUnspe
     return CDBWrapper::WriteBatch(batch);
 }
 
-AddressIndex::AddressIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
-    : m_db(std::make_unique<AddressIndex::DB>(n_cache_size, f_memory, f_wipe))
+AddressIndex::AddressIndex(size_t n_cache_size, bool f_memory, bool f_wipe) :
+    m_db(std::make_unique<AddressIndex::DB>(n_cache_size, f_memory, f_wipe))
 {
 }
 
@@ -157,8 +155,8 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
     // Read undo data for this block to get information about spent outputs
     CBlockUndo blockundo;
     if (!node::UndoReadFromDisk(blockundo, pindex)) {
-        return error("%s: Failed to read undo data for block %s at height %d",
-                     __func__, pindex->GetBlockHash().ToString(), pindex->nHeight);
+        return error("%s: Failed to read undo data for block %s at height %d", __func__,
+                     pindex->GetBlockHash().ToString(), pindex->nHeight);
     }
 
     std::vector<CAddressIndexEntry> addressIndex;
@@ -189,15 +187,13 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
             }
 
             // Record spending activity
-            addressIndex.emplace_back(
-                CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, j, true),
-                prevout.nValue * -1
-            );
+            addressIndex.emplace_back(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, j, true),
+                                      prevout.nValue * -1);
 
             // Remove from unspent index
-            addressUnspentIndex.emplace_back(
-                CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n),
-                CAddressUnspentValue() // Null value means delete
+            addressUnspentIndex.emplace_back(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash,
+                                                                input.prevout.n),
+                                             CAddressUnspentValue() // Null value means delete
             );
         }
 
@@ -212,16 +208,12 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
             }
 
             // Record receiving activity
-            addressIndex.emplace_back(
-                CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, k, false),
-                out.nValue
-            );
+            addressIndex.emplace_back(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, k, false),
+                                      out.nValue);
 
             // Add to unspent index
-            addressUnspentIndex.emplace_back(
-                CAddressUnspentKey(address_type, address_bytes, txhash, k),
-                CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)
-            );
+            addressUnspentIndex.emplace_back(CAddressUnspentKey(address_type, address_bytes, txhash, k),
+                                             CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight));
         }
     }
 
@@ -238,16 +230,12 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
         }
 
         // Record receiving activity for coinbase
-        addressIndex.emplace_back(
-            CAddressIndexKey(address_type, address_bytes, pindex->nHeight, 0, coinbase_hash, k, false),
-            out.nValue
-        );
+        addressIndex.emplace_back(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, 0, coinbase_hash, k, false),
+                                  out.nValue);
 
         // Add coinbase outputs to unspent index
-        addressUnspentIndex.emplace_back(
-            CAddressUnspentKey(address_type, address_bytes, coinbase_hash, k),
-            CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)
-        );
+        addressUnspentIndex.emplace_back(CAddressUnspentKey(address_type, address_bytes, coinbase_hash, k),
+                                         CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight));
     }
 
     return m_db->WriteBatch(addressIndex, addressUnspentIndex);
@@ -262,14 +250,14 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
     for (const CBlockIndex* pindex = current_tip; pindex != new_tip; pindex = pindex->pprev) {
         CBlock block;
         if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
-            return error("%s: Failed to read block %s from disk during rewind",
-                        __func__, pindex->GetBlockHash().ToString());
+            return error("%s: Failed to read block %s from disk during rewind", __func__,
+                         pindex->GetBlockHash().ToString());
         }
 
         CBlockUndo blockundo;
         if (pindex->nHeight > 0 && !node::UndoReadFromDisk(blockundo, pindex)) {
-            return error("%s: Failed to read undo data for block %s during rewind",
-                        __func__, pindex->GetBlockHash().ToString());
+            return error("%s: Failed to read undo data for block %s during rewind", __func__,
+                         pindex->GetBlockHash().ToString());
         }
 
         std::vector<CAddressIndexEntry> addressIndex;
@@ -294,16 +282,14 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
                 }
 
                 // Remove receiving activity from history
-                addressIndex.push_back(std::make_pair(
-                    CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, k, false),
-                    out.nValue
-                ));
+                addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight,
+                                                                       i + 1, txhash, k, false),
+                                                      out.nValue));
 
                 // Remove from unspent index (mark for deletion)
-                addressUnspentIndex.push_back(std::make_pair(
-                    CAddressUnspentKey(address_type, address_bytes, txhash, k),
-                    CAddressUnspentValue() // null value signals deletion
-                ));
+                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, txhash, k),
+                                                             CAddressUnspentValue() // null value signals deletion
+                                                             ));
             }
 
             // Undo inputs (restore to unspent index, remove spending from history)
@@ -320,16 +306,14 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
                 }
 
                 // Remove spending activity from history
-                addressIndex.push_back(std::make_pair(
-                    CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, j, true),
-                    prevout.nValue * -1
-                ));
+                addressIndex.push_back(
+                    std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i + 1, txhash, j, true),
+                                   prevout.nValue * -1));
 
                 // Restore to unspent index
-                addressUnspentIndex.push_back(std::make_pair(
-                    CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n),
-                    CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, coin.nHeight)
-                ));
+                addressUnspentIndex.push_back(
+                    std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n),
+                                   CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, coin.nHeight)));
             }
         }
 
@@ -349,16 +333,14 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
                 }
 
                 // Remove coinbase receiving activity
-                addressIndex.push_back(std::make_pair(
-                    CAddressIndexKey(address_type, address_bytes, pindex->nHeight, 0, cb_hash, k, false),
-                    out.nValue
-                ));
+                addressIndex.push_back(
+                    std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, 0, cb_hash, k, false),
+                                   out.nValue));
 
                 // Remove from unspent index
-                addressUnspentIndex.push_back(std::make_pair(
-                    CAddressUnspentKey(address_type, address_bytes, cb_hash, k),
-                    CAddressUnspentValue() // null value signals deletion
-                ));
+                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, cb_hash, k),
+                                                             CAddressUnspentValue() // null value signals deletion
+                                                             ));
             }
         }
 
@@ -385,8 +367,7 @@ void AddressIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block,
     // Only rewind if we have this block indexed
     if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (!Rewind(best_block_index, pindex->pprev)) {
-            error("%s: Failed to rewind %s to previous block after disconnect",
-                 __func__, GetName());
+            error("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
         }
     }
 }
@@ -394,8 +375,7 @@ void AddressIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block,
 BaseIndex::DB& AddressIndex::GetDB() const { return *m_db; }
 
 bool AddressIndex::GetAddressIndex(const uint160& address_hash, const AddressType type,
-                                  std::vector<CAddressIndexEntry>& entries,
-                                  const int32_t start, const int32_t end) const
+                                   std::vector<CAddressIndexEntry>& entries, const int32_t start, const int32_t end) const
 {
     if (!BlockUntilSyncedToCurrentChain()) {
         return false;
@@ -405,8 +385,7 @@ bool AddressIndex::GetAddressIndex(const uint160& address_hash, const AddressTyp
 }
 
 bool AddressIndex::GetAddressUnspentIndex(const uint160& address_hash, const AddressType type,
-                                         std::vector<CAddressUnspentIndexEntry>& entries,
-                                         const bool height_sort) const
+                                          std::vector<CAddressUnspentIndexEntry>& entries, const bool height_sort) const
 {
     if (!BlockUntilSyncedToCurrentChain()) {
         return false;

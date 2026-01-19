@@ -52,8 +52,8 @@ bool SpentIndex::DB::EraseSpentIndex(const std::vector<CSpentIndexKey>& keys)
     return CDBWrapper::WriteBatch(batch);
 }
 
-SpentIndex::SpentIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
-    : m_db(std::make_unique<SpentIndex::DB>(n_cache_size, f_memory, f_wipe))
+SpentIndex::SpentIndex(size_t n_cache_size, bool f_memory, bool f_wipe) :
+    m_db(std::make_unique<SpentIndex::DB>(n_cache_size, f_memory, f_wipe))
 {
 }
 
@@ -69,8 +69,8 @@ bool SpentIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
     // Read undo data for this block to get information about spent outputs
     CBlockUndo blockundo;
     if (!node::UndoReadFromDisk(blockundo, pindex)) {
-        return error("%s: Failed to read undo data for block %s at height %d",
-                     __func__, pindex->GetBlockHash().ToString(), pindex->nHeight);
+        return error("%s: Failed to read undo data for block %s at height %d", __func__,
+                     pindex->GetBlockHash().ToString(), pindex->nHeight);
     }
 
     std::vector<CSpentIndexEntry> entries;
@@ -119,8 +119,8 @@ bool SpentIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new_t
         // Read block to get transactions
         CBlock block;
         if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
-            return error("%s: Failed to read block %s from disk during rewind",
-                        __func__, pindex->GetBlockHash().ToString());
+            return error("%s: Failed to read block %s from disk during rewind", __func__,
+                         pindex->GetBlockHash().ToString());
         }
 
         std::vector<CSpentIndexKey> keys_to_erase;
@@ -154,8 +154,7 @@ void SpentIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, c
     // Only rewind if we have this block indexed
     if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (!Rewind(best_block_index, pindex->pprev)) {
-            error("%s: Failed to rewind %s to previous block after disconnect",
-                 __func__, GetName());
+            error("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
         }
     }
 }

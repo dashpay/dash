@@ -48,8 +48,8 @@ bool TimestampIndex::DB::EraseTimestampIndex(const CTimestampIndexKey& key)
     return CDBWrapper::Erase(std::make_pair(DB_TIMESTAMPINDEX, key));
 }
 
-TimestampIndex::TimestampIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
-    : m_db(std::make_unique<TimestampIndex::DB>(n_cache_size, f_memory, f_wipe))
+TimestampIndex::TimestampIndex(size_t n_cache_size, bool f_memory, bool f_wipe) :
+    m_db(std::make_unique<TimestampIndex::DB>(n_cache_size, f_memory, f_wipe))
 {
 }
 
@@ -78,8 +78,8 @@ bool TimestampIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* n
 
         CTimestampIndexKey key(pindex->nTime, pindex->GetBlockHash());
         if (!m_db->EraseTimestampIndex(key)) {
-            return error("%s: Failed to erase timestamp index for block %s during rewind",
-                        __func__, pindex->GetBlockHash().ToString());
+            return error("%s: Failed to erase timestamp index for block %s during rewind", __func__,
+                         pindex->GetBlockHash().ToString());
         }
     }
 
@@ -96,8 +96,7 @@ void TimestampIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& bloc
     // Only rewind if we have this block indexed and it's not the genesis block
     if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (!Rewind(best_block_index, pindex->pprev)) {
-            error("%s: Failed to rewind %s to previous block after disconnect",
-                 __func__, GetName());
+            error("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
         }
     }
 }
