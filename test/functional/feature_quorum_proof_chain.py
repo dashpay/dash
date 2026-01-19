@@ -15,8 +15,7 @@ from test_framework.util import assert_equal, assert_raises_rpc_error
 
 class QuorumProofChainTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(5, 4)
-        self.delay_v20_and_mn_rr(height=200)
+        self.set_dash_test_params(5, 3)
 
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
@@ -24,7 +23,7 @@ class QuorumProofChainTest(DashTestFramework):
         for i in range(2, len(self.nodes)):
             self.connect_nodes(i, 1)
 
-        self.activate_v20(expected_activation_height=200)
+        self.activate_v20()
         self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
 
         # Enable quorum DKG
@@ -53,7 +52,7 @@ class QuorumProofChainTest(DashTestFramework):
         tip_height = self.nodes[0].getblockcount()
 
         # Find a chainlocked height
-        for h in range(tip_height, 200, -1):
+        for h in range(tip_height, 0, -1):
             try:
                 cl_info = self.nodes[0].getchainlockbyheight(h)
                 self.log.info(f"Found chainlock at height {h}")
@@ -85,7 +84,7 @@ class QuorumProofChainTest(DashTestFramework):
 
         # Try to find a valid chainlocked height
         found = False
-        for h in range(tip_height, 200, -1):
+        for h in range(tip_height, 0, -1):
             try:
                 result = self.nodes[0].getchainlockbyheight(h)
                 assert_equal(result['height'], h)
