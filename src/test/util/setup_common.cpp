@@ -85,7 +85,6 @@ using node::BlockAssembler;
 using node::CalculateCacheSizes;
 using node::DashChainstateSetup;
 using node::DashChainstateSetupClose;
-using node::DEFAULT_ADDRESSINDEX;
 using node::LoadChainstate;
 using node::NodeContext;
 using node::VerifyLoadedChainstate;
@@ -331,7 +330,6 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            Assert(m_node.mempool.get()),
                                            Assert(m_node.args)->GetDataDirNet(),
                                            fPruneMode,
-                                           m_args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX),
                                            chainparams.GetConsensus(),
                                            m_args.GetBoolArg("-reindex-chainstate", false),
                                            m_cache_sizes.block_tree_db,

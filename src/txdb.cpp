@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -21,8 +22,6 @@
 
 static constexpr uint8_t DB_COIN{'C'};
 static constexpr uint8_t DB_BLOCK_FILES{'f'};
-static constexpr uint8_t DB_ADDRESSINDEX{'a'};
-static constexpr uint8_t DB_ADDRESSUNSPENTINDEX{'u'};
 static constexpr uint8_t DB_BLOCK_INDEX{'b'};
 
 static constexpr uint8_t DB_BEST_BLOCK{'B'};
@@ -272,92 +271,6 @@ bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockF
         batch.Write(std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
     }
     return WriteBatch(batch, true);
-}
-
-bool CBlockTreeDB::UpdateAddressUnspentIndex(const std::vector<CAddressUnspentIndexEntry>& vect) {
-    CDBBatch batch(*this);
-    for (const auto& [key, value] : vect) {
-        if (value.IsNull()) {
-            batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, key));
-        } else {
-            batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, key), value);
-        }
-    }
-    return WriteBatch(batch);
-}
-
-bool CBlockTreeDB::ReadAddressUnspentIndex(const uint160& addressHash, const AddressType type,
-                                           std::vector<CAddressUnspentIndexEntry>& unspentOutputs)
-{
-    std::unique_ptr<CDBIterator> pcursor(NewIterator());
-
-    pcursor->Seek(std::make_pair(DB_ADDRESSUNSPENTINDEX, CAddressIndexIteratorKey(type, addressHash)));
-
-    while (pcursor->Valid()) {
-        std::pair<uint8_t, CAddressUnspentKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX && key.second.m_address_bytes == addressHash) {
-            CAddressUnspentValue nValue;
-            if (pcursor->GetValue(nValue)) {
-                unspentOutputs.push_back(std::make_pair(key.second, nValue));
-                pcursor->Next();
-            } else {
-                return error("failed to get address unspent value");
-            }
-        } else {
-            break;
-        }
-    }
-
-    return true;
-}
-
-bool CBlockTreeDB::WriteAddressIndex(const std::vector<CAddressIndexEntry>& vect) {
-    CDBBatch batch(*this);
-    for (const auto& [key, value] : vect) {
-        batch.Write(std::make_pair(DB_ADDRESSINDEX, key), value);
-    }
-    return WriteBatch(batch);
-}
-
-bool CBlockTreeDB::EraseAddressIndex(const std::vector<CAddressIndexEntry>& vect) {
-    CDBBatch batch(*this);
-    for (const auto& [key, _] : vect) {
-        batch.Erase(std::make_pair(DB_ADDRESSINDEX, key));
-    }
-    return WriteBatch(batch);
-}
-
-bool CBlockTreeDB::ReadAddressIndex(const uint160& addressHash, const AddressType type,
-                                    std::vector<CAddressIndexEntry>& addressIndex,
-                                    const int32_t start, const int32_t end)
-{
-    std::unique_ptr<CDBIterator> pcursor(NewIterator());
-
-    if (start > 0 && end > 0) {
-        pcursor->Seek(std::make_pair(DB_ADDRESSINDEX, CAddressIndexIteratorHeightKey(type, addressHash, start)));
-    } else {
-        pcursor->Seek(std::make_pair(DB_ADDRESSINDEX, CAddressIndexIteratorKey(type, addressHash)));
-    }
-
-    while (pcursor->Valid()) {
-        std::pair<uint8_t, CAddressIndexKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.m_address_bytes == addressHash) {
-            if (end > 0 && key.second.m_block_height > end) {
-                break;
-            }
-            CAmount nValue;
-            if (pcursor->GetValue(nValue)) {
-                addressIndex.push_back(std::make_pair(key.second, nValue));
-                pcursor->Next();
-            } else {
-                return error("failed to get address index value");
-            }
-        } else {
-            break;
-        }
-    }
-
-    return true;
 }
 
 bool CBlockTreeDB::WriteFlag(const std::string &name, bool fValue) {

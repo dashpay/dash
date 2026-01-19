@@ -17,6 +17,7 @@ struct CacheSizes {
     int64_t coins;
     int64_t tx_index;
     int64_t filter_index;
+    int64_t address_index;
     int64_t timestamp_index;
     int64_t spent_index;
 };

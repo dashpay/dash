@@ -29,8 +29,6 @@ std::atomic_bool fReindex(false);
 bool fPruneMode = false;
 uint64_t nPruneTarget = 0;
 
-bool fAddressIndex = DEFAULT_ADDRESSINDEX;
-
 bool CBlockIndexWorkComparator::operator()(const CBlockIndex* pa, const CBlockIndex* pb) const
 {
     // First sort by most total work, ...
@@ -393,8 +391,6 @@ bool BlockManager::LoadBlockIndexDB()
     m_block_tree_db->ReadReindexing(fReindexing);
     if (fReindexing) fReindex = true;
 
-    // Check whether we have an address index
-    m_block_tree_db->ReadFlag("addressindex", fAddressIndex);
     return true;
 }
 

@@ -19,7 +19,6 @@
 #include <util/strencodings.h>
 #include <util/system.h>
 
-#include <addressindex.h>
 #include <index/spentindex.h>
 
 #include <evo/assetlocktx.h>

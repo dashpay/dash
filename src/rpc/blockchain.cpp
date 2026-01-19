@@ -31,7 +31,6 @@
 #include <node/utxo_snapshot.h>
 #include <merkleblock.h>
 #include <primitives/transaction.h>
-#include <rpc/index_util.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>

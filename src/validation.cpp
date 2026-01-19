@@ -75,8 +75,6 @@ using node::BlockManager;
 using node::BlockMap;
 using node::CBlockIndexHeightOnlyComparator;
 using node::CBlockIndexWorkComparator;
-using node::DEFAULT_ADDRESSINDEX;
-using node::fAddressIndex;
 using node::fImporting;
 using node::fPruneMode;
 using node::fReindex;
@@ -1058,9 +1056,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     ::g_stats_client->count("transactions.sigOps", nSigOps, 1.0f);
 
     // Add memory address index
-    if (fAddressIndex) {
-        m_pool.addAddressIndex(*entry, m_view);
-    }
+    m_pool.addAddressIndex(*entry, m_view);
 
     // Add memory spent index
     m_pool.addSpentIndex(*entry, m_view);
@@ -2012,8 +2008,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
-    std::vector<CAddressIndexEntry> addressIndex;
-    std::vector<CAddressUnspentIndexEntry> addressUnspentIndex;
     std::vector<CSpentIndexEntry> spentIndex;
 
     std::optional<MNListUpdates> mnlist_updates_opt{std::nullopt};
@@ -2037,25 +2031,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
         bool is_bip30_exception = (is_coinbase && !fEnforceBIP30);
-
-        if (fAddressIndex) {
-            for (unsigned int k = tx.vout.size(); k-- > 0;) {
-                const CTxOut &out = tx.vout[k];
-
-                AddressType address_type{AddressType::UNKNOWN};
-                uint160 address_bytes;
-
-                if (!AddressBytesFromScript(out.scriptPubKey, address_type, address_bytes)) {
-                    continue;
-                }
-
-                // undo receiving activity
-                addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, hash, k, false), out.nValue));
-
-                // undo unspent index
-                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, hash, k), CAddressUnspentValue()));
-            }
-        }
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
@@ -2082,43 +2057,11 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             for (unsigned int j = tx.vin.size(); j > 0;) {
                 --j;
                 const COutPoint& out = tx.vin[j].prevout;
-                int undoHeight = txundo.vprevout[j].nHeight;
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
-
-                const CTxIn input = tx.vin[j];
-
-                if (fAddressIndex) {
-                    const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
-                    const CTxOut &prevout = coin.out;
-
-                    AddressType address_type{AddressType::UNKNOWN};
-                    uint160 address_bytes;
-
-                    if (!AddressBytesFromScript(prevout.scriptPubKey, address_type, address_bytes)) {
-                        continue;
-                    }
-
-                    // undo spending activity
-                    addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
-
-                    // restore unspent index
-                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undoHeight)));
-                }
             }
             // At this point, all of txundo.vprevout should have been moved out.
-        }
-    }
-
-    if (fAddressIndex) {
-        if (!m_blockman.m_block_tree_db->EraseAddressIndex(addressIndex)) {
-            AbortNode("Failed to delete address index");
-            return DISCONNECT_FAILED;
-        }
-        if (!m_blockman.m_block_tree_db->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-            AbortNode("Failed to write address unspent index");
-            return DISCONNECT_FAILED;
         }
     }
 
@@ -2236,7 +2179,6 @@ static int64_t nTimePayeeValid = 0;
 static int64_t nTimeProcessSpecial = 0;
 static int64_t nTimeDashSpecific = 0;
 static int64_t nTimeConnect = 0;
-static int64_t nTimeIndexConnect = 0;
 static int64_t nTimeIndexWrite = 0;
 static int64_t nTimeTotal = 0;
 static int64_t nBlocksTotal = 0;
@@ -2412,8 +2354,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int nInputs = 0;
     unsigned int nSigOps = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
-    std::vector<CAddressIndexEntry> addressIndex;
-    std::vector<CAddressUnspentIndexEntry> addressUnspentIndex;
     std::vector<CSpentIndexEntry> spentIndex;
 
     bool fDIP0001Active_context = DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0001);
@@ -2428,12 +2368,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime2_1 = GetTimeMicros(); nTimeProcessSpecial += nTime2_1 - nTime2;
     LogPrint(BCLog::BENCHMARK, "      - ProcessSpecialTxsInBlock: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime2_1 - nTime2), nTimeProcessSpecial * MICRO, nTimeProcessSpecial * MILLI / nBlocksTotal);
 
-    int64_t nTime2_index = 0;
-
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
-        const uint256 txhash = tx.GetHash();
 
         nInputs += tx.vin.size();
 
@@ -2465,31 +2402,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 LogPrintf("ERROR: %s: contains a non-BIP68-final transaction\n", __func__);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal");
             }
-
-            if (fAddressIndex)
-            {
-                int64_t nTime2_index1 = GetTimeMicros();
-
-                for (size_t j = 0; j < tx.vin.size(); j++) {
-                    const CTxIn input = tx.vin[j];
-                    const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
-                    const CTxOut &prevout = coin.out;
-
-                    AddressType address_type{AddressType::UNKNOWN};
-                    uint160 address_bytes;
-
-                    AddressBytesFromScript(prevout.scriptPubKey, address_type, address_bytes);
-
-                    if (address_type != AddressType::UNKNOWN) {
-                        // record spending activity
-                        addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
-
-                        // remove address from unspent index
-                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
-                    }
-                }
-                nTime2_index += GetTimeMicros() - nTime2_index1;
-            }
         }
 
         // GetTransactionSigOpCount counts 2 types of sigops:
@@ -2518,27 +2430,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             control.Add(vChecks);
         }
 
-        if (fAddressIndex) {
-            int64_t nTime2_index2 = GetTimeMicros();
-            for (unsigned int k = 0; k < tx.vout.size(); k++) {
-                const CTxOut &out = tx.vout[k];
-
-                AddressType address_type{AddressType::UNKNOWN};
-                uint160 address_bytes;
-
-                if (!AddressBytesFromScript(out.scriptPubKey, address_type, address_bytes)) {
-                    continue;
-                }
-
-                // record receiving activity
-                addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, k, false), out.nValue));
-
-                // record unspent output
-                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
-            }
-            nTime2_index += GetTimeMicros() - nTime2_index2;
-        }
-
         CTxUndo undoDummy;
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
@@ -2546,8 +2437,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
 
-    nTimeIndexConnect += nTime2_index;
-    LogPrint(BCLog::BENCHMARK, "        - Connect index: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * nTime2_index, nTimeIndexConnect * MICRO, nTimeIndexConnect * MILLI / nBlocksTotal);
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCHMARK, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
 
@@ -2645,16 +2534,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     if (!pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
         pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
         m_blockman.m_dirty_blockindex.insert(pindex);
-    }
-
-    if (fAddressIndex) {
-        if (!m_blockman.m_block_tree_db->WriteAddressIndex(addressIndex)) {
-            return AbortNode(state, "Failed to write address index");
-        }
-
-        if (!m_blockman.m_block_tree_db->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-            return AbortNode(state, "Failed to write address unspent index");
-        }
     }
 
     int64_t nTime8 = GetTimeMicros(); nTimeIndexWrite += nTime8 - nTime7;
@@ -4703,72 +4582,18 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
             pindex->GetBlockHash().ToString(), state.ToString());
     }
 
-    std::vector<CAddressIndexEntry> addressIndex;
-    std::vector<CAddressUnspentIndexEntry> addressUnspentIndex;
     std::vector<CSpentIndexEntry> spentIndex;
 
     for (size_t i = 0; i < block.vtx.size(); i++) {
         const CTransactionRef& tx = block.vtx[i];
-        const uint256 txhash = tx->GetHash();
 
         if (!tx->IsCoinBase()) {
-            // Update indexes
-            if (fAddressIndex) {
-                for (size_t j = 0; j < tx->vin.size(); j++) {
-                    const CTxIn input = tx->vin[j];
-                    const Coin& coin = inputs.AccessCoin(tx->vin[j].prevout);
-                    const CTxOut& prevout = coin.out;
-
-                    AddressType address_type{AddressType::UNKNOWN};
-                    uint160 address_bytes;
-
-                    AddressBytesFromScript(prevout.scriptPubKey, address_type, address_bytes);
-
-                    if (address_type != AddressType::UNKNOWN) {
-                        // record spending activity
-                        addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
-
-                        // remove address from unspent index
-                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
-                    }
-                }
-            }
-
-            if (fAddressIndex) {
-                for (size_t k = 0; k < tx->vout.size(); k++) {
-                    const CTxOut& out = tx->vout[k];
-
-                    AddressType address_type{AddressType::UNKNOWN};
-                    uint160 address_bytes;
-
-                    if (!AddressBytesFromScript(out.scriptPubKey, address_type, address_bytes)) {
-                        continue;
-                    }
-
-                    // record receiving activity
-                    addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, k, false), out.nValue));
-
-                    // record unspent output
-                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
-                }
-            }
-
             for (const CTxIn &txin : tx->vin) {
                 inputs.SpendCoin(txin.prevout);
             }
         }
         // Pass check = true as every addition may be an overwrite.
         AddCoins(inputs, *tx, pindex->nHeight, true);
-    }
-
-    if (fAddressIndex) {
-        if (!m_blockman.m_block_tree_db->WriteAddressIndex(addressIndex)) {
-            return error("RollforwardBlock(DASH): Failed to write address index");
-        }
-
-        if (!m_blockman.m_block_tree_db->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-            return error("RollforwardBlock(DASH): Failed to write address unspent index");
-        }
     }
 
     return true;
@@ -4945,16 +4770,8 @@ bool ChainstateManager::LoadBlockIndex()
         // needs_init.
 
         LogPrintf("Initializing databases...\n");
-        InitAdditionalIndexes();
     }
     return true;
-}
-
-void ChainstateManager::InitAdditionalIndexes()
-{
-    // Use the provided setting for -addressindex in the new database
-    fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
-    m_blockman.m_block_tree_db->WriteFlag("addressindex", fAddressIndex);
 }
 
 bool CChainState::AddGenesisBlock(const CBlock& block, BlockValidationState& state)

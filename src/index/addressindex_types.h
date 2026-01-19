@@ -1,12 +1,12 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
 // Copyright (c) 2016 BitPay Inc.
-// Copyright (c) 2023-2024 The Dash Core developers
+// Copyright (c) 2023-2026 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ADDRESSINDEX_H
-#define BITCOIN_ADDRESSINDEX_H
+#ifndef BITCOIN_INDEX_ADDRESSINDEX_TYPES_H
+#define BITCOIN_INDEX_ADDRESSINDEX_TYPES_H
 
 #include <consensus/amount.h>
 #include <script/script.h>
@@ -16,6 +16,8 @@
 
 #include <chrono>
 #include <tuple>
+#include <vector>
+
 struct CAddressIndexKey;
 struct CMempoolAddressDelta;
 struct CMempoolAddressDeltaKey;
@@ -35,8 +37,7 @@ struct CAddressUnspentKey;
 struct CAddressUnspentValue;
 using CAddressUnspentIndexEntry = std::pair<CAddressUnspentKey, CAddressUnspentValue>;
 
-struct CMempoolAddressDelta
-{
+struct CMempoolAddressDelta {
 public:
     std::chrono::seconds m_time;
     CAmount m_amount;
@@ -45,14 +46,21 @@ public:
 
 public:
     CMempoolAddressDelta(std::chrono::seconds time, CAmount amount, uint256 prev_hash, uint32_t prev_out) :
-        m_time{time}, m_amount{amount}, m_prev_hash{prev_hash}, m_prev_out{prev_out} {}
+        m_time{time},
+        m_amount{amount},
+        m_prev_hash{prev_hash},
+        m_prev_out{prev_out}
+    {
+    }
 
     CMempoolAddressDelta(std::chrono::seconds time, CAmount amount) :
-        m_time{time}, m_amount{amount} {}
+        m_time{time},
+        m_amount{amount}
+    {
+    }
 };
 
-struct CMempoolAddressDeltaKey
-{
+struct CMempoolAddressDeltaKey {
 public:
     AddressType m_address_type{AddressType::UNKNOWN};
     uint160 m_address_bytes;
@@ -61,7 +69,8 @@ public:
     bool m_tx_spent{false};
 
 public:
-    CMempoolAddressDeltaKey(AddressType address_type, uint160 address_bytes, uint256 tx_hash, uint32_t tx_index, bool tx_spent) :
+    CMempoolAddressDeltaKey(AddressType address_type, uint160 address_bytes, uint256 tx_hash, uint32_t tx_index,
+                            bool tx_spent) :
         m_address_type{address_type},
         m_address_bytes{address_bytes},
         m_tx_hash{tx_hash},
@@ -73,9 +82,9 @@ public:
         m_address_bytes{address_bytes} {};
 };
 
-struct CMempoolAddressDeltaKeyCompare
-{
-    bool operator()(const CMempoolAddressDeltaKey& a, const CMempoolAddressDeltaKey& b) const {
+struct CMempoolAddressDeltaKeyCompare {
+    bool operator()(const CMempoolAddressDeltaKey& a, const CMempoolAddressDeltaKey& b) const
+    {
         auto to_tuple = [](const CMempoolAddressDeltaKey& obj) {
             return std::tie(obj.m_address_type, obj.m_address_bytes, obj.m_tx_hash, obj.m_tx_index, obj.m_tx_spent);
         };
@@ -94,12 +103,10 @@ public:
     bool m_tx_spent{false};
 
 public:
-    CAddressIndexKey() {
-        SetNull();
-    }
+    CAddressIndexKey() { SetNull(); }
 
-    CAddressIndexKey(AddressType address_type, uint160 address_bytes, int32_t block_height, uint32_t block_tx_pos, uint256 tx_hash,
-                     uint32_t tx_index, bool tx_spent) :
+    CAddressIndexKey(AddressType address_type, uint160 address_bytes, int32_t block_height, uint32_t block_tx_pos,
+                     uint256 tx_hash, uint32_t tx_index, bool tx_spent) :
         m_address_type{address_type},
         m_address_bytes{address_bytes},
         m_block_height{block_height},
@@ -108,7 +115,8 @@ public:
         m_tx_index{tx_index},
         m_tx_spent{tx_spent} {};
 
-    void SetNull() {
+    void SetNull()
+    {
         m_address_type = AddressType::UNKNOWN;
         m_address_bytes.SetNull();
         m_block_height = 0;
@@ -119,12 +127,11 @@ public:
     }
 
 public:
-    size_t GetSerializeSize(int nType, int nVersion) const {
-        return 66;
-    }
+    size_t GetSerializeSize(int nType, int nVersion) const { return 66; }
 
-    template<typename Stream>
-    void Serialize(Stream& s) const {
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
         ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
         // Heights are stored big-endian for key sorting in LevelDB
@@ -135,8 +142,9 @@ public:
         ser_writedata8(s, static_cast<uint8_t>(m_tx_spent));
     }
 
-    template<typename Stream>
-    void Unserialize(Stream& s) {
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
         m_address_type = static_cast<AddressType>(ser_readdata8(s));
         m_address_bytes.Unserialize(s);
         m_block_height = ser_readdata32be(s);
@@ -153,31 +161,31 @@ public:
     uint160 m_address_bytes;
 
 public:
-    CAddressIndexIteratorKey() {
-        SetNull();
-    }
+    CAddressIndexIteratorKey() { SetNull(); }
 
     CAddressIndexIteratorKey(AddressType address_type, uint160 address_bytes) :
-        m_address_type{address_type}, m_address_bytes{address_bytes} {};
+        m_address_type{address_type},
+        m_address_bytes{address_bytes} {};
 
-    void SetNull() {
+    void SetNull()
+    {
         m_address_type = AddressType::UNKNOWN;
         m_address_bytes.SetNull();
     }
 
 public:
-    size_t GetSerializeSize(int nType, int nVersion) const {
-        return 21;
-    }
+    size_t GetSerializeSize(int nType, int nVersion) const { return 21; }
 
-    template<typename Stream>
-    void Serialize(Stream& s) const {
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
         ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
     }
 
-    template<typename Stream>
-    void Unserialize(Stream& s) {
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
         m_address_type = static_cast<AddressType>(ser_readdata8(s));
         m_address_bytes.Unserialize(s);
     }
@@ -190,33 +198,34 @@ public:
     int32_t m_block_height{0};
 
 public:
-    CAddressIndexIteratorHeightKey() {
-        SetNull();
-    }
+    CAddressIndexIteratorHeightKey() { SetNull(); }
 
     CAddressIndexIteratorHeightKey(AddressType address_type, uint160 address_bytes, int32_t block_height) :
-        m_address_type{address_type}, m_address_bytes{address_bytes}, m_block_height{block_height} {};
+        m_address_type{address_type},
+        m_address_bytes{address_bytes},
+        m_block_height{block_height} {};
 
-    void SetNull() {
+    void SetNull()
+    {
         m_address_type = AddressType::UNKNOWN;
         m_address_bytes.SetNull();
         m_block_height = 0;
     }
 
 public:
-    size_t GetSerializeSize(int nType, int nVersion) const {
-        return 25;
-    }
+    size_t GetSerializeSize(int nType, int nVersion) const { return 25; }
 
-    template<typename Stream>
-    void Serialize(Stream& s) const {
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
         ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
         ser_writedata32be(s, m_block_height);
     }
 
-    template<typename Stream>
-    void Unserialize(Stream& s) {
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
         m_address_type = static_cast<AddressType>(ser_readdata8(s));
         m_address_bytes.Unserialize(s);
         m_block_height = ser_readdata32be(s);
@@ -231,14 +240,16 @@ public:
     uint32_t m_tx_index{0};
 
 public:
-    CAddressUnspentKey() {
-        SetNull();
-    }
+    CAddressUnspentKey() { SetNull(); }
 
     CAddressUnspentKey(AddressType address_type, uint160 address_bytes, uint256 tx_hash, uint32_t tx_index) :
-        m_address_type{address_type}, m_address_bytes{address_bytes}, m_tx_hash{tx_hash}, m_tx_index{tx_index} {};
+        m_address_type{address_type},
+        m_address_bytes{address_bytes},
+        m_tx_hash{tx_hash},
+        m_tx_index{tx_index} {};
 
-    void SetNull() {
+    void SetNull()
+    {
         m_address_type = AddressType::UNKNOWN;
         m_address_bytes.SetNull();
         m_tx_hash.SetNull();
@@ -246,20 +257,20 @@ public:
     }
 
 public:
-    size_t GetSerializeSize(int nType, int nVersion) const {
-        return 57;
-    }
+    size_t GetSerializeSize(int nType, int nVersion) const { return 57; }
 
-    template<typename Stream>
-    void Serialize(Stream& s) const {
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
         ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
         m_tx_hash.Serialize(s);
         ser_writedata32(s, m_tx_index);
     }
 
-    template<typename Stream>
-    void Unserialize(Stream& s) {
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
         m_address_type = static_cast<AddressType>(ser_readdata8(s));
         m_address_bytes.Unserialize(s);
         m_tx_hash.Unserialize(s);
@@ -274,30 +285,24 @@ public:
     int32_t m_block_height;
 
 public:
-    CAddressUnspentValue() {
-        SetNull();
-    }
+    CAddressUnspentValue() { SetNull(); }
 
     CAddressUnspentValue(CAmount amount, CScript tx_script, int32_t block_height) :
-        m_amount{amount}, m_tx_script{tx_script}, m_block_height{block_height} {};
+        m_amount{amount},
+        m_tx_script{tx_script},
+        m_block_height{block_height} {};
 
-    void SetNull() {
+    void SetNull()
+    {
         m_amount = -1;
         m_tx_script.clear();
         m_block_height = 0;
     }
 
-    bool IsNull() const {
-        return (m_amount == -1);
-    }
+    bool IsNull() const { return (m_amount == -1); }
 
 public:
-    SERIALIZE_METHODS(CAddressUnspentValue, obj)
-    {
-        READWRITE(obj.m_amount, obj.m_tx_script, obj.m_block_height);
-    }
+    SERIALIZE_METHODS(CAddressUnspentValue, obj) { READWRITE(obj.m_amount, obj.m_tx_script, obj.m_block_height); }
 };
 
-bool AddressBytesFromScript(const CScript& script, AddressType& address_type, uint160& address_bytes);
-
-#endif // BITCOIN_ADDRESSINDEX_H
+#endif // BITCOIN_INDEX_ADDRESSINDEX_TYPES_H

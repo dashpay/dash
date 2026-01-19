@@ -6,6 +6,7 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <index/addressindex_util.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <primitives/block.h>

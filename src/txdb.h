@@ -1,12 +1,12 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef BITCOIN_TXDB_H
 #define BITCOIN_TXDB_H
 
-#include <addressindex.h>
 #include <coins.h>
 #include <dbwrapper.h>
 #include <sync.h>
@@ -87,16 +87,6 @@ public:
     bool ReadLastBlockFile(int &nFile);
     bool WriteReindexing(bool fReindexing);
     void ReadReindexing(bool &fReindexing);
-
-    bool ReadAddressUnspentIndex(const uint160& addressHash, const AddressType type,
-                                 std::vector<CAddressUnspentIndexEntry>& vect);
-    bool UpdateAddressUnspentIndex(const std::vector<CAddressUnspentIndexEntry>& vect);
-
-    bool WriteAddressIndex(const std::vector<CAddressIndexEntry>& vect);
-    bool EraseAddressIndex(const std::vector<CAddressIndexEntry>& vect);
-    bool ReadAddressIndex(const uint160& addressHash, const AddressType type,
-                          std::vector<CAddressIndexEntry>& addressIndex,
-                          const int32_t start = 0, const int32_t end = 0);
 
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
