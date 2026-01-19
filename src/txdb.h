@@ -94,7 +94,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /// Migrate old synchronous index data to new async index databases
-    bool MigrateOldIndexData();
+    bool MigrateOldIndexData() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
 
 #endif // BITCOIN_TXDB_H

@@ -152,7 +152,7 @@ void SpentIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, c
     const CBlockIndex* best_block_index = CurrentIndex();
 
     // Only rewind if we have this block indexed
-    if (best_block_index && best_block_index->nHeight >= pindex->nHeight) {
+    if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (!Rewind(best_block_index, pindex->pprev)) {
             error("%s: Failed to rewind %s to previous block after disconnect",
                  __func__, GetName());
@@ -162,7 +162,7 @@ void SpentIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, c
 
 BaseIndex::DB& SpentIndex::GetDB() const { return *m_db; }
 
-bool SpentIndex::GetSpentInfo(CSpentIndexKey& key, CSpentIndexValue& value) const
+bool SpentIndex::GetSpentInfo(const CSpentIndexKey& key, CSpentIndexValue& value) const
 {
     if (!BlockUntilSyncedToCurrentChain()) {
         return false;

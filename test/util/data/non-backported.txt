@@ -18,8 +18,11 @@ src/evo/*.cpp
 src/evo/*.h
 src/governance/*.cpp
 src/governance/*.h
+src/index/addres*.cpp
 src/index/addres*.h
+src/index/spent*.cpp
 src/index/spent*.h
+src/index/timestamp*.cpp
 src/index/timestamp*.h
 src/instantsend/*.cpp
 src/instantsend/*.h

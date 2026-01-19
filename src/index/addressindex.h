@@ -8,6 +8,7 @@
 #include <index/addressindex_types.h>
 #include <index/base.h>
 
+#include <memory>
 #include <vector>
 
 static constexpr bool DEFAULT_ADDRESSINDEX{false};
@@ -24,8 +25,11 @@ class AddressIndex final : public BaseIndex
 {
 protected:
     class DB;
+
+private:
     const std::unique_ptr<DB> m_db;
 
+protected:
     class DB : public BaseIndex::DB
     {
     public:

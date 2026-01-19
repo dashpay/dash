@@ -811,6 +811,10 @@ static RPCHelpMan getspentinfo()
     uint256 txid = ParseHashV(txidValue, "txid");
     int outputIndex = indexValue.getInt<int>();
 
+    if (outputIndex < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid index (must be non-negative)");
+    }
+
     if (!g_spentindex) {
         throw JSONRPCError(RPC_MISC_ERROR, "Spent index is not enabled. Start with -spentindex to enable.");
     }

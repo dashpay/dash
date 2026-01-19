@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #
-# Test addressindex generation and fetching
+# Test spentindex generation and fetching
 #
 
 from decimal import Decimal

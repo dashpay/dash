@@ -73,7 +73,7 @@ public:
     virtual ~SpentIndex() override;
 
     /// Retrieve spent information for a specific output
-    bool GetSpentInfo(CSpentIndexKey& key, CSpentIndexValue& value) const;
+    bool GetSpentInfo(const CSpentIndexKey& key, CSpentIndexValue& value) const;
 };
 
 /// Global SpentIndex instance

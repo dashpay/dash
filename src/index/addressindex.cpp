@@ -60,7 +60,8 @@ bool AddressIndex::DB::ReadAddressIndex(const uint160& address_hash, const Addre
 
     while (pcursor->Valid()) {
         std::pair<uint8_t, CAddressIndexKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.m_address_bytes == address_hash) {
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX &&
+            key.second.m_address_type == type && key.second.m_address_bytes == address_hash) {
             if (end > 0 && key.second.m_block_height > end) {
                 break;
             }
@@ -89,7 +90,8 @@ bool AddressIndex::DB::ReadAddressUnspentIndex(const uint160& address_hash, cons
 
     while (pcursor->Valid()) {
         std::pair<uint8_t, CAddressUnspentKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX && key.second.m_address_bytes == address_hash) {
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX &&
+            key.second.m_address_type == type && key.second.m_address_bytes == address_hash) {
             CAddressUnspentValue value;
             if (pcursor->GetValue(value)) {
                 entries.emplace_back(key.second, value);
@@ -116,7 +118,7 @@ bool AddressIndex::DB::EraseAddressIndex(const std::vector<CAddressIndexEntry>& 
 {
     CDBBatch batch(*this);
 
-    for (const auto& [key, value] : entries) {
+    for (const auto& [key, _] : entries) {
         batch.Erase(std::make_pair(DB_ADDRESSINDEX, key));
     }
 
@@ -381,7 +383,7 @@ void AddressIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block,
     const CBlockIndex* best_block_index = CurrentIndex();
 
     // Only rewind if we have this block indexed
-    if (best_block_index && best_block_index->nHeight >= pindex->nHeight) {
+    if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (!Rewind(best_block_index, pindex->pprev)) {
             error("%s: Failed to rewind %s to previous block after disconnect",
                  __func__, GetName());

@@ -93,8 +93,8 @@ void TimestampIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& bloc
     // to remove this block's data
     const CBlockIndex* best_block_index = CurrentIndex();
 
-    // Only rewind if we have this block indexed
-    if (best_block_index && best_block_index->nHeight >= pindex->nHeight) {
+    // Only rewind if we have this block indexed and it's not the genesis block
+    if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (!Rewind(best_block_index, pindex->pprev)) {
             error("%s: Failed to rewind %s to previous block after disconnect",
                  __func__, GetName());
