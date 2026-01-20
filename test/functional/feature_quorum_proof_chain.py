@@ -17,6 +17,8 @@ class QuorumProofChainTest(DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(5, 3)
         self.set_dash_llmq_test_params(3, 2)
+        # Delay V20 activation to allow setup, then activate it for chainlock indexing
+        self.delay_v20_and_mn_rr(height=200)
 
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
@@ -24,24 +26,58 @@ class QuorumProofChainTest(DashTestFramework):
         for i in range(2, len(self.nodes)):
             self.connect_nodes(i, 1)
 
+        # Activate V20 - required for chainlock signatures in coinbase transactions
+        self.activate_v20(expected_activation_height=200)
+        self.log.info("Activated V20 at height: " + str(self.nodes[0].getblockcount()))
+
         # Enable quorum DKG
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
         # Mine quorums and wait for chainlocks
-        self.log.info("Mining quorum...")
+        self.log.info("Mining first quorum...")
         self.mine_quorum()
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
-        # Mine additional blocks to ensure chainlocks are indexed
-        self.log.info("Mining additional blocks...")
-        self.generate(self.nodes[0], 10, sync_fun=self.sync_blocks)
+        # Mine a block AFTER the chainlock is received - this embeds the CL signature in cbtx
+        # The miner includes the best known chainlock in the coinbase transaction
+        self.log.info("Mining block to embed first chainlock signature...")
+        self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks)
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+
+        # Mine a second quorum for additional chainlock coverage
+        self.log.info("Mining second quorum...")
+        self.mine_quorum()
+        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+
+        # Mine another block to embed the second chainlock
+        self.log.info("Mining block to embed second chainlock signature...")
+        self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks)
+        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+
+        # Mine additional blocks to ensure we have multiple chainlocks indexed
+        self.log.info("Mining additional blocks for chainlock indexing...")
+        for _ in range(5):
+            self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks)
+            self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+
+        # Debug: Check coinbase transaction for chainlock signature
+        self.log.info("Checking coinbase transaction for chainlock signature...")
+        block_hash = self.nodes[0].getbestblockhash()
+        block = self.nodes[0].getblock(block_hash, 2)
+        cbtx = block["cbTx"]
+        self.log.info(f"CbTx version: {cbtx['version']}")
+        if int(cbtx["version"]) > 2:
+            self.log.info(f"CbTx has bestCLHeightDiff: {cbtx.get('bestCLHeightDiff', 'N/A')}")
+            self.log.info(f"CbTx has bestCLSignature: {cbtx.get('bestCLSignature', 'N/A')[:32] + '...' if cbtx.get('bestCLSignature') else 'N/A'}")
+        else:
+            self.log.info("CbTx version is not v3 (CLSIG_AND_BALANCE) - chainlock signatures not supported")
 
         # Run tests
         self.test_chainlock_index()
         self.test_getchainlockbyheight()
         self.test_getchainlockbyheight_errors()
+        self.test_getquorumproofchain_single_step()
 
     def test_chainlock_index(self):
         """Verify chainlocks are indexed from cbtx on block connect."""
@@ -142,6 +178,30 @@ class QuorumProofChainTest(DashTestFramework):
         proof_bytes = bytearray.fromhex(proof_hex)
         proof_bytes[offset] = new_byte
         return proof_bytes.hex()
+
+    def test_getquorumproofchain_single_step(self):
+        """Test single-step proof chain generation."""
+        self.log.info("Testing single-step proof chain generation...")
+
+        llmq_type = 100
+        checkpoint = self.build_checkpoint()
+
+        # Get a quorum to use as target (one from the checkpoint)
+        target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
+
+        result = self.nodes[0].getquorumproofchain(checkpoint, target_hash, llmq_type)
+
+        # Verify structure (RPC uses camelCase)
+        assert 'headers' in result
+        assert 'chainlocks' in result
+        assert 'quorumProofs' in result  # camelCase
+        assert 'proof_hex' in result
+
+        assert len(result['headers']) == len(result['quorumProofs'])
+        assert len(result['chainlocks']) >= 1
+        assert len(result['proof_hex']) > 0
+
+        self.log.info("Single-step proof chain generation successful")
 
 
 if __name__ == '__main__':
