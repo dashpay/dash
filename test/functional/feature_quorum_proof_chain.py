@@ -79,6 +79,7 @@ class QuorumProofChainTest(DashTestFramework):
         self.test_getchainlockbyheight_errors()
         self.test_getquorumproofchain_single_step()
         self.test_verifyquorumproofchain_success()
+        self.test_verifyquorumproofchain_tampered()
 
     def test_chainlock_index(self):
         """Verify chainlocks are indexed from cbtx on block connect."""
@@ -228,6 +229,30 @@ class QuorumProofChainTest(DashTestFramework):
         assert_equal(verify_result['quorumPublicKey'], expected_pubkey)
 
         self.log.info("Proof chain verification successful")
+
+    def test_verifyquorumproofchain_tampered(self):
+        """Test that tampered proofs are rejected."""
+        self.log.info("Testing tampered proof detection...")
+
+        llmq_type = 100
+        checkpoint = self.build_checkpoint()
+        target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
+
+        # Generate valid proof
+        proof_result = self.nodes[0].getquorumproofchain(checkpoint, target_hash, llmq_type)
+        proof_hex = proof_result['proof_hex']
+
+        # Tamper with the proof (modify byte in middle of proof)
+        tampered_hex = self.tamper_proof_hex(proof_hex, len(proof_hex) // 4, 0xFF)
+
+        # Verify tampered proof fails
+        verify_result = self.nodes[0].verifyquorumproofchain(
+            checkpoint, tampered_hex, target_hash, llmq_type)
+
+        assert_equal(verify_result['valid'], False)
+        assert 'error' in verify_result
+
+        self.log.info("Tampered proof correctly rejected")
 
 
 if __name__ == '__main__':
