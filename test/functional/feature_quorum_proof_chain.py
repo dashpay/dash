@@ -80,6 +80,7 @@ class QuorumProofChainTest(DashTestFramework):
         self.test_getquorumproofchain_single_step()
         self.test_verifyquorumproofchain_success()
         self.test_verifyquorumproofchain_tampered()
+        self.test_verifyquorumproofchain_wrong_target()
 
     def test_chainlock_index(self):
         """Verify chainlocks are indexed from cbtx on block connect."""
@@ -253,6 +254,33 @@ class QuorumProofChainTest(DashTestFramework):
         assert 'error' in verify_result
 
         self.log.info("Tampered proof correctly rejected")
+
+    def test_verifyquorumproofchain_wrong_target(self):
+        """Test that wrong target quorum hash is detected."""
+        self.log.info("Testing wrong target detection...")
+
+        llmq_type = 100
+        checkpoint = self.build_checkpoint()
+
+        if len(checkpoint['chainlock_quorums']) < 2:
+            self.log.info("Need at least 2 quorums for this test, skipping")
+            return
+
+        target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
+        wrong_target = checkpoint['chainlock_quorums'][1]['quorum_hash']
+
+        # Generate proof for one quorum
+        proof_result = self.nodes[0].getquorumproofchain(checkpoint, target_hash, llmq_type)
+        proof_hex = proof_result['proof_hex']
+
+        # Verify with wrong expected target
+        verify_result = self.nodes[0].verifyquorumproofchain(
+            checkpoint, proof_hex, wrong_target, llmq_type)
+
+        assert_equal(verify_result['valid'], False)
+        assert 'error' in verify_result
+
+        self.log.info("Wrong target correctly rejected")
 
 
 if __name__ == '__main__':
