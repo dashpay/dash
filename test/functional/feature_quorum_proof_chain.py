@@ -81,6 +81,7 @@ class QuorumProofChainTest(DashTestFramework):
         self.test_verifyquorumproofchain_success()
         self.test_verifyquorumproofchain_tampered()
         self.test_verifyquorumproofchain_wrong_target()
+        self.test_verifyquorumproofchain_wrong_checkpoint()
 
     def test_chainlock_index(self):
         """Verify chainlocks are indexed from cbtx on block connect."""
@@ -281,6 +282,44 @@ class QuorumProofChainTest(DashTestFramework):
         assert 'error' in verify_result
 
         self.log.info("Wrong target correctly rejected")
+
+    def test_verifyquorumproofchain_wrong_checkpoint(self):
+        """Test that wrong checkpoint public key is detected."""
+        self.log.info("Testing wrong checkpoint detection...")
+
+        llmq_type = 100
+        checkpoint = self.build_checkpoint()
+
+        if len(checkpoint['chainlock_quorums']) < 2:
+            self.log.info("Need at least 2 quorums for this test, skipping")
+            return
+
+        target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
+
+        # Generate valid proof
+        proof_result = self.nodes[0].getquorumproofchain(checkpoint, target_hash, llmq_type)
+        proof_hex = proof_result['proof_hex']
+
+        # Create checkpoint with a different quorum's public key (valid format, but wrong key)
+        # Use the second quorum's public key for the first quorum's entry
+        wrong_pubkey = checkpoint['chainlock_quorums'][1]['public_key']
+
+        # Create checkpoint with wrong public key
+        bad_checkpoint = checkpoint.copy()
+        bad_checkpoint['chainlock_quorums'] = [{
+            'quorum_hash': checkpoint['chainlock_quorums'][0]['quorum_hash'],
+            'quorum_type': llmq_type,
+            'public_key': wrong_pubkey
+        }]
+
+        # Verify with wrong checkpoint
+        verify_result = self.nodes[0].verifyquorumproofchain(
+            bad_checkpoint, proof_hex, target_hash, llmq_type)
+
+        assert_equal(verify_result['valid'], False)
+        assert 'error' in verify_result
+
+        self.log.info("Wrong checkpoint correctly rejected")
 
 
 if __name__ == '__main__':
