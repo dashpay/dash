@@ -15,7 +15,7 @@
 
 ### Phase 3: Single-Step Proof Chain Tests
 - [x] Implement `test_getquorumproofchain_single_step()` (required bug fix in specialtxman.cpp)
-- [!] Implement `test_verifyquorumproofchain_success()` - BLOCKED: Bug found in C++ BuildProofChain
+- [x] Implement `test_verifyquorumproofchain_success()` - Fixed bugs in BuildProofChain and VerifyProofChain
 
 ### Phase 4: Verification Failure Tests
 - [ ] Implement `test_verifyquorumproofchain_tampered()`
@@ -40,6 +40,8 @@
 | 2026-01-20 | Add tamper_proof_hex() helper | Completed | d1cf5759ff9 |
 | 2026-01-20 | Fix chainlock indexing bug | Completed | 4b0d4c10b28 |
 | 2026-01-20 | test_getquorumproofchain_single_step | Completed | ec75ae26ec5 |
+| 2026-01-20 | Fix BuildProofChain & VerifyProofChain bugs | Completed | pending |
+| 2026-01-20 | test_verifyquorumproofchain_success | Completed | pending |
 
 ## Resolved: Chainlock Indexing Bug
 
@@ -47,19 +49,23 @@
 
 **Fix:** Removed the incorrect `ActiveChain().Contains(pindex)` check since `!fJustCheck` is sufficient to distinguish real block connection from validation-only.
 
-## Blocked: BuildProofChain Signer Detection Bug
+## Resolved: BuildProofChain and VerifyProofChain Bugs
 
-**Issue Found:** The `BuildProofChain` function in `quorumproofs.cpp` incorrectly identifies which quorum signed a chainlock.
+### Bug 1: BuildProofChain Signer Detection
 
-**Details:**
-- `BuildProofChain` searches for a chainlock at heights from `pMinedBlock->nHeight` to `maxSearchHeight`
-- For each height, it computes which commitment WOULD sign using `cachedCommitments`
-- The `cachedCommitments` are fetched from the chain at `pMinedBlock->nHeight - SIGN_HEIGHT_OFFSET`
-- But the actual chainlock at a higher height might have been signed by DIFFERENT active commitments
-- The function claims `KnownSigner=1` but verification fails because the actual signer differs
+**Issue:** The `BuildProofChain` function incorrectly identified which quorum signed a chainlock due to caching commitments at a fixed reference height.
 
-**Root Cause:** The code assumes commitments active at the mined block height are the same as those that actually signed the chainlock at a later height. With quorum rotation, this assumption is incorrect.
+**Root Cause:** The code cached commitments at `pMinedBlock->nHeight - SIGN_HEIGHT_OFFSET` and used them for ALL heights in the search window. With quorum rotation, the active commitments at a later chainlock height can differ.
 
-**Location:** `src/llmq/quorumproofs.cpp:655-696` (the search loop in `BuildProofChain`)
+**Fix:** Use `DetermineChainlockSigningCommitment(h, ...)` for each height `h` in the search loop, which correctly computes the signing commitment by looking at commitments at `h - SIGN_HEIGHT_OFFSET`.
 
-**Impact:** Proof chain verification fails when the target quorum is mined multiple DKG cycles after the checkpoint quorums. The proof generator thinks it found a valid signer but the actual chainlock was signed by a rotated-out quorum.
+### Bug 2: VerifyProofChain Signature Verification
+
+**Issue:** Chainlock signature verification used `blockHash` directly as the message, but chainlocks are signed using `SignHash(llmqType, quorumHash, requestId, blockHash)`.
+
+**Root Cause:** The verifier tried to verify signatures against all known public keys using only the block hash, ignoring the SignHash construction that includes the quorum hash and request ID.
+
+**Fix:**
+1. Added `signingQuorumHash` and `signingQuorumType` fields to `ChainlockProofEntry`
+2. Updated verification to build proper `SignHash` using `chainlock::GenSigRequestId(height)`
+3. Verify against the specific signing quorum's public key instead of all known keys

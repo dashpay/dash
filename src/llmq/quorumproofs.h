@@ -51,9 +51,11 @@ struct ChainlockProofEntry {
     int32_t nHeight{0};
     uint256 blockHash;
     CBLSSignature signature;
+    uint256 signingQuorumHash;           // Hash of the quorum that signed this chainlock
+    Consensus::LLMQType signingQuorumType{Consensus::LLMQType::LLMQ_NONE};  // LLMQ type of the signing quorum
 
     SERIALIZE_METHODS(ChainlockProofEntry, obj) {
-        READWRITE(obj.nHeight, obj.blockHash, obj.signature);
+        READWRITE(obj.nHeight, obj.blockHash, obj.signature, obj.signingQuorumHash, obj.signingQuorumType);
     }
 
     [[nodiscard]] UniValue ToJson() const;
