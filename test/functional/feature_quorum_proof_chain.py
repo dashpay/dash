@@ -205,17 +205,29 @@ class QuorumProofChainTest(DashTestFramework):
         self.log.info("Single-step proof chain generation successful")
 
     def test_verifyquorumproofchain_success(self):
-        """Test successful proof chain verification.
-
-        NOTE: This test is currently SKIPPED due to a bug in BuildProofChain that
-        incorrectly identifies which quorum signed a chainlock when quorum rotation
-        has occurred. The bug is in src/llmq/quorumproofs.cpp:655-696.
-        See activity.md for details.
-        """
+        """Test successful proof chain verification."""
         self.log.info("Testing proof chain verification...")
-        self.log.info("SKIPPED: BuildProofChain has a bug with signer detection after quorum rotation")
-        self.log.info("See activity.md for bug details")
-        return  # Skip until C++ bug is fixed
+
+        llmq_type = 100
+        checkpoint = self.build_checkpoint()
+        target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
+
+        # Generate proof
+        proof_result = self.nodes[0].getquorumproofchain(checkpoint, target_hash, llmq_type)
+        proof_hex = proof_result['proof_hex']
+
+        # Verify proof
+        verify_result = self.nodes[0].verifyquorumproofchain(
+            checkpoint, proof_hex, target_hash, llmq_type)
+
+        assert_equal(verify_result['valid'], True)
+        assert 'quorumPublicKey' in verify_result
+
+        # Verify the public key matches
+        expected_pubkey = checkpoint['chainlock_quorums'][0]['public_key']
+        assert_equal(verify_result['quorumPublicKey'], expected_pubkey)
+
+        self.log.info("Proof chain verification successful")
 
 
 if __name__ == '__main__':

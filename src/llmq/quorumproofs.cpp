@@ -29,62 +29,6 @@ using node::ReadBlockFromDisk;
 
 namespace llmq {
 
-/**
- * Lightweight commitment info for proof chain building.
- * Avoids repeated full CFinalCommitment deserialization by caching only the data we need.
- */
-struct CachedCommitmentInfo {
-    uint256 quorumHash;
-    CBLSPublicKey publicKey;
-    const CBlockIndex* pMinedBlock;
-    uint16_t quorumIndex;
-    Consensus::LLMQType llmqType;
-};
-
-/**
- * Compute which commitment would sign a given height using cached commitment data.
- * This is a lightweight version of SelectCommitmentForSigning that avoids DB reads.
- *
- * @param llmq_params The LLMQ parameters
- * @param commitments Cached commitment info (must be non-empty)
- * @param selectionHash The request ID for the chainlock (GenSigRequestId(height))
- * @return Index into commitments vector of the selected quorum, or std::nullopt if not found
- */
-static std::optional<size_t> ComputeSigningCommitmentIndex(
-    const Consensus::LLMQParams& llmq_params,
-    const std::vector<CachedCommitmentInfo>& commitments,
-    const uint256& selectionHash)
-{
-    assert(!commitments.empty());
-
-    if (llmq_params.useRotation) {
-        // For rotated quorums, selection is based on quorumIndex
-        int n = std::log2(llmq_params.signingActiveQuorumCount);
-        uint64_t b = selectionHash.GetUint64(3);
-        uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
-
-        for (size_t i = 0; i < commitments.size(); ++i) {
-            if (static_cast<uint64_t>(commitments[i].quorumIndex) == signer) {
-                return i;
-            }
-        }
-        return std::nullopt; // Quorum index not found in rotated quorums
-    } else {
-        // For non-rotated quorums, selection is based on hash score
-        std::vector<std::pair<uint256, size_t>> scores;
-        scores.reserve(commitments.size());
-        for (size_t i = 0; i < commitments.size(); ++i) {
-            CHashWriter h(SER_NETWORK, 0);
-            h << llmq_params.type;
-            h << commitments[i].quorumHash;
-            h << selectionHash;
-            scores.emplace_back(h.GetHash(), i);
-        }
-        std::sort(scores.begin(), scores.end());
-        return scores.front().second;
-    }
-}
-
 //
 // JSON Serialization helpers
 //
@@ -95,6 +39,8 @@ UniValue ChainlockProofEntry::ToJson() const
     obj.pushKV("height", nHeight);
     obj.pushKV("blockhash", blockHash.ToString());
     obj.pushKV("signature", signature.ToString());
+    obj.pushKV("signingQuorumHash", signingQuorumHash.ToString());
+    obj.pushKV("signingQuorumType", static_cast<int>(signingQuorumType));
     return obj;
 }
 
@@ -546,6 +492,8 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         CFinalCommitment commitment;
         int32_t chainlockHeight;
         std::optional<ChainlockIndexEntry> chainlockEntry;
+        uint256 signingQuorumHash;        // Hash of quorum that signed the chainlock
+        Consensus::LLMQType signingQuorumType{Consensus::LLMQType::LLMQ_NONE};  // Type of signing quorum
     };
     std::vector<ProofStep> proofSteps;
     std::set<uint256> visitedQuorums; // Cycle detection
@@ -600,86 +548,53 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
 
         int32_t bestBlockHeight = -1;
         int32_t bestChainlockHeight = -1;
-        size_t bestSignerIndex = 0;
+        std::optional<CFinalCommitment> bestSignerCommitment;
         std::optional<ChainlockIndexEntry> bestChainlockEntry;
 
         // Metrics for selection
         bool foundKnownSigner = false;
         int32_t oldestSignerHeight = std::numeric_limits<int32_t>::max();
 
-        // PERFORMANCE OPTIMIZATION: Fetch active commitments ONCE and cache them
-        // This avoids repeated calls to ScanCommitments and GetMinedCommitment for each height
-        std::vector<CachedCommitmentInfo> cachedCommitments;
-        {
-            // Get commitments at the start of the search window
-            int refHeight = pMinedBlock->nHeight - SIGN_HEIGHT_OFFSET;
-            if (refHeight < 0) refHeight = 0;
-            const CBlockIndex* pRefIndex = active_chain[refHeight];
-            if (!pRefIndex) {
-                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get reference block at height %d\n",
-                         __func__, refHeight);
-                return std::nullopt;
-            }
-
-            // Fetch commitments once
-            auto commitments = qman.ScanCommitments(llmq_params.type, pRefIndex, llmq_params.signingActiveQuorumCount);
-            if (commitments.empty()) {
-                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No active commitments found at height %d\n",
-                         __func__, refHeight);
-                return std::nullopt;
-            }
-
-            // Build cached info with mined block pointers
-            cachedCommitments.reserve(commitments.size());
-            for (const auto& qc : commitments) {
-                CachedCommitmentInfo info;
-                info.quorumHash = qc.quorumHash;
-                info.publicKey = qc.quorumPublicKey;
-                info.quorumIndex = qc.quorumIndex;
-                info.llmqType = qc.llmqType;
-
-                // Get mined block (single DB read per commitment, not per height)
-                uint256 minedBlockHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(qc.llmqType, qc.quorumHash);
-                info.pMinedBlock = WITH_LOCK(cs_main, return block_man.LookupBlockIndex(minedBlockHash));
-                if (!info.pMinedBlock) continue;
-                cachedCommitments.push_back(std::move(info));
-            }
-
-            if (cachedCommitments.empty()) {
-                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not resolve mined blocks for commitments\n", __func__);
-                return std::nullopt;
-            }
-        }
-
-        // Search window using cached data - no DB reads in the inner loop
+        // Search for the best chainlock to prove this quorum
+        // IMPORTANT: For each height h, the signing commitment is determined by the active
+        // quorums at height (h - SIGN_HEIGHT_OFFSET), which can differ across the search window
+        // due to quorum rotation. We must use DetermineChainlockSigningCommitment for correctness.
         for (int32_t h = pMinedBlock->nHeight; h <= maxSearchHeight; ++h) {
-            // Compute which commitment would sign this height using cached data
-            const uint256 requestId = chainlock::GenSigRequestId(h);
-            auto signerIdxOpt = ComputeSigningCommitmentIndex(llmq_params, cachedCommitments, requestId);
-            if (!signerIdxOpt.has_value()) {
-                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not determine signing quorum for height %d\n",
+            // Get chainlock for this height first (quick check before expensive commitment lookup)
+            auto clEntry = GetChainlockByHeight(h);
+            if (!clEntry.has_value()) continue;
+
+            // Determine which commitment signed this chainlock at height h
+            // This correctly handles quorum rotation by looking at commitments at (h - SIGN_HEIGHT_OFFSET)
+            auto signerCommitment = DetermineChainlockSigningCommitment(h, active_chain, qman);
+            if (!signerCommitment.has_value()) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not determine signing commitment for chainlock at height %d\n",
                          __func__, h);
                 continue;
             }
-            size_t signerIdx = signerIdxOpt.value();
-            const auto& signer = cachedCommitments[signerIdx];
 
-            bool isKnown = knownQuorumPubKeys.count(signer.publicKey);
-            int32_t signerHeight = signer.pMinedBlock->nHeight;
+            bool isKnown = knownQuorumPubKeys.count(signerCommitment->quorumPublicKey);
+
+            // Get the signer's mined block height for prioritization
+            uint256 signerMinedBlockHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(
+                signerCommitment->llmqType, signerCommitment->quorumHash);
+            const CBlockIndex* pSignerMinedBlock = WITH_LOCK(cs_main, return block_man.LookupBlockIndex(signerMinedBlockHash));
+            if (!pSignerMinedBlock) {
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not find mined block for signer %s\n",
+                         __func__, signerCommitment->quorumHash.ToString());
+                continue;
+            }
+            int32_t signerHeight = pSignerMinedBlock->nHeight;
 
             // Skip if this signer is not interesting
             bool isInteresting = isKnown || bestBlockHeight == -1 || signerHeight < oldestSignerHeight;
             if (!isInteresting) continue;
 
-            // Get chainlock for this height (DB read, but only for interesting heights)
-            auto clEntry = GetChainlockByHeight(h);
-            if (!clEntry.has_value()) continue;
-
             if (isKnown) {
                 // Found a direct bridge!
                 bestBlockHeight = h;
                 bestChainlockHeight = h;
-                bestSignerIndex = signerIdx;
+                bestSignerCommitment = signerCommitment;
                 bestChainlockEntry = clEntry;
                 foundKnownSigner = true;
                 break;
@@ -688,7 +603,7 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                 if (bestBlockHeight == -1 || signerHeight < oldestSignerHeight) {
                     bestBlockHeight = h;
                     bestChainlockHeight = h;
-                    bestSignerIndex = signerIdx;
+                    bestSignerCommitment = signerCommitment;
                     bestChainlockEntry = clEntry;
                     oldestSignerHeight = signerHeight;
                 }
@@ -704,22 +619,27 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Selected proof block %d (mined %d). KnownSigner=%d\n",
                  __func__, bestBlockHeight, pMinedBlock->nHeight, foundKnownSigner);
 
-        proofSteps.push_back({currentCommitment, bestChainlockHeight, bestChainlockEntry});
+        // Store proof step with signing quorum info
+        assert(bestSignerCommitment.has_value());
+        proofSteps.push_back({currentCommitment, bestChainlockHeight, bestChainlockEntry,
+                              bestSignerCommitment->quorumHash, bestSignerCommitment->llmqType});
 
         if (foundKnownSigner) {
              LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
              break;
         }
 
-        // Need to prove the signer - fetch full commitment now (only one DB read per step)
-        const auto& bestSigner = cachedCommitments[bestSignerIndex];
-        auto [signerCommitment, signerMinedHash] = m_quorum_block_processor.GetMinedCommitment(bestSigner.llmqType, bestSigner.quorumHash);
-        if (signerCommitment.IsNull()) {
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not fetch commitment for signer %s\n",
-                     __func__, bestSigner.quorumHash.ToString());
+        // Need to prove the signer - we already have the commitment from DetermineChainlockSigningCommitment
+        // Just need to get the mined block hash for the next iteration
+        assert(bestSignerCommitment.has_value());
+        uint256 signerMinedHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(
+            bestSignerCommitment->llmqType, bestSignerCommitment->quorumHash);
+        if (signerMinedHash.IsNull()) {
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not find mined block for signer %s\n",
+                     __func__, bestSignerCommitment->quorumHash.ToString());
             return std::nullopt;
         }
-        currentCommitment = std::move(signerCommitment);
+        currentCommitment = std::move(*bestSignerCommitment);
         currentMinedBlockHash = signerMinedHash;
     }
 
@@ -754,6 +674,8 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             clProof.nHeight = step.chainlockHeight;
             clProof.blockHash = pClBlock->GetBlockHash();
             clProof.signature = clEntry->signature;
+            clProof.signingQuorumHash = step.signingQuorumHash;
+            clProof.signingQuorumType = step.signingQuorumType;
             chain.chainlocks.push_back(clProof);
             includedChainlockHeights.insert(step.chainlockHeight);
         }
@@ -816,10 +738,12 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
         return result;
     }
 
-    // Phase 1: Build initial set of known chainlock quorum public keys from checkpoint
-    // We use a set of public keys since that's what we actually verify signatures against
-    std::set<CBLSPublicKey> knownQuorumPubKeys;
+    // Phase 1: Build maps of known chainlock quorums from checkpoint
+    // We need to look up quorums by hash (for signature verification) and track all known public keys
+    std::map<uint256, CBLSPublicKey> knownQuorumsByHash;  // quorumHash -> publicKey
+    std::set<CBLSPublicKey> knownQuorumPubKeys;           // All known public keys (for quick membership check)
     for (const auto& q : checkpoint.chainlockQuorums) {
+        knownQuorumsByHash[q.quorumHash] = q.publicKey;
         knownQuorumPubKeys.insert(q.publicKey);
     }
 
@@ -846,18 +770,29 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
                 return result;
             }
 
-            // Verify the chainlock signature against current known quorum keys
-            // For chainlocks, the message being signed is the block hash
-            // Try both BLS schemes (non-legacy post-v19, legacy pre-v19)
-            const auto verifyAgainstKey = [&chainlock](const CBLSPublicKey& pubKey) {
-                return chainlock.signature.VerifyInsecure(pubKey, chainlock.blockHash, /*specificLegacyScheme=*/false) ||
-                       chainlock.signature.VerifyInsecure(pubKey, chainlock.blockHash, /*specificLegacyScheme=*/true);
-            };
+            // Look up the signing quorum's public key
+            auto it = knownQuorumsByHash.find(chainlock.signingQuorumHash);
+            if (it == knownQuorumsByHash.end()) {
+                result.error = strprintf("Chainlock at height %d signed by unknown quorum %s",
+                                         chainlock.nHeight, chainlock.signingQuorumHash.ToString());
+                return result;
+            }
+            const CBLSPublicKey& signerPubKey = it->second;
 
-            const bool signatureVerified = std::any_of(knownQuorumPubKeys.begin(), knownQuorumPubKeys.end(), verifyAgainstKey);
+            // Build the SignHash for chainlock verification
+            // Chainlocks use: SignHash(llmqType, quorumHash, requestId, msgHash)
+            // where requestId = GenSigRequestId(height) and msgHash = blockHash
+            const uint256 requestId = chainlock::GenSigRequestId(chainlock.nHeight);
+            SignHash signHash{chainlock.signingQuorumType, chainlock.signingQuorumHash, requestId, chainlock.blockHash};
+
+            // Verify signature against the SignHash
+            // Try both BLS schemes (non-legacy post-v19, legacy pre-v19)
+            const bool signatureVerified =
+                chainlock.signature.VerifyInsecure(signerPubKey, signHash.Get(), /*specificLegacyScheme=*/false) ||
+                chainlock.signature.VerifyInsecure(signerPubKey, signHash.Get(), /*specificLegacyScheme=*/true);
 
             if (!signatureVerified) {
-                result.error = strprintf("Chainlock signature verification failed at height %d - signature does not match any known quorum key", chainlock.nHeight);
+                result.error = strprintf("Chainlock signature verification failed at height %d", chainlock.nHeight);
                 return result;
             }
 
@@ -896,7 +831,8 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
             return result;
         }
 
-        // This quorum is now proven! Add its public key to known keys for subsequent proofs
+        // This quorum is now proven! Add to known quorums for subsequent proofs
+        knownQuorumsByHash[qProof.commitment.quorumHash] = qProof.commitment.quorumPublicKey;
         knownQuorumPubKeys.insert(qProof.commitment.quorumPublicKey);
 
         // Check if this is the target quorum
