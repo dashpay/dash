@@ -664,10 +664,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
             }
 
             // Index the chainlock from cbtx for proof generation
-            // Only index if not just checking AND block is part of the active chain
-            // This prevents indexing chainlocks from blocks during a reorg
-            if (!fJustCheck && opt_cbTx->bestCLSignature.IsValid() &&
-                m_chainman.ActiveChain().Contains(pindex)) {
+            // Only index if not just checking
+            // Note: We can't check ActiveChain().Contains(pindex) here because the chain tip
+            // hasn't been updated yet during ConnectBlock - the tip is updated AFTER this function returns
+            if (!fJustCheck && opt_cbTx->bestCLSignature.IsValid()) {
                 int chainlockedHeight = pindex->nHeight - static_cast<int>(opt_cbTx->bestCLHeightDiff) - 1;
                 const CBlockIndex* pChainlockedBlock = pindex->GetAncestor(chainlockedHeight);
                 if (pChainlockedBlock) {
