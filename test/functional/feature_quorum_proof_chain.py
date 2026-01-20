@@ -82,6 +82,7 @@ class QuorumProofChainTest(DashTestFramework):
         self.test_verifyquorumproofchain_tampered()
         self.test_verifyquorumproofchain_wrong_target()
         self.test_verifyquorumproofchain_wrong_checkpoint()
+        self.test_getquorumproofchain_errors()
 
     def test_chainlock_index(self):
         """Verify chainlocks are indexed from cbtx on block connect."""
@@ -320,6 +321,25 @@ class QuorumProofChainTest(DashTestFramework):
         assert 'error' in verify_result
 
         self.log.info("Wrong checkpoint correctly rejected")
+
+    def test_getquorumproofchain_errors(self):
+        """Test getquorumproofchain error handling."""
+        self.log.info("Testing getquorumproofchain error handling...")
+
+        llmq_type = 100
+        checkpoint = self.build_checkpoint()
+
+        # Test invalid LLMQ type
+        assert_raises_rpc_error(-8, "Invalid LLMQ type",
+            self.nodes[0].getquorumproofchain, checkpoint,
+            checkpoint['chainlock_quorums'][0]['quorum_hash'], 999)
+
+        # Test non-existent quorum hash
+        fake_hash = "0" * 64
+        assert_raises_rpc_error(-5, None,
+            self.nodes[0].getquorumproofchain, checkpoint, fake_hash, llmq_type)
+
+        self.log.info("Error handling tests passed")
 
 
 if __name__ == '__main__':
