@@ -137,6 +137,12 @@ class QuorumProofChainTest(DashTestFramework):
             'chainlock_quorums': quorum_entries
         }
 
+    def tamper_proof_hex(self, proof_hex, offset, new_byte):
+        """Tamper with proof_hex at specified byte offset."""
+        proof_bytes = bytearray.fromhex(proof_hex)
+        proof_bytes[offset] = new_byte
+        return proof_bytes.hex()
+
 
 if __name__ == '__main__':
     QuorumProofChainTest().main()
