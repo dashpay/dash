@@ -16,6 +16,7 @@ from test_framework.util import assert_equal, assert_raises_rpc_error
 class QuorumProofChainTest(DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(5, 3)
+        self.set_dash_llmq_test_params(3, 2)
 
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
@@ -23,16 +24,13 @@ class QuorumProofChainTest(DashTestFramework):
         for i in range(2, len(self.nodes)):
             self.connect_nodes(i, 1)
 
-        self.activate_v20()
-        self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
-
         # Enable quorum DKG
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
         # Mine quorums and wait for chainlocks
-        self.log.info("Mining quorum cycle...")
-        self.mine_cycle_quorum()
+        self.log.info("Mining quorum...")
+        self.mine_quorum()
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         # Mine additional blocks to ensure chainlocks are indexed
@@ -111,32 +109,31 @@ class QuorumProofChainTest(DashTestFramework):
         assert_raises_rpc_error(-8, "height must be non-negative",
                                 self.nodes[0].getchainlockbyheight, -1)
 
-    def build_checkpoint(self):
-        """Build checkpoint from current chain state."""
-        # Get current chainlock quorums
-        # LLMQ_TEST type for regtest chainlocks
-        llmq_type = 104
-        try:
-            cl_quorums = self.nodes[0].quorum("list", llmq_type)
-        except Exception:
-            # If quorum list fails, try with different type
-            cl_quorums = []
+    def build_checkpoint(self, height=None):
+        """Build checkpoint from current or specified chain state."""
+        llmq_type = 100  # LLMQ_TEST for chainlocks
+
+        if height is None:
+            block_hash = self.nodes[0].getbestblockhash()
+            height = self.nodes[0].getblockcount()
+        else:
+            block_hash = self.nodes[0].getblockhash(height)
+
+        quorum_list = self.nodes[0].quorum("list")
+        cl_quorums = quorum_list.get("llmq_test", [])
 
         quorum_entries = []
         for qhash in cl_quorums:
-            try:
-                info = self.nodes[0].quorum("info", llmq_type, qhash)
-                quorum_entries.append({
-                    'quorum_hash': qhash,
-                    'quorum_type': llmq_type,
-                    'public_key': info['quorumPublicKey']
-                })
-            except Exception:
-                continue
+            info = self.nodes[0].quorum("info", llmq_type, qhash)
+            quorum_entries.append({
+                'quorum_hash': qhash,
+                'quorum_type': llmq_type,
+                'public_key': info['quorumPublicKey']
+            })
 
         return {
-            'block_hash': self.nodes[0].getbestblockhash(),
-            'height': self.nodes[0].getblockcount(),
+            'block_hash': block_hash,
+            'height': height,
             'chainlock_quorums': quorum_entries
         }
 
