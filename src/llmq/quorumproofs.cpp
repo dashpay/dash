@@ -225,19 +225,7 @@ std::optional<ChainlockIndexEntry> CQuorumProofManager::GetChainlockByHeight(int
     return std::nullopt;
 }
 
-/**
- * Helper function to build merkle proof with path tracking.
- * Returns the merkle path (sibling hashes) and side indicators.
- *
- * The algorithm works by iteratively building each level of the merkle tree
- * from leaves to root, tracking the target element's position at each level.
- *
- * At each level:
- * - We pair up elements and hash them together
- * - We record the sibling of our target element in the merkle path
- * - We track where our combined hash will be in the next level
- */
-static std::pair<std::vector<uint256>, std::vector<bool>> BuildMerkleProofPath(
+std::pair<std::vector<uint256>, std::vector<bool>> BuildMerkleProofPath(
     const std::vector<uint256>& hashes, size_t targetIndex)
 {
     std::vector<uint256> merklePath;
@@ -546,26 +534,18 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         int activeDuration = std::min(llmq_params.signingActiveQuorumCount * llmq_params.dkgInterval, 100);
         int maxSearchHeight = std::min(active_chain.Height(), pMinedBlock->nHeight + activeDuration);
 
-        int32_t bestBlockHeight = -1;
         int32_t bestChainlockHeight = -1;
         std::optional<CFinalCommitment> bestSignerCommitment;
         std::optional<ChainlockIndexEntry> bestChainlockEntry;
-
-        // Metrics for selection
         bool foundKnownSigner = false;
         int32_t oldestSignerHeight = std::numeric_limits<int32_t>::max();
 
         // Search for the best chainlock to prove this quorum
-        // IMPORTANT: For each height h, the signing commitment is determined by the active
-        // quorums at height (h - SIGN_HEIGHT_OFFSET), which can differ across the search window
-        // due to quorum rotation. We must use DetermineChainlockSigningCommitment for correctness.
+        // For each height h, the signing commitment is determined by active quorums at (h - SIGN_HEIGHT_OFFSET)
         for (int32_t h = pMinedBlock->nHeight; h <= maxSearchHeight; ++h) {
-            // Get chainlock for this height first (quick check before expensive commitment lookup)
             auto clEntry = GetChainlockByHeight(h);
             if (!clEntry.has_value()) continue;
 
-            // Determine which commitment signed this chainlock at height h
-            // This correctly handles quorum rotation by looking at commitments at (h - SIGN_HEIGHT_OFFSET)
             auto signerCommitment = DetermineChainlockSigningCommitment(h, active_chain, qman);
             if (!signerCommitment.has_value()) {
                 LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not determine signing commitment for chainlock at height %d\n",
@@ -573,10 +553,10 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                 continue;
             }
 
-            bool isKnown = knownQuorumPubKeys.count(signerCommitment->quorumPublicKey);
+            const bool isKnown = knownQuorumPubKeys.count(signerCommitment->quorumPublicKey) > 0;
 
             // Get the signer's mined block height for prioritization
-            uint256 signerMinedBlockHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(
+            const uint256 signerMinedBlockHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(
                 signerCommitment->llmqType, signerCommitment->quorumHash);
             const CBlockIndex* pSignerMinedBlock = WITH_LOCK(cs_main, return block_man.LookupBlockIndex(signerMinedBlockHash));
             if (!pSignerMinedBlock) {
@@ -584,40 +564,31 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                          __func__, signerCommitment->quorumHash.ToString());
                 continue;
             }
-            int32_t signerHeight = pSignerMinedBlock->nHeight;
+            const int32_t signerHeight = pSignerMinedBlock->nHeight;
 
-            // Skip if this signer is not interesting
-            bool isInteresting = isKnown || bestBlockHeight == -1 || signerHeight < oldestSignerHeight;
-            if (!isInteresting) continue;
+            // Skip if this signer is not interesting (neither known nor older than current best)
+            if (!isKnown && bestChainlockHeight != -1 && signerHeight >= oldestSignerHeight) continue;
+
+            // Update best candidate
+            bestChainlockHeight = h;
+            bestSignerCommitment = signerCommitment;
+            bestChainlockEntry = clEntry;
 
             if (isKnown) {
-                // Found a direct bridge!
-                bestBlockHeight = h;
-                bestChainlockHeight = h;
-                bestSignerCommitment = signerCommitment;
-                bestChainlockEntry = clEntry;
                 foundKnownSigner = true;
-                break;
-            } else {
-                // Not known. Pick the oldest signer to maximize the jump back.
-                if (bestBlockHeight == -1 || signerHeight < oldestSignerHeight) {
-                    bestBlockHeight = h;
-                    bestChainlockHeight = h;
-                    bestSignerCommitment = signerCommitment;
-                    bestChainlockEntry = clEntry;
-                    oldestSignerHeight = signerHeight;
-                }
+                break;  // Direct bridge found - no need to search further
             }
+            oldestSignerHeight = signerHeight;
         }
 
-        if (bestBlockHeight == -1) {
-             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No suitable chainlock found in active window [%d, %d]\n",
+        if (bestChainlockHeight == -1) {
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No suitable chainlock found in active window [%d, %d]\n",
                      __func__, pMinedBlock->nHeight, maxSearchHeight);
-             return std::nullopt;
+            return std::nullopt;
         }
 
         LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Selected proof block %d (mined %d). KnownSigner=%d\n",
-                 __func__, bestBlockHeight, pMinedBlock->nHeight, foundKnownSigner);
+                 __func__, bestChainlockHeight, pMinedBlock->nHeight, foundKnownSigner);
 
         // Store proof step with signing quorum info
         assert(bestSignerCommitment.has_value());
@@ -625,14 +596,12 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                               bestSignerCommitment->quorumHash, bestSignerCommitment->llmqType});
 
         if (foundKnownSigner) {
-             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
-             break;
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Signing quorum's public key is in checkpoint - chain complete!\n", __func__);
+            break;
         }
 
-        // Need to prove the signer - we already have the commitment from DetermineChainlockSigningCommitment
-        // Just need to get the mined block hash for the next iteration
-        assert(bestSignerCommitment.has_value());
-        uint256 signerMinedHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(
+        // Continue to prove the signer quorum
+        const uint256 signerMinedHash = m_quorum_block_processor.GetMinedCommitmentBlockHash(
             bestSignerCommitment->llmqType, bestSignerCommitment->quorumHash);
         if (signerMinedHash.IsNull()) {
             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not find mined block for signer %s\n",
@@ -648,50 +617,34 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
 
     // Phase 4: Construct the QuorumProofChain
     QuorumProofChain chain;
-    std::set<int32_t> includedChainlockHeights;
+    std::map<int32_t, uint32_t> chainlockHeightToIndex;
 
     for (const auto& step : proofSteps) {
-        // Add chainlock entry if not already included
-        if (!includedChainlockHeights.count(step.chainlockHeight)) {
-            std::optional<ChainlockIndexEntry> clEntry = step.chainlockEntry;
-            if (!clEntry.has_value()) {
-                clEntry = GetChainlockByHeight(step.chainlockHeight);
-            }
-            if (!clEntry.has_value()) {
+        // Get chainlock index, adding the chainlock if not already included
+        uint32_t chainlockIndex;
+        auto indexIt = chainlockHeightToIndex.find(step.chainlockHeight);
+        if (indexIt != chainlockHeightToIndex.end()) {
+            chainlockIndex = indexIt->second;
+        } else {
+            const auto clEntry = step.chainlockEntry.value_or(GetChainlockByHeight(step.chainlockHeight).value_or(ChainlockIndexEntry{}));
+            if (!clEntry.signature.IsValid()) {
                 return std::nullopt;
             }
 
-            // Get the block at the chainlock height from the active chain
-            // Note: chainlock height can be >= mined block height, so we can't use GetAncestor
             const CBlockIndex* pClBlock = active_chain[step.chainlockHeight];
             if (!pClBlock) {
-                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- FAILED: Could not get block at chainlock height %d from active chain\n",
+                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get block at chainlock height %d\n",
                          __func__, step.chainlockHeight);
                 return std::nullopt;
             }
 
-            ChainlockProofEntry clProof;
-            clProof.nHeight = step.chainlockHeight;
-            clProof.blockHash = pClBlock->GetBlockHash();
-            clProof.signature = clEntry->signature;
-            clProof.signingQuorumHash = step.signingQuorumHash;
-            clProof.signingQuorumType = step.signingQuorumType;
-            chain.chainlocks.push_back(clProof);
-            includedChainlockHeights.insert(step.chainlockHeight);
+            chainlockIndex = static_cast<uint32_t>(chain.chainlocks.size());
+            chain.chainlocks.push_back({step.chainlockHeight, pClBlock->GetBlockHash(), clEntry.signature,
+                                        step.signingQuorumHash, step.signingQuorumType});
+            chainlockHeightToIndex[step.chainlockHeight] = chainlockIndex;
         }
 
-        // Find the chainlock index for this proof step
-        uint32_t chainlockIndex = 0;
-        for (size_t i = 0; i < chain.chainlocks.size(); ++i) {
-            if (chain.chainlocks[i].nHeight == step.chainlockHeight) {
-                chainlockIndex = static_cast<uint32_t>(i);
-                break;
-            }
-        }
-
-        // Get the block at chainlock height and compute proof data for it
-        // We can't use cached proof data because it's computed for the block where
-        // the quorum was mined, not the block at chainlock height
+        // Read block and compute proof data
         const CBlockIndex* pChainlockBlock = active_chain[step.chainlockHeight];
         if (!pChainlockBlock) {
             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get block at chainlock height %d\n",
@@ -708,23 +661,16 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
 
         auto proofData = ComputeQuorumProofData(pChainlockBlock, step.commitment.llmqType,
                                                  step.commitment.quorumHash, block);
-
-        if (proofData.has_value()) {
-            QuorumCommitmentProof commitmentProof;
-            commitmentProof.commitment = step.commitment;
-            commitmentProof.chainlockIndex = chainlockIndex;
-            commitmentProof.quorumMerkleProof = proofData->quorumMerkleProof;
-            commitmentProof.coinbaseTx = proofData->coinbaseTx;
-            commitmentProof.coinbaseMerklePath = proofData->coinbaseMerklePath;
-            commitmentProof.coinbaseMerklePathSide = proofData->coinbaseMerklePathSide;
-
-            chain.quorumProofs.push_back(commitmentProof);
-            chain.headers.push_back(proofData->header);
-        } else {
+        if (!proofData.has_value()) {
             LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Failed to compute proof data for quorum %s at height %d\n",
                      __func__, step.commitment.quorumHash.ToString(), step.chainlockHeight);
             return std::nullopt;
         }
+
+        chain.quorumProofs.push_back({step.commitment, chainlockIndex, proofData->quorumMerkleProof,
+                                       proofData->coinbaseTx, proofData->coinbaseMerklePath,
+                                       proofData->coinbaseMerklePathSide});
+        chain.headers.push_back(proofData->header);
     }
 
     return chain;
@@ -754,13 +700,10 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
         return result;
     }
 
-    // Phase 1: Build maps of known chainlock quorums from checkpoint
-    // We need to look up quorums by hash (for signature verification) and track all known public keys
-    std::map<uint256, CBLSPublicKey> knownQuorumsByHash;  // quorumHash -> publicKey
-    std::set<CBLSPublicKey> knownQuorumPubKeys;           // All known public keys (for quick membership check)
+    // Build map of known chainlock quorums from checkpoint (quorumHash -> publicKey)
+    std::map<uint256, CBLSPublicKey> knownQuorumsByHash;
     for (const auto& q : checkpoint.chainlockQuorums) {
         knownQuorumsByHash[q.quorumHash] = q.publicKey;
-        knownQuorumPubKeys.insert(q.publicKey);
     }
 
     // Phase 2: Process quorum proofs IN ORDER
@@ -845,9 +788,8 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
             return result;
         }
 
-        // This quorum is now proven! Add to known quorums for subsequent proofs
+        // This quorum is now proven - add to known quorums for subsequent proofs
         knownQuorumsByHash[qProof.commitment.quorumHash] = qProof.commitment.quorumPublicKey;
-        knownQuorumPubKeys.insert(qProof.commitment.quorumPublicKey);
 
         // Check if this is the target quorum
         if (qProof.commitment.llmqType == expectedType &&

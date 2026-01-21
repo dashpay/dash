@@ -6,6 +6,7 @@
 #include <llmq/commitment.h>
 #include <llmq/options.h>
 #include <llmq/quorumproofdata.h>
+#include <llmq/quorumproofs.h>
 #include <llmq/utils.h>
 
 #include <evo/evodb.h>
@@ -162,52 +163,6 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
         ret.m_inventory.emplace_back(inv_opt.value());
     }
     return ret;
-}
-
-/**
- * Helper function to build merkle proof with path tracking.
- * Returns the merkle path (sibling hashes) and side indicators.
- */
-static std::pair<std::vector<uint256>, std::vector<bool>> BuildMerkleProofPath(
-    const std::vector<uint256>& hashes, size_t targetIndex)
-{
-    std::vector<uint256> merklePath;
-    std::vector<bool> merklePathSide;
-
-    if (hashes.empty()) {
-        return {merklePath, merklePathSide};
-    }
-
-    std::vector<uint256> current = hashes;
-    size_t index = targetIndex;
-
-    while (current.size() > 1) {
-        std::vector<uint256> next;
-        size_t nextIndex = 0;
-
-        for (size_t i = 0; i < current.size(); i += 2) {
-            size_t left = i;
-            size_t right = (i + 1 < current.size()) ? i + 1 : i;
-
-            if (index == left || index == right) {
-                if (index == left) {
-                    merklePath.push_back(current[right]);
-                    merklePathSide.push_back(true);
-                } else {
-                    merklePath.push_back(current[left]);
-                    merklePathSide.push_back(false);
-                }
-                nextIndex = next.size();
-            }
-
-            next.push_back(Hash(current[left], current[right]));
-        }
-
-        index = nextIndex;
-        current = std::move(next);
-    }
-
-    return {merklePath, merklePathSide};
 }
 
 bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state, bool fJustCheck, bool fBLSChecks)

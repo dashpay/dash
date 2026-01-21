@@ -1300,26 +1300,21 @@ static RPCHelpMan getchainlockbyheight()
     };
 }
 
-/**
- * Parse a QuorumCheckpoint from RPC JSON object.
- * Used by both getquorumproofchain and verifyquorumproofchain.
- */
+/** Parse a QuorumCheckpoint from RPC JSON object. */
 static llmq::QuorumCheckpoint ParseCheckpointFromRPC(const UniValue& checkpointObj)
 {
     llmq::QuorumCheckpoint checkpoint;
     checkpoint.blockHash = ParseHashV(checkpointObj["block_hash"], "block_hash");
     checkpoint.height = checkpointObj["height"].getInt<int32_t>();
 
-    const UniValue& quorumsArr = checkpointObj["chainlock_quorums"].get_array();
-    for (size_t i = 0; i < quorumsArr.size(); ++i) {
-        const UniValue& q = quorumsArr[i];
+    for (const auto& q : checkpointObj["chainlock_quorums"].get_array().getValues()) {
         llmq::QuorumCheckpoint::QuorumEntry entry;
         entry.quorumHash = ParseHashV(q["quorum_hash"], "quorum_hash");
         entry.quorumType = static_cast<Consensus::LLMQType>(q["quorum_type"].getInt<uint8_t>());
         if (!entry.publicKey.SetHexStr(q["public_key"].get_str(), /*specificLegacyScheme=*/false)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid public_key format");
         }
-        checkpoint.chainlockQuorums.push_back(entry);
+        checkpoint.chainlockQuorums.push_back(std::move(entry));
     }
 
     return checkpoint;
