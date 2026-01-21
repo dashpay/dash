@@ -265,9 +265,7 @@ class QuorumProofChainTest(DashTestFramework):
         llmq_type = 100
         checkpoint = self.build_checkpoint()
 
-        if len(checkpoint['chainlock_quorums']) < 2:
-            self.log.info("Need at least 2 quorums for this test, skipping")
-            return
+        assert len(checkpoint['chainlock_quorums']) >= 2, "Test setup should have mined at least 2 quorums"
 
         target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
         wrong_target = checkpoint['chainlock_quorums'][1]['quorum_hash']
@@ -292,9 +290,7 @@ class QuorumProofChainTest(DashTestFramework):
         llmq_type = 100
         checkpoint = self.build_checkpoint()
 
-        if len(checkpoint['chainlock_quorums']) < 2:
-            self.log.info("Need at least 2 quorums for this test, skipping")
-            return
+        assert len(checkpoint['chainlock_quorums']) >= 2, "Test setup should have mined at least 2 quorums"
 
         target_hash = checkpoint['chainlock_quorums'][0]['quorum_hash']
 
@@ -390,18 +386,8 @@ class QuorumProofChainTest(DashTestFramework):
 
         self.log.info(f"Verify result: {verify_result}")
 
-        # KNOWN ISSUE: Multi-step proof verification currently fails with
-        # "Quorum commitment merkle proof verification failed in proof 0"
-        # This indicates a bug in the underlying C++ proof generation/verification.
-        # For now, we document this behavior and verify the proof was at least generated.
-        if not verify_result['valid']:
-            self.log.warning(f"Multi-step proof verification failed (known issue): {verify_result.get('error', 'unknown')}")
-            # Still assert the proof was generated with expected structure
-            assert len(result['quorumProofs']) >= 1
-            assert len(result['headers']) == len(result['quorumProofs'])
-            self.log.info("Multi-step proof chain generation succeeded, verification is a known issue")
-            return
-
+        # Multi-step proof should verify successfully
+        assert_equal(verify_result['valid'], True)
         assert 'quorumPublicKey' in verify_result
 
         # Verify public key matches
