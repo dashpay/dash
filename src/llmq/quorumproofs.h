@@ -253,6 +253,18 @@ static const std::string DB_QUORUM_PROOF_INDEX_VERSION = "q_qpv";
 // Increment this when the index format changes to trigger re-migration
 static constexpr int QUORUM_PROOF_INDEX_VERSION = 1;
 
+/**
+ * Build merkle proof with path tracking.
+ * Returns the merkle path (sibling hashes) and side indicators.
+ * Used for both quorum commitment proofs and coinbase transaction proofs.
+ *
+ * @param hashes The ordered list of hashes (leaves of the merkle tree)
+ * @param targetIndex The index of the target element to build a proof for
+ * @return Pair of (sibling hashes, side indicators) where true = right sibling
+ */
+std::pair<std::vector<uint256>, std::vector<bool>> BuildMerkleProofPath(
+    const std::vector<uint256>& hashes, size_t targetIndex);
+
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_QUORUMPROOFS_H
