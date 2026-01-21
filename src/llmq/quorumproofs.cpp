@@ -689,11 +689,27 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             }
         }
 
-        // Try to get pre-computed proof data from the index (fast path)
-        auto proofData = GetQuorumProofData(step.commitment.llmqType, step.commitment.quorumHash);
+        // Get the block at chainlock height and compute proof data for it
+        // We can't use cached proof data because it's computed for the block where
+        // the quorum was mined, not the block at chainlock height
+        const CBlockIndex* pChainlockBlock = active_chain[step.chainlockHeight];
+        if (!pChainlockBlock) {
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get block at chainlock height %d\n",
+                     __func__, step.chainlockHeight);
+            return std::nullopt;
+        }
+
+        CBlock block;
+        if (!ReadBlockFromDisk(block, pChainlockBlock, Params().GetConsensus())) {
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not read block at height %d\n",
+                     __func__, step.chainlockHeight);
+            return std::nullopt;
+        }
+
+        auto proofData = ComputeQuorumProofData(pChainlockBlock, step.commitment.llmqType,
+                                                 step.commitment.quorumHash, block);
 
         if (proofData.has_value()) {
-            // Use pre-computed proof data
             QuorumCommitmentProof commitmentProof;
             commitmentProof.commitment = step.commitment;
             commitmentProof.chainlockIndex = chainlockIndex;
@@ -705,8 +721,8 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
             chain.quorumProofs.push_back(commitmentProof);
             chain.headers.push_back(proofData->header);
         } else {
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- No cached proof data for quorum %s\n",
-                     __func__, step.commitment.quorumHash.ToString());
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Failed to compute proof data for quorum %s at height %d\n",
+                     __func__, step.commitment.quorumHash.ToString(), step.chainlockHeight);
             return std::nullopt;
         }
     }
