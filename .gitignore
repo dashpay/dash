@@ -175,3 +175,4 @@ test/lint/.cppcheck/*
 # Editor and tooling
 .vscode/
 compile_commands.json
+activity.md
