@@ -801,11 +801,9 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
             const uint256 requestId = chainlock::GenSigRequestId(chainlock.nHeight);
             SignHash signHash{chainlock.signingQuorumType, chainlock.signingQuorumHash, requestId, chainlock.blockHash};
 
-            // Verify signature against the SignHash
-            // Try both BLS schemes (non-legacy post-v19, legacy pre-v19)
+            // Verify signature against the SignHash using non-legacy BLS scheme
             const bool signatureVerified =
-                chainlock.signature.VerifyInsecure(signerPubKey, signHash.Get(), /*specificLegacyScheme=*/false) ||
-                chainlock.signature.VerifyInsecure(signerPubKey, signHash.Get(), /*specificLegacyScheme=*/true);
+                chainlock.signature.VerifyInsecure(signerPubKey, signHash.Get(), /*specificLegacyScheme=*/false);
 
             if (!signatureVerified) {
                 result.error = strprintf("Chainlock signature verification failed at height %d", chainlock.nHeight);
