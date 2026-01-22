@@ -27,5 +27,8 @@ endef
 
 define $(package)_stage_cmds
   $($(package)_cargo) install --locked --path=. --bin=cxxbridge --root=$($(package)_staging_prefix_dir) && \
-  mkdir -p $($(package)_staging_prefix_dir)/lib
+  mkdir -p $($(package)_staging_prefix_dir)/lib && \
+  bash $(BASEDIR)/patches/native_rust/fix-elf-interpreter.sh \
+    $($(package)_staging_prefix_dir)/lib \
+    $($(package)_staging_prefix_dir)/bin/cxxbridge
 endef
