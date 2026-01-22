@@ -110,7 +110,12 @@ define $(package)_stage_cmds
   cp rustc/bin/rustdoc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
   cp -r rustc/lib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/ && \
   cp -r rust-std-*/lib/rustlib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/ && \
-  cp -r ../$(canonical_host)/rust-std-$($(package)_rust_target)/lib/rustlib/$($(package)_rust_target) $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/
+  cp -r ../$(canonical_host)/rust-std-$($(package)_rust_target)/lib/rustlib/$($(package)_rust_target) $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/ && \
+  bash $(BASEDIR)/patches/native_rust/fix-elf-interpreter.sh \
+    $($(package)_staging_dir)/$(host_prefix)/native/lib \
+    $($(package)_staging_dir)/$(host_prefix)/native/bin/cargo \
+    $($(package)_staging_dir)/$(host_prefix)/native/bin/rustc \
+    $($(package)_staging_dir)/$(host_prefix)/native/bin/rustdoc
 endef
 else
 
@@ -121,6 +126,11 @@ define $(package)_stage_cmds
   cp rustc/bin/rustc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
   cp rustc/bin/rustdoc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
   cp -r rustc/lib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/ && \
-  cp -r rust-std-*/lib/rustlib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/
+  cp -r rust-std-*/lib/rustlib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/ && \
+  bash $(BASEDIR)/patches/native_rust/fix-elf-interpreter.sh \
+    $($(package)_staging_dir)/$(host_prefix)/native/lib \
+    $($(package)_staging_dir)/$(host_prefix)/native/bin/cargo \
+    $($(package)_staging_dir)/$(host_prefix)/native/bin/rustc \
+    $($(package)_staging_dir)/$(host_prefix)/native/bin/rustdoc
 endef
 endif

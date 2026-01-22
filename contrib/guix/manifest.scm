@@ -8,6 +8,7 @@
              (gnu packages commencement)
              (gnu packages compression)
              (gnu packages cross-base)
+             ((gnu packages elf) #:select (patchelf))
              (gnu packages file)
              (gnu packages gawk)
              (gnu packages gcc)
@@ -533,6 +534,7 @@ inspecting signatures in Mach-O binaries.")
         libtool
         autoconf-2.71
         automake
+        patchelf
         pkg-config
         ;; Scripting
         python-minimal ;; (3.10)
