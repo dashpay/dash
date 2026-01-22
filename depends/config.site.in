@@ -95,13 +95,24 @@ LDFLAGS="-L${depends_prefix}/lib ${LDFLAGS}"
 if test -n "@CC@" -a -z "${CC}"; then
   CC="@CC@"
 fi
+if test -n "@NATIVE_CC@" -a -z "${NATIVE_CC}"; then
+  NATIVE_CC="@NATIVE_CC@"
+fi
+
 if test -n "@CXX@" -a -z "${CXX}"; then
   CXX="@CXX@"
+fi
+if test -n "@NATIVE_CXX@" -a -z "${NATIVE_CXX}"; then
+  NATIVE_CXX="@NATIVE_CXX@"
 fi
 
 if test -n "@AR@"; then
   AR="@AR@"
   ac_cv_path_AR="${AR}"
+fi
+if test -n "@NATIVE_AR@"; then
+  NATIVE_AR="@NATIVE_AR@"
+  ac_cv_path_NATIVE_AR="${NATIVE_AR}"
 fi
 
 if test -n "@RANLIB@"; then

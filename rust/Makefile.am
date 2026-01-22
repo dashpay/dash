@@ -4,26 +4,33 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 CARGO_BUILD_OPTS = --locked --target $(RUST_TARGET)
-
-# 'cc' needs preserved case
-RUST_TARGET_ENV_LOWER = $(shell echo '$(RUST_TARGET)' | tr '-' '_')
 CARGO_ENV = \
-  AR="$(AR)" \
-  AR_$(RUST_TARGET_ENV_LOWER)="$(AR)" \
-  CC="$(CC)" \
-  CC_$(RUST_TARGET_ENV_LOWER)="$(CC)" \
-  CFLAGS="$(CFLAGS)" \
-  CFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CFLAGS)" \
-  CXX="$(CXX)" \
-  CXX_$(RUST_TARGET_ENV_LOWER)="$(CXX)" \
-  CXXFLAGS="$(CXXFLAGS)" \
-  CXXFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CXXFLAGS)" \
   MACOSX_DEPLOYMENT_TARGET="$(RUST_MACOS_DEPLOYMENT_TARGET)" \
   CARGO_INCREMENTAL="$(CARGO_INCREMENTAL)" \
   RUSTC="$(RUSTC)" \
   RUSTFLAGS="$(RUSTFLAGS)" \
   TERM="dumb" \
   ${RUST_OSX_SDK+SDKROOT="$(RUST_OSX_SDK)"}
+
+# 'cargo' needs uppercase
+RUST_NATIVE_ENV_UPPER = $(shell echo '$(RUST_NATIVE)' | tr 'a-z-' 'A-Z_')
+CARGO_ENV += \
+  AR="$(NATIVE_AR)" \
+  CC="$(NATIVE_CC)" \
+  CXX="$(NATIVE_CXX)" \
+  CARGO_TARGET_$(RUST_NATIVE_ENV_UPPER)_LINKER="$(NATIVE_CC)"
+
+# 'cc' needs preserved case
+RUST_TARGET_ENV_LOWER = $(shell echo '$(RUST_TARGET)' | tr '-' '_')
+# 'cargo' needs uppercase
+RUST_TARGET_ENV_UPPER = $(shell echo '$(RUST_TARGET_ENV_LOWER)' | tr 'a-z' 'A-Z')
+CARGO_ENV += \
+  AR_$(RUST_TARGET_ENV_LOWER)="$(AR)" \
+  CC_$(RUST_TARGET_ENV_LOWER)="$(CC)" \
+  CFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CFLAGS)" \
+  CXX_$(RUST_TARGET_ENV_LOWER)="$(CXX)" \
+  CXXFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CXXFLAGS)" \
+  CARGO_TARGET_$(RUST_TARGET_ENV_UPPER)_LINKER="$(CC)"
 
 if !ENABLE_DEBUG
 CARGO_BUILD_OPTS += --release

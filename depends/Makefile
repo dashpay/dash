@@ -232,8 +232,11 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
 	@mkdir -p $(@D)
 	sed -e 's|@HOST@|$(host)|' \
             -e 's|@CC@|$(host_CC)|' \
+            -e 's|@NATIVE_CC@|$(build_CC)|' \
             -e 's|@CXX@|$(host_CXX)|' \
+            -e 's|@NATIVE_CXX@|$(build_CXX)|' \
             -e 's|@AR@|$(host_AR)|' \
+            -e 's|@NATIVE_AR@|$(build_AR)|' \
             -e 's|@RANLIB@|$(host_RANLIB)|' \
             -e 's|@NM@|$(host_NM)|' \
             -e 's|@STRIP@|$(host_STRIP)|' \

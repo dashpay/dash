@@ -243,6 +243,11 @@ case "$HOST" in
     *linux*)  HOST_LDFLAGS+=" -static-libstdc++ -static-libgcc" ;;
 esac
 
+case "$HOST" in
+    *darwin*)  export NATIVE_AR="llvm-ar" NATIVE_CC="clang" NATIVE_CXX="clang++" ;;
+    *)         export NATIVE_AR="ar" NATIVE_CC="gcc" NATIVE_CXX="g++" ;;
+esac
+
 mkdir -p "$DISTSRC"
 (
     cd "$DISTSRC"

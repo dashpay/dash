@@ -47,6 +47,7 @@ if test "${ARFLAGS+set}" != "set"; then
   ARFLAGS="cr"
 fi
 
+AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 
 AH_TOP([#ifndef DASH_CONFIG_H])
@@ -1756,26 +1757,30 @@ case $host in
     ;;
 esac
 
-RUST_TARGET=""
+AC_DEFUN([RS_SET_TRIPLE], [
+  case $2 in
+    x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
+    aarch64-*-linux*|arm64-*-linux*)
+                          $1="aarch64-unknown-linux-gnu" ;;
+    arm-*-linux*)         $1="armv7-unknown-linux-gnueabihf" ;;
+    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
+    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-gnu" ;;
+    riscv64-*-linux*)     $1="riscv64gc-unknown-linux-gnu" ;;
+    x86_64-*-linux*)      $1="x86_64-unknown-linux-gnu" ;;
+    x86_64-*-darwin*)     $1="x86_64-apple-darwin" ;;
+    aarch64-*-darwin*|arm64-*-darwin*)
+                          $1="aarch64-apple-darwin" ;;
+    x86_64-*-mingw*)      $1="x86_64-pc-windows-gnu" ;;
+    *)                    $1="" ;;
+  esac
+])
+
 AC_MSG_CHECKING([for Rust target])
-case $host in
-  x86_64-*-freebsd*)    RUST_TARGET="x86_64-unknown-freebsd" ;;
-  aarch64-*-linux*|arm64-*-linux*)
-                        RUST_TARGET="aarch64-unknown-linux-gnu" ;;
-  arm-*-linux*)         RUST_TARGET="armv7-unknown-linux-gnueabihf" ;;
-  powerpc64-*-linux*)   RUST_TARGET="powerpc64-unknown-linux-gnu" ;;
-  powerpc64le-*-linux*) RUST_TARGET="powerpc64le-unknown-linux-gnu" ;;
-  riscv64-*-linux*)     RUST_TARGET="riscv64gc-unknown-linux-gnu" ;;
-  x86_64-*-linux*)      RUST_TARGET="x86_64-unknown-linux-gnu" ;;
-  x86_64-*-darwin*)     RUST_TARGET="x86_64-apple-darwin" ;;
-  aarch64-*-darwin*|arm64-*-darwin*)
-                        RUST_TARGET="aarch64-apple-darwin" ;;
-  x86_64-*-mingw*)      RUST_TARGET="x86_64-pc-windows-gnu" ;;
-  *)
-    AC_MSG_RESULT([unknown])
-    AC_MSG_ERROR([Unsupported host for Rust: $host])
-    ;;
-esac
+RS_SET_TRIPLE([RUST_TARGET], [$host])
+if test "$RUST_TARGET" = ""; then
+  AC_MSG_RESULT([unknown])
+  AC_MSG_ERROR([Unsupported target for Rust: $host])
+fi
 AC_MSG_RESULT([$RUST_TARGET])
 
 RUST_OSX_SDK=""
@@ -1791,6 +1796,44 @@ case $host in
     AC_MSG_RESULT([$RUST_OSX_SDK])
    ;;
 esac
+
+AC_MSG_CHECKING([for Rust host])
+RS_SET_TRIPLE([RUST_NATIVE], [$build])
+if test "$RUST_NATIVE" = ""; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_RESULT([unknown])
+    AC_MSG_ERROR([Unsupported host for Rust: $build])
+  fi
+  RUST_NATIVE="$RUST_TARGET"
+fi
+AC_MSG_RESULT([$RUST_NATIVE])
+
+AC_MSG_CHECKING([for host archiver])
+if test -z "$NATIVE_AR"; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_ERROR([Cross-compilation requires NATIVE_AR to be set to host archiver, cannot continue!])
+  fi
+  NATIVE_AR="$AR"
+fi
+AC_MSG_RESULT([$NATIVE_AR])
+
+AC_MSG_CHECKING([for host C compiler])
+if test -z "$NATIVE_CC"; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_ERROR([Cross-compilation requires NATIVE_CC to be set to host C compiler, cannot continue!])
+  fi
+  NATIVE_CC="$CC"
+fi
+AC_MSG_RESULT([$NATIVE_CC])
+
+AC_MSG_CHECKING([for host C++ compiler])
+if test -z "$NATIVE_CXX"; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_ERROR([Cross-compilation requires NATIVE_CXX to be set to host C++ compiler, cannot continue!])
+  fi
+  NATIVE_CXX="$CXX"
+fi
+AC_MSG_RESULT([$NATIVE_CXX])
 
 dnl check if libgmp is present
 TEMP_CPPFLAGS="$CPPFLAGS"
@@ -2082,8 +2125,12 @@ AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
 AC_SUBST(BITCOIN_MP_NODE_NAME)
 AC_SUBST(BITCOIN_MP_GUI_NAME)
 
+AC_SUBST(NATIVE_AR)
+AC_SUBST(NATIVE_CC)
+AC_SUBST(NATIVE_CXX)
 AC_SUBST(RUST_LIBS)
 AC_SUBST(RUST_MACOS_DEPLOYMENT_TARGET)
+AC_SUBST(RUST_NATIVE)
 AC_SUBST(RUST_OSX_SDK)
 AC_SUBST(RUST_TARGET)
 
@@ -2237,8 +2284,13 @@ echo
 echo "  CARGO                        = $CARGO"
 echo "  CARGO_INCREMENTAL            = $CARGO_INCREMENTAL"
 echo "  CXXBRIDGE                    = $CXXBRIDGE"
+echo "  NATIVE_AR                    = $NATIVE_AR"
+echo "  NATIVE_CC                    = $NATIVE_CC"
+echo "  NATIVE_CXX                   = $NATIVE_CXX"
 echo "  RUSTC                        = $RUSTC"
 echo "  RUSTFLAGS                    = $RUSTFLAGS"
 echo "  RUST_MACOS_DEPLOYMENT_TARGET = $RUST_MACOS_DEPLOYMENT_TARGET"
+echo "  RUST_NATIVE                  = $RUST_NATIVE"
 echo "  RUST_OSX_SDK                 = $RUST_OSX_SDK"
+echo "  RUST_TARGET                  = $RUST_TARGET"
 echo
