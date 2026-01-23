@@ -243,7 +243,7 @@ bool CSigSharesManager::VerifySigSharesInv(Consensus::LLMQType llmqType, const C
     return llmq_params_opt.has_value() && (inv.inv.size() == size_t(llmq_params_opt->size));
 }
 
-bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv)
+bool CSigSharesManager::ProcessMessageSigShares(const CNode& pfrom, const CSigSharesInv& inv, const std::string& msg_type)
 {
     CSigSharesNodeState::SessionInfo sessionInfo;
     if (!GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId, sessionInfo)) {
@@ -262,7 +262,7 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSi
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
             sessionInfo.signHash.ToString(), inv.ToString(), pfrom.GetId());
 
-    if (!sessionInfo.quorum->HasVerificationVector()) {
+    if (msg_type == NetMsgType::QSIGSHARESINV && !sessionInfo.quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n", __func__,
                   sessionInfo.quorumHash.ToString(), pfrom.GetId());
@@ -275,37 +275,12 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode& pfrom, const CSi
     if (session == nullptr) {
         return true;
     }
-    session->announced.Merge(inv);
-    session->knows.Merge(inv);
-    return true;
-}
-
-bool CSigSharesManager::ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv)
-{
-    CSigSharesNodeState::SessionInfo sessionInfo;
-    if (!GetSessionInfoByRecvId(pfrom.GetId(), inv.sessionId, sessionInfo)) {
-        return true;
+    if (msg_type == NetMsgType::QSIGSHARESINV) {
+        session->announced.Merge(inv);
+    } else { // msg_type == msg_type == NetMsgType::QGETSIGSHARES
+        session->requested.Merge(inv);
     }
 
-    if (!VerifySigSharesInv(sessionInfo.llmqType, inv)) {
-        return false;
-    }
-
-    // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-    if (sigman.HasRecoveredSigForSession(sessionInfo.signHash.Get())) {
-        return true;
-    }
-
-    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
-            sessionInfo.signHash.ToString(), inv.ToString(), pfrom.GetId());
-
-    LOCK(cs);
-    auto& nodeState = nodeStates[pfrom.GetId()];
-    auto* session = nodeState.GetSessionByRecvId(inv.sessionId);
-    if (session == nullptr) {
-        return true;
-    }
-    session->requested.Merge(inv);
     session->knows.Merge(inv);
     return true;
 }
@@ -1211,7 +1186,7 @@ bool CSigSharesManager::SendMessages()
                 LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QGETSIGSHARES signHash=%s, inv={%s}, node=%d\n",
                          signHash.ToString(), inv.ToString(), pnode->GetId());
                 msgs.emplace_back(inv);
-                if (msgs.size() == MAX_MSGS_CNT_QGETSIGSHARES) {
+                if (msgs.size() == MAX_MSGS_CNT_QSIGSHARES) {
                     m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs));
                     msgs.clear();
                     didSend = true;
@@ -1252,7 +1227,7 @@ bool CSigSharesManager::SendMessages()
                 LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QSIGSHARESINV signHash=%s, inv={%s}, node=%d\n",
                          signHash.ToString(), inv.ToString(), pnode->GetId());
                 msgs.emplace_back(inv);
-                if (msgs.size() == MAX_MSGS_CNT_QSIGSHARESINV) {
+                if (msgs.size() == MAX_MSGS_CNT_QSIGSHARES) {
                     m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs));
                     msgs.clear();
                     didSend = true;

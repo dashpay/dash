@@ -43,8 +43,8 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         vRecv >> receivedSigShares;
 
         if (receivedSigShares.size() > CSigSharesManager::MAX_MSGS_SIG_SHARES) {
-            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QSIGSHARE message. cnt=%d, max=%d, node=%d\n", __func__,
-                     receivedSigShares.size(), CSigSharesManager::MAX_MSGS_SIG_SHARES, pfrom.GetId());
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QSIGSHARE message. cnt=%d, max=%d, node=%d\n",
+                     __func__, receivedSigShares.size(), CSigSharesManager::MAX_MSGS_SIG_SHARES, pfrom.GetId());
             m_shares_manager->BanNode(pfrom.GetId());
             return;
         }
@@ -60,7 +60,8 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         std::vector<CSigSesAnn> msgs;
         vRecv >> msgs;
         if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSESANN) {
-            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many announcements in QSIGSESANN message. cnt=%d, max=%d, node=%d\n",
+            LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                     "NetSigning::%s -- too many announcements in QSIGSESANN message. cnt=%d, max=%d, node=%d\n",
                      __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSESANN, pfrom.GetId());
             m_shares_manager->BanNode(pfrom.GetId());
             return;
@@ -71,32 +72,17 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             m_shares_manager->BanNode(pfrom.GetId());
             return;
         }
-    } else if (msg_type == NetMsgType::QSIGSHARESINV) {
+    } else if (msg_type == NetMsgType::QSIGSHARESINV || msg_type == NetMsgType::QGETSIGSHARES) {
         std::vector<CSigSharesInv> msgs;
         vRecv >> msgs;
-        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSHARESINV) {
-            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many invs in QSIGSHARESINV message. cnt=%d, max=%d, node=%d\n",
-                     __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSHARESINV, pfrom.GetId());
+        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many invs in %s message. cnt=%d, max=%d, node=%d\n",
+                     __func__, msg_type, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES, pfrom.GetId());
             m_shares_manager->BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom](const auto& inv) {
-                return m_shares_manager->ProcessMessageSigSharesInv(pfrom, inv);
-            })) {
-            m_shares_manager->BanNode(pfrom.GetId());
-            return;
-        }
-    } else if (msg_type == NetMsgType::QGETSIGSHARES) {
-        std::vector<CSigSharesInv> msgs;
-        vRecv >> msgs;
-        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QGETSIGSHARES) {
-            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many invs in QGETSIGSHARES message. cnt=%d, max=%d, node=%d\n",
-                     __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QGETSIGSHARES, pfrom.GetId());
-            m_shares_manager->BanNode(pfrom.GetId());
-            return;
-        }
-        if (!ranges::all_of(msgs, [this, &pfrom](const auto& inv) {
-                return m_shares_manager->ProcessMessageGetSigShares(pfrom, inv);
+        if (!ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
+                return m_shares_manager->ProcessMessageSigShares(pfrom, inv, msg_type);
             })) {
             m_shares_manager->BanNode(pfrom.GetId());
             return;

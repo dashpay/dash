@@ -381,8 +381,7 @@ private:
 public:
     // we try to keep total message size below 10k
     static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
-    static constexpr size_t MAX_MSGS_CNT_QGETSIGSHARES{200};
-    static constexpr size_t MAX_MSGS_CNT_QSIGSHARESINV{200};
+    static constexpr size_t MAX_MSGS_CNT_QSIGSHARES{200};
     // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
     static constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
     static constexpr size_t MAX_MSGS_SIG_SHARES{32};
@@ -452,8 +451,8 @@ private:
 public:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
     bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool ProcessMessageGetSigShares(const CNode& pfrom, const CSigSharesInv& inv) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool ProcessMessageSigShares(const CNode& pfrom, const CSigSharesInv& inv, const std::string& msg_type)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
