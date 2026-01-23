@@ -58,8 +58,8 @@
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
+#include <llmq/signhash.h>
 #include <llmq/signing.h>
-#include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
 #include <llmq/observer/context.h>
 #include <masternode/meta.h>
@@ -5470,7 +5470,6 @@ void PeerManagerImpl::ProcessMessage(
         }
         if (m_active_ctx) {
             assert(is_masternode);
-            m_active_ctx->shareman->ProcessMessage(pfrom, msg_type, vRecv);
             PostProcessMessage(m_active_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv), pfrom.GetId());
         }
         if (m_observer_ctx) {

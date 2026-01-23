@@ -19,20 +19,22 @@
 
 void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
-    if (msg_type != NetMsgType::QSIGREC) return;
+    if (msg_type == NetMsgType::QSIGREC) {
+        auto recoveredSig = std::make_shared<llmq::CRecoveredSig>();
+        vRecv >> *recoveredSig;
 
-    auto recoveredSig = std::make_shared<llmq::CRecoveredSig>();
-    vRecv >> *recoveredSig;
+        WITH_LOCK(cs_main, m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(), CInv{MSG_QUORUM_RECOVERED_SIG,
+                                                                                      recoveredSig->GetHash()}));
 
-    WITH_LOCK(cs_main, m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(),
-                                                              CInv{MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()}));
+        if (!Params().GetLLMQ(recoveredSig->getLlmqType()).has_value()) {
+            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
+            return;
+        }
 
-    if (!Params().GetLLMQ(recoveredSig->getLlmqType()).has_value()) {
-        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
-        return;
+        m_sig_manager.VerifyAndProcessRecoveredSig(pfrom.GetId(), std::move(recoveredSig));
     }
-
-    m_sig_manager.VerifyAndProcessRecoveredSig(pfrom.GetId(), std::move(recoveredSig));
+    if (m_shares_manager == nullptr) return;
+    m_shares_manager->ProcessMessage(pfrom, msg_type, vRecv);
 }
 
 void NetSigning::Start()

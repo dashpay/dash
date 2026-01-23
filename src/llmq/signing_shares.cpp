@@ -207,9 +207,6 @@ void CSigSharesManager::UnregisterRecoveryInterface()
 
 void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
-    // non-masternodes are not interested in sigshares
-    if (m_mn_activeman.GetProTxHash().IsNull()) return;
-
     if (m_sporkman.IsSporkActive(SPORK_21_QUORUM_ALL_CONNECTED) && msg_type == NetMsgType::QSIGSHARE) {
         std::vector<CSigShare> receivedSigShares;
         vRecv >> receivedSigShares;
