@@ -6,6 +6,7 @@
 
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <llmq/signing_shares.h>
 
 #include <bls/bls_batchverifier.h>
 #include <cxxtimer.hpp>
@@ -37,11 +38,21 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
 void NetSigning::Start()
 {
     // can't start new thread if we have one running already
-    if (workThread.joinable()) {
-        assert(false);
-    }
+    assert(!signing_thread.joinable());
+    assert(!shares_cleaning_thread.joinable());
+    assert(!shares_dispatcher_thread.joinable());
 
-    workThread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadMain(); });
+    signing_thread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadSigning(); });
+
+    if (m_shares_manager) {
+        // Initialize worker pool
+        int worker_count = std::clamp(static_cast<int>(std::thread::hardware_concurrency() / 2), 1, 4);
+        worker_pool.resize(worker_count);
+        RenameThreadPool(worker_pool, "sigsh-work");
+
+        shares_cleaning_thread = std::thread(&util::TraceThread, "sigsh-maint", [this] { WorkThreadCleaning(); });
+        shares_dispatcher_thread = std::thread(&util::TraceThread, "sigsh-dispat", [this] { WorkThreadDispatcher(); });
+    }
 }
 
 void NetSigning::Stop()
@@ -51,8 +62,22 @@ void NetSigning::Stop()
         assert(false);
     }
 
-    if (workThread.joinable()) {
-        workThread.join();
+    if (signing_thread.joinable()) {
+        signing_thread.join();
+    }
+
+    if (m_shares_manager) {
+        // Join threads FIRST to stop any pending push() calls
+        if (shares_cleaning_thread.joinable()) {
+            shares_cleaning_thread.join();
+        }
+        if (shares_dispatcher_thread.joinable()) {
+            shares_dispatcher_thread.join();
+        }
+
+        // Then stop worker pool (now safe, no more push() calls)
+        worker_pool.clear_queue();
+        worker_pool.stop(true);
     }
 }
 
@@ -135,7 +160,7 @@ bool NetSigning::ProcessPendingRecoveredSigs()
     return more_work;
 }
 
-void NetSigning::WorkThreadMain()
+void NetSigning::WorkThreadSigning()
 {
     while (!workInterrupt) {
         bool fMoreWork = ProcessPendingRecoveredSigs();
@@ -149,6 +174,55 @@ void NetSigning::WorkThreadMain()
         if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
             return;
         }
+    }
+}
+
+void NetSigning::WorkThreadCleaning()
+{
+    assert(m_shares_manager);
+
+    while (!workInterrupt) {
+        m_shares_manager->RemoveBannedNodeStates();
+        m_shares_manager->SendMessages();
+        m_shares_manager->Cleanup();
+
+        workInterrupt.sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+void NetSigning::WorkThreadDispatcher()
+{
+    assert(m_shares_manager);
+
+    while (!workInterrupt) {
+        // Dispatch all pending signs (individual tasks)
+        {
+            auto signs = m_shares_manager->DispatchPendingSigns();
+            // Dispatch all signs to worker pool
+            for (auto& work : signs) {
+                if (workInterrupt) break;
+
+                worker_pool.push([this, work = std::move(work)](int) mutable {
+                    m_shares_manager->SignAndProcessSingleShare(std::move(work));
+                });
+            }
+        }
+
+        if (m_shares_manager->IsAnyPendingProcessing()) {
+            // If there's processing work, spawn a helper worker
+            worker_pool.push([this](int) {
+                while (!workInterrupt) {
+                    bool moreWork = m_shares_manager->ProcessPendingSigShares();
+
+                    if (!moreWork) {
+                        return; // No work found, exit immediately
+                    }
+                }
+            });
+        }
+
+        // Always sleep briefly between checks
+        workInterrupt.sleep_for(std::chrono::milliseconds(10));
     }
 }
 

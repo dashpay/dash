@@ -5,6 +5,7 @@
 #ifndef BITCOIN_LLMQ_NET_SIGNING_H
 #define BITCOIN_LLMQ_NET_SIGNING_H
 
+#include <ctpl_stl.h>
 #include <net_processing.h>
 #include <util/threadinterrupt.h>
 #include <util/time.h>
@@ -15,15 +16,18 @@
 #include <memory>
 
 namespace llmq {
+class CSigSharesManager;
 class CSigningManager;
 } // namespace llmq
 
 class NetSigning final : public NetHandler, public CValidationInterface
 {
 public:
-    NetSigning(PeerManagerInternal* peer_manager, llmq::CSigningManager& sig_manager) :
+    NetSigning(PeerManagerInternal* peer_manager, llmq::CSigningManager& sig_manager,
+               llmq::CSigSharesManager* shares_manager) :
         NetHandler(peer_manager),
-        m_sig_manager(sig_manager)
+        m_sig_manager{sig_manager},
+        m_shares_manager{shares_manager}
     {
         workInterrupt.reset();
     }
@@ -41,13 +45,21 @@ protected:
     void Stop() override;
     void Interrupt() override { workInterrupt(); };
 
-    void WorkThreadMain();
+    void WorkThreadSigning();
+    void WorkThreadCleaning();
+    void WorkThreadDispatcher();
 
 private:
     llmq::CSigningManager& m_sig_manager;
+    llmq::CSigSharesManager* m_shares_manager;
 
     CleanupThrottler<NodeClock> cleanupThrottler;
-    std::thread workThread;
+
+    std::thread signing_thread;
+    std::thread shares_cleaning_thread;
+    std::thread shares_dispatcher_thread;
+    mutable ctpl::thread_pool worker_pool;
+
     CThreadInterrupt workInterrupt;
 };
 

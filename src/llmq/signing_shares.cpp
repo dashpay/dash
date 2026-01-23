@@ -191,51 +191,9 @@ CSigSharesManager::CSigSharesManager(CConnman& connman, CChainState& chainstate,
     qman{_qman},
     m_sporkman{sporkman}
 {
-    workInterrupt.reset();
 }
 
 CSigSharesManager::~CSigSharesManager() = default;
-
-void CSigSharesManager::Start()
-{
-    // can't start if threads are already running
-    if (housekeepingThread.joinable() || dispatcherThread.joinable()) {
-        assert(false);
-    }
-
-    // Initialize worker pool
-    int workerCount = std::clamp(static_cast<int>(std::thread::hardware_concurrency() / 2), 1, 4);
-    workerPool.resize(workerCount);
-    RenameThreadPool(workerPool, "sigsh-work");
-
-    // Start housekeeping thread
-    housekeepingThread = std::thread(&util::TraceThread, "sigsh-maint",
-        [this] { HousekeepingThreadMain(); });
-
-    // Start dispatcher thread
-    dispatcherThread = std::thread(&util::TraceThread, "sigsh-dispat",
-        [this] { WorkDispatcherThreadMain(); });
-}
-
-void CSigSharesManager::Stop()
-{
-    // make sure to call InterruptWorkerThread() first
-    if (!workInterrupt) {
-        assert(false);
-    }
-
-    // Join threads FIRST to stop any pending push() calls
-    if (housekeepingThread.joinable()) {
-        housekeepingThread.join();
-    }
-    if (dispatcherThread.joinable()) {
-        dispatcherThread.join();
-    }
-
-    // Then stop worker pool (now safe, no more push() calls)
-    workerPool.clear_queue();
-    workerPool.stop(true);
-}
 
 void CSigSharesManager::RegisterRecoveryInterface()
 {
@@ -245,11 +203,6 @@ void CSigSharesManager::RegisterRecoveryInterface()
 void CSigSharesManager::UnregisterRecoveryInterface()
 {
     sigman.UnregisterRecoveredSigsListener(this);
-}
-
-void CSigSharesManager::InterruptWorkerThread()
-{
-    workInterrupt();
 }
 
 void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
@@ -1625,79 +1578,23 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     nodeState.banned = true;
 }
 
-void CSigSharesManager::HousekeepingThreadMain()
-{
-    while (!workInterrupt) {
-        RemoveBannedNodeStates();
-        SendMessages();
-        Cleanup();
-
-        workInterrupt.sleep_for(std::chrono::milliseconds(100));
-    }
-}
-
-void CSigSharesManager::WorkDispatcherThreadMain()
-{
-    while (!workInterrupt) {
-        // Dispatch all pending signs (individual tasks)
-        DispatchPendingSigns();
-
-        // If there's processing work, spawn a helper worker
-        DispatchPendingProcessing();
-
-        // Always sleep briefly between checks
-        workInterrupt.sleep_for(std::chrono::milliseconds(10));
-    }
-}
-
-void CSigSharesManager::DispatchPendingSigns()
+std::vector<PendingSignatureData> CSigSharesManager::DispatchPendingSigns()
 {
     // Swap out entire vector to avoid lock thrashing
     std::vector<PendingSignatureData> signs;
-    {
-        LOCK(cs_pendingSigns);
-        signs.swap(pendingSigns);
-    }
 
-    // Dispatch all signs to worker pool
-    for (auto& work : signs) {
-        if (workInterrupt) break;
+    LOCK(cs_pendingSigns);
+    signs.swap(pendingSigns);
 
-        workerPool.push([this, work = std::move(work)](int) mutable {
-            SignAndProcessSingleShare(std::move(work));
-        });
-    }
+    return signs;
 }
 
-void CSigSharesManager::DispatchPendingProcessing()
+bool CSigSharesManager::IsAnyPendingProcessing() const
 {
+    LOCK(cs);
     // Check if there's work, spawn a helper if so
-    bool hasWork = false;
-    {
-        LOCK(cs);
-        hasWork = std::any_of(nodeStates.begin(), nodeStates.end(),
-            [](const auto& entry) {
-                return !entry.second.pendingIncomingSigShares.Empty();
-            });
-    }
-
-    if (hasWork) {
-        // Work exists - spawn a worker to help!
-        workerPool.push([this](int) {
-            ProcessPendingSigSharesLoop();
-        });
-    }
-}
-
-void CSigSharesManager::ProcessPendingSigSharesLoop()
-{
-    while (!workInterrupt) {
-        bool moreWork = ProcessPendingSigShares();
-
-        if (!moreWork) {
-            return;  // No work found, exit immediately
-        }
-    }
+    return std::any_of(nodeStates.begin(), nodeStates.end(),
+                       [](const auto& entry) { return !entry.second.pendingIncomingSigShares.Empty(); });
 }
 
 void CSigSharesManager::SignAndProcessSingleShare(PendingSignatureData work)

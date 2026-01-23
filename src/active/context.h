@@ -72,7 +72,6 @@ public:
                            bool quorums_recovery, bool quorums_watch);
     ~ActiveContext();
 
-    void Interrupt();
     void Start(CConnman& connman, PeerManager& peerman);
     void Stop();
 
