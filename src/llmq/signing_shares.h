@@ -378,16 +378,18 @@ private:
     static constexpr int64_t SESSION_NEW_SHARES_TIMEOUT{60};
     static constexpr int64_t SIG_SHARE_REQUEST_TIMEOUT{5};
 
+public:
     // we try to keep total message size below 10k
     static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
     static constexpr size_t MAX_MSGS_CNT_QGETSIGSHARES{200};
     static constexpr size_t MAX_MSGS_CNT_QSIGSHARESINV{200};
     // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
     static constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
+    static constexpr size_t MAX_MSGS_SIG_SHARES{32};
 
+private:
     static constexpr int64_t EXP_SEND_FOR_RECOVERY_TIMEOUT{2000};
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
-    static constexpr size_t MAX_MSGS_SIG_SHARES{32};
 
     mutable Mutex cs;
 
@@ -429,8 +431,6 @@ public:
     void RegisterRecoveryInterface() EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void UnregisterRecoveryInterface() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    void ProcessMessage(const CNode& pnode, const std::string& msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
     void AsyncSign(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
     std::optional<CSigShare> CreateSigShare(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const
@@ -449,6 +449,7 @@ public:
 private:
     std::optional<CSigShare> CreateSigShareForSingleMember(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const;
 
+public:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
     bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool ProcessMessageSigSharesInv(const CNode& pfrom, const CSigSharesInv& inv) EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -457,6 +458,7 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+private:
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
                                           const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
@@ -480,9 +482,10 @@ private:
 
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-private:
+public:
     void BanNode(NodeId nodeId) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+private:
     void CollectSigSharesToRequest(std::unordered_map<NodeId, Uint256HashMap<CSigSharesInv>>& sigSharesToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CollectSigSharesToSend(std::unordered_map<NodeId, Uint256HashMap<CBatchedSigShares>>& sigSharesToSend)

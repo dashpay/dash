@@ -15,43 +15,47 @@
 
 #include <memory>
 
+class CSporkManager;
+
 namespace llmq {
 class CSigSharesManager;
 class CSigningManager;
-} // namespace llmq
 
 class NetSigning final : public NetHandler, public CValidationInterface
 {
 public:
-    NetSigning(PeerManagerInternal* peer_manager, llmq::CSigningManager& sig_manager,
-               llmq::CSigSharesManager* shares_manager) :
+    NetSigning(PeerManagerInternal* peer_manager, CSigningManager& sig_manager, CSigSharesManager* shares_manager,
+               const CSporkManager& sporkman) :
         NetHandler(peer_manager),
         m_sig_manager{sig_manager},
-        m_shares_manager{shares_manager}
+        m_shares_manager{shares_manager},
+        m_sporkman{sporkman}
     {
         workInterrupt.reset();
     }
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
 
     [[nodiscard]] bool ProcessPendingRecoveredSigs();
-    void ProcessRecoveredSig(std::shared_ptr<const llmq::CRecoveredSig> recoveredSig, bool consider_proactive_relay);
+    void ProcessRecoveredSig(std::shared_ptr<const CRecoveredSig> recoveredSig, bool consider_proactive_relay);
 
 protected:
     // CValidationInterface
-    void NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig, bool proactive_relay) override;
+    void NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay) override;
 
     // NetSigning
     void Start() override;
     void Stop() override;
     void Interrupt() override { workInterrupt(); };
 
+private:
     void WorkThreadSigning();
     void WorkThreadCleaning();
     void WorkThreadDispatcher();
 
 private:
-    llmq::CSigningManager& m_sig_manager;
-    llmq::CSigSharesManager* m_shares_manager;
+    CSigningManager& m_sig_manager;
+    CSigSharesManager* m_shares_manager;
+    const CSporkManager& m_sporkman;
 
     CleanupThrottler<NodeClock> cleanupThrottler;
 
@@ -62,5 +66,7 @@ private:
 
     CThreadInterrupt workInterrupt;
 };
+
+} // namespace llmq
 
 #endif // BITCOIN_LLMQ_NET_SIGNING_H
