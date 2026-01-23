@@ -364,36 +364,34 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
     return true;
 }
 
-void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare)
+bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare)
 {
     auto quorum = qman.GetQuorum(sigShare.getLlmqType(), sigShare.getQuorumHash());
     if (!quorum) {
-        return;
+        return true;
     }
     if (!IsQuorumActive(sigShare.getLlmqType(), qman, quorum->qc->quorumHash)) {
         // quorum is too old
-        return;
+        return true;
     }
     if (!quorum->IsMember(m_mn_activeman.GetProTxHash())) {
         // we're not a member so we can't verify it (we actually shouldn't have received it)
-        return;
+        return true;
     }
     if (!quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, no verification possible. node=%d\n", __func__,
                  quorum->qc->quorumHash.ToString(), fromId);
-        return;
+        return true;
     }
 
     if (sigShare.getQuorumMember() >= quorum->members.size()) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
-        BanNode(fromId);
-        return;
+        return false;
     }
     if (!quorum->qc->validMembers[sigShare.getQuorumMember()]) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember not valid\n", __func__);
-        BanNode(fromId);
-        return;
+        return false;
     }
 
     const auto signHash = sigShare.GetSignHash();
@@ -409,11 +407,11 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
                      "msgHash=%s, member=%d, node=%d\n",
                      __func__, signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(),
                      sigShare.getQuorumMember(), fromId);
-            return;
+            return true;
         }
 
         if (sigShares.Has(sigShare.GetKey())) {
-            return;
+            return true;
         }
 
         auto& nodeState = nodeStates[fromId];
@@ -422,6 +420,7 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, id=%s, msgHash=%s, member=%d, node=%d\n", __func__,
              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), sigShare.getQuorumMember(), fromId);
+    return true;
 }
 
 bool CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,

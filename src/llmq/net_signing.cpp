@@ -50,7 +50,9 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         }
 
         for (const auto& sigShare : receivedSigShares) {
-            m_shares_manager->ProcessMessageSigShare(pfrom.GetId(), sigShare);
+            if (!m_shares_manager->ProcessMessageSigShare(pfrom.GetId(), sigShare)) {
+                m_shares_manager->BanNode(pfrom.GetId());
+            }
         }
     }
 
