@@ -459,19 +459,23 @@ public:
     // if ProcessMessageSigShare returns false the node should be banned
     bool ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-private:
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                          const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
-
+    // CollectPendingSigSharesToVerify returns true if there's more work to do
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
     void ProcessPendingSigShares(
         const std::vector<CSigShare>& sigSharesToProcess,
         const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+private:
+    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman,
+                                          const CQuorumManager& quorum_manager,
+                                          const CSigSharesNodeState::SessionInfo& session,
+                                          const CBatchedSigShares& batchedSigShares, bool& retBan);
 
     void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     std::shared_ptr<CRecoveredSig> TryRecoverSig(const CQuorum& quorum, const uint256& id, const uint256& msgHash)
@@ -503,7 +507,6 @@ public:
     // Dispatcher functions
     std::vector<PendingSignatureData> DispatchPendingSigns() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     // Worker pool task functions
-    bool ProcessPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool IsAnyPendingProcessing() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void SignAndProcessSingleShare(PendingSignatureData work) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
 };

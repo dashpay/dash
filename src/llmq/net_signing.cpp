@@ -4,6 +4,7 @@
 
 #include <llmq/net_signing.h>
 
+#include <llmq/quorums.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
@@ -286,7 +287,7 @@ void NetSigning::WorkThreadDispatcher()
             // If there's processing work, spawn a helper worker
             worker_pool.push([this](int) {
                 while (!workInterrupt) {
-                    bool moreWork = m_shares_manager->ProcessPendingSigShares();
+                    bool moreWork = ProcessPendingSigShares();
 
                     if (!moreWork) {
                         return; // No work found, exit immediately
@@ -303,6 +304,78 @@ void NetSigning::WorkThreadDispatcher()
 void NetSigning::NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay)
 {
     m_peer_manager->PeerRelayRecoveredSig(*sig, proactive_relay);
+}
+
+bool NetSigning::ProcessPendingSigShares()
+{
+    std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
+
+    const size_t nMaxBatchSize{32};
+    bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+    if (sigSharesByNodes.empty()) {
+        return false;
+    }
+
+    // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
+    // which are not craftable by individual entities, making the rogue public key attack impossible
+    CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
+
+    cxxtimer::Timer prepareTimer(true);
+    size_t verifyCount = 0;
+    for (const auto& [nodeId, v] : sigSharesByNodes) {
+        for (const auto& sigShare : v) {
+            if (m_sig_manager.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+                continue;
+            }
+
+            // Materialize the signature once. Get() internally validates, so if it returns an invalid signature,
+            // we know it's malformed. This avoids calling Get() twice (once for IsValid(), once for PushMessage).
+            CBLSSignature sig = sigShare.sigShare.Get();
+            // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
+            // deserialization in the message thread
+            if (!sig.IsValid()) {
+                m_shares_manager->BanNode(nodeId);
+                // don't process any additional shares from this node
+                break;
+            }
+
+            auto quorum = quorums.at(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash()));
+            auto pubKeyShare = quorum->GetPubKeyShare(sigShare.getQuorumMember());
+
+            if (!pubKeyShare.IsValid()) {
+                // this should really not happen (we already ensured we have the quorum vvec,
+                // so we should also be able to create all pubkey shares)
+                LogPrintf("NetSigning::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
+                assert(false);
+            }
+
+            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sig, pubKeyShare);
+            verifyCount++;
+        }
+    }
+    prepareTimer.stop();
+
+    cxxtimer::Timer verifyTimer(true);
+    batchVerifier.Verify();
+    verifyTimer.stop();
+
+    LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- verified sig shares. count=%d, pt=%d, vt=%d, nodes=%d\n", __func__,
+             verifyCount, prepareTimer.count(), verifyTimer.count(), sigSharesByNodes.size());
+
+    for (const auto& [nodeId, v] : sigSharesByNodes) {
+        if (batchVerifier.badSources.count(nodeId) != 0) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- invalid sig shares from other node, banning peer=%d\n",
+                     __func__, nodeId);
+            // this will also cause re-requesting of the shares that were sent by this node
+            m_shares_manager->BanNode(nodeId);
+            continue;
+        }
+
+        m_shares_manager->ProcessPendingSigShares(v, quorums);
+    }
+
+    return more_work;
 }
 
 } // namespace llmq
