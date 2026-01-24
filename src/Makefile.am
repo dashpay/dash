@@ -1201,7 +1201,7 @@ endif
 libcxxbridge_la_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
 libcxxbridge_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS) -static
 libcxxbridge_la_LDFLAGS = $(AM_LDFLAGS) -static
-libcxxbridge_la_SOURCES = $(LIBRUSTDEPS_CPP)
+nodist_libcxxbridge_la_SOURCES = $(LIBRUSTDEPS_CPP)
 
 $(libcxxbridge_la_OBJECTS): $(LIBRUSTDEPS_H)
 #
