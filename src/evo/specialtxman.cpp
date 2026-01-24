@@ -24,6 +24,7 @@
 #include <evo/simplifiedmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/quorumproofs.h>
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 
@@ -662,6 +663,23 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                 return false;
             }
 
+            // Index the chainlock from cbtx for proof generation
+            // Only index if not just checking
+            // Note: We can't check ActiveChain().Contains(pindex) here because the chain tip
+            // hasn't been updated yet during ConnectBlock - the tip is updated AFTER this function returns
+            if (!fJustCheck && opt_cbTx->bestCLSignature.IsValid()) {
+                int chainlockedHeight = pindex->nHeight - static_cast<int>(opt_cbTx->bestCLHeightDiff) - 1;
+                const CBlockIndex* pChainlockedBlock = pindex->GetAncestor(chainlockedHeight);
+                if (pChainlockedBlock) {
+                    m_quorum_proof_manager.IndexChainlock(
+                        chainlockedHeight,
+                        pChainlockedBlock->GetBlockHash(),
+                        opt_cbTx->bestCLSignature,
+                        pindex->GetBlockHash(),
+                        pindex->nHeight);
+                }
+            }
+
             int64_t nTime6_3 = GetTimeMicros();
             nTimeCbTxCL += nTime6_3 - nTime6_2;
             LogPrint(BCLog::BENCHMARK, "      - CheckCbTxBestChainlock: %.2fms [%.2fs]\n",
@@ -718,6 +736,14 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const CBlock& block, const CBloc
 
         if (!m_qblockman.UndoBlock(block, pindex)) {
             return false;
+        }
+
+        // Remove chainlock index for this block's cbtx
+        if (block.vtx.size() > 0 && block.vtx[0]->nType == TRANSACTION_COINBASE) {
+            if (const auto opt_cbTx = GetTxPayload<CCbTx>(*block.vtx[0]); opt_cbTx && opt_cbTx->bestCLSignature.IsValid()) {
+                int chainlockedHeight = pindex->nHeight - static_cast<int>(opt_cbTx->bestCLHeightDiff) - 1;
+                m_quorum_proof_manager.RemoveChainlockIndex(chainlockedHeight);
+            }
         }
     } catch (const std::exception& e) {
         bls::bls_legacy_scheme.store(bls_legacy_scheme);

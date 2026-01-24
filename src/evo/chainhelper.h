@@ -26,6 +26,7 @@ class CChainLocksHandler;
 class CInstantSendManager;
 class CQuorumBlockProcessor;
 class CQuorumManager;
+class CQuorumProofManager;
 class CQuorumSnapshotManager;
 }
 
@@ -44,7 +45,8 @@ public:
                                llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
                                const ChainstateManager& chainman, const Consensus::Params& consensus_params,
                                const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
-                               const llmq::CChainLocksHandler& clhandler, const llmq::CQuorumManager& qman);
+                               const llmq::CChainLocksHandler& clhandler, const llmq::CQuorumManager& qman,
+                               llmq::CQuorumProofManager& quorum_proof_manager);
     ~CChainstateHelper();
 
     /** Passthrough functions to CChainLocksHandler */

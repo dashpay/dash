@@ -5,6 +5,8 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
+#include <llmq/quorumproofdata.h>
+#include <llmq/quorumproofs.h>
 #include <llmq/utils.h>
 
 #include <evo/evodb.h>
@@ -16,6 +18,7 @@
 #include <consensus/params.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
+#include <hash.h>
 #include <net.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -230,6 +233,78 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
         }
     }
 
+    // Store quorum proof data for fast proof chain generation (only for actual block processing, not just checking)
+    if (!fJustCheck) {
+        // Get active commitments up to this block's previous block (matching CalcCbTxMerkleRootQuorums logic)
+        auto commitmentsMap = GetMinedAndActiveCommitmentsUntilBlock(pindex->pprev);
+
+        // Collect all commitment hashes for merkle root calculation
+        std::vector<uint256> allCommitmentHashes;
+        for (const auto& [type, blockIndexes] : commitmentsMap) {
+            for (const auto* blockIndex : blockIndexes) {
+                uint256 commitmentHash = GetMinedCommitmentTxHash(type, blockIndex->GetBlockHash());
+                if (commitmentHash != uint256::ZERO) {
+                    allCommitmentHashes.push_back(commitmentHash);
+                }
+            }
+        }
+
+        // Add commitments from current block
+        for (size_t i = 1; i < block.vtx.size(); ++i) {
+            const auto& tx = block.vtx[i];
+            if (tx->IsSpecialTxVersion() && tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
+                const auto opt_qc = GetTxPayload<CFinalCommitmentTxPayload>(*tx);
+                if (opt_qc && !opt_qc->commitment.IsNull()) {
+                    allCommitmentHashes.push_back(::SerializeHash(opt_qc->commitment));
+                }
+            }
+        }
+
+        // Sort to match CalcCbTxMerkleRootQuorums
+        std::sort(allCommitmentHashes.begin(), allCommitmentHashes.end());
+
+        // Build coinbase merkle proof (same for all commitments in this block)
+        std::vector<uint256> txHashes;
+        txHashes.reserve(block.vtx.size());
+        for (const auto& tx : block.vtx) {
+            txHashes.push_back(tx->GetHash());
+        }
+        auto [cbPath, cbSide] = BuildMerkleProofPath(txHashes, 0);
+
+        // Store proof data for each non-null commitment in this block
+        for (const auto& [type, qc] : qcs) {
+            if (qc.IsNull()) continue;
+
+            // Find commitment hash in sorted list
+            uint256 targetHash = ::SerializeHash(qc);
+            auto it = std::find(allCommitmentHashes.begin(), allCommitmentHashes.end(), targetHash);
+            if (it == allCommitmentHashes.end()) {
+                LogPrint(BCLog::LLMQ, "[ProcessBlock] Could not find commitment hash for %s in active set\n",
+                         qc.quorumHash.ToString());
+                continue;
+            }
+            size_t targetIndex = std::distance(allCommitmentHashes.begin(), it);
+
+            // Build quorum merkle proof
+            auto [qPath, qSide] = BuildMerkleProofPath(allCommitmentHashes, targetIndex);
+
+            // Store proof data
+            QuorumProofData proofData;
+            proofData.quorumMerkleProof.merklePath = std::move(qPath);
+            proofData.quorumMerkleProof.merklePathSide = std::move(qSide);
+            proofData.coinbaseTx = block.vtx[0];
+            proofData.coinbaseMerklePath = cbPath;  // Copy since reused
+            proofData.coinbaseMerklePathSide = cbSide;
+            proofData.header = block.GetBlockHeader();
+
+            auto proofKey = std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(qc.llmqType, qc.quorumHash));
+            m_evoDb.Write(proofKey, proofData);
+
+            LogPrint(BCLog::LLMQ, "[ProcessBlock] Stored proof data for quorum %s type=%d\n",
+                     qc.quorumHash.ToString(), ToUnderlying(qc.llmqType));
+        }
+    }
+
     m_evoDb.Write(DB_BEST_BLOCK_UPGRADE, blockHash);
 
     return true;
@@ -399,6 +474,9 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
 
         m_evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
 
+        // Also erase the cached proof data
+        m_evoDb.Erase(std::make_pair(DB_QUORUM_PROOF_DATA, std::make_pair(qc.llmqType, qc.quorumHash)));
+
         const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
         assert(llmq_params_opt.has_value());
 
@@ -523,6 +601,61 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
         return {CFinalCommitment{}, uint256::ZERO};
     }
     return ret;
+}
+
+uint256 CQuorumBlockProcessor::GetMinedCommitmentTxHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+{
+    auto key = std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorumHash));
+    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+    ssKey << key;
+
+    // Fast path: try to read raw data from disk to avoid deserializing BLS keys
+    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+    if (m_evoDb.GetRawDB().ReadDataStream(ssKey, ssValue)) {
+        // The data in DB is std::pair<CFinalCommitment, uint256>
+        // It's serialized as: [CFinalCommitment serialized data][uint256 serialized data]
+        // uint256 is exactly 32 bytes
+        if (ssValue.size() > 32) {
+            // We just want the hash of the CFinalCommitment part
+            // SerializeHash uses SER_GETHASH, but we have SER_DISK bytes.
+            // CFinalCommitment serialization is identical for both (as long as nVersion matches).
+            // We trust the data in DB is consistent.
+            return Hash(MakeByteSpan(ssValue).first(ssValue.size() - 32));
+        }
+    }
+
+    // Fallback: use slow path (read from memory/cache or if disk read failed)
+    // This will deserialize the full object
+    auto [commitment, _] = GetMinedCommitment(llmqType, quorumHash);
+    if (commitment.IsNull()) {
+        return uint256::ZERO;
+    }
+    return ::SerializeHash(commitment);
+}
+
+uint256 CQuorumBlockProcessor::GetMinedCommitmentBlockHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+{
+    auto key = std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorumHash));
+    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+    ssKey << key;
+
+    // Fast path: try to read raw data from disk
+    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+    if (m_evoDb.GetRawDB().ReadDataStream(ssKey, ssValue)) {
+        // The data in DB is std::pair<CFinalCommitment, uint256>
+        // It's serialized as: [CFinalCommitment serialized data][uint256 serialized data]
+        // uint256 is exactly 32 bytes and it is at the end
+        if (ssValue.size() >= 32) {
+             uint256 blockHash;
+             // Read last 32 bytes
+             std::memcpy(blockHash.begin(), ssValue.data() + ssValue.size() - 32, 32);
+             return blockHash;
+        }
+    }
+
+    // Fallback: use slow path
+    auto [_, blockHash] = GetMinedCommitment(llmqType, quorumHash);
+    return blockHash;
 }
 
 // The returned quorums are in reversed order, so the most recent one is at index 0

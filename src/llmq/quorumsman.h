@@ -89,6 +89,8 @@ private:
     mutable Mutex cs_scan_quorums; // TODO: merge cs_map_quorums, cs_scan_quorums mutexes
     mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CQuorumCPtr>>> scanQuorumsCache
         GUARDED_BY(cs_scan_quorums);
+    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache
+        GUARDED_BY(cs_scan_quorums);
 
     // On mainnet, we have around 62 quorums active at any point; let's cache a little more than double that to be safe.
     // it maps `quorum_hash` to `pindex`
@@ -149,6 +151,12 @@ public:
                                          size_t nCountRequested) const override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !m_cache_cs);
 
+    std::vector<CFinalCommitment> ScanCommitments(Consensus::LLMQType llmqType, size_t nCountRequested) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !m_cache_cs);
+    std::vector<CFinalCommitment> ScanCommitments(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
+                                                  size_t nCountRequested) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !m_cache_cs);
+
     bool IsMasternode() const;
     bool IsWatching() const;
 
@@ -184,6 +192,9 @@ private:
 static constexpr int SIGN_HEIGHT_OFFSET{8};
 
 CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
+                                   const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
+
+std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
                                    const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
 
 // Verifies a recovered sig that was signed while the chain tip was at signedAtTip

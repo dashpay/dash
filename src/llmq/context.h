@@ -24,6 +24,7 @@ class CChainLocksHandler;
 class CInstantSendManager;
 class CQuorumBlockProcessor;
 class CQuorumManager;
+class CQuorumProofManager;
 class CQuorumSnapshotManager;
 class CSigningManager;
 } // namespace llmq
@@ -58,6 +59,7 @@ public:
     const std::unique_ptr<llmq::CQuorumSnapshotManager> qsnapman;
     const std::unique_ptr<llmq::CQuorumBlockProcessor> quorum_block_processor;
     const std::unique_ptr<llmq::CQuorumManager> qman;
+    const std::unique_ptr<llmq::CQuorumProofManager> quorum_proof_manager;
     const std::unique_ptr<llmq::CSigningManager> sigman;
     const std::unique_ptr<llmq::CChainLocksHandler> clhandler;
     const std::unique_ptr<llmq::CInstantSendManager> isman;

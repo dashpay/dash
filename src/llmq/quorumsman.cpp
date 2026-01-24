@@ -306,6 +306,114 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return {vecResultQuorums.begin(), vecResultQuorums.begin() + nResultEndIndex};
 }
 
+std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQType llmqType, size_t nCountRequested) const
+{
+    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainman.ActiveTip());
+    return ScanCommitments(llmqType, pindex, nCountRequested);
+}
+
+std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQType llmqType,
+                                                     gsl::not_null<const CBlockIndex*> pindexStart,
+                                                     size_t nCountRequested) const
+{
+    if (nCountRequested == 0 || !m_chainman.IsQuorumTypeEnabled(llmqType, pindexStart)) {
+        return {};
+    }
+
+    gsl::not_null<const CBlockIndex*> pindexStore{pindexStart};
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    assert(llmq_params_opt.has_value());
+
+    // Quorum sets can only change during the mining phase of DKG.
+    // Find the closest known block index.
+    const int quorumCycleStartHeight = pindexStart->nHeight - (pindexStart->nHeight % llmq_params_opt->dkgInterval);
+    const int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowStart;
+    const int quorumCycleMiningEndHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowEnd;
+
+    if (pindexStart->nHeight < quorumCycleMiningStartHeight) {
+        // too early for this cycle, use the previous one
+        // bail out if it's below genesis block
+        if (quorumCycleMiningEndHeight < llmq_params_opt->dkgInterval) return {};
+        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
+    } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
+        // we are past the mining phase of this cycle, use it
+        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
+    }
+    // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
+
+    gsl::not_null<const CBlockIndex*> pIndexScanCommitments{pindexStore};
+    size_t nScanCommitments{nCountRequested};
+    std::vector<CFinalCommitment> vecResultCommitments;
+
+    {
+        LOCK(cs_scan_quorums);
+        if (scanCommitmentsCache.empty()) {
+            for (const auto& llmq : Params().GetConsensus().llmqs) {
+                scanCommitmentsCache.try_emplace(llmq.type, llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart));
+            }
+        }
+        auto& cache = scanCommitmentsCache[llmqType];
+        bool fCacheExists = cache.get(pindexStore->GetBlockHash(), vecResultCommitments);
+        if (fCacheExists) {
+            // We have exactly what requested so just return it
+            if (vecResultCommitments.size() == nCountRequested) {
+                return vecResultCommitments;
+            }
+            // If we have more cached than requested return only a subvector
+            if (vecResultCommitments.size() > nCountRequested) {
+                return {vecResultCommitments.begin(), vecResultCommitments.begin() + nCountRequested};
+            }
+            // If we have cached quorums but not enough, subtract what we have from the count and the set correct index where to start
+            // scanning for the rests
+            if (!vecResultCommitments.empty()) {
+                nScanCommitments -= vecResultCommitments.size();
+                // bail out if it's below genesis block
+                const CBlockIndex* pLastIndex = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(vecResultCommitments.back().quorumHash));
+                if (!pLastIndex || pLastIndex->pprev == nullptr) return {};
+                pIndexScanCommitments = pLastIndex->pprev;
+            }
+        } else {
+            // If there is nothing in cache request at least keepOldConnections because this gets cached then later
+            nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
+        }
+    }
+
+    // Get the block indexes of the mined commitments to build the required quorums from
+    std::vector<const CBlockIndex*> pQuorumBaseBlockIndexes{ llmq_params_opt->useRotation ?
+            quorumBlockProcessor.GetMinedCommitmentsIndexedUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments) :
+            quorumBlockProcessor.GetMinedCommitmentsUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments)
+    };
+    vecResultCommitments.reserve(vecResultCommitments.size() + pQuorumBaseBlockIndexes.size());
+
+    for (auto& pQuorumBaseBlockIndex : pQuorumBaseBlockIndexes) {
+        assert(pQuorumBaseBlockIndex);
+        // We assume that every quorum asked for is available to us on hand, if this
+        // fails then we can assume that something has gone wrong and we should stop
+        // trying to process any further and return a blank.
+        auto [qc, _] = quorumBlockProcessor.GetMinedCommitment(llmqType, pQuorumBaseBlockIndex->GetBlockHash());
+        if (qc.IsNull()) {
+            LogPrintf("%s: ERROR! Unexpected missing commitment with llmqType=%d, blockHash=%s\n",
+                      __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString());
+            return {};
+        }
+        vecResultCommitments.emplace_back(std::move(qc));
+    }
+
+    const size_t nCountResult{vecResultCommitments.size()};
+    if (nCountResult > 0) {
+        LOCK(cs_scan_quorums);
+        // Don't cache more than keepOldConnections elements
+        // because signing by old quorums requires the exact quorum hash
+        // to be specified and quorum scanning isn't needed there.
+        auto& cache = scanCommitmentsCache[llmqType];
+        const size_t nCacheEndIndex = std::min(nCountResult, static_cast<size_t>(llmq_params_opt->keepOldConnections));
+        cache.emplace(pindexStore->GetBlockHash(), {vecResultCommitments.begin(), vecResultCommitments.begin() + nCacheEndIndex});
+    }
+    // Don't return more than nCountRequested elements
+    const size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
+    return {vecResultCommitments.begin(), vecResultCommitments.begin() + nResultEndIndex};
+}
+
 bool CQuorumManager::IsMasternode() const
 {
     if (m_handler) {
@@ -749,5 +857,67 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain
     SignHash signHash{llmqType, quorum->qc->quorumHash, id, msgHash};
     const bool ret = sig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash.Get());
     return ret ? VerifyRecSigStatus::Valid : VerifyRecSigStatus::Invalid;
+}
+
+std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
+                                   const uint256& selectionHash, int signHeight, int signOffset)
+{
+    size_t poolSize = llmq_params.signingActiveQuorumCount;
+
+    CBlockIndex* pindexStart;
+    {
+        LOCK(::cs_main);
+        if (signHeight == -1) {
+            signHeight = active_chain.Height();
+        }
+        int startBlockHeight = signHeight - signOffset;
+        if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
+            return std::nullopt;
+        }
+        pindexStart = active_chain[startBlockHeight];
+    }
+
+    if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
+        auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);
+        if (commitments.empty()) {
+            return std::nullopt;
+        }
+        //log2 int
+        int n = std::log2(llmq_params.signingActiveQuorumCount);
+        //Extract last 64 bits of selectionHash
+        uint64_t b = selectionHash.GetUint64(3);
+        //Take last n bits of b
+        uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
+
+        if (signer > commitments.size()) {
+            return std::nullopt;
+        }
+        auto it = std::find_if(commitments.begin(),
+                                     commitments.end(),
+                                     [signer](const CFinalCommitment& obj) {
+                                         return uint64_t(obj.quorumIndex) == signer;
+                                     });
+        if (it == commitments.end()) {
+            return std::nullopt;
+        }
+        return *it;
+    } else {
+        auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);
+        if (commitments.empty()) {
+            return std::nullopt;
+        }
+
+        std::vector<std::pair<uint256, size_t>> scores;
+        scores.reserve(commitments.size());
+        for (const auto i : irange::range(commitments.size())) {
+            CHashWriter h(SER_NETWORK, 0);
+            h << llmq_params.type;
+            h << commitments[i].quorumHash;
+            h << selectionHash;
+            scores.emplace_back(h.GetHash(), i);
+        }
+        std::sort(scores.begin(), scores.end());
+        return commitments[scores.front().second];
+    }
 }
 } // namespace llmq
