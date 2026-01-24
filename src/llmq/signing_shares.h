@@ -32,7 +32,6 @@ class CNode;
 class CConnman;
 class CSporkManager;
 struct MessageProcessingResult;
-class PeerManager;
 
 namespace llmq
 {
@@ -410,7 +409,6 @@ private:
     CConnman& m_connman;
     const ChainstateManager& m_chainman;
     CSigningManager& sigman;
-    PeerManager& m_peerman;
     const CActiveMasternodeManager& m_mn_activeman;
     const CQuorumManager& qman;
     const CSporkManager& m_sporkman;
@@ -423,8 +421,8 @@ public:
     CSigSharesManager(const CSigSharesManager&) = delete;
     CSigSharesManager& operator=(const CSigSharesManager&) = delete;
     explicit CSigSharesManager(CConnman& connman, const ChainstateManager& chainman, CSigningManager& _sigman,
-                               PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
-                               const CQuorumManager& _qman, const CSporkManager& sporkman);
+                               const CActiveMasternodeManager& mn_activeman, const CQuorumManager& _qman,
+                               const CSporkManager& sporkman);
     ~CSigSharesManager() override;
 
     void RegisterRecoveryInterface() EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -465,7 +463,7 @@ public:
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    void ProcessPendingSigShares(
+    std::vector<std::shared_ptr<CRecoveredSig>> ProcessPendingSigShares(
         const std::vector<CSigShare>& sigSharesToProcess,
         const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -477,9 +475,10 @@ private:
                                           const CSigSharesNodeState::SessionInfo& session,
                                           const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    void ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    std::shared_ptr<CRecoveredSig> TryRecoverSig(const CQuorum& quorum, const uint256& id, const uint256& msgHash)
+    [[nodiscard]] std::shared_ptr<CRecoveredSig> ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    [[nodiscard]] std::shared_ptr<CRecoveredSig> TryRecoverSig(const CQuorum& quorum, const uint256& id,
+                                                               const uint256& msgHash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -509,7 +508,8 @@ public:
     std::vector<PendingSignatureData> DispatchPendingSigns() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     // Worker pool task functions
     bool IsAnyPendingProcessing() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void SignAndProcessSingleShare(PendingSignatureData work) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
+    [[nodiscard]] std::shared_ptr<CRecoveredSig> SignAndProcessSingleShare(PendingSignatureData work)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
 };
 } // namespace llmq
 

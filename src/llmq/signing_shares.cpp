@@ -14,7 +14,6 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <msg_result.h>
-#include <net_processing.h>
 #include <netmessagemaker.h>
 #include <util/irange.h>
 #include <util/thread.h>
@@ -180,12 +179,11 @@ void CSigSharesNodeState::RemoveSession(const uint256& signHash)
 //////////////////////
 
 CSigSharesManager::CSigSharesManager(CConnman& connman, const ChainstateManager& chainman, CSigningManager& _sigman,
-                                     PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
-                                     const CQuorumManager& _qman, const CSporkManager& sporkman) :
+                                     const CActiveMasternodeManager& mn_activeman, const CQuorumManager& _qman,
+                                     const CSporkManager& sporkman) :
     m_connman{connman},
     m_chainman{chainman},
     sigman{_sigman},
-    m_peerman{peerman},
     m_mn_activeman{mn_activeman},
     qman{_qman},
     m_sporkman{sporkman}
@@ -520,26 +518,30 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
 }
 
 // It's ensured that no duplicates are passed to this method
-void CSigSharesManager::ProcessPendingSigShares(
+std::vector<std::shared_ptr<CRecoveredSig>> CSigSharesManager::ProcessPendingSigShares(
     const std::vector<CSigShare>& sigSharesToProcess,
     const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums)
 {
     cxxtimer::Timer t(true);
+    std::vector<std::shared_ptr<CRecoveredSig>> recovered_sigs;
     for (const auto& sigShare : sigSharesToProcess) {
         auto quorumKey = std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash());
-        ProcessSigShare(sigShare, quorums.at(quorumKey));
+        auto rs = ProcessSigShare(sigShare, quorums.at(quorumKey));
+        if (rs != nullptr) {
+            recovered_sigs.emplace_back(std::move(rs));
+        }
     }
     t.stop();
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- processed sigShare batch. shares=%d, time=%ds\n", __func__,
              sigSharesToProcess.size(), t.count());
+    return recovered_sigs;
 }
 
 // sig shares are already verified when entering this method
-void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum)
+std::shared_ptr<CRecoveredSig> CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum)
 {
     auto llmqType = quorum->params.type;
-    bool canTryRecovery = false;
 
     const bool isAllMembersConnectedEnabled = IsAllMembersConnectedEnabled(llmqType, m_sporkman);
 
@@ -551,14 +553,15 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
     }
 
     if (sigman.HasRecoveredSigForId(llmqType, sigShare.getId())) {
-        return;
+        return nullptr;
     }
 
+    bool canTryRecovery = false;
     {
         LOCK(cs);
 
         if (!sigShares.Add(sigShare.GetKey(), sigShare)) {
-            return;
+            return nullptr;
         }
         if (!isAllMembersConnectedEnabled) {
             sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
@@ -582,24 +585,9 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CQuorum
             canTryRecovery = true;
         }
     }
+    if (!canTryRecovery) return nullptr;
 
-    if (canTryRecovery) {
-        auto rs = TryRecoverSig(*quorum, sigShare.getId(), sigShare.getMsgHash());
-        if (rs != nullptr) {
-            if (sigman.ProcessRecoveredSig(rs)) {
-                // TODO: remove duplicated code with NetSigning
-                auto listeners = sigman.GetListeners();
-                for (auto& l : listeners) {
-                    m_peerman.PostProcessMessage(l->HandleNewRecoveredSig(*rs));
-                }
-
-                bool proactive_relay = rs->getLlmqType() != Consensus::LLMQType::LLMQ_100_67 &&
-                                       rs->getLlmqType() != Consensus::LLMQType::LLMQ_400_60 &&
-                                       rs->getLlmqType() != Consensus::LLMQType::LLMQ_400_85;
-                GetMainSignals().NotifyRecoveredSig(rs, rs->GetHash().ToString(), proactive_relay);
-            }
-        }
-    }
+    return TryRecoverSig(*quorum, sigShare.getId(), sigShare.getMsgHash());
 }
 
 std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& quorum, const uint256& id,
@@ -1426,13 +1414,13 @@ bool CSigSharesManager::IsAnyPendingProcessing() const
                        [](const auto& entry) { return !entry.second.pendingIncomingSigShares.Empty(); });
 }
 
-void CSigSharesManager::SignAndProcessSingleShare(PendingSignatureData work)
+std::shared_ptr<CRecoveredSig> CSigSharesManager::SignAndProcessSingleShare(PendingSignatureData work)
 {
     auto opt_sigShare = CreateSigShare(*work.quorum, work.id, work.msgHash);
 
     if (opt_sigShare.has_value() && opt_sigShare->sigShare.Get().IsValid()) {
         auto& sigShare = *opt_sigShare;
-        ProcessSigShare(sigShare, work.quorum);
+        auto rs = ProcessSigShare(sigShare, work.quorum);
 
         if (IsAllMembersConnectedEnabled(work.quorum->params.type, m_sporkman)) {
             LOCK(cs);
@@ -1442,7 +1430,9 @@ void CSigSharesManager::SignAndProcessSingleShare(PendingSignatureData work)
             session.nextAttemptTime = 0;
             session.attempt = 0;
         }
+        return rs;
     }
+    return nullptr;
 }
 
 void CSigSharesManager::AsyncSign(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash)

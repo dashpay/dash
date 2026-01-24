@@ -29,7 +29,7 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
                              chainlock::ChainlockHandler& clhandler, llmq::CInstantSendManager& isman,
                              llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
                              llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
-                             PeerManager& peerman, const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
+                             const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
                              const llmq::QvvecSyncModeMap& sync_map, const util::DbWrapperParams& db_params,
                              bool quorums_recovery, bool quorums_watch) :
     m_isman{isman},
@@ -37,7 +37,7 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
     nodeman{std::make_unique<CActiveMasternodeManager>(connman, dmnman, operator_sk)},
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>()},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params, quorums_watch)},
-    shareman{std::make_unique<llmq::CSigSharesManager>(connman, chainman, sigman, peerman, *nodeman, qman, sporkman)},
+    shareman{std::make_unique<llmq::CSigSharesManager>(connman, chainman, sigman, *nodeman, qman, sporkman)},
     gov_signer{std::make_unique<GovernanceSigner>(connman, dmnman, govman, *nodeman, chainman, mn_sync)},
     ehf_sighandler{std::make_unique<llmq::CEHFSignalsHandler>(chainman, sigman, *shareman, qman)},
     qman_handler{std::make_unique<llmq::QuorumParticipant>(bls_worker, connman, dmnman, qman, qsnapman, *nodeman, chainman,

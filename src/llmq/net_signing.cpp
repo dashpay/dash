@@ -156,20 +156,21 @@ void NetSigning::Stop()
     }
 }
 
-void NetSigning::ProcessRecoveredSig(std::shared_ptr<const CRecoveredSig> recoveredSig, bool consider_proactive_relay)
+void NetSigning::ProcessRecoveredSig(std::shared_ptr<const CRecoveredSig> recovered_sig, bool consider_proactive_relay)
 {
-    if (!m_sig_manager.ProcessRecoveredSig(recoveredSig)) return;
+    if (recovered_sig == nullptr) return;
+    if (!m_sig_manager.ProcessRecoveredSig(recovered_sig)) return;
 
     auto listeners = m_sig_manager.GetListeners();
     for (auto& l : listeners) {
-        m_peer_manager->PeerPostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+        m_peer_manager->PeerPostProcessMessage(l->HandleNewRecoveredSig(*recovered_sig));
     }
 
     // TODO refactor to use a better abstraction analogous to IsAllMembersConnectedEnabled
-    auto proactive_relay = consider_proactive_relay && recoveredSig->getLlmqType() != Consensus::LLMQType::LLMQ_100_67 &&
-                           recoveredSig->getLlmqType() != Consensus::LLMQType::LLMQ_400_60 &&
-                           recoveredSig->getLlmqType() != Consensus::LLMQType::LLMQ_400_85;
-    GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString(), proactive_relay);
+    auto proactive_relay = consider_proactive_relay && recovered_sig->getLlmqType() != Consensus::LLMQType::LLMQ_100_67 &&
+                           recovered_sig->getLlmqType() != Consensus::LLMQType::LLMQ_400_60 &&
+                           recovered_sig->getLlmqType() != Consensus::LLMQType::LLMQ_400_85;
+    GetMainSignals().NotifyRecoveredSig(recovered_sig, recovered_sig->GetHash().ToString(), proactive_relay);
 }
 
 bool NetSigning::ProcessPendingRecoveredSigs()
@@ -301,7 +302,8 @@ void NetSigning::WorkThreadDispatcher()
                 if (workInterrupt) break;
 
                 worker_pool.push([this, work = std::move(work)](int) mutable {
-                    m_shares_manager->SignAndProcessSingleShare(std::move(work));
+                    auto rs = m_shares_manager->SignAndProcessSingleShare(std::move(work));
+                    ProcessRecoveredSig(rs, true);
                 });
             }
         }
@@ -395,7 +397,10 @@ bool NetSigning::ProcessPendingSigShares()
             continue;
         }
 
-        m_shares_manager->ProcessPendingSigShares(v, quorums);
+        auto rec_sigs = m_shares_manager->ProcessPendingSigShares(v, quorums);
+        for (auto& rs : rec_sigs) {
+            ProcessRecoveredSig(rs, true);
+        }
     }
 
     return more_work;
