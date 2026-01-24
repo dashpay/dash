@@ -180,11 +180,11 @@ void CSigSharesNodeState::RemoveSession(const uint256& signHash)
 
 //////////////////////
 
-CSigSharesManager::CSigSharesManager(CConnman& connman, CChainState& chainstate, CSigningManager& _sigman,
+CSigSharesManager::CSigSharesManager(CConnman& connman, const ChainstateManager& chainman, CSigningManager& _sigman,
                                      PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
                                      const CQuorumManager& _qman, const CSporkManager& sporkman) :
     m_connman{connman},
-    m_chainstate{chainstate},
+    m_chainman{chainman},
     sigman{_sigman},
     m_peerman{peerman},
     m_mn_activeman{mn_activeman},
@@ -719,7 +719,7 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, CSigning
             // the quorum list and no recovered signature has been created in the mean time
             const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
             assert(llmq_params_opt.has_value());
-            return SelectQuorumForSigning(llmq_params_opt.value(), m_chainstate.m_chain, qman, id);
+            return SelectQuorumForSigning(llmq_params_opt.value(), m_chainman.ActiveChain(), qman, id);
         } else {
             return qman.GetQuorum(llmqType, quorumHash);
         }

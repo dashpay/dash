@@ -28,6 +28,7 @@
 #include <vector>
 
 class CActiveMasternodeManager;
+class ChainstateManager;
 class CNode;
 class CConnman;
 class CDeterministicMN;
@@ -408,7 +409,7 @@ private:
     FastRandomContext rnd GUARDED_BY(cs);
 
     CConnman& m_connman;
-    CChainState& m_chainstate;
+    const ChainstateManager& m_chainman;
     CSigningManager& sigman;
     PeerManager& m_peerman;
     const CActiveMasternodeManager& m_mn_activeman;
@@ -422,7 +423,7 @@ public:
     CSigSharesManager() = delete;
     CSigSharesManager(const CSigSharesManager&) = delete;
     CSigSharesManager& operator=(const CSigSharesManager&) = delete;
-    explicit CSigSharesManager(CConnman& connman, CChainState& chainstate, CSigningManager& _sigman,
+    explicit CSigSharesManager(CConnman& connman, const ChainstateManager& chainman, CSigningManager& _sigman,
                                PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
                                const CQuorumManager& _qman, const CSporkManager& sporkman);
     ~CSigSharesManager() override;
