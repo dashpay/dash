@@ -9,7 +9,6 @@
 #include <evo/types.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
-#include <msg_result.h>
 
 #include <random.h>
 #include <saltedhasher.h>
@@ -31,8 +30,8 @@ class CActiveMasternodeManager;
 class ChainstateManager;
 class CNode;
 class CConnman;
-class CDeterministicMN;
 class CSporkManager;
+struct MessageProcessingResult;
 class PeerManager;
 
 namespace llmq
@@ -450,7 +449,7 @@ private:
     std::optional<CSigShare> CreateSigShareForSingleMember(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const;
 
 public:
-    // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
+    // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages) and ban node
     bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool ProcessMessageSigShares(const CNode& pfrom, const CSigSharesInv& inv, const std::string& msg_type)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
