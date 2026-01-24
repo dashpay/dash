@@ -59,7 +59,9 @@ AM_INIT_AUTOMAKE([1.13 no-define subdir-objects foreign])
 AM_MAINTAINER_MODE([enable])
 
 dnl make the compilation flags quiet unless V=1 is used
-AM_SILENT_RULES([yes])
+m4_pattern_allow([AM_DEFAULT_VERBOSITY])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],[AM_DEFAULT_VERBOSITY=1])
+AM_CONDITIONAL([SILENT_RULES], [test "$AM_DEFAULT_VERBOSITY" = '0'])
 
 dnl Compiler checks (here before libtool).
 if test "${CXXFLAGS+set}" = "set"; then
@@ -123,6 +125,31 @@ AC_PATH_TOOL([OBJDUMP], [objdump])
 AC_PATH_TOOL([DSYMUTIL], [dsymutil])
 AC_PATH_PROG([DOXYGEN], [doxygen])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test -n "$DOXYGEN"])
+
+dnl Check/return PATH for Rust dependencies
+AC_DEFUN(
+  RS_REQUIRE_PROG,
+  [
+    AC_PATH_PROG($1, $2, $2_notfound)
+    if test x${$1} = x$2_notfound
+    then
+      AC_MSG_ERROR("Required program $2 was not found")
+    fi
+  ]
+)
+RS_REQUIRE_PROG([CARGO], cargo)
+RS_REQUIRE_PROG([CXXBRIDGE], cxxbridge)
+RS_REQUIRE_PROG([RUSTC], rustc)
+
+AC_ARG_VAR([CARGO_INCREMENTAL], [Enable incremental compilation for Rust])
+if test "${CARGO_INCREMENTAL+set}" != "set"; then
+  CARGO_INCREMENTAL="0"
+fi
+
+AC_ARG_VAR([RUSTFLAGS], [Flags for Rust compiler])
+if test "${RUSTFLAGS+set}" != "set"; then
+  RUSTFLAGS="-C embed-bitcode=yes -C relocation-model=pic"
+fi
 
 AC_ARG_ENABLE([wallet],
   [AS_HELP_STRING([--disable-wallet],
@@ -1709,6 +1736,38 @@ if test "$use_zmq" = "yes"; then
   esac
 fi
 
+RUST_LIBS=""
+case $host in
+  *mingw*)
+    RUST_LIBS="$RUST_LIBS -luserenv -lntdll"
+    ;;
+  *)
+    RUST_LIBS="$RUST_LIBS -ldl"
+    ;;
+esac
+
+RUST_TARGET=""
+AC_MSG_CHECKING([for Rust target])
+case $host in
+  x86_64-*-freebsd*)    RUST_TARGET="x86_64-unknown-freebsd" ;;
+  aarch64-*-linux*|arm64-*-linux*)
+                        RUST_TARGET="aarch64-unknown-linux-gnu" ;;
+  arm-*-linux*)         RUST_TARGET="armv7-unknown-linux-gnueabihf" ;;
+  powerpc64-*-linux*)   RUST_TARGET="powerpc64-unknown-linux-gnu" ;;
+  powerpc64le-*-linux*) RUST_TARGET="powerpc64le-unknown-linux-gnu" ;;
+  riscv64-*-linux*)     RUST_TARGET="riscv64gc-unknown-linux-gnu" ;;
+  x86_64-*-linux*)      RUST_TARGET="x86_64-unknown-linux-gnu" ;;
+  x86_64-*-darwin*)     RUST_TARGET="x86_64-apple-darwin" ;;
+  aarch64-*-darwin*|arm64-*-darwin*)
+                        RUST_TARGET="aarch64-apple-darwin" ;;
+  x86_64-*-mingw*)      RUST_TARGET="x86_64-pc-windows-gnu" ;;
+  *)
+    AC_MSG_RESULT([unknown])
+    AC_MSG_ERROR([Unsupported host for Rust: $host])
+    ;;
+esac
+AC_MSG_RESULT([$RUST_TARGET])
+
 dnl check if libgmp is present
 TEMP_CPPFLAGS="$CPPFLAGS"
 TEMP_LDFLAGS="$LDFLAGS"
@@ -1999,6 +2058,9 @@ AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
 AC_SUBST(BITCOIN_MP_NODE_NAME)
 AC_SUBST(BITCOIN_MP_GUI_NAME)
 
+AC_SUBST(RUST_LIBS)
+AC_SUBST(RUST_TARGET)
+
 AC_SUBST(RELDFLAGS)
 AC_SUBST(CORE_LDFLAGS)
 AC_SUBST(CORE_CPPFLAGS)
@@ -2054,7 +2116,7 @@ AC_SUBST(HAVE_MM_PREFETCH)
 AC_SUBST(HAVE_STRONG_GETAUXVAL)
 AC_SUBST(ANDROID_ARCH)
 AC_SUBST(HAVE_EVHTTP_CONNECTION_GET_PEER_CONST_CHAR)
-AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist test/config.ini])
+AC_CONFIG_FILES([Makefile rust/Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist test/config.ini])
 AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
 AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([doc/Doxyfile])])
 AC_CONFIG_LINKS([contrib/filter-lcov.py:contrib/filter-lcov.py])
@@ -2145,4 +2207,10 @@ echo "  CXXFLAGS        = $DEBUG_CXXFLAGS $HARDENED_CXXFLAGS $WARN_CXXFLAGS $NOW
 echo "  LDFLAGS         = $PTHREAD_LIBS $HARDENED_LDFLAGS $GPROF_LDFLAGS $CORE_LDFLAGS $BACKTRACE_LDFLAGS $LDFLAGS"
 echo "  AR              = $AR"
 echo "  ARFLAGS         = $ARFLAGS"
+echo
+echo "  CARGO                        = $CARGO"
+echo "  CARGO_INCREMENTAL            = $CARGO_INCREMENTAL"
+echo "  CXXBRIDGE                    = $CXXBRIDGE"
+echo "  RUSTC                        = $RUSTC"
+echo "  RUSTFLAGS                    = $RUSTFLAGS"
 echo
