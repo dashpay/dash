@@ -150,10 +150,12 @@ MACHO_ALLOWED_LIBRARIES = {
 
 PE_ALLOWED_LIBRARIES = {
 'ADVAPI32.dll', # legacy security & registry
+'api-ms-win-core-synch-l1-2-0.dll', # sync primitives (API set)
 'bcrypt.dll', # newer security and identity API
 'IPHLPAPI.DLL', # IP helper API
 'KERNEL32.dll', # win32 base APIs
 'msvcrt.dll', # C standard library for MSVC
+'ntdll.dll', # NT kernel API
 'SHELL32.dll', # shell API
 'WS2_32.dll', # sockets
 'dbghelp.dll', # debugging routines
