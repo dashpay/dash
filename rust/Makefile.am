@@ -63,6 +63,9 @@ endif # ENABLE_ONLINE_RUST
 
 include $(top_srcdir)/rust/Makefile.libs.include
 
+EXTRA_DIST = \
+	$(LIBRUST_CHIRP_FILES)
+
 all-local: $(CARGO_CONFIGURED) cargo-build-chirp cxxbridge-chirp
 
 cargo-build: $(CARGO_CONFIGURED) cargo-build-chirp
