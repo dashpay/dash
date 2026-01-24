@@ -67,6 +67,7 @@ void CChainLocksHandler::Start(const llmq::CInstantSendManager& isman)
         [&]() {
             auto signer = m_signer.load(std::memory_order_acquire);
             CheckActiveState();
+            ProcessPendingCoinbaseChainLocks();
             EnforceBestChainLock();
             Cleanup();
             // regularly retry signing the current chaintip as it might have failed before due to missing islocks
@@ -481,6 +482,74 @@ void CChainLocksHandler::Cleanup()
         } else {
             ++it;
         }
+    }
+}
+
+void CChainLocksHandler::QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig)
+{
+    LOCK(cs);
+
+    if (!IsEnabled()) {
+        return;
+    }
+
+    // Only queue if it's potentially newer than what we have
+    if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+        return;
+    }
+
+    // Check if we've already seen this chainlock
+    const uint256 hash = ::SerializeHash(clsig);
+    if (seenChainLocks.count(hash) != 0) {
+        return;
+    }
+
+    pendingCoinbaseChainLocks.push_back(clsig);
+}
+
+void CChainLocksHandler::ProcessPendingCoinbaseChainLocks()
+{
+    AssertLockNotHeld(cs);
+    AssertLockNotHeld(cs_main);
+
+    if (!IsEnabled()) {
+        return;
+    }
+
+    std::vector<chainlock::ChainLockSig> toProcess;
+    {
+        LOCK(cs);
+        if (pendingCoinbaseChainLocks.empty()) {
+            return;
+        }
+
+        // Swap to avoid copying - O(1) operation
+        toProcess.swap(pendingCoinbaseChainLocks);
+    }
+
+    // Process in LIFO order (newest first) to minimize wasted work during reindex
+    // Once a newer chainlock is accepted, older ones will fail the height check early
+    for (auto it = toProcess.rbegin(); it != toProcess.rend(); ++it) {
+        const auto& clsig = *it;
+
+        // Check height first (cheap), then hash and check if seen (if height passed)
+        uint256 hash;
+        {
+            LOCK(cs);
+            // Fast height check to skip old chainlocks without hashing
+            if (!bestChainLock.IsNull() && clsig.getHeight() <= bestChainLock.getHeight()) {
+                continue;
+            }
+            // Only compute hash if height check passed
+            hash = ::SerializeHash(clsig);
+            if (seenChainLocks.count(hash) != 0) {
+                continue;
+            }
+        }
+
+        // Process as if it came from a coinbase (from = -1 means internal)
+        // Ignore return value as we're processing internally from coinbase
+        (void)ProcessNewChainLock(-1, clsig, hash);
     }
 }
 } // namespace llmq

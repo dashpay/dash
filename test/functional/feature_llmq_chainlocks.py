@@ -14,7 +14,7 @@ from io import BytesIO
 
 from test_framework.messages import CBlock, CCbTx
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
+from test_framework.util import assert_equal, assert_greater_than, assert_raises_rpc_error, force_finish_mnsync
 
 import time
 
@@ -251,6 +251,9 @@ class LLMQChainLocksTest(DashTestFramework):
         self.log.info("Test bestCLHeightDiff restrictions")
         self.test_bestCLHeightDiff()
 
+        self.log.info("Test coinbase chainlock recovery")
+        self.test_coinbase_chainlock_recovery()
+
     def create_chained_txs(self, node, amount):
         txid = node.sendtoaddress(node.getnewaddress(), amount)
         tx = node.getrawtransaction(txid, 1)
@@ -353,6 +356,73 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.reconnect_isolated_node(1, 0)
         self.sync_all()
+
+    def test_coinbase_chainlock_recovery(self):
+        """
+        Test that nodes can learn about chainlocks from coinbase transactions
+        when they miss the P2P broadcast.
+
+        This verifies the async chainlock queueing and processing mechanism.
+        """
+        self.log.info("Testing coinbase chainlock recovery from submitted blocks...")
+
+        # Isolate node4 before creating a chainlock
+        self.isolate_node(4)
+
+        # Mine one block on nodes 0-3 and wait for it to be chainlocked
+        cl_block_hash = self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:4]))[0]
+        self.wait_for_chainlocked_block(self.nodes[0], cl_block_hash, timeout=15)
+        cl_height = self.nodes[0].getblockcount()
+
+        # Mine another block - its coinbase should contain the chainlock
+        new_block_hash = self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:4]))[0]
+
+        # Verify the new block's coinbase contains the chainlock for cl_block_hash
+        cbtx = self.nodes[0].getblock(new_block_hash, 2)["cbTx"]
+        # CbTx should include chainlock fields
+        assert_greater_than(int(cbtx["version"]), 2)
+        # CbTx should reference immediately previous block
+        assert_equal(int(cbtx["bestCLHeightDiff"]), 0)
+
+        # Verify the chainlock in coinbase matches our saved block
+        cb_cl_height = int(cbtx["height"]) - int(cbtx["bestCLHeightDiff"]) - 1
+        assert_equal(cb_cl_height, cl_height)
+        cb_cl_block_hash = self.nodes[0].getblockhash(cb_cl_height)
+        assert_equal(cb_cl_block_hash, cl_block_hash)
+
+        # Now submit both blocks to isolated node4 via submitblock (NOT via P2P)
+        # This way node4 gets the blocks but NOT the chainlock P2P message
+        cl_block_hex = self.nodes[0].getblock(cl_block_hash, 0)
+        self.nodes[4].submitblock(cl_block_hex)
+
+        new_block_hex = self.nodes[0].getblock(new_block_hash, 0)
+        result = self.nodes[4].submitblock(new_block_hex)
+        assert_equal(result, None)
+        assert_equal(self.nodes[4].getbestblockhash(), new_block_hash)
+
+        # Verify node4 has the blocks but NOT the chainlock (missed P2P message)
+        node4_block = self.nodes[4].getblock(cl_block_hash)
+        assert not node4_block["chainlock"], "Node4 should not have chainlock yet (no P2P)"
+
+        # At this point:
+        # - Node4 has both blocks
+        # - Node4 has NOT received chainlock via P2P
+        # - Node4 HAS seen the chainlock in the coinbase of new_block_hash
+        # - The chainlock should be queued for async processing
+
+        # Trigger scheduler to process pending coinbase chainlocks
+        # The scheduler runs every 5 seconds, so advancing by 6 seconds ensures it runs
+        self.log.info("Triggering async chainlock processing from coinbase...")
+        self.nodes[4].mockscheduler(6)
+
+        # Verify node4 learned about the chainlock from the coinbase
+        self.wait_for_chainlocked_block(self.nodes[4], cl_block_hash, timeout=5)
+
+        self.log.info("Node successfully recovered chainlock from coinbase (not P2P)")
+
+        # Reconnect and verify everything is consistent
+        self.reconnect_isolated_node(4, 0)
+        self.sync_blocks()
 
 
 if __name__ == '__main__':

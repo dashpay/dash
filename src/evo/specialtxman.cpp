@@ -662,6 +662,18 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                 return false;
             }
 
+            // Queue the coinbase chainlock for asynchronous processing if it's valid
+            if (opt_cbTx->bestCLSignature.IsValid() && !fJustCheck) {
+                int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(opt_cbTx->bestCLHeightDiff) - 1;
+                const CBlockIndex* pindexCL = pindex->GetAncestor(curBlockCoinbaseCLHeight);
+                if (pindexCL) {
+                    uint256 curBlockCoinbaseCLBlockHash = pindexCL->GetBlockHash();
+                    chainlock::ChainLockSig clsig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash,
+                                                  opt_cbTx->bestCLSignature);
+                    m_clhandler.QueueCoinbaseChainLock(clsig);
+                }
+            }
+
             int64_t nTime6_3 = GetTimeMicros();
             nTimeCbTxCL += nTime6_3 - nTime6_2;
             LogPrint(BCLog::BENCHMARK, "      - CheckCbTxBestChainlock: %.2fms [%.2fs]\n",
