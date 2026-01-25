@@ -282,6 +282,27 @@ bool CSigSharesManager::ProcessMessageSigShares(const CNode& pfrom, const CSigSh
     return true;
 }
 
+// Failure is not issue, we should not ban node
+static bool PreVerifySigShareQuorum(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
+                                    const CQuorumCPtr& quorum, Consensus::LLMQType llmqType)
+{
+    if (!IsQuorumActive(llmqType, quorum_manager, quorum->qc->quorumHash)) {
+        // quorum is too old
+        return false;
+    }
+    if (!quorum->IsMember(mn_activeman.GetProTxHash())) {
+        // we're not a member so we can't verify it (we actually shouldn't have received it)
+        return false;
+    }
+    if (!quorum->HasVerificationVector()) {
+        // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
+        LogPrint(BCLog::LLMQ_SIGS, "%s -- we don't have the quorum vvec for %s, no verification possible.\n", __func__,
+                 quorum->qc->quorumHash.ToString());
+        return false;
+    }
+    return true;
+}
+
 bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
 {
     CSigSharesNodeState::SessionInfo sessionInfo;
@@ -289,8 +310,12 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
         return true;
     }
 
-    if (bool ban{false}; !PreVerifyBatchedSigShares(m_mn_activeman, qman, sessionInfo, batchedSigShares, ban)) {
-        return !ban;
+    if (!PreVerifySigShareQuorum(m_mn_activeman, qman, sessionInfo.quorum, sessionInfo.llmqType)) {
+        return true;
+    }
+
+    if (!PreVerifyBatchedSigShares(sessionInfo, batchedSigShares)) {
+        return false; // ban node
     }
 
     std::vector<CSigShare> sigSharesToProcess;
@@ -342,18 +367,7 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
     if (!quorum) {
         return true;
     }
-    if (!IsQuorumActive(sigShare.getLlmqType(), qman, quorum->qc->quorumHash)) {
-        // quorum is too old
-        return true;
-    }
-    if (!quorum->IsMember(m_mn_activeman.GetProTxHash())) {
-        // we're not a member so we can't verify it (we actually shouldn't have received it)
-        return true;
-    }
-    if (!quorum->HasVerificationVector()) {
-        // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
-        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, no verification possible. node=%d\n", __func__,
-                 quorum->qc->quorumHash.ToString(), fromId);
+    if (!PreVerifySigShareQuorum(m_mn_activeman, qman, quorum, sigShare.getLlmqType())) {
         return true;
     }
 
@@ -395,42 +409,23 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
     return true;
 }
 
-bool CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                                  const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan)
+// Ban node if PreVerifyBatchedSigShares failed
+bool CSigSharesManager::PreVerifyBatchedSigShares(const CSigSharesNodeState::SessionInfo& session,
+                                                  const CBatchedSigShares& batchedSigShares)
 {
-    retBan = false;
-
-    if (!IsQuorumActive(session.llmqType, quorum_manager, session.quorum->qc->quorumHash)) {
-        // quorum is too old
-        return false;
-    }
-    if (!session.quorum->IsMember(mn_activeman.GetProTxHash())) {
-        // we're not a member so we can't verify it (we actually shouldn't have received it)
-        return false;
-    }
-    if (!session.quorum->HasVerificationVector()) {
-        // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
-        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, no verification possible.\n", __func__,
-                  session.quorumHash.ToString());
-        return false;
-    }
-
     std::unordered_set<uint16_t> dupMembers;
 
     for (const auto& [quorumMember, _] : batchedSigShares.sigShares) {
         if (!dupMembers.emplace(quorumMember).second) {
-            retBan = true;
             return false;
         }
 
         if (quorumMember >= session.quorum->members.size()) {
             LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
-            retBan = true;
             return false;
         }
         if (!session.quorum->qc->validMembers[quorumMember]) {
             LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember not valid\n", __func__);
-            retBan = true;
             return false;
         }
     }
