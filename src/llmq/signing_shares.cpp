@@ -234,7 +234,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
     return true;
 }
 
-bool CSigSharesManager::VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv)
+static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv)
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     return llmq_params_opt.has_value() && (inv.inv.size() == size_t(llmq_params_opt->size));
@@ -299,6 +299,28 @@ static bool PreVerifySigShareQuorum(const CActiveMasternodeManager& mn_activeman
         LogPrint(BCLog::LLMQ_SIGS, "%s -- we don't have the quorum vvec for %s, no verification possible.\n", __func__,
                  quorum->qc->quorumHash.ToString());
         return false;
+    }
+    return true;
+}
+
+// Ban node if PreVerifyBatchedSigShares failed
+bool PreVerifyBatchedSigShares(const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares)
+{
+    std::unordered_set<uint16_t> dupMembers;
+
+    for (const auto& [quorumMember, _] : batchedSigShares.sigShares) {
+        if (!dupMembers.emplace(quorumMember).second) {
+            return false;
+        }
+
+        if (quorumMember >= session.quorum->members.size()) {
+            LogPrint(BCLog::LLMQ_SIGS, "%s -- quorumMember out of bounds\n", __func__);
+            return false;
+        }
+        if (!session.quorum->qc->validMembers[quorumMember]) {
+            LogPrint(BCLog::LLMQ_SIGS, "%s -- quorumMember not valid\n", __func__);
+            return false;
+        }
     }
     return true;
 }
@@ -406,29 +428,6 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, id=%s, msgHash=%s, member=%d, node=%d\n", __func__,
              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), sigShare.getQuorumMember(), fromId);
-    return true;
-}
-
-// Ban node if PreVerifyBatchedSigShares failed
-bool CSigSharesManager::PreVerifyBatchedSigShares(const CSigSharesNodeState::SessionInfo& session,
-                                                  const CBatchedSigShares& batchedSigShares)
-{
-    std::unordered_set<uint16_t> dupMembers;
-
-    for (const auto& [quorumMember, _] : batchedSigShares.sigShares) {
-        if (!dupMembers.emplace(quorumMember).second) {
-            return false;
-        }
-
-        if (quorumMember >= session.quorum->members.size()) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
-            return false;
-        }
-        if (!session.quorum->qc->validMembers[quorumMember]) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember not valid\n", __func__);
-            return false;
-        }
-    }
     return true;
 }
 

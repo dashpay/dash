@@ -469,10 +469,6 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static bool PreVerifyBatchedSigShares(const CSigSharesNodeState::SessionInfo& session,
-                                          const CBatchedSigShares& batchedSigShares);
-
     [[nodiscard]] std::shared_ptr<CRecoveredSig> ProcessSigShare(const CSigShare& sigShare, const CQuorumCPtr& quorum)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     [[nodiscard]] std::shared_ptr<CRecoveredSig> TryRecoverSig(const CQuorum& quorum, const uint256& id,
