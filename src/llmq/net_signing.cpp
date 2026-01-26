@@ -257,12 +257,7 @@ void NetSigning::RemoveBannedNodeStates()
 {
     assert(m_shares_manager != nullptr);
     // Called regularly to cleanup local node states for banned nodes
-    std::vector<NodeId> nodes = m_shares_manager->GetAllNodes();
-    for (NodeId node_id : nodes) {
-        if (m_peer_manager->PeerIsBanned(node_id)) {
-            m_shares_manager->RemoveAsBanned(node_id);
-        }
-    }
+    m_shares_manager->RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
 }
 
 void NetSigning::BanNode(NodeId nodeId)

@@ -1336,32 +1336,22 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     timeSeenForSessions.erase(signHash);
 }
 
-std::vector<NodeId> CSigSharesManager::GetAllNodes() const
-{
-    std::vector<NodeId> nodes;
-
-    LOCK(cs);
-    nodes.reserve(nodeStates.size());
-    for (const auto& [node_id, _] : nodeStates) {
-        nodes.push_back(node_id);
-    }
-    return nodes;
-}
-
-void CSigSharesManager::RemoveAsBanned(NodeId node_id)
+void CSigSharesManager::RemoveNodesIf(std::function<bool(NodeId)> predicate)
 {
     LOCK(cs);
-
-    auto it = nodeStates.find(node_id);
-    if (it != nodeStates.end()) {
-        // re-request sigshares from other nodes
-        // TODO: remove NO_THREAD_SAFETY_ANALYSIS
-        // using here template ForEach makes impossible to use lock annotation
-        it->second.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) NO_THREAD_SAFETY_ANALYSIS {
-            AssertLockHeld(cs);
-            sigSharesRequested.Erase(k);
-        });
-        nodeStates.erase(it);
+    for (auto it = nodeStates.begin(); it != nodeStates.end();) {
+        if (predicate(it->first)) {
+            // re-request sigshares from other nodes
+            // TODO: remove NO_THREAD_SAFETY_ANALYSIS
+            // using here template ForEach makes impossible to use lock annotation
+            it->second.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) NO_THREAD_SAFETY_ANALYSIS {
+                AssertLockHeld(cs);
+                sigSharesRequested.Erase(k);
+            });
+            it = nodeStates.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 

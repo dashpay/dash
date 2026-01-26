@@ -18,6 +18,7 @@
 #include <util/time.h>
 
 #include <atomic>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -481,8 +482,7 @@ private:
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
-    std::vector<NodeId> GetAllNodes() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void RemoveAsBanned(NodeId node_id) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void RemoveNodesIf(std::function<bool(NodeId)> predicate) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void MarkAsBanned(NodeId nodeId) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:
