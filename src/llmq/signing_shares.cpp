@@ -274,7 +274,7 @@ bool CSigSharesManager::ProcessMessageSigShares(const CNode& pfrom, const CSigSh
     }
     if (msg_type == NetMsgType::QSIGSHARESINV) {
         session->announced.Merge(inv);
-    } else { // msg_type == msg_type == NetMsgType::QGETSIGSHARES
+    } else { // msg_type == NetMsgType::QGETSIGSHARES
         session->requested.Merge(inv);
     }
 
