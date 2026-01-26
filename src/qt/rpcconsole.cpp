@@ -484,8 +484,8 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
     ui->setupUi(this);
 
     GUIUtil::setFont({ui->label_9,
-                      ui->labelNetwork,
                       ui->label_10,
+                      ui->labelNetwork,
                       ui->labelMempoolTitle,
                       ui->peerHeading,
                       ui->label_repair_header,
@@ -493,6 +493,11 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
                      }, {GUIUtil::FontWeight::Bold, 16});
 
     GUIUtil::updateFonts();
+
+    // Apply padding on every subsequent header after setting font to avoid creeping offsets
+    for (auto* element : {ui->label_10, ui->labelNetwork, ui->labelMempoolTitle}) {
+        element->setContentsMargins(0, 10, 0, 0);
+    }
 
     GUIUtil::disableMacFocusRect(this);
 

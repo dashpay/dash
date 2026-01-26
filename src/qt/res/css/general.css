@@ -1686,15 +1686,6 @@ RPCConsole
 QWidget#RPCConsole { /* RPC Console Dialog Box */
 }
 
-QWidget#RPCConsole QLabel#label_9,
-QWidget#RPCConsole QLabel#labelNetwork,
-QWidget#RPCConsole QLabel#label_10,
-QWidget#RPCConsole QLabel#labelMempoolTitle,
-QWidget#RPCConsole QLabel#label_repair_header,
-QWidget#RPCConsole QLabel#peerHeading,
-QWidget#RPCConsole QLabel#banHeading {
-}
-
 QWidget#RPCConsole QLabel#label_alerts {
     background-color: #c79304;
     color: #222222;
@@ -1707,8 +1698,6 @@ QWidget#RPCConsole QLabel#label_10,
 QWidget#RPCConsole QLabel#labelMempoolTitle { /* Margin between Network and Block Chain headers */
     qproperty-alignment: 'AlignLeft | AlignBottom';
     min-height: 25px;
-    margin-top: 10px;
-    margin-left: -4px;
 }
 
 QWidget#RPCConsole  QLabel#banHeading { /* Peers Info Header */
