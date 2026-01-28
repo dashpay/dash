@@ -85,7 +85,6 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
 void CDSNotificationInterface::TransactionAddedToMempool(const CTransactionRef& ptx, int64_t nAcceptTime,
                                                          uint64_t mempool_sequence)
 {
-    Assert(m_llmq_ctx)->isman->TransactionAddedToMempool(ptx);
     m_dstxman.TransactionAddedToMempool(ptx);
 }
 

@@ -9,11 +9,11 @@
 #include <saltedhasher.h>
 
 #include <util/threadinterrupt.h>
+#include <validationinterface.h>
 
 #include <memory>
 #include <optional>
 #include <thread>
-#include <variant>
 #include <vector>
 
 class CChainState;
@@ -22,6 +22,7 @@ namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
 
+class CMasternodeSync;
 class CTxMemPool;
 
 namespace instantsend {
@@ -34,16 +35,17 @@ class CInstantSendManager;
 class CQuorumManager;
 } // namespace llmq
 
-class NetInstantSend final : public NetHandler
+class NetInstantSend final : public NetHandler, public CValidationInterface
 {
 public:
     NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager, llmq::CQuorumManager& qman,
-                   CChainState& chainstate, CTxMemPool& mempool) :
+                   CChainState& chainstate, CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
         NetHandler(peer_manager),
         m_is_manager{is_manager},
         m_qman(qman),
         m_chainstate{chainstate},
-        m_mempool{mempool}
+        m_mempool{mempool},
+        m_mn_sync{mn_sync}
     {
         workInterrupt.reset();
     }
@@ -54,6 +56,9 @@ public:
     void Interrupt() override { workInterrupt(); };
 
     void WorkThreadMain();
+
+protected:
+    void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence) override;
 
 private:
     struct BatchVerificationData;
@@ -71,8 +76,7 @@ private:
         const std::vector<instantsend::PendingISLockEntry>& pend);
 
     void ProcessPendingISLocks(std::vector<instantsend::PendingISLockEntry>&& locks_to_process);
-    std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
-        NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock);
+    void ProcessInstantSendLock(NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock);
 
     Uint256HashSet ProcessPendingInstantSendLocks(
         const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
@@ -81,6 +85,7 @@ private:
     llmq::CQuorumManager& m_qman;
     const CChainState& m_chainstate;
     CTxMemPool& m_mempool;
+    const CMasternodeSync& m_mn_sync;
 
     std::thread workThread;
     CThreadInterrupt workInterrupt;

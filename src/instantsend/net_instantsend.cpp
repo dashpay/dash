@@ -12,6 +12,7 @@
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <masternode/sync.h>
 #include <node/interface_ui.h>
 #include <util/thread.h>
 #include <validation.h>
@@ -21,7 +22,7 @@
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
-CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool,
+CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const m_mempool,
                                const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
 } // namespace node
 
@@ -180,16 +181,7 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
             continue;
         }
 
-        CInv inv(MSG_ISDLOCK, hash);
-        auto ret = m_is_manager.ProcessInstantSendLock(nodeId, hash, islock);
-        if (std::holds_alternative<uint256>(ret)) {
-            m_peer_manager->PeerRelayInvFiltered(inv, std::get<uint256>(ret));
-            m_peer_manager->PeerAskPeersForTransaction(islock->txid);
-        } else if (std::holds_alternative<CTransactionRef>(ret)) {
-            m_peer_manager->PeerRelayInvFiltered(inv, *std::get<CTransactionRef>(ret));
-        } else {
-            assert(std::holds_alternative<std::monostate>(ret));
-        }
+        ProcessInstantSendLock(nodeId, hash, islock);
 
         // Pass a reconstructed recovered sig to the signing manager to avoid double-verification of the sig.
         auto it = data.recSigs.find(hash);
@@ -290,7 +282,6 @@ Uint256HashSet NetInstantSend::ProcessPendingInstantSendLocks(
     return ApplyVerificationResults(llmq_params, ban, *batch, pend);
 }
 
-
 void NetInstantSend::ProcessPendingISLocks(std::vector<instantsend::PendingISLockEntry>&& locks_to_process)
 {
     // TODO Investigate if leaving this is ok
@@ -319,8 +310,7 @@ void NetInstantSend::ProcessPendingISLocks(std::vector<instantsend::PendingISLoc
     uiInterface.NotifyInstantSendChanged();
 }
 
-std::variant<uint256, CTransactionRef, std::monostate> NetInstantSend::ProcessInstantSendLock(
-    NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
+void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
 {
     LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
              islock->txid.ToString(), hash.ToString(), from);
@@ -328,7 +318,7 @@ std::variant<uint256, CTransactionRef, std::monostate> NetInstantSend::ProcessIn
     if (auto signer = m_is_manager.Signer(); signer) {
         signer->ClearLockFromQueue(islock);
     }
-    if (!m_is_manager.PreVerifyIsLock(hash, islock, from)) return std::monostate{};
+    if (!m_is_manager.PreVerifyIsLock(hash, islock, from)) return;
 
     uint256 hashBlock{};
     auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, Params().GetConsensus(), hashBlock);
@@ -351,7 +341,7 @@ std::variant<uint256, CTransactionRef, std::monostate> NetInstantSend::ProcessIn
                      "NetSigning::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
                      "ChainLock in block %s, peer=%d\n",
                      __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
-            return std::monostate{};
+            return;
         }
         m_is_manager.WriteNewISLock(hash, islock, minedHeight);
     } else {
@@ -367,18 +357,21 @@ std::variant<uint256, CTransactionRef, std::monostate> NetInstantSend::ProcessIn
     m_is_manager.ResolveBlockConflicts(hash, *islock);
 
     if (found_transaction) {
-        m_is_manager.RemoveMempoolConflictsForLock(hash, *islock);
+        RemoveMempoolConflictsForLock(hash, *islock);
         LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- notify about lock %s for tx %s\n", __func__, hash.ToString(),
                  tx->GetHash().ToString());
         GetMainSignals().NotifyTransactionLock(tx, islock);
-        // bump mempool counter to make sure newly locked txes are picked up by getblocktemplate
+        // bump m_mempool counter to make sure newly locked txes are picked up by getblocktemplate
         m_mempool.AddTransactionsUpdated(1);
     }
 
+    CInv inv(MSG_ISDLOCK, hash);
     if (found_transaction) {
-        return tx;
+        m_peer_manager->PeerRelayInvFiltered(inv, *tx);
+    } else {
+        m_peer_manager->PeerRelayInvFiltered(inv, islock->txid);
+        m_peer_manager->PeerAskPeersForTransaction(islock->txid);
     }
-    return islock->txid;
 }
 
 void NetInstantSend::WorkThreadMain()
@@ -400,5 +393,53 @@ void NetInstantSend::WorkThreadMain()
         if (!fMoreWork && !workInterrupt.sleep_for(WORK_THREAD_SLEEP_INTERVAL)) {
             return;
         }
+    }
+}
+
+void NetInstantSend::TransactionAddedToMempool(const CTransactionRef& tx, int64_t, uint64_t mempool_sequence)
+{
+    if (!m_is_manager.IsInstantSendEnabled() || !m_mn_sync.IsBlockchainSynced() || tx->vin.empty()) {
+        return;
+    }
+
+    instantsend::InstantSendLockPtr islock = m_is_manager.AttachISLockToTx(tx);
+    if (islock == nullptr) {
+        if (auto signer = m_is_manager.Signer(); signer) {
+            signer->ProcessTx(*tx, false, Params().GetConsensus());
+        }
+        // TX is not locked, so make sure it is tracked
+        m_is_manager.AddNonLockedTx(tx, nullptr);
+    } else {
+        RemoveMempoolConflictsForLock(::SerializeHash(*islock), *islock);
+    }
+}
+
+void NetInstantSend::RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock)
+{
+    Uint256HashMap<CTransactionRef> toDelete;
+
+    {
+        LOCK(m_mempool.cs);
+
+        for (const auto& in : islock.inputs) {
+            auto it = m_mempool.mapNextTx.find(in);
+            if (it == m_mempool.mapNextTx.end()) {
+                continue;
+            }
+            if (it->second->GetHash() != islock.txid) {
+                toDelete.emplace(it->second->GetHash(), m_mempool.get(it->second->GetHash()));
+
+                LogPrintf("%s -- txid=%s, mempool TX %s with input %s conflicts with islock=%s\n", __func__,
+                          islock.txid.ToString(), it->second->GetHash().ToString(), in.ToStringShort(), hash.ToString());
+            }
+        }
+
+        for (const auto& p : toDelete) {
+            m_mempool.removeRecursive(*p.second, MemPoolRemovalReason::CONFLICT);
+        }
+    }
+
+    for (const auto& p : toDelete) {
+        m_is_manager.RemoveConflictedTx(*p.second);
     }
 }

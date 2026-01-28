@@ -146,41 +146,6 @@ void CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsen
     pendingNoTxInstantSendLocks.try_emplace(hash, instantsend::PendingISLockFromPeer{from, islock});
 }
 
-void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
-{
-    if (!IsInstantSendEnabled() || !m_mn_sync.IsBlockchainSynced() || tx->vin.empty()) {
-        return;
-    }
-
-    instantsend::InstantSendLockPtr islock{nullptr};
-    {
-        LOCK(cs_pendingLocks);
-        auto it = pendingNoTxInstantSendLocks.begin();
-        while (it != pendingNoTxInstantSendLocks.end()) {
-            if (it->second.islock->txid == tx->GetHash()) {
-                // we received an islock earlier
-                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
-                         tx->GetHash().ToString(), it->first.ToString());
-                islock = it->second.islock;
-                pendingInstantSendLocks.try_emplace(it->first, it->second);
-                pendingNoTxInstantSendLocks.erase(it);
-                break;
-            }
-            ++it;
-        }
-    }
-
-    if (islock == nullptr) {
-        if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
-            signer->ProcessTx(*tx, false, Params().GetConsensus());
-        }
-        // TX is not locked, so make sure it is tracked
-        AddNonLockedTx(tx, nullptr);
-    } else {
-        RemoveMempoolConflictsForLock(::SerializeHash(*islock), *islock);
-    }
-}
-
 void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
 {
     if (tx->vin.empty()) {
@@ -243,6 +208,26 @@ void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>&
     db.RemoveBlockInstantSendLocks(pblock, pindexDisconnected);
 }
 
+instantsend::InstantSendLockPtr CInstantSendManager::AttachISLockToTx(const CTransactionRef& tx)
+{
+    instantsend::InstantSendLockPtr ret_islock{nullptr};
+    LOCK(cs_pendingLocks);
+    auto it = pendingNoTxInstantSendLocks.begin();
+    while (it != pendingNoTxInstantSendLocks.end()) {
+        if (it->second.islock->txid == tx->GetHash()) {
+            // we received an islock earlier, let's put it back into pending and verify/lock
+            LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
+                     tx->GetHash().ToString(), it->first.ToString());
+            ret_islock = it->second.islock;
+            pendingInstantSendLocks.try_emplace(it->first, it->second);
+            pendingNoTxInstantSendLocks.erase(it);
+            return ret_islock;
+        }
+        ++it;
+    }
+    return ret_islock; // not found, nullptr
+}
+
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
 {
     {
@@ -259,22 +244,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
             }
         }
     }
-    {
-        LOCK(cs_pendingLocks);
-        auto it = pendingNoTxInstantSendLocks.begin();
-        while (it != pendingNoTxInstantSendLocks.end()) {
-            if (it->second.islock->txid == tx->GetHash()) {
-                // we received an islock earlier, let's put it back into pending and verify/lock
-                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
-                         tx->GetHash().ToString(), it->first.ToString());
-                pendingInstantSendLocks.try_emplace(it->first, it->second);
-                pendingNoTxInstantSendLocks.erase(it);
-                break;
-            }
-            ++it;
-        }
-    }
-
+    AttachISLockToTx(tx);
     if (ShouldReportISLockTiming()) {
         LOCK(cs_timingsTxSeen);
         // Only insert the time the first time we see the tx, as we sometimes try to resign
