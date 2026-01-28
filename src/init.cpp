@@ -2208,7 +2208,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7d: Setup other Dash services
 
-    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, *node.llmq_ctx->qman, chainman.ActiveChainstate(), *node.mempool));
+    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, *node.llmq_ctx->qman, chainman.ActiveChainstate(), *node.mempool, *node.mn_sync));
     node.peerman->AddExtraHandler(std::make_unique<llmq::NetSigning>(node.peerman.get(), *node.llmq_ctx->sigman, node.active_ctx ? node.active_ctx->shareman.get() : nullptr, *node.sporkman));
 
     if (node.active_ctx) {
