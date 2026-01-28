@@ -13,13 +13,18 @@
 #include <memory>
 #include <optional>
 #include <thread>
+#include <variant>
 #include <vector>
 
 namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
+
+class CTxMemPool;
+
 namespace instantsend {
 struct InstantSendLock;
+using InstantSendLockPtr = std::shared_ptr<InstantSendLock>;
 struct PendingISLockEntry;
 } // namespace instantsend
 namespace llmq {
@@ -31,11 +36,12 @@ class NetInstantSend final : public NetHandler
 {
 public:
     NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager, llmq::CQuorumManager& qman,
-                   CChainState& chainstate) :
+                   CChainState& chainstate, CTxMemPool& mempool) :
         NetHandler(peer_manager),
         m_is_manager{is_manager},
         m_qman(qman),
-        m_chainstate{chainstate}
+        m_chainstate{chainstate},
+        m_mempool{mempool}
     {
         workInterrupt.reset();
     }
@@ -63,6 +69,8 @@ private:
         const std::vector<instantsend::PendingISLockEntry>& pend);
 
     void ProcessPendingISLocks(std::vector<instantsend::PendingISLockEntry>&& locks_to_process);
+    std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
+        NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock);
 
     Uint256HashSet ProcessPendingInstantSendLocks(
         const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
@@ -70,6 +78,7 @@ private:
     llmq::CInstantSendManager& m_is_manager;
     llmq::CQuorumManager& m_qman;
     const CChainState& m_chainstate;
+    CTxMemPool& m_mempool;
 
     std::thread workThread;
     CThreadInterrupt workInterrupt;
