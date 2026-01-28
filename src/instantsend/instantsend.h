@@ -130,17 +130,23 @@ public:
 private:
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
+
+public:
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+
+private:
     void RemoveConflictedTx(const CTransaction& tx)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
-    void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
 
+public:
+    void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
     void RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
 
+private:
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 
@@ -157,9 +163,13 @@ public:
     [[nodiscard]] std::vector<CTransactionRef> PrepareTxToRetry()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     CSigningManager& Sigman() { return sigman; }
-    [[nodiscard]] std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
-        NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
+    const chainlock::Chainlocks& Chainlocks() { return m_chainlocks; }
+
+    void WriteNewISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, std::optional<int> minedHeight);
+    void AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+
+    bool PreVerifyIsLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from) const;
 
     void TransactionAddedToMempool(const CTransactionRef& tx)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen);
