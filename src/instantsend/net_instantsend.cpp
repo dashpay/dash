@@ -5,19 +5,27 @@
 #include <instantsend/net_instantsend.h>
 
 #include <bls/bls_batchverifier.h>
-#include <node/interface_ui.h>
+#include <chainlock/chainlock.h>
 #include <cxxtimer.hpp>
 #include <instantsend/instantsend.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <node/interface_ui.h>
 #include <util/thread.h>
 #include <validation.h>
 
 #include <chrono>
 #include <set>
 
+// Forward declaration to break dependency over node/transaction.h
+namespace node {
+CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool,
+                               const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
+} // namespace node
+
+using node::GetTransaction;
 namespace {
 constexpr int BATCH_VERIFIER_SOURCE_THRESHOLD{8};
 constexpr int INVALID_ISLOCK_MISBEHAVIOR_SCORE{100};
@@ -309,6 +317,68 @@ void NetInstantSend::ProcessPendingISLocks(std::vector<instantsend::PendingISLoc
         ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, still_pending);
     }
     uiInterface.NotifyInstantSendChanged();
+}
+
+std::variant<uint256, CTransactionRef, std::monostate> NetInstantSend::ProcessInstantSendLock(
+    NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
+{
+    LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
+             islock->txid.ToString(), hash.ToString(), from);
+
+    if (auto signer = m_is_manager.Signer(); signer) {
+        signer->ClearLockFromQueue(islock);
+    }
+    if (!m_is_manager.PreVerifyIsLock(hash, islock, from)) return std::monostate{};
+
+    uint256 hashBlock{};
+    auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, Params().GetConsensus(), hashBlock);
+    const bool found_transaction{tx != nullptr};
+    // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
+    std::optional<int> minedHeight = m_is_manager.GetBlockHeight(hashBlock);
+    if (found_transaction) {
+        if (!minedHeight.has_value()) {
+            const CBlockIndex* pindexMined = WITH_LOCK(::cs_main,
+                                                       return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
+            if (pindexMined != nullptr) {
+                m_is_manager.CacheBlockHeight(pindexMined);
+                minedHeight = pindexMined->nHeight;
+            }
+        }
+        // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
+        // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
+        if (minedHeight.has_value() && m_is_manager.Chainlocks().HasChainLock(*minedHeight, hashBlock)) {
+            LogPrint(BCLog::INSTANTSEND, /* Continued */
+                     "NetSigning::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
+                     "ChainLock in block %s, peer=%d\n",
+                     __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
+            return std::monostate{};
+        }
+        m_is_manager.WriteNewISLock(hash, islock, minedHeight);
+    } else {
+        m_is_manager.AddPendingISLock(hash, islock, from);
+    }
+
+
+    // This will also add children TXs to pendingRetryTxs
+    m_is_manager.RemoveNonLockedTx(islock->txid, true);
+    // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
+    // We only need the ISLOCK from now on to detect conflicts
+    m_is_manager.TruncateRecoveredSigsForInputs(*islock);
+    m_is_manager.ResolveBlockConflicts(hash, *islock);
+
+    if (found_transaction) {
+        m_is_manager.RemoveMempoolConflictsForLock(hash, *islock);
+        LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- notify about lock %s for tx %s\n", __func__, hash.ToString(),
+                 tx->GetHash().ToString());
+        GetMainSignals().NotifyTransactionLock(tx, islock);
+        // bump mempool counter to make sure newly locked txes are picked up by getblocktemplate
+        m_mempool.AddTransactionsUpdated(1);
+    }
+
+    if (found_transaction) {
+        return tx;
+    }
+    return islock->txid;
 }
 
 void NetInstantSend::WorkThreadMain()
