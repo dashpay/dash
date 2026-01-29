@@ -4768,7 +4768,7 @@ void PeerManagerImpl::ProcessMessage(
                 // We will continue to reject this tx since it has rejected
                 // parents so avoid re-requesting it from other peers.
                 m_recent_rejects.insert(tx.GetHash());
-                m_llmq_ctx->isman->TransactionRemovedFromMempool(ptx);
+                m_llmq_ctx->isman->TransactionIsRemoved(ptx);
             }
         } else {
             m_recent_rejects.insert(tx.GetHash());
@@ -4799,7 +4799,7 @@ void PeerManagerImpl::ProcessMessage(
                 pfrom.GetId(),
                 state.ToString());
             MaybePunishNodeForTx(pfrom.GetId(), state);
-            m_llmq_ctx->isman->TransactionRemovedFromMempool(ptx);
+            m_llmq_ctx->isman->TransactionIsRemoved(ptx);
         }
         return;
     }

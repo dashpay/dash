@@ -142,7 +142,6 @@ private:
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 
-public:
     bool IsLocked(const uint256& txHash) const override;
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
@@ -157,28 +156,20 @@ public:
     CSigningManager& Sigman() { return sigman; }
     const chainlock::Chainlocks& Chainlocks() { return m_chainlocks; }
 
+    void RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
+    void WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
     void WriteNewISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, std::optional<int> minedHeight);
     void AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     bool PreVerifyIsLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from) const;
 
-    // -- CValidationInterface
-    void UpdatedBlockTip(const CBlockIndex* pindexNew)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_height_cache);
-    void TransactionRemovedFromMempool(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen, !cs_height_cache);
-    void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
-    void NotifyChainLock(const CBlockIndex* pindexChainLock) EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
-
-
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     bool GetInstantSendLockByHash(const uint256& hash, instantsend::InstantSendLock& ret) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 
+    void TransactionIsRemoved(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock) override
@@ -195,6 +186,7 @@ public:
     Counts GetCounts() const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks, !cs_nonLocked);
 
     void CacheBlockHeight(const CBlockIndex* const block_index) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    void CacheDisconnectBlock(const CBlockIndex* pindexDisconnected) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     std::optional<int> GetBlockHeight(const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void CacheTipHeight(const CBlockIndex* const tip) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     int GetTipHeight() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);

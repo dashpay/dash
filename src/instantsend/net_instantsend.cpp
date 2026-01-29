@@ -6,6 +6,7 @@
 
 #include <bls/bls_batchverifier.h>
 #include <chainlock/chainlock.h>
+#include <consensus/params.h>
 #include <cxxtimer.hpp>
 #include <instantsend/instantsend.h>
 #include <llmq/commitment.h>
@@ -442,4 +443,72 @@ void NetInstantSend::RemoveMempoolConflictsForLock(const uint256& hash, const in
     for (const auto& p : toDelete) {
         m_is_manager.RemoveConflictedTx(*p.second);
     }
+}
+
+void NetInstantSend::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
+{
+    m_is_manager.CacheTipHeight(pindexNew);
+
+    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
+
+    if (m_is_manager.Chainlocks().IsEnabled() && fDIP0008Active) {
+        // Nothing to do here. We should keep all islocks and let chainlocks handle them.
+        return;
+    }
+
+    int nConfirmedHeight = pindexNew->nHeight - Params().GetConsensus().nInstantSendKeepLock;
+    const CBlockIndex* pindex = pindexNew->GetAncestor(nConfirmedHeight);
+
+    if (pindex) {
+        m_is_manager.HandleFullyConfirmedBlock(pindex);
+    }
+}
+
+void NetInstantSend::TransactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason,
+                                                   uint64_t mempool_sequence)
+{
+    m_is_manager.TransactionIsRemoved(tx);
+}
+
+void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
+{
+    if (!m_is_manager.IsInstantSendEnabled()) {
+        return;
+    }
+
+    m_is_manager.CacheTipHeight(pindex);
+
+    if (m_mn_sync.IsBlockchainSynced()) {
+        const bool has_chainlock = m_is_manager.Chainlocks().HasChainLock(pindex->nHeight, pindex->GetBlockHash());
+        for (const auto& tx : pblock->vtx) {
+            if (tx->IsCoinBase() || tx->vin.empty()) {
+                // coinbase and TXs with no inputs can't be locked
+                continue;
+            }
+
+            if (!m_is_manager.IsLocked(tx->GetHash()) && !has_chainlock) {
+                if (auto signer = m_is_manager.Signer(); signer) {
+                    signer->ProcessTx(*tx, true, Params().GetConsensus());
+                }
+                // TX is not locked, so make sure it is tracked
+                m_is_manager.AddNonLockedTx(tx, pindex);
+            } else {
+                // TX is locked, so make sure we don't track it anymore
+                m_is_manager.RemoveNonLockedTx(tx->GetHash(), true);
+            }
+        }
+    }
+    m_is_manager.WriteBlockISLocks(pblock, pindex);
+}
+
+void NetInstantSend::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
+{
+    m_is_manager.CacheDisconnectBlock(pindexDisconnected);
+    m_is_manager.CacheTipHeight(pindexDisconnected->pprev);
+    m_is_manager.RemoveBlockISLocks(pblock, pindexDisconnected);
+}
+
+void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig)
+{
+    m_is_manager.HandleFullyConfirmedBlock(pindex);
 }
