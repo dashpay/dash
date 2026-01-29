@@ -28,7 +28,6 @@ class CChainState;
 class CDataStream;
 class CMasternodeSync;
 class CSporkManager;
-class CTxMemPool;
 namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
@@ -70,7 +69,6 @@ private:
     CChainState& m_chainstate;
     CSigningManager& sigman;
     CSporkManager& spork_manager;
-    CTxMemPool& mempool;
     const CMasternodeSync& m_mn_sync;
 
     std::atomic<instantsend::InstantSendSigner*> m_signer{nullptr};
@@ -112,8 +110,8 @@ public:
     CInstantSendManager(const CInstantSendManager&) = delete;
     CInstantSendManager& operator=(const CInstantSendManager&) = delete;
     explicit CInstantSendManager(const chainlock::Chainlocks& chainlocks, CChainState& chainstate,
-                                 CSigningManager& _sigman, CSporkManager& sporkman, CTxMemPool& _mempool,
-                                 const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params);
+                                 CSigningManager& _sigman, CSporkManager& sporkman, const CMasternodeSync& mn_sync,
+                                 const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
     void ConnectSigner(gsl::not_null<instantsend::InstantSendSigner*> signer)
