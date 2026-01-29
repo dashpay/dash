@@ -408,36 +408,6 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
     }
 }
 
-void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock)
-{
-    Uint256HashMap<CTransactionRef> toDelete;
-
-    {
-        LOCK(mempool.cs);
-
-        for (const auto& in : islock.inputs) {
-            auto it = mempool.mapNextTx.find(in);
-            if (it == mempool.mapNextTx.end()) {
-                continue;
-            }
-            if (it->second->GetHash() != islock.txid) {
-                toDelete.emplace(it->second->GetHash(), mempool.get(it->second->GetHash()));
-
-                LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: mempool TX %s with input %s conflicts with islock\n", __func__,
-                          islock.txid.ToString(), hash.ToString(), it->second->GetHash().ToString(), in.ToStringShort());
-            }
-        }
-
-        for (const auto& p : toDelete) {
-            mempool.removeRecursive(*p.second, MemPoolRemovalReason::CONFLICT);
-        }
-    }
-
-    for (const auto& p : toDelete) {
-        RemoveConflictedTx(*p.second);
-    }
-}
-
 void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
 {
     // Lets first collect all non-locked TXs which conflict with the given ISLOCK

@@ -77,6 +77,7 @@ private:
 
     void ProcessPendingISLocks(std::vector<instantsend::PendingISLockEntry>&& locks_to_process);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock);
+    void RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock);
 
     Uint256HashSet ProcessPendingInstantSendLocks(
         const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
