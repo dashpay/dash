@@ -144,13 +144,13 @@ void CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsen
     pendingNoTxInstantSendLocks.try_emplace(hash, instantsend::PendingISLockFromPeer{from, islock});
 }
 
-void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
+void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
 {
     if (tx->vin.empty()) {
         return;
     }
 
-    instantsend::InstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
+    instantsend::InstantSendLockPtr islock = GetInstantSendLockByTxid(tx->GetHash());
 
     if (islock == nullptr) {
         return;
@@ -161,49 +161,14 @@ void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& t
     RemoveConflictingLock(::SerializeHash(*islock), *islock);
 }
 
-void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
+void CInstantSendManager::WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
-    if (!IsInstantSendEnabled()) {
-        return;
-    }
-
-    CacheTipHeight(pindex);
-
-    if (m_mn_sync.IsBlockchainSynced()) {
-        const bool has_chainlock = m_chainlocks.HasChainLock(pindex->nHeight, pindex->GetBlockHash());
-        for (const auto& tx : pblock->vtx) {
-            if (tx->IsCoinBase() || tx->vin.empty()) {
-                // coinbase and TXs with no inputs can't be locked
-                continue;
-            }
-
-            if (!IsLocked(tx->GetHash()) && !has_chainlock) {
-                if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
-                    signer->ProcessTx(*tx, true, Params().GetConsensus());
-                }
-                // TX is not locked, so make sure it is tracked
-                AddNonLockedTx(tx, pindex);
-            } else {
-                // TX is locked, so make sure we don't track it anymore
-                RemoveNonLockedTx(tx->GetHash(), true);
-            }
-        }
-    }
-
     db.WriteBlockInstantSendLocks(pblock, pindex);
 }
 
-void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock,
-                                            const CBlockIndex* pindexDisconnected)
+void CInstantSendManager::RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
-    {
-        LOCK(cs_height_cache);
-        m_cached_block_heights.erase(pindexDisconnected->GetBlockHash());
-    }
-
-    CacheTipHeight(pindexDisconnected->pprev);
-
-    db.RemoveBlockInstantSendLocks(pblock, pindexDisconnected);
+    db.RemoveBlockInstantSendLocks(pblock, pindex);
 }
 
 instantsend::InstantSendLockPtr CInstantSendManager::AttachISLockToTx(const CTransactionRef& tx)
@@ -337,30 +302,6 @@ void CInstantSendManager::TryEmplacePendingLock(const uint256& hash, const NodeI
     LOCK(cs_pendingLocks);
     if (!pendingInstantSendLocks.count(hash)) {
         pendingInstantSendLocks.emplace(hash, instantsend::PendingISLockFromPeer{id, islock});
-    }
-}
-
-void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
-{
-    HandleFullyConfirmedBlock(pindexChainLock);
-}
-
-void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
-{
-    CacheTipHeight(pindexNew);
-
-    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
-
-    if (m_chainlocks.IsEnabled() && fDIP0008Active) {
-        // Nothing to do here. We should keep all islocks and let chainlocks handle them.
-        return;
-    }
-
-    int nConfirmedHeight = pindexNew->nHeight - Params().GetConsensus().nInstantSendKeepLock;
-    const CBlockIndex* pindex = pindexNew->GetAncestor(nConfirmedHeight);
-
-    if (pindex) {
-        HandleFullyConfirmedBlock(pindex);
     }
 }
 
@@ -631,6 +572,12 @@ void CInstantSendManager::CacheBlockHeight(const CBlockIndex* const block_index)
 {
     LOCK(cs_height_cache);
     CacheBlockHeightInternal(block_index);
+}
+
+void CInstantSendManager::CacheDisconnectBlock(const CBlockIndex* pindexDisconnected)
+{
+    LOCK(cs_height_cache);
+    m_cached_block_heights.erase(pindexDisconnected->GetBlockHash());
 }
 
 std::optional<int> CInstantSendManager::GetBlockHeight(const uint256& hash) const
