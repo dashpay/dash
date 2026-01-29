@@ -6,8 +6,6 @@
 #define BITCOIN_INSTANTSEND_NET_INSTANTSEND_H
 
 #include <net_processing.h>
-#include <saltedhasher.h>
-
 #include <util/threadinterrupt.h>
 #include <validationinterface.h>
 
@@ -56,7 +54,14 @@ public:
     void WorkThreadMain();
 
 protected:
+    // -- CValidationInterface
+    void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence) override;
+    void TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason,
+                                       uint64_t mempool_sequence) override;
+    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override;
+    void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) override;
+    void NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) override;
 
 private:
     struct BatchVerificationData;
@@ -82,7 +87,7 @@ private:
         const std::vector<instantsend::PendingISLockEntry>& pend);
     llmq::CInstantSendManager& m_is_manager;
     llmq::CQuorumManager& m_qman;
-    const CChainState& m_chainstate;
+    CChainState& m_chainstate;
     CTxMemPool& m_mempool;
     const CMasternodeSync& m_mn_sync;
 
