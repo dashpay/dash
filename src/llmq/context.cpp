@@ -13,9 +13,9 @@
 #include <validation.h>
 
 LLMQContext::LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSporkManager& sporkman,
-                         chainlock::Chainlocks& chainlocks, CTxMemPool& mempool, ChainstateManager& chainman,
-                         const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params, int8_t bls_threads,
-                         int16_t worker_count, int64_t max_recsigs_age) :
+                         chainlock::Chainlocks& chainlocks, ChainstateManager& chainman, const CMasternodeSync& mn_sync,
+                         const util::DbWrapperParams& db_params, int8_t bls_threads, int16_t worker_count,
+                         int64_t max_recsigs_age) :
     bls_worker{std::make_shared<CBLSWorker>()},
     qsnapman{std::make_unique<llmq::CQuorumSnapshotManager>(evo_db)},
     quorum_block_processor{std::make_unique<llmq::CQuorumBlockProcessor>(chainman.ActiveChainstate(), dmnman, evo_db,
@@ -24,7 +24,7 @@ LLMQContext::LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSpork
                                                 chainman, db_params)},
     sigman{std::make_unique<llmq::CSigningManager>(*qman, db_params, max_recsigs_age)},
     isman{std::make_unique<llmq::CInstantSendManager>(chainlocks, chainman.ActiveChainstate(), *sigman, sporkman,
-                                                      mempool, mn_sync, db_params)}
+                                                      mn_sync, db_params)}
 {
     // Have to start it early to let VerifyDB check ChainLock signatures in coinbase
     bls_worker->Start(worker_count);
