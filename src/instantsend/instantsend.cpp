@@ -12,7 +12,6 @@
 #include <node/blockstorage.h>
 #include <spork.h>
 #include <stats/client.h>
-#include <txmempool.h>
 #include <validation.h>
 
 using node::fImporting;
@@ -41,14 +40,13 @@ Uint256HashSet GetIdsFromLockable(const std::vector<T>& vec)
 } // anonymous namespace
 
 CInstantSendManager::CInstantSendManager(const chainlock::Chainlocks& chainlocks, CChainState& chainstate,
-                                         CSigningManager& _sigman, CSporkManager& sporkman, CTxMemPool& _mempool,
+                                         CSigningManager& _sigman, CSporkManager& sporkman,
                                          const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params) :
     db{db_params},
     m_chainlocks{chainlocks},
     m_chainstate{chainstate},
     sigman{_sigman},
     spork_manager{sporkman},
-    mempool{_mempool},
     m_mn_sync{mn_sync}
 {
 }
