@@ -5214,7 +5214,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         to_reload = LoadWallet(context, name, /*load_on_start=*/std::nullopt, options, status, error, warnings);
         if (!to_reload) {
             LogError("Failed to load wallet '%s' after migration. Rolling back migration to preserve consistency. "
-                     "Error cause: %s\n", wallet_name, error.original);
+                     "Error cause: %s\n", name, error.original);
             return false;
         }
         return true;
@@ -5280,6 +5280,15 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         // First change to using SQLite
         if (!local_wallet->MigrateToSQLite(error)) return util::Error{error};
 
+        // In case we're migrating from file to directory, move the backup into it
+        // TODO(bitcoin#32273): this block exists only on the 28.x/29.x branches. Remove
+        //       it together with the backup naming TODO above: once backups live in
+        //       the top-level walletdir they never need to be moved.
+        this_wallet_dir = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename())).parent_path();
+        backup_path = this_wallet_dir / backup_filename;
+        fs::rename(res.backup_path, backup_path);
+        res.backup_path = backup_path;
+
         // Do the migration, and cleanup if it fails
         success = DoMigration(*local_wallet, context, error, res);
     }
@@ -5327,9 +5336,6 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
     }
     if (!success) {
         // Migration failed, cleanup
-        // Copy the backup to the actual wallet dir
-        fs::path temp_backup_location = fsbridge::AbsPathJoin(GetWalletDir(), backup_filename);
-        fs::rename(backup_path, temp_backup_location);
 
         // Drop the second reference to the reloaded main wallet: UnloadWallet() below
         // waits until the last reference is gone, and this one would only die on return.
@@ -5377,15 +5383,19 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         }
 
         // Restore the backup
-        DatabaseStatus status;
-        std::vector<bilingual_str> warnings;
-        if (!RestoreWallet(context, temp_backup_location, wallet_name, /*load_on_start=*/std::nullopt, status, error, warnings)) {
-            error += _("\nUnable to restore backup of wallet.");
+        // Convert the backup file to the wallet db file by renaming it and moving it into the wallet's directory.
+        // Reload it into memory if the wallet was previously loaded.
+        // TODO(bitcoin#31451): RestoreWallet loads the wallet even when it was not loaded
+        //       before migration. When backporting bitcoin#31451, add its load_after_restore
+        //       parameter to RestoreWallet, pass was_loaded here, assert that the wallet is
+        //       reloaded only if was_loaded, and re-derive this function from the 29.x commits
+        //       d91f56e1e3 and a074d36254 (bitcoin#34222), which already have that shape.
+        bilingual_str restore_error;
+        const auto& ptr_wallet = RestoreWallet(context, backup_path, wallet_name, /*load_on_start=*/std::nullopt, status, restore_error, warnings);
+        if (!restore_error.empty()) {
+            error += restore_error + _("\nUnable to restore backup of wallet.");
             return util::Error{error};
         }
-
-        // Move the backup to the wallet dir
-        fs::rename(temp_backup_location, backup_path);
 
         return util::Error{error};
     }
