@@ -1,0 +1,23 @@
+[package]
+name = "tutorials"
+version = "0.1.0"
+edition = "2021"
+default-run = "tutorials"
+
+[dependencies]
+grovedb-merk = { path = "../merk" }
+grovedb = { path = "../grovedb" }
+grovedb-path = { path = "../path" }
+grovedb-storage = { path = "../storage" }
+grovedb-version = { path = "../grovedb-version" }
+grovedb-visualize = { path = "../visualize" }
+
+rand = "0.8.5"
+hex = "0.4"
+blake3 = "1.8.1"
+
+[workspace]
+
+exclude = [
+    "tutorials",
+]

@@ -1,0 +1,28 @@
+[package]
+name = "grovedb-storage"
+version = "4.0.0"
+edition = "2021"
+license = "MIT"
+description = "Storage extension crate for GroveDB"
+homepage = "https://www.grovedb.org/"
+documentation = "https://docs.rs/grovedb-storage"
+repository = "https://github.com/dashpay/grovedb"
+
+[dependencies]
+grovedb-costs = { version = "4.0.0", path = "../costs" }
+grovedb-path = { version = "4.0.0", path = "../path" }
+grovedb-visualize = { version = "4.0.0", path = "../visualize" }
+
+blake3 = { version = "1.8.1", optional = true }
+hex = "0.4.3"
+integer-encoding = { version = "4.1.0", optional = true }
+lazy_static = { version = "1.5.0", optional = true }
+num_cpus = { version = "1.17.0", optional = true }
+# TODO: Switch back to crates.io once https://github.com/rust-rocksdb/rust-rocksdb/pull/1055 is merged and released
+rocksdb = { git = "https://github.com/QuantumExplorer/rust-rocksdb.git", rev = "52772eea7bcd214d1d07d80aa538b1d24e5015b7", optional = true }
+strum = { version = "0.27.2", features = ["derive"] }
+tempfile = { version = "3.23.0", optional = true }
+thiserror = "2.0.17"
+
+[features]
+rocksdb_storage = ["rocksdb", "num_cpus", "lazy_static", "tempfile", "blake3", "integer-encoding"]

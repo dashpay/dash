@@ -1,0 +1,12 @@
+[package]
+name = "grovedb-path"
+version = "4.0.0"
+edition = "2021"
+license = "MIT"
+description = "Path extension crate for GroveDB"
+homepage = "https://www.grovedb.org/"
+documentation = "https://docs.rs/grovedb-path"
+repository = "https://github.com/dashpay/grovedb"
+
+[dependencies]
+hex = "0.4.3"
