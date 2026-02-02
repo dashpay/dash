@@ -1,0 +1,58 @@
+{
+  "name": "@dashevo/grovedb",
+  "version": "0.3.1",
+  "description": "Node.JS binding for GroveDb",
+  "main": "node-grove/index.js",
+  "readme": "node-grove/README.md",
+  "scripts": {
+    "build": "cargo-cp-artifact -ac node-grove native/index.node -- cargo build --message-format=json-render-diagnostics",
+    "build:debug": "npm run build --",
+    "build:release": "npm run build -- --release",
+    "postbuild": "neon-tag-prebuild && rm -rf native",
+    "prepack": "mv README.md README.md.old && cp node-grove/README.md README.md",
+    "postpack": "rm README.md && mv README.md.old README.md",
+    "install": "neon-load-or-build",
+    "clean": "cargo clean",
+    "pretest": "npm run build:debug",
+    "test": "mocha node-grove/index.spec.js",
+    "lint": "eslint ."
+  },
+  "files": [
+    "prebuilds",
+    "node-grove/index.js",
+    "node-grove/src",
+    "node-grove/Cargo.toml",
+    "node-grove/README.md",
+    "grovedb/src",
+    "grovedb/Cargo.toml",
+    "merk/src",
+    "merk/Cargo.toml",
+    "Cargo.toml"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "eslint": "^8.7.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.4",
+    "mocha": "^9.1.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dashevo/grovedb.git"
+  },
+  "keywords": [
+    "GroveDB",
+    "Database",
+    "Authenticated database"
+  ],
+  "bugs": {
+    "url": "https://github.com/dashevo/grovedb/issues"
+  },
+  "homepage": "https://github.com/dashevo/grovedb#readme",
+  "dependencies": {
+    "cargo-cp-artifact": "^0.1.6",
+    "neon-load-or-build": "^2.2.2",
+    "neon-tag-prebuild": "github:shumkov/neon-tag-prebuild#patch-1"
+  }
+}
