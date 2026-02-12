@@ -97,6 +97,7 @@
 #include <instantsend/net_instantsend.h>
 #include <llmq/context.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/signing.h>
 #include <llmq/net_signing.h>
 #include <llmq/options.h>
 #include <llmq/observer/context.h>
