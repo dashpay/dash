@@ -24,7 +24,6 @@
 #include <saltedhasher.h>
 
 class CBlockIndex;
-class CChainState;
 class CDataStream;
 class CMasternodeSync;
 class CSporkManager;
@@ -66,7 +65,6 @@ private:
     instantsend::CInstantSendDb db;
 
     const chainlock::Chainlocks& m_chainlocks;
-    CChainState& m_chainstate;
     CSigningManager& sigman;
     CSporkManager& spork_manager;
     const CMasternodeSync& m_mn_sync;
@@ -103,15 +101,12 @@ private:
         GUARDED_BY(cs_height_cache);
     mutable int m_cached_tip_height GUARDED_BY(cs_height_cache){-1};
 
-    void CacheBlockHeightInternal(const CBlockIndex* const block_index) const EXCLUSIVE_LOCKS_REQUIRED(cs_height_cache);
-
 public:
     CInstantSendManager() = delete;
     CInstantSendManager(const CInstantSendManager&) = delete;
     CInstantSendManager& operator=(const CInstantSendManager&) = delete;
-    explicit CInstantSendManager(const chainlock::Chainlocks& chainlocks, CChainState& chainstate,
-                                 CSigningManager& _sigman, CSporkManager& sporkman, const CMasternodeSync& mn_sync,
-                                 const util::DbWrapperParams& db_params);
+    explicit CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSigningManager& _sigman, CSporkManager& sporkman,
+                                 const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
     void ConnectSigner(gsl::not_null<instantsend::InstantSendSigner*> signer)
@@ -187,9 +182,9 @@ private:
     };
     Counts GetCounts() const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks, !cs_nonLocked);
 
-    void CacheBlockHeight(const CBlockIndex* const block_index) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    void CacheBlockHeight(const CBlockIndex* const block_index) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void CacheDisconnectBlock(const CBlockIndex* pindexDisconnected) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
-    std::optional<int> GetBlockHeight(const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    std::optional<int> GetCachedHeight(const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void CacheTipHeight(const CBlockIndex* const tip) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     int GetTipHeight() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
