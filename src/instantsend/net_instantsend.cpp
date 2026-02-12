@@ -641,23 +641,10 @@ void NetInstantSend::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         return;
     }
 
-    auto removeISLocks = m_is_manager.RemoveConfirmedInstantSendLocks(pindex->nHeight);
-
-    for (const auto& [islockHash, islock] : removeISLocks) {
-        LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n",
-                 __func__, islock->txid.ToString(), islockHash.ToString());
-
+    auto removeISLocks = m_is_manager.RemoveConfirmedInstantSendLocks(pindex);
+    for (const auto& [_, islock] : removeISLocks) {
         // No need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
         // from now on. All inputs are spent now and can't be spend in any other TX.
         TruncateRecoveredSigsForInputs(*islock);
-
-        // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
-        // fully confirmed now
-        m_is_manager.Sigman().TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend,
-                                                   islock->GetRequestId());
     }
-
-    m_is_manager.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
-
-    m_is_manager.RemoveNonLockedForConfirmed(pindex);
 }
