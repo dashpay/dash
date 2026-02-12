@@ -126,7 +126,7 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
         auto id = islock->GetRequestId();
 
         // no need to verify an ISLOCK if we already have verified the recovered sig that belongs to it
-        if (m_is_manager.Sigman().HasRecoveredSig(llmq_params.type, id, islock->txid)) {
+        if (m_sigman.HasRecoveredSig(llmq_params.type, id, islock->txid)) {
             data->alreadyVerified++;
             continue;
         }
@@ -160,7 +160,7 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
         // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
         // avoids unnecessary double-verification of the signature. We however only do this when verification here
         // turns out to be good (which is checked further down)
-        if (!m_is_manager.Sigman().HasRecoveredSigForId(llmq_params.type, id)) {
+        if (!m_sigman.HasRecoveredSigForId(llmq_params.type, id)) {
             data->recSigs.try_emplace(hash, llmq::CRecoveredSig(llmq_params.type, quorum->qc->quorumHash, id, islock->txid,
                                                                 islock->sig));
         }
@@ -206,12 +206,12 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
         auto it = data.recSigs.find(hash);
         if (it != data.recSigs.end()) {
             auto recSig = std::make_shared<llmq::CRecoveredSig>(std::move(it->second));
-            if (!m_is_manager.Sigman().HasRecoveredSigForId(llmq_params.type, recSig->getId())) {
+            if (!m_sigman.HasRecoveredSigForId(llmq_params.type, recSig->getId())) {
                 LogPrint(BCLog::INSTANTSEND, /* Continued */
                          "NetInstantSend::%s -- txid=%s, islock=%s: "
                          "passing reconstructed recSig to signing mgr, peer=%d\n",
                          __func__, islock->txid.ToString(), hash.ToString(), nodeId);
-                m_is_manager.Sigman().PushReconstructedRecoveredSig(recSig);
+                m_sigman.PushReconstructedRecoveredSig(recSig);
             }
         }
     }
@@ -631,7 +631,7 @@ void NetInstantSend::TruncateRecoveredSigsForInputs(const instantsend::InstantSe
         m_signer->ClearInputsFromQueue(ids);
     }
     for (const auto& id : ids) {
-        m_is_manager.Sigman().TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, id);
+        m_sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, id);
     }
 }
 
@@ -648,8 +648,7 @@ void NetInstantSend::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 
         // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
         // fully confirmed now
-        m_is_manager.Sigman().TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend,
-                                                   islock->GetRequestId());
+        m_sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, islock->GetRequestId());
 
         // No need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
         // from now on. All inputs are spent now and can't be spend in any other TX.

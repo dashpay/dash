@@ -11,6 +11,7 @@
 #include <net_types.h>
 #include <primitives/transaction.h>
 #include <protocol.h>
+#include <saltedhasher.h>
 #include <sync.h>
 #include <threadsafety.h>
 #include <unordered_lru_cache.h>
@@ -18,8 +19,6 @@
 #include <optional>
 #include <unordered_set>
 #include <vector>
-
-#include <saltedhasher.h>
 
 class CBlockIndex;
 class CDataStream;
@@ -54,7 +53,6 @@ struct PendingState {
 } // namespace instantsend
 
 namespace llmq {
-class CSigningManager;
 
 class CInstantSendManager
 {
@@ -62,7 +60,6 @@ private:
     instantsend::CInstantSendDb db;
 
     const chainlock::Chainlocks& m_chainlocks;
-    CSigningManager& sigman;
     CSporkManager& spork_manager;
     const CMasternodeSync& m_mn_sync;
 
@@ -100,7 +97,7 @@ public:
     CInstantSendManager() = delete;
     CInstantSendManager(const CInstantSendManager&) = delete;
     CInstantSendManager& operator=(const CInstantSendManager&) = delete;
-    explicit CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSigningManager& _sigman, CSporkManager& sporkman,
+    explicit CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSporkManager& sporkman,
                                  const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
@@ -127,7 +124,6 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     [[nodiscard]] std::vector<CTransactionRef> PrepareTxToRetry()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
-    CSigningManager& Sigman() { return sigman; }
     const chainlock::Chainlocks& Chainlocks() { return m_chainlocks; }
 
     void RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
