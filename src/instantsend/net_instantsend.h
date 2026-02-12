@@ -55,6 +55,8 @@ public:
 
 protected:
     // -- CValidationInterface
+    void SynchronousUpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork,
+                                    bool fInitialDownload) override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence) override;
     void TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason,
