@@ -32,7 +32,6 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
                              const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
                              const llmq::QvvecSyncModeMap& sync_map, const util::DbWrapperParams& db_params,
                              bool quorums_recovery, bool quorums_watch) :
-    m_isman{isman},
     m_qman{qman},
     nodeman{std::make_unique<CActiveMasternodeManager>(connman, dmnman, operator_sk)},
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
@@ -53,14 +52,12 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
                                                                qblockman, qsnapman, *nodeman, chainman, sporkman,
                                                                llmq_params, quorums_watch, quorum_idx);
     });
-    m_isman.ConnectSigner(is_signer.get());
     m_qman.ConnectManagers(qman_handler.get(), qdkgsman.get());
 }
 
 ActiveContext::~ActiveContext()
 {
     m_qman.DisconnectManagers();
-    m_isman.DisconnectSigner();
 }
 
 void ActiveContext::Start(CConnman& connman, PeerManager& peerman, int16_t worker_count)

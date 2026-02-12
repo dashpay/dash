@@ -16,7 +16,6 @@
 #include <threadsafety.h>
 #include <unordered_lru_cache.h>
 
-#include <atomic>
 #include <optional>
 #include <unordered_set>
 #include <vector>
@@ -39,7 +38,6 @@ class Chainlocks;
 }
 
 namespace instantsend {
-class InstantSendSigner;
 
 struct PendingISLockFromPeer {
     NodeId node_id;
@@ -68,8 +66,6 @@ private:
     CSigningManager& sigman;
     CSporkManager& spork_manager;
     const CMasternodeSync& m_mn_sync;
-
-    std::atomic<instantsend::InstantSendSigner*> m_signer{nullptr};
 
     mutable Mutex cs_pendingLocks;
     // Incoming and not verified yet
@@ -109,16 +105,6 @@ public:
                                  const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
-    void ConnectSigner(gsl::not_null<instantsend::InstantSendSigner*> signer)
-    {
-        // Prohibit double initialization
-        assert(m_signer.load(std::memory_order_acquire) == nullptr);
-        m_signer.store(signer, std::memory_order_release);
-    }
-    void DisconnectSigner() { m_signer.store(nullptr, std::memory_order_release); }
-
-    instantsend::InstantSendSigner* Signer() const { return m_signer.load(std::memory_order_acquire); }
-
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
@@ -126,18 +112,10 @@ public:
 
     instantsend::InstantSendLockPtr AttachISLockToTx(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
-    void RemoveConflictedTx(const CTransaction& tx)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
-
-    void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
     std::unordered_map<const CBlockIndex*, Uint256HashMap<CTransactionRef>> RetrieveISConflicts(
         const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks);
     bool IsKnownTx(const uint256& islockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
-
-private:
-    void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 
     bool IsLocked(const uint256& txHash) const override;
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
@@ -195,6 +173,10 @@ private:
      * allows ChainLocks to continue even while this spork is disabled.
      */
     bool RejectConflictingBlocks() const;
+    void RemoveArchivedInstantSendLocks(int nUntilHeight);
+    Uint256HashMap<instantsend::InstantSendLockPtr> RemoveConfirmedInstantSendLocks(int nUntilHeight);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+    void RemoveNonLockedForConfirmed(const CBlockIndex* pindex);
 };
 } // namespace llmq
 

@@ -27,6 +27,7 @@ namespace instantsend {
 struct InstantSendLock;
 using InstantSendLockPtr = std::shared_ptr<InstantSendLock>;
 struct PendingISLockEntry;
+class InstantSendSigner;
 } // namespace instantsend
 namespace llmq {
 class CInstantSendManager;
@@ -36,10 +37,12 @@ class CQuorumManager;
 class NetInstantSend final : public NetHandler, public CValidationInterface
 {
 public:
-    NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager, llmq::CQuorumManager& qman,
-                   CChainState& chainstate, CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
+    NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager,
+                   instantsend::InstantSendSigner* signer, llmq::CQuorumManager& qman, CChainState& chainstate,
+                   CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
         NetHandler(peer_manager),
         m_is_manager{is_manager},
+        m_signer{signer},
         m_qman(qman),
         m_chainstate{chainstate},
         m_mempool{mempool},
@@ -92,7 +95,13 @@ private:
 
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
 
+    void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
+
+    void HandleFullyConfirmedBlock(const CBlockIndex* pindex);
+    void ClearConflicting(const Uint256HashMap<CTransactionRef>& to_delete);
+
     llmq::CInstantSendManager& m_is_manager;
+    instantsend::InstantSendSigner* m_signer; // non-null only for masternode
     llmq::CQuorumManager& m_qman;
     CChainState& m_chainstate;
     CTxMemPool& m_mempool;
