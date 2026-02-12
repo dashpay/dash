@@ -12,7 +12,6 @@
 #include <node/blockstorage.h>
 #include <spork.h>
 #include <stats/client.h>
-#include <validation.h>
 
 using node::fImporting;
 using node::fReindex;
@@ -39,12 +38,11 @@ Uint256HashSet GetIdsFromLockable(const std::vector<T>& vec)
 }
 } // anonymous namespace
 
-CInstantSendManager::CInstantSendManager(const chainlock::Chainlocks& chainlocks, CChainState& chainstate,
-                                         CSigningManager& _sigman, CSporkManager& sporkman,
-                                         const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params) :
+CInstantSendManager::CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSigningManager& _sigman,
+                                         CSporkManager& sporkman, const CMasternodeSync& mn_sync,
+                                         const util::DbWrapperParams& db_params) :
     db{db_params},
     m_chainlocks{chainlocks},
-    m_chainstate{chainstate},
     sigman{_sigman},
     spork_manager{sporkman},
     m_mn_sync{mn_sync}
@@ -511,16 +509,10 @@ CInstantSendManager::Counts CInstantSendManager::GetCounts() const
     return ret;
 }
 
-void CInstantSendManager::CacheBlockHeightInternal(const CBlockIndex* const block_index) const
-{
-    AssertLockHeld(cs_height_cache);
-    m_cached_block_heights.insert(block_index->GetBlockHash(), block_index->nHeight);
-}
-
 void CInstantSendManager::CacheBlockHeight(const CBlockIndex* const block_index) const
 {
     LOCK(cs_height_cache);
-    CacheBlockHeightInternal(block_index);
+    m_cached_block_heights.insert(block_index->GetBlockHash(), block_index->nHeight);
 }
 
 void CInstantSendManager::CacheDisconnectBlock(const CBlockIndex* pindexDisconnected)
@@ -529,31 +521,21 @@ void CInstantSendManager::CacheDisconnectBlock(const CBlockIndex* pindexDisconne
     m_cached_block_heights.erase(pindexDisconnected->GetBlockHash());
 }
 
-std::optional<int> CInstantSendManager::GetBlockHeight(const uint256& hash) const
+std::optional<int> CInstantSendManager::GetCachedHeight(const uint256& hash) const
 {
-    if (hash.IsNull()) {
-        return std::nullopt;
-    }
-    {
-        LOCK(cs_height_cache);
-        int cached_height{0};
-        if (m_cached_block_heights.get(hash, cached_height)) return cached_height;
-    }
+    LOCK(cs_height_cache);
 
-    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hash));
-    if (pindex == nullptr) {
-        return std::nullopt;
-    }
+    int cached_height{0};
+    if (m_cached_block_heights.get(hash, cached_height)) return cached_height;
 
-    CacheBlockHeight(pindex);
-    return pindex->nHeight;
+    return std::nullopt;
 }
 
 void CInstantSendManager::CacheTipHeight(const CBlockIndex* const tip) const
 {
     LOCK(cs_height_cache);
     if (tip) {
-        CacheBlockHeightInternal(tip);
+        m_cached_block_heights.insert(tip->GetBlockHash(), tip->nHeight);
         m_cached_tip_height = tip->nHeight;
     } else {
         m_cached_tip_height = -1;

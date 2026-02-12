@@ -39,8 +39,9 @@ public:
     virtual bool IsLocked(const uint256& txHash) const = 0;
     virtual InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const = 0;
     virtual void TryEmplacePendingLock(const uint256& hash, const NodeId id, const InstantSendLockPtr& islock) = 0;
-    virtual std::optional<int> GetBlockHeight(const uint256& hash) const = 0;
+    virtual std::optional<int> GetCachedHeight(const uint256& hash) const = 0;
     virtual int GetTipHeight() const = 0;
+    virtual void CacheBlockHeight(const CBlockIndex* const block_index) const = 0;
 };
 
 class InstantSendSigner final : public llmq::CRecoveredSigsListener
