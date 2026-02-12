@@ -7,7 +7,6 @@
 
 #include <instantsend/db.h>
 #include <instantsend/lock.h>
-#include <instantsend/signing.h>
 
 #include <net_types.h>
 #include <primitives/transaction.h>
@@ -57,7 +56,7 @@ struct PendingState {
 namespace llmq {
 class CSigningManager;
 
-class CInstantSendManager final : public instantsend::InstantSendSignerParent
+class CInstantSendManager
 {
 private:
     instantsend::CInstantSendDb db;
@@ -117,9 +116,9 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks);
     bool IsKnownTx(const uint256& islockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
-    bool IsLocked(const uint256& txHash) const override;
+    bool IsLocked(const uint256& txHash) const;
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
-    instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
+    instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const;
 
     /* Helpers for communications between CInstantSendManager & NetInstantSend */
     // This helper returns up to 32 pending locks and remove them from queue of pending
@@ -147,7 +146,7 @@ public:
     void TransactionIsRemoved(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
-    void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock) override
+    void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     size_t GetInstantSendLockCount() const;
@@ -160,13 +159,13 @@ public:
     };
     Counts GetCounts() const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks, !cs_nonLocked);
 
-    void CacheBlockHeight(const CBlockIndex* const block_index) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    void CacheBlockHeight(const CBlockIndex* const block_index) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void CacheDisconnectBlock(const CBlockIndex* pindexDisconnected) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
-    std::optional<int> GetCachedHeight(const uint256& hash) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    std::optional<int> GetCachedHeight(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void CacheTipHeight(const CBlockIndex* const tip) const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
-    int GetTipHeight() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    int GetTipHeight() const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
-    bool IsInstantSendEnabled() const override;
+    bool IsInstantSendEnabled() const;
     /**
      * If true, MN should sign all transactions, if false, MN should not sign
      * transactions in mempool, but should sign txes included in a block. This
