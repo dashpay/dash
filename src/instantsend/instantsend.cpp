@@ -493,15 +493,6 @@ Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfi
     int nUntilHeight = pindex->nHeight;
     auto removeISLocks = db.RemoveConfirmedInstantSendLocks(nUntilHeight);
 
-    for (const auto& [islockHash, islock] : removeISLocks) {
-        LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n",
-                 __func__, islock->txid.ToString(), islockHash.ToString());
-
-        // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
-        // fully confirmed now
-        sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, islock->GetRequestId());
-    }
-
     db.RemoveArchivedInstantSendLocks(nUntilHeight - 100);
 
     // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
