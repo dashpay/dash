@@ -355,7 +355,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
     m_is_manager.TruncateRecoveredSigsForInputs(*islock);
-    m_is_manager.ResolveBlockConflicts(hash, *islock);
+    ResolveBlockConflicts(hash, *islock);
 
     if (found_transaction) {
         RemoveMempoolConflictsForLock(hash, *islock);
@@ -511,4 +511,68 @@ void NetInstantSend::BlockDisconnected(const std::shared_ptr<const CBlock>& pblo
 void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig)
 {
     m_is_manager.HandleFullyConfirmedBlock(pindex);
+}
+
+void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+{
+    auto conflicts = m_is_manager.RetrieveISConflicts(islockHash, islock);
+
+    // Lets see if any of the conflicts was already mined into a ChainLocked block
+    bool hasChainLockedConflict = false;
+    for (const auto& p : conflicts) {
+        const auto* pindex = p.first;
+        if (m_is_manager.Chainlocks().HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
+            hasChainLockedConflict = true;
+            break;
+        }
+    }
+
+    // If a conflict was mined into a ChainLocked block, then we have no other choice and must prune the ISLOCK and all
+    // chained ISLOCKs that build on top of this one. The probability of this is practically zero and can only happen
+    // when large parts of the masternode network are controlled by an attacker. In this case we must still find
+    // consensus and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
+    if (hasChainLockedConflict) {
+        LogPrintf("NetInstantSend::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock\n",
+                  __func__, islock.txid.ToString(), islockHash.ToString());
+        m_is_manager.RemoveConflictingLock(islockHash, islock);
+        return;
+    }
+
+    bool isLockedTxKnown = m_is_manager.IsKnownTx(islockHash);
+
+    bool activateBestChain = false;
+    for (const auto& p : conflicts) {
+        const auto* pindex = p.first;
+        for (const auto& p2 : p.second) {
+            const auto& tx = *p2.second;
+            m_is_manager.RemoveConflictedTx(tx);
+        }
+
+        LogPrintf("NetInstantSend::%s -- invalidating block %s\n", __func__, pindex->GetBlockHash().ToString());
+
+        BlockValidationState state;
+        // need non-const pointer
+        auto pindex2 = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
+        if (!m_chainstate.InvalidateBlock(state, pindex2)) {
+            LogPrintf("NetInstantSend::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
+            // This should not have happened and we are in a state were it's not safe to continue anymore
+            assert(false);
+        }
+        if (isLockedTxKnown) {
+            activateBestChain = true;
+        } else {
+            LogPrintf("NetInstantSend::%s -- resetting block %s\n", __func__, pindex2->GetBlockHash().ToString());
+            LOCK(::cs_main);
+            m_chainstate.ResetBlockFailureFlags(pindex2);
+        }
+    }
+
+    if (activateBestChain) {
+        BlockValidationState state;
+        if (!m_chainstate.ActivateBestChain(state)) {
+            LogPrintf("NetInstantSend::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
+            // This should not have happened and we are in a state were it's not safe to continue anymore
+            assert(false);
+        }
+    }
 }
