@@ -489,18 +489,22 @@ bool CInstantSendManager::RejectConflictingBlocks() const
     return true;
 }
 
-void CInstantSendManager::RemoveArchivedInstantSendLocks(int nUntilHeight)
+Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)
 {
-    db.RemoveArchivedInstantSendLocks(nUntilHeight);
-}
+    int nUntilHeight = pindex->nHeight;
+    auto removeISLocks = db.RemoveConfirmedInstantSendLocks(nUntilHeight);
 
-Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfirmedInstantSendLocks(int nUntilHeight)
-{
-    return db.RemoveConfirmedInstantSendLocks(nUntilHeight);
-}
+    for (const auto& [islockHash, islock] : removeISLocks) {
+        LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n",
+                 __func__, islock->txid.ToString(), islockHash.ToString());
 
-void CInstantSendManager::RemoveNonLockedForConfirmed(const CBlockIndex* pindex)
-{
+        // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
+        // fully confirmed now
+        sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, islock->GetRequestId());
+    }
+
+    db.RemoveArchivedInstantSendLocks(nUntilHeight - 100);
+
     // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
     // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
     std::vector<uint256> toRemove;
@@ -518,6 +522,7 @@ void CInstantSendManager::RemoveNonLockedForConfirmed(const CBlockIndex* pindex)
         // This will also add children to pendingRetryTxs
         RemoveNonLockedTx(txid, true);
     }
-}
 
+    return removeISLocks;
+}
 } // namespace llmq
