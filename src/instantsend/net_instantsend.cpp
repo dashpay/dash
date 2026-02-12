@@ -9,6 +9,7 @@
 #include <consensus/params.h>
 #include <cxxtimer.hpp>
 #include <instantsend/instantsend.h>
+#include <instantsend/signing.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -218,6 +219,27 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
     return badISLocks;
 }
 
+namespace {
+template <typename T>
+    requires std::same_as<T, CTxIn> || std::same_as<T, COutPoint>
+Uint256HashSet GetIdsFromLockable(const std::vector<T>& vec)
+{
+    Uint256HashSet ret{};
+    if (vec.empty()) return ret;
+    ret.reserve(vec.size());
+    for (const auto& in : vec) {
+        if constexpr (std::is_same_v<T, COutPoint>) {
+            ret.emplace(instantsend::GenInputLockRequestId(in));
+        } else if constexpr (std::is_same_v<T, CTxIn>) {
+            ret.emplace(instantsend::GenInputLockRequestId(in.prevout));
+        } else {
+            assert(false);
+        }
+    }
+    return ret;
+}
+} // anonymous namespace
+
 void NetInstantSend::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
     if (msg_type != NetMsgType::ISDLOCK) {
@@ -333,8 +355,8 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
              islock->txid.ToString(), hash.ToString(), from);
 
-    if (auto signer = m_is_manager.Signer(); signer) {
-        signer->ClearLockFromQueue(islock);
+    if (m_signer) {
+        m_signer->ClearLockFromQueue(islock);
     }
     if (!m_is_manager.PreVerifyIsLock(hash, islock, from)) return;
 
@@ -371,7 +393,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     m_is_manager.RemoveNonLockedTx(islock->txid, true);
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
-    m_is_manager.TruncateRecoveredSigsForInputs(*islock);
+    TruncateRecoveredSigsForInputs(*islock);
     ResolveBlockConflicts(hash, *islock);
 
     if (found_transaction) {
@@ -402,8 +424,8 @@ void NetInstantSend::WorkThreadMain()
             if (!locks.empty()) {
                 ProcessPendingISLocks(std::move(locks));
             }
-            if (auto signer = m_is_manager.Signer(); signer) {
-                signer->ProcessPendingRetryLockTxs(m_is_manager.PrepareTxToRetry());
+            if (m_signer) {
+                m_signer->ProcessPendingRetryLockTxs(m_is_manager.PrepareTxToRetry());
             }
             return more_work;
         }();
@@ -422,13 +444,23 @@ void NetInstantSend::TransactionAddedToMempool(const CTransactionRef& tx, int64_
 
     instantsend::InstantSendLockPtr islock = m_is_manager.AttachISLockToTx(tx);
     if (islock == nullptr) {
-        if (auto signer = m_is_manager.Signer(); signer) {
-            signer->ProcessTx(*tx, false, Params().GetConsensus());
+        if (m_signer) {
+            m_signer->ProcessTx(*tx, false, Params().GetConsensus());
         }
         // TX is not locked, so make sure it is tracked
         m_is_manager.AddNonLockedTx(tx, nullptr);
     } else {
         RemoveMempoolConflictsForLock(::SerializeHash(*islock), *islock);
+    }
+}
+
+void NetInstantSend::ClearConflicting(const Uint256HashMap<CTransactionRef>& to_delete)
+{
+    for (const auto& [_, tx] : to_delete) {
+        m_is_manager.RemoveNonLockedTx(tx->GetHash(), false);
+        if (m_signer) {
+            m_signer->ClearInputsFromQueue(GetIdsFromLockable(tx->vin));
+        }
     }
 }
 
@@ -456,10 +488,7 @@ void NetInstantSend::RemoveMempoolConflictsForLock(const uint256& hash, const in
             m_mempool.removeRecursive(*p.second, MemPoolRemovalReason::CONFLICT);
         }
     }
-
-    for (const auto& p : toDelete) {
-        m_is_manager.RemoveConflictedTx(*p.second);
-    }
+    ClearConflicting(toDelete);
 }
 
 void NetInstantSend::SynchronousUpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork,
@@ -481,7 +510,7 @@ void NetInstantSend::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockI
     const CBlockIndex* pindex = pindexNew->GetAncestor(nConfirmedHeight);
 
     if (pindex) {
-        m_is_manager.HandleFullyConfirmedBlock(pindex);
+        HandleFullyConfirmedBlock(pindex);
     }
 }
 
@@ -508,8 +537,8 @@ void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock,
             }
 
             if (!m_is_manager.IsLocked(tx->GetHash()) && !has_chainlock) {
-                if (auto signer = m_is_manager.Signer(); signer) {
-                    signer->ProcessTx(*tx, true, Params().GetConsensus());
+                if (m_signer) {
+                    m_signer->ProcessTx(*tx, true, Params().GetConsensus());
                 }
                 // TX is not locked, so make sure it is tracked
                 m_is_manager.AddNonLockedTx(tx, pindex);
@@ -531,7 +560,7 @@ void NetInstantSend::BlockDisconnected(const std::shared_ptr<const CBlock>& pblo
 
 void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig)
 {
-    m_is_manager.HandleFullyConfirmedBlock(pindex);
+    HandleFullyConfirmedBlock(pindex);
 }
 
 void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
@@ -564,10 +593,7 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
     bool activateBestChain = false;
     for (const auto& p : conflicts) {
         const auto* pindex = p.first;
-        for (const auto& p2 : p.second) {
-            const auto& tx = *p2.second;
-            m_is_manager.RemoveConflictedTx(tx);
-        }
+        ClearConflicting(p.second);
 
         LogPrintf("NetInstantSend::%s -- invalidating block %s\n", __func__, pindex->GetBlockHash().ToString());
 
@@ -596,4 +622,42 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
             assert(false);
         }
     }
+}
+
+void NetInstantSend::TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock)
+{
+    auto ids = GetIdsFromLockable(islock.inputs);
+    if (m_signer) {
+        m_signer->ClearInputsFromQueue(ids);
+    }
+    for (const auto& id : ids) {
+        m_is_manager.Sigman().TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, id);
+    }
+}
+
+void NetInstantSend::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
+{
+    if (!m_is_manager.IsInstantSendEnabled()) {
+        return;
+    }
+
+    auto removeISLocks = m_is_manager.RemoveConfirmedInstantSendLocks(pindex->nHeight);
+
+    for (const auto& [islockHash, islock] : removeISLocks) {
+        LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n",
+                 __func__, islock->txid.ToString(), islockHash.ToString());
+
+        // No need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
+        // from now on. All inputs are spent now and can't be spend in any other TX.
+        TruncateRecoveredSigsForInputs(*islock);
+
+        // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
+        // fully confirmed now
+        m_is_manager.Sigman().TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend,
+                                                   islock->GetRequestId());
+    }
+
+    m_is_manager.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
+
+    m_is_manager.RemoveNonLockedForConfirmed(pindex);
 }

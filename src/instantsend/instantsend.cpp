@@ -17,27 +17,6 @@ using node::fImporting;
 using node::fReindex;
 
 namespace llmq {
-namespace {
-template <typename T>
-    requires std::same_as<T, CTxIn> || std::same_as<T, COutPoint>
-Uint256HashSet GetIdsFromLockable(const std::vector<T>& vec)
-{
-    Uint256HashSet ret{};
-    if (vec.empty()) return ret;
-    ret.reserve(vec.size());
-    for (const auto& in : vec) {
-        if constexpr (std::is_same_v<T, COutPoint>) {
-            ret.emplace(instantsend::GenInputLockRequestId(in));
-        } else if constexpr (std::is_same_v<T, CTxIn>) {
-            ret.emplace(instantsend::GenInputLockRequestId(in.prevout));
-        } else {
-            assert(false);
-        }
-    }
-    return ret;
-}
-} // anonymous namespace
-
 CInstantSendManager::CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSigningManager& _sigman,
                                          CSporkManager& sporkman, const CMasternodeSync& mn_sync,
                                          const util::DbWrapperParams& db_params) :
@@ -274,25 +253,6 @@ std::vector<CTransactionRef> CInstantSendManager::PrepareTxToRetry()
     return txns;
 }
 
-void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
-{
-    RemoveNonLockedTx(tx.GetHash(), false);
-    if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
-        signer->ClearInputsFromQueue(GetIdsFromLockable(tx.vin));
-    }
-}
-
-void CInstantSendManager::TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock)
-{
-    auto ids = GetIdsFromLockable(islock.inputs);
-    if (auto signer = m_signer.load(std::memory_order_acquire); signer) {
-        signer->ClearInputsFromQueue(ids);
-    }
-    for (const auto& id : ids) {
-        sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, id);
-    }
-}
-
 void CInstantSendManager::TryEmplacePendingLock(const uint256& hash, const NodeId id,
                                                 const instantsend::InstantSendLockPtr& islock)
 {
@@ -300,48 +260,6 @@ void CInstantSendManager::TryEmplacePendingLock(const uint256& hash, const NodeI
     LOCK(cs_pendingLocks);
     if (!pendingInstantSendLocks.count(hash)) {
         pendingInstantSendLocks.emplace(hash, instantsend::PendingISLockFromPeer{id, islock});
-    }
-}
-
-void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
-{
-    if (!IsInstantSendEnabled()) {
-        return;
-    }
-
-    auto removeISLocks = db.RemoveConfirmedInstantSendLocks(pindex->nHeight);
-
-    for (const auto& [islockHash, islock] : removeISLocks) {
-        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
-                 islock->txid.ToString(), islockHash.ToString());
-
-        // No need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
-        // from now on. All inputs are spent now and can't be spend in any other TX.
-        TruncateRecoveredSigsForInputs(*islock);
-
-        // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
-        // fully confirmed now
-        sigman.TruncateRecoveredSig(Params().GetConsensus().llmqTypeDIP0024InstantSend, islock->GetRequestId());
-    }
-
-    db.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
-
-    // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
-    // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
-    std::vector<uint256> toRemove;
-    {
-        LOCK(cs_nonLocked);
-        for (const auto& p : nonLockedTxs) {
-            const auto* pindexMined = p.second.pindexMined;
-
-            if (pindexMined && pindex->GetAncestor(pindexMined->nHeight) == pindexMined) {
-                toRemove.emplace_back(p.first);
-            }
-        }
-    }
-    for (const auto& txid : toRemove) {
-        // This will also add children to pendingRetryTxs
-        RemoveNonLockedTx(txid, true);
     }
 }
 
@@ -569,6 +487,37 @@ bool CInstantSendManager::RejectConflictingBlocks() const
         return false;
     }
     return true;
+}
+
+void CInstantSendManager::RemoveArchivedInstantSendLocks(int nUntilHeight)
+{
+    db.RemoveArchivedInstantSendLocks(nUntilHeight);
+}
+
+Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfirmedInstantSendLocks(int nUntilHeight)
+{
+    return db.RemoveConfirmedInstantSendLocks(nUntilHeight);
+}
+
+void CInstantSendManager::RemoveNonLockedForConfirmed(const CBlockIndex* pindex)
+{
+    // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
+    // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
+    std::vector<uint256> toRemove;
+    {
+        LOCK(cs_nonLocked);
+        for (const auto& p : nonLockedTxs) {
+            const auto* pindexMined = p.second.pindexMined;
+
+            if (pindexMined && pindex->GetAncestor(pindexMined->nHeight) == pindexMined) {
+                toRemove.emplace_back(p.first);
+            }
+        }
+    }
+    for (const auto& txid : toRemove) {
+        // This will also add children to pendingRetryTxs
+        RemoveNonLockedTx(txid, true);
+    }
 }
 
 } // namespace llmq
