@@ -135,8 +135,10 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 
     void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
-    void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
+    std::unordered_map<const CBlockIndex*, Uint256HashMap<CTransactionRef>> RetrieveISConflicts(
+        const uint256& islockHash, const instantsend::InstantSendLock& islock)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks);
+    bool IsKnownTx(const uint256& islockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
 private:
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
