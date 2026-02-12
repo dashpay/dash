@@ -5,17 +5,17 @@
 #include <instantsend/signing.h>
 
 #include <chain.h>
+#include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <index/txindex.h>
-#include <logging.h>
-#include <util/irange.h>
-#include <validation.h>
-
-#include <chainlock/chainlock.h>
+#include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
+#include <logging.h>
 #include <masternode/sync.h>
 #include <spork.h>
+#include <util/irange.h>
+#include <validation.h>
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
@@ -29,7 +29,7 @@ using node::GetTransaction;
 
 namespace instantsend {
 InstantSendSigner::InstantSendSigner(CChainState& chainstate, const chainlock::Chainlocks& chainlocks,
-                                     InstantSendSignerParent& isman, llmq::CSigningManager& sigman,
+                                     llmq::CInstantSendManager& isman, llmq::CSigningManager& sigman,
                                      llmq::CSigSharesManager& shareman, llmq::CQuorumManager& qman,
                                      CSporkManager& sporkman, CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
     m_chainstate{chainstate},

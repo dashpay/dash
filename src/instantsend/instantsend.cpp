@@ -7,7 +7,6 @@
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <instantsend/signing.h>
 #include <masternode/sync.h>
 #include <node/blockstorage.h>
 #include <spork.h>
