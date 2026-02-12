@@ -207,28 +207,36 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
         return false;
     }
 
-    const auto blockHeight = m_isman.GetBlockHeight(hashBlock);
-    if (!blockHeight) {
-        if (printDebug) {
-            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n", __func__,
-                     txHash.ToString(), outpoint.hash.ToString());
+    int blockHeight{0};
+    if (!hashBlock.IsNull()) {
+        auto ret = m_isman.GetCachedHeight(hashBlock);
+        if (ret) blockHeight = *ret;
+
+        const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
+        if (pindex == nullptr) {
+            if (printDebug) {
+                LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n",
+                         __func__, txHash.ToString(), outpoint.hash.ToString());
+            }
+            return false;
         }
-        return false;
+        m_isman.CacheBlockHeight(pindex);
+        blockHeight = pindex->nHeight;
     }
 
     const int tipHeight = m_isman.GetTipHeight();
 
-    if (tipHeight < *blockHeight) {
+    if (tipHeight < blockHeight) {
         if (printDebug) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: cached tip height %d is below block height %d for parent TX %s\n",
-                     __func__, txHash.ToString(), tipHeight, *blockHeight, outpoint.hash.ToString());
+                     __func__, txHash.ToString(), tipHeight, blockHeight, outpoint.hash.ToString());
         }
         return false;
     }
 
-    const int nTxAge = tipHeight - *blockHeight + 1;
+    const int nTxAge = tipHeight - blockHeight + 1;
 
-    if (nTxAge < nInstantSendConfirmationsRequired && !m_chainlocks.HasChainLock(*blockHeight, hashBlock)) {
+    if (nTxAge < nInstantSendConfirmationsRequired && !m_chainlocks.HasChainLock(blockHeight, hashBlock)) {
         if (printDebug) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nInstantSendConfirmationsRequired=%d\n", __func__,
                      txHash.ToString(), outpoint.ToStringShort(), nTxAge, nInstantSendConfirmationsRequired);

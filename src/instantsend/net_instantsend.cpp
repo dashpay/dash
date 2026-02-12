@@ -36,6 +36,23 @@ constexpr int OLD_ACTIVE_SET_FAILURE_MISBEHAVIOR_SCORE{20};
 constexpr auto WORK_THREAD_SLEEP_INTERVAL{std::chrono::milliseconds{100}};
 } // namespace
 
+static std::optional<int> GetBlockHeight(llmq::CInstantSendManager& is_manager, const CChainState& chainstate,
+                                         const uint256& hash)
+{
+    if (hash.IsNull()) {
+        return std::nullopt;
+    }
+    auto ret = is_manager.GetCachedHeight(hash);
+    if (ret) return ret;
+
+    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return chainstate.m_blockman.LookupBlockIndex(hash));
+    if (pindex == nullptr) {
+        return std::nullopt;
+    }
+    is_manager.CacheBlockHeight(pindex);
+    return pindex->nHeight;
+}
+
 struct NetInstantSend::BatchVerificationData {
     CBLSBatchVerifier<NodeId, uint256> batchVerifier{false, true, BATCH_VERIFIER_SOURCE_THRESHOLD};
     Uint256HashMap<llmq::CRecoveredSig> recSigs;
@@ -55,7 +72,7 @@ bool NetInstantSend::ValidateIncomingISLock(const instantsend::InstantSendLock& 
 
 std::optional<int> NetInstantSend::ResolveCycleHeight(const uint256& cycle_hash)
 {
-    auto cycle_height = m_is_manager.GetBlockHeight(cycle_hash);
+    auto cycle_height = GetBlockHeight(m_is_manager, m_chainstate, cycle_hash);
     if (cycle_height) {
         return cycle_height;
     }
@@ -113,7 +130,7 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
             continue;
         }
 
-        auto cycleHeightOpt = m_is_manager.GetBlockHeight(islock->cycleHash);
+        auto cycleHeightOpt = GetBlockHeight(m_is_manager, m_chainstate, islock->cycleHash);
         if (!cycleHeightOpt) {
             data->batchVerifier.badSources.emplace(nodeId);
             continue;
@@ -325,7 +342,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, Params().GetConsensus(), hashBlock);
     const bool found_transaction{tx != nullptr};
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
-    std::optional<int> minedHeight = m_is_manager.GetBlockHeight(hashBlock);
+    std::optional<int> minedHeight = GetBlockHeight(m_is_manager, m_chainstate, hashBlock);
     if (found_transaction) {
         if (!minedHeight.has_value()) {
             const CBlockIndex* pindexMined = WITH_LOCK(::cs_main,
