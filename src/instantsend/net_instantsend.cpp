@@ -445,10 +445,14 @@ void NetInstantSend::RemoveMempoolConflictsForLock(const uint256& hash, const in
     }
 }
 
-void NetInstantSend::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
+void NetInstantSend::SynchronousUpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork,
+                                                bool fInitialDownload)
 {
     m_is_manager.CacheTipHeight(pindexNew);
+}
 
+void NetInstantSend::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
+{
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (m_is_manager.Chainlocks().IsEnabled() && fDIP0008Active) {

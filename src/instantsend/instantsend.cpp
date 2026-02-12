@@ -562,17 +562,14 @@ void CInstantSendManager::CacheTipHeight(const CBlockIndex* const tip) const
 
 int CInstantSendManager::GetTipHeight() const
 {
-    {
-        LOCK(cs_height_cache);
-        if (m_cached_tip_height >= 0) {
-            return m_cached_tip_height;
-        }
+    // It returns the cached tip height which is updated through notification mechanism
+    // If cached tip is not set by any reason, it's okay to return 0 because
+    // chainstate is not fully loaded yet and tip is not set
+    LOCK(cs_height_cache);
+    if (m_cached_tip_height >= 0) {
+        return m_cached_tip_height;
     }
-
-    const CBlockIndex* tip = WITH_LOCK(::cs_main, return m_chainstate.m_chain.Tip());
-
-    CacheTipHeight(tip);
-    return tip ? tip->nHeight : -1;
+    return 0;
 }
 
 bool CInstantSendManager::IsInstantSendEnabled() const
