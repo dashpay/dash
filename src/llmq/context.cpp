@@ -23,7 +23,7 @@ LLMQContext::LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSpork
     qman{std::make_unique<llmq::CQuorumManager>(*bls_worker, dmnman, evo_db, *quorum_block_processor, *qsnapman,
                                                 chainman, db_params)},
     sigman{std::make_unique<llmq::CSigningManager>(*qman, db_params, max_recsigs_age)},
-    isman{std::make_unique<llmq::CInstantSendManager>(chainlocks, *sigman, sporkman, mn_sync, db_params)}
+    isman{std::make_unique<llmq::CInstantSendManager>(chainlocks, sporkman, mn_sync, db_params)}
 {
     // Have to start it early to let VerifyDB check ChainLock signatures in coinbase
     bls_worker->Start(worker_count);

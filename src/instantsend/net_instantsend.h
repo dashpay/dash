@@ -30,6 +30,7 @@ struct PendingISLockEntry;
 class InstantSendSigner;
 } // namespace instantsend
 namespace llmq {
+class CSigningManager;
 class CInstantSendManager;
 class CQuorumManager;
 } // namespace llmq
@@ -38,11 +39,12 @@ class NetInstantSend final : public NetHandler, public CValidationInterface
 {
 public:
     NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager,
-                   instantsend::InstantSendSigner* signer, llmq::CQuorumManager& qman, CChainState& chainstate,
-                   CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
+                   instantsend::InstantSendSigner* signer, llmq::CSigningManager& sigman, llmq::CQuorumManager& qman,
+                   CChainState& chainstate, CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
         NetHandler(peer_manager),
         m_is_manager{is_manager},
         m_signer{signer},
+        m_sigman{sigman},
         m_qman(qman),
         m_chainstate{chainstate},
         m_mempool{mempool},
@@ -102,6 +104,7 @@ private:
 
     llmq::CInstantSendManager& m_is_manager;
     instantsend::InstantSendSigner* m_signer; // non-null only for masternode
+    llmq::CSigningManager& m_sigman;
     llmq::CQuorumManager& m_qman;
     CChainState& m_chainstate;
     CTxMemPool& m_mempool;
