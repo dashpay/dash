@@ -173,10 +173,8 @@ public:
      * allows ChainLocks to continue even while this spork is disabled.
      */
     bool RejectConflictingBlocks() const;
-    void RemoveArchivedInstantSendLocks(int nUntilHeight);
-    Uint256HashMap<instantsend::InstantSendLockPtr> RemoveConfirmedInstantSendLocks(int nUntilHeight);
+    Uint256HashMap<instantsend::InstantSendLockPtr> RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
-    void RemoveNonLockedForConfirmed(const CBlockIndex* pindex);
 };
 } // namespace llmq
 
