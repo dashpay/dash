@@ -347,7 +347,8 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
     }
 }
 
-void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+std::unordered_map<const CBlockIndex*, Uint256HashMap<CTransactionRef>> CInstantSendManager::RetrieveISConflicts(
+    const uint256& islockHash, const instantsend::InstantSendLock& islock)
 {
     // Lets first collect all non-locked TXs which conflict with the given ISLOCK
     std::unordered_map<const CBlockIndex*, Uint256HashMap<CTransactionRef>> conflicts;
@@ -375,65 +376,13 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
         }
     }
 
-    // Lets see if any of the conflicts was already mined into a ChainLocked block
-    bool hasChainLockedConflict = false;
-    for (const auto& p : conflicts) {
-        const auto* pindex = p.first;
-        if (m_chainlocks.HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
-            hasChainLockedConflict = true;
-            break;
-        }
-    }
+    return conflicts;
+}
 
-    // If a conflict was mined into a ChainLocked block, then we have no other choice and must prune the ISLOCK and all
-    // chained ISLOCKs that build on top of this one. The probability of this is practically zero and can only happen
-    // when large parts of the masternode network are controlled by an attacker. In this case we must still find
-    // consensus and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
-    if (hasChainLockedConflict) {
-        LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock\n",
-                  __func__, islock.txid.ToString(), islockHash.ToString());
-        RemoveConflictingLock(islockHash, islock);
-        return;
-    }
-
-    bool isLockedTxKnown = WITH_LOCK(cs_pendingLocks, return pendingNoTxInstantSendLocks.find(islockHash) ==
-                                                             pendingNoTxInstantSendLocks.end());
-
-    bool activateBestChain = false;
-    for (const auto& p : conflicts) {
-        const auto* pindex = p.first;
-        for (const auto& p2 : p.second) {
-            const auto& tx = *p2.second;
-            RemoveConflictedTx(tx);
-        }
-
-        LogPrintf("CInstantSendManager::%s -- invalidating block %s\n", __func__, pindex->GetBlockHash().ToString());
-
-        BlockValidationState state;
-        // need non-const pointer
-        auto pindex2 = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
-        if (!m_chainstate.InvalidateBlock(state, pindex2)) {
-            LogPrintf("CInstantSendManager::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
-        }
-        if (isLockedTxKnown) {
-            activateBestChain = true;
-        } else {
-            LogPrintf("CInstantSendManager::%s -- resetting block %s\n", __func__, pindex2->GetBlockHash().ToString());
-            LOCK(::cs_main);
-            m_chainstate.ResetBlockFailureFlags(pindex2);
-        }
-    }
-
-    if (activateBestChain) {
-        BlockValidationState state;
-        if (!m_chainstate.ActivateBestChain(state)) {
-            LogPrintf("CInstantSendManager::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
-        }
-    }
+bool CInstantSendManager::IsKnownTx(const uint256& islockHash) const
+{
+    LOCK(cs_pendingLocks);
+    return pendingNoTxInstantSendLocks.find(islockHash) == pendingNoTxInstantSendLocks.end();
 }
 
 void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
