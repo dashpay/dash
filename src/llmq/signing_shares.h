@@ -362,6 +362,23 @@ public:
     int attempt{0};
 };
 
+enum class PreVerifyResult {
+    Success,
+    QuorumTooOld,
+    NotAMember,
+    MissingVerificationVector,
+    DuplicateMember,
+    QuorumMemberOutOfBounds,
+    QuorumMemberNotValid
+};
+
+struct PreVerifyBatchedResult {
+    PreVerifyResult result;
+    bool should_ban;
+
+    [[nodiscard]] bool IsSuccess() const { return result == PreVerifyResult::Success; }
+};
+
 class CSigSharesManager : public llmq::CRecoveredSigsListener
 {
 private:
@@ -455,6 +472,17 @@ public:
 
     void NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static PreVerifyBatchedResult PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman,
+                                                            const CQuorumManager& quorum_manager,
+                                                            const CSigSharesNodeState::SessionInfo& session,
+                                                            const CBatchedSigShares& batchedSigShares);
+
+    // Validates the structure of batched sig shares (duplicates, bounds, member validity)
+    // This is extracted for testability - it's the pure validation logic without external dependencies
+    static PreVerifyBatchedResult ValidateBatchedSigSharesStructure(const CQuorum& quorum,
+                                                                     const CBatchedSigShares& batchedSigShares);
+
 private:
     std::optional<CSigShare> CreateSigShareForSingleMember(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const;
 
@@ -465,10 +493,6 @@ private:
     bool ProcessMessageBatchedSigShares(const CNode& pfrom, const CBatchedSigShares& batchedSigShares)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare) EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
-    static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
-                                          const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
     bool CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
