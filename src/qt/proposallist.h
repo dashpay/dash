@@ -43,6 +43,24 @@ enum class ProposalSource : uint8_t {
     Local
 };
 
+struct ProposalData {
+    int m_abs_vote_req{0};
+    interfaces::GOV::GovernanceInfo m_gov_info;
+    Proposals m_proposals;
+    Uint256HashMap<CKeyID> m_votable_masternodes;
+    Uint256HashSet m_fundable_hashes;
+};
+
+class ProposalFeed : public QObject {
+    Q_OBJECT
+
+public:
+    ProposalFeed();
+    ~ProposalFeed();
+
+    static ProposalData fetch(ClientModel* client_model);
+};
+
 /** Proposal list widget */
 class ProposalList : public QWidget
 {
@@ -57,14 +75,6 @@ public:
     void setWalletModel(WalletModel* walletModel);
 
 private:
-    struct CalcProposalList {
-        int m_abs_vote_req{0};
-        interfaces::GOV::GovernanceInfo m_gov_info;
-        Proposals m_proposals;
-        Uint256HashMap<CKeyID> m_votable_masternodes;
-        Uint256HashSet m_fundable_hashes;
-    };
-
     ClientModel* clientModel{nullptr};
     interfaces::GOV::GovernanceInfo m_gov_info;
     ProposalModel* proposalModel{nullptr};
@@ -80,12 +90,12 @@ private:
     WalletModel* walletModel{nullptr};
 
     bool canVote() const { return !votableMasternodes.empty(); }
-    CalcProposalList calcProposalList() const;
+    ProposalData calcProposalList() const;
     int queryCollateralDepth(const uint256& collateralHash) const;
     std::vector<Governance::Object> getWalletProposals(std::optional<bool> pending) const;
     void handleProposalListChanged(bool force);
     void refreshColumnWidths();
-    void setProposalList(CalcProposalList&& data);
+    void setProposalList(ProposalData&& data);
     void updateEmptyPagePalette();
     void updateEmptyState();
     void updateProposalButtons();
