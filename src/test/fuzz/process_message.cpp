@@ -1,4 +1,4 @@
-// Copyright (c) 2020 The Bitcoin Core developers
+// Copyright (c) 2020-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -6,8 +6,6 @@
 #include <net.h>
 #include <protocol.h>
 #include <script/script.h>
-#include <serialize.h>
-#include <streams.h>
 #include <sync.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
@@ -19,7 +17,6 @@
 #include <validationinterface.h>
 #include <version.h>
 
-#include <atomic>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -72,13 +69,22 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     const auto mock_time = ConsumeTime(fuzzed_data_provider);
     SetMockTime(mock_time);
 
-    // fuzzed_data_provider is fully consumed after this call, don't use it
-    CDataStream random_bytes_data_stream{fuzzed_data_provider.ConsumeRemainingBytes<unsigned char>(), SER_NETWORK, PROTOCOL_VERSION};
-    try {
-        g_setup->m_node.peerman->ProcessMessage(p2p_node, random_message_type, random_bytes_data_stream, GetTime<std::chrono::microseconds>(), std::atomic<bool>{false});
-    } catch (const std::ios_base::failure& e) {
+    CSerializedNetMsg net_msg;
+    net_msg.m_type = random_message_type;
+    net_msg.data = ConsumeRandomLengthByteVector(fuzzed_data_provider, MAX_PROTOCOL_MESSAGE_LENGTH);
+
+    connman.FlushSendBuffer(p2p_node);
+    (void)connman.ReceiveMsgFrom(p2p_node, std::move(net_msg));
+
+    bool more_work{true};
+    while (more_work) {
+        p2p_node.fPauseSend = false;
+        try {
+            more_work = connman.ProcessMessagesOnce(p2p_node);
+        } catch (const std::ios_base::failure&) {
+        }
+        g_setup->m_node.peerman->SendMessages(&p2p_node);
     }
-    g_setup->m_node.peerman->SendMessages(&p2p_node);
     SyncWithValidationInterfaceQueue();
     g_setup->m_node.connman->StopNodes();
 }
