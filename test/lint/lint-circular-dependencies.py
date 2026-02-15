@@ -52,6 +52,13 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "qt/appearancewidget -> qt/guiutil -> qt/appearancewidget",
     "qt/bitcoinaddressvalidator -> qt/guiutil -> qt/bitcoinaddressvalidator",
     "qt/bitcoingui -> qt/guiutil -> qt/bitcoingui",
+    "qt/clientmodel -> qt/masternodelist -> qt/clientmodel",
+    "qt/clientmodel -> qt/masternodelist -> qt/masternodemodel -> qt/clientmodel",
+    "qt/clientmodel -> qt/masternodelist -> qt/walletmodel -> qt/clientmodel",
+    "qt/clientmodel -> qt/proposallist -> qt/clientmodel",
+    "qt/clientmodel -> qt/proposallist -> qt/proposalcreate -> qt/sendcoinsdialog -> qt/clientmodel",
+    "qt/clientmodel -> qt/proposallist -> qt/proposalmodel -> qt/clientmodel",
+    "qt/clientmodel -> qt/proposallist -> qt/proposalresume -> qt/clientmodel",
     "qt/guiutil -> qt/qvalidatedlineedit -> qt/guiutil",
     "wallet/coinjoin -> wallet/receive -> wallet/coinjoin",
 )
