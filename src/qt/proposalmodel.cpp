@@ -381,7 +381,7 @@ void ProposalModel::remove(int row)
     endRemoveRows();
 }
 
-void ProposalModel::reconcile(ProposalList&& proposals, std::unordered_set<uint256, StaticSaltedHasher>&& fundable_hashes)
+void ProposalModel::reconcile(Proposals&& proposals, std::unordered_set<uint256, StaticSaltedHasher>&& fundable_hashes)
 {
     m_fundable_hashes = std::move(fundable_hashes);
 

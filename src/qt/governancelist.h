@@ -60,7 +60,7 @@ private:
     struct CalcProposalList {
         int m_abs_vote_req{0};
         interfaces::GOV::GovernanceInfo m_gov_info;
-        ProposalList m_proposals;
+        Proposals m_proposals;
         Uint256HashMap<CKeyID> m_votable_masternodes;
         Uint256HashSet m_fundable_hashes;
     };

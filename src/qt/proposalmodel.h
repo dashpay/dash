@@ -92,7 +92,7 @@ public:
     std::optional<int> getFundedHeight() const { return m_funded_height; }
 };
 
-using ProposalList = std::vector<std::unique_ptr<Proposal>>;
+using Proposals = std::vector<std::unique_ptr<Proposal>>;
 
 class ProposalModel : public QAbstractTableModel
 {
@@ -101,7 +101,7 @@ class ProposalModel : public QAbstractTableModel
 private:
     BitcoinUnit m_display_unit{BitcoinUnit::DASH};
     int nAbsVoteReq{0};
-    ProposalList m_data;
+    Proposals m_data;
     QIcon m_icon_failing;
     QIcon m_icon_lapsed;
     QIcon m_icon_passing;
@@ -132,7 +132,7 @@ public:
 
     void append(std::unique_ptr<Proposal>&& proposal);
     void remove(int row);
-    void reconcile(ProposalList&& proposals, Uint256HashSet&& fundable_hashes);
+    void reconcile(Proposals&& proposals, Uint256HashSet&& fundable_hashes);
     void refreshIcons();
     void setDisplayUnit(const BitcoinUnit& display_unit);
     void setVotingParams(int nAbsVoteReq);
