@@ -58,8 +58,8 @@
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
+#include <llmq/signhash.h>
 #include <llmq/signing.h>
-#include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
 #include <llmq/observer/context.h>
 #include <masternode/meta.h>
@@ -653,12 +653,14 @@ public:
 
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    bool PeerIsBanned(const NodeId node_id) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     void PeerRelayInv(const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayDSQ(const CCoinJoinQueue& queue) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    void PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerAskPeersForTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     size_t PeerGetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, ::cs_main);
     void PeerPostProcessMessage(MessageProcessingResult&& ret) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -2565,7 +2567,8 @@ void PeerManagerImpl::_RelayTransaction(const uint256& txid)
     };
 }
 
-void PeerManagerImpl::RelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) {
+void PeerManagerImpl::RelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay)
+{
     if (proactive_relay) {
         // We were the peer that recovered this; avoid a bunch of `inv` -> `GetData` spam by proactively sending
         m_connman.ForEachNode([this, &sig](CNode* pnode) -> bool {
@@ -5467,7 +5470,6 @@ void PeerManagerImpl::ProcessMessage(
         }
         if (m_active_ctx) {
             assert(is_masternode);
-            m_active_ctx->shareman->ProcessMessage(pfrom, msg_type, vRecv);
             PostProcessMessage(m_active_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv), pfrom.GetId());
         }
         if (m_observer_ctx) {
@@ -6590,6 +6592,11 @@ void PeerManagerImpl::PeerMisbehaving(const NodeId pnode, const int howmuch, con
     Misbehaving(pnode, howmuch, message);
 }
 
+bool PeerManagerImpl::PeerIsBanned(const NodeId node_id)
+{
+    return IsBanned(node_id);
+}
+
 void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)
 {
     EraseObjectRequest(nodeid, inv);
@@ -6633,4 +6640,9 @@ size_t PeerManagerImpl::PeerGetRequestedObjectCount(NodeId nodeid) const
 void PeerManagerImpl::PeerPostProcessMessage(MessageProcessingResult&& ret)
 {
     PostProcessMessage(std::move(ret), /*node=*/-1);
+}
+
+void PeerManagerImpl::PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay)
+{
+    RelayRecoveredSig(sig, proactive_relay);
 }

@@ -66,13 +66,12 @@ public:
                            CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
                            chainlock::ChainlockHandler& clhandler, llmq::CInstantSendManager& isman,
                            llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
-                           llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman, PeerManager& peerman,
+                           llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
                            const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
                            const llmq::QvvecSyncModeMap& sync_map, const util::DbWrapperParams& db_params,
                            bool quorums_recovery, bool quorums_watch);
     ~ActiveContext();
 
-    void Interrupt();
     void Start(CConnman& connman, PeerManager& peerman);
     void Stop();
 
@@ -81,7 +80,6 @@ public:
 
 protected:
     // CValidationInterface
-    void NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig, bool proactive_relay) override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
 public:

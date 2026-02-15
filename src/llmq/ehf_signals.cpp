@@ -92,7 +92,6 @@ MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecover
         return {};
     }
 
-    MessageProcessingResult ret;
     const auto ehfSignals = m_chainman.ActiveChainstate().ChainHelper().ehf_manager->GetSignalsStage(
         WITH_LOCK(::cs_main, return m_chainman.ActiveTip()));
     MNHFTxPayload mnhfPayload;
@@ -113,19 +112,20 @@ MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecover
 
         CMutableTransaction tx = mnhfPayload.PrepareTx();
 
-        {
-            CTransactionRef tx_to_sent = MakeTransactionRef(std::move(tx));
-            LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig Special EHF TX is created hash=%s\n", tx_to_sent->GetHash().ToString());
-            LOCK(::cs_main);
-            const MempoolAcceptResult result = m_chainman.ProcessTransaction(tx_to_sent);
-            if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
-                ret.m_transactions.push_back(tx_to_sent->GetHash());
-            } else {
-                LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig -- AcceptToMemoryPool failed: %s\n", result.m_state.ToString());
-            }
+        CTransactionRef tx_to_sent = MakeTransactionRef(std::move(tx));
+        LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig Special EHF TX is created hash=%s\n",
+                  tx_to_sent->GetHash().ToString());
+        LOCK(::cs_main);
+        const MempoolAcceptResult result = m_chainman.ProcessTransaction(tx_to_sent);
+        if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
+            MessageProcessingResult ret;
+            ret.m_transactions.push_back(tx_to_sent->GetHash());
+            return ret;
         }
-        break;
+        LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig -- AcceptToMemoryPool failed: %s\n",
+                  result.m_state.ToString());
+        return {};
     }
-    return ret;
+    return {};
 }
 } // namespace llmq

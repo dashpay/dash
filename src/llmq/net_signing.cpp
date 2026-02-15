@@ -4,44 +4,130 @@
 
 #include <llmq/net_signing.h>
 
+#include <llmq/quorums.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <llmq/signing_shares.h>
 
 #include <bls/bls_batchverifier.h>
 #include <cxxtimer.hpp>
 #include <logging.h>
+#include <spork.h>
 #include <streams.h>
 #include <util/thread.h>
 #include <validationinterface.h>
 
 #include <unordered_map>
 
+namespace llmq {
 void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
-    if (msg_type != NetMsgType::QSIGREC) return;
+    if (msg_type == NetMsgType::QSIGREC) {
+        auto recoveredSig = std::make_shared<CRecoveredSig>();
+        vRecv >> *recoveredSig;
 
-    auto recoveredSig = std::make_shared<llmq::CRecoveredSig>();
-    vRecv >> *recoveredSig;
+        WITH_LOCK(cs_main, m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(), CInv{MSG_QUORUM_RECOVERED_SIG,
+                                                                                      recoveredSig->GetHash()}));
 
-    WITH_LOCK(cs_main, m_peer_manager->PeerEraseObjectRequest(pfrom.GetId(),
-                                                              CInv{MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()}));
+        if (!Params().GetLLMQ(recoveredSig->getLlmqType()).has_value()) {
+            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
+            return;
+        }
 
-    if (!Params().GetLLMQ(recoveredSig->getLlmqType()).has_value()) {
-        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
-        return;
+        m_sig_manager.VerifyAndProcessRecoveredSig(pfrom.GetId(), std::move(recoveredSig));
     }
 
-    m_sig_manager.VerifyAndProcessRecoveredSig(pfrom.GetId(), std::move(recoveredSig));
+    if (m_shares_manager == nullptr) return;
+
+    if (m_sporkman.IsSporkActive(SPORK_21_QUORUM_ALL_CONNECTED) && msg_type == NetMsgType::QSIGSHARE) {
+        std::vector<CSigShare> receivedSigShares;
+        vRecv >> receivedSigShares;
+
+        if (receivedSigShares.size() > CSigSharesManager::MAX_MSGS_SIG_SHARES) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QSIGSHARE message. cnt=%d, max=%d, node=%d\n",
+                     __func__, receivedSigShares.size(), CSigSharesManager::MAX_MSGS_SIG_SHARES, pfrom.GetId());
+            BanNode(pfrom.GetId());
+            return;
+        }
+
+        for (const auto& sigShare : receivedSigShares) {
+            if (!m_shares_manager->ProcessMessageSigShare(pfrom.GetId(), sigShare)) {
+                BanNode(pfrom.GetId());
+            }
+        }
+    }
+
+    if (msg_type == NetMsgType::QSIGSESANN) {
+        std::vector<CSigSesAnn> msgs;
+        vRecv >> msgs;
+        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSESANN) {
+            LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                     "NetSigning::%s -- too many announcements in QSIGSESANN message. cnt=%d, max=%d, node=%d\n",
+                     __func__, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSESANN, pfrom.GetId());
+            BanNode(pfrom.GetId());
+            return;
+        }
+        if (!ranges::all_of(msgs, [this, &pfrom](const auto& ann) {
+                return m_shares_manager->ProcessMessageSigSesAnn(pfrom, ann);
+            })) {
+            BanNode(pfrom.GetId());
+            return;
+        }
+    } else if (msg_type == NetMsgType::QSIGSHARESINV || msg_type == NetMsgType::QGETSIGSHARES) {
+        std::vector<CSigSharesInv> msgs;
+        vRecv >> msgs;
+        if (msgs.size() > CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many invs in %s message. cnt=%d, max=%d, node=%d\n",
+                     __func__, msg_type, msgs.size(), CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES, pfrom.GetId());
+            BanNode(pfrom.GetId());
+            return;
+        }
+        if (!ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
+                return m_shares_manager->ProcessMessageSigShares(pfrom, inv, msg_type);
+            })) {
+            BanNode(pfrom.GetId());
+            return;
+        }
+    } else if (msg_type == NetMsgType::QBSIGSHARES) {
+        std::vector<CBatchedSigShares> msgs;
+        vRecv >> msgs;
+        size_t totalSigsCount = 0;
+        for (const auto& bs : msgs) {
+            totalSigsCount += bs.sigShares.size();
+        }
+        if (totalSigsCount > CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n",
+                     __func__, msgs.size(), CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
+            BanNode(pfrom.GetId());
+            return;
+        }
+        if (!ranges::all_of(msgs, [this, &pfrom](const auto& bs) {
+                return m_shares_manager->ProcessMessageBatchedSigShares(pfrom, bs);
+            })) {
+            BanNode(pfrom.GetId());
+            return;
+        }
+    }
 }
 
 void NetSigning::Start()
 {
     // can't start new thread if we have one running already
-    if (workThread.joinable()) {
-        assert(false);
-    }
+    assert(!signing_thread.joinable());
+    assert(!shares_cleaning_thread.joinable());
+    assert(!shares_dispatcher_thread.joinable());
 
-    workThread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadMain(); });
+    signing_thread = std::thread(&util::TraceThread, "recsigs", [this] { WorkThreadSigning(); });
+
+    if (m_shares_manager) {
+        // Initialize worker pool
+        int worker_count = std::clamp(static_cast<int>(std::thread::hardware_concurrency() / 2), 1, 4);
+        worker_pool.resize(worker_count);
+        RenameThreadPool(worker_pool, "sigsh-work");
+
+        shares_cleaning_thread = std::thread(&util::TraceThread, "sigsh-maint", [this] { WorkThreadCleaning(); });
+        shares_dispatcher_thread = std::thread(&util::TraceThread, "sigsh-dispat", [this] { WorkThreadDispatcher(); });
+    }
 }
 
 void NetSigning::Stop()
@@ -51,36 +137,51 @@ void NetSigning::Stop()
         assert(false);
     }
 
-    if (workThread.joinable()) {
-        workThread.join();
+    if (signing_thread.joinable()) {
+        signing_thread.join();
+    }
+
+    if (m_shares_manager) {
+        // Join threads FIRST to stop any pending push() calls
+        if (shares_cleaning_thread.joinable()) {
+            shares_cleaning_thread.join();
+        }
+        if (shares_dispatcher_thread.joinable()) {
+            shares_dispatcher_thread.join();
+        }
+
+        // Then stop worker pool (now safe, no more push() calls)
+        worker_pool.clear_queue();
+        worker_pool.stop(true);
     }
 }
 
-void NetSigning::ProcessRecoveredSig(std::shared_ptr<const llmq::CRecoveredSig> recoveredSig, bool consider_proactive_relay)
+void NetSigning::ProcessRecoveredSig(std::shared_ptr<const CRecoveredSig> recovered_sig, bool consider_proactive_relay)
 {
-    if (!m_sig_manager.ProcessRecoveredSig(recoveredSig)) return;
+    if (recovered_sig == nullptr) return;
+    if (!m_sig_manager.ProcessRecoveredSig(recovered_sig)) return;
 
     auto listeners = m_sig_manager.GetListeners();
     for (auto& l : listeners) {
-        m_peer_manager->PeerPostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
+        m_peer_manager->PeerPostProcessMessage(l->HandleNewRecoveredSig(*recovered_sig));
     }
 
     // TODO refactor to use a better abstraction analogous to IsAllMembersConnectedEnabled
-    auto proactive_relay = consider_proactive_relay && recoveredSig->getLlmqType() != Consensus::LLMQType::LLMQ_100_67 &&
-                           recoveredSig->getLlmqType() != Consensus::LLMQType::LLMQ_400_60 &&
-                           recoveredSig->getLlmqType() != Consensus::LLMQType::LLMQ_400_85;
-    GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString(), proactive_relay);
+    auto proactive_relay = consider_proactive_relay && recovered_sig->getLlmqType() != Consensus::LLMQType::LLMQ_100_67 &&
+                           recovered_sig->getLlmqType() != Consensus::LLMQType::LLMQ_400_60 &&
+                           recovered_sig->getLlmqType() != Consensus::LLMQType::LLMQ_400_85;
+    GetMainSignals().NotifyRecoveredSig(recovered_sig, recovered_sig->GetHash().ToString(), proactive_relay);
 }
 
 bool NetSigning::ProcessPendingRecoveredSigs()
 {
-    Uint256HashMap<std::shared_ptr<const llmq::CRecoveredSig>> pending{m_sig_manager.FetchPendingReconstructed()};
+    Uint256HashMap<std::shared_ptr<const CRecoveredSig>> pending{m_sig_manager.FetchPendingReconstructed()};
 
     for (const auto& p : pending) {
         ProcessRecoveredSig(p.second, true);
     }
 
-    std::unordered_map<NodeId, std::list<std::shared_ptr<const llmq::CRecoveredSig>>> recSigsByNode;
+    std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>> recSigsByNode;
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CBLSPublicKey, StaticSaltedHasher> pubkeys;
 
     const size_t nMaxBatchSize{32};
@@ -135,7 +236,7 @@ bool NetSigning::ProcessPendingRecoveredSigs()
     return more_work;
 }
 
-void NetSigning::WorkThreadMain()
+void NetSigning::WorkThreadSigning()
 {
     while (!workInterrupt) {
         bool fMoreWork = ProcessPendingRecoveredSigs();
@@ -151,3 +252,153 @@ void NetSigning::WorkThreadMain()
         }
     }
 }
+
+void NetSigning::RemoveBannedNodeStates()
+{
+    assert(m_shares_manager != nullptr);
+    // Called regularly to cleanup local node states for banned nodes
+    m_shares_manager->RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
+}
+
+void NetSigning::BanNode(NodeId nodeId)
+{
+    if (nodeId == -1) return;
+
+    m_peer_manager->PeerMisbehaving(nodeId, 100);
+    if (m_shares_manager) {
+        m_shares_manager->MarkAsBanned(nodeId);
+    }
+}
+
+void NetSigning::WorkThreadCleaning()
+{
+    assert(m_shares_manager);
+
+    while (!workInterrupt) {
+        RemoveBannedNodeStates();
+
+        m_shares_manager->SendMessages();
+        m_shares_manager->Cleanup();
+
+        workInterrupt.sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+void NetSigning::WorkThreadDispatcher()
+{
+    assert(m_shares_manager);
+
+    while (!workInterrupt) {
+        // Dispatch all pending signs (individual tasks)
+        {
+            auto signs = m_shares_manager->DispatchPendingSigns();
+            // Dispatch all signs to worker pool
+            for (auto& work : signs) {
+                if (workInterrupt) break;
+
+                worker_pool.push([this, work = std::move(work)](int) mutable {
+                    auto rs = m_shares_manager->SignAndProcessSingleShare(std::move(work));
+                    ProcessRecoveredSig(rs, true);
+                });
+            }
+        }
+
+        if (m_shares_manager->IsAnyPendingProcessing()) {
+            // If there's processing work, spawn a helper worker
+            worker_pool.push([this](int) {
+                while (!workInterrupt) {
+                    bool moreWork = ProcessPendingSigShares();
+
+                    if (!moreWork) {
+                        return; // No work found, exit immediately
+                    }
+                }
+            });
+        }
+
+        // Always sleep briefly between checks
+        workInterrupt.sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
+void NetSigning::NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& sig, bool proactive_relay)
+{
+    m_peer_manager->PeerRelayRecoveredSig(*sig, proactive_relay);
+}
+
+bool NetSigning::ProcessPendingSigShares()
+{
+    std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
+
+    const size_t nMaxBatchSize{32};
+    bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+    if (sigSharesByNodes.empty()) {
+        return false;
+    }
+
+    // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
+    // which are not craftable by individual entities, making the rogue public key attack impossible
+    CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
+
+    cxxtimer::Timer prepareTimer(true);
+    size_t verifyCount = 0;
+    for (const auto& [nodeId, v] : sigSharesByNodes) {
+        for (const auto& sigShare : v) {
+            if (m_sig_manager.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+                continue;
+            }
+
+            // Materialize the signature once. Get() internally validates, so if it returns an invalid signature,
+            // we know it's malformed. This avoids calling Get() twice (once for IsValid(), once for PushMessage).
+            CBLSSignature sig = sigShare.sigShare.Get();
+            // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
+            // deserialization in the message thread
+            if (!sig.IsValid()) {
+                BanNode(nodeId);
+                // don't process any additional shares from this node
+                break;
+            }
+
+            auto quorum = quorums.at(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash()));
+            auto pubKeyShare = quorum->GetPubKeyShare(sigShare.getQuorumMember());
+
+            if (!pubKeyShare.IsValid()) {
+                // this should really not happen (we already ensured we have the quorum vvec,
+                // so we should also be able to create all pubkey shares)
+                LogPrintf("NetSigning::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
+                assert(false);
+            }
+
+            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sig, pubKeyShare);
+            verifyCount++;
+        }
+    }
+    prepareTimer.stop();
+
+    cxxtimer::Timer verifyTimer(true);
+    batchVerifier.Verify();
+    verifyTimer.stop();
+
+    LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- verified sig shares. count=%d, pt=%d, vt=%d, nodes=%d\n", __func__,
+             verifyCount, prepareTimer.count(), verifyTimer.count(), sigSharesByNodes.size());
+
+    for (const auto& [nodeId, v] : sigSharesByNodes) {
+        if (batchVerifier.badSources.count(nodeId) != 0) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- invalid sig shares from other node, banning peer=%d\n",
+                     __func__, nodeId);
+            // this will also cause re-requesting of the shares that were sent by this node
+            BanNode(nodeId);
+            continue;
+        }
+
+        auto rec_sigs = m_shares_manager->ProcessPendingSigShares(v, quorums);
+        for (auto& rs : rec_sigs) {
+            ProcessRecoveredSig(rs, true);
+        }
+    }
+
+    return more_work;
+}
+
+} // namespace llmq
