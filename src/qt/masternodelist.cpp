@@ -45,8 +45,8 @@ bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const 
     // Banned filter
     if (m_hide_banned) {
         QModelIndex idx = sourceModel()->index(source_row, MasternodeModel::STATUS, source_parent);
-        int banned = sourceModel()->data(idx, Qt::EditRole).toInt();
-        if (banned != 0) {
+        int status_value = sourceModel()->data(idx, Qt::EditRole).toInt();
+        if (status_value > 0) {
             return false;
         }
     }
