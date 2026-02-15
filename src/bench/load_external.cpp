@@ -60,4 +60,4 @@ static void LoadExternalBlockFile(benchmark::Bench& bench)
     fs::remove(blkfile);
 }
 
-BENCHMARK(LoadExternalBlockFile);
+BENCHMARK(LoadExternalBlockFile, benchmark::PriorityLevel::HIGH);

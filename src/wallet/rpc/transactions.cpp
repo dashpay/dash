@@ -457,7 +457,7 @@ RPCHelpMan listtransactions()
                         {RPCResult::Type::OBJ, "", "", Cat(Cat<std::vector<RPCResult>>(
                         {
                             {RPCResult::Type::BOOL, "involvesWatchonly", /*optional=*/true, "Only returns true if imported addresses were involved in transaction"},
-                            {RPCResult::Type::STR, "address", "The Dash address of the transaction. Not present for\n"
+                            {RPCResult::Type::STR, "address", /*optional=*/true, "The Dash address of the transaction. Not present for\n"
                                   "move transactions (category = move)."},
                             {RPCResult::Type::STR, "category", "The transaction category.\n"
                                 "\"send\"                  Transactions sent.\n"
@@ -572,7 +572,7 @@ RPCHelpMan listsinceblock()
                             {RPCResult::Type::OBJ, "", "", Cat(Cat<std::vector<RPCResult>>(
                             {
                                 {RPCResult::Type::BOOL, "involvesWatchonly", /*optional=*/true, "Only returns true if imported addresses were involved in transaction"},
-                                {RPCResult::Type::STR, "address", "The Dash address of the transaction."},
+                                {RPCResult::Type::STR, "address", /*optional=*/true, "The Dash address of the transaction."},
                                 {RPCResult::Type::STR, "category", "The transaction category.\n"
                                     "\"send\"                  Transactions sent.\n"
                                     "\"coinjoin\"              Transactions sent using CoinJoin funds.\n"
@@ -847,7 +847,9 @@ RPCHelpMan rescanblockchain()
 {
     return RPCHelpMan{"rescanblockchain",
                 "\nRescan the local blockchain for wallet related transactions.\n"
-                "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
+                "Note: Use \"getwalletinfo\" to query the scanning progress.\n"
+                "The rescan is significantly faster when used on a descriptor wallet\n"
+                "and block filters are available (using startup option \"-blockfilterindex=1\").\n",
                 {
                     {"start_height", RPCArg::Type::NUM, RPCArg::Default{0}, "block height where the rescan should start"},
                     {"stop_height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED_NAMED_ARG, "the last block height that should be scanned. If none is provided it will rescan up to the tip at return time of this call."},

@@ -56,5 +56,5 @@ static void DeserializeAndCheckBlockTest(benchmark::Bench& bench)
     });
 }
 
-BENCHMARK(DeserializeBlockTest);
-BENCHMARK(DeserializeAndCheckBlockTest);
+BENCHMARK(DeserializeBlockTest, benchmark::PriorityLevel::HIGH);
+BENCHMARK(DeserializeAndCheckBlockTest, benchmark::PriorityLevel::HIGH);

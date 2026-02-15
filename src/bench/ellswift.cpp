@@ -28,4 +28,4 @@ static void EllSwiftCreate(benchmark::Bench& bench)
     ECC_Stop();
 }
 
-BENCHMARK(EllSwiftCreate);
+BENCHMARK(EllSwiftCreate, benchmark::PriorityLevel::HIGH);

@@ -131,12 +131,12 @@ static void BLSDKG_GenerateContributions(benchmark::Bench& bench, uint32_t epoch
     blsWorker.Stop();
 }
 
-#define BENCH_GenerateContributions(name, quorumSize, epoch_iters) \
+#define BENCH_GenerateContributions(name, quorumSize, epoch_iters)                          \
     static void BLSDKG_GenerateContributions_##name##_##quorumSize(benchmark::Bench& bench) \
-    {                                                \
-        BLSDKG_GenerateContributions(bench, epoch_iters, quorumSize); \
-    } \
-    BENCHMARK(BLSDKG_GenerateContributions_##name##_##quorumSize)
+    {                                                                                       \
+        BLSDKG_GenerateContributions(bench, epoch_iters, quorumSize);                       \
+    }                                                                                       \
+    BENCHMARK(BLSDKG_GenerateContributions_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize)
 {
@@ -149,42 +149,42 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
     });
 }
 
-#define BENCH_InitDKG(name, quorumSize, epoch_iters) \
+#define BENCH_InitDKG(name, quorumSize, epoch_iters)                          \
     static void BLSDKG_InitDKG_##name##_##quorumSize(benchmark::Bench& bench) \
-    {                                                \
-        BLSDKG_InitDKG(bench, epoch_iters, quorumSize); \
-    } \
-    BENCHMARK(BLSDKG_InitDKG_##name##_##quorumSize)
+    {                                                                         \
+        BLSDKG_InitDKG(bench, epoch_iters, quorumSize);                       \
+    }                                                                         \
+    BENCHMARK(BLSDKG_InitDKG_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
-#define BENCH_BuildQuorumVerificationVectors(name, quorumSize, epoch_iters) \
+#define BENCH_BuildQuorumVerificationVectors(name, quorumSize, epoch_iters)                          \
     static void BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize(benchmark::Bench& bench) \
-    { \
-        if (!bench.output()) { \
-            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(1); \
-            ptr->Bench_BuildQuorumVerificationVectors(bench, 1); \
-            ptr.reset(); \
-            return; \
-        } \
-        std::unique_ptr<DKG> ptr = std::make_unique<DKG>(quorumSize); \
-        ptr->Bench_BuildQuorumVerificationVectors(bench, epoch_iters); \
-        ptr.reset(); \
-    } \
-    BENCHMARK(BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize)
+    {                                                                                                \
+        if (!bench.output()) {                                                                       \
+            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(1);                                     \
+            ptr->Bench_BuildQuorumVerificationVectors(bench, 1);                                     \
+            ptr.reset();                                                                             \
+            return;                                                                                  \
+        }                                                                                            \
+        std::unique_ptr<DKG> ptr = std::make_unique<DKG>(quorumSize);                                \
+        ptr->Bench_BuildQuorumVerificationVectors(bench, epoch_iters);                               \
+        ptr.reset();                                                                                 \
+    }                                                                                                \
+    BENCHMARK(BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 #define BENCH_VerifyContributionShares(name, quorumSize, invalidCount, aggregated, epoch_iters) \
-    static void BLSDKG_VerifyContributionShares_##name##_##quorumSize(benchmark::Bench& bench) \
-    { \
-        if (!bench.output()) { \
-            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(1); \
-            ptr->Bench_VerifyContributionShares(bench, invalidCount, aggregated, 1); \
-            ptr.reset(); \
-            return; \
-        } \
-        std::unique_ptr<DKG> ptr = std::make_unique<DKG>(quorumSize); \
-        ptr->Bench_VerifyContributionShares(bench, invalidCount, aggregated, epoch_iters); \
-        ptr.reset(); \
-    } \
-    BENCHMARK(BLSDKG_VerifyContributionShares_##name##_##quorumSize)
+    static void BLSDKG_VerifyContributionShares_##name##_##quorumSize(benchmark::Bench& bench)  \
+    {                                                                                           \
+        if (!bench.output()) {                                                                  \
+            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(1);                                \
+            ptr->Bench_VerifyContributionShares(bench, invalidCount, aggregated, 1);            \
+            ptr.reset();                                                                        \
+            return;                                                                             \
+        }                                                                                       \
+        std::unique_ptr<DKG> ptr = std::make_unique<DKG>(quorumSize);                           \
+        ptr->Bench_VerifyContributionShares(bench, invalidCount, aggregated, epoch_iters);      \
+        ptr.reset();                                                                            \
+    }                                                                                           \
+    BENCHMARK(BLSDKG_VerifyContributionShares_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 BENCH_GenerateContributions(simple, 50, 50);
 BENCH_GenerateContributions(simple, 100, 5);

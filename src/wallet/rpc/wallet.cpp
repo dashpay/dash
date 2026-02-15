@@ -5,6 +5,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <common/url.h>
 #include <core_io.h>
 #include <httpserver.h>
 #include <policy/policy.h>
@@ -15,7 +16,6 @@
 #include <util/bip32.h>
 #include <util/fees.h>
 #include <util/translation.h>
-#include <util/url.h>
 #include <util/vector.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>

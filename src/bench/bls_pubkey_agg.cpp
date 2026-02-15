@@ -87,13 +87,13 @@ static void BLS_PubKeyAggregate_Iterative_200(benchmark::Bench& bench) { BLS_Pub
 static void BLS_PubKeyAggregate_Batch_200(benchmark::Bench& bench) { BLS_PubKeyAggregate_Batch(200, bench); }
 
 // Register all benchmarks
-BENCHMARK(BLS_PubKeyAggregate_Iterative_5)
-BENCHMARK(BLS_PubKeyAggregate_Batch_5)
-BENCHMARK(BLS_PubKeyAggregate_Iterative_25)
-BENCHMARK(BLS_PubKeyAggregate_Batch_25)
-BENCHMARK(BLS_PubKeyAggregate_Iterative_50)
-BENCHMARK(BLS_PubKeyAggregate_Batch_50)
-BENCHMARK(BLS_PubKeyAggregate_Iterative_100)
-BENCHMARK(BLS_PubKeyAggregate_Batch_100)
-BENCHMARK(BLS_PubKeyAggregate_Iterative_200)
-BENCHMARK(BLS_PubKeyAggregate_Batch_200)
+BENCHMARK(BLS_PubKeyAggregate_Iterative_5, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Batch_5, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Iterative_25, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Batch_25, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Iterative_50, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Batch_50, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Iterative_100, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Batch_100, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Iterative_200, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKeyAggregate_Batch_200, benchmark::PriorityLevel::HIGH)
