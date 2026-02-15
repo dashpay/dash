@@ -72,6 +72,18 @@ bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const 
     return true;
 }
 
+bool MasternodeListSortFilterProxyModel::lessThan(const QModelIndex& lhs, const QModelIndex& rhs) const
+{
+    if (lhs.column() == MasternodeModel::SERVICE) {
+        QVariant lhs_data{sourceModel()->data(lhs, sortRole())};
+        QVariant rhs_data{sourceModel()->data(rhs, sortRole())};
+        if (lhs_data.userType() == QMetaType::QByteArray && rhs_data.userType() == QMetaType::QByteArray) {
+            return lhs_data.toByteArray() < rhs_data.toByteArray();
+        }
+    }
+    return QSortFilterProxyModel::lessThan(lhs, rhs);
+}
+
 MasternodeList::MasternodeList(QWidget* parent) :
     QWidget(parent),
     ui(new Ui::MasternodeList),
