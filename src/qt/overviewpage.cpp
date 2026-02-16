@@ -756,8 +756,6 @@ void OverviewPage::SetupTransactionList(int nNumItems)
         filter->setDynamicSortFilter(true);
         filter->setSortRole(Qt::EditRole);
         filter->setShowInactive(false);
-        // Exclude dust receive transactions from overview
-        filter->setTypeFilter(TransactionFilterProxy::ALL_TYPES & ~TransactionFilterProxy::TYPE(TransactionRecord::DustReceive));
         filter->sort(TransactionTableModel::Date, Qt::DescendingOrder);
         ui->listTransactions->setModel(filter.get());
     }
