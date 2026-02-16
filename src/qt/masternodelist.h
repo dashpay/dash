@@ -58,7 +58,7 @@ protected:
     bool filterAcceptsRow(int source_row, const QModelIndex& source_parent) const override;
 
 private:
-    bool m_hide_banned{true};
+    bool m_hide_banned{false};
     bool m_show_owned_only{false};
     QSet<QString> m_owned_mns;
     TypeFilter m_type_filter{TypeFilter::All};
