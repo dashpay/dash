@@ -5,6 +5,8 @@
 #ifndef BITCOIN_QT_CLIENTFEEDS_H
 #define BITCOIN_QT_CLIENTFEEDS_H
 
+#include <interfaces/node.h>
+#include <saltedhasher.h>
 #include <sync.h>
 #include <threadsafety.h>
 
@@ -19,6 +21,10 @@
 QT_BEGIN_NAMESPACE
 class QThread;
 QT_END_NAMESPACE
+
+class ClientModel;
+class MasternodeEntry;
+class Proposal;
 
 class FeedBase : public QObject
 {
@@ -84,6 +90,49 @@ protected:
 private:
     mutable Mutex m_cs;
     std::shared_ptr<const Data> m_data GUARDED_BY(m_cs);
+};
+
+using MasternodeEntryList = std::vector<std::shared_ptr<MasternodeEntry>>;
+
+struct MasternodeData {
+    bool m_valid{false};
+    int m_list_height{0};
+    MasternodeEntryList m_entries;
+};
+
+class MasternodeFeed : public Feed<MasternodeData> {
+    Q_OBJECT
+
+public:
+    explicit MasternodeFeed(QObject* parent, ClientModel& client_model);
+    ~MasternodeFeed();
+
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
+};
+
+using Proposals = std::vector<std::shared_ptr<Proposal>>;
+
+struct ProposalData {
+    int m_abs_vote_req{0};
+    interfaces::GOV::GovernanceInfo m_gov_info;
+    Proposals m_proposals;
+    Uint256HashSet m_fundable_hashes;
+};
+
+class ProposalFeed : public Feed<ProposalData> {
+    Q_OBJECT
+
+public:
+    explicit ProposalFeed(QObject* parent, ClientModel& client_model);
+    ~ProposalFeed();
+
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
 };
 
 class ClientFeeds : public QObject

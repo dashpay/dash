@@ -7,8 +7,6 @@
 
 #include <qt/masternodemodel.h>
 
-#include <qt/clientfeeds.h>
-
 #include <QMenu>
 #include <QSet>
 #include <QSortFilterProxyModel>
@@ -19,6 +17,10 @@
 #include <atomic>
 #include <memory>
 
+class ClientModel;
+class MasternodeFeed;
+class WalletModel;
+struct MasternodeData;
 namespace interfaces {
 class MnList;
 using MnListPtr = std::shared_ptr<MnList>;
@@ -27,32 +29,10 @@ namespace Ui {
 class MasternodeList;
 } // namespace Ui
 
-class ClientModel;
-class QThread;
-class WalletModel;
-
 QT_BEGIN_NAMESPACE
 class QModelIndex;
+class QThread;
 QT_END_NAMESPACE
-
-struct MasternodeData {
-    int m_list_height{0};
-    MasternodeEntryList m_entries;
-    bool m_valid{false};
-};
-
-class MasternodeFeed : public Feed<MasternodeData> {
-    Q_OBJECT
-
-public:
-    explicit MasternodeFeed(QObject* parent, ClientModel& client_model);
-    ~MasternodeFeed();
-
-    void fetch() override;
-
-private:
-    ClientModel& m_client_model;
-};
 
 class MasternodeListSortFilterProxyModel : public QSortFilterProxyModel
 {
@@ -111,7 +91,7 @@ private:
     QMenu* contextMenuDIP3{nullptr};
     WalletModel* walletModel{nullptr};
 
-    void setMasternodeList(MasternodeFeed::Data&& data, QSet<QString>&& owned_mns);
+    void setMasternodeList(MasternodeData&& data, QSet<QString>&& owned_mns);
 
     const MasternodeEntry* GetSelectedEntry();
 

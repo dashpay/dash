@@ -13,9 +13,9 @@
 #include <interfaces/wallet.h>
 #include <script/standard.h>
 #include <util/strencodings.h>
-#include <util/time.h>
 #include <util/underlying.h>
 
+#include <qt/clientfeeds.h>
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil_font.h>
 #include <qt/proposalcreate.h>
@@ -45,17 +45,8 @@
 #include <algorithm>
 
 namespace {
-constexpr auto DATA_UPDATE_INTERVAL{10s};
 constexpr int TITLE_MIN_WIDTH{220};
 } // anonymous namespace
-
-ProposalFeed::ProposalFeed(QObject* parent, ClientModel& client_model) :
-    Feed<ProposalData>{parent, {/*m_baseline=*/DATA_UPDATE_INTERVAL, /*m_throttle=*/DATA_UPDATE_INTERVAL*6}},
-    m_client_model{client_model}
-{
-}
-
-ProposalFeed::~ProposalFeed() = default;
 
 ProposalList::ProposalList(QWidget* parent) :
     QWidget(parent),
@@ -214,40 +205,6 @@ int ProposalList::queryCollateralDepth(const uint256& collateralHash) const
     return 0;
 }
 
-void ProposalFeed::fetch()
-{
-    if (m_client_model.node().shutdownRequested()) {
-        return;
-    }
-
-    const auto [dmn, pindex] = m_client_model.getMasternodeList();
-    if (!dmn || !pindex) {
-        return;
-    }
-
-    auto ret = std::make_shared<Data>();
-    // A proposal is considered passing if (YES votes - NO votes) >= (Total Weight of Masternodes / 10),
-    // count total valid (ENABLED) masternodes to determine passing threshold.
-    // Need to query number of masternodes here with access to client model.
-    const int nWeightedMnCount = dmn->getValidWeightedMNsCount();
-    ret->m_abs_vote_req = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
-    ret->m_gov_info = m_client_model.node().gov().getGovernanceInfo();
-    std::vector<CGovernanceObject> govObjList;
-    m_client_model.getAllGovernanceObjects(govObjList);
-    for (const auto& govObj : govObjList) {
-        if (govObj.GetObjectType() != GovernanceObject::PROPOSAL) {
-            continue; // Skip triggers.
-        }
-        ret->m_proposals.emplace_back(std::make_shared<Proposal>(m_client_model, govObj, ret->m_gov_info, ret->m_gov_info.requiredConfs,
-                                                                 /*is_broadcast=*/true));
-    }
-
-    auto fundable{m_client_model.node().gov().getFundableProposalHashes()};
-    ret->m_fundable_hashes = std::move(fundable.hashes);
-
-    setData(std::move(ret));
-}
-
 void ProposalList::updateProposalList()
 {
     if (!clientModel || !m_feed) {
@@ -262,7 +219,7 @@ void ProposalList::updateProposalList()
     // Assume that wallet-specific knowledge is stale
     votableMasternodes.clear();
 
-    ProposalFeed::Data ret;
+    ProposalData ret;
     ret.m_abs_vote_req = feed->m_abs_vote_req;
     ret.m_gov_info = feed->m_gov_info;
     ret.m_fundable_hashes = feed->m_fundable_hashes;
@@ -303,7 +260,7 @@ void ProposalList::updateProposalList()
     setProposalList(std::move(ret));
 }
 
-void ProposalList::setProposalList(ProposalFeed::Data&& data)
+void ProposalList::setProposalList(ProposalData&& data)
 {
     proposalModel->setVotingParams(data.m_abs_vote_req);
     proposalModel->reconcile(std::move(data.m_proposals), std::move(data.m_fundable_hashes));

@@ -9,8 +9,8 @@
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
 #include <saltedhasher.h>
-#include <util/time.h>
 
+#include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil.h>
@@ -26,18 +26,6 @@
 #include <QThread>
 
 #include <set>
-
-namespace {
-constexpr auto DATA_UPDATE_INTERVAL{3s};
-} // anonymous namespace
-
-MasternodeFeed::MasternodeFeed(QObject* parent, ClientModel& client_model) :
-    Feed<MasternodeData>{parent, {/*m_baseline=*/DATA_UPDATE_INTERVAL, /*m_throttle=*/DATA_UPDATE_INTERVAL*10}},
-    m_client_model{client_model}
-{
-}
-
-MasternodeFeed::~MasternodeFeed() = default;
 
 bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& source_parent) const
 {
@@ -201,52 +189,6 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
     }
 }
 
-void MasternodeFeed::fetch()
-{
-    if (m_client_model.node().shutdownRequested()) {
-        return;
-    }
-
-    const auto [dmn, pindex] = m_client_model.getMasternodeList();
-    if (!dmn || !pindex) {
-        return;
-    }
-
-    auto projectedPayees = dmn->getProjectedMNPayees(pindex);
-    if (projectedPayees.empty() && dmn->getValidMNsCount() > 0) {
-        // GetProjectedMNPayees failed to provide results for a list with valid mns.
-        // Keep current list and let it try again later.
-        return;
-    }
-
-    auto ret = std::make_shared<Data>();
-    ret->m_list_height = dmn->getHeight();
-
-    Uint256HashMap<int> nextPayments;
-    for (size_t i = 0; i < projectedPayees.size(); i++) {
-        const auto& dmn = projectedPayees[i];
-        nextPayments.emplace(dmn->getProTxHash(), ret->m_list_height + (int)i + 1);
-    }
-
-    dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
-        CTxDestination collateralDest;
-        Coin coin;
-        QString collateralStr = QObject::tr("UNKNOWN");
-        if (m_client_model.node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
-            ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-            collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
-        }
-        int nNextPayment{0};
-        if (auto nextPaymentIt = nextPayments.find(dmn.getProTxHash()); nextPaymentIt != nextPayments.end()) {
-            nNextPayment = nextPaymentIt->second;
-        }
-        ret->m_entries.push_back(std::make_unique<MasternodeEntry>(dmn, collateralStr, nNextPayment));
-    });
-
-    ret->m_valid = true;
-    setData(std::move(ret));
-}
-
 void MasternodeList::updateMasternodeList()
 {
     if (!clientModel || !m_feed) {
@@ -264,7 +206,7 @@ void MasternodeList::updateMasternodeList()
         return;
     }
 
-    MasternodeFeed::Data ret;
+    MasternodeData ret;
     ret.m_list_height = feed->m_list_height;
     ret.m_entries = feed->m_entries;
     ret.m_valid = feed->m_valid;

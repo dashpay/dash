@@ -10,12 +10,11 @@
 #include <qt/clientmodel.h>
 
 #include <qt/bantablemodel.h>
+#include <qt/clientfeeds.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/masternodelist.h>
 #include <qt/peertablemodel.h>
 #include <qt/peertablesortproxy.h>
-#include <qt/proposallist.h>
 
 #include <clientversion.h>
 #include <evo/deterministicmns.h>
@@ -72,7 +71,6 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
         util::ThreadRename("qt-clientmodl");
     });
 
-#ifdef ENABLE_WALLET
     // Setup data feed thread
     m_feeds = std::make_unique<ClientFeeds>(this);
 
@@ -96,7 +94,6 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
 
     // Start all tasks
     m_feeds->start();
-#endif // ENABLE_WALLET
 
     subscribeToCoreSignals();
 }

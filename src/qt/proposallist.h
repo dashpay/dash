@@ -10,7 +10,6 @@
 #include <pubkey.h>
 #include <saltedhasher.h>
 
-#include <qt/clientfeeds.h>
 #include <qt/proposalmodel.h>
 
 #include <QMenu>
@@ -21,12 +20,14 @@
 #include <optional>
 #include <vector>
 
+class CDeterministicMNList;
 class ClientModel;
+class ProposalCreate;
+class ProposalFeed;
 class ProposalModel;
 class WalletModel;
-class ProposalCreate;
-class CDeterministicMNList;
 enum vote_outcome_enum_t : int;
+struct ProposalData;
 namespace Governance {
 class Object;
 } // namespace Governance
@@ -37,26 +38,6 @@ class ProposalList;
 enum class ProposalSource : uint8_t {
     Active,
     Local
-};
-
-struct ProposalData {
-    int m_abs_vote_req{0};
-    interfaces::GOV::GovernanceInfo m_gov_info;
-    Proposals m_proposals;
-    Uint256HashSet m_fundable_hashes;
-};
-
-class ProposalFeed : public Feed<ProposalData> {
-    Q_OBJECT
-
-public:
-    explicit ProposalFeed(QObject* parent, ClientModel& client_model);
-    ~ProposalFeed();
-
-    void fetch() override;
-
-private:
-    ClientModel& m_client_model;
 };
 
 /** Proposal list widget */
@@ -88,7 +69,7 @@ private:
     int queryCollateralDepth(const uint256& collateralHash) const;
     std::vector<Governance::Object> getWalletProposals(std::optional<bool> pending) const;
     void refreshColumnWidths();
-    void setProposalList(ProposalFeed::Data&& data);
+    void setProposalList(ProposalData&& data);
     void updateEmptyPagePalette();
     void updateEmptyState();
     void updateProposalButtons();

@@ -11,8 +11,6 @@
 #include <sync.h>
 #include <uint256.h>
 
-#include <qt/clientfeeds.h>
-
 #include <QObject>
 #include <QDateTime>
 
@@ -21,6 +19,7 @@
 
 class BanTableModel;
 class CBlockIndex;
+class ClientFeeds;
 class MasternodeFeed;
 class OptionsModel;
 class PeerTableModel;
