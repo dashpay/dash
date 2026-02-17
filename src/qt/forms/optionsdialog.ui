@@ -1071,6 +1071,59 @@ https://explore.transifex.com/dash/dash/</string>
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="showMasternodesTab">
+         <property name="toolTip">
+          <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
+         </property>
+         <property name="text">
+          <string>Show Masternodes Tab</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="showGovernanceTab">
+         <property name="toolTip">
+          <string>Show additional tab listing governance proposals.</string>
+         </property>
+         <property name="text">
+          <string>Show Governance Tab</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_govCycleIcon">
+         <item>
+          <spacer name="govCycleIconIndent">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Fixed</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>18</width>
+             <height>0</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="showGovernanceCycleIcon">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="toolTip">
+            <string>Show the governance clock in the status bar.</string>
+           </property>
+           <property name="text">
+            <string>Show governance clock</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
         <layout class="QHBoxLayout" name="horizontalLayout_2_Display">
          <item>
           <widget class="QLabel" name="unitLabel">
@@ -1130,66 +1183,6 @@ https://explore.transifex.com/dash/dash/</string>
            </property>
            <property name="placeholderText">
             <string notr="true">https://example.com/tx/%s</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="Line" name="line_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="showMasternodesTab">
-         <property name="toolTip">
-          <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
-         </property>
-         <property name="text">
-          <string>Show Masternodes Tab</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="showGovernanceTab">
-         <property name="toolTip">
-          <string>Show additional tab listing governance proposals.</string>
-         </property>
-         <property name="text">
-          <string>Show Governance Tab</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_govCycleIcon">
-         <item>
-          <spacer name="govCycleIconIndent">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>18</width>
-             <height>0</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="showGovernanceCycleIcon">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="toolTip">
-            <string>Show the governance clock in the status bar.</string>
-           </property>
-           <property name="text">
-            <string>Show governance clock</string>
            </property>
           </widget>
          </item>

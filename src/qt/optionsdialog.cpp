@@ -120,7 +120,6 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
         ui->btnCoinJoin->hide();
         ui->thirdPartyTxUrlsLabel->setVisible(false);
         ui->thirdPartyTxUrls->setVisible(false);
-        ui->line_2->hide();
         ui->showMasternodesTab->hide();
         ui->showGovernanceTab->hide();
         ui->showGovernanceCycleIcon->hide();
