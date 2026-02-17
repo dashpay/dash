@@ -88,7 +88,7 @@ public:
     virtual const uint256& getProTxHash() const = 0;
 };
 
-using MnEntryCPtr = std::unique_ptr<const MnEntry>;
+using MnEntryCPtr = std::shared_ptr<const MnEntry>;
 
 //! Interface for a list of masternode entries
 class MnList
@@ -107,7 +107,7 @@ public:
     virtual size_t getValidWeightedMNsCount() const = 0;
     virtual uint256 getBlockHash() const = 0;
 
-    virtual void forEachMN(bool only_valid, std::function<void(const MnEntry&)> cb) const = 0;
+    virtual void forEachMN(bool only_valid, std::function<void(const MnEntryCPtr&)> cb) const = 0;
     virtual MnEntryCPtr getMN(const uint256& hash) const = 0;
     virtual MnEntryCPtr getMNByService(const CService& service) const = 0;
     virtual MnEntryCPtr getValidMN(const uint256& hash) const = 0;

@@ -83,12 +83,12 @@ void MasternodeFeed::fetch()
         CTxDestination collateralDest;
         Coin coin;
         QString collateralStr = QObject::tr("UNKNOWN");
-        if (m_client_model.node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
+        if (m_client_model.node().getUnspentOutput(dmn->getCollateralOutpoint(), coin) &&
             ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
             collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
         int nNextPayment{0};
-        if (auto nextPaymentIt = nextPayments.find(dmn.getProTxHash()); nextPaymentIt != nextPayments.end()) {
+        if (auto nextPaymentIt = nextPayments.find(dmn->getProTxHash()); nextPaymentIt != nextPayments.end()) {
             nNextPayment = nextPaymentIt->second;
         }
         ret->m_entries.push_back(std::make_unique<MasternodeEntry>(dmn, collateralStr, nNextPayment));
