@@ -1366,6 +1366,7 @@ QDialog#OptionsDialog QLabel#label_3 { /* Translations Missing? Label */
 }
 
 QDialog#OptionsDialog #line,
+QDialog#OptionsDialog #line_2,
 QDialog#OptionsDialog #frame {
     border-top: 1px solid red;
 }
