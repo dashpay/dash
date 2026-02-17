@@ -890,6 +890,7 @@ OptionsDialog
 ******************************************************/
 
 QDialog#OptionsDialog #line,
+QDialog#OptionsDialog #line_2,
 QDialog#OptionsDialog #frame {
     border-color: #dcdcdc;
 }
