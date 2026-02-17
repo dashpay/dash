@@ -29,12 +29,12 @@ src/masternode/*.h
 src/messagesigner.*
 src/netfulfilledman.*
 src/qt/descriptiondialog.*
-src/qt/governancelist.*
 src/qt/guiutil_font.*
 src/qt/masternodelist.*
 src/qt/masternodemodel.*
 src/qt/mnemonicverificationdialog.*
 src/qt/proposalcreate.*
+src/qt/proposallist.*
 src/qt/proposalmodel.*
 src/qt/proposalresume.*
 src/rpc/coinjoin.cpp

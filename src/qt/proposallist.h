@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_GOVERNANCELIST_H
-#define BITCOIN_QT_GOVERNANCELIST_H
+#ifndef BITCOIN_QT_PROPOSALLIST_H
+#define BITCOIN_QT_PROPOSALLIST_H
 
 #include <interfaces/node.h>
 #include <primitives/transaction.h>
@@ -23,7 +23,7 @@
 #include <optional>
 #include <vector>
 
-inline constexpr int GOVERNANCELIST_UPDATE_SECONDS = 10;
+inline constexpr int PROPOSALLIST_UPDATE_SECONDS = 10;
 
 class ClientModel;
 class ProposalModel;
@@ -35,7 +35,7 @@ namespace Governance {
 class Object;
 } // namespace Governance
 namespace Ui {
-class GovernanceList;
+class ProposalList;
 } // namespace Ui
 
 enum class ProposalSource : uint8_t {
@@ -43,16 +43,16 @@ enum class ProposalSource : uint8_t {
     Local
 };
 
-/** Governance Manager page widget */
-class GovernanceList : public QWidget
+/** Proposal list widget */
+class ProposalList : public QWidget
 {
     Q_OBJECT
 
-    Ui::GovernanceList* ui;
+    Ui::ProposalList* ui;
 
 public:
-    explicit GovernanceList(QWidget* parent = nullptr);
-    ~GovernanceList() override;
+    explicit ProposalList(QWidget* parent = nullptr);
+    ~ProposalList() override;
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
 
@@ -115,4 +115,4 @@ private Q_SLOTS:
     void voteAbstain();
 };
 
-#endif // BITCOIN_QT_GOVERNANCELIST_H
+#endif // BITCOIN_QT_PROPOSALLIST_H
