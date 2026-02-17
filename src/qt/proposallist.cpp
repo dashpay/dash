@@ -561,7 +561,7 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
 
     // Get masternode list once before the loop
     auto [mnList, pindex] = clientModel->getMasternodeList();
-    if (!pindex) {
+    if (!mnList || !pindex) {
         QMessageBox::warning(this, tr("Voting Failed"), tr("Unable to get masternode list. Please try again later."));
         return;
     }

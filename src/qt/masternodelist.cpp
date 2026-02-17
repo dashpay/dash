@@ -29,6 +29,10 @@ namespace {
 constexpr int MASTERNODELIST_UPDATE_SECONDS{3};
 } // anonymous namespace
 
+MasternodeFeed::MasternodeFeed() = default;
+
+MasternodeFeed::~MasternodeFeed() = default;
+
 bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& source_parent) const
 {
     // "Type" filter
@@ -233,7 +237,7 @@ void MasternodeList::updateDIP3ListScheduled()
     }
 
     QMetaObject::invokeMethod(m_worker, [this] {
-        auto result = std::make_shared<CalcMnList>(calcMasternodeList());
+        auto result = std::make_shared<MasternodeData>(calcMasternodeList());
         m_in_progress.store(false);
         QTimer::singleShot(0, this, [this, result] {
             if (result->m_valid) {
@@ -246,34 +250,26 @@ void MasternodeList::updateDIP3ListScheduled()
     });
 }
 
-MasternodeList::CalcMnList MasternodeList::calcMasternodeList() const
+MasternodeData MasternodeFeed::fetch(ClientModel* client_model)
 {
-    CalcMnList ret;
-    if (!clientModel || clientModel->node().shutdownRequested()) {
+    MasternodeData ret;
+    if (!client_model || client_model->node().shutdownRequested()) {
         return ret;
     }
 
-    auto [mnList, pindex] = clientModel->getMasternodeList();
-    if (!pindex) return ret;
-    auto projectedPayees = mnList->getProjectedMNPayees(pindex);
+    const auto [dmn, pindex] = client_model->getMasternodeList();
+    if (!dmn || !pindex) {
+        return ret;
+    }
 
-    if (projectedPayees.empty() && mnList->getValidMNsCount() > 0) {
+    ret.m_list_height = dmn->getHeight();
+
+    auto projectedPayees = dmn->getProjectedMNPayees(pindex);
+    if (projectedPayees.empty() && dmn->getValidMNsCount() > 0) {
         // GetProjectedMNPayees failed to provide results for a list with valid mns.
         // Keep current list and let it try again later.
         return ret;
     }
-
-    ret.m_list_height = mnList->getHeight();
-
-    Uint256HashMap<CTxDestination> mapCollateralDests;
-    mnList->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
-        CTxDestination collateralDest;
-        Coin coin;
-        if (clientModel->node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
-            ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-            mapCollateralDests.emplace(dmn.getProTxHash(), collateralDest);
-        }
-    });
 
     Uint256HashMap<int> nextPayments;
     for (size_t i = 0; i < projectedPayees.size(); i++) {
@@ -281,46 +277,63 @@ MasternodeList::CalcMnList MasternodeList::calcMasternodeList() const
         nextPayments.emplace(dmn->getProTxHash(), ret.m_list_height + (int)i + 1);
     }
 
-    mnList->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
+    dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
+        CTxDestination collateralDest;
+        Coin coin;
         QString collateralStr = QObject::tr("UNKNOWN");
-        auto collateralDestIt = mapCollateralDests.find(dmn.getProTxHash());
-        if (collateralDestIt != mapCollateralDests.end()) {
-            collateralStr = QString::fromStdString(EncodeDestination(collateralDestIt->second));
+        if (client_model->node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
+            ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
+            collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
-
-        int nNextPayment = 0;
-        auto nextPaymentIt = nextPayments.find(dmn.getProTxHash());
-        if (nextPaymentIt != nextPayments.end()) {
+        int nNextPayment{0};
+        if (auto nextPaymentIt = nextPayments.find(dmn.getProTxHash()); nextPaymentIt != nextPayments.end()) {
             nNextPayment = nextPaymentIt->second;
         }
-
         ret.m_entries.push_back(std::make_unique<MasternodeEntry>(dmn, collateralStr, nNextPayment));
     });
 
-    // Compute "owned" masternode hashes for the filter
-    if (walletModel) {
-        std::set<COutPoint> setOutpts;
-        for (const auto& outpt : walletModel->wallet().listProTxCoins()) {
-            setOutpts.emplace(outpt);
-        }
-
-        mnList->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
-            bool fMyMasternode = setOutpts.count(dmn.getCollateralOutpoint()) ||
-                                 walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdOwner())) ||
-                                 walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdVoting())) ||
-                                 walletModel->wallet().isSpendable(dmn.getScriptPayout()) ||
-                                 walletModel->wallet().isSpendable(dmn.getScriptOperatorPayout());
-            if (fMyMasternode) {
-                ret.m_owned_mns.insert(QString::fromStdString(dmn.getProTxHash().ToString()));
-            }
-        });
-    }
-
     ret.m_valid = true;
+
     return ret;
 }
 
-void MasternodeList::setMasternodeList(CalcMnList&& list)
+MasternodeData MasternodeList::calcMasternodeList() const
+{
+    MasternodeData ret;
+    if (!clientModel || clientModel->node().shutdownRequested()) {
+        return ret;
+    }
+
+    const auto [dmn, pindex] = clientModel->getMasternodeList();
+    if (!dmn || !pindex) {
+        return ret;
+    }
+
+    ret = MasternodeFeed::fetch(clientModel);
+    if (!walletModel) {
+        return ret;
+    }
+
+    std::set<COutPoint> setOutpts;
+    for (const auto& outpt : walletModel->wallet().listProTxCoins()) {
+        setOutpts.emplace(outpt);
+    }
+
+    dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
+        bool fMyMasternode = setOutpts.count(dmn.getCollateralOutpoint()) ||
+                             walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdOwner())) ||
+                             walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdVoting())) ||
+                             walletModel->wallet().isSpendable(dmn.getScriptPayout()) ||
+                             walletModel->wallet().isSpendable(dmn.getScriptOperatorPayout());
+        if (fMyMasternode) {
+            ret.m_owned_mns.insert(QString::fromStdString(dmn.getProTxHash().ToString()));
+        }
+    });
+
+    return ret;
+}
+
+void MasternodeList::setMasternodeList(MasternodeData&& list)
 {
     m_model->setCurrentHeight(list.m_list_height);
     m_model->reconcile(std::move(list.m_entries));

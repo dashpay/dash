@@ -33,6 +33,23 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 QT_END_NAMESPACE
 
+struct MasternodeData {
+    int m_list_height{0};
+    MasternodeEntryList m_entries;
+    QSet<QString> m_owned_mns;
+    bool m_valid{false};
+};
+
+class MasternodeFeed : public QObject {
+    Q_OBJECT
+
+public:
+    MasternodeFeed();
+    ~MasternodeFeed();
+
+    static MasternodeData fetch(ClientModel* client_model);
+};
+
 class MasternodeListSortFilterProxyModel : public QSortFilterProxyModel
 {
     Q_OBJECT
@@ -83,13 +100,6 @@ protected:
     void changeEvent(QEvent* event) override;
 
 private:
-    struct CalcMnList {
-        int m_list_height{0};
-        MasternodeEntryList m_entries;
-        QSet<QString> m_owned_mns;
-        bool m_valid{false};
-    };
-
     ClientModel* clientModel{nullptr};
     MasternodeListSortFilterProxyModel* m_proxy_model{nullptr};
     MasternodeModel* m_model{nullptr};
@@ -100,8 +110,8 @@ private:
     std::atomic<bool> m_in_progress{false};
     WalletModel* walletModel{nullptr};
 
-    CalcMnList calcMasternodeList() const;
-    void setMasternodeList(CalcMnList&& data);
+    MasternodeData calcMasternodeList() const;
+    void setMasternodeList(MasternodeData&& data);
 
     const MasternodeEntry* GetSelectedEntry();
 
