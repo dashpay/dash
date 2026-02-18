@@ -120,6 +120,9 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
         ui->btnCoinJoin->hide();
         ui->thirdPartyTxUrlsLabel->setVisible(false);
         ui->thirdPartyTxUrls->setVisible(false);
+        ui->showMasternodesTab->hide();
+        ui->showGovernanceTab->hide();
+        ui->showGovernanceCycleIcon->hide();
     } else {
         ui->btnCoinJoin->setText(QString::fromStdString(gCoinJoinName));
         pageButtons->addButton(ui->btnWallet, pageButtons->buttons().size());
@@ -358,9 +361,6 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->keepChangeAddress, OptionsModel::KeepChangeAddress);
     mapper->addMapping(ui->dustProtection, OptionsModel::DustProtection);
     mapper->addMapping(ui->dustProtectionThreshold, OptionsModel::DustProtectionThreshold);
-    mapper->addMapping(ui->showMasternodesTab, OptionsModel::ShowMasternodesTab);
-    mapper->addMapping(ui->showGovernanceCycleIcon, OptionsModel::ShowGovernanceClock);
-    mapper->addMapping(ui->showGovernanceTab, OptionsModel::ShowGovernanceTab);
     mapper->addMapping(ui->showAdvancedCJUI, OptionsModel::ShowAdvancedCJUI);
     mapper->addMapping(ui->showCoinJoinPopups, OptionsModel::ShowCoinJoinPopups);
     mapper->addMapping(ui->lowKeysWarning, OptionsModel::LowKeysWarning);
@@ -387,6 +387,9 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->proxyPortTor, OptionsModel::ProxyPortTor);
 
     /* Display */
+    mapper->addMapping(ui->showMasternodesTab, OptionsModel::ShowMasternodesTab);
+    mapper->addMapping(ui->showGovernanceCycleIcon, OptionsModel::ShowGovernanceClock);
+    mapper->addMapping(ui->showGovernanceTab, OptionsModel::ShowGovernanceTab);
     mapper->addMapping(ui->digits, OptionsModel::Digits);
     mapper->addMapping(ui->lang, OptionsModel::Language);
     mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
