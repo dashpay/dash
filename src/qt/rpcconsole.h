@@ -22,6 +22,7 @@
 #include <QWidget>
 
 class ClientModel;
+class MasternodeFeed;
 class RPCExecutor;
 class RPCTimerInterface;
 class WalletController;
@@ -215,6 +216,8 @@ private:
     bool m_is_executing{false};
     QByteArray m_peer_widget_header_state;
     QByteArray m_banlist_widget_header_state;
+
+    MasternodeFeed* m_feed_masternode{nullptr};
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();

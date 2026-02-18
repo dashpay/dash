@@ -76,7 +76,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
 
     // Setup feeds
     m_feed_masternode = m_feeds->add<MasternodeFeed>(this, *this);
-    connect(this, &ClientModel::masternodeListChanged, this, [this] { m_feed_masternode->requestRefresh(); });
+    connect(this, &ClientModel::masternodeListChanged, m_feed_masternode, &MasternodeFeed::requestRefresh);
 
     if (m_node.gov().isEnabled()) {
         m_feed_proposal = m_feeds->add<ProposalFeed>(this, *this);

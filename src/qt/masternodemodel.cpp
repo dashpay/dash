@@ -44,6 +44,7 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
     m_next_payment_height{next_payment_height},
     m_pose_penalty{dmn->getPoSePenalty()},
     m_registered_height{dmn->getRegisteredHeight()},
+    m_dmn{dmn},
     m_type{dmn->getType()},
     m_collateral_address{collateral_address},
     m_collateral_outpoint{QString::fromStdString(dmn->getCollateralOutpoint().ToStringShort())},

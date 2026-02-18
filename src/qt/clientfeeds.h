@@ -92,13 +92,11 @@ private:
     std::shared_ptr<const Data> m_data GUARDED_BY(m_cs);
 };
 
-using MasternodeEntryList = std::vector<std::shared_ptr<MasternodeEntry>>;
-
 struct MasternodeData {
     bool m_valid{false};
     int m_list_height{0};
     interfaces::MnList::Counts m_counts{};
-    MasternodeEntryList m_entries;
+    std::vector<std::shared_ptr<MasternodeEntry>> m_entries{};
 };
 
 class MasternodeFeed : public Feed<MasternodeData> {

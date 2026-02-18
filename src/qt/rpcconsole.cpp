@@ -10,18 +10,19 @@
 #include <qt/rpcconsole.h>
 #include <qt/forms/ui_debugwindow.h>
 
-#include <evo/deterministicmns.h>
+#include <qt/bantablemodel.h>
+#include <qt/clientfeeds.h>
+#include <qt/clientmodel.h>
+#include <qt/guiutil_font.h>
+#include <qt/guiutil.h>
+#include <qt/masternodemodel.h>
+#include <qt/peertablesortproxy.h>
+#include <qt/walletcontroller.h>
+#include <qt/walletmodel.h>
 
 #include <chainparams.h>
 #include <interfaces/node.h>
 #include <node/connection_types.h>
-#include <qt/bantablemodel.h>
-#include <qt/clientmodel.h>
-#include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
-#include <qt/peertablesortproxy.h>
-#include <qt/walletcontroller.h>
-#include <qt/walletmodel.h>
 #include <rpc/client.h>
 #include <rpc/server.h>
 #include <util/strencodings.h>
@@ -711,8 +712,11 @@ void RPCConsole::setClientModel(ClientModel *model, int bestblock_height, int64_
         updateNetworkState();
         connect(model, &ClientModel::networkActiveChanged, this, &RPCConsole::setNetworkActive);
 
-        connect(model, &ClientModel::masternodeListChanged, this, &RPCConsole::updateMasternodeCount);
-        clientModel->refreshMasternodeList();
+        m_feed_masternode = model->feedMasternode();
+        if (m_feed_masternode) {
+            connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &RPCConsole::updateMasternodeCount);
+            updateMasternodeCount();
+        }
 
         connect(model, &ClientModel::mempoolSizeChanged, this, &RPCConsole::setMempoolSize);
         connect(model, &ClientModel::islockCountChanged, this, &RPCConsole::setInstantSendLockCount);
@@ -1120,19 +1124,19 @@ void RPCConsole::setChainLock(const QString& bestChainLockHash, int bestChainLoc
 
 void RPCConsole::updateMasternodeCount()
 {
-    if (!clientModel) {
+    if (!m_feed_masternode) {
         return;
     }
-    auto mnList = clientModel->getMasternodeList().first;
-    const auto mn_counts = mnList->getCounts();
-    QString strMasternodeCount = tr("Total: %1 (Enabled: %2)")
-        .arg(QString::number(mn_counts.m_total_mn))
-        .arg(QString::number(mn_counts.m_valid_mn));
-    ui->masternodeCount->setText(strMasternodeCount);
-    QString strEvoCount = tr("Total: %1 (Enabled: %2)")
-        .arg(QString::number(mn_counts.m_total_evo))
-        .arg(QString::number(mn_counts.m_valid_evo));
-    ui->evoCount->setText(strEvoCount);
+    const auto data = m_feed_masternode->data();
+    if (!data || !data->m_valid) {
+        return;
+    }
+    ui->masternodeCount->setText(tr("Total: %1 (Enabled: %2)")
+        .arg(QString::number(data->m_counts.m_total_mn))
+        .arg(QString::number(data->m_counts.m_valid_mn)));
+    ui->evoCount->setText(tr("Total: %1 (Enabled: %2)")
+        .arg(QString::number(data->m_counts.m_total_evo))
+        .arg(QString::number(data->m_counts.m_valid_evo)));
 }
 
 void RPCConsole::setMempoolSize(long numberOfTxs, size_t dynUsage, size_t maxUsage)
@@ -1376,7 +1380,23 @@ void RPCConsole::updateDetailWidget()
         ui->peerPermissions->setText(permissions.join(" & "));
     }
     ui->peerMappedAS->setText(stats->nodeStats.m_mapped_as != 0 ? QString::number(stats->nodeStats.m_mapped_as) : ts.na);
-    auto dmn = clientModel->getMasternodeList().first->getMNByService(stats->nodeStats.addr);
+
+    const auto addr_key = [&stats]() {
+        const auto key{stats->nodeStats.addr.GetKey()};
+        return QByteArray(reinterpret_cast<const char*>(key.data()), key.size());
+    }();
+
+    const MasternodeEntry* dmn = [&]() -> const MasternodeEntry* {
+        if (m_feed_masternode) {
+            if (const auto data{m_feed_masternode->data()}; data) {
+                for (const auto& entry : data->m_entries) {
+                    if (entry->serviceKey() == addr_key) { return entry.get(); }
+                }
+            }
+        }
+        return nullptr;
+    }();
+
     if (dmn == nullptr) {
         ui->peerNodeType->setText(tr("Regular"));
         ui->peerPoSeScore->setText(ts.na);
@@ -1386,7 +1406,7 @@ void RPCConsole::updateDetailWidget()
         } else {
             ui->peerNodeType->setText(tr("Verified Masternode"));
         }
-        ui->peerPoSeScore->setText(QString::number(dmn->getPoSePenalty()));
+        ui->peerPoSeScore->setText(QString::number(dmn->posePenalty()));
     }
 
     // This check fails for example if the lock was busy and
