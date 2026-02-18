@@ -533,10 +533,8 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
     for (const auto& [proTxHash, votingKeyID] : votableMasternodes) {
         // Find the masternode
         const auto* dmn = [&]() -> const MasternodeEntry* {
-            for (const auto& entry : data_mn->m_entries) {
-                if (entry->proTxHashRaw() == proTxHash && !entry->isBanned()) {
-                    return entry.get();
-                }
+            if (const auto it = data_mn->m_by_protx.find(proTxHash); it != data_mn->m_by_protx.end() && !it->second->isBanned()) {
+                return it->second;
             }
             return nullptr;
         }();

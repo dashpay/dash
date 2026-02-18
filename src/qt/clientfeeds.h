@@ -9,7 +9,9 @@
 #include <saltedhasher.h>
 #include <sync.h>
 #include <threadsafety.h>
+#include <uint256.h>
 
+#include <QHash>
 #include <QObject>
 #include <QTimer>
 
@@ -96,7 +98,9 @@ struct MasternodeData {
     bool m_valid{false};
     int m_list_height{0};
     interfaces::MnList::Counts m_counts{};
+    QHash<QByteArray, const MasternodeEntry*> m_by_service{};
     std::vector<std::shared_ptr<MasternodeEntry>> m_entries{};
+    Uint256HashMap<const MasternodeEntry*> m_by_protx{};
 };
 
 class MasternodeFeed : public Feed<MasternodeData> {

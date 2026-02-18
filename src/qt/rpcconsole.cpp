@@ -17,6 +17,7 @@
 #include <qt/guiutil.h>
 #include <qt/masternodemodel.h>
 #include <qt/peertablesortproxy.h>
+#include <qt/util.h>
 #include <qt/walletcontroller.h>
 #include <qt/walletmodel.h>
 
@@ -1381,16 +1382,12 @@ void RPCConsole::updateDetailWidget()
     }
     ui->peerMappedAS->setText(stats->nodeStats.m_mapped_as != 0 ? QString::number(stats->nodeStats.m_mapped_as) : ts.na);
 
-    const auto addr_key = [&stats]() {
-        const auto key{stats->nodeStats.addr.GetKey()};
-        return QByteArray(reinterpret_cast<const char*>(key.data()), key.size());
-    }();
-
+    const auto addr_key{util::make_array(stats->nodeStats.addr.GetKey())};
     const MasternodeEntry* dmn = [&]() -> const MasternodeEntry* {
         if (m_feed_masternode) {
             if (const auto data{m_feed_masternode->data()}; data) {
-                for (const auto& entry : data->m_entries) {
-                    if (entry->serviceKey() == addr_key) { return entry.get(); }
+                if (auto it = data->m_by_service.find(addr_key); it != data->m_by_service.end()) {
+                    return it.value();
                 }
             }
         }
