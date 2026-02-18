@@ -69,6 +69,7 @@ void ChainLockFeed::fetch()
     }
 
     auto ret = std::make_shared<Data>();
+    ret->m_block_time = cl_info.m_block_time;
     ret->m_height = cl_info.m_height;
     ret->m_hash = QString::fromStdString(cl_info.m_hash.ToString());
 

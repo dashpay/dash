@@ -11,6 +11,8 @@
 #include <qt/guiutil.h>
 #include <qt/guiutil_font.h>
 
+#include <QDateTime>
+
 NetworkWidget::NetworkWidget(QWidget* parent) :
     QWidget(parent),
     ui(new Ui::NetworkWidget)
@@ -86,6 +88,7 @@ void NetworkWidget::handleClDataChanged()
     }
     ui->bestClHash->setText(data->m_hash);
     ui->bestClHeight->setText(QString::number(data->m_height));
+    ui->bestClTime->setText(QDateTime::fromSecsSinceEpoch(data->m_block_time).toString());
 }
 
 void NetworkWidget::handleIsDataChanged()

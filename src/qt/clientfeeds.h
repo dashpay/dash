@@ -96,6 +96,7 @@ private:
 
 struct ChainLockData {
     int32_t m_height{0};
+    int64_t m_block_time{0};
     QString m_hash;
 };
 
