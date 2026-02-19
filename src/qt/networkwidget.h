@@ -38,6 +38,9 @@ public:
 
     void setClientModel(ClientModel* model);
 
+protected:
+    void showEvent(QShowEvent* event) override;
+
 private Q_SLOTS:
     void handleClDataChanged();
     void handleCrDataChanged();
