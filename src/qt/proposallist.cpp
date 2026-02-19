@@ -42,11 +42,18 @@
 
 #include <univalue.h>
 
+#include <algorithm>
+
 namespace {
+constexpr auto DATA_UPDATE_INTERVAL{10s};
 constexpr int TITLE_MIN_WIDTH{220};
 } // anonymous namespace
 
-ProposalFeed::ProposalFeed() = default;
+ProposalFeed::ProposalFeed(QObject* parent, ClientModel& client_model) :
+    Feed<ProposalData>{parent, {/*m_baseline=*/DATA_UPDATE_INTERVAL, /*m_throttle=*/DATA_UPDATE_INTERVAL*6}},
+    m_client_model{client_model}
+{
+}
 
 ProposalFeed::~ProposalFeed() = default;
 
@@ -55,10 +62,7 @@ ProposalList::ProposalList(QWidget* parent) :
     ui{new Ui::ProposalList},
     proposalModel{new ProposalModel(this)},
     proposalContextMenu{new QMenu(this)},
-    m_worker(new QObject),
-    proposalModelProxy{new QSortFilterProxyModel(this)},
-    m_thread{new QThread(this)},
-    m_timer{new QTimer(this)}
+    proposalModelProxy{new QSortFilterProxyModel(this)}
 {
     ui->setupUi(this);
 
@@ -102,23 +106,10 @@ ProposalList::ProposalList(QWidget* parent) :
     ui->mnCountLabel->setText("0");
 
     GUIUtil::updateFonts();
-
-    // Background thread for calculating proposal list
-    m_worker->moveToThread(m_thread);
-    // Make sure executor object is deleted in its own thread
-    connect(m_thread, &QThread::finished, m_worker, &QObject::deleteLater);
-    m_thread->start();
-
-    // Debounce timer to apply proposal list changes
-    m_timer->setSingleShot(true);
-    connect(m_timer, &QTimer::timeout, this, &ProposalList::updateProposalList);
 }
 
 ProposalList::~ProposalList()
 {
-    m_timer->stop();
-    m_thread->quit();
-    m_thread->wait();
     delete ui;
 }
 
@@ -142,17 +133,18 @@ void ProposalList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
     if (!clientModel) {
-        m_timer->stop();
         return;
     }
+    m_feed = clientModel->feedProposal();
+    if (m_feed) {
+        connect(m_feed, &ProposalFeed::dataReady, this, &ProposalList::updateProposalList);
+        updateProposalList();
+    }
     connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &ProposalList::updateProposalButtons);
-    connect(clientModel, &ClientModel::governanceChanged, this, [this] { handleProposalListChanged(/*force=*/false); });
-    connect(clientModel, &ClientModel::numBlocksChanged, this, [this] { handleProposalListChanged(/*force=*/false); });
     connect(clientModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ProposalList::updateDisplayUnit);
     if (walletModel && ui->proposalSourceCombo->findData(ToUnderlying(ProposalSource::Local)) == -1) {
         ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
     }
-    m_timer->start(0);
 }
 
 std::vector<Governance::Object> ProposalList::getWalletProposals(std::optional<bool> pending) const
@@ -194,14 +186,12 @@ void ProposalList::setWalletModel(WalletModel* model)
 {
     this->walletModel = model;
     if (!walletModel || !clientModel) {
-        m_timer->stop();
         return;
     }
     connect(walletModel, &WalletModel::balanceChanged, this, &ProposalList::updateProposalButtons);
     if (clientModel && ui->proposalSourceCombo->findData(ToUnderlying(ProposalSource::Local)) == -1) {
         ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
     }
-    m_timer->start(0);
 }
 
 void ProposalList::updateDisplayUnit()
@@ -209,23 +199,6 @@ void ProposalList::updateDisplayUnit()
     if (this->clientModel) {
         proposalModel->setDisplayUnit(this->clientModel->getOptionsModel()->getDisplayUnit());
         ui->govTableView->update();
-    }
-}
-
-void ProposalList::handleProposalListChanged(bool force)
-{
-    if (!clientModel) {
-        return;
-    }
-    if (force) {
-        updateProposalList();
-    } else if (!m_timer->isActive()) {
-        int delay{PROPOSALLIST_UPDATE_SECONDS * 1000};
-        if (!clientModel->masternodeSync().isBlockchainSynced()) {
-            // Currently syncing, reduce refreshes
-            delay *= 6;
-        }
-        m_timer->start(delay);
     }
 }
 
@@ -241,110 +214,100 @@ int ProposalList::queryCollateralDepth(const uint256& collateralHash) const
     return 0;
 }
 
-void ProposalList::updateProposalList()
+void ProposalFeed::fetch()
 {
-    if (!clientModel || clientModel->node().shutdownRequested()) {
+    if (m_client_model.node().shutdownRequested()) {
         return;
     }
 
-    if (m_in_progress.exchange(true)) {
-        // Already applying, re-arm for next attempt
-        handleProposalListChanged(/*force=*/false);
-        return;
-    }
-
-    QMetaObject::invokeMethod(m_worker, [this] {
-        auto result = std::make_shared<ProposalData>(calcProposalList());
-        m_in_progress.store(false);
-        QTimer::singleShot(0, this, [this, result] {
-            setProposalList(std::move(*result));
-        });
-    });
-}
-
-ProposalData ProposalFeed::fetch(ClientModel* client_model)
-{
-    ProposalData ret;
-    if (!client_model || client_model->node().shutdownRequested()) {
-        return ret;
-    }
-
-    const auto [dmn, pindex] = client_model->getMasternodeList();
+    const auto [dmn, pindex] = m_client_model.getMasternodeList();
     if (!dmn || !pindex) {
-        return ret;
+        return;
     }
 
+    auto ret = std::make_shared<Data>();
     // A proposal is considered passing if (YES votes - NO votes) >= (Total Weight of Masternodes / 10),
     // count total valid (ENABLED) masternodes to determine passing threshold.
     // Need to query number of masternodes here with access to client model.
     const int nWeightedMnCount = dmn->getValidWeightedMNsCount();
-    ret.m_abs_vote_req = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
-    ret.m_gov_info = client_model->node().gov().getGovernanceInfo();
+    ret->m_abs_vote_req = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
+    ret->m_gov_info = m_client_model.node().gov().getGovernanceInfo();
     std::vector<CGovernanceObject> govObjList;
-    client_model->getAllGovernanceObjects(govObjList);
+    m_client_model.getAllGovernanceObjects(govObjList);
     for (const auto& govObj : govObjList) {
         if (govObj.GetObjectType() != GovernanceObject::PROPOSAL) {
             continue; // Skip triggers.
         }
-        ret.m_proposals.emplace_back(std::make_unique<Proposal>(client_model, govObj, ret.m_gov_info, ret.m_gov_info.requiredConfs,
-                                                                /*is_broadcast=*/true));
+        ret->m_proposals.emplace_back(std::make_shared<Proposal>(m_client_model, govObj, ret->m_gov_info, ret->m_gov_info.requiredConfs,
+                                                                 /*is_broadcast=*/true));
     }
 
-    auto fundable{client_model->node().gov().getFundableProposalHashes()};
-    ret.m_fundable_hashes = std::move(fundable.hashes);
+    auto fundable{m_client_model.node().gov().getFundableProposalHashes()};
+    ret->m_fundable_hashes = std::move(fundable.hashes);
 
-    return ret;
+    setData(std::move(ret));
 }
 
-ProposalData ProposalList::calcProposalList() const
+void ProposalList::updateProposalList()
 {
-    ProposalData ret;
-    if (!clientModel || clientModel->node().shutdownRequested()) {
-        return ret;
+    if (!clientModel || !m_feed) {
+        return;
     }
 
-    const auto [dmn, pindex] = clientModel->getMasternodeList();
-    if (!dmn || !pindex) {
-        return ret;
+    auto feed = m_feed->data();
+    if (!feed) {
+        return;
     }
 
-    ret = ProposalFeed::fetch(clientModel);
+    // Assume that wallet-specific knowledge is stale
+    votableMasternodes.clear();
+
+    ProposalFeed::Data ret;
+    ret.m_abs_vote_req = feed->m_abs_vote_req;
+    ret.m_gov_info = feed->m_gov_info;
+    ret.m_fundable_hashes = feed->m_fundable_hashes;
+    ret.m_proposals = feed->m_proposals;
+
+    // If we don't have a wallet, we can't fetch based on proposal source
     if (!walletModel) {
-        return ret;
+        setProposalList(std::move(ret));
+        return;
     }
 
     if (m_proposal_source == ProposalSource::Active) {
         // Include unrelayed wallet proposals (0 confs, not yet broadcast)
         for (const auto& obj : getWalletProposals(/*pending=*/true)) {
             CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-            ret.m_proposals.emplace_back(std::make_unique<Proposal>(clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
-                                                                    /*is_broadcast=*/false));
+            ret.m_proposals.emplace_back(std::make_shared<Proposal>(*clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
+                                                                     /*is_broadcast=*/false));
         }
     } else if (m_proposal_source == ProposalSource::Local) {
+        // Discard network proposals and only include wallet proposals
+        ret.m_proposals.clear();
         for (const auto& obj : getWalletProposals(/*pending=*/std::nullopt)) {
             CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-            ret.m_proposals.emplace_back(std::make_unique<Proposal>(clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
-                                                                    /*is_broadcast=*/clientModel->node().gov().existsObj(obj.GetHash())));
+            ret.m_proposals.emplace_back(std::make_shared<Proposal>(*clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
+                                                                     /*is_broadcast=*/clientModel->node().gov().existsObj(obj.GetHash())));
         }
     }
 
-    dmn->forEachMN(/*only_valid=*/true, [&](const auto& dmn) {
-        // Check if wallet owns the voting key using the same logic as RPC
-        const auto script = GetScriptForDestination(PKHash(dmn.getKeyIdVoting()));
-        if (walletModel->wallet().isSpendable(script)) {
-            ret.m_votable_masternodes[dmn.getProTxHash()] = dmn.getKeyIdVoting();
-        }
-    });
-
-    return ret;
+    const auto [dmn, pindex] = clientModel->getMasternodeList();
+    if (dmn && pindex) {
+        dmn->forEachMN(/*only_valid=*/true, [&](const auto& dmn) {
+            const auto script = GetScriptForDestination(PKHash(dmn.getKeyIdVoting()));
+            if (walletModel->wallet().isSpendable(script)) {
+                votableMasternodes[dmn.getProTxHash()] = dmn.getKeyIdVoting();
+            }
+        });
+    }
+    setProposalList(std::move(ret));
 }
 
-void ProposalList::setProposalList(ProposalData&& data)
+void ProposalList::setProposalList(ProposalFeed::Data&& data)
 {
     proposalModel->setVotingParams(data.m_abs_vote_req);
     proposalModel->reconcile(std::move(data.m_proposals), std::move(data.m_fundable_hashes));
     m_gov_info = std::move(data.m_gov_info);
-    votableMasternodes = std::move(data.m_votable_masternodes);
     updateMasternodeCount();
     updateProposalButtons();
 }
@@ -388,7 +351,7 @@ void ProposalList::showCreateProposalDialog()
     proposalCreate->setModal(false);
     proposalCreate->setWindowFlag(Qt::Window, true);
     // Auto-open Resume dialog after successful creation and refresh the proposal list
-    connect(proposalCreate, &QDialog::accepted, this, [this] { handleProposalListChanged(/*force=*/true); });
+    connect(proposalCreate, &QDialog::accepted, m_feed, &ProposalFeed::requestForceRefresh);
     connect(proposalCreate, &QDialog::accepted, this, &ProposalList::updateProposalButtons);
     connect(proposalCreate, &QDialog::accepted, this, &ProposalList::showResumeProposalDialog);
     proposalCreate->show();
@@ -402,8 +365,8 @@ void ProposalList::showResumeProposalDialog()
     }
 
     const auto proposals = getWalletProposals(/*pending=*/true);
-    ProposalResume* dialog = new ProposalResume(clientModel->node(), clientModel, walletModel, proposals, this);
-    connect(dialog, &ProposalResume::proposalBroadcasted, this, [this] { handleProposalListChanged(/*force=*/true); });
+    ProposalResume* dialog = new ProposalResume(clientModel->node(), *clientModel, walletModel, proposals, this);
+    connect(dialog, &ProposalResume::proposalBroadcasted, m_feed, &ProposalFeed::requestForceRefresh);
     dialog->setAttribute(Qt::WA_DeleteOnClose, true);
     dialog->setWindowModality(Qt::NonModal);
     dialog->setModal(false);
@@ -502,7 +465,7 @@ void ProposalList::setProposalSource(int index)
 {
     m_proposal_source = static_cast<ProposalSource>(ui->proposalSourceCombo->itemData(index).toInt());
     ui->govTableView->setColumnHidden(ProposalModel::Column::VOTING_STATUS, m_proposal_source == ProposalSource::Local);
-    handleProposalListChanged(/*force=*/true);
+    updateProposalList();
 }
 
 void ProposalList::voteYes() { voteForProposal(VOTE_OUTCOME_YES); }
@@ -653,7 +616,7 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
     QMessageBox::information(this, tr("Voting Results"), message);
 
     // Update proposal list to show new vote counts
-    handleProposalListChanged(/*force=*/true);
+    if (m_feed) m_feed->requestForceRefresh();
 }
 
 void ProposalList::showEvent(QShowEvent* event)

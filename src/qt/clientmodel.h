@@ -7,32 +7,29 @@
 #define BITCOIN_QT_CLIENTMODEL_H
 
 #include <interfaces/node.h>
+#include <netaddress.h>
 #include <sync.h>
+#include <uint256.h>
+
+#include <qt/clientfeeds.h>
 
 #include <QObject>
 #include <QDateTime>
 
 #include <atomic>
 #include <memory>
-#include <uint256.h>
-
-#include <netaddress.h>
 
 class BanTableModel;
 class CBlockIndex;
 class OptionsModel;
 class PeerTableModel;
 class PeerTableSortProxy;
+class ProposalFeed;
 enum class SynchronizationState;
 struct LocalServiceInfo;
-
 namespace interfaces {
 struct BlockTip;
-}
-
-QT_BEGIN_NAMESPACE
-class QTimer;
-QT_END_NAMESPACE
+} // namespace interfaces
 
 enum class BlockSource {
     NONE,
@@ -67,6 +64,8 @@ public:
     PeerTableModel *getPeerTableModel();
     PeerTableSortProxy* peerTableSortProxy();
     BanTableModel *getBanTableModel();
+
+    ProposalFeed* feedProposal() const { return m_feed_proposal; }
 
     //! Return number of connections, default is in- and outbound (total)
     int getNumConnections(unsigned int flags = CONNECTIONS_ALL) const;
@@ -121,6 +120,10 @@ private:
     mutable RecursiveMutex cs_mnlist; // protects mnListCached
     interfaces::MnListPtr mnListCached GUARDED_BY(cs_mnlist){};
     const CBlockIndex* mnListTip{nullptr};
+
+    //! Data sources from different subsystems coordinated by model
+    ProposalFeed* m_feed_proposal{nullptr};
+    std::unique_ptr<ClientFeeds> m_feeds{nullptr};
 
     void TipChanged(SynchronizationState sync_state, interfaces::BlockTip tip, double verification_progress, bool header) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);
     void subscribeToCoreSignals();

@@ -10,20 +10,16 @@
 #include <pubkey.h>
 #include <saltedhasher.h>
 
+#include <qt/clientfeeds.h>
 #include <qt/proposalmodel.h>
 
 #include <QMenu>
 #include <QSortFilterProxyModel>
-#include <QTimer>
-#include <QThread>
 #include <QWidget>
 
-#include <atomic>
 #include <map>
 #include <optional>
 #include <vector>
-
-inline constexpr int PROPOSALLIST_UPDATE_SECONDS = 10;
 
 class ClientModel;
 class ProposalModel;
@@ -47,18 +43,20 @@ struct ProposalData {
     int m_abs_vote_req{0};
     interfaces::GOV::GovernanceInfo m_gov_info;
     Proposals m_proposals;
-    Uint256HashMap<CKeyID> m_votable_masternodes;
     Uint256HashSet m_fundable_hashes;
 };
 
-class ProposalFeed : public QObject {
+class ProposalFeed : public Feed<ProposalData> {
     Q_OBJECT
 
 public:
-    ProposalFeed();
+    explicit ProposalFeed(QObject* parent, ClientModel& client_model);
     ~ProposalFeed();
 
-    static ProposalData fetch(ClientModel* client_model);
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
 };
 
 /** Proposal list widget */
@@ -77,25 +75,20 @@ public:
 private:
     ClientModel* clientModel{nullptr};
     interfaces::GOV::GovernanceInfo m_gov_info;
+    ProposalFeed* m_feed{nullptr};
     ProposalModel* proposalModel{nullptr};
     ProposalSource m_proposal_source{ProposalSource::Active};
     QMenu* proposalContextMenu{nullptr};
-    QObject* m_worker{nullptr};
     QSortFilterProxyModel* proposalModelProxy{nullptr};
-    QThread* m_thread{nullptr};
-    QTimer* m_timer{nullptr};
     std::atomic<bool> m_col_refresh{false};
-    std::atomic<bool> m_in_progress{false};
     Uint256HashMap<CKeyID> votableMasternodes;
     WalletModel* walletModel{nullptr};
 
     bool canVote() const { return !votableMasternodes.empty(); }
-    ProposalData calcProposalList() const;
     int queryCollateralDepth(const uint256& collateralHash) const;
     std::vector<Governance::Object> getWalletProposals(std::optional<bool> pending) const;
-    void handleProposalListChanged(bool force);
     void refreshColumnWidths();
-    void setProposalList(ProposalData&& data);
+    void setProposalList(ProposalFeed::Data&& data);
     void updateEmptyPagePalette();
     void updateEmptyState();
     void updateProposalButtons();
@@ -107,17 +100,17 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private Q_SLOTS:
-    void updateDisplayUnit();
-    void updateProposalList();
-    void updateProposalCount();
-    void updateMasternodeCount() const;
+    void copyProposalJson();
+    void openProposalUrl();
     void setProposalSource(int index);
-    void showProposalContextMenu(const QPoint& pos);
     void showAdditionalInfo(const QModelIndex& index);
     void showCreateProposalDialog();
+    void showProposalContextMenu(const QPoint& pos);
     void showResumeProposalDialog();
-    void openProposalUrl();
-    void copyProposalJson();
+    void updateDisplayUnit();
+    void updateMasternodeCount() const;
+    void updateProposalCount();
+    void updateProposalList();
 
     // Voting slots
     void voteYes();
