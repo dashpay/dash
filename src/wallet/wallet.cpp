@@ -2705,22 +2705,23 @@ bool CWallet::DisplayAddress(const CTxDestination& dest)
 bool CWallet::LockCoin(const COutPoint& output, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
+    if (batch && !batch->WriteLockedUTXO(output)) {
+        return false;
+    }
     setLockedCoins.insert(output);
     RecalculateMixedCredit(output.hash);
-    if (batch) {
-        return batch->WriteLockedUTXO(output);
-    }
     return true;
 }
 
 bool CWallet::UnlockCoin(const COutPoint& output, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
-    bool was_locked = setLockedCoins.erase(output);
-    RecalculateMixedCredit(output.hash);
-    if (batch && was_locked) {
-        return batch->EraseLockedUTXO(output);
+    bool was_locked = setLockedCoins.contains(output);
+    if (batch && was_locked && !batch->EraseLockedUTXO(output)) {
+        return false;
     }
+    setLockedCoins.erase(output);
+    RecalculateMixedCredit(output.hash);
     return true;
 }
 
