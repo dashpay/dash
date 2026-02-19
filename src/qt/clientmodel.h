@@ -21,6 +21,7 @@
 
 class BanTableModel;
 class CBlockIndex;
+class MasternodeFeed;
 class OptionsModel;
 class PeerTableModel;
 class PeerTableSortProxy;
@@ -65,6 +66,7 @@ public:
     PeerTableSortProxy* peerTableSortProxy();
     BanTableModel *getBanTableModel();
 
+    MasternodeFeed* feedMasternode() const { return m_feed_masternode; }
     ProposalFeed* feedProposal() const { return m_feed_proposal; }
 
     //! Return number of connections, default is in- and outbound (total)
@@ -122,6 +124,7 @@ private:
     const CBlockIndex* mnListTip{nullptr};
 
     //! Data sources from different subsystems coordinated by model
+    MasternodeFeed* m_feed_masternode{nullptr};
     ProposalFeed* m_feed_proposal{nullptr};
     std::unique_ptr<ClientFeeds> m_feeds{nullptr};
 

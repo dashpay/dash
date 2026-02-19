@@ -7,6 +7,8 @@
 
 #include <qt/masternodemodel.h>
 
+#include <qt/clientfeeds.h>
+
 #include <QMenu>
 #include <QSet>
 #include <QSortFilterProxyModel>
@@ -36,18 +38,20 @@ QT_END_NAMESPACE
 struct MasternodeData {
     int m_list_height{0};
     MasternodeEntryList m_entries;
-    QSet<QString> m_owned_mns;
     bool m_valid{false};
 };
 
-class MasternodeFeed : public QObject {
+class MasternodeFeed : public Feed<MasternodeData> {
     Q_OBJECT
 
 public:
-    MasternodeFeed();
+    explicit MasternodeFeed(QObject* parent, ClientModel& client_model);
     ~MasternodeFeed();
 
-    static MasternodeData fetch(ClientModel* client_model);
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
 };
 
 class MasternodeListSortFilterProxyModel : public QSortFilterProxyModel
@@ -101,17 +105,13 @@ protected:
 
 private:
     ClientModel* clientModel{nullptr};
+    MasternodeFeed* m_feed{nullptr};
     MasternodeListSortFilterProxyModel* m_proxy_model{nullptr};
     MasternodeModel* m_model{nullptr};
     QMenu* contextMenuDIP3{nullptr};
-    QObject* m_worker{nullptr};
-    QThread* m_thread{nullptr};
-    QTimer* m_timer{nullptr};
-    std::atomic<bool> m_in_progress{false};
     WalletModel* walletModel{nullptr};
 
-    MasternodeData calcMasternodeList() const;
-    void setMasternodeList(MasternodeData&& data);
+    void setMasternodeList(MasternodeFeed::Data&& data, QSet<QString>&& owned_mns);
 
     const MasternodeEntry* GetSelectedEntry();
 
@@ -123,17 +123,16 @@ private Q_SLOTS:
     void copyProTxHash_clicked();
     void extraInfoDIP3_clicked();
     void filterByCollateralAddress();
-    void filterByPayoutAddress();
     void filterByOwnerAddress();
+    void filterByPayoutAddress();
     void filterByVotingAddress();
-    void handleMasternodeListChanged();
     void on_checkBoxHideBanned_stateChanged(int state);
     void on_checkBoxOwned_stateChanged(int state);
     void on_comboBoxType_currentIndexChanged(int index);
     void on_filterText_textChanged(const QString& strFilterIn);
     void showContextMenuDIP3(const QPoint&);
-    void updateDIP3ListScheduled();
     void updateFilteredCount();
+    void updateMasternodeList();
 };
 
 #endif // BITCOIN_QT_MASTERNODELIST_H

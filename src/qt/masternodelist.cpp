@@ -9,6 +9,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
 #include <saltedhasher.h>
+#include <util/time.h>
 
 #include <qt/clientmodel.h>
 #include <qt/descriptiondialog.h>
@@ -18,6 +19,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QDebug>
 #include <QHeaderView>
 #include <QMetaObject>
 #include <QSettings>
@@ -26,10 +28,14 @@
 #include <set>
 
 namespace {
-constexpr int MASTERNODELIST_UPDATE_SECONDS{3};
+constexpr auto DATA_UPDATE_INTERVAL{3s};
 } // anonymous namespace
 
-MasternodeFeed::MasternodeFeed() = default;
+MasternodeFeed::MasternodeFeed(QObject* parent, ClientModel& client_model) :
+    Feed<MasternodeData>{parent, {/*m_baseline=*/DATA_UPDATE_INTERVAL, /*m_throttle=*/DATA_UPDATE_INTERVAL*10}},
+    m_client_model{client_model}
+{
+}
 
 MasternodeFeed::~MasternodeFeed() = default;
 
@@ -93,10 +99,7 @@ MasternodeList::MasternodeList(QWidget* parent) :
     QWidget(parent),
     ui(new Ui::MasternodeList),
     m_proxy_model(new MasternodeListSortFilterProxyModel(this)),
-    m_model(new MasternodeModel(this)),
-    m_worker(new QObject),
-    m_thread{new QThread(this)},
-    m_timer{new QTimer(this)}
+    m_model(new MasternodeModel(this))
 {
     ui->setupUi(this);
 
@@ -147,16 +150,6 @@ MasternodeList::MasternodeList(QWidget* parent) :
 
     GUIUtil::updateFonts();
 
-    // Background thread for calculating masternode list
-    m_worker->moveToThread(m_thread);
-    // Make sure executor object is deleted in its own thread
-    connect(m_thread, &QThread::finished, m_worker, &QObject::deleteLater);
-    m_thread->start();
-
-    // Debounce timer to apply masternode list changes
-    m_timer->setSingleShot(true);
-    connect(m_timer, &QTimer::timeout, this, &MasternodeList::updateDIP3ListScheduled);
-
     // Load filter settings
     QSettings settings;
     ui->checkBoxHideBanned->setChecked(settings.value("mnListHideBanned", false).toBool());
@@ -166,9 +159,6 @@ MasternodeList::MasternodeList(QWidget* parent) :
 
 MasternodeList::~MasternodeList()
 {
-    m_timer->stop();
-    m_thread->quit();
-    m_thread->wait();
     delete ui;
 }
 
@@ -183,11 +173,13 @@ void MasternodeList::changeEvent(QEvent* event)
 void MasternodeList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
-    if (model) {
-        connect(clientModel, &ClientModel::masternodeListChanged, this, &MasternodeList::handleMasternodeListChanged);
-        m_timer->start(0);
-    } else {
-        m_timer->stop();
+    if (!clientModel) {
+        return;
+    }
+    m_feed = clientModel->feedMasternode();
+    if (m_feed) {
+        connect(m_feed, &MasternodeFeed::dataReady, this, &MasternodeList::updateMasternodeList);
+        updateMasternodeList();
     }
 }
 
@@ -209,79 +201,38 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
     }
 }
 
-void MasternodeList::handleMasternodeListChanged()
+void MasternodeFeed::fetch()
 {
-    if (!clientModel || m_timer->isActive()) {
-        // Too early or already processing, nothing to do
+    if (m_client_model.node().shutdownRequested()) {
         return;
     }
 
-    int delay{MASTERNODELIST_UPDATE_SECONDS * 1000};
-    if (!clientModel->masternodeSync().isBlockchainSynced()) {
-        // Currently syncing, reduce refreshes
-        delay *= 10;
-    }
-    m_timer->start(delay);
-}
-
-void MasternodeList::updateDIP3ListScheduled()
-{
-    if (!clientModel || clientModel->node().shutdownRequested()) {
-        return;
-    }
-
-    if (m_in_progress.exchange(true)) {
-        // Already applying, re-arm for next attempt
-        handleMasternodeListChanged();
-        return;
-    }
-
-    QMetaObject::invokeMethod(m_worker, [this] {
-        auto result = std::make_shared<MasternodeData>(calcMasternodeList());
-        m_in_progress.store(false);
-        QTimer::singleShot(0, this, [this, result] {
-            if (result->m_valid) {
-                setMasternodeList(std::move(*result));
-            } else {
-                // Something went wrong, try again
-                handleMasternodeListChanged();
-            }
-        });
-    });
-}
-
-MasternodeData MasternodeFeed::fetch(ClientModel* client_model)
-{
-    MasternodeData ret;
-    if (!client_model || client_model->node().shutdownRequested()) {
-        return ret;
-    }
-
-    const auto [dmn, pindex] = client_model->getMasternodeList();
+    const auto [dmn, pindex] = m_client_model.getMasternodeList();
     if (!dmn || !pindex) {
-        return ret;
+        return;
     }
-
-    ret.m_list_height = dmn->getHeight();
 
     auto projectedPayees = dmn->getProjectedMNPayees(pindex);
     if (projectedPayees.empty() && dmn->getValidMNsCount() > 0) {
         // GetProjectedMNPayees failed to provide results for a list with valid mns.
         // Keep current list and let it try again later.
-        return ret;
+        return;
     }
+
+    auto ret = std::make_shared<Data>();
+    ret->m_list_height = dmn->getHeight();
 
     Uint256HashMap<int> nextPayments;
     for (size_t i = 0; i < projectedPayees.size(); i++) {
         const auto& dmn = projectedPayees[i];
-        nextPayments.emplace(dmn->getProTxHash(), ret.m_list_height + (int)i + 1);
+        nextPayments.emplace(dmn->getProTxHash(), ret->m_list_height + (int)i + 1);
     }
 
     dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
         CTxDestination collateralDest;
         Coin coin;
         QString collateralStr = QObject::tr("UNKNOWN");
-        if (client_model->node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
+        if (m_client_model.node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
             ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
             collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
@@ -289,29 +240,39 @@ MasternodeData MasternodeFeed::fetch(ClientModel* client_model)
         if (auto nextPaymentIt = nextPayments.find(dmn.getProTxHash()); nextPaymentIt != nextPayments.end()) {
             nNextPayment = nextPaymentIt->second;
         }
-        ret.m_entries.push_back(std::make_unique<MasternodeEntry>(dmn, collateralStr, nNextPayment));
+        ret->m_entries.push_back(std::make_unique<MasternodeEntry>(dmn, collateralStr, nNextPayment));
     });
 
-    ret.m_valid = true;
-
-    return ret;
+    ret->m_valid = true;
+    setData(std::move(ret));
 }
 
-MasternodeData MasternodeList::calcMasternodeList() const
+void MasternodeList::updateMasternodeList()
 {
-    MasternodeData ret;
-    if (!clientModel || clientModel->node().shutdownRequested()) {
-        return ret;
+    if (!clientModel || !m_feed) {
+        return;
     }
 
-    const auto [dmn, pindex] = clientModel->getMasternodeList();
-    if (!dmn || !pindex) {
-        return ret;
+    auto feed = m_feed->data();
+    if (!feed) {
+        return;
     }
 
-    ret = MasternodeFeed::fetch(clientModel);
+    if (!feed->m_valid) {
+        qWarning() << "MasternodeList: fetch returned invalid data, scheduling retry";
+        m_feed->requestRefresh();
+        return;
+    }
+
+    MasternodeFeed::Data ret;
+    ret.m_list_height = feed->m_list_height;
+    ret.m_entries = feed->m_entries;
+    ret.m_valid = feed->m_valid;
+
+    // If we don't have a wallet, nothing else to do...
     if (!walletModel) {
-        return ret;
+        setMasternodeList(std::move(ret), {});
+        return;
     }
 
     std::set<COutPoint> setOutpts;
@@ -319,27 +280,30 @@ MasternodeData MasternodeList::calcMasternodeList() const
         setOutpts.emplace(outpt);
     }
 
-    dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
-        bool fMyMasternode = setOutpts.count(dmn.getCollateralOutpoint()) ||
-                             walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdOwner())) ||
-                             walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdVoting())) ||
-                             walletModel->wallet().isSpendable(dmn.getScriptPayout()) ||
-                             walletModel->wallet().isSpendable(dmn.getScriptOperatorPayout());
-        if (fMyMasternode) {
-            ret.m_owned_mns.insert(QString::fromStdString(dmn.getProTxHash().ToString()));
-        }
-    });
-
-    return ret;
+    QSet<QString> owned_mns;
+    const auto [dmn, pindex] = clientModel->getMasternodeList();
+    if (dmn && pindex) {
+        dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
+            bool fMyMasternode = setOutpts.count(dmn.getCollateralOutpoint()) ||
+                                walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdOwner())) ||
+                                walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdVoting())) ||
+                                walletModel->wallet().isSpendable(dmn.getScriptPayout()) ||
+                                walletModel->wallet().isSpendable(dmn.getScriptOperatorPayout());
+            if (fMyMasternode) {
+                owned_mns.insert(QString::fromStdString(dmn.getProTxHash().ToString()));
+            }
+        });
+    }
+    setMasternodeList(std::move(ret), std::move(owned_mns));
 }
 
-void MasternodeList::setMasternodeList(MasternodeData&& list)
+void MasternodeList::setMasternodeList(MasternodeData&& list, QSet<QString>&& owned_mns)
 {
     m_model->setCurrentHeight(list.m_list_height);
     m_model->reconcile(std::move(list.m_entries));
 
     if (walletModel) {
-        m_proxy_model->setMyMasternodeHashes(std::move(list.m_owned_mns));
+        m_proxy_model->setMyMasternodeHashes(std::move(owned_mns));
         if (ui->checkBoxOwned->isChecked()) {
             m_proxy_model->forceInvalidateFilter();
         }
