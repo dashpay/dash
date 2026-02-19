@@ -1738,8 +1738,9 @@ QWidget#RPCConsole QLabel#label_alerts {
 QWidget#InformationWidget QLabel#labelNetwork,
 QWidget#InformationWidget QLabel#label_10,
 QWidget#InformationWidget QLabel#labelMempoolTitle,
-QWidget#NetworkWidget QLabel#labelBlockChain,
-QWidget#NetworkWidget QLabel#labelMempoolTitle { /* Margin between Network and Block Chain headers */
+QWidget#NetworkWidget QLabel#labelChainLocks,
+QWidget#NetworkWidget QLabel#labelInstantSend,
+QWidget#NetworkWidget QLabel#labelMasternodes { /* Margin between Network and Block Chain headers */
     qproperty-alignment: 'AlignLeft | AlignBottom';
     min-height: 25px;
 }

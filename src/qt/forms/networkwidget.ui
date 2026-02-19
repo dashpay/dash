@@ -15,16 +15,16 @@
         <number>12</number>
        </property>
        <item row="0" column="0">
-        <widget class="QLabel" name="labelNetwork">
+        <widget class="QLabel" name="labelMasternodes">
          <property name="text">
-          <string>Network</string>
+          <string>Masternodes</string>
          </property>
         </widget>
        </item>
        <item row="1" column="0">
         <widget class="QLabel" name="masternodeCountLabel">
          <property name="text">
-          <string>Number of regular Masternodes</string>
+          <string>Masternode count</string>
          </property>
         </widget>
        </item>
@@ -44,7 +44,7 @@
        <item row="2" column="0">
         <widget class="QLabel" name="evoCountLabel">
          <property name="text">
-          <string>Number of EvoNodes</string>
+          <string>EvoNode count</string>
          </property>
         </widget>
        </item>
@@ -62,21 +62,21 @@
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QLabel" name="labelBlockChain">
+        <widget class="QLabel" name="labelChainLocks">
          <property name="text">
-          <string>Block chain</string>
+          <string>ChainLocks</string>
          </property>
         </widget>
        </item>
        <item row="4" column="0">
-        <widget class="QLabel" name="bestChainLockHashLabel">
+        <widget class="QLabel" name="bestClHeightLabel">
          <property name="text">
-          <string>Latest ChainLocked block hash</string>
+          <string>Current block height</string>
          </property>
         </widget>
        </item>
        <item row="4" column="1">
-        <widget class="QLabel" name="bestChainLockHash">
+        <widget class="QLabel" name="bestClHeight">
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
          </property>
@@ -92,14 +92,14 @@
         </widget>
        </item>
        <item row="5" column="0">
-        <widget class="QLabel" name="bestChainLockHeightLabel">
+        <widget class="QLabel" name="bestClHashLabel">
          <property name="text">
-          <string>Latest ChainLocked block height</string>
+          <string>Last block hash</string>
          </property>
         </widget>
        </item>
        <item row="5" column="1">
-        <widget class="QLabel" name="bestChainLockHeight">
+        <widget class="QLabel" name="bestClHash">
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
          </property>
@@ -115,21 +115,21 @@
         </widget>
        </item>
        <item row="6" column="0">
-        <widget class="QLabel" name="labelMempoolTitle">
+        <widget class="QLabel" name="labelInstantSend">
          <property name="text">
-          <string>Memory Pool</string>
+          <string>InstantSend</string>
          </property>
         </widget>
        </item>
        <item row="7" column="0">
-        <widget class="QLabel" name="labelInstantSendLockCount">
+        <widget class="QLabel" name="labelISLocksTitle">
          <property name="text">
-          <string>InstantSend locks</string>
+          <string>Verified locks</string>
          </property>
         </widget>
        </item>
        <item row="7" column="1">
-        <widget class="QLabel" name="instantSendLockCount">
+        <widget class="QLabel" name="labelISLocks">
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
          </property>

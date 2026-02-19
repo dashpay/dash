@@ -17,12 +17,12 @@ NetworkWidget::NetworkWidget(QWidget* parent) :
 {
     ui->setupUi(this);
 
-    GUIUtil::setFont({ui->labelNetwork,
-                      ui->labelBlockChain,
-                      ui->labelMempoolTitle},
+    GUIUtil::setFont({ui->labelMasternodes,
+                      ui->labelChainLocks,
+                      ui->labelInstantSend},
                      {GUIUtil::FontWeight::Bold, 16});
 
-    for (auto* element : {ui->labelBlockChain, ui->labelMempoolTitle}) {
+    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend}) {
         element->setContentsMargins(0, 10, 0, 0);
     }
 }
@@ -67,11 +67,11 @@ void NetworkWidget::updateMasternodeCount()
 
 void NetworkWidget::setChainLock(const QString& bestChainLockHash, int bestChainLockHeight)
 {
-    ui->bestChainLockHash->setText(bestChainLockHash);
-    ui->bestChainLockHeight->setText(QString::number(bestChainLockHeight));
+    ui->bestClHash->setText(bestChainLockHash);
+    ui->bestClHeight->setText(QString::number(bestChainLockHeight));
 }
 
 void NetworkWidget::setInstantSendLockCount(size_t count)
 {
-    ui->instantSendLockCount->setText(QString::number(count));
+    ui->labelISLocks->setText(QString::number(count));
 }
