@@ -57,7 +57,6 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
         // no locking required at this point
         // the following calls will acquire the required lock
         Q_EMIT mempoolSizeChanged(m_node.getMempoolSize(), m_node.getMempoolDynamicUsage(), m_node.getMempoolMaxUsage());
-        Q_EMIT islockCountChanged(m_node.llmq().getInstantSendCounts().m_verified);
     });
     connect(m_thread, &QThread::finished, timer, &QObject::deleteLater);
     connect(m_thread, &QThread::started, [timer] { timer->start(); });
@@ -72,11 +71,15 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     m_feeds = std::make_unique<ClientFeeds>(this);
 
     // Setup feeds
+    m_feed_instantsend = m_feeds->add<InstantSendFeed>(this, *this);
     m_feed_masternode = m_feeds->add<MasternodeFeed>(this, *this);
-    connect(this, &ClientModel::masternodeListChanged, m_feed_masternode, &MasternodeFeed::requestRefresh);
-
     if (m_node.gov().isEnabled()) {
         m_feed_proposal = m_feeds->add<ProposalFeed>(this, *this, *m_feed_masternode);
+    }
+
+    connect(this, &ClientModel::instantSendChanged, m_feed_instantsend, &InstantSendFeed::requestRefresh);
+    connect(this, &ClientModel::masternodeListChanged, m_feed_masternode, &MasternodeFeed::requestRefresh);
+    if (m_feed_proposal) {
         connect(this, &ClientModel::governanceChanged, m_feed_proposal, &ProposalFeed::requestRefresh);
     }
 
@@ -319,6 +322,10 @@ void ClientModel::subscribeToCoreSignals()
     m_event_handlers.emplace_back(m_node.handleNotifyMasternodeListChanged(
         [this](const CDeterministicMNList&, const CBlockIndex*) {
             Q_EMIT masternodeListChanged();
+        }));
+    m_event_handlers.emplace_back(m_node.handleNotifyInstantSendChanged(
+        [this]() {
+            Q_EMIT instantSendChanged();
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyGovernanceChanged(
         [this]() {

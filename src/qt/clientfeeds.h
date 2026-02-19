@@ -94,6 +94,23 @@ private:
     std::shared_ptr<const Data> m_data GUARDED_BY(m_cs);
 };
 
+struct InstantSendData {
+    size_t m_islock_count{0};
+};
+
+class InstantSendFeed : public Feed<InstantSendData> {
+    Q_OBJECT
+
+public:
+    explicit InstantSendFeed(QObject* parent, ClientModel& client_model);
+    ~InstantSendFeed();
+
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
+};
+
 struct MasternodeData {
     bool m_valid{false};
     int m_list_height{0};

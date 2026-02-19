@@ -20,6 +20,7 @@
 #include <QThread>
 
 namespace {
+constexpr auto INSTANTSEND_UPDATE_INTERVAL{3s};
 constexpr auto MASTERNODE_UPDATE_INTERVAL{3s};
 constexpr auto PROPOSAL_UPDATE_INTERVAL{10s};
 } // anonymous namespace
@@ -44,6 +45,26 @@ void FeedBase::requestRefresh()
     if (m_timer && !m_timer->isActive()) {
         m_timer->start(m_syncing.load() ? m_config.m_throttle : m_config.m_baseline);
     }
+}
+
+InstantSendFeed::InstantSendFeed(QObject* parent, ClientModel& client_model) :
+    Feed<InstantSendData>{parent, {/*m_baseline=*/INSTANTSEND_UPDATE_INTERVAL, /*m_throttle=*/INSTANTSEND_UPDATE_INTERVAL*10}},
+    m_client_model{client_model}
+{
+}
+
+InstantSendFeed::~InstantSendFeed() = default;
+
+void InstantSendFeed::fetch()
+{
+    if (m_client_model.node().shutdownRequested()) {
+        return;
+    }
+
+    auto ret = std::make_shared<Data>();
+    ret->m_islock_count = m_client_model.node().llmq().getInstantSendCounts().m_verified;
+
+    setData(std::move(ret));
 }
 
 MasternodeFeed::MasternodeFeed(QObject* parent, ClientModel& client_model) :

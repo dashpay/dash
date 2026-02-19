@@ -35,20 +35,26 @@ NetworkWidget::~NetworkWidget()
 void NetworkWidget::setClientModel(ClientModel* model)
 {
     clientModel = model;
+    if (!clientModel) {
+        return;
+    }
 
-    if (clientModel) {
-        connect(model, &ClientModel::chainLockChanged, this, &NetworkWidget::setChainLock);
-        connect(model, &ClientModel::islockCountChanged, this, &NetworkWidget::setInstantSendLockCount);
+    connect(model, &ClientModel::chainLockChanged, this, &NetworkWidget::setChainLock);
 
-        m_feed_masternode = model->feedMasternode();
-        if (m_feed_masternode) {
-            connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &NetworkWidget::updateMasternodeCount);
-            updateMasternodeCount();
-        }
+    m_feed_instantsend = model->feedInstantSend();
+    if (m_feed_instantsend) {
+        connect(m_feed_instantsend, &InstantSendFeed::dataReady, this, &NetworkWidget::handleIsDataChanged);
+        handleIsDataChanged();
+    }
+
+    m_feed_masternode = model->feedMasternode();
+    if (m_feed_masternode) {
+        connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &NetworkWidget::handleMnDataChanged);
+        handleMnDataChanged();
     }
 }
 
-void NetworkWidget::updateMasternodeCount()
+void NetworkWidget::handleMnDataChanged()
 {
     if (!m_feed_masternode) {
         return;
@@ -71,7 +77,14 @@ void NetworkWidget::setChainLock(const QString& bestChainLockHash, int bestChain
     ui->bestClHeight->setText(QString::number(bestChainLockHeight));
 }
 
-void NetworkWidget::setInstantSendLockCount(size_t count)
+void NetworkWidget::handleIsDataChanged()
 {
-    ui->labelISLocks->setText(QString::number(count));
+    if (!m_feed_instantsend) {
+        return;
+    }
+    const auto data = m_feed_instantsend->data();
+    if (!data) {
+        return;
+    }
+    ui->labelISLocks->setText(QString::number(data->m_islock_count));
 }
