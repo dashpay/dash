@@ -189,6 +189,9 @@ void CoinControlDialog::buttonSelectAllClicked()
 // (un)lock all
 void CoinControlDialog::buttonLockAllClicked()
 {
+    // Fetch the wallet-wide locked set once (single cs_wallet acquisition)
+    const std::set<COutPoint> lockedSet{model->wallet().listLockedCoins()};
+
     // Collect all visible UTXOs; track locked ones separately for the unlock path
     // (works in both tree and list modes)
     std::vector<COutPoint> outputs;
@@ -200,7 +203,7 @@ void CoinControlDialog::buttonLockAllClicked()
             const COutPoint outpt(uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()),
                                   item->data(COLUMN_ADDRESS, VOutRole).toUInt());
             outputs.emplace_back(outpt);
-            if (model->wallet().isLockedCoin(outpt)) lockedOutputs.emplace_back(outpt);
+            if (lockedSet.contains(outpt)) lockedOutputs.emplace_back(outpt);
         } else {
             // Tree mode: top-level item is an address group; collect children
             for (int j = 0; j < item->childCount(); j++) {
@@ -208,7 +211,7 @@ void CoinControlDialog::buttonLockAllClicked()
                 const COutPoint outpt(uint256S(child->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()),
                                       child->data(COLUMN_ADDRESS, VOutRole).toUInt());
                 outputs.emplace_back(outpt);
-                if (model->wallet().isLockedCoin(outpt)) lockedOutputs.emplace_back(outpt);
+                if (lockedSet.contains(outpt)) lockedOutputs.emplace_back(outpt);
             }
         }
     }

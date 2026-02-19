@@ -2742,10 +2742,10 @@ bool CWallet::IsLockedCoin(const COutPoint& output) const
     return setLockedCoins.count(output) > 0;
 }
 
-std::vector<COutPoint> CWallet::ListLockedCoins() const
+const std::set<COutPoint>& CWallet::ListLockedCoins() const
 {
     AssertLockHeld(cs_wallet);
-    return std::vector<COutPoint>(setLockedCoins.begin(), setLockedCoins.end());
+    return setLockedCoins;
 }
 
 std::vector<COutPoint> CWallet::ListProTxCoins() const { return ListProTxCoins(setWalletUTXO); }

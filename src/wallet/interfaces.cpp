@@ -321,7 +321,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->IsLockedCoin(output);
     }
-    std::vector<COutPoint> listLockedCoins() override
+    std::set<COutPoint> listLockedCoins() override
     {
         LOCK(m_wallet->cs_wallet);
         return m_wallet->ListLockedCoins();
