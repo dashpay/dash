@@ -6,9 +6,9 @@
 #ifndef BITCOIN_QT_NETWORKWIDGET_H
 #define BITCOIN_QT_NETWORKWIDGET_H
 
-#include <QString>
 #include <QWidget>
 
+class ChainLockFeed;
 class ClientModel;
 class InstantSendFeed;
 class MasternodeFeed;
@@ -26,17 +26,15 @@ public:
 
     void setClientModel(ClientModel* model);
 
-public Q_SLOTS:
-    /** Set latest chainlocked hash and height shown in the UI */
-    void setChainLock(const QString& bestChainLockHash, int bestChainLockHeight);
-
 private Q_SLOTS:
+    void handleClDataChanged();
     void handleIsDataChanged();
     void handleMnDataChanged();
 
 private:
     Ui::NetworkWidget* ui;
     ClientModel* clientModel{nullptr};
+    ChainLockFeed* m_feed_chainlock{nullptr};
     InstantSendFeed* m_feed_instantsend{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
 };

@@ -20,6 +20,7 @@
 #include <QThread>
 
 namespace {
+constexpr auto CHAINLOCK_UPDATE_INTERVAL{3s};
 constexpr auto INSTANTSEND_UPDATE_INTERVAL{3s};
 constexpr auto MASTERNODE_UPDATE_INTERVAL{3s};
 constexpr auto PROPOSAL_UPDATE_INTERVAL{10s};
@@ -45,6 +46,33 @@ void FeedBase::requestRefresh()
     if (m_timer && !m_timer->isActive()) {
         m_timer->start(m_syncing.load() ? m_config.m_throttle : m_config.m_baseline);
     }
+}
+
+ChainLockFeed::ChainLockFeed(QObject* parent, ClientModel& client_model) :
+    Feed<ChainLockData>{parent, {/*m_baseline=*/CHAINLOCK_UPDATE_INTERVAL, /*m_throttle=*/CHAINLOCK_UPDATE_INTERVAL*10}},
+    m_client_model{client_model}
+{
+}
+
+ChainLockFeed::~ChainLockFeed() = default;
+
+void ChainLockFeed::fetch()
+{
+    if (m_client_model.node().shutdownRequested()) {
+        return;
+    }
+
+    const auto cl_info = m_client_model.node().llmq().getBestChainLock();
+    if (cl_info.m_height == 0) {
+        // Chainlock at genesis height not possible, assume something went wrong
+        return;
+    }
+
+    auto ret = std::make_shared<Data>();
+    ret->m_height = cl_info.m_height;
+    ret->m_hash = QString::fromStdString(cl_info.m_hash.ToString());
+
+    setData(std::move(ret));
 }
 
 InstantSendFeed::InstantSendFeed(QObject* parent, ClientModel& client_model) :

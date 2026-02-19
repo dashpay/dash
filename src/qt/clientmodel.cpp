@@ -71,12 +71,14 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     m_feeds = std::make_unique<ClientFeeds>(this);
 
     // Setup feeds
+    m_feed_chainlock = m_feeds->add<ChainLockFeed>(this, *this);
     m_feed_instantsend = m_feeds->add<InstantSendFeed>(this, *this);
     m_feed_masternode = m_feeds->add<MasternodeFeed>(this, *this);
     if (m_node.gov().isEnabled()) {
         m_feed_proposal = m_feeds->add<ProposalFeed>(this, *this, *m_feed_masternode);
     }
 
+    connect(this, &ClientModel::chainLockChanged, m_feed_chainlock, &ChainLockFeed::requestRefresh);
     connect(this, &ClientModel::instantSendChanged, m_feed_instantsend, &InstantSendFeed::requestRefresh);
     connect(this, &ClientModel::masternodeListChanged, m_feed_masternode, &MasternodeFeed::requestRefresh);
     if (m_feed_proposal) {
@@ -316,8 +318,8 @@ void ClientModel::subscribeToCoreSignals()
             Q_EMIT additionalDataSyncProgressChanged(nSyncProgress);
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyChainLock(
-        [this](const std::string& best_hash, int best_height) {
-            Q_EMIT chainLockChanged(QString::fromStdString(best_hash), best_height);
+        [this](const std::string&, int) {
+            Q_EMIT chainLockChanged();
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyMasternodeListChanged(
         [this](const CDeterministicMNList&, const CBlockIndex*) {

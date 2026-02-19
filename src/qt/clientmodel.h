@@ -18,6 +18,7 @@
 #include <memory>
 
 class BanTableModel;
+class ChainLockFeed;
 class ClientFeeds;
 class InstantSendFeed;
 class MasternodeFeed;
@@ -65,6 +66,7 @@ public:
     PeerTableSortProxy* peerTableSortProxy();
     BanTableModel *getBanTableModel();
 
+    ChainLockFeed* feedChainLock() const { return m_feed_chainlock; }
     InstantSendFeed* feedInstantSend() const { return m_feed_instantsend; }
     MasternodeFeed* feedMasternode() const { return m_feed_masternode; }
     ProposalFeed* feedProposal() const { return m_feed_proposal; }
@@ -113,6 +115,7 @@ private:
     QThread* const m_thread;
 
     //! Data sources from different subsystems coordinated by model
+    ChainLockFeed* m_feed_chainlock{nullptr};
     InstantSendFeed* m_feed_instantsend{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
     ProposalFeed* m_feed_proposal{nullptr};
@@ -126,7 +129,7 @@ Q_SIGNALS:
     void numConnectionsChanged(int count);
     void governanceChanged();
     void masternodeListChanged() const;
-    void chainLockChanged(const QString& bestChainLockHash, int bestChainLockHeight);
+    void chainLockChanged();
     void numBlocksChanged(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool header, SynchronizationState sync_state);
     void additionalDataSyncProgressChanged(double nSyncProgress);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes, size_t mempoolMaxSizeInBytes);

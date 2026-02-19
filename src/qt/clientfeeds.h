@@ -94,6 +94,24 @@ private:
     std::shared_ptr<const Data> m_data GUARDED_BY(m_cs);
 };
 
+struct ChainLockData {
+    int32_t m_height{0};
+    QString m_hash;
+};
+
+class ChainLockFeed : public Feed<ChainLockData> {
+    Q_OBJECT
+
+public:
+    explicit ChainLockFeed(QObject* parent, ClientModel& client_model);
+    ~ChainLockFeed();
+
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
+};
+
 struct InstantSendData {
     size_t m_islock_count{0};
 };

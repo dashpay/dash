@@ -39,7 +39,11 @@ void NetworkWidget::setClientModel(ClientModel* model)
         return;
     }
 
-    connect(model, &ClientModel::chainLockChanged, this, &NetworkWidget::setChainLock);
+    m_feed_chainlock = model->feedChainLock();
+    if (m_feed_chainlock) {
+        connect(m_feed_chainlock, &ChainLockFeed::dataReady, this, &NetworkWidget::handleClDataChanged);
+        handleClDataChanged();
+    }
 
     m_feed_instantsend = model->feedInstantSend();
     if (m_feed_instantsend) {
@@ -71,10 +75,17 @@ void NetworkWidget::handleMnDataChanged()
         .arg(QString::number(data->m_counts.m_valid_evo)));
 }
 
-void NetworkWidget::setChainLock(const QString& bestChainLockHash, int bestChainLockHeight)
+void NetworkWidget::handleClDataChanged()
 {
-    ui->bestClHash->setText(bestChainLockHash);
-    ui->bestClHeight->setText(QString::number(bestChainLockHeight));
+    if (!m_feed_chainlock) {
+        return;
+    }
+    const auto data = m_feed_chainlock->data();
+    if (!data) {
+        return;
+    }
+    ui->bestClHash->setText(data->m_hash);
+    ui->bestClHeight->setText(QString::number(data->m_height));
 }
 
 void NetworkWidget::handleIsDataChanged()
