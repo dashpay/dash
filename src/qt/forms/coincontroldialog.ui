@@ -254,7 +254,7 @@
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayoutPanel" stretch="0,0,0,0,0,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayoutPanel" stretch="0,0,0,0,0,0,0,0">
         <property name="spacing">
          <number>14</number>
         </property>
@@ -268,6 +268,22 @@
           </property>
           <property name="text">
            <string>(un)select all</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButtonLockAll">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>(un)lock all</string>
           </property>
           <property name="autoDefault">
            <bool>false</bool>

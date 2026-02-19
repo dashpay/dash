@@ -326,6 +326,24 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->ListLockedCoins();
     }
+    bool lockCoins(const std::vector<COutPoint>& outputs) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        WalletBatch batch(m_wallet->GetDatabase());
+        for (const auto& output : outputs) {
+            if (!m_wallet->LockCoin(output, &batch)) return false;
+        }
+        return true;
+    }
+    bool unlockCoins(const std::vector<COutPoint>& outputs) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        WalletBatch batch(m_wallet->GetDatabase());
+        for (const auto& output : outputs) {
+            if (!m_wallet->UnlockCoin(output, &batch)) return false;
+        }
+        return true;
+    }
     std::vector<COutPoint> listProTxCoins() override
     {
         LOCK(m_wallet->cs_wallet);
