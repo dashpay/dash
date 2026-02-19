@@ -114,9 +114,6 @@ CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _m
     // (un)select all
     connect(ui->pushButtonSelectAll, &QPushButton::clicked, this, &CoinControlDialog::buttonSelectAllClicked);
 
-    // Toggle lock state
-    connect(ui->pushButtonToggleLock, &QPushButton::clicked, this, &CoinControlDialog::buttonToggleLockClicked);
-
     // (un)lock all
     connect(ui->pushButtonLockAll, &QPushButton::clicked, this, &CoinControlDialog::buttonLockAllClicked);
 
@@ -187,43 +184,6 @@ void CoinControlDialog::buttonSelectAllClicked()
     if (state == Qt::Unchecked)
         m_coin_control.UnSelectAll(); // just to be sure
     CoinControlDialog::updateLabels(m_coin_control, model, this);
-}
-
-// Toggle lock state
-void CoinControlDialog::buttonToggleLockClicked()
-{
-    QTreeWidgetItem *item;
-    // Works in list-mode only
-    if(ui->radioListMode->isChecked()){
-        ui->treeWidget->setEnabled(false);
-        for (int i = 0; i < ui->treeWidget->topLevelItemCount(); i++){
-            item = ui->treeWidget->topLevelItem(i);
-            COutPoint outpt(uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()), item->data(COLUMN_ADDRESS, VOutRole).toUInt());
-            // Don't toggle the lock state of partially mixed coins if they are not hidden in CoinJoin mode
-            if (m_coin_control.IsUsingCoinJoin() && !fHideAdditional && !model->isFullyMixed(outpt)) {
-                continue;
-            }
-            if (model->wallet().isLockedCoin(outpt)) {
-                model->wallet().unlockCoin(outpt);
-                item->setDisabled(false);
-                item->setIcon(COLUMN_CHECKBOX, QIcon());
-            }
-            else{
-                model->wallet().lockCoin(outpt, /*write_to_db=*/true);
-                item->setDisabled(true);
-                item->setIcon(COLUMN_CHECKBOX, GUIUtil::getIcon("lock_closed", GUIUtil::ThemedColor::RED));
-            }
-            updateLabelLocked();
-        }
-        ui->treeWidget->setEnabled(true);
-        CoinControlDialog::updateLabels(m_coin_control, model, this);
-    }
-    else{
-        QMessageBox msgBox(this);
-        msgBox.setObjectName("lockMessageBox");
-        msgBox.setText(tr("Please switch to \"List mode\" to use this function."));
-        msgBox.exec();
-    }
 }
 
 // (un)lock all
