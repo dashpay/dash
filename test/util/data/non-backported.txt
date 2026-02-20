@@ -31,6 +31,7 @@ src/netfulfilledman.*
 src/qt/clientfeeds.*
 src/qt/descriptiondialog.*
 src/qt/guiutil_font.*
+src/qt/informationwidget.*
 src/qt/masternodelist.*
 src/qt/masternodemodel.*
 src/qt/mnemonicverificationdialog.*

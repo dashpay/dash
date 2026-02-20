@@ -24,6 +24,7 @@ QT_FORMS_UI = \
   qt/forms/descriptiondialog.ui \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
+  qt/forms/informationwidget.ui \
   qt/forms/intro.ui \
   qt/forms/masternodelist.ui \
   qt/forms/mnemonicverificationdialog.ui \
@@ -62,6 +63,7 @@ QT_MOC_CPP = \
   qt/moc_descriptiondialog.cpp \
   qt/moc_editaddressdialog.cpp \
   qt/moc_guiutil.cpp \
+  qt/moc_informationwidget.cpp \
   qt/moc_initexecutor.cpp \
   qt/moc_intro.cpp \
   qt/moc_macdockiconhandler.cpp \
@@ -145,6 +147,7 @@ BITCOIN_QT_H = \
   qt/guiconstants.h \
   qt/guiutil_font.h \
   qt/guiutil.h \
+  qt/informationwidget.h \
   qt/initexecutor.h \
   qt/intro.h \
   qt/macdockiconhandler.h \
@@ -255,6 +258,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/csvmodelwriter.cpp \
   qt/guiutil.cpp \
   qt/guiutil_font.cpp \
+  qt/informationwidget.cpp \
   qt/initexecutor.cpp \
   qt/intro.cpp \
   qt/modaloverlay.cpp \

@@ -81,6 +81,10 @@ public:
         REPAIR
     };
 
+    enum class InfoView : uint8_t {
+        General,
+    };
+
     std::vector<TabTypes> tabs() const { return {TabTypes::INFO, TabTypes::CONSOLE, TabTypes::GRAPH, TabTypes::PEERS, TabTypes::REPAIR}; }
 
     QString tabTitle(TabTypes tab_type) const;
@@ -93,6 +97,7 @@ protected:
 private Q_SLOTS:
     /** custom tab buttons clicked */
     void showPage(int index);
+    void showInfoView(int index);
     void on_lineEdit_returnPressed();
     void on_stackedWidgetRPC_currentChanged(int index);
     /** open the debug.log from the current datadir */
@@ -130,20 +135,6 @@ public Q_SLOTS:
     /** Append the message to the message widget */
     void message(int category, const QString &msg) { message(category, msg, false); }
     void message(int category, const QString &message, bool html);
-    /** Set number of connections shown in the UI */
-    void setNumConnections(int count);
-    /** Set network state shown in the UI */
-    void setNetworkActive(bool networkActive);
-    /** Update number of masternodes shown in the UI */
-    void updateMasternodeCount();
-    /** Set latest chainlocked hash and height shown in the UI */
-    void setChainLock(const QString& bestChainLockHash, int bestChainLockHeight);
-    /** Set number of blocks, last block date and last block hash shown in the UI */
-    void setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool headers);
-    /** Set size (number of transactions and memory usage) of the mempool in the UI */
-    void setMempoolSize(long numberOfTxs, size_t dynUsage, size_t maxUsage);
-    /** Set number of InstantSend locks */
-    void setInstantSendLockCount(size_t count);
     /** Go forward or back in history */
     void browseHistory(int offset);
     /** Scroll console view to end */
@@ -216,11 +207,7 @@ private:
     bool m_is_executing{false};
     QByteArray m_peer_widget_header_state;
     QByteArray m_banlist_widget_header_state;
-
     MasternodeFeed* m_feed_masternode{nullptr};
-
-    /** Update UI with latest network info from model. */
-    void updateNetworkState();
 
     /** Helper for the output of a time duration field. Inputs are UNIX epoch times. */
     QString TimeDurationField(std::chrono::seconds time_now, std::chrono::seconds time_at_event) const
