@@ -2730,10 +2730,19 @@ bool CWallet::UnlockAllCoins()
     AssertLockHeld(cs_wallet);
     bool success = true;
     WalletBatch batch(GetDatabase());
-    for (auto it = setLockedCoins.begin(); it != setLockedCoins.end(); ++it) {
-        success &= batch.EraseLockedUTXO(*it);
+    std::set<uint256> affectedTxids;
+    for (auto it = setLockedCoins.begin(); it != setLockedCoins.end(); ) {
+        if (batch.EraseLockedUTXO(*it)) {
+            affectedTxids.insert(it->hash);
+            it = setLockedCoins.erase(it);
+        } else {
+            success = false;
+            ++it;
+        }
     }
-    setLockedCoins.clear();
+    for (const auto& txid : affectedTxids) {
+        RecalculateMixedCredit(txid);
+    }
     return success;
 }
 
