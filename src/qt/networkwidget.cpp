@@ -6,6 +6,8 @@
 #include <qt/networkwidget.h>
 #include <qt/forms/ui_networkwidget.h>
 
+#include <chainparams.h>
+
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil_font.h>
@@ -106,6 +108,7 @@ void NetworkWidget::setClientModel(ClientModel* model)
     m_feed_quorum = model->feedQuorum();
     if (m_feed_quorum) {
         connect(m_feed_quorum, &QuorumFeed::dataReady, this, &NetworkWidget::handleQrDataChanged);
+        connect(model, &ClientModel::additionalDataSyncProgressChanged, this, &NetworkWidget::handleQrDataChanged);
         handleQrDataChanged();
     }
 
@@ -183,7 +186,7 @@ void NetworkWidget::handleIsDataChanged()
 
 void NetworkWidget::handleQrDataChanged()
 {
-    if (!m_feed_quorum) {
+    if (!clientModel || !m_feed_quorum) {
         return;
     }
     const auto data = m_feed_quorum->data();
@@ -229,10 +232,12 @@ void NetworkWidget::handleQrDataChanged()
         if (inserted) {
             it->second.first = new QLabel(FormatQuorumStr(q.m_name), this);
             it->second.first->setFont(GUIUtil::getFontNormal());
+            it->second.first->setToolTip(tr("Waiting for blockchain sync…"));
             it->second.second = new QLabel(this);
             it->second.second->setFont(GUIUtil::getFontNormal());
             it->second.second->setCursor(Qt::IBeamCursor);
             it->second.second->setTextInteractionFlags(Qt::LinksAccessibleByMouse | Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
+            it->second.second->setToolTip(tr("Waiting for blockchain sync…"));
             grid->addWidget(it->second.first, current_row, 0);
             grid->addWidget(it->second.second, current_row, 1);
         } else if (needs_reseating) {
@@ -242,6 +247,23 @@ void NetworkWidget::handleQrDataChanged()
             grid->addWidget(it->second.second, current_row, 1);
         }
         it->second.second->setText(tr("%1 active (%2% health)").arg(q.m_count).arg(q.m_health * 100.0, 0, 'f', 1));
+
+        if (clientModel->masternodeSync().isBlockchainSynced()) {
+            const int64_t spacing = Params().GetConsensus().nPowTargetSpacing;
+            const int tip_height = clientModel->getNumBlocks();
+            const QString line1 = q.m_rotates
+                ? tr("Quorum type rotates, data retained for %1").arg(GUIUtil::formatBlockDuration(q.m_data_retention_blocks, spacing))
+                : tr("Quorum type does not rotate, data retained for %1").arg(GUIUtil::formatBlockDuration(q.m_data_retention_blocks, spacing));
+            const QString line2 = (q.m_expiry_height > tip_height)
+                ? tr("Current quorum has %1 remaining").arg(GUIUtil::formatBlockDuration(q.m_expiry_height - tip_height, spacing))
+                : tr("Current quorum has expired");
+            const QString line3 = (q.m_newest_height > 0 && tip_height > q.m_newest_height)
+                ? tr("Last formed %1 ago").arg(GUIUtil::formatBlockDuration(tip_height - q.m_newest_height, spacing))
+                : tr("Last formed recently");
+            const QString tooltip = QString("<nobr>%1</nobr><br><nobr>%2</nobr><br><nobr>%3</nobr>").arg(line1, line2, line3);
+            it->second.first->setToolTip(tooltip);
+            it->second.second->setToolTip(tooltip);
+        }
         ++current_row;
     }
 

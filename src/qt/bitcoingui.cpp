@@ -1809,20 +1809,20 @@ void BitcoinGUI::updateGovernanceCycleIcon()
 
     const auto gov_info{m_node.gov().getGovernanceInfo()};
     const auto remaining_blocks{std::max<int>(0, gov_info.nextsuperblock - current_height)};
-    const auto days{static_cast<int>(static_cast<int64_t>(remaining_blocks) * gov_info.targetSpacing / (24*60*60))};
+    const auto remaining_str{GUIUtil::formatBlockDuration(remaining_blocks, gov_info.targetSpacing)};
     const bool awaiting_superblock{current_height % gov_info.superblockcycle >= gov_info.superblockcycle - gov_info.superblockmaturitywindow};
 
     QString tooltip1{};
     if (awaiting_superblock) {
         labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({ToUnderlying(GUIUtil::ThemedColor::BLUE), 0}));
-        tooltip1 = tr("~%n day(s) (%1 blocks) left for superblock", "", days).arg(remaining_blocks);
+        tooltip1 = tr("~%1 (%2 blocks) left for superblock").arg(remaining_str).arg(remaining_blocks);
     } else {
         const auto cycle_blocks{gov_info.superblockcycle - gov_info.superblockmaturitywindow};
         const auto blocks_elapsed{gov_info.superblockcycle - remaining_blocks - gov_info.superblockmaturitywindow};
         const auto progress{static_cast<double>(std::max(0, blocks_elapsed)) / static_cast<double>(std::max(1, cycle_blocks))};
         const auto frame{std::clamp<int>(static_cast<int>(progress * (GOV_CYCLE_FRAME_COUNT - 1)), 0, GOV_CYCLE_FRAME_COUNT - 2) + 1};
         labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({ToUnderlying(GUIUtil::ThemedColor::GREEN), frame}));
-        tooltip1 = tr("~%n day(s) (%1 blocks) left for voting", "", days).arg(remaining_blocks);
+        tooltip1 = tr("~%1 (%2 blocks) left for voting").arg(remaining_str).arg(remaining_blocks);
     }
 
     const auto allocated_budget{m_node.gov().getFundableProposalHashes().allocated};

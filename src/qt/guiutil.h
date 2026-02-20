@@ -359,6 +359,9 @@ namespace GUIUtil
 
     QString formatNiceTimeOffset(qint64 secs);
 
+    /** Convert a block count to a human-readable duration using the given block spacing. */
+    QString formatBlockDuration(int blocks, int64_t spacing_seconds);
+
     QString formatBytes(uint64_t bytes);
 
     qreal calculateIdealFontSize(int width, const QString& text, QFont font, qreal minPointSize = 4, qreal startPointSize = 14);
