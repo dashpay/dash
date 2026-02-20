@@ -17,6 +17,7 @@
 #include <qt/guiutil.h>
 #include <qt/informationwidget.h>
 #include <qt/masternodemodel.h>
+#include <qt/networkwidget.h>
 #include <qt/peertablesortproxy.h>
 #include <qt/util.h>
 #include <qt/walletcontroller.h>
@@ -701,6 +702,7 @@ void RPCConsole::setClientModel(ClientModel *model, int bestblock_height, int64_
     }
 
     ui->informationWidget->setClientModel(model);
+    ui->networkWidget->setClientModel(model);
     ui->trafficGraph->setClientModel(model);
     if (model && clientModel->getPeerTableModel() && clientModel->getBanTableModel()) {
         // Keep up to date with client

@@ -122,6 +122,20 @@
            </item>
           </layout>
          </widget>
+         <widget class="QWidget" name="tabNetwork">
+          <attribute name="title">
+           <string>&amp;Network</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayoutTabNetwork">
+           <property name="leftMargin"><number>0</number></property>
+           <property name="topMargin"><number>0</number></property>
+           <property name="rightMargin"><number>0</number></property>
+           <property name="bottomMargin"><number>0</number></property>
+           <item>
+            <widget class="NetworkWidget" name="networkWidget" native="true"/>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
        <item>
@@ -1369,6 +1383,12 @@
    <class>InformationWidget</class>
    <extends>QWidget</extends>
    <header>qt/informationwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>NetworkWidget</class>
+   <extends>QWidget</extends>
+   <header>qt/networkwidget.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

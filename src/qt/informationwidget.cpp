@@ -9,7 +9,6 @@
 #include <chainparams.h>
 #include <interfaces/node.h>
 
-#include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/guiutil_font.h>
@@ -50,19 +49,10 @@ void InformationWidget::setClientModel(ClientModel* model)
         setNumConnections(model->getNumConnections());
         connect(model, &ClientModel::numConnectionsChanged, this, &InformationWidget::setNumConnections);
 
-        connect(model, &ClientModel::chainLockChanged, this, &InformationWidget::setChainLock);
-
         updateNetworkState();
         connect(model, &ClientModel::networkActiveChanged, this, &InformationWidget::setNetworkActive);
 
-        m_feed_masternode = model->feedMasternode();
-        if (m_feed_masternode) {
-            connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &InformationWidget::updateMasternodeCount);
-            updateMasternodeCount();
-        }
-
         connect(model, &ClientModel::mempoolSizeChanged, this, &InformationWidget::setMempoolSize);
-        connect(model, &ClientModel::islockCountChanged, this, &InformationWidget::setInstantSendLockCount);
 
         // Provide initial values
         ui->blocksDir->setText(model->blocksDir());
@@ -126,29 +116,6 @@ void InformationWidget::setNumBlocks(int count, const QDateTime& blockDate, cons
     }
 }
 
-void InformationWidget::setChainLock(const QString& bestChainLockHash, int bestChainLockHeight)
-{
-    ui->bestChainLockHash->setText(bestChainLockHash);
-    ui->bestChainLockHeight->setText(QString::number(bestChainLockHeight));
-}
-
-void InformationWidget::updateMasternodeCount()
-{
-    if (!m_feed_masternode) {
-        return;
-    }
-    const auto data = m_feed_masternode->data();
-    if (!data || !data->m_valid) {
-        return;
-    }
-    ui->masternodeCount->setText(tr("Total: %1 (Enabled: %2)")
-        .arg(QString::number(data->m_counts.m_total_mn))
-        .arg(QString::number(data->m_counts.m_valid_mn)));
-    ui->evoCount->setText(tr("Total: %1 (Enabled: %2)")
-        .arg(QString::number(data->m_counts.m_total_evo))
-        .arg(QString::number(data->m_counts.m_valid_evo)));
-}
-
 void InformationWidget::setMempoolSize(long numberOfTxs, size_t dynUsage, size_t maxUsage)
 {
     ui->mempoolNumberTxs->setText(QString::number(numberOfTxs));
@@ -159,9 +126,4 @@ void InformationWidget::setMempoolSize(long numberOfTxs, size_t dynUsage, size_t
     const auto max_usage_str = QObject::tr("%1 MB").arg(maxUsage / 1000000.0, 0, 'f', 2);
 
     ui->mempoolSize->setText(cur_usage_str + " / " + max_usage_str);
-}
-
-void InformationWidget::setInstantSendLockCount(size_t count)
-{
-    ui->instantSendLockCount->setText(QString::number(count));
 }
