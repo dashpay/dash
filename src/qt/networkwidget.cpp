@@ -100,5 +100,8 @@ void NetworkWidget::handleIsDataChanged()
     if (!data) {
         return;
     }
-    ui->labelISLocks->setText(QString::number(data->m_islock_count));
+    ui->labelISLocks->setText(QString::number(data->m_counts.m_verified));
+    ui->labelISPending->setText(QString::number(data->m_counts.m_unverified));
+    ui->labelISWaiting->setText(QString::number(data->m_counts.m_awaiting_tx));
+    ui->labelISUnprotected->setText(QString::number(data->m_counts.m_unprotected_tx));
 }

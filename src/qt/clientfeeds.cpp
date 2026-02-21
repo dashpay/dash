@@ -91,7 +91,7 @@ void InstantSendFeed::fetch()
     }
 
     auto ret = std::make_shared<Data>();
-    ret->m_islock_count = m_client_model.node().llmq().getInstantSendCounts().m_verified;
+    ret->m_counts = m_client_model.node().llmq().getInstantSendCounts();
 
     setData(std::move(ret));
 }

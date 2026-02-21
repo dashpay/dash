@@ -114,7 +114,7 @@ private:
 };
 
 struct InstantSendData {
-    size_t m_islock_count{0};
+    interfaces::LLMQ::InstantSendCounts m_counts{};
 };
 
 class InstantSendFeed : public Feed<InstantSendData> {
