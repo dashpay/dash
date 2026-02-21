@@ -204,6 +204,16 @@ public:
     };
     virtual InstantSendCounts getInstantSendCounts() = 0;
     virtual size_t getPendingAssetUnlocks() = 0;
+    struct QuorumInfo {
+        std::string m_name;
+        size_t m_count{0};
+        double m_health{0.0};
+        bool m_rotates{false};
+        int32_t m_data_retention_blocks{0};
+        int32_t m_newest_height{0};
+        int32_t m_expiry_height{0};
+    };
+    virtual std::vector<QuorumInfo> getQuorumStats() = 0;
     virtual void setContext(node::NodeContext* context) {}
 };
 

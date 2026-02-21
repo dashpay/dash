@@ -28,7 +28,11 @@
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
 #include <instantsend/instantsend.h>
+#include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/options.h>
+#include <llmq/quorums.h>
+#include <llmq/quorumsman.h>
 #include <mapport.h>
 #include <masternode/sync.h>
 #include <net.h>
@@ -485,6 +489,46 @@ public:
         return static_cast<size_t>(ranges::count_if(context().mempool->mapTx, [](const auto& entry) {
             return entry.GetTx().IsPlatformTransfer();
         }));
+    }
+    std::vector<QuorumInfo> getQuorumStats() override
+    {
+        std::vector<QuorumInfo> stats{};
+        if (!context().llmq_ctx || !context().llmq_ctx->qman || !context().chainman) {
+            return stats;
+        }
+        const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
+        if (!pindex) {
+            return stats;
+        }
+        for (const auto& type : llmq::GetEnabledQuorumTypes(*context().chainman, pindex)) {
+            const auto llmq_params{Params().GetLLMQ(type)};
+            if (!llmq_params.has_value()) {
+                continue;
+            }
+            const auto quorums{context().llmq_ctx->qman->ScanQuorums(type, pindex, llmq_params->signingActiveQuorumCount)};
+            double health{0.0};
+            for (const auto& q : quorums) {
+                size_t numMembers = q->members.size();
+                size_t numValidMembers = q->qc->CountValidMembers();
+                health += (numMembers > 0) ? (double(numValidMembers) / double(numMembers)) : 0.0;
+            }
+            health = quorums.empty() ? 0.0 : (health / quorums.size());
+            const int32_t newest_height{(!quorums.empty() && quorums[0]->m_quorum_base_block_index)
+                ? quorums[0]->m_quorum_base_block_index->nHeight : 0};
+            const int32_t expiry_height{(newest_height > 0)
+                ? newest_height + llmq_params->signingActiveQuorumCount * llmq_params->dkgInterval
+                : 0};
+            stats.emplace_back(QuorumInfo{
+                .m_name = std::string(llmq_params->name),
+                .m_count = quorums.size(),
+                .m_health = health,
+                .m_rotates = llmq_params->useRotation,
+                .m_data_retention_blocks = llmq_params->max_store_depth(),
+                .m_newest_height = newest_height,
+                .m_expiry_height = expiry_height,
+            });
+        }
+        return stats;
     }
     void setContext(NodeContext* context) override
     {
