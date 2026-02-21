@@ -190,7 +190,13 @@ public:
         uint256 m_hash{};
     };
     virtual ChainLockInfo getBestChainLock() = 0;
-    virtual size_t getInstantSentLockCount() = 0;
+    struct InstantSendCounts {
+        size_t m_verified{0};
+        size_t m_unverified{0};
+        size_t m_awaiting_tx{0};
+        size_t m_unprotected_tx{0};
+    };
+    virtual InstantSendCounts getInstantSendCounts() = 0;
     virtual void setContext(node::NodeContext* context) {}
 };
 
