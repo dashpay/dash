@@ -137,12 +137,18 @@ public:
     }
     ~MnListImpl() = default;
 
+    Counts getCounts() const override
+    {
+        const auto counts{m_list.GetCounts()};
+        return {
+            .m_total_evo = counts.m_total_evo,
+            .m_total_mn = counts.m_total_mn,
+            .m_valid_evo = counts.m_valid_evo,
+            .m_valid_mn = counts.m_valid_mn,
+            .m_valid_weighted = counts.m_valid_weighted,
+        };
+    }
     int32_t getHeight() const override { return m_list.GetHeight(); }
-    size_t getAllEvoCount() const override { return m_list.GetAllEvoCount(); }
-    size_t getAllMNsCount() const override { return m_list.GetAllMNsCount(); }
-    size_t getValidEvoCount() const override { return m_list.GetValidEvoCount(); }
-    size_t getValidMNsCount() const override { return m_list.GetValidMNsCount(); }
-    size_t getValidWeightedMNsCount() const override { return m_list.GetValidWeightedMNsCount(); }
     uint256 getBlockHash() const override { return m_list.GetBlockHash(); }
 
     void forEachMN(bool only_valid, std::function<void(const MnEntryCPtr&)> cb) const override
@@ -293,7 +299,7 @@ public:
             CSuperblock::GetNearestSuperblocksHeights(context().chainman->ActiveHeight(), info.lastsuperblock, info.nextsuperblock);
             info.governancebudget = CSuperblock::GetPaymentsLimit(context().chainman->ActiveChain(), info.nextsuperblock);
             if (context().dmnman) {
-                info.fundingthreshold = context().dmnman->GetListAtChainTip().GetValidWeightedMNsCount() / 10;
+                info.fundingthreshold = static_cast<int>(context().dmnman->GetListAtChainTip().GetCounts().m_valid_weighted / 10);
             }
         }
         info.proposalfee = GOVERNANCE_PROPOSAL_FEE_TX;

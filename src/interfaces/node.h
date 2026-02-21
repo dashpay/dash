@@ -99,12 +99,18 @@ public:
 
     MnList() = delete;
 
+    struct Counts {
+        size_t m_total_evo{0};
+        size_t m_total_mn{0};
+        size_t m_valid_evo{0};
+        size_t m_valid_mn{0};
+        size_t m_valid_weighted{0};
+
+        [[nodiscard]] size_t total() const { return m_total_mn + m_total_evo; }
+        [[nodiscard]] size_t enabled() const { return m_valid_mn + m_valid_evo; }
+    };
+    virtual Counts getCounts() const = 0;
     virtual int32_t getHeight() const = 0;
-    virtual size_t getAllEvoCount() const = 0;
-    virtual size_t getAllMNsCount() const = 0;
-    virtual size_t getValidEvoCount() const = 0;
-    virtual size_t getValidMNsCount() const = 0;
-    virtual size_t getValidWeightedMNsCount() const = 0;
     virtual uint256 getBlockHash() const = 0;
 
     virtual void forEachMN(bool only_valid, std::function<void(const MnEntryCPtr&)> cb) const = 0;
