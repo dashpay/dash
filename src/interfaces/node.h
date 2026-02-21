@@ -203,6 +203,7 @@ public:
         size_t m_unprotected_tx{0};
     };
     virtual InstantSendCounts getInstantSendCounts() = 0;
+    virtual size_t getPendingAssetUnlocks() = 0;
     virtual void setContext(node::NodeContext* context) {}
 };
 

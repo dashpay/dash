@@ -476,6 +476,16 @@ public:
             .m_unprotected_tx = counts.m_unprotected_tx,
         };
     }
+    size_t getPendingAssetUnlocks() override
+    {
+        if (!context().mempool) {
+            return 0;
+        }
+        LOCK(context().mempool->cs);
+        return static_cast<size_t>(ranges::count_if(context().mempool->mapTx, [](const auto& entry) {
+            return entry.GetTx().IsPlatformTransfer();
+        }));
+    }
     void setContext(NodeContext* context) override
     {
         m_context = context;
