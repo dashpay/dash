@@ -209,13 +209,15 @@ private:
 public:
     std::pair<MnListPtr, const CBlockIndex*> getListAtChainTip() override
     {
-        const CBlockIndex *tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
-        MnListImpl mnList{CDeterministicMNList{}};
-        if (tip != nullptr && context().dmnman != nullptr) {
-            mnList = context().dmnman->GetListForBlock(tip);
+        const auto *tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
+        if (tip && context().dmnman) {
+            MnListImpl mnList = context().dmnman->GetListForBlock(tip);
+            if (!mnList.getBlockHash().IsNull()) {
+                mnList.setContext(m_context);
+                return {std::make_shared<MnListImpl>(mnList), tip};
+            }
         }
-        mnList.setContext(m_context);
-        return {std::make_shared<MnListImpl>(mnList), tip};
+        return {nullptr, nullptr};
     }
     void setContext(NodeContext* context) override
     {

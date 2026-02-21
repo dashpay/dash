@@ -146,7 +146,9 @@ std::pair<interfaces::MnListPtr, const CBlockIndex*> ClientModel::getMasternodeL
 void ClientModel::refreshMasternodeList()
 {
     auto [mnList, tip] = m_node.evo().getListAtChainTip();
-
+    if (!mnList || !tip) {
+        return;
+    }
     LOCK(cs_mnlist);
     setMasternodeList(std::move(mnList), tip);
 }
