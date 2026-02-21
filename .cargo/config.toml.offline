@@ -24,3 +24,9 @@ linker = "x86_64-w64-mingw32-gcc"
 
 # [target.x86_64-apple-darwin]
 # linker = "x86_64-apple-darwin-gcc"
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+# The directory for this source is set to RUST_VENDORED_SOURCES by rust/Makefile.am

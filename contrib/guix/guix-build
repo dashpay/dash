@@ -301,9 +301,12 @@ mkdir -p "$OUTDIR_BASE"
 
 # Download the depends sources now as we won't have internet access in the build
 # container
+depends_cmds="download-rust-std vendor-crates"
 for host in $HOSTS; do
-    make -C "${PWD}/depends" -j"$JOBS" download-"$(host_to_commonname "$host")" ${V:+V=1} ${SOURCES_PATH:+SOURCES_PATH="$SOURCES_PATH"}
+    depends_cmds+=" download-$(host_to_commonname "$host")"
 done
+# shellcheck disable=SC2086
+make -C "${PWD}/depends" -j"$JOBS" ${depends_cmds} ${V:+V=1} ${SOURCES_PATH:+SOURCES_PATH="$SOURCES_PATH"}
 
 # Usage: outdir_for_host HOST SUFFIX
 #
