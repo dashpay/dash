@@ -102,6 +102,7 @@ public:
     struct Counts {
         size_t m_total_evo{0};
         size_t m_total_mn{0};
+        size_t m_total_weighted{0};
         size_t m_valid_evo{0};
         size_t m_valid_mn{0};
         size_t m_valid_weighted{0};

@@ -145,6 +145,7 @@ public:
     struct Counts {
         size_t m_total_evo{0};
         size_t m_total_mn{0};
+        size_t m_total_weighted{0};
         size_t m_valid_evo{0};
         size_t m_valid_mn{0};
         size_t m_valid_weighted{0};
@@ -270,6 +271,7 @@ public:
         for (const auto& [_, dmn] : mnMap) {
             const bool is_evo = dmn->nType == MnType::Evo;
             const bool is_valid = !dmn->pdmnState->IsBanned();
+            const auto weight = GetMnType(dmn->nType).voting_weight;
             if (is_evo) {
                 ret.m_total_evo++;
                 if (is_valid) {
@@ -282,8 +284,9 @@ public:
                 }
             }
             if (is_valid) {
-                ret.m_valid_weighted += GetMnType(dmn->nType).voting_weight;
+                ret.m_valid_weighted += weight;
             }
+            ret.m_total_weighted += weight;
         }
         return ret;
     }

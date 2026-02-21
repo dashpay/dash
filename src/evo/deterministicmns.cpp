@@ -709,7 +709,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
     if (::g_stats_client->active()) {
         const auto counts{newList.GetCounts()};
         ::g_stats_client->gauge("masternodes.count", counts.total());
-        ::g_stats_client->gauge("masternodes.weighted_count", counts.m_valid_weighted);
+        ::g_stats_client->gauge("masternodes.weighted_count", counts.m_total_weighted);
         ::g_stats_client->gauge("masternodes.enabled", counts.enabled());
         ::g_stats_client->gauge("masternodes.weighted_enabled", counts.m_valid_weighted);
         ::g_stats_client->gauge("masternodes.evo.count", counts.m_total_evo);

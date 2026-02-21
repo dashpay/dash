@@ -143,6 +143,7 @@ public:
         return {
             .m_total_evo = counts.m_total_evo,
             .m_total_mn = counts.m_total_mn,
+            .m_total_weighted = counts.m_total_weighted,
             .m_valid_evo = counts.m_valid_evo,
             .m_valid_mn = counts.m_valid_mn,
             .m_valid_weighted = counts.m_valid_weighted,
