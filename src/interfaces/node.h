@@ -190,6 +190,12 @@ public:
         uint256 m_hash{};
     };
     virtual ChainLockInfo getBestChainLock() = 0;
+    struct CreditPoolCounts {
+        CAmount m_diff{0};
+        CAmount m_limit{0};
+        CAmount m_locked{0};
+    };
+    virtual CreditPoolCounts getCreditPoolCounts() = 0;
     struct InstantSendCounts {
         size_t m_verified{0};
         size_t m_unverified{0};

@@ -12,6 +12,8 @@
 #include <chainparams.h>
 #include <coinjoin/common.h>
 #include <deploymentstatus.h>
+#include <evo/chainhelper.h>
+#include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
 #include <governance/exceptions.h>
@@ -429,6 +431,23 @@ private:
     NodeContext& context() { return *Assert(m_context); }
 
 public:
+    CreditPoolCounts getCreditPoolCounts() override
+    {
+        CreditPoolCounts ret{};
+        if (!context().chainman) {
+            return ret;
+        }
+        const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
+        if (!pindex || !pindex->pprev) {
+            return ret;
+        }
+        auto& chain_helper{context().chainman->ActiveChainstate().ChainHelper()};
+        const auto pool{chain_helper.GetCreditPool(pindex)};
+        ret.m_locked = pool.locked;
+        ret.m_limit = pool.currentLimit;
+        ret.m_diff = pool.locked - chain_helper.GetCreditPool(pindex->pprev).locked;
+        return ret;
+    }
     ChainLockInfo getBestChainLock() override
     {
         if (!context().chainlocks) {
