@@ -184,6 +184,12 @@ class LLMQ
 {
 public:
     virtual ~LLMQ() {}
+    struct ChainLockInfo {
+        int32_t m_height{0};
+        int64_t m_block_time{0};
+        uint256 m_hash{};
+    };
+    virtual ChainLockInfo getBestChainLock() = 0;
     virtual size_t getInstantSentLockCount() = 0;
     virtual void setContext(node::NodeContext* context) {}
 };
