@@ -17,7 +17,6 @@
 #include <qt/peertablesortproxy.h>
 
 #include <clientversion.h>
-#include <evo/deterministicmns.h>
 #include <governance/object.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
@@ -52,8 +51,6 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     m_peer_table_sort_proxy->setSourceModel(peerTableModel);
 
     banTableModel = new BanTableModel(m_node, this);
-    mnListCached = interfaces::MakeMNList(CDeterministicMNList{});
-
     QTimer* timer = new QTimer;
     timer->setInterval(MODEL_UPDATE_DELAY);
     connect(timer, &QTimer::timeout, [this] {
@@ -123,34 +120,6 @@ int ClientModel::getNumConnections(unsigned int flags) const
         connections = ConnectionDirection::Both;
 
     return m_node.getNodeCount(connections);
-}
-
-void ClientModel::setMasternodeList(interfaces::MnListPtr mnList, const CBlockIndex* tip)
-{
-    LOCK(cs_mnlist);
-    if (mnListCached->getBlockHash() == mnList->getBlockHash()) {
-        return;
-    }
-    mnListCached->copyContextTo(*mnList);
-    mnListCached = std::move(mnList);
-    mnListTip = tip;
-    Q_EMIT masternodeListChanged();
-}
-
-std::pair<interfaces::MnListPtr, const CBlockIndex*> ClientModel::getMasternodeList() const
-{
-    LOCK(cs_mnlist);
-    return {mnListCached, mnListTip};
-}
-
-void ClientModel::refreshMasternodeList()
-{
-    auto [mnList, tip] = m_node.evo().getListAtChainTip();
-    if (!mnList || !tip) {
-        return;
-    }
-    LOCK(cs_mnlist);
-    setMasternodeList(std::move(mnList), tip);
 }
 
 int ClientModel::getHeaderTipHeight() const
@@ -348,8 +317,8 @@ void ClientModel::subscribeToCoreSignals()
             Q_EMIT chainLockChanged(QString::fromStdString(best_hash), best_height);
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyMasternodeListChanged(
-        [this](const CDeterministicMNList& newList, const CBlockIndex* pindex) {
-            setMasternodeList(interfaces::MakeMNList(newList), pindex);
+        [this](const CDeterministicMNList&, const CBlockIndex*) {
+            Q_EMIT masternodeListChanged();
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyGovernanceChanged(
         [this]() {

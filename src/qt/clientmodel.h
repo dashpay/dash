@@ -18,7 +18,6 @@
 #include <memory>
 
 class BanTableModel;
-class CBlockIndex;
 class ClientFeeds;
 class MasternodeFeed;
 class OptionsModel;
@@ -76,10 +75,6 @@ public:
     int getHeaderTipHeight() const;
     int64_t getHeaderTipTime() const;
 
-    void setMasternodeList(interfaces::MnListPtr mnList, const CBlockIndex* tip);
-    std::pair<interfaces::MnListPtr, const CBlockIndex*> getMasternodeList() const;
-    void refreshMasternodeList();
-
     void getAllGovernanceObjects(std::vector<CGovernanceObject> &obj);
 
     //! Returns the block source of the current importing/syncing state
@@ -114,13 +109,6 @@ private:
 
     //! A thread to interact with m_node asynchronously
     QThread* const m_thread;
-
-    // The cache for mn list is not technically needed because CDeterministicMNManager
-    // caches it internally for recent blocks but it's not enough to get consistent
-    // representation of the list in UI during initial sync/reindex, so we cache it here too.
-    mutable RecursiveMutex cs_mnlist; // protects mnListCached
-    interfaces::MnListPtr mnListCached GUARDED_BY(cs_mnlist){};
-    const CBlockIndex* mnListTip{nullptr};
 
     //! Data sources from different subsystems coordinated by model
     MasternodeFeed* m_feed_masternode{nullptr};

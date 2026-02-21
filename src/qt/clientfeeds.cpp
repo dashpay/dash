@@ -60,7 +60,7 @@ void MasternodeFeed::fetch()
         return;
     }
 
-    const auto [dmn, pindex] = m_client_model.getMasternodeList();
+    const auto [dmn, pindex] = m_client_model.node().evo().getListAtChainTip();
     if (!dmn || !pindex) {
         return;
     }
