@@ -13,7 +13,9 @@ $(package)_download_file:=$($(package)_version).tar.gz
 $(package)_sha256_hash:=d242dbfb6deb362c5a95fcb69aeb5f25228de75af3cced94c9f6c8e11019d30e
 $(package)_build_subdir:=gen/cmd
 $(package)_dependencies:=native_rust
-$(package)_patches:=Cargo.lock
+$(package)_patches:=Cargo.lock cargo-config.toml
+$(package)_vendored_file_name:=native_cxxbridge-$($(package)_version)-vendored.tar.gz
+$(package)_cargo_manifest:=gen/cmd/Cargo.toml
 
 define $(package)_preprocess_cmds
   cp $($(package)_patch_dir)/Cargo.lock .

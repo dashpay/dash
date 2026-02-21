@@ -1,0 +1,14 @@
+[workspace]
+members = [
+  "rust/chirp",
+]
+resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+panic = "abort"
+
+[profile.dev]
+codegen-units = 1
+panic = "abort"

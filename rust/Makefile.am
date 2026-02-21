@@ -40,14 +40,40 @@ if !SILENT_RULES
 CARGO_BUILD_OPTS += --verbose
 endif # !SILENT_RULES
 
+if ENABLE_ONLINE_RUST
+CARGO_CONFIGURED = $(top_srcdir)/.cargo/.configured-for-online
+
+$(CARGO_CONFIGURED):
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-offline
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config.toml
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
+	$(AM_V_at)touch $@
+else
+CARGO_BUILD_OPTS += --offline
+CARGO_CONFIGURED = $(top_srcdir)/.cargo/.configured-for-offline
+
+$(CARGO_CONFIGURED): $(top_srcdir)/.cargo/config.toml.offline
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-online
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
+	$(AM_V_at)cp $< $(top_srcdir)/.cargo/config.toml
+	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(top_srcdir)/.cargo/config.toml
+	$(AM_V_at)touch $@
+endif # ENABLE_ONLINE_RUST
+
 include $(top_srcdir)/rust/Makefile.libs.include
 
-all-local: cargo-build-chirp cxxbridge-chirp
+all-local: $(CARGO_CONFIGURED) cargo-build-chirp cxxbridge-chirp
 
-cargo-build: cargo-build-chirp
+cargo-build: $(CARGO_CONFIGURED) cargo-build-chirp
 
 cargo-clean: cargo-clean-chirp
 
-clean-local: cargo-clean-chirp cxxbridge-clean-chirp clean-librustdeps-la
+cargo-clean-config:
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-online
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-offline
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config.toml
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
 
-.PHONY: cargo-build cargo-clean
+clean-local: cargo-clean-chirp cxxbridge-clean-chirp clean-librustdeps-la cargo-clean-config
+
+.PHONY: cargo-build cargo-clean cargo-clean-config
