@@ -43,7 +43,7 @@ NetworkWidget::NetworkWidget(QWidget* parent) :
                       ui->labelQuorums},
                      {GUIUtil::FontWeight::Bold, 16});
 
-    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend, ui->labelCreditPool, ui->labelQuorums}) {
+    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend, ui->labelMasternodes}) {
         element->setContentsMargins(0, 10, 0, 0);
     }
 }
@@ -172,7 +172,7 @@ void NetworkWidget::handleQrDataChanged()
         return;
     }
 
-    QGridLayout* grid = qobject_cast<QGridLayout*>(layout());
+    QGridLayout* grid = ui->rightGridLayout;
     if (!grid) {
         return;
     }
