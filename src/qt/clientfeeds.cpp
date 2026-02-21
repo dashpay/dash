@@ -100,9 +100,10 @@ void MasternodeFeed::fetch()
     setData(std::move(ret));
 }
 
-ProposalFeed::ProposalFeed(QObject* parent, ClientModel& client_model) :
+ProposalFeed::ProposalFeed(QObject* parent, ClientModel& client_model, MasternodeFeed& feed_masternode) :
     Feed<ProposalData>{parent, {/*m_baseline=*/PROPOSAL_UPDATE_INTERVAL, /*m_throttle=*/PROPOSAL_UPDATE_INTERVAL*6}},
-    m_client_model{client_model}
+    m_client_model{client_model},
+    m_feed_masternode{feed_masternode}
 {
 }
 
@@ -114,8 +115,8 @@ void ProposalFeed::fetch()
         return;
     }
 
-    const auto [dmn, pindex] = m_client_model.getMasternodeList();
-    if (!dmn || !pindex) {
+    const auto data_mn = m_feed_masternode.data();
+    if (!data_mn || !data_mn->m_valid) {
         return;
     }
 
@@ -123,7 +124,7 @@ void ProposalFeed::fetch()
     // A proposal is considered passing if (YES votes - NO votes) >= (Total Weight of Masternodes / 10),
     // count total valid (ENABLED) masternodes to determine passing threshold.
     const auto nMinQuorum = static_cast<size_t>(Params().GetConsensus().nGovernanceMinQuorum);
-    ret->m_abs_vote_req = static_cast<int>(std::max(nMinQuorum, dmn->getCounts().m_valid_weighted / 10));
+    ret->m_abs_vote_req = static_cast<int>(std::max(nMinQuorum, data_mn->m_counts.m_valid_weighted / 10));
     ret->m_gov_info = m_client_model.node().gov().getGovernanceInfo();
     std::vector<CGovernanceObject> govObjList;
     m_client_model.getAllGovernanceObjects(govObjList);

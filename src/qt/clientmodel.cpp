@@ -79,8 +79,8 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     connect(this, &ClientModel::masternodeListChanged, m_feed_masternode, &MasternodeFeed::requestRefresh);
 
     if (m_node.gov().isEnabled()) {
-        m_feed_proposal = m_feeds->add<ProposalFeed>(this, *this);
-        connect(this, &ClientModel::governanceChanged, this, [this] { m_feed_proposal->requestRefresh(); });
+        m_feed_proposal = m_feeds->add<ProposalFeed>(this, *this, *m_feed_masternode);
+        connect(this, &ClientModel::governanceChanged, m_feed_proposal, &ProposalFeed::requestRefresh);
     }
 
     // Update sync state to decide delay param, trigger refreshes

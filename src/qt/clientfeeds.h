@@ -125,13 +125,14 @@ class ProposalFeed : public Feed<ProposalData> {
     Q_OBJECT
 
 public:
-    explicit ProposalFeed(QObject* parent, ClientModel& client_model);
+    explicit ProposalFeed(QObject* parent, ClientModel& client_model, MasternodeFeed& feed_masternode);
     ~ProposalFeed();
 
     void fetch() override;
 
 private:
     ClientModel& m_client_model;
+    MasternodeFeed& m_feed_masternode;
 };
 
 class ClientFeeds : public QObject
