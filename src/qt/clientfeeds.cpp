@@ -21,6 +21,7 @@
 
 namespace {
 constexpr auto CHAINLOCK_UPDATE_INTERVAL{3s};
+constexpr auto CREDITPOOL_UPDATE_INTERVAL{3s};
 constexpr auto INSTANTSEND_UPDATE_INTERVAL{3s};
 constexpr auto MASTERNODE_UPDATE_INTERVAL{3s};
 constexpr auto PROPOSAL_UPDATE_INTERVAL{10s};
@@ -72,6 +73,27 @@ void ChainLockFeed::fetch()
     ret->m_block_time = cl_info.m_block_time;
     ret->m_height = cl_info.m_height;
     ret->m_hash = QString::fromStdString(cl_info.m_hash.ToString());
+
+    setData(std::move(ret));
+}
+
+CreditPoolFeed::CreditPoolFeed(QObject* parent, ClientModel& client_model) :
+    Feed<CreditPoolData>{parent, {/*m_baseline=*/CREDITPOOL_UPDATE_INTERVAL, /*m_throttle=*/CREDITPOOL_UPDATE_INTERVAL*10}},
+    m_client_model{client_model}
+{
+}
+
+CreditPoolFeed::~CreditPoolFeed() = default;
+
+void CreditPoolFeed::fetch()
+{
+    if (m_client_model.node().shutdownRequested()) {
+        return;
+    }
+
+    auto ret = std::make_shared<Data>();
+    ret->m_counts = m_client_model.node().llmq().getCreditPoolCounts();
+    ret->m_pending_unlocks = m_client_model.node().llmq().getPendingAssetUnlocks();
 
     setData(std::move(ret));
 }

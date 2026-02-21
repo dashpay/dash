@@ -20,6 +20,7 @@
 class BanTableModel;
 class ChainLockFeed;
 class ClientFeeds;
+class CreditPoolFeed;
 class InstantSendFeed;
 class MasternodeFeed;
 class OptionsModel;
@@ -67,6 +68,7 @@ public:
     BanTableModel *getBanTableModel();
 
     ChainLockFeed* feedChainLock() const { return m_feed_chainlock; }
+    CreditPoolFeed* feedCreditPool() const { return m_feed_creditpool; }
     InstantSendFeed* feedInstantSend() const { return m_feed_instantsend; }
     MasternodeFeed* feedMasternode() const { return m_feed_masternode; }
     ProposalFeed* feedProposal() const { return m_feed_proposal; }
@@ -116,6 +118,7 @@ private:
 
     //! Data sources from different subsystems coordinated by model
     ChainLockFeed* m_feed_chainlock{nullptr};
+    CreditPoolFeed* m_feed_creditpool{nullptr};
     InstantSendFeed* m_feed_instantsend{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
     ProposalFeed* m_feed_proposal{nullptr};

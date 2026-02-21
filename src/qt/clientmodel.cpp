@@ -72,6 +72,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
 
     // Setup feeds
     m_feed_chainlock = m_feeds->add<ChainLockFeed>(this, *this);
+    m_feed_creditpool = m_feeds->add<CreditPoolFeed>(this, *this);
     m_feed_instantsend = m_feeds->add<InstantSendFeed>(this, *this);
     m_feed_masternode = m_feeds->add<MasternodeFeed>(this, *this);
     if (m_node.gov().isEnabled()) {
@@ -90,6 +91,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
         [this](int, const QDateTime&, const QString&, double, bool header, SynchronizationState sync_state) {
             if (header) return;
             m_feeds->setSyncing(sync_state != SynchronizationState::POST_INIT);
+            if (m_feed_creditpool) m_feed_creditpool->requestRefresh();
             if (m_feed_masternode) m_feed_masternode->requestRefresh();
             if (m_feed_proposal) m_feed_proposal->requestRefresh();
         });

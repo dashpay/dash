@@ -8,8 +8,9 @@
 
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
-#include <qt/guiutil.h>
 #include <qt/guiutil_font.h>
+#include <qt/guiutil.h>
+#include <qt/optionsmodel.h>
 
 #include <QDateTime>
 
@@ -19,12 +20,13 @@ NetworkWidget::NetworkWidget(QWidget* parent) :
 {
     ui->setupUi(this);
 
-    GUIUtil::setFont({ui->labelMasternodes,
-                      ui->labelChainLocks,
-                      ui->labelInstantSend},
+    GUIUtil::setFont({ui->labelChainLocks,
+                      ui->labelCreditPool,
+                      ui->labelInstantSend,
+                      ui->labelMasternodes},
                      {GUIUtil::FontWeight::Bold, 16});
 
-    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend}) {
+    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend, ui->labelCreditPool}) {
         element->setContentsMargins(0, 10, 0, 0);
     }
 }
@@ -47,6 +49,12 @@ void NetworkWidget::setClientModel(ClientModel* model)
         handleClDataChanged();
     }
 
+    m_feed_creditpool = model->feedCreditPool();
+    if (m_feed_creditpool) {
+        connect(m_feed_creditpool, &CreditPoolFeed::dataReady, this, &NetworkWidget::handleCrDataChanged);
+        handleCrDataChanged();
+    }
+
     m_feed_instantsend = model->feedInstantSend();
     if (m_feed_instantsend) {
         connect(m_feed_instantsend, &InstantSendFeed::dataReady, this, &NetworkWidget::handleIsDataChanged);
@@ -58,6 +66,31 @@ void NetworkWidget::setClientModel(ClientModel* model)
         connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &NetworkWidget::handleMnDataChanged);
         handleMnDataChanged();
     }
+
+    if (clientModel->getOptionsModel()) {
+        m_display_unit = clientModel->getOptionsModel()->getDisplayUnit();
+        connect(clientModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &NetworkWidget::updateDisplayUnit);
+    }
+}
+
+void NetworkWidget::handleCrDataChanged()
+{
+    if (!m_feed_creditpool) {
+        return;
+    }
+    const auto data = m_feed_creditpool->data();
+    if (!data) {
+        return;
+    }
+
+    m_creditpool_diff = data->m_counts.m_diff;
+    m_creditpool_limit = data->m_counts.m_limit;
+    m_creditpool_locked = data->m_counts.m_locked;
+
+    ui->labelCrLastBlock->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_diff, /*is_signed=*/true, /*truncate=*/2));
+    ui->labelCrLocked->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_locked, /*is_signed=*/false, /*truncate=*/2));
+    ui->labelCrPending->setText(QString::number(data->m_pending_unlocks));
+    ui->labelCrLimit->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_limit, /*is_signed=*/false, /*truncate=*/2));
 }
 
 void NetworkWidget::handleMnDataChanged()
@@ -104,4 +137,12 @@ void NetworkWidget::handleIsDataChanged()
     ui->labelISPending->setText(QString::number(data->m_counts.m_unverified));
     ui->labelISWaiting->setText(QString::number(data->m_counts.m_awaiting_tx));
     ui->labelISUnprotected->setText(QString::number(data->m_counts.m_unprotected_tx));
+}
+
+void NetworkWidget::updateDisplayUnit(BitcoinUnit unit)
+{
+    m_display_unit = unit;
+    ui->labelCrLastBlock->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_diff, /*is_signed=*/true, /*truncate=*/2));
+    ui->labelCrLocked->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_locked, /*is_signed=*/false, /*truncate=*/2));
+    ui->labelCrLimit->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_limit, /*is_signed=*/false, /*truncate=*/2));
 }

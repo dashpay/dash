@@ -113,6 +113,24 @@ private:
     ClientModel& m_client_model;
 };
 
+struct CreditPoolData {
+    interfaces::LLMQ::CreditPoolCounts m_counts{};
+    size_t m_pending_unlocks{0};
+};
+
+class CreditPoolFeed : public Feed<CreditPoolData> {
+    Q_OBJECT
+
+public:
+    explicit CreditPoolFeed(QObject* parent, ClientModel& client_model);
+    ~CreditPoolFeed();
+
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
+};
+
 struct InstantSendData {
     interfaces::LLMQ::InstantSendCounts m_counts{};
 };

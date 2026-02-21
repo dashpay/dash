@@ -417,6 +417,22 @@ bool isDust(interfaces::Node& node, const QString& address, const CAmount& amoun
     return IsDust(txOut, node.getDustRelayFee());
 }
 
+QString formatAmount(BitcoinUnit unit, CAmount amount, bool is_signed, std::optional<uint8_t> truncate)
+{
+    QString formatted = BitcoinUnits::format(unit, amount, is_signed, BitcoinUnits::SeparatorStyle::ALWAYS);
+    if (truncate) {
+        int dotIndex = formatted.indexOf('.');
+        if (dotIndex != -1) {
+            if (*truncate == 0) {
+                formatted = formatted.left(dotIndex);
+            } else if (formatted.length() > dotIndex + 1 + *truncate) {
+                formatted = formatted.left(dotIndex + 1 + *truncate);
+            }
+        }
+    }
+    return formatted + " " + BitcoinUnits::name(unit);
+}
+
 QString HtmlEscape(const QString& str, bool fMultiLine)
 {
     QString escaped = str.toHtmlEscaped();

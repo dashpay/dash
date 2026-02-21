@@ -6,12 +6,16 @@
 #ifndef BITCOIN_QT_NETWORKWIDGET_H
 #define BITCOIN_QT_NETWORKWIDGET_H
 
+#include <qt/guiutil.h>
+
 #include <QWidget>
 
 class ChainLockFeed;
 class ClientModel;
+class CreditPoolFeed;
 class InstantSendFeed;
 class MasternodeFeed;
+class OptionsModel;
 namespace Ui {
 class NetworkWidget;
 } // namespace Ui
@@ -19,6 +23,8 @@ class NetworkWidget;
 class NetworkWidget : public QWidget
 {
     Q_OBJECT
+
+    Ui::NetworkWidget* ui;
 
 public:
     explicit NetworkWidget(QWidget* parent = nullptr);
@@ -28,13 +34,20 @@ public:
 
 private Q_SLOTS:
     void handleClDataChanged();
+    void handleCrDataChanged();
     void handleIsDataChanged();
     void handleMnDataChanged();
+    void updateDisplayUnit(BitcoinUnit unit);
 
 private:
-    Ui::NetworkWidget* ui;
+    BitcoinUnit m_display_unit{BitcoinUnit::DASH};
+    CAmount m_creditpool_diff{0};
+    CAmount m_creditpool_limit{0};
+    CAmount m_creditpool_locked{0};
+
     ClientModel* clientModel{nullptr};
     ChainLockFeed* m_feed_chainlock{nullptr};
+    CreditPoolFeed* m_feed_creditpool{nullptr};
     InstantSendFeed* m_feed_instantsend{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
 };
