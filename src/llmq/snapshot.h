@@ -76,6 +76,7 @@ public:
 
         size_t cnt = ReadCompactSize(s);
         ReadFixedBitSet(s, activeQuorumMembers, cnt);
+        mnSkipList.clear();
         cnt = ReadCompactSize(s);
         for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
             int obj;
