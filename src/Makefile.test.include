@@ -314,6 +314,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/flatfile.cpp \
  test/fuzz/float.cpp \
  test/fuzz/golomb_rice.cpp \
+ test/fuzz/governance_proposal_validator.cpp \
  test/fuzz/hex.cpp \
  test/fuzz/http_request.cpp \
  test/fuzz/integer.cpp \
