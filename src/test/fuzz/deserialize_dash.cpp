@@ -56,7 +56,9 @@ struct dash_invalid_fuzzing_input_exception : public std::exception {
 };
 
 template <typename T>
-void DashDeserializeFromFuzzingInput(FuzzBufferType buffer, T& obj, const std::optional<int> protocol_version = std::nullopt, const int ser_type = SER_NETWORK)
+void DashDeserializeFromFuzzingInput(FuzzBufferType buffer, T& obj,
+                                     const std::optional<int> protocol_version = std::nullopt,
+                                     const int ser_type = SER_NETWORK)
 {
     CDataStream ds(buffer, ser_type, INIT_PROTO_VERSION);
     if (protocol_version) {
@@ -85,13 +87,13 @@ void initialize_deserialize_dash()
     g_setup = testing_setup.get();
 }
 
-#define FUZZ_TARGET_DASH_DESERIALIZE(name, code)                  \
-    FUZZ_TARGET(name, .init = initialize_deserialize_dash)        \
-    {                                                             \
-        try {                                                     \
-            code                                                  \
-        } catch (const dash_invalid_fuzzing_input_exception&) {   \
-        }                                                         \
+#define FUZZ_TARGET_DASH_DESERIALIZE(name, code)                \
+    FUZZ_TARGET(name, .init = initialize_deserialize_dash)      \
+    {                                                           \
+        try {                                                   \
+            code                                                \
+        } catch (const dash_invalid_fuzzing_input_exception&) { \
+        }                                                       \
     }
 
 // --- evo/ types: Provider transactions ---
