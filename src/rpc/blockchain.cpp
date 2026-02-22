@@ -2776,24 +2776,31 @@ UniValue CreateUTXOSnapshot(
 
     SnapshotMetadata metadata{tip->GetBlockHash(), maybe_stats->coins_count, tip->nChainTx};
 
-    afile << metadata;
+    try {
+        afile << metadata;
 
-    COutPoint key;
-    Coin coin;
-    unsigned int iter{0};
+        COutPoint key;
+        Coin coin;
+        unsigned int iter{0};
 
-    while (pcursor->Valid()) {
-        if (iter % 5000 == 0) node.rpc_interruption_point();
-        ++iter;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
-            afile << key;
-            afile << coin;
+        while (pcursor->Valid()) {
+            if (iter % 5000 == 0) node.rpc_interruption_point();
+            ++iter;
+            if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
+                afile << key;
+                afile << coin;
+            }
+
+            pcursor->Next();
         }
-
-        pcursor->Next();
+    } catch (const std::exception&) {
+        (void)afile.fclose();
+        throw;
     }
 
-    afile.fclose();
+    if (afile.fclose() != 0) {
+        throw std::ios_base::failure("fclose failed");
+    }
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("coins_written", maybe_stats->coins_count);

@@ -922,6 +922,11 @@ void CBlockPolicyEstimator::Flush() {
     AutoFile est_file{fsbridge::fopen(est_filepath, "wb")};
     if (est_file.IsNull() || !Write(est_file)) {
         LogPrintf("Failed to write fee estimates to %s. Continue anyway.\n", fs::PathToString(est_filepath));
+        (void)est_file.fclose();
+        return;
+    }
+    if (est_file.fclose() != 0) {
+        LogPrintf("Failed to close fee estimates file %s. Continue anyway.\n", fs::PathToString(est_filepath));
     }
 }
 

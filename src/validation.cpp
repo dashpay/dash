@@ -5592,14 +5592,13 @@ bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool s
 
     int64_t mid = GetTimeMicros();
 
+    FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat.new", "wb")};
+    if (!filestr) {
+        return false;
+    }
+    AutoFile file{filestr};
+
     try {
-        FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat.new", "wb")};
-        if (!filestr) {
-            return false;
-        }
-
-        AutoFile file{filestr};
-
         uint64_t version = MEMPOOL_DUMP_VERSION;
         file << version;
 
@@ -5618,13 +5617,16 @@ bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool s
 
         if (!skip_file_commit && !FileCommit(file.Get()))
             throw std::runtime_error("FileCommit failed");
-        file.fclose();
+        if (file.fclose() != 0) {
+            throw std::ios_base::failure("fclose failed");
+        }
         if (!RenameOver(gArgs.GetDataDirNet() / "mempool.dat.new", gArgs.GetDataDirNet() / "mempool.dat")) {
             throw std::runtime_error("Rename failed");
         }
         int64_t last = GetTimeMicros();
         LogPrintf("Dumped mempool: %gs to copy, %gs to dump\n", (mid-start)*MICRO, (last-mid)*MICRO);
     } catch (const std::exception& e) {
+        (void)file.fclose();
         LogPrintf("Failed to dump mempool: %s. Continuing anyway.\n", e.what());
         return false;
     }

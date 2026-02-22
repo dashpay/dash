@@ -4972,15 +4972,23 @@ static void CaptureMessageToFile(const CAddress& addr,
 
     fs::path path = base_path / (is_incoming ? "msgs_recv.dat" : "msgs_sent.dat");
     AutoFile f{fsbridge::fopen(path, "ab")};
-
-    ser_writedata64(f, now.count());
-    f.write(MakeByteSpan(msg_type));
-    for (auto i = msg_type.length(); i < CMessageHeader::COMMAND_SIZE; ++i) {
-        f << uint8_t{'\0'};
+    try {
+        ser_writedata64(f, now.count());
+        f.write(MakeByteSpan(msg_type));
+        for (auto i = msg_type.length(); i < CMessageHeader::COMMAND_SIZE; ++i) {
+            f << uint8_t{'\0'};
+        }
+        uint32_t size = data.size();
+        ser_writedata32(f, size);
+        f.write(AsBytes(data));
+    } catch (const std::exception& e) {
+        (void)f.fclose();
+        LogPrintf("%s: Failed to capture message to %s: %s\n", __func__, fs::PathToString(path), e.what());
+        return;
     }
-    uint32_t size = data.size();
-    ser_writedata32(f, size);
-    f.write(AsBytes(data));
+    if (f.fclose() != 0) {
+        LogPrintf("%s: Failed to close capture file %s\n", __func__, fs::PathToString(path));
+    }
 }
 
 std::function<void(const CAddress& addr,

@@ -243,7 +243,17 @@ size_t BlockFilterIndex::WriteFilterToDisk(FlatFilePos& pos, const BlockFilter& 
         return 0;
     }
 
-    fileout << filter.GetBlockHash() << filter.GetEncodedFilter();
+    try {
+        fileout << filter.GetBlockHash() << filter.GetEncodedFilter();
+    } catch (const std::exception& e) {
+        (void)fileout.fclose();
+        LogPrintf("%s: Failed to serialize filter to file %d: %s\n", __func__, pos.nFile, e.what());
+        return 0;
+    }
+    if (fileout.fclose() != 0) {
+        LogPrintf("%s: Failed to close filter file %d\n", __func__, pos.nFile);
+        return 0;
+    }
     return data_size;
 }
 

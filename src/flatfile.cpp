@@ -68,7 +68,10 @@ size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_
             if (file) {
                 LogPrint(BCLog::VALIDATION, "Pre-allocating up to position 0x%x in %s%05u.dat\n", new_size, m_prefix, pos.nFile);
                 AllocateFileRange(file, pos.nPos, inc_size);
-                fclose(file);
+                if (fclose(file) != 0) {
+                    LogPrintf("%s: failed to close file %d\n", __func__, pos.nFile);
+                    return 0;
+                }
                 return inc_size;
             }
         } else {

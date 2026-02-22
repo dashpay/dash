@@ -492,23 +492,33 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
         return error("%s: OpenUndoFile failed", __func__);
     }
 
-    // Write index header
-    unsigned int nSize = GetSerializeSize(blockundo, fileout.GetVersion());
-    fileout << messageStart << nSize;
+    try {
+        // Write index header
+        unsigned int nSize = GetSerializeSize(blockundo, fileout.GetVersion());
+        fileout << messageStart << nSize;
 
-    // Write undo data
-    long fileOutPos = ftell(fileout.Get());
-    if (fileOutPos < 0) {
-        return error("%s: ftell failed", __func__);
+        // Write undo data
+        long fileOutPos = ftell(fileout.Get());
+        if (fileOutPos < 0) {
+            (void)fileout.fclose();
+            return error("%s: ftell failed", __func__);
+        }
+        pos.nPos = (unsigned int)fileOutPos;
+        fileout << blockundo;
+
+        // calculate & write checksum
+        HashWriter hasher{};
+        hasher << hashBlock;
+        hasher << blockundo;
+        fileout << hasher.GetHash();
+    } catch (const std::exception& e) {
+        (void)fileout.fclose();
+        return error("%s: Serialize or I/O error - %s", __func__, e.what());
     }
-    pos.nPos = (unsigned int)fileOutPos;
-    fileout << blockundo;
 
-    // calculate & write checksum
-    HashWriter hasher{};
-    hasher << hashBlock;
-    hasher << blockundo;
-    fileout << hasher.GetHash();
+    if (fileout.fclose() != 0) {
+        return error("%s: fclose failed", __func__);
+    }
 
     return true;
 }
@@ -700,17 +710,27 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         return error("WriteBlockToDisk: OpenBlockFile failed");
     }
 
-    // Write index header
-    unsigned int nSize = GetSerializeSize(block, fileout.GetVersion());
-    fileout << messageStart << nSize;
+    try {
+        // Write index header
+        unsigned int nSize = GetSerializeSize(block, fileout.GetVersion());
+        fileout << messageStart << nSize;
 
-    // Write block
-    long fileOutPos = ftell(fileout.Get());
-    if (fileOutPos < 0) {
-        return error("WriteBlockToDisk: ftell failed");
+        // Write block
+        long fileOutPos = ftell(fileout.Get());
+        if (fileOutPos < 0) {
+            (void)fileout.fclose();
+            return error("WriteBlockToDisk: ftell failed");
+        }
+        pos.nPos = (unsigned int)fileOutPos;
+        fileout << block;
+    } catch (const std::exception& e) {
+        (void)fileout.fclose();
+        return error("WriteBlockToDisk: Serialize or I/O error - %s", e.what());
     }
-    pos.nPos = (unsigned int)fileOutPos;
-    fileout << block;
+
+    if (fileout.fclose() != 0) {
+        return error("WriteBlockToDisk: fclose failed");
+    }
 
     return true;
 }
