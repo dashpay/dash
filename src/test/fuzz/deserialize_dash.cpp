@@ -143,7 +143,7 @@ FUZZ_TARGET_DASH_DESERIALIZE(dash_credit_pool_deserialize, {
 // --- evo/ types: Deterministic masternode ---
 
 FUZZ_TARGET_DASH_DESERIALIZE(dash_deterministic_mn_deserialize, {
-    CDeterministicMN obj;
+    CDeterministicMN obj(0 /* internalId, will be overwritten by deserialization */);
     DashDeserializeFromFuzzingInput(buffer, obj);
 })
 
