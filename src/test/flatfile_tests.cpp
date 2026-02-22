@@ -46,6 +46,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
     {
         AutoFile file{seq.Open(FlatFilePos(0, pos1))};
         file << LIMITED_STRING(line1, 256);
+        (void)file.fclose();
     }
 
     // Attempt to append to file opened in read-only mode.
@@ -58,6 +59,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
     {
         AutoFile file{seq.Open(FlatFilePos(0, pos2))};
         file << LIMITED_STRING(line2, 256);
+        (void)file.fclose();
     }
 
     // Read text from file in read-only mode.
