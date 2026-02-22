@@ -494,25 +494,36 @@ class AutoFile
 {
 protected:
     FILE* file;
+    bool m_was_written{false};
 
 public:
     explicit AutoFile(FILE* filenew) : file{filenew} {}
 
     ~AutoFile()
     {
-        fclose();
+        if (m_was_written) {
+            // Callers must explicitly close files they wrote to, and check for errors.
+            // fclose() can fail to flush data, so the destructor cannot handle this safely.
+            assert(!file && "AutoFile was written to but not explicitly closed");
+        }
+        if (file) {
+            ::fclose(file);
+            file = nullptr;
+        }
     }
 
     // Disallow copies
     AutoFile(const AutoFile&) = delete;
     AutoFile& operator=(const AutoFile&) = delete;
 
-    void fclose()
+    [[nodiscard]] int fclose()
     {
         if (file) {
-            ::fclose(file);
+            int ret = ::fclose(file);
             file = nullptr;
+            return ret;
         }
+        return 0;
     }
 
     /** Get wrapped FILE* with transfer of ownership.
@@ -557,6 +568,7 @@ public:
     void write(Span<const std::byte> src)
     {
         if (!file) throw std::ios_base::failure("AutoFile::write: file handle is nullptr");
+        m_was_written = true;
         if (fwrite(src.data(), 1, src.size(), file) != src.size()) {
             throw std::ios_base::failure("AutoFile::write: write failed");
         }
@@ -566,6 +578,7 @@ public:
     AutoFile& operator<<(const T& obj)
     {
         if (!file) throw std::ios_base::failure("AutoFile::operator<<: file handle is nullptr");
+        m_was_written = true;
         ::Serialize(*this, obj);
         return *this;
     }
@@ -596,6 +609,7 @@ public:
         // Serialize to this stream
         if (!file)
             throw std::ios_base::failure("CAutoFile::operator<<: file handle is nullptr");
+        m_was_written = true;
         ::Serialize(*this, obj);
         return (*this);
     }
