@@ -307,6 +307,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/descriptor_parse.cpp \
  test/fuzz/deserialize.cpp \
  test/fuzz/deserialize_dash.cpp \
+ test/fuzz/roundtrip_dash.cpp \
  test/fuzz/eval_script.cpp \
  test/fuzz/fee_rate.cpp \
  test/fuzz/fees.cpp \
