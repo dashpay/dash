@@ -53,6 +53,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
     {
         AutoFile file{seq.Open(FlatFilePos(0, pos2), true)};
         BOOST_CHECK_THROW(file << LIMITED_STRING(line2, 256), std::ios_base::failure);
+        (void)file.fclose();
     }
 
     // Append second line to file.
@@ -72,6 +73,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
 
         file >> LIMITED_STRING(text, 256);
         BOOST_CHECK_EQUAL(text, line2);
+        (void)file.fclose();
     }
 
     // Read text from file with position offset.
@@ -81,6 +83,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
 
         file >> LIMITED_STRING(text, 256);
         BOOST_CHECK_EQUAL(text, line2);
+        (void)file.fclose();
     }
 
     // Ensure another file in the sequence has no data.
@@ -88,6 +91,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
         std::string text;
         AutoFile file{seq.Open(FlatFilePos(1, pos2))};
         BOOST_CHECK_THROW(file >> LIMITED_STRING(text, 256), std::ios_base::failure);
+        (void)file.fclose();
     }
 }
 
