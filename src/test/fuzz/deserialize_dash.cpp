@@ -49,25 +49,8 @@
 #include <stdint.h>
 
 namespace {
+
 const BasicTestingSetup* g_setup;
-} // namespace
-
-void initialize_deserialize_dash()
-{
-    static const auto testing_setup = MakeNoLogFileContext<>();
-    g_setup = testing_setup.get();
-}
-
-#define FUZZ_TARGET_DASH_DESERIALIZE(name, code)                  \
-    FUZZ_TARGET(name, .init = initialize_deserialize_dash)        \
-    {                                                             \
-        try {                                                     \
-            code                                                  \
-        } catch (const dash_invalid_fuzzing_input_exception&) {   \
-        }                                                         \
-    }
-
-namespace {
 
 struct dash_invalid_fuzzing_input_exception : public std::exception {
 };
@@ -95,6 +78,21 @@ void DashDeserializeFromFuzzingInput(FuzzBufferType buffer, T& obj, const std::o
 }
 
 } // namespace
+
+void initialize_deserialize_dash()
+{
+    static const auto testing_setup = MakeNoLogFileContext<>();
+    g_setup = testing_setup.get();
+}
+
+#define FUZZ_TARGET_DASH_DESERIALIZE(name, code)                  \
+    FUZZ_TARGET(name, .init = initialize_deserialize_dash)        \
+    {                                                             \
+        try {                                                     \
+            code                                                  \
+        } catch (const dash_invalid_fuzzing_input_exception&) {   \
+        }                                                         \
+    }
 
 // --- evo/ types: Provider transactions ---
 

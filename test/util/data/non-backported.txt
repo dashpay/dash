@@ -70,3 +70,4 @@ src/wallet/bip39*
 src/wallet/coinjoin.*
 src/wallet/hdchain.*
 src/hash_x11.h
+src/test/fuzz/deserialize_dash.cpp
