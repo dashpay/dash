@@ -278,9 +278,9 @@ AC_ARG_ENABLE([debug],
 dnl Enable exception stacktraces
 AC_ARG_ENABLE([stacktraces],
     [AS_HELP_STRING([--enable-stacktraces],
-                    [gather and print exception stack traces (default is yes)])],
+                    [gather and print exception stack traces (default is auto, enabled if libbacktrace is available)])],
     [enable_stacktraces=$enableval],
-    [enable_stacktraces=yes])
+    [enable_stacktraces=auto])
 
 dnl Enable crash hooks
 AC_ARG_ENABLE([crash-hooks],
@@ -1265,6 +1265,11 @@ if test "$enable_stacktraces" != "no"; then
     AC_MSG_WARN([backtrace.h was not found, stacktraces will be disabled])
     enable_stacktraces=no
   ])
+fi
+
+dnl If auto-detection succeeded (no sub-check disabled it), promote auto to yes
+if test "$enable_stacktraces" = "auto"; then
+    enable_stacktraces=yes
 fi
 
 AM_CONDITIONAL([ENABLE_STACKTRACES], [test "$enable_stacktraces" = "yes"])
