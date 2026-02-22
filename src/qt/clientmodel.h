@@ -24,6 +24,7 @@ class CreditPoolFeed;
 class InstantSendFeed;
 class MasternodeFeed;
 class OptionsModel;
+class QuorumFeed;
 class PeerTableModel;
 class PeerTableSortProxy;
 class ProposalFeed;
@@ -72,6 +73,7 @@ public:
     InstantSendFeed* feedInstantSend() const { return m_feed_instantsend; }
     MasternodeFeed* feedMasternode() const { return m_feed_masternode; }
     ProposalFeed* feedProposal() const { return m_feed_proposal; }
+    QuorumFeed* feedQuorum() const { return m_feed_quorum; }
 
     //! Return number of connections, default is in- and outbound (total)
     int getNumConnections(unsigned int flags = CONNECTIONS_ALL) const;
@@ -122,6 +124,7 @@ private:
     InstantSendFeed* m_feed_instantsend{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
     ProposalFeed* m_feed_proposal{nullptr};
+    QuorumFeed* m_feed_quorum{nullptr};
     std::unique_ptr<ClientFeeds> m_feeds{nullptr};
 
     void TipChanged(SynchronizationState sync_state, interfaces::BlockTip tip, double verification_progress, bool header) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);

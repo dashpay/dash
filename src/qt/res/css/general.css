@@ -1741,7 +1741,8 @@ QWidget#InformationWidget QLabel#labelMempoolTitle,
 QWidget#NetworkWidget QLabel#labelChainLocks,
 QWidget#NetworkWidget QLabel#labelCreditPool,
 QWidget#NetworkWidget QLabel#labelInstantSend,
-QWidget#NetworkWidget QLabel#labelMasternodes { /* Margin between Network and Block Chain headers */
+QWidget#NetworkWidget QLabel#labelMasternodes,
+QWidget#NetworkWidget QLabel#labelQuorums { /* Margin between Network and Block Chain headers */
     qproperty-alignment: 'AlignLeft | AlignBottom';
     min-height: 25px;
 }

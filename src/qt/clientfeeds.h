@@ -170,6 +170,23 @@ private:
     ClientModel& m_client_model;
 };
 
+struct QuorumData {
+    std::vector<interfaces::LLMQ::QuorumInfo> m_quorums{};
+};
+
+class QuorumFeed : public Feed<QuorumData> {
+    Q_OBJECT
+
+public:
+    explicit QuorumFeed(QObject* parent, ClientModel& client_model);
+    ~QuorumFeed();
+
+    void fetch() override;
+
+private:
+    ClientModel& m_client_model;
+};
+
 using Proposals = std::vector<std::shared_ptr<Proposal>>;
 
 struct ProposalData {

@@ -13,6 +13,22 @@
 #include <qt/optionsmodel.h>
 
 #include <QDateTime>
+#include <QGridLayout>
+
+#include <string>
+
+namespace {
+QString FormatQuorumStr(const std::string& name)
+{
+    QString qname{QString::fromStdString(name)};
+    if (qname.startsWith("llmq_")) {
+        qname = qname.mid(5); // Remove "llmq_"
+        qname.replace('_', '/');
+        return "LLMQ " + qname;
+    }
+    return qname;
+}
+} // anonymous namespace
 
 NetworkWidget::NetworkWidget(QWidget* parent) :
     QWidget(parent),
@@ -23,10 +39,11 @@ NetworkWidget::NetworkWidget(QWidget* parent) :
     GUIUtil::setFont({ui->labelChainLocks,
                       ui->labelCreditPool,
                       ui->labelInstantSend,
-                      ui->labelMasternodes},
+                      ui->labelMasternodes,
+                      ui->labelQuorums},
                      {GUIUtil::FontWeight::Bold, 16});
 
-    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend, ui->labelCreditPool}) {
+    for (auto* element : {ui->labelChainLocks, ui->labelInstantSend, ui->labelCreditPool, ui->labelQuorums}) {
         element->setContentsMargins(0, 10, 0, 0);
     }
 }
@@ -65,6 +82,12 @@ void NetworkWidget::setClientModel(ClientModel* model)
     if (m_feed_masternode) {
         connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &NetworkWidget::handleMnDataChanged);
         handleMnDataChanged();
+    }
+
+    m_feed_quorum = model->feedQuorum();
+    if (m_feed_quorum) {
+        connect(m_feed_quorum, &QuorumFeed::dataReady, this, &NetworkWidget::handleQrDataChanged);
+        handleQrDataChanged();
     }
 
     if (clientModel->getOptionsModel()) {
@@ -137,6 +160,73 @@ void NetworkWidget::handleIsDataChanged()
     ui->labelISPending->setText(QString::number(data->m_counts.m_unverified));
     ui->labelISWaiting->setText(QString::number(data->m_counts.m_awaiting_tx));
     ui->labelISUnprotected->setText(QString::number(data->m_counts.m_unprotected_tx));
+}
+
+void NetworkWidget::handleQrDataChanged()
+{
+    if (!m_feed_quorum) {
+        return;
+    }
+    const auto data = m_feed_quorum->data();
+    if (!data) {
+        return;
+    }
+
+    QGridLayout* grid = qobject_cast<QGridLayout*>(layout());
+    if (!grid) {
+        return;
+    }
+
+    // Find the base row after labelQuorums header
+    if (m_quorum_base_row < 0) {
+        int idx = grid->indexOf(ui->labelQuorums);
+        if (idx >= 0) {
+            int row, col, rowSpan, colSpan;
+            grid->getItemPosition(idx, &row, &col, &rowSpan, &colSpan);
+            m_quorum_base_row = row + 1;
+        } else {
+            return;
+        }
+    }
+
+    // Prune labels for quorum types no longer present; track whether any were
+    // removed so surviving labels can be re-seated to close the resulting gaps.
+    bool needs_reseating = false;
+    std::erase_if(m_quorum_labels, [&](const auto& kv) {
+        for (const auto& q : data->m_quorums) {
+            if (q.m_name == kv.first) {
+                return false;
+            }
+        }
+        delete kv.second.first;
+        delete kv.second.second;
+        needs_reseating = true;
+        return true;
+    });
+
+    int current_row{m_quorum_base_row};
+    for (const auto& q : data->m_quorums) {
+        auto [it, inserted] = m_quorum_labels.try_emplace(q.m_name, nullptr, nullptr);
+        if (inserted) {
+            it->second.first = new QLabel(FormatQuorumStr(q.m_name), this);
+            it->second.first->setFont(GUIUtil::getFontNormal());
+            it->second.second = new QLabel(this);
+            it->second.second->setFont(GUIUtil::getFontNormal());
+            it->second.second->setCursor(Qt::IBeamCursor);
+            it->second.second->setTextInteractionFlags(Qt::LinksAccessibleByMouse | Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
+            grid->addWidget(it->second.first, current_row, 0);
+            grid->addWidget(it->second.second, current_row, 1);
+        } else if (needs_reseating) {
+            grid->removeWidget(it->second.first);
+            grid->removeWidget(it->second.second);
+            grid->addWidget(it->second.first, current_row, 0);
+            grid->addWidget(it->second.second, current_row, 1);
+        }
+        it->second.second->setText(tr("%1 active (%2% health)").arg(q.m_count).arg(q.m_health * 100.0, 0, 'f', 1));
+        ++current_row;
+    }
+
+    GUIUtil::updateFonts();
 }
 
 void NetworkWidget::updateDisplayUnit(BitcoinUnit unit)

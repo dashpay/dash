@@ -25,6 +25,7 @@ constexpr auto CREDITPOOL_UPDATE_INTERVAL{3s};
 constexpr auto INSTANTSEND_UPDATE_INTERVAL{3s};
 constexpr auto MASTERNODE_UPDATE_INTERVAL{3s};
 constexpr auto PROPOSAL_UPDATE_INTERVAL{10s};
+constexpr auto QUORUM_UPDATE_INTERVAL{3s};
 } // anonymous namespace
 
 FeedBase::FeedBase(QObject* parent, const FeedBase::Config& config) :
@@ -114,6 +115,26 @@ void InstantSendFeed::fetch()
 
     auto ret = std::make_shared<Data>();
     ret->m_counts = m_client_model.node().llmq().getInstantSendCounts();
+
+    setData(std::move(ret));
+}
+
+QuorumFeed::QuorumFeed(QObject* parent, ClientModel& client_model) :
+    Feed<QuorumData>{parent, {/*m_baseline=*/QUORUM_UPDATE_INTERVAL, /*m_throttle=*/QUORUM_UPDATE_INTERVAL*10}},
+    m_client_model{client_model}
+{
+}
+
+QuorumFeed::~QuorumFeed() = default;
+
+void QuorumFeed::fetch()
+{
+    if (m_client_model.node().shutdownRequested()) {
+        return;
+    }
+
+    auto ret = std::make_shared<Data>();
+    ret->m_quorums = m_client_model.node().llmq().getQuorumStats();
 
     setData(std::move(ret));
 }

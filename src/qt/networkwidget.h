@@ -8,7 +8,12 @@
 
 #include <qt/guiutil.h>
 
+#include <QLabel>
+#include <QPointer>
 #include <QWidget>
+
+#include <map>
+#include <string>
 
 class ChainLockFeed;
 class ClientModel;
@@ -16,6 +21,7 @@ class CreditPoolFeed;
 class InstantSendFeed;
 class MasternodeFeed;
 class OptionsModel;
+class QuorumFeed;
 namespace Ui {
 class NetworkWidget;
 } // namespace Ui
@@ -37,6 +43,7 @@ private Q_SLOTS:
     void handleCrDataChanged();
     void handleIsDataChanged();
     void handleMnDataChanged();
+    void handleQrDataChanged();
     void updateDisplayUnit(BitcoinUnit unit);
 
 private:
@@ -44,12 +51,15 @@ private:
     CAmount m_creditpool_diff{0};
     CAmount m_creditpool_limit{0};
     CAmount m_creditpool_locked{0};
+    int m_quorum_base_row{-1};
+    std::map<std::string, std::pair<QPointer<QLabel>, QPointer<QLabel>>> m_quorum_labels{};
 
     ClientModel* clientModel{nullptr};
     ChainLockFeed* m_feed_chainlock{nullptr};
     CreditPoolFeed* m_feed_creditpool{nullptr};
     InstantSendFeed* m_feed_instantsend{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
+    QuorumFeed* m_feed_quorum{nullptr};
 };
 
 #endif // BITCOIN_QT_NETWORKWIDGET_H

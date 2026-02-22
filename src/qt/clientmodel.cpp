@@ -78,6 +78,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     if (m_node.gov().isEnabled()) {
         m_feed_proposal = m_feeds->add<ProposalFeed>(this, *this, *m_feed_masternode);
     }
+    m_feed_quorum = m_feeds->add<QuorumFeed>(this, *this);
 
     connect(this, &ClientModel::chainLockChanged, m_feed_chainlock, &ChainLockFeed::requestRefresh);
     connect(this, &ClientModel::instantSendChanged, m_feed_instantsend, &InstantSendFeed::requestRefresh);
@@ -94,6 +95,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
             if (m_feed_creditpool) m_feed_creditpool->requestRefresh();
             if (m_feed_masternode) m_feed_masternode->requestRefresh();
             if (m_feed_proposal) m_feed_proposal->requestRefresh();
+            if (m_feed_quorum) m_feed_quorum->requestRefresh();
         });
 
     // Start all tasks
