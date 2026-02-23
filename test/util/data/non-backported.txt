@@ -50,12 +50,7 @@ src/stacktraces.*
 src/stats/*.cpp
 src/stats/*.h
 src/test/block_reward_reallocation_tests.cpp
-src/test/fuzz/roundtrip_dash.cpp
-src/test/fuzz/governance_proposal_validator.cpp
-src/test/fuzz/deterministic_mn_list_diff.cpp
-src/test/fuzz/bls_operations.cpp
-src/test/fuzz/asset_lock_unlock.cpp
-src/test/bls_tests.cpp
+src/test/fuzz/roundtrip_dash.cppsrc/test/fuzz/governance_proposal_validator.cppsrc/test/fuzz/deterministic_mn_list_diff.cppsrc/test/fuzz/bls_operations.cppsrc/test/fuzz/asset_lock_unlock.cppsrc/test/bls_tests.cpp
 src/test/coinjoin_*.cpp
 src/test/dip0020opcodes_tests.cpp
 src/test/dynamic_activation*.cpp
