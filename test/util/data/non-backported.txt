@@ -50,7 +50,8 @@ src/stacktraces.*
 src/stats/*.cpp
 src/stats/*.h
 src/test/block_reward_reallocation_tests.cpp
-src/test/fuzz/llmq_messages.cppsrc/test/bls_tests.cpp
+src/test/fuzz/llmq_messages.cpp
+src/test/bls_tests.cpp
 src/test/coinjoin_*.cpp
 src/test/dip0020opcodes_tests.cpp
 src/test/dynamic_activation*.cpp
