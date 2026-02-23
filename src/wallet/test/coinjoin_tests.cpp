@@ -169,7 +169,7 @@ public:
         {
             LOCK(wallet->cs_wallet);
             it = wallet->mapWallet.find(nTxHash);
-            assert(it != wallet->mapWallet.end());
+            BOOST_REQUIRE(it != wallet->mapWallet.end());
             blocktx = CMutableTransaction(*it->second.tx);
         }
         CreateAndProcessBlock({blocktx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
@@ -188,14 +188,14 @@ public:
         {
             LOCK(wallet->cs_wallet);
             auto dest_opt = reserveDest.GetReservedDestination(false);
-            BOOST_CHECK(dest_opt);
+            BOOST_REQUIRE(dest_opt);
             tallyItem.txdest = *dest_opt;
         }
         for (CAmount nAmount : vecAmounts) {
             CTransactionRef tx;
             {
                 auto res = CreateTransaction(*wallet, {{GetScriptForDestination(tallyItem.txdest), nAmount, false}}, nChangePosRet, coinControl);
-                BOOST_CHECK(res);
+                BOOST_REQUIRE(res);
                 tx = res->tx;
                 nChangePosRet = res->change_pos;
             }
@@ -213,7 +213,7 @@ public:
                 tallyItem.nAmount += tx->vout[n].nValue;
             }
         }
-        assert(tallyItem.outpoints.size() == vecAmounts.size());
+        BOOST_REQUIRE_EQUAL(tallyItem.outpoints.size(), vecAmounts.size());
         reserveDest.KeepDestination();
         return tallyItem;
     }
@@ -270,7 +270,7 @@ BOOST_FIXTURE_TEST_CASE(CTransactionBuilderTest, CTransactionBuilderTestSetup)
         BOOST_CHECK_EQUAL(txBuilder.CountOutputs(), 1);
 
         bilingual_str strResult;
-        BOOST_CHECK(txBuilder.Commit(strResult));
+        BOOST_REQUIRE(txBuilder.Commit(strResult));
         CWalletTx& wtx = AddTxToChain(uint256S(strResult.original));
         BOOST_CHECK_EQUAL(wtx.tx->vout.size(), txBuilder.CountOutputs()); // should have no change output
         BOOST_CHECK_EQUAL(wtx.tx->vout[0].nValue, output->GetAmount());
@@ -300,7 +300,7 @@ BOOST_FIXTURE_TEST_CASE(CTransactionBuilderTest, CTransactionBuilderTestSetup)
         }
         BOOST_CHECK_EQUAL(vecOutputs.size(), 100);
         BOOST_CHECK_EQUAL(txBuilder.CountOutputs(), vecOutputs.size());
-        BOOST_CHECK(txBuilder.Commit(strResult));
+        BOOST_REQUIRE(txBuilder.Commit(strResult));
         CWalletTx& wtx = AddTxToChain(uint256S(strResult.original));
         BOOST_CHECK_EQUAL(wtx.tx->vout.size(), txBuilder.CountOutputs() + 1); // should have change output
         for (const auto& out : wtx.tx->vout) {
