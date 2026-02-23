@@ -278,8 +278,8 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/addition_overflow.cpp \
  test/fuzz/addrman.cpp \
  test/fuzz/asmap.cpp \
- test/fuzz/asset_lock_unlock.cpp \
  test/fuzz/asmap_direct.cpp \
+ test/fuzz/asset_lock_unlock.cpp \
  test/fuzz/autofile.cpp \
  test/fuzz/banman.cpp \
  test/fuzz/base_encode_decode.cpp \
