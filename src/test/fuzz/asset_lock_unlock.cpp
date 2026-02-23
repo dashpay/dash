@@ -35,9 +35,7 @@ CScript ConsumeP2PKHScript(FuzzedDataProvider& fuzzed_data_provider)
 
 CAmount ConsumeAmount(FuzzedDataProvider& fuzzed_data_provider)
 {
-    return fuzzed_data_provider.ConsumeIntegralInRange<CAmount>(
-        -1,
-        static_cast<CAmount>(MAX_MONEY) + 1);
+    return fuzzed_data_provider.ConsumeIntegralInRange<CAmount>(-1, static_cast<CAmount>(MAX_MONEY) + 1);
 }
 
 std::vector<uint8_t> BuildAssetLockPayload(const uint8_t version, const std::vector<CTxOut>& credit_outputs)
@@ -69,10 +67,7 @@ uint256 ConsumeUInt256(FuzzedDataProvider& fuzzed_data_provider)
     return value;
 }
 
-void initialize_asset_lock_unlock()
-{
-    SelectParams(CBaseChainParams::REGTEST);
-}
+void initialize_asset_lock_unlock() { SelectParams(CBaseChainParams::REGTEST); }
 } // namespace
 
 FUZZ_TARGET(asset_lock_tx, .init = initialize_asset_lock_unlock)
@@ -109,8 +104,9 @@ FUZZ_TARGET(asset_lock_tx, .init = initialize_asset_lock_unlock)
         tx.nType = fuzzed_data_provider.ConsumeBool() ? TRANSACTION_ASSET_UNLOCK : TRANSACTION_NORMAL;
         break;
     case 1: // bad-assetlocktx-non-empty-return
-        tx.vout[0].scriptPubKey = CScript() << OP_RETURN << fuzzed_data_provider.ConsumeBytes<uint8_t>(
-            fuzzed_data_provider.ConsumeIntegralInRange<size_t>(1, 16));
+        tx.vout[0].scriptPubKey = CScript() << OP_RETURN
+                                            << fuzzed_data_provider.ConsumeBytes<uint8_t>(
+                                                   fuzzed_data_provider.ConsumeIntegralInRange<size_t>(1, 16));
         break;
     case 2: // bad-assetlocktx-opreturn-outofrange
         tx.vout[0].nValue = fuzzed_data_provider.ConsumeBool() ? 0 : static_cast<CAmount>(MAX_MONEY) + 1;
@@ -129,9 +125,9 @@ FUZZ_TARGET(asset_lock_tx, .init = initialize_asset_lock_unlock)
             fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 8));
         break;
     case 6: // bad-assetlocktx-version
-        tx.vExtraPayload = BuildAssetLockPayload(
-            fuzzed_data_provider.ConsumeBool() ? uint8_t{0} : std::numeric_limits<uint8_t>::max(),
-            credit_outputs);
+        tx.vExtraPayload = BuildAssetLockPayload(fuzzed_data_provider.ConsumeBool() ? uint8_t{0}
+                                                                                    : std::numeric_limits<uint8_t>::max(),
+                                                 credit_outputs);
         break;
     case 7: // bad-assetlocktx-emptycreditoutputs
         tx.vExtraPayload = BuildAssetLockPayload(CAssetLockPayload::CURRENT_VERSION, {});
