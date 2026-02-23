@@ -15,11 +15,13 @@
 #include <shutdown.h>
 #include <streams.h>
 #include <undo.h>
+#include <util/syserror.h>
 #include <util/system.h>
 #include <validation.h>
 #include <walletinitinterface.h>
 
 #include <map>
+#include <cerrno>
 #include <ranges>
 #include <unordered_map>
 
@@ -499,6 +501,7 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     // Write undo data
     long fileOutPos = ftell(fileout.Get());
     if (fileOutPos < 0) {
+        (void)fileout.fclose();
         return error("%s: ftell failed", __func__);
     }
     pos.nPos = (unsigned int)fileOutPos;
@@ -509,6 +512,10 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     hasher << hashBlock;
     hasher << blockundo;
     fileout << hasher.GetHash();
+
+    if (fileout.fclose() != 0) {
+        return error("%s: failed to close undo file %s: %s", __func__, pos.ToString(), SysErrorString(errno));
+    }
 
     return true;
 }
@@ -707,10 +714,15 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     // Write block
     long fileOutPos = ftell(fileout.Get());
     if (fileOutPos < 0) {
+        (void)fileout.fclose();
         return error("WriteBlockToDisk: ftell failed");
     }
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
+
+    if (fileout.fclose() != 0) {
+        return error("WriteBlockToDisk: failed to close block file %s: %s", pos.ToString(), SysErrorString(errno));
+    }
 
     return true;
 }

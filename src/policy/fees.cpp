@@ -19,11 +19,13 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/serfloat.h>
+#include <util/syserror.h>
 #include <util/system.h>
 #include <util/time.h>
 
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -922,6 +924,11 @@ void CBlockPolicyEstimator::Flush() {
     AutoFile est_file{fsbridge::fopen(est_filepath, "wb")};
     if (est_file.IsNull() || !Write(est_file)) {
         LogPrintf("Failed to write fee estimates to %s. Continue anyway.\n", fs::PathToString(est_filepath));
+        (void)est_file.fclose();
+        return;
+    }
+    if (est_file.fclose() != 0) {
+        LogPrintf("Failed to close fee estimates to %s: %s. Continue anyway.\n", fs::PathToString(est_filepath), SysErrorString(errno));
     }
 }
 

@@ -41,6 +41,7 @@ FUZZ_TARGET(utxo_snapshot, .init = initialize_chain)
         AutoFile outfile{fsbridge::fopen(snapshot_path, "wb")};
         const auto file_data{ConsumeRandomLengthByteVector(fuzzed_data_provider)};
         outfile << Span<const uint8_t>{file_data};
+        (void)outfile.fclose();
     }
 
     const auto ActivateFuzzedSnapshot{[&] {

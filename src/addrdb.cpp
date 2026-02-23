@@ -18,10 +18,12 @@
 #include <tinyformat.h>
 #include <univalue.h>
 #include <util/settings.h>
+#include <util/syserror.h>
 #include <util/system.h>
 #include <util/translation.h>
 
 #include <cstdint>
+#include <cerrno>
 
 namespace {
 
@@ -57,23 +59,26 @@ bool SerializeFileDB(const std::string& prefix, const fs::path& path, const Data
     FILE *file = fsbridge::fopen(pathTmp, "wb");
     CAutoFile fileout(file, SER_DISK, version);
     if (fileout.IsNull()) {
-        fileout.fclose();
         remove(pathTmp);
         return error("%s: Failed to open file %s", __func__, fs::PathToString(pathTmp));
     }
 
     // Serialize
     if (!SerializeDB(fileout, data)) {
-        fileout.fclose();
+        (void)fileout.fclose();
         remove(pathTmp);
         return false;
     }
     if (!FileCommit(fileout.Get())) {
-        fileout.fclose();
+        (void)fileout.fclose();
         remove(pathTmp);
         return error("%s: Failed to flush file %s", __func__, fs::PathToString(pathTmp));
     }
-    fileout.fclose();
+    if (fileout.fclose() != 0) {
+        const int errno_save{errno};
+        remove(pathTmp);
+        return error("%s: Failed to close file %s after flush: %s", __func__, fs::PathToString(pathTmp), SysErrorString(errno_save));
+    }
 
     // replace existing file, if any, with new file
     if (!RenameOver(pathTmp, path)) {

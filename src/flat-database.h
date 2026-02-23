@@ -5,12 +5,15 @@
 #ifndef BITCOIN_FLAT_DATABASE_H
 #define BITCOIN_FLAT_DATABASE_H
 
-#include <clientversion.h>
 #include <chainparams.h>
+#include <clientversion.h>
 #include <fs.h>
 #include <hash.h>
 #include <streams.h>
+#include <util/syserror.h>
 #include <util/system.h>
+
+#include <cerrno>
 
 /**
 *   Generic Dumping and Loading
@@ -61,9 +64,12 @@ private:
             fileout << ssObj;
         }
         catch (std::exception &e) {
+            (void)fileout.fclose();
             return error("%s: Serialize or I/O error - %s", __func__, e.what());
         }
-        fileout.fclose();
+        if (fileout.fclose() != 0) {
+            return error("%s: Failed to close file %s: %s", __func__, fs::PathToString(pathDB), SysErrorString(errno));
+        }
 
         LogPrintf("Written info to %s  %dms\n", strFilename, Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
         LogPrintf("     %s\n", objToSave.ToString());
@@ -103,7 +109,7 @@ private:
             error("%s: Deserialize or I/O error - %s", __func__, e.what());
             return ReadResult::HashReadError;
         }
-        filein.fclose();
+        (void)filein.fclose();
 
         CDataStream ssObj(vchData, SER_DISK, CLIENT_VERSION);
 

@@ -42,6 +42,7 @@
 #include <univalue.h>
 #include <util/check.h>
 #include <util/strencodings.h>
+#include <util/syserror.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -61,6 +62,7 @@
 #include <stdint.h>
 
 #include <atomic>
+#include <cerrno>
 #include <condition_variable>
 #include <mutex>
 
@@ -2724,7 +2726,7 @@ static RPCHelpMan dumptxoutset()
 
     NodeContext& node = EnsureAnyNodeContext(request.context);
     UniValue result = CreateUTXOSnapshot(
-        node, node.chainman->ActiveChainstate(), afile, path, temppath);
+        node, node.chainman->ActiveChainstate(), std::move(afile), path, temppath);
     fs::rename(temppath, path);
 
     result.pushKV("path", path.utf8string());
@@ -2736,7 +2738,7 @@ static RPCHelpMan dumptxoutset()
 UniValue CreateUTXOSnapshot(
     NodeContext& node,
     CChainState& chainstate,
-    AutoFile& afile,
+    AutoFile&& afile,
     const fs::path& path,
     const fs::path& temppath)
 {
@@ -2793,7 +2795,10 @@ UniValue CreateUTXOSnapshot(
         pcursor->Next();
     }
 
-    afile.fclose();
+    if (afile.fclose() != 0) {
+        throw std::ios_base::failure(
+            strprintf("Error closing %s: %s", fs::PathToString(temppath), SysErrorString(errno)));
+    }
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("coins_written", maybe_stats->coins_count);

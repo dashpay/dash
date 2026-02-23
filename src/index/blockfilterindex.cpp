@@ -3,12 +3,14 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <map>
+#include <cerrno>
 
 #include <dbwrapper.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
 #include <node/blockstorage.h>
 #include <serialize.h>
+#include <util/syserror.h>
 #include <util/system.h>
 
 using node::UndoReadFromDisk;
@@ -172,7 +174,11 @@ bool BlockFilterIndex::CommitInternal(CDBBatch& batch)
         return error("%s: Failed to open filter file %d", __func__, pos.nFile);
     }
     if (!FileCommit(file.Get())) {
+        (void)file.fclose();
         return error("%s: Failed to commit filter file %d", __func__, pos.nFile);
+    }
+    if (file.fclose() != 0) {
+        return error("%s: Failed to close filter file %d after commit: %s", __func__, pos.nFile, SysErrorString(errno));
     }
 
     batch.Write(DB_FILTER_POS, pos);
@@ -218,10 +224,16 @@ size_t BlockFilterIndex::WriteFilterToDisk(FlatFilePos& pos, const BlockFilter& 
         }
         if (!TruncateFile(last_file.Get(), pos.nPos)) {
             LogPrintf("%s: Failed to truncate filter file %d\n", __func__, pos.nFile);
+            (void)last_file.fclose();
             return 0;
         }
         if (!FileCommit(last_file.Get())) {
             LogPrintf("%s: Failed to commit filter file %d\n", __func__, pos.nFile);
+            (void)last_file.fclose();
+            return 0;
+        }
+        if (last_file.fclose() != 0) {
+            LogPrintf("%s: Failed to close filter file %d after commit: %s\n", __func__, pos.nFile, SysErrorString(errno));
             return 0;
         }
 
@@ -244,6 +256,10 @@ size_t BlockFilterIndex::WriteFilterToDisk(FlatFilePos& pos, const BlockFilter& 
     }
 
     fileout << filter.GetBlockHash() << filter.GetEncodedFilter();
+    if (fileout.fclose() != 0) {
+        LogPrintf("%s: Failed to close filter file %d: %s\n", __func__, pos.nFile, SysErrorString(errno));
+        return 0;
+    }
     return data_size;
 }
 

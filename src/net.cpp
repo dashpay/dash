@@ -31,6 +31,7 @@
 #include <scheduler.h>
 #include <util/sock.h>
 #include <util/strencodings.h>
+#include <util/syserror.h>
 #include <util/system.h>
 #include <util/thread.h>
 #include <util/threadinterrupt.h>
@@ -56,6 +57,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cstdint>
 #include <functional>
 #include <unordered_map>
@@ -4981,6 +4983,11 @@ static void CaptureMessageToFile(const CAddress& addr,
     uint32_t size = data.size();
     ser_writedata32(f, size);
     f.write(AsBytes(data));
+    if (f.fclose() != 0) {
+        throw std::ios_base::failure(
+            strprintf("Error closing %s after write: %s, file contents are likely incomplete",
+                fs::PathToString(path), SysErrorString(errno)));
+    }
 }
 
 std::function<void(const CAddress& addr,

@@ -14,6 +14,7 @@
 #include <validation.h>
 
 #include <univalue.h>
+#include <utility>
 
 const auto NoMalleation = [](AutoFile& file, node::SnapshotMetadata& meta){};
 
@@ -34,7 +35,7 @@ CreateAndActivateUTXOSnapshot(node::NodeContext& node, const fs::path root, F ma
     AutoFile auto_outfile{outfile};
 
     UniValue result = CreateUTXOSnapshot(
-        node, node.chainman->ActiveChainstate(), auto_outfile, snapshot_path, snapshot_path);
+        node, node.chainman->ActiveChainstate(), std::move(auto_outfile), snapshot_path, snapshot_path);
     LogPrintf(
         "Wrote UTXO snapshot to %s: %s", fs::PathToString(snapshot_path.make_preferred()), result.write());
 

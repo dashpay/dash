@@ -43,6 +43,7 @@
 #include <util/check.h>
 #include <util/hasher.h>
 #include <util/strencodings.h>
+#include <util/syserror.h>
 #include <util/trace.h>
 #include <util/translation.h>
 #include <util/system.h>
@@ -60,6 +61,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <deque>
 #include <numeric>
 #include <optional>
@@ -5618,7 +5620,9 @@ bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool s
 
         if (!skip_file_commit && !FileCommit(file.Get()))
             throw std::runtime_error("FileCommit failed");
-        file.fclose();
+        if (file.fclose() != 0) {
+            throw std::runtime_error(strprintf("fclose failed: %s", SysErrorString(errno)));
+        }
         if (!RenameOver(gArgs.GetDataDirNet() / "mempool.dat.new", gArgs.GetDataDirNet() / "mempool.dat")) {
             throw std::runtime_error("Rename failed");
         }

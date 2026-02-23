@@ -66,7 +66,7 @@ void CalculatePercentilesBySize(CAmount result[NUM_GETBLOCKSTATS_PERCENTILES], s
 UniValue CreateUTXOSnapshot(
     node::NodeContext& node,
     CChainState& chainstate,
-    AutoFile& afile,
+    AutoFile&& afile,
     const fs::path& path,
     const fs::path& tmppath);
 
