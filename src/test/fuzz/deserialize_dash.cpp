@@ -11,7 +11,8 @@
 #include <streams.h>
 #include <version.h>
 
-// evo/ types
+#include <bls/bls_ies.h>
+#include <coinjoin/coinjoin.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
@@ -22,26 +23,16 @@
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
 #include <evo/smldiff.h>
-
-// llmq/ types
+#include <governance/common.h>
+#include <governance/object.h>
+#include <governance/vote.h>
+#include <governance/votedb.h>
 #include <llmq/commitment.h>
 #include <llmq/dkgsession.h>
 #include <llmq/quorums.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
-
-// governance/ types
-#include <governance/common.h>
-#include <governance/object.h>
-#include <governance/vote.h>
-#include <governance/votedb.h>
-
-// bls/ types
-#include <bls/bls_ies.h>
-
-// coinjoin/ types
-#include <coinjoin/coinjoin.h>
 
 #include <exception>
 #include <optional>
@@ -60,7 +51,7 @@ void DashDeserializeFromFuzzingInput(FuzzBufferType buffer, T& obj,
                                      const std::optional<int> protocol_version = std::nullopt,
                                      const int ser_type = SER_NETWORK)
 {
-    CDataStream ds(buffer, ser_type, INIT_PROTO_VERSION);
+    CDataStream ds(buffer, ser_type, PROTOCOL_VERSION);
     if (protocol_version) {
         ds.SetVersion(*protocol_version);
     } else {
