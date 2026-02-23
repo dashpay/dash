@@ -33,7 +33,9 @@ enum class SnapshotSkipMode : int {
     MODE_NO_SKIPPING_ENTRIES = 2,
     MODE_ALL_SKIPPED = 3
 };
-template<> struct is_serializable_enum<SnapshotSkipMode> : std::true_type {};
+template <>
+struct is_serializable_enum<SnapshotSkipMode> : std::true_type {
+};
 
 namespace llmq {
 constexpr int WORK_DIFF_DEPTH{8};
@@ -134,15 +136,8 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(cycleHMinusC.m_snap,
-                  cycleHMinus2C.m_snap,
-                  cycleHMinus3C.m_snap,
-                  mnListDiffTip,
-                  mnListDiffH,
-                  cycleHMinusC.m_diff,
-                  cycleHMinus2C.m_diff,
-                  cycleHMinus3C.m_diff,
-                  extraShare);
+        READWRITE(cycleHMinusC.m_snap, cycleHMinus2C.m_snap, cycleHMinus3C.m_snap, mnListDiffTip, mnListDiffH,
+                  cycleHMinusC.m_diff, cycleHMinus2C.m_diff, cycleHMinus3C.m_diff, extraShare);
     }
 
     template <typename Stream>

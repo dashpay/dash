@@ -87,7 +87,8 @@ CDeterministicMNCPtr MakeMasternode(const uint64_t internal_id, const uint64_t u
     state->keyIDOwner = CKeyID(Uint160FromTag(unique_tag ^ 0x03030303ULL));
     state->keyIDVoting = CKeyID(Uint160FromTag(unique_tag ^ 0x04040404ULL));
     state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
-    if (!state->netInfo || state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, AddressFromTag(unique_tag)) != NetInfoStatus::Success) {
+    if (!state->netInfo ||
+        state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, AddressFromTag(unique_tag)) != NetInfoStatus::Success) {
         throw std::runtime_error("failed to create deterministic masternode netInfo");
     }
 
@@ -102,18 +103,14 @@ CDeterministicMNCPtr MakeMasternode(const uint64_t internal_id, const uint64_t u
 std::vector<uint256> GetProTxHashes(const CDeterministicMNList& mn_list)
 {
     std::vector<uint256> hashes;
-    mn_list.ForEachMN(/*onlyValid=*/false, [&](const CDeterministicMN& dmn) {
-        hashes.push_back(dmn.proTxHash);
-    });
+    mn_list.ForEachMN(/*onlyValid=*/false, [&](const CDeterministicMN& dmn) { hashes.push_back(dmn.proTxHash); });
     return hashes;
 }
 
 std::vector<uint64_t> GetInternalIds(const CDeterministicMNList& mn_list)
 {
     std::vector<uint64_t> ids;
-    mn_list.ForEachMN(/*onlyValid=*/false, [&](const CDeterministicMN& dmn) {
-        ids.push_back(dmn.GetInternalId());
-    });
+    mn_list.ForEachMN(/*onlyValid=*/false, [&](const CDeterministicMN& dmn) { ids.push_back(dmn.GetInternalId()); });
     return ids;
 }
 
@@ -131,7 +128,8 @@ struct SyntheticBlockIndex {
     CBlockIndex m_index{};
     uint256 m_hash;
 
-    SyntheticBlockIndex(const int height, const uint256& hash) : m_hash(hash)
+    SyntheticBlockIndex(const int height, const uint256& hash) :
+        m_hash(hash)
     {
         m_index.nHeight = height;
         m_index.phashBlock = &m_hash;
@@ -238,15 +236,16 @@ FUZZ_TARGET(deterministic_mn_list_diff, .init = initialize_deterministic_mn_list
         after_state.nPoSePenalty += 1;
         const auto ids = GetInternalIds(list_from);
         const uint64_t maybe_existing_id = !ids.empty() && fuzzed_data_provider.ConsumeBool()
-            ? ids.front()
-            : fuzzed_data_provider.ConsumeIntegral<uint64_t>();
+                                               ? ids.front()
+                                               : fuzzed_data_provider.ConsumeIntegral<uint64_t>();
         mutated_diff.updatedMNs.emplace(maybe_existing_id, CDeterministicMNStateDiff(before_state, after_state));
     }
     if (fuzzed_data_provider.ConsumeBool()) {
-        mutated_diff.addedMNs.emplace_back(MakeMasternode(
-            fuzzed_data_provider.ConsumeBool() && !mutated_diff.addedMNs.empty() ? mutated_diff.addedMNs.front()->GetInternalId() : next_internal_id++,
-            next_unique_tag++,
-            source_height));
+        mutated_diff.addedMNs.emplace_back(
+            MakeMasternode(fuzzed_data_provider.ConsumeBool() && !mutated_diff.addedMNs.empty()
+                               ? mutated_diff.addedMNs.front()->GetInternalId()
+                               : next_internal_id++,
+                           next_unique_tag++, source_height));
     }
 
     if (DiffHasRequiredPointers(mutated_diff)) {

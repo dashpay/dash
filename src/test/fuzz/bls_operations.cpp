@@ -55,10 +55,7 @@ uint256 MakeHash(FuzzedDataProvider& fuzzed_data_provider)
 
 } // namespace
 
-void initialize_bls_operations()
-{
-    BLSInit();
-}
+void initialize_bls_operations() { BLSInit(); }
 
 FUZZ_TARGET(bls_operations, .init = initialize_bls_operations)
 {
@@ -68,7 +65,8 @@ FUZZ_TARGET(bls_operations, .init = initialize_bls_operations)
     const bool use_legacy = fuzzed_data_provider.ConsumeBool();
     bls::bls_legacy_scheme.store(use_legacy);
 
-    LIMITED_WHILE(fuzzed_data_provider.remaining_bytes() > 0, 32) {
+    LIMITED_WHILE(fuzzed_data_provider.remaining_bytes() > 0, 32)
+    {
         switch (fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 10)) {
         case 0: {
             // Key generation from fuzzed bytes + public key derivation
@@ -230,8 +228,7 @@ FUZZ_TARGET(bls_ies, .init = initialize_bls_operations)
         auto iv_bytes = fuzzed_data_provider.ConsumeBytes<uint8_t>(32);
         iv_bytes.resize(32);
         memcpy(blob.ivSeed.begin(), iv_bytes.data(), 32);
-        blob.data = fuzzed_data_provider.ConsumeBytes<uint8_t>(
-            fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 256));
+        blob.data = fuzzed_data_provider.ConsumeBytes<uint8_t>(fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 256));
 
         (void)blob.IsValid();
 
