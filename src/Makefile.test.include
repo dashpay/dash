@@ -318,6 +318,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/key.cpp \
  test/fuzz/key_io.cpp \
  test/fuzz/kitchen_sink.cpp \
+ test/fuzz/llmq_messages.cpp \
  test/fuzz/load_external_block_file.cpp \
  test/fuzz/locale.cpp \
  test/fuzz/merkleblock.cpp \
