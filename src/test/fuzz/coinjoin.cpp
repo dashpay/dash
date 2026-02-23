@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 // Fuzz the CoinJoin denomination helper functions with arbitrary amounts
@@ -70,8 +71,16 @@ FUZZ_TARGET(coinjoin_queue)
     (void)queue.IsTimeOutOfBounds();
     (void)queue.IsTimeOutOfBounds(0);
     (void)queue.IsTimeOutOfBounds(queue.nTime);
-    (void)queue.IsTimeOutOfBounds(queue.nTime + COINJOIN_QUEUE_TIMEOUT);
-    (void)queue.IsTimeOutOfBounds(queue.nTime - COINJOIN_QUEUE_TIMEOUT);
+    // Use saturating arithmetic to avoid signed overflow UB in the test driver
+    const int64_t kTimeout = COINJOIN_QUEUE_TIMEOUT;
+    const int64_t time_plus = (queue.nTime <= std::numeric_limits<int64_t>::max() - kTimeout)
+                               ? queue.nTime + kTimeout
+                               : std::numeric_limits<int64_t>::max();
+    const int64_t time_minus = (queue.nTime >= std::numeric_limits<int64_t>::min() + kTimeout)
+                                ? queue.nTime - kTimeout
+                                : std::numeric_limits<int64_t>::min();
+    (void)queue.IsTimeOutOfBounds(time_plus);
+    (void)queue.IsTimeOutOfBounds(time_minus);
     (void)queue.IsTimeOutOfBounds(std::numeric_limits<int64_t>::max());
     (void)queue.IsTimeOutOfBounds(std::numeric_limits<int64_t>::min());
 }
