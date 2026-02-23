@@ -43,9 +43,8 @@ static CMutableTransaction DeserializeCandidateTx(FuzzedDataProvider& fuzzed_dat
     CMutableTransaction tx;
     bool deserialized{false};
 
-    CDataStream ds(
-        fuzzed_data_provider.ConsumeBytes<uint8_t>(fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 4096)),
-        SER_NETWORK, INIT_PROTO_VERSION);
+    CDataStream ds(fuzzed_data_provider.ConsumeBytes<uint8_t>(fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 4096)),
+                   SER_NETWORK, INIT_PROTO_VERSION);
     try {
         int nVersion;
         ds >> nVersion;
@@ -103,9 +102,8 @@ FUZZ_TARGET(special_tx_validation, .init = initialize_special_tx_validation)
         }
 
         TxValidationState state;
-        const bool accepted{
-            special_tx->CheckSpecialTx(CTransaction{mut_tx}, pindex_prev, coins_view,
-                                       fuzzed_data_provider.ConsumeBool(), state)};
+        const bool accepted{special_tx->CheckSpecialTx(CTransaction{mut_tx}, pindex_prev, coins_view,
+                                                       fuzzed_data_provider.ConsumeBool(), state)};
         Assert(accepted == state.IsValid());
     }
 }
