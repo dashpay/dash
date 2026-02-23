@@ -70,8 +70,8 @@ const std::array<const char*, 41> DASH_MESSAGE_TYPES{
 void initialize_process_message_dash()
 {
     static const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(
-            /*chain_name=*/CBaseChainParams::REGTEST,
-            /*extra_args=*/{"-txreconciliation"});
+        /*chain_name=*/CBaseChainParams::REGTEST,
+        /*extra_args=*/{"-txreconciliation"});
     g_setup = testing_setup.get();
     for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {
         MineBlock(g_setup->m_node, CScript() << OP_TRUE);
@@ -106,7 +106,8 @@ FUZZ_TARGET(process_message_dash, .init = initialize_process_message_dash)
     (void)connman.ReceiveMsgFrom(p2p_node, std::move(net_msg));
 
     bool more_work{true};
-    LIMITED_WHILE(more_work, 10000) {
+    LIMITED_WHILE(more_work, 10000)
+    {
         p2p_node.fPauseSend = false;
         try {
             more_work = connman.ProcessMessagesOnce(p2p_node);
