@@ -555,7 +555,6 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
         + ts.from + "\" – " + tr("the peer selected us for high bandwidth relay") + "</li><li>\""
         + ts.no + "\" – " + tr("no high bandwidth relay selected") + "</li></ul>"};
     ui->peerHighBandwidthLabel->setToolTip(ui->peerHighBandwidthLabel->toolTip().arg(hb_list));
-    ui->openDebugLogfileButton->setToolTip(ui->openDebugLogfileButton->toolTip().arg(PACKAGE_NAME));
 
     setButtonIcons();
 
@@ -1200,11 +1199,6 @@ void RPCConsole::on_stackedWidgetRPC_currentChanged(int index)
     if (ui->stackedWidgetRPC->widget(index) == ui->pageConsole) {
         ui->lineEdit->setFocus();
     }
-}
-
-void RPCConsole::on_openDebugLogfileButton_clicked()
-{
-    GUIUtil::openDebugLogfile();
 }
 
 void RPCConsole::scrollToEnd()
