@@ -1269,7 +1269,7 @@ fi
 
 dnl If auto-detection succeeded (no sub-check disabled it), promote auto to yes
 if test "$enable_stacktraces" = "auto"; then
-    enable_stacktraces=yes
+  enable_stacktraces=yes
 fi
 
 AM_CONDITIONAL([ENABLE_STACKTRACES], [test "$enable_stacktraces" = "yes"])
