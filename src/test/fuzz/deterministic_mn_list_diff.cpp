@@ -22,7 +22,7 @@
 
 namespace {
 
-const BasicTestingSetup* g_setup;
+const TestingSetup* g_setup;
 
 uint256 HashFromTag(uint64_t tag)
 {
@@ -142,7 +142,7 @@ struct SyntheticBlockIndex {
 
 void initialize_deterministic_mn_list_diff()
 {
-    static const auto testing_setup = MakeNoLogFileContext<>(CBaseChainParams::REGTEST);
+    static const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(CBaseChainParams::REGTEST);
     g_setup = testing_setup.get();
 }
 
