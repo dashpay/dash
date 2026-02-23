@@ -7,12 +7,15 @@
 #include <evo/chainhelper.h>
 #include <evo/specialtxman.h>
 #include <primitives/transaction.h>
+#include <script/script.h>
 #include <streams.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
+#include <test/util/mining.h>
 #include <test/util/setup_common.h>
 #include <util/check.h>
 #include <validation.h>
+#include <validationinterface.h>
 #include <version.h>
 
 #include <array>
@@ -28,6 +31,11 @@ void initialize_special_tx_validation()
     static const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(
         CBaseChainParams::REGTEST, {"-dip3params=2:2", "-testactivationheight=v20@2", "-testactivationheight=mn_rr@2"});
     g_setup = testing_setup.get();
+    // Mine blocks past the activation height so DIP3/v20/mn_rr are active
+    for (int i = 0; i < 3; ++i) {
+        MineBlock(g_setup->m_node, CScript() << OP_TRUE);
+    }
+    SyncWithValidationInterfaceQueue();
 }
 
 static CMutableTransaction DeserializeCandidateTx(FuzzedDataProvider& fuzzed_data_provider)
