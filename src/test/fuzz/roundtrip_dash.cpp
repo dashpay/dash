@@ -101,8 +101,8 @@ void initialize_roundtrip_dash()
     g_setup = testing_setup.get();
 }
 
-#define FUZZ_TARGET_DASH_ROUNDTRIP(name, code)                 \
-    FUZZ_TARGET(name, .init = initialize_roundtrip_dash)       \
+#define FUZZ_TARGET_DASH_ROUNDTRIP(name, code)                  \
+    FUZZ_TARGET(name, .init = initialize_roundtrip_dash)        \
     {                                                           \
         try {                                                   \
             code                                                \
@@ -115,8 +115,10 @@ FUZZ_TARGET_DASH_ROUNDTRIP(dash_proupserv_tx_roundtrip, { DashRoundtripFromFuzzi
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_proupreg_tx_roundtrip, { DashRoundtripFromFuzzingInput<CProUpRegTx>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_prouprev_tx_roundtrip, { DashRoundtripFromFuzzingInput<CProUpRevTx>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_asset_lock_payload_roundtrip, { DashRoundtripFromFuzzingInput<CAssetLockPayload>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_asset_unlock_payload_roundtrip, { DashRoundtripFromFuzzingInput<CAssetUnlockPayload>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_asset_lock_payload_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CAssetLockPayload>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_asset_unlock_payload_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CAssetUnlockPayload>(buffer); })
 
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_cbtx_roundtrip, { DashRoundtripFromFuzzingInput<CCbTx>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_credit_pool_roundtrip, { DashRoundtripFromFuzzingInput<CCreditPool>(buffer); })
@@ -126,39 +128,56 @@ FUZZ_TARGET_DASH_ROUNDTRIP(dash_deterministic_mn_roundtrip, {
     DashRoundtripFromFuzzingInput(buffer, obj);
 })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_dmn_state_roundtrip, { DashRoundtripFromFuzzingInput<CDeterministicMNState>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_dmn_state_diff_roundtrip, { DashRoundtripFromFuzzingInput<CDeterministicMNStateDiff>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_dmn_state_diff_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CDeterministicMNStateDiff>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_smn_list_entry_roundtrip, { DashRoundtripFromFuzzingInput<CSimplifiedMNListEntry>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_get_smn_list_diff_roundtrip, { DashRoundtripFromFuzzingInput<CGetSimplifiedMNListDiff>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_smn_list_diff_roundtrip, { DashRoundtripFromFuzzingInput<CSimplifiedMNListDiff>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_smn_list_entry_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CSimplifiedMNListEntry>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_get_smn_list_diff_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CGetSimplifiedMNListDiff>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_smn_list_diff_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CSimplifiedMNListDiff>(buffer); })
 
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_mnauth_roundtrip, { DashRoundtripFromFuzzingInput<CMNAuth>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_mnhf_tx_payload_roundtrip, { DashRoundtripFromFuzzingInput<MNHFTxPayload>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_final_commitment_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CFinalCommitment>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_final_commitment_tx_payload_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CFinalCommitmentTxPayload>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_final_commitment_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CFinalCommitment>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_final_commitment_tx_payload_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CFinalCommitmentTxPayload>(buffer); })
 
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_dkg_complaint_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CDKGComplaint>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_dkg_justification_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CDKGJustification>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_dkg_premature_commitment_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CDKGPrematureCommitment>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_dkg_justification_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CDKGJustification>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_dkg_premature_commitment_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CDKGPrematureCommitment>(buffer); })
 
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_recovered_sig_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CRecoveredSig>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_sig_share_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CSigShare>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_sig_ses_ann_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CSigSesAnn>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_sig_shares_inv_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CSigSharesInv>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_batched_sig_shares_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CBatchedSigShares>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_batched_sig_shares_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CBatchedSigShares>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_quorum_data_request_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CQuorumDataRequest>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_get_quorum_rotation_info_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CGetQuorumRotationInfo>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_quorum_snapshot_roundtrip, { DashRoundtripFromFuzzingInput<llmq::CQuorumSnapshot>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_quorum_data_request_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CQuorumDataRequest>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_get_quorum_rotation_info_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CGetQuorumRotationInfo>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_quorum_snapshot_roundtrip,
+                           { DashRoundtripFromFuzzingInput<llmq::CQuorumSnapshot>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_governance_object_roundtrip, { DashRoundtripFromFuzzingInput<CGovernanceObject>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_governance_object_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CGovernanceObject>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_bls_ies_encrypted_blob_roundtrip, { DashRoundtripFromFuzzingInput<CBLSIESEncryptedBlob>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_bls_ies_multi_recipient_blobs_roundtrip, { DashRoundtripFromFuzzingInput<CBLSIESMultiRecipientBlobs>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_bls_ies_encrypted_blob_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CBLSIESEncryptedBlob>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_bls_ies_multi_recipient_blobs_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CBLSIESMultiRecipientBlobs>(buffer); })
 
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_status_update_roundtrip, { DashRoundtripFromFuzzingInput<CCoinJoinStatusUpdate>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_status_update_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CCoinJoinStatusUpdate>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_accept_roundtrip, { DashRoundtripFromFuzzingInput<CCoinJoinAccept>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_entry_roundtrip, { DashRoundtripFromFuzzingInput<CCoinJoinEntry>(buffer); })
 FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_queue_roundtrip, { DashRoundtripFromFuzzingInput<CCoinJoinQueue>(buffer); })
-FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_broadcast_tx_roundtrip, { DashRoundtripFromFuzzingInput<CCoinJoinBroadcastTx>(buffer); })
+FUZZ_TARGET_DASH_ROUNDTRIP(dash_coinjoin_broadcast_tx_roundtrip,
+                           { DashRoundtripFromFuzzingInput<CCoinJoinBroadcastTx>(buffer); })
