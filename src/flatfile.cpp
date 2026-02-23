@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <stdexcept>
 #include <cerrno>
+#include <stdexcept>
 
 #include <flatfile.h>
 #include <logging.h>
@@ -70,10 +70,12 @@ size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_
         if (CheckDiskSpace(m_dir, inc_size)) {
             FILE *file = Open(pos);
             if (file) {
-                LogPrint(BCLog::VALIDATION, "Pre-allocating up to position 0x%x in %s%05u.dat\n", new_size, m_prefix, pos.nFile);
+                LogPrint(BCLog::VALIDATION, "Pre-allocating up to position 0x%x in %s%05u.dat\n", new_size, m_prefix,
+                         pos.nFile);
                 AllocateFileRange(file, pos.nPos, inc_size);
                 if (fclose(file) != 0) {
-                    LogError("Cannot close file %s%05u.dat after extending it with %u bytes: %s", m_prefix, pos.nFile, new_size, SysErrorString(errno));
+                    LogError("Cannot close file %s%05u.dat after extending it with %u bytes: %s", m_prefix, pos.nFile,
+                             new_size, SysErrorString(errno));
                     return 0;
                 }
                 return inc_size;

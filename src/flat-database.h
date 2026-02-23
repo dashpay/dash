@@ -16,9 +16,9 @@
 #include <cerrno>
 
 /**
-*   Generic Dumping and Loading
-*   ---------------------------
-*/
+ *   Generic Dumping and Loading
+ *   ---------------------------
+ */
 
 template<typename T>
 class CFlatDB
@@ -62,8 +62,7 @@ private:
         // Write and commit header, data
         try {
             fileout << ssObj;
-        }
-        catch (std::exception &e) {
+        } catch (std::exception& e) {
             (void)fileout.fclose();
             return error("%s: Serialize or I/O error - %s", __func__, e.what());
         }

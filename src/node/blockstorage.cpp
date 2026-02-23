@@ -20,8 +20,8 @@
 #include <validation.h>
 #include <walletinitinterface.h>
 
-#include <map>
 #include <cerrno>
+#include <map>
 #include <ranges>
 #include <unordered_map>
 

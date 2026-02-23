@@ -15,8 +15,8 @@
 #include <util/syserror.h>
 
 #include <algorithm>
-#include <cerrno>
 #include <assert.h>
+#include <cerrno>
 #include <cstdio>
 #include <ios>
 #include <limits>
@@ -507,7 +507,10 @@ protected:
     bool m_was_written{false};
 
 public:
-    explicit AutoFile(FILE* filenew) : file{filenew} {}
+    explicit AutoFile(FILE* filenew) :
+        file{filenew}
+    {
+    }
 
     ~AutoFile()
     {

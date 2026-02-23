@@ -16,7 +16,7 @@
 #include <univalue.h>
 #include <utility>
 
-const auto NoMalleation = [](AutoFile& file, node::SnapshotMetadata& meta){};
+const auto NoMalleation = [](AutoFile& file, node::SnapshotMetadata& meta) {};
 
 /**
  * Create and activate a UTXO snapshot, optionally providing a function to
@@ -34,10 +34,9 @@ CreateAndActivateUTXOSnapshot(node::NodeContext& node, const fs::path root, F ma
     FILE* outfile{fsbridge::fopen(snapshot_path, "wb")};
     AutoFile auto_outfile{outfile};
 
-    UniValue result = CreateUTXOSnapshot(
-        node, node.chainman->ActiveChainstate(), std::move(auto_outfile), snapshot_path, snapshot_path);
-    LogPrintf(
-        "Wrote UTXO snapshot to %s: %s", fs::PathToString(snapshot_path.make_preferred()), result.write());
+    UniValue result = CreateUTXOSnapshot(node, node.chainman->ActiveChainstate(), std::move(auto_outfile),
+                                         snapshot_path, snapshot_path);
+    LogPrintf("Wrote UTXO snapshot to %s: %s", fs::PathToString(snapshot_path.make_preferred()), result.write());
 
     // Read the written snapshot in and then activate it.
     //

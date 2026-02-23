@@ -11,9 +11,9 @@
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/amount.h>
-#include <core_io.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
 #include <evo/chainhelper.h>
@@ -23,12 +23,12 @@
 #include <index/txindex.h>
 #include <kernel/coinstats.h>
 #include <logging/timer.h>
-#include <node/blockstorage.h>
+#include <merkleblock.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/blockstorage.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
-#include <merkleblock.h>
 #include <primitives/transaction.h>
 #include <rpc/index_util.h>
 #include <rpc/server.h>
@@ -2725,8 +2725,7 @@ static RPCHelpMan dumptxoutset()
     }
 
     NodeContext& node = EnsureAnyNodeContext(request.context);
-    UniValue result = CreateUTXOSnapshot(
-        node, node.chainman->ActiveChainstate(), std::move(afile), path, temppath);
+    UniValue result = CreateUTXOSnapshot(node, node.chainman->ActiveChainstate(), std::move(afile), path, temppath);
     fs::rename(temppath, path);
 
     result.pushKV("path", path.utf8string());
@@ -2735,12 +2734,8 @@ static RPCHelpMan dumptxoutset()
     };
 }
 
-UniValue CreateUTXOSnapshot(
-    NodeContext& node,
-    CChainState& chainstate,
-    AutoFile&& afile,
-    const fs::path& path,
-    const fs::path& temppath)
+UniValue CreateUTXOSnapshot(NodeContext& node, CChainState& chainstate, AutoFile&& afile, const fs::path& path,
+                            const fs::path& temppath)
 {
     std::unique_ptr<CCoinsViewCursor> pcursor;
     std::optional<CCoinsStats> maybe_stats;
@@ -2796,8 +2791,7 @@ UniValue CreateUTXOSnapshot(
     }
 
     if (afile.fclose() != 0) {
-        throw std::ios_base::failure(
-            strprintf("Error closing %s: %s", fs::PathToString(temppath), SysErrorString(errno)));
+        throw std::ios_base::failure(strprintf("Error closing %s: %s", fs::PathToString(temppath), SysErrorString(errno)));
     }
 
     UniValue result(UniValue::VOBJ);

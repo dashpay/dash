@@ -44,9 +44,9 @@
 #include <util/hasher.h>
 #include <util/strencodings.h>
 #include <util/syserror.h>
+#include <util/system.h>
 #include <util/trace.h>
 #include <util/translation.h>
-#include <util/system.h>
 #include <validationinterface.h>
 #include <warnings.h>
 
@@ -5618,8 +5618,7 @@ bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool s
         LogPrintf("Writing %d unbroadcast transactions to disk.\n", unbroadcast_txids.size());
         file << unbroadcast_txids;
 
-        if (!skip_file_commit && !FileCommit(file.Get()))
-            throw std::runtime_error("FileCommit failed");
+        if (!skip_file_commit && !FileCommit(file.Get())) throw std::runtime_error("FileCommit failed");
         if (file.fclose() != 0) {
             throw std::runtime_error(strprintf("fclose failed: %s", SysErrorString(errno)));
         }

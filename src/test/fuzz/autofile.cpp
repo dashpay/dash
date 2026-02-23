@@ -41,15 +41,8 @@ FUZZ_TARGET(autofile)
                 } catch (const std::ios_base::failure&) {
                 }
             },
-            [&] {
-                (void)auto_file.fclose();
-            },
-            [&] {
-                ReadFromStream(fuzzed_data_provider, auto_file);
-            },
-            [&] {
-                WriteToStream(fuzzed_data_provider, auto_file);
-            });
+            [&] { (void)auto_file.fclose(); }, [&] { ReadFromStream(fuzzed_data_provider, auto_file); },
+            [&] { WriteToStream(fuzzed_data_provider, auto_file); });
     }
     (void)auto_file.Get();
     (void)auto_file.IsNull();

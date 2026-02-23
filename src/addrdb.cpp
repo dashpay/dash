@@ -22,8 +22,8 @@
 #include <util/system.h>
 #include <util/translation.h>
 
-#include <cstdint>
 #include <cerrno>
+#include <cstdint>
 
 namespace {
 
@@ -56,7 +56,7 @@ bool SerializeFileDB(const std::string& prefix, const fs::path& path, const Data
 
     // open temp output file, and associate with CAutoFile
     fs::path pathTmp = gArgs.GetDataDirNet() / fs::u8path(tmpfn);
-    FILE *file = fsbridge::fopen(pathTmp, "wb");
+    FILE* file = fsbridge::fopen(pathTmp, "wb");
     CAutoFile fileout(file, SER_DISK, version);
     if (fileout.IsNull()) {
         remove(pathTmp);
@@ -77,7 +77,8 @@ bool SerializeFileDB(const std::string& prefix, const fs::path& path, const Data
     if (fileout.fclose() != 0) {
         const int errno_save{errno};
         remove(pathTmp);
-        return error("%s: Failed to close file %s after flush: %s", __func__, fs::PathToString(pathTmp), SysErrorString(errno_save));
+        return error("%s: Failed to close file %s after flush: %s", __func__, fs::PathToString(pathTmp),
+                     SysErrorString(errno_save));
     }
 
     // replace existing file, if any, with new file

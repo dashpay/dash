@@ -63,12 +63,8 @@ void CalculatePercentilesBySize(CAmount result[NUM_GETBLOCKSTATS_PERCENTILES], s
  * Helper to create UTXO snapshots given a chainstate and a file handle.
  * @return a UniValue map containing metadata about the snapshot.
  */
-UniValue CreateUTXOSnapshot(
-    node::NodeContext& node,
-    CChainState& chainstate,
-    AutoFile&& afile,
-    const fs::path& path,
-    const fs::path& tmppath);
+UniValue CreateUTXOSnapshot(node::NodeContext& node, CChainState& chainstate, AutoFile&& afile, const fs::path& path,
+                            const fs::path& tmppath);
 
 /**
  * Calculate statistics about the unspent transaction output set

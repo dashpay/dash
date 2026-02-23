@@ -928,7 +928,8 @@ void CBlockPolicyEstimator::Flush() {
         return;
     }
     if (est_file.fclose() != 0) {
-        LogPrintf("Failed to close fee estimates to %s: %s. Continue anyway.\n", fs::PathToString(est_filepath), SysErrorString(errno));
+        LogPrintf("Failed to close fee estimates to %s: %s. Continue anyway.\n", fs::PathToString(est_filepath),
+                  SysErrorString(errno));
     }
 }
 

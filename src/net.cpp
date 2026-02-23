@@ -18,13 +18,13 @@
 #include <compat/compat.h>
 #include <consensus/consensus.h>
 #include <crypto/sha256.h>
-#include <node/eviction.h>
 #include <fs.h>
 #include <i2p.h>
 #include <memusage.h>
 #include <net_permissions.h>
 #include <netaddress.h>
 #include <netbase.h>
+#include <node/eviction.h>
 #include <node/interface_ui.h>
 #include <protocol.h>
 #include <random.h>
@@ -4984,14 +4984,10 @@ static void CaptureMessageToFile(const CAddress& addr,
     ser_writedata32(f, size);
     f.write(AsBytes(data));
     if (f.fclose() != 0) {
-        throw std::ios_base::failure(
-            strprintf("Error closing %s after write: %s, file contents are likely incomplete",
-                fs::PathToString(path), SysErrorString(errno)));
+        throw std::ios_base::failure(strprintf("Error closing %s after write: %s, file contents are likely incomplete",
+                                               fs::PathToString(path), SysErrorString(errno)));
     }
 }
 
-std::function<void(const CAddress& addr,
-                   const std::string& msg_type,
-                   Span<const unsigned char> data,
-                   bool is_incoming)>
+std::function<void(const CAddress& addr, const std::string& msg_type, Span<const unsigned char> data, bool is_incoming)>
     CaptureMessage = CaptureMessageToFile;
