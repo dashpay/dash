@@ -343,6 +343,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/prevector.cpp \
  test/fuzz/primitives_transaction.cpp \
  test/fuzz/process_message.cpp \
+ test/fuzz/process_message_dash.cpp \
  test/fuzz/process_messages.cpp \
  test/fuzz/protocol.cpp \
  test/fuzz/psbt.cpp \
