@@ -74,11 +74,11 @@ FUZZ_TARGET(coinjoin_queue)
     // Use saturating arithmetic to avoid signed overflow UB in the test driver
     const int64_t kTimeout = COINJOIN_QUEUE_TIMEOUT;
     const int64_t time_plus = (queue.nTime <= std::numeric_limits<int64_t>::max() - kTimeout)
-                               ? queue.nTime + kTimeout
-                               : std::numeric_limits<int64_t>::max();
+                                  ? queue.nTime + kTimeout
+                                  : std::numeric_limits<int64_t>::max();
     const int64_t time_minus = (queue.nTime >= std::numeric_limits<int64_t>::min() + kTimeout)
-                                ? queue.nTime - kTimeout
-                                : std::numeric_limits<int64_t>::min();
+                                   ? queue.nTime - kTimeout
+                                   : std::numeric_limits<int64_t>::min();
     (void)queue.IsTimeOutOfBounds(time_plus);
     (void)queue.IsTimeOutOfBounds(time_minus);
     (void)queue.IsTimeOutOfBounds(std::numeric_limits<int64_t>::max());
@@ -129,7 +129,8 @@ FUZZ_TARGET(coinjoin_entry_addscriptsig)
     }
 
     // Now try to AddScriptSig with fuzzed CTxIn
-    LIMITED_WHILE(fuzzed_data_provider.remaining_bytes() > 0, 50) {
+    LIMITED_WHILE(fuzzed_data_provider.remaining_bytes() > 0, 50)
+    {
         CTxIn txin;
         uint256 hash;
         auto hash_bytes = fuzzed_data_provider.ConsumeBytes<uint8_t>(32);
