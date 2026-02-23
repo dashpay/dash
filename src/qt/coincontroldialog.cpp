@@ -39,8 +39,17 @@ bool CoinControlDialog::fSubtractFeeFromAmount = false;
 
 bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     int column = treeWidget()->sortColumn();
-    if (column == CoinControlDialog::COLUMN_AMOUNT || column == CoinControlDialog::COLUMN_DATE || column == CoinControlDialog::COLUMN_CONFIRMATIONS || column == CoinControlDialog::COLUMN_COINJOIN_ROUNDS)
-        return data(column, Qt::UserRole).toLongLong() < other.data(column, Qt::UserRole).toLongLong();
+    if (column == CoinControlDialog::COLUMN_AMOUNT || column == CoinControlDialog::COLUMN_DATE || column == CoinControlDialog::COLUMN_CONFIRMATIONS || column == CoinControlDialog::COLUMN_COINJOIN_ROUNDS) {
+        long long a = data(column, Qt::UserRole).toLongLong();
+        long long b = other.data(column, Qt::UserRole).toLongLong();
+        if (a != b) return a < b;
+        // Stable tiebreaker: sort by outpoint (txid:vout) to ensure consistent ordering of equal items
+        int cmp = data(CoinControlDialog::COLUMN_ADDRESS, CoinControlDialog::TxHashRole).toString()
+                      .compare(other.data(CoinControlDialog::COLUMN_ADDRESS, CoinControlDialog::TxHashRole).toString());
+        if (cmp != 0) return cmp < 0;
+        return data(CoinControlDialog::COLUMN_ADDRESS, CoinControlDialog::VOutRole).toUInt() <
+               other.data(CoinControlDialog::COLUMN_ADDRESS, CoinControlDialog::VOutRole).toUInt();
+    }
     return QTreeWidgetItem::operator<(other);
 }
 
