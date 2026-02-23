@@ -38,24 +38,13 @@ std::string SanitizeJsonString(std::string input)
     return input;
 }
 
-std::string MakeProposalJson(
-    int64_t type,
-    const std::string& name,
-    int64_t start_epoch,
-    int64_t end_epoch,
-    double payment_amount,
-    const std::string& payment_address,
-    const std::string& url)
+std::string MakeProposalJson(int64_t type, const std::string& name, int64_t start_epoch, int64_t end_epoch,
+                             double payment_amount, const std::string& payment_address, const std::string& url)
 {
-    return strprintf(
-        "{\"type\":%" PRId64 ",\"name\":\"%s\",\"start_epoch\":%" PRId64 ",\"end_epoch\":%" PRId64 ",\"payment_amount\":%.17g,\"payment_address\":\"%s\",\"url\":\"%s\"}",
-        type,
-        SanitizeJsonString(name),
-        start_epoch,
-        end_epoch,
-        payment_amount,
-        SanitizeJsonString(payment_address),
-        SanitizeJsonString(url));
+    return strprintf("{\"type\":%" PRId64 ",\"name\":\"%s\",\"start_epoch\":%" PRId64 ",\"end_epoch\":%" PRId64
+                     ",\"payment_amount\":%.17g,\"payment_address\":\"%s\",\"url\":\"%s\"}",
+                     type, SanitizeJsonString(name), start_epoch, end_epoch, payment_amount,
+                     SanitizeJsonString(payment_address), SanitizeJsonString(url));
 }
 
 void RunValidatorCase(const std::string& hex_data, bool allow_script, bool check_expiration)
@@ -70,10 +59,7 @@ void RunValidatorCase(const std::string& hex_data, bool allow_script, bool check
 }
 } // namespace
 
-void initialize_governance_proposal_validator()
-{
-    SelectParams(CBaseChainParams::MAIN);
-}
+void initialize_governance_proposal_validator() { SelectParams(CBaseChainParams::MAIN); }
 
 FUZZ_TARGET(governance_proposal_validator, .init = initialize_governance_proposal_validator)
 {
@@ -84,14 +70,12 @@ FUZZ_TARGET(governance_proposal_validator, .init = initialize_governance_proposa
         "7XuP9xVGyvkCAfW84QJkGfbiR7dX9TYaPH", // P2SH (mainnet)
     };
 
-    const int64_t type = fuzzed_data_provider.ConsumeBool()
-        ? ToUnderlying(GovernanceObject::PROPOSAL)
-        : fuzzed_data_provider.ConsumeIntegral<int64_t>();
+    const int64_t type = fuzzed_data_provider.ConsumeBool() ? ToUnderlying(GovernanceObject::PROPOSAL)
+                                                            : fuzzed_data_provider.ConsumeIntegral<int64_t>();
 
     // Clamp start_epoch to avoid signed overflow UB when adding offset
     const int64_t start_epoch = fuzzed_data_provider.ConsumeIntegralInRange<int64_t>(
-        std::numeric_limits<int64_t>::min() + 1024,
-        std::numeric_limits<int64_t>::max() - 1024);
+        std::numeric_limits<int64_t>::min() + 1024, std::numeric_limits<int64_t>::max() - 1024);
     const int64_t end_epoch = start_epoch + fuzzed_data_provider.ConsumeIntegralInRange<int64_t>(-4, 1024);
 
     double payment_amount = fuzzed_data_provider.ConsumeFloatingPointInRange<double>(-1000.0, 1000.0);
@@ -113,21 +97,18 @@ FUZZ_TARGET(governance_proposal_validator, .init = initialize_governance_proposa
         "http://broken]/path",
     };
 
-    const std::string payment_address = fuzzed_data_provider.ConsumeBool()
-        ? std::string(kPaymentAddresses[fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, kPaymentAddresses.size() - 1)])
-        : fuzzed_data_provider.ConsumeRandomLengthString(96);
+    const std::string payment_address =
+        fuzzed_data_provider.ConsumeBool()
+            ? std::string(
+                  kPaymentAddresses[fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, kPaymentAddresses.size() - 1)])
+            : fuzzed_data_provider.ConsumeRandomLengthString(96);
     const std::string url = fuzzed_data_provider.ConsumeBool()
-        ? std::string(kUrls[fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, kUrls.size() - 1)])
-        : random_url;
+                                ? std::string(
+                                      kUrls[fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, kUrls.size() - 1)])
+                                : random_url;
 
-    const std::string json_hex = HexEncodeString(MakeProposalJson(
-        type,
-        random_name,
-        start_epoch,
-        end_epoch,
-        payment_amount,
-        payment_address,
-        url));
+    const std::string json_hex = HexEncodeString(
+        MakeProposalJson(type, random_name, start_epoch, end_epoch, payment_amount, payment_address, url));
 
     const std::string malformed_json_hex = HexEncodeString("{" + fuzzed_data_provider.ConsumeRandomLengthString(128));
     const size_t oversized_payload_size = fuzzed_data_provider.ConsumeIntegralInRange<size_t>(513, 2048);
