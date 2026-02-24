@@ -350,8 +350,31 @@
   </layout>
   </widget>
   </item>
+  <item>
+  <widget class="DonutChart" name="budgetChart">
+   <property name="minimumSize">
+    <size>
+     <width>150</width>
+     <height>150</height>
+    </size>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>1</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+  </widget>
+  </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>DonutChart</class>
+   <extends>QWidget</extends>
+   <header>qt/donutchart.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

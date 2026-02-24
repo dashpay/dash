@@ -13,6 +13,7 @@
 #include <qt/bitcoinunits.h>
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
+#include <qt/donutchart.h>
 #include <qt/guiutil.h>
 #include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
@@ -162,10 +163,12 @@ void ProposalInfo::updateProposalInfo()
     ui->labelWeightedVotes->setText(tr("N/A"));
 #endif // ENABLE_WALLET
 
-    // Proposals section
+    // Proposals section with budget chart
     const BitcoinUnit display_unit{m_client_model->getOptionsModel()->getDisplayUnit()};
     const CAmount budget_avail{gov_info.governancebudget};
+    const QColor base_blue{GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BLUE).darker(160)};
 
+    // Collect passing proposals sorted by vote count
     std::vector<std::shared_ptr<Proposal>> passing_proposals;
     uint16_t proposals_fail{0}, proposals_total{0};
     for (const auto& prop : data_pr->m_proposals) {
@@ -176,28 +179,55 @@ void ProposalInfo::updateProposalInfo()
             proposals_fail++;
         }
     }
+    std::sort(passing_proposals.begin(), passing_proposals.end(),
+              [](const std::shared_ptr<Proposal>& a, const std::shared_ptr<Proposal>& b) {
+                  return a->getAbsoluteYesCount() > b->getAbsoluteYesCount();
+              });
 
-    CAmount budget_requested{0}, unfunded_shortfall{0};
+    CAmount budget_funded{0}, unfunded_shortfall{0};
     uint16_t unfunded_count{0};
-    for (const auto& prop : passing_proposals) {
+    std::vector<DonutChart::Slice> chart_slices{};
+
+    for (size_t idx{0}; idx < passing_proposals.size(); idx++) {
+        const auto& prop{passing_proposals[idx]};
         const CAmount proposed_amount{prop->paymentAmount()};
-        budget_requested += proposed_amount;
-        if (data_pr->m_fundable_hashes.count(prop->objHash()) == 0) {
+        if (data_pr->m_fundable_hashes.count(prop->objHash()) > 0) {
+            budget_funded += proposed_amount;
+        } else {
             unfunded_count++;
             unfunded_shortfall += proposed_amount;
         }
+        const double slice_pct{budget_avail <= 0
+            ? 0.0
+            : (static_cast<double>(proposed_amount) / static_cast<double>(budget_avail)) * 100.0};
+        chart_slices.emplace_back(DonutChart::Slice{
+            static_cast<double>(proposed_amount),
+            (idx == 0) ? base_blue : base_blue.lighter(100 + static_cast<int>(idx * 20)),
+            prop->title().isEmpty() ? tr("Proposal %1").arg(idx + 1) : prop->title(),
+            GUIUtil::formatAmount(display_unit, proposed_amount),
+            tr("%1% of budget").arg(slice_pct, 0, 'f', 1)
+        });
     }
 
     ui->labelProposalCount->setText(QString::number(proposals_total));
     ui->labelPassingProposals->setText(QString::number(passing_proposals.size()));
     ui->labelFailingProposals->setText(QString::number(proposals_fail));
 
+    const double alloc_pct_chart{budget_avail <= 0
+        ? 0.0
+        : (static_cast<double>(budget_funded) / static_cast<double>(budget_avail)) * 100.0};
+    DonutChart::CenterText default_text{
+        GUIUtil::formatAmount(display_unit, budget_funded),
+        tr("/ %1").arg(GUIUtil::formatAmount(display_unit, budget_avail)),
+        tr("%1% allocated").arg(alloc_pct_chart, 0, 'f', 1)
+    };
+    ui->budgetChart->setData(std::move(chart_slices), static_cast<double>(budget_avail), std::move(default_text));
+
     if (budget_avail > 0) {
-        const double alloc_pct{(static_cast<double>(budget_requested) / static_cast<double>(budget_avail)) * 100.0};
         ui->labelBudgetAllocated->setText(
-            tr("%1 / %2 (%3%)").arg(GUIUtil::formatAmount(display_unit, budget_requested, /*is_signed=*/false, /*truncate=*/2))
+            tr("%1 / %2 (%3%)").arg(GUIUtil::formatAmount(display_unit, budget_funded, /*is_signed=*/false, /*truncate=*/2))
                                .arg(GUIUtil::formatAmount(display_unit, budget_avail, /*is_signed=*/false, /*truncate=*/2))
-                               .arg(alloc_pct, 0, 'f', 2));
+                               .arg(alloc_pct_chart, 0, 'f', 2));
     } else {
         ui->labelBudgetAllocated->setText(tr("N/A"));
     }
