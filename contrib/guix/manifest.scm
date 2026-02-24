@@ -504,36 +504,6 @@ inspecting signatures in Mach-O binaries.")
                    (("^install-others =.*$")
                     (string-append "install-others = " out "/etc/rpc\n")))))))))))))
 
-;; The sponge tool from moreutils.
-(define-public sponge
-  (package
-    (name "sponge")
-    (version "0.69")
-    (source (origin
-              (method url-fetch)
-              (uri (string-append
-                    "https://git.joeyh.name/index.cgi/moreutils.git/snapshot/
-                    moreutils-" version ".tar.gz"))
-              (file-name (string-append "moreutils-" version ".tar.gz"))
-              (sha256
-               (base32
-                "1l859qnzccslvxlh5ghn863bkq2vgmqgnik6jr21b9kc6ljmsy8g"))))
-    (build-system gnu-build-system)
-    (arguments
-     (list #:phases
-           #~(modify-phases %standard-phases
-               (delete 'configure)
-               (replace 'install
-                (lambda* (#:key outputs #:allow-other-keys)
-                  (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
-                  (install-file "sponge" bin)))))
-           #:make-flags
-           #~(list "sponge" (string-append "CC=" #$(cc-for-target)))))
-    (home-page "https://joeyh.name/code/moreutils/")
-    (synopsis "Miscellaneous general-purpose command-line tools")
-    (description "Just sponge")
-    (license license:gpl2+)))
-
 (packages->manifest
  (append
   (list ;; The Basics
@@ -549,7 +519,6 @@ inspecting signatures in Mach-O binaries.")
         patch
         gawk
         sed
-        sponge
         ;; Compression and archiving
         tar
         gzip
