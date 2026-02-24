@@ -84,6 +84,7 @@ public:
     enum class InfoView : uint8_t {
         General,
         Network,
+        Governance,
     };
 
     std::vector<TabTypes> tabs() const { return {TabTypes::INFO, TabTypes::CONSOLE, TabTypes::GRAPH, TabTypes::PEERS, TabTypes::REPAIR}; }

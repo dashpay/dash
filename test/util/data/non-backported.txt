@@ -37,6 +37,7 @@ src/qt/masternodemodel.*
 src/qt/mnemonicverificationdialog.*
 src/qt/networkwidget.*
 src/qt/proposalcreate.*
+src/qt/proposalinfo.*
 src/qt/proposallist.*
 src/qt/proposalmodel.*
 src/qt/proposalresume.*
