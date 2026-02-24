@@ -178,21 +178,21 @@
     </widget>
    </item>
    <item row="9" column="0">
-    <widget class="QLabel" name="labelProposals">
+    <widget class="QLabel" name="labelNode">
      <property name="text">
-      <string>Proposals</string>
+      <string>Node</string>
      </property>
     </widget>
    </item>
    <item row="10" column="0">
-    <widget class="QLabel" name="labelProposalCountTitle">
+    <widget class="QLabel" name="labelMasternodesControlledTitle">
      <property name="text">
-      <string>Proposal Count</string>
+      <string>Masternodes controlled</string>
      </property>
     </widget>
    </item>
    <item row="10" column="1" colspan="2">
-    <widget class="QLabel" name="labelProposalCount">
+    <widget class="QLabel" name="labelMasternodesControlled">
      <property name="cursor">
       <cursorShape>IBeamCursor</cursorShape>
      </property>
@@ -205,14 +205,14 @@
     </widget>
    </item>
    <item row="11" column="0">
-    <widget class="QLabel" name="labelBudgetAllocatedTitle">
+    <widget class="QLabel" name="labelWeightedVotesTitle">
      <property name="text">
-      <string>Budget allocated</string>
+      <string>Votes controlled</string>
      </property>
     </widget>
    </item>
    <item row="11" column="1" colspan="2">
-    <widget class="QLabel" name="labelBudgetAllocated">
+    <widget class="QLabel" name="labelWeightedVotes">
      <property name="cursor">
       <cursorShape>IBeamCursor</cursorShape>
      </property>
@@ -225,37 +225,21 @@
     </widget>
    </item>
    <item row="12" column="0">
-    <widget class="QLabel" name="labelPassingProposalsTitle">
+    <widget class="QLabel" name="labelProposals">
      <property name="text">
-      <string>Passing Proposals</string>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="1" colspan="2">
-    <widget class="QLabel" name="labelPassingProposals">
-     <property name="cursor">
-      <cursorShape>IBeamCursor</cursorShape>
-     </property>
-     <property name="text">
-      <string>N/A</string>
-     </property>
-     <property name="textInteractionFlags">
-      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+      <string>Proposals</string>
      </property>
     </widget>
    </item>
    <item row="13" column="0">
-    <widget class="QLabel" name="labelUnfundedProposalsTitle">
+    <widget class="QLabel" name="labelProposalCountTitle">
      <property name="text">
-      <string>Unfunded proposals</string>
-     </property>
-     <property name="indent">
-      <number>10</number>
+      <string>Proposal Count</string>
      </property>
     </widget>
    </item>
    <item row="13" column="1" colspan="2">
-    <widget class="QLabel" name="labelUnfundedProposals">
+    <widget class="QLabel" name="labelProposalCount">
      <property name="cursor">
       <cursorShape>IBeamCursor</cursorShape>
      </property>
@@ -268,14 +252,14 @@
     </widget>
    </item>
    <item row="14" column="0">
-    <widget class="QLabel" name="labelFailingProposalsTitle">
+    <widget class="QLabel" name="labelBudgetAllocatedTitle">
      <property name="text">
-      <string>Failing Proposals</string>
+      <string>Budget allocated</string>
      </property>
     </widget>
    </item>
    <item row="14" column="1" colspan="2">
-    <widget class="QLabel" name="labelFailingProposals">
+    <widget class="QLabel" name="labelBudgetAllocated">
      <property name="cursor">
       <cursorShape>IBeamCursor</cursorShape>
      </property>
@@ -288,6 +272,69 @@
     </widget>
    </item>
    <item row="15" column="0">
+    <widget class="QLabel" name="labelPassingProposalsTitle">
+     <property name="text">
+      <string>Passing Proposals</string>
+     </property>
+    </widget>
+   </item>
+   <item row="15" column="1" colspan="2">
+    <widget class="QLabel" name="labelPassingProposals">
+     <property name="cursor">
+      <cursorShape>IBeamCursor</cursorShape>
+     </property>
+     <property name="text">
+      <string>N/A</string>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="0">
+    <widget class="QLabel" name="labelUnfundedProposalsTitle">
+     <property name="text">
+      <string>Unfunded proposals</string>
+     </property>
+     <property name="indent">
+      <number>10</number>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="1" colspan="2">
+    <widget class="QLabel" name="labelUnfundedProposals">
+     <property name="cursor">
+      <cursorShape>IBeamCursor</cursorShape>
+     </property>
+     <property name="text">
+      <string>N/A</string>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="0">
+    <widget class="QLabel" name="labelFailingProposalsTitle">
+     <property name="text">
+      <string>Failing Proposals</string>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="1" colspan="2">
+    <widget class="QLabel" name="labelFailingProposals">
+     <property name="cursor">
+      <cursorShape>IBeamCursor</cursorShape>
+     </property>
+     <property name="text">
+      <string>N/A</string>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="18" column="0">
     <spacer name="verticalSpacerGovernance">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

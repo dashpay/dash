@@ -1743,6 +1743,7 @@ QWidget#NetworkWidget QLabel#labelCreditPool,
 QWidget#NetworkWidget QLabel#labelInstantSend,
 QWidget#NetworkWidget QLabel#labelMasternodes,
 QWidget#NetworkWidget QLabel#labelQuorums,
+QWidget#ProposalInfo QLabel#labelNode,
 QWidget#ProposalInfo QLabel#labelParticipation,
 QWidget#ProposalInfo QLabel#labelProposals {
     qproperty-alignment: 'AlignLeft | AlignBottom';

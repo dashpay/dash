@@ -882,6 +882,7 @@ void RPCConsole::onWalletChanged()
         ui->btn_rescan1->setEnabled(false);
         ui->btn_rescan2->setEnabled(false);
     }
+    ui->proposalInfo->setWalletModel(wallet_model);
 }
 #endif
 

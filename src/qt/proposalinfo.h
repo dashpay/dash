@@ -5,11 +5,16 @@
 #ifndef BITCOIN_QT_PROPOSALINFO_H
 #define BITCOIN_QT_PROPOSALINFO_H
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <QWidget>
 
 class ClientModel;
 class MasternodeFeed;
 class ProposalFeed;
+class WalletModel;
 namespace Ui {
 class ProposalInfo;
 } // namespace Ui
@@ -29,6 +34,9 @@ public:
     ~ProposalInfo() override;
 
     void setClientModel(ClientModel* model);
+#ifdef ENABLE_WALLET
+    void setWalletModel(WalletModel* model);
+#endif // ENABLE_WALLET
 
 public Q_SLOTS:
     void updateProposalInfo();
@@ -40,6 +48,9 @@ private:
     ClientModel* m_client_model{nullptr};
     MasternodeFeed* m_feed_masternode{nullptr};
     ProposalFeed* m_feed_proposal{nullptr};
+#ifdef ENABLE_WALLET
+    WalletModel* m_wallet_model{nullptr};
+#endif // ENABLE_WALLET
 };
 
 #endif // BITCOIN_QT_PROPOSALINFO_H

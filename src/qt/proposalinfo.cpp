@@ -6,7 +6,9 @@
 #include <qt/forms/ui_proposalinfo.h>
 
 #include <chainparams.h>
+#include <evo/dmn_types.h>
 #include <interfaces/node.h>
+#include <script/standard.h>
 
 #include <qt/bitcoinunits.h>
 #include <qt/clientfeeds.h>
@@ -15,6 +17,12 @@
 #include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/proposalmodel.h>
+
+#ifdef ENABLE_WALLET
+#include <interfaces/wallet.h>
+#include <qt/masternodemodel.h>
+#include <qt/walletmodel.h>
+#endif // ENABLE_WALLET
 
 #include <QEvent>
 
@@ -43,11 +51,12 @@ ProposalInfo::ProposalInfo(QWidget* parent) :
 {
     ui->setupUi(this);
     GUIUtil::setFont({ui->labelGeneral,
+                      ui->labelNode,
                       ui->labelParticipation,
                       ui->labelProposals},
                       {GUIUtil::FontWeight::Bold, 16});
 
-    for (auto* element : {ui->labelParticipation, ui->labelProposals}) {
+    for (auto* element : {ui->labelNode, ui->labelParticipation, ui->labelProposals}) {
         element->setContentsMargins(0, 10, 0, 0);
     }
 }
@@ -79,6 +88,19 @@ void ProposalInfo::setClientModel(ClientModel* model)
         updateProposalInfo();
     }
 }
+
+#ifdef ENABLE_WALLET
+void ProposalInfo::setWalletModel(WalletModel* model)
+{
+    this->m_wallet_model = model;
+    if (!m_wallet_model) {
+        return;
+    }
+    if (m_feed_masternode && m_feed_proposal) {
+        updateProposalInfo();
+    }
+}
+#endif // ENABLE_WALLET
 
 void ProposalInfo::updateProposalInfo()
 {
@@ -114,6 +136,31 @@ void ProposalInfo::updateProposalInfo()
     // Participation section
     ui->labelMasternodesVoting->setText(tr("%1 (%2 eligible)").arg(data_pr->m_max_regular_voters).arg(data_mn->m_counts.m_valid_mn));
     ui->labelEvoNodesVoting->setText(tr("%1 (%2 eligible)").arg(data_pr->m_max_evo_voters).arg(data_mn->m_counts.m_valid_evo));
+
+    // Node section
+#ifdef ENABLE_WALLET
+    if (m_wallet_model) {
+        size_t controlled_count{0};
+        int32_t weighted_votes{0};
+        for (const auto& entry : data_mn->m_entries) {
+            if (entry->isBanned()) {
+                continue;
+            }
+            if (m_wallet_model->wallet().isSpendable(GetScriptForDestination(PKHash(entry->keyIdVotingRaw())))) {
+                controlled_count++;
+                weighted_votes += GetMnType(entry->type()).voting_weight;
+            }
+        }
+        ui->labelMasternodesControlled->setText(QString::number(controlled_count));
+        ui->labelWeightedVotes->setText(QString::number(weighted_votes));
+    } else {
+        ui->labelMasternodesControlled->setText(tr("N/A"));
+        ui->labelWeightedVotes->setText(tr("N/A"));
+    }
+#else
+    ui->labelMasternodesControlled->setText(tr("N/A"));
+    ui->labelWeightedVotes->setText(tr("N/A"));
+#endif // ENABLE_WALLET
 
     // Proposals section
     const BitcoinUnit display_unit{m_client_model->getOptionsModel()->getDisplayUnit()};

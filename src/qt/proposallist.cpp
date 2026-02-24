@@ -57,7 +57,7 @@ ProposalList::ProposalList(QWidget* parent) :
 {
     ui->setupUi(this);
 
-    GUIUtil::setFont({ui->label_count_2, ui->countLabel, ui->label_mn_count, ui->mnCountLabel},
+    GUIUtil::setFont({ui->label_count_2, ui->countLabel},
                      {GUIUtil::FontWeight::Bold, 14});
 
     ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -92,9 +92,6 @@ ProposalList::ProposalList(QWidget* parent) :
     connect(ui->btnCreateProposal, &QPushButton::clicked, this, &ProposalList::showCreateProposalDialog);
     connect(ui->btnResumeProposal, &QPushButton::clicked, this, &ProposalList::showResumeProposalDialog);
     updateProposalButtons();
-
-    // Initialize masternode count to 0
-    ui->mnCountLabel->setText("0");
 
     GUIUtil::updateFonts();
 }
@@ -267,7 +264,6 @@ void ProposalList::setProposalList(ProposalData&& data)
     proposalModel->setVotingParams(data.m_abs_vote_req);
     proposalModel->reconcile(std::move(data.m_proposals), std::move(data.m_fundable_hashes));
     m_gov_info = std::move(data.m_gov_info);
-    updateMasternodeCount();
     updateProposalButtons();
 }
 
@@ -381,13 +377,6 @@ void ProposalList::showAdditionalInfo(const QModelIndex& index)
     dialog->resize(800, 380);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
-}
-
-void ProposalList::updateMasternodeCount() const
-{
-    if (ui && ui->mnCountLabel) {
-        ui->mnCountLabel->setText(QString::number(votableMasternodes.size()));
-    }
 }
 
 void ProposalList::updateProposalButtons()

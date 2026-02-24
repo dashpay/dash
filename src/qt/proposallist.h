@@ -91,7 +91,6 @@ private Q_SLOTS:
     void showProposalContextMenu(const QPoint& pos);
     void showResumeProposalDialog();
     void updateDisplayUnit();
-    void updateMasternodeCount() const;
     void updateProposalCount();
     void updateProposalList();
 
