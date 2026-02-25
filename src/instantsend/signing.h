@@ -6,11 +6,10 @@
 #define BITCOIN_INSTANTSEND_SIGNING_H
 
 #include <instantsend/lock.h>
-#include <instantsend/signing.h>
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
-
-#include <optional>
+#include <sync.h>
+#include <threadsafety.h>
 
 class CMasternodeSync;
 class CSporkManager;

@@ -9,7 +9,6 @@
 #include <instantsend/lock.h>
 
 #include <net_types.h>
-#include <primitives/transaction.h>
 #include <protocol.h>
 #include <saltedhasher.h>
 #include <sync.h>
@@ -17,7 +16,6 @@
 #include <unordered_lru_cache.h>
 
 #include <optional>
-#include <unordered_set>
 #include <vector>
 
 class CBlockIndex;
@@ -30,6 +28,7 @@ struct LLMQParams;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
+typedef std::shared_ptr<const CTransaction> CTransactionRef;
 
 namespace instantsend {
 
