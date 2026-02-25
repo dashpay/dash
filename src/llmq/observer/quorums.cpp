@@ -334,7 +334,7 @@ void QuorumObserver::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockI
 
     // do not block the caller thread
     workerPool.push([pIndex, t, this](int threadId) {
-        std::set<uint256> dbKeysToSkip;
+        Uint256HashSet dbKeysToSkip;
 
         if (LOCK(cs_cleanup); cleanupQuorumsCache.empty()) {
             utils::InitQuorumsCache(cleanupQuorumsCache, m_chainman.GetConsensus(), /*limit_by_connections=*/false);
@@ -346,7 +346,7 @@ void QuorumObserver::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockI
             LOCK(cs_cleanup);
             auto& cache = cleanupQuorumsCache[params.type];
             const CBlockIndex* pindex_loop{pIndex};
-            std::set<uint256> quorum_keys;
+            Uint256HashSet quorum_keys;
             while (pindex_loop != nullptr && pIndex->nHeight - pindex_loop->nHeight < params.max_store_depth()) {
                 uint256 quorum_key;
                 if (cache.get(pindex_loop->GetBlockHash(), quorum_key)) {

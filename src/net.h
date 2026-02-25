@@ -11,6 +11,7 @@
 #include <common/bloom.h>
 #include <compat/compat.h>
 #include <consensus/amount.h>
+#include <consensus/params.h>
 #include <fs.h>
 #include <crypto/siphash.h>
 #include <hash.h>
@@ -35,7 +36,6 @@
 #include <util/system.h>
 #include <util/threadinterrupt.h>
 #include <util/wpipe.h>
-#include <consensus/params.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -1465,7 +1465,7 @@ public:
     void RemoveMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash);
     bool IsMasternodeQuorumNode(const CNode* pnode, const CDeterministicMNList& tip_mn_list) const;
     bool IsMasternodeQuorumRelayMember(const uint256& protxHash);
-    void AddPendingProbeConnections(const std::set<uint256>& proTxHashes);
+    void AddPendingProbeConnections(const Uint256HashSet& proTxHashes);
 
     size_t GetNodeCount(ConnectionDirection) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     std::map<CNetAddr, LocalServiceInfo> getNetLocalAddresses() const;
@@ -1783,7 +1783,7 @@ private:
     mutable RecursiveMutex cs_vPendingMasternodes;
     std::map<std::pair<Consensus::LLMQType, uint256>, Uint256HashSet> masternodeQuorumNodes GUARDED_BY(cs_vPendingMasternodes);
     std::map<std::pair<Consensus::LLMQType, uint256>, Uint256HashSet> masternodeQuorumRelayMembers GUARDED_BY(cs_vPendingMasternodes);
-    std::set<uint256> masternodePendingProbes GUARDED_BY(cs_vPendingMasternodes);
+    Uint256HashSet masternodePendingProbes GUARDED_BY(cs_vPendingMasternodes);
 
     mutable Mutex cs_mapSocketToNode;
     std::unordered_map<SOCKET, CNode*> mapSocketToNode GUARDED_BY(cs_mapSocketToNode);

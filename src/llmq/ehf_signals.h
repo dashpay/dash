@@ -7,6 +7,7 @@
 
 #include <llmq/signing.h>
 #include <msg_result.h>
+#include <saltedhasher.h>
 
 #include <set>
 
@@ -30,7 +31,8 @@ private:
      * keep freshly generated IDs for easier filter sigs in HandleNewRecoveredSig
      */
     mutable Mutex cs;
-    std::set<uint256> ids GUARDED_BY(cs);
+    Uint256HashSet ids GUARDED_BY(cs);
+
 public:
     explicit CEHFSignalsHandler(ChainstateManager& chainman, CSigningManager& sigman, CSigSharesManager& shareman,
                                 const CQuorumManager& qman);

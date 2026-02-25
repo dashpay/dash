@@ -755,8 +755,9 @@ Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, co
     return result;
 }
 
-std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
-                                                   size_t memberCount, size_t connectionCount)
+std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
+                                                             gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
+                                                             size_t memberCount, size_t connectionCount)
 {
     static uint256 qwatchConnectionSeed;
     static std::atomic<bool> qwatchConnectionSeedGenerated{false};
@@ -767,7 +768,7 @@ std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
         qwatchConnectionSeedGenerated = true;
     }
 
-    std::set<size_t> result;
+    std::unordered_set<size_t> result;
     uint256 rnd = qwatchConnectionSeed;
     for ([[maybe_unused]] const auto _ : irange::range(connectionCount)) {
         rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash())));
@@ -842,7 +843,7 @@ void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman
     auto members = GetAllQuorumMembers(llmqParams.type, util_params);
     auto curTime = GetTime<std::chrono::seconds>().count();
 
-    std::set<uint256> probeConnections;
+    Uint256HashSet probeConnections;
     for (const auto& dmn : members) {
         if (dmn->proTxHash == myProTxHash) {
             continue;

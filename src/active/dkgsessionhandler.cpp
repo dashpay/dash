@@ -251,19 +251,19 @@ void ActiveDKGSessionHandler::HandlePhase(QuorumPhase curPhase, QuorumPhase next
 
 // returns a set of NodeIds which sent invalid messages
 template<typename Message>
-std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<std::pair<NodeId, std::shared_ptr<Message>>>& messages)
+std::unordered_set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<std::pair<NodeId, std::shared_ptr<Message>>>& messages)
 {
     if (messages.empty()) {
         return {};
     }
 
-    std::set<NodeId> ret;
+    std::unordered_set<NodeId> ret;
     bool revertToSingleVerification = false;
 
     CBLSSignature aggSig;
     std::vector<CBLSPublicKey> pubKeys;
     std::vector<uint256> messageHashes;
-    std::set<uint256> messageHashesSet;
+    Uint256HashSet messageHashesSet;
     pubKeys.reserve(messages.size());
     messageHashes.reserve(messages.size());
     bool first = true;

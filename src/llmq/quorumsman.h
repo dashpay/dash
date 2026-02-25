@@ -12,6 +12,7 @@
 #include <llmq/quorums.h>
 #include <llmq/types.h>
 #include <msg_result.h>
+#include <saltedhasher.h>
 #include <unordered_lru_cache.h>
 
 #include <sync.h>
@@ -157,7 +158,7 @@ public:
                                            Consensus::LLMQType llmqType) const override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
     void CleanupExpiredDataRequests() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    void CleanupOldQuorumData(const std::set<uint256>& dbKeysToSkip) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
 
 private:
     // all private methods here are cs_main-free

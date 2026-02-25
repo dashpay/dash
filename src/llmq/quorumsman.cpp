@@ -359,7 +359,7 @@ void CQuorumManager::CleanupExpiredDataRequests() const
     }
 }
 
-void CQuorumManager::CleanupOldQuorumData(const std::set<uint256>& dbKeysToSkip) const
+void CQuorumManager::CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const
 {
     LOCK(cs_db);
     DataCleanupHelper(*db, dbKeysToSkip);

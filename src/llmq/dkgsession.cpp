@@ -409,7 +409,7 @@ bool CDKGSession::PreVerifyMessage(const CDKGJustification& qj, bool& retBan) co
         return false;
     }
 
-    std::set<size_t> contributionsSet;
+    std::unordered_set<size_t> contributionsSet;
     for (const auto& [index, skContribution] : qj.contributions) {
         if (GetMemberAtIndex(index) == nullptr) {
             logger.Batch("invalid contribution index");

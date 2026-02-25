@@ -9,9 +9,9 @@
 #include <ctpl_stl.h>
 #include <llmq/options.h>
 #include <llmq/types.h>
+#include <saltedhasher.h>
 
 #include <consensus/params.h>
-#include <saltedhasher.h>
 #include <span.h>
 #include <sync.h>
 #include <threadsafety.h>
@@ -59,7 +59,7 @@ public:
                                                  gsl::not_null<const CBlockIndex*> pindexStart,
                                                  size_t nCountRequested) const = 0;
     virtual void CleanupExpiredDataRequests() const = 0;
-    virtual void CleanupOldQuorumData(const std::set<uint256>& dbKeysToSkip) const = 0;
+    virtual void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const = 0;
 };
 
 class QuorumObserver

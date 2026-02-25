@@ -10,7 +10,7 @@
 #include <univalue.h>
 
 #include <functional>
-#include <set>
+#include <unordered_set>
 
 class CDataStream;
 class CDeterministicMNManager;
@@ -45,7 +45,7 @@ public:
         uint8_t statusBitset;
     };
 
-    std::set<uint16_t> complaintsFromMembers;
+    std::unordered_set<uint16_t> complaintsFromMembers;
 
 public:
     CDKGDebugMemberStatus() : statusBitset(0) {}
