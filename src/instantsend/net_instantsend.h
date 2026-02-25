@@ -20,6 +20,10 @@ namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
 
+namespace chainlock {
+class Chainlocks;
+} // namespace chainlock
+
 class CMasternodeSync;
 class CTxMemPool;
 
@@ -40,12 +44,14 @@ class NetInstantSend final : public NetHandler, public CValidationInterface
 public:
     NetInstantSend(PeerManagerInternal* peer_manager, llmq::CInstantSendManager& is_manager,
                    instantsend::InstantSendSigner* signer, llmq::CSigningManager& sigman, llmq::CQuorumManager& qman,
-                   CChainState& chainstate, CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
+                   const chainlock::Chainlocks& chainlocks, CChainState& chainstate, CTxMemPool& mempool,
+                   const CMasternodeSync& mn_sync) :
         NetHandler(peer_manager),
         m_is_manager{is_manager},
         m_signer{signer},
         m_sigman{sigman},
         m_qman(qman),
+        m_chainlocks{chainlocks},
         m_chainstate{chainstate},
         m_mempool{mempool},
         m_mn_sync{mn_sync}
@@ -106,6 +112,7 @@ private:
     instantsend::InstantSendSigner* m_signer; // non-null only for masternode
     llmq::CSigningManager& m_sigman;
     llmq::CQuorumManager& m_qman;
+    const chainlock::Chainlocks& m_chainlocks;
     CChainState& m_chainstate;
     CTxMemPool& m_mempool;
     const CMasternodeSync& m_mn_sync;

@@ -31,10 +31,6 @@ namespace util {
 struct DbWrapperParams;
 } // namespace util
 
-namespace chainlock {
-class Chainlocks;
-}
-
 namespace instantsend {
 
 struct PendingISLockFromPeer {
@@ -58,8 +54,6 @@ class CInstantSendManager
 {
 private:
     instantsend::CInstantSendDb db;
-
-    const chainlock::Chainlocks& m_chainlocks;
     CSporkManager& spork_manager;
     const CMasternodeSync& m_mn_sync;
 
@@ -97,8 +91,8 @@ public:
     CInstantSendManager() = delete;
     CInstantSendManager(const CInstantSendManager&) = delete;
     CInstantSendManager& operator=(const CInstantSendManager&) = delete;
-    explicit CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSporkManager& sporkman,
-                                 const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params);
+    explicit CInstantSendManager(CSporkManager& sporkman, const CMasternodeSync& mn_sync,
+                                 const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
@@ -124,7 +118,6 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     [[nodiscard]] std::vector<CTransactionRef> PrepareTxToRetry()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
-    const chainlock::Chainlocks& Chainlocks() { return m_chainlocks; }
 
     void RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
     void WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
