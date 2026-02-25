@@ -37,13 +37,13 @@ ActiveDKGSession::~ActiveDKGSession() = default;
 
 void ActiveDKGSession::Contribute(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
 {
-    CDKGLogger logger(*this, __func__, __LINE__);
-
     if (!AreWeMember()) {
         return;
     }
 
     assert(params.threshold > 1); // we should not get there with single-node-quorums
+
+    CDKGLogger logger(*this, __func__, __LINE__);
 
     cxxtimer::Timer t1(true);
     logger.Batch("generating contributions");

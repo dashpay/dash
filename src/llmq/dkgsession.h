@@ -6,6 +6,7 @@
 #define BITCOIN_LLMQ_DKGSESSION_H
 
 #include <llmq/commitment.h>
+#include <protocol.h>
 
 #include <batchedlogger.h>
 #include <bls/bls.h>
@@ -21,7 +22,6 @@
 #include <unordered_set>
 
 class CActiveMasternodeManager;
-class CInv;
 class CConnman;
 class CDeterministicMN;
 class CMasternodeMetaMan;
@@ -282,6 +282,20 @@ class CDKGSession
     friend class CDKGLogger;
 
 private:
+    enum class MsgPhase : uint8_t {
+        Contribution,
+        Complaint,
+        Justification
+    };
+
+    struct ReceiveMessageState {
+        CDKGMember* member{nullptr};
+        uint256 hash{};
+        CInv inv{};
+        bool should_process{true};
+    };
+
+private:
     CBLSWorker& blsWorker;
     CBLSWorkerCache cache;
     CDeterministicMNManager& m_dmnman;
@@ -401,12 +415,16 @@ protected:
 
 private:
     [[nodiscard]] bool ShouldSimulateError(DKGError::type type) const;
+
+    template <typename MsgType>
+    [[nodiscard]] std::optional<ReceiveMessageState> ReceiveMessagePreamble(const MsgType& msg, MsgPhase phase, CDKGLogger& logger)
+        EXCLUSIVE_LOCKS_REQUIRED(invCs);
+
     void MarkBadMember(size_t idx);
 };
 
 void SetSimulatedDKGErrorRate(DKGError::type type, double rate);
 double GetSimulatedErrorRate(DKGError::type type);
-
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_DKGSESSION_H
