@@ -4,7 +4,6 @@
 
 #include <instantsend/instantsend.h>
 
-#include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <masternode/sync.h>
@@ -16,10 +15,9 @@ using node::fImporting;
 using node::fReindex;
 
 namespace llmq {
-CInstantSendManager::CInstantSendManager(const chainlock::Chainlocks& chainlocks, CSporkManager& sporkman,
-                                         const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params) :
+CInstantSendManager::CInstantSendManager(CSporkManager& sporkman, const CMasternodeSync& mn_sync,
+                                         const util::DbWrapperParams& db_params) :
     db{db_params},
-    m_chainlocks{chainlocks},
     spork_manager{sporkman},
     m_mn_sync{mn_sync}
 {
