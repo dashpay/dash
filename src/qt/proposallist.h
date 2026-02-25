@@ -74,6 +74,7 @@ private:
     void setProposalList(ProposalData&& data);
     void updateEmptyPagePalette();
     void updateEmptyState();
+    void updateInfoTooltip();
     void updateProposalButtons();
     void voteForProposal(vote_outcome_enum_t outcome);
 
@@ -98,6 +99,9 @@ private Q_SLOTS:
     void voteYes();
     void voteNo();
     void voteAbstain();
+
+Q_SIGNALS:
+    void showProposalInfo();
 };
 
 #endif // BITCOIN_QT_PROPOSALLIST_H

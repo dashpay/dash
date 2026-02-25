@@ -59,6 +59,9 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QPushButton" name="btnInfoView"/>
+       </item>
       </layout>
      </item>
      <item>

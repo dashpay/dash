@@ -1495,6 +1495,12 @@ void RPCConsole::setTabFocus(enum TabTypes tabType)
     showPage(ToUnderlying(tabType));
 }
 
+void RPCConsole::setInfoView(InfoView view)
+{
+    setTabFocus(TabTypes::INFO);
+    showInfoView(ToUnderlying(view));
+}
+
 QString RPCConsole::tabTitle(TabTypes tab_type) const
 {
     return pageButtons->button(ToUnderlying(tab_type))->text();
