@@ -37,9 +37,9 @@ ObserverContext::~ObserverContext()
     m_qman.DisconnectManagers();
 }
 
-void ObserverContext::Start()
+void ObserverContext::Start(int16_t worker_count)
 {
-    qman_handler->Start();
+    qman_handler->Start(worker_count);
 }
 
 void ObserverContext::Stop()

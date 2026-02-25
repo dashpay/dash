@@ -44,11 +44,10 @@ QuorumObserver::~QuorumObserver()
     Stop();
 }
 
-void QuorumObserver::Start()
+void QuorumObserver::Start(int16_t worker_count)
 {
-    int workerCount = std::thread::hardware_concurrency() / 2;
-    workerCount = std::clamp(workerCount, 1, 4);
-    workerPool.resize(workerCount);
+    assert(worker_count > 0);
+    workerPool.resize(worker_count);
     RenameThreadPool(workerPool, "q-mngr");
 }
 

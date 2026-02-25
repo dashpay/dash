@@ -47,7 +47,7 @@ public:
                     const util::DbWrapperParams& db_params, bool quorums_recovery);
     ~ObserverContext();
 
-    void Start();
+    void Start(int16_t worker_count);
     void Stop();
 
 protected:

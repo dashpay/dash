@@ -63,9 +63,9 @@ ActiveContext::~ActiveContext()
     m_isman.DisconnectSigner();
 }
 
-void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
+void ActiveContext::Start(CConnman& connman, PeerManager& peerman, int16_t worker_count)
 {
-    qman_handler->Start();
+    qman_handler->Start(worker_count);
     qdkgsman->StartThreads(connman, peerman);
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();

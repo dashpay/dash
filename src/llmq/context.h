@@ -41,7 +41,7 @@ public:
     explicit LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSporkManager& sporkman,
                          chainlock::Chainlocks& chainlocks, CTxMemPool& mempool, ChainstateManager& chainman,
                          const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params, int8_t bls_threads,
-                         int64_t max_recsigs_age);
+                         int16_t worker_count, int64_t max_recsigs_age);
     ~LLMQContext();
 
     /** Guaranteed if LLMQContext is initialized then all members are valid too

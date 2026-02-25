@@ -72,7 +72,7 @@ public:
                            bool quorums_recovery, bool quorums_watch);
     ~ActiveContext();
 
-    void Start(CConnman& connman, PeerManager& peerman);
+    void Start(CConnman& connman, PeerManager& peerman, int16_t worker_count);
     void Stop();
 
     CCoinJoinServer& GetCJServer() const;

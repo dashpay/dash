@@ -14,11 +14,13 @@
 #include <util/underlying.h>
 #include <validation.h>
 
+#include <algorithm>
 #include <string>
 #include <stdexcept>
+#include <thread>
 
-namespace llmq
-{
+namespace llmq {
+int16_t DEFAULT_WORKER_COUNT{std::clamp<int16_t>(std::thread::hardware_concurrency() / 2, 1, 4)};
 
 static bool EvalSpork(const Consensus::LLMQType llmqType, const int64_t spork_value)
 {

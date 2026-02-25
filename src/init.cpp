@@ -2018,6 +2018,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                                   // Subtract 1 because the main thread counts towards the par threads
                                                   return std::clamp<int8_t>(threads - 1, 0, llmq::MAX_BLSCHECK_THREADS);
                                               }(),
+                                              llmq::DEFAULT_WORKER_COUNT,
                                               args.GetIntArg("-maxrecsigsage", llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE),
                                               /*shutdown_requested=*/ShutdownRequested,
                                               /*coins_error_cb=*/[]() {
@@ -2321,7 +2322,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     node.peerman->StartHandlers();
     node.clhandler->Start();
-    if (node.observer_ctx) node.observer_ctx->Start();
+    if (node.observer_ctx) node.observer_ctx->Start(llmq::DEFAULT_WORKER_COUNT);
 
     node.scheduler->scheduleEvery(std::bind(&CNetFulfilledRequestManager::DoMaintenance, std::ref(*node.netfulfilledman)), std::chrono::minutes{1});
     node.scheduler->scheduleEvery(std::bind(&CMasternodeUtils::DoMaintenance, std::ref(*node.connman), std::ref(*node.dmnman), std::ref(*node.mn_sync), node.cj_walletman.get()), std::chrono::minutes{1});
@@ -2329,7 +2330,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.peerman->ScheduleHandlers(*node.scheduler);
 
     if (node.active_ctx) {
-        node.active_ctx->Start(*node.connman, *node.peerman);
+        node.active_ctx->Start(*node.connman, *node.peerman, llmq::DEFAULT_WORKER_COUNT);
         node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.active_ctx->qdkgsman)), std::chrono::hours{1});
     }
 

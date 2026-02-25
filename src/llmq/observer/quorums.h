@@ -92,7 +92,7 @@ public:
                             const llmq::QvvecSyncModeMap& sync_map, bool quorums_recovery);
     virtual ~QuorumObserver();
 
-    void Start();
+    void Start(int16_t worker_count);
     void Stop();
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const;
