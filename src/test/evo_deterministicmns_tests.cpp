@@ -20,7 +20,6 @@
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
-#include <spork.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <validation.h>
@@ -424,11 +423,6 @@ void FuncDIP3Protx(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
-
-    CKey sporkKey;
-    sporkKey.MakeNewKey(false);
-    setup.m_node.sporkman->SetSporkAddress(EncodeDestination(PKHash(sporkKey.GetPubKey())));
-    setup.m_node.sporkman->SetPrivKey(EncodeSecret(sporkKey));
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
 
