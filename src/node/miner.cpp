@@ -41,7 +41,6 @@
 #include <llmq/options.h>
 #include <llmq/snapshot.h>
 #include <masternode/payments.h>
-#include <spork.h>
 
 #include <algorithm>
 #include <utility>
