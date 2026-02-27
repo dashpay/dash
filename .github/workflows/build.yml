@@ -63,13 +63,13 @@ jobs:
       file: ./contrib/containers/ci/ci-slim.Dockerfile
       name: dashcore-ci-slim
 
-  depends-arm-linux:
-    name: arm-linux-gnueabihf
+  depends-aarch64-linux:
+    name: aarch64-linux-gnu
     uses: ./.github/workflows/build-depends.yml
     needs: [container, cache-sources]
     if: ${{ vars.SKIP_ARM_LINUX == '' }}
     with:
-      build-target: arm-linux
+      build-target: aarch64-linux
       container-path: ${{ needs.container.outputs.path }}
 
   depends-linux64:
@@ -131,16 +131,16 @@ jobs:
     with:
       container-path: ${{ needs.container-slim.outputs.path }}
 
-  src-arm-linux:
-    name: arm-linux-build
+  src-aarch64-linux:
+    name: aarch64-linux-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-arm-linux]
+    needs: [container, depends-aarch64-linux]
     with:
-      build-target: arm-linux
+      build-target: aarch64-linux
       container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-arm-linux.outputs.key }}
-      depends-host: ${{ needs.depends-arm-linux.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-arm-linux.outputs.dep-opts }}
+      depends-key: ${{ needs.depends-aarch64-linux.outputs.key }}
+      depends-host: ${{ needs.depends-aarch64-linux.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-aarch64-linux.outputs.dep-opts }}
 
   src-linux64:
     name: linux64-build
