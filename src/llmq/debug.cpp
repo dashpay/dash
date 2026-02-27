@@ -107,21 +107,32 @@ UniValue CDKGDebugSessionStatus::ToJson(CDeterministicMNManager& dmnman, CQuorum
     return ret;
 }
 
-CDKGDebugManager::CDKGDebugManager() = default;
+CDKGDebugManager::CDKGDebugManager(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
+                                   const ChainstateManager& chainman) :
+    m_dmnman{dmnman},
+    m_qsnapman{qsnapman},
+    m_chainman{chainman}
+{
+}
 
 CDKGDebugManager::~CDKGDebugManager() = default;
 
-UniValue CDKGDebugStatus::ToJson(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
-                                 const ChainstateManager& chainman, int detailLevel) const
+size_t CDKGDebugManager::GetSessionCount() const
 {
-    UniValue ret(UniValue::VOBJ);
+    return WITH_LOCK(cs_lockStatus, return localStatus.sessions.size());
+}
 
-    ret.pushKV("time", nTime);
-    ret.pushKV("timeStr", FormatISO8601DateTime(nTime));
+UniValue CDKGDebugManager::ToJson(int detailLevel) const
+{
+    LOCK(cs_lockStatus);
+
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("time", localStatus.nTime);
+    ret.pushKV("timeStr", FormatISO8601DateTime(localStatus.nTime));
 
     // TODO Support array of sessions
     UniValue sessionsArrJson(UniValue::VARR);
-    for (const auto& p : sessions) {
+    for (const auto& p : localStatus.sessions) {
         const auto& llmq_params_opt = Params().GetLLMQ(p.first.first);
         if (!llmq_params_opt.has_value()) {
             continue;
@@ -129,19 +140,13 @@ UniValue CDKGDebugStatus::ToJson(CDeterministicMNManager& dmnman, CQuorumSnapsho
         UniValue s(UniValue::VOBJ);
         s.pushKV("llmqType", std::string(llmq_params_opt->name));
         s.pushKV("quorumIndex", p.first.second);
-        s.pushKV("status", p.second.ToJson(dmnman, qsnapman, chainman, p.first.second, detailLevel));
+        s.pushKV("status", p.second.ToJson(m_dmnman, m_qsnapman, m_chainman, p.first.second, detailLevel));
 
         sessionsArrJson.push_back(s);
     }
     ret.pushKV("session", sessionsArrJson);
 
     return ret;
-}
-
-void CDKGDebugManager::GetLocalDebugStatus(llmq::CDKGDebugStatus& ret) const
-{
-    LOCK(cs_lockStatus);
-    ret = localStatus;
 }
 
 void CDKGDebugManager::ResetLocalSessionStatus(Consensus::LLMQType llmqType, int quorumIndex)

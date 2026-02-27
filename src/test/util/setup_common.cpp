@@ -146,7 +146,8 @@ void DashChainstateSetup(ChainstateManager& chainman,
     DashChainstateSetup(chainman, *Assert(node.govman.get()), *Assert(node.mn_metaman.get()), *Assert(node.mn_sync.get()),
                         *Assert(node.sporkman.get()), *Assert(node.chainlocks), node.chain_helper, node.dmnman, *node.evodb,
                         node.llmq_ctx, Assert(node.mempool.get()), node.args->GetDataDirNet(), llmq_dbs_in_memory, llmq_dbs_wipe,
-                        llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE, consensus_params);
+                        llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE,
+                        consensus_params);
 }
 
 void DashChainstateSetupClose(NodeContext& node)
@@ -344,6 +345,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            /*coins_db_in_memory=*/true,
                                            /*dash_dbs_in_memory=*/true,
                                            llmq::DEFAULT_BLSCHECK_THREADS,
+                                           llmq::DEFAULT_WORKER_COUNT,
                                            llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE);
     assert(!maybe_load_error.has_value());
 

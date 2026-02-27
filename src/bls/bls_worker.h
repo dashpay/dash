@@ -54,7 +54,7 @@ public:
     CBLSWorker();
     ~CBLSWorker();
 
-    void Start();
+    void Start(int16_t worker_count);
     void Stop();
 
     bool GenerateContributions(int threshold, Span<CBLSId> ids, BLSVerificationVectorPtr& vvecRet, std::vector<CBLSSecretKey>& skSharesRet);

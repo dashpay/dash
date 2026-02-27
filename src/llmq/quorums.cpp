@@ -26,7 +26,7 @@ uint256 MakeQuorumKey(const CQuorum& q)
     return hw.GetHash();
 }
 
-void DataCleanupHelper(CDBWrapper& db, const std::set<uint256>& skip_list, bool compact)
+void DataCleanupHelper(CDBWrapper& db, const Uint256HashSet& skip_list, bool compact)
 {
     const auto prefixes = {DB_QUORUM_QUORUM_VVEC, DB_QUORUM_SK_SHARE};
 

@@ -3,9 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
+
 #include <bls/bls_worker.h>
-#include <random.h>
+#include <llmq/options.h>
 #include <util/irange.h>
+
+#include <random.h>
 
 struct Member {
     CBLSId id;
@@ -67,7 +70,7 @@ public:
             ids.emplace_back(id);
         }
 
-        blsWorker.Start();
+        blsWorker.Start(llmq::DEFAULT_WORKER_COUNT);
         for (auto& member : members) {
             blsWorker.GenerateContributions(quorumSize / 2 + 1, ids, member.vvec, member.skShares);
         }
@@ -110,7 +113,7 @@ public:
 static void BLSDKG_GenerateContributions(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize)
 {
     CBLSWorker blsWorker;
-    blsWorker.Start();
+    blsWorker.Start(llmq::DEFAULT_WORKER_COUNT);
     std::vector<CBLSId> ids;
     std::vector<Member> members;
     if (!bench.output()) {

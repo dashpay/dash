@@ -3,7 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
+
 #include <bls/bls_worker.h>
+#include <llmq/options.h>
+
 #include <random.h>
 #include <util/time.h>
 
@@ -321,7 +324,7 @@ static void BLS_Verify_BatchedParallel(benchmark::Bench& bench)
     };
 
     CBLSWorker blsWorker;
-    blsWorker.Start();
+    blsWorker.Start(llmq::DEFAULT_WORKER_COUNT);
 
     // Benchmark.
     bench.minEpochIterations(bench.output() ? 1000 : 1).run([&] {

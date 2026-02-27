@@ -35,7 +35,7 @@ extern const std::string DB_QUORUM_SK_SHARE;
 extern const std::string DB_QUORUM_QUORUM_VVEC;
 
 uint256 MakeQuorumKey(const CQuorum& q);
-void DataCleanupHelper(CDBWrapper& db, const std::set<uint256>& skip_list, bool compact = false);
+void DataCleanupHelper(CDBWrapper& db, const Uint256HashSet& skip_list, bool compact = false);
 
 /**
  * Object used as a key to store CQuorumDataRequest

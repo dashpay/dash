@@ -19,7 +19,7 @@ ObserverContext::ObserverContext(CBLSWorker& bls_worker, CConnman& connman, CDet
                                  const CSporkManager& sporkman, const llmq::QvvecSyncModeMap& sync_map,
                                  const util::DbWrapperParams& db_params, bool quorums_recovery) :
     m_qman{qman},
-    dkgdbgman{std::make_unique<llmq::CDKGDebugManager>()},
+    dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params,
                                                         /*quorums_watch=*/true)},
     qman_handler{std::make_unique<llmq::QuorumObserver>(connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman,
@@ -37,9 +37,9 @@ ObserverContext::~ObserverContext()
     m_qman.DisconnectManagers();
 }
 
-void ObserverContext::Start()
+void ObserverContext::Start(int16_t worker_count)
 {
-    qman_handler->Start();
+    qman_handler->Start(worker_count);
 }
 
 void ObserverContext::Stop()

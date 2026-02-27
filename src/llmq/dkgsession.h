@@ -6,14 +6,15 @@
 #define BITCOIN_LLMQ_DKGSESSION_H
 
 #include <llmq/commitment.h>
+#include <protocol.h>
 
 #include <batchedlogger.h>
 #include <bls/bls.h>
 #include <bls/bls_ies.h>
 #include <bls/bls_worker.h>
 #include <evo/types.h>
-
 #include <saltedhasher.h>
+
 #include <sync.h>
 #include <util/underlying.h>
 
@@ -21,7 +22,6 @@
 #include <unordered_set>
 
 class CActiveMasternodeManager;
-class CInv;
 class CConnman;
 class CDeterministicMN;
 class CMasternodeMetaMan;
@@ -215,13 +215,13 @@ public:
     size_t idx;
     CBLSId id;
 
-    std::set<uint256> contributions;
-    std::set<uint256> complaints;
-    std::set<uint256> justifications;
-    std::set<uint256> prematureCommitments;
+    Uint256HashSet contributions;
+    Uint256HashSet complaints;
+    Uint256HashSet justifications;
+    Uint256HashSet prematureCommitments;
 
-    std::set<uint256> badMemberVotes;
-    std::set<uint256> complaintsFromOthers;
+    Uint256HashSet badMemberVotes;
+    Uint256HashSet complaintsFromOthers;
 
     bool bad{false};
     bool badConnection{false};
@@ -282,6 +282,20 @@ class CDKGSession
     friend class CDKGLogger;
 
 private:
+    enum class MsgPhase : uint8_t {
+        Contribution,
+        Complaint,
+        Justification
+    };
+
+    struct ReceiveMessageState {
+        CDKGMember* member{nullptr};
+        uint256 hash{};
+        CInv inv{};
+        bool should_process{true};
+    };
+
+private:
     CBLSWorker& blsWorker;
     CBLSWorkerCache cache;
     CDeterministicMNManager& m_dmnman;
@@ -325,7 +339,7 @@ private:
     std::vector<size_t> pendingContributionVerifications GUARDED_BY(cs_pending);
 
     // filled by ReceivePrematureCommitment and used by FinalizeCommitments
-    std::set<uint256> validCommitments GUARDED_BY(invCs);
+    Uint256HashSet validCommitments GUARDED_BY(invCs);
 
 public:
     CDKGSession(CBLSWorker& _blsWorker, CDeterministicMNManager& dmnman, CDKGDebugManager& _dkgDebugManager,
@@ -366,7 +380,7 @@ public:
 
     // Phase 3: justification
     virtual void VerifyAndJustify(CDKGPendingMessages& pendingMessages, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!invCs) {}
-    virtual void SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman, const std::set<uint256>& forMembers) {}
+    virtual void SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman, const Uint256HashSet& forMembers) {}
     bool PreVerifyMessage(const CDKGJustification& qj, bool& retBan) const;
     std::optional<CInv> ReceiveMessage(const CDKGJustification& qj) EXCLUSIVE_LOCKS_REQUIRED(!invCs);
 
@@ -401,12 +415,16 @@ protected:
 
 private:
     [[nodiscard]] bool ShouldSimulateError(DKGError::type type) const;
+
+    template <typename MsgType>
+    [[nodiscard]] std::optional<ReceiveMessageState> ReceiveMessagePreamble(const MsgType& msg, MsgPhase phase, CDKGLogger& logger)
+        EXCLUSIVE_LOCKS_REQUIRED(invCs);
+
     void MarkBadMember(size_t idx);
 };
 
 void SetSimulatedDKGErrorRate(DKGError::type type, double rate);
 double GetSimulatedErrorRate(DKGError::type type);
-
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_DKGSESSION_H

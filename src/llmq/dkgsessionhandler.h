@@ -18,8 +18,8 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <set>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 class CBlockIndex;
@@ -67,7 +67,7 @@ private:
     mutable Mutex cs_messages;
     std::list<BinaryMessage> pendingMessages GUARDED_BY(cs_messages);
     std::map<NodeId, size_t> messagesPerNode GUARDED_BY(cs_messages);
-    std::set<uint256> seenMessages GUARDED_BY(cs_messages);
+    Uint256HashSet seenMessages GUARDED_BY(cs_messages);
 
 public:
     explicit CDKGPendingMessages(size_t _maxMessagesPerNode, uint32_t _invType) :

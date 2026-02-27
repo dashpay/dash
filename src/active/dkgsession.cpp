@@ -37,13 +37,13 @@ ActiveDKGSession::~ActiveDKGSession() = default;
 
 void ActiveDKGSession::Contribute(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
 {
-    CDKGLogger logger(*this, __func__, __LINE__);
-
     if (!AreWeMember()) {
         return;
     }
 
     assert(params.threshold > 1); // we should not get there with single-node-quorums
+
+    CDKGLogger logger(*this, __func__, __LINE__);
 
     cxxtimer::Timer t1(true);
     logger.Batch("generating contributions");
@@ -304,7 +304,7 @@ void ActiveDKGSession::VerifyAndJustify(CDKGPendingMessages& pendingMessages, Pe
 
     CDKGLogger logger(*this, __func__, __LINE__);
 
-    std::set<uint256> justifyFor;
+    Uint256HashSet justifyFor;
 
     for (const auto& m : members) {
         if (m->bad) {
@@ -338,7 +338,7 @@ void ActiveDKGSession::VerifyAndJustify(CDKGPendingMessages& pendingMessages, Pe
 }
 
 void ActiveDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman,
-                                         const std::set<uint256>& forMembers)
+                                         const Uint256HashSet& forMembers)
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 

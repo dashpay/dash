@@ -4456,7 +4456,7 @@ bool CConnman::IsMasternodeQuorumRelayMember(const uint256& protxHash)
     return false;
 }
 
-void CConnman::AddPendingProbeConnections(const std::set<uint256> &proTxHashes)
+void CConnman::AddPendingProbeConnections(const Uint256HashSet& proTxHashes)
 {
     LOCK(cs_vPendingMasternodes);
     masternodePendingProbes.insert(proTxHashes.begin(), proTxHashes.end());

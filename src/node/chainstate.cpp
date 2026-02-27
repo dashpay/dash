@@ -59,6 +59,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      bool coins_db_in_memory,
                                                      bool dash_dbs_in_memory,
                                                      int8_t bls_threads,
+                                                     int16_t worker_count,
                                                      int64_t max_recsigs_age,
                                                      std::function<bool()> shutdown_requested,
                                                      std::function<void()> coins_error_cb)
@@ -84,7 +85,8 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
 
     DashChainstateSetup(chainman, govman, mn_metaman, mn_sync, sporkman, chainlocks, chain_helper,
                         dmnman, *evodb, llmq_ctx, mempool, data_dir, dash_dbs_in_memory,
-                        /*llmq_dbs_wipe=*/fReset || fReindexChainState, bls_threads, max_recsigs_age, consensus_params);
+                        /*llmq_dbs_wipe=*/fReset || fReindexChainState, bls_threads, worker_count,
+                        max_recsigs_age, consensus_params);
 
     if (fReset) {
         pblocktree->WriteReindexing(true);
@@ -219,6 +221,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
                          bool llmq_dbs_in_memory,
                          bool llmq_dbs_wipe,
                          int8_t bls_threads,
+                         int16_t worker_count,
                          int64_t max_recsigs_age,
                          const Consensus::Params& consensus_params)
 {
@@ -229,7 +232,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
     llmq_ctx.reset();
     llmq_ctx = std::make_unique<LLMQContext>(*dmnman, evodb, sporkman, chainlocks, *mempool, chainman, mn_sync,
                                              util::DbWrapperParams{.path = data_dir, .memory = llmq_dbs_in_memory, .wipe = llmq_dbs_wipe},
-                                             bls_threads, max_recsigs_age);
+                                             bls_threads, worker_count, max_recsigs_age);
     mempool->ConnectManagers(dmnman.get(), llmq_ctx->isman.get());
     chain_helper.reset();
     chain_helper = std::make_unique<CChainstateHelper>(evodb, *dmnman, govman, *(llmq_ctx->isman), *(llmq_ctx->quorum_block_processor),

@@ -27,14 +27,16 @@ enum class QvvecSyncMode : int8_t {
     OnlyIfTypeMember = 1,
 };
 
-/** Maximum number of dedicated script-checking threads allowed */
-static const int8_t MAX_BLSCHECK_THREADS{33};
-/** -parbls default (number of bls-checking threads, 0 = auto) */
-static const int8_t DEFAULT_BLSCHECK_THREADS{0};
 /** -llmq-data-recovery default */
 static constexpr bool DEFAULT_ENABLE_QUORUM_DATA_RECOVERY{true};
 /** -watchquorums default, if true, we will connect to all new quorums and watch their communication */
 static constexpr bool DEFAULT_WATCH_QUORUMS{false};
+/** -parbls default (number of bls-checking threads, 0 = auto) */
+static constexpr int8_t DEFAULT_BLSCHECK_THREADS{0};
+/** Number of workers allocated per worker pool */
+extern int16_t DEFAULT_WORKER_COUNT;
+/** Maximum number of dedicated script-checking threads allowed */
+static constexpr int8_t MAX_BLSCHECK_THREADS{33};
 
 bool IsAllMembersConnectedEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman);
 bool IsQuorumPoseEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman);

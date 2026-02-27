@@ -77,8 +77,8 @@ RPCResult CDKGDebugSessionStatus::GetJsonHelp(const std::string& key, bool optio
     }};
 }
 
-// CDKGDebugStatus::ToJson() defined in llmq/debug.cpp
-RPCResult CDKGDebugStatus::GetJsonHelp(const std::string& key, bool optional, bool inner_optional)
+// CDKGDebugManager::ToJson() defined in llmq/debug.cpp
+RPCResult CDKGDebugManager::GetJsonHelp(const std::string& key, bool optional, bool inner_optional)
 {
     return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The state of the node's DKG sessions",
     {

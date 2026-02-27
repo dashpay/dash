@@ -25,6 +25,7 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include <type_traits>
 
 namespace llmq {
 CDKGLogger::CDKGLogger(const CDKGSession& _quorumDkg, std::string_view _func, int source_line) :
@@ -197,42 +198,15 @@ bool CDKGSession::PreVerifyMessage(const CDKGContribution& qc, bool& retBan) con
     return true;
 }
 
-// TODO: remove duplicated code between all ReceiveMessage: CDKGContribution, CDKGComplaint, CDKGJustification, CDKGPrematureCommitment
 std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGContribution& qc)
 {
     CDKGLogger logger(*this, __func__, __LINE__);
-
-    auto* member = GetMember(qc.proTxHash);
-
     cxxtimer::Timer t1(true);
-    logger.Batch("received contribution from %s", qc.proTxHash.ToString());
 
-    // relay, no matter if further verification fails
-    // This ensures the whole quorum sees the bad behavior
-
-    if (member->contributions.size() >= 2) {
-        // only relay up to 2 contributions, that's enough to let the other members know about his bad behavior
-        return std::nullopt;
-    }
-
-    const uint256 hash = ::SerializeHash(qc);
-    WITH_LOCK(invCs, contributions.emplace(hash, qc));
-    member->contributions.emplace(hash);
-
-    CInv inv(MSG_QUORUM_CONTRIB, hash);
-
-    dkgDebugManager.UpdateLocalMemberStatus(params.type, quorumIndex, member->idx, [&](CDKGDebugMemberStatus& status) {
-        status.statusBits.receivedContribution = true;
-        return true;
-    });
-
-    if (member->contributions.size() > 1) {
-        // don't do any further processing if we got more than 1 contribution. we already relayed it,
-        // so others know about his bad behavior
-        MarkBadMember(member->idx);
-        logger.Batch("%s did send multiple contributions", member->dmn->proTxHash.ToString());
-        return inv;
-    }
+    auto state = WITH_LOCK(invCs, return ReceiveMessagePreamble(qc, MsgPhase::Contribution, logger));
+    if (!state) return std::nullopt;
+    auto& [member, hash, inv, should_process] = *state;
+    if (!should_process) return inv;
 
     receivedVvecs[member->idx] = qc.vvec;
 
@@ -240,13 +214,11 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGContribution& qc)
 
     logger.Batch("received and relayed contribution. received=%d/%d, time=%d", receivedCount, members.size(), t1.count());
 
-    cxxtimer::Timer t2(true);
-
     if (!AreWeMember()) {
-        // can't further validate
         return inv;
     }
 
+    cxxtimer::Timer t2(true);
     dkgManager.WriteVerifiedVvecContribution(params.type, m_quorum_base_block_index, qc.proTxHash, qc.vvec);
 
     bool complain = false;
@@ -327,33 +299,10 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGComplaint& qc)
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 
-    logger.Batch("received complaint from %s", qc.proTxHash.ToString());
-
-    auto* member = GetMember(qc.proTxHash);
-
-    if (member->complaints.size() >= 2) {
-        // only relay up to 2 complaints, that's enough to let the other members know about his bad behavior
-        return std::nullopt;
-    }
-
-    const uint256 hash = ::SerializeHash(qc);
-    WITH_LOCK(invCs, complaints.emplace(hash, qc));
-    member->complaints.emplace(hash);
-
-    CInv inv(MSG_QUORUM_COMPLAINT, hash);
-
-    dkgDebugManager.UpdateLocalMemberStatus(params.type, quorumIndex, member->idx, [&](CDKGDebugMemberStatus& status) {
-        status.statusBits.receivedComplaint = true;
-        return true;
-    });
-
-    if (member->complaints.size() > 1) {
-        // don't do any further processing if we got more than 1 complaint. we already relayed it,
-        // so others know about his bad behavior
-        MarkBadMember(member->idx);
-        logger.Batch("%s did send multiple complaints", member->dmn->proTxHash.ToString());
-        return inv;
-    }
+    auto state = WITH_LOCK(invCs, return ReceiveMessagePreamble(qc, MsgPhase::Complaint, logger));
+    if (!state) return std::nullopt;
+    auto& [member, hash, inv, should_process] = *state;
+    if (!should_process) return inv;
 
     int receivedCount = 0;
     for (const auto i : irange::range(members.size())) {
@@ -409,7 +358,7 @@ bool CDKGSession::PreVerifyMessage(const CDKGJustification& qj, bool& retBan) co
         return false;
     }
 
-    std::set<size_t> contributionsSet;
+    std::unordered_set<size_t> contributionsSet;
     for (const auto& [index, skContribution] : qj.contributions) {
         if (GetMemberAtIndex(index) == nullptr) {
             logger.Batch("invalid contribution index");
@@ -446,34 +395,10 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGJustification& qj)
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 
-    logger.Batch("received justification from %s", qj.proTxHash.ToString());
-
-    auto* member = GetMember(qj.proTxHash);
-
-    if (member->justifications.size() >= 2) {
-        // only relay up to 2 justifications, that's enough to let the other members know about his bad behavior
-        return std::nullopt;
-    }
-
-    const uint256 hash = ::SerializeHash(qj);
-    WITH_LOCK(invCs, justifications.emplace(hash, qj));
-    member->justifications.emplace(hash);
-
-    // we always relay, even if further verification fails
-    CInv inv(MSG_QUORUM_JUSTIFICATION, hash);
-
-    dkgDebugManager.UpdateLocalMemberStatus(params.type, quorumIndex, member->idx, [&](CDKGDebugMemberStatus& status) {
-        status.statusBits.receivedJustification = true;
-        return true;
-    });
-
-    if (member->justifications.size() > 1) {
-        // don't do any further processing if we got more than 1 justification. we already relayed it,
-        // so others know about his bad behavior
-        logger.Batch("%s did send multiple justifications", member->dmn->proTxHash.ToString());
-        MarkBadMember(member->idx);
-        return inv;
-    }
+    auto state = WITH_LOCK(invCs, return ReceiveMessagePreamble(qj, MsgPhase::Justification, logger));
+    if (!state) return std::nullopt;
+    auto& [member, hash, inv, should_process] = *state;
+    if (!should_process) return inv;
 
     if (member->bad) {
         // we locally determined him to be bad (sent none or more then one contributions)
@@ -690,6 +615,80 @@ CDKGMember* CDKGSession::GetMemberAtIndex(size_t index) const
     if (index >= members.size()) return nullptr;
     return members[index].get();
 }
+
+template <typename MsgType>
+std::optional<CDKGSession::ReceiveMessageState> CDKGSession::ReceiveMessagePreamble(const MsgType& msg, MsgPhase phase, CDKGLogger& logger)
+{
+    auto* member = GetMember(msg.proTxHash);
+    if (member == nullptr) {
+        logger.Batch("message from non-member %s", msg.proTxHash.ToString());
+        return std::nullopt;
+    }
+
+    GetDataMsg inv_type{0};
+    std::string msg_name;
+
+    // Select member set, inv type, and name based on phase
+    auto& member_set = [&]() -> Uint256HashSet& {
+        switch (phase) {
+        case MsgPhase::Contribution:
+            inv_type = MSG_QUORUM_CONTRIB;
+            msg_name = "contribution";
+            return member->contributions;
+        case MsgPhase::Complaint:
+            inv_type = MSG_QUORUM_COMPLAINT;
+            msg_name = "complaint";
+            return member->complaints;
+        case MsgPhase::Justification:
+            inv_type = MSG_QUORUM_JUSTIFICATION;
+            msg_name = "justification";
+            return member->justifications;
+        }
+        assert(false);
+    }();
+
+    logger.Batch("received %s from %s", msg_name, msg.proTxHash.ToString());
+
+    if (member_set.size() >= 2) {
+        // only relay up to 2 messages, that's enough to let the other members know about his bad behavior
+        return std::nullopt;
+    }
+
+    const uint256 hash = ::SerializeHash(msg);
+    member_set.emplace(hash);
+    if constexpr (std::is_same_v<MsgType, CDKGContribution>) {
+        contributions.emplace(hash, msg);
+    } else if constexpr (std::is_same_v<MsgType, CDKGComplaint>) {
+        complaints.emplace(hash, msg);
+    } else if constexpr (std::is_same_v<MsgType, CDKGJustification>) {
+        justifications.emplace(hash, msg);
+    }
+
+    dkgDebugManager.UpdateLocalMemberStatus(params.type, quorumIndex, member->idx, [phase](CDKGDebugMemberStatus& status) {
+        switch (phase) {
+        case MsgPhase::Contribution: status.statusBits.receivedContribution = true; break;
+        case MsgPhase::Complaint: status.statusBits.receivedComplaint = true; break;
+        case MsgPhase::Justification: status.statusBits.receivedJustification = true; break;
+        }
+        return true;
+    });
+
+    bool should_process{true};
+    if (member_set.size() > 1) {
+        // don't do any further processing if we got more than 1 justification. we already relayed it,
+        // so others know about his bad behavior
+        MarkBadMember(member->idx);
+        logger.Batch("%s did send multiple %ss", member->dmn->proTxHash.ToString(), msg_name);
+        should_process = false;
+    }
+
+    // we always relay, even if further verification fails
+    return ReceiveMessageState{member, hash, CInv{inv_type, hash}, should_process};
+}
+
+template std::optional<CDKGSession::ReceiveMessageState> CDKGSession::ReceiveMessagePreamble<CDKGContribution>(const CDKGContribution&, MsgPhase, CDKGLogger&);
+template std::optional<CDKGSession::ReceiveMessageState> CDKGSession::ReceiveMessagePreamble<CDKGComplaint>(const CDKGComplaint&, MsgPhase, CDKGLogger&);
+template std::optional<CDKGSession::ReceiveMessageState> CDKGSession::ReceiveMessagePreamble<CDKGJustification>(const CDKGJustification&, MsgPhase, CDKGLogger&);
 
 void CDKGSession::MarkBadMember(size_t idx)
 {

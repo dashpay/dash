@@ -16,7 +16,7 @@
 
 #include <gsl/pointers.h>
 
-#include <set>
+#include <unordered_set>
 #include <vector>
 
 class CBlockIndex;
@@ -62,9 +62,9 @@ public:
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2);
 
-std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
-                                                   gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
-                                                   size_t memberCount, size_t connectionCount);
+std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
+                                                             gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
+                                                             size_t memberCount, size_t connectionCount);
 
 // includes members which failed DKG
 std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params,

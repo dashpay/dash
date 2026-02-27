@@ -12,6 +12,7 @@
 #include <llmq/quorums.h>
 #include <llmq/types.h>
 #include <msg_result.h>
+#include <saltedhasher.h>
 #include <unordered_lru_cache.h>
 
 #include <sync.h>
@@ -83,12 +84,11 @@ private:
     mutable std::unordered_map<CQuorumDataRequestKey, CQuorumDataRequest, StaticSaltedHasher> mapQuorumDataRequests
         GUARDED_BY(cs_data_requests);
 
-    mutable Mutex cs_map_quorums;
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<CQuorumPtr>> mapQuorumsCache GUARDED_BY(cs_map_quorums);
-
-    mutable Mutex cs_scan_quorums; // TODO: merge cs_map_quorums, cs_scan_quorums mutexes
+    mutable Mutex m_cs_maps;
+    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<CQuorumPtr>> mapQuorumsCache
+        GUARDED_BY(m_cs_maps);
     mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CQuorumCPtr>>> scanQuorumsCache
-        GUARDED_BY(cs_scan_quorums);
+        GUARDED_BY(m_cs_maps);
 
     // On mainnet, we have around 62 quorums active at any point; let's cache a little more than double that to be safe.
     // it maps `quorum_hash` to `pindex`
@@ -130,7 +130,7 @@ public:
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& pfrom, CConnman& connman, std::string_view msg_type,
                                                          CDataStream& vRecv)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_data_requests, !cs_map_quorums, !m_cache_cs);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_data_requests, !m_cs_maps, !m_cache_cs);
 
     static bool HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockProcessor& quorum_block_processor, const uint256& quorumHash);
 
@@ -140,14 +140,14 @@ public:
 
     // all these methods will lock cs_main for a short period of time
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !m_cache_cs);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !m_cache_cs);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     // this one is cs_main-free
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
                                          size_t nCountRequested) const override
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !cs_scan_quorums, !m_cache_cs);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     bool IsMasternode() const;
     bool IsWatching() const;
@@ -158,7 +158,7 @@ public:
                                            Consensus::LLMQType llmqType) const override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
     void CleanupExpiredDataRequests() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    void CleanupOldQuorumData(const std::set<uint256>& dbKeysToSkip) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
 
 private:
     // all private methods here are cs_main-free
@@ -167,11 +167,11 @@ private:
     CQuorumPtr BuildQuorumFromCommitment(Consensus::LLMQType llmqType,
                                          gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
                                          bool populate_cache) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !m_cache_cs);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex,
                           bool populate_cache = true) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_map_quorums, !m_cache_cs);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     void QueueQuorumForWarming(CQuorumCPtr pQuorum) const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);
     void CacheWarmingThreadMain() const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);

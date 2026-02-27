@@ -43,7 +43,7 @@ public:
     void VerifyAndJustify(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override
         EXCLUSIVE_LOCKS_REQUIRED(!invCs);
     void SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman,
-                           const std::set<uint256>& forMembers) override;
+                           const Uint256HashSet& forMembers) override;
 
     // Phase 4: commit
     void VerifyAndCommit(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override;

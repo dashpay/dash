@@ -35,7 +35,7 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
     m_isman{isman},
     m_qman{qman},
     nodeman{std::make_unique<CActiveMasternodeManager>(connman, dmnman, operator_sk)},
-    dkgdbgman{std::make_unique<llmq::CDKGDebugManager>()},
+    dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params, quorums_watch)},
     shareman{std::make_unique<llmq::CSigSharesManager>(connman, chainman, sigman, *nodeman, qman, sporkman)},
     gov_signer{std::make_unique<GovernanceSigner>(connman, dmnman, govman, *nodeman, chainman, mn_sync)},
@@ -63,9 +63,9 @@ ActiveContext::~ActiveContext()
     m_isman.DisconnectSigner();
 }
 
-void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
+void ActiveContext::Start(CConnman& connman, PeerManager& peerman, int16_t worker_count)
 {
-    qman_handler->Start();
+    qman_handler->Start(worker_count);
     qdkgsman->StartThreads(connman, peerman);
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();
