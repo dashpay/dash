@@ -30,8 +30,6 @@
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h> // for CRecipient
 
-#include <spork.h>
-
 #include <stdint.h>
 #include <functional>
 

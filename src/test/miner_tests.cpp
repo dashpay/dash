@@ -24,7 +24,6 @@
 #include <instantsend/instantsend.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
-#include <spork.h>
 
 #include <test/util/setup_common.h>
 

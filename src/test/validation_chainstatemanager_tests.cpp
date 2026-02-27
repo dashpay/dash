@@ -20,7 +20,6 @@
 #include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/signing.h>
-#include <spork.h>
 
 #include <tinyformat.h>
 
