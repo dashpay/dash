@@ -39,7 +39,9 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
         obj.pushKV("version", state.nVersion);
     }
     if (fields & Field_netInfo) {
-        obj.pushKV("service", state.netInfo->GetPrimary().ToStringAddrPort());
+        if (IsServiceDeprecatedRPCEnabled()) {
+            obj.pushKV("service", state.netInfo->GetPrimary().ToStringAddrPort());
+        }
     }
     if (fields & Field_nRegisteredHeight) {
         obj.pushKV("registeredHeight", state.nRegisteredHeight);

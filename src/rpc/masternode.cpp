@@ -182,7 +182,7 @@ static RPCHelpMan masternode_status()
             RPCResult::Type::OBJ, "", "",
             {
                 GetRpcResult("outpoint"),
-                GetRpcResult("service"),
+                GetRpcResult("service", /*optional=*/true),
                 GetRpcResult("proTxHash", /*optional=*/true),
                 GetRpcResult("type_str", /*optional=*/true, /*override_name=*/"type"),
                 GetRpcResult("collateralHash", /*optional=*/true),
@@ -537,7 +537,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
                 RPCResult{"for mode = info", RPCResult::Type::STR, "<info>", "Flattened list of a masternode's status, payee address and service addresses"},
                 RPCResult{"for mode = evo, json or recent", RPCResult::Type::OBJ, "", "", {
                     GetRpcResult("proTxHash"),
-                    GetRpcResult("service", /*optional=*/false, /*override_name=*/"address"),
+                    GetRpcResult("service", /*optional=*/true, /*override_name=*/"address"),
                     GetRpcResult("addresses"),
                     GetRpcResult("payoutAddress", /*optional=*/false, /*override_name=*/"payee"),
                     {RPCResult::Type::STR, "status", "Masternode status (human-readable string)"},
@@ -690,15 +690,19 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
                 return;
             UniValue objMN(UniValue::VOBJ);
             objMN.pushKV("proTxHash", dmn.proTxHash.ToString());
-            objMN.pushKV("address", dmn.pdmnState->netInfo->GetPrimary().ToStringAddrPort());
+            if (IsDeprecatedRPCEnabled("service")) {
+                objMN.pushKV("address", dmn.pdmnState->netInfo->GetPrimary().ToStringAddrPort());
+            }
             objMN.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn.pdmnState, dmn.nType));
             objMN.pushKV("payee", payeeStr);
             objMN.pushKV("status", dmnToStatus(dmn));
             objMN.pushKV("type", std::string(GetMnType(dmn.nType).description));
             if (dmn.nType == MnType::Evo) {
                 objMN.pushKV("platformNodeID", dmn.pdmnState->platformNodeID.ToString());
-                objMN.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*dmn.pdmnState));
-                objMN.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*dmn.pdmnState));
+                if (IsDeprecatedRPCEnabled("service")) {
+                    objMN.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*dmn.pdmnState));
+                    objMN.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*dmn.pdmnState));
+                }
             }
             objMN.pushKV("pospenaltyscore", dmn.pdmnState->nPoSePenalty);
             objMN.pushKV("consecutivePayments", dmn.pdmnState->nConsecutivePayments);

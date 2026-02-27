@@ -53,9 +53,9 @@ const std::map<std::string, RPCResult> RPCRESULT_MAP{{
     RESULT_MAP_ENTRY("outpoint", RPCResult::Type::STR_HEX,"The outpoint of the masternode"),
     RESULT_MAP_ENTRY("ownerAddress", RPCResult::Type::STR, "Dash address used for payee updates and proposal voting"),
     RESULT_MAP_ENTRY("payoutAddress", RPCResult::Type::STR, "Dash address used for masternode reward payments"),
-    RESULT_MAP_ENTRY("platformHTTPPort", RPCResult::Type::NUM, "(DEPRECATED) TCP port of Platform HTTP API"),
+    RESULT_MAP_ENTRY("platformHTTPPort", RPCResult::Type::NUM, "TCP port of Platform HTTP API (DEPRECATED, returned only if config option -deprecatedrpc=service is passed)"),
     RESULT_MAP_ENTRY("platformNodeID", RPCResult::Type::STR_HEX, "Node ID derived from P2P public key for Platform P2P"),
-    RESULT_MAP_ENTRY("platformP2PPort", RPCResult::Type::NUM, "(DEPRECATED) TCP port of Platform P2P"),
+    RESULT_MAP_ENTRY("platformP2PPort", RPCResult::Type::NUM, "TCP port of Platform P2P (DEPRECATED, returned only if config option -deprecatedrpc=service is passed)"),
     RESULT_MAP_ENTRY("PoSeBanHeight", RPCResult::Type::NUM, "Height masternode was banned for Proof of Service violations"),
     RESULT_MAP_ENTRY("PoSePenalty", RPCResult::Type::NUM, "Proof of Service penalty score"),
     RESULT_MAP_ENTRY("PoSeRevivedHeight", RPCResult::Type::NUM, "Height masternode recovered from Proof of Service violations"),
@@ -66,7 +66,7 @@ const std::map<std::string, RPCResult> RPCRESULT_MAP{{
     RESULT_MAP_ENTRY("quorumSig", RPCResult::Type::STR_HEX, "BLS recovered threshold signature of quorum"),
     RESULT_MAP_ENTRY("registeredHeight", RPCResult::Type::NUM, "Height masternode was registered"),
     RESULT_MAP_ENTRY("revocationReason", RPCResult::Type::NUM, "Reason for ProUpRegTx revocation"),
-    RESULT_MAP_ENTRY("service", RPCResult::Type::STR, "(DEPRECATED) IP address and port of the masternode"),
+    RESULT_MAP_ENTRY("service", RPCResult::Type::STR, "IP address and port of the masternode (DEPRECATED, returned only if config option -deprecatedrpc=service is passed)"),
     RESULT_MAP_ENTRY("type", RPCResult::Type::NUM, "Masternode type"),
     RESULT_MAP_ENTRY("type_str", RPCResult::Type::STR, "Masternode type (human-readable string)"),
     RESULT_MAP_ENTRY("version", RPCResult::Type::NUM, "Special transaction version"),
@@ -197,7 +197,7 @@ RPCResult CDeterministicMNState::GetJsonHelp(const std::string& key, bool option
     return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The masternode state",
     {
         {RPCResult::Type::NUM, "version", "Version of the masternode state"},
-        GetRpcResult("service"),
+        GetRpcResult("service", /*optional=*/true),
         GetRpcResult("addresses"),
         GetRpcResult("registeredHeight"),
         GetRpcResult("lastPaidHeight"),
@@ -221,7 +221,9 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
 {
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("version", nVersion);
-    obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    if (IsServiceDeprecatedRPCEnabled()) {
+        obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    }
     obj.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     obj.pushKV("registeredHeight", nRegisteredHeight);
     obj.pushKV("lastPaidHeight", nLastPaidHeight);
@@ -234,8 +236,10 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (nType == MnType::Evo) {
         obj.pushKV("platformNodeID", platformNodeID.ToString());
-        obj.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*this));
-        obj.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        if (IsServiceDeprecatedRPCEnabled()) {
+            obj.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*this));
+            obj.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        }
     }
 
     CTxDestination dest;
@@ -283,7 +287,7 @@ RPCResult CProRegTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("type"),
         GetRpcResult("collateralHash"),
         GetRpcResult("collateralIndex"),
-        GetRpcResult("service"),
+        GetRpcResult("service", /*optional=*/true),
         GetRpcResult("addresses"),
         GetRpcResult("ownerAddress"),
         GetRpcResult("votingAddress"),
@@ -304,7 +308,9 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("type", ToUnderlying(nType));
     ret.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     ret.pushKV("collateralIndex", collateralOutpoint.n);
-    ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    if (IsServiceDeprecatedRPCEnabled()) {
+        ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    }
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
@@ -315,8 +321,10 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("operatorReward", (double)nOperatorReward / 100);
     if (nType == MnType::Evo) {
         ret.pushKV("platformNodeID", platformNodeID.ToString());
-        ret.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*this));
-        ret.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        if (IsServiceDeprecatedRPCEnabled()) {
+            ret.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*this));
+            ret.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        }
     }
     ret.pushKV("inputsHash", inputsHash.ToString());
     return ret;
@@ -377,7 +385,7 @@ RPCResult CProUpServTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("version"),
         GetRpcResult("type"),
         GetRpcResult("proTxHash"),
-        GetRpcResult("service"),
+        GetRpcResult("service", /*optional=*/true),
         GetRpcResult("addresses"),
         GetRpcResult("operatorPayoutAddress", /*optional=*/true),
         GetRpcResult("platformNodeID", /*optional=*/true),
@@ -393,15 +401,19 @@ UniValue CProUpServTx::ToJson() const
     ret.pushKV("version", nVersion);
     ret.pushKV("type", ToUnderlying(nType));
     ret.pushKV("proTxHash", proTxHash.ToString());
-    ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    if (IsServiceDeprecatedRPCEnabled()) {
+        ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    }
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     if (CTxDestination dest; ExtractDestination(scriptOperatorPayout, dest)) {
         ret.pushKV("operatorPayoutAddress", EncodeDestination(dest));
     }
     if (nType == MnType::Evo) {
         ret.pushKV("platformNodeID", platformNodeID.ToString());
-        ret.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*this));
-        ret.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        if (IsServiceDeprecatedRPCEnabled()) {
+            ret.pushKV("platformP2PPort", GetPlatformPort</*is_p2p=*/true>(*this));
+            ret.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        }
     }
     ret.pushKV("inputsHash", inputsHash.ToString());
     return ret;
@@ -508,7 +520,7 @@ RPCResult CSimplifiedMNListEntry::GetJsonHelp(const std::string& key, bool optio
         GetRpcResult("type", /*optional=*/false, /*override_name=*/"nType"),
         {RPCResult::Type::STR_HEX, "proRegTxHash", "Hash of the ProRegTx identifying the masternode"},
         {RPCResult::Type::STR_HEX, "confirmedHash", "Hash of the block where the masternode was confirmed"},
-        GetRpcResult("service"),
+        GetRpcResult("service", /*optional=*/true),
         GetRpcResult("addresses"),
         GetRpcResult("pubKeyOperator"),
         GetRpcResult("votingAddress"),
@@ -527,13 +539,17 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
     obj.pushKV("nType", ToUnderlying(nType));
     obj.pushKV("proRegTxHash", proRegTxHash.ToString());
     obj.pushKV("confirmedHash", confirmedHash.ToString());
-    obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    if (IsServiceDeprecatedRPCEnabled()) {
+        obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+    }
     obj.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     obj.pushKV("isValid", isValid);
     if (nType == MnType::Evo) {
-        obj.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        if (IsServiceDeprecatedRPCEnabled()) {
+            obj.pushKV("platformHTTPPort", GetPlatformPort</*is_p2p=*/false>(*this));
+        }
         obj.pushKV("platformNodeID", platformNodeID.ToString());
     }
 
