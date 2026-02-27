@@ -100,6 +100,7 @@ private:
 public:
     const std::unique_ptr<instantsend::InstantSendSigner> is_signer;
 
+public:
     /** Owned by PeerManager, use GetCJServer() */
     CCoinJoinServer* m_cj_server{nullptr};
 };
