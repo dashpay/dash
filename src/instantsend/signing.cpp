@@ -206,19 +206,20 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
 
     int blockHeight{0};
     if (!hashBlock.IsNull()) {
-        auto ret = m_isman.GetCachedHeight(hashBlock);
-        if (ret) blockHeight = *ret;
-
-        const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
-        if (pindex == nullptr) {
-            if (printDebug) {
-                LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n",
-                         __func__, txHash.ToString(), outpoint.hash.ToString());
+        if (auto ret = m_isman.GetCachedHeight(hashBlock)) {
+            blockHeight = *ret;
+        } else {
+            const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
+            if (pindex == nullptr) {
+                if (printDebug) {
+                    LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n",
+                             __func__, txHash.ToString(), outpoint.hash.ToString());
+                }
+                return false;
             }
-            return false;
+            m_isman.CacheBlockHeight(pindex);
+            blockHeight = pindex->nHeight;
         }
-        m_isman.CacheBlockHeight(pindex);
-        blockHeight = pindex->nHeight;
     }
 
     const int tipHeight = m_isman.GetTipHeight();

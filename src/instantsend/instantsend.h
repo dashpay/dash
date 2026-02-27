@@ -104,7 +104,7 @@ public:
     std::unordered_map<const CBlockIndex*, Uint256HashMap<CTransactionRef>> RetrieveISConflicts(
         const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks);
-    bool IsKnownTx(const uint256& islockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    bool HasTxForLock(const uint256& islockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     bool IsLocked(const uint256& txHash) const;
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);

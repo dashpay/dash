@@ -145,22 +145,19 @@ void CInstantSendManager::RemoveBlockISLocks(const std::shared_ptr<const CBlock>
 
 instantsend::InstantSendLockPtr CInstantSendManager::AttachISLockToTx(const CTransactionRef& tx)
 {
-    instantsend::InstantSendLockPtr ret_islock{nullptr};
     LOCK(cs_pendingLocks);
-    auto it = pendingNoTxInstantSendLocks.begin();
-    while (it != pendingNoTxInstantSendLocks.end()) {
-        if (it->second.islock->txid == tx->GetHash()) {
-            // we received an islock earlier, let's put it back into pending and verify/lock
-            LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
-                     tx->GetHash().ToString(), it->first.ToString());
-            ret_islock = it->second.islock;
-            pendingInstantSendLocks.try_emplace(it->first, it->second);
-            pendingNoTxInstantSendLocks.erase(it);
-            return ret_islock;
-        }
-        ++it;
+    for (auto it = pendingNoTxInstantSendLocks.begin(); it != pendingNoTxInstantSendLocks.end(); ++it) {
+        if (it->second.islock->txid != tx->GetHash()) continue;
+
+        // we received an islock earlier, let's put it back into pending and verify/lock
+        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
+                 tx->GetHash().ToString(), it->first.ToString());
+        auto islock = it->second.islock;
+        pendingInstantSendLocks.try_emplace(it->first, it->second);
+        pendingNoTxInstantSendLocks.erase(it);
+        return islock;
     }
-    return ret_islock; // not found, nullptr
+    return nullptr;
 }
 
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
@@ -290,7 +287,7 @@ std::unordered_map<const CBlockIndex*, Uint256HashMap<CTransactionRef>> CInstant
     return conflicts;
 }
 
-bool CInstantSendManager::IsKnownTx(const uint256& islockHash) const
+bool CInstantSendManager::HasTxForLock(const uint256& islockHash) const
 {
     LOCK(cs_pendingLocks);
     return pendingNoTxInstantSendLocks.find(islockHash) == pendingNoTxInstantSendLocks.end();
