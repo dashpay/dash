@@ -352,7 +352,7 @@ void NetInstantSend::ProcessPendingISLocks(std::vector<instantsend::PendingISLoc
 
 void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
 {
-    LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
+    LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
              islock->txid.ToString(), hash.ToString(), from);
 
     if (m_signer) {
@@ -364,21 +364,13 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, Params().GetConsensus(), hashBlock);
     const bool found_transaction{tx != nullptr};
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
-    std::optional<int> minedHeight = GetBlockHeight(m_is_manager, m_chainstate, hashBlock);
+    const auto minedHeight = GetBlockHeight(m_is_manager, m_chainstate, hashBlock);
     if (found_transaction) {
-        if (!minedHeight.has_value()) {
-            const CBlockIndex* pindexMined = WITH_LOCK(::cs_main,
-                                                       return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
-            if (pindexMined != nullptr) {
-                m_is_manager.CacheBlockHeight(pindexMined);
-                minedHeight = pindexMined->nHeight;
-            }
-        }
         // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
         // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
         if (minedHeight.has_value() && m_chainlocks.HasChainLock(*minedHeight, hashBlock)) {
             LogPrint(BCLog::INSTANTSEND, /* Continued */
-                     "NetSigning::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
+                     "NetInstantSend::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
                      "ChainLock in block %s, peer=%d\n",
                      __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
             return;
@@ -387,7 +379,6 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     } else {
         m_is_manager.AddPendingISLock(hash, islock, from);
     }
-
 
     // This will also add children TXs to pendingRetryTxs
     m_is_manager.RemoveNonLockedTx(islock->txid, true);
@@ -398,8 +389,8 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
 
     if (found_transaction) {
         RemoveMempoolConflictsForLock(hash, *islock);
-        LogPrint(BCLog::INSTANTSEND, "NetSigning::%s -- notify about lock %s for tx %s\n", __func__, hash.ToString(),
-                 tx->GetHash().ToString());
+        LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- notify about lock %s for tx %s\n", __func__,
+                 hash.ToString(), tx->GetHash().ToString());
         GetMainSignals().NotifyTransactionLock(tx, islock);
         // bump m_mempool counter to make sure newly locked txes are picked up by getblocktemplate
         m_mempool.AddTransactionsUpdated(1);
@@ -588,7 +579,7 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
         return;
     }
 
-    bool isLockedTxKnown = m_is_manager.IsKnownTx(islockHash);
+    bool hasTxForLock = m_is_manager.HasTxForLock(islockHash);
 
     bool activateBestChain = false;
     for (const auto& p : conflicts) {
@@ -605,7 +596,7 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
             // This should not have happened and we are in a state were it's not safe to continue anymore
             assert(false);
         }
-        if (isLockedTxKnown) {
+        if (hasTxForLock) {
             activateBestChain = true;
         } else {
             LogPrintf("NetInstantSend::%s -- resetting block %s\n", __func__, pindex2->GetBlockHash().ToString());
