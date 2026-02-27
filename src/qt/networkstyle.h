@@ -32,7 +32,7 @@ public:
 
 private:
     NetworkStyle(const QString &appName, const int iconColorHueShift, const int iconColorSaturationReduction,
-                 const char *macIconPath, const char *titleAddText, const std::string &networkId);
+                 const char *macIconPath, const char *titleAddText);
 
     QString appName;
     QIcon appIcon;

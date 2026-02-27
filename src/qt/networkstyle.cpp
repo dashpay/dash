@@ -64,7 +64,7 @@ void NetworkStyle::rotateColors(QImage& img, const int iconColorHueShift, const 
 
 // titleAddText needs to be const char* for tr()
 NetworkStyle::NetworkStyle(const QString &_appName, const int iconColorHueShift, const int iconColorSaturationReduction,
-                           const char *_macIconPath, const char *_titleAddText, const std::string &networkId):
+                           const char *_macIconPath, const char *_titleAddText):
     appName(_appName),
     titleAddText(qApp->translate("SplashScreen", _titleAddText)),
     badgeColor(QColor(0, 141, 228)) // default badge color is the original Dash's blue, regardless of the current theme
@@ -118,8 +118,7 @@ const NetworkStyle* NetworkStyle::instantiate(const std::string& networkId)
                     network_style.iconColorHueShift,
                     network_style.iconColorSaturationReduction,
                     network_style.macIconPath,
-                    titleAddText.c_str(),
-                    networkId);
+                    titleAddText.c_str());
         }
     }
     return nullptr;
