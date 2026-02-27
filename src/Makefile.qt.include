@@ -220,6 +220,8 @@ QT_RES_ICONS = \
   qt/res/icons/dash_macos_mainnet.png \
   qt/res/icons/dash_macos_regtest.png \
   qt/res/icons/dash_macos_testnet.png \
+  qt/res/icons/dash_macos_tray.png \
+  qt/res/icons/dash_macos_tray@2x.png \
   qt/res/icons/dash_testnet.ico \
   qt/res/icons/editcopy.png \
   qt/res/icons/editpaste.png \

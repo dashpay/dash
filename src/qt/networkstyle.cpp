@@ -93,6 +93,8 @@ NetworkStyle::NetworkStyle(const QString &_appName, const int iconColorHueShift,
     if (_macIconPath) {
         m_macos_icon = QIcon(QPixmap(_macIconPath));
     }
+    m_macos_tray = QIcon(QPixmap(":/icons/dash_macos_tray"));
+    m_macos_tray->setIsMask(true);
 #endif // Q_OS_MACOS
 }
 

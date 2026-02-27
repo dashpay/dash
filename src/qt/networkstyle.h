@@ -27,6 +27,7 @@ public:
     const QColor &getBadgeColor() const { return badgeColor; }
 #ifdef Q_OS_MACOS
     std::optional<QIcon> getMacIcon() const { return m_macos_icon; }
+    std::optional<QIcon> getMacTray() const { return m_macos_tray; }
 #endif // Q_OS_MACOS
 
 private:
@@ -41,6 +42,7 @@ private:
     QColor badgeColor;
 #ifdef Q_OS_MACOS
     std::optional<QIcon> m_macos_icon;
+    std::optional<QIcon> m_macos_tray;
 #endif // Q_OS_MACOS
 
     void rotateColor(QColor& col, const int iconColorHueShift, const int iconColorSaturationReduction);

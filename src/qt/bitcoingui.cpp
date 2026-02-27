@@ -1121,7 +1121,13 @@ void BitcoinGUI::createTrayIcon()
     assert(QSystemTrayIcon::isSystemTrayAvailable());
 
     if (QSystemTrayIcon::isSystemTrayAvailable()) {
-        trayIcon = new QSystemTrayIcon(m_network_style->getTrayAndWindowIcon(), this);
+        QIcon icon{m_network_style->getTrayAndWindowIcon()};
+#ifdef Q_OS_MACOS
+        if (auto macos_tray{m_network_style->getMacTray()}) {
+            icon = macos_tray.value();
+        }
+#endif // Q_OS_MACOS
+        trayIcon = new QSystemTrayIcon(icon, this);
         QString toolTip = tr("%1 client").arg(PACKAGE_NAME) + " " + m_network_style->getTitleAddText();
         trayIcon->setToolTip(toolTip);
     }
