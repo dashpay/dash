@@ -9,7 +9,7 @@
 #include <llmq/signing_shares.h>
 #include <masternode/sync.h>
 #include <spork.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chain.h>
 #include <chainparams.h>

@@ -14,7 +14,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <msg_result.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <netmessagemaker.h>

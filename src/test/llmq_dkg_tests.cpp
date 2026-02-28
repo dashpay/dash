@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/dkgsession.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <boost/test/unit_test.hpp>

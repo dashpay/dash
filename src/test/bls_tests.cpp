@@ -4,7 +4,7 @@
 
 #include <bls/bls.h>
 #include <bls/bls_batchverifier.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <clientversion.h>
 #include <random.h>

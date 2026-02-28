@@ -9,7 +9,7 @@
 #include <bls/bls_worker.h>
 #include <llmq/dkgsessionhandler.h>
 #include <msg_result.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <net_types.h>
 

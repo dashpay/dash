@@ -7,7 +7,7 @@
 
 #include <coinjoin/common.h>
 
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <core_io.h>
 #include <netaddress.h>
@@ -15,7 +15,6 @@
 #include <primitives/transaction.h>
 #include <sync.h>
 #include <timedata.h>
-#include <univalue.h>
 #include <util/translation.h>
 #include <version.h>
 
@@ -23,6 +22,8 @@
 #include <map>
 #include <optional>
 #include <utility>
+
+#include <univalue.h>
 
 class CChainState;
 class CBLSPublicKey;

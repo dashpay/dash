@@ -8,7 +8,7 @@
 #include <bls/bls.h>
 #include <llmq/params.h>
 #include <llmq/types.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <primitives/transaction.h>

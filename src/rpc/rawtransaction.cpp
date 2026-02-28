@@ -58,7 +58,7 @@
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <rpc/index_util.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <cstdint>
 #include <numeric>

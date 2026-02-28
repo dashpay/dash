@@ -12,7 +12,7 @@
 #include <masternode/sync.h>
 #include <msg_result.h>
 #include <unordered_lru_cache.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chain.h>
 #include <chainparams.h>

@@ -6,7 +6,7 @@
 
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <dbwrapper.h>
 

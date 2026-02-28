@@ -6,7 +6,7 @@
 
 #include <bls/bls_worker.h>
 #include <llmq/options.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <random.h>
 

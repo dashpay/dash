@@ -9,7 +9,7 @@
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <unordered_lru_cache.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <saltedhasher.h>
 #include <serialize.h>

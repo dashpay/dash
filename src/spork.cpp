@@ -5,7 +5,7 @@
 #include <spork.h>
 
 #include <flat-database.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
 #include <key_io.h>

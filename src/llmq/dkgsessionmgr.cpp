@@ -11,7 +11,7 @@
 #include <llmq/utils.h>
 #include <spork.h>
 #include <unordered_lru_cache.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <chainparams.h>

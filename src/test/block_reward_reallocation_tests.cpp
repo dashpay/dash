@@ -9,7 +9,7 @@
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <masternode/payments.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <chainparams.h>

@@ -9,7 +9,7 @@
 #include <llmq/commitment.h>
 #include <llmq/options.h>
 #include <llmq/utils.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <chain.h>

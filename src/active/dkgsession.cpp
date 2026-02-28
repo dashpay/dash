@@ -12,7 +12,7 @@
 #include <llmq/options.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chain.h>
 #include <deploymentstatus.h>

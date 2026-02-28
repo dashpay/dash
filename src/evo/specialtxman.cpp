@@ -19,7 +19,7 @@
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <messagesigner.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
 #include <consensus/amount.h>

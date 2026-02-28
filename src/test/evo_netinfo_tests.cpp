@@ -4,12 +4,13 @@
 
 #include <test/util/setup_common.h>
 
+#include <evo/netinfo.h>
+#include <util/helpers.h>
+
 #include <chainparams.h>
 #include <clientversion.h>
-#include <evo/netinfo.h>
 #include <netbase.h>
 #include <streams.h>
-#include <util/pointer.h>
 #include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>

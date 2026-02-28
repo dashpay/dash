@@ -5,7 +5,7 @@
 #ifndef BITCOIN_COINJOIN_COMMON_H
 #define BITCOIN_COINJOIN_COMMON_H
 
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <consensus/amount.h>
 #include <primitives/transaction.h>

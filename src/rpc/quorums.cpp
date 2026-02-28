@@ -21,7 +21,7 @@
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <rpc/evo_util.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
