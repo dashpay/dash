@@ -4,20 +4,20 @@
 
 #include <evo/smldiff.h>
 
-
-#include <chainparams.h>
-#include <consensus/merkle.h>
-#include <core_io.h>
-#include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
+#include <util/std23.h>
+
+#include <chainparams.h>
+#include <consensus/merkle.h>
+#include <core_io.h>
+#include <deploymentstatus.h>
 #include <node/blockstorage.h>
 #include <serialize.h>
 #include <univalue.h>
-#include <util/enumerate.h>
 #include <validation.h>
 
 using node::ReadBlockFromDisk;
@@ -74,7 +74,7 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
     // we want to load CbTxs once per block (heavy operation).
     std::multimap<const CBlockIndex*, uint16_t> workBaseBlockIndexMap;
 
-    for (const auto [idx, e] : enumerate(newQuorums)) {
+    for (const auto [idx, e] : std23::views::enumerate(newQuorums)) {
         // We assume that we have on hand, quorums that correspond to the hashes queried.
         // If we cannot find them, something must have gone wrong and we should cease trying
         // to build any further.

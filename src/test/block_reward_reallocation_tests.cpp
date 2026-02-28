@@ -5,6 +5,13 @@
 #include <test/util/setup_common.h>
 
 #include <bls/bls.h>
+#include <evo/deterministicmns.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
+#include <masternode/payments.h>
+#include <util/irange.h>
+#include <util/std23.h>
+
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <node/miner.h>
@@ -14,13 +21,6 @@
 #include <script/signingprovider.h>
 #include <script/standard.h>
 #include <validation.h>
-
-#include <evo/deterministicmns.h>
-#include <evo/providertx.h>
-#include <evo/specialtx.h>
-#include <masternode/payments.h>
-#include <util/enumerate.h>
-#include <util/irange.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -45,8 +45,8 @@ struct TestChainBRRBeforeActivationSetup : public TestChainSetup
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransactionRef>& txs)
 {
     SimpleUTXOMap utxos;
-    for (auto [i, tx] : enumerate(txs)) {
-        for (auto [j, output] : enumerate(tx->vout)) {
+    for (auto [i, tx] : std23::views::enumerate(txs)) {
+        for (auto [j, output] : std23::views::enumerate(tx->vout)) {
             utxos.try_emplace(COutPoint(tx->GetHash(), j), std::make_pair((int)i + 1, output.nValue));
         }
     }
@@ -100,7 +100,7 @@ static void SignTransaction(const CTxMemPool& mempool, CMutableTransaction& tx, 
     FillableSigningProvider tempKeystore;
     tempKeystore.AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
 
-    for (auto [i, input] : enumerate(tx.vin)) {
+    for (auto [i, input] : std23::views::enumerate(tx.vin)) {
         uint256 hashBlock;
         CTransactionRef txFrom = GetTransaction(/*block_index=*/nullptr, &mempool, input.prevout.hash,
                                                 Params().GetConsensus(), hashBlock);
