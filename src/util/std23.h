@@ -5,6 +5,8 @@
 #ifndef BITCOIN_UTIL_STD23_H
 #define BITCOIN_UTIL_STD23_H
 
+#include <algorithm>
+#include <functional>
 #include <iterator>
 #include <ranges>
 #include <type_traits>
@@ -26,6 +28,26 @@ template <typename E>
 }
 #endif // __cplusplus >= 202302L
 namespace ranges {
+#if __cplusplus >= 202302L
+using std::ranges::contains;
+#else
+/**
+ * @tparam R range type, automatically deduced
+ * @tparam T value type to search for, automatically deduced
+ * @tparam Proj projection type
+ * @param range the range to search in
+ * @param value the value to search for
+ * @param proj optional projection to apply to elements before comparison
+ * @return true if the range contains the value, false otherwise
+ *
+ * @see https://github.com/llvm/llvm-project/blob/llvmorg-22.1.0/libcxx/include/__algorithm/ranges_contains.h
+ */
+template <typename R, typename T, typename Proj = std::identity>
+inline constexpr bool contains(R&& range, const T& value, Proj proj = {})
+{
+    return std::ranges::find(std::ranges::begin(range), std::ranges::end(range), value, proj) != std::ranges::end(range);
+}
+#endif // __cplusplus >= 202302L
 namespace views {
 #if __cplusplus >= 202302L
 using std::ranges::views::enumerate;
