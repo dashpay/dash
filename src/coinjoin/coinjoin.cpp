@@ -7,6 +7,7 @@
 #include <bls/bls.h>
 #include <chainlock/chainlock.h>
 #include <instantsend/instantsend.h>
+#include <util/helpers.h>
 
 #include <chain.h>
 #include <chainparams.h>
@@ -63,7 +64,7 @@ bool CCoinJoinQueue::IsTimeOutOfBounds(int64_t current_time) const
 [[nodiscard]] std::string CCoinJoinQueue::ToString() const
 {
     return strprintf("nDenom=%d, nTime=%lld, fReady=%s, fTried=%s, masternode=%s",
-        nDenom, nTime, fReady ? "true" : "false", fTried ? "true" : "false", masternodeOutpoint.ToStringShort());
+        nDenom, nTime, util::to_string(fReady), util::to_string(fTried), masternodeOutpoint.ToStringShort());
 }
 
 uint256 CCoinJoinBroadcastTx::GetSignatureHash() const

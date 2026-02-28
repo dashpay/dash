@@ -285,7 +285,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         if (!quorum) {
             LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, blockHash=%s, populate_cache=%s\n",
                       __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
-                      populate_cache ? "true" : "false");
+                      util::to_string(populate_cache));
             return {};
         }
         vecResultQuorums.emplace_back(quorum);

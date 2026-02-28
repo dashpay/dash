@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <string_view>
 
 namespace util {
 template <typename X, typename Z>
@@ -43,6 +44,8 @@ inline bool shared_ptr_not_equal(const std::shared_ptr<T>& lhs, const std::share
     if (!lhs || !rhs) return true; // Inequal initialization state
     return *lhs != *rhs;           // Deep comparison
 }
+
+inline constexpr std::string_view to_string(bool value) { return value ? "true" : "false"; }
 } // namespace util
 
 #endif // BITCOIN_UTIL_HELPERS_H
