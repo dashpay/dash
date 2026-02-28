@@ -11,6 +11,7 @@
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
+#include <util/std23.h>
 
 #include <chain.h>
 #include <chainparams.h>
@@ -192,7 +193,7 @@ static bool extractSignals(const ChainstateManager& chainman, const llmq::CQuoru
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-mnhf-tx-payload");
         }
         const uint8_t bit = opt_mnhfTx->signal.versionBit;
-        if (std::find(new_signals.begin(), new_signals.end(), bit) != new_signals.end()) {
+        if (std23::ranges::contains(new_signals, bit)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-mnhf-duplicates-in-block");
         }
         new_signals.push_back(bit);

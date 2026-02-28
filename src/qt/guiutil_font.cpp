@@ -5,6 +5,7 @@
 #include <qt/guiutil_font.h>
 
 #include <tinyformat.h>
+#include <util/std23.h>
 #include <util/system.h>
 
 #include <qt/guiutil.h>
@@ -464,7 +465,7 @@ bool loadFonts()
     }
 
     // Fail if an added id is -1 which means QFontDatabase::addApplicationFont failed.
-    if (std::find(vecFontIds.begin(), vecFontIds.end(), -1) != vecFontIds.end()) {
+    if (std23::ranges::contains(vecFontIds, -1)) {
         g_default_font = nullptr;
         return false;
     }
@@ -566,8 +567,8 @@ void updateFonts()
     // Loop through all widgets
     for (QWidget* w : qApp->allWidgets()) {
         if (auto* wt{qobject_cast<QTextEdit*>(w)};
-            std::find(vecIgnoreClasses.begin(), vecIgnoreClasses.end(), w->metaObject()->className()) != vecIgnoreClasses.end() ||
-            std::find(vecIgnoreObjects.begin(), vecIgnoreObjects.end(), w->objectName().toStdString()) != vecIgnoreObjects.end() ||
+            std23::ranges::contains(vecIgnoreClasses, w->metaObject()->className()) ||
+            std23::ranges::contains(vecIgnoreObjects, w->objectName().toStdString()) ||
             (wt && mapTextEditStyleUpdates.count(wt)))
         {
             // Do not apply styling logic if ignored or handled separately
