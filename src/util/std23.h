@@ -30,6 +30,7 @@ template <typename E>
 namespace ranges {
 #if __cplusplus >= 202302L
 using std::ranges::contains;
+using std::ranges::fold_left;
 #else
 /**
  * @tparam R range type, automatically deduced
@@ -46,6 +47,36 @@ template <typename R, typename T, typename Proj = std::identity>
 inline constexpr bool contains(R&& range, const T& value, Proj proj = {})
 {
     return std::ranges::find(std::ranges::begin(range), std::ranges::end(range), value, proj) != std::ranges::end(range);
+}
+
+/**
+ * @tparam R range type, automatically deduced
+ * @tparam T initial value type, automatically deduced
+ * @tparam F binary operation type, automatically deduced
+ * @param range the range to fold
+ * @param init the initial value
+ * @param f binary operation to apply
+ * @return the result of left-folding the range with f
+ *
+ * @see https://github.com/llvm/llvm-project/blob/llvmorg-22.1.0/libcxx/include/__algorithm/ranges_fold.h
+ */
+template <typename R, typename T, typename F>
+inline constexpr auto fold_left(R&& range, T init, F f)
+{
+    using I = decltype(std::ranges::begin(range));
+    using U = std::decay_t<std::invoke_result_t<F&, T, std::iter_reference_t<I>>>;
+
+    auto first = std::ranges::begin(range);
+    auto last = std::ranges::end(range);
+    if (first == last) {
+        return U(std::move(init));
+    }
+
+    U accum = std::invoke(f, std::move(init), *first);
+    for (++first; first != last; ++first) {
+        accum = std::invoke(f, std::move(accum), *first);
+    }
+    return accum;
 }
 #endif // __cplusplus >= 202302L
 namespace views {
