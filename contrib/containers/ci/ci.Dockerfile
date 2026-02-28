@@ -19,8 +19,9 @@ RUN set -ex; \
     cmake \
     g++-11 \
     g++-14 \
-    g++-arm-linux-gnueabihf \
+    g++-aarch64-linux-gnu \
     g++-mingw-w64-x86-64 \
+    g++-x86-64-linux-gnu \
     gawk \
     gettext \
     libtool \
