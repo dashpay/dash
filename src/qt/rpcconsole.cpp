@@ -32,7 +32,7 @@
 #include <util/string.h>
 #include <util/system.h>
 #include <util/threadnames.h>
-#include <util/underlying.h>
+#include <util/std23.h>
 
 #include <univalue.h>
 
@@ -607,12 +607,12 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 #endif
 
     // Governance tab is shown only when the governance system is active
-    ui->tabWidgetInfo->removeTab(ToUnderlying(InfoView::Governance));
+    ui->tabWidgetInfo->removeTab(std23::to_underlying(InfoView::Governance));
     // Keep tabs compact; prevent Qt from stretching them to fill the bar width
     ui->tabWidgetInfo->tabBar()->setExpanding(false);
 
-    showInfoView(settings.value(rpcConsoleInfoViewSettingsKey, ToUnderlying(InfoView::General)).toInt());
-    showPage(ToUnderlying(TabTypes::INFO));
+    showInfoView(settings.value(rpcConsoleInfoViewSettingsKey, std23::to_underlying(InfoView::General)).toInt());
+    showPage(std23::to_underlying(TabTypes::INFO));
 
     reloadThemedWidgets();
 
@@ -712,7 +712,7 @@ void RPCConsole::setClientModel(ClientModel *model, int bestblock_height, int64_
         m_feed_masternode = model->feedMasternode();
 
         if (m_node.gov().isEnabled() && ui->tabWidgetInfo->indexOf(ui->tabGovernance) == -1) {
-            ui->tabWidgetInfo->insertTab(ToUnderlying(InfoView::Governance), ui->tabGovernance, tr("&Governance"));
+            ui->tabWidgetInfo->insertTab(std23::to_underlying(InfoView::Governance), ui->tabGovernance, tr("&Governance"));
         }
 
         // set up peer table
@@ -1084,7 +1084,7 @@ void RPCConsole::showPage(int index)
 void RPCConsole::showInfoView(int index)
 {
     const int count{ui->tabWidgetInfo->count()};
-    const int selected{(index >= 0 && index < count) ? index : ToUnderlying(InfoView::General)};
+    const int selected{(index >= 0 && index < count) ? index : std23::to_underlying(InfoView::General)};
     ui->tabWidgetInfo->setCurrentIndex(selected);
 }
 
@@ -1491,18 +1491,18 @@ void RPCConsole::showOrHideBanTableIfRequired()
 
 void RPCConsole::setTabFocus(enum TabTypes tabType)
 {
-    showPage(ToUnderlying(tabType));
+    showPage(std23::to_underlying(tabType));
 }
 
 void RPCConsole::setInfoView(InfoView view)
 {
     setTabFocus(TabTypes::INFO);
-    showInfoView(ToUnderlying(view));
+    showInfoView(std23::to_underlying(view));
 }
 
 QString RPCConsole::tabTitle(TabTypes tab_type) const
 {
-    return pageButtons->button(ToUnderlying(tab_type))->text();
+    return pageButtons->button(std23::to_underlying(tab_type))->text();
 }
 
 QKeySequence RPCConsole::tabShortcut(TabTypes tab_type) const

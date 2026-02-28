@@ -81,7 +81,7 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
         auto quorum = qman.GetQuorum(e.llmqType, e.quorumHash);
         if (!quorum) {
             LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
-                      ToUnderlying(e.llmqType), e.quorumHash.ToString());
+                      std23::to_underlying(e.llmqType), e.quorumHash.ToString());
             return false;
         }
 

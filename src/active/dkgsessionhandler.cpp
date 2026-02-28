@@ -61,12 +61,12 @@ void ActiveDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
     bool fNewPhase = (quorumStageInt % params.dkgPhaseBlocks) == 0;
     int phaseInt = quorumStageInt / params.dkgPhaseBlocks + 1;
     QuorumPhase oldPhase = phase;
-    if (fNewPhase && phaseInt >= ToUnderlying(QuorumPhase::Initialized) && phaseInt <= ToUnderlying(QuorumPhase::Idle)) {
+    if (fNewPhase && phaseInt >= std23::to_underlying(QuorumPhase::Initialized) && phaseInt <= std23::to_underlying(QuorumPhase::Idle)) {
         phase = static_cast<QuorumPhase>(phaseInt);
     }
 
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] currentHeight=%d, pQuorumBaseBlockIndex->nHeight=%d, oldPhase=%d, newPhase=%d\n", __func__,
-             params.name, quorumIndex, currentHeight, pQuorumBaseBlockIndex->nHeight, ToUnderlying(oldPhase), ToUnderlying(phase));
+             params.name, quorumIndex, currentHeight, pQuorumBaseBlockIndex->nHeight, std23::to_underlying(oldPhase), std23::to_underlying(phase));
 }
 
 void ActiveDKGSessionHandler::StartThread(CConnman& connman, PeerManager& peerman)
@@ -75,7 +75,7 @@ void ActiveDKGSessionHandler::StartThread(CConnman& connman, PeerManager& peerma
         throw std::runtime_error("Tried to start an already started ActiveDKGSessionHandler thread.");
     }
 
-    m_thread_name = strprintf("llmq-%d-%d", ToUnderlying(params.type), quorumIndex);
+    m_thread_name = strprintf("llmq-%d-%d", std23::to_underlying(params.type), quorumIndex);
     phaseHandlerThread = std::thread(&util::TraceThread, m_thread_name.c_str(),
                                      [this, &connman, &peerman] { PhaseHandlerThread(connman, peerman); });
 }
@@ -120,7 +120,7 @@ class AbortPhaseException : public std::exception {
 void ActiveDKGSessionHandler::WaitForNextPhase(std::optional<QuorumPhase> curPhase, QuorumPhase nextPhase,
                                                const uint256& expectedQuorumHash, const WhileWaitFunc& shouldNotWait) const
 {
-    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? ToUnderlying(*curPhase) : -1, ToUnderlying(nextPhase));
+    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? std23::to_underlying(*curPhase) : -1, std23::to_underlying(nextPhase));
 
     while (true) {
         if (stopRequested) {
@@ -136,7 +136,7 @@ void ActiveDKGSessionHandler::WaitForNextPhase(std::optional<QuorumPhase> curPha
             break;
         }
         if (curPhase.has_value() && _phase != curPhase) {
-            LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting due unexpected phase change, _phase=%d, curPhase=%d\n", __func__, params.name, quorumIndex, ToUnderlying(_phase), curPhase.has_value() ? ToUnderlying(*curPhase) : -1);
+            LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting due unexpected phase change, _phase=%d, curPhase=%d\n", __func__, params.name, quorumIndex, std23::to_underlying(_phase), curPhase.has_value() ? std23::to_underlying(*curPhase) : -1);
             throw AbortPhaseException();
         }
         if (!shouldNotWait()) {
@@ -144,7 +144,7 @@ void ActiveDKGSessionHandler::WaitForNextPhase(std::optional<QuorumPhase> curPha
         }
     }
 
-    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - done, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? ToUnderlying(*curPhase) : -1, ToUnderlying(nextPhase));
+    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - done, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? std23::to_underlying(*curPhase) : -1, std23::to_underlying(nextPhase));
 
     if (nextPhase == QuorumPhase::Initialized) {
         m_dkgdbgman.ResetLocalSessionStatus(params.type, quorumIndex);
@@ -206,7 +206,7 @@ void ActiveDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase, const uint2
     int heightTmp{currentHeight.load()};
     int heightStart{heightTmp};
 
-    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting sleep for %d ms, curPhase=%d\n", __func__, params.name, quorumIndex, sleepTime, ToUnderlying(curPhase));
+    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting sleep for %d ms, curPhase=%d\n", __func__, params.name, quorumIndex, sleepTime, std23::to_underlying(curPhase));
 
     while (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) < endTime) {
         if (stopRequested) {
@@ -233,20 +233,20 @@ void ActiveDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase, const uint2
         }
     }
 
-    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - done, curPhase=%d\n", __func__, params.name, quorumIndex, ToUnderlying(curPhase));
+    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - done, curPhase=%d\n", __func__, params.name, quorumIndex, std23::to_underlying(curPhase));
 }
 
 void ActiveDKGSessionHandler::HandlePhase(QuorumPhase curPhase, QuorumPhase nextPhase,
                                           const uint256& expectedQuorumHash, double randomSleepFactor,
                                           const StartPhaseFunc& startPhaseFunc, const WhileWaitFunc& runWhileWaiting)
 {
-    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, ToUnderlying(curPhase), ToUnderlying(nextPhase));
+    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, std23::to_underlying(curPhase), std23::to_underlying(nextPhase));
 
     SleepBeforePhase(curPhase, expectedQuorumHash, randomSleepFactor, runWhileWaiting);
     startPhaseFunc();
     WaitForNextPhase(curPhase, nextPhase, expectedQuorumHash, runWhileWaiting);
 
-    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - done, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, ToUnderlying(curPhase), ToUnderlying(nextPhase));
+    LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - done, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, std23::to_underlying(curPhase), std23::to_underlying(nextPhase));
 }
 
 // returns a set of NodeIds which sent invalid messages

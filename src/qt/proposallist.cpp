@@ -11,8 +11,8 @@
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <script/standard.h>
+#include <util/std23.h>
 #include <util/strencodings.h>
-#include <util/underlying.h>
 
 #include <qt/clientfeeds.h>
 #include <qt/descriptiondialog.h>
@@ -73,7 +73,7 @@ ProposalList::ProposalList(QWidget* parent) :
     ui->emptyPage->setAutoFillBackground(true);
     updateEmptyPagePalette();
 
-    ui->proposalSourceCombo->addItem(tr("Active Proposals"), ToUnderlying(ProposalSource::Active));
+    ui->proposalSourceCombo->addItem(tr("Active Proposals"), std23::to_underlying(ProposalSource::Active));
     ui->proposalSourceCombo->setMinimumWidth(250);
     connect(ui->proposalSourceCombo, qOverload<int>(&QComboBox::activated), this, &ProposalList::setProposalSource);
 
@@ -138,8 +138,8 @@ void ProposalList::setClientModel(ClientModel* model)
     connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &ProposalList::updateInfoTooltip);
     connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &ProposalList::updateProposalButtons);
     connect(clientModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ProposalList::updateDisplayUnit);
-    if (walletModel && ui->proposalSourceCombo->findData(ToUnderlying(ProposalSource::Local)) == -1) {
-        ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
+    if (walletModel && ui->proposalSourceCombo->findData(std23::to_underlying(ProposalSource::Local)) == -1) {
+        ui->proposalSourceCombo->addItem(tr("My Proposals"), std23::to_underlying(ProposalSource::Local));
     }
 }
 
@@ -185,8 +185,8 @@ void ProposalList::setWalletModel(WalletModel* model)
         return;
     }
     connect(walletModel, &WalletModel::balanceChanged, this, &ProposalList::updateProposalButtons);
-    if (clientModel && ui->proposalSourceCombo->findData(ToUnderlying(ProposalSource::Local)) == -1) {
-        ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
+    if (clientModel && ui->proposalSourceCombo->findData(std23::to_underlying(ProposalSource::Local)) == -1) {
+        ui->proposalSourceCombo->addItem(tr("My Proposals"), std23::to_underlying(ProposalSource::Local));
     }
 }
 

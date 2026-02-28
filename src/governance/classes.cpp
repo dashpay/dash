@@ -4,13 +4,14 @@
 
 #include <governance/classes.h>
 
+#include <util/std23.h>
+
 #include <chainparams.h>
 #include <core_io.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
 #include <util/strencodings.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <univalue.h>
@@ -75,7 +76,7 @@ CSuperblock::CSuperblock(const CGovernanceObject& govObj, uint256& nHash) :
     vecPayments()
 {
     LogPrint(BCLog::GOBJECT, "CSuperblock -- Constructor govobj: %s, nObjectType = %d\n", govObj.GetDataAsPlainString(),
-             ToUnderlying(govObj.GetObjectType()));
+             std23::to_underlying(govObj.GetObjectType()));
 
     if (govObj.GetObjectType() != GovernanceObject::TRIGGER) {
         throw std::runtime_error("CSuperblock: Governance Object not a trigger");
@@ -83,7 +84,7 @@ CSuperblock::CSuperblock(const CGovernanceObject& govObj, uint256& nHash) :
 
     UniValue obj = govObj.GetJSONObject();
 
-    if (obj["type"].getInt<int>() != ToUnderlying(GovernanceObject::TRIGGER)) {
+    if (obj["type"].getInt<int>() != std23::to_underlying(GovernanceObject::TRIGGER)) {
         throw std::runtime_error("CSuperblock: invalid data type");
     }
 

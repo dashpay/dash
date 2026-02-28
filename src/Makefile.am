@@ -414,9 +414,9 @@ BITCOIN_CORE_H = \
   util/ranges.h \
   util/readwritefile.h \
   util/result.h \
-  util/underlying.h \
   util/serfloat.h \
   util/settings.h \
+  util/std23.h \
   util/ranges_set.h \
   util/sock.h \
   util/string.h \

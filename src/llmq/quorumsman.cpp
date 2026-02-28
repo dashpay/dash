@@ -16,6 +16,7 @@
 #include <llmq/signhash.h>
 #include <llmq/utils.h>
 #include <util/irange.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <dbwrapper.h>
@@ -23,7 +24,6 @@
 #include <netmessagemaker.h>
 #include <util/thread.h>
 #include <util/time.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <cxxtimer.hpp>
@@ -69,7 +69,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
 
     auto [qc, minedBlockHash] = quorumBlockProcessor.GetMinedCommitment(llmqType, quorumHash);
     if (minedBlockHash == uint256::ZERO) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- No mined commitment for llmqType[%d] nHeight[%d] quorumHash[%s]\n", __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->nHeight, pQuorumBaseBlockIndex->GetBlockHash().ToString());
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- No mined commitment for llmqType[%d] nHeight[%d] quorumHash[%s]\n", __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->nHeight, pQuorumBaseBlockIndex->GetBlockHash().ToString());
         return nullptr;
     }
     assert(qc.quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
@@ -95,7 +95,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
             WITH_LOCK(cs_db, quorum->WriteContributions(*db));
             hasValidVvec = true;
         } else {
-            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] quorumIndex[%d] quorum.ReadContributions and BuildQuorumContributions for quorumHash[%s] failed\n", __func__, ToUnderlying(llmqType), quorum->qc->quorumIndex, quorum->qc->quorumHash.ToString());
+            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] quorumIndex[%d] quorum.ReadContributions and BuildQuorumContributions for quorumHash[%s] failed\n", __func__, std23::to_underlying(llmqType), quorum->qc->quorumIndex, quorum->qc->quorumHash.ToString());
         }
     }
 
@@ -160,7 +160,7 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQ
     }
     const Consensus::LLMQType llmqType = quorum.qc->llmqType;
     if (!Params().GetLLMQ(llmqType).has_value()) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid llmqType: %d\n", __func__, ToUnderlying(llmqType));
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid llmqType: %d\n", __func__, std23::to_underlying(llmqType));
         return false;
     }
     const CBlockIndex* pindex{quorum.m_quorum_base_block_index};
@@ -182,7 +182,7 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQ
         }
     }
     LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- sending QGETDATA quorumHash[%s] llmqType[%d] proRegTx[%s]\n", __func__, key.quorumHash.ToString(),
-             ToUnderlying(key.llmqType), key.proRegTx.ToString());
+             std23::to_underlying(key.llmqType), key.proRegTx.ToString());
 
     CNetMsgMaker msgMaker(pfrom->GetCommonVersion());
     connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QGETDATA, request));
@@ -284,7 +284,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         auto quorum = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
         if (!quorum) {
             LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, blockHash=%s, populate_cache=%s\n",
-                      __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
+                      __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
                       populate_cache ? "true" : "false");
             return {};
         }
@@ -583,7 +583,7 @@ void CQuorumManager::CacheWarmingThreadMain() const
 
         cxxtimer::Timer t(true);
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- type=%d height=%d hash=%s start\n", __func__,
-                 ToUnderlying(pQuorum->params.type), pQuorum->m_quorum_base_block_index->nHeight,
+                 std23::to_underlying(pQuorum->params.type), pQuorum->m_quorum_base_block_index->nHeight,
                  pQuorum->m_quorum_base_block_index->GetBlockHash().ToString());
 
         // when then later some other thread tries to get keys, it will be much faster
@@ -597,7 +597,7 @@ void CQuorumManager::CacheWarmingThreadMain() const
         }
 
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- type=%d height=%d hash=%s done. time=%d\n", __func__,
-                 ToUnderlying(pQuorum->params.type), pQuorum->m_quorum_base_block_index->nHeight,
+                 std23::to_underlying(pQuorum->params.type), pQuorum->m_quorum_base_block_index->nHeight,
                  pQuorum->m_quorum_base_block_index->GetBlockHash().ToString(), t.count());
     }
 }

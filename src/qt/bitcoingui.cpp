@@ -11,9 +11,9 @@
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
 #include <node/interface_ui.h>
+#include <util/std23.h>
 #include <util/system.h>
 #include <util/translation.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <qt/bitcoinunits.h>
@@ -1772,7 +1772,7 @@ void BitcoinGUI::startGovernanceSyncAnimation()
         }
         // Derive frame from wall-clock time so queued timer events don't cause speed-up
         const auto frame{static_cast<int>((elapsed->elapsed() / GOV_CYCLE_FRAME_MS) % (GOV_CYCLE_FRAME_COUNT - 1) + 1)};
-        labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({ToUnderlying(GUIUtil::ThemedColor::ORANGE), frame}));
+        labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({std23::to_underlying(GUIUtil::ThemedColor::ORANGE), frame}));
     });
     m_timer_governance_sync->start(GOV_CYCLE_FRAME_MS);
 }
@@ -1792,7 +1792,7 @@ void BitcoinGUI::refreshGovernanceCycleIcons()
     m_gov_cycle_pixmaps.clear();
     for (auto color : {GUIUtil::ThemedColor::ORANGE, GUIUtil::ThemedColor::GREEN, GUIUtil::ThemedColor::BLUE}) {
         for (int i = 0; i < GOV_CYCLE_FRAME_COUNT; ++i) {
-            m_gov_cycle_pixmaps[{ToUnderlying(color), i}] =
+            m_gov_cycle_pixmaps[{std23::to_underlying(color), i}] =
                 GUIUtil::getIcon(QString("moon_%1").arg(i), color).pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
         }
     }
@@ -1844,13 +1844,13 @@ void BitcoinGUI::updateGovernanceCycleIcon()
     const auto voting_str{GUIUtil::formatBlockDuration(voting_remaining, gov_info.targetSpacing)};
 
     if (awaiting_superblock) {
-        labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({ToUnderlying(GUIUtil::ThemedColor::BLUE), 0}));
+        labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({std23::to_underlying(GUIUtil::ThemedColor::BLUE), 0}));
     } else {
         const auto cycle_blocks{gov_info.superblockcycle - gov_info.superblockmaturitywindow};
         const auto blocks_elapsed{gov_info.superblockcycle - remaining_blocks - gov_info.superblockmaturitywindow};
         const auto progress{static_cast<double>(std::max(0, blocks_elapsed)) / static_cast<double>(std::max(1, cycle_blocks))};
         const auto frame{std::clamp<int>(static_cast<int>(progress * (GOV_CYCLE_FRAME_COUNT - 1)), 0, GOV_CYCLE_FRAME_COUNT - 2) + 1};
-        labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({ToUnderlying(GUIUtil::ThemedColor::GREEN), frame}));
+        labelGovernanceCycleIcon->setPixmap(m_gov_cycle_pixmaps.at({std23::to_underlying(GUIUtil::ThemedColor::GREEN), frame}));
     }
 
     const auto tooltip1{remaining_blocks == 0

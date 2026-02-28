@@ -69,6 +69,7 @@ src/util/irange.h
 src/util/pointer.h
 src/util/ranges.h
 src/util/ranges_set.*
+src/util/std23.h
 src/util/wpipe.*
 src/wallet/bip39*
 src/wallet/coinjoin.*

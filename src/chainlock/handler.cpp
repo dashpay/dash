@@ -4,20 +4,21 @@
 
 #include <chainlock/handler.h>
 
-#include <chain.h>
 #include <chainlock/chainlock.h>
-#include <chainparams.h>
-#include <consensus/validation.h>
 #include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <masternode/sync.h>
+#include <stats/client.h>
+#include <util/std23.h>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <consensus/validation.h>
 #include <node/interface_ui.h>
 #include <scheduler.h>
-#include <stats/client.h>
 #include <txmempool.h>
 #include <util/thread.h>
 #include <util/time.h>
-#include <util/underlying.h>
 #include <validation.h>
 #include <validationinterface.h>
 
@@ -103,7 +104,7 @@ MessageProcessingResult ChainlockHandler::ProcessNewChainLock(const NodeId from,
     if (const auto ret = chainlock::VerifyChainLock(Params().GetConsensus(), m_chainman.ActiveChain(), qman, clsig);
         ret != llmq::VerifyRecSigStatus::Valid) {
         LogPrint(BCLog::CHAINLOCKS, "ChainlockHandler::%s -- invalid CLSIG (%s), status=%d peer=%d\n", __func__,
-                 clsig.ToString(), ToUnderlying(ret), from);
+                 clsig.ToString(), std23::to_underlying(ret), from);
         if (from != -1) {
             return MisbehavingError{10};
         }

@@ -5,13 +5,13 @@
 #include <llmq/options.h>
 
 #include <spork.h>
+#include <util/ranges.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <deploymentstatus.h>
-#include <util/ranges.h>
 #include <util/system.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <algorithm>

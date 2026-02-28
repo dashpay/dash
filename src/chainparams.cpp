@@ -11,8 +11,8 @@
 #include <deploymentinfo.h>
 #include <llmq/params.h>
 #include <util/ranges.h>
+#include <util/std23.h>
 #include <util/system.h>
-#include <util/underlying.h>
 #include <versionbits.h>
 
 #include <arith_uint256.h>
@@ -1194,7 +1194,7 @@ void CRegTestParams::UpdateLLMQInstantSendDIP0024FromArgs(const ArgsManager& arg
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
         throw std::runtime_error("Invalid LLMQ type specified for -llmqtestinstantsenddip0024.");
     }
-    LogPrintf("Setting llmqtestinstantsenddip0024 to %ld\n", ToUnderlying(llmqType));
+    LogPrintf("Setting llmqtestinstantsenddip0024 to %ld\n", std23::to_underlying(llmqType));
     UpdateLLMQDIP0024InstantSend(llmqType);
 }
 

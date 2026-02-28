@@ -4,17 +4,19 @@
 
 #include <evo/simplifiedmns.h>
 
+#include <evo/netinfo.h>
+#include <util/std23.h>
+
 #include <clientversion.h>
 #include <consensus/merkle.h>
-#include <evo/netinfo.h>
 #include <key_io.h>
 #include <logging.h>
 #include <serialize.h>
 #include <sync.h>
-#include <univalue.h>
 #include <util/time.h>
-#include <util/underlying.h>
 #include <version.h>
+
+#include <univalue.h>
 
 CSimplifiedMNListEntry::CSimplifiedMNListEntry(const uint256& proreg_tx_hash, const uint256& confirmed_hash,
                                                const std::shared_ptr<NetInfoInterface>& net_info,
@@ -59,7 +61,7 @@ std::string CSimplifiedMNListEntry::ToString() const
     return strprintf("CSimplifiedMNListEntry(nVersion=%d, nType=%d, proRegTxHash=%s, confirmedHash=%s, netInfo=%s, "
                      "pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, "
                      "platformNodeID=%s%s)\n",
-                     nVersion, ToUnderlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(),
+                     nVersion, std23::to_underlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(),
                      netInfo->ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid,
                      payoutAddress, operatorPayoutAddress, platformNodeID.ToString(),
                      (nVersion >= ProTxVersion::ExtAddr ? "" : strprintf(", platformHTTPPort=%d", platformHTTPPort)));

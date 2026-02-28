@@ -34,10 +34,10 @@
 #include <txmempool.h>
 #include <txorphanage.h>
 #include <util/check.h>
+#include <util/std23.h>
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <util/trace.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <active/context.h>
@@ -3694,7 +3694,7 @@ MessageProcessingResult PeerManagerImpl::ProcessPlatformBanMessage(NodeId node, 
     Consensus::LLMQType llmq_type = Params().GetConsensus().llmqTypePlatform;
     auto quorum = m_llmq_ctx->qman->GetQuorum(llmq_type, ban_msg.m_quorum_hash);
     if (!quorum) {
-        LogPrintf("PLATFORMBAN -- hash: %s protx_hash: %s missing quorum_hash: %s llmq_type: %d\n", hash.ToString(), ban_msg.m_protx_hash.ToString(), ban_msg.m_quorum_hash.ToString(), ToUnderlying(llmq_type));
+        LogPrintf("PLATFORMBAN -- hash: %s protx_hash: %s missing quorum_hash: %s llmq_type: %d\n", hash.ToString(), ban_msg.m_protx_hash.ToString(), ban_msg.m_quorum_hash.ToString(), std23::to_underlying(llmq_type));
         ret.m_error = MisbehavingError{100};
         return ret;
     }

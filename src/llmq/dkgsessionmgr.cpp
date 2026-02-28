@@ -3,19 +3,20 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/dkgsessionmgr.h>
+
+#include <bls/bls_ies.h>
+#include <evo/deterministicmns.h>
 #include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/utils.h>
-
-#include <bls/bls_ies.h>
-#include <chainparams.h>
-#include <dbwrapper.h>
-#include <deploymentstatus.h>
-#include <evo/deterministicmns.h>
 #include <spork.h>
 #include <unordered_lru_cache.h>
 #include <util/irange.h>
-#include <util/underlying.h>
+#include <util/std23.h>
+
+#include <chainparams.h>
+#include <dbwrapper.h>
+#include <deploymentstatus.h>
 #include <validation.h>
 
 static bool IsQuorumDKGEnabled(const CSporkManager& sporkman)
@@ -117,7 +118,7 @@ MessageProcessingResult CDKGSessionManager::ProcessMessage(CNode& pfrom, bool is
 
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
-        LogPrintf("CDKGSessionManager -- invalid llmqType [%d]\n", ToUnderlying(llmqType));
+        LogPrintf("CDKGSessionManager -- invalid llmqType [%d]\n", std23::to_underlying(llmqType));
         return MisbehavingError{100};
     }
     const auto& llmq_params = llmq_params_opt.value();
@@ -144,7 +145,7 @@ MessageProcessingResult CDKGSessionManager::ProcessMessage(CNode& pfrom, bool is
         }
 
         if (!m_chainman.IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
-            LogPrintf("CDKGSessionManager -- llmqType [%d] quorums aren't active\n", ToUnderlying(llmqType));
+            LogPrintf("CDKGSessionManager -- llmqType [%d] quorums aren't active\n", std23::to_underlying(llmqType));
             return MisbehavingError{100};
         }
 
@@ -294,7 +295,7 @@ bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, 
                 CDataStream s(SER_DISK, CLIENT_VERSION);
                 if (!db->ReadDataStream(std::make_tuple(DB_VVEC, llmqType, pQuorumBaseBlockIndex->GetBlockHash(), proTxHash), s)) {
                     LogPrint(BCLog::LLMQ, "%s -- this node does not have vvec for llmq=%d block=%s protx=%s\n",
-                             __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
+                             __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
                              proTxHash.ToString());
                     return false;
                 }
@@ -376,7 +377,7 @@ void CDKGSessionManager::CleanupOldContributions() const
     const auto prefixes = {DB_VVEC, DB_SKCONTRIB, DB_ENC_CONTRIB};
 
     for (const auto& params : Params().GetConsensus().llmqs) {
-        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, ToUnderlying(params.type));
+        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, std23::to_underlying(params.type));
 
         CDBBatch batch(*db);
         size_t cnt_old{0}, cnt_all{0};

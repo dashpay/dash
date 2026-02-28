@@ -6,15 +6,15 @@
 
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
+#include <llmq/options.h>
+#include <llmq/utils.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <checkqueue.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
-#include <llmq/options.h>
-#include <llmq/utils.h>
 #include <logging.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 namespace llmq
@@ -35,7 +35,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid llmqType=%d\n", quorumHash.ToString(),
-                 ToUnderlying(llmqType));
+                 std23::to_underlying(llmqType));
         return false;
     }
     const auto& llmq_params = llmq_params_opt.value();
@@ -98,7 +98,7 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
-        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid llmqType=%d\n", quorumHash.ToString(), ToUnderlying(llmqType));
+        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid llmqType=%d\n", quorumHash.ToString(), std23::to_underlying(llmqType));
         return false;
     }
     const auto& llmq_params = llmq_params_opt.value();
@@ -188,7 +188,7 @@ bool CFinalCommitment::VerifyNull() const
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
-        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s]invalid llmqType=%d\n", quorumHash.ToString(), ToUnderlying(llmqType));
+        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s]invalid llmqType=%d\n", quorumHash.ToString(), std23::to_underlying(llmqType));
         return false;
     }
 
@@ -226,7 +226,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CTransac
     const auto& llmq_params_opt = Params().GetLLMQ(qcTx.commitment.llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- h[%d] GetLLMQ failed for llmqType[%d]\n",
-                 util_params.m_base_index->nHeight, ToUnderlying(qcTx.commitment.llmqType));
+                 util_params.m_base_index->nHeight, std23::to_underlying(qcTx.commitment.llmqType));
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-commitment-type");
     }
 

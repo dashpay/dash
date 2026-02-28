@@ -25,7 +25,7 @@
 #include <txdb.h> // for -dbcache defaults
 #include <util/strencodings.h>
 #include <util/system.h>
-#include <util/underlying.h>
+#include <util/std23.h>
 
 #include <chrono>
 
@@ -333,7 +333,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
 
 void OptionsDialog::setCurrentTab(OptionsDialog::Tab tab)
 {
-    showPage(ToUnderlying(tab));
+    showPage(std23::to_underlying(tab));
 }
 
 void OptionsDialog::setMapper()

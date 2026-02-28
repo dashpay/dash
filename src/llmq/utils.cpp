@@ -17,8 +17,8 @@
 #include <deploymentstatus.h>
 #include <net.h>
 #include <random.h>
+#include <util/std23.h>
 #include <util/time.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <atomic>
@@ -469,7 +469,7 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
                                                                                llmq::WORK_DIFF_DEPTH);
     CDeterministicMNList allMns = util_params.m_dmnman.GetListForBlock(pWorkBlockIndex);
     LogPrint(BCLog::LLMQ, "ComputeQuorumMembersByQuarterRotation llmqType[%d] nHeight[%d] allMns[%d]\n",
-             ToUnderlying(llmqParams.type), util_params.m_base_index->nHeight, allMns.GetCounts().enabled());
+             std23::to_underlying(llmqParams.type), util_params.m_base_index->nHeight, allMns.GetCounts().enabled());
 
     PreviousQuorumQuarters previousQuarters(nQuorums);
     auto prev_cycles{previousQuarters.GetCycles()};

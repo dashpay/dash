@@ -13,11 +13,11 @@
 #include <llmq/utils.h>
 #include <masternode/meta.h>
 #include <util/irange.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <logging.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <cxxtimer.hpp>
@@ -36,18 +36,18 @@ CDKGLogger::CDKGLogger(const CDKGSession& _quorumDkg, std::string_view _func, in
 {
 }
 
-static std::array<std::atomic<double>, ToUnderlying(DKGError::type::_COUNT)> simDkgErrorMap{};
+static std::array<std::atomic<double>, std23::to_underlying(DKGError::type::_COUNT)> simDkgErrorMap{};
 
 void SetSimulatedDKGErrorRate(DKGError::type type, double rate)
 {
     if (type >= DKGError::type::_COUNT) return;
-    simDkgErrorMap[ToUnderlying(type)] = rate;
+    simDkgErrorMap[std23::to_underlying(type)] = rate;
 }
 
 double GetSimulatedErrorRate(DKGError::type type)
 {
     if (type >= DKGError::type::_COUNT) return 0;
-    return simDkgErrorMap[ToUnderlying(type)];
+    return simDkgErrorMap[std23::to_underlying(type)];
 }
 
 bool CDKGSession::ShouldSimulateError(DKGError::type type) const
