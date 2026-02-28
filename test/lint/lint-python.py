@@ -18,7 +18,8 @@ from importlib.metadata import metadata, PackageNotFoundError
 DEPS = ['flake8', 'lief', 'mypy', 'pyzmq']
 MYPY_CACHE_DIR = f"{os.getenv('BASE_ROOT_DIR', '')}/test/.mypy_cache"
 FILES_ARGS = ['git', 'ls-files', '--','test/functional/*.py', 'contrib/devtools/*.py', ':(exclude)contrib/devtools/github-merge.py']
-EXCLUDE_DIRS = ['src/dashbls/',
+EXCLUDE_DIRS = ['rust/',
+                'src/dashbls/',
                 'src/immer/']
 
 ENABLED = (
