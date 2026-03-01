@@ -13,7 +13,7 @@ SDK_SOURCES="${SDK_SOURCES:-depends/sdk-sources}"
 XCODE_VERSION="${XCODE_VERSION:-26.1.1}"
 XCODE_RELEASE="${XCODE_RELEASE:-17B100}"
 XCODE_ARCHIVE="Xcode-${XCODE_VERSION}-${XCODE_RELEASE}-extracted-SDK-with-libcxx-headers"
-XCODE_AR_HASH="${XCODE_AR_HASH:-f4c65b01e2807372b61553c71036dbfef492d7c79d4c380a5afb61aa1018e555}"
+XCODE_AR_HASH="${XCODE_AR_HASH:-9600fa93644df674ee916b5e2c8a6ba8dacf631996a65dc922d003b98b5ea3b1}"
 XCODE_AR_PATH="${SDK_SOURCES}/${XCODE_ARCHIVE}.tar"
 
 if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
@@ -25,6 +25,7 @@ if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
     echo "Verifying macOS SDK..."
     if [ "$(sha256sum "${XCODE_AR_PATH}" | cut -d' ' -f1)" != "${XCODE_AR_HASH}" ]; then
         echo "ERROR: Checksum mismatch for ${XCODE_AR_PATH}"
+        sha256sum "${XCODE_AR_PATH}"
         exit 1
     fi
     echo "Extracting macOS SDK..."
