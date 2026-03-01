@@ -8,9 +8,9 @@ export LC_ALL=C.UTF-8
 
 export CONTAINER_NAME=ci_macos_cross
 export HOST=x86_64-apple-darwin
-export PACKAGES="clang cmake lld llvm zip"
-export XCODE_VERSION=16.0
-export XCODE_BUILD_ID=16A242d
+export PACKAGES="clang cmake lld llvm  zip"
+export XCODE_VERSION=15.0
+export XCODE_BUILD_ID=15A240d
 export RUN_UNIT_TESTS=false
 export RUN_FUNCTIONAL_TESTS=false
 export GOAL="all deploy"
