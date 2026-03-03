@@ -20,7 +20,7 @@ concurrency:
 jobs:
   check-skip:
     name: Check skip conditions
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
     outputs:
       skip: ${{ steps.skip-check.outputs.skip }}
     steps:
@@ -71,6 +71,7 @@ jobs:
     with:
       build-target: aarch64-linux
       container-path: ${{ needs.container.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   depends-linux64:
     name: x86_64-pc-linux-gnu
@@ -84,6 +85,7 @@ jobs:
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   depends-linux64_multiprocess:
     name: linux64_multiprocess
@@ -95,7 +97,7 @@ jobs:
     with:
       build-target: linux64_multiprocess
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
 
   depends-linux64_nowallet:
     name: x86_64-pc-linux-gnu_nowallet
@@ -105,6 +107,7 @@ jobs:
     with:
       build-target: linux64_nowallet
       container-path: ${{ needs.container.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   depends-mac:
     name: x86_64-apple-darwin
@@ -114,6 +117,7 @@ jobs:
     with:
       build-target: mac
       container-path: ${{ needs.container.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   depends-win64:
     name: x86_64-w64-mingw32
@@ -123,6 +127,7 @@ jobs:
     with:
       build-target: win64
       container-path: ${{ needs.container.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   lint:
     name: Lint
@@ -141,6 +146,7 @@ jobs:
       depends-key: ${{ needs.depends-aarch64-linux.outputs.key }}
       depends-host: ${{ needs.depends-aarch64-linux.outputs.host }}
       depends-dep-opts: ${{ needs.depends-aarch64-linux.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-linux64:
     name: linux64-build
@@ -153,6 +159,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-linux64_fuzz:
     name: linux64_fuzz-build
@@ -165,6 +172,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-linux64_multiprocess:
     name: linux64_multiprocess-build
@@ -177,7 +185,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64_multiprocess.outputs.key }}
       depends-host: ${{ needs.depends-linux64_multiprocess.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_multiprocess.outputs.dep-opts }}
-      runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
 
   src-linux64_nowallet:
     name: linux64_nowallet-build
@@ -189,6 +197,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64_nowallet.outputs.key }}
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-linux64_sqlite:
     name: linux64_sqlite-build
@@ -201,6 +210,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-linux64_tsan:
     name: linux64_tsan-build
@@ -213,7 +223,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64_multiprocess.outputs.key }}
       depends-host: ${{ needs.depends-linux64_multiprocess.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_multiprocess.outputs.dep-opts }}
-      runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
 
   src-linux64_ubsan:
     name: linux64_ubsan-build
@@ -226,6 +236,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-mac:
     name: mac-build
@@ -237,6 +248,7 @@ jobs:
       depends-key: ${{ needs.depends-mac.outputs.key }}
       depends-host: ${{ needs.depends-mac.outputs.host }}
       depends-dep-opts: ${{ needs.depends-mac.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   src-win64:
     name: win64-build
@@ -248,6 +260,7 @@ jobs:
       depends-key: ${{ needs.depends-win64.outputs.key }}
       depends-host: ${{ needs.depends-win64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-win64.outputs.dep-opts }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   test-linux64:
     name: linux64-test
@@ -257,6 +270,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64.outputs.key }}
       build-target: linux64
       container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   test-linux64_multiprocess:
     name: linux64_multiprocess-test
@@ -266,7 +280,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_multiprocess.outputs.key }}
       build-target: linux64_multiprocess
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
 
   test-linux64_nowallet:
     name: linux64_nowallet-test
@@ -276,6 +290,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
       container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   test-linux64_sqlite:
     name: linux64_sqlite-test
@@ -285,6 +300,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
       build-target: linux64_sqlite
       container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
 
   test-linux64_tsan:
     name: linux64_tsan-test
@@ -294,7 +310,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_tsan.outputs.key }}
       build-target: linux64_tsan
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
 
   test-linux64_ubsan:
     name: linux64_ubsan-test
@@ -304,3 +320,4 @@ jobs:
       bundle-key: ${{ needs.src-linux64_ubsan.outputs.key }}
       build-target: linux64_ubsan
       container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}

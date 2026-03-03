@@ -26,8 +26,7 @@ on:
         default: ""
       runs-on:
         description: "Runner label to use (e.g., ubuntu-24.04 or ubuntu-24.04-arm)"
-        required: false
-        default: blacksmith-4vcpu-ubuntu-2404
+        required: true
         type: string
     outputs:
       key:
