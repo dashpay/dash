@@ -9,6 +9,8 @@ on:
   pull_request_target:
     types: [labeled]
   push:
+    tags:
+      - '*'
   schedule:
     # Run weekly at 3 AM UTC on Sunday on the default branch
     - cron: '0 3 * * 0'
