@@ -11,7 +11,7 @@ on:
 jobs:
   lint:
     name: Run linters
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
     container:
       image: ${{ inputs.container-path }}
       options: --user root

@@ -9,7 +9,7 @@ on:
 jobs:
   cache-sources:
     name: Cache depends sources
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
