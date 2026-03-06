@@ -1,5 +1,7 @@
 packages:=gmp backtrace
 
+qt_packages = zlib
+
 boost_packages = boost
 
 libevent_packages = libevent
