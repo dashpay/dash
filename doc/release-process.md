@@ -239,6 +239,12 @@ popd
 * [ ] Submit patches to BTCPay to ensure they use latest / compatible version see https://github.com/dashpay/dash/issues/4211#issuecomment-966608207
 * [ ] Update Core and User docs (docs.dash.org)
 * [ ] Test Docker build runs without error in Dashmate
+* [ ] Update the [Flathub manifest](https://github.com/flathub/org.dash.dash-core) with the new release:
+  - Update the download URLs in `org.dash.dash-core.json` to point to the new release tag
+  - Update the SHA256 hashes for the `x86_64` and `aarch64` Linux tarballs
+  - Update the `metainfo.xml` source URL to reference the new release tag commit
+  - Open a PR against `flathub/org.dash.dash-core` and verify the Flathub build succeeds
+  - See [previous update PR](https://github.com/flathub/org.dash.dash-core/commit/7f5f9dd8a464ec5e2cf2d657205261c19ac1a5a8) for an example
 * [ ] Add new Release Process items to repo [Release Process](release-process.md) document
 * [ ] Merge `master` branch back into `develop` so that `master` could be fast-forwarded on next release again
 
