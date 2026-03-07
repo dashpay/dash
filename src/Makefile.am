@@ -342,7 +342,7 @@ BITCOIN_CORE_H = \
   psbt.h \
   random.h \
   randomenv.h \
-  rest.h \
+  rest/server.h \
   rpc/blockchain.h \
   rpc/client.h \
   rpc/evo_util.h \
@@ -598,7 +598,7 @@ libbitcoin_node_a_SOURCES = \
   policy/policy.cpp \
   policy/settings.cpp \
   pow.cpp \
-  rest.cpp \
+  rest/server.cpp \
   rpc/blockchain.cpp \
   rpc/coinjoin.cpp \
   rpc/evo.cpp \
