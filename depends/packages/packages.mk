@@ -1,6 +1,8 @@
-packages:=gmp backtrace
+backtrace_packages:=backtrace
+drogon_packages:=drogon jsoncpp trantor zlib
+gmp_packages:=gmp
 
-qt_packages = zlib
+packages:=$(backtrace_packages) $(drogon_packages) $(gmp_packages)
 
 boost_packages = boost
 
