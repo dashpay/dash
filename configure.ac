@@ -262,6 +262,12 @@ AC_ARG_ENABLE([multiprocess],
   [enable_multiprocess=$enableval],
   [enable_multiprocess=no])
 
+AC_ARG_WITH([drogon],
+  [AS_HELP_STRING([--with-drogon=yes|no|auto],
+  [enable drogon server support (default: auto, i.e., enabled if drogon is found)])],
+  [use_drogon=$withval],
+  [use_drogon=auto])
+
 AC_ARG_ENABLE(man,
     [AS_HELP_STRING([--disable-man],
                     [do not install man pages (default is to install)])],,
@@ -1455,6 +1461,7 @@ if test "$enable_fuzz" = "yes"; then
   use_upnp=no
   use_natpmp=no
   use_zmq=no
+  use_drogon=no
   enable_fuzz_binary=yes
 
   AX_CHECK_PREPROC_FLAG([-DABORT_ON_FAILED_ASSUME], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DABORT_ON_FAILED_ASSUME"], [], [$CXXFLAG_WERROR])
@@ -1547,6 +1554,7 @@ if test "$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests" = "nononono"; th
   use_upnp=no
   use_natpmp=no
   use_zmq=no
+  use_drogon=no
 fi
 
 dnl Check for libminiupnpc (optional)
@@ -1720,6 +1728,35 @@ CPPFLAGS="$TEMP_CPPFLAGS"
 LDFLAGS="$TEMP_LDFLAGS"
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "$use_zmq" = "yes"])
+
+dnl Drogon server check
+if test "$use_drogon" != "no"; then
+  AC_CHECK_HEADER([drogon/drogon.h], [have_drogon=yes], [have_drogon=no])
+fi
+AC_MSG_CHECKING([whether to build with drogon server support])
+if test "$use_drogon" = "no"; then
+  use_drogon=no
+elif test "$have_drogon" = "no"; then
+  if test "$use_drogon" = "yes"; then
+    AC_MSG_ERROR([drogon support requested but headers not found. Use --without-drogon])
+  fi
+  use_drogon=no
+else
+  AC_DEFINE([USE_DROGON], [1], [Define this symbol to enable the Drogon server])
+  DROGON_LIBS="-ldrogon -ltrantor -ljsoncpp -lz"
+  case $host in
+    *linux*)
+      DROGON_LIBS="$DROGON_LIBS -ldl -luuid"
+    ;;
+    *darwin*)
+      DROGON_LIBS="$DROGON_LIBS -ldl"
+    ;;
+  esac
+  use_drogon=yes
+fi
+AC_MSG_RESULT([$use_drogon])
+
+AM_CONDITIONAL([USE_DROGON], [test "$use_drogon" = "yes"])
 
 dnl libmultiprocess library check
 
@@ -2043,6 +2080,7 @@ AC_SUBST(BACKTRACE_FLAGS)
 AC_SUBST(BACKTRACE_LDFLAGS)
 AC_SUBST(BACKTRACE_LIBS)
 AC_SUBST(GMP_LIBS)
+AC_SUBST(DROGON_LIBS)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)
@@ -2107,6 +2145,7 @@ echo "Options used to compile and link:"
 echo "  external signer     = $use_external_signer"
 echo "  multiprocess        = $build_multiprocess"
 echo "  with libs           = $build_bitcoin_libs"
+echo "  with drogon         = $use_drogon"
 echo "  with wallet         = $enable_wallet"
 if test "$enable_wallet" != "no"; then
     echo "    with sqlite       = $use_sqlite"

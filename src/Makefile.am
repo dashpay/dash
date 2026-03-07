@@ -58,6 +58,9 @@ LIBSECP256K1=secp256k1/libsecp256k1.la
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
+if USE_DROGON
+LIBBITCOIN_QUERY=libbitcoin_query.a
+endif
 if BUILD_BITCOIN_LIBS
 LIBBITCOINCONSENSUS=libdashconsensus.la
 endif
@@ -120,7 +123,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_IPC) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_WALLET_TOOL) \
-  $(LIBBITCOIN_ZMQ)
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBBITCOIN_QUERY)
 
 if BUILD_BITCOIND
   bin_PROGRAMS += dashd
@@ -654,6 +658,13 @@ libbitcoin_zmq_a_SOURCES = \
 endif
 #
 
+# query #
+if USE_DROGON
+libbitcoin_query_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
+libbitcoin_query_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+endif
+#
+
 # wallet #
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(BDB_CPPFLAGS) $(SQLITE_CFLAGS)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -1051,6 +1062,7 @@ bitcoin_bin_ldadd = \
   $(LIBBITCOIN_UTIL) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_ZMQ) \
+  $(LIBBITCOIN_QUERY) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBDASHBLS) \
@@ -1058,7 +1070,7 @@ bitcoin_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS)
+bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(DROGON_LIBS) $(GMP_LIBS)
 
 dashd_SOURCES = $(bitcoin_daemon_sources) init/bitcoind.cpp
 dashd_CPPFLAGS = $(bitcoin_bin_cppflags)
