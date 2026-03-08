@@ -58,6 +58,9 @@ class RESTTest (BitcoinTestFramework):
             args.append("-whitelist=noban@127.0.0.1")
         self.supports_cli = False
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_drogon()
+
     def test_rest_request(
             self,
             uri: str,

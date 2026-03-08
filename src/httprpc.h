@@ -5,6 +5,10 @@
 #ifndef BITCOIN_HTTPRPC_H
 #define BITCOIN_HTTPRPC_H
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <context.h>
 
 /** Start HTTP RPC subsystem.
@@ -19,6 +23,7 @@ void InterruptHTTPRPC();
  */
 void StopHTTPRPC();
 
+#ifdef USE_DROGON
 /** Start HTTP REST subsystem.
  * Precondition; HTTP and RPC has been started.
  */
@@ -30,5 +35,6 @@ void InterruptREST();
  * Precondition; HTTP and RPC has been stopped.
  */
 void StopREST();
+#endif // USE_DROGON
 
 #endif // BITCOIN_HTTPRPC_H

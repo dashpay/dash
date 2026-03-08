@@ -162,7 +162,6 @@ BITCOIN_TESTS =\
   test/raii_event_tests.cpp \
   test/random_tests.cpp \
   test/ratecheck_tests.cpp \
-  test/rest_tests.cpp \
   test/result_tests.cpp \
   test/reverselock_tests.cpp \
   test/rpc_tests.cpp \
@@ -266,6 +265,12 @@ test_test_dash_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $
 if ENABLE_ZMQ
 test_test_dash_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 FUZZ_SUITE_LD_COMMON += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+endif
+
+if USE_DROGON
+BITCOIN_TESTS += \
+  test/rest_tests.cpp
+FUZZ_SUITE_LD_COMMON += $(LIBBITCOIN_QUERY) $(DROGON_LIBS)
 endif
 
 if ENABLE_FUZZ_BINARY

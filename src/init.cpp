@@ -251,7 +251,9 @@ void Interrupt(NodeContext& node)
     InterruptHTTPServer();
     InterruptHTTPRPC();
     InterruptRPC();
+#ifdef USE_DROGON
     InterruptREST();
+#endif // USE_DROGON
     InterruptTorControl();
     if (node.peerman) {
         node.peerman->InterruptHandlers();
@@ -285,7 +287,9 @@ void PrepareShutdown(NodeContext& node)
     if (node.mempool) node.mempool->AddTransactionsUpdated(1);
 
     StopHTTPRPC();
+#ifdef USE_DROGON
     StopREST();
+#endif // USE_DROGON
     StopRPC();
     StopHTTPServer();
 
@@ -931,7 +935,9 @@ static bool AppInitServers(NodeContext& node)
     node.rpc_interruption_point = RpcInterruptionPoint;
     if (!StartHTTPRPC(node))
         return false;
+#ifdef USE_DROGON
     if (args.GetBoolArg("-rest", DEFAULT_REST_ENABLE)) StartREST(node);
+#endif // USE_DROGON
     StartHTTPServer();
     return true;
 }
