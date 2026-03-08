@@ -828,6 +828,8 @@ static bool rest_getutxos(const CoreContext& context, const drogon::HttpRequestP
     ChainstateManager* maybe_chainman = GetChainman(context, cb);
     if (!maybe_chainman) return false;
     ChainstateManager& chainman = *maybe_chainman;
+    int chain_height{0};
+    uint256 chain_tip_hash;
     {
         auto process_utxos = [&vOutPoints, &outs, &hits](const CCoinsView& view, const CTxMemPool* mempool) {
             for (const COutPoint& vOutPoint : vOutPoints) {
@@ -846,9 +848,13 @@ static bool rest_getutxos(const CoreContext& context, const drogon::HttpRequestP
             CCoinsViewCache& viewChain = chainman.ActiveChainstate().CoinsTip();
             CCoinsViewMemPool viewMempool(&viewChain, *mempool);
             process_utxos(viewMempool, mempool);
+            chain_height = chainman.ActiveChain().Height();
+            chain_tip_hash = chainman.ActiveChain().Tip()->GetBlockHash();
         } else {
             LOCK(cs_main);
             process_utxos(chainman.ActiveChainstate().CoinsTip(), nullptr);
+            chain_height = chainman.ActiveChain().Height();
+            chain_tip_hash = chainman.ActiveChain().Tip()->GetBlockHash();
         }
 
         for (size_t i = 0; i < hits.size(); ++i) {
@@ -863,7 +869,7 @@ static bool rest_getutxos(const CoreContext& context, const drogon::HttpRequestP
         // serialize data
         // use exact same output as mentioned in Bip64
         CDataStream ssGetUTXOResponse(SER_NETWORK, PROTOCOL_VERSION);
-        ssGetUTXOResponse << chainman.ActiveChain().Height() << chainman.ActiveChain().Tip()->GetBlockHash() << bitmap << outs;
+        ssGetUTXOResponse << chain_height << chain_tip_hash << bitmap << outs;
 
         WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssGetUTXOResponse.str());
         return true;
@@ -871,7 +877,7 @@ static bool rest_getutxos(const CoreContext& context, const drogon::HttpRequestP
 
     case RESTResponseFormat::HEX: {
         CDataStream ssGetUTXOResponse(SER_NETWORK, PROTOCOL_VERSION);
-        ssGetUTXOResponse << chainman.ActiveChain().Height() << chainman.ActiveChain().Tip()->GetBlockHash() << bitmap << outs;
+        ssGetUTXOResponse << chain_height << chain_tip_hash << bitmap << outs;
 
         WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssGetUTXOResponse) + "\n");
         return true;
@@ -882,8 +888,8 @@ static bool rest_getutxos(const CoreContext& context, const drogon::HttpRequestP
 
         // pack in some essentials
         // use more or less the same output as mentioned in Bip64
-        objGetUTXOResponse.pushKV("chainHeight", chainman.ActiveChain().Height());
-        objGetUTXOResponse.pushKV("chaintipHash", chainman.ActiveChain().Tip()->GetBlockHash().GetHex());
+        objGetUTXOResponse.pushKV("chainHeight", chain_height);
+        objGetUTXOResponse.pushKV("chaintipHash", chain_tip_hash.GetHex());
         objGetUTXOResponse.pushKV("bitmap", bitmapStringRepresentation);
 
         UniValue utxos(UniValue::VARR);
