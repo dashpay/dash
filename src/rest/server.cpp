@@ -21,6 +21,7 @@
 #include <node/context.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <rest/reader.h>
 #include <rpc/blockchain.h>
 #include <rpc/mempool.h>
 #include <rpc/protocol.h>
@@ -349,9 +350,9 @@ static bool rest_block(const CoreContext& context,
     if (!ParseHashStr(hashStr, hash))
         return RESTERR(cb, drogon::k400BadRequest, "Invalid hash: " + hashStr);
 
-    CBlock block;
     const CBlockIndex* pblockindex = nullptr;
     const CBlockIndex* tip = nullptr;
+    FlatFilePos block_pos;
     ChainstateManager* maybe_chainman = GetChainman(context, cb);
     if (!maybe_chainman) return false;
     ChainstateManager& chainman = *maybe_chainman;
@@ -365,28 +366,34 @@ static bool rest_block(const CoreContext& context,
 
         if (chainman.m_blockman.IsBlockPruned(pblockindex))
             return RESTERR(cb, drogon::k404NotFound, hashStr + " not available (pruned data)");
-    }
 
-    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
-        return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        block_pos = pblockindex->GetBlockPos();
     }
 
     switch (rf) {
     case RESTResponseFormat::BINARY: {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
-        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssBlock.str());
+        std::optional<std::string> raw_block = rest::ReadRawBlockFromDisk(block_pos);
+        if (!raw_block) {
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        }
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, std::move(*raw_block));
         return true;
     }
 
     case RESTResponseFormat::HEX: {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
-        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssBlock) + "\n");
+        std::optional<std::string> raw_block = rest::ReadRawBlockFromDisk(block_pos);
+        if (!raw_block) {
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        }
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(*raw_block) + "\n");
         return true;
     }
 
     case RESTResponseFormat::JSON: {
+        CBlock block;
+        if (!ReadBlockFromDisk(block, block_pos, Params().GetConsensus())) {
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        }
         const NodeContext* const node = GetNodeContext(context, cb);
         if (!node || !node->chainlocks) return false;
 
