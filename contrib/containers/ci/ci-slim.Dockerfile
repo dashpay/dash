@@ -79,9 +79,9 @@ ENV UV_SYSTEM_PYTHON=1
 RUN uv pip install --system --break-system-packages \
     codespell==2.2.1 \
     flake8==5.0.4 \
-    jinja2 \
+    jinja2==3.1.6 \
     lief==0.13.2 \
-    multiprocess \
+    multiprocess==0.70.19 \
     mypy==0.981 \
     pyzmq==24.0.1 \
     vulture==2.6
