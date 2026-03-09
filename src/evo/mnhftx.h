@@ -89,7 +89,7 @@ class CMNHFManager : public AbstractEHFManager
 {
 private:
     CEvoDB& m_evoDb;
-    // TODO: move its functionallity of ProcessBlock, UndoBlock to specialtxman;
+    // TODO: move its functionality of ProcessBlock, UndoBlock to specialtxman;
     // it will help to drop dependency on m_chainman, m_qman here (and validation.h)
     // Secondly, store in database active EHF signals not for each block;
     // but quite opposite: keep only hash of block where signal is added.

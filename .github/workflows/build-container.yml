@@ -15,6 +15,14 @@ on:
         description: "Container name"
         required: true
         type: string
+      runs-on-amd64:
+        description: "Runner label to use for amd64 jobs"
+        required: true
+        type: string
+      runs-on-arm64:
+        description: "Runner label to use for arm64 jobs"
+        required: true
+        type: string
     outputs:
       path:
         description: "Path to built container"
@@ -23,7 +31,7 @@ on:
 jobs:
   build-amd64:
     name: Build container (amd64)
-    runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.runs-on-amd64 }}
     outputs:
       tag: ${{ steps.prepare.outputs.tag }}
       repo: ${{ steps.prepare.outputs.repo }}
@@ -69,7 +77,7 @@ jobs:
 
   build-arm64:
     name: Build container (arm64)
-    runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+    runs-on: ${{ inputs.runs-on-arm64 }}
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
@@ -113,7 +121,7 @@ jobs:
 
   create-manifest:
     name: Create multi-arch manifest
-    runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+    runs-on: ${{ inputs.runs-on-arm64 }}
     needs: [build-amd64, build-arm64]
     steps:
       - name: Checkout code
