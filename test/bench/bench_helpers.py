@@ -126,3 +126,29 @@ async def async_rpc_flood(
         "status_codes": status_codes,
         "bytes_received": bytes_rx,
     }
+
+
+def zmq_subscribe(
+    address: str,
+    topic: bytes,
+    timeout_ms: int = 30000,
+) -> Tuple[Any, Any]:
+    """Create a ZMQ SUB socket connected to *address* with *topic*.
+    Caller must remember to ``socket.close()`` and ``context.destroy()`` when done.
+    """
+    import zmq
+    ctx = zmq.Context()
+    sock = ctx.socket(zmq.SUB)
+    sock.set(zmq.RCVTIMEO, timeout_ms)
+    sock.set(zmq.IPV6, 1)
+    sock.setsockopt(zmq.SUBSCRIBE, topic)
+    sock.connect(address)
+    return ctx, sock
+
+
+def zmq_receive_one(
+    sock: Any,
+) -> Tuple[bytes, bytes, float]:
+    """Receive one ZMQ multipart message from *sock*."""
+    topic, body, _seq = sock.recv_multipart()
+    return topic, body, time.perf_counter()
