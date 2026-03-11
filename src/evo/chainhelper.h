@@ -15,7 +15,6 @@ class CDeterministicMNManager;
 class CEvoDB;
 class CGovernanceManager;
 class ChainstateManager;
-class CMasternodeSync;
 class CMNHFManager;
 class CMNPaymentsProcessor;
 class CSpecialTxProcessor;
@@ -53,8 +52,8 @@ public:
     explicit CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmnman, CGovernanceManager& govman,
                                llmq::CInstantSendManager& isman, llmq::CQuorumBlockProcessor& qblockman,
                                llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
-                               const Consensus::Params& consensus_params, const CMasternodeSync& mn_sync,
-                               const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman);
+                               const Consensus::Params& consensus_params, const chainlock::Chainlocks& chainlocks,
+                               const llmq::CQuorumManager& qman);
     ~CChainstateHelper();
 
     /** Passthrough functions to chainlock::Chainlocks */
