@@ -273,6 +273,7 @@ public:
 
     // Basic initialization and querying
     bool IsValid() const override { return is_valid; }
+    bool IsValidAndSynced() const;
     bool LoadCache(bool load_cache)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);

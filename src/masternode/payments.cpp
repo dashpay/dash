@@ -160,7 +160,7 @@ CAmount PlatformShare(const CAmount reward)
     int nOffset = nBlockHeight % m_consensus_params.nBudgetPaymentsCycleBlocks;
     if (nOffset < m_consensus_params.nBudgetPaymentsWindowBlocks) {
         // NOTE: old budget system is disabled since 12.1
-        if(m_mn_sync.IsSynced()) {
+        if (m_govman.IsValidAndSynced()) {
             // no old budget blocks should be accepted here on mainnet,
             // testnet/devnet/regtest should produce regular blocks only
             LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- WARNING! Client synced but old budget system is disabled, checking block value against block reward\n", __func__);
@@ -232,7 +232,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
         return false;
     }
 
-    if (!m_mn_sync.IsSynced() || !m_govman.IsValid()) {
+    if (!m_govman.IsValidAndSynced()) {
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- WARNING! Not enough data, checked superblock max bounds only\n", __func__);
         // not enough data for full checks but at least we know that the superblock limits were honored.
         // We rely on the network to have followed the correct chain in this case
@@ -291,7 +291,7 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
         return false;
     }
 
-    if (!m_mn_sync.IsSynced() || !m_govman.IsValid()) {
+    if (!m_govman.IsValidAndSynced()) {
         // governance data is either incomplete or non-existent
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- WARNING! Not enough data, skipping superblock payee checks\n", __func__);
         return true;  // not an error

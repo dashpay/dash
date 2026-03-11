@@ -96,6 +96,8 @@ bool CGovernanceManager::LoadCache(bool load_cache)
     return is_valid;
 }
 
+bool CGovernanceManager::IsValidAndSynced() const { return is_valid && m_mn_sync.IsSynced(); }
+
 void CGovernanceManager::RelayObject(const CGovernanceObject& obj)
 {
     AssertLockNotHeld(cs_relay);
