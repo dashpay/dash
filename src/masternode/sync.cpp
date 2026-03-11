@@ -9,6 +9,11 @@
 #include <util/time.h>
 #include <util/translation.h>
 
+#include <cassert>
+
+void NullNodeSyncNotifier::SyncReset() { assert(false); }
+void NullNodeSyncNotifier::SyncFinished() { assert(false); }
+
 CMasternodeSync::CMasternodeSync(std::unique_ptr<NodeSyncNotifier>&& sync_notifier) :
     nTimeAssetSyncStarted{GetTime()},
     nTimeLastBumped{GetTime()},

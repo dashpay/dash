@@ -32,6 +32,20 @@ public:
     virtual ~NodeSyncNotifier() = default;
 };
 
+/** Stub implementation for use in chainstate-only (non-network) contexts.
+ *  CMasternodeSync constructed with this notifier permanently returns
+ *  IsBlockchainSynced()=false and IsSynced()=false, which correctly disables
+ *  network-dependent validation paths.
+ *
+ *  Asserts on any call — if sync state is being advanced, a real notifier
+ *  (NodeSyncNotifierImpl) must be used instead. */
+class NullNodeSyncNotifier final : public NodeSyncNotifier
+{
+public:
+    void SyncReset() override;
+    void SyncFinished() override;
+};
+
 //
 // CMasternodeSync : Sync masternode assets in stages
 //
