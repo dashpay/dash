@@ -70,6 +70,12 @@ bool IsAllowedPlatformHTTPPort(uint16_t port)
 
 bool IsNodeOnMainnet() { return Params().NetworkIDString() == CBaseChainParams::MAIN; }
 
+bool IsServiceDeprecatedRPCEnabled()
+{
+    const auto args = gArgs.GetArgs("-deprecatedrpc");
+    return std::find(args.begin(), args.end(), "service") != args.end();
+}
+
 const CChainParams& MainParams()
 {
     std::call_once(g_main_params_flag, [&]() { g_main_params = CreateChainParams(::gArgs, CBaseChainParams::MAIN); });
