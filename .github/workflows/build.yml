@@ -5,6 +5,7 @@ on:
   pull_request_target:
 
 permissions:
+  actions: read
   contents: read
   packages: write
 
@@ -20,9 +21,14 @@ concurrency:
 jobs:
   check-skip:
     name: Check skip conditions
-    runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     outputs:
       skip: ${{ steps.skip-check.outputs.skip }}
+      runner-amd64: ${{ steps.select-runner.outputs.runner_amd64 }}
+      runner-arm64: ${{ steps.select-runner.outputs.runner_arm64 }}
+      use-blacksmith: ${{ steps.select-runner.outputs.use_blacksmith }}
+      backlog-count: ${{ steps.select-runner.outputs.backlog_count }}
+      decision-reason: ${{ steps.select-runner.outputs.decision_reason }}
     steps:
       - name: Check skip environment variables
         id: skip-check
@@ -37,11 +43,28 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Checkout code
+        if: ${{ steps.skip-check.outputs.skip == 'false' }}
+        uses: actions/checkout@v4
+
+      - name: Select runners
+        id: select-runner
+        if: ${{ steps.skip-check.outputs.skip == 'false' }}
+        env:
+          BACKLOG_THRESHOLD: "10"
+          GH_TOKEN: ${{ github.token }}
+          RUNNER_AMD64_VAR: ${{ vars.RUNNER_AMD64 }}
+          RUNNER_ARM64_VAR: ${{ vars.RUNNER_ARM64 }}
+        run: |
+          python3 .github/workflows/select_dynamic_runner.py
+
   cache-sources:
     name: Cache depends sources
     needs: [check-skip]
     if: ${{ needs.check-skip.outputs.skip == 'false' }}
     uses: ./.github/workflows/cache-depends-sources.yml
+    with:
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   container:
     name: Build container
@@ -52,6 +75,8 @@ jobs:
       context: ./contrib/containers/ci
       file: ./contrib/containers/ci/ci.Dockerfile
       name: dashcore-ci-runner
+      runs-on-amd64: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-arm64: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   container-slim:
     name: Build slim container
@@ -62,21 +87,23 @@ jobs:
       context: ./contrib/containers/ci
       file: ./contrib/containers/ci/ci-slim.Dockerfile
       name: dashcore-ci-slim
+      runs-on-amd64: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-arm64: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   depends-aarch64-linux:
     name: aarch64-linux-gnu
     uses: ./.github/workflows/build-depends.yml
-    needs: [container, cache-sources]
+    needs: [check-skip, container, cache-sources]
     if: ${{ vars.SKIP_ARM_LINUX == '' }}
     with:
       build-target: aarch64-linux
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   depends-linux64:
     name: x86_64-pc-linux-gnu
     uses: ./.github/workflows/build-depends.yml
-    needs: [container, cache-sources]
+    needs: [check-skip, container, cache-sources]
     if: |
       vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_FUZZ == '' ||
@@ -85,73 +112,74 @@ jobs:
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   depends-linux64_multiprocess:
     name: linux64_multiprocess
     uses: ./.github/workflows/build-depends.yml
-    needs: [container, cache-sources]
+    needs: [check-skip, container, cache-sources]
     if: |
       vars.SKIP_LINUX64_MULTIPROCESS == '' ||
       vars.SKIP_LINUX64_TSAN == ''
     with:
       build-target: linux64_multiprocess
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   depends-linux64_nowallet:
     name: x86_64-pc-linux-gnu_nowallet
     uses: ./.github/workflows/build-depends.yml
-    needs: [container, cache-sources]
+    needs: [check-skip, container, cache-sources]
     if: ${{ vars.SKIP_LINUX64_NOWALLET == '' }}
     with:
       build-target: linux64_nowallet
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   depends-mac:
     name: x86_64-apple-darwin
     uses: ./.github/workflows/build-depends.yml
-    needs: [container, cache-sources]
+    needs: [check-skip, container, cache-sources]
     if: ${{ vars.SKIP_MAC == '' }}
     with:
       build-target: mac
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   depends-win64:
     name: x86_64-w64-mingw32
     uses: ./.github/workflows/build-depends.yml
-    needs: [container, cache-sources]
+    needs: [check-skip, container, cache-sources]
     if: ${{ vars.SKIP_WIN64 == '' }}
     with:
       build-target: win64
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   lint:
     name: Lint
     uses: ./.github/workflows/lint.yml
-    needs: [container-slim]
+    needs: [check-skip, container-slim]
     with:
       container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-aarch64-linux:
     name: aarch64-linux-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-aarch64-linux]
+    needs: [check-skip, container, depends-aarch64-linux]
     with:
       build-target: aarch64-linux
       container-path: ${{ needs.container.outputs.path }}
       depends-key: ${{ needs.depends-aarch64-linux.outputs.key }}
       depends-host: ${{ needs.depends-aarch64-linux.outputs.host }}
       depends-dep-opts: ${{ needs.depends-aarch64-linux.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64:
     name: linux64-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64]
+    needs: [check-skip, container, depends-linux64]
     if: ${{ vars.SKIP_LINUX64 == '' }}
     with:
       build-target: linux64
@@ -159,12 +187,12 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_fuzz:
     name: linux64_fuzz-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64]
+    needs: [check-skip, container, depends-linux64]
     if: ${{ vars.SKIP_LINUX64_FUZZ == '' }}
     with:
       build-target: linux64_fuzz
@@ -172,12 +200,12 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_multiprocess:
     name: linux64_multiprocess-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64_multiprocess, lint]
+    needs: [check-skip, container, depends-linux64_multiprocess, lint]
     if: ${{ vars.SKIP_LINUX64_MULTIPROCESS == '' }}
     with:
       build-target: linux64_multiprocess
@@ -185,24 +213,24 @@ jobs:
       depends-key: ${{ needs.depends-linux64_multiprocess.outputs.key }}
       depends-host: ${{ needs.depends-linux64_multiprocess.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_multiprocess.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_nowallet:
     name: linux64_nowallet-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64_nowallet]
+    needs: [check-skip, container, depends-linux64_nowallet]
     with:
       build-target: linux64_nowallet
       container-path: ${{ needs.container.outputs.path }}
       depends-key: ${{ needs.depends-linux64_nowallet.outputs.key }}
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_sqlite:
     name: linux64_sqlite-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64]
+    needs: [check-skip, container, depends-linux64]
     if: ${{ vars.SKIP_LINUX64_SQLITE == '' }}
     with:
       build-target: linux64_sqlite
@@ -210,12 +238,12 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_tsan:
     name: linux64_tsan-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64_multiprocess]
+    needs: [check-skip, container, depends-linux64_multiprocess]
     if: ${{ vars.SKIP_LINUX64_TSAN == '' }}
     with:
       build-target: linux64_tsan
@@ -223,12 +251,12 @@ jobs:
       depends-key: ${{ needs.depends-linux64_multiprocess.outputs.key }}
       depends-host: ${{ needs.depends-linux64_multiprocess.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_multiprocess.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_ubsan:
     name: linux64_ubsan-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-linux64]
+    needs: [check-skip, container, depends-linux64]
     if: ${{ vars.SKIP_LINUX64_UBSAN == '' }}
     with:
       build-target: linux64_ubsan
@@ -236,88 +264,88 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-mac:
     name: mac-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-mac]
+    needs: [check-skip, container, depends-mac]
     with:
       build-target: mac
       container-path: ${{ needs.container.outputs.path }}
       depends-key: ${{ needs.depends-mac.outputs.key }}
       depends-host: ${{ needs.depends-mac.outputs.host }}
       depends-dep-opts: ${{ needs.depends-mac.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-win64:
     name: win64-build
     uses: ./.github/workflows/build-src.yml
-    needs: [container, depends-win64]
+    needs: [check-skip, container, depends-win64]
     with:
       build-target: win64
       container-path: ${{ needs.container.outputs.path }}
       depends-key: ${{ needs.depends-win64.outputs.key }}
       depends-host: ${{ needs.depends-win64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-win64.outputs.dep-opts }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   test-linux64:
     name: linux64-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64, lint]
+    needs: [check-skip, container-slim, src-linux64, lint]
     with:
       bundle-key: ${{ needs.src-linux64.outputs.key }}
       build-target: linux64
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   test-linux64_multiprocess:
     name: linux64_multiprocess-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_multiprocess, lint]
+    needs: [check-skip, container-slim, src-linux64_multiprocess, lint]
     with:
       bundle-key: ${{ needs.src-linux64_multiprocess.outputs.key }}
       build-target: linux64_multiprocess
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_nowallet:
     name: linux64_nowallet-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_nowallet, lint]
+    needs: [check-skip, container-slim, src-linux64_nowallet, lint]
     with:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   test-linux64_sqlite:
     name: linux64_sqlite-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_sqlite, lint]
+    needs: [check-skip, container-slim, src-linux64_sqlite, lint]
     with:
       bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
       build-target: linux64_sqlite
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   test-linux64_tsan:
     name: linux64_tsan-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_tsan, lint]
+    needs: [check-skip, container-slim, src-linux64_tsan, lint]
     with:
       bundle-key: ${{ needs.src-linux64_tsan.outputs.key }}
       build-target: linux64_tsan
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ vars.RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_ubsan:
     name: linux64_ubsan-test
     uses: ./.github/workflows/test-src.yml
-    needs: [container-slim, src-linux64_ubsan, lint]
+    needs: [check-skip, container-slim, src-linux64_ubsan, lint]
     with:
       bundle-key: ${{ needs.src-linux64_ubsan.outputs.key }}
       build-target: linux64_ubsan
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
