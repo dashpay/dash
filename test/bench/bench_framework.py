@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'functional'))
 
 from bench_results import (  # noqa: E402
     BenchResult,
+    results_to_markdown,
     save_results,
 )
 from test_framework.test_framework import BitcoinTestFramework  # noqa: E402
@@ -119,17 +120,8 @@ class BenchFramework(BitcoinTestFramework):
     def _report_results(self) -> None:
         """Print a summary of all recorded measurements."""
         results = self._build_results()
-        self.log.info("=" * 60)
-        self.log.info("Benchmark: %s", self.bench_name)
-        self.log.info("=" * 60)
-        for r in results:
-            self.log.info(
-                "  %-30s  n=%-6d  mean=%8.2fms  p50=%8.2fms  "
-                "p99=%8.2fms  min=%8.2fms  max=%8.2fms",
-                r.name, r.sample_count, r.mean_ms, r.p50_ms,
-                r.p99_ms, r.min_ms, r.max_ms,
-            )
-        self.log.info("=" * 60)
+        md = results_to_markdown(results, title=self.bench_name)
+        print(md)
 
         if self.results_file:
             save_results(results, self.results_file, label=self.bench_name)

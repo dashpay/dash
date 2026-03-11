@@ -9,6 +9,8 @@ import statistics
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from tabulate import tabulate
+
 
 def _percentile(data: List[float], p: float) -> float:
     """Return the *p*-th percentile (0–100) of a **sorted** list."""
@@ -77,6 +79,38 @@ class BenchResult:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "BenchResult":
         return cls(**d)
+
+    def to_row(self) -> List[Any]:
+        """Return a flat row suitable for ``tabulate``."""
+        return [
+            self.name,
+            self.sample_count,
+            f"{self.ops_per_sec:.1f}",
+            f"{self.mean_ms:.2f}",
+            f"{self.p50_ms:.2f}",
+            f"{self.p90_ms:.2f}",
+            f"{self.p99_ms:.2f}",
+            f"{self.max_ms:.2f}",
+            f"{self.stddev_ms:.2f}",
+        ]
+
+    @staticmethod
+    def table_headers() -> List[str]:
+        return [
+            "Name", "N", "ops/s",
+            "mean(ms)", "p50(ms)", "p90(ms)", "p99(ms)", "max(ms)",
+            "stddev(ms)",
+        ]
+
+
+def results_to_markdown(
+    results: List[BenchResult],
+    title: str = "Benchmark Results",
+) -> str:
+    """Render a list of ``BenchResult`` objects as a Markdown table."""
+    rows = [r.to_row() for r in results]
+    table = tabulate(rows, headers=BenchResult.table_headers(), tablefmt="pipe")
+    return f"## {title}\n\n{table}\n"
 
 
 def save_results(

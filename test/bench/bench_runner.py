@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 from glob import glob
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 TEST_EXIT_SKIPPED = 77
 
@@ -65,6 +65,31 @@ def discover_benchmarks(bench_dir: str) -> List[str]:
         os.path.basename(f) for f in all_files
         if not os.path.basename(f).startswith("bench_")
     )
+
+
+def _extract_markdown(output: str) -> Optional[str]:
+    """Extract Markdown table block from benchmark output."""
+    lines = output.splitlines()
+    md_lines: List[str] = []
+    capturing = False
+
+    for raw_line in lines:
+        line = raw_line.rstrip()
+        if line.startswith("## "):
+            capturing = True
+            md_lines.append(line)
+        elif capturing:
+            if line.startswith("|") or line == "":
+                md_lines.append(line)
+            else:
+                capturing = False
+
+    if not md_lines:
+        return None
+    # Strip trailing blank lines.
+    while md_lines and md_lines[-1] == "":
+        md_lines.pop()
+    return "\n".join(md_lines)
 
 
 def _extract_failure_log(output: str) -> str:
@@ -171,6 +196,7 @@ def main() -> None:
     passed = 0
     skipped = 0
     failed_names: List[str] = []
+    markdown_blocks: List[str] = []
 
     for i, name in enumerate(to_run, 1):
         rc, elapsed, output = run_benchmark(
@@ -182,6 +208,9 @@ def main() -> None:
         if rc == 0:
             passed += 1
             print(f"{GREEN[1]}{TICK}{label} passed, Duration: {duration} s{GREEN[0]}")
+            md = _extract_markdown(output)
+            if md:
+                markdown_blocks.append(md)
         elif rc == TEST_EXIT_SKIPPED:
             skipped += 1
             print(f"{SKIP[1]}{TICK}{label} skipped{SKIP[0]}")
@@ -197,6 +226,10 @@ def main() -> None:
         f"\n{BOLD[1]}{passed} passed, {failed} failed, "
         f"{skipped} skipped{BOLD[0]}"
     )
+
+    if markdown_blocks:
+        print("\n---\n")
+        print("\n\n".join(markdown_blocks))
 
     if failed_names:
         print(f"{RED[1]}Failed: {', '.join(failed_names)}{RED[0]}")
