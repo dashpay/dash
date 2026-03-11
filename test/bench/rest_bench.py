@@ -4,12 +4,13 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 import asyncio
-import urllib.parse
 from typing import Any, Dict, List, Tuple
 
 from bench_framework import BenchFramework
 from bench_helpers import async_rest_discover, async_rest_flood
 from bench_results import BenchResult
+
+from test_framework.util import rest_port  # noqa: E402
 
 
 class RestBench(BenchFramework):
@@ -19,6 +20,9 @@ class RestBench(BenchFramework):
 
     def run_test(self) -> None:
         super().run_test()
+
+    def skip_test_if_missing_module(self) -> None:
+        self.skip_if_no_drogon()
 
     def add_options(self, parser) -> None:  # type: ignore[override]
         super().add_options(parser)
@@ -56,7 +60,8 @@ class RestBench(BenchFramework):
         self._duration: float = 10.0
         self.bench_iterations = 1
         self.bench_name = "rest_throughput"
-        self.extra_args = [["-rest"]]
+        self._rest_port = rest_port(0)
+        self.extra_args = [["-rest", f"-restport={self._rest_port}"]]
         self.num_nodes = 1
         self.setup_clean_chain = False
         self.warmup_iterations = 0
@@ -66,9 +71,8 @@ class RestBench(BenchFramework):
         self._concurrency = self.options.concurrency
         self._scale_max: int = self.options.scale_max
         self._connect_burst: int = self.options.connect_burst
-        parsed = urllib.parse.urlparse(self.nodes[0].url)
-        host = parsed.hostname
-        port = parsed.port
+        host = "127.0.0.1"
+        port = self._rest_port
 
         self.log.info("Discovering REST endpoints on %s:%d...", host, port)
         endpoints = asyncio.run(self._discover_endpoints(host, port))

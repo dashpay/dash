@@ -407,6 +407,14 @@ private:
 /** Return readable error string for a network error code */
 std::string NetworkErrorString(int err);
 
+/**
+ * Check whether a TCP port can be bound on the given address.
+ *
+ * Creates a temporary socket, attempts to bind it, then closes it
+ * immediately.
+ */
+[[nodiscard]] bool IsPortBindable(const std::string& addr, uint16_t port);
+
 extern SocketEventsMode g_socket_events_mode;
 
 #endif // BITCOIN_UTIL_SOCK_H

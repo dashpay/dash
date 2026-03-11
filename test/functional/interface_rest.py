@@ -23,6 +23,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_greater_than_or_equal,
+    rest_port,
 )
 from test_framework.wallet import (
     MiniWallet,
@@ -52,7 +53,8 @@ def filter_output_indices_by_value(vouts, value):
 class RESTTest (BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
-        self.extra_args = [["-rest", "-blockfilterindex=1"], []]
+        self.rest_port = rest_port(0)
+        self.extra_args = [["-rest", "-blockfilterindex=1", f"-restport={self.rest_port}"], []]
         # whitelist peers to speed up tx relay / mempool sync
         for args in self.extra_args:
             args.append("-whitelist=noban@127.0.0.1")
@@ -77,7 +79,7 @@ class RESTTest (BitcoinTestFramework):
         if query_params:
             rest_uri += f'?{urllib.parse.urlencode(query_params)}'
 
-        conn = http.client.HTTPConnection(self.url.hostname, self.url.port)
+        conn = http.client.HTTPConnection(self.rest_host, self.rest_port)
         self.log.debug(f'{http_method} {rest_uri} {body}')
         if http_method == 'GET':
             conn.request('GET', rest_uri)
@@ -97,7 +99,7 @@ class RESTTest (BitcoinTestFramework):
         return None
 
     def run_test(self):
-        self.url = urllib.parse.urlparse(self.nodes[0].url)
+        self.rest_host = '127.0.0.1'
         self.wallet = MiniWallet(self.nodes[0])
         self.wallet.rescan_utxos()
 

@@ -113,6 +113,16 @@
 #include <coinjoin/options.h>
 #endif // ENABLE_WALLET
 
+#if ENABLE_ZMQ
+#include <zmq/zmqabstractnotifier.h>
+#include <zmq/zmqnotificationinterface.h>
+#include <zmq/zmqrpc.h>
+#endif // ENABLE_ZMQ
+
+#ifdef USE_DROGON
+#include <rest/server.h>
+#endif // USE_DROGON
+
 #include <algorithm>
 #include <condition_variable>
 #include <cstdint>
@@ -133,12 +143,6 @@
 #endif
 
 #include <boost/signals2/signal.hpp>
-
-#if ENABLE_ZMQ
-#include <zmq/zmqabstractnotifier.h>
-#include <zmq/zmqnotificationinterface.h>
-#include <zmq/zmqrpc.h>
-#endif
 
 using kernel::CoinStatsHashType;
 
@@ -252,7 +256,7 @@ void Interrupt(NodeContext& node)
     InterruptHTTPRPC();
     InterruptRPC();
 #ifdef USE_DROGON
-    InterruptREST();
+    rest::InterruptServer();
 #endif // USE_DROGON
     InterruptTorControl();
     if (node.peerman) {
@@ -288,7 +292,7 @@ void PrepareShutdown(NodeContext& node)
 
     StopHTTPRPC();
 #ifdef USE_DROGON
-    StopREST();
+    rest::StopServer();
 #endif // USE_DROGON
     StopRPC();
     StopHTTPServer();
@@ -800,6 +804,12 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-blockversion=<n>", "Override block version to test forking scenarios", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
 
     argsman.AddArg("-rest", strprintf("Accept public REST requests (default: %u)", DEFAULT_REST_ENABLE), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-restbind=<addr>", strprintf("Bind to given address to listen for REST connections (default: %s)", rest::DEFAULT_ADDR), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-restidletimeout=<n>", strprintf("Timeout threshold for connections to REST server in seconds (default: %d, min: %d, max: %d)", rest::DEFAULT_IDLE_TIMEOUT, rest::MIN_IDLE_TIMEOUT_SECS, rest::MAX_IDLE_TIMEOUT_SECS), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-restmaxconnections=<n>", strprintf("Maximum number of concurrent REST connections (default: %d, min: %d, max: %u)", rest::DEFAULT_MAX_CONNECTIONS, rest::MIN_MAXCONNECTIONS, rest::MAX_MAXCONNECTIONS), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-restport=<port>", strprintf("Listen for REST connections on <port> (default: %u, testnet: %u, devnet: %u, regtest: %u)", defaultBaseParams->RESTPort(), testnetBaseParams->RESTPort(), devnetBaseParams->RESTPort(), regtestBaseParams->RESTPort()), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-restreuseport", strprintf("Allow multiple sockets to bind to the same port (Linux only, default: %s)", rest::DEFAULT_REUSE_PORT ? "true" : "false"), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-restthreads=<n>", strprintf("Set the number of threads to service REST calls (default: %d)", rest::DEFAULT_THREADS), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     argsman.AddArg("-rpcallowip=<ip>", "Allow JSON-RPC connections from specified source. Valid values for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0), a network/CIDR (e.g. 1.2.3.4/24), all ipv4 (0.0.0.0/0), or all ipv6 (::/0). This option can be specified multiple times", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     argsman.AddArg("-rpcauth=<userpw>", "Username and HMAC-SHA-256 hashed password for JSON-RPC connections. The field <userpw> comes in the format: <USERNAME>:<SALT>$<HASH>. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=<USERNAME>/rpcpassword=<PASSWORD> pair of arguments. This option can be specified multiple times", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::RPC);
     argsman.AddArg("-rpcbind=<addr>[:port]", "Bind to given address to listen for JSON-RPC connections. Do not expose the RPC server to untrusted networks such as the public internet! This option is ignored unless -rpcallowip is also passed. Port is optional and overrides -rpcport. Use [host]:port notation for IPv6. This option can be specified multiple times (default: 127.0.0.1 and ::1 i.e., localhost, or if -rpcallowip has been specified, 0.0.0.0 and :: i.e., all addresses)", ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::RPC);
@@ -926,7 +936,6 @@ static void PeriodicStats(NodeContext& node)
 
 static bool AppInitServers(NodeContext& node)
 {
-    const ArgsManager& args = *Assert(node.args);
     RPCServer::OnStarted(&OnRPCStarted);
     RPCServer::OnStopped(&OnRPCStopped);
     if (!InitHTTPServer())
@@ -935,9 +944,6 @@ static bool AppInitServers(NodeContext& node)
     node.rpc_interruption_point = RpcInterruptionPoint;
     if (!StartHTTPRPC(node))
         return false;
-#ifdef USE_DROGON
-    if (args.GetBoolArg("-rest", DEFAULT_REST_ENABLE)) StartREST(node);
-#endif // USE_DROGON
     StartHTTPServer();
     return true;
 }
@@ -2681,6 +2687,64 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     if (!node.connman->Start(*node.dmnman, *node.mn_metaman, *node.mn_sync, *node.scheduler, connOptions)) {
         return false;
+    }
+
+    if (args.GetBoolArg("-rest", DEFAULT_REST_ENABLE)) {
+#ifdef USE_DROGON
+        rest::Options opts{};
+        opts.m_port = BaseParams().RESTPort();
+        if (args.IsArgSet("-restport")) {
+            const auto port_arg = args.GetIntArg("-restport", 0);
+            if (port_arg < 1 || port_arg > std::numeric_limits<uint16_t>::max()) {
+                return InitError(strprintf(_("Invalid -restport value: %d (must be between 1 and %d)"), port_arg, std::numeric_limits<uint16_t>::max()));
+            }
+            if (IsBadPort(static_cast<uint16_t>(port_arg))) {
+                InitWarning(BadPortWarning("-restport", static_cast<uint16_t>(port_arg)));
+            }
+            opts.m_port = static_cast<uint16_t>(port_arg);
+        }
+        if (args.IsArgSet("-restbind")) {
+            const auto addr_str{args.GetArg("-restbind", "")};
+            if (const auto addr{Lookup(addr_str, opts.m_port, fNameLookup)}; !addr.has_value()) {
+                return InitError(ResolveErrMsg("restbind", addr_str));
+            }
+            opts.m_addr = addr_str;
+        }
+        if (args.IsArgSet("-restidletimeout")) {
+            const auto timeout_arg{args.GetIntArg("-restidletimeout", 0)};
+            const auto timeout{std::clamp<int64_t>(timeout_arg, rest::MIN_IDLE_TIMEOUT_SECS, rest::MAX_IDLE_TIMEOUT_SECS)};
+            if (timeout_arg != timeout) {
+                InitWarning(strprintf(_("-restidletimeout below %d seconds or above %d seconds, clamped to %d seconds\n"), rest::MIN_IDLE_TIMEOUT_SECS, rest::MAX_IDLE_TIMEOUT_SECS, timeout));
+            }
+            opts.m_idle_timeout = timeout;
+        }
+        if (args.IsArgSet("-restmaxconnections")) {
+            const auto limit_arg{args.GetIntArg("-restmaxconnections", 0)};
+            const auto limit{std::clamp<int64_t>(limit_arg, rest::MIN_MAXCONNECTIONS, rest::MAX_MAXCONNECTIONS)};
+            if (limit_arg != limit) {
+                InitWarning(strprintf(_("-restmaxconnections below %d connections or above %d connections, clamped to %d connections\n"), rest::MIN_MAXCONNECTIONS, rest::MAX_MAXCONNECTIONS, limit));
+            }
+            opts.m_max_connections = limit;
+        }
+        if (args.IsArgSet("-restthreads")) {
+            const auto threads_arg{args.GetIntArg("-restthreads", 0)};
+            opts.m_threads = std::max<size_t>(threads_arg, 1);
+        }
+        if (args.IsArgSet("-restreuseport")) {
+            if (args.GetBoolArg("-restreuseport", true)) {
+#if defined(USE_EPOLL)
+                opts.m_reuse_port = true;
+#else
+                LogPrintf("%s: -restreuseport only a valid option on Linux, silently ignoring\n", __func__);
+#endif // defined(USE_EPOLL)
+            }
+        }
+        if (!rest::StartServer(node, opts)) {
+            return InitError(_("Failed to start REST server. See debug log for details."));
+        }
+#else
+        InitWarning(strprintf(_("This build of %s does not include REST server support, ignoring flag."), PACKAGE_NAME));
+#endif // USE_DROGON
     }
 
     // ********************************************************* Step 13: finished
