@@ -15,6 +15,7 @@
 #include <util/system.h>
 
 #include <algorithm>
+#include <ranges>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -607,7 +608,7 @@ bool IsQuorumActive(Consensus::LLMQType llmqType, const CQuorumManager& qman, co
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     auto quorums = qman.ScanQuorums(llmqType, llmq_params_opt->keepOldConnections);
-    return ranges::any_of(quorums, [&quorumHash](const auto& q){ return q->qc->quorumHash == quorumHash; });
+    return std::ranges::any_of(quorums, [&quorumHash](const auto& q) { return q->qc->quorumHash == quorumHash; });
 }
 
 } // namespace llmq

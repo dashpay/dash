@@ -4,7 +4,10 @@
 
 #include <qt/guiutil_font.h>
 
+#include <util/helpers.h>
+
 #include <tinyformat.h>
+#include <util/std23.h>
 #include <util/system.h>
 
 #include <qt/guiutil.h>
@@ -185,7 +188,7 @@ QFont getFont(const GUIUtil::FontAttrib& font_attrib)
     if (gArgs.GetBoolArg("-debug-ui", false)) {
         qDebug() << qstrprintf("%s: font size: %d, family: %s, style: %s, weight: %d match %s", __func__,
                                font.pointSizeF(), font.family().toStdString(), font.styleName().toStdString(),
-                               font.weight(), font.exactMatch() ? "true" : "false");
+                               font.weight(), util::to_string(font.exactMatch()));
     }
 
     return font;
@@ -464,7 +467,7 @@ bool loadFonts()
     }
 
     // Fail if an added id is -1 which means QFontDatabase::addApplicationFont failed.
-    if (std::find(vecFontIds.begin(), vecFontIds.end(), -1) != vecFontIds.end()) {
+    if (std23::ranges::contains(vecFontIds, -1)) {
         g_default_font = nullptr;
         return false;
     }
@@ -532,7 +535,7 @@ void setApplicationFont()
 
     qDebug() << qstrprintf("%s: %s family: %s, style: %s match: %s", __func__, qApp->font().toString().toStdString(),
                            qApp->font().family().toStdString(), qApp->font().styleName().toStdString(),
-                           qApp->font().exactMatch() ? "true" : "false");
+                           util::to_string(qApp->font().exactMatch()));
 }
 
 void setFont(const std::vector<QWidget*>& vecWidgets, const FontAttrib& font_attrib)
@@ -566,8 +569,8 @@ void updateFonts()
     // Loop through all widgets
     for (QWidget* w : qApp->allWidgets()) {
         if (auto* wt{qobject_cast<QTextEdit*>(w)};
-            std::find(vecIgnoreClasses.begin(), vecIgnoreClasses.end(), w->metaObject()->className()) != vecIgnoreClasses.end() ||
-            std::find(vecIgnoreObjects.begin(), vecIgnoreObjects.end(), w->objectName().toStdString()) != vecIgnoreObjects.end() ||
+            std23::ranges::contains(vecIgnoreClasses, w->metaObject()->className()) ||
+            std23::ranges::contains(vecIgnoreObjects, w->objectName().toStdString()) ||
             (wt && mapTextEditStyleUpdates.count(wt)))
         {
             // Do not apply styling logic if ignored or handled separately

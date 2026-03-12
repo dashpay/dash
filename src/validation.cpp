@@ -57,6 +57,7 @@
 #include <evo/specialtxman.h>
 #include <masternode/payments.h>
 #include <stats/client.h>
+#include <util/std23.h>
 
 #include <algorithm>
 #include <cassert>
@@ -6059,7 +6060,7 @@ bool ChainstateManager::IsQuorumTypeEnabled(const Consensus::LLMQType llmqType,
         return pindexPrev->nHeight >= TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT;
 
     default:
-        throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, ToUnderlying(llmqType)));
+        throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, std23::to_underlying(llmqType)));
     }
 
     // Something wrong with conditions above, they are not consistent

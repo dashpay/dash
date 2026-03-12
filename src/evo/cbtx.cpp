@@ -2,20 +2,22 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/validation.h>
 #include <evo/cbtx.h>
+
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
-#include <node/blockstorage.h>
+#include <util/std23.h>
 
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
+#include <consensus/validation.h>
 #include <deploymentstatus.h>
+#include <node/blockstorage.h>
 
 using node::ReadBlockFromDisk;
 
@@ -109,11 +111,7 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
 
 auto CalcHashCountFromQCHashes(const QcHashMap& qcHashes)
 {
-    size_t hash_count{0};
-    for (const auto& [_, vec_hashes] : qcHashes) {
-        hash_count += vec_hashes.size();
-    }
-    return hash_count;
+    return std23::ranges::fold_left(qcHashes, size_t{0}, [](size_t s, const auto& p) { return s + p.second.size(); });
 }
 
 bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev,

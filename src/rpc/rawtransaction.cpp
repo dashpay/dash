@@ -58,7 +58,7 @@
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <rpc/index_util.h>
-#include <util/irange.h>
+#include <util/helpers.h>
 
 #include <cstdint>
 #include <numeric>
@@ -407,7 +407,7 @@ static RPCHelpMan getrawtransactionmulti() {
 
         const CBlockIndex* blockindex{blockhash.IsNull() ? nullptr : WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(blockhash))};
         if (blockindex == nullptr && !blockhash.IsNull()) {
-            for (const auto idx : irange::range(txids.size())) {
+            for (const auto idx : util::irange(txids.size())) {
                 result.pushKV(txids[idx].get_str(), "None");
             }
             continue;
@@ -417,7 +417,7 @@ static RPCHelpMan getrawtransactionmulti() {
         if (count > 100) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Up to 100 txids in total");
         }
-        for (const auto idx : irange::range(txids.size())) {
+        for (const auto idx : util::irange(txids.size())) {
             const std::string txid_str = txids[idx].get_str();
             const uint256 txid = ParseHashV(txid_str, "transaction id");
 
@@ -488,7 +488,7 @@ static RPCHelpMan getislocks()
     }
 
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-    for (const auto idx : irange::range(txids.size())) {
+    for (const auto idx : util::irange(txids.size())) {
         const uint256 txid(ParseHashV(txids[idx], "txid"));
 
         if (const instantsend::InstantSendLockPtr islock = llmq_ctx.isman->GetInstantSendLockByTxid(txid); islock != nullptr) {
@@ -565,7 +565,7 @@ static RPCHelpMan gettxchainlocks()
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
-    for (const auto idx : irange::range(txids.size())) {
+    for (const auto idx : util::irange(txids.size())) {
         UniValue result(UniValue::VOBJ);
         const uint256 txid(ParseHashV(txids[idx], "txid"));
         if (txid == Params().GenesisBlock().hashMerkleRoot) {
@@ -696,7 +696,7 @@ static RPCHelpMan getassetunlockstatuses()
         }();
     }
 
-    for (const auto i : irange::range(str_indexes.size())) {
+    for (const auto i : util::irange(str_indexes.size())) {
         UniValue obj(UniValue::VOBJ);
         uint64_t index{};
         if (!ParseUInt64(str_indexes[i].get_str(), &index)) {

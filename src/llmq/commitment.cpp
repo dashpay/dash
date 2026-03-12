@@ -6,16 +6,19 @@
 
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
+#include <llmq/options.h>
+#include <llmq/utils.h>
+#include <util/helpers.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <checkqueue.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
-#include <llmq/options.h>
-#include <llmq/utils.h>
 #include <logging.h>
-#include <util/underlying.h>
 #include <validation.h>
+
+#include <ranges>
 
 namespace llmq
 {
@@ -35,7 +38,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid llmqType=%d\n", quorumHash.ToString(),
-                 ToUnderlying(llmqType));
+                 std23::to_underlying(llmqType));
         return false;
     }
     const auto& llmq_params = llmq_params_opt.value();
@@ -58,7 +61,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
         }
     } else {
         std::vector<CBLSPublicKey> memberPubKeys;
-        for (const auto i : irange::range(members.size())) {
+        for (const auto i : util::irange(members.size())) {
             if (!signers[i]) {
                 continue;
             }
@@ -98,7 +101,7 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
-        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid llmqType=%d\n", quorumHash.ToString(), ToUnderlying(llmqType));
+        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid llmqType=%d\n", quorumHash.ToString(), std23::to_underlying(llmqType));
         return false;
     }
     const auto& llmq_params = llmq_params_opt.value();
@@ -154,14 +157,14 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
     if (LogAcceptDebug(BCLog::LLMQ)) {
         std::stringstream ss;
         std::stringstream ss2;
-        for (const auto i: irange::range(llmq_params.size)) {
+        for (const auto i : util::irange(llmq_params.size)) {
             ss << "v[" << i << "]=" << validMembers[i];
             ss2 << "s[" << i << "]=" << signers[i];
         }
         LogPrint(BCLog::LLMQ, "CFinalCommitment::%s mns[%d] validMembers[%s] signers[%s]\n", __func__, members.size(), ss.str(), ss2.str());
     }
 
-    for (const auto i : irange::range(members.size(), size_t(llmq_params.size))) {
+    for (const auto i : std::views::iota(members.size(), size_t(llmq_params.size))) {
         if (validMembers[i]) {
             LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid validMembers bitset. bit %d should not be set\n", quorumHash.ToString(), i);
             return false;
@@ -188,7 +191,7 @@ bool CFinalCommitment::VerifyNull() const
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
-        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s]invalid llmqType=%d\n", quorumHash.ToString(), ToUnderlying(llmqType));
+        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s]invalid llmqType=%d\n", quorumHash.ToString(), std23::to_underlying(llmqType));
         return false;
     }
 
@@ -226,13 +229,13 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CTransac
     const auto& llmq_params_opt = Params().GetLLMQ(qcTx.commitment.llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- h[%d] GetLLMQ failed for llmqType[%d]\n",
-                 util_params.m_base_index->nHeight, ToUnderlying(qcTx.commitment.llmqType));
+                 util_params.m_base_index->nHeight, std23::to_underlying(qcTx.commitment.llmqType));
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-commitment-type");
     }
 
     if (LogAcceptDebug(BCLog::LLMQ)) {
         std::stringstream ss;
-        for (const auto i: irange::range(llmq_params_opt->size)) {
+        for (const auto i : util::irange(llmq_params_opt->size)) {
             ss << "v[" << i << "]=" << qcTx.commitment.validMembers[i];
         }
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- %s llmqType[%d] validMembers[%s] signers[]\n", __func__,

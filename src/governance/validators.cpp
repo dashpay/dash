@@ -3,13 +3,14 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <governance/common.h>
+
 #include <governance/validators.h>
+#include <util/std23.h>
 
 #include <key_io.h>
 #include <timedata.h>
 #include <tinyformat.h>
 #include <util/strencodings.h>
-#include <util/underlying.h>
 
 #include <algorithm>
 
@@ -77,8 +78,8 @@ bool CProposalValidator::ValidateType()
         return false;
     }
 
-    if (nType != ToUnderlying(GovernanceObject::PROPOSAL)) {
-        strErrorMessages += strprintf("type is not %d;", ToUnderlying(GovernanceObject::PROPOSAL));
+    if (nType != std23::to_underlying(GovernanceObject::PROPOSAL)) {
+        strErrorMessages += strprintf("type is not %d;", std23::to_underlying(GovernanceObject::PROPOSAL));
         return false;
     }
 

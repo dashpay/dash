@@ -4,13 +4,14 @@
 
 #include <masternode/utils.h>
 
-#include <net.h>
-#include <shutdown.h>
-#include <util/ranges.h>
-
 #include <coinjoin/walletman.h>
 #include <evo/deterministicmns.h>
 #include <masternode/sync.h>
+
+#include <net.h>
+#include <shutdown.h>
+
+#include <algorithm>
 
 void CMasternodeUtils::DoMaintenance(CConnman& connman, CDeterministicMNManager& dmnman, const CMasternodeSync& mn_sync,
                                      CJWalletManager* const cj_walletman)
@@ -67,7 +68,7 @@ void CMasternodeUtils::DoMaintenance(CConnman& connman, CDeterministicMNManager&
             }
         }
 
-        bool fFound = ranges::any_of(mixing_masternodes, [&pnode](const auto& dmn) {
+        bool fFound = std::ranges::any_of(mixing_masternodes, [&pnode](const auto& dmn) {
             return pnode->addr == dmn->pdmnState->netInfo->GetPrimary();
         });
         if (fFound) return; // do NOT disconnect mixing masternodes

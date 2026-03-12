@@ -12,19 +12,21 @@
 #include <llmq/options.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>
-#include <util/irange.h>
+#include <util/helpers.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <logging.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <cxxtimer.hpp>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <type_traits>
 
 namespace llmq {
@@ -36,18 +38,18 @@ CDKGLogger::CDKGLogger(const CDKGSession& _quorumDkg, std::string_view _func, in
 {
 }
 
-static std::array<std::atomic<double>, ToUnderlying(DKGError::type::_COUNT)> simDkgErrorMap{};
+static std::array<std::atomic<double>, std23::to_underlying(DKGError::type::_COUNT)> simDkgErrorMap{};
 
 void SetSimulatedDKGErrorRate(DKGError::type type, double rate)
 {
     if (type >= DKGError::type::_COUNT) return;
-    simDkgErrorMap[ToUnderlying(type)] = rate;
+    simDkgErrorMap[std23::to_underlying(type)] = rate;
 }
 
 double GetSimulatedErrorRate(DKGError::type type)
 {
-    if (ToUnderlying(type) >= DKGError::type::_COUNT) return 0;
-    return simDkgErrorMap[ToUnderlying(type)];
+    if (type >= DKGError::type::_COUNT) return 0;
+    return simDkgErrorMap[std23::to_underlying(type)];
 }
 
 bool CDKGSession::ShouldSimulateError(DKGError::type type) const
@@ -94,14 +96,14 @@ bool CDKGSession::Init(const uint256& _myProTxHash, int _quorumIndex)
     receivedSkContributions.resize(members.size());
     vecEncryptedContributions.resize(members.size());
 
-    for (const auto i : irange::range(mns.size())) {
+    for (const auto i : util::irange(mns.size())) {
         members[i] = std::make_unique<CDKGMember>(mns[i], i);
         membersMap.emplace(members[i]->dmn->proTxHash, i);
         memberIds[i] = members[i]->id;
     }
 
     if (!_myProTxHash.IsNull()) {
-        for (const auto i : irange::range(members.size())) {
+        for (const auto i : util::irange(members.size())) {
             const auto& m = members[i];
             if (m->dmn->proTxHash == _myProTxHash) {
                 myIdx = i;
@@ -210,7 +212,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGContribution& qc)
 
     receivedVvecs[member->idx] = qc.vvec;
 
-    int receivedCount = ranges::count_if(members, [](const auto& m){return !m->contributions.empty();});
+    int receivedCount = std::ranges::count_if(members, [](const auto& m) { return !m->contributions.empty(); });
 
     logger.Batch("received and relayed contribution. received=%d/%d, time=%d", receivedCount, members.size(), t1.count());
 
@@ -305,7 +307,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGComplaint& qc)
     if (!should_process) return inv;
 
     int receivedCount = 0;
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         if (qc.badMembers[i]) {
             logger.Batch("%s voted for %s to be bad", member->dmn->proTxHash.ToString(), m->dmn->proTxHash.ToString());
@@ -503,7 +505,7 @@ bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retB
         return false;
     }
 
-    for (const auto i : irange::range(members.size(), size_t(params.size))) {
+    for (const auto i : std::views::iota(members.size(), size_t(params.size))) {
         // cppcheck-suppress useStlAlgorithm
         if (qc.validMembers[i]) {
             retBan = true;
@@ -593,7 +595,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& q
         return true;
     });
 
-    int receivedCount = ranges::count_if(members, [](const auto& m){ return !m->prematureCommitments.empty(); });
+    int receivedCount = std::ranges::count_if(members, [](const auto& m) { return !m->prematureCommitments.empty(); });
 
     t1.stop();
 

@@ -7,10 +7,6 @@
 #include <chainlock/chainlock.h>
 #include <chainlock/clsig.h>
 #include <chainlock/handler.h>
-#include <chainparams.h>
-#include <consensus/amount.h>
-#include <consensus/validation.h>
-#include <deploymentstatus.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
@@ -18,14 +14,19 @@
 #include <evo/mnhftx.h>
 #include <evo/netinfo.h>
 #include <evo/simplifiedmns.h>
-#include <hash.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <messagesigner.h>
+#include <util/helpers.h>
+
+#include <chainparams.h>
+#include <consensus/amount.h>
+#include <consensus/validation.h>
+#include <deploymentstatus.h>
+#include <hash.h>
 #include <primitives/block.h>
-#include <util/irange.h>
 #include <util/system.h>
 #include <validation.h>
 

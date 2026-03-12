@@ -7,13 +7,14 @@
 
 #include <coinjoin/common.h>
 
+#include <util/helpers.h>
+
 #include <core_io.h>
 #include <netaddress.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <sync.h>
 #include <timedata.h>
-#include <univalue.h>
 #include <util/translation.h>
 #include <version.h>
 
@@ -21,6 +22,8 @@
 #include <map>
 #include <optional>
 #include <utility>
+
+#include <univalue.h>
 
 class CChainState;
 class CBLSPublicKey;
@@ -346,7 +349,7 @@ public:
     std::optional<CCoinJoinQueue> GetQueueFromHash(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
     {
         LOCK(cs_vecqueue);
-        return ranges::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q) { return q.GetHash() == queueHash; });
+        return util::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q) { return q.GetHash() == queueHash; });
     }
 };
 

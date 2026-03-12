@@ -8,12 +8,13 @@
 #include <evo/smldiff.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
+#include <unordered_lru_cache.h>
+#include <util/helpers.h>
+
 #include <saltedhasher.h>
 #include <serialize.h>
 #include <sync.h>
 #include <threadsafety.h>
-#include <unordered_lru_cache.h>
-#include <util/irange.h>
 
 #include <optional>
 
@@ -77,7 +78,7 @@ public:
         size_t cnt = ReadCompactSize(s);
         ReadFixedBitSet(s, activeQuorumMembers, cnt);
         cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto _ : util::irange(cnt)) {
             int obj;
             s >> obj;
             mnSkipList.push_back(obj);
@@ -184,21 +185,21 @@ public:
         }
 
         size_t cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto _ : util::irange(cnt)) {
             CFinalCommitment qc;
             ::Unserialize(s, qc);
             lastCommitmentPerIndex.push_back(std::move(qc));
         }
 
         cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto _ : util::irange(cnt)) {
             CQuorumSnapshot snap;
             ::Unserialize(s, snap);
             quorumSnapshotList.push_back(std::move(snap));
         }
 
         cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : irange::range(cnt)) {
+        for ([[maybe_unused]] const auto _ : util::irange(cnt)) {
             CSimplifiedMNListDiff mnlist;
             ::Unserialize(s, mnlist);
             mnListDiffList.push_back(std::move(mnlist));

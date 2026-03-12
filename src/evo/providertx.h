@@ -10,12 +10,12 @@
 #include <evo/netinfo.h>
 #include <evo/specialtx.h>
 #include <primitives/transaction.h>
+#include <util/std23.h>
 
 #include <consensus/validation.h>
 #include <key_io.h>
 #include <netaddress.h>
 #include <pubkey.h>
-#include <util/underlying.h>
 
 #include <univalue.h>
 #include <gsl/pointers.h>

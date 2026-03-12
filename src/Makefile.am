@@ -394,7 +394,6 @@ BITCOIN_CORE_H = \
   util/bytevectorhash.h \
   util/check.h \
   util/edge.h \
-  util/enumerate.h \
   util/epochguard.h \
   util/error.h \
   util/fastrange.h \
@@ -402,7 +401,7 @@ BITCOIN_CORE_H = \
   util/golombrice.h \
   util/hasher.h \
   util/hash_type.h \
-  util/irange.h \
+  util/helpers.h \
   util/asmap.h \
   util/getuniquepath.h \
   util/macros.h \
@@ -410,13 +409,11 @@ BITCOIN_CORE_H = \
   util/moneystr.h \
   util/overflow.h \
   util/overloaded.h \
-  util/pointer.h \
-  util/ranges.h \
   util/readwritefile.h \
   util/result.h \
-  util/underlying.h \
   util/serfloat.h \
   util/settings.h \
+  util/std23.h \
   util/ranges_set.h \
   util/sock.h \
   util/string.h \

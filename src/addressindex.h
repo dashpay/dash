@@ -11,7 +11,7 @@
 #include <consensus/amount.h>
 #include <serialize.h>
 #include <uint256.h>
-#include <util/underlying.h>
+#include <util/std23.h>
 
 #include <chrono>
 #include <tuple>
@@ -122,7 +122,7 @@ public:
 
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, ToUnderlying(m_address_type));
+        ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
         // Heights are stored big-endian for key sorting in LevelDB
         ser_writedata32be(s, m_block_height);
@@ -169,7 +169,7 @@ public:
 
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, ToUnderlying(m_address_type));
+        ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
     }
 
@@ -207,7 +207,7 @@ public:
 
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, ToUnderlying(m_address_type));
+        ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
         ser_writedata32be(s, m_block_height);
     }

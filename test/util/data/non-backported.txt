@@ -64,11 +64,9 @@ src/test/util/llmq_tests.h
 src/test/governance*.cpp
 src/unordered_lru_cache.h
 src/util/edge.*
-src/util/enumerate.h
-src/util/irange.h
-src/util/pointer.h
-src/util/ranges.h
+src/util/helpers.h
 src/util/ranges_set.*
+src/util/std23.h
 src/util/wpipe.*
 src/wallet/bip39*
 src/wallet/coinjoin.*

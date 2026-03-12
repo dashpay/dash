@@ -6,18 +6,18 @@
 
 #include <chainparams.h>
 
+#include <llmq/params.h>
+#include <util/std23.h>
+
+#include <arith_uint256.h>
 #include <chainparamsseeds.h>
 #include <consensus/merkle.h>
 #include <deploymentinfo.h>
-#include <llmq/params.h>
-#include <util/ranges.h>
 #include <util/system.h>
-#include <util/underlying.h>
 #include <versionbits.h>
 
-#include <arith_uint256.h>
-
-#include <assert.h>
+#include <cassert>
+#include <ranges>
 
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
@@ -737,7 +737,7 @@ public:
      */
     void UpdateLLMQDevnetParameters(int size, int threshold)
     {
-        auto params = ranges::find_if(consensus.llmqs, [](const auto& llmq){ return llmq.type == Consensus::LLMQType::LLMQ_DEVNET;});
+        auto params = std::ranges::find_if(consensus.llmqs, [](const auto& llmq){ return llmq.type == Consensus::LLMQType::LLMQ_DEVNET;});
         assert(params != consensus.llmqs.end());
         params->size = size;
         params->minSize = threshold;
@@ -976,7 +976,7 @@ public:
      */
     void UpdateLLMQTestParameters(int size, int threshold, const Consensus::LLMQType llmqType)
     {
-        auto params = ranges::find_if(consensus.llmqs, [llmqType](const auto& llmq){ return llmq.type == llmqType;});
+        auto params = std::ranges::find_if(consensus.llmqs, [llmqType](const auto& llmq){ return llmq.type == llmqType;});
         assert(params != consensus.llmqs.end());
         params->size = size;
         params->minSize = threshold;
@@ -1194,7 +1194,7 @@ void CRegTestParams::UpdateLLMQInstantSendDIP0024FromArgs(const ArgsManager& arg
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
         throw std::runtime_error("Invalid LLMQ type specified for -llmqtestinstantsenddip0024.");
     }
-    LogPrintf("Setting llmqtestinstantsenddip0024 to %ld\n", ToUnderlying(llmqType));
+    LogPrintf("Setting llmqtestinstantsenddip0024 to %ld\n", std23::to_underlying(llmqType));
     UpdateLLMQDIP0024InstantSend(llmqType);
 }
 

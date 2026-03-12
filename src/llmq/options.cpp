@@ -5,16 +5,17 @@
 #include <llmq/options.h>
 
 #include <spork.h>
+#include <util/helpers.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <deploymentstatus.h>
-#include <util/ranges.h>
 #include <util/system.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <algorithm>
+#include <ranges>
 #include <string>
 #include <stdexcept>
 #include <thread>
@@ -73,8 +74,9 @@ QvvecSyncModeMap GetEnabledQuorumVvecSyncEntries(const ArgsManager& args)
             throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
         }
 
-        if (auto optLLMQParams = ranges::find_if_opt(Params().GetConsensus().llmqs,
-                                                     [&strLLMQType](const auto& params){return params.name == strLLMQType;})) {
+        if (auto optLLMQParams = util::find_if_opt(Params().GetConsensus().llmqs, [&strLLMQType](const auto& params) {
+                return params.name == strLLMQType;
+            })) {
             llmqType = optLLMQParams->type;
         } else {
             throw std::invalid_argument(strprintf("Invalid llmqType in -llmq-qvvec-sync: %s", strEntry));

@@ -14,14 +14,17 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <msg_result.h>
+#include <util/helpers.h>
+#include <util/std23.h>
+
 #include <netmessagemaker.h>
-#include <util/irange.h>
 #include <util/thread.h>
 #include <util/time.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 #include <cxxtimer.hpp>
+
+#include <ranges>
 
 namespace llmq
 {
@@ -34,12 +37,12 @@ void CSigShare::UpdateKey()
 std::string CSigSesAnn::ToString() const
 {
     return strprintf("sessionId=%d, llmqType=%d, quorumHash=%s, id=%s, msgHash=%s",
-                     sessionId, ToUnderlying(getLlmqType()), getQuorumHash().ToString(), getId().ToString(), getMsgHash().ToString());
+                     sessionId, std23::to_underlying(getLlmqType()), getQuorumHash().ToString(), getId().ToString(), getMsgHash().ToString());
 }
 
 void CSigSharesInv::Merge(const CSigSharesInv& inv2)
 {
-    for (const auto i : irange::range(inv.size())) {
+    for (const auto i : util::irange(inv.size())) {
         if (inv2.inv[i]) {
             inv[i] = inv2.inv[i];
         }
@@ -55,7 +58,7 @@ std::string CSigSharesInv::ToString() const
 {
     std::string str = "(";
     bool first = true;
-    for (const auto i : irange::range(inv.size())) {
+    for (const auto i : util::irange(inv.size())) {
         if (!inv[i]) {
             continue;
         }
@@ -501,7 +504,7 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             // nothing instead of reporting flawed data.
             if (!quorum) {
                 LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
-                          ToUnderlying(llmqType), sigShare.getQuorumHash().ToString());
+                          std23::to_underlying(llmqType), sigShare.getQuorumHash().ToString());
                 return false;
             }
             retQuorums.try_emplace(k, quorum);
@@ -808,7 +811,7 @@ void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, Uin
                 continue;
             }
 
-            for (const auto i : irange::range(session.announced.inv.size())) {
+            for (const auto i : util::irange(session.announced.inv.size())) {
                 if (!session.announced.inv[i]) {
                     continue;
                 }
@@ -881,7 +884,7 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, Uint25
 
             CBatchedSigShares batchedSigShares;
 
-            for (const auto i : irange::range(session.requested.inv.size())) {
+            for (const auto i : util::irange(session.requested.inv.size())) {
                 if (!session.requested.inv[i]) {
                     continue;
                 }
@@ -1026,8 +1029,8 @@ bool CSigSharesManager::SendMessages()
         assert(session);
         while (session->sendSessionId == UNINITIALIZED_SESSION_ID) {
             const uint32_t session_id{GetRand<uint32_t>()};
-            if (ranges::all_of(nodeState.sessions,
-                               [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
+            if (std::ranges::all_of(nodeState.sessions,
+                                    [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
                 // No session is using this id yet
                 session->sendSessionId = session_id;
                 sigSessionAnnouncements[nodeId].emplace_back(
@@ -1270,7 +1273,7 @@ void CSigSharesManager::Cleanup()
                 if (LogAcceptDebug(BCLog::LLMQ_SIGS)) {
                     if (const auto quorumIt = quorums.find(std::make_pair(oneSigShare.getLlmqType(), oneSigShare.getQuorumHash())); quorumIt != quorums.end()) {
                         const auto& quorum = quorumIt->second;
-                        for (const auto i : irange::range(quorum->members.size())) {
+                        for (const auto i : util::irange(quorum->members.size())) {
                             if (m->count((uint16_t)i) == 0) {
                                 const auto& dmn = quorum->members[i];
                                 strMissingMembers += strprintf("\n  %s", dmn->proTxHash.ToString());
@@ -1457,7 +1460,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShareForSingleMember(const 
              "CSigSharesManager::%s -- created sigShare. signHash=%s, id=%s, msgHash=%s, llmqType=%d, quorum=%s, "
              "time=%s\n",
              __func__, signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(),
-             ToUnderlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
+             std23::to_underlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
 
     return sigShare;
 }
@@ -1500,7 +1503,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum
     sigShare.UpdateKey();
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- created sigShare. signHash=%s, id=%s, msgHash=%s, llmqType=%d, quorum=%s, time=%s\n", __func__,
-              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), ToUnderlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
+              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), std23::to_underlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
 
     return sigShare;
 }

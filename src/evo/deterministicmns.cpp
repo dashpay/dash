@@ -12,8 +12,7 @@
 #include <evo/specialtx.h>
 #include <masternode/meta.h>
 #include <stats/client.h>
-#include <util/irange.h>
-#include <util/pointer.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
 #include <coins.h>
@@ -27,6 +26,7 @@
 #include <functional>
 #include <optional>
 #include <memory>
+#include <ranges>
 
 #include <univalue.h>
 
@@ -118,8 +118,9 @@ CDeterministicMNCPtr CDeterministicMNList::GetValidMN(const uint256& proTxHash) 
 
 CDeterministicMNCPtr CDeterministicMNList::GetMNByOperatorKey(const CBLSPublicKey& pubKey) const
 {
-    const auto it = ranges::find_if(mnMap,
-                              [&pubKey](const auto& p){return p.second->pdmnState->pubKeyOperator.Get() == pubKey;});
+    const auto it = std::ranges::find_if(mnMap, [&pubKey](const auto& p) {
+        return p.second->pdmnState->pubKeyOperator.Get() == pubKey;
+    });
     if (it == mnMap.end()) {
         return nullptr;
     }
@@ -241,7 +242,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
                 // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
                 if (dmn->nType == MnType::Evo && dmn->pdmnState->nConsecutivePayments < dmn_types::Evo.voting_weight) {
                     remaining_evo_payments = dmn_types::Evo.voting_weight - dmn->pdmnState->nConsecutivePayments;
-                    for ([[maybe_unused]] auto _ : irange::range(remaining_evo_payments)) {
+                    for ([[maybe_unused]] auto _ : util::irange(remaining_evo_payments)) {
                         result.emplace_back(dmn);
                         evo_to_be_skipped = dmn;
                     }
@@ -252,14 +253,14 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
 
     ForEachMNShared(/*onlyValid=*/true, [&](const auto& dmn) {
         if (dmn == evo_to_be_skipped) return;
-        for ([[maybe_unused]] auto _ : irange::range(isMNRewardReallocation ? 1 : GetMnType(dmn->nType).voting_weight)) {
+        for ([[maybe_unused]] auto _ : util::irange(isMNRewardReallocation ? 1 : GetMnType(dmn->nType).voting_weight)) {
             result.emplace_back(dmn);
         }
     });
 
     if (evo_to_be_skipped != nullptr) {
         // if EvoNode is in the middle of payments, add entries for already paid ones to the end of the list
-        for ([[maybe_unused]] auto _ : irange::range(evo_to_be_skipped->pdmnState->nConsecutivePayments)) {
+        for ([[maybe_unused]] auto _ : util::irange(evo_to_be_skipped->pdmnState->nConsecutivePayments)) {
             result.emplace_back(evo_to_be_skipped);
         }
     }
@@ -853,13 +854,13 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             mnListsCache.emplace(snapshot_hash, snapshot);
         } else {
             // keep snapshots for yet alive quorums
-            if (ranges::any_of(Params().GetConsensus().llmqs,
-                               [&snapshot, this](const auto& params) EXCLUSIVE_LOCKS_REQUIRED(cs) {
-                                   AssertLockHeld(cs);
-                                   return (snapshot.GetHeight() % params.dkgInterval == 0) &&
-                                          (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >=
-                                           tipIndex->nHeight);
-                               })) {
+            if (std::ranges::any_of(Params().GetConsensus().llmqs, [&snapshot, this](
+                                                                       const auto& params) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+                    AssertLockHeld(cs);
+                    return (snapshot.GetHeight() % params.dkgInterval == 0) &&
+                           (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >=
+                            tipIndex->nHeight);
+                })) {
                 mnListsCache.emplace(snapshot_hash, snapshot);
             }
         }
@@ -919,7 +920,7 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
             // it's a snapshot for the tip, keep it
             continue;
         }
-        bool fQuorumCache = ranges::any_of(Params().GetConsensus().llmqs, [&nHeight, &p](const auto& params){
+        bool fQuorumCache = std::ranges::any_of(Params().GetConsensus().llmqs, [&nHeight, &p](const auto& params) {
             return (p.second.GetHeight() % params.dkgInterval == 0) &&
                    (p.second.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >= nHeight);
         });
@@ -999,7 +1000,7 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
     CDeterministicMNList snapshot;
 
     const auto start_height{Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
-    for (auto current_height : irange::range(start_height, tip_index->nHeight + 1)) {
+    for (auto current_height : std::views::iota(start_height, tip_index->nHeight + 1)) {
         auto current_index = tip_index->GetAncestor(current_height);
         auto target_key{std::make_tuple(DB_LIST_DIFF_LEGACY, current_index->GetBlockHash())};
         pcursor->Seek(target_key);

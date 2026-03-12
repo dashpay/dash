@@ -117,7 +117,7 @@ UniValue CFinalCommitment::ToJson() const
 {
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("version", nVersion);
-    obj.pushKV("llmqType", ToUnderlying(llmqType));
+    obj.pushKV("llmqType", std23::to_underlying(llmqType));
     obj.pushKV("quorumHash", quorumHash.ToString());
     obj.pushKV("quorumIndex", quorumIndex);
     obj.pushKV("signersCount", CountSigners());
@@ -242,7 +242,7 @@ UniValue CQuorumSnapshot::ToJson() const
         activeQ.push_back(h);
     }
     obj.pushKV("activeQuorumMembers", activeQ);
-    obj.pushKV("mnSkipListMode", ToUnderlying(mnSkipListMode));
+    obj.pushKV("mnSkipListMode", std23::to_underlying(mnSkipListMode));
     UniValue skipList(UniValue::VARR);
     for (const auto& h : mnSkipList) {
         // cppcheck-suppress useStlAlgorithm
@@ -268,7 +268,7 @@ RPCResult CRecoveredSig::GetJsonHelp(const std::string& key, bool optional)
 UniValue CRecoveredSig::ToJson() const
 {
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("llmqType", ToUnderlying(llmqType));
+    ret.pushKV("llmqType", std23::to_underlying(llmqType));
     ret.pushKV("quorumHash", quorumHash.ToString());
     ret.pushKV("id", id.ToString());
     ret.pushKV("msgHash", msgHash.ToString());

@@ -12,6 +12,7 @@
 #include <llmq/options.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>
+#include <util/helpers.h>
 
 #include <chain.h>
 #include <deploymentstatus.h>
@@ -81,7 +82,7 @@ void ActiveDKGSession::SendContributions(CDKGPendingMessages& pendingMessages, P
     qc.contributions = std::make_shared<CBLSIESMultiRecipientObjects<CBLSSecretKey>>();
     qc.contributions->InitEncrypt(members.size());
 
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         CBLSSecretKey skContrib = m_sk_contributions[i];
 
@@ -150,7 +151,7 @@ void ActiveDKGSession::VerifyPendingContributions()
         return;
     }
 
-    for (const auto i : irange::range(memberIndexes.size())) {
+    for (const auto i : util::irange(memberIndexes.size())) {
         if (!result[i]) {
             const auto& m = members[memberIndexes[i]];
             logger.Batch("invalid contribution from %s. will complain later", m->dmn->proTxHash.ToString());
@@ -267,7 +268,7 @@ void ActiveDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages, PeerM
 
     int badCount = 0;
     int complaintCount = 0;
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         if (m->bad || m->badConnection) {
             qc.badMembers[i] = true;
@@ -352,7 +353,7 @@ void ActiveDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, P
     qj.proTxHash = myProTxHash;
     qj.contributions.reserve(forMembers.size());
 
-    for (const uint32_t i : irange::range(members.size())) {
+    for (const uint32_t i : util::irange(members.size())) {
         const auto& m = members[i];
         if (forMembers.count(m->dmn->proTxHash) == 0) {
             continue;
@@ -444,7 +445,7 @@ void ActiveDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages, Peer
     qc.quorumHash = m_quorum_base_block_index->GetBlockHash();
     qc.proTxHash = myProTxHash;
 
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         if (!m->bad) {
             qc.validMembers[i] = true;

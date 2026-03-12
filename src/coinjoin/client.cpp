@@ -4,31 +4,33 @@
 
 #include <coinjoin/client.h>
 
-#include <chain.h>
-#include <chainparams.h>
 #include <coinjoin/options.h>
-#include <core_io.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
+#include <rpc/evo_util.h>
+#include <util/helpers.h>
+#include <wallet/coinjoin.h>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <core_io.h>
 #include <net.h>
 #include <netmessagemaker.h>
-#include <rpc/evo_util.h>
 #include <shutdown.h>
 #include <util/check.h>
-#include <util/irange.h>
 #include <util/moneystr.h>
-#include <util/ranges.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <version.h>
 #include <wallet/coincontrol.h>
-#include <wallet/coinjoin.h>
 #include <wallet/coinselection.h>
 #include <wallet/receive.h>
 #include <wallet/spend.h>
 
 #include <memory>
+#include <ranges>
+
 #include <univalue.h>
 
 using wallet::CCoinControl;
@@ -601,9 +603,8 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, CChainState& acti
     for (const auto &entry: vecEntries) {
         // Check that the final transaction has all our outputs
         for (const auto &txout: entry.vecTxOut) {
-            bool fFound = ranges::any_of(finalMutableTransaction.vout, [&txout](const auto& txoutFinal){
-                return txoutFinal == txout;
-            });
+            bool fFound = std::ranges::any_of(finalMutableTransaction.vout,
+                                              [&txout](const auto& txoutFinal) { return txoutFinal == txout; });
             if (!fFound) {
                 // Something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
                 // better than signing if the transaction doesn't look like what we wanted.
@@ -620,7 +621,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, CChainState& acti
             int nMyInputIndex = -1;
             CScript prevPubKey = CScript();
 
-            for (const auto i : irange::range(finalMutableTransaction.vin.size())) {
+            for (const auto i : util::irange(finalMutableTransaction.vin.size())) {
                 // cppcheck-suppress useStlAlgorithm
                 if (finalMutableTransaction.vin[i] == txdsin) {
                     nMyInputIndex = i;
@@ -1303,7 +1304,7 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
 
     std::vector<std::pair<int, size_t> > vecInputsByRounds;
 
-    for (const auto i : irange::range(CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds())) {
+    for (const auto i : util::irange(CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds())) {
         if (PrepareDenominate(i, i, strError, vecTxDSIn, vecPSInOutPairsTmp, true)) {
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", i);
             vecInputsByRounds.emplace_back(i, vecPSInOutPairsTmp.size());
@@ -1445,14 +1446,14 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
     });
 
     // First try to use only non-denominated funds
-    if (ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
+    if (std::ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
             return MakeCollateralAmounts(item, false);
         })) {
         return true;
     }
 
     // There should be at least some denominated funds we should be able to break in pieces to continue mixing
-    if (ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
+    if (std::ranges::any_of(vecTally, [&](const auto& item) EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet) {
             return MakeCollateralAmounts(item, true);
         })) {
         return true;
@@ -1769,7 +1770,7 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- 2 - nBalanceToDenominate: %f, nDenomValue: %f, denomsToCreateValue: %d, denomsToCreateBal: %d\n",
                                          __func__, (float) nBalanceToDenominate / COIN, (float) nDenomValue / COIN, denomsToCreateValue, denomsToCreateBal);
             auto it = mapDenomCount.find(nDenomValue);
-            for (const auto i : irange::range(denomsToCreate)) {
+            for (const auto i : util::irange(denomsToCreate)) {
                 // Never go above the cap unless it's the largest denom
                 if (nDenomValue != nLargestDenomValue && it->second >= CCoinJoinClientOptions::GetDenomsHardCap()) break;
 

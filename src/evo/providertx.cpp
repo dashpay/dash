@@ -5,6 +5,7 @@
 #include <evo/providertx.h>
 
 #include <evo/dmn_types.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <consensus/validation.h>
@@ -12,7 +13,6 @@
 #include <hash.h>
 #include <script/standard.h>
 #include <tinyformat.h>
-#include <util/underlying.h>
 #include <validation.h>
 
 namespace ProTxVersion {
@@ -154,7 +154,7 @@ std::string CProRegTx::ToString() const
 
     return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, netInfo=%s, nOperatorReward=%f, "
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s%s)\n",
-                     nVersion, ToUnderlying(nType), collateralOutpoint.ToStringShort(), netInfo->ToString(),
+                     nVersion, std23::to_underlying(nType), collateralOutpoint.ToStringShort(), netInfo->ToString(),
                      (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(),
                      EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(),
                      (nVersion >= ProTxVersion::ExtAddr
@@ -200,7 +200,7 @@ std::string CProUpServTx::ToString() const
 
     return strprintf("CProUpServTx(nVersion=%d, nType=%d, proTxHash=%s, netInfo=%s, operatorPayoutAddress=%s, "
                      "platformNodeID=%s%s)\n",
-                     nVersion, ToUnderlying(nType), proTxHash.ToString(), netInfo->ToString(), payee,
+                     nVersion, std23::to_underlying(nType), proTxHash.ToString(), netInfo->ToString(), payee,
                      platformNodeID.ToString(),
                      (nVersion >= ProTxVersion::ExtAddr
                           ? ""

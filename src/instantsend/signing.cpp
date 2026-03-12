@@ -4,18 +4,20 @@
 
 #include <instantsend/signing.h>
 
-#include <chain.h>
-#include <chainparams.h>
-#include <index/txindex.h>
-#include <logging.h>
-#include <util/irange.h>
-#include <validation.h>
-
 #include <chainlock/chainlock.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
 #include <masternode/sync.h>
 #include <spork.h>
+#include <util/helpers.h>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <index/txindex.h>
+#include <logging.h>
+#include <validation.h>
+
+#include <ranges>
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
@@ -170,8 +172,9 @@ bool InstantSendSigner::CheckCanLock(const CTransaction& tx, bool printDebug, co
         return false;
     }
 
-    return ranges::all_of(tx.vin,
-                          [&](const auto& in) { return CheckCanLock(in.prevout, printDebug, tx.GetHash(), params); });
+    return std::ranges::all_of(tx.vin, [&](const auto& in) {
+        return CheckCanLock(in.prevout, printDebug, tx.GetHash(), params);
+    });
 }
 
 bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash,
@@ -337,7 +340,7 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
     LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: trying to vote on %d inputs\n", __func__, tx.GetHash().ToString(),
              tx.vin.size());
 
-    for (const auto i : irange::range(tx.vin.size())) {
+    for (const auto i : util::irange(tx.vin.size())) {
         const auto& in = tx.vin[i];
         auto& id = ids[i];
         WITH_LOCK(cs_input_requests, inputRequestIds.emplace(id));

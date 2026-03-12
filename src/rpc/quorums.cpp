@@ -21,6 +21,7 @@
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <rpc/evo_util.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
@@ -368,7 +369,7 @@ static RPCHelpMan quorum_dkgstatus()
         bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params, pindexTip);
         int quorums_num = rotation_enabled ? llmq_params.signingActiveQuorumCount : 1;
 
-        for (const int quorumIndex : irange::range(quorums_num)) {
+        for (const int quorumIndex : util::irange(quorums_num)) {
             UniValue obj(UniValue::VOBJ);
             obj.pushKV("llmqType", std::string(llmq_params.name));
             obj.pushKV("quorumIndex", quorumIndex);

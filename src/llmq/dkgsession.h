@@ -13,10 +13,11 @@
 #include <bls/bls_ies.h>
 #include <bls/bls_worker.h>
 #include <evo/types.h>
+#include <util/std23.h>
+
 #include <saltedhasher.h>
 
 #include <sync.h>
-#include <util/underlying.h>
 
 #include <optional>
 #include <unordered_set>
@@ -53,7 +54,7 @@ public:
     template<typename Stream>
     inline void SerializeWithoutSig(Stream& s) const
     {
-        s << ToUnderlying(llmqType);
+        s << std23::to_underlying(llmqType);
         s << quorumHash;
         s << proTxHash;
         s << *vvec;

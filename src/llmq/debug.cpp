@@ -4,14 +4,14 @@
 
 #include <llmq/debug.h>
 
+#include <evo/deterministicmns.h>
+#include <llmq/utils.h>
+#include <util/helpers.h>
+#include <util/std23.h>
+
 #include <chainparams.h>
 #include <timedata.h>
 #include <validation.h>
-
-#include <evo/deterministicmns.h>
-#include <llmq/utils.h>
-#include <util/irange.h>
-#include <util/underlying.h>
 
 namespace llmq
 {
@@ -32,10 +32,10 @@ UniValue CDKGDebugSessionStatus::ToJson(CDeterministicMNManager& dmnman, CQuorum
         }
     }
 
-    ret.pushKV("llmqType", ToUnderlying(llmqType));
+    ret.pushKV("llmqType", std23::to_underlying(llmqType));
     ret.pushKV("quorumHash", quorumHash.ToString());
     ret.pushKV("quorumHeight", quorumHeight);
-    ret.pushKV("phase", ToUnderlying(phase));
+    ret.pushKV("phase", std23::to_underlying(phase));
 
     ret.pushKV("sentContributions", statusBits.sentContributions);
     ret.pushKV("sentComplaint", statusBits.sentComplaint);
@@ -80,7 +80,7 @@ UniValue CDKGDebugSessionStatus::ToJson(CDeterministicMNManager& dmnman, CQuorum
         }
     };
 
-    for (const auto i : irange::range(members.size())) {
+    for (const auto i : util::irange(members.size())) {
         const auto& m = members[i];
         add(badMembers, i, m.statusBits.bad);
         add(weComplain, i, m.statusBits.weComplain);

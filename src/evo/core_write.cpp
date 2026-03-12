@@ -13,11 +13,11 @@
 #include <evo/smldiff.h>
 #include <llmq/commitment.h>
 #include <rpc/evo_util.h>
+#include <util/std23.h>
 
 #include <core_io.h>
 #include <rpc/util.h>
 #include <util/check.h>
-#include <util/underlying.h>
 
 #include <univalue.h>
 
@@ -163,7 +163,7 @@ RPCResult CCbTx::GetJsonHelp(const std::string& key, bool optional)
 UniValue CCbTx::ToJson() const
 {
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("version", ToUnderlying(nVersion));
+    ret.pushKV("version", std23::to_underlying(nVersion));
     ret.pushKV("height", nHeight);
     ret.pushKV("merkleRootMNList", merkleRootMNList.ToString());
     if (nVersion >= CCbTx::Version::MERKLE_ROOT_QUORUMS) {
@@ -305,7 +305,7 @@ UniValue CProRegTx::ToJson() const
 {
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("version", nVersion);
-    ret.pushKV("type", ToUnderlying(nType));
+    ret.pushKV("type", std23::to_underlying(nType));
     ret.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     ret.pushKV("collateralIndex", collateralOutpoint.n);
     if (IsServiceDeprecatedRPCEnabled()) {
@@ -399,7 +399,7 @@ UniValue CProUpServTx::ToJson() const
 {
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("version", nVersion);
-    ret.pushKV("type", ToUnderlying(nType));
+    ret.pushKV("type", std23::to_underlying(nType));
     ret.pushKV("proTxHash", proTxHash.ToString());
     if (IsServiceDeprecatedRPCEnabled()) {
         ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
@@ -536,7 +536,7 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
 {
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("nVersion", nVersion);
-    obj.pushKV("nType", ToUnderlying(nType));
+    obj.pushKV("nType", std23::to_underlying(nType));
     obj.pushKV("proRegTxHash", proRegTxHash.ToString());
     obj.pushKV("confirmedHash", confirmedHash.ToString());
     if (IsServiceDeprecatedRPCEnabled()) {

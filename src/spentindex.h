@@ -136,7 +136,7 @@ public:
 
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, ToUnderlying(m_address_type));
+        ser_writedata8(s, std23::to_underlying(m_address_type));
         m_address_bytes.Serialize(s);
         m_tx_hash.Serialize(s);
         ser_writedata32(s, m_tx_index);

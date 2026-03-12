@@ -11,7 +11,7 @@
 #include <netaddress.h>
 #include <pubkey.h>
 #include <script/script.h>
-#include <util/pointer.h>
+#include <util/helpers.h>
 
 #include <memory>
 #include <utility>

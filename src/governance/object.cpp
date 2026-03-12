@@ -287,7 +287,7 @@ UniValue CGovernanceObject::GetStateJson(const ChainstateManager& chainman, cons
     ret.pushKV("DataString", GetDataAsPlainString());
     ret.pushKV("Hash", GetHash().ToString());
     ret.pushKV("CollateralHash", GetCollateralHash().ToString());
-    ret.pushKV("ObjectType", ToUnderlying(GetObjectType()));
+    ret.pushKV("ObjectType", std23::to_underlying(GetObjectType()));
     ret.pushKV("CreationTime", GetCreationTime());
     if (const COutPoint& outpoint = GetMasternodeOutpoint(); outpoint != COutPoint{}) {
         ret.pushKV("SigningMasternode", outpoint.ToStringShort());
@@ -429,7 +429,7 @@ bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, 
         return true;
     }
     default: {
-        strError = strprintf("Invalid object type %d", ToUnderlying(m_obj.type));
+        strError = strprintf("Invalid object type %d", std23::to_underlying(m_obj.type));
         return false;
     }
     }

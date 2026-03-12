@@ -5,12 +5,13 @@
 #ifndef BITCOIN_COINJOIN_COMMON_H
 #define BITCOIN_COINJOIN_COMMON_H
 
+#include <util/helpers.h>
+
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
 
 #include <array>
 #include <string>
-#include <util/ranges.h>
 
 /** Holds a mixing input
  */
@@ -117,9 +118,8 @@ constexpr bool IsCollateralAmount(CAmount nInputAmount)
 
 constexpr int CalculateAmountPriority(CAmount nInputAmount)
 {
-    if (auto optDenom = ranges::find_if_opt(GetStandardDenominations(), [&nInputAmount](const auto& denom) {
-        return nInputAmount == denom;
-    })) {
+    if (auto optDenom = util::find_if_opt(GetStandardDenominations(),
+                                          [&nInputAmount](const auto& denom) { return nInputAmount == denom; })) {
         return (float)COIN / *optDenom * 10000;
     }
     if (nInputAmount < COIN) {

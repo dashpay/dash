@@ -37,14 +37,14 @@
 #include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>
-#include <util/vector.h>
-#include <util/wpipe.h>
 
+#include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
-#include <evo/deterministicmns.h>
-
 #include <stats/client.h>
+#include <util/std23.h>
+#include <util/vector.h>
+#include <util/wpipe.h>
 
 #ifdef WIN32
 #include <string.h>
@@ -4319,7 +4319,7 @@ bool CConnman::AddedNodesContain(const CAddress& addr) const
 bool CConnman::AddPendingMasternode(const uint256& proTxHash)
 {
     LOCK(cs_vPendingMasternodes);
-    if (std::find(vPendingMasternodes.begin(), vPendingMasternodes.end(), proTxHash) != vPendingMasternodes.end()) {
+    if (std23::ranges::contains(vPendingMasternodes, proTxHash)) {
         return false;
     }
 

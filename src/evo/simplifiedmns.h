@@ -9,7 +9,7 @@
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
 #include <evo/providertx.h>
-#include <util/pointer.h>
+#include <util/helpers.h>
 
 #include <merkleblock.h>
 #include <netaddress.h>

@@ -4,10 +4,11 @@
 
 #include <bls/bls.h>
 #include <bls/bls_batchverifier.h>
+#include <util/helpers.h>
+
 #include <clientversion.h>
 #include <random.h>
 #include <streams.h>
-#include <util/irange.h>
 #include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>
@@ -374,7 +375,7 @@ void FuncThresholdSignature(const bool legacy_scheme)
 
     std::vector<CBLSSecretKey> v_threshold_sks;
     std::vector<CBLSPublicKey> v_threshold_pks;
-    for ([[maybe_unused]] const auto i : irange::range(m_threshold)) {
+    for ([[maybe_unused]] const auto i : util::irange(m_threshold)) {
         CBLSSecretKey sk;
         sk.MakeNewKey();
         v_threshold_sks.push_back(sk);
@@ -388,7 +389,7 @@ void FuncThresholdSignature(const bool legacy_scheme)
     std::vector<CBLSId> v_size_ids;
     std::vector<CBLSSecretKey> v_size_sk_shares;
     std::vector<CBLSPublicKey> v_size_pk_shares;
-    for ([[maybe_unused]] const auto m_shares : irange::range(m_size)) {
+    for ([[maybe_unused]] const auto m_shares : util::irange(m_size)) {
         v_size_ids.emplace_back(GetRandHash());
         CBLSSecretKey sk;
         BOOST_CHECK(sk.SecretKeyShare(v_threshold_sks, v_size_ids[m_shares]));
@@ -399,7 +400,7 @@ void FuncThresholdSignature(const bool legacy_scheme)
 
         std::vector<CBLSSignature> v_share_sigs;
         std::vector<CBLSId> v_share_ids;
-        for ([[maybe_unused]] const auto j : irange::range(m_shares)) {
+        for ([[maybe_unused]] const auto j : util::irange(m_shares)) {
             v_share_sigs.emplace_back(v_size_sk_shares[j].Sign(hash, legacy_scheme));
             BOOST_CHECK(v_share_sigs.back().VerifyInsecure(v_size_pk_shares[j], hash));
             v_share_ids.push_back(v_size_ids[j]);
