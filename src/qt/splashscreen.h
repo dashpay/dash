@@ -75,6 +75,7 @@ private:
     qreal phaseEnd{0.0};        // Overall progress at end of current phase
     bool phaseIsLong{false};    // True for long independent phases (rescan, wallet load)
     QElapsedTimer phaseTimer;    // Time since current phase started
+    const struct PhaseInfo* m_current_phase{nullptr}; // Current phase (defined in splashscreen.cpp)
     qreal displayProgress{0.0}; // Smoothly animated display value (0.0-1.0)
     QTimer animTimer;
 

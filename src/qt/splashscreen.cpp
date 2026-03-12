@@ -354,9 +354,12 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
         animTimer.start(30);
     }
 
-    // Look up the phase range for this message
+    // Look up the phase range for this message; only reinitialize when the
+    // phase actually changes so that repeated progress callbacks (e.g. during
+    // wallet rescans) don't reset displayProgress and phaseTimer each time.
     const PhaseInfo* phase = LookupPhase(message);
-    if (phase != nullptr) {
+    if (phase != nullptr && phase != m_current_phase) {
+        m_current_phase = phase;
         if (phase->snapsToEnd) {
             // Final phase: snap to 100% immediately since the splash
             // will be destroyed moments after "Done loading" arrives
