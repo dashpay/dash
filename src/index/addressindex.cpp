@@ -164,6 +164,11 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 
     // Process each non-coinbase transaction
     // blockundo.vtxundo[i] corresponds to block.vtx[i+1] (coinbase is skipped in undo data)
+    if (blockundo.vtxundo.size() != block.vtx.size() - 1) {
+        return error("%s: Undo data size mismatch for block %s (expected %zu, got %zu)", __func__,
+                     pindex->GetBlockHash().ToString(), block.vtx.size() - 1, blockundo.vtxundo.size());
+    }
+
     for (size_t i = 0; i < blockundo.vtxundo.size(); i++) {
         const CTransactionRef& tx = block.vtx[i + 1]; // +1 to skip coinbase
         const CTxUndo& txundo = blockundo.vtxundo[i];

@@ -282,7 +282,7 @@ struct CAddressUnspentValue {
 public:
     CAmount m_amount{-1};
     CScript m_tx_script;
-    int32_t m_block_height;
+    int32_t m_block_height{0};
 
 public:
     CAddressUnspentValue() { SetNull(); }
