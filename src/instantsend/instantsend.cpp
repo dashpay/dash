@@ -6,7 +6,6 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <masternode/sync.h>
 #include <node/blockstorage.h>
 #include <spork.h>
 #include <stats/client.h>
@@ -15,11 +14,9 @@ using node::fImporting;
 using node::fReindex;
 
 namespace llmq {
-CInstantSendManager::CInstantSendManager(CSporkManager& sporkman, const CMasternodeSync& mn_sync,
-                                         const util::DbWrapperParams& db_params) :
+CInstantSendManager::CInstantSendManager(CSporkManager& sporkman, const util::DbWrapperParams& db_params) :
     db{db_params},
-    spork_manager{sporkman},
-    m_mn_sync{mn_sync}
+    spork_manager{sporkman}
 {
 }
 
@@ -471,9 +468,6 @@ bool CInstantSendManager::IsInstantSendEnabled() const
 
 bool CInstantSendManager::RejectConflictingBlocks() const
 {
-    if (!m_mn_sync.IsBlockchainSynced()) {
-        return false;
-    }
     if (!spork_manager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
         LogPrint(BCLog::INSTANTSEND, "%s: spork3 is off, skipping transaction locking checks\n", __func__);
         return false;
