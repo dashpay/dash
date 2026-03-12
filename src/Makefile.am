@@ -1165,34 +1165,91 @@ dash_util_LDADD += $(BOOST_LIBS)
 # dash-chainstate binary #
 dash_chainstate_SOURCES = \
   bitcoin-chainstate.cpp \
+  addressindex.cpp \
   arith_uint256.cpp \
+  base58.cpp \
+  batchedlogger.cpp \
   blockfilter.cpp \
+  bls/bls.cpp \
+  bls/bls_worker.cpp \
   chain.cpp \
   chainparamsbase.cpp \
   chainparams.cpp \
   clientversion.cpp \
   coins.cpp \
   compressor.cpp \
+  chainlock/clsig.cpp \
+  chainlock/chainlock.cpp \
   consensus/merkle.cpp \
   consensus/tx_check.cpp \
   consensus/tx_verify.cpp \
+  common/bloom.cpp \
   core_read.cpp \
   dbwrapper.cpp \
   deploymentinfo.cpp \
   deploymentstatus.cpp \
+  evo/assetlocktx.cpp \
+  evo/cbtx.cpp \
+  evo/creditpool.cpp \
+  evo/chainhelper.cpp \
+  evo/deterministicmns.cpp \
+  evo/dmnstate.cpp \
+  evo/evodb.cpp \
+  evo/netinfo.cpp \
+  evo/mnhftx.cpp \
+  evo/providertx.cpp \
+  evo/simplifiedmns.cpp \
+  evo/smldiff.cpp \
+  evo/specialtx.cpp \
+  evo/specialtx_filter.cpp \
+  evo/specialtxman.cpp \
   flatfile.cpp \
   fs.cpp \
+  governance/classes.cpp \
+  governance/common.cpp \
+  governance/exceptions.cpp \
+  governance/governance.cpp \
+  governance/object.cpp \
+  governance/validators.cpp \
+  governance/vote.cpp \
+  governance/votedb.cpp \
+  gsl/assert.cpp \
   hash.cpp \
   index/base.cpp \
   index/blockfilterindex.cpp \
   index/coinstatsindex.cpp \
+  index/txindex.cpp \
+  instantsend/db.cpp \
+  instantsend/instantsend.cpp \
   init/common.cpp \
   key.cpp \
+  key_io.cpp \
+  llmq/blockprocessor.cpp \
+  llmq/commitment.cpp \
+  llmq/context.cpp \
+  llmq/debug.cpp \
+  llmq/dkgsession.cpp \
+  llmq/dkgsessionhandler.cpp \
+  llmq/dkgsessionmgr.cpp \
+  llmq/options.cpp \
+  llmq/quorums.cpp \
+  llmq/quorumsman.cpp \
+  llmq/signhash.cpp \
+  llmq/signing.cpp \
+  llmq/snapshot.cpp \
+  llmq/utils.cpp \
   logging.cpp \
   netaddress.cpp \
+  netbase.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \
+  node/transaction.cpp \
   kernel/coinstats.cpp \
+  masternode/meta.cpp \
+  masternode/payments.cpp \
+  masternode/sync.cpp \
+  messagesigner.cpp \
+  merkleblock.cpp \
   node/interface_ui.cpp \
   policy/feerate.cpp \
   policy/fees.cpp \
@@ -1200,17 +1257,20 @@ dash_chainstate_SOURCES = \
   policy/policy.cpp \
   policy/settings.cpp \
   pow.cpp \
+  protocol.cpp \
   primitives/block.cpp \
   primitives/transaction.cpp \
   pubkey.cpp \
   random.cpp \
   randomenv.cpp \
+  saltedhasher.cpp \
   scheduler.cpp \
   script/interpreter.cpp \
   script/script.cpp \
   script/script_error.cpp \
   script/sigcache.cpp \
   script/standard.cpp \
+  spork.cpp \
   shutdown.cpp \
   support/cleanse.cpp \
   support/lockedpool.cpp \
@@ -1221,12 +1281,18 @@ dash_chainstate_SOURCES = \
   uint256.cpp \
   util/asmap.cpp \
   util/bytevectorhash.cpp \
+  util/check.cpp \
   util/getuniquepath.cpp \
   util/hasher.cpp \
+  util/message.cpp \
   util/moneystr.cpp \
+  util/ranges_set.cpp \
   util/serfloat.cpp \
   util/settings.cpp \
+  util/sock.cpp \
+  util/string.cpp \
   util/strencodings.cpp \
+  util/syserror.cpp \
   util/system.cpp \
   util/thread.cpp \
   util/threadinterrupt.cpp \
