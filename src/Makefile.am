@@ -1172,7 +1172,6 @@ bitcoin_chainstate_SOURCES = \
   chainparams.cpp \
   clientversion.cpp \
   coins.cpp \
-  compat/glibcxx_sanity.cpp \
   compressor.cpp \
   consensus/merkle.cpp \
   consensus/tx_check.cpp \
@@ -1193,13 +1192,12 @@ bitcoin_chainstate_SOURCES = \
   netaddress.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \
-  node/coinstats.cpp \
-  node/ui_interface.cpp \
+  kernel/coinstats.cpp \
+  node/interface_ui.cpp \
   policy/feerate.cpp \
   policy/fees.cpp \
   policy/packages.cpp \
   policy/policy.cpp \
-  policy/rbf.cpp \
   policy/settings.cpp \
   pow.cpp \
   primitives/block.cpp \
@@ -1214,11 +1212,9 @@ bitcoin_chainstate_SOURCES = \
   script/sigcache.cpp \
   script/standard.cpp \
   shutdown.cpp \
-  signet.cpp \
   support/cleanse.cpp \
   support/lockedpool.cpp \
   sync.cpp \
-  threadinterrupt.cpp \
   timedata.cpp \
   txdb.cpp \
   txmempool.cpp \
@@ -1228,13 +1224,12 @@ bitcoin_chainstate_SOURCES = \
   util/getuniquepath.cpp \
   util/hasher.cpp \
   util/moneystr.cpp \
-  util/rbf.cpp \
   util/serfloat.cpp \
   util/settings.cpp \
   util/strencodings.cpp \
-  util/syscall_sandbox.cpp \
   util/system.cpp \
   util/thread.cpp \
+  util/threadinterrupt.cpp \
   util/threadnames.cpp \
   util/time.cpp \
   util/tokenpipe.cpp \
