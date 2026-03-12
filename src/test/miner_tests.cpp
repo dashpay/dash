@@ -20,6 +20,7 @@
 #include <versionbits.h>
 
 #include <evo/evodb.h>
+#include <chainlock/handler.h>
 #include <governance/governance.h>
 #include <instantsend/instantsend.h>
 #include <llmq/blockprocessor.h>
@@ -48,6 +49,8 @@ struct MinerTestingSetup : public TestingSetup {
     }
     BlockAssembler AssemblerForTest(const CChainParams& params);
 };
+
+static constexpr int WAIT_FOR_ISLOCK_TIMEOUT{601};
 } // namespace miner_tests
 
 BOOST_FIXTURE_TEST_SUITE(miner_tests, MinerTestingSetup)
@@ -235,8 +238,11 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     {
         tx.vout[0].nValue -= LOWFEE;
         hash = tx.GetHash();
+        // Age transaction for InstantSend
+        m_node.clhandler->UpdateTxFirstSeenMap({hash}, pblocktemplate->block.nTime - WAIT_FOR_ISLOCK_TIMEOUT);
         bool spendsCoinbase = i == 0; // only first tx spends coinbase
         // If we don't set the # of sig ops in the CTxMemPoolEntry, template creation fails
+
         m_node.mempool->addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(spendsCoinbase).FromTx(tx));
         tx.vin[0].prevout.hash = hash;
     }
@@ -281,6 +287,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     // orphan in mempool, template creation fails
     hash = tx.GetHash();
     m_node.mempool->addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).FromTx(tx));
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, pblocktemplate->block.nTime - WAIT_FOR_ISLOCK_TIMEOUT);
     BOOST_CHECK_EXCEPTION(AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-txns-inputs-missingorspent"));
     m_node.mempool->clear();
 
@@ -307,6 +315,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     tx.vin[0].scriptSig = CScript() << OP_0 << OP_1;
     tx.vout[0].nValue = 0;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, pblocktemplate->block.nTime - WAIT_FOR_ISLOCK_TIMEOUT);
     // give it a fee so it'll get mined
     m_node.mempool->addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(false).FromTx(tx));
     // Should throw bad-cb-multiple
@@ -322,6 +332,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
     tx.vout[0].scriptPubKey = CScript() << OP_2;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, pblocktemplate->block.nTime - WAIT_FOR_ISLOCK_TIMEOUT);
     m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
     BOOST_CHECK_EXCEPTION(AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-txns-inputs-missingorspent"));
     m_node.mempool->clear();
@@ -361,11 +373,15 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     CScript script = CScript() << OP_0;
     tx.vout[0].scriptPubKey = GetScriptForDestination(ScriptHash(script));
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, pblocktemplate->block.nTime - WAIT_FOR_ISLOCK_TIMEOUT);
     m_node.mempool->addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
     tx.vin[0].prevout.hash = hash;
     tx.vin[0].scriptSig = CScript() << std::vector<unsigned char>(script.begin(), script.end());
     tx.vout[0].nValue -= LOWFEE;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, pblocktemplate->block.nTime - WAIT_FOR_ISLOCK_TIMEOUT);
     m_node.mempool->addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(false).FromTx(tx));
     // Should throw block-validation-failed
     BOOST_CHECK_EXCEPTION(AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("block-validation-failed"));
