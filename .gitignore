@@ -173,6 +173,7 @@ test/lint/.cppcheck/*
 .cache/*
 
 # Editor and tooling
+.clangd/
 .claude/
 .vscode/
 compile_commands.json
