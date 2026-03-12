@@ -128,6 +128,142 @@ async def async_rpc_flood(
     }
 
 
+async def async_rest_flood(
+    host: str,
+    port: int,
+    path: str,
+    concurrency: int = 50,
+    duration_s: float = 10.0,
+    force_close: bool = False,
+    connect_burst: int = 0,
+) -> Dict[str, Any]:
+    """Flood a REST endpoint with concurrent HTTP GET requests."""
+    url = f"http://{host}:{port}{path}"
+    latencies: List[float] = []
+    success = 0
+    failed = 0
+    status_codes: Dict[str, int] = {}
+    bytes_rx = 0
+    deadline = time.monotonic() + duration_s
+
+    # Share a single connector across all workers so that connection
+    # establishment is serialised through aiohttp's pool rather than
+    # each worker racing to open its own TCP socket.  This avoids
+    # overwhelming the server's accept backlog (SOMAXCONN=128 on macOS).
+    kwargs: Dict[str, Any] = {"limit": 0, "force_close": force_close}
+    if not force_close:
+        kwargs["keepalive_timeout"] = 60
+    shared_conn = aiohttp.TCPConnector(**kwargs)
+
+    # Semaphore that gates only the *first* request from each worker (the one
+    # that opens the TCP connection).  After the connection is in the keep-alive
+    # pool, subsequent requests reuse it and never block on the semaphore.
+    connect_sem: Optional[asyncio.Semaphore] = (
+        asyncio.Semaphore(connect_burst)
+        if (connect_burst > 0 and not force_close)
+        else None
+    )
+
+    async def worker(session: aiohttp.ClientSession) -> None:
+        nonlocal success, failed, bytes_rx
+        needs_connect = connect_sem is not None
+        while time.monotonic() < deadline:
+            t0 = time.perf_counter()
+            try:
+                if needs_connect:
+                    assert connect_sem is not None
+                    async with connect_sem:
+                        async with session.get(
+                            url,
+                            timeout=aiohttp.ClientTimeout(total=30),
+                        ) as resp:
+                            body = await resp.read()
+                            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                            latencies.append(elapsed_ms)
+                            bytes_rx += len(body)
+                            key = str(resp.status)
+                            status_codes[key] = status_codes.get(key, 0) + 1
+                            if resp.status == 200:
+                                success += 1
+                            else:
+                                failed += 1
+                    needs_connect = False
+                else:
+                    async with session.get(
+                        url,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
+                        body = await resp.read()
+                        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                        latencies.append(elapsed_ms)
+                        bytes_rx += len(body)
+                        key = str(resp.status)
+                        status_codes[key] = status_codes.get(key, 0) + 1
+                        if resp.status == 200:
+                            success += 1
+                        else:
+                            failed += 1
+            except Exception as e:
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                latencies.append(elapsed_ms)
+                failed += 1
+                key = type(e).__name__
+                status_codes[key] = status_codes.get(key, 0) + 1
+
+    async with aiohttp.ClientSession(connector=shared_conn) as session:
+        tasks = [asyncio.create_task(worker(session)) for _ in range(concurrency)]
+        await asyncio.gather(*tasks)
+
+    return {
+        "latencies_ms": latencies,
+        "success": success,
+        "failed": failed,
+        "status_codes": status_codes,
+        "bytes_received": bytes_rx,
+    }
+
+
+async def async_rest_discover(
+    host: str,
+    port: int,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Probe a REST server for a light and heavy endpoint."""
+    light_path: Optional[str] = None
+    heavy_path: Optional[str] = None
+    best_hash: Optional[str] = None
+
+    conn = aiohttp.TCPConnector(force_close=True)
+    async with aiohttp.ClientSession(connector=conn) as session:
+        for path in ["/rest/chaininfo.json", "/rest/mempool/info.json"]:
+            try:
+                async with session.get(
+                    f"http://{host}:{port}{path}",
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as resp:
+                    if resp.status == 200:
+                        body = await resp.json(content_type=None)
+                        light_path = path
+                        if "bestblockhash" in body:
+                            best_hash = body["bestblockhash"]
+                        break
+            except Exception:
+                continue
+
+        if best_hash:
+            heavy_candidate = f"/rest/block/{best_hash}.json"
+            try:
+                async with session.get(
+                    f"http://{host}:{port}{heavy_candidate}",
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status == 200:
+                        heavy_path = heavy_candidate
+            except Exception:
+                pass
+
+    return light_path, heavy_path
+
+
 def zmq_subscribe(
     address: str,
     topic: bytes,
