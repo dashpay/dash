@@ -17,7 +17,6 @@ class CEvoDB;
 class CGovernanceManager;
 class ChainstateManager;
 class CMasternodeMetaMan;
-class CMasternodeSync;
 class CSporkManager;
 class CTxMemPool;
 struct LLMQContext;
@@ -80,7 +79,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      ChainstateManager& chainman,
                                                      CGovernanceManager& govman,
                                                      CMasternodeMetaMan& mn_metaman,
-                                                     CMasternodeSync& mn_sync,
                                                      CSporkManager& sporkman,
                                                      chainlock::Chainlocks& chainlocks,
                                                      std::unique_ptr<CChainstateHelper>& chain_helper,
@@ -111,7 +109,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
 void DashChainstateSetup(ChainstateManager& chainman,
                          CGovernanceManager& govman,
                          CMasternodeMetaMan& mn_metaman,
-                         CMasternodeSync& mn_sync,
                          CSporkManager& sporkman,
                          chainlock::Chainlocks& chainlocks,
                          std::unique_ptr<CChainstateHelper>& chain_helper,

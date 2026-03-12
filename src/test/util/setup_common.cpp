@@ -143,7 +143,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
                          bool llmq_dbs_wipe,
                          const Consensus::Params& consensus_params)
 {
-    DashChainstateSetup(chainman, *Assert(node.govman.get()), *Assert(node.mn_metaman.get()), *Assert(node.mn_sync.get()),
+    DashChainstateSetup(chainman, *Assert(node.govman.get()), *Assert(node.mn_metaman.get()),
                         *Assert(node.sporkman.get()), *Assert(node.chainlocks), node.chain_helper, node.dmnman, *node.evodb,
                         node.llmq_ctx, Assert(node.mempool.get()), node.args->GetDataDirNet(), llmq_dbs_in_memory, llmq_dbs_wipe,
                         llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE,
@@ -323,7 +323,6 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            *Assert(m_node.chainman.get()),
                                            *Assert(m_node.govman.get()),
                                            *Assert(m_node.mn_metaman.get()),
-                                           *Assert(m_node.mn_sync.get()),
                                            *Assert(m_node.sporkman.get()),
                                            *Assert(m_node.chainlocks.get()),
                                            m_node.chain_helper,
