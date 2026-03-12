@@ -1,7 +1,7 @@
 OSX_MIN_VERSION=14.0
-OSX_SDK_VERSION=15.0
-XCODE_VERSION=16.0
-XCODE_BUILD_ID=16A242d
+OSX_SDK_VERSION=14.0
+XCODE_VERSION=26.1.1
+XCODE_BUILD_ID=17B100
 LLD_VERSION=711
 
 OSX_SDK=$(SDK_PATH)/Xcode-$(XCODE_VERSION)-$(XCODE_BUILD_ID)-extracted-SDK-with-libcxx-headers
@@ -13,10 +13,8 @@ OSX_SDK=$(SDK_PATH)/Xcode-$(XCODE_VERSION)-$(XCODE_BUILD_ID)-extracted-SDK-with-
 # distro releases.
 #
 # Source: https://lists.gnu.org/archive/html/bug-make/2017-11/msg00017.html
-clang_prog:=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang")
-clangxx_prog:=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang++")
-
-clang_resource_dir:=$(shell $(SHELL) $(.SHELLFLAGS) "$(clang_prog) -print-resource-dir")
+clang_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang")
+clangxx_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang++")
 
 darwin_AR=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-ar")
 darwin_DSYMUTIL=$(shell $(SHELL) $(.SHELLFLAGS) "command -v dsymutil")
@@ -52,20 +50,28 @@ darwin_STRIP=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-strip")
 #
 #         Disable adhoc codesigning (for now) when using LLVM tooling, to avoid
 #         non-determinism issues with the Identifier field.
+#
+#     -Xclang -fno-cxx-modules
+#
+#         Disable C++ modules. We don't use these, and modules cause definition issues
+#         in the SDK, where __has_feature(modules) is used to define USE_CLANG_TYPES,
+#         which is in turn used as an include guard.
 
+# TODO: remove C_INCLUDE_PATH when it is indeed useless
+# https://github.com/bitcoin/bitcoin/pull/30451 has been partiall reverted in #7184 and should be re-applied
 darwin_CC=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH $(clang_prog) --target=$(host) \
-              -isysroot$(OSX_SDK) -nostdinc \
-              -isystem$(clang_resource_dir)/include \
+              -isysroot$(OSX_SDK) -nostdlibinc \
               -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
+# TODO: remove C_INCLUDE_PATH when it is indeed useless
+# https://github.com/bitcoin/bitcoin/pull/30451 has been partiall reverted in #7184 and should be re-applied
 darwin_CXX=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH $(clangxx_prog) --target=$(host) \
-               -isysroot$(OSX_SDK) -nostdinc -nostdinc++ \
+               -isysroot$(OSX_SDK) -nostdlibinc \
                -iwithsysroot/usr/include/c++/v1 \
-               -isystem$(clang_resource_dir)/include \
                -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
-darwin_CFLAGS=-pipe -std=$(C_STANDARD) -mmacos-version-min=$(OSX_MIN_VERSION)
-darwin_CXXFLAGS=-pipe -std=$(CXX_STANDARD) -mmacos-version-min=$(OSX_MIN_VERSION)
+darwin_CFLAGS=-mmacos-version-min=$(OSX_MIN_VERSION)
+darwin_CXXFLAGS=-mmacos-version-min=$(OSX_MIN_VERSION) -Xclang -fno-cxx-modules
 darwin_LDFLAGS=-Wl,-platform_version,macos,$(OSX_MIN_VERSION),$(OSX_SDK_VERSION)
 
 ifneq ($(build_os),darwin)

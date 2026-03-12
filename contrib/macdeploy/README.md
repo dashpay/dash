@@ -15,14 +15,14 @@ When complete, it will have produced `Dash-Core.zip`.
 A free Apple Developer Account is required to proceed.
 
 Our macOS SDK can be extracted from
-[Xcode_16.xip](https://download.developer.apple.com/Developer_Tools/Xcode_16/Xcode_16.xip).
+[Xcode_26.1.1_Apple_silicon.xip](https://download.developer.apple.com/Developer_Tools/Xcode_26.1.1/Xcode_26.1.1_Apple_silicon.xip).
 
 Alternatively, after logging in to your account go to 'Downloads', then 'More'
-and search for [`Xcode 16`](https://developer.apple.com/download/all/?q=Xcode%2016).
+and search for [`Xcode 26.1.1`](https://developer.apple.com/download/all/?q=Xcode%2026.1.1).
 
 An Apple ID and cookies enabled for the hostname are needed to download this.
 
-The `sha256sum` of the downloaded XIP archive should be `4a26c3d102a55c7222fb145e0ee1503249c9c26c6e02dc64d783c8810b37b1e3`.
+The `sha256sum` of the downloaded XIP archive should be `f4c65b01e2807372b61553c71036dbfef492d7c79d4c380a5afb61aa1018e555`.
 
 To extract the `.xip` on Linux:
 
@@ -33,26 +33,26 @@ git clone https://github.com/bitcoin-core/apple-sdk-tools.git
 
 # Unpack the .xip and place the resulting Xcode.app in your current
 # working directory
-python3 apple-sdk-tools/extract_xcode.py -f Xcode_16.xip | cpio -d -i
+python3 apple-sdk-tools/extract_xcode.py -f Xcode_26.1.1_Apple_silicon.xip | cpio -d -i
 ```
 
 On macOS:
 
 ```bash
-xip -x Xcode_16.xip
+xip -x Xcode_26.1.1_Apple_silicon.xip
 ```
 
 ### Step 2: Generating the SDK tarball from `Xcode.app`
 
-To generate the SDK, run the script [`gen-sdk`](./gen-sdk) with the
+To generate the SDK, run the script [`gen-sdk.py`](./gen-sdk.py) with the
 path to `Xcode.app` (extracted in the previous stage) as the first argument.
 
 ```bash
-./contrib/macdeploy/gen-sdk '/path/to/Xcode.app'
+./contrib/macdeploy/gen-sdk.py '/path/to/Xcode.app'
 ```
 
-The generated archive should be: `Xcode-16.0-16A242d-extracted-SDK-with-libcxx-headers.tar.gz`.
-The `sha256sum` should be `bce59aa16560f182e44200a0b9539bd637c8b5c7089fbff13b0712730ce162ff`.
+The generated archive should be: `Xcode-26.1.1-17B100-extracted-SDK-with-libcxx-headers.tar`.
+The `sha256sum` should be `9600fa93644df674ee916b5e2c8a6ba8dacf631996a65dc922d003b98b5ea3b1`.
 
 ## Deterministic macOS App Notes
 

@@ -7,24 +7,25 @@ export LC_ALL=C.UTF-8
 
 set -eo pipefail
 
-SDK_URL="${SDK_URL:-https://s3.us-west-2.amazonaws.com/dash-depends-sources}"
+SDK_URL="${SDK_URL:-https://bitcoincore.org/depends-sources/sdks}"
 SDK_PATH="${SDK_PATH:-depends/SDKs}"
 SDK_SOURCES="${SDK_SOURCES:-depends/sdk-sources}"
-XCODE_VERSION="${XCODE_VERSION:-16.0}"
-XCODE_RELEASE="${XCODE_RELEASE:-16A242d}"
+XCODE_VERSION="${XCODE_VERSION:-26.1.1}"
+XCODE_RELEASE="${XCODE_RELEASE:-17B100}"
 XCODE_ARCHIVE="Xcode-${XCODE_VERSION}-${XCODE_RELEASE}-extracted-SDK-with-libcxx-headers"
-XCODE_AR_HASH="${XCODE_AR_HASH:-bce59aa16560f182e44200a0b9539bd637c8b5c7089fbff13b0712730ce162ff}"
-XCODE_AR_PATH="${SDK_SOURCES}/${XCODE_ARCHIVE}.tar.gz"
+XCODE_AR_HASH="${XCODE_AR_HASH:-9600fa93644df674ee916b5e2c8a6ba8dacf631996a65dc922d003b98b5ea3b1}"
+XCODE_AR_PATH="${SDK_SOURCES}/${XCODE_ARCHIVE}.tar"
 
 if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
     if [ ! -f "${XCODE_AR_PATH}" ]; then
         echo "Downloading macOS SDK..."
         mkdir -p "${SDK_SOURCES}"
-        curl --location --fail "${SDK_URL}/${XCODE_ARCHIVE}.tar.gz" -o "${XCODE_AR_PATH}"
+        curl --location --fail "${SDK_URL}/${XCODE_ARCHIVE}.tar" -o "${XCODE_AR_PATH}"
     fi
     echo "Verifying macOS SDK..."
     if [ "$(sha256sum "${XCODE_AR_PATH}" | cut -d' ' -f1)" != "${XCODE_AR_HASH}" ]; then
         echo "ERROR: Checksum mismatch for ${XCODE_AR_PATH}"
+        sha256sum "${XCODE_AR_PATH}"
         exit 1
     fi
     echo "Extracting macOS SDK..."

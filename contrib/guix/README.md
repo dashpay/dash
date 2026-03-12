@@ -37,7 +37,7 @@ You can then either point to the SDK using the `SDK_PATH` environment variable:
 
 ```sh
 # Extract the SDK tarball to /path/to/parent/dir/of/extracted/SDK/Xcode-<foo>-<bar>-extracted-SDK-with-libcxx-headers
-tar -C /path/to/parent/dir/of/extracted/SDK -xaf /path/to/Xcode-<foo>-<bar>-extracted-SDK-with-libcxx-headers.tar.gz
+tar -C /path/to/parent/dir/of/extracted/SDK -xaf /path/to/Xcode-<foo>-<bar>-extracted-SDK-with-libcxx-headers.tar
 
 # Indicate where to locate the SDK tarball
 export SDK_PATH=/path/to/parent/dir/of/extracted/SDK
@@ -249,7 +249,7 @@ details.
   Set the path where _extracted_ SDKs can be found. This is passed through to
   the depends tree. Note that this is should be set to the _parent_ directory of
   the actual SDK (e.g. `SDK_PATH=$HOME/Downloads/macOS-SDKs` instead of
-  `$HOME/Downloads/macOS-SDKs/Xcode-16.0-16A242d-extracted-SDK-with-libcxx-headers`).
+  `$HOME/Downloads/macOS-SDKs/Xcode-26.1.1-17B100-extracted-SDK-with-libcxx-headers`).
 
   The path that this environment variable points to **must be a directory**, and
   **NOT a symlink to a directory**.
