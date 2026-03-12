@@ -11,6 +11,10 @@ from typing import Dict, List, Optional
 # Allow imports from the functional test framework.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'functional'))
 
+from bench_results import (  # noqa: E402
+    BenchResult,
+    save_results,
+)
 from test_framework.test_framework import BitcoinTestFramework  # noqa: E402
 
 
@@ -21,6 +25,7 @@ class BenchFramework(BitcoinTestFramework):
         self.warmup_iterations: int = 0
         self.bench_iterations: int = 1
         self.bench_name: str = type(self).__name__
+        self.results_file: Optional[str] = None
         # Raw latency samples keyed by measurement name.
         self._samples: Dict[str, List[float]] = {}
         self._timer_start: Optional[float] = None
@@ -69,6 +74,12 @@ class BenchFramework(BitcoinTestFramework):
             help="Extra daemon arguments as a single string "
                  "(e.g. --daemon-args=\"-rpcworkqueue=1024 -rpcthreads=8\")",
         )
+        parser.add_argument(
+            "--results-file",
+            dest="results_file",
+            default=None,
+            help="Save results to a JSON file",
+        )
 
     def set_bench_params(self) -> None:
         """Benchmarks must override this to set ``num_nodes``, etc."""
@@ -97,28 +108,32 @@ class BenchFramework(BitcoinTestFramework):
         """Directly record a latency sample (ms) without using the timer."""
         self._samples.setdefault(name, []).append(value_ms)
 
+    def _build_results(self) -> List[BenchResult]:
+        """Convert raw samples into a list of ``BenchResult`` objects."""
+        return [
+            BenchResult.from_samples(name, samples)
+            for name, samples in self._samples.items()
+            if samples
+        ]
+
     def _report_results(self) -> None:
         """Print a summary of all recorded measurements."""
+        results = self._build_results()
         self.log.info("=" * 60)
         self.log.info("Benchmark: %s", self.bench_name)
         self.log.info("=" * 60)
-        for name, samples in self._samples.items():
-            n = len(samples)
-            if n == 0:
-                continue
-            samples_sorted = sorted(samples)
-            total = sum(samples_sorted)
-            mean = total / n
-            p50 = samples_sorted[n // 2]
-            p99_idx = min(int(n * 0.99), n - 1)
-            p99 = samples_sorted[p99_idx]
+        for r in results:
             self.log.info(
                 "  %-30s  n=%-6d  mean=%8.2fms  p50=%8.2fms  "
                 "p99=%8.2fms  min=%8.2fms  max=%8.2fms",
-                name, n, mean, p50, p99,
-                samples_sorted[0], samples_sorted[-1],
+                r.name, r.sample_count, r.mean_ms, r.p50_ms,
+                r.p99_ms, r.min_ms, r.max_ms,
             )
         self.log.info("=" * 60)
+
+        if self.results_file:
+            save_results(results, self.results_file, label=self.bench_name)
+            self.log.info("Results saved to %s", self.results_file)
 
     @property
     def samples(self) -> Dict[str, List[float]]:
