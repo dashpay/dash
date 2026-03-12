@@ -76,6 +76,7 @@ private:
     bool phaseIsLong{false};    // True for long independent phases (rescan, wallet load)
     QElapsedTimer phaseTimer;    // Time since current phase started
     const struct PhaseInfo* m_current_phase{nullptr}; // Current phase (defined in splashscreen.cpp)
+    QString m_current_phase_message;                   // Message that triggered current phase
     qreal displayProgress{0.0}; // Smoothly animated display value (0.0-1.0)
     QTimer animTimer;
 
