@@ -398,6 +398,7 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
 
     // non-final txs in mempool
     SetMockTime(m_node.chainman->ActiveChain().Tip()->GetMedianTimePast() + 1);
+    int64_t mocked_time_for_is = m_node.chainman->ActiveChain().Tip()->GetMedianTimePast() - WAIT_FOR_ISLOCK_TIMEOUT;
     const int flags{LOCKTIME_VERIFY_SEQUENCE};
     // height map
     std::vector<int> prevheights;
@@ -416,6 +417,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     tx.vout[0].scriptPubKey = CScript() << OP_1;
     tx.nLockTime = 0;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, mocked_time_for_is);
     m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
     BOOST_CHECK(CheckFinalTxAtTip(*Assert(m_node.chainman->ActiveChain().Tip()), CTransaction{tx})); // Locktime passes
     BOOST_CHECK(!TestSequenceLocks(CTransaction{tx})); // Sequence locks fail
@@ -430,6 +433,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     tx.vin[0].nSequence = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG | (((m_node.chainman->ActiveChain().Tip()->GetMedianTimePast()+1-m_node.chainman->ActiveChain()[1]->GetMedianTimePast()) >> CTxIn::SEQUENCE_LOCKTIME_GRANULARITY) + 1); // txFirst[1] is the 3rd block
     prevheights[0] = baseheight + 2;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, mocked_time_for_is);
     m_node.mempool->addUnchecked(entry.Time(Now<NodeSeconds>()).FromTx(tx));
     BOOST_CHECK(CheckFinalTxAtTip(*Assert(m_node.chainman->ActiveChain().Tip()), CTransaction{tx})); // Locktime passes
     BOOST_CHECK(!TestSequenceLocks(CTransaction{tx})); // Sequence locks fail
@@ -453,6 +458,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     prevheights[0] = baseheight + 3;
     tx.nLockTime = m_node.chainman->ActiveChain().Tip()->nHeight + 1;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, mocked_time_for_is);
     m_node.mempool->addUnchecked(entry.Time(Now<NodeSeconds>()).FromTx(tx));
     BOOST_CHECK(!CheckFinalTxAtTip(*Assert(m_node.chainman->ActiveChain().Tip()), CTransaction{tx})); // Locktime fails
     BOOST_CHECK(TestSequenceLocks(CTransaction{tx})); // Sequence locks pass
@@ -464,6 +471,8 @@ void MinerTestingSetup::TestBasicMining(const CChainParams& chainparams, const C
     prevheights.resize(1);
     prevheights[0] = baseheight + 4;
     hash = tx.GetHash();
+    // Age transaction for InstantSend
+    m_node.clhandler->UpdateTxFirstSeenMap({hash}, mocked_time_for_is);
     m_node.mempool->addUnchecked(entry.Time(Now<NodeSeconds>()).FromTx(tx));
     BOOST_CHECK(!CheckFinalTxAtTip(*Assert(m_node.chainman->ActiveChain().Tip()), CTransaction{tx})); // Locktime fails
     BOOST_CHECK(TestSequenceLocks(CTransaction{tx})); // Sequence locks pass
