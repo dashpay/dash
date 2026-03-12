@@ -378,7 +378,7 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
         }
 
         const auto& txid = it->GetTx().GetHash();
-        if (!m_isman.RejectConflictingBlocks() || !m_isman.IsInstantSendEnabled() || m_isman.IsLocked(txid)) {
+        if (!m_isman.IsInstantSendEnabled() || m_isman.IsLocked(txid)) {
             continue;
         }
 

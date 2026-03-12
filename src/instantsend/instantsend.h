@@ -151,12 +151,6 @@ public:
     int GetTipHeight() const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     bool IsInstantSendEnabled() const;
-    /**
-     * If true, MN should sign all transactions, if false, MN should not sign
-     * transactions in mempool, but should sign txes included in a block. This
-     * allows ChainLocks to continue even while this spork is disabled.
-     */
-    bool RejectConflictingBlocks() const;
     Uint256HashMap<instantsend::InstantSendLockPtr> RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 };

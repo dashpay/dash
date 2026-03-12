@@ -75,7 +75,6 @@ public:
     std::optional<std::pair</*islock_hash=*/uint256, /*txid=*/uint256>> ConflictingISLockIfAny(const CTransaction& tx) const;
     bool IsInstantSendWaitingForTx(const uint256& hash) const;
     bool RemoveConflictingISLockByTx(const CTransaction& tx);
-    bool ShouldInstantSendRejectConflicts() const;
 
     std::unordered_map<uint8_t, int> GetSignalsStage(const CBlockIndex* const pindexPrev);
 };

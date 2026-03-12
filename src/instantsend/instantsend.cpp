@@ -466,15 +466,6 @@ bool CInstantSendManager::IsInstantSendEnabled() const
     return !fReindex && !fImporting && spork_manager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
 }
 
-bool CInstantSendManager::RejectConflictingBlocks() const
-{
-    if (!spork_manager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
-        LogPrint(BCLog::INSTANTSEND, "%s: spork3 is off, skipping transaction locking checks\n", __func__);
-        return false;
-    }
-    return true;
-}
-
 Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)
 {
     int nUntilHeight = pindex->nHeight;

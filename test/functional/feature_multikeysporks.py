@@ -124,10 +124,10 @@ class MultiKeySporkTest(BitcoinTestFramework):
 
     def run_test(self):
         self.test_spork('SPORK_2_INSTANTSEND_ENABLED', 2)
-        self.test_spork('SPORK_3_INSTANTSEND_BLOCK_FILTERING', 3)
+        self.test_spork('SPORK_23_QUORUM_POSE', 3)
         for node in self.nodes:
             assert self.get_test_spork_value(node, 'SPORK_2_INSTANTSEND_ENABLED') == 2
-            assert self.get_test_spork_value(node, 'SPORK_3_INSTANTSEND_BLOCK_FILTERING') == 3
+            assert self.get_test_spork_value(node, 'SPORK_23_QUORUM_POSE') == 3
 
 
 if __name__ == '__main__':

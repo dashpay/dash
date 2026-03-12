@@ -121,7 +121,7 @@ void ChainLockSigner::TrySignChainTip()
     // considered safe when it is islocked or at least known since 10 minutes (from mempool or block). These checks are
     // performed for the tip (which we try to sign) and the previous 5 blocks. If a ChainLocked block is found on the
     // way down, we consider all TXs to be safe.
-    if (m_isman.IsInstantSendEnabled() && m_isman.RejectConflictingBlocks()) {
+    if (m_isman.IsInstantSendEnabled()) {
         const auto* pindexWalk = pindex;
         while (pindexWalk != nullptr) {
             if (pindex->nHeight - pindexWalk->nHeight > TX_CONFIRM_THRESHOLD) {

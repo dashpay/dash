@@ -2601,23 +2601,21 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
 
-    if (m_chain_helper->ShouldInstantSendRejectConflicts()) {
-        // Require other nodes to comply, send them some data in case they are missing it.
-        const bool has_chainlock = m_chain_helper->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
-        for (const auto& tx : block.vtx) {
-            // skip txes that have no inputs
-            if (tx->vin.empty()) continue;
-            while (auto conflictLockOpt = m_chain_helper->ConflictingISLockIfAny(*tx)) {
-                auto [conflict_islock_hash, conflict_txid] = conflictLockOpt.value();
-                if (has_chainlock) {
-                    LogPrint(BCLog::ALL, "ConnectBlock(DASH): chain-locked transaction %s overrides islock %s\n", tx->GetHash().ToString(), conflict_islock_hash.ToString());
-                    m_chain_helper->RemoveConflictingISLockByTx(*tx);
-                } else {
-                    // The node which relayed this should switch to correct chain.
-                    // TODO: relay instantsend data/proof.
-                    LogPrintf("ERROR: ConnectBlock(DASH): transaction %s conflicts with transaction lock %s\n", tx->GetHash().ToString(), conflict_txid.ToString());
-                    return state.Invalid(BlockValidationResult::BLOCK_CHAINLOCK, "conflict-tx-lock");
-                }
+    // Require other nodes to comply, send them some data in case they are missing it.
+    const bool has_chainlock = m_chain_helper->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
+    for (const auto& tx : block.vtx) {
+        // skip txes that have no inputs
+        if (tx->vin.empty()) continue;
+        while (auto conflictLockOpt = m_chain_helper->ConflictingISLockIfAny(*tx)) {
+            auto [conflict_islock_hash, conflict_txid] = conflictLockOpt.value();
+            if (has_chainlock) {
+                LogPrint(BCLog::ALL, "ConnectBlock(DASH): chain-locked transaction %s overrides islock %s\n", tx->GetHash().ToString(), conflict_islock_hash.ToString());
+                m_chain_helper->RemoveConflictingISLockByTx(*tx);
+            } else {
+                // The node which relayed this should switch to correct chain.
+                // TODO: relay instantsend data/proof.
+                LogPrintf("ERROR: ConnectBlock(DASH): transaction %s conflicts with transaction lock %s\n", tx->GetHash().ToString(), conflict_txid.ToString());
+                return state.Invalid(BlockValidationResult::BLOCK_CHAINLOCK, "conflict-tx-lock");
             }
         }
     }
