@@ -29,6 +29,8 @@
 #include <QPainter>
 #include <QScreen>
 
+// Padding around the card
+static constexpr int SPLASH_PADDING = 16;
 
 SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     : QWidget()
@@ -41,15 +43,11 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     // no window decorations
     setWindowFlags(Qt::FramelessWindowHint);
 
-    // Geometries of splashscreen
-    int width = 380;
-    int height = 460;
-    int logoWidth = 270;
-    int logoHeight = 270;
-
-    // set reference point, paddings
-    int paddingTop = 10;
-    int titleVersionVSpace = 25;
+    // Modern splash dimensions — wider and shorter for a contemporary feel
+    int width = 440;
+    int height = 360;
+    int logoSize = 140;
+    int cornerRadius = 16;
 
     float fontFactor            = 1.0;
     float scale = qApp->devicePixelRatio();
@@ -63,7 +61,6 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     QFont fontBold = GUIUtil::getFontBold();
 
     QPixmap pixmapLogo = networkStyle->getSplashImage();
-    pixmapLogo.setDevicePixelRatio(scale);
 
     // Adjust logo color based on the current theme
     QImage imgLogo = pixmapLogo.toImage().convertToFormat(QImage::Format_ARGB32);
@@ -75,59 +72,93 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
         }
     }
     pixmapLogo.convertFromImage(imgLogo);
+    pixmapLogo.setDevicePixelRatio(scale);
 
-    pixmap = QPixmap(width * scale, height * scale);
+    int canvasWidth = width + SPLASH_PADDING * 2;
+    int canvasHeight = height + SPLASH_PADDING * 2;
+
+    pixmap = QPixmap(canvasWidth * scale, canvasHeight * scale);
     pixmap.setDevicePixelRatio(scale);
-    pixmap.fill(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BORDER_WIDGET));
+    pixmap.fill(Qt::transparent);
 
-    QPainter pixPaint(&pixmap);
+    // Scope the painter so it releases the pixmap before signal setup
+    {
+        QPainter pixPaint(&pixmap);
+        pixPaint.setRenderHint(QPainter::Antialiasing, true);
+        pixPaint.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-    QRect rect = QRect(1, 1, width - 2, height - 2);
-    pixPaint.fillRect(rect, GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BACKGROUND_WIDGET));
+        QColor bgColor = GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BACKGROUND_WIDGET);
 
-    pixPaint.drawPixmap((width / 2) - (logoWidth / 2), (height / 2) - (logoHeight / 2) + 20, pixmapLogo.scaled(logoWidth * scale, logoHeight * scale, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    pixPaint.setPen(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT));
+        // Draw rounded background card with a subtle border
+        QRectF cardRect(SPLASH_PADDING, SPLASH_PADDING, width, height);
+        pixPaint.setPen(QPen(QColor(128, 128, 128, 40), 0.5));
+        pixPaint.setBrush(bgColor);
+        pixPaint.drawRoundedRect(cardRect, cornerRadius, cornerRadius);
 
-    // check font size and drawing with
-    fontBold.setPointSize(50 * fontFactor);
-    pixPaint.setFont(fontBold);
-    QFontMetrics fm = pixPaint.fontMetrics();
-    int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
-    if (titleTextWidth > width * 0.8) {
-        fontFactor = 0.75;
-    }
+        // Offsets relative to card origin
+        int cardX = SPLASH_PADDING;
+        int cardY = SPLASH_PADDING;
+        int contentTop = cardY + 48;
 
-    fontBold.setPointSize(50 * fontFactor);
-    pixPaint.setFont(fontBold);
-    fm = pixPaint.fontMetrics();
-    titleTextWidth  = GUIUtil::TextWidth(fm, titleText);
-    int titleTextHeight = fm.height();
-    pixPaint.drawText((width / 2) - (titleTextWidth / 2), titleTextHeight + paddingTop, titleText);
+        // Draw logo centered horizontally, near the top
+        int logoX = cardX + (width - logoSize) / 2;
+        int logoY = contentTop;
+        pixPaint.drawPixmap(logoX, logoY, logoSize, logoSize, pixmapLogo);
 
-    fontNormal.setPointSize(16 * fontFactor);
-    pixPaint.setFont(fontNormal);
-    fm = pixPaint.fontMetrics();
-    int versionTextWidth = GUIUtil::TextWidth(fm, versionText);
-    pixPaint.drawText((width / 2) - (versionTextWidth / 2), titleTextHeight + paddingTop + titleVersionVSpace, versionText);
+        QColor textColor = GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT);
 
-    // draw additional text if special network
-    if(!titleAddText.isEmpty()) {
-        fontBold.setPointSize(10 * fontFactor);
+        // Title text below logo
+        pixPaint.setPen(textColor);
+
+        fontBold.setPointSize(28 * fontFactor);
         pixPaint.setFont(fontBold);
-        fm = pixPaint.fontMetrics();
-        int titleAddTextWidth = GUIUtil::TextWidth(fm, titleAddText);
-        // Draw the badge background with the network-specific color
-        QRect badgeRect = QRect(width - titleAddTextWidth - 20, 5, width, fm.height() + 10);
-        pixPaint.fillRect(badgeRect, networkStyle->getBadgeColor());
-        // Draw the text itself using white color, regardless of the current theme
-        pixPaint.setPen(QColor(255, 255, 255));
-        pixPaint.drawText(width - titleAddTextWidth - 10, paddingTop + 10, titleAddText);
-    }
+        QFontMetrics fm = pixPaint.fontMetrics();
+        int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
+        if (titleTextWidth > width * 0.8) {
+            fontFactor = 0.75;
+            fontBold.setPointSize(28 * fontFactor);
+            pixPaint.setFont(fontBold);
+            fm = pixPaint.fontMetrics();
+            titleTextWidth = GUIUtil::TextWidth(fm, titleText);
+        }
+        int titleBaseline = logoY + logoSize + 36 + fm.ascent();
+        pixPaint.drawText(cardX + (width - titleTextWidth) / 2, titleBaseline, titleText);
 
-    pixPaint.end();
+        // Version text — subtle, below title
+        QColor subtleColor(textColor);
+        subtleColor.setAlpha(130);
+        pixPaint.setPen(subtleColor);
+        fontNormal.setPointSize(12 * fontFactor);
+        pixPaint.setFont(fontNormal);
+        fm = pixPaint.fontMetrics();
+        int versionTextWidth = GUIUtil::TextWidth(fm, versionText);
+        int versionBaseline = titleBaseline + fm.height() + 4;
+        pixPaint.drawText(cardX + (width - versionTextWidth) / 2, versionBaseline, versionText);
+
+        // Draw network badge if special network (testnet, devnet, regtest)
+        if(!titleAddText.isEmpty()) {
+            fontBold.setPointSize(9 * fontFactor);
+            pixPaint.setFont(fontBold);
+            fm = pixPaint.fontMetrics();
+            int titleAddTextWidth = GUIUtil::TextWidth(fm, titleAddText);
+            int badgePadH = 10;
+            int badgePadV = 4;
+            int badgeW = titleAddTextWidth + badgePadH * 2;
+            int badgeH = fm.height() + badgePadV * 2;
+            int badgeX = cardX + width - badgeW - 16;
+            int badgeY = cardY + 14;
+            // Rounded badge
+            pixPaint.setPen(Qt::NoPen);
+            pixPaint.setBrush(networkStyle->getBadgeColor());
+            pixPaint.drawRoundedRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2, badgeH / 2);
+            // Badge text
+            pixPaint.setPen(QColor(255, 255, 255));
+            pixPaint.drawText(badgeX + badgePadH, badgeY + badgePadV + fm.ascent(), titleAddText);
+        }
+    } // QPainter released here
 
     // Resize window and move to center of desktop, disallow resizing
-    QRect r(QPoint(), QSize(width, height));
+    QRect r(QPoint(), QSize(canvasWidth, canvasHeight));
     resize(r.size());
     setFixedSize(r.size());
     move(QGuiApplication::primaryScreen()->geometry().center() - r.center());
@@ -231,13 +262,22 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
 void SplashScreen::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    QFont messageFont = GUIUtil::getFontNormal();
-    messageFont.setPointSize(14);
-    painter.setFont(messageFont);
+    painter.setRenderHint(QPainter::Antialiasing, true);
     painter.drawPixmap(0, 0, pixmap);
-    QRect r = rect().adjusted(5, 5, -5, -15);
-    painter.setPen(curColor);
-    painter.drawText(r, curAlignment, curMessage);
+
+    // Draw status message near the bottom of the card
+    QFont messageFont = GUIUtil::getFontNormal();
+    messageFont.setPointSize(12);
+    painter.setFont(messageFont);
+
+    QRect messageRect = rect().adjusted(
+        SPLASH_PADDING + 24, 0,
+        -SPLASH_PADDING - 24,
+        -SPLASH_PADDING - 28);
+    QColor msgColor(curColor);
+    msgColor.setAlpha(160);
+    painter.setPen(msgColor);
+    painter.drawText(messageRect, curAlignment, curMessage);
 }
 
 void SplashScreen::closeEvent(QCloseEvent *event)
