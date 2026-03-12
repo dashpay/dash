@@ -68,8 +68,6 @@ bool CChainstateHelper::RemoveConflictingISLockByTx(const CTransaction& tx)
     return true;
 }
 
-bool CChainstateHelper::ShouldInstantSendRejectConflicts() const { return isman.RejectConflictingBlocks(); }
-
 std::unordered_map<uint8_t, int> CChainstateHelper::GetSignalsStage(const CBlockIndex* const pindexPrev)
 {
     return ehf_manager->GetSignalsStage(pindexPrev);

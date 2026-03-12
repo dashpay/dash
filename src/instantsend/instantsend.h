@@ -20,7 +20,6 @@
 
 class CBlockIndex;
 class CDataStream;
-class CMasternodeSync;
 class CSporkManager;
 namespace Consensus {
 struct LLMQParams;
@@ -54,7 +53,6 @@ class CInstantSendManager
 private:
     instantsend::CInstantSendDb db;
     CSporkManager& spork_manager;
-    const CMasternodeSync& m_mn_sync;
 
     mutable Mutex cs_pendingLocks;
     // Incoming and not verified yet
@@ -90,8 +88,7 @@ public:
     CInstantSendManager() = delete;
     CInstantSendManager(const CInstantSendManager&) = delete;
     CInstantSendManager& operator=(const CInstantSendManager&) = delete;
-    explicit CInstantSendManager(CSporkManager& sporkman, const CMasternodeSync& mn_sync,
-                                 const util::DbWrapperParams& db_params);
+    explicit CInstantSendManager(CSporkManager& sporkman, const util::DbWrapperParams& db_params);
     ~CInstantSendManager();
 
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
@@ -154,12 +151,6 @@ public:
     int GetTipHeight() const EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     bool IsInstantSendEnabled() const;
-    /**
-     * If true, MN should sign all transactions, if false, MN should not sign
-     * transactions in mempool, but should sign txes included in a block. This
-     * allows ChainLocks to continue even while this spork is disabled.
-     */
-    bool RejectConflictingBlocks() const;
     Uint256HashMap<instantsend::InstantSendLockPtr> RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 };
