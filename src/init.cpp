@@ -1992,7 +1992,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                               chainman,
                                               *node.govman,
                                               *node.mn_metaman,
-                                              *node.mn_sync,
                                               *node.sporkman,
                                               *node.chainlocks,
                                               node.chain_helper,
