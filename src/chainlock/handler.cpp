@@ -4,19 +4,18 @@
 
 #include <chainlock/handler.h>
 
+#include <chain.h>
 #include <chainlock/chainlock.h>
+#include <chainparams.h>
+#include <consensus/validation.h>
 #include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <masternode/sync.h>
-#include <stats/client.h>
-#include <util/std23.h>
-
-#include <chain.h>
-#include <chainparams.h>
-#include <consensus/validation.h>
 #include <node/interface_ui.h>
 #include <scheduler.h>
+#include <stats/client.h>
 #include <txmempool.h>
+#include <util/std23.h>
 #include <util/thread.h>
 #include <util/time.h>
 #include <validation.h>
@@ -324,13 +323,4 @@ void ChainlockHandler::Cleanup()
     }
 }
 
-llmq::VerifyRecSigStatus VerifyChainLock(const Consensus::Params& params, const CChain& chain,
-                                         const llmq::CQuorumManager& qman, const chainlock::ChainLockSig& clsig)
-{
-    const auto llmqType = params.llmqTypeChainLocks;
-    const uint256 request_id = chainlock::GenSigRequestId(clsig.getHeight());
-
-    return llmq::VerifyRecoveredSig(llmqType, chain, qman, clsig.getHeight(), request_id, clsig.getBlockHash(),
-                                    clsig.getSig());
-}
 } // namespace chainlock

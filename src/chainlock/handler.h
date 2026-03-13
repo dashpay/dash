@@ -24,20 +24,14 @@
 
 class CBlock;
 class CBlockIndex;
-class CChain;
 class CMasternodeSync;
 class ChainstateManager;
 class CScheduler;
 class CTxMemPool;
 struct MessageProcessingResult;
 
-namespace Consensus {
-struct Params;
-} // namespace Consensus
-
 namespace llmq {
 class CQuorumManager;
-enum class VerifyRecSigStatus : uint8_t;
 } // namespace llmq
 
 namespace chainlock {
@@ -107,9 +101,6 @@ protected:
 private:
     void Cleanup() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
-
-llmq::VerifyRecSigStatus VerifyChainLock(const Consensus::Params& params, const CChain& chain,
-                                         const llmq::CQuorumManager& qman, const chainlock::ChainLockSig& clsig);
 } // namespace chainlock
 
 #endif // BITCOIN_CHAINLOCK_HANDLER_H

@@ -4,6 +4,8 @@
 
 #include <chainlock/clsig.h>
 
+#include <chainparams.h>
+#include <llmq/quorumsman.h>
 #include <tinyformat.h>
 
 #include <string_view>
@@ -29,5 +31,15 @@ std::string ChainLockSig::ToString() const
 uint256 GenSigRequestId(const int32_t nHeight)
 {
     return ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, nHeight));
+}
+
+llmq::VerifyRecSigStatus VerifyChainLock(const Consensus::Params& params, const CChain& chain,
+                                         const llmq::CQuorumManager& qman, const chainlock::ChainLockSig& clsig)
+{
+    const auto llmqType = params.llmqTypeChainLocks;
+    const uint256 request_id = GenSigRequestId(clsig.getHeight());
+
+    return llmq::VerifyRecoveredSig(llmqType, chain, qman, clsig.getHeight(), request_id, clsig.getBlockHash(),
+                                    clsig.getSig());
 }
 } // namespace chainlock

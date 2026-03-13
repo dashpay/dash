@@ -5,12 +5,22 @@
 #ifndef BITCOIN_CHAINLOCK_CLSIG_H
 #define BITCOIN_CHAINLOCK_CLSIG_H
 
+#include <bls/bls.h>
 #include <serialize.h>
 #include <uint256.h>
 
-#include <bls/bls.h>
-
 #include <cstdint>
+
+class CChain;
+
+namespace Consensus {
+struct Params;
+} // namespace Consensus
+
+namespace llmq {
+class CQuorumManager;
+enum class VerifyRecSigStatus : uint8_t;
+} // namespace llmq
 
 namespace chainlock {
 struct ChainLockSig {
@@ -39,6 +49,9 @@ public:
 
 //! Generate clsig request ID with block height
 uint256 GenSigRequestId(const int32_t nHeight);
+
+llmq::VerifyRecSigStatus VerifyChainLock(const Consensus::Params& params, const CChain& chain,
+                                         const llmq::CQuorumManager& qman, const ChainLockSig& clsig);
 } // namespace chainlock
 
 #endif // BITCOIN_CHAINLOCK_CLSIG_H
