@@ -412,50 +412,6 @@ bool NetSigning::ProcessPendingSigShares()
     return more_work;
 }
 
-// TODO: move it away, it's temporary here
-bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQuorum& quorum, uint16_t nDataMask,
-                                       const uint256& proTxHash) const
-{
-    if (pfrom == nullptr) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid pfrom: nullptr\n", __func__);
-        return false;
-    }
-    if (pfrom->GetVerifiedProRegTxHash().IsNull()) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- pfrom is not a verified masternode\n", __func__);
-        return false;
-    }
-    const Consensus::LLMQType llmqType = quorum.qc->llmqType;
-    if (!Params().GetLLMQ(llmqType).has_value()) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid llmqType: %d\n", __func__, std23::to_underlying(llmqType));
-        return false;
-    }
-    const CBlockIndex* pindex{quorum.m_quorum_base_block_index};
-    if (pindex == nullptr) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid m_quorum_base_block_index : nullptr\n", __func__);
-        return false;
-    }
-
-    LOCK(cs_data_requests);
-    const CQuorumDataRequestKey key(pfrom->GetVerifiedProRegTxHash(), true, pindex->GetBlockHash(), llmqType);
-    const CQuorumDataRequest request(llmqType, pindex->GetBlockHash(), nDataMask, proTxHash);
-    auto [old_pair, inserted] = mapQuorumDataRequests.emplace(key, request);
-    if (!inserted) {
-        if (old_pair->second.IsExpired(/*add_bias=*/true)) {
-            old_pair->second = request;
-        } else {
-            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Already requested\n", __func__);
-            return false;
-        }
-    }
-    LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- sending QGETDATA quorumHash[%s] llmqType[%d] proRegTx[%s]\n", __func__, key.quorumHash.ToString(),
-             std23::to_underlying(key.llmqType), key.proRegTx.ToString());
-
-    CNetMsgMaker msgMaker(pfrom->GetCommonVersion());
-    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QGETDATA, request));
-
-    return true;
-}
-
 MessageProcessingResult CQuorumManager::ProcessMessage(CNode& pfrom, CConnman& connman, std::string_view msg_type, CDataStream& vRecv)
 {
     if (msg_type == NetMsgType::QGETDATA) {

@@ -145,6 +145,51 @@ bool CQuorumManager::HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockP
     return quorum_block_processor.HasMinedCommitment(llmqType, quorumHash);
 }
 
+bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQuorum& quorum, uint16_t nDataMask,
+                                       const uint256& proTxHash) const
+{
+    // TODO FIX ME FIX ME
+    /*
+    if (pfrom == nullptr) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid pfrom: nullptr\n", __func__);
+        return false;
+    }
+    if (pfrom->GetVerifiedProRegTxHash().IsNull()) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- pfrom is not a verified masternode\n", __func__);
+        return false;
+    }
+    const Consensus::LLMQType llmqType = quorum.qc->llmqType;
+    if (!Params().GetLLMQ(llmqType).has_value()) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid llmqType: %d\n", __func__, std23::to_underlying(llmqType));
+        return false;
+    }
+    const CBlockIndex* pindex{quorum.m_quorum_base_block_index};
+    if (pindex == nullptr) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid m_quorum_base_block_index : nullptr\n", __func__);
+        return false;
+    }
+
+    LOCK(cs_data_requests);
+    const CQuorumDataRequestKey key(pfrom->GetVerifiedProRegTxHash(), true, pindex->GetBlockHash(), llmqType);
+    const CQuorumDataRequest request(llmqType, pindex->GetBlockHash(), nDataMask, proTxHash);
+    auto [old_pair, inserted] = mapQuorumDataRequests.emplace(key, request);
+    if (!inserted) {
+        if (old_pair->second.IsExpired(/*add_bias=*//*true)) {
+            old_pair->second = request;
+        } else {
+            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Already requested\n", __func__);
+            return false;
+        }
+    }
+    LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- sending QGETDATA quorumHash[%s] llmqType[%d] proRegTx[%s]\n", __func__, key.quorumHash.ToString(),
+             std23::to_underlying(key.llmqType), key.proRegTx.ToString());
+
+    CNetMsgMaker msgMaker(pfrom->GetCommonVersion());
+    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QGETDATA, request));
+*/
+    return true;
+}
+
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
 {
     const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainman.ActiveTip());
