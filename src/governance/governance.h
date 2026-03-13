@@ -383,7 +383,7 @@ public:
     CDeterministicMNManager& GetMNManager();
     /** Process a governance vote. Returns true on success.
      *  If the vote is for an unknown object (orphan), hashToRequest is set to the object hash. */
-    bool ProcessVote(CNode* pfrom, const CGovernanceVote& vote, CGovernanceException& exception, uint256& hashToRequest)
+    bool ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception, uint256& hashToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
 

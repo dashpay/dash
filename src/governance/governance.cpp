@@ -753,14 +753,14 @@ bool CGovernanceManager::ProcessVoteAndRelay(const CGovernanceVote& vote, CGover
     AssertLockNotHeld(cs_store);
     AssertLockNotHeld(cs_relay);
     uint256 hashToRequest; // Ignored for local votes (no peer to request from)
-    bool fOK = ProcessVote(/*pfrom=*/nullptr, vote, exception, hashToRequest);
+    bool fOK = ProcessVote(vote, exception, hashToRequest);
     if (fOK) {
         RelayVote(vote);
     }
     return fOK;
 }
 
-bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, CGovernanceException& exception,
+bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception,
                                      uint256& hashToRequest)
 {
     AssertLockNotHeld(cs_store);
