@@ -11,7 +11,6 @@
 #include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/types.h>
-#include <msg_result.h>
 #include <saltedhasher.h>
 #include <unordered_lru_cache.h>
 
@@ -39,6 +38,7 @@ class CDBWrapper;
 class CEvoDB;
 class ChainstateManager;
 class CNode;
+class MessageProcessingResult;
 namespace util {
 struct DbWrapperParams;
 } // namespace util

@@ -6,6 +6,7 @@
 
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/dkgsessionhandler.h>
 #include <llmq/observer/quorums.h>
 #include <llmq/quorumsman.h>
 

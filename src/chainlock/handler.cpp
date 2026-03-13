@@ -11,6 +11,7 @@
 #include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <masternode/sync.h>
+#include <msg_result.h>
 #include <node/interface_ui.h>
 #include <scheduler.h>
 #include <stats/client.h>

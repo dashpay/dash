@@ -7,11 +7,10 @@
 
 #include <bls/bls.h>
 #include <bls/bls_worker.h>
-#include <llmq/dkgsessionhandler.h>
-#include <msg_result.h>
-#include <util/helpers.h>
-
+#include <chainparams.h>
 #include <net_types.h>
+#include <util/helpers.h>
+#include <sync.h>
 
 #include <map>
 #include <memory>
@@ -31,10 +30,10 @@ class ChainstateManager;
 class CMasternodeMetaMan;
 class CSporkManager;
 class PeerManager;
-class CDKGContribution;
-class CDKGComplaint;
-class CDKGJustification;
-class CDKGPrematureCommitment;
+class CInv;
+class CNode;
+class CConnman;
+class MessageProcessingResult;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -43,6 +42,11 @@ class UniValue;
 
 namespace llmq
 {
+class CDKGComplaint;
+class CDKGContribution;
+class CDKGJustification;
+class CDKGPrematureCommitment;
+class CDKGSessionHandler;
 class CQuorumSnapshotManager;
 
 class CDKGSessionManager
@@ -102,6 +106,7 @@ public:
     template <typename HandlerFn>
     void InitializeHandlers(HandlerFn&& handler_fn)
     {
+        // TODO: move it to cpp file and drop chainparams.h and helpers.h
         const Consensus::Params& consensus_params = Params().GetConsensus();
         for (const auto& params : consensus_params.llmqs) {
             auto session_count = (params.useRotation) ? params.signingActiveQuorumCount : 1;

@@ -6,9 +6,11 @@
 
 #include <bls/bls_ies.h>
 #include <evo/deterministicmns.h>
+#include <llmq/dkgsessionhandler.h>
 #include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/utils.h>
+#include <msg_result.h>
 #include <spork.h>
 #include <unordered_lru_cache.h>
 #include <util/helpers.h>

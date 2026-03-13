@@ -14,6 +14,7 @@
 #include <llmq/quorums.h>
 #include <llmq/utils.h>
 #include <masternode/sync.h>
+#include <msg_result.h>
 #include <util/helpers.h>
 
 #include <chain.h>
