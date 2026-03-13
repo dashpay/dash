@@ -231,7 +231,9 @@ void DashChainstateSetup(ChainstateManager& chainman,
     llmq_ctx = std::make_unique<LLMQContext>(*dmnman, evodb, sporkman, chainman,
                                              util::DbWrapperParams{.path = data_dir, .memory = llmq_dbs_in_memory, .wipe = llmq_dbs_wipe},
                                              bls_threads, worker_count, max_recsigs_age);
-    mempool->ConnectManagers(dmnman.get(), llmq_ctx->isman.get());
+    if (mempool) {
+        mempool->ConnectManagers(dmnman.get(), llmq_ctx->isman.get());
+    }
     chain_helper.reset();
     chain_helper = std::make_unique<CChainstateHelper>(evodb, *dmnman, govman, *(llmq_ctx->isman), *(llmq_ctx->quorum_block_processor),
                                                        *(llmq_ctx->qsnapman), chainman, consensus_params, sporkman, chainlocks,
@@ -246,7 +248,9 @@ void DashChainstateSetupClose(std::unique_ptr<CChainstateHelper>& chain_helper,
 {
     chain_helper.reset();
     llmq_ctx.reset();
-    mempool->DisconnectManagers();
+    if (mempool) {
+        mempool->DisconnectManagers();
+    }
     dmnman.reset();
 }
 
