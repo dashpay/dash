@@ -44,6 +44,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "llmq/blockprocessor -> llmq/utils -> llmq/snapshot -> llmq/blockprocessor",
     "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment",
     "llmq/dkgsessionhandler -> net_processing -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler",
+    "llmq/dkgsessionhandler -> net_processing -> llmq/observer -> llmq/dkgsessionhandler",
     "masternode/payments -> validation -> masternode/payments",
     "net -> netmessagemaker -> net",
     "netaddress -> netbase -> netaddress",
