@@ -4,7 +4,9 @@
 
 #include <rpc/evo_util.h>
 
+#include <evo/deterministicmns.h>
 #include <evo/providertx.h>
+#include <index/txindex.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
 
@@ -136,3 +138,29 @@ void ProcessNetInfoPlatform(ProTx& ptx, const UniValue& input_p2p, const UniValu
 }
 template void ProcessNetInfoPlatform(CProRegTx& ptx, const UniValue& input_p2p, const UniValue& input_http, const bool optional);
 template void ProcessNetInfoPlatform(CProUpServTx& ptx, const UniValue& input_p2p, const UniValue& input_http, const bool optional);
+
+
+UniValue CDeterministicMN::ToJson() const
+{
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("type", std::string(GetMnType(nType).description));
+    obj.pushKV("proTxHash", proTxHash.ToString());
+    obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
+    obj.pushKV("collateralIndex", collateralOutpoint.n);
+
+    if (g_txindex) {
+        CTransactionRef collateralTx;
+        uint256 nBlockHash;
+        g_txindex->FindTx(collateralOutpoint.hash, nBlockHash, collateralTx);
+        if (collateralTx) {
+            CTxDestination dest;
+            if (ExtractDestination(collateralTx->vout[collateralOutpoint.n].scriptPubKey, dest)) {
+                obj.pushKV("collateralAddress", EncodeDestination(dest));
+            }
+        }
+    }
+
+    obj.pushKV("operatorReward", (double)nOperatorReward / 100);
+    obj.pushKV("state", pdmnState->ToJson(nType));
+    return obj;
+}
