@@ -16,7 +16,7 @@
 #include <streams.h>
 #include <uint256.h>
 
-#include <chainlock/clsig.h>
+#include <chainlock/chainlock.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 

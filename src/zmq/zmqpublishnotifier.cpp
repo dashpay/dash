@@ -23,7 +23,7 @@
 
 #include <zmq.h>
 
-#include <chainlock/clsig.h>
+#include <chainlock/chainlock.h>
 #include <governance/common.h>
 #include <governance/vote.h>
 #include <instantsend/lock.h>

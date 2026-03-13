@@ -8,7 +8,7 @@
 #include <streams.h>
 #include <util/strencodings.h>
 
-#include <chainlock/clsig.h>
+#include <chainlock/chainlock.h>
 
 #include <boost/test/unit_test.hpp>
 

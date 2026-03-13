@@ -4,11 +4,26 @@
 
 #include <chainlock/chainlock.h>
 
-#include <chainlock/clsig.h>
+#include <chain.h>
 #include <logging.h>
 #include <spork.h>
 
 namespace chainlock {
+
+ChainLockSig::ChainLockSig() = default;
+ChainLockSig::~ChainLockSig() = default;
+
+ChainLockSig::ChainLockSig(int32_t nHeight, const uint256& blockHash, const CBLSSignature& sig) :
+    nHeight{nHeight},
+    blockHash{blockHash},
+    sig{sig}
+{
+}
+
+std::string ChainLockSig::ToString() const
+{
+    return strprintf("ChainLockSig(nHeight=%d, blockHash=%s)", nHeight, blockHash.ToString());
+}
 
 Chainlocks::Chainlocks(const CSporkManager& sporkman) :
     m_sporks(sporkman)

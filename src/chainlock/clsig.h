@@ -5,40 +5,28 @@
 #ifndef BITCOIN_CHAINLOCK_CLSIG_H
 #define BITCOIN_CHAINLOCK_CLSIG_H
 
-#include <serialize.h>
-#include <uint256.h>
-
-#include <bls/bls.h>
-
 #include <cstdint>
 
+class CChain;
+class uint256;
+
+namespace Consensus {
+struct Params;
+} // namespace Consensus
+
+namespace llmq {
+class CQuorumManager;
+enum class VerifyRecSigStatus : uint8_t;
+} // namespace llmq
+
 namespace chainlock {
-struct ChainLockSig {
-private:
-    int32_t nHeight{-1};
-    uint256 blockHash;
-    CBLSSignature sig;
-
-public:
-    ChainLockSig();
-    ~ChainLockSig();
-
-    ChainLockSig(int32_t nHeight, const uint256& blockHash, const CBLSSignature& sig);
-
-    [[nodiscard]] int32_t getHeight() const { return nHeight; }
-    [[nodiscard]] const uint256& getBlockHash() const { return blockHash; }
-    [[nodiscard]] const CBLSSignature& getSig() const { return sig; }
-    [[nodiscard]] bool IsNull() const { return nHeight == -1 && blockHash == uint256(); }
-    [[nodiscard]] std::string ToString() const;
-
-    SERIALIZE_METHODS(ChainLockSig, obj)
-    {
-        READWRITE(obj.nHeight, obj.blockHash, obj.sig);
-    }
-};
+struct ChainLockSig;
 
 //! Generate clsig request ID with block height
 uint256 GenSigRequestId(const int32_t nHeight);
+
+llmq::VerifyRecSigStatus VerifyChainLock(const Consensus::Params& params, const CChain& chain,
+                                         const llmq::CQuorumManager& qman, const ChainLockSig& clsig);
 } // namespace chainlock
 
 #endif // BITCOIN_CHAINLOCK_CLSIG_H

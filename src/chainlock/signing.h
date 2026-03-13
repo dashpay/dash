@@ -6,7 +6,6 @@
 #define BITCOIN_CHAINLOCK_SIGNING_H
 
 #include <chainlock/chainlock.h>
-#include <chainlock/clsig.h>
 #include <llmq/signing.h>
 #include <util/time.h>
 #include <validationinterface.h>
