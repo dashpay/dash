@@ -78,6 +78,7 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
         m_operator_reward = QObject::tr("NONE");
     }
 
+    // TODO: get rid of this JSON
     const auto json{dmn->toJson()};
     m_json = QString::fromStdString(json.write(2));
     if (const auto& val = json.find_value("collateralHash"); val.isStr()) {

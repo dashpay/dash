@@ -4,6 +4,10 @@
 
 #include <evo/deterministicmns.h>
 
+#include <chainparams.h>
+#include <coins.h>
+#include <consensus/validation.h>
+#include <deploymentstatus.h>
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
 #include <evo/evodb.h>
@@ -11,24 +15,18 @@
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 #include <masternode/meta.h>
-#include <stats/client.h>
-#include <util/helpers.h>
-
-#include <chainparams.h>
-#include <coins.h>
-#include <consensus/validation.h>
-#include <deploymentstatus.h>
-#include <index/txindex.h>
 #include <node/blockstorage.h>
 #include <script/standard.h>
+#include <stats/client.h>
 #include <uint256.h>
+#include <util/helpers.h>
+
+#include <univalue.h>
 
 #include <functional>
 #include <optional>
 #include <memory>
 #include <ranges>
-
-#include <univalue.h>
 
 static const std::string DB_LIST_SNAPSHOT = "dmn_S3";
 static const std::string DB_LIST_DIFF = "dmn_D4";        // Bumped for nVersion-first format
@@ -53,31 +51,6 @@ CSimplifiedMNListEntry CDeterministicMN::to_sml_entry() const
 std::string CDeterministicMN::ToString() const
 {
     return strprintf("CDeterministicMN(proTxHash=%s, collateralOutpoint=%s, nOperatorReward=%f, state=%s", proTxHash.ToString(), collateralOutpoint.ToStringShort(), (double)nOperatorReward / 100, pdmnState->ToString());
-}
-
-UniValue CDeterministicMN::ToJson() const
-{
-    UniValue obj(UniValue::VOBJ);
-    obj.pushKV("type", std::string(GetMnType(nType).description));
-    obj.pushKV("proTxHash", proTxHash.ToString());
-    obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
-    obj.pushKV("collateralIndex", collateralOutpoint.n);
-
-    if (g_txindex) {
-        CTransactionRef collateralTx;
-        uint256 nBlockHash;
-        g_txindex->FindTx(collateralOutpoint.hash, nBlockHash, collateralTx);
-        if (collateralTx) {
-            CTxDestination dest;
-            if (ExtractDestination(collateralTx->vout[collateralOutpoint.n].scriptPubKey, dest)) {
-                obj.pushKV("collateralAddress", EncodeDestination(dest));
-            }
-        }
-    }
-
-    obj.pushKV("operatorReward", (double)nOperatorReward / 100);
-    obj.pushKV("state", pdmnState->ToJson(nType));
-    return obj;
 }
 
 bool CDeterministicMNList::IsMNValid(const uint256& proTxHash) const
