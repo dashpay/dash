@@ -126,16 +126,6 @@ void CSporkManager::CheckAndRemove()
     }
 }
 
-MessageProcessingResult CSporkManager::ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type, CDataStream& vRecv)
-{
-    if (msg_type == NetMsgType::SPORK) {
-        return ProcessSpork(peer.GetId(), vRecv);
-    } else if (msg_type == NetMsgType::GETSPORKS) {
-        ProcessGetSporks(peer, connman);
-    }
-    return {};
-}
-
 MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vRecv)
 {
     CSporkMessage spork;
@@ -194,17 +184,6 @@ MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vR
     ret.m_inventory.emplace_back(MSG_SPORK, hash);
     return ret;
 }
-
-void CSporkManager::ProcessGetSporks(CNode& peer, CConnman& connman)
-{
-    LOCK(cs); // make sure to not lock this together with cs_main
-    for (const auto& pair : mapSporksActive) {
-        for (const auto& signerSporkPair : pair.second) {
-            connman.PushMessage(&peer, CNetMsgMaker(peer.GetCommonVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
-        }
-    }
-}
-
 
 std::optional<CInv> CSporkManager::UpdateSpork(SporkId nSporkID, SporkValue nValue)
 {
