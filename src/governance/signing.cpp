@@ -163,7 +163,7 @@ std::optional<const CGovernanceObject> GovernanceSigner::CreateGovernanceTrigger
     }
 
     // The trigger we just created looks good, submit it
-    m_govman.AddGovernanceObject(gov_sb);
+    m_govman.AddGovernanceObject(gov_sb, "nullptr");
     return std::make_optional<CGovernanceObject>(gov_sb);
 }
 

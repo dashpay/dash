@@ -134,7 +134,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
             return;
         }
 
-        if (!WITH_LOCK(::cs_main, return m_gov_manager.ProcessObject(peer, nHash, govobj))) {
+        if (!WITH_LOCK(::cs_main, return m_gov_manager.ProcessObject(peer.GetLogString(), nHash, govobj))) {
             // apply node's ban score
             m_peer_manager->PeerMisbehaving(peer.GetId(), 20);
         }
