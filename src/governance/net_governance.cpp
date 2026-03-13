@@ -169,7 +169,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
 
         CGovernanceException exception;
         uint256 hashToRequest;
-        if (m_gov_manager.ProcessVote(&peer, vote, exception, hashToRequest)) {
+        if (m_gov_manager.ProcessVote(vote, exception, hashToRequest)) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- %s new\n", strHash);
             m_node_sync.BumpAssetLastTime("MNGOVERNANCEOBJECTVOTE");
 
