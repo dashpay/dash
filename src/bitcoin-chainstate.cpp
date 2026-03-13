@@ -44,9 +44,37 @@
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
-// TODO: probably remove stats
+
+//----------------
+// TODO: probably remove all there
 #include <stats/client.h>
 std::unique_ptr<StatsdClient> g_stats_client{std::make_unique<StatsdClient>()};
+
+UniValue ValueFromAmount(const CAmount amount)
+{
+    static_assert(COIN > 1);
+    int64_t quotient = amount / COIN;
+    int64_t remainder = amount % COIN;
+    if (amount < 0) {
+        quotient = -quotient;
+        remainder = -remainder;
+    }
+    return UniValue(UniValue::VNUM,
+            strprintf("%s%d.%08d", amount < 0 ? "-" : "", quotient, remainder));
+}
+std::string GetPrettyExceptionStr(const std::exception_ptr& e)
+{
+    try {
+        // rethrow and catch the exception as there is no other way to reliably cast to the real type (not possible with RTTI)
+        std::rethrow_exception(e);
+    } catch (const std::exception& e2) {
+        return e2.what();
+    } catch (...) {
+        throw;
+    }
+}
+
+//////////////////////
 
 int main(int argc, char* argv[])
 {
