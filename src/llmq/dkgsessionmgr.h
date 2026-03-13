@@ -116,6 +116,7 @@ public:
         }
     }
 
+    // TODO: SPLIT THIS CLASS TO contribution manager and everything else
     void StartThreads(CConnman& connman, PeerManager& peerman);
     void StopThreads();
 
