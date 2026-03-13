@@ -5,25 +5,27 @@
 #include <llmq/net_signing.h>
 
 #include <bls/bls_batchverifier.h>
+#include <cxxtimer.hpp>
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
-#include <llmq/signing_shares.h>
 #include <llmq/signing.h>
-#include <spork.h>
-#include <util/std23.h>
-
+#include <llmq/signing_shares.h>
+#include <logging.h>
 #include <net.h>
 #include <netmessagemaker.h>
-#include <logging.h>
+#include <spork.h>
 #include <streams.h>
+#include <util/std23.h>
 #include <util/thread.h>
 #include <validationinterface.h>
-
-#include <cxxtimer.hpp>
 
 #include <algorithm>
 #include <ranges>
 #include <unordered_map>
+
+#include <llmq/commitment.h>
+#include <llmq/quorumsman.h>
+#include <validation.h>
 
 namespace llmq {
 void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
@@ -406,6 +408,7 @@ bool NetSigning::ProcessPendingSigShares()
     return more_work;
 }
 
+// TODO: move it away, it's temporary here
 bool CQuorumManager::RequestQuorumData(CNode* pfrom, CConnman& connman, const CQuorum& quorum, uint16_t nDataMask,
                                        const uint256& proTxHash) const
 {
