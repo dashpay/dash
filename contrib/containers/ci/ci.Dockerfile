@@ -58,6 +58,7 @@ RUN set -ex; \
 # LD_LIBRARY_PATH is empty by default, this is the first entry
 ENV LD_LIBRARY_PATH="/usr/lib/llvm-${LLVM_VERSION}/lib"
 
+# Install IWYU
 RUN set -ex; \
     git clone --depth=1 "https://github.com/include-what-you-use/include-what-you-use" -b "clang_${LLVM_VERSION}" /opt/iwyu; \
     cd /opt/iwyu; \

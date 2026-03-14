@@ -1,0 +1,73 @@
+# Copyright (c) 2016-2025 The Zcash developers
+# Copyright (c) 2026 The Dash Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+LIBRUST_CHIRP_TARGET_DIR = $(abs_top_builddir)/rust/chirp/target
+LIBRUST_CHIRP = $(LIBRUST_CHIRP_TARGET_DIR)/$(RUST_TARGET)/$(CARGO_PROFILE)/libchirp.a
+
+LIBRUST_CHIRP_CARGO_ENV = $(CARGO_ENV) CARGO_TARGET_DIR="$(LIBRUST_CHIRP_TARGET_DIR)"
+LIBRUST_CHIRP_CRATE_DIR = $(top_srcdir)/rust/chirp
+LIBRUST_CHIRP_GEN_DIR = $(abs_top_builddir)/rust/chirp/gen
+LIBRUST_CHIRP_GEN_SRCDIR = $(top_srcdir)/rust/chirp/gen
+LIBRUST_CHIRP_MANIFEST = $(LIBRUST_CHIRP_CRATE_DIR)/Cargo.toml
+LIBRUST_CHIRP_CARGO_BUILD_OPTS = $(CARGO_BUILD_OPTS) --manifest-path $(LIBRUST_CHIRP_MANIFEST)
+
+LIBRUST_CHIRP_SRCS = \
+	$(LIBRUST_CHIRP_CRATE_DIR)/src/lib.rs
+
+LIBRUST_CHIRP_BUILD = \
+	$(LIBRUST_CHIRP_CRATE_DIR)/build.rs
+
+LIBRUST_CHIRP_CPP = \
+	$(LIBRUST_CHIRP_GEN_DIR)/src/lib.cpp
+
+LIBRUST_CHIRP_H = \
+	$(LIBRUST_CHIRP_GEN_DIR)/include/rust/chirp/lib.h
+
+LIBRUST_CHIRP_INCLUDES = \
+	-I$(LIBRUST_CHIRP_GEN_DIR)/include
+
+LIBRUST_CHIRP_FILES = \
+	$(LIBRUST_CHIRP_BUILD) \
+	$(LIBRUST_CHIRP_MANIFEST) \
+	$(LIBRUST_CHIRP_SRCS)
+
+$(LIBRUST_CHIRP_SRCS): ;
+
+$(LIBRUST_CHIRP_CPP): $(LIBRUST_CHIRP_SRCS)
+	$(AM_V_at)$(MKDIR_P) $(@D)
+	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp; then \
+	  cp $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp $@; \
+	else \
+	  $(CXXBRIDGE) $< -o $@; \
+	fi
+
+$(LIBRUST_CHIRP_H): $(LIBRUST_CHIRP_SRCS)
+	$(AM_V_at)$(MKDIR_P) $(@D)
+	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h; then \
+	  cp $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h $@; \
+	else \
+   	  $(CXXBRIDGE) $< --header -o $@; \
+	fi
+
+$(LIBRUST_CHIRP): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_BUILD) $(LIBRUST_CHIRP_MANIFEST)
+	$(AM_V_GEN)$(LIBRUST_CHIRP_CARGO_ENV) $(CARGO) build $(LIBRUST_CHIRP_CARGO_BUILD_OPTS)
+
+cargo-build-chirp: $(LIBRUST_CHIRP)
+
+cargo-clean-chirp:
+	$(AM_V_at)rm -rf $(LIBRUST_CHIRP_TARGET_DIR)
+
+cxxbridge-clean-chirp:
+	$(AM_V_at)rm -rf $(LIBRUST_CHIRP_GEN_DIR)
+
+cxxbridge-chirp: $(LIBRUST_CHIRP_CPP) $(LIBRUST_CHIRP_H)
+
+dist-hook: cxxbridge-chirp
+	$(MKDIR_P) $(distdir)/chirp/gen/src
+	$(MKDIR_P) $(distdir)/chirp/gen/include/rust/chirp
+	cp $(LIBRUST_CHIRP_CPP) $(distdir)/chirp/gen/src/
+	cp $(LIBRUST_CHIRP_H) $(distdir)/chirp/gen/include/rust/chirp/
+
+.PHONY: cargo-build-chirp cargo-clean-chirp cxxbridge-chirp cxxbridge-clean-chirp

@@ -75,12 +75,15 @@ bench_bench_dash_LDADD = \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1) \
+  $(LIBCXXBRIDGE) \
+  $(LIBRUSTDEPS) \
   $(LIBUNIVALUE) \
   $(EVENT_PTHREADS_LIBS) \
   $(EVENT_LIBS) \
   $(MINIUPNPC_LIBS) \
   $(NATPMP_LIBS) \
   $(GMP_LIBS) \
+  $(RUST_LIBS) \
   $(BACKTRACE_LIBS)
 
 if ENABLE_ZMQ

@@ -47,6 +47,7 @@ if test "${ARFLAGS+set}" != "set"; then
   ARFLAGS="cr"
 fi
 
+AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 
 AH_TOP([#ifndef DASH_CONFIG_H])
@@ -59,7 +60,9 @@ AM_INIT_AUTOMAKE([1.13 no-define subdir-objects foreign])
 AM_MAINTAINER_MODE([enable])
 
 dnl make the compilation flags quiet unless V=1 is used
-AM_SILENT_RULES([yes])
+m4_pattern_allow([AM_DEFAULT_VERBOSITY])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],[AM_DEFAULT_VERBOSITY=1])
+AM_CONDITIONAL([SILENT_RULES], [test "$AM_DEFAULT_VERBOSITY" = '0'])
 
 dnl Compiler checks (here before libtool).
 if test "${CXXFLAGS+set}" = "set"; then
@@ -123,6 +126,38 @@ AC_PATH_TOOL([OBJDUMP], [objdump])
 AC_PATH_TOOL([DSYMUTIL], [dsymutil])
 AC_PATH_PROG([DOXYGEN], [doxygen])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test -n "$DOXYGEN"])
+
+dnl Check/return PATH for Rust dependencies
+AC_DEFUN(
+  RS_REQUIRE_PROG,
+  [
+    AC_PATH_PROG($1, $2, $2_notfound)
+    if test x${$1} = x$2_notfound
+    then
+      AC_MSG_ERROR("Required program $2 was not found")
+    fi
+  ]
+)
+RS_REQUIRE_PROG([CARGO], cargo)
+RS_REQUIRE_PROG([CXXBRIDGE], cxxbridge)
+RS_REQUIRE_PROG([RUSTC], rustc)
+
+AC_ARG_VAR([CARGO_INCREMENTAL], [Enable incremental compilation for Rust])
+if test "${CARGO_INCREMENTAL+set}" != "set"; then
+  CARGO_INCREMENTAL="0"
+fi
+
+AC_ARG_VAR([RUSTFLAGS], [Flags for Rust compiler])
+if test "${RUSTFLAGS+set}" != "set"; then
+  RUSTFLAGS="-C embed-bitcode=yes -C relocation-model=pic"
+fi
+
+AC_ARG_ENABLE([online-rust],
+  [AS_HELP_STRING([--enable-online-rust],
+    [allow Cargo to fetch Rust dependencies from the internet (default is no, using vendored dependencies offline)])],
+  [enable_online_rust=$enableval],
+  [enable_online_rust=no])
+AM_CONDITIONAL([ENABLE_ONLINE_RUST], [test "$enable_online_rust" != "no"])
 
 AC_ARG_ENABLE([wallet],
   [AS_HELP_STRING([--disable-wallet],
@@ -274,6 +309,7 @@ AC_ARG_ENABLE([debug],
                     [use compiler flags and macros suited for debugging (default is no)])],
     [enable_debug=$enableval],
     [enable_debug=no])
+AM_CONDITIONAL([ENABLE_DEBUG], [test "$enable_debug" = "yes"])
 
 dnl Enable exception stacktraces
 AC_ARG_ENABLE([stacktraces],
@@ -1709,6 +1745,108 @@ if test "$use_zmq" = "yes"; then
   esac
 fi
 
+RUST_LIBS=""
+case $host in
+  *mingw*)
+    RUST_LIBS="$RUST_LIBS -luserenv -lntdll"
+    ;;
+  *)
+    RUST_LIBS="$RUST_LIBS -ldl"
+    ;;
+esac
+
+RUST_MACOS_DEPLOYMENT_TARGET=""
+case $host in
+  *darwin*)
+    AC_MSG_CHECKING([for target macOS version])
+    RUST_MACOS_DEPLOYMENT_TARGET="${OSX_MIN_VERSION:-$(sw_vers -productVersion)}"
+    AC_MSG_RESULT([$RUST_MACOS_DEPLOYMENT_TARGET])
+    ;;
+esac
+
+AC_DEFUN([RS_SET_TRIPLE], [
+  case $2 in
+    x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
+    aarch64-*-linux*|arm64-*-linux*)
+                          $1="aarch64-unknown-linux-$3" ;;
+    arm-*-linux*)         $1="armv7-unknown-linux-$3eabihf" ;;
+    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-$3" ;;
+    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-$3" ;;
+    riscv64-*-linux*)     $1="riscv64gc-unknown-linux-$3" ;;
+    x86_64-*-linux*)      $1="x86_64-unknown-linux-$3" ;;
+    x86_64-*-darwin*)     $1="x86_64-apple-darwin" ;;
+    aarch64-*-darwin*|arm64-*-darwin*)
+                          $1="aarch64-apple-darwin" ;;
+    x86_64-*-mingw*)      $1="x86_64-pc-windows-gnu" ;;
+    *)                    $1="" ;;
+  esac
+])
+
+AC_MSG_CHECKING([for Rust target])
+RS_SET_TRIPLE([RUST_TARGET], [$host], [musl])
+if test "$RUST_TARGET" = ""; then
+  AC_MSG_RESULT([unknown])
+  AC_MSG_ERROR([Unsupported target for Rust: $host])
+fi
+AC_MSG_RESULT([$RUST_TARGET])
+
+RUST_OSX_SDK=""
+case $host in
+  *darwin*)
+    AC_MSG_CHECKING([for Xcode SDK])
+    if test -z "$OSX_SDK"; then
+      if test "$cross_compiling" = "yes"; then
+        AC_MSG_ERROR([Cross-compilation requires OSX_SDK to be set to path of Xcode SDK, cannot continue!])
+      fi
+    fi
+    RUST_OSX_SDK="${OSX_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
+    AC_MSG_RESULT([$RUST_OSX_SDK])
+   ;;
+esac
+
+AC_MSG_CHECKING([for Rust host])
+RS_SET_TRIPLE([RUST_NATIVE], [$build], [gnu])
+if test "$RUST_NATIVE" = ""; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_RESULT([unknown])
+    AC_MSG_ERROR([Unsupported host for Rust: $build])
+  fi
+  RUST_NATIVE="$RUST_TARGET"
+fi
+AC_MSG_RESULT([$RUST_NATIVE])
+
+AC_MSG_CHECKING([for host archiver])
+if test -z "$NATIVE_AR"; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_ERROR([Cross-compilation requires NATIVE_AR to be set to host archiver, cannot continue!])
+  fi
+  NATIVE_AR="$AR"
+fi
+AC_MSG_RESULT([$NATIVE_AR])
+
+AC_MSG_CHECKING([for host C compiler])
+if test -z "$NATIVE_CC"; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_ERROR([Cross-compilation requires NATIVE_CC to be set to host C compiler, cannot continue!])
+  fi
+  NATIVE_CC="$CC"
+fi
+AC_MSG_RESULT([$NATIVE_CC])
+
+AC_MSG_CHECKING([for host C++ compiler])
+if test -z "$NATIVE_CXX"; then
+  if test "$cross_compiling" = "yes"; then
+    AC_MSG_ERROR([Cross-compilation requires NATIVE_CXX to be set to host C++ compiler, cannot continue!])
+  fi
+  NATIVE_CXX="$CXX"
+fi
+AC_MSG_RESULT([$NATIVE_CXX])
+
+if test -n "$depends_prefix"; then
+  RUSTUP_TOOLCHAIN=""
+fi
+AC_SUBST(RUSTUP_TOOLCHAIN)
+
 dnl check if libgmp is present
 TEMP_CPPFLAGS="$CPPFLAGS"
 TEMP_LDFLAGS="$LDFLAGS"
@@ -1999,6 +2137,17 @@ AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
 AC_SUBST(BITCOIN_MP_NODE_NAME)
 AC_SUBST(BITCOIN_MP_GUI_NAME)
 
+AC_SUBST(NATIVE_AR)
+AC_SUBST(NATIVE_CC)
+AC_SUBST(NATIVE_CXX)
+AC_SUBST(RUST_LIBS)
+AC_SUBST(RUST_MACOS_DEPLOYMENT_TARGET)
+AC_SUBST(RUST_NATIVE)
+AC_SUBST(RUST_OSX_SDK)
+AC_SUBST(RUST_TARGET)
+AC_SUBST(RUST_VENDORED_SOURCES)
+AC_SUBST(RUSTUP_TOOLCHAIN)
+
 AC_SUBST(RELDFLAGS)
 AC_SUBST(CORE_LDFLAGS)
 AC_SUBST(CORE_CPPFLAGS)
@@ -2054,7 +2203,7 @@ AC_SUBST(HAVE_MM_PREFETCH)
 AC_SUBST(HAVE_STRONG_GETAUXVAL)
 AC_SUBST(ANDROID_ARCH)
 AC_SUBST(HAVE_EVHTTP_CONNECTION_GET_PEER_CONST_CHAR)
-AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist test/config.ini])
+AC_CONFIG_FILES([Makefile rust/Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist test/config.ini])
 AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
 AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([doc/Doxyfile])])
 AC_CONFIG_LINKS([contrib/filter-lcov.py:contrib/filter-lcov.py])
@@ -2145,4 +2294,18 @@ echo "  CXXFLAGS        = $DEBUG_CXXFLAGS $HARDENED_CXXFLAGS $WARN_CXXFLAGS $NOW
 echo "  LDFLAGS         = $PTHREAD_LIBS $HARDENED_LDFLAGS $GPROF_LDFLAGS $CORE_LDFLAGS $BACKTRACE_LDFLAGS $LDFLAGS"
 echo "  AR              = $AR"
 echo "  ARFLAGS         = $ARFLAGS"
+echo
+echo "  CARGO                        = $CARGO"
+echo "  CARGO_INCREMENTAL            = $CARGO_INCREMENTAL"
+echo "  CXXBRIDGE                    = $CXXBRIDGE"
+echo "  NATIVE_AR                    = $NATIVE_AR"
+echo "  NATIVE_CC                    = $NATIVE_CC"
+echo "  NATIVE_CXX                   = $NATIVE_CXX"
+echo "  RUSTC                        = $RUSTC"
+echo "  RUSTFLAGS                    = $RUSTFLAGS"
+echo "  RUST_MACOS_DEPLOYMENT_TARGET = $RUST_MACOS_DEPLOYMENT_TARGET"
+echo "  RUST_NATIVE                  = $RUST_NATIVE"
+echo "  RUST_OSX_SDK                 = $RUST_OSX_SDK"
+echo "  RUST_TARGET                  = $RUST_TARGET"
+echo "  RUST_VENDORED_SOURCES        = $RUST_VENDORED_SOURCES"
 echo

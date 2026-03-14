@@ -8,7 +8,7 @@ print-%: FORCE
 	@echo '$*'='$($*)'
 
 ACLOCAL_AMFLAGS = -I build-aux/m4
-SUBDIRS = src
+SUBDIRS = rust src
 if ENABLE_MAN
 SUBDIRS += doc/man
 endif
@@ -64,6 +64,11 @@ WINDOWS_PACKAGING = $(top_srcdir)/share/pixmaps/dash.ico \
 
 OSX_PACKAGING = $(OSX_DEPLOY_SCRIPT) $(OSX_INSTALLER_ICONS) \
   $(top_srcdir)/contrib/macdeploy/detached-sig-create.sh
+
+CARGO_FILES = \
+  $(top_srcdir)/.cargo/config.toml.offline \
+  $(top_srcdir)/Cargo.lock \
+  $(top_srcdir)/Cargo.toml
 
 COVERAGE_INFO = $(COV_TOOL_WRAPPER) baseline.info \
   test_dash_filtered.info total_coverage.info \
@@ -249,7 +254,7 @@ endif
 
 dist_noinst_SCRIPTS = autogen.sh
 
-EXTRA_DIST = $(DIST_SHARE) $(DIST_CONTRIB) $(WINDOWS_PACKAGING) $(OSX_PACKAGING) $(BIN_CHECKS)
+EXTRA_DIST = $(DIST_SHARE) $(DIST_CONTRIB) $(WINDOWS_PACKAGING) $(OSX_PACKAGING) $(BIN_CHECKS) $(CARGO_FILES)
 
 EXTRA_DIST += \
     test/functional \
