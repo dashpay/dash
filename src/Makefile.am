@@ -294,7 +294,6 @@ BITCOIN_CORE_H = \
   llmq/types.h \
   llmq/utils.h \
   llmq/observer/context.h \
-  llmq/observer/quorums.h \
   logging.h \
   logging/timer.h \
   mapport.h \
@@ -564,7 +563,6 @@ libbitcoin_node_a_SOURCES = \
   llmq/snapshot.cpp \
   llmq/utils.cpp \
   llmq/observer/context.cpp \
-  llmq/observer/quorums.cpp \
   mapport.cpp \
   masternode/meta.cpp \
   masternode/payments.cpp \

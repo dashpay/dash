@@ -53,8 +53,8 @@ enum class DataRequestStatus : uint8_t {
  * depends only on this interface, not on the concrete implementations.
  *
  * Implemented by:
- *   - QuorumObserver   (src/llmq/observer/quorums.h) — watch-only node
- *   - QuorumParticipant (src/active/quorums.h)       — active masternode
+ *   - ObserverContext   (src/llmq/observer/context.h) — watch-only node
+ *   - QuorumParticipant (src/active/quorums.h)        — active masternode
  */
 class QuorumRole
 {

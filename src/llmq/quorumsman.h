@@ -191,10 +191,10 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain
 
 /**
  * Non-polymorphic base class carrying the shared state and implementation for
- * both QuorumObserver and QuorumParticipant. Not part of the QuorumRole
+ * both ObserverContext and QuorumParticipant. Not part of the QuorumRole
  * interface — it is a private implementation detail of those two classes.
  *
- * Neither QuorumObserver nor QuorumParticipant is a child of the other;
+ * Neither ObserverContext nor QuorumParticipant is a child of the other;
  * they are siblings that both inherit this base alongside QuorumRole.
  */
 class QuorumRoleBase
