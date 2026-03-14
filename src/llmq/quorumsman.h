@@ -5,8 +5,9 @@
 #ifndef BITCOIN_LLMQ_QUORUMSMAN_H
 #define BITCOIN_LLMQ_QUORUMSMAN_H
 
+#include <bls/bls_ies.h>
+#include <ctpl_stl.h>
 #include <evo/types.h>
-#include <llmq/observer/quorums.h>
 #include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/quorums.h>
@@ -38,7 +39,9 @@ class CDeterministicMNManager;
 class CDBWrapper;
 class CEvoDB;
 class ChainstateManager;
+class CMasternodeSync;
 class CNode;
+class CSporkManager;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -53,8 +56,6 @@ enum class VerifyRecSigStatus : uint8_t {
 class CDKGSessionManager;
 class CQuorumBlockProcessor;
 class CQuorumSnapshotManager;
-class QuorumObserver;
-class QuorumParticipant;
 
 /**
  * The quorum manager maintains quorums which were mined on chain. When a quorum is requested from the manager,
@@ -62,11 +63,8 @@ class QuorumParticipant;
  *
  * It is also responsible for initialization of the intra-quorum connections for new quorums.
  */
-class CQuorumManager final : public QuorumObserverParent
+class CQuorumManager final
 {
-    friend class llmq::QuorumObserver;
-    friend class llmq::QuorumParticipant;
-
 private:
     CBLSWorker& blsWorker;
     CDeterministicMNManager& m_dmnman;
@@ -74,7 +72,7 @@ private:
     CQuorumSnapshotManager& m_qsnapman;
     const ChainstateManager& m_chainman;
     llmq::CDKGSessionManager* m_qdkgsman{nullptr};
-    llmq::QuorumObserver* m_handler{nullptr};
+    llmq::QuorumRole* m_handler{nullptr};
 
 private:
     mutable Mutex cs_db;
@@ -110,7 +108,7 @@ public:
                             const ChainstateManager& chainman, const util::DbWrapperParams& db_params);
     ~CQuorumManager();
 
-    void ConnectManagers(gsl::not_null<llmq::QuorumObserver*> handler, gsl::not_null<llmq::CDKGSessionManager*> qdkgsman)
+    void ConnectManagers(gsl::not_null<llmq::QuorumRole*> handler, gsl::not_null<llmq::CDKGSessionManager*> qdkgsman)
     {
         // Prohibit double initialization
         assert(m_handler == nullptr);
@@ -126,7 +124,7 @@ public:
 
     bool GetEncryptedContributions(Consensus::LLMQType llmq_type, const CBlockIndex* block_index,
                                    const std::vector<bool>& valid_members, const uint256& protx_hash,
-                                   std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vec_enc) const override;
+                                   std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vec_enc) const;
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& pfrom, CConnman& connman, std::string_view msg_type,
                                                          CDataStream& vRecv)
@@ -135,7 +133,7 @@ public:
     static bool HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockProcessor& quorum_block_processor, const uint256& quorumHash);
 
     bool RequestQuorumData(CNode* pfrom, CConnman& connman, const CQuorum& quorum, uint16_t nDataMask,
-                           const uint256& proTxHash = uint256()) const override
+                           const uint256& proTxHash = uint256()) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
 
     // all these methods will lock cs_main for a short period of time
@@ -146,19 +144,19 @@ public:
 
     // this one is cs_main-free
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
-                                         size_t nCountRequested) const override
+                                         size_t nCountRequested) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     bool IsMasternode() const;
     bool IsWatching() const;
 
     bool IsDataRequestPending(const uint256& proRegTx, bool we_requested, const uint256& quorumHash,
-                              Consensus::LLMQType llmqType) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
+                              Consensus::LLMQType llmqType) const EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
     DataRequestStatus GetDataRequestStatus(const uint256& proRegTx, bool we_requested, const uint256& quorumHash,
-                                           Consensus::LLMQType llmqType) const override
+                                           Consensus::LLMQType llmqType) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    void CleanupExpiredDataRequests() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    void CleanupExpiredDataRequests() const EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
+    void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
 
 private:
     // all private methods here are cs_main-free
@@ -190,6 +188,70 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
 VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain& active_chain, const CQuorumManager& qman,
                                       int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig,
                                       int signOffset = SIGN_HEIGHT_OFFSET);
+
+/**
+ * Non-polymorphic base class carrying the shared state and implementation for
+ * both QuorumObserver and QuorumParticipant. Not part of the QuorumRole
+ * interface — it is a private implementation detail of those two classes.
+ *
+ * Neither QuorumObserver nor QuorumParticipant is a child of the other;
+ * they are siblings that both inherit this base alongside QuorumRole.
+ */
+class QuorumRoleBase
+{
+protected:
+    CConnman& m_connman;
+    CDeterministicMNManager& m_dmnman;
+    CQuorumManager& m_qman;
+    CQuorumSnapshotManager& m_qsnapman;
+    const ChainstateManager& m_chainman;
+    const CMasternodeSync& m_mn_sync;
+    const CSporkManager& m_sporkman;
+    const bool m_quorums_recovery{false};
+    const llmq::QvvecSyncModeMap m_sync_map;
+
+protected:
+    mutable Mutex cs_cleanup;
+    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<uint256>> cleanupQuorumsCache GUARDED_BY(cs_cleanup);
+
+    mutable ctpl::thread_pool workerPool;
+    mutable CThreadInterrupt quorumThreadInterrupt;
+
+public:
+    QuorumRoleBase() = delete;
+    QuorumRoleBase(const QuorumRoleBase&) = delete;
+    QuorumRoleBase& operator=(const QuorumRoleBase&) = delete;
+    explicit QuorumRoleBase(CConnman& connman, CDeterministicMNManager& dmnman, CQuorumManager& qman,
+                            CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
+                            const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
+                            const llmq::QvvecSyncModeMap& sync_map, bool quorums_recovery);
+    virtual ~QuorumRoleBase();
+
+    void Start(int16_t worker_count);
+    void Stop();
+    void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const;
+    void InitializeQuorumConnections(gsl::not_null<const CBlockIndex*> pindexNew) const;
+
+    //! Observer default: connects quorum peers with is_masternode=false.
+    //! QuorumParticipant overrides with masternode-aware connection logic.
+    virtual void CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
+                                        gsl::not_null<const CBlockIndex*> pindexNew) const;
+
+    //! Observer default: triggers vvec sync threads only.
+    //! QuorumParticipant overrides to also recover sk shares for member quorums.
+    virtual void TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex*> pIndex) const;
+
+protected:
+    Uint256HashSet GetQuorumsToDelete(const Consensus::LLMQParams& llmqParams,
+                                      gsl::not_null<const CBlockIndex*> pindexNew) const;
+    void DataRecoveryThread(gsl::not_null<const CBlockIndex*> block_index, CQuorumCPtr quorum,
+                            uint16_t data_mask, const uint256& protx_hash, size_t start_offset) const;
+    void StartVvecSyncThread(gsl::not_null<const CBlockIndex*> block_index, CQuorumCPtr pQuorum) const;
+    void TryStartVvecSyncThread(gsl::not_null<const CBlockIndex*> block_index, CQuorumCPtr pQuorum,
+                                bool fWeAreQuorumTypeMember) const;
+    void StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*> pIndex) const;
+};
+
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_QUORUMSMAN_H

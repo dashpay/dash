@@ -12,6 +12,7 @@
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
 #include <llmq/quorums.h>
+#include <msg_result.h>
 #include <llmq/utils.h>
 #include <masternode/sync.h>
 #include <util/helpers.h>
@@ -29,11 +30,11 @@
 
 namespace llmq {
 QuorumParticipant::QuorumParticipant(CBLSWorker& bls_worker, CConnman& connman, CDeterministicMNManager& dmnman,
-                                     QuorumObserverParent& qman, CQuorumSnapshotManager& qsnapman,
+                                     CQuorumManager& qman, CQuorumSnapshotManager& qsnapman,
                                      const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
                                      const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
                                      const llmq::QvvecSyncModeMap& sync_map, bool quorums_recovery, bool quorums_watch) :
-    QuorumObserver(connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman, sync_map, quorums_recovery),
+    QuorumRoleBase(connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman, sync_map, quorums_recovery),
     m_bls_worker{bls_worker},
     m_mn_activeman{mn_activeman},
     m_quorums_watch{quorums_watch}

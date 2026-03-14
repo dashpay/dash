@@ -5,36 +5,32 @@
 #ifndef BITCOIN_ACTIVE_QUORUMS_H
 #define BITCOIN_ACTIVE_QUORUMS_H
 
-#include <llmq/observer/quorums.h>
+#include <llmq/quorumsman.h>
 #include <llmq/types.h>
 
 #include <consensus/params.h>
-#include <saltedhasher.h>
 #include <span.h>
-#include <sync.h>
-#include <threadsafety.h>
-#include <uint256.h>
 
-#include <map>
+#include <gsl/pointers.h>
 
 class CActiveMasternodeManager;
 class CBlockIndex;
 class CBLSWorker;
 class CConnman;
+class CDataStream;
 class CDeterministicMNManager;
-class CDKGSessionManager;
 class CNode;
 class CSporkManager;
 struct MessageProcessingResult;
 namespace llmq {
 class CQuorum;
 class CQuorumDataRequest;
+class CQuorumManager;
 class CQuorumSnapshotManager;
-enum class QvvecSyncMode : int8_t;
 } // namespace llmq
 
 namespace llmq {
-class QuorumParticipant final : public QuorumObserver
+class QuorumParticipant final : public QuorumRoleBase, public QuorumRole
 {
 private:
     CBLSWorker& m_bls_worker;
@@ -46,14 +42,12 @@ public:
     QuorumParticipant(const QuorumParticipant&) = delete;
     QuorumParticipant& operator=(const QuorumParticipant&) = delete;
     explicit QuorumParticipant(CBLSWorker& bls_worker, CConnman& connman, CDeterministicMNManager& dmnman,
-                               QuorumObserverParent& qman, CQuorumSnapshotManager& qsnapman,
+                               CQuorumManager& qman, CQuorumSnapshotManager& qsnapman,
                                const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
                                const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
                                const llmq::QvvecSyncModeMap& sync_map, bool quorums_recovery, bool quorums_watch);
-    ~QuorumParticipant();
+    ~QuorumParticipant() override;
 
-public:
-    // QuorumObserver
     bool IsMasternode() const override;
     bool IsWatching() const override;
     bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override;
@@ -64,7 +58,6 @@ public:
                                                               CQuorumDataRequest& request) override;
 
 protected:
-    // QuorumObserver
     void CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
                                 gsl::not_null<const CBlockIndex*> pindexNew) const override;
     void TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex*> block_index) const override;
@@ -75,7 +68,6 @@ private:
     /// for the given llmqType in a way that each member should receive the same number of request if all active
     /// llmqType members requests data from one llmqType quorum.
     size_t GetQuorumRecoveryStartOffset(const CQuorum& quorum, gsl::not_null<const CBlockIndex*> pIndex) const;
-
     void StartDataRecoveryThread(gsl::not_null<const CBlockIndex*> pIndex, CQuorumCPtr pQuorum, uint16_t nDataMaskIn) const;
 };
 } // namespace llmq
