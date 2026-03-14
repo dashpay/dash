@@ -106,11 +106,11 @@ bool ActiveDKGSessionHandler::InitNewQuorum(gsl::not_null<const CBlockIndex*> pQ
 
     if (!curSession->Init(m_mn_activeman.GetProTxHash(), quorumIndex)) {
         LogPrintf("ActiveDKGSessionHandler::%s -- height[%d] quorum initialization failed for %s qi[%d]\n", __func__,
-                  pQuorumBaseBlockIndex->nHeight, curSession->params.name, quorumIndex);
+                  pQuorumBaseBlockIndex->nHeight, params.name, quorumIndex);
         return false;
     }
 
-    LogPrintf("ActiveDKGSessionHandler::%s -- height[%d] quorum initialization OK for %s qi[%d]\n", __func__, pQuorumBaseBlockIndex->nHeight, curSession->params.name, quorumIndex);
+    LogPrintf("ActiveDKGSessionHandler::%s -- height[%d] quorum initialization OK for %s qi[%d]\n", __func__, pQuorumBaseBlockIndex->nHeight, params.name, quorumIndex);
     return true;
 }
 
@@ -461,11 +461,11 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     utils::EnsureQuorumConnections(params, connman, m_sporkman, {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex},
-                                   tip_mn_list, curSession->myProTxHash, /*is_masternode=*/true, m_quorums_watch);
+                                   tip_mn_list, curSession->ProTx(), /*is_masternode=*/true, m_quorums_watch);
     if (curSession->AreWeMember()) {
         utils::AddQuorumProbeConnections(params, connman, m_mn_metaman, m_sporkman,
                                          {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, tip_mn_list,
-                                         curSession->myProTxHash);
+                                         curSession->ProTx());
     }
 
     WaitForNextPhase(QuorumPhase::Initialized, QuorumPhase::Contribute, curQuorumHash);
@@ -527,58 +527,22 @@ void ActiveDKGSessionHandler::PhaseHandlerThread(CConnman& connman, PeerManager&
 
 bool ActiveDKGSessionHandler::GetContribution(const uint256& hash, CDKGContribution& ret) const
 {
-    if (!curSession) {
-        return false;
-    }
-    LOCK(curSession->invCs);
-    auto it = curSession->contributions.find(hash);
-    if (it != curSession->contributions.end()) {
-        ret = it->second;
-        return true;
-    }
-    return false;
+    return curSession && curSession->GetContribution(hash, ret);
 }
 
 bool ActiveDKGSessionHandler::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
 {
-    if (!curSession) {
-        return false;
-    }
-    LOCK(curSession->invCs);
-    auto it = curSession->complaints.find(hash);
-    if (it != curSession->complaints.end()) {
-        ret = it->second;
-        return true;
-    }
-    return false;
+    return curSession && curSession->GetComplaint(hash, ret);
 }
 
 bool ActiveDKGSessionHandler::GetJustification(const uint256& hash, CDKGJustification& ret) const
 {
-    if (!curSession) {
-        return false;
-    }
-    LOCK(curSession->invCs);
-    auto it = curSession->justifications.find(hash);
-    if (it != curSession->justifications.end()) {
-        ret = it->second;
-        return true;
-    }
-    return false;
+    return curSession && curSession->GetJustification(hash, ret);
 }
 
 bool ActiveDKGSessionHandler::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
 {
-    if (!curSession) {
-        return false;
-    }
-    LOCK(curSession->invCs);
-    auto it = curSession->prematureCommitments.find(hash);
-    if (it != curSession->prematureCommitments.end() && curSession->validCommitments.count(hash)) {
-        ret = it->second;
-        return true;
-    }
-    return false;
+    return curSession && curSession->GetPrematureCommitment(hash, ret);
 }
 
 QuorumPhase ActiveDKGSessionHandler::GetPhase() const
