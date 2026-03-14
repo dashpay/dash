@@ -60,7 +60,7 @@ void ObserverContext::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd
 {
     UpdatedBlockTip(tip, nullptr, ibd);
     if (tip) {
-        qman_handler->InitializeQuorumConnections(tip);
+        llmq::QuorumRole::InitializeQuorumConnections(tip);
     }
 }
 

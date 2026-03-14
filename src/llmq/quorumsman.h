@@ -190,12 +190,9 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain
                                       int signOffset = SIGN_HEIGHT_OFFSET);
 
 /**
- * Non-polymorphic base class carrying the shared state and implementation for
- * both ObserverContext and QuorumParticipant. Not part of the QuorumRole
- * interface — it is a private implementation detail of those two classes.
- *
- * Neither ObserverContext nor QuorumParticipant is a child of the other;
- * they are siblings that both inherit this base alongside QuorumRole.
+ * Base class providing shared quorum state and the interface used by
+ * CQuorumManager. Both ObserverContext and ActiveContext inherit from
+ * this class.
  */
 class QuorumRole
 {
@@ -244,12 +241,12 @@ public:
         CQuorum& quorum, CQuorumDataRequest& request) = 0;
 
     //! Observer default: connects quorum peers with is_masternode=false.
-    //! QuorumParticipant overrides with masternode-aware connection logic.
+    //! ActiveContext overrides with masternode-aware connection logic.
     virtual void CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
                                         gsl::not_null<const CBlockIndex*> pindexNew) const;
 
     //! Observer default: triggers vvec sync threads only.
-    //! QuorumParticipant overrides to also recover sk shares for member quorums.
+    //! ActiveContext overrides to also recover sk shares for member quorums.
     virtual void TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex*> pIndex) const;
 
 protected:

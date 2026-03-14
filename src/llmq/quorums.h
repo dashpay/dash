@@ -22,13 +22,13 @@
 #include <string>
 #include <vector>
 
+struct ActiveContext;
 class CBlockIndex;
 class CDBWrapper;
 namespace llmq {
 class CQuorum;
 class CQuorumDataRequest;
 class CQuorumManager;
-class QuorumParticipant;
 class QuorumRole;
 } // namespace llmq
 
@@ -169,7 +169,7 @@ class CQuorum
 {
     friend class CQuorumManager;
     friend class llmq::QuorumRole;
-    friend class llmq::QuorumParticipant;
+    friend struct ::ActiveContext;
 
 public:
     const Consensus::LLMQParams params;

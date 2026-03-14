@@ -5,26 +5,21 @@
 #ifndef BITCOIN_ACTIVE_CONTEXT_H
 #define BITCOIN_ACTIVE_CONTEXT_H
 
-#include <llmq/options.h>
+#include <llmq/quorumsman.h>
 
 #include <validationinterface.h>
 
 #include <gsl/pointers.h>
+#include <span.h>
 
 #include <memory>
 
 class CActiveMasternodeManager;
-class CBLSSecretKey;
 class CBLSWorker;
-class ChainstateManager;
 class CCoinJoinServer;
-class CConnman;
-class CDeterministicMNManager;
 class CGovernanceManager;
 class CMasternodeMetaMan;
-class CMasternodeSync;
 class CMNHFManager;
-class CSporkManager;
 class CTxMemPool;
 class GovernanceSigner;
 class PeerManager;
@@ -38,23 +33,19 @@ class InstantSendSigner;
 } // namespace instantsend
 namespace llmq {
 class CDKGDebugManager;
-class CDKGSessionManager;
 class CEHFSignalsHandler;
 class CInstantSendManager;
-class CQuorumBlockProcessor;
-class CQuorumManager;
-class CQuorumSnapshotManager;
 class CSigningManager;
 class CSigSharesManager;
-class QuorumParticipant;
 } // namespace llmq
 namespace util {
 struct DbWrapperParams;
 } // namespace util
 
-struct ActiveContext final : public CValidationInterface {
+struct ActiveContext final : public llmq::QuorumRole, public CValidationInterface {
 private:
-    llmq::CQuorumManager& m_qman;
+    CBLSWorker& m_bls_worker;
+    const bool m_quorums_watch{false};
 
 public:
     ActiveContext() = delete;
@@ -78,7 +69,23 @@ public:
     CCoinJoinServer& GetCJServer() const;
     void SetCJServer(gsl::not_null<CCoinJoinServer*> cj_server);
 
+    // QuorumRole
+    bool IsMasternode() const override;
+    bool IsWatching() const override;
+    bool SetQuorumSecretKeyShare(llmq::CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override;
+    [[nodiscard]] MessageProcessingResult ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& vStream,
+                                                                 const llmq::CQuorum& quorum,
+                                                                 llmq::CQuorumDataRequest& request,
+                                                                 gsl::not_null<const CBlockIndex*> block_index) override;
+    [[nodiscard]] MessageProcessingResult ProcessContribQDATA(CNode& pfrom, CDataStream& vStream,
+                                                              llmq::CQuorum& quorum,
+                                                              llmq::CQuorumDataRequest& request) override;
+
 protected:
+    void CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
+                                gsl::not_null<const CBlockIndex*> pindexNew) const override;
+    void TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex*> block_index) const override;
+
     // CValidationInterface
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
@@ -95,7 +102,6 @@ public:
 private:
     const std::unique_ptr<GovernanceSigner> gov_signer;
     const std::unique_ptr<llmq::CEHFSignalsHandler> ehf_sighandler;
-    const std::unique_ptr<llmq::QuorumParticipant> qman_handler;
     const std::unique_ptr<chainlock::ChainLockSigner> cl_signer;
 
 public:
@@ -103,6 +109,16 @@ public:
 
     /** Owned by PeerManager, use GetCJServer() */
     CCoinJoinServer* m_cj_server{nullptr};
+
+private:
+    /// Returns the start offset for the masternode with the given proTxHash. This offset is applied when picking data
+    /// recovery members of a quorum's memberlist and is calculated based on a list of all member of all active quorums
+    /// for the given llmqType in a way that each member should receive the same number of request if all active
+    /// llmqType members requests data from one llmqType quorum.
+    size_t GetQuorumRecoveryStartOffset(const llmq::CQuorum& quorum,
+                                        gsl::not_null<const CBlockIndex*> pIndex) const;
+    void StartDataRecoveryThread(gsl::not_null<const CBlockIndex*> pIndex, llmq::CQuorumCPtr pQuorum,
+                                 uint16_t nDataMaskIn) const;
 };
 
 #endif // BITCOIN_ACTIVE_CONTEXT_H

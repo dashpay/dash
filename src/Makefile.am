@@ -155,7 +155,6 @@ BITCOIN_CORE_H = \
   active/dkgsession.h \
   active/dkgsessionhandler.h \
   active/masternode.h \
-  active/quorums.h \
   addrdb.h \
   addressindex.h \
   spentindex.h \
@@ -484,7 +483,6 @@ libbitcoin_node_a_SOURCES = \
   active/dkgsession.cpp \
   active/dkgsessionhandler.cpp \
   active/masternode.cpp \
-  active/quorums.cpp \
   addrdb.cpp \
   addressindex.cpp \
   addrman.cpp \
