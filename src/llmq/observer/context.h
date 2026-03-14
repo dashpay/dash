@@ -37,7 +37,7 @@ struct DbWrapperParams;
 } // namespace util
 
 namespace llmq {
-struct ObserverContext final : public QuorumRoleBase, public QuorumRole, public CValidationInterface {
+struct ObserverContext final : public QuorumRole, public CValidationInterface {
 public:
     ObserverContext() = delete;
     ObserverContext(const ObserverContext&) = delete;

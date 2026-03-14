@@ -34,7 +34,7 @@ QuorumParticipant::QuorumParticipant(CBLSWorker& bls_worker, CConnman& connman, 
                                      const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
                                      const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
                                      const llmq::QvvecSyncModeMap& sync_map, bool quorums_recovery, bool quorums_watch) :
-    QuorumRoleBase(connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman, sync_map, quorums_recovery),
+    QuorumRole(connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman, sync_map, quorums_recovery),
     m_bls_worker{bls_worker},
     m_mn_activeman{mn_activeman},
     m_quorums_watch{quorums_watch}

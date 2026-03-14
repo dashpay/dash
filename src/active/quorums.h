@@ -30,7 +30,7 @@ class CQuorumSnapshotManager;
 } // namespace llmq
 
 namespace llmq {
-class QuorumParticipant final : public QuorumRoleBase, public QuorumRole
+class QuorumParticipant final : public QuorumRole
 {
 private:
     CBLSWorker& m_bls_worker;

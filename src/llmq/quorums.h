@@ -18,23 +18,18 @@
 #include <uint256.h>
 #include <util/time.h>
 
-#include <gsl/pointers.h>
-
 #include <set>
 #include <string>
 #include <vector>
 
 class CBlockIndex;
-class CDataStream;
 class CDBWrapper;
-class CNode;
-struct MessageProcessingResult;
 namespace llmq {
 class CQuorum;
 class CQuorumDataRequest;
 class CQuorumManager;
 class QuorumParticipant;
-class QuorumRoleBase;
+class QuorumRole;
 } // namespace llmq
 
 namespace llmq {
@@ -43,38 +38,6 @@ enum class DataRequestStatus : uint8_t {
     NotFound,
     Pending,
     Processed,
-};
-
-/**
- * Abstract role a node plays in LLMQ quorum management.
- *
- * A node is either an observer (watch-only) or a participant (active
- * masternode), never both simultaneously. Code outside this subsystem
- * depends only on this interface, not on the concrete implementations.
- *
- * Implemented by:
- *   - ObserverContext   (src/llmq/observer/context.h) — watch-only node
- *   - QuorumParticipant (src/active/quorums.h)        — active masternode
- */
-class QuorumRole
-{
-public:
-    virtual ~QuorumRole() = default;
-
-    virtual bool IsMasternode() const = 0;
-    virtual bool IsWatching() const = 0;
-
-    virtual bool SetQuorumSecretKeyShare(CQuorum& quorum,
-                                         Span<CBLSSecretKey> skContributions) const = 0;
-
-    [[nodiscard]] virtual MessageProcessingResult ProcessContribQGETDATA(
-        bool request_limit_exceeded, CDataStream& vStream,
-        const CQuorum& quorum, CQuorumDataRequest& request,
-        gsl::not_null<const CBlockIndex*> block_index) = 0;
-
-    [[nodiscard]] virtual MessageProcessingResult ProcessContribQDATA(
-        CNode& pfrom, CDataStream& vStream,
-        CQuorum& quorum, CQuorumDataRequest& request) = 0;
 };
 
 extern const std::string DB_QUORUM_SK_SHARE;
@@ -205,7 +168,7 @@ public:
 class CQuorum
 {
     friend class CQuorumManager;
-    friend class llmq::QuorumRoleBase;
+    friend class llmq::QuorumRole;
     friend class llmq::QuorumParticipant;
 
 public:

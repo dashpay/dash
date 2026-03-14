@@ -197,7 +197,7 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain
  * Neither ObserverContext nor QuorumParticipant is a child of the other;
  * they are siblings that both inherit this base alongside QuorumRole.
  */
-class QuorumRoleBase
+class QuorumRole
 {
 protected:
     CConnman& m_connman;
@@ -218,19 +218,30 @@ protected:
     mutable CThreadInterrupt quorumThreadInterrupt;
 
 public:
-    QuorumRoleBase() = delete;
-    QuorumRoleBase(const QuorumRoleBase&) = delete;
-    QuorumRoleBase& operator=(const QuorumRoleBase&) = delete;
-    explicit QuorumRoleBase(CConnman& connman, CDeterministicMNManager& dmnman, CQuorumManager& qman,
+    QuorumRole() = delete;
+    QuorumRole(const QuorumRole&) = delete;
+    QuorumRole& operator=(const QuorumRole&) = delete;
+    explicit QuorumRole(CConnman& connman, CDeterministicMNManager& dmnman, CQuorumManager& qman,
                             CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                             const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
                             const llmq::QvvecSyncModeMap& sync_map, bool quorums_recovery);
-    virtual ~QuorumRoleBase();
+    virtual ~QuorumRole();
 
     void Start(int16_t worker_count);
     void Stop();
     void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const;
     void InitializeQuorumConnections(gsl::not_null<const CBlockIndex*> pindexNew) const;
+
+    virtual bool IsMasternode() const = 0;
+    virtual bool IsWatching() const = 0;
+    virtual bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const = 0;
+    [[nodiscard]] virtual MessageProcessingResult ProcessContribQGETDATA(
+        bool request_limit_exceeded, CDataStream& vStream,
+        const CQuorum& quorum, CQuorumDataRequest& request,
+        gsl::not_null<const CBlockIndex*> block_index) = 0;
+    [[nodiscard]] virtual MessageProcessingResult ProcessContribQDATA(
+        CNode& pfrom, CDataStream& vStream,
+        CQuorum& quorum, CQuorumDataRequest& request) = 0;
 
     //! Observer default: connects quorum peers with is_masternode=false.
     //! QuorumParticipant overrides with masternode-aware connection logic.

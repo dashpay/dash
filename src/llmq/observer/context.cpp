@@ -20,7 +20,7 @@ ObserverContext::ObserverContext(CBLSWorker& bls_worker, CConnman& connman, CDet
                                  llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                  const CSporkManager& sporkman, const llmq::QvvecSyncModeMap& sync_map,
                                  const util::DbWrapperParams& db_params, bool quorums_recovery) :
-    QuorumRoleBase{connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman, sync_map, quorums_recovery},
+    QuorumRole{connman, dmnman, qman, qsnapman, chainman, mn_sync, sporkman, sync_map, quorums_recovery},
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params,
                                                         /*quorums_watch=*/true)}
@@ -70,6 +70,6 @@ void ObserverContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlock
         return;
 
     qdkgsman->UpdatedBlockTip(pindexNew, fInitialDownload);
-    QuorumRoleBase::UpdatedBlockTip(pindexNew, fInitialDownload);
+    QuorumRole::UpdatedBlockTip(pindexNew, fInitialDownload);
 }
 } // namespace llmq
