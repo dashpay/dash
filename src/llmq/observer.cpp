@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <llmq/observer/context.h>
+#include <llmq/observer.h>
 
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>

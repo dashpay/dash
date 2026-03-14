@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_LLMQ_OBSERVER_CONTEXT_H
-#define BITCOIN_LLMQ_OBSERVER_CONTEXT_H
+#ifndef BITCOIN_LLMQ_OBSERVER_H
+#define BITCOIN_LLMQ_OBSERVER_H
 
 #include <llmq/quorumsman.h>
 
@@ -72,4 +72,4 @@ public:
 };
 } // namespace llmq
 
-#endif // BITCOIN_LLMQ_OBSERVER_CONTEXT_H
+#endif // BITCOIN_LLMQ_OBSERVER_H

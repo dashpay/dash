@@ -29,7 +29,7 @@
 #include <governance/governance.h>
 #include <interfaces/coinjoin.h>
 #include <llmq/context.h>
-#include <llmq/observer/context.h>
+#include <llmq/observer.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <spork.h>

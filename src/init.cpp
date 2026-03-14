@@ -99,8 +99,8 @@
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/signing.h>
 #include <llmq/net_signing.h>
+#include <llmq/observer.h>
 #include <llmq/options.h>
-#include <llmq/observer/context.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <masternode/utils.h>

@@ -282,6 +282,7 @@ BITCOIN_CORE_H = \
   llmq/dkgsessionhandler.h \
   llmq/dkgsessionmgr.h \
   llmq/ehf_signals.h \
+  llmq/observer.h \
   llmq/options.h \
   llmq/params.h \
   llmq/quorums.h \
@@ -293,7 +294,6 @@ BITCOIN_CORE_H = \
   llmq/snapshot.h \
   llmq/types.h \
   llmq/utils.h \
-  llmq/observer/context.h \
   logging.h \
   logging/timer.h \
   mapport.h \
@@ -554,6 +554,7 @@ libbitcoin_node_a_SOURCES = \
   llmq/dkgsessionmgr.cpp \
   llmq/ehf_signals.cpp \
   llmq/net_signing.cpp \
+  llmq/observer.cpp \
   llmq/options.cpp \
   llmq/quorums.cpp \
   llmq/quorumsman.cpp \
@@ -562,7 +563,6 @@ libbitcoin_node_a_SOURCES = \
   llmq/signing_shares.cpp \
   llmq/snapshot.cpp \
   llmq/utils.cpp \
-  llmq/observer/context.cpp \
   mapport.cpp \
   masternode/meta.cpp \
   masternode/payments.cpp \

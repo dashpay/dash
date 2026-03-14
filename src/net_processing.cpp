@@ -56,12 +56,12 @@
 #include <llmq/context.h>
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/observer.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/snapshot.h>
-#include <llmq/observer/context.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <msg_result.h>

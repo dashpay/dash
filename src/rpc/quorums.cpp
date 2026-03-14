@@ -12,7 +12,7 @@
 #include <llmq/context.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
-#include <llmq/observer/context.h>
+#include <llmq/observer.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
