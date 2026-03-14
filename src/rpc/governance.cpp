@@ -176,8 +176,8 @@ static RPCHelpMan gobject_prepare()
         hashParent = ParseHashV(request.params[0], "parent-hash");
     }
 
-    int nRevision = ParseInt32V(request.params[1], "revision");
-    int64_t nTime = ParseInt64V(request.params[2], "time");
+    int nRevision = request.params[1].getInt<int>();
+    int64_t nTime = request.params[2].getInt<int64_t>();
     std::string strDataHex = request.params[3].get_str();
 
     // CREATE A NEW COLLATERAL TRANSACTION FOR THIS SPECIFIC OBJECT
@@ -225,7 +225,7 @@ static RPCHelpMan gobject_prepare()
     outpoint.SetNull();
     if (!request.params[5].isNull() && !request.params[6].isNull()) {
         uint256 collateralHash(ParseHashV(request.params[5], "outputHash"));
-        int32_t collateralIndex = ParseInt32V(request.params[6], "outputIndex");
+        int32_t collateralIndex = request.params[6].getInt<int>();
         if (collateralHash.IsNull() || collateralIndex < 0) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid hash or index: %s-%d", collateralHash.ToString(), collateralIndex));
         }
@@ -278,7 +278,7 @@ static RPCHelpMan gobject_list_prepared()
     if (!wallet) return UniValue::VNULL;
     EnsureWalletIsUnlocked(*wallet);
 
-    int64_t nCount = request.params.empty() ? 10 : ParseInt64V(request.params[0], "count");
+    int64_t nCount = request.params.empty() ? 10 : request.params[0].getInt<int64_t>();
     if (nCount < 0) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
     }
@@ -361,8 +361,8 @@ static RPCHelpMan gobject_submit()
 
     // GET THE PARAMETERS FROM USER
 
-    int nRevision = ParseInt32V(request.params[1], "revision");
-    int64_t nTime = ParseInt64V(request.params[2], "time");
+    int nRevision = request.params[1].getInt<int>();
+    int64_t nTime = request.params[2].getInt<int64_t>();
     std::string strDataHex = request.params[3].get_str();
 
     CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strDataHex);

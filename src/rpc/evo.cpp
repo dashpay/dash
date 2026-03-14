@@ -713,7 +713,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
         paramIdx++;
     } else {
         uint256 collateralHash(ParseHashV(request.params[paramIdx], "collateralHash"));
-        int32_t collateralIndex = ParseInt32V(request.params[paramIdx + 1], "collateralIndex");
+        int32_t collateralIndex = request.params[paramIdx + 1].getInt<int>();
         if (collateralHash.IsNull() || collateralIndex < 0) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid hash or index: %s-%d", collateralHash.ToString(), collateralIndex));
         }
@@ -1277,7 +1277,7 @@ static RPCHelpMan protx_revoke()
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey");
 
     if (!request.params[2].isNull()) {
-        int32_t nReason = ParseInt32V(request.params[2], "reason");
+        int32_t nReason = request.params[2].getInt<int>();
         if (nReason < 0 || nReason > CProUpRevTx::REASON_LAST) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("invalid reason %d, must be between 0 and %d", nReason, CProUpRevTx::REASON_LAST));
         }
@@ -1462,7 +1462,7 @@ static RPCHelpMan protx_list()
         bool detailed = !request.params[1].isNull() ? ParseBoolV(request.params[1], "detailed") : false;
 
         LOCK2(wallet->cs_wallet, ::cs_main);
-        int height = !request.params[2].isNull() ? ParseInt32V(request.params[2], "height") : chainman.ActiveChain().Height();
+        int height = !request.params[2].isNull() ? request.params[2].getInt<int>() : chainman.ActiveChain().Height();
         if (height < 1 || height > chainman.ActiveChain().Height()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
         }
@@ -1495,7 +1495,7 @@ static RPCHelpMan protx_list()
 #else
         LOCK(::cs_main);
 #endif
-        int height = !request.params[2].isNull() ? ParseInt32V(request.params[2], "height") : chainman.ActiveChain().Height();
+        int height = !request.params[2].isNull() ? request.params[2].getInt<int>() : chainman.ActiveChain().Height();
         if (height < 1 || height > chainman.ActiveChain().Height()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
         }
@@ -1587,7 +1587,7 @@ static uint256 ParseBlock(const UniValue& v, const ChainstateManager& chainman, 
     try {
         return ParseHashV(v, strName);
     } catch (...) {
-        int h = ParseInt32V(v, strName);
+        int h = v.getInt<int>();
         if (h < 1 || h > chainman.ActiveChain().Height())
             throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
         return *chainman.ActiveChain()[h]->phashBlock;
@@ -1646,7 +1646,7 @@ static const CBlockIndex* ParseBlockIndex(const UniValue& v, const ChainstateMan
             throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
         return pblockindex;
     } catch (...) {
-        int h = ParseInt32V(v, strName);
+        int h = v.getInt<int>();
         if (h < 1 || h > chainman.ActiveChain().Height())
             throw std::runtime_error(strprintf("%s must be a chain height and not %s", strName, v.getValStr()));
         return chainman.ActiveChain()[h];

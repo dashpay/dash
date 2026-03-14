@@ -71,7 +71,7 @@ static RPCHelpMan quorum_list()
 
     int count = -1;
     if (!request.params[0].isNull()) {
-        count = ParseInt32V(request.params[0], "count");
+        count = request.params[0].getInt<int>();
         if (count < -1) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "count can't be negative");
         }
@@ -137,7 +137,7 @@ static RPCHelpMan quorum_list_extended()
 
     int nHeight = -1;
     if (!request.params[0].isNull()) {
-        nHeight = ParseInt32V(request.params[0], "height");
+        nHeight = request.params[0].getInt<int>();
         if (nHeight < 0 || nHeight > WITH_LOCK(cs_main, return chainman.ActiveChain().Height())) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
         }
@@ -278,7 +278,7 @@ static RPCHelpMan quorum_info()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
 
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
     if (!Params().GetLLMQ(llmqType).has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
     }
@@ -339,7 +339,7 @@ static RPCHelpMan quorum_dkgstatus()
 {
     int detailLevel = 0;
     if (!request.params[0].isNull()) {
-        detailLevel = ParseInt32V(request.params[0], "detail_level");
+        detailLevel = request.params[0].getInt<int>();
         if (detailLevel < 0 || detailLevel > 2) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid detail_level");
         }
@@ -463,7 +463,7 @@ static RPCHelpMan quorum_memberof()
     uint256 protxHash(ParseHashV(request.params[0], "proTxHash"));
     int scanQuorumsCount = -1;
     if (!request.params[1].isNull()) {
-        scanQuorumsCount = ParseInt32V(request.params[1], "scanQuorumsCount");
+        scanQuorumsCount = request.params[1].getInt<int>();
         if (scanQuorumsCount <= 0) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid scanQuorumsCount parameter");
         }
@@ -593,7 +593,7 @@ static RPCHelpMan quorum_sign()
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
 
     JSONRPCRequest new_request{request};
     new_request.params.setArray();
@@ -662,7 +662,7 @@ static RPCHelpMan quorum_verify()
     const ChainstateManager& chainman = EnsureChainman(node);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
 
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
 
     const auto llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
@@ -681,7 +681,7 @@ static RPCHelpMan quorum_verify()
     if (request.params[4].isNull() || (request.params[4].get_str().empty() && !request.params[5].isNull())) {
         int signHeight{-1};
         if (!request.params[5].isNull()) {
-            signHeight = ParseInt32V(request.params[5], "signHeight");
+            signHeight = request.params[5].getInt<int>();
         }
         return VerifyRecoveredSigLatestQuorums(*llmq_params_opt, chainman.ActiveChain(), *llmq_ctx.qman, signHeight, id, msgHash, sig);
     }
@@ -715,7 +715,7 @@ static RPCHelpMan quorum_hasrecsig()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
 
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
     if (!Params().GetLLMQ(llmqType).has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
     }
@@ -744,7 +744,7 @@ static RPCHelpMan quorum_getrecsig()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
 
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
     if (!Params().GetLLMQ(llmqType).has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
     }
@@ -780,7 +780,7 @@ static RPCHelpMan quorum_isconflicting()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
 
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
     if (!Params().GetLLMQ(llmqType).has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
     }
@@ -817,7 +817,7 @@ static RPCHelpMan quorum_selectquorum()
     const ChainstateManager& chainman = EnsureChainman(node);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
 
-    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(ParseInt32V(request.params[0], "llmqType"))};
+    const Consensus::LLMQType llmqType{static_cast<Consensus::LLMQType>(request.params[0].getInt<int>())};
     const auto llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
@@ -859,7 +859,7 @@ static RPCHelpMan quorum_dkgsimerror()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::string type_str = request.params[0].get_str();
-    int32_t rate = ParseInt32V(request.params[1], "rate");
+    int32_t rate = request.params[1].getInt<int>();
 
     if (rate < 0 || rate > 100) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid rate. Must be between 0 and 100");
@@ -899,10 +899,10 @@ static RPCHelpMan quorum_getdata()
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
     CConnman& connman = EnsureConnman(node);
 
-    NodeId nodeId = ParseInt64V(request.params[0], "nodeId");
-    Consensus::LLMQType llmqType = static_cast<Consensus::LLMQType>(ParseInt32V(request.params[1], "llmqType"));
+    NodeId nodeId = request.params[0].getInt<int64_t>();
+    Consensus::LLMQType llmqType = static_cast<Consensus::LLMQType>(request.params[1].getInt<int>());
     uint256 quorumHash(ParseHashV(request.params[2], "quorumHash"));
-    uint16_t nDataMask = static_cast<uint16_t>(ParseInt32V(request.params[3], "dataMask"));
+    uint16_t nDataMask = static_cast<uint16_t>(request.params[3].getInt<int>());
     uint256 proTxHash;
 
     // Check if request wants ENCRYPTED_CONTRIBUTIONS data
