@@ -12,6 +12,7 @@
 #include <script/signingprovider.h>
 #include <tinyformat.h>
 #include <util/check.h>
+#include <util/std23.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/system.h>
@@ -123,22 +124,30 @@ std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKey)
 
 bool ParseBoolV(const UniValue& v, const std::string &strName)
 {
-    std::string strBool;
-    if (v.isBool())
-        return v.get_bool();
-    else if (v.isNum())
-        strBool = ToString(v.getInt<int>());
-    else if (v.isStr())
-        strBool = v.get_str();
+    if (std23::ranges::contains(gArgs.GetArgs("-deprecatedrpc"), "permissive_bool")) {
+        std::string strBool;
+        if (v.isBool())
+            return v.get_bool();
+        else if (v.isNum())
+            strBool = ToString(v.getInt<int>());
+        else if (v.isStr())
+            strBool = v.get_str();
 
-    strBool = ToLower(strBool);
+        strBool = ToLower(strBool);
 
-    if (strBool == "true" || strBool == "yes" || strBool == "1") {
-        return true;
-    } else if (strBool == "false" || strBool == "no" || strBool == "0") {
-        return false;
+        if (strBool == "true" || strBool == "yes" || strBool == "1") {
+            return true;
+        } else if (strBool == "false" || strBool == "no" || strBool == "0") {
+            return false;
+        }
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be true, false, yes, no, 1 or 0 (not '%s')", strName, strBool));
     }
-    throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be true, false, yes, no, 1 or 0 (not '"+strBool+"')");
+
+    if (!v.isBool()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a JSON boolean. " /* Continued */
+                           "Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.", strName));
+    }
+    return v.get_bool();
 }
 
 namespace {
