@@ -583,7 +583,7 @@ BOOST_AUTO_TEST_CASE(rpc_convert_composite_commands)
 
     BOOST_CHECK_EQUAL(result[0].get_str(), "register_prepare");
     BOOST_CHECK_EQUAL(result[1].get_str(), "6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000");
-    BOOST_CHECK_EQUAL(result[2].get_str(), "1");
+    BOOST_CHECK_EQUAL(result[2].getInt<int>(), 1);
     BOOST_CHECK(result[3].isArray());
     BOOST_CHECK_EQUAL(result[3].size(), 2);
     BOOST_CHECK_EQUAL(result[3][0].get_str(), "1.1.1.1:19999");
