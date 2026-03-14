@@ -149,7 +149,7 @@ if BUILD_BITCOIN_UTIL
 endif
 
 if BUILD_BITCOIN_CHAINSTATE
-  bin_PROGRAMS += bitcoin-chainstate
+  bin_PROGRAMS += dash-chainstate
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -1162,8 +1162,8 @@ dash_util_LDADD = \
 
 dash_util_LDADD += $(BOOST_LIBS)
 
-# bitcoin-chainstate binary #
-bitcoin_chainstate_SOURCES = \
+# dash-chainstate binary #
+dash_chainstate_SOURCES = \
   bitcoin-chainstate.cpp \
   arith_uint256.cpp \
   blockfilter.cpp \
@@ -1237,13 +1237,14 @@ bitcoin_chainstate_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   warnings.cpp
-bitcoin_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoin_chainstate_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
-bitcoin_chainstate_LDADD = \
+dash_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+dash_chainstate_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+dash_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
+dash_chainstate_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBUNIVALUE) \
   $(LIBSECP256K1) \
+  $(LIBDASHBLS) \
   $(LIBLEVELDB) \
   $(LIBLEVELDB_SSE42) \
   $(LIBMEMENV)
