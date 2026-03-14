@@ -187,6 +187,9 @@ private:
     QAction* m_close_all_wallets_action{nullptr};
     QAction* m_wallet_selector_action = nullptr;
     QAction* m_mask_values_action{nullptr};
+    QAction* m_zoom_in_action{nullptr};
+    QAction* m_zoom_out_action{nullptr};
+    QAction* m_zoom_reset_action{nullptr};
 
     QComboBox* m_wallet_selector = nullptr;
 
@@ -261,6 +264,9 @@ private:
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();
+
+    /** Apply a global font scale delta or reset when delta is 0. */
+    void adjustFontScale(int delta);
 
     /** Regenerate all pre-cached governance clock pixmaps (e.g. after a theme change). */
     void refreshGovernanceCycleIcons();
