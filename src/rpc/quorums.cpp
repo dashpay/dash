@@ -957,15 +957,8 @@ static RPCHelpMan quorum_rotationinfo()
     cmd.extraShare = request.params[1].isNull() ? false : ParseBoolV(request.params[1], "extraShare");
 
     if (!request.params[2].isNull()) {
-        UniValue hashes;
-        if (request.params[2].isStr() && hashes.read(request.params[2].get_str()) && hashes.isArray()) {
-            // pass
-        } else if (request.params[2].isArray()) {
-            hashes = request.params[2].get_array();
-        } else {
-            throw std::runtime_error(std::string("Error parsing JSON: ") + request.params[2].get_str());
-        }
-        for (const auto& hash : hashes.get_array().getValues()) {
+        const auto& hashes = request.params[2].get_array();
+        for (const auto& hash : hashes.getValues()) {
             cmd.baseBlockHashes.emplace_back(ParseHashV(hash, "baseBlockHash"));
         }
     }

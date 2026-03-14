@@ -304,6 +304,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "quorum listextended", 1, "height" },
     { "quorum list", 1, "count" },
     { "quorum memberof", 2, "scanQuorumsCount" },
+    { "quorum rotationinfo", 3, "baseBlockHashes" },
     { "quorum selectquorum", 1, "llmqType" },
     { "quorum sign", 1, "llmqType" },
     { "quorum verify", 1, "llmqType" },
