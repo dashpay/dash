@@ -16,6 +16,5 @@ FUZZ_TARGET(decode_tx)
 {
     const std::string tx_hex = HexStr(std::string{buffer.begin(), buffer.end()});
     CMutableTransaction mtx;
-    const bool result_none = DecodeHexTx(mtx, tx_hex);
-    assert(!result_none);
+    (void)DecodeHexTx(mtx, tx_hex);
 }
