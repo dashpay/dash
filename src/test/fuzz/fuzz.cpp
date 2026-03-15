@@ -7,6 +7,7 @@
 #include <fs.h>
 #include <netaddress.h>
 #include <netbase.h>
+#include <stats/client.h>
 #include <test/util/setup_common.h>
 #include <util/check.h>
 #include <util/sock.h>
@@ -98,6 +99,12 @@ void ResetCoverageCounters() {}
 
 void initialize()
 {
+    // Initialize a no-op stats client to prevent null dereferences in production
+    // code that unconditionally calls g_stats_client->timing()/inc()/count().
+    if (!::g_stats_client) {
+        ::g_stats_client = std::make_unique<StatsdClient>();
+    }
+
     // Terminate immediately if a fuzzing harness ever tries to create a TCP socket.
     CreateSock = [](const sa_family_t&) -> std::unique_ptr<Sock> { std::terminate(); };
 

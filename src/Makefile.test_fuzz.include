@@ -11,6 +11,7 @@ TEST_FUZZ_H = \
     test/fuzz/fuzz.h \
     test/fuzz/FuzzedDataProvider.h \
     test/fuzz/util.h \
+    test/fuzz/util_dash.h \
     test/util/mining.h \
     test/fuzz/util/net.h
 
