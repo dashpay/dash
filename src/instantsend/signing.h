@@ -14,7 +14,6 @@
 class CMasternodeSync;
 class CSporkManager;
 class CTxMemPool;
-struct MessageProcessingResult;
 
 namespace Consensus {
 struct Params;
@@ -93,7 +92,7 @@ public:
     void ClearLockFromQueue(const InstantSendLockPtr& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_creating);
 
-    [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig) override
+    [[nodiscard]] llmq::RecoveredSigResult HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_creating, !cs_input_requests);
 
     void ProcessPendingRetryLockTxs(const std::vector<CTransactionRef>& retryTxs)

@@ -81,7 +81,7 @@ void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pind
     shareman.AsyncSignIfMember(llmqType, sigman, requestId, msgHash, quorum->qc->quorumHash, false, true);
 }
 
-MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
+RecoveredSigResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
 {
     if (g_txindex) {
         g_txindex->BlockUntilSyncedToCurrentChain();
@@ -89,7 +89,7 @@ MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecover
 
     if (WITH_LOCK(cs, return ids.find(recoveredSig.getId()) == ids.end())) {
         // Do nothing, it's not for this handler
-        return {};
+        return std::monostate{};
     }
 
     const auto ehfSignals = m_chainman.ActiveChainstate().ChainHelper().ehf_manager->GetSignalsStage(
@@ -118,14 +118,12 @@ MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecover
         LOCK(::cs_main);
         const MempoolAcceptResult result = m_chainman.ProcessTransaction(tx_to_sent);
         if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
-            MessageProcessingResult ret;
-            ret.m_transactions.push_back(tx_to_sent->GetHash());
-            return ret;
+            return tx_to_sent;
         }
         LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig -- AcceptToMemoryPool failed: %s\n",
                   result.m_state.ToString());
-        return {};
+        return std::monostate{};
     }
-    return {};
+    return std::monostate{};
 }
 } // namespace llmq

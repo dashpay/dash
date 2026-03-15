@@ -260,10 +260,10 @@ ChainLockSigner::BlockTxs::mapped_type ChainLockSigner::GetBlockTxs(const uint25
     return ret;
 }
 
-MessageProcessingResult ChainLockSigner::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
+llmq::RecoveredSigResult ChainLockSigner::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
 {
     if (!m_chainlocks.IsEnabled()) {
-        return {};
+        return std::monostate{};
     }
 
     ChainLockSig clsig;
@@ -272,16 +272,22 @@ MessageProcessingResult ChainLockSigner::HandleNewRecoveredSig(const llmq::CReco
 
         if (recoveredSig.getId() != lastSignedRequestId || recoveredSig.getMsgHash() != lastSignedMsgHash) {
             // this is not what we signed, so lets not create a CLSIG for it
-            return {};
+            return std::monostate{};
         }
         if (m_chainlocks.GetBestChainLockHeight() >= lastSignedHeight) {
             // already got the same or a better CLSIG through the CLSIG message
-            return {};
+            return std::monostate{};
         }
 
         clsig = ChainLockSig(lastSignedHeight, lastSignedMsgHash, recoveredSig.sig.Get());
     }
-    return m_clhandler.ProcessNewChainLock(-1, clsig, m_qman, ::SerializeHash(clsig));
+    // TODO: split ProcessNewChainLock into network and non-network variants; when no peer
+    // is specified (node == -1), only m_inventory is ever populated
+    auto clresult = m_clhandler.ProcessNewChainLock(-1, clsig, m_qman, ::SerializeHash(clsig));
+    if (!clresult.m_inventory.empty()) {
+        return clresult.m_inventory.front();
+    }
+    return std::monostate{};
 }
 
 void ChainLockSigner::Cleanup()

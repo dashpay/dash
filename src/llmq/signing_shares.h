@@ -33,7 +33,6 @@ class ChainstateManager;
 class CNode;
 class CConnman;
 class CSporkManager;
-struct MessageProcessingResult;
 
 namespace llmq
 {
@@ -434,7 +433,7 @@ public:
     void ForceReAnnouncement(const CQuorum& quorum, Consensus::LLMQType llmqType, const uint256& id,
                              const uint256& msgHash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
+    [[nodiscard]] RecoveredSigResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     static CDeterministicMNCPtr SelectMemberForRecovery(const CQuorum& quorum, const uint256& id, int attempt);

@@ -6,7 +6,6 @@
 #define BITCOIN_LLMQ_EHF_SIGNALS_H
 
 #include <llmq/signing.h>
-#include <msg_result.h>
 #include <saltedhasher.h>
 
 #include <set>
@@ -44,7 +43,7 @@ public:
      */
     void UpdatedBlockTip(const CBlockIndex* const pindexNew) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
+    [[nodiscard]] RecoveredSigResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:
