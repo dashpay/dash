@@ -778,6 +778,7 @@ void BitcoinGUI::adjustFontScale(int delta)
 
     GUIUtil::g_font_registry.SetFontScale(new_scale);
     GUIUtil::updateFonts();
+    updateWidth();
 
     if (clientModel && clientModel->getOptionsModel()) {
         clientModel->getOptionsModel()->setOption(OptionsModel::FontScale, new_scale);
