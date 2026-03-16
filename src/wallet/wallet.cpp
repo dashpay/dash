@@ -2011,7 +2011,7 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
     }
     if (!max_height) {
         WalletLogPrintf("Scanning current mempool transactions.\n");
-        WITH_LOCK(cs_wallet, chain().requestMempoolTransactions(*this));
+        chain().requestMempoolTransactions(*this);
     }
     ShowProgress(strprintf("%s " + _("Rescanning…").translated, GetDisplayName()), 100); // hide progress dialog in GUI
     if (block_height && fAbortRescan) {
