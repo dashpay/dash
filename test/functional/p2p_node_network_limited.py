@@ -171,6 +171,9 @@ class NodeNetworkLimitedTest(BitcoinTestFramework):
         self.sync_blocks([self.nodes[0], self.nodes[1]])
         self.stop_node(0, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
 
+        # Restart node 0 for the next sub-test (it was stopped above to
+        # verify the Dash-specific governance-prune stderr).
+        self.start_node(0, extra_args=['-prune=550'])
 
         self.test_avoid_requesting_historical_blocks()
 
