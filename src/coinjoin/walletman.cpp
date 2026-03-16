@@ -80,7 +80,7 @@ void CJWalletManagerImpl::UpdatedBlockTip(const CBlockIndex* pindexNew, const CB
         return;
 
     walletman.ForEachCJClientMan(
-        [&pindexNew](std::unique_ptr<CCoinJoinClientManager>& clientman) { clientman->UpdatedBlockTip(pindexNew); });
+        [&pindexNew](CCoinJoinClientManager& clientman) { clientman.UpdatedBlockTip(pindexNew); });
 }
 
 bool CJWalletManagerImpl::hasQueue(const uint256& hash) const
@@ -100,8 +100,8 @@ MessageProcessingResult CJWalletManagerImpl::processMessage(CNode& pfrom, CChain
                                                             CTxMemPool& mempool, std::string_view msg_type,
                                                             CDataStream& vRecv)
 {
-    walletman.ForEachCJClientMan([&](std::unique_ptr<CCoinJoinClientManager>& clientman) {
-        clientman->ProcessMessage(pfrom, chainstate, connman, mempool, msg_type, vRecv);
+    walletman.ForEachCJClientMan([&](CCoinJoinClientManager& clientman) {
+        clientman.ProcessMessage(pfrom, chainstate, connman, mempool, msg_type, vRecv);
     });
     if (queueman) {
         return queueman->ProcessMessage(pfrom.GetId(), connman, msg_type, vRecv);
@@ -129,7 +129,7 @@ std::vector<CDeterministicMNCPtr> CJWalletManagerImpl::getMixingMasternodes()
 {
     std::vector<CDeterministicMNCPtr> ret{};
     walletman.ForEachCJClientMan(
-        [&](const std::unique_ptr<CCoinJoinClientManager>& clientman) { clientman->GetMixingMasternodesInfo(ret); });
+        [&](const CCoinJoinClientManager& clientman) { clientman.GetMixingMasternodesInfo(ret); });
     return ret;
 }
 

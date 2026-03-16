@@ -119,9 +119,8 @@ MessageProcessingResult CCoinJoinClientQueueManager::ProcessMessage(NodeId from,
         }
 
         // if the queue is ready, submit if we can
-        if (dsq.fReady &&
-            m_walletman.ForAnyCJClientMan([&connman, &dmn](std::unique_ptr<CCoinJoinClientManager>& clientman) {
-                return clientman->TrySubmitDenominate(dmn->proTxHash, connman);
+        if (dsq.fReady && m_walletman.ForAnyCJClientMan([&connman, &dmn](CCoinJoinClientManager& clientman) {
+                return clientman.TrySubmitDenominate(dmn->proTxHash, connman);
             })) {
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue is ready, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
             return ret;
@@ -135,9 +134,8 @@ MessageProcessingResult CCoinJoinClientQueueManager::ProcessMessage(NodeId from,
 
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
 
-            m_walletman.ForAnyCJClientMan([&dsq](const std::unique_ptr<CCoinJoinClientManager>& clientman) {
-                return clientman->MarkAlreadyJoinedQueueAsTried(dsq);
-            });
+            m_walletman.ForAnyCJClientMan(
+                [&dsq](CCoinJoinClientManager& clientman) { return clientman.MarkAlreadyJoinedQueueAsTried(dsq); });
 
             WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
         }

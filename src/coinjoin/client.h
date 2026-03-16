@@ -97,7 +97,7 @@ public:
     {
         LOCK(cs_wallet_manager_map);
         for (auto&& [_, clientman] : m_wallet_manager_map) {
-            func(clientman);
+            func(*clientman);
         }
     };
 
@@ -105,7 +105,7 @@ public:
     bool ForAnyCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
     {
         LOCK(cs_wallet_manager_map);
-        return std::ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(pair.second); });
+        return std::ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(*pair.second); });
     };
 
 private:
