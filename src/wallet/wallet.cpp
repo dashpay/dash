@@ -2261,6 +2261,8 @@ TransactionError CWallet::FillPSBT(PartiallySignedTransaction& psbtx, bool& comp
         }
     }
 
+    RemoveUnnecessaryTransactions(psbtx, sighash_type);
+
     // Complete if every input is now signed
     complete = true;
     for (const auto& input : psbtx.inputs) {
