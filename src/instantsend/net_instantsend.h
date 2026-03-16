@@ -15,6 +15,8 @@
 #include <thread>
 #include <vector>
 
+class CChainState;
+
 namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus

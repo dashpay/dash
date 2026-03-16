@@ -7,6 +7,7 @@
 
 #include <instantsend/lock.h>
 #include <llmq/signing.h>
+#include <primitives/transaction.h>
 
 #include <optional>
 

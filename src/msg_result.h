@@ -5,8 +5,6 @@
 #ifndef BITCOIN_MSG_RESULT_H
 #define BITCOIN_MSG_RESULT_H
 
-#include <coinjoin/coinjoin.h>
-
 #include <protocol.h>
 #include <uint256.h>
 
@@ -50,9 +48,6 @@ struct MessageProcessingResult
     //! @m_inventory will relay these inventories to connected peers
     std::vector<CInv> m_inventory;
 
-    //! @m_dsq will relay DSQs to connected peers
-    std::vector<CCoinJoinQueue> m_dsq;
-
     //! @m_transactions will relay transactions to peers which is ready to accept it (some peers does not accept transactions)
     std::vector<uint256> m_transactions;
 
@@ -68,7 +63,7 @@ struct MessageProcessingResult
         m_error(error)
     {}
 
-    bool empty() const { return !m_error.has_value() && m_inventory.empty() && m_dsq.empty() && m_transactions.empty() && !m_to_erase.has_value(); }
+    bool empty() const { return !m_error.has_value() && m_inventory.empty() && m_transactions.empty() && !m_to_erase.has_value(); }
 };
 
 #endif // BITCOIN_MSG_RESULT_H

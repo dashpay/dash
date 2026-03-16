@@ -24,6 +24,7 @@
 #include <util/helpers.h>
 
 #include <chainparams.h>
+#include <core_io.h>
 #include <deploymentstatus.h>
 #include <index/txindex.h>
 #include <net_processing.h>
