@@ -90,18 +90,8 @@ jobs:
       runs-on-amd64: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-arm64: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
-  depends-aarch64-linux:
-    name: aarch64-linux-gnu
-    uses: ./.github/workflows/build-depends.yml
-    needs: [check-skip, container, cache-sources]
-    if: ${{ vars.SKIP_ARM_LINUX == '' }}
-    with:
-      build-target: aarch64-linux
-      container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
-
   depends-linux64:
-    name: x86_64-pc-linux-gnu
+    name: linux64 (native)
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
     if: |
@@ -112,7 +102,7 @@ jobs:
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   depends-linux64_multiprocess:
     name: linux64_multiprocess
@@ -164,18 +154,6 @@ jobs:
       container-path: ${{ needs.container-slim.outputs.path }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
-  src-aarch64-linux:
-    name: aarch64-linux-build
-    uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-aarch64-linux]
-    with:
-      build-target: aarch64-linux
-      container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-aarch64-linux.outputs.key }}
-      depends-host: ${{ needs.depends-aarch64-linux.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-aarch64-linux.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
-
   src-linux64:
     name: linux64-build
     uses: ./.github/workflows/build-src.yml
@@ -187,7 +165,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_fuzz:
     name: linux64_fuzz-build
@@ -200,7 +178,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_multiprocess:
     name: linux64_multiprocess-build
@@ -238,7 +216,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_tsan:
     name: linux64_tsan-build
@@ -264,7 +242,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-mac:
     name: mac-build
@@ -298,7 +276,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64.outputs.key }}
       build-target: linux64
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_multiprocess:
     name: linux64_multiprocess-test
@@ -328,7 +306,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
       build-target: linux64_sqlite
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_tsan:
     name: linux64_tsan-test
@@ -348,4 +326,4 @@ jobs:
       bundle-key: ${{ needs.src-linux64_ubsan.outputs.key }}
       build-target: linux64_ubsan
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}

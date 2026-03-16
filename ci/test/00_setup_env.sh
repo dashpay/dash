@@ -31,8 +31,31 @@ export MAKEJOBS=${MAKEJOBS:--j$(nproc)}
 export BASE_SCRATCH_DIR=${BASE_SCRATCH_DIR:-$BASE_ROOT_DIR/ci/scratch}
 # What host to compile for. See also ./depends/README.md
 # Tests that need cross-compilation export the appropriate HOST.
-# Tests that run natively guess the host
-export HOST=${HOST:-$("$BASE_ROOT_DIR/depends/config.guess")}
+# Tests that run natively detect the host based on architecture.
+# We use explicit triplets rather than config.guess to ensure they match
+# the triplets used by depends (e.g. aarch64-linux-gnu, not aarch64-unknown-linux-gnu).
+if [ -z "$HOST" ]; then
+  case "$(uname -m)" in
+    aarch64)
+      export HOST=aarch64-linux-gnu
+      ;;
+    x86_64)
+      export HOST=x86_64-pc-linux-gnu
+      ;;
+    *)
+      if command -v dpkg >/dev/null 2>&1; then
+        arch="$(dpkg --print-architecture)"
+        if [ "${arch}" = "arm64" ]; then
+          export HOST=aarch64-linux-gnu
+        elif [ "${arch}" = "amd64" ]; then
+          export HOST=x86_64-pc-linux-gnu
+        fi
+      fi
+      # Final fallback to config.guess
+      export HOST=${HOST:-$("$BASE_ROOT_DIR/depends/config.guess")}
+      ;;
+  esac
+fi
 # Whether to prefer BusyBox over GNU utilities
 export USE_BUSY_BOX=${USE_BUSY_BOX:-false}
 
