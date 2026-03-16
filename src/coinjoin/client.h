@@ -130,8 +130,6 @@ private:
     CMasternodeMetaMan& m_mn_metaman;
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
-    const std::unique_ptr<CCoinJoinClientQueueManager>& m_queueman;
-
     std::vector<COutPoint> vecOutPointLocked;
 
     bilingual_str strLastMessage;
@@ -185,8 +183,7 @@ private:
 public:
     explicit CCoinJoinClientSession(const std::shared_ptr<wallet::CWallet>& wallet, CCoinJoinClientManager& clientman,
                                     CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
-                                    const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                    const std::unique_ptr<CCoinJoinClientQueueManager>& queueman);
+                                    const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman);
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv);
 
@@ -299,6 +296,7 @@ public:
 
     bool TrySubmitDenominate(const uint256& proTxHash, CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
     bool MarkAlreadyJoinedQueueAsTried(CCoinJoinQueue& dsq) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    bool GetQueueItemAndTry(CCoinJoinQueue& dsq) const;
 
     void CheckTimeout() EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 

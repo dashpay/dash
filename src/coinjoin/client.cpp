@@ -192,15 +192,13 @@ void CCoinJoinClientManager::ProcessMessage(CNode& peer, CChainState& active_cha
 
 CCoinJoinClientSession::CCoinJoinClientSession(const std::shared_ptr<CWallet>& wallet, CCoinJoinClientManager& clientman,
                                                CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
-                                               const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                               const std::unique_ptr<CCoinJoinClientQueueManager>& queueman) :
+                                               const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman) :
     m_wallet(wallet),
     m_clientman(clientman),
     m_dmnman(dmnman),
     m_mn_metaman(mn_metaman),
     m_mn_sync(mn_sync),
-    m_isman{isman},
-    m_queueman(queueman)
+    m_isman{isman}
 {}
 
 void CCoinJoinClientSession::ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv)
@@ -1007,7 +1005,7 @@ bool CCoinJoinClientManager::DoAutomaticDenominating(ChainstateManager& chainman
     AssertLockNotHeld(cs_deqsessions);
     LOCK(cs_deqsessions);
     if (int(deqSessions.size()) < CCoinJoinClientOptions::GetSessions()) {
-        deqSessions.emplace_back(m_wallet, *this, m_dmnman, m_mn_metaman, m_mn_sync, m_isman, m_queueman);
+        deqSessions.emplace_back(m_wallet, *this, m_dmnman, m_mn_metaman, m_mn_sync, m_isman);
     }
     for (auto& session : deqSessions) {
         if (!CheckAutomaticBackup()) return false;
@@ -1075,14 +1073,13 @@ static int WinnersToSkip()
 bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
-    if (m_queueman == nullptr) return false;
 
     const auto mnList = m_dmnman.GetListAtChainTip();
     const int nWeightedMnCount = mnList.GetCounts().m_valid_weighted;
 
     // Look through the queues and see if anything matches
     CCoinJoinQueue dsq;
-    while (m_queueman->GetQueueItemAndTry(dsq)) {
+    while (m_clientman.GetQueueItemAndTry(dsq)) {
         auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
 
         if (!dmn) {
@@ -1286,6 +1283,11 @@ bool CCoinJoinClientManager::MarkAlreadyJoinedQueueAsTried(CCoinJoinQueue& dsq) 
         }
     }
     return false;
+}
+
+bool CCoinJoinClientManager::GetQueueItemAndTry(CCoinJoinQueue& dsq) const
+{
+    return m_queueman && m_queueman->GetQueueItemAndTry(dsq);
 }
 
 bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
