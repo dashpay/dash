@@ -3643,6 +3643,9 @@ void PeerManagerImpl::PostProcessMessage(MessageProcessingResult&& result, NodeI
     for (const auto& inv : result.m_inventory) {
         RelayInv(inv);
     }
+    for (const auto& dsq : result.m_dsq) {
+        RelayDSQ(dsq);
+    }
 }
 
 MessageProcessingResult PeerManagerImpl::ProcessPlatformBanMessage(NodeId node, std::string_view msg_type, CDataStream& vRecv)
