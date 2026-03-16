@@ -40,7 +40,7 @@
 #include <test/util/net.h>
 #include <test/util/txmempool.h>
 #include <txdb.h>
-#include <util/fs_helpers.h>
+#include <util/system.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/thread.h>
@@ -221,7 +221,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
 
         // Try to obtain the lock; if unsuccessful don't disturb the existing test.
         TryCreateDirectories(m_path_lock);
-        if (util::LockDirectory(m_path_lock, ".lock", /*probe_only=*/false) != util::LockResult::Success) {
+        if (!LockDirectory(m_path_lock, ".lock", /*probe_only=*/false)) {
             ExitFailure("Cannot obtain a lock on test data lock directory " + fs::PathToString(m_path_lock) + '\n' + "The test executable is probably already running.");
         }
 

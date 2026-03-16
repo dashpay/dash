@@ -5,7 +5,6 @@
 #include <compressor.h>
 #include <script/script.h>
 #include <script/standard.h>
-#include <test/util/random.h>
 #include <test/util/setup_common.h>
 
 #include <stdint.h>
@@ -138,10 +137,19 @@ BOOST_AUTO_TEST_CASE(compress_script_to_uncompressed_pubkey_id)
 
 BOOST_AUTO_TEST_CASE(compress_p2pk_scripts_not_on_curve)
 {
-    XOnlyPubKey x_not_on_curve;
+    // Generate random 32 bytes for x-coordinate that is not on the secp256k1 curve.
+    // Dash does not have XOnlyPubKey (taproot), so we check validity by constructing
+    // a compressed pubkey (0x02 || x) — if IsFullyValid() is false, x has no valid
+    // lift on the curve. ~50% of random x values are invalid, so this terminates fast.
+    std::vector<unsigned char> x_not_on_curve;
     do {
-        x_not_on_curve = XOnlyPubKey(g_insecure_rand_ctx.randbytes(32));
-    } while (x_not_on_curve.IsFullyValid());
+        x_not_on_curve = g_insecure_rand_ctx.randbytes(32);
+        std::vector<unsigned char> compressed_key(33);
+        compressed_key[0] = 0x02;
+        std::copy(x_not_on_curve.begin(), x_not_on_curve.end(), &compressed_key[1]);
+        CPubKey test_key(compressed_key);
+        if (!test_key.IsFullyValid()) break;
+    } while (true);
 
     // Check that P2PK script with uncompressed pubkey [=> OP_PUSH65 <0x04 .....> OP_CHECKSIG]
     // which is not fully valid (i.e. point is not on curve) can't be compressed
