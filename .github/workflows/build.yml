@@ -112,26 +112,27 @@ jobs:
       runs-on-amd64: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-arm64: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
-  depends-aarch64-linux:
-    name: aarch64-linux-gnu
-    uses: ./.github/workflows/build-depends.yml
-    needs: [check-skip, container, cache-sources]
-    if: ${{ vars.SKIP_ARM_LINUX == '' }}
-    with:
-      build-target: aarch64-linux
-      container-path: ${{ needs.container.outputs.path }}
-      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
-
   depends-linux64:
-    name: x86_64-pc-linux-gnu
+    name: linux64 (native)
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
     if: |
       vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_FUZZ == '' ||
-      vars.SKIP_LINUX64_SQLITE == '' ||
-      vars.SKIP_LINUX64_UBSAN == ''
+      vars.SKIP_LINUX64_SQLITE == ''
+    with:
+      build-target: linux64
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
+
+  depends-linux64-x86:
+    name: linux64 (x86 canary)
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: |
+      vars.SKIP_LINUX64_UBSAN == '' ||
+      vars.SKIP_LINUX64_X86CANARY == ''
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
@@ -142,17 +143,26 @@ jobs:
     name: linux64_multiprocess
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
-    if: |
-      vars.SKIP_LINUX64_MULTIPROCESS == '' ||
-      vars.SKIP_LINUX64_TSAN == ''
+    if: ${{ vars.SKIP_LINUX64_TSAN == '' }}
     with:
       build-target: linux64_multiprocess
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
+  depends-linux64_multiprocess-x86:
+    name: linux64_multiprocess (x86)
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: ${{ vars.SKIP_LINUX64_MULTIPROCESS == '' }}
+    with:
+      build-target: linux64_multiprocess
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
   depends-linux64_nowallet:
-    name: x86_64-pc-linux-gnu_nowallet
+    name: linux64_nowallet (native)
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
     if: ${{ vars.SKIP_LINUX64_NOWALLET == '' }}
@@ -160,7 +170,7 @@ jobs:
       build-target: linux64_nowallet
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   depends-mac:
     name: x86_64-apple-darwin
@@ -192,18 +202,6 @@ jobs:
       container-path: ${{ needs.container-slim.outputs.path }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
-  src-aarch64-linux:
-    name: aarch64-linux-build
-    uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-aarch64-linux]
-    with:
-      build-target: aarch64-linux
-      container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-aarch64-linux.outputs.key }}
-      depends-host: ${{ needs.depends-aarch64-linux.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-aarch64-linux.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
-
   src-linux64:
     name: linux64-build
     uses: ./.github/workflows/build-src.yml
@@ -215,7 +213,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_fuzz:
     name: linux64_fuzz-build
@@ -228,20 +226,20 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_multiprocess:
     name: linux64_multiprocess-build
     uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-linux64_multiprocess, lint]
+    needs: [check-skip, container, depends-linux64_multiprocess-x86, lint]
     if: ${{ vars.SKIP_LINUX64_MULTIPROCESS == '' }}
     with:
       build-target: linux64_multiprocess
       container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-linux64_multiprocess.outputs.key }}
-      depends-host: ${{ needs.depends-linux64_multiprocess.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-linux64_multiprocess.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
+      depends-key: ${{ needs.depends-linux64_multiprocess-x86.outputs.key }}
+      depends-host: ${{ needs.depends-linux64_multiprocess-x86.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64_multiprocess-x86.outputs.dep-opts }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_nowallet:
     name: linux64_nowallet-build
@@ -253,7 +251,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64_nowallet.outputs.key }}
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_sqlite:
     name: linux64_sqlite-build
@@ -266,7 +264,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_tsan:
     name: linux64_tsan-build
@@ -284,14 +282,27 @@ jobs:
   src-linux64_ubsan:
     name: linux64_ubsan-build
     uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-linux64]
+    needs: [check-skip, container, depends-linux64-x86]
     if: ${{ vars.SKIP_LINUX64_UBSAN == '' }}
     with:
       build-target: linux64_ubsan
       container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-linux64.outputs.key }}
-      depends-host: ${{ needs.depends-linux64.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      depends-key: ${{ needs.depends-linux64-x86.outputs.key }}
+      depends-host: ${{ needs.depends-linux64-x86.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64-x86.outputs.dep-opts }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  src-linux64_x86canary:
+    name: linux64_x86canary-build
+    uses: ./.github/workflows/build-src.yml
+    needs: [check-skip, container, depends-linux64-x86]
+    if: ${{ vars.SKIP_LINUX64_X86CANARY == '' }}
+    with:
+      build-target: linux64_x86canary
+      container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.depends-linux64-x86.outputs.key }}
+      depends-host: ${{ needs.depends-linux64-x86.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64-x86.outputs.dep-opts }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-mac:
@@ -326,7 +337,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64.outputs.key }}
       build-target: linux64
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_multiprocess:
     name: linux64_multiprocess-test
@@ -336,7 +347,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_multiprocess.outputs.key }}
       build-target: linux64_multiprocess
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   test-linux64_nowallet:
     name: linux64_nowallet-test
@@ -346,7 +357,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_sqlite:
     name: linux64_sqlite-test
@@ -356,7 +367,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
       build-target: linux64_sqlite
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_tsan:
     name: linux64_tsan-test
@@ -377,3 +388,14 @@ jobs:
       build-target: linux64_ubsan
       container-path: ${{ needs.container-slim.outputs.path }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  test-linux64_x86canary:
+    name: linux64_x86canary-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [check-skip, container-slim, src-linux64_x86canary, lint]
+    with:
+      bundle-key: ${{ needs.src-linux64_x86canary.outputs.key }}
+      build-target: linux64_x86canary
+      container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      integration-tests-args: "--exclude feature_pruning,feature_dbcrash"

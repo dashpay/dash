@@ -19,6 +19,10 @@ on:
         description: "Runner label to use (e.g., ubuntu-24.04 or ubuntu-24.04-arm)"
         required: true
         type: string
+      effective-runs-on:
+        description: "Optional runner label override used to execute the workflow jobs"
+        required: false
+        type: string
     outputs:
       key:
         description: "Key needed for restoring depends cache"
@@ -33,7 +37,7 @@ on:
 jobs:
   check-cache:
     name: Check cache
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ inputs.effective-runs-on || inputs.runs-on }}
     outputs:
       cache-hit: ${{ steps.cache-check.outputs.cache-hit }}
       cache-key: ${{ steps.setup.outputs.cache-key }}
@@ -67,7 +71,7 @@ jobs:
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
           DOCKERFILE_HASH="${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}"
           PACKAGES_HASH="${{ hashFiles('depends/packages/*', 'depends/Makefile') }}"
-          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${{ inputs.base-image-digest }}-${{ inputs.runs-on }}-${{ inputs.build-target }}"
+          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${{ inputs.base-image-digest }}-${{ inputs.effective-runs-on || inputs.runs-on }}-${{ inputs.build-target }}"
           CACHE_KEY="${CACHE_KEY_PREFIX}-${DEP_HASH}-${PACKAGES_HASH}"
           echo "cache-key-prefix=${CACHE_KEY_PREFIX}" >> "${GITHUB_OUTPUT}"
           echo "cache-key=${CACHE_KEY}" >> "${GITHUB_OUTPUT}"
@@ -99,7 +103,7 @@ jobs:
     name: Build depends
     needs: [check-cache]
     if: needs.check-cache.outputs.cache-hit != 'true'
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ inputs.effective-runs-on || inputs.runs-on }}
     container:
       image: ${{ inputs.container-path }}
       options: --user root
@@ -136,7 +140,7 @@ jobs:
       - name: Build depends
         run: |
           export HOST="${{ needs.check-cache.outputs.host }}"
-          env ${{ needs.check-cache.outputs.dep-opts }} make -j$(nproc) -C depends
+          env ${{ needs.check-cache.outputs.dep-opts }} make -j"$(nproc)" -C depends
 
       - name: Save depends cache
         uses: actions/cache/save@v5

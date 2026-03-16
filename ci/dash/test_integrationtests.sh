@@ -23,7 +23,7 @@ export LD_LIBRARY_PATH=$DEPENDS_DIR/$HOST/lib
 if [ "$DOWNLOAD_PREVIOUS_RELEASES" = "true" ]; then
   echo "Downloading previous releases..."
   # shellcheck disable=SC2086
-  ./test/get_previous_releases.py -b -t "$PREVIOUS_RELEASES_DIR"
+  ./test/get_previous_releases.py -b -t "$PREVIOUS_RELEASES_DIR" ${PREVIOUS_RELEASES_TAGS:-}
 fi
 
 cd "build-ci/dashcore-$BUILD_TARGET"
@@ -43,8 +43,9 @@ echo "Using socketevents mode: $SOCKETEVENTS"
 EXTRA_ARGS="--dashd-arg=-socketevents=$SOCKETEVENTS"
 
 set +e
+# Keep PASS_ARGS before TEST_RUNNER_EXTRA so per-target flags can override workflow defaults.
 # shellcheck disable=SC2086
-LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib" ./test/functional/test_runner.py --ci --attempts=3 --ansi --combinedlogslen=4000 --timeout-factor="${TEST_RUNNER_TIMEOUT_FACTOR}" ${TEST_RUNNER_EXTRA} --failfast --nocleanup --tmpdir="$(pwd)/testdatadirs" $PASS_ARGS $EXTRA_ARGS
+LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib" ./test/functional/test_runner.py --ci --attempts=3 --ansi --combinedlogslen=4000 --timeout-factor="${TEST_RUNNER_TIMEOUT_FACTOR}" $PASS_ARGS ${TEST_RUNNER_EXTRA} --failfast --nocleanup --tmpdir="$(pwd)/testdatadirs" $EXTRA_ARGS
 RESULT=$?
 set -e
 

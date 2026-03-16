@@ -130,6 +130,9 @@ def download_binary(tag, args) -> int:
         elif platform in ["x86_64-apple-darwin", "arm64-apple-darwin"]:
             print(f"Binaries not available for {tag} on {platform}")
             return 1
+        elif platform in ["aarch64-linux-gnu"]:
+            print(f"Binaries not available for {tag} on {platform}")
+            return 1
         elif platform in ["x86_64-linux-gnu"]:
             platform = "linux64"
     elif tag < "v20" and platform in ["x86_64-apple-darwin", "arm64-apple-darwin"]:
@@ -272,7 +275,7 @@ def check_host(args) -> int:
         }
         args.platform = ''
         for pattern, target in platforms.items():
-            if fnmatch(args.host, pattern):
+            if fnmatch(args.host, pattern) or args.host == target:
                 args.platform = target
         if not args.platform:
             print('Not sure which binary to download for {}'.format(args.host))

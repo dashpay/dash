@@ -16,9 +16,7 @@ export LSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/l
 export TSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/tsan:halt_on_error=1"
 export UBSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/ubsan:print_stacktrace=1:halt_on_error=1:report_error_type=1"
 
-if [ "$BUILD_TARGET" = "aarch64-linux" ]; then
-  source ./ci/test/00_setup_env_aarch64.sh
-elif [ "$BUILD_TARGET" = "linux64" ]; then
+if [ "$BUILD_TARGET" = "linux64" ]; then
   source ./ci/test/00_setup_env_native_qt5.sh
 elif [ "$BUILD_TARGET" = "linux64_asan" ]; then
   source ./ci/test/00_setup_env_native_asan.sh
@@ -34,6 +32,8 @@ elif [ "$BUILD_TARGET" = "linux64_tsan" ]; then
   source ./ci/test/00_setup_env_native_tsan.sh
 elif [ "$BUILD_TARGET" = "linux64_ubsan" ]; then
   source ./ci/test/00_setup_env_native_ubsan.sh
+elif [ "$BUILD_TARGET" = "linux64_x86canary" ]; then
+  source ./ci/test/00_setup_env_native_x86canary.sh
 elif [ "$BUILD_TARGET" = "linux64_valgrind" ]; then
   source ./ci/test/00_setup_env_native_valgrind.sh
 elif [ "$BUILD_TARGET" = "mac" ]; then
