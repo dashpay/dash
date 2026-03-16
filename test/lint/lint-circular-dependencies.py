@@ -23,9 +23,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     # Dash
     "active/context -> active/dkgsessionhandler -> llmq/dkgsessionhandler -> net_processing -> active/context",
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorumsman -> net -> banman",
-    "chainlock/chainlock -> spork -> msg_result -> coinjoin/coinjoin -> chainlock/chainlock",
     "chainlock/chainlock -> spork -> net -> evo/deterministicmns -> evo/providertx -> validation -> chainlock/chainlock",
-    "coinjoin/coinjoin -> instantsend/instantsend -> spork -> msg_result -> coinjoin/coinjoin",
     "coinjoin/client -> coinjoin/util -> wallet/wallet -> psbt -> node/transaction -> net_processing -> coinjoin/walletman -> coinjoin/client",
     "common/bloom -> evo/assetlocktx -> llmq/commitment -> evo/deterministicmns -> evo/simplifiedmns -> merkleblock -> common/bloom",
     "common/bloom -> evo/assetlocktx -> llmq/quorumsman -> net -> common/bloom",
