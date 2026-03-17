@@ -123,8 +123,8 @@ CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _m
     // (un)select all
     connect(ui->pushButtonSelectAll, &QPushButton::clicked, this, &CoinControlDialog::buttonSelectAllClicked);
 
-    // Toggle lock state
-    connect(ui->pushButtonToggleLock, &QPushButton::clicked, this, &CoinControlDialog::buttonToggleLockClicked);
+    // (un)lock all
+    connect(ui->pushButtonLockAll, &QPushButton::clicked, this, &CoinControlDialog::buttonLockAllClicked);
 
     ui->treeWidget->setColumnWidth(COLUMN_CHECKBOX, 94);
     ui->treeWidget->setColumnWidth(COLUMN_AMOUNT, 100);
@@ -195,41 +195,46 @@ void CoinControlDialog::buttonSelectAllClicked()
     CoinControlDialog::updateLabels(m_coin_control, model, this);
 }
 
-// Toggle lock state
-void CoinControlDialog::buttonToggleLockClicked()
+// (un)lock all
+void CoinControlDialog::buttonLockAllClicked()
 {
-    QTreeWidgetItem *item;
-    // Works in list-mode only
-    if(ui->radioListMode->isChecked()){
-        ui->treeWidget->setEnabled(false);
-        for (int i = 0; i < ui->treeWidget->topLevelItemCount(); i++){
-            item = ui->treeWidget->topLevelItem(i);
-            COutPoint outpt(uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()), item->data(COLUMN_ADDRESS, VOutRole).toUInt());
-            // Don't toggle the lock state of partially mixed coins if they are not hidden in CoinJoin mode
-            if (m_coin_control.IsUsingCoinJoin() && !fHideAdditional && !model->isFullyMixed(outpt)) {
-                continue;
+    // Fetch the wallet-wide locked set once (single cs_wallet acquisition)
+    const std::set<COutPoint> lockedSet{model->wallet().listLockedCoins()};
+
+    // Collect all visible UTXOs; track locked ones separately for the unlock path
+    // (works in both tree and list modes)
+    std::vector<COutPoint> outputs;
+    std::vector<COutPoint> lockedOutputs;
+    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); i++) {
+        QTreeWidgetItem* item = ui->treeWidget->topLevelItem(i);
+        if (item->data(COLUMN_ADDRESS, TxHashRole).toString().length() == 64) {
+            // List mode: top-level item is a UTXO
+            const COutPoint outpt(uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()),
+                                  item->data(COLUMN_ADDRESS, VOutRole).toUInt());
+            outputs.emplace_back(outpt);
+            if (lockedSet.contains(outpt)) lockedOutputs.emplace_back(outpt);
+        } else {
+            // Tree mode: top-level item is an address group; collect children
+            for (int j = 0; j < item->childCount(); j++) {
+                QTreeWidgetItem* child = item->child(j);
+                const COutPoint outpt(uint256S(child->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()),
+                                      child->data(COLUMN_ADDRESS, VOutRole).toUInt());
+                outputs.emplace_back(outpt);
+                if (lockedSet.contains(outpt)) lockedOutputs.emplace_back(outpt);
             }
-            if (model->wallet().isLockedCoin(outpt)) {
-                model->wallet().unlockCoin(outpt);
-                item->setDisabled(false);
-                item->setIcon(COLUMN_CHECKBOX, QIcon());
-            }
-            else{
-                model->wallet().lockCoin(outpt, /*write_to_db=*/true);
-                item->setDisabled(true);
-                item->setIcon(COLUMN_CHECKBOX, GUIUtil::getIcon("lock_closed", GUIUtil::ThemedColor::RED));
-            }
-            updateLabelLocked();
         }
-        ui->treeWidget->setEnabled(true);
-        CoinControlDialog::updateLabels(m_coin_control, model, this);
     }
-    else{
-        QMessageBox msgBox(this);
-        msgBox.setObjectName("lockMessageBox");
-        msgBox.setText(tr("Please switch to \"List mode\" to use this function."));
-        msgBox.exec();
+    bool should_lock = lockedOutputs.empty();
+    bool success = should_lock ? model->wallet().lockCoins(outputs)
+                               : model->wallet().unlockCoins(lockedOutputs);
+    if (!success) {
+        QMessageBox::warning(this, tr("Wallet error"),
+            should_lock ? tr("Failed to lock some coins.")
+                        : tr("Failed to unlock some coins."));
     }
+    updateView();
+    updateLabelLocked();
+    CoinControlDialog::updateLabels(m_coin_control, model, this);
 }
 
 // context menu

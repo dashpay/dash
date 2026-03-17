@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <psbt.h>
+#include <set>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -170,7 +171,13 @@ public:
     virtual bool isLockedCoin(const COutPoint& output) = 0;
 
     //! List locked coins.
-    virtual std::vector<COutPoint> listLockedCoins() = 0;
+    virtual std::set<COutPoint> listLockedCoins() = 0;
+
+    //! Lock the provided coins in a single batch.
+    virtual bool lockCoins(const std::vector<COutPoint>& outputs) = 0;
+
+    //! Unlock the provided coins in a single batch.
+    virtual bool unlockCoins(const std::vector<COutPoint>& outputs) = 0;
 
     //! List protx coins.
     virtual std::vector<COutPoint> listProTxCoins() = 0;

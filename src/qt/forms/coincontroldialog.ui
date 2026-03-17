@@ -275,7 +275,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButtonToggleLock">
+         <widget class="QPushButton" name="pushButtonLockAll">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -283,7 +283,7 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>toggle lock state</string>
+           <string>(un)lock all</string>
           </property>
           <property name="autoDefault">
            <bool>false</bool>
