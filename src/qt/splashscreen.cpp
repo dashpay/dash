@@ -307,15 +307,15 @@ void SplashScreen::subscribeToCoreSignals()
     m_handler_show_progress = m_node->handleShowProgress([this, color](const std::string& title, int nProgress, bool /*resume_possible*/) {
         PostMessageAndProgress(this, color, title, nProgress);
     });
-    m_handler_init_wallet = m_node->handleInitWallet([this]() { handleLoadWallet(); });
+    m_handler_init_wallet = m_node->handleInitWallet([this]() { handleLoadingWallet(); });
 }
 
-void SplashScreen::handleLoadWallet()
+void SplashScreen::handleLoadingWallet()
 {
 #ifdef ENABLE_WALLET
     if (!WalletModel::isWalletEnabled()) return;
     const QColor color = messageColor;
-    m_handler_load_wallet = m_node->walletLoader().handleLoadWallet([this, color](std::unique_ptr<interfaces::Wallet> wallet) {
+    m_handler_loading_wallet = m_node->walletLoader().handleLoadWalletLoading([this, color](std::unique_ptr<interfaces::Wallet> wallet) {
         m_connected_wallet_handlers.emplace_back(wallet->handleShowProgress([this, color](const std::string& title, int nProgress) {
             PostMessageAndProgress(this, color, title, nProgress);
         }));
@@ -331,8 +331,8 @@ void SplashScreen::unsubscribeFromCoreSignals()
     m_handler_show_progress->disconnect();
     m_handler_init_wallet->disconnect();
 #ifdef ENABLE_WALLET
-    if (m_handler_load_wallet != nullptr) {
-        m_handler_load_wallet->disconnect();
+    if (m_handler_loading_wallet != nullptr) {
+        m_handler_loading_wallet->disconnect();
     }
 #endif // ENABLE_WALLET
     for (const auto& handler : m_connected_wallet_handlers) {

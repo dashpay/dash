@@ -792,6 +792,10 @@ public:
     {
         return HandleLoadWallet(m_context, std::move(fn));
     }
+    std::unique_ptr<Handler> handleLoadWalletLoading(LoadWalletFn fn) override
+    {
+        return HandleLoadWalletLoading(m_context, std::move(fn));
+    }
     WalletContext* context() override  { return &m_context; }
 
     WalletContext m_context;
