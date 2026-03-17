@@ -6,6 +6,8 @@
 #define BITCOIN_LLMQ_NET_SIGNING_H
 
 #include <ctpl_stl.h>
+#include <llmq/signing_shares.h>
+#include <llmq/types.h>
 #include <net_processing.h>
 #include <util/threadinterrupt.h>
 #include <util/time.h>
@@ -52,7 +54,9 @@ private:
     void WorkThreadCleaning();
     void WorkThreadDispatcher();
 
-    bool ProcessPendingSigShares();
+    void ProcessPendingSigShares(
+        std::unordered_map<NodeId, std::vector<CSigShare>>&& sigSharesByNodes,
+        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>&& quorums);
 
     void RemoveBannedNodeStates();
     void BanNode(NodeId nodeid);

@@ -306,17 +306,25 @@ void NetSigning::WorkThreadDispatcher()
             }
         }
 
-        if (m_shares_manager->IsAnyPendingProcessing()) {
-            // If there's processing work, spawn a helper worker
-            worker_pool.push([this](int) {
-                while (!workInterrupt) {
-                    bool moreWork = ProcessPendingSigShares();
+        // Collect pending sig shares synchronously and dispatch each batch to a worker for parallel BLS verification
+        while (!workInterrupt) {
+            std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
+            std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
 
-                    if (!moreWork) {
-                        return; // No work found, exit immediately
-                    }
-                }
+            const size_t nMaxBatchSize{32};
+            bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+
+            if (sigSharesByNodes.empty()) {
+                break;
+            }
+
+            worker_pool.push([this, sigSharesByNodes = std::move(sigSharesByNodes), quorums = std::move(quorums)](int) mutable {
+                ProcessPendingSigShares(std::move(sigSharesByNodes), std::move(quorums));
             });
+
+            if (!more_work) {
+                break;
+            }
         }
 
         // Always sleep briefly between checks
@@ -329,17 +337,10 @@ void NetSigning::NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& 
     m_peer_manager->PeerRelayRecoveredSig(*sig, proactive_relay);
 }
 
-bool NetSigning::ProcessPendingSigShares()
+void NetSigning::ProcessPendingSigShares(
+    std::unordered_map<NodeId, std::vector<CSigShare>>&& sigSharesByNodes,
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>&& quorums)
 {
-    std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
-    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
-
-    const size_t nMaxBatchSize{32};
-    bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
-    if (sigSharesByNodes.empty()) {
-        return false;
-    }
-
     // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
     // which are not craftable by individual entities, making the rogue public key attack impossible
     CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
@@ -400,8 +401,6 @@ bool NetSigning::ProcessPendingSigShares()
             ProcessRecoveredSig(rs, true);
         }
     }
-
-    return more_work;
 }
 
 } // namespace llmq
