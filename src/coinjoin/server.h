@@ -25,9 +25,11 @@ class UniValue;
 
 /** Used to keep track of current status of mixing pool
  */
-class CCoinJoinServer : public CCoinJoinBaseSession, public CCoinJoinBaseManager, public NetHandler
+class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
 {
 private:
+    CCoinJoinBaseManager m_queueman;
+
     ChainstateManager& m_chainman;
     CConnman& connman;
     CDeterministicMNManager& m_dmnman;
@@ -64,7 +66,7 @@ private:
 
     /// Is this nDenom and txCollateral acceptable?
     bool IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const;
-    bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
+    bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet);
     bool AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet);
     /// Do we have enough users to take entries?
     bool IsSessionReady() const;
@@ -83,8 +85,8 @@ private:
     void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void RelayCompletedTransaction(PoolMessage nMessageID) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
-    void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
-    void ProcessDSQUEUE(NodeId from, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
+    void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv);
+    void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
     void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void ProcessDSSIGNFINALTX(CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 

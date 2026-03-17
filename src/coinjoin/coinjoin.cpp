@@ -143,6 +143,32 @@ void CCoinJoinBaseManager::CheckQueue()
     }
 }
 
+std::optional<bool> CCoinJoinBaseManager::TryHasQueueFromMasternode(const COutPoint& outpoint) const
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if (!lockDS) return std::nullopt;
+    return std::ranges::any_of(vecCoinJoinQueue, [&outpoint](const auto& q) { return q.masternodeOutpoint == outpoint; });
+}
+
+std::optional<bool> CCoinJoinBaseManager::TryCheckDuplicate(const CCoinJoinQueue& dsq) const
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if (!lockDS) return std::nullopt;
+    for (const auto& q : vecCoinJoinQueue) {
+        if (q == dsq) return true;
+        if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) return true;
+    }
+    return false;
+}
+
+bool CCoinJoinBaseManager::TryAddQueue(CCoinJoinQueue dsq)
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if (!lockDS) return false;
+    vecCoinJoinQueue.push_back(std::move(dsq));
+    return true;
+}
+
 bool CCoinJoinBaseManager::GetQueueItemAndTry(CCoinJoinQueue& dsqRet)
 {
     TRY_LOCK(cs_vecqueue, lockDS);

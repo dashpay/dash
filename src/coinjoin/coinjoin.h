@@ -330,11 +330,11 @@ protected:
     // The current mixing sessions in progress on the network
     std::vector<CCoinJoinQueue> vecCoinJoinQueue GUARDED_BY(cs_vecqueue);
 
-    void SetNull() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
-
 public:
     CCoinJoinBaseManager();
     virtual ~CCoinJoinBaseManager();
+
+    void SetNull() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
     //! Remove timed-out queue entries. Call periodically (e.g. every second).
     void CheckQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
@@ -362,6 +362,12 @@ public:
         return std::any_of(vecCoinJoinQueue.begin(), vecCoinJoinQueue.end(),
                            [&](const auto& q) { return q.masternodeOutpoint == outpoint && q.fReady == fReady; });
     }
+    //! TRY_LOCK variant: returns nullopt if lock can't be acquired; true if any queue entry has this
+    //! outpoint (any readiness).
+    [[nodiscard]] std::optional<bool> TryHasQueueFromMasternode(const COutPoint& outpoint) const EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
+    //! TRY_LOCK combined duplicate check: returns nullopt if lock can't be acquired; true if dsq is
+    //! an exact duplicate or the masternode is sending too many dsqs with the same readiness.
+    [[nodiscard]] std::optional<bool> TryCheckDuplicate(const CCoinJoinQueue& dsq) const EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
     //! Append a queue entry (caller must have already checked for duplicates).
     void AddQueue(CCoinJoinQueue dsq) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
@@ -369,6 +375,8 @@ public:
         LOCK(cs_vecqueue);
         vecCoinJoinQueue.push_back(std::move(dsq));
     }
+    //! TRY_LOCK variant of AddQueue: returns false if the lock cannot be acquired.
+    bool TryAddQueue(CCoinJoinQueue dsq) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 };
 
 // Various helpers and dstx manager implementation

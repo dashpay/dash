@@ -74,9 +74,8 @@ private:
 
     void DoMaintenance(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
-    [[nodiscard]] MessageProcessingResult ProcessDSQueue(NodeId from, CConnman& connman,
-                                                         std::string_view msg_type, CDataStream& vRecv)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue);
+    [[nodiscard]] MessageProcessingResult ProcessDSQueue(NodeId from, CConnman& connman, std::string_view msg_type,
+                                                         CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue);
 
     template <typename Callable>
     void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
@@ -175,8 +174,8 @@ void CJWalletManagerImpl::addWallet(const std::shared_ptr<wallet::CWallet>& wall
 {
     LOCK(cs_wallet_manager_map);
     m_wallet_manager_map.try_emplace(wallet->GetName(),
-                                     std::make_unique<CCoinJoinClientManager>(wallet, m_dmnman, m_mn_metaman,
-                                                                              m_mn_sync, m_isman, m_basequeueman.get()));
+                                     std::make_unique<CCoinJoinClientManager>(wallet, m_dmnman, m_mn_metaman, m_mn_sync,
+                                                                              m_isman, m_basequeueman.get()));
 }
 
 void CJWalletManagerImpl::flushWallet(const std::string& name)
@@ -216,8 +215,8 @@ MessageProcessingResult CJWalletManagerImpl::processMessage(CNode& pfrom, CChain
     return {};
 }
 
-MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnman& connman,
-                                                            std::string_view msg_type, CDataStream& vRecv)
+MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnman& connman, std::string_view msg_type,
+                                                            CDataStream& vRecv)
 {
     assert(m_basequeueman);
 
@@ -282,7 +281,8 @@ MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnma
         if (dsq.fReady && ForAnyCJClientMan([&connman, &dmn](CCoinJoinClientManager& clientman) {
                 return clientman.TrySubmitDenominate(dmn->proTxHash, connman);
             })) {
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue is ready, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
+            LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue is ready, masternode=%s, queue=%s\n",
+                     dmn->proTxHash.ToString(), dsq.ToString());
             return ret;
         } else {
             if (m_mn_metaman.IsMixingThresholdExceeded(dmn->proTxHash, tip_mn_list.GetCounts().enabled())) {
@@ -292,11 +292,11 @@ MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnma
             }
             m_mn_metaman.AllowMixing(dmn->proTxHash);
 
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
+            LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue, masternode=%s, queue=%s\n",
+                     dmn->proTxHash.ToString(), dsq.ToString());
 
-            ForAnyCJClientMan([&dsq](CCoinJoinClientManager& clientman) {
-                return clientman.MarkAlreadyJoinedQueueAsTried(dsq);
-            });
+            ForAnyCJClientMan(
+                [&dsq](CCoinJoinClientManager& clientman) { return clientman.MarkAlreadyJoinedQueueAsTried(dsq); });
 
             m_basequeueman->AddQueue(dsq);
         }

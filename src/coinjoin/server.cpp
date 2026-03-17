@@ -87,13 +87,9 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
 
     if (vecSessionCollaterals.empty()) {
         {
-            TRY_LOCK(cs_vecqueue, lockRecv);
-            if (!lockRecv) return;
-
-            auto mnOutpoint = m_mn_activeman.GetOutPoint();
-
-            if (std::ranges::any_of(vecCoinJoinQueue,
-                                    [&mnOutpoint](const auto& q) { return q.masternodeOutpoint == mnOutpoint; })) {
+            const auto hasQueue = m_queueman.TryHasQueueFromMasternode(m_mn_activeman.GetOutPoint());
+            if (!hasQueue.has_value()) return;
+            if (*hasQueue) {
                 // refuse to create another queue this often
                 LogPrint(BCLog::COINJOIN, "DSACCEPT -- last dsq is still in queue, refuse to mix\n");
                 PushStatus(peer, STATUS_REJECTED, ERR_RECENT);
@@ -160,21 +156,13 @@ void CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream& vRecv)
     }
 
     {
-        TRY_LOCK(cs_vecqueue, lockRecv);
-        if (!lockRecv) return;
-
-        // process every dsq only once
-        for (const auto& q : vecCoinJoinQueue) {
-            if (q == dsq) {
-                return;
-            }
-            if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
-                // no way the same mn can send another dsq with the same readiness this soon
-                LogPrint(BCLog::COINJOIN, "DSQUEUE -- Peer %d is sending WAY too many dsq messages for a masternode with collateral %s\n", from, dsq.masternodeOutpoint.ToStringShort());
-                return;
-            }
+        const auto isDup = m_queueman.TryCheckDuplicate(dsq);
+        if (!isDup.has_value()) return;
+        if (*isDup) {
+            LogPrint(BCLog::COINJOIN, "DSQUEUE -- Peer %d is sending WAY too many dsq messages for a masternode with collateral %s\n", from, dsq.masternodeOutpoint.ToStringShort());
+            return;
         }
-    } // cs_vecqueue
+    }
 
     LogPrint(BCLog::COINJOIN, "DSQUEUE -- %s new\n", dsq.ToString());
 
@@ -202,9 +190,7 @@ void CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream& vRecv)
 
         LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
 
-        TRY_LOCK(cs_vecqueue, lockRecv);
-        if (!lockRecv) return;
-        vecCoinJoinQueue.push_back(dsq);
+        if (!m_queueman.TryAddQueue(dsq)) return;
         m_peer_manager->PeerRelayDSQ(dsq);
     }
 }
@@ -267,7 +253,7 @@ void CCoinJoinServer::SetNull()
     vecSessionCollaterals.clear();
 
     CCoinJoinBaseSession::SetNull();
-    CCoinJoinBaseManager::SetNull();
+    m_queueman.SetNull();
 }
 
 //
@@ -504,7 +490,7 @@ bool CCoinJoinServer::HasTimedOut() const
 //
 void CCoinJoinServer::CheckTimeout()
 {
-    CheckQueue();
+    m_queueman.CheckQueue();
 
     // Too early to do anything
     if (!CCoinJoinServer::HasTimedOut()) return;
@@ -531,7 +517,7 @@ void CCoinJoinServer::CheckForCompleteQueue()
                                      "with %d participants\n", dsq.ToString(), vecSessionCollaterals.size());
         dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peer_manager->PeerRelayDSQ(dsq);
-        WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
+        m_queueman.AddQueue(std::move(dsq));
     }
 }
 
@@ -739,8 +725,7 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& 
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
         dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peer_manager->PeerRelayDSQ(dsq);
-        LOCK(cs_vecqueue);
-        vecCoinJoinQueue.push_back(dsq);
+        m_queueman.AddQueue(std::move(dsq));
     }
 
     vecSessionCollaterals.push_back(MakeTransactionRef(dsa.txCollateral));
@@ -916,7 +901,7 @@ void CCoinJoinServer::GetJsonInfo(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.pushKV("queue_size",    GetQueueSize());
+    obj.pushKV("queue_size",    m_queueman.GetQueueSize());
     obj.pushKV("denomination",  ValueFromAmount(CoinJoin::DenominationToAmount(nSessionDenom)));
     obj.pushKV("state",         GetStateString());
     obj.pushKV("entries_count", GetEntriesCount());
@@ -924,14 +909,14 @@ void CCoinJoinServer::GetJsonInfo(UniValue& obj) const
 
 bool CCoinJoinServer::AlreadyHave(const CInv& inv)
 {
-    return (inv.type == MSG_DSQ) ? HasQueue(inv.hash) : false;
+    return (inv.type == MSG_DSQ) ? m_queueman.HasQueue(inv.hash) : false;
 }
 
 bool CCoinJoinServer::ProcessGetData(CNode& pfrom, const CInv& inv, CConnman& connman, const CNetMsgMaker& msgMaker)
 {
     if (inv.type != MSG_DSQ) return false;
 
-    auto opt_dsq = GetQueueFromHash(inv.hash);
+    auto opt_dsq = m_queueman.GetQueueFromHash(inv.hash);
     if (!opt_dsq.has_value()) return false;
 
     connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::DSQUEUE, *opt_dsq));
