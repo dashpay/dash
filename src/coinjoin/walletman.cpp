@@ -7,27 +7,26 @@
 #endif
 
 #include <coinjoin/walletman.h>
-
+#include <evo/deterministicmns.h>
 #include <net.h>
 #include <scheduler.h>
 #include <streams.h>
-
-#include <evo/deterministicmns.h>
 
 #ifdef ENABLE_WALLET
 #include <coinjoin/client.h>
 #endif // ENABLE_WALLET
 
 #include <memory>
+#include <ranges>
 
 #ifdef ENABLE_WALLET
-class CJWalletManagerImpl final : public CJWalletManager
+class CJWalletManagerImpl final : public CJWalletManager, public CoinJoinQueueNotify
 {
 public:
     CJWalletManagerImpl(ChainstateManager& chainman, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                         CTxMemPool& mempool, const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
                         bool relay_txes);
-    virtual ~CJWalletManagerImpl() = default;
+    ~CJWalletManagerImpl() override;
 
 public:
     void Schedule(CConnman& connman, CScheduler& scheduler) override;
@@ -44,15 +43,47 @@ public:
     void removeWallet(const std::string& name) override;
     void flushWallet(const std::string& name) override;
 
+    // CoinJoinQueueNotify
+    bool TrySubmitDenominate(const uint256& proTxHash, CConnman& connman) override;
+    void MarkAlreadyJoinedQueueAsTried(CCoinJoinQueue& dsq) override;
+
 protected:
     // CValidationInterface
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
 private:
     const bool m_relay_txes;
+    ChainstateManager& m_chainman;
+    CDeterministicMNManager& m_dmnman;
+    CMasternodeMetaMan& m_mn_metaman;
+    CTxMemPool& m_mempool;
+    const CMasternodeSync& m_mn_sync;
+    const llmq::CInstantSendManager& m_isman;
 
-    CoinJoinWalletManager walletman;
-    const std::unique_ptr<CCoinJoinClientQueueManager> queueman;
+    // queueman is declared before the wallet map so that it is destroyed
+    // after all CCoinJoinClientManager instances (which hold a raw pointer to it).
+    const std::unique_ptr<CCoinJoinClientQueueManager> m_queueman;
+
+    mutable Mutex cs_wallet_manager_map;
+    std::map<const std::string, std::unique_ptr<CCoinJoinClientManager>> m_wallet_manager_map GUARDED_BY(cs_wallet_manager_map);
+
+    void DoMaintenance(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+
+    template <typename Callable>
+    void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
+    {
+        LOCK(cs_wallet_manager_map);
+        for (auto& [_, clientman] : m_wallet_manager_map) {
+            func(*clientman);
+        }
+    }
+
+    template <typename Callable>
+    bool ForAnyCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
+    {
+        LOCK(cs_wallet_manager_map);
+        return std::ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(*pair.second); });
+    }
 };
 
 CJWalletManagerImpl::CJWalletManagerImpl(ChainstateManager& chainman, CDeterministicMNManager& dmnman,
@@ -60,17 +91,30 @@ CJWalletManagerImpl::CJWalletManagerImpl(ChainstateManager& chainman, CDetermini
                                          const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
                                          bool relay_txes) :
     m_relay_txes{relay_txes},
-    walletman{chainman, dmnman, mn_metaman, mempool, mn_sync, isman, queueman},
-    queueman{m_relay_txes ? std::make_unique<CCoinJoinClientQueueManager>(walletman, dmnman, mn_metaman, mn_sync) : nullptr}
+    m_chainman{chainman},
+    m_dmnman{dmnman},
+    m_mn_metaman{mn_metaman},
+    m_mempool{mempool},
+    m_mn_sync{mn_sync},
+    m_isman{isman},
+    m_queueman{m_relay_txes ? std::make_unique<CCoinJoinClientQueueManager>(*this, dmnman, mn_metaman, mn_sync) : nullptr}
 {
+}
+
+CJWalletManagerImpl::~CJWalletManagerImpl()
+{
+    LOCK(cs_wallet_manager_map);
+    for (auto& [_, clientman] : m_wallet_manager_map) {
+        clientman.reset();
+    }
 }
 
 void CJWalletManagerImpl::Schedule(CConnman& connman, CScheduler& scheduler)
 {
     if (!m_relay_txes) return;
-    scheduler.scheduleEvery(std::bind(&CCoinJoinClientQueueManager::DoMaintenance, std::ref(*queueman)),
+    scheduler.scheduleEvery(std::bind(&CCoinJoinClientQueueManager::DoMaintenance, std::ref(*m_queueman)),
                             std::chrono::seconds{1});
-    scheduler.scheduleEvery(std::bind(&CoinJoinWalletManager::DoMaintenance, std::ref(walletman), std::ref(connman)),
+    scheduler.scheduleEvery(std::bind(&CJWalletManagerImpl::DoMaintenance, this, std::ref(connman)),
                             std::chrono::seconds{1});
 }
 
@@ -79,48 +123,49 @@ void CJWalletManagerImpl::UpdatedBlockTip(const CBlockIndex* pindexNew, const CB
     if (fInitialDownload || pindexNew == pindexFork) // In IBD or blocks were disconnected without any new ones
         return;
 
-    walletman.ForEachCJClientMan(
-        [&pindexNew](CCoinJoinClientManager& clientman) { clientman.UpdatedBlockTip(pindexNew); });
+    ForEachCJClientMan([&pindexNew](CCoinJoinClientManager& clientman) { clientman.UpdatedBlockTip(pindexNew); });
 }
 
 bool CJWalletManagerImpl::hasQueue(const uint256& hash) const
 {
-    if (queueman) {
-        return queueman->HasQueue(hash);
+    if (m_queueman) {
+        return m_queueman->HasQueue(hash);
     }
     return false;
 }
 
 CCoinJoinClientManager* CJWalletManagerImpl::getClient(const std::string& name)
 {
-    return walletman.Get(name);
+    LOCK(cs_wallet_manager_map);
+    auto it = m_wallet_manager_map.find(name);
+    return (it != m_wallet_manager_map.end()) ? it->second.get() : nullptr;
 }
 
 MessageProcessingResult CJWalletManagerImpl::processMessage(CNode& pfrom, CChainState& chainstate, CConnman& connman,
                                                             CTxMemPool& mempool, std::string_view msg_type,
                                                             CDataStream& vRecv)
 {
-    walletman.ForEachCJClientMan([&](CCoinJoinClientManager& clientman) {
+    ForEachCJClientMan([&](CCoinJoinClientManager& clientman) {
         clientman.ProcessMessage(pfrom, chainstate, connman, mempool, msg_type, vRecv);
     });
-    if (queueman) {
-        return queueman->ProcessMessage(pfrom.GetId(), connman, msg_type, vRecv);
+    if (m_queueman) {
+        return m_queueman->ProcessMessage(pfrom.GetId(), connman, msg_type, vRecv);
     }
     return {};
 }
 
 std::optional<CCoinJoinQueue> CJWalletManagerImpl::getQueueFromHash(const uint256& hash) const
 {
-    if (queueman) {
-        return queueman->GetQueueFromHash(hash);
+    if (m_queueman) {
+        return m_queueman->GetQueueFromHash(hash);
     }
     return std::nullopt;
 }
 
 std::optional<int> CJWalletManagerImpl::getQueueSize() const
 {
-    if (queueman) {
-        return queueman->GetQueueSize();
+    if (m_queueman) {
+        return m_queueman->GetQueueSize();
     }
     return std::nullopt;
 }
@@ -128,24 +173,48 @@ std::optional<int> CJWalletManagerImpl::getQueueSize() const
 std::vector<CDeterministicMNCPtr> CJWalletManagerImpl::getMixingMasternodes()
 {
     std::vector<CDeterministicMNCPtr> ret{};
-    walletman.ForEachCJClientMan(
-        [&](const CCoinJoinClientManager& clientman) { clientman.GetMixingMasternodesInfo(ret); });
+    ForEachCJClientMan([&](const CCoinJoinClientManager& clientman) { clientman.GetMixingMasternodesInfo(ret); });
     return ret;
 }
 
 void CJWalletManagerImpl::addWallet(const std::shared_ptr<wallet::CWallet>& wallet)
 {
-    walletman.Add(wallet);
+    LOCK(cs_wallet_manager_map);
+    m_wallet_manager_map.try_emplace(wallet->GetName(),
+                                     std::make_unique<CCoinJoinClientManager>(wallet, m_dmnman, m_mn_metaman, m_mn_sync,
+                                                                              m_isman, m_queueman.get()));
 }
 
 void CJWalletManagerImpl::flushWallet(const std::string& name)
 {
-    walletman.Flush(name);
+    auto* clientman = Assert(getClient(name));
+    clientman->ResetPool();
+    clientman->StopMixing();
 }
 
 void CJWalletManagerImpl::removeWallet(const std::string& name)
 {
-    walletman.Remove(name);
+    LOCK(cs_wallet_manager_map);
+    m_wallet_manager_map.erase(name);
+}
+
+void CJWalletManagerImpl::DoMaintenance(CConnman& connman)
+{
+    LOCK(cs_wallet_manager_map);
+    for (auto& [_, clientman] : m_wallet_manager_map) {
+        clientman->DoMaintenance(m_chainman, connman, m_mempool);
+    }
+}
+
+bool CJWalletManagerImpl::TrySubmitDenominate(const uint256& proTxHash, CConnman& connman)
+{
+    return ForAnyCJClientMan(
+        [&](CCoinJoinClientManager& clientman) { return clientman.TrySubmitDenominate(proTxHash, connman); });
+}
+
+void CJWalletManagerImpl::MarkAlreadyJoinedQueueAsTried(CCoinJoinQueue& dsq)
+{
+    ForAnyCJClientMan([&](CCoinJoinClientManager& clientman) { return clientman.MarkAlreadyJoinedQueueAsTried(dsq); });
 }
 #endif // ENABLE_WALLET
 

@@ -40,9 +40,10 @@ using wallet::CoinType;
 using wallet::CWallet;
 using wallet::ReserveDestination;
 
-CCoinJoinClientQueueManager::CCoinJoinClientQueueManager(CoinJoinWalletManager& walletman, CDeterministicMNManager& dmnman,
-                                                         CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync) :
-    m_walletman{walletman},
+CCoinJoinClientQueueManager::CCoinJoinClientQueueManager(CoinJoinQueueNotify& wallet_notify,
+                                                         CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
+                                                         const CMasternodeSync& mn_sync) :
+    m_wallet_notify{wallet_notify},
     m_dmnman{dmnman},
     m_mn_metaman{mn_metaman},
     m_mn_sync{mn_sync}
@@ -119,9 +120,7 @@ MessageProcessingResult CCoinJoinClientQueueManager::ProcessMessage(NodeId from,
         }
 
         // if the queue is ready, submit if we can
-        if (dsq.fReady && m_walletman.ForAnyCJClientMan([&connman, &dmn](CCoinJoinClientManager& clientman) {
-                return clientman.TrySubmitDenominate(dmn->proTxHash, connman);
-            })) {
+        if (dsq.fReady && m_wallet_notify.TrySubmitDenominate(dmn->proTxHash, connman)) {
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue is ready, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
             return ret;
         } else {
@@ -134,8 +133,7 @@ MessageProcessingResult CCoinJoinClientQueueManager::ProcessMessage(NodeId from,
 
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue, masternode=%s, queue=%s\n", dmn->proTxHash.ToString(), dsq.ToString());
 
-            m_walletman.ForAnyCJClientMan(
-                [&dsq](CCoinJoinClientManager& clientman) { return clientman.MarkAlreadyJoinedQueueAsTried(dsq); });
+            m_wallet_notify.MarkAlreadyJoinedQueueAsTried(dsq);
 
             WITH_LOCK(cs_vecqueue, vecCoinJoinQueue.push_back(dsq));
         }
@@ -153,7 +151,7 @@ void CCoinJoinClientQueueManager::DoMaintenance()
 CCoinJoinClientManager::CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet,
                                                CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                                const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                               const std::unique_ptr<CCoinJoinClientQueueManager>& queueman) :
+                                               CCoinJoinClientQueueManager* queueman) :
     m_wallet{wallet},
     m_dmnman{dmnman},
     m_mn_metaman{mn_metaman},
@@ -1893,59 +1891,3 @@ void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
     obj.pushKV("sessions", arrSessions);
 }
 
-CoinJoinWalletManager::CoinJoinWalletManager(ChainstateManager& chainman, CDeterministicMNManager& dmnman,
-                                             CMasternodeMetaMan& mn_metaman, const CTxMemPool& mempool,
-                                             const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                             const std::unique_ptr<CCoinJoinClientQueueManager>& queueman) :
-    m_chainman{chainman},
-    m_dmnman{dmnman},
-    m_mn_metaman{mn_metaman},
-    m_mempool{mempool},
-    m_mn_sync{mn_sync},
-    m_isman{isman},
-    m_queueman{queueman}
-{
-}
-
-CoinJoinWalletManager::~CoinJoinWalletManager()
-{
-    LOCK(cs_wallet_manager_map);
-    for (auto& [wallet_name, cj_man] : m_wallet_manager_map) {
-        cj_man.reset();
-    }
-}
-
-void CoinJoinWalletManager::Add(const std::shared_ptr<CWallet>& wallet)
-{
-    LOCK(cs_wallet_manager_map);
-    m_wallet_manager_map.try_emplace(wallet->GetName(),
-                                     std::make_unique<CCoinJoinClientManager>(wallet, m_dmnman, m_mn_metaman, m_mn_sync,
-                                                                              m_isman, m_queueman));
-}
-
-void CoinJoinWalletManager::DoMaintenance(CConnman& connman)
-{
-    LOCK(cs_wallet_manager_map);
-    for (auto& [_, clientman] : m_wallet_manager_map) {
-        clientman->DoMaintenance(m_chainman, connman, m_mempool);
-    }
-}
-
-void CoinJoinWalletManager::Remove(const std::string& name) {
-    LOCK(cs_wallet_manager_map);
-    m_wallet_manager_map.erase(name);
-}
-
-void CoinJoinWalletManager::Flush(const std::string& name)
-{
-    auto clientman = Assert(Get(name));
-    clientman->ResetPool();
-    clientman->StopMixing();
-}
-
-CCoinJoinClientManager* CoinJoinWalletManager::Get(const std::string& name) const
-{
-    LOCK(cs_wallet_manager_map);
-    auto it = m_wallet_manager_map.find(name);
-    return (it != m_wallet_manager_map.end()) ? it->second.get() : nullptr;
-}
