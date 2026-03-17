@@ -146,7 +146,7 @@ private:
     // Post-V24: Promotion/demotion session state
     bool m_fPromotion{false};  // True if this session is promoting smaller -> larger denom
     bool m_fDemotion{false};   // True if this session is demoting larger -> smaller denom
-    std::vector<COutPoint> m_vecPromotionInputs;  // Selected inputs for promotion (10 coins)
+    std::vector<COutPoint> m_vecRebalanceInputs;  // Selected inputs for promotion/demotion rebalancing
 
     /// Create denominations
     bool CreateDenominated(CAmount nBalanceToDenominate);

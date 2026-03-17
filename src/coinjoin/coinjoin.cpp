@@ -256,32 +256,23 @@ bool CCoinJoinBaseSession::IsValidInOuts(CChainState& active_chainstate, const l
         return false;
     }
 
-    const int nLargerAdjacentDenom = CoinJoin::GetLargerAdjacentDenom(nSessionDenom);
-
-    // Determine expected denominations based on entry type
+    // Validate promotion/demotion entries using dedicated validators
+    // and determine expected denominations for UTXO input validation
     int nExpectedInputDenom = nSessionDenom;
     int nExpectedOutputDenom = nSessionDenom;
 
     if (entryType == EntryType::PROMOTION) {
-        // Promotion: inputs = session denom (smaller), output = larger adjacent
-        nExpectedInputDenom = nSessionDenom;
-        nExpectedOutputDenom = nLargerAdjacentDenom;
-        if (nLargerAdjacentDenom == 0) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: no larger adjacent denom for promotion\n", __func__);
-            nMessageIDRet = ERR_DENOM;
+        if (!CoinJoin::ValidatePromotionEntry(vin, vout, nSessionDenom, nMessageIDRet)) {
             if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
             return false;
         }
+        nExpectedOutputDenom = CoinJoin::GetLargerAdjacentDenom(nSessionDenom);
     } else if (entryType == EntryType::DEMOTION) {
-        // Demotion: input = larger adjacent, outputs = session denom (smaller)
-        nExpectedInputDenom = nLargerAdjacentDenom;
-        nExpectedOutputDenom = nSessionDenom;
-        if (nLargerAdjacentDenom == 0) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: no larger adjacent denom for demotion\n", __func__);
-            nMessageIDRet = ERR_DENOM;
+        if (!CoinJoin::ValidateDemotionEntry(vin, vout, nSessionDenom, nMessageIDRet)) {
             if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
             return false;
         }
+        nExpectedInputDenom = CoinJoin::GetLargerAdjacentDenom(nSessionDenom);
     }
 
     auto checkTxOut = [&](const CTxOut& txout, int nExpectedDenom) {

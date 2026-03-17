@@ -296,10 +296,10 @@ void CCoinJoinClientSession::SetNull()
     // Post-V24: Unlock promotion/demotion inputs before clearing state
     // These coins were locked in JoinExistingQueue/StartNewQueue but may not
     // have been added to vecOutPointLocked yet if the session failed early
-    if (!m_vecPromotionInputs.empty()) {
+    if (!m_vecRebalanceInputs.empty()) {
         // Add to vecOutPointLocked so UnlockCoins() will handle them properly
         // with its retry mechanism if the wallet is locked
-        for (const auto& outpoint : m_vecPromotionInputs) {
+        for (const auto& outpoint : m_vecRebalanceInputs) {
             // Only add if not already in the list (avoid duplicates)
             if (std::find(vecOutPointLocked.begin(), vecOutPointLocked.end(), outpoint) == vecOutPointLocked.end()) {
                 vecOutPointLocked.push_back(outpoint);
@@ -308,7 +308,7 @@ void CCoinJoinClientSession::SetNull()
     }
     m_fPromotion = false;
     m_fDemotion = false;
-    m_vecPromotionInputs.clear();
+    m_vecRebalanceInputs.clear();
 
     CCoinJoinBaseSession::SetNull();
 }
@@ -1209,6 +1209,10 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
                 const auto it = m_wallet->mapWallet.find(outpoint.hash);
                 if (it != m_wallet->mapWallet.end()) {
                     const wallet::CWalletTx& wtx = it->second;
+                    if (outpoint.n >= wtx.tx->vout.size()) {
+                        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- invalid outpoint index %u for tx %s\n", outpoint.n, outpoint.hash.ToString());
+                        continue;
+                    }
                     CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
                                    m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
                     vecTxDSInTmp.push_back(txdsin);
@@ -1278,23 +1282,23 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
 
         // Store promotion inputs for use in PreparePromotionEntry
         if (fPromotion) {
-            m_vecPromotionInputs.clear();
+            m_vecRebalanceInputs.clear();
             for (const auto& txdsin : vecTxDSInTmp) {
-                m_vecPromotionInputs.push_back(txdsin.prevout);
+                m_vecRebalanceInputs.push_back(txdsin.prevout);
             }
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- pending PROMOTION connection, masternode=%s, nSessionDenom=%d (%s), %d inputs\n",
                              dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom),
-                             m_vecPromotionInputs.size());
+                             m_vecRebalanceInputs.size());
         } else if (fDemotion) {
             // For demotion, store the single input
-            m_vecPromotionInputs.clear();
+            m_vecRebalanceInputs.clear();
             if (!vecTxDSInTmp.empty()) {
-                m_vecPromotionInputs.push_back(vecTxDSInTmp[0].prevout);
+                m_vecRebalanceInputs.push_back(vecTxDSInTmp[0].prevout);
             }
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- pending DEMOTION connection, masternode=%s, nSessionDenom=%d (%s)\n",
                              dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
         } else {
-            m_vecPromotionInputs.clear();
+            m_vecRebalanceInputs.clear();
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
                              dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
         }
@@ -1411,6 +1415,10 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
             const auto it = m_wallet->mapWallet.find(outpoint.hash);
             if (it != m_wallet->mapWallet.end()) {
                 const wallet::CWalletTx& wtx = it->second;
+                if (outpoint.n >= wtx.tx->vout.size()) {
+                    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- invalid outpoint index %u for tx %s\n", outpoint.n, outpoint.hash.ToString());
+                    continue;
+                }
                 CTxDSIn txdsin(CTxIn(outpoint), wtx.tx->vout[outpoint.n].scriptPubKey,
                                m_wallet->GetRealOutpointCoinJoinRounds(outpoint));
                 vecTxDSInTmp.push_back(txdsin);
@@ -1500,15 +1508,15 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         // Store promotion/demotion state and inputs
         m_fPromotion = fPromotion;
         m_fDemotion = fDemotion;
-        m_vecPromotionInputs.clear();
+        m_vecRebalanceInputs.clear();
         for (const auto& txdsin : vecTxDSInTmp) {
-            m_vecPromotionInputs.push_back(txdsin.prevout);
+            m_vecRebalanceInputs.push_back(txdsin.prevout);
         }
 
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- pending %s connection, masternode=%s, nSessionDenom=%d (%s), %zu inputs\n",
                          fPromotion ? "PROMOTION" : "DEMOTION",
                          dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom),
-                         m_vecPromotionInputs.size());
+                         m_vecRebalanceInputs.size());
         strAutoDenomResult = _("Trying to connect…");
         return true;
     }
@@ -1751,8 +1759,8 @@ bool CCoinJoinClientSession::PreparePromotionEntry(std::string& strErrorRet, std
 
     vecPSInOutPairsRet.clear();
 
-    if (m_vecPromotionInputs.size() != static_cast<size_t>(CoinJoin::PROMOTION_RATIO)) {
-        strErrorRet = strprintf("Invalid promotion input count: %d (expected %d)", m_vecPromotionInputs.size(), CoinJoin::PROMOTION_RATIO);
+    if (m_vecRebalanceInputs.size() != static_cast<size_t>(CoinJoin::PROMOTION_RATIO)) {
+        strErrorRet = strprintf("Invalid promotion input count: %d (expected %d)", m_vecRebalanceInputs.size(), CoinJoin::PROMOTION_RATIO);
         return false;
     }
 
@@ -1765,7 +1773,7 @@ bool CCoinJoinClientSession::PreparePromotionEntry(std::string& strErrorRet, std
     const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
 
     // Create 10 inputs from stored promotion inputs
-    for (const auto& outpoint : m_vecPromotionInputs) {
+    for (const auto& outpoint : m_vecRebalanceInputs) {
         const auto it = m_wallet->mapWallet.find(outpoint.hash);
         if (it == m_wallet->mapWallet.end()) {
             strErrorRet = "Promotion input not found in wallet";
@@ -1822,8 +1830,8 @@ bool CCoinJoinClientSession::PrepareDemotionEntry(std::string& strErrorRet, std:
 
     vecPSInOutPairsRet.clear();
 
-    if (m_vecPromotionInputs.size() != 1) {
-        strErrorRet = strprintf("Invalid demotion input count: %d (expected 1)", m_vecPromotionInputs.size());
+    if (m_vecRebalanceInputs.size() != 1) {
+        strErrorRet = strprintf("Invalid demotion input count: %d (expected 1)", m_vecRebalanceInputs.size());
         return false;
     }
 
@@ -1836,7 +1844,7 @@ bool CCoinJoinClientSession::PrepareDemotionEntry(std::string& strErrorRet, std:
     }
 
     // Get the single input (larger denom)
-    const COutPoint& outpoint = m_vecPromotionInputs[0];
+    const COutPoint& outpoint = m_vecRebalanceInputs[0];
     const auto it = m_wallet->mapWallet.find(outpoint.hash);
     if (it == m_wallet->mapWallet.end()) {
         strErrorRet = "Demotion input not found in wallet";

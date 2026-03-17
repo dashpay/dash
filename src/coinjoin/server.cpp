@@ -228,8 +228,12 @@ void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
     // Post-V24: Check if unbalanced entries (promotion/demotion) are allowed
     if (entry.vecTxDSIn.size() != entry.vecTxOut.size()) {
         // This is a promotion or demotion entry - requires V24 activation
-        const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
-        const bool fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+        bool fV24Active{false};
+        {
+            LOCK(::cs_main);
+            const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
+            fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+        }
         if (!fV24Active) {
             LogPrint(BCLog::COINJOIN, "DSVIN -- promotion/demotion entry rejected: V24 not active\n");
             PushStatus(peer, STATUS_REJECTED, ERR_MODE);
@@ -294,9 +298,12 @@ void CCoinJoinServer::CheckPool()
 
     // If we have an entry for each collateral, then create final tx
     if (nState == POOL_STATE_ACCEPTING_ENTRIES && size_t(GetEntriesCount()) == vecSessionCollaterals.size()) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- FINALIZE TRANSACTIONS\n");
-        CreateFinalTransaction();
-        return;
+        if (GetStandardEntriesCount() >= CoinJoin::GetMinPoolParticipants()) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- FINALIZE TRANSACTIONS\n");
+            CreateFinalTransaction();
+            return;
+        }
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- all entries received but insufficient standard mixers (%d), waiting for timeout\n", GetStandardEntriesCount());
     }
 
     // Check for Time Out
@@ -617,8 +624,12 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
 
     // Post-V24: allow up to PROMOTION_RATIO (10) inputs for promotion entries
     // Pre-V24: max COINJOIN_ENTRY_MAX_SIZE (9) inputs
-    const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
-    const bool fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+    bool fV24Active{false};
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
+        fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+    }
     const size_t nMaxEntryInputs = fV24Active ? CoinJoin::PROMOTION_RATIO : COINJOIN_ENTRY_MAX_SIZE;
 
     if (entry.vecTxDSIn.size() > nMaxEntryInputs) {

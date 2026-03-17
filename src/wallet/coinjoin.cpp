@@ -425,6 +425,8 @@ int CWallet::CountCoinsByDenomination(int nDenom, bool fFullyMixedOnly) const
         const auto it{mapWallet.find(outpoint.hash)};
         if (it == mapWallet.end()) continue;
 
+        if (IsSpent(outpoint) || IsLockedCoin(outpoint)) continue;
+
         const CAmount nValue = it->second.tx->vout[outpoint.n].nValue;
         if (nValue != nDenomAmount) continue;
 
@@ -454,6 +456,8 @@ std::vector<COutPoint> CWallet::SelectFullyMixedForPromotion(int nDenom, int nCo
 
         const auto it{mapWallet.find(outpoint.hash)};
         if (it == mapWallet.end()) continue;
+
+        if (IsSpent(outpoint) || IsLockedCoin(outpoint)) continue;
 
         const CAmount nValue = it->second.tx->vout[outpoint.n].nValue;
         if (nValue != nDenomAmount) continue;
