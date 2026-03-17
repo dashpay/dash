@@ -8,10 +8,6 @@
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/util.h>
 #include <evo/types.h>
-#include <msg_result.h>
-
-#include <net_types.h>
-#include <protocol.h>
 #include <util/translation.h>
 
 #include <atomic>
@@ -21,7 +17,6 @@
 #include <utility>
 
 class CCoinJoinClientManager;
-class CCoinJoinClientQueueManager;
 class CConnman;
 class CDeterministicMNManager;
 class ChainstateManager;
@@ -67,23 +62,6 @@ public:
     {
         return *this != CPendingDsaRequest();
     }
-};
-
-/** Callback interface used by CCoinJoinClientQueueManager to dispatch queue
- *  events to per-wallet client managers without depending on a concrete
- *  wallet manager class.
- */
-class CoinJoinQueueNotify
-{
-public:
-    virtual ~CoinJoinQueueNotify() = default;
-
-    //! A queue is ready: attempt to submit denominate to the given masternode
-    //! across all active wallets. Returns true if any wallet accepted.
-    virtual bool TrySubmitDenominate(const uint256& proTxHash, CConnman& connman) = 0;
-
-    //! A new queue was announced: mark it as already-tried in all active wallets.
-    virtual void MarkAlreadyJoinedQueueAsTried(CCoinJoinQueue& dsq) = 0;
 };
 
 class CCoinJoinClientSession : public CCoinJoinBaseSession
@@ -174,32 +152,6 @@ public:
     void GetJsonInfo(UniValue& obj) const;
 };
 
-/** Used to keep track of mixing queues
- */
-class CCoinJoinClientQueueManager : public CCoinJoinBaseManager
-{
-private:
-    CoinJoinQueueNotify& m_wallet_notify;
-    CDeterministicMNManager& m_dmnman;
-    CMasternodeMetaMan& m_mn_metaman;
-    const CMasternodeSync& m_mn_sync;
-
-    mutable Mutex cs_ProcessDSQueue;
-
-public:
-    CCoinJoinClientQueueManager() = delete;
-    CCoinJoinClientQueueManager(const CCoinJoinClientQueueManager&) = delete;
-    CCoinJoinClientQueueManager& operator=(const CCoinJoinClientQueueManager&) = delete;
-    explicit CCoinJoinClientQueueManager(CoinJoinQueueNotify& wallet_notify, CDeterministicMNManager& dmnman,
-                                         CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync);
-    ~CCoinJoinClientQueueManager();
-
-    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, CConnman& connman, std::string_view msg_type,
-                                                         CDataStream& vRecv)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue, !cs_ProcessDSQueue);
-    void DoMaintenance();
-};
-
 /** Used to keep track of current status of mixing pool
  */
 class CCoinJoinClientManager
@@ -211,7 +163,7 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
     //! Non-owning pointer; null when relay_txes is disabled (no queue processing).
-    CCoinJoinClientQueueManager* const m_queueman;
+    CCoinJoinBaseManager* const m_queueman;
 
     mutable Mutex cs_deqsessions;
     // TODO: or map<denom, CCoinJoinClientSession> ??
@@ -240,7 +192,8 @@ public:
     CCoinJoinClientManager& operator=(const CCoinJoinClientManager&) = delete;
     explicit CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet, CDeterministicMNManager& dmnman,
                                     CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync,
-                                    const llmq::CInstantSendManager& isman, CCoinJoinClientQueueManager* queueman);
+                                    const llmq::CInstantSendManager& isman,
+                                    CCoinJoinBaseManager* queueman);
     ~CCoinJoinClientManager();
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);

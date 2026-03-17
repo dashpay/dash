@@ -331,11 +331,13 @@ protected:
     std::vector<CCoinJoinQueue> vecCoinJoinQueue GUARDED_BY(cs_vecqueue);
 
     void SetNull() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
-    void CheckQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
 public:
     CCoinJoinBaseManager();
     virtual ~CCoinJoinBaseManager();
+
+    //! Remove timed-out queue entries. Call periodically (e.g. every second).
+    void CheckQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
     int GetQueueSize() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue) { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
     bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
@@ -350,6 +352,22 @@ public:
     {
         LOCK(cs_vecqueue);
         return util::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q) { return q.GetHash() == queueHash; });
+    }
+
+    //! True if any queue entry matches the given masternode outpoint and readiness state.
+    //! Used to detect when a masternode is broadcasting queues too quickly.
+    bool HasQueueFromMasternode(const COutPoint& outpoint, bool fReady) const EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
+    {
+        LOCK(cs_vecqueue);
+        return std::any_of(vecCoinJoinQueue.begin(), vecCoinJoinQueue.end(),
+                           [&](const auto& q) { return q.masternodeOutpoint == outpoint && q.fReady == fReady; });
+    }
+
+    //! Append a queue entry (caller must have already checked for duplicates).
+    void AddQueue(CCoinJoinQueue dsq) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
+    {
+        LOCK(cs_vecqueue);
+        vecCoinJoinQueue.push_back(std::move(dsq));
     }
 };
 
