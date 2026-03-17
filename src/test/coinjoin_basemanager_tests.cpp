@@ -5,26 +5,9 @@
 #include <test/util/setup_common.h>
 
 #include <coinjoin/coinjoin.h>
-#include <cstddef>
 #include <uint256.h>
 
 #include <boost/test/unit_test.hpp>
-
-class TestBaseManager : public CCoinJoinBaseManager
-{
-public:
-    void PushQueue(const CCoinJoinQueue& q)
-    {
-        LOCK(cs_vecqueue);
-        vecCoinJoinQueue.push_back(q);
-    }
-    size_t QueueSize() const
-    {
-        LOCK(cs_vecqueue);
-        return vecCoinJoinQueue.size();
-    }
-    void CallCheckQueue() { CheckQueue(); }
-};
 
 BOOST_FIXTURE_TEST_SUITE(coinjoin_basemanager_tests, BasicTestingSetup)
 
@@ -41,27 +24,27 @@ static CCoinJoinQueue MakeQueue(int denom, int64_t nTime, bool fReady, const COu
 
 BOOST_AUTO_TEST_CASE(checkqueue_removes_timeouts)
 {
-    TestBaseManager man;
+    CCoinJoinBaseManager man;
     const int denom = CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination());
     const int64_t now = GetAdjustedTime();
     // Non-expired
-    man.PushQueue(MakeQueue(denom, now, false, COutPoint(uint256S("11"), 0)));
+    man.AddQueue(MakeQueue(denom, now, false, COutPoint(uint256S("11"), 0)));
     // Expired (too old)
-    man.PushQueue(MakeQueue(denom, now - COINJOIN_QUEUE_TIMEOUT - 1, false, COutPoint(uint256S("12"), 0)));
+    man.AddQueue(MakeQueue(denom, now - COINJOIN_QUEUE_TIMEOUT - 1, false, COutPoint(uint256S("12"), 0)));
 
-    BOOST_CHECK_EQUAL(man.QueueSize(), 2U);
-    man.CallCheckQueue();
+    BOOST_CHECK_EQUAL(man.GetQueueSize(), 2);
+    man.CheckQueue();
     // One should be removed
-    BOOST_CHECK_EQUAL(man.QueueSize(), 1U);
+    BOOST_CHECK_EQUAL(man.GetQueueSize(), 1);
 }
 
 BOOST_AUTO_TEST_CASE(getqueueitem_marks_tried_once)
 {
-    TestBaseManager man;
+    CCoinJoinBaseManager man;
     const int denom = CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination());
     const int64_t now = GetAdjustedTime();
     CCoinJoinQueue dsq = MakeQueue(denom, now, false, COutPoint(uint256S("21"), 0));
-    man.PushQueue(dsq);
+    man.AddQueue(dsq);
 
     CCoinJoinQueue picked;
     // First retrieval should succeed
