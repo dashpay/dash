@@ -26,8 +26,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         pubkeys[i] = keys[i].GetPubKey();
     }
 
-    CKey uncompressedKey;
-    uncompressedKey.MakeNewKey(false);
+    CKey uncompressedKey = GenerateRandomKey(/*compressed=*/false);
     CPubKey uncompressedPubkey = uncompressedKey.GetPubKey();
     NodeContext node;
     auto& chain = m_node.chain;

@@ -21,6 +21,7 @@
 #include <node/eviction.h>
 #include <fs.h>
 #include <i2p.h>
+#include <key.h>
 #include <memusage.h>
 #include <net_permissions.h>
 #include <netaddress.h>
@@ -1056,13 +1057,6 @@ public:
 };
 
 const V2MessageMap V2_MESSAGE_MAP;
-
-CKey GenerateRandomKey() noexcept
-{
-    CKey key;
-    key.MakeNewKey(/*fCompressed=*/true);
-    return key;
-}
 
 std::vector<uint8_t> GenerateRandomGarbage() noexcept
 {

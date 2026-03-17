@@ -200,7 +200,7 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
 
     // check max target * 4*nPowTargetTimespan doesn't overflow -- see pow.cpp:CalculateNextWorkRequired()
     if (!consensus.fPowNoRetargeting) {
-        arith_uint256 targ_max("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+        arith_uint256 targ_max{UintToArith256(uint256S("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"))};
         targ_max /= consensus.nPowTargetTimespan*4;
         // for devnets pow-no-retargeting may work as non-expected but it's a breaking change to fix it
         // TODO: remove this special case for devnet
