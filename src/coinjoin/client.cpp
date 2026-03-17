@@ -43,7 +43,7 @@ using wallet::ReserveDestination;
 CCoinJoinClientManager::CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet,
                                                CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                                const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                               CCoinJoinBaseManager* queueman) :
+                                               CoinJoinQueueManager* queueman) :
     m_wallet{wallet},
     m_dmnman{dmnman},
     m_mn_metaman{mn_metaman},

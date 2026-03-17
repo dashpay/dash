@@ -321,19 +321,15 @@ public:
     int GetEntriesCountLocked() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin) { return vecEntries.size(); }
 };
 
-// base class
-class CCoinJoinBaseManager
+class CoinJoinQueueManager
 {
-protected:
+private:
     mutable Mutex cs_vecqueue;
 
     // The current mixing sessions in progress on the network
     std::vector<CCoinJoinQueue> vecCoinJoinQueue GUARDED_BY(cs_vecqueue);
 
 public:
-    CCoinJoinBaseManager();
-    virtual ~CCoinJoinBaseManager();
-
     void SetNull() EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
     //! Remove timed-out queue entries. Call periodically (e.g. every second).

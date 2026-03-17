@@ -28,7 +28,7 @@ class UniValue;
 class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
 {
 private:
-    CCoinJoinBaseManager m_queueman;
+    CoinJoinQueueManager m_queueman;
 
     ChainstateManager& m_chainman;
     CConnman& connman;

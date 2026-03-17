@@ -163,7 +163,7 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
     //! Non-owning pointer; null when relay_txes is disabled (no queue processing).
-    CCoinJoinBaseManager* const m_queueman;
+    CoinJoinQueueManager* const m_queueman;
 
     mutable Mutex cs_deqsessions;
     // TODO: or map<denom, CCoinJoinClientSession> ??
@@ -192,7 +192,7 @@ public:
     CCoinJoinClientManager& operator=(const CCoinJoinClientManager&) = delete;
     explicit CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet, CDeterministicMNManager& dmnman,
                                     CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync,
-                                    const llmq::CInstantSendManager& isman, CCoinJoinBaseManager* queueman);
+                                    const llmq::CInstantSendManager& isman, CoinJoinQueueManager* queueman);
     ~CCoinJoinClientManager();
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
