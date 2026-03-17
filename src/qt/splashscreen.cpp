@@ -69,10 +69,17 @@ static const PhaseInfo PHASE_TABLE[] = {
  *  Uses contains() because ShowProgress may prepend the wallet name. */
 static const PhaseInfo* LookupPhase(const QString& message)
 {
-    for (const auto& phase : PHASE_TABLE) {
-        QString translated = QString::fromStdString(_(phase.msg_key).translated);
+    static const auto cache = [] {
+        std::vector<std::pair<const PhaseInfo*, QString>> phases_with_translations;
+        for (const auto& phase : PHASE_TABLE) {
+            phases_with_translations.push_back({&phase, QString::fromStdString(_(phase.msg_key).translated)});
+        }
+        return phases_with_translations;
+    }();
+
+    for (const auto& [phase, translated] : cache) {
         if (message.contains(translated, Qt::CaseInsensitive)) {
-            return &phase;
+            return phase;
         }
     }
     return nullptr;
