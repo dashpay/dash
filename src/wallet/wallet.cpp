@@ -193,6 +193,21 @@ std::unique_ptr<interfaces::Handler> HandleLoadWallet(WalletContext& context, Lo
     return interfaces::MakeHandler([&context, it] { LOCK(context.wallets_mutex); context.wallet_load_fns.erase(it); });
 }
 
+std::unique_ptr<interfaces::Handler> HandleLoadWalletLoading(WalletContext& context, LoadWalletFn load_wallet)
+{
+    LOCK(context.wallets_mutex);
+    auto it = context.wallet_loading_fns.emplace(context.wallet_loading_fns.end(), std::move(load_wallet));
+    return interfaces::MakeHandler([&context, it] { LOCK(context.wallets_mutex); context.wallet_loading_fns.erase(it); });
+}
+
+void NotifyWalletLoading(WalletContext& context, const std::shared_ptr<CWallet>& wallet)
+{
+    LOCK(context.wallets_mutex);
+    for (auto& load_wallet : context.wallet_loading_fns) {
+        load_wallet(interfaces::MakeWallet(context, wallet));
+    }
+}
+
 void NotifyWalletLoaded(WalletContext& context, const std::shared_ptr<CWallet>& wallet)
 {
     LOCK(context.wallets_mutex);
@@ -3281,6 +3296,8 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
     // Try to top up keypool. No-op if the wallet is locked.
     walletInstance->TopUpKeyPool();
+
+    NotifyWalletLoading(context, walletInstance);
 
     if (chain && !AttachChain(walletInstance, *chain, error, warnings)) {
         walletInstance->m_chain_notifications_handler.reset(); // Reset this pointer so that the wallet will actually be unloaded

@@ -46,6 +46,7 @@ struct WalletContext {
     // this could introduce inconsistent lock ordering and cause deadlocks.
     Mutex wallets_mutex;
     std::vector<std::shared_ptr<CWallet>> wallets GUARDED_BY(wallets_mutex);
+    std::list<LoadWalletFn> wallet_loading_fns GUARDED_BY(wallets_mutex);
     std::list<LoadWalletFn> wallet_load_fns GUARDED_BY(wallets_mutex);
     interfaces::CoinJoin::Loader* coinjoin_loader{nullptr};
     // Some Dash RPCs rely on WalletContext yet access NodeContext members
