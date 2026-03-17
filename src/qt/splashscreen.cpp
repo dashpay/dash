@@ -265,16 +265,14 @@ bool SplashScreen::eventFilter(QObject * obj, QEvent * ev) {
 qreal SplashScreen::calcOverallProgress() const
 {
     if (curProgress >= 0) {
-        // Phase with real sub-progress: interpolate linearly within phase range
+        // When a phase reports real sub-progress, map that 0-100 value into the
+        // phase's assigned range directly.
         return phaseStart + (phaseEnd - phaseStart) * (curProgress / 100.0);
     }
-    // Phase without sub-progress: exponential approach toward phaseEnd
+    // Otherwise fall back to a time-based curve so phases driven only by
+    // initMessage() still show movement without claiming exact progress.
     qreal elapsed = phaseTimer.elapsed() / 1000.0;
-    // Long phases (rescan, wallet load) can take minutes/hours — use a very slow curve
-    // Normal phases: reaches ~90% of range in ~15s
-    // Long phases: reaches ~50% in ~2min, ~75% in ~5min
-    qreal tau = phaseIsLong ? 120.0 : 5.0;
-    qreal fraction = 1.0 - std::exp(-elapsed / tau);
+    qreal fraction = 1.0 - std::exp(-elapsed / 5.0);
     return phaseStart + (phaseEnd - phaseStart) * fraction * EXPONENTIAL_FILL_CAP;
 }
 
@@ -365,6 +363,9 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
     if (phase_changed) {
         m_current_phase = phase;
         m_current_phase_message = message;
+        // Progress values are phase-local; drop any numeric progress from the
+        // previous phase until a new ShowProgress update arrives.
+        curProgress = -1;
         if (phase->snapsToEnd) {
             // Final phase: snap to 100% immediately since the splash
             // will be destroyed moments after "Done loading" arrives
@@ -377,11 +378,9 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
             displayProgress = 0.0;
             phaseStart = phase->start;
             phaseEnd = phase->end;
-            phaseIsLong = true;
             animTimer.start(30);
         } else {
             // Normal phase: ensure we never jump backwards
-            phaseIsLong = false;
             phaseStart = std::max(phase->start, displayProgress);
             phaseEnd = std::max(phase->end, phaseStart);
         }

@@ -73,7 +73,6 @@ private:
     // Phase-based progress tracking
     qreal phaseStart{0.0};      // Overall progress at start of current phase
     qreal phaseEnd{0.0};        // Overall progress at end of current phase
-    bool phaseIsLong{false};    // True for long independent phases (rescan, wallet load)
     QElapsedTimer phaseTimer;    // Time since current phase started
     const struct PhaseInfo* m_current_phase{nullptr}; // Current phase (defined in splashscreen.cpp)
     QString m_current_phase_message;                   // Message that triggered current phase
