@@ -247,6 +247,8 @@ FUZZ_TARGET(addrman, .init = initialize_addrman)
             ds >> *addr_man_ptr;
         } catch (const std::ios_base::failure&) {
             addr_man_ptr = std::make_unique<AddrManDeterministic>(netgroupman, fuzzed_data_provider);
+        } catch (const DbInconsistentError&) {
+            addr_man_ptr = std::make_unique<AddrManDeterministic>(netgroupman, fuzzed_data_provider);
         }
     }
     AddrManDeterministic& addr_man = *addr_man_ptr;

@@ -70,17 +70,97 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "addconnection",  // avoid DNS lookups
     "addnode",        // avoid DNS lookups
     "addpeeraddress", // avoid DNS lookups
+    "bls",                   // Dash: requires MN subsystem
+    "bls fromsecret",        // Dash: requires MN subsystem
+    "bls generate",          // Dash: requires MN subsystem
+    "cleardiscouraged",      // avoid modifying ban state
+    "coinjoin",              // Dash: requires wallet/MN subsystem
+    "coinjoin reset",        // Dash: requires wallet/MN subsystem
+    "coinjoin start",        // Dash: requires wallet/MN subsystem
+    "coinjoin status",       // Dash: requires wallet/MN subsystem
+    "coinjoin stop",         // Dash: requires wallet/MN subsystem
+    "coinjoinsalt",          // Dash: requires wallet
+    "coinjoinsalt generate", // Dash: requires wallet
+    "coinjoinsalt get",      // Dash: requires wallet
+    "coinjoinsalt set",      // Dash: requires wallet
+    "debug",                 // Dash: debug command
     "dumptxoutset",   // avoid writing to disk
     "dumpwallet", // avoid writing to disk
     "echoipc",              // avoid assertion failure (Assertion `"EnsureAnyNodeContext(request.context).init" && check' failed.)
+    "enumeratesigners",      // avoid external signer interaction
+    "evodb repair",          // Dash: requires evodb
+    "evodb verify",          // Dash: requires evodb
     "generatetoaddress",    // avoid prohibitively slow execution (when `num_blocks` is large)
     "generatetodescriptor", // avoid prohibitively slow execution (when `nblocks` is large)
+    "getaddressbalance",     // Dash: requires address index
+    "getaddressdeltas",      // Dash: requires address index
+    "getaddressmempool",     // Dash: requires address index
+    "getaddresstxids",       // Dash: requires address index
+    "getaddressutxos",       // Dash: requires address index
+    "getbestchainlock",      // Dash: requires LLMQ subsystem
+    "getblockhashes",        // Dash: requires timestamp index
+    "getblockheaders",       // Dash: requires block index
+    "getcoinjoininfo",       // Dash: requires MN subsystem
+    "getgovernanceinfo",     // Dash: requires governance subsystem
+    "getislocks",            // Dash: requires LLMQ subsystem
+    "getmerkleblocks",       // Dash: requires block index
+    "getspentinfo",          // Dash: requires spent index
+    "getspecialtxes",        // Dash: requires block index
+    "getsuperblockbudget",   // Dash: requires governance subsystem
     "gettxoutproof",        // avoid prohibitively slow execution
+    "gobject",               // Dash: requires governance subsystem
+    "gobject check",         // Dash: requires governance subsystem
+    "gobject count",         // Dash: requires governance subsystem
+    "gobject deserialize",   // Dash: requires governance subsystem
+    "gobject get",           // Dash: requires governance subsystem
+    "gobject getcurrentvotes", // Dash: requires governance subsystem
+    "gobject list-prepared", // Dash: requires governance subsystem
+    "gobject prepare",       // Dash: requires governance subsystem
+    "gobject submit",        // Dash: requires governance subsystem
+    "gobject vote-alias",    // Dash: requires governance subsystem
+    "gobject vote-many",     // Dash: requires governance subsystem
     "importwallet", // avoid reading from disk
     "loadwallet",   // avoid reading from disk
+    "masternode",            // Dash: requires MN subsystem
+    "masternode connect",    // Dash: requires MN subsystem
+    "masternode count",      // Dash: requires MN subsystem
+    "masternode outputs",    // Dash: requires MN subsystem
+    "masternode payments",   // Dash: requires MN subsystem
+    "masternode status",     // Dash: requires MN subsystem
+    "masternode winners",    // Dash: requires MN subsystem
+    "masternodelist",        // Dash: requires MN subsystem
+    "mnauth",                // Dash: requires MN subsystem
+    "mnsync",                // Dash: requires MN subsystem
+    "protx diff",            // Dash: requires MN subsystem
+    "protx info",            // Dash: requires MN subsystem
+    "protx list",            // Dash: requires MN subsystem
+    "protx listdiff",       // Dash: requires MN subsystem
+    "protx register_submit", // Dash: requires MN subsystem
+    "protx revoke",          // Dash: requires MN subsystem
+    "protx update_service",  // Dash: requires MN subsystem
+    "quorum dkgsimerror",    // Dash: requires LLMQ subsystem
+    "quorum dkgstatus",      // Dash: requires LLMQ subsystem
+    "quorum getdata",        // Dash: requires LLMQ subsystem
+    "quorum getrecsig",      // Dash: requires LLMQ subsystem
+    "quorum hasrecsig",      // Dash: requires LLMQ subsystem
+    "quorum info",           // Dash: requires LLMQ subsystem
+    "quorum isconflicting",  // Dash: requires LLMQ subsystem
+    "quorum list",           // Dash: requires LLMQ subsystem
+    "quorum listextended",   // Dash: requires LLMQ subsystem
+    "quorum memberof",       // Dash: requires LLMQ subsystem
+    "quorum platformsign",   // Dash: requires LLMQ subsystem
+    "quorum selectquorum",   // Dash: requires LLMQ subsystem
+    "quorum sign",           // Dash: requires LLMQ subsystem
+    "quorum verify",         // Dash: requires LLMQ subsystem
     "savemempool",           // disabled as a precautionary measure: may take a file path argument in the future
     "setban",                // avoid DNS lookups
+    "spork",                 // Dash: requires spork subsystem
+    "sporkupdate",           // Dash: requires spork subsystem
     "stop",                  // avoid shutdown state
+    "submitchainlock",       // Dash: requires LLMQ subsystem
+    "verifychainlock",       // Dash: requires LLMQ subsystem
+    "verifyislock",          // Dash: requires LLMQ subsystem
+    "voteraw",               // Dash: requires governance subsystem
 };
 
 // RPC commands which are safe for fuzzing.

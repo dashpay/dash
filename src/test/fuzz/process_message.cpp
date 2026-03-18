@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -59,6 +60,11 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
 
     const std::string random_message_type{fuzzed_data_provider.ConsumeBytesAsString(CMessageHeader::COMMAND_SIZE).c_str()};
     if (!LIMIT_TO_MESSAGE_TYPE.empty() && random_message_type != LIMIT_TO_MESSAGE_TYPE) {
+        return;
+    }
+    // Skip Dash message types that require subsystem initialization not present in the fuzz harness
+    static const std::set<std::string> skip_message_types{"mnauth"};
+    if (skip_message_types.count(random_message_type)) {
         return;
     }
     CNode& p2p_node = *ConsumeNodeAsUniquePtr(fuzzed_data_provider).release();
