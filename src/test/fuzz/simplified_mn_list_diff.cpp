@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -163,18 +164,18 @@ FUZZ_TARGET(simplified_mn_list_diff, .init = initialize_simplified_mn_list_diff)
     CSimplifiedMNListDiff roundtrip;
     ds >> roundtrip;
 
-    if (roundtrip.baseBlockHash != diff.baseBlockHash || roundtrip.blockHash != diff.blockHash ||
-        !MutableTxEqual(roundtrip.cbTx, diff.cbTx) ||
-        SerializeMerkleTree(roundtrip.cbTxMerkleTree) != SerializeMerkleTree(diff.cbTxMerkleTree) ||
-        roundtrip.deletedMNs != diff.deletedMNs || roundtrip.mnList.size() != diff.mnList.size() ||
-        roundtrip.nVersion != diff.nVersion || roundtrip.deletedQuorums != diff.deletedQuorums ||
-        roundtrip.newQuorums.size() != diff.newQuorums.size() || roundtrip.quorumsCLSigs != diff.quorumsCLSigs) {
-        throw std::runtime_error("simplified_mn_list_diff: serialized fields mismatch");
-    }
+    assert(roundtrip.baseBlockHash == diff.baseBlockHash);
+    assert(roundtrip.blockHash == diff.blockHash);
+    assert(MutableTxEqual(roundtrip.cbTx, diff.cbTx));
+    assert(SerializeMerkleTree(roundtrip.cbTxMerkleTree) == SerializeMerkleTree(diff.cbTxMerkleTree));
+    assert(roundtrip.deletedMNs == diff.deletedMNs);
+    assert(roundtrip.mnList.size() == diff.mnList.size());
+    assert(roundtrip.nVersion == diff.nVersion);
+    assert(roundtrip.deletedQuorums == diff.deletedQuorums);
+    assert(roundtrip.newQuorums.size() == diff.newQuorums.size());
+    assert(roundtrip.quorumsCLSigs == diff.quorumsCLSigs);
     for (size_t i = 0; i < diff.mnList.size(); ++i) {
-        if (roundtrip.mnList[i] != diff.mnList[i]) {
-            throw std::runtime_error("simplified_mn_list_diff: mnList mismatch");
-        }
+        assert(roundtrip.mnList[i] == diff.mnList[i]);
     }
 
     CDataStream ds_random(fuzzed_data_provider.ConsumeRemainingBytes<uint8_t>(), SER_NETWORK, PROTOCOL_VERSION);

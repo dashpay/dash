@@ -12,6 +12,7 @@
 #include <array>
 #include <cinttypes>
 #include <cstdint>
+#include <limits>
 #include <string>
 
 namespace {
@@ -73,7 +74,15 @@ FUZZ_TARGET(governance_proposal_validator, .init = initialize_governance_proposa
                                                             : fuzzed_data_provider.ConsumeIntegral<int64_t>();
 
     const int64_t start_epoch = fuzzed_data_provider.ConsumeIntegral<int64_t>();
-    const int64_t end_epoch = start_epoch + fuzzed_data_provider.ConsumeIntegralInRange<int64_t>(-4, 1024);
+    const int64_t offset = fuzzed_data_provider.ConsumeIntegralInRange<int64_t>(-4, 1024);
+    int64_t end_epoch;
+    if (offset > 0 && start_epoch > std::numeric_limits<int64_t>::max() - offset) {
+        end_epoch = std::numeric_limits<int64_t>::max();
+    } else if (offset < 0 && start_epoch < std::numeric_limits<int64_t>::min() - offset) {
+        end_epoch = std::numeric_limits<int64_t>::min();
+    } else {
+        end_epoch = start_epoch + offset;
+    }
 
     double payment_amount = fuzzed_data_provider.ConsumeFloatingPointInRange<double>(-1000.0, 1000.0);
     if (fuzzed_data_provider.ConsumeBool()) {
