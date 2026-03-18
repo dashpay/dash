@@ -1443,7 +1443,6 @@ static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, const std:
     }
     bip9.pushKV("start_time", chainman.GetConsensus().vDeployments[id].nStartTime);
     bip9.pushKV("timeout", chainman.GetConsensus().vDeployments[id].nTimeout);
-    bip9.pushKV("min_activation_height", chainman.GetConsensus().vDeployments[id].min_activation_height);
     bip9.pushKV("ehf", chainman.GetConsensus().vDeployments[id].useEHF);
     if (auto it = signals.find(chainman.GetConsensus().vDeployments[id].bit); it != signals.end()) {
         bip9.pushKV("ehf_height", it->second);
@@ -1516,7 +1515,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "ehf", "returns true for EHF activated forks"},
                             {RPCResult::Type::NUM, "ehf_height", /*optional=*/true, "the minimum height when miner's signals for the deployment matter. Below this height miner signaling cannot trigger hard fork lock-in. Not specified for non-EHF forks"},
                             {RPCResult::Type::NUM, "since", "height of the first block to which the status applies"},
-                            {RPCResult::Type::NUM, "activation_height", "expected activation height for this softfork (only for \"locked_in\" status)"},
+                            {RPCResult::Type::NUM, "activation_height", /*optional=*/true, "expected activation height for this softfork (only for \"locked_in\" status)"},
                             {RPCResult::Type::NUM, "min_activation_height", "minimum height of blocks for which the rules may be enforced"},
                             {RPCResult::Type::OBJ, "statistics", /*optional=*/true, "numeric statistics about signalling for a softfork (only for \"started\" and \"locked_in\" status)",
                             {
