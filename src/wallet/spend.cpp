@@ -66,11 +66,11 @@ int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wall
             assert(input.prevout.n < mi->second.tx->vout.size());
             txouts.emplace_back(mi->second.tx->vout.at(input.prevout.n));
         } else if (coin_control) {
-            CTxOut txout;
-            if (!coin_control->GetExternalOutput(input.prevout, txout)) {
+            const auto txout{coin_control->GetExternalOutput(input.prevout)};
+            if (!txout) {
                 return -1;
             }
-            txouts.emplace_back(txout);
+            txouts.emplace_back(*txout);
         } else {
             return -1;
         }
@@ -525,9 +525,7 @@ std::optional<SelectionResult> SelectCoins(const CWallet& wallet, CoinsResult& a
     // calculate value from preset inputs and store them
     std::set<COutPoint> preset_coins;
 
-    std::vector<COutPoint> vPresetInputs;
-    coin_control.ListSelected(vPresetInputs);
-    for (const COutPoint& outpoint : vPresetInputs) {
+    for (const COutPoint& outpoint : coin_control.ListSelected()) {
         int input_bytes = -1;
         CTxOut txout;
         auto ptr_wtx = wallet.GetWalletTx(outpoint.hash);
@@ -540,9 +538,11 @@ std::optional<SelectionResult> SelectCoins(const CWallet& wallet, CoinsResult& a
             input_bytes = CalculateMaximumSignedInputSize(txout, &wallet, &coin_control);
         } else {
             // The input is external. We did not find the tx in mapWallet.
-            if (!coin_control.GetExternalOutput(outpoint, txout)) {
+            const auto out{coin_control.GetExternalOutput(outpoint)};
+            if (!out) {
                 return std::nullopt;
             }
+            txout = *out;
         }
 
         if (input_bytes == -1) {
