@@ -33,18 +33,18 @@ jobs:
       options: --user root
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.bundle-key }}
 
       - name: Manage releases cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         if: inputs.build-target == 'linux64'
         with:
           path: |
@@ -74,7 +74,7 @@ jobs:
         shell: bash
 
       - name: Upload test logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: |
           success() || (failure() && steps.test.outcome == 'failure')
           && steps.bundle.outputs.upload-logs == 'true'

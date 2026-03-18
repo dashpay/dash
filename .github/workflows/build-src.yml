@@ -44,7 +44,7 @@ jobs:
       options: --user root
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 50
@@ -61,7 +61,7 @@ jobs:
         shell: bash
 
       - name: Restore SDKs cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         if: inputs.build-target == 'mac'
         with:
           path: |
@@ -70,7 +70,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Restore depends cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: depends/built/${{ inputs.depends-host }}
           key: ${{ inputs.depends-key }}
@@ -84,7 +84,7 @@ jobs:
         shell: bash
 
       - name: Restore ccache cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             /cache/ccache
@@ -111,7 +111,7 @@ jobs:
         if: |
           github.event_name == 'push' &&
           github.ref_name == github.event.repository.default_branch
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             /cache/ccache
@@ -119,7 +119,7 @@ jobs:
 
       - name: Restore ctcache cache
         if: inputs.build-target == 'linux64_multiprocess'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             /cache/ctcache
@@ -141,7 +141,7 @@ jobs:
           inputs.build-target == 'linux64_multiprocess' &&
           github.event_name == 'push' &&
           github.ref_name == github.event.repository.default_branch
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             /cache/ctcache
@@ -165,7 +165,7 @@ jobs:
           echo "key=${BUNDLE_KEY}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.bundle.outputs.key }}
           path: |

@@ -45,7 +45,7 @@ jobs:
 
       - name: Checkout code
         if: ${{ steps.skip-check.outputs.skip == 'false' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Select runners
         id: select-runner
