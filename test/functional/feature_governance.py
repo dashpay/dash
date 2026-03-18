@@ -27,7 +27,7 @@ class DashGovernanceTest (DashTestFramework):
         self.delay_v20_and_mn_rr(height=160)
 
     def check_superblockbudget(self, v20_active):
-        v20_state = self.nodes[0].getblockchaininfo()["softforks"]["v20"]
+        v20_state = self.nodes[0].getdeploymentinfo()["deployments"]["v20"]
         assert_equal(v20_state["active"], v20_active)
         assert_equal(self.nodes[0].getsuperblockbudget(120), self.expected_old_budget)
         assert_equal(self.nodes[0].getsuperblockbudget(140), self.expected_old_budget)
@@ -98,14 +98,14 @@ class DashGovernanceTest (DashTestFramework):
         self.bump_mocktime(3)
         self.generate(self.nodes[0], 3, sync_fun=self.sync_blocks())
         assert_equal(self.nodes[0].getblockcount(), 137)
-        assert_equal(self.nodes[0].getblockchaininfo()["softforks"]["v20"]["active"], False)
+        assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], False)
         self.check_superblockbudget(False)
 
         self.log.info("Check 2nd superblock before v20")
         self.bump_mocktime(3)
         self.generate(self.nodes[0], 3, sync_fun=self.sync_blocks())
         assert_equal(self.nodes[0].getblockcount(), 140)
-        assert_equal(self.nodes[0].getblockchaininfo()["softforks"]["v20"]["active"], False)
+        assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], False)
         self.check_superblockbudget(False)
 
         self.log.info("Prepare proposals")
@@ -224,7 +224,7 @@ class DashGovernanceTest (DashTestFramework):
         self.bump_mocktime(1)
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
         assert_equal(self.nodes[0].getblockcount(), 150)
-        assert_equal(self.nodes[0].getblockchaininfo()["softforks"]["v20"]["active"], False)
+        assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], False)
         self.check_superblockbudget(False)
 
         self.log.info("The 'winner' should submit new trigger and vote for it, but it's isolated so no triggers should be found")
@@ -370,7 +370,7 @@ class DashGovernanceTest (DashTestFramework):
         self.bump_mocktime(1)
         self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
         assert_equal(self.nodes[0].getblockcount(), 180)
-        assert_equal(self.nodes[0].getblockchaininfo()["softforks"]["v20"]["active"], True)
+        assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], True)
 
         self.log.info("Mine and check a couple more superblocks")
         for i in range(2):
@@ -387,7 +387,7 @@ class DashGovernanceTest (DashTestFramework):
             self.bump_mocktime(1)
             self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
             assert_equal(self.nodes[0].getblockcount(), sb_block_height)
-            assert_equal(self.nodes[0].getblockchaininfo()["softforks"]["v20"]["active"], True)
+            assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], True)
             self.check_superblockbudget(True)
             self.check_superblock()
 

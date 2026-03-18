@@ -22,7 +22,7 @@ class NewQuorumTypeActivationTest(BitcoinTestFramework):
     def run_test(self):
         self.log.info(get_bip9_details(self.nodes[0], 'testdummy'))
         assert_equal(get_bip9_details(self.nodes[0], 'testdummy')['status'], 'defined')
-        self.generate(self.nodes[0], 9, sync_fun=self.no_op)
+        self.generate(self.nodes[0], 10, sync_fun=self.no_op)
         assert_equal(get_bip9_details(self.nodes[0], 'testdummy')['status'], 'started')
         ql = self.nodes[0].quorum("list")
         assert_equal(len(ql), 3)
