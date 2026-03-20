@@ -19,6 +19,7 @@ from test_framework.util import (
     assert_raises_rpc_error,
 )
 from test_framework.wallet import (
+    COIN,
     DEFAULT_FEE,
     MiniWallet,
 )
@@ -296,8 +297,11 @@ class RPCPackagesTest(BitcoinTestFramework):
         node = self.nodes[0]
         peer = node.add_p2p_connection(P2PTxInvStore())
 
-        tx_poor = self.wallet.create_self_transfer(fee=0, fee_rate=0)
-        tx_rich = self.wallet.create_self_transfer(fee=DEFAULT_FEE)
+        # Package with 2 parents and 1 child. One parent pays for itself using modified fees, and
+        # another is below the mempool minimum feerate but is bumped by the child.
+        tx_poor = self.wallet.create_self_transfer(fee_rate=node.getnetworkinfo()["relayfee"])
+        tx_rich = self.wallet.create_self_transfer(fee=0, fee_rate=0)
+        node.prioritisetransaction(tx_rich["txid"], int(DEFAULT_FEE * COIN))
         package_txns = [tx_rich, tx_poor]
         coins = [tx["new_utxo"] for tx in package_txns]
         tx_child = self.wallet.create_self_transfer_multi(utxos_to_spend=coins, fee_per_output=10000) #DEFAULT_FEE
@@ -308,14 +312,13 @@ class RPCPackagesTest(BitcoinTestFramework):
         rich_parent_result = submitpackage_result["tx-results"][tx_rich["txid"]]
         poor_parent_result = submitpackage_result["tx-results"][tx_poor["txid"]]
         child_result = submitpackage_result["tx-results"][tx_child["tx"].hash]
-        assert_equal(rich_parent_result["fees"]["base"], DEFAULT_FEE)
-        assert_equal(poor_parent_result["fees"]["base"], 0)
+        assert_equal(rich_parent_result["fees"]["base"], 0)
+        assert_fee_amount(
+            poor_parent_result["fees"]["base"],
+            tx_poor["tx"].get_vsize(),
+            node.getnetworkinfo()["relayfee"],
+        )
         assert_equal(child_result["fees"]["base"], DEFAULT_FEE)
-        # Package feerate is calculated for the remaining transactions after deduplication and
-        # individual submission. Since this package had a 0-fee parent, package feerate must have
-        # been used and returned.
-        assert "package-feerate" in submitpackage_result
-        assert_fee_amount(DEFAULT_FEE, rich_parent_result["size"] + child_result["size"], submitpackage_result["package-feerate"])
 
         # The node will broadcast each transaction, still abiding by its peer's fee filter
         self.bump_mocktime(30)

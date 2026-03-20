@@ -28,6 +28,7 @@
 #include <node/miner.h>
 #include <node/sync_manager.h>
 #include <policy/fees.h>
+#include <policy/settings.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
 #include <rpc/register.h>
@@ -673,6 +674,33 @@ std::vector<CTransactionRef> TestChainSetup::PopulateMempool(FastRandomContext& 
     return mempool_transactions;
 }
 
+void TestChainSetup::MockMempoolMinFee(const CFeeRate& target_feerate)
+{
+    LOCK2(cs_main, m_node.mempool->cs);
+    // Transactions in the mempool will affect the new minimum feerate.
+    assert(m_node.mempool->size() == 0);
+    // The target feerate cannot be too low...
+    // ...otherwise the transaction's feerate will need to be negative.
+    assert(target_feerate > ::incrementalRelayFee);
+    // ...otherwise this is not meaningful. The feerate policy uses the maximum of both feerates.
+    assert(target_feerate > ::minRelayTxFee);
+
+    // Manually create an invalid transaction. Manually set the fee in the CTxMemPoolEntry to
+    // achieve the exact target feerate.
+    CMutableTransaction mtx = CMutableTransaction();
+    mtx.vin.push_back(CTxIn{COutPoint{g_insecure_rand_ctx.rand256(), 0}});
+    mtx.vout.push_back(CTxOut(1 * COIN, GetScriptForDestination(ScriptHash(CScript() << OP_TRUE))));
+    const auto tx{MakeTransactionRef(mtx)};
+    LockPoints lp;
+    // The new mempool min feerate is equal to the removed package's feerate + incremental feerate.
+    const auto tx_fee = target_feerate.GetFee(GetVirtualTransactionSize(*tx)) -
+        ::incrementalRelayFee.GetFee(GetVirtualTransactionSize(*tx));
+    m_node.mempool->addUnchecked(CTxMemPoolEntry(tx, /*fee=*/tx_fee,
+                                                 /*time=*/0, /*entry_height=*/1,
+                                                 /*spends_coinbase=*/true, /*sigops_count=*/1, lp));
+    m_node.mempool->TrimToSize(0);
+    assert(m_node.mempool->GetMinFee(0) == target_feerate);
+}
 /**
  * @returns a real block (0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af)
  *      with 9 txs.
@@ -684,4 +712,3 @@ CBlock getBlock13b8a()
     stream >> block;
     return block;
 }
-
