@@ -48,7 +48,7 @@ class WalletHDTest(BitcoinTestFramework):
         # create an internal key
         change_addr = self.nodes[1].getrawchangeaddress()
         change_addrV= self.nodes[1].getaddressinfo(change_addr)
-        assert_equal(change_addrV["hdkeypath"], "m/44h/1h/0h/1/0") #first internal child key
+        assert_equal(change_addrV["hdkeypath"], "m/44'/1'/0'/1/0") #first internal child key
 
         # Import a non-HD private key in the HD wallet
         non_hd_add = 'yLU9vxiAWUdiKKxn6EazLDFq9WXrK2T7RP'
@@ -67,7 +67,7 @@ class WalletHDTest(BitcoinTestFramework):
         for i in range(1, NUM_HD_ADDS + 1):
             hd_add = self.nodes[1].getnewaddress()
             hd_info = self.nodes[1].getaddressinfo(hd_add)
-            assert_equal(hd_info["hdkeypath"], "m/44h/1h/0h/0/" + str(i))
+            assert_equal(hd_info["hdkeypath"], "m/44'/1'/0'/0/" + str(i))
             assert_equal(hd_info["hdmasterfingerprint"], hd_fingerprint)
             self.nodes[0].sendtoaddress(hd_add, 1)
             self.generate(self.nodes[0], 1)
@@ -77,7 +77,7 @@ class WalletHDTest(BitcoinTestFramework):
         # create an internal key (again)
         change_addr = self.nodes[1].getrawchangeaddress()
         change_addrV= self.nodes[1].getaddressinfo(change_addr)
-        assert_equal(change_addrV["hdkeypath"], "m/44h/1h/0h/1/1") #second internal child key
+        assert_equal(change_addrV["hdkeypath"], "m/44'/1'/0'/1/1") #second internal child key
 
         self.sync_all()
         assert_equal(self.nodes[1].getbalance(), NUM_HD_ADDS + 1)
@@ -101,7 +101,7 @@ class WalletHDTest(BitcoinTestFramework):
         for i in range(1, NUM_HD_ADDS + 1):
             hd_add_2 = self.nodes[1].getnewaddress()
             hd_info_2 = self.nodes[1].getaddressinfo(hd_add_2)
-            assert_equal(hd_info_2["hdkeypath"], "m/44h/1h/0h/0/"+str(i))
+            assert_equal(hd_info_2["hdkeypath"], "m/44'/1'/0'/0/"+str(i))
             assert_equal(hd_info_2["hdmasterfingerprint"], hd_fingerprint)
         assert_equal(hd_add, hd_add_2)
         self.connect_nodes(0, 1)
@@ -142,7 +142,7 @@ class WalletHDTest(BitcoinTestFramework):
             if out['value'] != 1:
                 keypath = self.nodes[1].getaddressinfo(out['scriptPubKey']['address'])['hdkeypath']
 
-        assert_equal(keypath[0:13], "m/44h/1h/0h/1")
+        assert_equal(keypath[0:13], "m/44'/1'/0'/1")
 
         if not self.options.descriptors:
             # NOTE: sethdseed can't replace existing seed in Dash Core
@@ -157,7 +157,7 @@ class WalletHDTest(BitcoinTestFramework):
             new_masterkeyid = wallet_new_seed.getwalletinfo()['hdchainid']
             addr = wallet_new_seed.getnewaddress()
             # Make sure the new address is the first from the keypool
-            assert_equal(wallet_new_seed.getaddressinfo(addr)['hdkeypath'], "m/44h/1h/0h/0/1")
+            assert_equal(wallet_new_seed.getaddressinfo(addr)['hdkeypath'], "m/44'/1'/0'/0/1")
             wallet_new_seed.keypoolrefill(1)  # Fill keypool with 1 key
 
             # Set a new HD seed on node 1 without flushing the keypool
@@ -171,14 +171,14 @@ class WalletHDTest(BitcoinTestFramework):
             addr = wallet_imported_seed.getnewaddress()
             assert_equal(new_masterkeyid, wallet_imported_seed.getaddressinfo(addr)['hdchainid'])
             # Make sure the new address continues previous keypool
-            assert_equal(wallet_imported_seed.getaddressinfo(addr)['hdkeypath'], "m/44h/1h/0h/0/0")
+            assert_equal(wallet_imported_seed.getaddressinfo(addr)['hdkeypath'], "m/44'/1'/0'/0/0")
 
             # Check that the next address is from the new seed
             wallet_imported_seed.keypoolrefill(1)
             next_addr = wallet_imported_seed.getnewaddress()
             assert_equal(new_masterkeyid, wallet_imported_seed.getaddressinfo(next_addr)['hdchainid'])
             # Make sure the new address is not from previous keypool
-            assert_equal(wallet_imported_seed.getaddressinfo(next_addr)['hdkeypath'], "m/44h/1h/0h/0/1")
+            assert_equal(wallet_imported_seed.getaddressinfo(next_addr)['hdkeypath'], "m/44'/1'/0'/0/1")
             assert next_addr != addr
 
             self.nodes[1].createwallet(wallet_name='wallet_no_seed', blank=True)
