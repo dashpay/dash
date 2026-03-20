@@ -279,6 +279,25 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
         node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + Decimal('100'), fee_per_byte, count_bytes(self.nodes[2].gettransaction(txid)['hex']))
 
+        # Sendmany 5 DASH to two addresses with subtracting fee from both addresses
+        a0 = self.nodes[0].getnewaddress()
+        a1 = self.nodes[0].getnewaddress()
+        txid = self.nodes[2].sendmany(dummy='', amounts={a0: 5, a1: 5}, subtractfeefrom=[a0, a1])
+        self.generate(self.nodes[2], 1, sync_fun=lambda: self.sync_all(self.nodes[0:3]))
+        node_2_bal -= Decimal('10')
+        assert_equal(self.nodes[2].getbalance(), node_2_bal)
+        tx = self.nodes[2].gettransaction(txid)
+        node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + Decimal('10'), fee_per_byte, self.get_vsize(tx['hex']))
+        assert_equal(self.nodes[0].getbalance(), node_0_bal)
+        a0_received = self.nodes[0].getreceivedbyaddress(a0)
+        a1_received = self.nodes[0].getreceivedbyaddress(a1)
+        # Fee subtraction is rounded to whole sats, so the split across equal
+        # recipients can differ by one satoshi.
+        assert_equal(a0_received + a1_received, Decimal('10') + tx['fee'])
+        assert_greater_than(Decimal('5'), a0_received)
+        assert_greater_than(Decimal('5'), a1_received)
+        assert_greater_than(Decimal('0.00000002'), abs(a0_received - a1_received))
+
         self.log.info("Test sendmany with fee_rate param (explicit fee rate in duff/B)")
         fee_rate_sat_vb = 2
         fee_rate_btc_kvb = fee_rate_sat_vb * 1e3 / 1e8
