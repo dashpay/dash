@@ -540,7 +540,9 @@ RPCHelpMan getaddressinfo()
                 }
             }
             if (meta->has_key_origin) {
-                ret.pushKV("hdkeypath", WriteHDKeypath(meta->key_origin.path));
+                // In legacy wallets hdkeypath has always used an apostrophe for
+                // hardened derivation. Perhaps some external tool depends on that.
+                ret.pushKV("hdkeypath", WriteHDKeypath(meta->key_origin.path, /*apostrophe=*/!desc_spk_man));
                 ret.pushKV("hdmasterfingerprint", HexStr(meta->key_origin.fingerprint));
             }
         }

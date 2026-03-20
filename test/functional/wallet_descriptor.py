@@ -52,13 +52,13 @@ class WalletDescriptorTest(BitcoinTestFramework):
         addr = self.nodes[0].getnewaddress("")
         addr_info = self.nodes[0].getaddressinfo(addr)
         assert addr_info['desc'].startswith('pkh(')
-        assert_equal(addr_info['hdkeypath'], 'm/44\'/1\'/0\'/0/0')
+        assert_equal(addr_info['hdkeypath'], 'm/44h/1h/0h/0/0')
 
         # Check that getrawchangeaddress works
         addr = self.nodes[0].getrawchangeaddress()
         addr_info = self.nodes[0].getaddressinfo(addr)
         assert addr_info['desc'].startswith('pkh(')
-        assert_equal(addr_info['hdkeypath'], 'm/44\'/1\'/0\'/1/0')
+        assert_equal(addr_info['hdkeypath'], 'm/44h/1h/0h/1/0')
 
         # Make a wallet to receive coins at
         self.nodes[0].createwallet(wallet_name="desc2", descriptors=True)
@@ -142,8 +142,8 @@ class WalletDescriptorTest(BitcoinTestFramework):
         self.nodes[0].createwallet(wallet_name='desc_import', disable_private_keys=True, descriptors=True)
         imp_rpc = self.nodes[0].get_wallet_rpc('desc_import')
 
-        addr_types = [('legacy', False, 'pkh(', '44\'/1\'/0\'', -13),
-                      ('legacy', True, 'pkh(', '44\'/1\'/0\'', -13)]
+        addr_types = [('legacy', False, 'pkh(', '44h/1h/0h', -13),
+                      ('legacy', True, 'pkh(', '44h/1h/0h', -13)]
 
         for addr_type, internal, desc_prefix, deriv_path, int_idx in addr_types:
             int_str = 'internal' if internal else 'external'

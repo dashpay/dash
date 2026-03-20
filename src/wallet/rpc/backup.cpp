@@ -1071,7 +1071,7 @@ RPCHelpMan dumpwallet()
             } else {
                 file << "change=1";
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (metadata.has_key_origin ? " hdkeypath="+WriteHDKeypath(metadata.key_origin.path) : ""));
+            file << strprintf(" # addr=%s%s\n", strAddr, (metadata.has_key_origin ? " hdkeypath="+WriteHDKeypath(metadata.key_origin.path, /*apostrophe=*/true) : ""));
         }
     }
     file << "\n";
@@ -2061,8 +2061,10 @@ RPCHelpMan listdescriptors()
             }
         }
         const auto& type = wallet_descriptor.descriptor->GetOutputType();
-        std::string match = strprintf("/%d'/%s'/4'/0'", BIP32_PURPOSE_FEATURE, Params().ExtCoinType());
-        bool is_cj = type != std::nullopt && descriptor.find(match) != std::string::npos;
+        std::string match = strprintf("/%dh/%sh/4h/0h", BIP32_PURPOSE_FEATURE, Params().ExtCoinType());
+        // Fallback: also match old-format descriptors that used apostrophe marker
+        std::string match_legacy = strprintf("/%d'/%s'/4'/0'", BIP32_PURPOSE_FEATURE, Params().ExtCoinType());
+        bool is_cj = type != std::nullopt && (descriptor.find(match) != std::string::npos || descriptor.find(match_legacy) != std::string::npos);
 
         const bool is_range = wallet_descriptor.descriptor->IsRange();
         wallet_descriptors.push_back({
