@@ -76,7 +76,8 @@ class KeypoolRestoreTest(BitcoinTestFramework):
             assert_equal(self.nodes[idx].getbalance(), 15)
             assert_equal(self.nodes[idx].listtransactions()[0]['category'], "receive")
             # Check that we have marked all keys up to the used keypool key as used
-            assert_equal(self.nodes[idx].getaddressinfo(self.nodes[idx].getnewaddress())['hdkeypath'], "m/44'/1'/0'/0/110")
+            hardened = "h" if self.options.descriptors else "'"
+            assert_equal(self.nodes[idx].getaddressinfo(self.nodes[idx].getnewaddress())['hdkeypath'], f"m/44{hardened}/1{hardened}/0{hardened}/0/110")
 
 
 if __name__ == '__main__':
