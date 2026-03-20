@@ -36,6 +36,8 @@ Before every major release:
     `nBlocks` of 4096 (28 days) and a `bestblockhash` of RPC `getbestblockhash`; see
     [this pull request](https://github.com/dashpay/dash/pull/5692) for an example. Reviewers can verify the results by running
     `getchaintxstats <window_block_count> <window_final_block_hash>` with the `window_block_count` and `window_final_block_hash` from your output.
+* [ ] Prune inputs from the qa-assets repo (See [pruning
+  inputs](https://github.com/bitcoin-core/qa-assets#pruning-inputs)).
 
 ### First time / New builders
 
