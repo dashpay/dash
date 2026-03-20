@@ -290,7 +290,7 @@ private:
     std::atomic<bool> fAbortRescan{false}; // reset by WalletRescanReserver::reserve()
     std::atomic<bool> fScanningWallet{false}; // controlled by WalletRescanReserver
     std::atomic<bool> m_attaching_chain{false};
-    std::atomic<int64_t> m_scanning_start{0};
+    std::atomic<SteadyClock::time_point> m_scanning_start{SteadyClock::time_point{}};
     std::atomic<double> m_scanning_progress{0};
     friend class WalletRescanReserver;
 
@@ -608,7 +608,7 @@ public:
     void AbortRescan() { fAbortRescan = true; }
     bool IsAbortingRescan() const { return fAbortRescan; }
     bool IsScanning() const { return fScanningWallet; }
-    int64_t ScanningDuration() const { return fScanningWallet ? TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - m_scanning_start : 0; }
+    SteadyClock::duration ScanningDuration() const { return fScanningWallet ? SteadyClock::now() - m_scanning_start.load() : SteadyClock::duration{}; }
     double ScanningProgress() const { return fScanningWallet ? (double) m_scanning_progress : 0; }
 
     //! Upgrade stored CKeyMetadata objects to store key origin info as KeyOriginInfo
@@ -1123,7 +1123,7 @@ public:
         if (m_wallet.fScanningWallet.exchange(true)) {
             return false;
         }
-        m_wallet.m_scanning_start = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+        m_wallet.m_scanning_start = SteadyClock::now();
         m_wallet.m_scanning_progress = 0;
         m_wallet.fAbortRescan = false;
         m_could_reserve = true;
