@@ -2153,13 +2153,13 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
     std::string xpub = EncodeExtPubKey(master_key.Neuter());
 
     // Build descriptor string
-    std::string desc_prefix = strprintf("pkh(%s/%d'/%d'", xpub, type == PathDerivationType::DIP0009_CoinJoin ? BIP32_PURPOSE_FEATURE : BIP32_PURPOSE_STANDARD, Params().ExtCoinType());
+    std::string desc_prefix = strprintf("pkh(%s/%dh/%dh", xpub, type == PathDerivationType::DIP0009_CoinJoin ? BIP32_PURPOSE_FEATURE : BIP32_PURPOSE_STANDARD, Params().ExtCoinType());
     if (type == PathDerivationType::DIP0009_CoinJoin) {
-        desc_prefix += "/4'";
+        desc_prefix += "/4h";
     }
     std::string desc_suffix = "/*)";
     std::string internal_path = (type == PathDerivationType::BIP44_Internal) ? "/1" : "/0";
-    std::string desc_str = desc_prefix + "/0'" + internal_path + desc_suffix;
+    std::string desc_str = desc_prefix + "/0h" + internal_path + desc_suffix;
 
     // Make the descriptor
     FlatSigningProvider keys;
