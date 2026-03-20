@@ -147,6 +147,7 @@ void SQLiteBatch::SetupSQLStatements()
         {&m_overwrite_stmt, "INSERT or REPLACE into main values(?, ?)"},
         {&m_delete_stmt, "DELETE FROM main WHERE key = ?"},
         {&m_cursor_stmt, "SELECT key, value FROM main"},
+        {&m_delete_prefix_stmt, "DELETE FROM main WHERE instr(key, ?) = 1"},
     };
 
     for (const auto& [stmt_prepared, stmt_text] : statements) {
@@ -405,6 +406,7 @@ void SQLiteBatch::Close()
         {&m_overwrite_stmt, "overwrite"},
         {&m_delete_stmt, "delete"},
         {&m_cursor_stmt, "cursor"},
+        {&m_delete_prefix_stmt, "delete prefix"},
     };
 
     for (const auto& [stmt_prepared, stmt_description] : statements) {
@@ -470,22 +472,32 @@ bool SQLiteBatch::WriteKey(CDataStream&& key, CDataStream&& value, bool overwrit
     return res == SQLITE_DONE;
 }
 
-bool SQLiteBatch::EraseKey(CDataStream&& key)
+bool SQLiteBatch::ExecStatement(sqlite3_stmt* stmt, Span<const std::byte> blob)
 {
     if (!m_database.m_db) return false;
-    assert(m_delete_stmt);
+    assert(stmt);
 
     // Bind: leftmost parameter in statement is index 1
-    if (!BindBlobToStatement(m_delete_stmt, 1, key, "key")) return false;
+    if (!BindBlobToStatement(stmt, 1, blob, "key")) return false;
 
     // Execute
-    int res = sqlite3_step(m_delete_stmt);
-    sqlite3_clear_bindings(m_delete_stmt);
-    sqlite3_reset(m_delete_stmt);
+    int res = sqlite3_step(stmt);
+    sqlite3_clear_bindings(stmt);
+    sqlite3_reset(stmt);
     if (res != SQLITE_DONE) {
         LogPrintf("%s: Unable to execute statement: %s\n", __func__, sqlite3_errstr(res));
     }
     return res == SQLITE_DONE;
+}
+
+bool SQLiteBatch::EraseKey(CDataStream&& key)
+{
+    return ExecStatement(m_delete_stmt, key);
+}
+
+bool SQLiteBatch::ErasePrefix(Span<const std::byte> prefix)
+{
+    return ExecStatement(m_delete_prefix_stmt, prefix);
 }
 
 bool SQLiteBatch::HasKey(CDataStream&& key)

@@ -90,6 +90,7 @@ public:
 
         return HasKey(std::move(ssKey));
     }
+    virtual bool ErasePrefix(Span<const std::byte> prefix) = 0;
 
     virtual bool StartCursor() = 0;
     virtual bool ReadAtCursor(CDataStream& ssKey, CDataStream& ssValue, bool& complete) = 0;
@@ -165,6 +166,7 @@ private:
     bool WriteKey(CDataStream&& key, CDataStream&& value, bool overwrite=true) override { return true; }
     bool EraseKey(CDataStream&& key) override { return true; }
     bool HasKey(CDataStream&& key) override { return true; }
+    bool ErasePrefix(Span<const std::byte> prefix) override { return true; }
 
 public:
     void Flush() override {}

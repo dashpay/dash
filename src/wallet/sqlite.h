@@ -29,13 +29,16 @@ private:
     sqlite3_stmt* m_overwrite_stmt{nullptr};
     sqlite3_stmt* m_delete_stmt{nullptr};
     sqlite3_stmt* m_cursor_stmt{nullptr};
+    sqlite3_stmt* m_delete_prefix_stmt{nullptr};
 
     void SetupSQLStatements();
+    bool ExecStatement(sqlite3_stmt* stmt, Span<const std::byte> blob);
 
     bool ReadKey(CDataStream&& key, CDataStream& value) override;
     bool WriteKey(CDataStream&& key, CDataStream&& value, bool overwrite = true) override;
     bool EraseKey(CDataStream&& key) override;
     bool HasKey(CDataStream&& key) override;
+    bool ErasePrefix(Span<const std::byte> prefix) override;
 
 public:
     explicit SQLiteBatch(SQLiteDatabase& database);
