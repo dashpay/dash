@@ -199,30 +199,28 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
     uint256 hashBlock{};
     const auto tx = GetTransaction(nullptr, &m_mempool, outpoint.hash, params, hashBlock);
     // this relies on enabled txindex and won't work if we ever try to remove the requirement for txindex for masternodes
-    if (!tx) {
+    if (!tx || hashBlock.IsNull()) {
         if (printDebug) {
-            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to find parent TX %s\n", __func__, txHash.ToString(),
+            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to find parent TX %s in mined block\n", __func__, txHash.ToString(),
                      outpoint.hash.ToString());
         }
         return false;
     }
 
     int blockHeight{0};
-    if (!hashBlock.IsNull()) {
-        if (auto ret = m_isman.GetCachedHeight(hashBlock)) {
-            blockHeight = *ret;
-        } else {
-            const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
-            if (pindex == nullptr) {
-                if (printDebug) {
-                    LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n",
-                             __func__, txHash.ToString(), outpoint.hash.ToString());
-                }
-                return false;
+    if (auto ret = m_isman.GetCachedHeight(hashBlock)) {
+        blockHeight = *ret;
+    } else {
+        const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
+        if (pindex == nullptr) {
+            if (printDebug) {
+                LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n",
+                         __func__, txHash.ToString(), outpoint.hash.ToString());
             }
-            m_isman.CacheBlockHeight(pindex);
-            blockHeight = pindex->nHeight;
+            return false;
         }
+        m_isman.CacheBlockHeight(pindex);
+        blockHeight = pindex->nHeight;
     }
 
     const int tipHeight = m_isman.GetTipHeight();

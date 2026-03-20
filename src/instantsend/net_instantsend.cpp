@@ -24,7 +24,7 @@
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
-CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const m_mempool,
+CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool,
                                const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
 } // namespace node
 
