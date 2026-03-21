@@ -1,9 +1,10 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2026 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <rest.h>
+#include <rest/server.h>
 
 #include <blockfilter.h>
 #include <chain.h>
@@ -11,15 +12,16 @@
 #include <chainlock/chainlock.h>
 #include <context.h>
 #include <core_io.h>
-#include <httpserver.h>
 #include <index/blockfilterindex.h>
 #include <index/txindex.h>
 #include <instantsend/instantsend.h>
 #include <llmq/context.h>
+#include <logging.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <rest/reader.h>
 #include <rpc/blockchain.h>
 #include <rpc/mempool.h>
 #include <rpc/protocol.h>
@@ -29,12 +31,22 @@
 #include <sync.h>
 #include <txmempool.h>
 #include <util/check.h>
+#include <util/sock.h>
+#include <util/system.h>
+#include <util/threadnames.h>
+#include <util/time.h>
 #include <validation.h>
 #include <version.h>
 
-#include <string>
+#include <drogon/HttpAppFramework.h>
+#include <trantor/utils/Logger.h>
 
 #include <univalue.h>
+
+#include <algorithm>
+#include <string>
+#include <string_view>
+#include <thread>
 
 using node::GetTransaction;
 using node::NodeContext;
@@ -42,6 +54,35 @@ using node::ReadBlockFromDisk;
 
 static const size_t MAX_GETUTXOS_OUTPOINTS = 15; //allow a max of 15 outpoints to be queried at once
 static constexpr unsigned int MAX_REST_HEADERS_RESULTS = 2000;
+
+namespace rest {
+using Callback = std::function<void(const drogon::HttpResponsePtr&)>;
+} // namespace rest
+
+namespace {
+/** Maximum time that can be spent probing for REST server activation. */
+constexpr auto MAX_PROBE_DURATION{10s};
+/** Background thread running the server's event loop. */
+std::thread g_server_thread;
+
+drogon::HttpResponsePtr MakeResponse(drogon::HttpStatusCode code, drogon::ContentType ct, std::string body)
+{
+    auto resp = drogon::HttpResponse::newHttpResponse(code, ct);
+    resp->setBody(std::move(body));
+    return resp;
+}
+
+std::string GetQueryParam(const drogon::HttpRequestPtr& req, const std::string& key, const std::string& default_value)
+{
+    const std::string& val = req->getParameter(key);
+    return val.empty() ? default_value : val;
+}
+
+void WriteReply(const rest::Callback& cb, drogon::ContentType ct, std::string body)
+{
+    cb(MakeResponse(drogon::k200OK, ct, std::move(body)));
+}
+} // anonymous namespace
 
 static const struct {
     RESTResponseFormat rf;
@@ -67,25 +108,24 @@ struct CCoin {
     }
 };
 
-static bool RESTERR(HTTPRequest* req, enum HTTPStatusCode status, std::string message)
+static bool RESTERR(const rest::Callback& cb, drogon::HttpStatusCode status, std::string message)
 {
-    req->WriteHeader("Content-Type", "text/plain");
-    req->WriteReply(status, message + "\r\n");
+    cb(MakeResponse(status, drogon::CT_TEXT_PLAIN, message + "\r\n"));
     return false;
 }
 
 /**
  * Get the node context.
  *
- * @param[in]  req  The HTTP request, whose status code will be set if node
- *                  context is not found.
- * @returns         Pointer to the node context or nullptr if not found.
+ * @param[in]  context  The CoreContext to extract NodeContext from.
+ * @param[in]  cb       Callback invoked with an error response if NodeContext is not found.
+ * @returns             Pointer to NodeContext or nullptr if not found.
  */
-static NodeContext* GetNodeContext(const CoreContext& context, HTTPRequest* req)
+static NodeContext* GetNodeContext(const CoreContext& context, const rest::Callback& cb)
 {
     auto* node_context = GetContext<NodeContext>(context);
     if (!node_context) {
-        RESTERR(req, HTTP_INTERNAL_SERVER_ERROR,
+        RESTERR(cb, drogon::k500InternalServerError,
                 strprintf("%s:%d (%s)\n"
                           "Internal bug detected: Node context not found!\n"
                           "You may report this issue here: %s\n",
@@ -98,15 +138,15 @@ static NodeContext* GetNodeContext(const CoreContext& context, HTTPRequest* req)
 /**
  * Get the node context mempool.
  *
- * @param[in]  req The HTTP request, whose status code will be set if node
- *                 context mempool is not found.
- * @returns        Pointer to the mempool or nullptr if no mempool found.
+ * @param[in]  context  The core context to extract the mempool from.
+ * @param[in]  cb       Callback invoked with an error response if mempool is not found.
+ * @returns             Pointer to the mempool or nullptr if no mempool found.
  */
-static CTxMemPool* GetMemPool(const CoreContext& context, HTTPRequest* req)
+static CTxMemPool* GetMemPool(const CoreContext& context, const rest::Callback& cb)
 {
     auto* node_context = GetContext<NodeContext>(context);
     if (!node_context || !node_context->mempool) {
-        RESTERR(req, HTTP_NOT_FOUND, "Mempool disabled or instance not found");
+        RESTERR(cb, drogon::k404NotFound, "Mempool disabled or instance not found");
         return nullptr;
     }
     return node_context->mempool.get();
@@ -115,15 +155,15 @@ static CTxMemPool* GetMemPool(const CoreContext& context, HTTPRequest* req)
 /**
  * Get the node context chainstatemanager.
  *
- * @param[in]  req The HTTP request, whose status code will be set if node
- *                 context chainstatemanager is not found.
- * @returns        Pointer to the chainstatemanager or nullptr if none found.
+ * @param[in]  context  The core context to extract ChainstateManager from.
+ * @param[in]  cb       Callback invoked with an error response if ChainstateManager is not found.
+ * @returns             Pointer to ChainstateManager or nullptr if none found.
  */
-static ChainstateManager* GetChainman(const CoreContext& context, HTTPRequest* req)
+static ChainstateManager* GetChainman(const CoreContext& context, const rest::Callback& cb)
 {
     auto node_context = GetContext<NodeContext>(context);
     if (!node_context || !node_context->chainman) {
-        RESTERR(req, HTTP_INTERNAL_SERVER_ERROR,
+        RESTERR(cb, drogon::k500InternalServerError,
                 strprintf("%s:%d (%s)\n"
                           "Internal bug detected: Chainman disabled or instance not found!\n"
                           "You may report this issue here: %s\n",
@@ -136,15 +176,15 @@ static ChainstateManager* GetChainman(const CoreContext& context, HTTPRequest* r
 /**
  * Get the node context LLMQContext.
  *
- * @param[in]  req The HTTP request, whose status code will be set if node
- *                 context LLMQContext is not found.
- * @returns        Pointer to the LLMQContext or nullptr if none found.
+ * @param[in]  context  The core context to extract LLMQContext from.
+ * @param[in]  cb       Callback invoked with an error response if LLMQContext is not found.
+ * @returns             Pointer to LLMQContext or nullptr if none found.
  */
-static LLMQContext* GetLLMQContext(const CoreContext& context, HTTPRequest* req)
+static LLMQContext* GetLLMQContext(const CoreContext& context, const rest::Callback& cb)
 {
     auto node_context = GetContext<NodeContext>(context);
     if (!node_context || !node_context->llmq_ctx) {
-        RESTERR(req, HTTP_INTERNAL_SERVER_ERROR,
+        RESTERR(cb, drogon::k500InternalServerError,
                 strprintf("%s:%d (%s)\n"
                           "Internal bug detected: LLMQ context not found!\n"
                           "You may report this issue here: %s\n",
@@ -196,19 +236,20 @@ static std::string AvailableDataFormatsString()
     return formats;
 }
 
-static bool CheckWarmup(HTTPRequest* req)
+static bool CheckWarmup(const rest::Callback& cb)
 {
     std::string statusmessage;
     if (RPCIsInWarmup(&statusmessage))
-         return RESTERR(req, HTTP_SERVICE_UNAVAILABLE, "Service temporarily unavailable: " + statusmessage);
+         return RESTERR(cb, drogon::k503ServiceUnavailable, "Service temporarily unavailable: " + statusmessage);
     return true;
 }
 
 static bool rest_headers(const CoreContext& context,
-                         HTTPRequest* req,
+                         const drogon::HttpRequestPtr& req,
+                         const rest::Callback& cb,
                          const std::string& strURIPart)
 {
-    if (!CheckWarmup(req))
+    if (!CheckWarmup(cb))
         return false;
     std::string param;
     const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
@@ -223,25 +264,25 @@ static bool rest_headers(const CoreContext& context,
     } else if (path.size() == 1) {
         // new path with query parameter: /rest/headers/<hash>?count=<count>
         hashStr = path[0];
-        raw_count = req->GetQueryParameter("count").value_or("5");
+        raw_count = GetQueryParam(req, "count", "5");
     } else {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid URI format. Expected /rest/headers/<hash>.<ext>?count=<count>");
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid URI format. Expected /rest/headers/<hash>.<ext>?count=<count>");
     }
 
     const auto parsed_count{ToIntegral<size_t>(raw_count)};
     if (!parsed_count.has_value() || *parsed_count < 1 || *parsed_count > MAX_REST_HEADERS_RESULTS) {
-        return RESTERR(req, HTTP_BAD_REQUEST, strprintf("Header count is invalid or out of acceptable range (1-%u): %s", MAX_REST_HEADERS_RESULTS, raw_count));
+        return RESTERR(cb, drogon::k400BadRequest, strprintf("Header count is invalid or out of acceptable range (1-%u): %s", MAX_REST_HEADERS_RESULTS, raw_count));
     }
 
     uint256 hash;
     if (!ParseHashStr(hashStr, hash))
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid hash: " + hashStr);
 
     const CBlockIndex* tip = nullptr;
     std::vector<const CBlockIndex*> headers;
     headers.reserve(*parsed_count);
     {
-        ChainstateManager* maybe_chainman = GetChainman(context, req);
+        ChainstateManager* maybe_chainman = GetChainman(context, cb);
         if (!maybe_chainman) return false;
         ChainstateManager& chainman = *maybe_chainman;
         LOCK(cs_main);
@@ -264,9 +305,7 @@ static bool rest_headers(const CoreContext& context,
             ssHeader << pindex->GetBlockHeader();
         }
 
-        std::string binaryHeader = ssHeader.str();
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, binaryHeader);
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssHeader.str());
         return true;
     }
 
@@ -276,48 +315,45 @@ static bool rest_headers(const CoreContext& context,
             ssHeader << pindex->GetBlockHeader();
         }
 
-        std::string strHex = HexStr(ssHeader) + "\n";
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, strHex);
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssHeader) + "\n");
         return true;
     }
     case RESTResponseFormat::JSON: {
-        const NodeContext* const node = GetNodeContext(context, req);
+        const NodeContext* const node = GetNodeContext(context, cb);
         if (!node || !node->chainlocks) return false;
 
         UniValue jsonHeaders(UniValue::VARR);
         for (const CBlockIndex *pindex : headers) {
             jsonHeaders.push_back(blockheaderToJSON(tip, pindex, *node->chainlocks));
         }
-        std::string strJSON = jsonHeaders.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, jsonHeaders.write() + "\n");
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
 
 static bool rest_block(const CoreContext& context,
-                       HTTPRequest* req,
+                       const drogon::HttpRequestPtr& req,
+                       const rest::Callback& cb,
                        const std::string& strURIPart,
                        TxVerbosity tx_verbosity)
 {
-    if (!CheckWarmup(req))
+    if (!CheckWarmup(cb))
         return false;
     std::string hashStr;
     const RESTResponseFormat rf = ParseDataFormat(hashStr, strURIPart);
 
     uint256 hash;
     if (!ParseHashStr(hashStr, hash))
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid hash: " + hashStr);
 
-    CBlock block;
     const CBlockIndex* pblockindex = nullptr;
     const CBlockIndex* tip = nullptr;
-    ChainstateManager* maybe_chainman = GetChainman(context, req);
+    FlatFilePos block_pos;
+    ChainstateManager* maybe_chainman = GetChainman(context, cb);
     if (!maybe_chainman) return false;
     ChainstateManager& chainman = *maybe_chainman;
     {
@@ -325,69 +361,69 @@ static bool rest_block(const CoreContext& context,
         tip = chainman.ActiveChain().Tip();
         pblockindex = chainman.m_blockman.LookupBlockIndex(hash);
         if (!pblockindex) {
-            return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
         }
 
         if (chainman.m_blockman.IsBlockPruned(pblockindex))
-            return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not available (pruned data)");
-    }
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not available (pruned data)");
 
-    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
-        return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
+        block_pos = pblockindex->GetBlockPos();
     }
 
     switch (rf) {
     case RESTResponseFormat::BINARY: {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
-        std::string binaryBlock = ssBlock.str();
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, binaryBlock);
+        std::optional<std::string> raw_block = rest::ReadRawBlockFromDisk(block_pos);
+        if (!raw_block) {
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        }
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, std::move(*raw_block));
         return true;
     }
 
     case RESTResponseFormat::HEX: {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
-        std::string strHex = HexStr(ssBlock) + "\n";
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, strHex);
+        std::optional<std::string> raw_block = rest::ReadRawBlockFromDisk(block_pos);
+        if (!raw_block) {
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        }
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(*raw_block) + "\n");
         return true;
     }
 
     case RESTResponseFormat::JSON: {
-        const NodeContext* const node = GetNodeContext(context, req);
+        CBlock block;
+        if (!ReadBlockFromDisk(block, block_pos, Params().GetConsensus())) {
+            return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
+        }
+        const NodeContext* const node = GetNodeContext(context, cb);
         if (!node || !node->chainlocks) return false;
 
-        const LLMQContext* llmq_ctx = GetLLMQContext(context, req);
+        const LLMQContext* llmq_ctx = GetLLMQContext(context, cb);
         if (!llmq_ctx) return false;
 
         UniValue objBlock = blockToJSON(chainman.m_blockman, block, tip, pblockindex, *node->chainlocks, *llmq_ctx->isman, tx_verbosity);
-        std::string strJSON = objBlock.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, objBlock.write() + "\n");
         return true;
     }
 
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
 
-static bool rest_block_extended(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_block_extended(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    return rest_block(context, req, strURIPart, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
+    return rest_block(context, req, cb, strURIPart, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
 }
 
-static bool rest_block_notxdetails(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_block_notxdetails(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    return rest_block(context, req, strURIPart, TxVerbosity::SHOW_TXID);
+    return rest_block(context, req, cb, strURIPart, TxVerbosity::SHOW_TXID);
 }
 
-static bool rest_filter_header(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_filter_header(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    if (!CheckWarmup(req)) return false;
+    if (!CheckWarmup(cb)) return false;
 
     std::string param;
     const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
@@ -402,35 +438,35 @@ static bool rest_filter_header(const CoreContext& context, HTTPRequest* req, con
     } else if (uri_parts.size() == 2) {
         // new path with query parameter: /rest/blockfilterheaders/<filtertype>/<blockhash>?count=<count>
         raw_blockhash = uri_parts[1];
-        raw_count = req->GetQueryParameter("count").value_or("5");
+        raw_count = GetQueryParam(req, "count", "5");
     } else {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid URI format. Expected /rest/blockfilterheaders/<filtertype>/<blockhash>.<ext>?count=<count>");
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid URI format. Expected /rest/blockfilterheaders/<filtertype>/<blockhash>.<ext>?count=<count>");
     }
 
     const auto parsed_count{ToIntegral<size_t>(raw_count)};
     if (!parsed_count.has_value() || *parsed_count < 1 || *parsed_count > MAX_REST_HEADERS_RESULTS) {
-        return RESTERR(req, HTTP_BAD_REQUEST, strprintf("Header count is invalid or out of acceptable range (1-%u): %s", MAX_REST_HEADERS_RESULTS, raw_count));
+        return RESTERR(cb, drogon::k400BadRequest, strprintf("Header count is invalid or out of acceptable range (1-%u): %s", MAX_REST_HEADERS_RESULTS, raw_count));
     }
 
     uint256 block_hash;
     if (!ParseHashStr(raw_blockhash, block_hash)) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + raw_blockhash);
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid hash: " + raw_blockhash);
     }
 
     BlockFilterType filtertype;
     if (!BlockFilterTypeByName(uri_parts[0], filtertype)) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Unknown filtertype " + uri_parts[0]);
+        return RESTERR(cb, drogon::k400BadRequest, "Unknown filtertype " + uri_parts[0]);
     }
 
     BlockFilterIndex* index = GetBlockFilterIndex(filtertype);
     if (!index) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Index is not enabled for filtertype " + uri_parts[0]);
+        return RESTERR(cb, drogon::k400BadRequest, "Index is not enabled for filtertype " + uri_parts[0]);
     }
 
     std::vector<const CBlockIndex*> headers;
     headers.reserve(*parsed_count);
     {
-        ChainstateManager* maybe_chainman = GetChainman(context, req);
+        ChainstateManager* maybe_chainman = GetChainman(context, cb);
         if (!maybe_chainman) return false;
         ChainstateManager& chainman = *maybe_chainman;
         LOCK(cs_main);
@@ -459,7 +495,7 @@ static bool rest_filter_header(const CoreContext& context, HTTPRequest* req, con
                 errmsg += " This error is unexpected and indicates index corruption.";
             }
 
-            return RESTERR(req, HTTP_NOT_FOUND, errmsg);
+            return RESTERR(cb, drogon::k404NotFound, errmsg);
         }
         filter_headers.push_back(filter_header);
     }
@@ -471,9 +507,7 @@ static bool rest_filter_header(const CoreContext& context, HTTPRequest* req, con
             ssHeader << header;
         }
 
-        std::string binaryHeader = ssHeader.str();
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, binaryHeader);
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssHeader.str());
         return true;
     }
     case RESTResponseFormat::HEX: {
@@ -482,9 +516,7 @@ static bool rest_filter_header(const CoreContext& context, HTTPRequest* req, con
             ssHeader << header;
         }
 
-        std::string strHex = HexStr(ssHeader) + "\n";
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, strHex);
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssHeader) + "\n");
         return true;
     }
     case RESTResponseFormat::JSON: {
@@ -493,20 +525,18 @@ static bool rest_filter_header(const CoreContext& context, HTTPRequest* req, con
             jsonHeaders.push_back(header.GetHex());
         }
 
-        std::string strJSON = jsonHeaders.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, jsonHeaders.write() + "\n");
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
 
-static bool rest_block_filter(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_block_filter(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    if (!CheckWarmup(req)) return false;
+    if (!CheckWarmup(cb)) return false;
 
     std::string param;
     const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
@@ -514,34 +544,34 @@ static bool rest_block_filter(const CoreContext& context, HTTPRequest* req, cons
     // request is sent over URI scheme /rest/blockfilter/filtertype/blockhash
     std::vector<std::string> uri_parts = SplitString(param, '/');
     if (uri_parts.size() != 2) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid URI format. Expected /rest/blockfilter/<filtertype>/<blockhash>");
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid URI format. Expected /rest/blockfilter/<filtertype>/<blockhash>");
     }
 
     uint256 block_hash;
     if (!ParseHashStr(uri_parts[1], block_hash)) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + uri_parts[1]);
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid hash: " + uri_parts[1]);
     }
 
     BlockFilterType filtertype;
     if (!BlockFilterTypeByName(uri_parts[0], filtertype)) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Unknown filtertype " + uri_parts[0]);
+        return RESTERR(cb, drogon::k400BadRequest, "Unknown filtertype " + uri_parts[0]);
     }
 
     BlockFilterIndex* index = GetBlockFilterIndex(filtertype);
     if (!index) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Index is not enabled for filtertype " + uri_parts[0]);
+        return RESTERR(cb, drogon::k400BadRequest, "Index is not enabled for filtertype " + uri_parts[0]);
     }
 
     const CBlockIndex* block_index;
     bool block_was_connected;
     {
-        ChainstateManager* maybe_chainman = GetChainman(context, req);
+        ChainstateManager* maybe_chainman = GetChainman(context, cb);
         if (!maybe_chainman) return false;
         ChainstateManager& chainman = *maybe_chainman;
         LOCK(cs_main);
         block_index = chainman.m_blockman.LookupBlockIndex(block_hash);
         if (!block_index) {
-            return RESTERR(req, HTTP_NOT_FOUND, uri_parts[1] + " not found");
+            return RESTERR(cb, drogon::k404NotFound, uri_parts[1] + " not found");
         }
         block_was_connected = block_index->IsValid(BLOCK_VALID_SCRIPTS);
     }
@@ -560,7 +590,7 @@ static bool rest_block_filter(const CoreContext& context, HTTPRequest* req, cons
             errmsg += " This error is unexpected and indicates index corruption.";
         }
 
-        return RESTERR(req, HTTP_NOT_FOUND, errmsg);
+        return RESTERR(cb, drogon::k404NotFound, errmsg);
     }
 
     switch (rf) {
@@ -568,30 +598,24 @@ static bool rest_block_filter(const CoreContext& context, HTTPRequest* req, cons
         CDataStream ssResp{SER_NETWORK, PROTOCOL_VERSION};
         ssResp << filter;
 
-        std::string binaryResp = ssResp.str();
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, binaryResp);
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssResp.str());
         return true;
     }
     case RESTResponseFormat::HEX: {
         CDataStream ssResp{SER_NETWORK, PROTOCOL_VERSION};
         ssResp << filter;
 
-        std::string strHex = HexStr(ssResp) + "\n";
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, strHex);
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssResp) + "\n");
         return true;
     }
     case RESTResponseFormat::JSON: {
         UniValue ret(UniValue::VOBJ);
         ret.pushKV("filter", HexStr(filter.GetEncodedFilter()));
-        std::string strJSON = ret.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, ret.write() + "\n");
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
@@ -599,9 +623,9 @@ static bool rest_block_filter(const CoreContext& context, HTTPRequest* req, cons
 // A bit of a hack - dependency on a function defined in rpc/blockchain.cpp
 RPCHelpMan getblockchaininfo();
 
-static bool rest_chaininfo(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_chaininfo(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    if (!CheckWarmup(req))
+    if (!CheckWarmup(cb))
         return false;
     std::string param;
     const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
@@ -612,34 +636,32 @@ static bool rest_chaininfo(const CoreContext& context, HTTPRequest* req, const s
         jsonRequest.context = context;
         jsonRequest.params = UniValue(UniValue::VARR);
         UniValue chainInfoObject = getblockchaininfo().HandleRequest(jsonRequest);
-        std::string strJSON = chainInfoObject.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, chainInfoObject.write() + "\n");
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: json)");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: json)");
     }
     }
 }
 
-static bool rest_mempool(const CoreContext& context, HTTPRequest* req, const std::string& str_uri_part)
+static bool rest_mempool(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& str_uri_part)
 {
-    if (!CheckWarmup(req))
+    if (!CheckWarmup(cb))
         return false;
 
     std::string param;
     const RESTResponseFormat rf = ParseDataFormat(param, str_uri_part);
     if (param != "contents" && param != "info") {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid URI format. Expected /rest/mempool/<info|contents>.json");
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid URI format. Expected /rest/mempool/<info|contents>.json");
     }
 
-    const CTxMemPool* mempool = GetMemPool(context, req);
+    const CTxMemPool* mempool = GetMemPool(context, cb);
     if (!mempool) return false;
 
     switch (rf) {
     case RESTResponseFormat::JSON: {
-        const LLMQContext* llmq_ctx = GetLLMQContext(context, req);
+        const LLMQContext* llmq_ctx = GetLLMQContext(context, cb);
         if (!llmq_ctx) return false;
 
         std::string str_json;
@@ -649,37 +671,36 @@ static bool rest_mempool(const CoreContext& context, HTTPRequest* req, const std
             str_json = MempoolInfoToJSON(*mempool, *llmq_ctx->isman).write() + "\n";
         }
 
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, str_json);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, str_json);
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: json)");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: json)");
     }
     }
 }
 
-static bool rest_tx(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_tx(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    if (!CheckWarmup(req))
+    if (!CheckWarmup(cb))
         return false;
     std::string hashStr;
     const RESTResponseFormat rf = ParseDataFormat(hashStr, strURIPart);
 
     uint256 hash;
     if (!ParseHashStr(hashStr, hash))
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid hash: " + hashStr);
 
     if (g_txindex) {
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
-    const NodeContext* const node = GetNodeContext(context, req);
+    const NodeContext* const node = GetNodeContext(context, cb);
     if (!node) return false;
     uint256 hashBlock = uint256();
     const CTransactionRef tx = GetTransaction(/*block_index=*/nullptr, node->mempool.get(), hash, Params().GetConsensus(), hashBlock);
     if (!tx) {
-        return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
+        return RESTERR(cb, drogon::k404NotFound, hashStr + " not found");
     }
 
     switch (rf) {
@@ -687,9 +708,7 @@ static bool rest_tx(const CoreContext& context, HTTPRequest* req, const std::str
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << tx;
 
-        std::string binaryTx = ssTx.str();
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, binaryTx);
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssTx.str());
         return true;
     }
 
@@ -697,30 +716,26 @@ static bool rest_tx(const CoreContext& context, HTTPRequest* req, const std::str
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << tx;
 
-        std::string strHex = HexStr(ssTx) + "\n";
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, strHex);
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssTx) + "\n");
         return true;
     }
 
     case RESTResponseFormat::JSON: {
         UniValue objTx(UniValue::VOBJ);
         TxToUniv(*tx, /*block_hash=*/hashBlock, /*entry=*/objTx);
-        std::string strJSON = objTx.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, objTx.write() + "\n");
         return true;
     }
 
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
 
-static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const std::string& strURIPart)
+static bool rest_getutxos(const CoreContext& context, const drogon::HttpRequestPtr& req, const rest::Callback& cb, const std::string& strURIPart)
 {
-    if (!CheckWarmup(req))
+    if (!CheckWarmup(cb))
         return false;
     std::string param;
     const RESTResponseFormat rf = ParseDataFormat(param, strURIPart);
@@ -733,9 +748,9 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
     }
 
     // throw exception in case of an empty request
-    std::string strRequestMutable = req->ReadBody();
+    std::string strRequestMutable = std::string(req->body());
     if (strRequestMutable.length() == 0 && uriParts.size() == 0)
-        return RESTERR(req, HTTP_BAD_REQUEST, "Error: empty request");
+        return RESTERR(cb, drogon::k400BadRequest, "Error: empty request");
 
     bool fInputParsed = false;
     bool fCheckMemPool = false;
@@ -757,7 +772,7 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
             std::string strOutput = uriParts[i].substr(uriParts[i].find('-')+1);
 
             if (!ParseInt32(strOutput, &nOutput) || !IsHex(strTxid))
-                return RESTERR(req, HTTP_BAD_REQUEST, "Parse error");
+                return RESTERR(cb, drogon::k400BadRequest, "Parse error");
 
             txid.SetHex(strTxid);
             vOutPoints.push_back(COutPoint(txid, (uint32_t)nOutput));
@@ -766,7 +781,7 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
         if (vOutPoints.size() > 0)
             fInputParsed = true;
         else
-            return RESTERR(req, HTTP_BAD_REQUEST, "Error: empty request");
+            return RESTERR(cb, drogon::k400BadRequest, "Error: empty request");
     }
 
     switch (rf) {
@@ -783,7 +798,7 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
             if (strRequestMutable.size() > 0)
             {
                 if (fInputParsed) //don't allow sending input over URI and HTTP RAW DATA
-                    return RESTERR(req, HTTP_BAD_REQUEST, "Combination of URI scheme inputs and raw post data is not allowed");
+                    return RESTERR(cb, drogon::k400BadRequest, "Combination of URI scheme inputs and raw post data is not allowed");
 
                 CDataStream oss(SER_NETWORK, PROTOCOL_VERSION);
                 oss << strRequestMutable;
@@ -792,24 +807,24 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
             }
         } catch (const std::ios_base::failure&) {
             // abort in case of unreadable binary data
-            return RESTERR(req, HTTP_BAD_REQUEST, "Parse error");
+            return RESTERR(cb, drogon::k400BadRequest, "Parse error");
         }
         break;
     }
 
     case RESTResponseFormat::JSON: {
         if (!fInputParsed)
-            return RESTERR(req, HTTP_BAD_REQUEST, "Error: empty request");
+            return RESTERR(cb, drogon::k400BadRequest, "Error: empty request");
         break;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 
     // limit max outpoints
     if (vOutPoints.size() > MAX_GETUTXOS_OUTPOINTS)
-        return RESTERR(req, HTTP_BAD_REQUEST, strprintf("Error: max outpoints exceeded (max: %d, tried: %d)", MAX_GETUTXOS_OUTPOINTS, vOutPoints.size()));
+        return RESTERR(cb, drogon::k400BadRequest, strprintf("Error: max outpoints exceeded (max: %d, tried: %d)", MAX_GETUTXOS_OUTPOINTS, vOutPoints.size()));
 
     // check spentness and form a bitmap (as well as a JSON capable human-readable string representation)
     std::vector<unsigned char> bitmap;
@@ -817,9 +832,11 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
     std::string bitmapStringRepresentation;
     std::vector<bool> hits;
     bitmap.resize((vOutPoints.size() + 7) / 8);
-    ChainstateManager* maybe_chainman = GetChainman(context, req);
+    ChainstateManager* maybe_chainman = GetChainman(context, cb);
     if (!maybe_chainman) return false;
     ChainstateManager& chainman = *maybe_chainman;
+    int chain_height{0};
+    uint256 chain_tip_hash;
     {
         auto process_utxos = [&vOutPoints, &outs, &hits](const CCoinsView& view, const CTxMemPool* mempool) {
             for (const COutPoint& vOutPoint : vOutPoints) {
@@ -831,16 +848,20 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
         };
 
         if (fCheckMemPool) {
-            const CTxMemPool* mempool = GetMemPool(context, req);
+            const CTxMemPool* mempool = GetMemPool(context, cb);
             if (!mempool) return false;
             // use db+mempool as cache backend in case user likes to query mempool
             LOCK2(cs_main, mempool->cs);
             CCoinsViewCache& viewChain = chainman.ActiveChainstate().CoinsTip();
             CCoinsViewMemPool viewMempool(&viewChain, *mempool);
             process_utxos(viewMempool, mempool);
+            chain_height = chainman.ActiveChain().Height();
+            chain_tip_hash = chainman.ActiveChain().Tip()->GetBlockHash();
         } else {
             LOCK(cs_main);
             process_utxos(chainman.ActiveChainstate().CoinsTip(), nullptr);
+            chain_height = chainman.ActiveChain().Height();
+            chain_tip_hash = chainman.ActiveChain().Tip()->GetBlockHash();
         }
 
         for (size_t i = 0; i < hits.size(); ++i) {
@@ -855,21 +876,17 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
         // serialize data
         // use exact same output as mentioned in Bip64
         CDataStream ssGetUTXOResponse(SER_NETWORK, PROTOCOL_VERSION);
-        ssGetUTXOResponse << chainman.ActiveChain().Height() << chainman.ActiveChain().Tip()->GetBlockHash() << bitmap << outs;
-        std::string ssGetUTXOResponseString = ssGetUTXOResponse.str();
+        ssGetUTXOResponse << chain_height << chain_tip_hash << bitmap << outs;
 
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, ssGetUTXOResponseString);
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ssGetUTXOResponse.str());
         return true;
     }
 
     case RESTResponseFormat::HEX: {
         CDataStream ssGetUTXOResponse(SER_NETWORK, PROTOCOL_VERSION);
-        ssGetUTXOResponse << chainman.ActiveChain().Height() << chainman.ActiveChain().Tip()->GetBlockHash() << bitmap << outs;
-        std::string strHex = HexStr(ssGetUTXOResponse) + "\n";
+        ssGetUTXOResponse << chain_height << chain_tip_hash << bitmap << outs;
 
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, strHex);
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, HexStr(ssGetUTXOResponse) + "\n");
         return true;
     }
 
@@ -878,8 +895,8 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
 
         // pack in some essentials
         // use more or less the same output as mentioned in Bip64
-        objGetUTXOResponse.pushKV("chainHeight", chainman.ActiveChain().Height());
-        objGetUTXOResponse.pushKV("chaintipHash", chainman.ActiveChain().Tip()->GetBlockHash().GetHex());
+        objGetUTXOResponse.pushKV("chainHeight", chain_height);
+        objGetUTXOResponse.pushKV("chaintipHash", chain_tip_hash.GetHex());
         objGetUTXOResponse.pushKV("bitmap", bitmapStringRepresentation);
 
         UniValue utxos(UniValue::VARR);
@@ -896,39 +913,36 @@ static bool rest_getutxos(const CoreContext& context, HTTPRequest* req, const st
         }
         objGetUTXOResponse.pushKV("utxos", utxos);
 
-        // return json string
-        std::string strJSON = objGetUTXOResponse.write() + "\n";
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, strJSON);
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, objGetUTXOResponse.write() + "\n");
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
 
-static bool rest_blockhash_by_height(const CoreContext& context, HTTPRequest* req,
-                       const std::string& str_uri_part)
+static bool rest_blockhash_by_height(const CoreContext& context, const drogon::HttpRequestPtr& req,
+                                     const rest::Callback& cb, const std::string& str_uri_part)
 {
-    if (!CheckWarmup(req)) return false;
+    if (!CheckWarmup(cb)) return false;
     std::string height_str;
     const RESTResponseFormat rf = ParseDataFormat(height_str, str_uri_part);
 
     int32_t blockheight = -1; // Initialization done only to prevent valgrind false positive, see https://github.com/bitcoin/bitcoin/pull/18785
     if (!ParseInt32(height_str, &blockheight) || blockheight < 0) {
-        return RESTERR(req, HTTP_BAD_REQUEST, "Invalid height: " + SanitizeString(height_str));
+        return RESTERR(cb, drogon::k400BadRequest, "Invalid height: " + SanitizeString(height_str));
     }
 
     CBlockIndex* pblockindex = nullptr;
     {
-        ChainstateManager* maybe_chainman = GetChainman(context, req);
+        ChainstateManager* maybe_chainman = GetChainman(context, cb);
         if (!maybe_chainman) return false;
         ChainstateManager& chainman = *maybe_chainman;
         LOCK(cs_main);
         const CChain& active_chain = chainman.ActiveChain();
         if (blockheight > active_chain.Height()) {
-            return RESTERR(req, HTTP_NOT_FOUND, "Block height out of range");
+            return RESTERR(cb, drogon::k404NotFound, "Block height out of range");
         }
         pblockindex = active_chain[blockheight];
     }
@@ -936,59 +950,167 @@ static bool rest_blockhash_by_height(const CoreContext& context, HTTPRequest* re
     case RESTResponseFormat::BINARY: {
         CDataStream ss_blockhash(SER_NETWORK, PROTOCOL_VERSION);
         ss_blockhash << pblockindex->GetBlockHash();
-        req->WriteHeader("Content-Type", "application/octet-stream");
-        req->WriteReply(HTTP_OK, ss_blockhash.str());
+        WriteReply(cb, drogon::CT_APPLICATION_OCTET_STREAM, ss_blockhash.str());
         return true;
     }
     case RESTResponseFormat::HEX: {
-        req->WriteHeader("Content-Type", "text/plain");
-        req->WriteReply(HTTP_OK, pblockindex->GetBlockHash().GetHex() + "\n");
+        WriteReply(cb, drogon::CT_TEXT_PLAIN, pblockindex->GetBlockHash().GetHex() + "\n");
         return true;
     }
     case RESTResponseFormat::JSON: {
-        req->WriteHeader("Content-Type", "application/json");
         UniValue resp = UniValue(UniValue::VOBJ);
         resp.pushKV("blockhash", pblockindex->GetBlockHash().GetHex());
-        req->WriteReply(HTTP_OK, resp.write() + "\n");
+        WriteReply(cb, drogon::CT_APPLICATION_JSON, resp.write() + "\n");
         return true;
     }
     default: {
-        return RESTERR(req, HTTP_NOT_FOUND, "output format not found (available: " + AvailableDataFormatsString() + ")");
+        return RESTERR(cb, drogon::k406NotAcceptable, "output format not found (available: " + AvailableDataFormatsString() + ")");
     }
     }
 }
 
 static const struct {
     const char* prefix;
-    bool (*handler)(const CoreContext& context, HTTPRequest* req, const std::string& strReq);
+    bool (*handler)(const CoreContext&, const drogon::HttpRequestPtr&, const rest::Callback&, const std::string&);
 } uri_prefixes[] = {
-      {"/rest/tx/", rest_tx},
-      {"/rest/block/notxdetails/", rest_block_notxdetails},
-      {"/rest/block/", rest_block_extended},
-      {"/rest/blockfilter/", rest_block_filter},
-      {"/rest/blockfilterheaders/", rest_filter_header},
-      {"/rest/chaininfo", rest_chaininfo},
-      {"/rest/mempool/", rest_mempool},
-      {"/rest/headers/", rest_headers},
-      {"/rest/getutxos", rest_getutxos},
-      {"/rest/blockhashbyheight/", rest_blockhash_by_height},
+      {"tx/", rest_tx},
+      {"block/notxdetails/", rest_block_notxdetails},
+      {"block/", rest_block_extended},
+      {"blockfilter/", rest_block_filter},
+      {"blockfilterheaders/", rest_filter_header},
+      {"chaininfo", rest_chaininfo},
+      {"mempool/", rest_mempool},
+      {"headers/", rest_headers},
+      {"getutxos", rest_getutxos},
+      {"blockhashbyheight/", rest_blockhash_by_height},
 };
 
-void StartREST(const CoreContext& context)
+static void RegisterHandlers(const CoreContext& context)
 {
-    for (const auto& up : uri_prefixes) {
-        auto handler = [context, up](HTTPRequest* req, const std::string& prefix) { return up.handler(context, req, prefix); };
-        RegisterHTTPHandler(up.prefix, false, handler);
-    }
+    // registerSyncAdvice intercepts requests before drogon's routing
+    // pipeline.  Handlers run directly on the I/O thread — no pool
+    // dispatch overhead, no extra allocations.  With enough I/O threads
+    // (set via -restthreads), blocking on cs_main is absorbed.
+    auto& app = drogon::app();
+    app.registerSyncAdvice(
+        [context](const drogon::HttpRequestPtr& req) -> drogon::HttpResponsePtr {
+            const std::string& path = req->path();
+
+            static constexpr std::string_view REST_PREFIX{"/rest/"};
+            if (path.size() < REST_PREFIX.size() ||
+                path.compare(0, REST_PREFIX.size(), REST_PREFIX) != 0) {
+                return nullptr;
+            }
+
+            const std::string_view rest_sv{path.data() + REST_PREFIX.size(),
+                                           path.size() - REST_PREFIX.size()};
+
+            for (const auto& up : uri_prefixes) {
+                const size_t plen = strlen(up.prefix);
+                if (rest_sv.size() < plen ||
+                    rest_sv.compare(0, plen, up.prefix) != 0) continue;
+
+                const std::string uri_part{rest_sv.substr(plen)};
+
+                drogon::HttpResponsePtr result;
+                rest::Callback cb = [&result](const drogon::HttpResponsePtr& resp) {
+                    result = resp;
+                };
+
+                up.handler(context, req, cb, uri_part);
+                return result;
+            }
+            return drogon::HttpResponse::newNotFoundResponse();
+        });
 }
 
-void InterruptREST()
+namespace rest {
+bool StartServer(const CoreContext& context, const Options& opts)
 {
+    if (g_server_thread.joinable()) {
+        LogPrint(BCLog::REST, "Server already running, ignoring duplicate start\n");
+        return false;
+    }
+
+    // Pre-flight: verify the port is bindable before handing it to drogon,
+    // whose trantor library calls exit() on bind failure which would crash
+    // the process.
+    if (!IsPortBindable(opts.m_addr, opts.m_port)) {
+        LogPrintf("REST: cannot bind to %s:%d, aborting server start\n", opts.m_addr, opts.m_port);
+        return false;
+    }
+
+    auto& app = drogon::app();
+    app.disableSigtermHandling();
+    trantor::Logger::setOutputFunction(
+        [](const char* msg, const uint64_t len) {
+            std::string_view sv{msg, len};
+            // Strip trailing newline as it is reintroduced by LogPrint
+            while (!sv.empty() && (sv.back() == '\n' || sv.back() == '\r')) {
+                sv.remove_suffix(1);
+            }
+            LogDebug(BCLog::REST, "Drogon reports %.*s\n", static_cast<int>(sv.size()), sv.data());
+        },
+        []() { /* LogPrint handles flushing */ });
+
+    app.addListener(/*ip=*/opts.m_addr, opts.m_port);
+    app.setThreadNum(opts.m_threads);
+    app.setMaxConnectionNum(opts.m_max_connections);
+    app.setIdleConnectionTimeout(opts.m_idle_timeout);
+    app.setPipeliningRequestsNumber(0);  // Unlimited pipelining depth.
+    // Disable unnecessary per-response header generation and compression.
+    app.enableDateHeader(false);
+    app.enableServerHeader(false);
+    app.enableGzip(false);
+    app.enableBrotli(false);
+    if (opts.m_reuse_port) {
+        app.enableReusePort();
+    }
+    LogPrint(BCLog::REST, "Starting server on %s:%d with %d thread(s), max_conn=%d, idle_timeout=%d, reuseport=%d\n",
+             opts.m_addr, opts.m_port, opts.m_threads, opts.m_max_connections, opts.m_idle_timeout, opts.m_reuse_port);
+
+    RegisterHandlers(context);
+
+    try {
+        g_server_thread = std::thread([] {
+            util::ThreadRename("rest-server");
+            try {
+                drogon::app().run();
+            } catch (const std::exception& e) {
+                LogPrint(BCLog::REST, "Server failed: %s\n", e.what());
+            }
+        });
+    } catch (const std::exception& e) {
+        LogPrint(BCLog::REST, "Failed to start thread: %s\n", e.what());
+        return false;
+    }
+
+    // Wait for the event loop to be ready so that a subsequent quit() call
+    // (e.g. during rapid shutdown) is not lost due to a race with run().
+    constexpr auto RUN_PROBE_SLEEP{250ms};
+    for (int i{0}; i < MAX_PROBE_DURATION / RUN_PROBE_SLEEP; ++i) {
+        if (drogon::app().isRunning()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds{RUN_PROBE_SLEEP});
+    }
+
+    LogPrint(BCLog::REST, "Server failed to start\n");
+    return false;
 }
 
-void StopREST()
+void InterruptServer()
 {
-    for (const auto& up : uri_prefixes) {
-        UnregisterHTTPHandler(up.prefix, false);
+    LogPrint(BCLog::REST, "Interrupting server\n");
+    drogon::app().quit();
+}
+
+void StopServer()
+{
+    if (g_server_thread.joinable()) {
+        drogon::app().quit();
+        g_server_thread.join();
+        LogPrint(BCLog::REST, "Server stopped\n");
     }
 }
+} // namespace rest

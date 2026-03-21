@@ -42,6 +42,7 @@ src/qt/proposalinfo.*
 src/qt/proposallist.*
 src/qt/proposalmodel.*
 src/qt/proposalresume.*
+src/rest/reader.*
 src/rpc/coinjoin.cpp
 src/rpc/evo.cpp
 src/rpc/evo_util.*

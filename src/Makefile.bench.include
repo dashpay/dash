@@ -69,6 +69,7 @@ bench_bench_dash_LDADD = \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_QUERY) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBDASHBLS) \
@@ -80,6 +81,7 @@ bench_bench_dash_LDADD = \
   $(EVENT_LIBS) \
   $(MINIUPNPC_LIBS) \
   $(NATPMP_LIBS) \
+  $(DROGON_LIBS) \
   $(GMP_LIBS) \
   $(BACKTRACE_LIBS)
 

@@ -576,3 +576,50 @@ std::string NetworkErrorString(int err)
     return SysErrorString(err);
 #endif
 }
+
+bool IsPortBindable(const std::string& addr, uint16_t port)
+{
+    int af{AF_INET};
+    struct sockaddr_in sa4{};
+    struct sockaddr_in6 sa6{};
+    struct sockaddr* sa;
+    socklen_t sa_len;
+
+    if (inet_pton(AF_INET, addr.c_str(), &sa4.sin_addr) == 1) {
+        af = AF_INET;
+        sa4.sin_family = AF_INET;
+        sa4.sin_port = htons(port);
+        sa = reinterpret_cast<struct sockaddr*>(&sa4);
+        sa_len = sizeof(sa4);
+    } else if (inet_pton(AF_INET6, addr.c_str(), &sa6.sin6_addr) == 1) {
+        af = AF_INET6;
+        sa6.sin6_family = AF_INET6;
+        sa6.sin6_port = htons(port);
+        sa = reinterpret_cast<struct sockaddr*>(&sa6);
+        sa_len = sizeof(sa6);
+    } else {
+        LogPrintf("invalid address '%s'\n", addr);
+        return false;
+    }
+
+    SOCKET fd = ::socket(af, SOCK_STREAM, IPPROTO_TCP);
+    if (fd == INVALID_SOCKET) {
+        LogPrintf("socket() failed: %s\n", NetworkErrorString(WSAGetLastError()));
+        return false;
+    }
+
+    int reuse{1};
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&reuse), sizeof(reuse));
+
+    const bool ok{(::bind(fd, sa, sa_len) == 0)};
+    if (!ok) {
+        LogPrintf("cannot bind %s:%d: %s\n", addr, port, NetworkErrorString(WSAGetLastError()));
+    }
+
+#ifdef WIN32
+    ::closesocket(fd);
+#else
+    ::close(fd);
+#endif
+    return ok;
+}

@@ -19,16 +19,4 @@ void InterruptHTTPRPC();
  */
 void StopHTTPRPC();
 
-/** Start HTTP REST subsystem.
- * Precondition; HTTP and RPC has been started.
- */
-void StartREST(const CoreContext& context);
-/** Interrupt RPC REST subsystem.
- */
-void InterruptREST();
-/** Stop HTTP REST subsystem.
- * Precondition; HTTP and RPC has been stopped.
- */
-void StopREST();
-
 #endif // BITCOIN_HTTPRPC_H
