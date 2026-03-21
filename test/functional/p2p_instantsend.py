@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
 
 '''
 p2p_instantsend.py
@@ -36,6 +36,7 @@ class InstantSendTest(DashTestFramework):
 
         self.test_mempool_doublespend()
         self.test_block_doublespend()
+        self.test_instantsend_after_restart()
 
     def test_block_doublespend(self):
         sender = self.nodes[self.sender_idx]
@@ -141,6 +142,67 @@ class InstantSendTest(DashTestFramework):
             self.wait_for_instantlock(sentback_id, node)
         assert_equal(receiver.getwalletinfo()["balance"], 0)
         # mine more blocks
+        self.generate(self.nodes[0], 2)
+
+    def test_instantsend_after_restart(self):
+        self.log.info("Testing InstantSend works after full restart without new blocks")
+
+        # fund sender with confirmed coins
+        sender = self.nodes[self.sender_idx]
+        receiver = self.nodes[self.receiver_idx]
+        sender_addr = sender.getnewaddress()
+        fund_id = self.nodes[0].sendtoaddress(sender_addr, 1)
+        self.bump_mocktime(30)
+        self.sync_mempools()
+        for node in self.nodes:
+            self.wait_for_instantlock(fund_id, node)
+        tip = self.generate(self.nodes[0], 2)[-1]
+        self.bump_mocktime(30)
+        self.wait_for_chainlocked_block_all_nodes(tip)
+        self.sync_blocks()
+        assert sender.getbalance() >= 0.5
+
+        receiver_addr = receiver.getnewaddress()
+
+        # restart all nodes without mining new blocks
+        self.log.info("Restarting all nodes")
+        num_simple_nodes = self.num_nodes - self.mn_count
+        self.stop_nodes()
+
+        for i in range(num_simple_nodes):
+            self.start_node(i)
+        for mn_info in self.mninfo:
+            self.start_masternode(mn_info)
+
+        # reconnect: simple nodes to node 0, MNs to node 0
+        # quorum connections are re-established automatically via InitializeCurrentBlockTip
+        for i in range(1, num_simple_nodes):
+            self.connect_nodes(i, 0)
+        for mn_info in self.mninfo:
+            self.connect_nodes(mn_info.nodeIdx, 0)
+        for i in range(num_simple_nodes):
+            force_finish_mnsync(self.nodes[i])
+
+        # bump past WAIT_FOR_ISLOCK_TIMEOUT so txFirstSeenTime loss doesn't
+        # block chainlock signing for TXs mined before restart
+        self.bump_mocktime(10 * 60 + 1)
+        self.sync_blocks()
+
+        # re-grab references after restart
+        sender = self.nodes[self.sender_idx]
+        receiver = self.nodes[self.receiver_idx]
+
+        # send a TX — needs IS lock from all restarted MNs, no new blocks mined
+        is_id = sender.sendtoaddress(receiver_addr, 0.5)
+        self.bump_mocktime(30)
+        self.sync_mempools()
+        self.wait_for_instantlock(is_id, sender)
+        self.log.info("InstantSend lock succeeded after full restart")
+
+        # clean up
+        receiver.sendtoaddress(self.nodes[0].getnewaddress(), 0.5, "", "", True)
+        self.bump_mocktime(30)
+        self.sync_mempools()
         self.generate(self.nodes[0], 2)
 
 if __name__ == '__main__':
