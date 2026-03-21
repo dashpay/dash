@@ -96,6 +96,7 @@ public:
     void Stop();
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const;
+    void InitializeQuorumConnections(gsl::not_null<const CBlockIndex*> pindexNew) const;
 
 public:
     virtual bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const;

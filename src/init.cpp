@@ -2417,6 +2417,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // but don't call it directly to prevent triggering of other listeners like zmq etc.
         // GetMainSignals().UpdatedBlockTip(::ChainActive().Tip());
         g_ds_notification_interface->InitializeCurrentBlockTip();
+        {
+            const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
+            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            if (node.active_ctx) {
+                node.active_ctx->InitializeCurrentBlockTip(tip, ibd);
+            } else if (node.observer_ctx) {
+                node.observer_ctx->InitializeCurrentBlockTip(tip, ibd);
+            }
+        }
 
         {
             // Get all UTXOs for each MN collateral in one go so that we can fill coin cache early

@@ -97,6 +97,14 @@ void ActiveContext::SetCJServer(gsl::not_null<CCoinJoinServer*> cj_server)
     m_cj_server = cj_server;
 }
 
+void ActiveContext::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd)
+{
+    UpdatedBlockTip(tip, nullptr, ibd);
+    if (tip) {
+        qman_handler->InitializeQuorumConnections(tip);
+    }
+}
+
 void ActiveContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
 {
     if (fInitialDownload || pindexNew == pindexFork) // In IBD or blocks were disconnected without any new ones

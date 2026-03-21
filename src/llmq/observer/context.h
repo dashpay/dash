@@ -49,6 +49,7 @@ public:
 
     void Start(int16_t worker_count);
     void Stop();
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
 
 protected:
     // CValidationInterface

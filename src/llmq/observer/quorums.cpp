@@ -59,6 +59,13 @@ void QuorumObserver::Stop()
     workerPool.stop(true);
 }
 
+void QuorumObserver::InitializeQuorumConnections(gsl::not_null<const CBlockIndex*> pindexNew) const
+{
+    for (const auto& params : Params().GetConsensus().llmqs) {
+        CheckQuorumConnections(params, pindexNew);
+    }
+}
+
 void QuorumObserver::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const
 {
     if (!pindexNew) return;
