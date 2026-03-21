@@ -2417,6 +2417,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // but don't call it directly to prevent triggering of other listeners like zmq etc.
         // GetMainSignals().UpdatedBlockTip(::ChainActive().Tip());
         g_ds_notification_interface->InitializeCurrentBlockTip();
+        {
+            const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
+            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            if (node.observer_ctx && !node.active_ctx) {
+                node.observer_ctx->InitializeCurrentBlockTip(tip, ibd);
+            }
+            // Note: active_ctx initialization is deferred until after nodeman->Init()
+            // so that GetProTxHash() is available for quorum connection setup.
+        }
 
         {
             // Get all UTXOs for each MN collateral in one go so that we can fill coin cache early
@@ -2481,6 +2490,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         if (node.active_ctx) {
             node.active_ctx->nodeman->Init(chainman.ActiveTip());
+            // Initialize current block tip after nodeman->Init() so that
+            // GetProTxHash() is available for quorum connection setup.
+            // Without this ordering, EnsureQuorumConnections returns early
+            // because the null proTxHash makes the MN appear as a non-member.
+            const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
+            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            node.active_ctx->InitializeCurrentBlockTip(tip, ibd);
         }
     });
 #ifdef ENABLE_WALLET

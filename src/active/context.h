@@ -74,6 +74,7 @@ public:
 
     void Start(CConnman& connman, PeerManager& peerman, int16_t worker_count);
     void Stop();
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
 
     CCoinJoinServer& GetCJServer() const;
     void SetCJServer(gsl::not_null<CCoinJoinServer*> cj_server);

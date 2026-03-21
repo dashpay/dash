@@ -47,6 +47,14 @@ void ObserverContext::Stop()
     qman_handler->Stop();
 }
 
+void ObserverContext::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd)
+{
+    UpdatedBlockTip(tip, nullptr, ibd);
+    if (tip) {
+        qman_handler->InitializeQuorumConnections(tip);
+    }
+}
+
 void ObserverContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
 {
     if (fInitialDownload || pindexNew == pindexFork) // In IBD or blocks were disconnected without any new ones
