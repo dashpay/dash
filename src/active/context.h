@@ -54,7 +54,6 @@ struct DbWrapperParams;
 
 struct ActiveContext final : public CValidationInterface {
 private:
-    llmq::CInstantSendManager& m_isman;
     llmq::CQuorumManager& m_qman;
 
 public:
@@ -97,6 +96,8 @@ private:
     const std::unique_ptr<llmq::CEHFSignalsHandler> ehf_sighandler;
     const std::unique_ptr<llmq::QuorumParticipant> qman_handler;
     const std::unique_ptr<chainlock::ChainLockSigner> cl_signer;
+
+public:
     const std::unique_ptr<instantsend::InstantSendSigner> is_signer;
 
     /** Owned by PeerManager, use GetCJServer() */

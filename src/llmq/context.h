@@ -15,12 +15,7 @@ class CDeterministicMNManager;
 class CEvoDB;
 class CMasternodeSync;
 class CSporkManager;
-class CTxMemPool;
 class PeerManager;
-
-namespace chainlock {
-class Chainlocks;
-}
 
 namespace llmq {
 class CInstantSendManager;
@@ -39,9 +34,9 @@ public:
     LLMQContext(const LLMQContext&) = delete;
     LLMQContext& operator=(const LLMQContext&) = delete;
     explicit LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSporkManager& sporkman,
-                         chainlock::Chainlocks& chainlocks, CTxMemPool& mempool, ChainstateManager& chainman,
-                         const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params, int8_t bls_threads,
-                         int16_t worker_count, int64_t max_recsigs_age);
+                         ChainstateManager& chainman, const CMasternodeSync& mn_sync,
+                         const util::DbWrapperParams& db_params, int8_t bls_threads, int16_t worker_count,
+                         int64_t max_recsigs_age);
     ~LLMQContext();
 
     /** Guaranteed if LLMQContext is initialized then all members are valid too

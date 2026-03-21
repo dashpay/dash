@@ -4,17 +4,17 @@
 
 #include <instantsend/signing.h>
 
+#include <chain.h>
 #include <chainlock/chainlock.h>
+#include <chainparams.h>
+#include <index/txindex.h>
+#include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
+#include <logging.h>
 #include <masternode/sync.h>
 #include <spork.h>
 #include <util/helpers.h>
-
-#include <chain.h>
-#include <chainparams.h>
-#include <index/txindex.h>
-#include <logging.h>
 #include <validation.h>
 
 #include <ranges>
@@ -31,7 +31,7 @@ using node::GetTransaction;
 
 namespace instantsend {
 InstantSendSigner::InstantSendSigner(CChainState& chainstate, const chainlock::Chainlocks& chainlocks,
-                                     InstantSendSignerParent& isman, llmq::CSigningManager& sigman,
+                                     llmq::CInstantSendManager& isman, llmq::CSigningManager& sigman,
                                      llmq::CSigSharesManager& shareman, llmq::CQuorumManager& qman,
                                      CSporkManager& sporkman, CTxMemPool& mempool, const CMasternodeSync& mn_sync) :
     m_chainstate{chainstate},
@@ -199,36 +199,43 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
     uint256 hashBlock{};
     const auto tx = GetTransaction(nullptr, &m_mempool, outpoint.hash, params, hashBlock);
     // this relies on enabled txindex and won't work if we ever try to remove the requirement for txindex for masternodes
-    if (!tx) {
+    if (!tx || hashBlock.IsNull()) {
         if (printDebug) {
-            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to find parent TX %s\n", __func__, txHash.ToString(),
+            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to find parent TX %s in mined block\n", __func__, txHash.ToString(),
                      outpoint.hash.ToString());
         }
         return false;
     }
 
-    const auto blockHeight = m_isman.GetBlockHeight(hashBlock);
-    if (!blockHeight) {
-        if (printDebug) {
-            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n", __func__,
-                     txHash.ToString(), outpoint.hash.ToString());
+    int blockHeight{0};
+    if (auto ret = m_isman.GetCachedHeight(hashBlock)) {
+        blockHeight = *ret;
+    } else {
+        const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
+        if (pindex == nullptr) {
+            if (printDebug) {
+                LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: failed to determine mined height for parent TX %s\n",
+                         __func__, txHash.ToString(), outpoint.hash.ToString());
+            }
+            return false;
         }
-        return false;
+        m_isman.CacheBlockHeight(pindex);
+        blockHeight = pindex->nHeight;
     }
 
     const int tipHeight = m_isman.GetTipHeight();
 
-    if (tipHeight < *blockHeight) {
+    if (tipHeight < blockHeight) {
         if (printDebug) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: cached tip height %d is below block height %d for parent TX %s\n",
-                     __func__, txHash.ToString(), tipHeight, *blockHeight, outpoint.hash.ToString());
+                     __func__, txHash.ToString(), tipHeight, blockHeight, outpoint.hash.ToString());
         }
         return false;
     }
 
-    const int nTxAge = tipHeight - *blockHeight + 1;
+    const int nTxAge = tipHeight - blockHeight + 1;
 
-    if (nTxAge < nInstantSendConfirmationsRequired && !m_chainlocks.HasChainLock(*blockHeight, hashBlock)) {
+    if (nTxAge < nInstantSendConfirmationsRequired && !m_chainlocks.HasChainLock(blockHeight, hashBlock)) {
         if (printDebug) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nInstantSendConfirmationsRequired=%d\n", __func__,
                      txHash.ToString(), outpoint.ToStringShort(), nTxAge, nInstantSendConfirmationsRequired);

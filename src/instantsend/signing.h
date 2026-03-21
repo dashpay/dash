@@ -8,8 +8,8 @@
 #include <instantsend/lock.h>
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
-
-#include <optional>
+#include <sync.h>
+#include <threadsafety.h>
 
 class CMasternodeSync;
 class CSporkManager;
@@ -30,25 +30,13 @@ class CQuorumManager;
 } // namespace llmq
 
 namespace instantsend {
-class InstantSendSignerParent
-{
-public:
-    virtual ~InstantSendSignerParent() = default;
-
-    virtual bool IsInstantSendEnabled() const = 0;
-    virtual bool IsLocked(const uint256& txHash) const = 0;
-    virtual InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const = 0;
-    virtual void TryEmplacePendingLock(const uint256& hash, const NodeId id, const InstantSendLockPtr& islock) = 0;
-    virtual std::optional<int> GetBlockHeight(const uint256& hash) const = 0;
-    virtual int GetTipHeight() const = 0;
-};
 
 class InstantSendSigner final : public llmq::CRecoveredSigsListener
 {
 private:
     CChainState& m_chainstate;
     const chainlock::Chainlocks& m_chainlocks;
-    InstantSendSignerParent& m_isman;
+    llmq::CInstantSendManager& m_isman;
     llmq::CSigningManager& m_sigman;
     llmq::CSigSharesManager& m_shareman;
     llmq::CQuorumManager& m_qman;
@@ -80,7 +68,7 @@ public:
     InstantSendSigner(const InstantSendSigner&) = delete;
     InstantSendSigner& operator=(const InstantSendSigner&) = delete;
     explicit InstantSendSigner(CChainState& chainstate, const chainlock::Chainlocks& chainlocks,
-                               InstantSendSignerParent& isman, llmq::CSigningManager& sigman,
+                               llmq::CInstantSendManager& isman, llmq::CSigningManager& sigman,
                                llmq::CSigSharesManager& shareman, llmq::CQuorumManager& qman, CSporkManager& sporkman,
                                CTxMemPool& mempool, const CMasternodeSync& mn_sync);
     ~InstantSendSigner();

@@ -40,7 +40,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "evo/specialtxman -> validation -> evo/specialtxman",
     "governance/classes -> governance/object -> governance/governance -> governance/classes",
     "governance/governance -> governance/signing -> governance/object -> governance/governance",
-    "instantsend/instantsend -> txmempool -> instantsend/instantsend",
+    "instantsend/instantsend -> node/blockstorage -> validation -> txmempool -> instantsend/instantsend",
     "llmq/blockprocessor -> llmq/utils -> llmq/snapshot -> llmq/blockprocessor",
     "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment",
     "llmq/dkgsessionhandler -> net_processing -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler",

@@ -97,6 +97,7 @@
 #include <instantsend/net_instantsend.h>
 #include <llmq/context.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/signing.h>
 #include <llmq/net_signing.h>
 #include <llmq/options.h>
 #include <llmq/observer/context.h>
@@ -2176,7 +2177,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     RegisterValidationInterface(node.peerman.get());
 
     g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
-        *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman, node.llmq_ctx
+        *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman // todo: replace unique_ptr for dmnman to reference
     );
     RegisterValidationInterface(g_ds_notification_interface.get());
 
@@ -2208,7 +2209,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7d: Setup other Dash services
 
-    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, *node.llmq_ctx->qman, chainman.ActiveChainstate()));
+    node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, node.active_ctx ? node.active_ctx->is_signer.get() : nullptr, *node.llmq_ctx->sigman, *node.llmq_ctx->qman, *node.chainlocks, chainman.ActiveChainstate(), *node.mempool, *node.mn_sync));
     node.peerman->AddExtraHandler(std::make_unique<llmq::NetSigning>(node.peerman.get(), *node.llmq_ctx->sigman, node.active_ctx ? node.active_ctx->shareman.get() : nullptr, *node.sporkman));
 
     if (node.active_ctx) {
