@@ -134,7 +134,7 @@ jobs:
     with:
       build-target: linux64_nowallet
       container-path: ${{ needs.container.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   depends-mac:
     name: x86_64-apple-darwin
@@ -225,7 +225,7 @@ jobs:
       depends-key: ${{ needs.depends-linux64_nowallet.outputs.key }}
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   src-linux64_sqlite:
     name: linux64_sqlite-build
@@ -318,7 +318,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
   test-linux64_sqlite:
     name: linux64_sqlite-test
