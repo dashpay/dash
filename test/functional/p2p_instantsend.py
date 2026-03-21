@@ -46,6 +46,7 @@ class InstantSendTest(DashTestFramework):
         sender_addr = sender.getnewaddress()
         is_id = self.nodes[0].sendtoaddress(sender_addr, 1)
         self.bump_mocktime(30)
+        self.sync_mempools()
         for node in self.nodes:
             self.wait_for_instantlock(is_id, node)
         self.generate(self.nodes[0], 2)
@@ -106,6 +107,7 @@ class InstantSendTest(DashTestFramework):
         sender_addr = sender.getnewaddress()
         is_id = self.nodes[0].sendtoaddress(sender_addr, 1)
         self.bump_mocktime(30)
+        self.sync_mempools()
         for node in self.nodes:
             self.wait_for_instantlock(is_id, node)
         self.generate(self.nodes[0], 2)

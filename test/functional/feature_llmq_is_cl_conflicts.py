@@ -244,6 +244,7 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         self.nodes[0].sendrawtransaction(rawtx2)
         # bump mocktime to force tx relay
         self.bump_mocktime(60)
+        self.sync_mempools()
         for node in self.nodes:
             self.wait_for_instantlock(rawtx2_txid, node)
 
