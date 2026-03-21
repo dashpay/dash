@@ -312,7 +312,7 @@ class ImportDescriptorsTest(BitcoinTestFramework):
 
             pkh_addr = received_addr
             pkh_addr_info = w1.getaddressinfo(pkh_addr)
-            assert_equal(pkh_addr_info['desc'][:22], 'pkh([12345678/0\'/0\'/{}]'.format(i))
+            assert_equal(pkh_addr_info['desc'][:22], 'pkh([12345678/0h/0h/{}]'.format(i))
 
             assert_equal(w1.getwalletinfo()['keypoolsize'], 4) # After retrieving a key, we don't refill the keypool again, so it's one less for each address type
         w1.keypoolrefill()

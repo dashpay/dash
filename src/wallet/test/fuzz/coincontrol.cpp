@@ -53,8 +53,7 @@ FUZZ_TARGET(coincontrol, .init = initialize_coincontrol)
                 (void)coin_control.IsExternalSelected(out_point);
             },
             [&] {
-                CTxOut txout;
-                (void)coin_control.GetExternalOutput(out_point, txout);
+                (void)coin_control.GetExternalOutput(out_point);
             },
             [&] {
                 (void)coin_control.Select(out_point);
@@ -70,8 +69,7 @@ FUZZ_TARGET(coincontrol, .init = initialize_coincontrol)
                 (void)coin_control.UnSelectAll();
             },
             [&] {
-                std::vector<COutPoint> selected;
-                coin_control.ListSelected(selected);
+                (void)coin_control.ListSelected();
             });
     }
 }

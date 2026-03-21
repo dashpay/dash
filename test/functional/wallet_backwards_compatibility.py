@@ -237,7 +237,7 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
         wallet = node_v17.get_wallet_rpc("u1_v17")
         address = wallet.getnewaddress()
         v17_info = wallet.getaddressinfo(address)
-        v17_hdkeypath = v17_info["hdkeypath"]
+        v17_hdkeypath = v17_info["hdkeypath"].replace("'", "h")
         v17_pubkey = v17_info["pubkey"]
 
         if self.is_bdb_compiled():

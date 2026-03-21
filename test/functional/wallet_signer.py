@@ -105,7 +105,7 @@ class WalletSignerTest(BitcoinTestFramework):
         address_info = hww.getaddressinfo(address3)
         assert_equal(address_info['solvable'], True)
         assert_equal(address_info['ismine'], True)
-        assert_equal(address_info['hdkeypath'], "m/44'/1'/0'/0/0")
+        assert_equal(address_info['hdkeypath'], "m/44h/1h/0h/0/0")
         address1 = address3
 
         self.log.info('Test walletdisplayaddress')

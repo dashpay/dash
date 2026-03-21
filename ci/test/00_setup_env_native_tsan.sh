@@ -27,7 +27,7 @@ case "$(uname -m)" in
 esac
 export PACKAGES="clang-19 llvm-19 libclang-rt-19-dev libc++abi-19-dev libc++-19-dev python3-zmq"
 export DEP_OPTS="CC=clang-19 CXX='clang++-19 -stdlib=libc++'"
-export TEST_RUNNER_EXTRA="--extended --exclude feature_pruning,feature_dbcrash,wallet_multiwallet.py" # Temporarily suppress ASan heap-use-after-free (see issue #14163)
+export TEST_RUNNER_EXTRA="--extended --exclude feature_pruning,feature_dbcrash,wallet_multiwallet.py,interface_zmq_dash.py" # Temporarily suppress ASan heap-use-after-free (see issue #14163); interface_zmq_dash excluded due to borderline timeout under TSAN (mines 2 quorum cycles)
 export TEST_RUNNER_EXTRA="${TEST_RUNNER_EXTRA} --timeout-factor=4"  # Increase timeout because sanitizers slow down
 export GOAL="install"
 export BITCOIN_CONFIG="--enable-zmq --with-sanitizers=thread CC=clang-19 CXX=clang++-19 CXXFLAGS='-g'"

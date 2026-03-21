@@ -919,7 +919,7 @@ private:
     friend CChainState;
 
 public:
-    explicit ChainstateManager(const CChainParams& chainparams) : m_chainparams{chainparams} { }
+    explicit ChainstateManager(const CChainParams& chainparams) : m_chainparams{chainparams}, m_blockman{{chainparams}} { }
 
     const CChainParams& GetParams() const { return m_chainparams; }
     const Consensus::Params& GetConsensus() const { return m_chainparams.GetConsensus(); }

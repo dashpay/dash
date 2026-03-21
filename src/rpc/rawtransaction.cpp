@@ -220,6 +220,78 @@ static std::vector<RPCArg> CreateTxDoc()
     };
 }
 
+// Update PSBT with information from the mempool, the UTXO set, the txindex, and the provided descriptors
+PartiallySignedTransaction ProcessPSBT(const std::string& psbt_string, const CoreContext& context, const HidingSigningProvider& provider)
+{
+    // Unserialize the transactions
+    PartiallySignedTransaction psbtx;
+    std::string error;
+    if (!DecodeBase64PSBT(psbtx, psbt_string, error)) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
+    }
+
+    if (g_txindex) g_txindex->BlockUntilSyncedToCurrentChain();
+    const NodeContext& node = EnsureAnyNodeContext(context);
+
+    // If we can't find the corresponding full transaction for all of our inputs,
+    // this will be used to find just the utxos for the segwit inputs for which
+    // the full transaction isn't found
+    std::map<COutPoint, Coin> coins;
+
+    // Fetch previous transactions:
+    // First, look in the txindex and the mempool
+    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
+        PSBTInput& psbt_input = psbtx.inputs.at(i);
+        const CTxIn& tx_in = psbtx.tx->vin.at(i);
+
+        // The `non_witness_utxo` is the whole previous transaction
+        if (psbt_input.non_witness_utxo) continue;
+
+        CTransactionRef tx;
+
+        // Look in the txindex
+        if (g_txindex) {
+            uint256 block_hash;
+            g_txindex->FindTx(tx_in.prevout.hash, block_hash, tx);
+        }
+        // If we still don't have it look in the mempool
+        if (!tx) {
+            tx = node.mempool->get(tx_in.prevout.hash);
+        }
+        if (tx) {
+            psbt_input.non_witness_utxo = tx;
+        } else {
+            coins[tx_in.prevout]; // Create empty map entry keyed by prevout
+        }
+    }
+
+    // In Bitcoin, if we still haven't found all of the inputs, the utxo set
+    // is searched and segwit inputs are updated with just the utxo. Dash does
+    // not support segwit, so this fallback is not applicable.
+
+    const PrecomputedTransactionData& txdata = PrecomputePSBTData(psbtx);
+
+    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
+        if (PSBTInputSigned(psbtx.inputs.at(i))) {
+            continue;
+        }
+
+        // Update script/keypath information using descriptor data.
+        // Note that SignPSBTInput does a lot more than just constructing ECDSA signatures
+        // we don't actually care about those here, in fact.
+        SignPSBTInput(provider, psbtx, /*index=*/i, &txdata, /*sighash=*/1);
+    }
+
+    // Update script/keypath information using descriptor data.
+    for (unsigned int i = 0; i < psbtx.tx->vout.size(); ++i) {
+        UpdatePSBTOutput(provider, psbtx, i);
+    }
+
+    RemoveUnnecessaryTransactions(psbtx, /*sighash_type=*/1);
+
+    return psbtx;
+}
+
 static RPCHelpMan getrawtransaction()
 {
     return RPCHelpMan{
@@ -1659,7 +1731,7 @@ static RPCHelpMan converttopsbt()
 static RPCHelpMan utxoupdatepsbt()
 {
     return RPCHelpMan{"utxoupdatepsbt",
-            "\nUpdates a PSBT with data from output descriptors, UTXOs retrieved from the UTXO set or the mempool.\n",
+            "\nUpdates a PSBT with data from output descriptors, the UTXO set, txindex, or the mempool.\n",
             {
                 {"psbt", RPCArg::Type::STR, RPCArg::Optional::NO, "A base64 string of a PSBT"},
                 {"descriptors", RPCArg::Type::ARR, RPCArg::Optional::OMITTED_NAMED_ARG, "An array of either strings or objects", {
@@ -1680,12 +1752,6 @@ static RPCHelpMan utxoupdatepsbt()
 {
     RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR}, true);
 
-    // Unserialize the transactions
-    PartiallySignedTransaction psbtx;
-    std::string error;
-    if (!DecodeBase64PSBT(psbtx, request.params[0].get_str(), error)) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
-    }
 
     // Parse descriptors, if any.
     FlatSigningProvider provider;
@@ -1695,47 +1761,12 @@ static RPCHelpMan utxoupdatepsbt()
             EvalDescriptorStringOrObject(descs[i], provider);
         }
     }
+
     // We don't actually need private keys further on; hide them as a precaution.
-    HidingSigningProvider public_provider(&provider, /*hide_secret=*/true, /*hide_origin=*/false);
-
-    // Fetch previous transactions (inputs):
-    CCoinsView viewDummy;
-    CCoinsViewCache view(&viewDummy);
-    {
-        const NodeContext& node = EnsureAnyNodeContext(request.context);
-        const CTxMemPool& mempool = EnsureMemPool(node);
-        ChainstateManager& chainman = EnsureChainman(node);
-        LOCK2(cs_main, mempool.cs);
-        CCoinsViewCache &viewChain = chainman.ActiveChainstate().CoinsTip();
-        CCoinsViewMemPool viewMempool(&viewChain, mempool);
-        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
-
-        for (const CTxIn& txin : psbtx.tx->vin) {
-            view.AccessCoin(txin.prevout); // Load entries from viewChain into view; can fail.
-        }
-
-        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
-    }
-
-    // Fill the inputs
-    const PrecomputedTransactionData txdata = PrecomputePSBTData(psbtx);
-    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
-        PSBTInput& input = psbtx.inputs.at(i);
-
-        if (input.non_witness_utxo) {
-            continue;
-        }
-
-        // Update script/keypath information using descriptor data.
-        // Note that SignPSBTInput does a lot more than just constructing ECDSA signatures
-        // we don't actually care about those here, in fact.
-        SignPSBTInput(public_provider, psbtx, i, &txdata, /*sighash=*/SIGHASH_ALL);
-    }
-
-    // Update script/keypath information using descriptor data.
-    for (unsigned int i = 0; i < psbtx.tx->vout.size(); ++i) {
-        UpdatePSBTOutput(public_provider, psbtx, i);
-    }
+    const PartiallySignedTransaction& psbtx = ProcessPSBT(
+        request.params[0].get_str(),
+        request.context,
+        HidingSigningProvider(&provider, /*hide_secret=*/true, /*hide_origin=*/false));
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << psbtx;

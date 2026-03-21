@@ -35,6 +35,7 @@ class WalletHDTest(BitcoinTestFramework):
         self.skip_if_no_wallet()
 
     def run_test(self):
+        hardened = "h" if self.options.descriptors else "'"
         # Make sure can't switch off usehd after wallet creation
         self.stop_node(1)
         self.nodes[1].assert_start_raises_init_error(['-usehd=0'], "Error: Error loading %s: You can't disable HD on an already existing HD wallet" % self.default_wallet_name)
@@ -48,7 +49,7 @@ class WalletHDTest(BitcoinTestFramework):
         # create an internal key
         change_addr = self.nodes[1].getrawchangeaddress()
         change_addrV= self.nodes[1].getaddressinfo(change_addr)
-        assert_equal(change_addrV["hdkeypath"], "m/44'/1'/0'/1/0") #first internal child key
+        assert_equal(change_addrV["hdkeypath"], f"m/44{hardened}/1{hardened}/0{hardened}/1/0") #first internal child key
 
         # Import a non-HD private key in the HD wallet
         non_hd_add = 'yLU9vxiAWUdiKKxn6EazLDFq9WXrK2T7RP'
@@ -67,7 +68,7 @@ class WalletHDTest(BitcoinTestFramework):
         for i in range(1, NUM_HD_ADDS + 1):
             hd_add = self.nodes[1].getnewaddress()
             hd_info = self.nodes[1].getaddressinfo(hd_add)
-            assert_equal(hd_info["hdkeypath"], "m/44'/1'/0'/0/" + str(i))
+            assert_equal(hd_info["hdkeypath"], f"m/44{hardened}/1{hardened}/0{hardened}/0/" + str(i))
             assert_equal(hd_info["hdmasterfingerprint"], hd_fingerprint)
             self.nodes[0].sendtoaddress(hd_add, 1)
             self.generate(self.nodes[0], 1)
@@ -77,7 +78,7 @@ class WalletHDTest(BitcoinTestFramework):
         # create an internal key (again)
         change_addr = self.nodes[1].getrawchangeaddress()
         change_addrV= self.nodes[1].getaddressinfo(change_addr)
-        assert_equal(change_addrV["hdkeypath"], "m/44'/1'/0'/1/1") #second internal child key
+        assert_equal(change_addrV["hdkeypath"], f"m/44{hardened}/1{hardened}/0{hardened}/1/1") #second internal child key
 
         self.sync_all()
         assert_equal(self.nodes[1].getbalance(), NUM_HD_ADDS + 1)
@@ -101,7 +102,7 @@ class WalletHDTest(BitcoinTestFramework):
         for i in range(1, NUM_HD_ADDS + 1):
             hd_add_2 = self.nodes[1].getnewaddress()
             hd_info_2 = self.nodes[1].getaddressinfo(hd_add_2)
-            assert_equal(hd_info_2["hdkeypath"], "m/44'/1'/0'/0/"+str(i))
+            assert_equal(hd_info_2["hdkeypath"], f"m/44{hardened}/1{hardened}/0{hardened}/0/"+str(i))
             assert_equal(hd_info_2["hdmasterfingerprint"], hd_fingerprint)
         assert_equal(hd_add, hd_add_2)
         self.connect_nodes(0, 1)
@@ -142,7 +143,7 @@ class WalletHDTest(BitcoinTestFramework):
             if out['value'] != 1:
                 keypath = self.nodes[1].getaddressinfo(out['scriptPubKey']['address'])['hdkeypath']
 
-        assert_equal(keypath[0:13], "m/44'/1'/0'/1")
+        assert_equal(keypath[0:13], f"m/44{hardened}/1{hardened}/0{hardened}/1")
 
         if not self.options.descriptors:
             # NOTE: sethdseed can't replace existing seed in Dash Core

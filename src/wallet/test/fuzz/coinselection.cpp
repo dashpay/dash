@@ -14,6 +14,7 @@
 #include <vector>
 
 namespace wallet {
+static bool HasErrorMsg(const util::Result<SelectionResult>& res) { return !util::ErrorString(res).empty(); }
 
 static void AddCoin(const CAmount& value, int n_input, int n_input_bytes, int locktime, std::vector<COutput>& coins, CFeeRate fee_rate)
 {
@@ -81,19 +82,19 @@ FUZZ_TARGET(coinselection)
     GroupCoins(fuzzed_data_provider, utxo_pool, coin_params, /*positive_only=*/false, group_all);
 
     // Run coinselection algorithms
-    const auto result_bnb = SelectCoinsBnB(group_pos, target, cost_of_change);
+    const auto result_bnb = SelectCoinsBnB(group_pos, target, cost_of_change, MAX_STANDARD_TX_SIZE);
 
-    auto result_srd = SelectCoinsSRD(group_pos, target, fast_random_context);
+    auto result_srd = SelectCoinsSRD(group_pos, target, fast_random_context, MAX_STANDARD_TX_SIZE);
     if (result_srd) result_srd->ComputeAndSetWaste(cost_of_change);
 
     CAmount change_target{GenerateChangeTarget(target, fast_random_context)};
     auto result_knapsack = KnapsackSolver(group_all, target, change_target, fast_random_context,
-                                          /*fFullyMixedOnly=*/false, /*maxTxFee=*/DEFAULT_TRANSACTION_MAXFEE);
+                                          MAX_STANDARD_TX_SIZE, /*fFullyMixedOnly=*/false, /*maxTxFee=*/DEFAULT_TRANSACTION_MAXFEE);
     if (result_knapsack) result_knapsack->ComputeAndSetWaste(cost_of_change);
 
     // If the total balance is sufficient for the target and we are not using
-    // effective values, Knapsack should always find a solution.
-    if (total_balance >= target && subtract_fee_outputs) {
+    // effective values, Knapsack should always find a solution unless the selection exceeds max tx weight.
+    if (total_balance >= target && subtract_fee_outputs && !HasErrorMsg(result_knapsack)) {
         assert(result_knapsack);
     }
 }
