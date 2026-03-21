@@ -173,6 +173,15 @@ public:
     }
 
     bool AddScriptSig(const CTxIn& txin);
+
+    // Check if this is a standard mixing entry (not promotion/demotion)
+    // Standard: equal number of inputs and outputs
+    // Promotion: PROMOTION_RATIO inputs, 1 output
+    // Demotion: 1 input, PROMOTION_RATIO outputs
+    bool IsStandardMixingEntry() const
+    {
+        return vecTxDSIn.size() == vecTxOut.size();
+    }
 };
 
 
@@ -284,7 +293,8 @@ public:
 
     [[nodiscard]] const std::optional<int>& GetConfirmedHeight() const { return nConfirmedHeight; }
     void SetConfirmedHeight(std::optional<int> nConfirmedHeightIn) { assert(nConfirmedHeightIn == std::nullopt || *nConfirmedHeightIn > 0); nConfirmedHeight = nConfirmedHeightIn; }
-    [[nodiscard]] bool IsValidStructure() const;
+    [[nodiscard]] bool IsExpired(const CBlockIndex* pindex, const llmq::CChainLocksHandler& clhandler) const;
+    [[nodiscard]] bool IsValidStructure(const CBlockIndex* pindex) const;
 };
 
 // base class
@@ -319,6 +329,20 @@ public:
 
     int GetEntriesCount() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin) { LOCK(cs_coinjoin); return vecEntries.size(); }
     int GetEntriesCountLocked() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin) { return vecEntries.size(); }
+
+    // Count only standard mixing entries (not promotion/demotion) for privacy threshold
+    int GetStandardEntriesCount() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return std::count_if(vecEntries.begin(), vecEntries.end(),
+                             [](const CCoinJoinEntry& entry) { return entry.IsStandardMixingEntry(); });
+    }
+
+    int GetStandardEntriesCountLocked() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin)
+    {
+        return std::count_if(vecEntries.begin(), vecEntries.end(),
+                             [](const CCoinJoinEntry& entry) { return entry.IsStandardMixingEntry(); });
+    }
 };
 
 // base class
@@ -367,6 +391,28 @@ namespace CoinJoin
     /// If the collateral is valid given by a client
     bool IsCollateralValid(ChainstateManager& chainman, const llmq::CInstantSendManager& isman,
                            const CTxMemPool& mempool, const CTransaction& txCollateral);
+
+    /**
+     * Validate a promotion entry: 10 inputs of smaller denom → 1 output of larger denom
+     * @param vecTxIn The inputs for this entry
+     * @param vecTxOut The outputs for this entry
+     * @param nSessionDenom The session denomination (the smaller denom for promotion)
+     * @param nMessageIDRet Error message if validation fails
+     * @return true if valid promotion entry
+     */
+    bool ValidatePromotionEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut,
+                                int nSessionDenom, PoolMessage& nMessageIDRet);
+
+    /**
+     * Validate a demotion entry: 1 input of larger denom → 10 outputs of smaller denom
+     * @param vecTxIn The inputs for this entry
+     * @param vecTxOut The outputs for this entry
+     * @param nSessionDenom The session denomination (the smaller denom for demotion outputs)
+     * @param nMessageIDRet Error message if validation fails
+     * @return true if valid demotion entry
+     */
+    bool ValidateDemotionEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut,
+                               int nSessionDenom, PoolMessage& nMessageIDRet);
 }
 
 class CDSTXManager
