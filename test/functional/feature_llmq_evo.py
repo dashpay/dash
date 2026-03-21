@@ -202,7 +202,7 @@ class LLMQEvoNodesTest(DashTestFramework):
     def test_masternode_winners(self, mn_rr_active=False):
         # ignore recent winners, test future ones only
         # we get up to 21 entries here: tip + up to 20 future payees
-        winners = self.nodes[0].masternode('winners', '0')
+        winners = self.nodes[0].masternode('winners', 0)
         weighted_count = self.mn_count + self.evo_count * (1 if mn_rr_active else 4)
         assert_equal(len(winners.keys()) - 1, 20 if weighted_count > 20 else weighted_count)
         consecutive_payments = 0

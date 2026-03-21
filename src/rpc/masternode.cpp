@@ -288,7 +288,7 @@ static RPCHelpMan masternode_winners()
     std::string strFilter;
 
     if (!request.params[0].isNull()) {
-        nCount = LocaleIndependentAtoi<int>(request.params[0].get_str());
+        nCount = request.params[0].getInt<int>();
     }
 
     if (!request.params[1].isNull()) {
@@ -378,7 +378,7 @@ static RPCHelpMan masternode_payments()
         }
     }
 
-    int64_t nCount = request.params.size() > 1 ? ParseInt64V(request.params[1], "count") : 1;
+    int64_t nCount = request.params.size() > 1 ? request.params[1].getInt<int64_t>() : 1;
 
     // A temporary vector which is used to sort results properly (there is no "reverse" in/for UniValue)
     std::vector<UniValue> vecPayments;
