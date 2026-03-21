@@ -594,8 +594,11 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
         return nullptr;
     }
 
-    std::vector<CBLSSignature> sigSharesForRecovery;
+    // Collect lazy signatures (cheap copy) under lock, then materialize outside lock
+    std::vector<CBLSLazySignature> lazySignatures;
     std::vector<CBLSId> idsForRecovery;
+    bool isSingleNode = false;
+
     {
         LOCK(cs);
 
@@ -605,7 +608,6 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
             return nullptr;
         }
 
-        std::shared_ptr<CRecoveredSig> singleMemberRecoveredSig;
         if (quorum.params.is_single_member()) {
             if (sigSharesForSignHash->empty()) {
                 LogPrint(BCLog::LLMQ_SIGS, /* Continued */
@@ -615,29 +617,41 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
                 return nullptr;
             }
             const auto& sigShare = sigSharesForSignHash->begin()->second;
-            CBLSSignature recoveredSig = sigShare.sigShare.Get();
+            // Copy the lazy signature (cheap), materialize later outside lock
+            lazySignatures.emplace_back(sigShare.sigShare);
+            isSingleNode = true;
             LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- recover single-node signature. id=%s, msgHash=%s\n",
                      __func__, id.ToString(), msgHash.ToString());
+        } else {
+            // Collect lazy signatures and IDs under lock (cheap operations)
+            lazySignatures.reserve((size_t) quorum.params.threshold);
+            idsForRecovery.reserve((size_t) quorum.params.threshold);
+            for (auto it = sigSharesForSignHash->begin();
+                 it != sigSharesForSignHash->end() && lazySignatures.size() < size_t(quorum.params.threshold);
+                 ++it) {
+                const auto& sigShare = it->second;
+                lazySignatures.emplace_back(sigShare.sigShare); // Cheap copy of lazy wrapper
+                idsForRecovery.emplace_back(quorum.members[sigShare.getQuorumMember()]->proTxHash);
+            }
+            // check if we can recover the final signature
+            if (lazySignatures.size() < size_t(quorum.params.threshold)) {
+                return nullptr;
+            }
+        }
+    } // Release lock before expensive materialization
 
-            singleMemberRecoveredSig = std::make_shared<CRecoveredSig>(quorum.params.type, quorum.qc->quorumHash, id, msgHash,
-                                                      recoveredSig);
-        }
+    // Materialize signatures outside the critical section (expensive BLS operations)
+    if (isSingleNode) {
+        CBLSSignature recoveredSig = lazySignatures[0].Get();
+        return std::make_shared<CRecoveredSig>(quorum.params.type, quorum.qc->quorumHash, id, msgHash,
+                                               recoveredSig);
+    }
 
-        sigSharesForRecovery.reserve((size_t) quorum.params.threshold);
-        idsForRecovery.reserve((size_t) quorum.params.threshold);
-        for (auto it = sigSharesForSignHash->begin(); it != sigSharesForSignHash->end() && sigSharesForRecovery.size() < size_t(quorum.params.threshold); ++it) {
-            const auto& sigShare = it->second;
-            sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
-            idsForRecovery.emplace_back(quorum.members[sigShare.getQuorumMember()]->proTxHash);
-        }
-
-        // check if we can recover the final signature
-        if (sigSharesForRecovery.size() < size_t(quorum.params.threshold)) {
-            return nullptr;
-        }
-        if (quorum.params.is_single_member()) {
-            return singleMemberRecoveredSig; // end of single-quorum processing
-        }
+    // Multi-node case: materialize all signatures
+    std::vector<CBLSSignature> sigSharesForRecovery;
+    sigSharesForRecovery.reserve(lazySignatures.size());
+    for (const auto& lazySig : lazySignatures) {
+        sigSharesForRecovery.emplace_back(lazySig.Get()); // Expensive, but outside lock
     }
 
     // now recover it
