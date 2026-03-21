@@ -214,7 +214,8 @@ class InstantSendTest(DashTestFramework):
         is_id = sender.sendtoaddress(receiver_addr, 0.5)
         self.bump_mocktime(30)
         self.sync_mempools()
-        self.wait_for_instantlock(is_id, sender)
+        for node in self.nodes:
+            self.wait_for_instantlock(is_id, node)
         self.log.info("InstantSend lock succeeded after full restart")
 
         # clean up
