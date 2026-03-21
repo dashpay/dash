@@ -1,4 +1,4 @@
-// Copyright (c) 2020-present The Bitcoin Core developers
+// Copyright (c) 2026-present The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,31 +15,72 @@
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
 #include <validationinterface.h>
-#include <version.h>
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
-#include <set>
-#include <string>
 #include <string_view>
-#include <vector>
 
 namespace {
 const TestingSetup* g_setup;
 std::string_view LIMIT_TO_MESSAGE_TYPE{};
+
+const std::array<const char*, 41> DASH_MESSAGE_TYPES{
+    NetMsgType::SPORK,
+    NetMsgType::GETSPORKS,
+    NetMsgType::DSACCEPT,
+    NetMsgType::DSVIN,
+    NetMsgType::DSFINALTX,
+    NetMsgType::DSSIGNFINALTX,
+    NetMsgType::DSCOMPLETE,
+    NetMsgType::DSSTATUSUPDATE,
+    NetMsgType::DSTX,
+    NetMsgType::DSQUEUE,
+    NetMsgType::SENDDSQUEUE,
+    NetMsgType::SYNCSTATUSCOUNT,
+    NetMsgType::MNGOVERNANCESYNC,
+    NetMsgType::MNGOVERNANCEOBJECT,
+    NetMsgType::MNGOVERNANCEOBJECTVOTE,
+    NetMsgType::GETMNLISTDIFF,
+    NetMsgType::MNLISTDIFF,
+    NetMsgType::QSENDRECSIGS,
+    NetMsgType::QFCOMMITMENT,
+    NetMsgType::QCONTRIB,
+    NetMsgType::QCOMPLAINT,
+    NetMsgType::QJUSTIFICATION,
+    NetMsgType::QPCOMMITMENT,
+    NetMsgType::QWATCH,
+    NetMsgType::QSIGSESANN,
+    NetMsgType::QSIGSHARESINV,
+    NetMsgType::QGETSIGSHARES,
+    NetMsgType::QBSIGSHARES,
+    NetMsgType::QSIGREC,
+    NetMsgType::QSIGSHARE,
+    NetMsgType::QGETDATA,
+    NetMsgType::QDATA,
+    NetMsgType::CLSIG,
+    NetMsgType::ISDLOCK,
+    NetMsgType::MNAUTH,
+    NetMsgType::GETHEADERS2,
+    NetMsgType::SENDHEADERS2,
+    NetMsgType::HEADERS2,
+    NetMsgType::GETQUORUMROTATIONINFO,
+    NetMsgType::QUORUMROTATIONINFO,
+    NetMsgType::PLATFORMBAN,
+};
 } // namespace
 
-void initialize_process_message()
+void initialize_process_message_dash()
 {
     if (const auto val{std::getenv("LIMIT_TO_MESSAGE_TYPE")}) {
         LIMIT_TO_MESSAGE_TYPE = val;
-        Assert(std::count(getAllNetMessageTypes().begin(), getAllNetMessageTypes().end(), LIMIT_TO_MESSAGE_TYPE)); // Unknown message type passed
+        Assert(std::count(DASH_MESSAGE_TYPES.begin(), DASH_MESSAGE_TYPES.end(), LIMIT_TO_MESSAGE_TYPE)); // Unknown message type passed
     }
 
     static const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(
-            /*chain_name=*/CBaseChainParams::REGTEST,
-            /*extra_args=*/{"-txreconciliation"});
+        /*chain_name=*/CBaseChainParams::REGTEST,
+        /*extra_args=*/{"-txreconciliation"});
     g_setup = testing_setup.get();
     for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {
         MineBlock(g_setup->m_node, CScript() << OP_TRUE);
@@ -47,7 +88,7 @@ void initialize_process_message()
     SyncWithValidationInterfaceQueue();
 }
 
-FUZZ_TARGET(process_message, .init = initialize_process_message)
+FUZZ_TARGET(process_message_dash, .init = initialize_process_message_dash)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
 
@@ -58,15 +99,6 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
 
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    const std::string random_message_type{fuzzed_data_provider.ConsumeBytesAsString(CMessageHeader::COMMAND_SIZE).c_str()};
-    if (!LIMIT_TO_MESSAGE_TYPE.empty() && random_message_type != LIMIT_TO_MESSAGE_TYPE) {
-        return;
-    }
-    // Skip Dash message types that require subsystem initialization not present in the fuzz harness
-    static const std::set<std::string> skip_message_types{"mnauth"};
-    if (skip_message_types.count(random_message_type)) {
-        return;
-    }
     CNode& p2p_node = *ConsumeNodeAsUniquePtr(fuzzed_data_provider).release();
 
     connman.AddTestNode(p2p_node);
@@ -76,18 +108,23 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     SetMockTime(mock_time);
 
     CSerializedNetMsg net_msg;
-    net_msg.m_type = random_message_type;
+    net_msg.m_type = fuzzed_data_provider.PickValueInArray(DASH_MESSAGE_TYPES);
+    if (!LIMIT_TO_MESSAGE_TYPE.empty() && net_msg.m_type != LIMIT_TO_MESSAGE_TYPE) {
+        return;
+    }
     net_msg.data = ConsumeRandomLengthByteVector(fuzzed_data_provider, MAX_PROTOCOL_MESSAGE_LENGTH);
 
     connman.FlushSendBuffer(p2p_node);
     (void)connman.ReceiveMsgFrom(p2p_node, std::move(net_msg));
 
     bool more_work{true};
-    while (more_work) {
+    LIMITED_WHILE(more_work, 10000)
+    {
         p2p_node.fPauseSend = false;
         try {
             more_work = connman.ProcessMessagesOnce(p2p_node);
         } catch (const std::ios_base::failure&) {
+            more_work = false;
         }
         g_setup->m_node.peerman->SendMessages(&p2p_node);
     }

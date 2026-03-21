@@ -1,0 +1,173 @@
+name: Fuzz regression
+
+on:
+  workflow_call:
+    inputs:
+      bundle-key:
+        description: "Key needed to access bundle of fuzz build artifacts"
+        required: true
+        type: string
+      build-target:
+        description: "Target name as defined by inputs.sh"
+        required: true
+        type: string
+      container-path:
+        description: "Path to built container at registry"
+        required: true
+        type: string
+      runs-on:
+        description: "Runner label to use"
+        required: false
+        default: ubuntu-24.04
+        type: string
+
+jobs:
+  fuzz-regression:
+    name: Fuzz regression
+    runs-on: ${{ inputs.runs-on }}
+    container:
+      image: ${{ inputs.container-path }}
+      options: --user root
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.bundle-key }}
+
+      - name: Extract build artifacts
+        run: |
+          git config --global --add safe.directory "$PWD"
+          export BUILD_TARGET="${{ inputs.build-target }}"
+          export BUNDLE_KEY="${{ inputs.bundle-key }}"
+          ./ci/dash/bundle-artifacts.sh extract
+        shell: bash
+
+      - name: Download corpus
+        run: |
+          mkdir -p /tmp/fuzz_corpus
+
+          # Layer 1: bitcoin-core inherited corpus
+          if git clone --depth=1 https://github.com/bitcoin-core/qa-assets /tmp/qa-assets; then
+            if [ -d "/tmp/qa-assets/fuzz_corpora" ]; then
+              cp -r /tmp/qa-assets/fuzz_corpora/. /tmp/fuzz_corpus/
+              echo "Loaded bitcoin-core corpus"
+            fi
+          else
+            echo "WARNING: Failed to clone bitcoin-core/qa-assets (non-fatal)"
+          fi
+
+          # Layer 2: Dash-specific corpus (overlays on top)
+          if git clone --depth=1 https://github.com/dashpay/qa-assets /tmp/dash-qa-assets; then
+            if [ -d "/tmp/dash-qa-assets/fuzz/corpora" ]; then
+              cp -r /tmp/dash-qa-assets/fuzz/corpora/. /tmp/fuzz_corpus/
+              echo "Loaded Dash-specific corpus"
+            fi
+          else
+            echo "WARNING: Failed to clone dashpay/qa-assets (non-fatal)"
+          fi
+
+          # Layer 3: Generate synthetic seeds for Dash-specific targets
+          if [ -f "contrib/fuzz/seed_corpus_from_chain.py" ]; then
+            python3 contrib/fuzz/seed_corpus_from_chain.py --synthetic-only -o /tmp/fuzz_corpus
+          fi
+        shell: bash
+
+      - name: Run fuzz regression tests
+        id: fuzz-test
+        run: |
+          export BUILD_TARGET="${{ inputs.build-target }}"
+          source ./ci/dash/matrix.sh
+
+          BUILD_DIR="build-ci/dashcore-${BUILD_TARGET}"
+          FUZZ_BIN="${BUILD_DIR}/src/test/fuzz/fuzz"
+
+          if [ ! -x "$FUZZ_BIN" ]; then
+            echo "ERROR: Fuzz binary not found at $FUZZ_BIN"
+            exit 1
+          fi
+
+          # detect_leaks=0 is intentional for fuzz regression due to libFuzzer/LSan noise.
+          export ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=0"
+          export LSAN_OPTIONS="suppressions=${BUILD_DIR}/test/sanitizer_suppressions/lsan"
+          export UBSAN_OPTIONS="suppressions=${BUILD_DIR}/test/sanitizer_suppressions/ubsan:print_stacktrace=1:halt_on_error=1:report_error_type=1"
+
+          # Get list of all targets
+          TARGETS=$(PRINT_ALL_FUZZ_TARGETS_AND_ABORT=1 "$FUZZ_BIN" 2>/tmp/fuzz_target_discovery.err || true)
+          TARGET_COUNT=$(echo "$TARGETS" | grep -c '[^[:space:]]' || true)
+          if [ "$TARGET_COUNT" -eq 0 ]; then
+            if [ -s /tmp/fuzz_target_discovery.err ]; then
+              cat /tmp/fuzz_target_discovery.err
+            fi
+            echo "::error::No fuzz targets found — binary may have failed to start"
+            exit 1
+          fi
+          echo "Found $TARGET_COUNT fuzz targets"
+
+          FAILED=0
+          PASSED=0
+          FAILED_TARGETS=""
+
+          while IFS= read -r target; do
+            [ -z "$target" ] && continue
+            corpus_dir="/tmp/fuzz_corpus/${target}"
+
+            if [ ! -d "$corpus_dir" ] || [ -z "$(ls -A "$corpus_dir" 2>/dev/null)" ]; then
+              # No corpus for this target — run with empty input for 10s
+              # This catches basic initialization crashes
+              echo "::group::${target} (empty corpus, 10s run)"
+              mkdir -p "$corpus_dir"
+              # timeout(30) intentionally exceeds -max_total_time=10 to absorb startup/teardown jitter
+              # while still terminating genuinely hung processes.
+              if FUZZ="$target" timeout 30 "$FUZZ_BIN" \
+                  -rss_limit_mb=4000 \
+                  -max_total_time=10 \
+                  -reload=0 \
+                  "$corpus_dir" 2>&1; then
+                echo "PASS: $target (empty corpus)"
+                PASSED=$((PASSED + 1))
+              else
+                EXIT_CODE=$?
+                echo "::error::FAIL: $target exited with code $EXIT_CODE"
+                FAILED=$((FAILED + 1))
+                FAILED_TARGETS="${FAILED_TARGETS}  - ${target} (exit code ${EXIT_CODE})\n"
+              fi
+              echo "::endgroup::"
+              continue
+            fi
+
+            # Run corpus regression (replay all inputs)
+            echo "::group::${target} ($(find "$corpus_dir" -maxdepth 1 -type f | wc -l) inputs)"
+            if FUZZ="$target" "$FUZZ_BIN" \
+                -rss_limit_mb=4000 \
+                -runs=0 \
+                "$corpus_dir" 2>&1; then
+              echo "PASS: $target"
+              PASSED=$((PASSED + 1))
+            else
+              echo "::error::FAIL: $target"
+              FAILED=$((FAILED + 1))
+              FAILED_TARGETS="${FAILED_TARGETS}  - ${target}\n"
+            fi
+            echo "::endgroup::"
+          done <<< "$TARGETS"
+
+          echo ""
+          echo "=== Fuzz Regression Summary ==="
+          echo "Passed: $PASSED"
+          echo "Failed: $FAILED"
+          echo "Total: $TARGET_COUNT"
+
+          if [ $FAILED -gt 0 ]; then
+            echo ""
+            echo "=== Failed Targets ==="
+            printf '%b' "$FAILED_TARGETS"
+            echo "::error::$FAILED fuzz target(s) failed regression testing"
+            exit 1
+          fi
+        shell: bash
