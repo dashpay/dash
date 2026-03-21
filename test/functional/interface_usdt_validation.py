@@ -86,7 +86,6 @@ class ValidationTracepointTest(BitcoinTestFramework):
                     self.duration)
 
         BLOCKS_EXPECTED = 2
-        blocks_checked = 0
         expected_blocks = dict()
         events = []
 
@@ -98,7 +97,6 @@ class ValidationTracepointTest(BitcoinTestFramework):
                   usdt_contexts=[ctx], debug=0, cflags=["-Wno-error=implicit-function-declaration"])
 
         def handle_blockconnected(_, data, __):
-            nonlocal events, blocks_checked
             event = ctypes.cast(data, ctypes.POINTER(Block)).contents
             self.log.info(f"handle_blockconnected(): {event}")
             block_hash = bytes(event.hash[::-1]).hex()
@@ -111,7 +109,6 @@ class ValidationTracepointTest(BitcoinTestFramework):
             # only plausibility checks
             assert event.duration > 0
             del expected_blocks[block_hash]
-            blocks_checked += 1
 
         bpf["block_connected"].open_perf_buffer(
             handle_blockconnected)
@@ -136,7 +133,7 @@ class ValidationTracepointTest(BitcoinTestFramework):
             # only plausibility checks
             assert event.duration > 0
             del expected_blocks[block_hash]
-        assert_equal(BLOCKS_EXPECTED, blocks_checked)
+        assert_equal(BLOCKS_EXPECTED, len(events))
         assert_equal(0, len(expected_blocks))
 
         bpf.cleanup()

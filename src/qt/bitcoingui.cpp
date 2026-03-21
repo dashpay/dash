@@ -560,7 +560,7 @@ void BitcoinGUI::createActions()
         connect(usedSendingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedSendingAddresses);
         connect(usedReceivingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedReceivingAddresses);
         connect(openAction, &QAction::triggered, this, &BitcoinGUI::openClicked);
-        connect(m_open_wallet_menu, &QMenu::aboutToShow, [this] {
+        connect(m_open_wallet_menu, &QMenu::aboutToShow, m_wallet_controller, [this] {
             m_open_wallet_menu->clear();
             for (const std::pair<const std::string, bool>& i : m_wallet_controller->listWalletDir()) {
                 const std::string& path = i.first;
@@ -576,7 +576,7 @@ void BitcoinGUI::createActions()
                     continue;
                 }
 
-                connect(action, &QAction::triggered, [this, path] {
+                connect(action, &QAction::triggered, m_wallet_controller, [this, path] {
                     auto activity = new OpenWalletActivity(m_wallet_controller, this);
                     connect(activity, &OpenWalletActivity::opened, this, &BitcoinGUI::setCurrentWallet, Qt::QueuedConnection);
                     connect(activity, &OpenWalletActivity::opened, rpcConsole, &RPCConsole::setCurrentWallet, Qt::QueuedConnection);
@@ -588,7 +588,7 @@ void BitcoinGUI::createActions()
                 action->setEnabled(false);
             }
         });
-        connect(m_restore_wallet_action, &QAction::triggered, [this] {
+        connect(m_restore_wallet_action, &QAction::triggered, m_wallet_controller, [this] {
             //: Name of the wallet data file format.
             QString name_data_file = tr("Wallet Data");
 
@@ -614,16 +614,16 @@ void BitcoinGUI::createActions()
             auto backup_file_path = fs::PathFromString(backup_file.toStdString());
             activity->restore(backup_file_path, wallet_name.toStdString());
         });
-        connect(m_close_wallet_action, &QAction::triggered, [this] {
+        connect(m_close_wallet_action, &QAction::triggered, m_wallet_controller, [this] {
             m_wallet_controller->closeWallet(walletFrame->currentWalletModel(), this);
         });
-        connect(m_create_wallet_action, &QAction::triggered, [this] {
+        connect(m_create_wallet_action, &QAction::triggered, m_wallet_controller, [this] {
             auto activity = new CreateWalletActivity(m_wallet_controller, this);
             connect(activity, &CreateWalletActivity::created, this, &BitcoinGUI::setCurrentWallet);
             connect(activity, &CreateWalletActivity::created, rpcConsole, &RPCConsole::setCurrentWallet);
             activity->create();
         });
-        connect(m_close_all_wallets_action, &QAction::triggered, [this] {
+        connect(m_close_all_wallets_action, &QAction::triggered, m_wallet_controller, [this] {
             m_wallet_controller->closeAllWallets(this);
         });
 
@@ -939,7 +939,8 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             }
         }
     } else {
-        if(trayIconMenu)
+        // Shutdown requested, disable menus
+        if (trayIconMenu)
         {
             // Disable context menu on tray icon
             trayIconMenu->clear();
@@ -953,6 +954,8 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(nullptr);
+        // Disable top bar menu actions
+        appMenuBar->clear();
 
 #ifdef Q_OS_MACOS
         if(dockIconMenu)
