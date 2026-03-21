@@ -57,8 +57,9 @@ bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 
 bool CCoinJoinQueue::IsTimeOutOfBounds(int64_t current_time) const
 {
-    return current_time - nTime > COINJOIN_QUEUE_TIMEOUT ||
-           nTime - current_time > COINJOIN_QUEUE_TIMEOUT;
+    const uint64_t diff = (current_time > nTime) ? static_cast<uint64_t>(current_time) - static_cast<uint64_t>(nTime)
+                                                 : static_cast<uint64_t>(nTime) - static_cast<uint64_t>(current_time);
+    return diff > static_cast<uint64_t>(COINJOIN_QUEUE_TIMEOUT);
 }
 
 [[nodiscard]] std::string CCoinJoinQueue::ToString() const
