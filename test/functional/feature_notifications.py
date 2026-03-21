@@ -11,7 +11,6 @@ from test_framework.address import ADDRESS_BCRT1_UNSPENDABLE
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_equal,
-    force_finish_mnsync,
 )
 
 # Linux allow all characters other than \x00
@@ -56,7 +55,6 @@ class NotificationsTest(DashTestFramework):
             f"-shutdownnotify=echo > {self.shutdownnotify_file}",
             f"-chainlocknotify=echo > {os.path.join(self.chainlocknotify_dir, '%s')}",
         ], [
-            "-rescan",
             f"-walletnotify=echo %h_%b > {os.path.join(self.walletnotify_dir, notify_outputname('%w', '%s'))}",
             f"-instantsendnotify=echo > {os.path.join(self.instantsendnotify_dir, notify_outputname('%w', '%s'))}",
         ],
@@ -89,16 +87,14 @@ class NotificationsTest(DashTestFramework):
 
             # directory content should equal the generated transaction hashes
             tx_details = list(map(lambda t: (t['txid'], t['blockheight'], t['blockhash']), self.nodes[1].listtransactions("*", block_count)))
-            self.stop_node(1)
             self.expect_wallet_notify(tx_details)
 
             self.log.info("test -walletnotify after rescan")
-            # restart node to rescan to force wallet notifications
-            self.start_node(1)
-            force_finish_mnsync(self.nodes[1])
-            self.connect_nodes(0, 1)
-
+            # rescan to force wallet notifications
+            self.nodes[1].rescanblockchain()
             self.wait_until(lambda: len(os.listdir(self.walletnotify_dir)) == block_count, timeout=10)
+
+            self.connect_nodes(0, 1)
 
             # directory content should equal the generated transaction hashes
             tx_details = list(map(lambda t: (t['txid'], t['blockheight'], t['blockhash']), self.nodes[1].listtransactions("*", block_count)))
