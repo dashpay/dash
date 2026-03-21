@@ -118,7 +118,7 @@ class NetTest(DashTestFramework):
         self.log.info("Check getpeerinfo output before a version message was sent")
         no_version_peer_id = 3
         no_version_peer_conntime = self.mocktime
-        with self.nodes[0].assert_debug_log([f"Added connection peer={no_version_peer_id}"]):
+        with self.nodes[0].wait_for_new_peer():
             no_version_peer = self.nodes[0].add_p2p_connection(P2PInterface(), send_version=False, wait_for_verack=False)
         if self.options.v2transport:
             self.wait_until(lambda: self.nodes[0].getpeerinfo()[no_version_peer_id]["transport_protocol_type"] == "v2")

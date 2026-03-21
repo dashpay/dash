@@ -37,6 +37,7 @@
 #include <util/std23.h>
 #include <util/strencodings.h>
 #include <util/system.h>
+#include <util/time.h>
 #include <util/trace.h>
 #include <validation.h>
 
@@ -70,7 +71,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <future>
 #include <list>
 #include <memory>

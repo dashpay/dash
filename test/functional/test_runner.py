@@ -17,6 +17,7 @@ from collections import deque
 import configparser
 import datetime
 import os
+import platform
 import time
 import shutil
 import signal
@@ -42,7 +43,7 @@ except UnicodeDecodeError:
     CROSS = "x "
     CIRCLE = "o "
 
-if os.name == 'nt': #type:ignore
+if platform.system() == 'Windows': #type:ignore
     import ctypes
     kernel32 = ctypes.windll.kernel32  # type: ignore
     ENABLE_VIRTUAL_TERMINAL_PROCESSING = 4
