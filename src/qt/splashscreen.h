@@ -5,6 +5,8 @@
 #ifndef BITCOIN_QT_SPLASHSCREEN_H
 #define BITCOIN_QT_SPLASHSCREEN_H
 
+#include <QElapsedTimer>
+#include <QTimer>
 #include <QWidget>
 
 #include <memory>
@@ -40,8 +42,11 @@ public Q_SLOTS:
     /** Show message and progress */
     void showMessage(const QString &message, int alignment, const QColor &color);
 
-    /** Handle wallet load notifications. */
-    void handleLoadWallet();
+    /** Set progress bar value (-1 = no sub-progress, 0-100 = phase sub-progress) */
+    void setProgress(int value);
+
+    /** Handle early wallet-loading notifications so startup progress can be observed. */
+    void handleLoadingWallet();
 
 protected:
     bool eventFilter(QObject * obj, QEvent * ev) override;
@@ -53,18 +58,33 @@ private:
     void unsubscribeFromCoreSignals();
     /** Initiate shutdown */
     void shutdown();
+    /** Calculate overall progress (0.0-1.0) based on current phase and sub-progress */
+    qreal calcOverallProgress() const;
 
     QPixmap pixmap;
+    /** Cached on GUI thread at construction for thread-safe use in cross-thread callbacks.
+     *  Const after construction — no synchronization needed. */
+    const QColor messageColor;
     QString curMessage;
     QColor curColor;
     int curAlignment{0};
+    int curProgress{-1};
+
+    // Phase-based progress tracking
+    qreal phaseStart{0.0};      // Overall progress at start of current phase
+    qreal phaseEnd{0.0};        // Overall progress at end of current phase
+    QElapsedTimer phaseTimer;    // Time since current phase started
+    const struct PhaseInfo* m_current_phase{nullptr}; // Current phase (defined in splashscreen.cpp)
+    QString m_current_phase_message;                   // Message that triggered current phase
+    qreal displayProgress{0.0}; // Smoothly animated display value (0.0-1.0)
+    QTimer animTimer;
 
     interfaces::Node* m_node = nullptr;
     bool m_shutdown = false;
     std::unique_ptr<interfaces::Handler> m_handler_init_message;
     std::unique_ptr<interfaces::Handler> m_handler_show_progress;
     std::unique_ptr<interfaces::Handler> m_handler_init_wallet;
-    std::unique_ptr<interfaces::Handler> m_handler_load_wallet;
+    std::unique_ptr<interfaces::Handler> m_handler_loading_wallet;
     std::list<std::unique_ptr<interfaces::Wallet>> m_connected_wallets;
     std::list<std::unique_ptr<interfaces::Handler>> m_connected_wallet_handlers;
 };
