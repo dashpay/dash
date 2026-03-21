@@ -120,7 +120,7 @@ def create_block_with_mnpayments(mninfo, node, vtx=None, mn_payee=None, mn_amoun
 
     mn_operator_amount = 0
     if mn_amount is None:
-        v20_info = node.getblockchaininfo()['softforks']['v20']
+        v20_info = node.getdeploymentinfo()['deployments']['v20']
         mn_amount_total = get_masternode_payment(height, coinbasevalue, v20_info['active'])
         mn_operator_amount = mn_amount_total * operator_reward // 100
         mn_amount = mn_amount_total - mn_operator_amount

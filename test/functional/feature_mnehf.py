@@ -165,11 +165,13 @@ class MnehfTest(DashTestFramework):
             self.check_fork('defined')
             self.generate(node, 1)
 
+        self.generate(node, 1)
 
         for _ in range(4 // 2):
             self.check_fork('started')
             self.generate(node, 2)
 
+        self.generate(node, 1)
 
         for i in range(4 // 2):
             self.check_fork('locked_in')
@@ -177,6 +179,7 @@ class MnehfTest(DashTestFramework):
             if i == 1:
                 self.restart_all_nodes()
 
+        self.generate(node, 1)
         self.check_fork('active')
 
         fork_active_blockhash = node.getbestblockhash()
@@ -197,7 +200,7 @@ class MnehfTest(DashTestFramework):
         assert tx_sent_2 in node.getblock(ehf_blockhash_2)['tx']
 
         self.log.info(f"Generate some more block to jump to `started` status")
-        self.generate(node, 4)
+        self.generate(node, 5)
         self.check_fork('started')
         self.restart_node(0)
         self.check_fork('started')
