@@ -3,6 +3,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparamsbase.h>
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
+
 #include <external_signer.h>
 #include <rpc/server.h>
 #include <util/strencodings.h>
