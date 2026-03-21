@@ -12,6 +12,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <core_io.h>
+#include <index/spentindex.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <key_io.h>
@@ -57,7 +58,6 @@
 #include <instantsend/lock.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
-#include <rpc/index_util.h>
 #include <util/helpers.h>
 
 #include <cstdint>
@@ -73,38 +73,70 @@ using node::PSBTAnalysis;
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, const  CTxMemPool& mempool, const CChainState& active_chainstate, const chainlock::Chainlocks& chainlocks, const llmq::CInstantSendManager& isman, UniValue& entry, TxVerbosity verbosity = TxVerbosity::SHOW_DETAILS)
 {
     CHECK_NONFATAL(verbosity >= TxVerbosity::SHOW_DETAILS);
+
+    uint256 txid = tx.GetHash();
+    CSpentIndexTxInfo *txSpentInfoPtr{nullptr};
+
+    // Add spent information if spentindex is enabled
+    // Note: We query the async index BEFORE acquiring cs_main since BlockUntilSyncedToCurrentChain()
+    // requires cs_main NOT to be held
+    CSpentIndexTxInfo txSpentInfo;
+    if (g_spentindex) {
+        txSpentInfo = CSpentIndexTxInfo{};
+        // Collect spent info for inputs
+        for (const auto& txin : tx.vin) {
+            if (!tx.IsCoinBase()) {
+                CSpentIndexValue spentInfo;
+                CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
+                if (g_spentindex->GetSpentInfo(spentKey, spentInfo)) {
+                    txSpentInfo.mSpentInfo.emplace(spentKey, spentInfo);
+                }
+            }
+        }
+        // Collect spent info for outputs
+        for (unsigned int i = 0; i < tx.vout.size(); i++) {
+            CSpentIndexValue spentInfo;
+            CSpentIndexKey spentKey(txid, i);
+            if (g_spentindex->GetSpentInfo(spentKey, spentInfo)) {
+                txSpentInfo.mSpentInfo.emplace(spentKey, spentInfo);
+            }
+        }
+
+        // Now check mempool (which requires mempool.cs).
+        //
+        // Mempool entry overwrites index entry if present.
+        // During reorg, mempool may have newer state than index (which updates asynchronously).
+        {
+            LOCK(mempool.cs);
+            for (const auto& txin : tx.vin) {
+                if (!tx.IsCoinBase()) {
+                    CSpentIndexValue spentInfo;
+                    CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
+                    if (mempool.getSpentIndex(spentKey, spentInfo)) {
+                        // Mempool entry overwrites index entry if present
+                        txSpentInfo.mSpentInfo[spentKey] = spentInfo;
+                    }
+                }
+            }
+            for (unsigned int i = 0; i < tx.vout.size(); i++) {
+                CSpentIndexValue spentInfo;
+                CSpentIndexKey spentKey(txid, i);
+                if (mempool.getSpentIndex(spentKey, spentInfo)) {
+                    // Mempool entry overwrites index entry if present
+                    txSpentInfo.mSpentInfo[spentKey] = spentInfo;
+                }
+            }
+        }
+
+        txSpentInfoPtr = &txSpentInfo;
+    }
+
     LOCK(::cs_main);
     // Call into TxToUniv() in bitcoin-common to decode the transaction hex.
     //
     // Blockchain contextual information (confirmations and blocktime) is not
     // available to code in bitcoin-common, so we query them here and push the
     // data into the returned UniValue.
-
-    uint256 txid = tx.GetHash();
-    CSpentIndexTxInfo *txSpentInfoPtr{nullptr};
-
-    // Add spent information if spentindex is enabled
-    CSpentIndexTxInfo txSpentInfo;
-    if (node::fSpentIndex) {
-        txSpentInfo = CSpentIndexTxInfo{};
-        for (const auto& txin : tx.vin) {
-            if (!tx.IsCoinBase()) {
-                CSpentIndexValue spentInfo;
-                CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
-                if (GetSpentIndex(*active_chainstate.m_blockman.m_block_tree_db, mempool, spentKey, spentInfo)) {
-                    txSpentInfo.mSpentInfo.emplace(spentKey, spentInfo);
-                }
-            }
-        }
-        for (unsigned int i = 0; i < tx.vout.size(); i++) {
-            CSpentIndexValue spentInfo;
-            CSpentIndexKey spentKey(txid, i);
-            if (GetSpentIndex(*active_chainstate.m_blockman.m_block_tree_db, mempool, spentKey, spentInfo)) {
-                txSpentInfo.mSpentInfo.emplace(spentKey, spentInfo);
-            }
-        }
-        txSpentInfoPtr = &txSpentInfo;
-    }
 
     TxToUniv(tx, /*block_hash=*/uint256(), entry, /*include_hex=*/true, /*serialize_flags=*/0, /*txundo=*/nullptr, verbosity, txSpentInfoPtr);
 

@@ -4,6 +4,9 @@
 
 #include <node/caches.h>
 
+#include <index/addressindex.h>
+#include <index/spentindex.h>
+#include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <txdb.h>
 #include <util/system.h>
@@ -19,6 +22,12 @@ CacheSizes CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)
     nTotalCache -= sizes.block_tree_db;
     sizes.tx_index = std::min(nTotalCache / 8, args.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxTxIndexCache << 20 : 0);
     nTotalCache -= sizes.tx_index;
+    sizes.address_index = std::min(nTotalCache / 8, args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) ? int64_t(256 << 20) : int64_t(0));
+    nTotalCache -= sizes.address_index;
+    sizes.timestamp_index = std::min(nTotalCache / 64, args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX) ? int64_t(8 << 20) : int64_t(0));
+    nTotalCache -= sizes.timestamp_index;
+    sizes.spent_index = std::min(nTotalCache / 8, args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) ? int64_t(128 << 20) : int64_t(0));
+    nTotalCache -= sizes.spent_index;
     sizes.filter_index = 0;
     if (n_indexes > 0) {
         int64_t max_cache = std::min(nTotalCache / 8, max_filter_index_cache << 20);

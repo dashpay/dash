@@ -47,9 +47,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      CTxMemPool* mempool,
                                                      const fs::path& data_dir,
                                                      bool fPruneMode,
-                                                     bool is_addrindex_enabled,
-                                                     bool is_spentindex_enabled,
-                                                     bool is_timeindex_enabled,
                                                      const Consensus::Params& consensus_params,
                                                      bool fReindexChainState,
                                                      int64_t nBlockTreeDBCache,
@@ -115,25 +112,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
             !chainman.m_blockman.LookupBlockIndex(consensus_params.hashDevnetGenesisBlock)) {
         return ChainstateLoadingError::ERROR_BAD_DEVNET_GENESIS_BLOCK;
     }
-
-    if (!fReset && !fReindexChainState) {
-        // Check for changed -addressindex state
-        if (!fAddressIndex && fAddressIndex != is_addrindex_enabled) {
-            return ChainstateLoadingError::ERROR_ADDRIDX_NEEDS_REINDEX;
-        }
-
-        // Check for changed -timestampindex state
-        if (!fTimestampIndex && fTimestampIndex != is_timeindex_enabled) {
-            return ChainstateLoadingError::ERROR_TIMEIDX_NEEDS_REINDEX;
-        }
-
-        // Check for changed -spentindex state
-        if (!fSpentIndex && fSpentIndex != is_spentindex_enabled) {
-            return ChainstateLoadingError::ERROR_SPENTIDX_NEEDS_REINDEX;
-        }
-    }
-
-    chainman.InitAdditionalIndexes();
 
     // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks
     // in the past, but is now trying to run unpruned.
