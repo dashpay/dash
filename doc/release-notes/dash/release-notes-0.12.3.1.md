@@ -461,7 +461,7 @@ Thanks to everyone who directly contributed to this release:
 
 As well as Bitcoin Core Developers and everyone who submitted issues,
 reviewed pull requests or helped translating on
-[Transifex](https://www.transifex.com/projects/p/dash/).
+[Transifex](https://explore.transifex.com/dash/dash/).
 
 
 Older releases

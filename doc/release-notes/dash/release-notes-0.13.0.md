@@ -707,7 +707,7 @@ Thanks to everyone who directly contributed to this release:
 - Anton Suprunchuk
 
 As well as everyone that submitted issues, reviewed pull requests or helped translating on
-[Transifex](https://www.transifex.com/projects/p/dash/).
+[Transifex](https://explore.transifex.com/dash/dash/).
 
 Older releases
 ==============
