@@ -302,9 +302,11 @@ void setupAppearance(QWidget* parent, OptionsModel* model)
     }
 }
 
-void AddButtonShortcut(QAbstractButton* button, const QKeySequence& shortcut)
+void AddButtonShortcut(QAbstractButton* button, const QKeySequence& shortcut, Qt::ShortcutContext context)
 {
-    QObject::connect(new QShortcut(shortcut, button), &QShortcut::activated, [button]() { button->animateClick(); });
+    auto* sc = new QShortcut(shortcut, button);
+    sc->setContext(context);
+    QObject::connect(sc, &QShortcut::activated, [button]() { button->animateClick(); });
 }
 
 bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)

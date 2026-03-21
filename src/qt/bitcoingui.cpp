@@ -71,6 +71,7 @@
 #include <QVBoxLayout>
 #include <QWindow>
 
+#include <algorithm>
 #include <functional>
 
 namespace {
@@ -85,6 +86,10 @@ constexpr int GOV_CYCLE_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / (GOV_CYCLE_FRAME_COUN
 
 // Per-frame interval for the spinner animation
 constexpr int SPINNER_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / SPINNER_FRAMES};
+
+constexpr int FONT_SCALE_MIN{-100};
+constexpr int FONT_SCALE_MAX{100};
+constexpr int FONT_SCALE_SHORTCUT_STEP{3};
 } // anonymous namespace
 
 const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
@@ -517,12 +522,27 @@ void BitcoinGUI::createActions()
     m_mask_values_action->setStatusTip(tr("Mask the values in the Overview tab"));
     m_mask_values_action->setCheckable(true);
 
+    m_zoom_in_action = new QAction(tr("Zoom &In"), this);
+    m_zoom_in_action->setShortcuts({QKeySequence(QKeySequence::ZoomIn), QKeySequence(tr("Ctrl+="))});
+    m_zoom_in_action->setStatusTip(tr("Increase the font size"));
+
+    m_zoom_out_action = new QAction(tr("Zoom &Out"), this);
+    m_zoom_out_action->setShortcuts({QKeySequence(QKeySequence::ZoomOut), QKeySequence(tr("Ctrl+_"))});
+    m_zoom_out_action->setStatusTip(tr("Decrease the font size"));
+
+    m_zoom_reset_action = new QAction(tr("Reset &Zoom"), this);
+    m_zoom_reset_action->setShortcut(QKeySequence(tr("Ctrl+0")));
+    m_zoom_reset_action->setStatusTip(tr("Reset the font size to default"));
+
     connect(quitAction, &QAction::triggered, this, &BitcoinGUI::quitRequested);
     connect(aboutAction, &QAction::triggered, this, &BitcoinGUI::aboutClicked);
     connect(aboutQtAction, &QAction::triggered, qApp, QApplication::aboutQt);
     connect(optionsAction, &QAction::triggered, this, &BitcoinGUI::optionsClicked);
     connect(showHelpMessageAction, &QAction::triggered, this, &BitcoinGUI::showHelpMessageClicked);
     connect(showCoinJoinHelpAction, &QAction::triggered, this, &BitcoinGUI::showCoinJoinHelpClicked);
+    connect(m_zoom_in_action, &QAction::triggered, this, [this] { adjustFontScale(FONT_SCALE_SHORTCUT_STEP); });
+    connect(m_zoom_out_action, &QAction::triggered, this, [this] { adjustFontScale(-FONT_SCALE_SHORTCUT_STEP); });
+    connect(m_zoom_reset_action, &QAction::triggered, this, [this] { adjustFontScale(0); });
 
     // Jump directly to tabs in RPC-console
     connect(openInfoAction, &QAction::triggered, this, &BitcoinGUI::showInfo);
@@ -677,6 +697,11 @@ void BitcoinGUI::createMenuBar()
     }
     settings->addAction(optionsAction);
 
+    QMenu* view = appMenuBar->addMenu(tr("&View"));
+    view->addAction(m_zoom_in_action);
+    view->addAction(m_zoom_out_action);
+    view->addAction(m_zoom_reset_action);
+
     QMenu* window_menu = appMenuBar->addMenu(tr("&Window"));
 
     QAction* minimize_action = window_menu->addAction(tr("&Minimize"));
@@ -733,6 +758,31 @@ void BitcoinGUI::createMenuBar()
     help->addSeparator();
     help->addAction(aboutAction);
     help->addAction(aboutQtAction);
+}
+
+void BitcoinGUI::adjustFontScale(int delta)
+{
+    if (clientModel && clientModel->getOptionsModel() &&
+        clientModel->getOptionsModel()->isOptionOverridden("-font-scale")) {
+        return;
+    }
+
+    const int current_scale{GUIUtil::g_font_registry.GetFontScale()};
+    const int new_scale{delta == 0
+            ? GUIUtil::FontRegistry::DEFAULT_FONT_SCALE
+            : std::clamp(current_scale + delta, FONT_SCALE_MIN, FONT_SCALE_MAX)};
+
+    if (new_scale == current_scale) {
+        return;
+    }
+
+    GUIUtil::g_font_registry.SetFontScale(new_scale);
+    GUIUtil::updateFonts();
+    updateWidth();
+
+    if (clientModel && clientModel->getOptionsModel()) {
+        clientModel->getOptionsModel()->setOption(OptionsModel::FontScale, new_scale);
+    }
 }
 
 void BitcoinGUI::createToolBars()

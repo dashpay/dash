@@ -183,10 +183,10 @@
           </size>
          </property>
          <property name="minimum">
-          <number>-30</number>
+          <number>-100</number>
          </property>
          <property name="maximum">
-          <number>30</number>
+          <number>100</number>
          </property>
          <property name="singleStep">
           <number>10</number>
