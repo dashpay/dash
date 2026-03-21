@@ -35,16 +35,6 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         time.sleep(sleep)
         self.assert_no_instantlock(txid, node)
 
-    # random delay before tx is actually send by network could take up to 30 seconds
-    def wait_for_tx(self, txid, node, expected=True, timeout=60):
-        def check_tx():
-            try:
-                return node.getrawtransaction(txid)
-            except Exception:
-                return False
-        if self.wait_until(check_tx, timeout=timeout, do_assert=expected) and not expected:
-            raise AssertionError("waiting unexpectedly succeeded")
-
     def create_fund_sign_tx(self):
         rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
         rawtx = self.nodes[0].fundrawtransaction(rawtx)['hex']
