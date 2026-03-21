@@ -18,6 +18,7 @@
 #include <key.h>
 #include <key_io.h>
 #include <wallet/wallet.h>
+#include <wallet/test/util.h>
 #include <walletinitinterface.h>
 
 #include <chrono>
@@ -29,7 +30,7 @@
 #include <QTimer>
 
 using wallet::AddWallet;
-using wallet::CreateMockWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::CWallet;
 using wallet::RemoveWallet;
 using wallet::WALLET_FLAG_DESCRIPTORS;
@@ -72,7 +73,7 @@ void TestAddAddressesToSendBook(interfaces::Node& node)
 {
     TestChain100Setup test;
     node.setContext(&test.m_node);
-    const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), node.context()->coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase());
+    const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), node.context()->coinjoin_loader.get(), "", gArgs, CreateMockableWalletDatabase());
     wallet->LoadWallet();
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
     {

@@ -23,6 +23,48 @@ static bool KeyFilter(const std::string& type)
     return WalletBatch::IsKeyType(type) || type == DBKeys::HDCHAIN;
 }
 
+/** RAII class that provides access to a DummyDatabase. Never fails. */
+class DummyBatch : public DatabaseBatch
+{
+private:
+    bool ReadKey(CDataStream&& key, CDataStream& value) override { return true; }
+    bool WriteKey(CDataStream&& key, CDataStream&& value, bool overwrite=true) override { return true; }
+    bool EraseKey(CDataStream&& key) override { return true; }
+    bool HasKey(CDataStream&& key) override { return true; }
+
+public:
+    void Flush() override {}
+    void Close() override {}
+
+    bool StartCursor() override { return true; }
+    bool ReadAtCursor(CDataStream& ssKey, CDataStream& ssValue, bool& complete) override { return true; }
+    void CloseCursor() override {}
+    bool TxnBegin() override { return true; }
+    bool TxnCommit() override { return true; }
+    bool TxnAbort() override { return true; }
+};
+
+/** A dummy WalletDatabase that does nothing and never fails. Only used by unit tests.
+ **/
+class DummyDatabase : public WalletDatabase
+{
+public:
+    void Open() override {};
+    void AddRef() override {}
+    void RemoveRef() override {}
+    bool Rewrite(const char* pszSkip=nullptr) override { return true; }
+    bool Backup(const std::string& strDest) const override { return true; }
+    void Close() override {}
+    void Flush() override {}
+    bool PeriodicFlush() override { return true; }
+    void IncrementUpdateCounter() override { ++nUpdateCounter; }
+    void ReloadDbEnv() override {}
+    std::string Filename() override { return "dummy"; }
+    std::string Format() override { return "dummy"; }
+    std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) override { return std::make_unique<DummyBatch>(); }
+};
+
+
 bool RecoverDatabaseFile(const ArgsManager& args, const fs::path& file_path, bilingual_str& error, std::vector<bilingual_str>& warnings)
 {
     DatabaseOptions options;
@@ -135,7 +177,7 @@ bool RecoverDatabaseFile(const ArgsManager& args, const fs::path& file_path, bil
     }
 
     DbTxn* ptxn = env->TxnBegin();
-    CWallet dummyWallet(/*chain=*/nullptr, /*coinjoin_loader=*/nullptr, "", gArgs, CreateDummyWalletDatabase());
+    CWallet dummyWallet(/*chain=*/nullptr, /*coinjoin_loader=*/nullptr, "", gArgs, std::make_unique<DummyDatabase>());
     dummyWallet.SetupLegacyScriptPubKeyMan();
     for (KeyValPair& row : salvagedData)
     {
