@@ -56,6 +56,13 @@
 using interfaces::FoundBlock;
 
 namespace wallet {
+// Static wallet backup configuration
+// Ensure compile-time invariant: nWalletBackups <= nMaxWalletBackups when nMaxWalletBackups > 0
+static_assert(DEFAULT_MAX_BACKUPS == 0 || DEFAULT_N_WALLET_BACKUPS <= DEFAULT_MAX_BACKUPS,
+              "DEFAULT_N_WALLET_BACKUPS must not exceed DEFAULT_MAX_BACKUPS when DEFAULT_MAX_BACKUPS > 0");
+int CWallet::nWalletBackups = DEFAULT_N_WALLET_BACKUPS;
+int CWallet::nMaxWalletBackups = DEFAULT_MAX_BACKUPS;
+
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
         "You need to rescan the blockchain in order to correctly mark used "
@@ -3472,13 +3479,104 @@ void CWallet::postInitProcess()
     chain().requestMempoolTransactions(*this);
 }
 
-void CWallet::InitAutoBackup()
+std::vector<fs::path> GetBackupsToDelete(const std::multimap<fs::file_time_type, fs::path>& backups, int nWalletBackups, int maxBackups)
 {
-    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
+    std::vector<fs::path> paths_to_delete;
+
+    // Early guards
+    if (maxBackups <= 0) {
+        return paths_to_delete;
+    }
+
+    if (backups.size() <= (size_t)nWalletBackups) {
+        return paths_to_delete;
+    }
+
+    // Sort by time descending (newest first)
+    std::vector<std::pair<fs::file_time_type, fs::path>> sorted_backups(backups.rbegin(), backups.rend());
+
+    std::set<size_t> indices_to_keep;
+
+    // Always keep the latest nWalletBackups (by count, not time)
+    for (size_t i = 0; i < std::min(sorted_backups.size(), (size_t)nWalletBackups); ++i) {
+        indices_to_keep.insert(i);
+    }
+
+    // For older backups (beyond the latest nWalletBackups), apply time-based exponential retention
+    if (sorted_backups.size() > (size_t)nWalletBackups) {
+        auto now = sorted_backups[0].first; // newest backup time
+
+        using days = std::chrono::duration<int64_t, std::ratio<86400>>;
+
+        // Define exponential day ranges: [1,2), [2,4), [4,8), [8,16), [16,32), [32,64), etc.
+        // We start from 1 day because the latest nWalletBackups are already kept
+        int range_start_days = 1;
+        int range_end_days = 2;
+
+        // Process exponential time ranges until we hit maxBackups limit or run out of old backups
+        while (indices_to_keep.size() < (size_t)maxBackups) {
+            std::optional<size_t> oldest_in_range;
+
+            // Search through backups beyond the latest nWalletBackups
+            for (size_t i = nWalletBackups; i < sorted_backups.size(); ++i) {
+                auto age_duration = now - sorted_backups[i].first;
+                auto age_days = std::chrono::duration_cast<days>(age_duration).count();
+
+                if (age_days >= range_start_days && age_days < range_end_days) {
+                    // Keep searching - we want the oldest (highest index) in this range
+                    oldest_in_range = i;
+                }
+            }
+
+            if (oldest_in_range.has_value()) {
+                indices_to_keep.insert(*oldest_in_range);
+            } else {
+                // No backups in this range, check if there are any older backups left
+                bool has_older_backups = false;
+                for (size_t i = nWalletBackups; i < sorted_backups.size(); ++i) {
+                    auto age_duration = now - sorted_backups[i].first;
+                    auto age_days = std::chrono::duration_cast<days>(age_duration).count();
+                    if (age_days >= range_end_days) {
+                        has_older_backups = true;
+                        break;
+                    }
+                }
+                if (!has_older_backups) {
+                    break; // No more old backups to consider
+                }
+            }
+
+            // Move to next exponential range
+            range_start_days = range_end_days;
+            range_end_days *= 2;
+        }
+    }
+
+    // Build deletion list
+    for (size_t i = 0; i < sorted_backups.size(); ++i) {
+        if (indices_to_keep.find(i) == indices_to_keep.end()) {
+            paths_to_delete.push_back(sorted_backups[i].second);
+        }
+    }
+
+    return paths_to_delete;
+}
+
+void CWallet::InitAutoBackup(const ArgsManager& args)
+{
+    if (args.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return;
 
-    nWalletBackups = gArgs.GetIntArg("-createwalletbackups", 10);
-    nWalletBackups = std::max(0, std::min(10, nWalletBackups));
+    nWalletBackups = args.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
+    nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
+
+    nMaxWalletBackups = args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
+    nMaxWalletBackups = std::max(0, nMaxWalletBackups);
+
+    // Enforce nWalletBackups <= nMaxWalletBackups
+    if (nWalletBackups > nMaxWalletBackups) {
+        nWalletBackups = nMaxWalletBackups;
+    }
 }
 
 bool CWallet::BackupWallet(const std::string& strDest) const
@@ -3610,20 +3708,15 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error
         }
     }
 
-    // Loop backward through backup files and keep the N newest ones (1 <= N <= 10)
-    int counter{0};
-    for (const auto& [entry_time, entry] : folder_set | std::views::reverse) {
-        counter++;
-        if (counter > nWalletBackups) {
-            // More than nWalletBackups backups: delete oldest one(s)
-            try {
-                fs::remove(entry);
-                WalletLogPrintf("Old backup deleted: %s\n", fs::PathToString(entry));
-            } catch(fs::filesystem_error &error) {
-                warnings.push_back(strprintf(_("Failed to delete backup, error: %s"), fsbridge::get_filesystem_error_message(error)));
-                WalletLogPrintf("%s\n", Join(warnings, Untranslated("\n")).original);
-                return false;
-            }
+    std::vector<fs::path> backupsToDelete = GetBackupsToDelete(folder_set, nWalletBackups, nMaxWalletBackups);
+    for (const auto& path : backupsToDelete) {
+        try {
+            fs::remove(path);
+            WalletLogPrintf("Old backup deleted: %s\n", fs::PathToString(path));
+        } catch(fs::filesystem_error &error) {
+            warnings.push_back(strprintf(_("Failed to delete backup, error: %s"), fsbridge::get_filesystem_error_message(error)));
+            WalletLogPrintf("%s\n", Join(warnings, Untranslated("\n")).original);
+            return false;
         }
     }
 
@@ -3831,7 +3924,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
                 if(nWalletBackups == -2) {
                     TopUpKeyPool();
                     WalletLogPrintf("Keypool replenished, re-initializing automatic backups.\n");
-                    nWalletBackups = m_args.GetIntArg("-createwalletbackups", 10);
+                    InitAutoBackup(m_args);
                 }
                 return true;
             }

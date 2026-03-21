@@ -724,7 +724,7 @@ bool CCoinJoinClientManager::CheckAutomaticBackup()
     // We don't need auto-backups for descriptor wallets
     if (!m_wallet->IsLegacy()) return true;
 
-    switch (nWalletBackups) {
+    switch (CWallet::nWalletBackups) {
     case 0:
         strAutoDenomResult = _("Automatic backups disabled") + Untranslated(", ") + _("no mixing available.");
         WalletCJLogPrint(m_wallet, "CCoinJoinClientManager::CheckAutomaticBackup -- %s\n", strAutoDenomResult.original);
