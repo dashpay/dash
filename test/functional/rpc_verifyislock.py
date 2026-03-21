@@ -42,6 +42,7 @@ class RPCVerifyISLockTest(DashTestFramework):
 
         txid = node.sendtoaddress(node.getnewaddress(), 1)
         self.bump_mocktime(30)
+        self.sync_mempools()
         self.wait_for_instantlock(txid, node)
 
         request_id = self.get_request_id(self.nodes[0].getrawtransaction(txid))
