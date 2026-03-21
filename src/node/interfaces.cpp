@@ -1477,9 +1477,16 @@ public:
     void requestMempoolTransactions(Notifications& notifications) override
     {
         if (!m_node.mempool) return;
-        LOCK2(::cs_main, m_node.mempool->cs);
-        for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx) {
-            notifications.transactionAddedToMempool(entry.GetSharedTx(), /*nAcceptTime=*/0);
+        std::vector<CTransactionRef> txs;
+        {
+            LOCK2(::cs_main, m_node.mempool->cs);
+            txs.reserve(m_node.mempool->mapTx.size());
+            for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx) {
+                txs.emplace_back(entry.GetSharedTx());
+            }
+        }
+        for (const auto& tx : txs) {
+            notifications.transactionAddedToMempool(tx, /*nAcceptTime=*/0);
         }
     }
     bool hasAssumedValidChain() override
