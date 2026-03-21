@@ -174,8 +174,10 @@ class InstantSendTest(DashTestFramework):
         for mn_info in self.mninfo:
             self.start_masternode(mn_info)
 
-        # reconnect: simple nodes to node 0, MNs to node 0
-        # quorum connections are re-established automatically via InitializeCurrentBlockTip
+        # reconnect: simple nodes to node 0, MNs to node 0 only.
+        # Quorum connections between MNs must be re-established automatically
+        # via InitializeCurrentBlockTip → EnsureQuorumConnections, NOT via
+        # manual connect_nodes between MN pairs.
         for i in range(1, num_simple_nodes):
             self.connect_nodes(i, 0)
         for mn_info in self.mninfo:
@@ -187,6 +189,22 @@ class InstantSendTest(DashTestFramework):
         # block chainlock signing for TXs mined before restart
         self.bump_mocktime(10 * 60 + 1)
         self.sync_blocks()
+
+        # Verify that MNs formed quorum connections to other MNs after restart.
+        # InitializeCurrentBlockTip → EnsureQuorumConnections must populate
+        # masternodeQuorumNodes so ThreadOpenMasternodeConnections establishes
+        # MN-to-MN links beyond the manual connections to node 0.
+        self.log.info("Verifying MN-to-MN quorum connections formed after restart")
+        for mn_info in self.mninfo:
+            mn_node = self.nodes[mn_info.nodeIdx]
+
+            def check_mn_peers(node=mn_node, my_hash=mn_info.proTxHash):
+                peers = node.getpeerinfo()
+                mn_peers = set(p['verified_proregtx_hash'] for p in peers
+                               if p.get('verified_proregtx_hash', '') != '')
+                other_mn_peers = mn_peers - {my_hash}
+                return len(other_mn_peers) > 0
+            self.wait_until(check_mn_peers, timeout=30)
 
         # re-grab references after restart
         sender = self.nodes[self.sender_idx]
