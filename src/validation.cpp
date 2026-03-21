@@ -2216,8 +2216,6 @@ public:
     }
 };
 
-static std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS> warningcache GUARDED_BY(cs_main);
-
 static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const ChainstateManager& chainman)
 {
     unsigned int flags = SCRIPT_VERIFY_NONE;
@@ -2573,7 +2571,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
         CTxUndo undoDummy;
         if (i > 0) {
-            blockundo.vtxundo.push_back(CTxUndo());
+            blockundo.vtxundo.emplace_back();
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
@@ -2998,7 +2996,7 @@ void CChainState::UpdateTip(const CBlockIndex* pindexNew)
         const CBlockIndex* pindex = pindexNew;
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
             WarningBitsConditionChecker checker(m_chainman, bit);
-            ThresholdState state = checker.GetStateFor(pindex, m_params.GetConsensus(), warningcache.at(bit));
+            ThresholdState state = checker.GetStateFor(pindex, m_params.GetConsensus(), m_chainman.m_warningcache.at(bit));
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
@@ -6103,11 +6101,6 @@ ChainstateManager::~ChainstateManager()
     LOCK(::cs_main);
 
     m_versionbitscache.Clear();
-
-    // TODO: The warning cache should probably become non-global
-    for (auto& i : warningcache) {
-        i.clear();
-    }
 }
 
 bool IsBIP30Repeat(const CBlockIndex& block_index)

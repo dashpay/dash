@@ -960,7 +960,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     // works.
     const uint32_t nSequence{CTxIn::SEQUENCE_FINAL - 1};
     for (const auto& coin : result->GetInputSet()) {
-        txNew.vin.push_back(CTxIn(coin.outpoint, CScript(), nSequence));
+        txNew.vin.emplace_back(CTxIn(coin.outpoint, CScript(), nSequence));
     }
     DiscourageFeeSniping(txNew, rng_fast, wallet.chain(), wallet.GetLastBlockHash(), wallet.GetLastBlockHeight());
 

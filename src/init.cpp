@@ -1647,9 +1647,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // Initialize addrman
         assert(!node.addrman);
         uiInterface.InitMessage(_("Loading P2P addresses…").translated);
-        if (const auto error{LoadAddrman(*node.netgroupman, args, node.addrman)}) {
-            return InitError(*error);
-        }
+        auto addrman{LoadAddrman(*node.netgroupman, args)};
+        if (!addrman) return InitError(util::ErrorString(addrman));
+        node.addrman = std::move(*addrman);
     }
 
     std::string sem_str = args.GetArg("-socketevents", DEFAULT_SOCKETEVENTS);

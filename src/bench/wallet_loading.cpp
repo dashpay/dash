@@ -46,8 +46,8 @@ static void BenchUnloadWallet(std::shared_ptr<CWallet>&& wallet)
 static void AddTx(CWallet& wallet)
 {
     CMutableTransaction mtx;
-    mtx.vout.push_back({COIN, GetScriptForDestination(*Assert(wallet.GetNewDestination("")))});
-    mtx.vin.push_back(CTxIn());
+    mtx.vout.emplace_back(COIN, GetScriptForDestination(*Assert(wallet.GetNewDestination(""))));
+    mtx.vin.emplace_back(CTxIn());
 
     wallet.AddToWallet(MakeTransactionRef(mtx), TxStateInactive{});
 }

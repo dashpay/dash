@@ -641,7 +641,7 @@ std::vector<CTransactionRef> TestChainSetup::PopulateMempool(FastRandomContext& 
         for (size_t n{0}; n < num_inputs; ++n) {
             if (unspent_prevouts.empty()) break;
             const auto& [prevout, amount] = unspent_prevouts.front();
-            mtx.vin.push_back(CTxIn(prevout, CScript()));
+            mtx.vin.emplace_back(prevout, CScript());
             total_in += amount;
             unspent_prevouts.pop_front();
         }
@@ -650,7 +650,7 @@ std::vector<CTransactionRef> TestChainSetup::PopulateMempool(FastRandomContext& 
         const CAmount amount_per_output = (total_in - 1000) / num_outputs;
         for (size_t n{0}; n < num_outputs; ++n) {
             CScript spk = CScript() << CScriptNum(num_transactions + n);
-            mtx.vout.push_back(CTxOut(amount_per_output, spk));
+            mtx.vout.emplace_back(amount_per_output, spk);
         }
         CTransactionRef ptx = MakeTransactionRef(mtx);
         mempool_transactions.push_back(ptx);
@@ -659,7 +659,7 @@ std::vector<CTransactionRef> TestChainSetup::PopulateMempool(FastRandomContext& 
             // it can be used to build a more complex transaction graph. Insert randomly into
             // unspent_prevouts for extra randomness in the resulting structures.
             for (size_t n{0}; n < num_outputs; ++n) {
-                unspent_prevouts.push_back(std::make_pair(COutPoint(ptx->GetHash(), n), amount_per_output));
+                unspent_prevouts.emplace_back(COutPoint(ptx->GetHash(), n), amount_per_output);
                 std::swap(unspent_prevouts.back(), unspent_prevouts[det_rand.randrange(unspent_prevouts.size())]);
             }
         }

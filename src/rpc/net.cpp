@@ -550,9 +550,9 @@ static RPCHelpMan getaddednodeinfo()
 static RPCHelpMan getnettotals()
 {
     return RPCHelpMan{"getnettotals",
-                "Returns information about network traffic, including bytes in, bytes out,\n"
-                "and current system time.",
-                {},
+        "Returns information about network traffic, including bytes in, bytes out,\n"
+        "and current system time.",
+        {},
                 RPCResult{
                    RPCResult::Type::OBJ, "", "",
                    {
