@@ -107,4 +107,4 @@ Thanks to who contributed to this release, at least:
 - 21E14
 
 As well as the Bitcoin Core developers and everyone that helped translating on
-[Transifex](https://www.transifex.com/projects/p/darkcoin/).
+[Transifex](https://explore.transifex.com/dash/dash/).
