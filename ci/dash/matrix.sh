@@ -16,9 +16,7 @@ export LSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/l
 export TSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/tsan:halt_on_error=1"
 export UBSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/ubsan:print_stacktrace=1:halt_on_error=1:report_error_type=1"
 
-if [ "$BUILD_TARGET" = "aarch64-linux" ]; then
-  source ./ci/test/00_setup_env_aarch64.sh
-elif [ "$BUILD_TARGET" = "linux64" ]; then
+if [ "$BUILD_TARGET" = "linux64" ]; then
   source ./ci/test/00_setup_env_native_qt5.sh
 elif [ "$BUILD_TARGET" = "linux64_asan" ]; then
   source ./ci/test/00_setup_env_native_asan.sh
