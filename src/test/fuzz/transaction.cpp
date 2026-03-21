@@ -93,10 +93,14 @@ FUZZ_TARGET(transaction, .init = initialize_transaction)
     const CCoinsViewCache coins_view_cache(&coins_view);
     (void)AreInputsStandard(tx, coins_view_cache);
 
-    UniValue u(UniValue::VOBJ);
-    TxToUniv(tx, /*block_hash=*/uint256::ZERO, /*entry=*/u);
-    TxToUniv(tx, /*block_hash=*/uint256::ONE, /*entry=*/u);
-
-//    TxToUniv(tx, /*block_hash=*/uint256::ZERO, /*include_addresses=*/true, u);
-//    TxToUniv(tx, /*block_hash=*/uint256::ONE, /*include_addresses=*/false, u);
+    if (tx.GetTotalSize() < 250'000) { // Avoid high memory usage (with msan) due to json encoding
+        {
+            UniValue u{UniValue::VOBJ};
+            TxToUniv(tx, /*block_hash=*/uint256::ZERO, /*entry=*/u);
+        }
+        {
+            UniValue u{UniValue::VOBJ};
+            TxToUniv(tx, /*block_hash=*/uint256::ONE, /*entry=*/u);
+        }
+    }
 }

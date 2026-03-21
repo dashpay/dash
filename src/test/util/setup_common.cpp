@@ -40,6 +40,7 @@
 #include <test/util/net.h>
 #include <test/util/txmempool.h>
 #include <txdb.h>
+#include <util/check.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/thread.h>
@@ -156,6 +157,15 @@ void DashChainstateSetupClose(NodeContext& node)
                              Assert(node.mempool.get()));
 }
 
+struct NetworkSetup
+{
+    NetworkSetup()
+    {
+        Assert(SetupNetworking());
+    }
+};
+static NetworkSetup g_networksetup_instance;
+
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
     : m_path_root{fs::temp_directory_path() / "test_common_" PACKAGE_NAME / g_insecure_rand_ctx_temp_path.rand256().ToString()},
       m_args{}
@@ -201,7 +211,6 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     ECC_Start();
     BLSInit();
     SetupEnvironment();
-    SetupNetworking();
     InitSignatureCache();
     InitScriptExecutionCache();
 
