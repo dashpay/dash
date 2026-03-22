@@ -165,6 +165,11 @@ class LLMQSigningTest(DashTestFramework):
         # Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change
         self.mine_quorum()
         self.mine_quorum()
+        # Wait for recovered sig to propagate to all nodes (may be delayed under UBSAN/sanitizer load)
+        if self.options.spork21:
+            wait_for_sigs_spork21(True, False, True, 30)
+        else:
+            wait_for_sigs(True, False, True, 15)
         assert_sigs_nochange(True, False, True, 3)
 
         # fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid
