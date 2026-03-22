@@ -58,16 +58,21 @@ class LLMQSigningTest(DashTestFramework):
         def wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, timeout):
             self.wait_until(lambda: check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
-        def wait_for_sigs_spork21(hasrecsigs, isconflicting1, isconflicting2, timeout):
+        def wait_for_sigs_bumping(hasrecsigs, isconflicting1, isconflicting2, timeout, max_mocktime_advance=30):
             """Like wait_for_sigs but periodically bumps mocktime so that
             concentrated-send retries (which use mocktime-based scheduling)
-            can fire.  Each bump covers one exponential-backoff retry cycle."""
+            can fire.  Limits total mocktime advance to max_mocktime_advance
+            seconds to avoid triggering SESSION_NEW_SHARES_TIMEOUT (60s)
+            cleanup of in-progress sig share sessions."""
             import time as _time
             deadline = _time.time() + timeout * self.options.timeout_factor
+            total_advanced = 0
             while _time.time() < deadline:
                 if check_sigs(hasrecsigs, isconflicting1, isconflicting2):
                     return
-                self.bump_mocktime(3, update_schedulers=False)
+                if total_advanced < max_mocktime_advance:
+                    self.bump_mocktime(1, update_schedulers=False)
+                    total_advanced += 1
                 _time.sleep(0.5)
             # Final check with assertion
             wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, 1)
@@ -115,7 +120,7 @@ class LLMQSigningTest(DashTestFramework):
             # frozen mocktime each MN's share is sent only once (attempt 0).
             # Advance mocktime so retries to additional recovery members can
             # fire, making recovery robust against any single delivery failure.
-            wait_for_sigs_spork21(True, False, True, 30)
+            wait_for_sigs_bumping(True, False, True, 30)
         else:
             wait_for_sigs(True, False, True, 15)
 
@@ -167,7 +172,7 @@ class LLMQSigningTest(DashTestFramework):
         self.mine_quorum()
         # Wait for recovered sig to propagate to all nodes (may be delayed under UBSAN/sanitizer load)
         if self.options.spork21:
-            wait_for_sigs_spork21(True, False, True, 30)
+            wait_for_sigs_bumping(True, False, True, 30)
         else:
             wait_for_sigs(True, False, True, 15)
         assert_sigs_nochange(True, False, True, 3)
@@ -186,7 +191,7 @@ class LLMQSigningTest(DashTestFramework):
         for i in range(2, 5):
             self.mninfo[i].get_node(self).quorum("sign", q_type, id, msgHash)
         if self.options.spork21:
-            wait_for_sigs_spork21(True, False, True, 30)
+            wait_for_sigs_bumping(True, False, True, 30)
         else:
             wait_for_sigs(True, False, True, 15)
 
@@ -214,7 +219,7 @@ class LLMQSigningTest(DashTestFramework):
             # cleanup cadence so recovery responsibility rotates to the next
             # member. Use 10s to guarantee at least one full cycle completes.
             self.bump_mocktime(10)
-            wait_for_sigs(True, False, True, 15)
+            wait_for_sigs_bumping(True, False, True, 15)
 
 if __name__ == '__main__':
     LLMQSigningTest().main()
