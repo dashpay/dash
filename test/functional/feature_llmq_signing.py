@@ -58,6 +58,20 @@ class LLMQSigningTest(DashTestFramework):
         def wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, timeout):
             self.wait_until(lambda: check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
+        def wait_for_sigs_spork21(hasrecsigs, isconflicting1, isconflicting2, timeout):
+            """Like wait_for_sigs but periodically bumps mocktime so that
+            concentrated-send retries (which use mocktime-based scheduling)
+            can fire.  Each bump covers one exponential-backoff retry cycle."""
+            import time as _time
+            deadline = _time.time() + timeout * self.options.timeout_factor
+            while _time.time() < deadline:
+                if check_sigs(hasrecsigs, isconflicting1, isconflicting2):
+                    return
+                self.bump_mocktime(3, update_schedulers=False)
+                _time.sleep(0.5)
+            # Final check with assertion
+            wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, 1)
+
         def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout):
             assert not self.wait_until(lambda: not check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
 
@@ -96,7 +110,14 @@ class LLMQSigningTest(DashTestFramework):
             # If spork21 is not enabled just sign regularly
             self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash)
 
-        wait_for_sigs(True, False, True, 15)
+        if self.options.spork21:
+            # Concentrated sends use mocktime-based retry scheduling. With
+            # frozen mocktime each MN's share is sent only once (attempt 0).
+            # Advance mocktime so retries to additional recovery members can
+            # fire, making recovery robust against any single delivery failure.
+            wait_for_sigs_spork21(True, False, True, 30)
+        else:
+            wait_for_sigs(True, False, True, 15)
 
         # Test `quorum verify` rpc
         node = self.mninfo[0].get_node(self)
@@ -159,7 +180,10 @@ class LLMQSigningTest(DashTestFramework):
             self.mninfo[i].get_node(self).quorum("sign", q_type, id, msgHashConflict)
         for i in range(2, 5):
             self.mninfo[i].get_node(self).quorum("sign", q_type, id, msgHash)
-        wait_for_sigs(True, False, True, 15)
+        if self.options.spork21:
+            wait_for_sigs_spork21(True, False, True, 30)
+        else:
+            wait_for_sigs(True, False, True, 15)
 
         if self.options.spork21:
             id = uint256_to_string(request_id + 1)
