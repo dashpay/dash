@@ -530,17 +530,6 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
     if (request.mode == JSONRPCRequest::GET_HELP || !IsValidNumArgs(request.params.size())) {
         throw std::runtime_error(ToString());
     }
-    UniValue arg_mismatch{UniValue::VOBJ};
-    for (size_t i{0}; i < m_args.size(); ++i) {
-        const auto& arg{m_args.at(i)};
-        UniValue match{arg.MatchesType(request.params[i])};
-        if (!match.isTrue()) {
-            arg_mismatch.pushKV(strprintf("Position %s (%s)", i + 1, arg.m_names), std::move(match));
-        }
-    }
-    if (!arg_mismatch.empty()) {
-        throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Wrong type passed:\n%s", arg_mismatch.write(4)));
-    }
     CHECK_NONFATAL(m_req == nullptr);
     m_req = &request;
     UniValue ret = m_fun(*this, request);
