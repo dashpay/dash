@@ -70,6 +70,7 @@ void ActiveContext::Start(CConnman& connman, PeerManager& peerman, int16_t worke
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();
     is_signer->RegisterRecoveryInterface();
+    shareman->RegisterRecoveryInterface();
 
     RegisterValidationInterface(cl_signer.get());
 }
@@ -78,6 +79,7 @@ void ActiveContext::Stop()
 {
     UnregisterValidationInterface(cl_signer.get());
 
+    shareman->UnregisterRecoveryInterface();
     is_signer->UnregisterRecoveryInterface();
     cl_signer->UnregisterRecoveryInterface();
     cl_signer->Stop();

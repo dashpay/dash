@@ -197,15 +197,12 @@ RPCHelpMan getbalance()
 
     LOCK(pwallet->cs_wallet);
 
-    const UniValue& dummy_value = request.params[0];
-    if (!dummy_value.isNull() && dummy_value.get_str() != "*") {
+    const auto dummy_value{self.MaybeArg<std::string>("dummy")};
+    if (dummy_value && *dummy_value != "*") {
         throw JSONRPCError(RPC_METHOD_DEPRECATED, "dummy first argument must be excluded or set to \"*\".");
     }
 
-    int min_depth = 0;
-    if (!request.params[1].isNull()) {
-        min_depth = request.params[1].getInt<int>();
-    }
+    const auto min_depth{self.Arg<int>("minconf")};
 
     const UniValue& addlocked = request.params[2];
     bool fAddLocked = false;

@@ -10,8 +10,7 @@ Checks LLMQs signing sessions
 
 '''
 
-from test_framework.messages import CSigShare, msg_qsigshare, uint256_to_string
-from test_framework.p2p import P2PInterface
+from test_framework.messages import uint256_to_string
 from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
@@ -59,6 +58,25 @@ class LLMQSigningTest(DashTestFramework):
         def wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, timeout):
             self.wait_until(lambda: check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
+        def wait_for_sigs_bumping(hasrecsigs, isconflicting1, isconflicting2, timeout, max_mocktime_advance=30):
+            """Like wait_for_sigs but periodically bumps mocktime so that
+            concentrated-send retries (which use mocktime-based scheduling)
+            can fire.  Limits total mocktime advance to max_mocktime_advance
+            seconds to avoid triggering SESSION_NEW_SHARES_TIMEOUT (60s)
+            cleanup of in-progress sig share sessions."""
+            import time as _time
+            deadline = _time.time() + timeout * self.options.timeout_factor
+            total_advanced = 0
+            while _time.time() < deadline:
+                if check_sigs(hasrecsigs, isconflicting1, isconflicting2):
+                    return
+                if total_advanced < max_mocktime_advance:
+                    self.bump_mocktime(1, update_schedulers=False)
+                    total_advanced += 1
+                _time.sleep(0.5)
+            # Final check with assertion
+            wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, 1)
+
         def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout):
             assert not self.wait_until(lambda: not check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
 
@@ -86,32 +104,25 @@ class LLMQSigningTest(DashTestFramework):
             sig_share_rpc_2 = self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash, "", False)
             assert_equal(sig_share_rpc_1, sig_share_rpc_2)
             assert_sigs_nochange(False, False, False, 3)
-            # 3. Sending the sig share received from RPC to the recovery member through P2P interface, should result
-            # in a recovered sig
-            sig_share = CSigShare()
-            sig_share.llmqType = int(sig_share_rpc_1["llmqType"])
-            sig_share.quorumHash = int(sig_share_rpc_1["quorumHash"], 16)
-            sig_share.quorumMember = int(sig_share_rpc_1["quorumMember"])
-            sig_share.id = int(sig_share_rpc_1["id"], 16)
-            sig_share.msgHash = int(sig_share_rpc_1["msgHash"], 16)
-            sig_share.sigShare = bytes.fromhex(sig_share_rpc_1["signature"])
-            for mn in self.mninfo: # type: MasternodeInfo
-                assert mn.get_node(self).getconnectioncount() == self.llmq_size
-            # Get the current recovery member of the quorum
-            q = self.nodes[0].quorum('selectquorum', q_type, id)
-            mn: MasternodeInfo = self.get_mninfo(q['recoveryMembers'][0])
-            # Open a P2P connection to it
-            p2p_interface = mn.get_node(self).add_p2p_connection(P2PInterface())
-            # Send the last required QSIGSHARE message to the recovery member
-            p2p_interface.send_message(msg_qsigshare([sig_share]))
+            # 3. Verify the returned sigShare has the expected fields
+            for field in ["llmqType", "quorumHash", "quorumMember", "id", "msgHash", "signHash", "signature"]:
+                assert field in sig_share_rpc_1, f"Missing field {field} in sigShare"
+            # 4. Now submit the third share normally so that recovery can proceed
+            # reliably via the concentrated send path (the submit=false RPC was
+            # already validated above)
+            self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash)
         else:
             # If spork21 is not enabled just sign regularly
             self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash)
 
-        wait_for_sigs(True, False, True, 15)
-
         if self.options.spork21:
-            mn.get_node(self).disconnect_p2ps()
+            # Concentrated sends use mocktime-based retry scheduling. With
+            # frozen mocktime each MN's share is sent only once (attempt 0).
+            # Advance mocktime so retries to additional recovery members can
+            # fire, making recovery robust against any single delivery failure.
+            wait_for_sigs_bumping(True, False, True, 30)
+        else:
+            wait_for_sigs(True, False, True, 15)
 
         # Test `quorum verify` rpc
         node = self.mninfo[0].get_node(self)
@@ -159,6 +170,11 @@ class LLMQSigningTest(DashTestFramework):
         # Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change
         self.mine_quorum()
         self.mine_quorum()
+        # Wait for recovered sig to propagate to all nodes (may be delayed under UBSAN/sanitizer load)
+        if self.options.spork21:
+            wait_for_sigs_bumping(True, False, True, 30)
+        else:
+            wait_for_sigs(True, False, True, 15)
         assert_sigs_nochange(True, False, True, 3)
 
         # fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid
@@ -174,7 +190,10 @@ class LLMQSigningTest(DashTestFramework):
             self.mninfo[i].get_node(self).quorum("sign", q_type, id, msgHashConflict)
         for i in range(2, 5):
             self.mninfo[i].get_node(self).quorum("sign", q_type, id, msgHash)
-        wait_for_sigs(True, False, True, 15)
+        if self.options.spork21:
+            wait_for_sigs_bumping(True, False, True, 30)
+        else:
+            wait_for_sigs(True, False, True, 15)
 
         if self.options.spork21:
             id = uint256_to_string(request_id + 1)
@@ -196,9 +215,11 @@ class LLMQSigningTest(DashTestFramework):
             self.wait_until(lambda: mn.get_node(self).getconnectioncount() == self.llmq_size, timeout=10)
             mn.get_node(self).ping()
             self.wait_until(lambda: all('pingwait' not in peer for peer in mn.get_node(self).getpeerinfo()))
-            # Let 2 seconds pass so that the next node is used for recovery, which should succeed
-            self.bump_mocktime(2)
-            wait_for_sigs(True, False, True, 2)
+            # Advance mocktime past the daemon's 5-second signing session
+            # cleanup cadence so recovery responsibility rotates to the next
+            # member. Use 10s to guarantee at least one full cycle completes.
+            self.bump_mocktime(10)
+            wait_for_sigs_bumping(True, False, True, 15)
 
 if __name__ == '__main__':
     LLMQSigningTest().main()

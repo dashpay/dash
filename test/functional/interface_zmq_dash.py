@@ -130,6 +130,31 @@ class DashZMQTest (DashTestFramework):
         self.skip_if_no_bitcoind_zmq()
         self.skip_if_no_wallet()
 
+    def wait_for_instantlock_with_bumping(self, txid, node, timeout=60):
+        """Wait for InstantLock while periodically bumping mocktime.
+
+        The sig share exchange machinery uses mocktime-based scheduling for
+        send retries and session timeouts. With frozen mocktime, delivery
+        failures are never retried, causing IS lock recovery to stall under
+        CI load.  Bump mocktime by 1s every 0.5s (capped at 30s total to
+        stay well under SESSION_NEW_SHARES_TIMEOUT = 60s) so retries fire.
+        """
+        import time as _time
+        deadline = _time.time() + timeout * self.options.timeout_factor
+        total_advanced = 0
+        while _time.time() < deadline:
+            try:
+                if node.getrawtransaction(txid, True)["instantlock"]:
+                    return
+            except Exception:
+                pass
+            if total_advanced < 30:
+                self.bump_mocktime(1)
+                total_advanced += 1
+            _time.sleep(0.5)
+        # Final check with assertion
+        self.wait_for_instantlock(txid, node, timeout=1)
+
     def run_test(self):
         self.subscribers = {}
         # Check that dashd has been built with ZMQ enabled.
@@ -296,8 +321,7 @@ class DashZMQTest (DashTestFramework):
         assert_equal(['None'], self.nodes[0].getislocks([rpc_raw_tx_1['txid']]))
         # Send the first transaction and wait for the InstantLock
         rpc_raw_tx_1_hash = self.nodes[0].sendrawtransaction(rpc_raw_tx_1['hex'])
-        self.bump_mocktime(30)
-        self.wait_for_instantlock(rpc_raw_tx_1_hash, self.nodes[0])
+        self.wait_for_instantlock_with_bumping(rpc_raw_tx_1_hash, self.nodes[0])
         # Validate hashtxlock
         zmq_tx_lock_hash = self.subscribers[ZMQPublisher.hash_tx_lock].receive().read(32).hex()
         assert_equal(zmq_tx_lock_hash, rpc_raw_tx_1['txid'])
@@ -349,8 +373,7 @@ class DashZMQTest (DashTestFramework):
             pass
         # Now send the tx itself
         self.test_node.send_tx(from_hex(msg_tx(),rpc_raw_tx_3['hex']))
-        self.bump_mocktime(30)
-        self.wait_for_instantlock(rpc_raw_tx_3['txid'], self.nodes[0])
+        self.wait_for_instantlock_with_bumping(rpc_raw_tx_3['txid'], self.nodes[0])
         # Validate hashtxlock
         zmq_tx_lock_hash = self.subscribers[ZMQPublisher.hash_tx_lock].receive().read(32).hex()
         assert_equal(zmq_tx_lock_hash, rpc_raw_tx_3['txid'])
@@ -383,8 +406,7 @@ class DashZMQTest (DashTestFramework):
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_data).encode())
         collateral = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
-        self.bump_mocktime(30)
-        self.wait_for_instantlock(collateral, self.nodes[0])
+        self.wait_for_instantlock_with_bumping(collateral, self.nodes[0])
         self.generate(self.nodes[0], 6, sync_fun=lambda: self.sync_blocks())
         rpc_proposal_hash = self.nodes[0].gobject("submit", "0", proposal_rev, proposal_time, proposal_hex, collateral)
         # Validate hashgovernanceobject

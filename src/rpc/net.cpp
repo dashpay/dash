@@ -321,7 +321,7 @@ static RPCHelpMan addnode()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    const std::string command{request.params[1].get_str()};
+    const auto command{self.Arg<std::string>("command")};
     if (command != "onetry" && command != "add" && command != "remove") {
         throw std::runtime_error(
             self.ToString());
@@ -330,9 +330,9 @@ static RPCHelpMan addnode()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CConnman& connman = EnsureConnman(node);
 
-    const std::string node_arg = request.params[0].get_str();
+    const auto node_arg{self.Arg<std::string>("node")};
     bool node_v2transport = connman.GetLocalServices() & NODE_P2P_V2;
-    bool use_v2transport = request.params[2].isNull() ? node_v2transport : request.params[2].get_bool();
+    bool use_v2transport = self.MaybeArg<bool>("v2transport").value_or(node_v2transport);
 
     if (use_v2transport && !node_v2transport) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Error: v2transport requested but not enabled (see -v2transport)");
