@@ -195,16 +195,6 @@ CSigSharesManager::CSigSharesManager(CConnman& connman, const ChainstateManager&
 
 CSigSharesManager::~CSigSharesManager() = default;
 
-void CSigSharesManager::RegisterRecoveryInterface()
-{
-    sigman.RegisterRecoveredSigsListener(this);
-}
-
-void CSigSharesManager::UnregisterRecoveryInterface()
-{
-    sigman.UnregisterRecoveredSigsListener(this);
-}
-
 bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann)
 {
     auto llmqType = ann.getLlmqType();

@@ -424,9 +424,6 @@ public:
                                const CSporkManager& sporkman);
     ~CSigSharesManager() override;
 
-    void RegisterRecoveryInterface() EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    void UnregisterRecoveryInterface() EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
     void AsyncSign(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
     std::optional<CSigShare> CreateSigShare(const CQuorum& quorum, const uint256& id, const uint256& msgHash) const
