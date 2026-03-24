@@ -25,8 +25,8 @@ ActiveDKGSession::ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManag
                                    CDKGSessionManager& qdkgsman, CMasternodeMetaMan& mn_metaman,
                                    CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager& mn_activeman,
                                    const ChainstateManager& chainman, const CSporkManager& sporkman,
-                                   const CBlockIndex* base_block_index, const Consensus::LLMQParams& params) :
-    CDKGSession(bls_worker, dmnman, dkgdbgman, qdkgsman, qsnapman, chainman, base_block_index, params),
+                                   const CBlockIndex* base_block_index, const Consensus::LLMQParams& llmq_params) :
+    CDKGSession(bls_worker, dmnman, dkgdbgman, qdkgsman, qsnapman, chainman, base_block_index, llmq_params),
     m_mn_metaman{mn_metaman},
     m_mn_activeman{mn_activeman},
     m_sporkman{sporkman},
