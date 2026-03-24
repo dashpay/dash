@@ -2419,6 +2419,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // GetMainSignals().UpdatedBlockTip(::ChainActive().Tip());
         g_ds_notification_interface->InitializeCurrentBlockTip();
 
+        // Seed InstantSend tip-height cache; NetInstantSend receives future
+        // updates via CValidationInterface but misses InitializeCurrentBlockTip.
+        // TODO: move cache updates from NetInstantSend to g_ds_notification due to specific of Tip's processing
+        node.llmq_ctx->isman->CacheTipHeight(chainman.ActiveChain().Tip());
+
         {
             // Get all UTXOs for each MN collateral in one go so that we can fill coin cache early
             // and reduce further locking overhead for cs_main in other parts of code including GUI
