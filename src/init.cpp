@@ -2425,7 +2425,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
             const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
-            if (node.observer_ctx && !node.active_ctx) {
+            if (node.observer_ctx) {
                 node.observer_ctx->InitializeCurrentBlockTip(tip, ibd);
             }
             // Note: active_ctx initialization is deferred until after nodeman->Init()
