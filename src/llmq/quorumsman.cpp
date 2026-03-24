@@ -801,10 +801,7 @@ void QuorumRole::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDown
     if (!pindexNew) return;
     if (!m_mn_sync.IsBlockchainSynced()) return;
 
-    for (const auto& params : Params().GetConsensus().llmqs) {
-        CheckQuorumConnections(params, pindexNew);
-    }
-
+    InitializeQuorumConnections(pindexNew);
     m_qman.CleanupExpiredDataRequests();
 
     TriggerQuorumDataRecoveryThreads(pindexNew);
