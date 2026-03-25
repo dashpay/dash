@@ -203,7 +203,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
                     if check_banned(self.nodes[0], mn):
                         break
 
-            assert check_banned(self.nodes[0], mn)
+            self.wait_until(lambda: check_banned(self.nodes[0], mn), timeout=10)
 
             if not went_offline:
                 # we do not include PoSe banned mns in quorums, so the next one should have 1 contributor less
