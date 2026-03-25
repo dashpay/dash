@@ -29,10 +29,10 @@ CDSNotificationInterface::CDSNotificationInterface(CConnman& connman, CDSTXManag
 
 CDSNotificationInterface::~CDSNotificationInterface() = default;
 
-void CDSNotificationInterface::InitializeCurrentBlockTip()
+void CDSNotificationInterface::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd)
 {
-    SynchronousUpdatedBlockTip(m_chainman.ActiveChain().Tip(), nullptr, m_chainman.ActiveChainstate().IsInitialBlockDownload());
-    UpdatedBlockTip(m_chainman.ActiveChain().Tip(), nullptr, m_chainman.ActiveChainstate().IsInitialBlockDownload());
+    SynchronousUpdatedBlockTip(tip, nullptr, ibd);
+    UpdatedBlockTip(tip, nullptr, ibd);
 }
 
 void CDSNotificationInterface::AcceptedBlockHeader(const CBlockIndex *pindexNew)

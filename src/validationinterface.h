@@ -108,6 +108,18 @@ protected:
      */
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     /**
+     * Force UpdatedBlockTip to initialize block-tip-dependent state at
+     * startup (e.g. nCachedBlockHeight for DS/MN payments/budgets,
+     * quorum connections).  Called synchronously from the loadblk
+     * thread — once after ThreadImport for general subscribers and
+     * again after nodeman->Init() so that masternode-specific state
+     * (proTxHash) is available for quorum connection setup.
+     *
+     * Unlike GetMainSignals().UpdatedBlockTip(), this does not trigger
+     * other listeners like ZMQ.
+     */
+    virtual void InitializeCurrentBlockTip(const CBlockIndex* /*tip*/, bool /*ibd*/) {}
+    /**
      * Same as UpdatedBlockTip, but called from the caller's thread
      */
     virtual void SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
@@ -226,6 +238,7 @@ public:
     void AcceptedBlockHeader(const CBlockIndex *pindexNew);
     void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload);
     void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
     void SynchronousUpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence);
     void TransactionRemovedFromMempool(const CTransactionRef&, MemPoolRemovalReason, uint64_t mempool_sequence);

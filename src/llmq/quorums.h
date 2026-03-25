@@ -36,6 +36,7 @@ namespace llmq {
 
 enum class DataRequestStatus : uint8_t {
     NotFound,
+    Requested,
     Pending,
     Processed,
 };
@@ -204,12 +205,22 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
 
     bool HasVerificationVector() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
+    std::shared_ptr<const std::vector<CBLSPublicKey>> GetVerificationVector() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare)
+    {
+        LOCK(cs_vvec_shShare);
+        return quorumVvec;
+    }
     bool IsMember(const uint256& proTxHash) const;
     bool IsValidMember(const uint256& proTxHash) const;
     int GetMemberIndex(const uint256& proTxHash) const;
 
     CBLSPublicKey GetPubKeyShare(size_t memberIdx) const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
     CBLSSecretKey GetSkShare() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
+
+    //! Try to claim exclusive data recovery for this quorum. Returns true if claimed.
+    bool TryClaimRecovery() const { bool expected = false; return fQuorumDataRecoveryThreadRunning.compare_exchange_strong(expected, true); }
+    bool IsRecoveryRunning() const { return fQuorumDataRecoveryThreadRunning; }
+    void ReleaseRecovery() const { fQuorumDataRecoveryThreadRunning = false; }
 
 private:
     bool HasVerificationVectorInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs_vvec_shShare);

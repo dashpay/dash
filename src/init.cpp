@@ -98,6 +98,7 @@
 #include <llmq/context.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/signing.h>
+#include <llmq/net_quorum.h>
 #include <llmq/net_signing.h>
 #include <llmq/observer.h>
 #include <llmq/options.h>
@@ -290,7 +291,6 @@ void PrepareShutdown(NodeContext& node)
     StopRPC();
     StopHTTPServer();
 
-    if (node.observer_ctx) node.observer_ctx->Stop();
     if (node.active_ctx) node.active_ctx->Stop();
     if (node.clhandler) node.clhandler->Stop();
     if (node.peerman) node.peerman->StopHandlers();
@@ -2202,12 +2202,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman, *node.govman, *node.mn_metaman,
                                                           *node.sporkman, *node.chainlocks, *node.mempool, *node.clhandler, *node.llmq_ctx->isman,
                                                           *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, *node.llmq_ctx->sigman,
-                                                          *node.mn_sync, operator_sk, sync_map, dash_db_params, quorums_recovery, quorums_watch);
+                                                          *node.mn_sync, operator_sk, dash_db_params, quorums_watch);
         RegisterValidationInterface(node.active_ctx.get());
     } else if (quorums_watch) {
-        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.llmq_ctx->bls_worker, *node.connman, *node.dmnman, *node.mn_metaman, *node.mn_sync,
+        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman,
                                                                     *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman,
-                                                                    chainman, *node.sporkman, sync_map, dash_db_params, quorums_recovery);
+                                                                    chainman, *node.sporkman, dash_db_params);
         RegisterValidationInterface(node.observer_ctx.get());
     }
 
@@ -2215,6 +2215,17 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, node.active_ctx ? node.active_ctx->is_signer.get() : nullptr, *node.llmq_ctx->sigman, *node.llmq_ctx->qman, *node.chainlocks, chainman.ActiveChainstate(), *node.mempool, *node.mn_sync));
     node.peerman->AddExtraHandler(std::make_unique<llmq::NetSigning>(node.peerman.get(), *node.llmq_ctx->sigman, node.active_ctx ? node.active_ctx->shareman.get() : nullptr, *node.sporkman));
+
+    {
+        llmq::QuorumRole* quorum_role = node.active_ctx ? static_cast<llmq::QuorumRole*>(node.active_ctx.get())
+                                                        : static_cast<llmq::QuorumRole*>(node.observer_ctx.get());
+        auto net_quorum = std::make_unique<llmq::NetQuorum>(
+            node.peerman.get(), *node.connman, *node.dmnman,
+            *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, chainman,
+            *node.mn_sync, *node.sporkman, quorum_role,
+            llmq::DEFAULT_WORKER_COUNT, sync_map, quorums_recovery);
+        node.peerman->AddExtraHandler(std::move(net_quorum));
+    }
 
     if (node.active_ctx) {
         auto cj_server = std::make_unique<CCoinJoinServer>(node.peerman.get(), chainman, *node.connman, *node.dmnman, *node.dstxman, *node.mn_metaman,
@@ -2327,7 +2338,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     node.peerman->StartHandlers();
     node.clhandler->Start();
-    if (node.observer_ctx) node.observer_ctx->Start(llmq::DEFAULT_WORKER_COUNT);
 
     node.scheduler->scheduleEvery(std::bind(&CNetFulfilledRequestManager::DoMaintenance, std::ref(*node.netfulfilledman)), std::chrono::minutes{1});
     node.scheduler->scheduleEvery(std::bind(&CMasternodeUtils::DoMaintenance, std::ref(*node.connman), std::ref(*node.dmnman), std::ref(*node.mn_sync), node.cj_walletman.get()), std::chrono::minutes{1});
@@ -2335,7 +2345,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.peerman->ScheduleHandlers(*node.scheduler);
 
     if (node.active_ctx) {
-        node.active_ctx->Start(*node.connman, *node.peerman, llmq::DEFAULT_WORKER_COUNT);
+        node.active_ctx->Start(*node.connman, *node.peerman);
         node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.active_ctx->qdkgsman)), std::chrono::hours{1});
     }
 
@@ -2418,18 +2428,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
         ThreadImport(chainman, vImportFiles, args);
 
-        // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
-        // but don't call it directly to prevent triggering of other listeners like zmq etc.
-        // GetMainSignals().UpdatedBlockTip(::ChainActive().Tip());
-        g_ds_notification_interface->InitializeCurrentBlockTip();
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
             const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
-            if (node.observer_ctx) {
-                node.observer_ctx->InitializeCurrentBlockTip(tip, ibd);
-            }
-            // Note: active_ctx initialization is deferred until after nodeman->Init()
-            // so that GetProTxHash() is available for quorum connection setup.
+            GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
         }
 
         // Seed InstantSend tip-height cache; NetInstantSend receives future
@@ -2500,13 +2502,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         if (node.active_ctx) {
             node.active_ctx->nodeman->Init(chainman.ActiveTip());
-            // Initialize current block tip after nodeman->Init() so that
-            // GetProTxHash() is available for quorum connection setup.
-            // Without this ordering, EnsureQuorumConnections returns early
-            // because the null proTxHash makes the MN appear as a non-member.
+            // Re-initialize block tip for handlers that depend on
+            // proTxHash (set by nodeman->Init above).  The first call
+            // at step 7d ran before Init, so quorum connections were
+            // skipped for masternodes with a null proTxHash.
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
             const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
-            node.active_ctx->InitializeCurrentBlockTip(tip, ibd);
+            GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
         }
     });
 #ifdef ENABLE_WALLET

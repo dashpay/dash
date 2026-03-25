@@ -16,11 +16,9 @@
 
 class CBLSWorker;
 class CBlockIndex;
-class CConnman;
 class CDataStream;
 class CDeterministicMNManager;
 class CMasternodeMetaMan;
-class CMasternodeSync;
 class CNode;
 class CSporkManager;
 struct MessageProcessingResult;
@@ -42,14 +40,11 @@ public:
     ObserverContext() = delete;
     ObserverContext(const ObserverContext&) = delete;
     ObserverContext& operator=(const ObserverContext&) = delete;
-    ObserverContext(CBLSWorker& bls_worker, CConnman& connman, CDeterministicMNManager& dmnman,
-                    CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync, llmq::CQuorumBlockProcessor& qblockman,
+    ObserverContext(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman,
+                    CMasternodeMetaMan& mn_metaman, llmq::CQuorumBlockProcessor& qblockman,
                     llmq::CQuorumManager& qman, llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
-                    const CSporkManager& sporkman, const llmq::QvvecSyncModeMap& sync_map,
-                    const util::DbWrapperParams& db_params, bool quorums_recovery);
+                    const CSporkManager& sporkman, const util::DbWrapperParams& db_params);
     ~ObserverContext();
-
-    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
 
     // QuorumRole
     // Watch-only nodes are not masternodes

@@ -17,9 +17,12 @@
 class CActiveMasternodeManager;
 class CBLSWorker;
 class CCoinJoinServer;
+class CConnman;
 class CGovernanceManager;
 class CMasternodeMetaMan;
+class CMasternodeSync;
 class CMNHFManager;
+class CSporkManager;
 class CTxMemPool;
 class GovernanceSigner;
 class PeerManager;
@@ -58,13 +61,11 @@ public:
                            llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
                            llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
                            const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
-                           const llmq::QvvecSyncModeMap& sync_map, const util::DbWrapperParams& db_params,
-                           bool quorums_recovery, bool quorums_watch);
+                           const util::DbWrapperParams& db_params, bool quorums_watch);
     ~ActiveContext();
 
-    void Start(CConnman& connman, PeerManager& peerman, int16_t worker_count);
+    void Start(CConnman& connman, PeerManager& peerman);
     void Stop();
-    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
 
     CCoinJoinServer& GetCJServer() const;
     void SetCJServer(gsl::not_null<CCoinJoinServer*> cj_server);
@@ -72,6 +73,7 @@ public:
     // QuorumRole
     bool IsMasternode() const override;
     bool IsWatching() const override;
+    uint256 GetProTxHash() const override;
     bool SetQuorumSecretKeyShare(llmq::CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override;
     [[nodiscard]] MessageProcessingResult ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& vStream,
                                                                  const llmq::CQuorum& quorum,
@@ -82,10 +84,6 @@ public:
                                                               llmq::CQuorumDataRequest& request) override;
 
 protected:
-    void CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
-                                gsl::not_null<const CBlockIndex*> pindexNew) const override;
-    void TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex*> block_index) const override;
-
     // CValidationInterface
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
@@ -109,16 +107,6 @@ public:
 
     /** Owned by PeerManager, use GetCJServer() */
     CCoinJoinServer* m_cj_server{nullptr};
-
-private:
-    /// Returns the start offset for the masternode with the given proTxHash. This offset is applied when picking data
-    /// recovery members of a quorum's memberlist and is calculated based on a list of all member of all active quorums
-    /// for the given llmqType in a way that each member should receive the same number of request if all active
-    /// llmqType members requests data from one llmqType quorum.
-    size_t GetQuorumRecoveryStartOffset(const llmq::CQuorum& quorum,
-                                        gsl::not_null<const CBlockIndex*> pIndex) const;
-    void StartDataRecoveryThread(gsl::not_null<const CBlockIndex*> pIndex, llmq::CQuorumCPtr pQuorum,
-                                 uint16_t nDataMaskIn) const;
 };
 
 #endif // BITCOIN_ACTIVE_CONTEXT_H
