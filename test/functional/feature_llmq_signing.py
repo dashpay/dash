@@ -196,9 +196,11 @@ class LLMQSigningTest(DashTestFramework):
             self.wait_until(lambda: mn.get_node(self).getconnectioncount() == self.llmq_size, timeout=10)
             mn.get_node(self).ping()
             self.wait_until(lambda: all('pingwait' not in peer for peer in mn.get_node(self).getpeerinfo()))
-            # Let 2 seconds pass so that the next node is used for recovery, which should succeed
-            self.bump_mocktime(2)
-            wait_for_sigs(True, False, True, 2)
+            # Advance mocktime past the daemon's 5-second signing session
+            # cleanup cadence so recovery responsibility rotates to the next
+            # member. Use 10s to guarantee at least one full cycle completes.
+            self.bump_mocktime(10)
+            wait_for_sigs(True, False, True, 15)
 
 if __name__ == '__main__':
     LLMQSigningTest().main()
