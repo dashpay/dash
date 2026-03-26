@@ -75,13 +75,6 @@ public:
     bool IsWatching() const override;
     uint256 GetProTxHash() const override;
     bool SetQuorumSecretKeyShare(llmq::CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override;
-    [[nodiscard]] MessageProcessingResult ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& vStream,
-                                                                 const llmq::CQuorum& quorum,
-                                                                 llmq::CQuorumDataRequest& request,
-                                                                 gsl::not_null<const CBlockIndex*> block_index) override;
-    [[nodiscard]] MessageProcessingResult ProcessContribQDATA(CNode& pfrom, CDataStream& vStream,
-                                                              llmq::CQuorum& quorum,
-                                                              llmq::CQuorumDataRequest& request) override;
 
 protected:
     // CValidationInterface

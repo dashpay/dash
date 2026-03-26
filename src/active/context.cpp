@@ -6,9 +6,7 @@
 
 #include <active/dkgsessionhandler.h>
 #include <active/masternode.h>
-#include <bls/bls_ies.h>
 #include <bls/bls_worker.h>
-#include <chain.h>
 #include <chainlock/handler.h>
 #include <chainlock/signing.h>
 #include <evo/deterministicmns.h>
@@ -16,21 +14,14 @@
 #include <governance/signing.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/signing.h>
-#include <llmq/commitment.h>
-#include <llmq/context.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/ehf_signals.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
-#include <logging.h>
 #include <masternode/sync.h>
-#include <msg_result.h>
-#include <net.h>
-#include <netmessagemaker.h>
 #include <util/check.h>
-#include <util/helpers.h>
 #include <validation.h>
 #include <validationinterface.h>
 
@@ -135,69 +126,4 @@ uint256 ActiveContext::GetProTxHash() const
 bool ActiveContext::SetQuorumSecretKeyShare(llmq::CQuorum& quorum, Span<CBLSSecretKey> skContributions) const
 {
     return quorum.SetSecretKeyShare(m_bls_worker.AggregateSecretKeys(skContributions), nodeman->GetProTxHash());
-}
-
-MessageProcessingResult ActiveContext::ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& vStream,
-                                                              const llmq::CQuorum& quorum,
-                                                              llmq::CQuorumDataRequest& request,
-                                                              gsl::not_null<const CBlockIndex*> block_index)
-{
-    if (request.GetDataMask() & llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS) {
-        assert(block_index);
-
-        int memberIdx = quorum.GetMemberIndex(request.GetProTxHash());
-        if (memberIdx == -1) {
-            request.SetError(llmq::CQuorumDataRequest::Errors::MASTERNODE_IS_NO_MEMBER);
-            return request_limit_exceeded ? MisbehavingError{25, "request limit exceeded"} : MessageProcessingResult{};
-        }
-
-        std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
-        if (!m_qman.GetEncryptedContributions(request.GetLLMQType(), block_index,
-                                              quorum.qc->validMembers, request.GetProTxHash(), vecEncrypted)) {
-            request.SetError(llmq::CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
-            return request_limit_exceeded ? MisbehavingError{25, "request limit exceeded"} : MessageProcessingResult{};
-        }
-
-        vStream << vecEncrypted;
-    }
-
-    return {};
-}
-
-MessageProcessingResult ActiveContext::ProcessContribQDATA(CNode& pfrom, CDataStream& vStream,
-                                                           llmq::CQuorum& quorum,
-                                                           llmq::CQuorumDataRequest& request)
-{
-    if (request.GetDataMask() & llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS) {
-        if (WITH_LOCK(quorum.cs_vvec_shShare, return !quorum.HasVerificationVectorInternal()
-                                                     || quorum.quorumVvec->size() != size_t(quorum.params.threshold))) {
-            // Don't bump score because we asked for it
-            LogPrint(BCLog::LLMQ, "ActiveContext::%s -- %s: No valid quorum verification vector available, from peer=%d\n", __func__, NetMsgType::QDATA, pfrom.GetId());
-            return {};
-        }
-
-        int memberIdx = quorum.GetMemberIndex(request.GetProTxHash());
-        if (memberIdx == -1) {
-            // Don't bump score because we asked for it
-            LogPrint(BCLog::LLMQ, "ActiveContext::%s -- %s: Not a member of the quorum, from peer=%d\n", __func__, NetMsgType::QDATA, pfrom.GetId());
-            return {};
-        }
-
-        std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
-        vStream >> vecEncrypted;
-
-        std::vector<CBLSSecretKey> vecSecretKeys;
-        vecSecretKeys.resize(vecEncrypted.size());
-        for (const auto i : util::irange(vecEncrypted.size())) {
-            if (!nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION)) {
-                return MisbehavingError{10, "failed to decrypt"};
-            }
-        }
-
-        if (!quorum.SetSecretKeyShare(m_bls_worker.AggregateSecretKeys(vecSecretKeys), nodeman->GetProTxHash())) {
-            return MisbehavingError{10, "invalid secret key share received"};
-        }
-    }
-
-    return {};
 }

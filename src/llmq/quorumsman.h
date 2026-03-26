@@ -10,7 +10,6 @@
 #include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/types.h>
-#include <msg_result.h>
 #include <saltedhasher.h>
 #include <unordered_lru_cache.h>
 
@@ -28,12 +27,10 @@ class CBLSSignature;
 class CBLSWorker;
 class CBlockIndex;
 class CChain;
-class CDataStream;
 class CDeterministicMNManager;
 class CDBWrapper;
 class CEvoDB;
 class ChainstateManager;
-class CNode;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -205,13 +202,6 @@ public:
     virtual bool IsWatching() const = 0;
     virtual uint256 GetProTxHash() const { return {}; }
     virtual bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const = 0;
-    [[nodiscard]] virtual MessageProcessingResult ProcessContribQGETDATA(
-        bool request_limit_exceeded, CDataStream& vStream,
-        const CQuorum& quorum, CQuorumDataRequest& request,
-        gsl::not_null<const CBlockIndex*> block_index) = 0;
-    [[nodiscard]] virtual MessageProcessingResult ProcessContribQDATA(
-        CNode& pfrom, CDataStream& vStream,
-        CQuorum& quorum, CQuorumDataRequest& request) = 0;
 };
 
 } // namespace llmq

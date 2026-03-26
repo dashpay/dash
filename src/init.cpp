@@ -2220,9 +2220,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         llmq::QuorumRole* quorum_role = node.active_ctx ? static_cast<llmq::QuorumRole*>(node.active_ctx.get())
                                                         : static_cast<llmq::QuorumRole*>(node.observer_ctx.get());
         auto net_quorum = std::make_unique<llmq::NetQuorum>(
-            node.peerman.get(), *node.connman, *node.dmnman,
+            node.peerman.get(), *node.llmq_ctx->bls_worker, *node.connman, *node.dmnman,
             *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, chainman,
             *node.mn_sync, *node.sporkman, quorum_role,
+            node.active_ctx ? node.active_ctx->nodeman.get() : nullptr,
             llmq::DEFAULT_WORKER_COUNT, sync_map, quorums_recovery);
         node.peerman->AddExtraHandler(std::move(net_quorum));
     }

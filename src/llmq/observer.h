@@ -16,12 +16,9 @@
 
 class CBLSWorker;
 class CBlockIndex;
-class CDataStream;
 class CDeterministicMNManager;
 class CMasternodeMetaMan;
-class CNode;
 class CSporkManager;
-struct MessageProcessingResult;
 namespace llmq {
 class CDKGDebugManager;
 class CDKGSessionManager;
@@ -52,11 +49,6 @@ public:
     // We are only initialized if watch-only mode is enabled
     bool IsWatching() const override { return true; }
     bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override { return false; }
-    [[nodiscard]] MessageProcessingResult ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& vStream,
-                                                                 const CQuorum& quorum, CQuorumDataRequest& request,
-                                                                 gsl::not_null<const CBlockIndex*> block_index) override;
-    [[nodiscard]] MessageProcessingResult ProcessContribQDATA(CNode& pfrom, CDataStream& vStream, CQuorum& quorum,
-                                                              CQuorumDataRequest& request) override;
 protected:
     // CValidationInterface
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;

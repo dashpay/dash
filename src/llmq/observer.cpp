@@ -6,8 +6,6 @@
 
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
-#include <llmq/quorums.h>
-#include <msg_result.h>
 
 #include <chain.h>
 #include <validation.h>
@@ -33,25 +31,6 @@ ObserverContext::ObserverContext(CBLSWorker& bls_worker, CDeterministicMNManager
 ObserverContext::~ObserverContext()
 {
     m_qman.DisconnectManagers();
-}
-
-MessageProcessingResult ObserverContext::ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& vStream,
-                                                                const CQuorum& quorum, CQuorumDataRequest& request,
-                                                                gsl::not_null<const CBlockIndex*> block_index)
-{
-    // Watch-only nodes cannot provide encrypted contributions
-    if (request.GetDataMask() & CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS) {
-        request.SetError(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
-        return request_limit_exceeded ? MisbehavingError{25, "request limit exceeded"} : MessageProcessingResult{};
-    }
-    return {};
-}
-
-MessageProcessingResult ObserverContext::ProcessContribQDATA(CNode& pfrom, CDataStream& vStream, CQuorum& quorum,
-                                                             CQuorumDataRequest& request)
-{
-    // Watch-only nodes ignore encrypted contributions
-    return {};
 }
 
 void ObserverContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)

@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-struct ActiveContext;
 class CBlockIndex;
 class CDBWrapper;
 namespace llmq {
@@ -169,8 +168,6 @@ public:
 class CQuorum
 {
     friend class CQuorumManager;
-    friend class llmq::QuorumRole;
-    friend struct ::ActiveContext;
 
 public:
     const Consensus::LLMQParams params;

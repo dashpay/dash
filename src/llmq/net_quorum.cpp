@@ -4,6 +4,7 @@
 
 #include <llmq/net_quorum.h>
 
+#include <active/masternode.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
@@ -27,13 +28,14 @@
 
 namespace llmq {
 
-NetQuorum::NetQuorum(PeerManagerInternal* peer_manager, CConnman& connman,
-                     CDeterministicMNManager& dmnman, CQuorumManager& qman,
+NetQuorum::NetQuorum(PeerManagerInternal* peer_manager, CBLSWorker& bls_worker,
+                     CConnman& connman, CDeterministicMNManager& dmnman, CQuorumManager& qman,
                      CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                      const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
-                     QuorumRole* quorum_role, int16_t worker_count,
-                     const QvvecSyncModeMap& sync_map, bool quorums_recovery) :
+                     QuorumRole* quorum_role, CActiveMasternodeManager* nodeman,
+                     int16_t worker_count, const QvvecSyncModeMap& sync_map, bool quorums_recovery) :
     NetHandler(peer_manager),
+    m_bls_worker{bls_worker},
     m_connman{connman},
     m_dmnman{dmnman},
     m_qman{qman},
@@ -42,6 +44,7 @@ NetQuorum::NetQuorum(PeerManagerInternal* peer_manager, CConnman& connman,
     m_mn_sync{mn_sync},
     m_sporkman{sporkman},
     m_role{quorum_role},
+    m_nodeman{nodeman},
     m_worker_count{worker_count},
     m_sync_map{sync_map},
     m_quorums_recovery{quorums_recovery}
@@ -140,11 +143,8 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
         }
 
         // Check if request wants ENCRYPTED_CONTRIBUTIONS data
-        bool misbehave_contrib = false;
-        if (auto ret = m_role.ProcessContribQGETDATA(request_limit_exceeded, ssResponseData,
-                                                     *pQuorum, request, pQuorumBaseBlockIndex); !ret.empty()) {
-            misbehave_contrib = true;
-        }
+        bool misbehave_contrib = ProcessContribQGETDATA(request_limit_exceeded, ssResponseData,
+                                                        *pQuorum, request, pQuorumBaseBlockIndex);
 
         CQuorumDataRequest::Errors ret_err{CQuorumDataRequest::Errors::NONE};
         if (auto request_err = request.GetError(); request_err != CQuorumDataRequest::Errors::NONE &&
@@ -215,15 +215,88 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
         }
 
         // Check if request has ENCRYPTED_CONTRIBUTIONS data
-        if (auto ret = m_role.ProcessContribQDATA(pfrom, vRecv, *pQuorum, request); !ret.empty()) {
-            if (ret.m_error.has_value()) {
-                m_peer_manager->PeerMisbehaving(pfrom.GetId(), ret.m_error->score, ret.m_error->message);
-            }
+        if (!ProcessContribQDATA(pfrom, vRecv, *pQuorum, request)) {
             return;
         }
 
         m_qman.WriteContributions(pQuorum);
     }
+}
+
+bool NetQuorum::ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& ssResponseData,
+                                       const CQuorum& quorum, CQuorumDataRequest& request,
+                                       gsl::not_null<const CBlockIndex*> block_index) const
+{
+    if (!(request.GetDataMask() & CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS)) {
+        return false;
+    }
+
+    if (!m_nodeman) {
+        request.SetError(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
+        return request_limit_exceeded;
+    }
+
+    int memberIdx = quorum.GetMemberIndex(request.GetProTxHash());
+    if (memberIdx == -1) {
+        request.SetError(CQuorumDataRequest::Errors::MASTERNODE_IS_NO_MEMBER);
+        return request_limit_exceeded;
+    }
+
+    std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
+    if (!m_qman.GetEncryptedContributions(request.GetLLMQType(), block_index,
+                                         quorum.qc->validMembers, request.GetProTxHash(), vecEncrypted)) {
+        request.SetError(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
+        return request_limit_exceeded;
+    }
+
+    ssResponseData << vecEncrypted;
+    return false;
+}
+
+bool NetQuorum::ProcessContribQDATA(CNode& pfrom, CDataStream& vRecv,
+                                    CQuorum& quorum, CQuorumDataRequest& request)
+{
+    if (!(request.GetDataMask() & CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS)) {
+        return true;
+    }
+
+    if (!m_nodeman) {
+        return true;
+    }
+
+    auto vvec = quorum.GetVerificationVector();
+    if (!vvec || vvec->size() != size_t(quorum.params.threshold)) {
+        LogPrint(BCLog::LLMQ, "NetQuorum::%s -- %s: No valid quorum verification vector available, from peer=%d\n",
+                 __func__, NetMsgType::QDATA, pfrom.GetId());
+        return false;
+    }
+
+    int memberIdx = quorum.GetMemberIndex(request.GetProTxHash());
+    if (memberIdx == -1) {
+        LogPrint(BCLog::LLMQ, "NetQuorum::%s -- %s: Not a member of the quorum, from peer=%d\n",
+                 __func__, NetMsgType::QDATA, pfrom.GetId());
+        return false;
+    }
+
+    std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
+    vRecv >> vecEncrypted;
+
+    std::vector<CBLSSecretKey> vecSecretKeys;
+    vecSecretKeys.resize(vecEncrypted.size());
+    for (const auto i : util::irange(vecEncrypted.size())) {
+        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION)) {
+            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10, "failed to decrypt");
+            return false;
+        }
+    }
+
+    if (!quorum.SetSecretKeyShare(m_bls_worker.AggregateSecretKeys(vecSecretKeys),
+                                  m_nodeman->GetProTxHash())) {
+        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10, "invalid secret key share received");
+        return false;
+    }
+
+    return true;
 }
 
 DataRequestStatus NetQuorum::RequestQuorumData(CNode& peer, const CQuorum& quorum, uint16_t nDataMask,

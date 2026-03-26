@@ -18,7 +18,9 @@
 
 #include <map>
 
+class CActiveMasternodeManager;
 class CBlockIndex;
+class CBLSWorker;
 class CConnman;
 class CDeterministicMNManager;
 class CMasternodeSync;
@@ -46,12 +48,12 @@ namespace llmq {
 class NetQuorum final : public NetHandler, public CValidationInterface
 {
 public:
-    NetQuorum(PeerManagerInternal* peer_manager, CConnman& connman,
-              CDeterministicMNManager& dmnman, CQuorumManager& qman,
+    NetQuorum(PeerManagerInternal* peer_manager, CBLSWorker& bls_worker,
+              CConnman& connman, CDeterministicMNManager& dmnman, CQuorumManager& qman,
               CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
               const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
-              QuorumRole* quorum_role, int16_t worker_count,
-              const QvvecSyncModeMap& sync_map, bool quorums_recovery);
+              QuorumRole* quorum_role, CActiveMasternodeManager* nodeman,
+              int16_t worker_count, const QvvecSyncModeMap& sync_map, bool quorums_recovery);
 
     // NetHandler
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
@@ -89,7 +91,14 @@ private:
                                         gsl::not_null<const CBlockIndex*> pIndex) const;
     void StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*> pIndex) const;
 
+    bool ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& ssResponseData,
+                                const CQuorum& quorum, CQuorumDataRequest& request,
+                                gsl::not_null<const CBlockIndex*> block_index) const;
+    bool ProcessContribQDATA(CNode& pfrom, CDataStream& vRecv,
+                             CQuorum& quorum, CQuorumDataRequest& request);
+
 private:
+    CBLSWorker& m_bls_worker;
     CConnman& m_connman;
     CDeterministicMNManager& m_dmnman;
     CQuorumManager& m_qman;
@@ -99,6 +108,8 @@ private:
     const CSporkManager& m_sporkman;
     //! Non-null only when masternode or observer mode is active
     QuorumRole* const m_role;
+    //! Non-null only in masternode mode
+    CActiveMasternodeManager* const m_nodeman;
 
     const int16_t m_worker_count;
     const QvvecSyncModeMap m_sync_map;
