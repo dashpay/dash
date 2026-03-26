@@ -91,8 +91,8 @@ private:
                                         gsl::not_null<const CBlockIndex*> pIndex) const;
     void StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*> pIndex) const;
 
-    bool ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& ssResponseData,
-                                const CQuorum& quorum, CQuorumDataRequest& request,
+    bool ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuorum& quorum,
+                                CQuorumDataRequest& request,
                                 gsl::not_null<const CBlockIndex*> block_index) const;
     bool ProcessContribQDATA(CNode& pfrom, CDataStream& vRecv,
                              CQuorum& quorum, CQuorumDataRequest& request);

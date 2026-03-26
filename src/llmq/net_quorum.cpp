@@ -143,8 +143,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
         }
 
         // Check if request wants ENCRYPTED_CONTRIBUTIONS data
-        bool misbehave_contrib = ProcessContribQGETDATA(request_limit_exceeded, ssResponseData,
-                                                        *pQuorum, request, pQuorumBaseBlockIndex);
+        bool misbehave_contrib = ProcessContribQGETDATA(ssResponseData, *pQuorum, request, pQuorumBaseBlockIndex);
 
         CQuorumDataRequest::Errors ret_err{CQuorumDataRequest::Errors::NONE};
         if (auto request_err = request.GetError(); request_err != CQuorumDataRequest::Errors::NONE &&
@@ -156,7 +155,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
             ? sendQDATA(ret_err, request_limit_exceeded)
             : sendQDATA(CQuorumDataRequest::Errors::NONE, request_limit_exceeded, ssResponseData);
 
-        if (misbehave_contrib || misbehave_qdata) {
+        if (request_limit_exceeded && (misbehave_contrib || misbehave_qdata)) {
             m_peer_manager->PeerMisbehaving(pfrom.GetId(), 25, "request limit exceeded");
         }
         return;
@@ -223,8 +222,8 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
     }
 }
 
-bool NetQuorum::ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream& ssResponseData,
-                                       const CQuorum& quorum, CQuorumDataRequest& request,
+bool NetQuorum::ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuorum& quorum,
+                                       CQuorumDataRequest& request,
                                        gsl::not_null<const CBlockIndex*> block_index) const
 {
     if (!(request.GetDataMask() & CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS)) {
@@ -233,20 +232,20 @@ bool NetQuorum::ProcessContribQGETDATA(bool request_limit_exceeded, CDataStream&
 
     if (!m_nodeman) {
         request.SetError(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
-        return request_limit_exceeded;
+        return true;
     }
 
     int memberIdx = quorum.GetMemberIndex(request.GetProTxHash());
     if (memberIdx == -1) {
         request.SetError(CQuorumDataRequest::Errors::MASTERNODE_IS_NO_MEMBER);
-        return request_limit_exceeded;
+        return true;
     }
 
     std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
     if (!m_qman.GetEncryptedContributions(request.GetLLMQType(), block_index,
                                          quorum.qc->validMembers, request.GetProTxHash(), vecEncrypted)) {
         request.SetError(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
-        return request_limit_exceeded;
+        return true;
     }
 
     ssResponseData << vecEncrypted;
