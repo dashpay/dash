@@ -153,7 +153,7 @@ public:
     interfaces::Node& node() const { return m_node; }
     interfaces::Wallet& wallet() const { return *m_wallet; }
     void setClientModel(ClientModel* client_model);
-    std::unique_ptr<interfaces::CoinJoin::Client> coinJoin() const;
+    interfaces::CoinJoin::Client* coinJoin() const;
 
     QString getWalletName() const;
     QString getDisplayName() const;

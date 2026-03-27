@@ -20,60 +20,6 @@ using wallet::CWallet;
 namespace coinjoin {
 namespace {
 
-class CoinJoinClientImpl : public interfaces::CoinJoin::Client
-{
-    CCoinJoinClientManager& m_clientman;
-
-public:
-    explicit CoinJoinClientImpl(CCoinJoinClientManager& clientman)
-        : m_clientman(clientman) {}
-
-    void resetCachedBlocks() override
-    {
-        m_clientman.nCachedNumBlocks = std::numeric_limits<int>::max();
-    }
-    void resetPool() override
-    {
-        m_clientman.ResetPool();
-    }
-    void disableAutobackups() override
-    {
-        m_clientman.fCreateAutoBackups = false;
-    }
-    int getCachedBlocks() override
-    {
-        return m_clientman.nCachedNumBlocks;
-    }
-    void getJsonInfo(UniValue& obj) override
-    {
-        return m_clientman.GetJsonInfo(obj);
-    }
-    std::string getSessionDenoms() override
-    {
-        return m_clientman.GetSessionDenoms();
-    }
-    std::vector<std::string> getSessionStatuses() override
-    {
-        return m_clientman.GetStatuses();
-    }
-    void setCachedBlocks(int nCachedBlocks) override
-    {
-       m_clientman.nCachedNumBlocks = nCachedBlocks;
-    }
-    bool isMixing() override
-    {
-        return m_clientman.IsMixing();
-    }
-    bool startMixing() override
-    {
-        return m_clientman.StartMixing();
-    }
-    void stopMixing() override
-    {
-        m_clientman.StopMixing();
-    }
-};
-
 class CoinJoinLoaderImpl : public interfaces::CoinJoin::Loader
 {
 private:
@@ -109,10 +55,9 @@ public:
     {
         manager().flushWallet(name);
     }
-    std::unique_ptr<interfaces::CoinJoin::Client> GetClient(const std::string& name) override
+    interfaces::CoinJoin::Client* GetClient(const std::string& name) override
     {
-        auto clientman = manager().getClient(name);
-        return clientman ? std::make_unique<CoinJoinClientImpl>(*clientman) : nullptr;
+        return manager().getClient(name);
     }
 
     NodeContext& m_node;

@@ -8,6 +8,7 @@
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/util.h>
 #include <evo/types.h>
+#include <interfaces/coinjoin.h>
 #include <util/translation.h>
 
 #include <atomic>
@@ -154,7 +155,7 @@ public:
 
 /** Used to keep track of current status of mixing pool
  */
-class CCoinJoinClientManager
+class CCoinJoinClientManager : public interfaces::CoinJoin::Client
 {
 private:
     const std::shared_ptr<wallet::CWallet> m_wallet;
@@ -230,6 +231,19 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
     void GetJsonInfo(UniValue& obj) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+
+    // interfaces::CoinJoin::Client overrides
+    void resetCachedBlocks() override { nCachedNumBlocks = std::numeric_limits<int>::max(); }
+    void resetPool() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { ResetPool(); }
+    int getCachedBlocks() override { return nCachedNumBlocks; }
+    void getJsonInfo(UniValue& obj) override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { GetJsonInfo(obj); }
+    std::vector<std::string> getSessionStatuses() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { return GetStatuses(); }
+    std::string getSessionDenoms() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { return GetSessionDenoms(); }
+    void setCachedBlocks(int nCachedBlocks) override { nCachedNumBlocks = nCachedBlocks; }
+    void disableAutobackups() override { fCreateAutoBackups = false; }
+    bool isMixing() override { return IsMixing(); }
+    bool startMixing() override { return StartMixing(); }
+    void stopMixing() override { StopMixing(); }
 };
 
 #endif // BITCOIN_COINJOIN_CLIENT_H
