@@ -39,19 +39,19 @@ public:
 
 public:
     bool hasQueue(const uint256& hash) const override;
-    CCoinJoinClientManager* getClient(const std::string& name) override;
+    CCoinJoinClientManager* getClient(const std::string& name) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
     MessageProcessingResult processMessage(CNode& peer, CChainState& chainstate, CConnman& connman, CTxMemPool& mempool,
-                                           std::string_view msg_type, CDataStream& vRecv) override;
+                                           std::string_view msg_type, CDataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
     std::optional<CCoinJoinQueue> getQueueFromHash(const uint256& hash) const override;
     std::optional<int> getQueueSize() const override;
-    std::vector<CDeterministicMNCPtr> getMixingMasternodes() override;
-    void addWallet(const std::shared_ptr<wallet::CWallet>& wallet) override;
-    void removeWallet(const std::string& name) override;
-    void flushWallet(const std::string& name) override;
+    std::vector<CDeterministicMNCPtr> getMixingMasternodes() override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    void addWallet(const std::shared_ptr<wallet::CWallet>& wallet) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    void removeWallet(const std::string& name) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    void flushWallet(const std::string& name) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
 protected:
     // CValidationInterface
-    void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
+    void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
 private:
     const bool m_relay_txes;
@@ -75,7 +75,7 @@ private:
     void DoMaintenance(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     [[nodiscard]] MessageProcessingResult ProcessDSQueue(NodeId from, CConnman& connman, std::string_view msg_type,
-                                                         CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue);
+                                                         CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
 
     template <typename Callable>
     void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
