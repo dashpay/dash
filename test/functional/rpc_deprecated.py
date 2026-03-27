@@ -13,7 +13,6 @@ class DeprecatedRpcTest(BitcoinTestFramework):
         self.extra_args = [[], ["-deprecatedrpc=permissive_bool"]]
 
     def run_test(self):
-        self.test_permissive_bool()
         # This test should be used to verify correct behaviour of deprecated
         # RPC methods with and without the -deprecatedrpc flags. For example:
         #
@@ -24,19 +23,40 @@ class DeprecatedRpcTest(BitcoinTestFramework):
         # self.log.info("Test generate RPC")
         # assert_raises_rpc_error(-32, 'The wallet generate rpc method is deprecated', self.nodes[0].rpc.generate, 1)
         # self.generate(self.nodes[1], 1)
-        self.log.info("No tested deprecated RPC methods")
-
+        # self.log.info("No tested deprecated RPC methods")
+        self.test_permissive_bool()
 
     def test_permissive_bool(self):
+        self.log.info("Test -deprecatedrpc=permissive_bool")
         self.generate(self.nodes[0], 1)
+
+        self.log.info("Node 0 (strict): JSON boolean accepted, legacy types rejected")
         assert_equal([], self.nodes[0].protx("list", "valid", True))
+        assert_equal([], self.nodes[0].protx("list", "valid", False))
         assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", 1)
         assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", "1")
+        assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", 0)
+        assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", "0")
+        assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", "true")
+        assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", "false")
+        assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", "yes")
+        assert_raises_rpc_error(-8, 'detailed must be a JSON boolean. Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.', self.nodes[0].protx, "list", "valid", "no")
 
+        self.log.info("Node 1 (permissive): JSON boolean and legacy types accepted")
         assert_equal([], self.nodes[1].protx("list", "valid", True))
         assert_equal([], self.nodes[1].protx("list", "valid", 1))
         assert_equal([], self.nodes[1].protx("list", "valid", "1"))
+        assert_equal([], self.nodes[1].protx("list", "valid", False))
+        assert_equal([], self.nodes[1].protx("list", "valid", 0))
+        assert_equal([], self.nodes[1].protx("list", "valid", "0"))
+        assert_equal([], self.nodes[1].protx("list", "valid", "true"))
+        assert_equal([], self.nodes[1].protx("list", "valid", "false"))
+        assert_equal([], self.nodes[1].protx("list", "valid", "yes"))
+        assert_equal([], self.nodes[1].protx("list", "valid", "no"))
 
+        self.log.info("Node 1 (permissive): invalid values still rejected")
+        assert_raises_rpc_error(-8, "detailed must be true, false, yes, no, 1 or 0 (not '2')", self.nodes[1].protx, "list", "valid", 2)
+        assert_raises_rpc_error(-8, "detailed must be true, false, yes, no, 1 or 0 (not 'notabool')", self.nodes[1].protx, "list", "valid", "notabool")
 
 if __name__ == '__main__':
     DeprecatedRpcTest().main()
