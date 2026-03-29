@@ -242,7 +242,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
         std::vector<uint256> allCommitmentHashes;
         for (const auto& [type, blockIndexes] : commitmentsMap) {
             for (const auto* blockIndex : blockIndexes) {
-                uint256 commitmentHash = GetMinedCommitmentTxHash(type, blockIndex->GetBlockHash());
+                uint256 commitmentHash = GetMinedCommitmentHash(type, blockIndex->GetBlockHash());
                 if (commitmentHash != uint256::ZERO) {
                     allCommitmentHashes.push_back(commitmentHash);
                 }
@@ -603,7 +603,7 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
     return ret;
 }
 
-uint256 CQuorumBlockProcessor::GetMinedCommitmentTxHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+uint256 CQuorumBlockProcessor::GetMinedCommitmentHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     auto key = std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorumHash));
     CDataStream ssKey(SER_DISK, CLIENT_VERSION);

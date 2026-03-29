@@ -1297,11 +1297,70 @@ static RPCHelpMan getchainlockbyheight()
     };
 }
 
-/** Parse a QuorumCheckpoint from RPC JSON object. */
-static llmq::QuorumCheckpoint ParseCheckpointFromRPC(const UniValue& checkpointObj)
+/**
+ * Build a QuorumCheckpoint from just a block hash by looking up active chainlock quorums.
+ * This allows simplified RPC calls where the user only needs to provide a block hash.
+ */
+static llmq::QuorumCheckpoint BuildCheckpointFromBlockHash(
+    const uint256& blockHash,
+    const ChainstateManager& chainman,
+    const llmq::CQuorumManager& qman)
 {
     llmq::QuorumCheckpoint checkpoint;
-    checkpoint.blockHash = ParseHashV(checkpointObj["block_hash"], "block_hash");
+    checkpoint.blockHash = blockHash;
+
+    // Look up the block index
+    const CBlockIndex* pindex = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(blockHash));
+    if (!pindex) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+    }
+    checkpoint.height = pindex->nHeight;
+
+    // Get the chainlock LLMQ type
+    const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    if (!llmq_params_opt.has_value()) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Chainlock LLMQ type not configured");
+    }
+
+    // Scan for active chainlock quorums at this block
+    auto quorums = qman.ScanQuorums(llmqType, pindex, llmq_params_opt->signingActiveQuorumCount);
+    for (const auto& quorum : quorums) {
+        llmq::QuorumCheckpoint::QuorumEntry entry;
+        entry.quorumHash = quorum->qc->quorumHash;
+        entry.quorumType = llmqType;
+        entry.publicKey = quorum->qc->quorumPublicKey;
+        checkpoint.chainlockQuorums.push_back(std::move(entry));
+    }
+
+    return checkpoint;
+}
+
+/**
+ * Parse a QuorumCheckpoint from RPC JSON object.
+ * Supports simplified format with just block_hash, or full format with all fields.
+ */
+static llmq::QuorumCheckpoint ParseCheckpointFromRPC(
+    const UniValue& checkpointObj,
+    const ChainstateManager& chainman,
+    const llmq::CQuorumManager& qman)
+{
+    const uint256 blockHash = ParseHashV(checkpointObj["block_hash"], "block_hash");
+
+    // Check if simplified format (only block_hash provided)
+    const bool hasHeight = checkpointObj.exists("height") && !checkpointObj["height"].isNull();
+    const bool hasQuorums = checkpointObj.exists("chainlock_quorums") &&
+                            !checkpointObj["chainlock_quorums"].isNull() &&
+                            checkpointObj["chainlock_quorums"].isArray();
+
+    // If height or chainlock_quorums not provided, derive from block hash
+    if (!hasHeight || !hasQuorums) {
+        return BuildCheckpointFromBlockHash(blockHash, chainman, qman);
+    }
+
+    // Full format provided - parse all fields
+    llmq::QuorumCheckpoint checkpoint;
+    checkpoint.blockHash = blockHash;
     checkpoint.height = checkpointObj["height"].getInt<int32_t>();
 
     for (const auto& q : checkpointObj["chainlock_quorums"].get_array().getValues()) {
@@ -1321,13 +1380,14 @@ static RPCHelpMan getquorumproofchain()
 {
     return RPCHelpMan{"getquorumproofchain",
         "Generate a proof chain from a checkpoint to a target quorum.\n"
-        "This proof can be used to trustlessly verify a quorum's public key.\n",
+        "This proof can be used to trustlessly verify a quorum's public key.\n"
+        "If only block_hash is provided in checkpoint, height and chainlock_quorums are derived automatically.\n",
         {
             {"checkpoint", RPCArg::Type::OBJ, RPCArg::Optional::NO, "Checkpoint data",
                 {
                     {"block_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Checkpoint block hash"},
-                    {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Checkpoint height"},
-                    {"chainlock_quorums", RPCArg::Type::ARR, RPCArg::Optional::NO, "Known CL quorum hashes and public keys",
+                    {"height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "Checkpoint height (derived from block_hash if omitted)"},
+                    {"chainlock_quorums", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "Known CL quorum hashes and public keys (derived from block_hash if omitted)",
                         {
                             {"", RPCArg::Type::OBJ, RPCArg::Optional::NO, "",
                                 {
@@ -1355,7 +1415,8 @@ static RPCHelpMan getquorumproofchain()
                 {RPCResult::Type::STR_HEX, "proof_hex", "Serialized proof (hex)"},
             }},
         RPCExamples{
-            HelpExampleCli("getquorumproofchain", "'{\"block_hash\":\"...\",\"height\":100,\"chainlock_quorums\":[]}' \"abcd...\" 104")
+            HelpExampleCli("getquorumproofchain", "'{\"block_hash\":\"...\"}' \"abcd...\" 104")
+            + HelpExampleCli("getquorumproofchain", "'{\"block_hash\":\"...\",\"height\":100,\"chainlock_quorums\":[]}' \"abcd...\" 104")
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1363,7 +1424,7 @@ static RPCHelpMan getquorumproofchain()
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
     const ChainstateManager& chainman = EnsureChainman(node);
 
-    const llmq::QuorumCheckpoint checkpoint = ParseCheckpointFromRPC(request.params[0].get_obj());
+    const llmq::QuorumCheckpoint checkpoint = ParseCheckpointFromRPC(request.params[0].get_obj(), chainman, *llmq_ctx.qman);
 
     const uint256 targetQuorumHash = ParseHashV(request.params[1], "quorum_hash");
     const Consensus::LLMQType targetType = static_cast<Consensus::LLMQType>(request.params[2].getInt<int>());
@@ -1394,13 +1455,14 @@ static RPCHelpMan getquorumproofchain()
 static RPCHelpMan verifyquorumproofchain()
 {
     return RPCHelpMan{"verifyquorumproofchain",
-        "Verify a quorum proof chain and return the target quorum's public key.\n",
+        "Verify a quorum proof chain and return the target quorum's public key.\n"
+        "If only block_hash is provided in checkpoint, height and chainlock_quorums are derived automatically.\n",
         {
             {"checkpoint", RPCArg::Type::OBJ, RPCArg::Optional::NO, "Checkpoint data",
                 {
                     {"block_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Checkpoint block hash"},
-                    {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Checkpoint height"},
-                    {"chainlock_quorums", RPCArg::Type::ARR, RPCArg::Optional::NO, "Known CL quorum hashes and public keys",
+                    {"height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "Checkpoint height (derived from block_hash if omitted)"},
+                    {"chainlock_quorums", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "Known CL quorum hashes and public keys (derived from block_hash if omitted)",
                         {
                             {"", RPCArg::Type::OBJ, RPCArg::Optional::NO, "",
                                 {
@@ -1426,6 +1488,8 @@ static RPCHelpMan verifyquorumproofchain()
             }},
         RPCExamples{
             HelpExampleCli("verifyquorumproofchain",
+                "'{\"block_hash\":\"0000...\"}' \"<proof_hex>\" \"<quorum_hash>\" 104")
+            + HelpExampleCli("verifyquorumproofchain",
                 "'{\"block_hash\":\"0000...\",\"height\":100,\"chainlock_quorums\":[{\"quorum_hash\":\"abcd...\",\"quorum_type\":104,\"public_key\":\"1234...\"}]}' "
                 "\"<proof_hex>\" \"<quorum_hash>\" 104")
         },
@@ -1433,8 +1497,9 @@ static RPCHelpMan verifyquorumproofchain()
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+    const ChainstateManager& chainman = EnsureChainman(node);
 
-    const llmq::QuorumCheckpoint checkpoint = ParseCheckpointFromRPC(request.params[0].get_obj());
+    const llmq::QuorumCheckpoint checkpoint = ParseCheckpointFromRPC(request.params[0].get_obj(), chainman, *llmq_ctx.qman);
 
     // Deserialize the proof
     const std::vector<unsigned char> proofData = ParseHex(request.params[1].get_str());

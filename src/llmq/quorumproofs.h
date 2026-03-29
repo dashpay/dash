@@ -174,9 +174,8 @@ public:
     CQuorumProofManager& operator=(const CQuorumProofManager&) = delete;
 
     // Chainlock Index Management
-    void IndexChainlock(int32_t chainlockedHeight, const uint256& blockHash,
-                        const CBLSSignature& signature, const uint256& cbtxBlockHash,
-                        int32_t cbtxHeight);
+    void IndexChainlock(int32_t chainlockedHeight, const CBLSSignature& signature,
+                        const uint256& cbtxBlockHash, int32_t cbtxHeight);
     void RemoveChainlockIndex(int32_t chainlockedHeight);
     [[nodiscard]] std::optional<ChainlockIndexEntry> GetChainlockByHeight(int32_t height) const;
 

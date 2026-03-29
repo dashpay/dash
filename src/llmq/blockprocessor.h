@@ -83,7 +83,7 @@ public:
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!minableCommitmentsCs);
     std::pair<CFinalCommitment, uint256> GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
-    uint256 GetMinedCommitmentTxHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
+    uint256 GetMinedCommitmentHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
     uint256 GetMinedCommitmentBlockHash(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const;

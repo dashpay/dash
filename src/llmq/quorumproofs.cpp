@@ -199,9 +199,8 @@ UniValue QuorumProofVerifyResult::ToJson() const
 // CQuorumProofManager implementation
 //
 
-void CQuorumProofManager::IndexChainlock(int32_t chainlockedHeight, const uint256& blockHash,
-                                          const CBLSSignature& signature, const uint256& cbtxBlockHash,
-                                          int32_t cbtxHeight)
+void CQuorumProofManager::IndexChainlock(int32_t chainlockedHeight, const CBLSSignature& signature,
+                                          const uint256& cbtxBlockHash, int32_t cbtxHeight)
 {
     ChainlockIndexEntry entry;
     entry.signature = signature;
@@ -305,14 +304,14 @@ std::optional<QuorumMerkleProof> CQuorumProofManager::BuildQuorumMerkleProof(
                     commitmentHash = it->second;
                 } else {
                     // Cache miss - fetch from DB and cache
-                    commitmentHash = m_quorum_block_processor.GetMinedCommitmentTxHash(type, blockHash);
+                    commitmentHash = m_quorum_block_processor.GetMinedCommitmentHash(type, blockHash);
                     if (commitmentHash != uint256::ZERO) {
                         pHashCache->emplace(cacheKey, commitmentHash);
                     }
                 }
             } else {
                 // No cache provided - fetch directly
-                commitmentHash = m_quorum_block_processor.GetMinedCommitmentTxHash(type, blockHash);
+                commitmentHash = m_quorum_block_processor.GetMinedCommitmentHash(type, blockHash);
             }
 
             if (commitmentHash == uint256::ZERO) {
@@ -334,6 +333,8 @@ std::optional<QuorumMerkleProof> CQuorumProofManager::BuildQuorumMerkleProof(
     const CBlock* block_ptr = pBlock;
     if (!block_ptr) {
         if (!ReadBlockFromDisk(block_local, pindex, Params().GetConsensus())) {
+            LogPrintf("CQuorumProofManager::%s -- Failed to read block %s from disk. This should not happen on non-pruned nodes. Consider reindexing.\n",
+                     __func__, pindex->GetBlockHash().ToString());
             return std::nullopt;
         }
         block_ptr = &block_local;
@@ -654,8 +655,8 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
 
         CBlock block;
         if (!ReadBlockFromDisk(block, pChainlockBlock, Params().GetConsensus())) {
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not read block at height %d\n",
-                     __func__, step.chainlockHeight);
+            LogPrintf("CQuorumProofManager::%s -- Failed to read block %s at height %d from disk. This should not happen on non-pruned nodes. Consider reindexing.\n",
+                     __func__, pChainlockBlock->GetBlockHash().ToString(), step.chainlockHeight);
             return std::nullopt;
         }
 
@@ -884,16 +885,15 @@ void CQuorumProofManager::MigrateChainlockIndex(const CChain& active_chain, cons
             // Calculate the chainlocked height
             int32_t chainlockedHeight = pindex->nHeight - static_cast<int32_t>(cbtx.bestCLHeightDiff) - 1;
             const CBlockIndex* pChainlockedBlock = pindex->GetAncestor(chainlockedHeight);
+            // This must be non-null - the height comes from validated blockchain data
+            assert(pChainlockedBlock);
 
-            if (pChainlockedBlock) {
-                IndexChainlock(
-                    chainlockedHeight,
-                    pChainlockedBlock->GetBlockHash(),
-                    cbtx.bestCLSignature,
-                    pindex->GetBlockHash(),
-                    pindex->nHeight);
-                indexed_count++;
-            }
+            IndexChainlock(
+                chainlockedHeight,
+                cbtx.bestCLSignature,
+                pindex->GetBlockHash(),
+                pindex->nHeight);
+            indexed_count++;
         }
 
         pindex = active_chain.Next(pindex);

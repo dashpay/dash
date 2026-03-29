@@ -678,7 +678,6 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                 if (pChainlockedBlock) {
                     m_quorum_proof_manager.IndexChainlock(
                         chainlockedHeight,
-                        pChainlockedBlock->GetBlockHash(),
                         opt_cbTx->bestCLSignature,
                         pindex->GetBlockHash(),
                         pindex->nHeight);
