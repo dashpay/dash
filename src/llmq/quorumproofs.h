@@ -10,6 +10,7 @@
 #include <llmq/quorumproofdata.h>
 #include <llmq/types.h>
 #include <serialize.h>
+#include <sync.h>
 #include <uint256.h>
 
 #include <set>
@@ -19,6 +20,8 @@ class CBlockIndex;
 class CChain;
 class CChainParams;
 class CEvoDB;
+
+extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 namespace node {
 class BlockManager;
@@ -205,12 +208,14 @@ public:
 
     // Migration: Build chainlock index from historical blocks
     // Should be called once during startup after chain is loaded
-    void MigrateChainlockIndex(const CChain& active_chain, const CChainParams& chainparams);
+    void MigrateChainlockIndex(const CChain& active_chain, const CChainParams& chainparams)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     // Migration: Build quorum proof data index from historical commitments
     // Should be called once during startup after chain is loaded
     void MigrateQuorumProofIndex(const CChain& active_chain, const CChainParams& chainparams,
-                                  const node::BlockManager& block_man);
+                                  const node::BlockManager& block_man)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     // Quorum Proof Data Index Management
     void StoreQuorumProofData(Consensus::LLMQType llmqType, const uint256& quorumHash,
@@ -227,12 +232,6 @@ public:
         const CBlock& block) const;
 };
 
-// Database key prefix for chainlock index
-static const std::string DB_CHAINLOCK_BY_HEIGHT = "q_clh";
-
-// Database key for chainlock index version (for migration tracking)
-static const std::string DB_CHAINLOCK_INDEX_VERSION = "q_clv";
-
 // Current version of the chainlock index
 // Increment this when the index format changes to trigger re-migration
 static constexpr int CHAINLOCK_INDEX_VERSION = 2;
@@ -244,9 +243,6 @@ static constexpr size_t MAX_PROOF_CHAIN_LENGTH = 500;
 // Maximum height offset to search for a chainlock covering a block
 // This limits how far forward we search from a block's height to find coverage
 static constexpr int32_t MAX_CHAINLOCK_SEARCH_OFFSET = 100;
-
-// Database key for quorum proof index version (for migration tracking)
-static const std::string DB_QUORUM_PROOF_INDEX_VERSION = "q_qpv";
 
 // Current version of the quorum proof index
 // Increment this when the index format changes to trigger re-migration

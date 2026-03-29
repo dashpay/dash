@@ -64,7 +64,7 @@ struct QuorumProofData {
 };
 
 // Database key prefix for quorum proof data index
-static const std::string DB_QUORUM_PROOF_DATA = "q_qpd";
+extern const std::string DB_QUORUM_PROOF_DATA;
 
 } // namespace llmq
 

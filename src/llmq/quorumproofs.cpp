@@ -30,6 +30,12 @@ using node::ReadBlockFromDisk;
 
 namespace llmq {
 
+// Database key prefixes
+static const std::string DB_CHAINLOCK_BY_HEIGHT = "q_clh";
+static const std::string DB_CHAINLOCK_INDEX_VERSION = "q_clv";
+static const std::string DB_QUORUM_PROOF_INDEX_VERSION = "q_qpv";
+const std::string DB_QUORUM_PROOF_DATA = "q_qpd";
+
 //
 // JSON Serialization helpers
 //
@@ -1018,7 +1024,7 @@ void CQuorumProofManager::MigrateQuorumProofIndex(const CChain& active_chain, co
             }
 
             // Get the mined block index
-            const CBlockIndex* pMinedBlock = WITH_LOCK(cs_main, return block_man.LookupBlockIndex(minedBlockHash));
+            const CBlockIndex* pMinedBlock = block_man.LookupBlockIndex(minedBlockHash);
             if (!pMinedBlock) {
                 LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Mined block %s not found for quorum %s\n",
                          __func__, minedBlockHash.ToString(), quorumHash.ToString());
