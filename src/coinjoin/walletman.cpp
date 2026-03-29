@@ -314,6 +314,6 @@ std::unique_ptr<CJWalletManager> CJWalletManager::make(ChainstateManager& chainm
     return std::make_unique<CJWalletManagerImpl>(chainman, dmnman, mn_metaman, mempool, mn_sync, isman, relay_txes);
 #else
     // Cannot be constructed if wallet support isn't built
-    return nullptr;
+    assert(false);
 #endif // ENABLE_WALLET
 }

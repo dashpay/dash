@@ -502,7 +502,6 @@ libbitcoin_node_a_SOURCES = \
   chainlock/signing.cpp \
   coinjoin/coinjoin.cpp \
   coinjoin/server.cpp \
-  coinjoin/walletman.cpp \
   consensus/tx_verify.cpp \
   dbwrapper.cpp \
   deploymentstatus.cpp \
@@ -659,6 +658,7 @@ libbitcoin_wallet_a_SOURCES = \
   coinjoin/client.cpp \
   coinjoin/interfaces.cpp \
   coinjoin/util.cpp \
+  coinjoin/walletman.cpp \
   wallet/bip39.cpp \
   wallet/coinjoin.cpp \
   wallet/coincontrol.cpp \

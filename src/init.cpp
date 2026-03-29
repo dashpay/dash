@@ -2224,8 +2224,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     } else {
         assert(!node.cj_walletman);
         // Can return nullptr if built without wallet support, must check before use
+#ifdef ENABLE_WALLET
         node.cj_walletman = CJWalletManager::make(chainman, *node.dmnman, *node.mn_metaman, *node.mempool, *node.mn_sync,
                                                   *node.llmq_ctx->isman, !ignores_incoming_txs);
+#endif
     }
 
     if (node.cj_walletman) {
