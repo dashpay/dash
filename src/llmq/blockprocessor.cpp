@@ -301,7 +301,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
             m_evoDb.Write(proofKey, proofData);
 
             LogPrint(BCLog::LLMQ, "[ProcessBlock] Stored proof data for quorum %s type=%d\n",
-                     qc.quorumHash.ToString(), ToUnderlying(qc.llmqType));
+                     qc.quorumHash.ToString(), std23::to_underlying(qc.llmqType));
         }
     }
 

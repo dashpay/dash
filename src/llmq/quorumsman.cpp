@@ -393,7 +393,7 @@ std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQTyp
         auto [qc, _] = quorumBlockProcessor.GetMinedCommitment(llmqType, pQuorumBaseBlockIndex->GetBlockHash());
         if (qc.IsNull()) {
             LogPrintf("%s: ERROR! Unexpected missing commitment with llmqType=%d, blockHash=%s\n",
-                      __func__, ToUnderlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString());
+                      __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString());
             return {};
         }
         vecResultCommitments.emplace_back(std::move(qc));
@@ -909,7 +909,7 @@ std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQ
 
         std::vector<std::pair<uint256, size_t>> scores;
         scores.reserve(commitments.size());
-        for (const auto i : irange::range(commitments.size())) {
+        for (const auto i : util::irange(commitments.size())) {
             CHashWriter h(SER_NETWORK, 0);
             h << llmq_params.type;
             h << commitments[i].quorumHash;
