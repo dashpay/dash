@@ -226,13 +226,14 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(coinjoin_manager_start_stop_tests, CTransactionBuilderTestSetup)
 {
-    auto& cj_man = *Assert(m_node.cj_walletman->getClient(""));
-    BOOST_CHECK_EQUAL(cj_man.IsMixing(), false);
-    BOOST_CHECK_EQUAL(cj_man.StartMixing(), true);
-    BOOST_CHECK_EQUAL(cj_man.IsMixing(), true);
-    BOOST_CHECK_EQUAL(cj_man.StartMixing(), false);
-    cj_man.StopMixing();
-    BOOST_CHECK_EQUAL(cj_man.IsMixing(), false);
+    BOOST_CHECK(m_node.cj_walletman->doForClient("", [](auto& cj_man) {
+        BOOST_CHECK_EQUAL(cj_man.IsMixing(), false);
+        BOOST_CHECK_EQUAL(cj_man.StartMixing(), true);
+        BOOST_CHECK_EQUAL(cj_man.IsMixing(), true);
+        BOOST_CHECK_EQUAL(cj_man.StartMixing(), false);
+        cj_man.StopMixing();
+        BOOST_CHECK_EQUAL(cj_man.IsMixing(), false);
+    }));
 }
 
 BOOST_FIXTURE_TEST_CASE(CTransactionBuilderTest, CTransactionBuilderTestSetup)

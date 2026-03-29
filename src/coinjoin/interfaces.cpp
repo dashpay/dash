@@ -55,9 +55,9 @@ public:
     {
         manager().flushWallet(name);
     }
-    interfaces::CoinJoin::Client* GetClient(const std::string& name) override
+    bool WithClient(const std::string& name, std::function<void(interfaces::CoinJoin::Client&)> func) override
     {
-        return manager().getClient(name);
+        return manager().doForClient(name, [&](CCoinJoinClientManager& mgr) { func(mgr); });
     }
 
     NodeContext& m_node;

@@ -210,14 +210,15 @@ void WalletInit::InitCoinJoinSettings(interfaces::CoinJoin::Loader& coinjoin_loa
     }
     bool fAutoStart = gArgs.GetBoolArg("-coinjoinautostart", DEFAULT_COINJOIN_AUTOSTART);
     for (auto& wallet : wallets) {
-        auto manager = Assert(coinjoin_loader.GetClient(wallet->getWalletName()));
-        if (wallet->isLocked(/*fForMixing=*/false)) {
-            manager->stopMixing();
-            LogPrintf("CoinJoin: Mixing stopped for locked wallet \"%s\"\n", wallet->getWalletName());
-        } else if (fAutoStart) {
-            manager->startMixing();
-            LogPrintf("CoinJoin: Automatic mixing started for wallet \"%s\"\n", wallet->getWalletName());
-        }
+        coinjoin_loader.WithClient(wallet->getWalletName(), [&](auto& client) {
+            if (wallet->isLocked(/*fForMixing=*/false)) {
+                client.stopMixing();
+                LogPrintf("CoinJoin: Mixing stopped for locked wallet \"%s\"\n", wallet->getWalletName());
+            } else if (fAutoStart) {
+                client.startMixing();
+                LogPrintf("CoinJoin: Automatic mixing started for wallet \"%s\"\n", wallet->getWalletName());
+            }
+        });
     }
     LogPrintf("CoinJoin: autostart=%d, multisession=%d," /* Continued */
               "sessions=%d, rounds=%d, amount=%d, denoms_goal=%d, denoms_hardcap=%d\n",

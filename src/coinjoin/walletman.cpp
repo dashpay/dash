@@ -39,7 +39,7 @@ public:
 
 public:
     bool hasQueue(const uint256& hash) const override;
-    CCoinJoinClientManager* getClient(const std::string& name) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    bool doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
     MessageProcessingResult processMessage(CNode& peer, CChainState& chainstate, CConnman& connman, CTxMemPool& mempool,
                                            std::string_view msg_type, CDataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
     std::optional<CCoinJoinQueue> getQueueFromHash(const uint256& hash) const override;
@@ -140,11 +140,13 @@ bool CJWalletManagerImpl::hasQueue(const uint256& hash) const
     return false;
 }
 
-CCoinJoinClientManager* CJWalletManagerImpl::getClient(const std::string& name)
+bool CJWalletManagerImpl::doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func)
 {
     LOCK(cs_wallet_manager_map);
     auto it = m_wallet_manager_map.find(name);
-    return (it != m_wallet_manager_map.end()) ? it->second.get() : nullptr;
+    if (it == m_wallet_manager_map.end()) return false;
+    func(*it->second);
+    return true;
 }
 
 std::optional<CCoinJoinQueue> CJWalletManagerImpl::getQueueFromHash(const uint256& hash) const
@@ -180,9 +182,10 @@ void CJWalletManagerImpl::addWallet(const std::shared_ptr<wallet::CWallet>& wall
 
 void CJWalletManagerImpl::flushWallet(const std::string& name)
 {
-    auto* clientman = Assert(getClient(name));
-    clientman->ResetPool();
-    clientman->StopMixing();
+    doForClient(name, [](CCoinJoinClientManager& clientman) {
+        clientman.ResetPool();
+        clientman.StopMixing();
+    });
 }
 
 void CJWalletManagerImpl::removeWallet(const std::string& name)

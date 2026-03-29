@@ -17,6 +17,7 @@
 #include <interfaces/wallet.h>
 #include <support/allocators/secure.h>
 
+#include <functional>
 #include <vector>
 
 #include <QObject>
@@ -153,7 +154,7 @@ public:
     interfaces::Node& node() const { return m_node; }
     interfaces::Wallet& wallet() const { return *m_wallet; }
     void setClientModel(ClientModel* client_model);
-    interfaces::CoinJoin::Client* coinJoin() const;
+    bool withCoinJoin(std::function<void(interfaces::CoinJoin::Client&)> func) const;
 
     QString getWalletName() const;
     QString getDisplayName() const;
