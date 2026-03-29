@@ -487,7 +487,7 @@ static RPCHelpMan getcoinjoininfo()
     }
 
     CHECK_NONFATAL(CHECK_NONFATAL(node.coinjoin_loader)->WithClient(wallet->GetName(), [&](auto& client) {
-        client.getJsonInfo(obj);
+        obj.pushKVs(client.getJsonInfo());
     }));
 
     std::string warning_msg;

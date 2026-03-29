@@ -198,14 +198,6 @@ public:
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
-    bool StartMixing();
-    void StopMixing();
-    bool IsMixing() const;
-    void ResetPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-
-    std::vector<std::string> GetStatuses() const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-    std::string GetSessionDenoms() EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-
     bool GetMixingMasternodesInfo(std::vector<CDeterministicMNCPtr>& vecDmnsRet) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
     /// Passively run mixing in the background according to the configuration in settings
@@ -230,20 +222,18 @@ public:
     void DoMaintenance(ChainstateManager& chainman, CConnman& connman, const CTxMemPool& mempool)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
-    void GetJsonInfo(UniValue& obj) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-
     // interfaces::CoinJoin::Client overrides
     void resetCachedBlocks() override { nCachedNumBlocks = std::numeric_limits<int>::max(); }
-    void resetPool() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { ResetPool(); }
-    int getCachedBlocks() override { return nCachedNumBlocks; }
-    void getJsonInfo(UniValue& obj) override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { GetJsonInfo(obj); }
-    std::vector<std::string> getSessionStatuses() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { return GetStatuses(); }
-    std::string getSessionDenoms() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions) { return GetSessionDenoms(); }
+    int getCachedBlocks() const override { return nCachedNumBlocks; }
     void setCachedBlocks(int nCachedBlocks) override { nCachedNumBlocks = nCachedBlocks; }
     void disableAutobackups() override { fCreateAutoBackups = false; }
-    bool isMixing() override { return IsMixing(); }
-    bool startMixing() override { return StartMixing(); }
-    void stopMixing() override { StopMixing(); }
+    void resetPool() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    UniValue getJsonInfo() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    std::vector<std::string> getSessionStatuses() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    std::string getSessionDenoms() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    bool isMixing() const override;
+    bool startMixing() override;
+    void stopMixing() override;
 };
 
 #endif // BITCOIN_COINJOIN_CLIENT_H

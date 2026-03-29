@@ -183,8 +183,8 @@ void CJWalletManagerImpl::addWallet(const std::shared_ptr<wallet::CWallet>& wall
 void CJWalletManagerImpl::flushWallet(const std::string& name)
 {
     doForClient(name, [](CCoinJoinClientManager& clientman) {
-        clientman.ResetPool();
-        clientman.StopMixing();
+        clientman.resetPool();
+        clientman.stopMixing();
     });
 }
 

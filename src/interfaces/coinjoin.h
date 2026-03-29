@@ -28,13 +28,13 @@ public:
     virtual ~Client() {}
     virtual void resetCachedBlocks() = 0;
     virtual void resetPool() = 0;
-    virtual int getCachedBlocks() = 0;
-    virtual void getJsonInfo(UniValue& obj) = 0;
-    virtual std::vector<std::string> getSessionStatuses() = 0;
-    virtual std::string getSessionDenoms() = 0;
+    virtual int getCachedBlocks() const = 0;
+    virtual UniValue getJsonInfo() const = 0;
+    virtual std::vector<std::string> getSessionStatuses() const = 0;
+    virtual std::string getSessionDenoms() const = 0;
     virtual void setCachedBlocks(int nCachedBlocks) = 0;
     virtual void disableAutobackups() = 0;
-    virtual bool isMixing() = 0;
+    virtual bool isMixing() const = 0;
     virtual bool startMixing() = 0;
     virtual void stopMixing() = 0;
 };
