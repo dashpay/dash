@@ -21,6 +21,7 @@
 #include <sync.h>
 #include <tinyformat.h>
 #include <node/interface_ui.h>
+#include <util/translation.h>
 
 #include <algorithm>
 #include <set>
@@ -533,7 +534,7 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
         const auto& llmq_params = llmq_params_opt.value();
         // Quorum is active for signingActiveQuorumCount * dkgInterval blocks
         int activeDuration = std::min(llmq_params.signingActiveQuorumCount * llmq_params.dkgInterval, 100);
-        int maxSearchHeight = std::min(active_chain.Height(), pMinedBlock->nHeight + activeDuration);
+        int maxSearchHeight = std::min(WITH_LOCK(cs_main, return active_chain.Height()), pMinedBlock->nHeight + activeDuration);
 
         int32_t bestChainlockHeight = -1;
         std::optional<CFinalCommitment> bestSignerCommitment;
@@ -622,6 +623,13 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
 
     for (const auto& step : proofSteps) {
         // Get chainlock index, adding the chainlock if not already included
+        const CBlockIndex* pChainlockBlock = WITH_LOCK(cs_main, return active_chain[step.chainlockHeight]);
+        if (!pChainlockBlock) {
+            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get block at chainlock height %d\n",
+                     __func__, step.chainlockHeight);
+            return std::nullopt;
+        }
+
         uint32_t chainlockIndex;
         auto indexIt = chainlockHeightToIndex.find(step.chainlockHeight);
         if (indexIt != chainlockHeightToIndex.end()) {
@@ -632,25 +640,10 @@ std::optional<QuorumProofChain> CQuorumProofManager::BuildProofChain(
                 return std::nullopt;
             }
 
-            const CBlockIndex* pClBlock = active_chain[step.chainlockHeight];
-            if (!pClBlock) {
-                LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get block at chainlock height %d\n",
-                         __func__, step.chainlockHeight);
-                return std::nullopt;
-            }
-
             chainlockIndex = static_cast<uint32_t>(chain.chainlocks.size());
-            chain.chainlocks.push_back({step.chainlockHeight, pClBlock->GetBlockHash(), clEntry.signature,
+            chain.chainlocks.push_back({step.chainlockHeight, pChainlockBlock->GetBlockHash(), clEntry.signature,
                                         step.signingQuorumHash, step.signingQuorumType});
             chainlockHeightToIndex[step.chainlockHeight] = chainlockIndex;
-        }
-
-        // Read block and compute proof data
-        const CBlockIndex* pChainlockBlock = active_chain[step.chainlockHeight];
-        if (!pChainlockBlock) {
-            LogPrint(BCLog::LLMQ, "CQuorumProofManager::%s -- Could not get block at chainlock height %d\n",
-                     __func__, step.chainlockHeight);
-            return std::nullopt;
         }
 
         CBlock block;
@@ -759,6 +752,13 @@ QuorumProofVerifyResult CQuorumProofManager::VerifyProofChain(
 
         // Get the corresponding header for this quorum proof
         const CBlockHeader& header = proof.headers[proofIdx];
+
+        // Verify header matches the chainlock's block hash
+        if (header.GetHash() != chainlock.blockHash) {
+            result.error = strprintf("Header hash %s does not match chainlock blockHash %s at height %d",
+                                     header.GetHash().ToString(), chainlock.blockHash.ToString(), chainlock.nHeight);
+            return result;
+        }
 
         // Verify coinbase tx is in the block via merkle proof
         if (!qProof.coinbaseTx) {
