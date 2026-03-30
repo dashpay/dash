@@ -166,6 +166,11 @@ CoinControlDialog::~CoinControlDialog()
     delete ui;
 }
 
+void CoinControlDialog::refreshLabels()
+{
+    CoinControlDialog::updateLabels(m_coin_control, model, this);
+}
+
 // ok button
 void CoinControlDialog::buttonBoxClicked(QAbstractButton* button)
 {
@@ -650,6 +655,7 @@ void CoinControlDialog::updateView()
 
     bool treeMode = ui->radioTreeMode->isChecked();
     ui->treeWidget->clear();
+    ui->treeWidget->resetAnchor();
     ui->treeWidget->setEnabled(false); // performance, otherwise updateLabels would be called for every checked checkbox
     ui->treeWidget->setAlternatingRowColors(!treeMode);
     QFlags<Qt::ItemFlag> flgCheckbox = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;

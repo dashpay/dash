@@ -6,6 +6,7 @@
 #define BITCOIN_QT_COINCONTROLTREEWIDGET_H
 
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QTreeWidget>
 
 class CoinControlTreeWidget : public QTreeWidget
@@ -14,9 +15,14 @@ class CoinControlTreeWidget : public QTreeWidget
 
 public:
     explicit CoinControlTreeWidget(QWidget *parent = nullptr);
+    void resetAnchor();
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
+private:
+    QTreeWidgetItem* m_lastClickedItem{nullptr};
 };
 
 #endif // BITCOIN_QT_COINCONTROLTREEWIDGET_H
