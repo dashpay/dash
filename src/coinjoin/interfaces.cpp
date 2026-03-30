@@ -28,11 +28,6 @@ private:
         return *Assert(m_node.cj_walletman);
     }
 
-    interfaces::WalletLoader& wallet_loader()
-    {
-        return *Assert(m_node.wallet_loader);
-    }
-
 public:
     explicit CoinJoinLoaderImpl(NodeContext& node) :
         m_node(node)
@@ -44,12 +39,13 @@ public:
     void AddWallet(const std::shared_ptr<CWallet>& wallet) override
     {
         manager().addWallet(wallet);
-        g_wallet_init_interface.InitCoinJoinSettings(*this, wallet_loader());
+        manager().doForClient(wallet->GetName(), [](CCoinJoinClientManager& mgr) {
+            g_wallet_init_interface.InitCoinJoinSettings(mgr);
+        });
     }
     void RemoveWallet(const std::string& name) override
     {
         manager().removeWallet(name);
-        g_wallet_init_interface.InitCoinJoinSettings(*this, wallet_loader());
     }
     void FlushWallet(const std::string& name) override
     {
