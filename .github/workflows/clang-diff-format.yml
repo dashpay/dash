@@ -1,7 +1,7 @@
 name: Clang Diff Format Check
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - develop
 jobs:
@@ -10,14 +10,14 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Checkout
+      - name: Checkout base branch
         uses: actions/checkout@v6
-      - name: Fetch git
-        run: git fetch --no-tags -fu origin develop:develop
+      - name: Fetch PR head
+        run: git fetch --no-tags -f origin ${{ github.event.pull_request.head.sha }}
       - name: Run Clang-Format-Diff.py
         id: clang-format
         run: |
-          git diff -U0 origin/develop -- $(git ls-files -- $(cat test/util/data/non-backported.txt)) | ./contrib/devtools/clang-format-diff.py -p1 > diff_output.txt
+          git diff -U0 HEAD...${{ github.event.pull_request.head.sha }} -- $(git ls-files -- $(cat test/util/data/non-backported.txt)) | ./contrib/devtools/clang-format-diff.py -p1 > diff_output.txt
           if [ -s diff_output.txt ]; then
               echo "::warning::Clang format differences found. See PR comment for details."
               echo "has_diff=true" >> "$GITHUB_OUTPUT"
