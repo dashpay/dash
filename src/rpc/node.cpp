@@ -679,9 +679,12 @@ static RPCHelpMan getaddressbalance()
         }
     }
 
-    // Refresh the indexed height after the query so maturity checks are based on the same
-    // index state that produced the returned entries.
-    const int nHeight = g_addressindex->GetSummary().best_block_height;
+    // Use the pre-query indexed height for maturity checks. GetAddressIndex() internally
+    // calls BlockUntilSyncedToCurrentChain() which may advance the index, but using the
+    // height from before the query is conservative: it avoids a race where a new block
+    // arrives between the query and a second GetSummary() call, which could cause maturity
+    // to be evaluated at a height ahead of the returned data.
+    const int nHeight = summary.best_block_height;
 
 
     CAmount balance = 0;
