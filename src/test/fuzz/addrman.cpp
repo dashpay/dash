@@ -283,7 +283,8 @@ FUZZ_TARGET(addrman, .init = initialize_addrman)
     (void)const_addr_man.GetAddr(
         /* max_addresses */ fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 4096),
         /* max_pct */ fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 4096),
-        /* network */ std::nullopt);
+        /* network */ std::nullopt,
+        /* filtered =*/ fuzzed_data_provider.ConsumeBool());
     (void)const_addr_man.Select(fuzzed_data_provider.ConsumeBool());
     (void)const_addr_man.Size();
     CDataStream data_stream(SER_NETWORK, PROTOCOL_VERSION);

@@ -981,17 +981,6 @@ UniValue JSONRPCTransactionError(TransactionError terr, const std::string& err_s
     }
 }
 
-UniValue GetServicesNames(ServiceFlags services)
-{
-    UniValue servicesNames(UniValue::VARR);
-
-    for (const auto& flag : serviceFlagsToStr(services)) {
-        servicesNames.push_back(flag);
-    }
-
-    return servicesNames;
-}
-
 std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider)
 {
     std::string desc_str;

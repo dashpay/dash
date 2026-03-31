@@ -111,6 +111,8 @@ static const bool DEFAULT_BLOCKSONLY = false;
 static const int64_t DEFAULT_PEER_CONNECT_TIMEOUT = 60;
 /** Number of file descriptors required for message capture **/
 static const int NUM_FDS_MESSAGE_CAPTURE = 1;
+/** Interval for ASMap Health Check **/
+static constexpr std::chrono::hours ASMAP_HEALTH_CHECK_INTERVAL{24};
 
 static constexpr bool DEFAULT_FORCEDNSSEED{false};
 static constexpr bool DEFAULT_DNSSEED{true};
@@ -1295,6 +1297,7 @@ public:
     void OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe = MasternodeProbeConn::IsConnection)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
     bool CheckIncomingNonce(uint64_t nonce) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    void ASMapHealthCheck();
 
     // alias for thread safety annotations only, not defined
     SharedMutex& GetNodesMutex() const LOCK_RETURNED(m_nodes_mutex);
@@ -1405,8 +1408,9 @@ public:
      * @param[in] max_addresses  Maximum number of addresses to return (0 = all).
      * @param[in] max_pct        Maximum percentage of addresses to return (0 = all).
      * @param[in] network        Select only addresses of this network (nullopt = all).
+     * @param[in] filtered       Select only addresses that are considered high quality (false = all).
      */
-    std::vector<CAddress> GetAddresses(size_t max_addresses, size_t max_pct, std::optional<Network> network) const;
+    std::vector<CAddress> GetAddresses(size_t max_addresses, size_t max_pct, std::optional<Network> network, const bool filtered = true) const;
 
     /**
      * Cache is used to minimize topology leaks, so it should

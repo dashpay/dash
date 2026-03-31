@@ -22,6 +22,7 @@
 #include <util/moneystr.h>
 #include <validation.h>
 #include <util/system.h>
+#include <util/strencodings.h>
 #include <util/time.h>
 
 using node::DEFAULT_MAX_RAW_TX_FEE_RATE;
