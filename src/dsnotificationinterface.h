@@ -13,7 +13,6 @@ class CDeterministicMNManager;
 class CGovernanceManager;
 class ChainstateManager;
 class CMasternodeSync;
-struct LLMQContext;
 
 class CDSNotificationInterface : public CValidationInterface
 {
@@ -21,13 +20,9 @@ public:
     CDSNotificationInterface() = delete;
     CDSNotificationInterface(const CDSNotificationInterface&) = delete;
     CDSNotificationInterface& operator=(const CDSNotificationInterface&) = delete;
-    explicit CDSNotificationInterface(CConnman& connman,
-                                      CDSTXManager& dstxman,
-                                      CMasternodeSync& mn_sync,
-                                      CGovernanceManager& govman,
-                                      const ChainstateManager& chainman,
-                                      const std::unique_ptr<CDeterministicMNManager>& dmnman,
-                                      const std::unique_ptr<LLMQContext>& llmq_ctx);
+    explicit CDSNotificationInterface(CConnman& connman, CDSTXManager& dstxman, CMasternodeSync& mn_sync,
+                                      CGovernanceManager& govman, const ChainstateManager& chainman,
+                                      const std::unique_ptr<CDeterministicMNManager>& dmnman);
     virtual ~CDSNotificationInterface();
 
     // a small helper to initialize current block height in sub-modules on startup
@@ -40,8 +35,6 @@ protected:
     void SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) override;
     void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) override;
     void TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime, uint64_t mempool_sequence) override;
-    void TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason,
-                                       uint64_t mempool_sequence) override;
     void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override;
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) override;
     void NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff) override;
@@ -54,7 +47,6 @@ private:
     CGovernanceManager& m_govman;
     const ChainstateManager& m_chainman;
     const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
-    const std::unique_ptr<LLMQContext>& m_llmq_ctx;
 };
 
 extern std::unique_ptr<CDSNotificationInterface> g_ds_notification_interface;
