@@ -58,13 +58,16 @@ void CoinControlTreeWidget::mouseReleaseEvent(QMouseEvent *event)
                         && m_lastClickedItem
                         && clickedItem
                         && clickedItem != m_lastClickedItem
-                        && isLeafItem(clickedItem);
+                        && isLeafItem(clickedItem)
+                        && !clickedItem->isDisabled()
+                        && !m_lastClickedItem->isDisabled();
 
     if (!isShiftClick) {
         // Normal click — let Qt handle the checkbox toggle on release
         QTreeWidget::mouseReleaseEvent(event);
         // Record anchor after toggle so we capture the post-toggle state
-        if (clickedItem && isLeafItem(clickedItem)) {
+        if (event->button() == Qt::LeftButton && clickedItem
+                && isLeafItem(clickedItem) && !clickedItem->isDisabled()) {
             m_lastClickedItem = clickedItem;
         }
         return;
