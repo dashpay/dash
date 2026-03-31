@@ -18,7 +18,7 @@ jobs:
           if [ -s diff_output.txt ]; then
               echo "Clang format differences found:"
               cat diff_output.txt
-              file_count=$(grep -c '^--- .*\(before formatting\)' diff_output.txt || true)
+              file_count=$(grep -c '^--- .*(before formatting)' diff_output.txt || true)
               echo "## ℹ️ Clang Format Style Notes" >> "$GITHUB_STEP_SUMMARY"
               echo "Formatting differences found in ${file_count} file(s). See job log for details." >> "$GITHUB_STEP_SUMMARY"
           else
