@@ -5,6 +5,8 @@
 #include <coinjoin/server.h>
 
 #include <active/masternode.h>
+#include <chainparams.h>
+#include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
@@ -223,6 +225,22 @@ void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
 
     LogPrint(BCLog::COINJOIN, "DSVIN -- txCollateral %s", entry.txCollateral->ToString()); /* Continued */
 
+    // Post-V24: Check if unbalanced entries (promotion/demotion) are allowed
+    if (entry.vecTxDSIn.size() != entry.vecTxOut.size()) {
+        // This is a promotion or demotion entry - requires V24 activation
+        bool fV24Active{false};
+        {
+            LOCK(::cs_main);
+            const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
+            fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+        }
+        if (!fV24Active) {
+            LogPrint(BCLog::COINJOIN, "DSVIN -- promotion/demotion entry rejected: V24 not active\n");
+            PushStatus(peer, STATUS_REJECTED, ERR_MODE);
+            return;
+        }
+    }
+
     PoolMessage nMessageID = MSG_NOERR;
 
     entry.addr = peer.addr;
@@ -280,15 +298,20 @@ void CCoinJoinServer::CheckPool()
 
     // If we have an entry for each collateral, then create final tx
     if (nState == POOL_STATE_ACCEPTING_ENTRIES && size_t(GetEntriesCount()) == vecSessionCollaterals.size()) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- FINALIZE TRANSACTIONS\n");
-        CreateFinalTransaction();
-        return;
+        if (GetStandardEntriesCount() >= CoinJoin::GetMinPoolParticipants()) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- FINALIZE TRANSACTIONS\n");
+            CreateFinalTransaction();
+            return;
+        }
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- all entries received but insufficient standard mixers (%d), waiting for timeout\n", GetStandardEntriesCount());
     }
 
     // Check for Time Out
     // If we timed out while accepting entries, then if we have more than minimum, create final tx
-    if (nState == POOL_STATE_ACCEPTING_ENTRIES && CCoinJoinServer::HasTimedOut() &&
-        GetEntriesCount() >= CoinJoin::GetMinPoolParticipants()) {
+    // PRIVACY: Only count standard mixing entries toward minimum participant threshold
+    // Promotion/demotion entries don't count - they get privacy from standard mixers
+    if (nState == POOL_STATE_ACCEPTING_ENTRIES && CCoinJoinServer::HasTimedOut()
+            && GetStandardEntriesCount() >= CoinJoin::GetMinPoolParticipants()) {
         // Punish misbehaving participants
         ChargeFees();
         // Try to complete this session ignoring the misbehaving ones
@@ -599,8 +622,18 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         return false;
     }
 
-    if (entry.vecTxDSIn.size() > COINJOIN_ENTRY_MAX_SIZE) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), COINJOIN_ENTRY_MAX_SIZE);
+    // Post-V24: allow up to PROMOTION_RATIO (10) inputs for promotion entries
+    // Pre-V24: max COINJOIN_ENTRY_MAX_SIZE (9) inputs
+    bool fV24Active{false};
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* pindex = m_chainman.ActiveChain().Tip();
+        fV24Active = pindex && DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V24);
+    }
+    const size_t nMaxEntryInputs = fV24Active ? CoinJoin::PROMOTION_RATIO : COINJOIN_ENTRY_MAX_SIZE;
+
+    if (entry.vecTxDSIn.size() > nMaxEntryInputs) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), nMaxEntryInputs);
         nMessageIDRet = ERR_MAXIMUM;
         ConsumeCollateral(entry.txCollateral);
         return false;

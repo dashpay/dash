@@ -110,6 +110,57 @@ std::string DenominationToString(int nDenom);
 constexpr CAmount GetCollateralAmount() { return GetSmallestDenomination() / 10; }
 constexpr CAmount GetMaxCollateralAmount() { return GetCollateralAmount() * 4; }
 
+// Promotion/demotion constants (post-V24 feature)
+constexpr int PROMOTION_RATIO = 10;   // 10 smaller denomination coins = 1 larger denomination coin
+constexpr int GAP_THRESHOLD = 10;     // Deficit gap required to trigger promotion/demotion
+
+/**
+ * Get the index of a denomination in vecStandardDenominations (0=largest, 4=smallest)
+ * Returns -1 if not a valid denomination
+ */
+constexpr int GetDenominationIndex(int nDenom)
+{
+    if (nDenom <= 0) return -1;
+    for (size_t i = 0; i < vecStandardDenominations.size(); ++i) {
+        if (nDenom == (1 << i)) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+/**
+ * Check if two denominations are adjacent (one step apart in the denom list)
+ * Used for validating promotion/demotion entries post-V24
+ */
+constexpr bool AreAdjacentDenominations(int nDenom1, int nDenom2)
+{
+    int idx1 = GetDenominationIndex(nDenom1);
+    int idx2 = GetDenominationIndex(nDenom2);
+    if (idx1 < 0 || idx2 < 0) return false;
+    return (idx1 == idx2 + 1) || (idx1 == idx2 - 1);
+}
+
+/**
+ * Get the larger adjacent denomination (returns 0 if none exists or invalid)
+ */
+constexpr int GetLargerAdjacentDenom(int nDenom)
+{
+    int idx = GetDenominationIndex(nDenom);
+    if (idx <= 0) return 0;  // Already largest or invalid
+    return 1 << (idx - 1);
+}
+
+/**
+ * Get the smaller adjacent denomination (returns 0 if none exists or invalid)
+ */
+constexpr int GetSmallerAdjacentDenom(int nDenom)
+{
+    int idx = GetDenominationIndex(nDenom);
+    if (idx < 0 || idx >= static_cast<int>(vecStandardDenominations.size()) - 1) return 0;
+    return 1 << (idx + 1);
+}
+
 constexpr bool IsCollateralAmount(CAmount nInputAmount)
 {
     // collateral input can be anything between 1x and "max" (including both)

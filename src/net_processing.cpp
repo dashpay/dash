@@ -3556,10 +3556,6 @@ std::pair<bool /*ret*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMN
 {
     assert(mn_metaman.IsValid());
 
-    if (!dstx.IsValidStructure()) {
-        LogPrint(BCLog::COINJOIN, "DSTX -- Invalid DSTX structure: %s\n", hashTx.ToString());
-        return {false, true};
-    }
     if (dstxman.GetDSTX(hashTx)) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Already have %s, skipping...\n", hashTx.ToString());
         return {true, true}; // not an error
@@ -3570,6 +3566,11 @@ std::pair<bool /*ret*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMN
     {
         LOCK(cs_main);
         pindex = chainman.ActiveChain().Tip();
+    }
+
+    if (!dstx.IsValidStructure(pindex)) {
+        LogPrint(BCLog::COINJOIN, "DSTX -- Invalid DSTX structure: %s\n", hashTx.ToString());
+        return {false, true};
     }
     // It could be that a MN is no longer in the list but its DSTX is not yet mined.
     // Try to find a MN up to 24 blocks deep to make sure such dstx-es are relayed and processed correctly.

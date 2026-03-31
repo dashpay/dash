@@ -25,6 +25,7 @@
 #include <util/strencodings.h>
 #include <util/ui_change_type.h>
 #include <validationinterface.h>
+#include <wallet/coincontrol.h>
 #include <wallet/crypter.h>
 #include <wallet/coinselection.h>
 #include <external_signer.h>
@@ -550,6 +551,7 @@ public:
 
     // Coin selection
     bool SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet);
+    bool SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet, CoinType nCoinType);
     bool SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& setAmountsRet) const;
 
     std::vector<CompactTallyItem> SelectCoinsGroupedByAddresses(bool fSkipDenominated = true, bool fAnonymizable = true, bool fSkipUnconfirmed = true, int nMaxOupointsPerAddress = -1) const;
@@ -566,6 +568,22 @@ public:
 
     bool IsDenominated(const COutPoint& outpoint) const;
     bool IsFullyMixed(const COutPoint& outpoint) const;
+
+    /**
+     * Count coins of a specific denomination (post-V24 promotion/demotion feature)
+     * @param nDenom The denomination to count (bitshifted integer)
+     * @param fFullyMixedOnly If true, only count fully-mixed coins
+     * @return Number of coins matching the criteria
+     */
+    int CountCoinsByDenomination(int nDenom, bool fFullyMixedOnly = false) const;
+
+    /**
+     * Select fully-mixed coins for promotion (post-V24 feature)
+     * @param nDenom The denomination to select (bitshifted integer)
+     * @param nCount Maximum number of coins to select
+     * @return Vector of outpoints for selected coins
+     */
+    std::vector<COutPoint> SelectFullyMixedForPromotion(int nDenom, int nCount) const;
 
     bool IsSpent(const COutPoint& outpoint) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 

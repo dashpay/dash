@@ -143,6 +143,11 @@ private:
 
     CKeyHolderStorage keyHolderStorage; // storage for keys used in PrepareDenominate
 
+    // Post-V24: Promotion/demotion session state
+    bool m_fPromotion{false};  // True if this session is promoting smaller -> larger denom
+    bool m_fDemotion{false};   // True if this session is demoting larger -> smaller denom
+    std::vector<COutPoint> m_vecRebalanceInputs;  // Selected inputs for promotion/demotion rebalancing
+
     /// Create denominations
     bool CreateDenominated(CAmount nBalanceToDenominate);
     bool CreateDenominated(CAmount nBalanceToDenominate, const wallet::CompactTallyItem& tallyItem, bool fCreateMixingCollaterals)
@@ -156,8 +161,11 @@ private:
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason)
         EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet);
 
-    bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
+    bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman,
+                           int nTargetDenom = 0, bool fPromotion = false, bool fDemotion = false);
     bool StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
+    bool StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman,
+                       int nTargetDenom, bool fPromotion, bool fDemotion);
 
     /// step 0: select denominated inputs and txouts
     bool SelectDenominate(std::string& strErrorRet, std::vector<CTxDSIn>& vecTxDSInRet);
@@ -165,6 +173,15 @@ private:
     bool PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector<CTxDSIn>& vecTxDSIn,
                            std::vector<std::pair<CTxDSIn, CTxOut>>& vecPSInOutPairsRet, bool fDryRun = false)
         EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet);
+
+    /// Post-V24: prepare promotion entry (10 inputs of smaller denom -> 1 output of larger denom)
+    bool PreparePromotionEntry(std::string& strErrorRet, std::vector<std::pair<CTxDSIn, CTxOut>>& vecPSInOutPairsRet)
+        EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet);
+
+    /// Post-V24: prepare demotion entry (1 input of larger denom -> 10 outputs of smaller denom)
+    bool PrepareDemotionEntry(std::string& strErrorRet, std::vector<std::pair<CTxDSIn, CTxOut>>& vecPSInOutPairsRet)
+        EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet);
+
     /// step 2: send denominated inputs and outputs prepared in step 1
     bool SendDenominate(const std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsIn, CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
@@ -315,6 +332,22 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
     void GetJsonInfo(UniValue& obj) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+
+    /**
+     * Post-V24: Check if we should promote smaller denominations into larger ones
+     * @param nSmallerDenom The smaller denomination to promote from
+     * @param nLargerDenom The larger denomination to promote into
+     * @return true if promotion is recommended
+     */
+    bool ShouldPromote(int nSmallerDenom, int nLargerDenom) const;
+
+    /**
+     * Post-V24: Check if we should demote larger denominations into smaller ones
+     * @param nLargerDenom The larger denomination to demote from
+     * @param nSmallerDenom The smaller denomination to demote into
+     * @return true if demotion is recommended
+     */
+    bool ShouldDemote(int nLargerDenom, int nSmallerDenom) const;
 };
 
 #endif // BITCOIN_COINJOIN_CLIENT_H
