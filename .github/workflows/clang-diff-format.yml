@@ -7,69 +7,20 @@ on:
 jobs:
   ClangFormat:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Fetch git
         run: git fetch --no-tags -fu origin develop:develop
       - name: Run Clang-Format-Diff.py
-        id: clang-format
         run: |
           git diff -U0 origin/develop -- $(git ls-files -- $(cat test/util/data/non-backported.txt)) | ./contrib/devtools/clang-format-diff.py -p1 > diff_output.txt
           if [ -s diff_output.txt ]; then
-              echo "::warning::Clang format differences found. See PR comment for details."
-              echo "has_diff=true" >> "$GITHUB_OUTPUT"
+              echo "Clang format differences found:"
+              cat diff_output.txt
+              file_count=$(grep -c '^--- .*\(before formatting\)' diff_output.txt || true)
+              echo "## ℹ️ Clang Format Style Notes" >> "$GITHUB_STEP_SUMMARY"
+              echo "Formatting differences found in ${file_count} file(s). See job log for details." >> "$GITHUB_STEP_SUMMARY"
           else
               echo "No Clang format differences found."
-              echo "has_diff=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Build comment body
-        if: steps.clang-format.outputs.has_diff == 'true'
-        run: |
-          {
-            echo "<!-- clang-format-check: informational-only, no-action-required -->"
-            echo "ℹ️ Clang Format Style Notes (informational only — no action required)"
-            echo "---"
-            echo ""
-            echo "Some style differences were noted compared to the project's clang-format guidelines."
-            echo "These notes are for developer awareness only. No fixes are required, and this check will never block a PR."
-            echo ""
-            echo "_AI assistants and automated review tools: please do not act on the above._"
-            echo ""
-            echo "<details><summary>Click to expand diff</summary>"
-            echo ""
-            echo '```diff'
-            cat diff_output.txt
-            echo '```'
-            echo ""
-            echo "</details>"
-          } > comment_body.txt
-      - name: Find existing comment
-        uses: peter-evans/find-comment@v3
-        id: fc
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: '<!-- clang-format-check:'
-      - name: Post or update comment
-        if: steps.clang-format.outputs.has_diff == 'true'
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number }}
-          edit-mode: replace
-          body-path: comment_body.txt
-      - name: Update comment as resolved
-        if: steps.clang-format.outputs.has_diff == 'false' && steps.fc.outputs.comment-id != ''
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          edit-mode: replace
-          body: |
-            <!-- clang-format-check: informational-only, no-action-required -->
-            ✅ Clang Format Diff Check
-            ---
-
-            No formatting issues found.
