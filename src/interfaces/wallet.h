@@ -407,6 +407,11 @@ public:
     using LoadWalletFn = std::function<void(std::unique_ptr<Wallet> wallet)>;
     virtual std::unique_ptr<Handler> handleLoadWallet(LoadWalletFn fn) = 0;
 
+    //! Register handler for wallet-loading messages. This callback is triggered
+    //! after a wallet object exists and can emit progress, but before startup
+    //! load work like AttachChain()/rescan necessarily completes.
+    virtual std::unique_ptr<Handler> handleLoadWalletLoading(LoadWalletFn fn) = 0;
+
     //! Return pointer to internal context, useful for testing.
     virtual wallet::WalletContext* context() { return nullptr; }
 };

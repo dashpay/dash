@@ -22,16 +22,72 @@
 #include <util/system.h>
 #include <util/translation.h>
 
-#include <functional>
+#include <cmath>
 
 #include <QApplication>
 #include <QCloseEvent>
 #include <QPainter>
 #include <QScreen>
 
+// Padding around the card
+static constexpr int SPLASH_PADDING = 16;
+
+// Cap for time-based exponential fill: prevents bar from appearing complete
+// before the phase actually finishes (bar fills to 95% of range, then waits)
+static constexpr qreal EXPONENTIAL_FILL_CAP = 0.95;
+
+/** Phase weight table: maps init message keys to overall progress ranges.
+ *  Keys are untranslated strings passed through _() at lookup time so that
+ *  phase matching works correctly regardless of the active locale.
+ *  Phases without ShowProgress use time-based exponential fill.
+ *  Phases with ShowProgress interpolate linearly within their range.
+ *  Phases with resetsBar=true reset the bar to 0 and use the full range,
+ *  since they can take an arbitrarily long time (e.g. rescanning, wallet loading). */
+struct PhaseInfo {
+    const char* msg_key;    // untranslated init message (translated at lookup time)
+    qreal start;            // overall progress at phase start (0.0-1.0)
+    qreal end;              // overall progress at phase end (0.0-1.0)
+    bool resetsBar;         // if true, resets the bar to show this phase's own 0-100%
+    bool snapsToEnd;        // if true, instantly completes the bar (for "Done loading")
+};
+
+static const PhaseInfo PHASE_TABLE[] = {
+    {"Loading P2P addresses…",    0.00, 0.02, false, false},
+    {"Loading banlist…",          0.02, 0.03, false, false},
+    {"Loading block index…",      0.03, 0.75, false, false},
+    {"Verifying blocks…",         0.75, 0.88, false, false},
+    {"Replaying blocks…",         0.75, 0.88, false, false},
+    {"Pruning blockstore…",       0.88, 0.90, false, false},
+    {"Starting network threads…", 0.90, 0.94, false, false},
+    {"Rescanning…",               0.00, 1.00, true,  false},
+    {"Verifying wallet(s)…",      0.00, 0.20, true,  false},
+    {"Loading wallet…",           0.20, 1.00, false, false},
+    {"Done loading",              0.94, 1.00, false, true},
+};
+
+/** Look up phase by translating each key and checking if the message contains it.
+ *  Uses contains() because ShowProgress may prepend the wallet name. */
+static const PhaseInfo* LookupPhase(const QString& message)
+{
+    static const auto cache = [] {
+        std::vector<std::pair<const PhaseInfo*, QString>> phases_with_translations;
+        for (const auto& phase : PHASE_TABLE) {
+            phases_with_translations.push_back({&phase, QString::fromStdString(_(phase.msg_key).translated)});
+        }
+        return phases_with_translations;
+    }();
+
+    for (const auto& [phase, translated] : cache) {
+        if (message.contains(translated, Qt::CaseInsensitive)) {
+            return phase;
+        }
+    }
+    return nullptr;
+}
 
 SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
-    : QWidget()
+    : QWidget(),
+      messageColor(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT))
 {
 
     // transparent background
@@ -41,15 +97,11 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     // no window decorations
     setWindowFlags(Qt::FramelessWindowHint);
 
-    // Geometries of splashscreen
-    int width = 380;
-    int height = 460;
-    int logoWidth = 270;
-    int logoHeight = 270;
-
-    // set reference point, paddings
-    int paddingTop = 10;
-    int titleVersionVSpace = 25;
+    // Modern splash dimensions — wider and shorter for a contemporary feel
+    int width = 440;
+    int height = 360;
+    int logoSize = 140;
+    int cornerRadius = 16;
 
     float fontFactor            = 1.0;
     float scale = qApp->devicePixelRatio();
@@ -63,7 +115,6 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     QFont fontBold = GUIUtil::getFontBold();
 
     QPixmap pixmapLogo = networkStyle->getSplashImage();
-    pixmapLogo.setDevicePixelRatio(scale);
 
     // Adjust logo color based on the current theme
     QImage imgLogo = pixmapLogo.toImage().convertToFormat(QImage::Format_ARGB32);
@@ -75,64 +126,116 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
         }
     }
     pixmapLogo.convertFromImage(imgLogo);
+    pixmapLogo.setDevicePixelRatio(scale);
 
-    pixmap = QPixmap(width * scale, height * scale);
+    int canvasWidth = width + SPLASH_PADDING * 2;
+    int canvasHeight = height + SPLASH_PADDING * 2;
+
+    pixmap = QPixmap(canvasWidth * scale, canvasHeight * scale);
     pixmap.setDevicePixelRatio(scale);
-    pixmap.fill(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BORDER_WIDGET));
+    pixmap.fill(Qt::transparent);
 
-    QPainter pixPaint(&pixmap);
+    // Scope the painter so it releases the pixmap before timer/signal setup
+    {
+        QPainter pixPaint(&pixmap);
+        pixPaint.setRenderHint(QPainter::Antialiasing, true);
+        pixPaint.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-    QRect rect = QRect(1, 1, width - 2, height - 2);
-    pixPaint.fillRect(rect, GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BACKGROUND_WIDGET));
+        QColor bgColor = GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BACKGROUND_WIDGET);
 
-    pixPaint.drawPixmap((width / 2) - (logoWidth / 2), (height / 2) - (logoHeight / 2) + 20, pixmapLogo.scaled(logoWidth * scale, logoHeight * scale, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    pixPaint.setPen(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT));
+        // Draw rounded background card with a subtle border
+        QRectF cardRect(SPLASH_PADDING, SPLASH_PADDING, width, height);
+        pixPaint.setPen(QPen(QColor(128, 128, 128, 40), 0.5));
+        pixPaint.setBrush(bgColor);
+        pixPaint.drawRoundedRect(cardRect, cornerRadius, cornerRadius);
 
-    // check font size and drawing with
-    fontBold.setPointSize(50 * fontFactor);
-    pixPaint.setFont(fontBold);
-    QFontMetrics fm = pixPaint.fontMetrics();
-    int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
-    if (titleTextWidth > width * 0.8) {
-        fontFactor = 0.75;
-    }
+        // Offsets relative to card origin
+        int cardX = SPLASH_PADDING;
+        int cardY = SPLASH_PADDING;
+        int contentTop = cardY + 48;
 
-    fontBold.setPointSize(50 * fontFactor);
-    pixPaint.setFont(fontBold);
-    fm = pixPaint.fontMetrics();
-    titleTextWidth  = GUIUtil::TextWidth(fm, titleText);
-    int titleTextHeight = fm.height();
-    pixPaint.drawText((width / 2) - (titleTextWidth / 2), titleTextHeight + paddingTop, titleText);
+        // Draw logo centered horizontally, near the top
+        int logoX = cardX + (width - logoSize) / 2;
+        int logoY = contentTop;
+        pixPaint.drawPixmap(logoX, logoY, logoSize, logoSize, pixmapLogo);
 
-    fontNormal.setPointSize(16 * fontFactor);
-    pixPaint.setFont(fontNormal);
-    fm = pixPaint.fontMetrics();
-    int versionTextWidth = GUIUtil::TextWidth(fm, versionText);
-    pixPaint.drawText((width / 2) - (versionTextWidth / 2), titleTextHeight + paddingTop + titleVersionVSpace, versionText);
+        // Title text below logo
+        pixPaint.setPen(messageColor);
 
-    // draw additional text if special network
-    if(!titleAddText.isEmpty()) {
-        fontBold.setPointSize(10 * fontFactor);
+        fontBold.setPointSize(28 * fontFactor);
         pixPaint.setFont(fontBold);
-        fm = pixPaint.fontMetrics();
-        int titleAddTextWidth = GUIUtil::TextWidth(fm, titleAddText);
-        // Draw the badge background with the network-specific color
-        QRect badgeRect = QRect(width - titleAddTextWidth - 20, 5, width, fm.height() + 10);
-        pixPaint.fillRect(badgeRect, networkStyle->getBadgeColor());
-        // Draw the text itself using white color, regardless of the current theme
-        pixPaint.setPen(QColor(255, 255, 255));
-        pixPaint.drawText(width - titleAddTextWidth - 10, paddingTop + 10, titleAddText);
-    }
+        QFontMetrics fm = pixPaint.fontMetrics();
+        int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
+        if (titleTextWidth > width * 0.8) {
+            fontFactor = 0.75;
+            fontBold.setPointSize(28 * fontFactor);
+            pixPaint.setFont(fontBold);
+            fm = pixPaint.fontMetrics();
+            titleTextWidth = GUIUtil::TextWidth(fm, titleText);
+        }
+        int titleBaseline = logoY + logoSize + 36 + fm.ascent();
+        pixPaint.drawText(cardX + (width - titleTextWidth) / 2, titleBaseline, titleText);
 
-    pixPaint.end();
+        // Version text — subtle, below title
+        QColor subtleColor(messageColor);
+        subtleColor.setAlpha(130);
+        pixPaint.setPen(subtleColor);
+        fontNormal.setPointSize(12 * fontFactor);
+        pixPaint.setFont(fontNormal);
+        fm = pixPaint.fontMetrics();
+        int versionTextWidth = GUIUtil::TextWidth(fm, versionText);
+        int versionBaseline = titleBaseline + fm.height() + 4;
+        pixPaint.drawText(cardX + (width - versionTextWidth) / 2, versionBaseline, versionText);
+
+        // Draw network badge if special network (testnet, devnet, regtest)
+        if(!titleAddText.isEmpty()) {
+            fontBold.setPointSize(9 * fontFactor);
+            pixPaint.setFont(fontBold);
+            fm = pixPaint.fontMetrics();
+            int titleAddTextWidth = GUIUtil::TextWidth(fm, titleAddText);
+            int badgePadH = 10;
+            int badgePadV = 4;
+            int badgeW = titleAddTextWidth + badgePadH * 2;
+            int badgeH = fm.height() + badgePadV * 2;
+            int badgeX = cardX + width - badgeW - 16;
+            int badgeY = cardY + 14;
+            // Rounded badge
+            pixPaint.setPen(Qt::NoPen);
+            pixPaint.setBrush(networkStyle->getBadgeColor());
+            pixPaint.drawRoundedRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2, badgeH / 2);
+            // Badge text
+            pixPaint.setPen(QColor(255, 255, 255));
+            pixPaint.drawText(badgeX + badgePadH, badgeY + badgePadV + fm.ascent(), titleAddText);
+        }
+    } // QPainter released here
 
     // Resize window and move to center of desktop, disallow resizing
-    QRect r(QPoint(), QSize(width, height));
+    QRect r(QPoint(), QSize(canvasWidth, canvasHeight));
     resize(r.size());
     setFixedSize(r.size());
     move(QGuiApplication::primaryScreen()->geometry().center() - r.center());
 
     installEventFilter(this);
+
+    // Animation timer: smoothly advance displayProgress toward target and repaint.
+    // Timer is started on first message to avoid wasteful repaints before init begins.
+    // Note: calcOverallProgress() is safe to call here because animTimer is only
+    // started after phaseTimer.start() in showMessage().
+    connect(&animTimer, &QTimer::timeout, this, [this]() {
+        qreal target = calcOverallProgress();
+        // Smoothly animate toward target (never go backwards)
+        if (target > displayProgress) {
+            qreal gap = target - displayProgress;
+            // Faster easing for larger gaps so fast phases don't lag behind
+            qreal ease = gap > 0.1 ? 0.3 : 0.15;
+            displayProgress += gap * ease;
+            // Snap if very close
+            if (target - displayProgress < 0.002) displayProgress = target;
+        }
+        update();
+        // Stop timer once progress is complete
+        if (displayProgress >= 0.999) animTimer.stop();
+    });
 
     GUIUtil::handleCloseWindowShortcut(this);
 }
@@ -166,38 +269,61 @@ bool SplashScreen::eventFilter(QObject * obj, QEvent * ev) {
     return QObject::eventFilter(obj, ev);
 }
 
-static void InitMessage(SplashScreen *splash, const std::string &message)
+qreal SplashScreen::calcOverallProgress() const
 {
-    bool invoked = QMetaObject::invokeMethod(splash, "showMessage",
-        Qt::QueuedConnection,
-        Q_ARG(QString, QString::fromStdString(message)),
-        Q_ARG(int, Qt::AlignBottom | Qt::AlignHCenter),
-        Q_ARG(QColor, GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT)));
-    assert(invoked);
+    if (curProgress >= 0) {
+        // When a phase reports real sub-progress, map that 0-100 value into the
+        // phase's assigned range directly.
+        return phaseStart + (phaseEnd - phaseStart) * (curProgress / 100.0);
+    }
+    // Otherwise fall back to a time-based curve so phases driven only by
+    // initMessage() still show movement without claiming exact progress.
+    qreal elapsed = phaseTimer.elapsed() / 1000.0;
+    qreal fraction = 1.0 - std::exp(-elapsed / 5.0);
+    return phaseStart + (phaseEnd - phaseStart) * fraction * EXPONENTIAL_FILL_CAP;
 }
 
-static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress, bool resume_possible)
+/** Thread-safe helper: queue a message and/or progress update to the GUI thread.
+ *  @param color  Text color, captured by value from the GUI thread at signal
+ *                connection time to avoid cross-thread access to member fields. */
+static void PostMessageAndProgress(SplashScreen *splash, const QColor &color,
+                                   const std::string &message, int progress)
 {
-    InitMessage(splash, title + std::string("\n") +
-            (resume_possible ? SplashScreen::tr("(press q to shutdown and continue later)").toStdString()
-                                : SplashScreen::tr("press q to shutdown").toStdString()) +
-            strprintf("\n%d", nProgress) + "%");
+    if (!message.empty()) {
+        bool invoked = QMetaObject::invokeMethod(splash, "showMessage",
+            Qt::QueuedConnection,
+            Q_ARG(QString, QString::fromStdString(message)),
+            Q_ARG(int, Qt::AlignBottom | Qt::AlignHCenter),
+            Q_ARG(QColor, color));
+        assert(invoked);
+    }
+    bool invoked = QMetaObject::invokeMethod(splash, "setProgress",
+        Qt::QueuedConnection, Q_ARG(int, progress));
+    assert(invoked);
 }
 
 void SplashScreen::subscribeToCoreSignals()
 {
-    // Connect signals to client
-    m_handler_init_message = m_node->handleInitMessage(std::bind(InitMessage, this, std::placeholders::_1));
-    m_handler_show_progress = m_node->handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    m_handler_init_wallet = m_node->handleInitWallet([this]() { handleLoadWallet(); });
+    // Capture messageColor by value for thread-safe use in non-GUI thread callbacks
+    const QColor color = messageColor;
+    m_handler_init_message = m_node->handleInitMessage([this, color](const std::string& msg) {
+        PostMessageAndProgress(this, color, msg, /*progress=*/-1);
+    });
+    m_handler_show_progress = m_node->handleShowProgress([this, color](const std::string& title, int nProgress, bool /*resume_possible*/) {
+        PostMessageAndProgress(this, color, title, nProgress);
+    });
+    m_handler_init_wallet = m_node->handleInitWallet([this]() { handleLoadingWallet(); });
 }
 
-void SplashScreen::handleLoadWallet()
+void SplashScreen::handleLoadingWallet()
 {
 #ifdef ENABLE_WALLET
     if (!WalletModel::isWalletEnabled()) return;
-    m_handler_load_wallet = m_node->walletLoader().handleLoadWallet([this](std::unique_ptr<interfaces::Wallet> wallet) {
-        m_connected_wallet_handlers.emplace_back(wallet->handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2, false)));
+    const QColor color = messageColor;
+    m_handler_loading_wallet = m_node->walletLoader().handleLoadWalletLoading([this, color](std::unique_ptr<interfaces::Wallet> wallet) {
+        m_connected_wallet_handlers.emplace_back(wallet->handleShowProgress([this, color](const std::string& title, int nProgress) {
+            PostMessageAndProgress(this, color, title, nProgress);
+        }));
         m_connected_wallets.emplace_back(std::move(wallet));
     });
 #endif
@@ -208,9 +334,10 @@ void SplashScreen::unsubscribeFromCoreSignals()
     // Disconnect signals from client
     m_handler_init_message->disconnect();
     m_handler_show_progress->disconnect();
+    m_handler_init_wallet->disconnect();
 #ifdef ENABLE_WALLET
-    if (m_handler_load_wallet != nullptr) {
-        m_handler_load_wallet->disconnect();
+    if (m_handler_loading_wallet != nullptr) {
+        m_handler_loading_wallet->disconnect();
     }
 #endif // ENABLE_WALLET
     for (const auto& handler : m_connected_wallet_handlers) {
@@ -225,19 +352,98 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
     curMessage = message;
     curAlignment = alignment;
     curColor = color;
+
+    // Start animation timer on first message (avoids wasteful repaints before init begins)
+    if (!animTimer.isActive()) {
+        phaseTimer.start();
+        animTimer.start(30);
+    }
+
+    // Look up the phase range for this message; only reinitialize when the
+    // phase actually changes so that repeated progress callbacks (e.g. during
+    // wallet rescans) don't reset displayProgress and phaseTimer each time.
+    // For resetsBar phases, also reinitialize when the message text changes
+    // (e.g. different wallet name prefix during multi-wallet rescans).
+    const PhaseInfo* phase = LookupPhase(message);
+    const bool phase_changed = phase != nullptr &&
+        (phase != m_current_phase || (phase->resetsBar && message != m_current_phase_message));
+    if (phase_changed) {
+        m_current_phase = phase;
+        m_current_phase_message = message;
+        // Progress values are phase-local; drop any numeric progress from the
+        // previous phase until a new ShowProgress update arrives.
+        curProgress = -1;
+        if (phase->snapsToEnd) {
+            // Final phase: snap to 100% immediately since the splash
+            // will be destroyed moments after "Done loading" arrives
+            displayProgress = 1.0;
+            phaseStart = 1.0;
+            phaseEnd = 1.0;
+            animTimer.stop();
+        } else if (phase->resetsBar) {
+            // Long independent phases get their own full bar
+            displayProgress = 0.0;
+            phaseStart = phase->start;
+            phaseEnd = phase->end;
+            animTimer.start(30);
+        } else {
+            // Normal phase: ensure we never jump backwards
+            phaseStart = std::max(phase->start, displayProgress);
+            phaseEnd = std::max(phase->end, phaseStart);
+        }
+        phaseTimer.restart();
+    }
+
     update();
+}
+
+void SplashScreen::setProgress(int value)
+{
+    curProgress = value;
 }
 
 void SplashScreen::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    QFont messageFont = GUIUtil::getFontNormal();
-    messageFont.setPointSize(14);
-    painter.setFont(messageFont);
+    painter.setRenderHint(QPainter::Antialiasing, true);
     painter.drawPixmap(0, 0, pixmap);
-    QRect r = rect().adjusted(5, 5, -5, -15);
-    painter.setPen(curColor);
-    painter.drawText(r, curAlignment, curMessage);
+
+    int barMargin = 32;
+    int barHeight = 4;
+    int barRadius = barHeight / 2;
+    int barLeft = SPLASH_PADDING + barMargin;
+    int barWidth = width() - SPLASH_PADDING * 2 - barMargin * 2;
+
+    // Draw status message above the progress bar area
+    QFont messageFont = GUIUtil::getFontNormal();
+    messageFont.setPointSize(12);
+    painter.setFont(messageFont);
+
+    QRect messageRect = rect().adjusted(
+        SPLASH_PADDING + 24, 0,
+        -SPLASH_PADDING - 24,
+        -SPLASH_PADDING - 28);
+    QColor msgColor(curColor);
+    msgColor.setAlpha(160);
+    painter.setPen(msgColor);
+    painter.drawText(messageRect, curAlignment, curMessage);
+
+    // Draw unified progress bar at the bottom of the card
+    int barY = height() - SPLASH_PADDING - 18;
+
+    // Track background (always visible once we have a message)
+    if (!curMessage.isEmpty()) {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(128, 128, 128, 40));
+        painter.drawRoundedRect(QRectF(barLeft, barY, barWidth, barHeight), barRadius, barRadius);
+
+        // Fill based on overall progress
+        int fillWidth = static_cast<int>(barWidth * std::min(displayProgress, 1.0));
+        if (fillWidth > 0) {
+            painter.setBrush(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BLUE));
+            painter.drawRoundedRect(QRectF(barLeft, barY, fillWidth, barHeight), barRadius, barRadius);
+        }
+    }
 }
 
 void SplashScreen::closeEvent(QCloseEvent *event)
