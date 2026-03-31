@@ -4,6 +4,7 @@ $(package)_download_path=https://download.qt.io/archive/qt/5.15/$($(package)_ver
 $(package)_suffix=everywhere-opensource-src-$($(package)_version).tar.xz
 $(package)_file_name=qtbase-$($(package)_suffix)
 $(package)_sha256_hash=7b632550ea1048fc10c741e46e2e3b093e5ca94dfa6209e9e0848800e247023b
+$(package)_dependencies=zlib
 $(package)_linux_dependencies := freetype fontconfig libxcb libxkbcommon libxcb_util libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm
 $(package)_freebsd_dependencies := $($(package)_linux_dependencies)
 $(package)_qt_libs=corelib network widgets gui plugins testlib
@@ -91,7 +92,7 @@ $(package)_config_opts += -prefix $(host_prefix)
 $(package)_config_opts += -qt-libpng
 $(package)_config_opts += -qt-pcre
 $(package)_config_opts += -qt-harfbuzz
-$(package)_config_opts += -qt-zlib
+$(package)_config_opts += -system-zlib
 $(package)_config_opts += -static
 $(package)_config_opts += -v
 $(package)_config_opts += -no-feature-bearermanagement
@@ -279,7 +280,9 @@ endef
 
 define $(package)_config_cmds
   cd qtbase && \
-  ./configure -top-level $($(package)_config_opts)
+  ./configure -top-level $($(package)_config_opts) && \
+  echo "host_build: QT_CONFIG ~= s/system-zlib/zlib" >> mkspecs/qconfig.pri && \
+  echo "CONFIG += force_bootstrap" >> mkspecs/qconfig.pri
 endef
 
 define $(package)_build_cmds

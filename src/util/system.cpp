@@ -44,6 +44,7 @@
 #include <atomic>
 #include <cassert>
 #include <fcntl.h>
+#include <limits>
 #include <sched.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -1280,7 +1281,7 @@ int RaiseFileDescriptorLimit(int nMinFD) {
             setrlimit(RLIMIT_NOFILE, &limitFD);
             getrlimit(RLIMIT_NOFILE, &limitFD);
         }
-        return limitFD.rlim_cur;
+        return std::min<rlim_t>(limitFD.rlim_cur, std::numeric_limits<int>::max());
     }
     return nMinFD; // getrlimit failed, assume it's fine
 #endif

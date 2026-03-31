@@ -34,11 +34,15 @@ if [ -z "${SKIP_PYTHON_INSTALL}" ]; then
 fi
 
 # NOTE: BUMP ALSO contrib/containers/ci/ci-slim.Dockerfile
+${CI_RETRY_EXE} pip3 install aiohttp==3.13.3
 ${CI_RETRY_EXE} pip3 install codespell==2.2.1
 ${CI_RETRY_EXE} pip3 install flake8==5.0.4
+${CI_RETRY_EXE} pip3 install jinja2==3.1.6
 ${CI_RETRY_EXE} pip3 install lief==0.13.2
+${CI_RETRY_EXE} pip3 install multiprocess==0.70.19
 ${CI_RETRY_EXE} pip3 install mypy==0.981
 ${CI_RETRY_EXE} pip3 install pyzmq==24.0.1
+${CI_RETRY_EXE} pip3 install tabulate==0.10.0
 ${CI_RETRY_EXE} pip3 install vulture==2.6
 
 SHELLCHECK_VERSION=v0.8.0

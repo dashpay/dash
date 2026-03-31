@@ -77,13 +77,15 @@ ENV UV_SYSTEM_PYTHON=1
 # Install Python packages
 # NOTE: if versions are changed, update ci/lint/04_install.sh
 RUN uv pip install --system --break-system-packages \
+    aiohttp==3.13.3 \
     codespell==2.2.1 \
     flake8==5.0.4 \
-    jinja2 \
+    jinja2==3.1.6 \
     lief==0.13.2 \
-    multiprocess \
+    multiprocess==0.70.19 \
     mypy==0.981 \
     pyzmq==24.0.1 \
+    tabulate==0.10.0 \
     vulture==2.6
 
 # Install packages relied on by tests

@@ -316,6 +316,7 @@ BASE_SCRIPTS = [
     'wallet_crosschain.py',
     'mining_basic.py',
     'rpc_named_arguments.py',
+    'feature_rest.py',
     'feature_startupnotify.py',
     'feature_stats.py',
     'wallet_simulaterawtx.py --legacy-wallet',

@@ -3,26 +3,26 @@ Unauthenticated REST Interface
 
 The REST API can be enabled with the `-rest` option.
 
-The interface runs on the same port as the JSON-RPC interface, by default port 9998 for mainnet, port 19998 for testnet,
-port 19788 for devnet, and port 19898 for regtest.
+The interface runs on its own dedicated port, separate from the JSON-RPC interface.  Default port 9997 for mainnet, port 19997 for testnet, port 19897 for regtest and port 19797 for devnet. The port can be overridden with `-restport=<port>`.
+
+Configuration
+-------------
+
+| Option                    | Default     | Description                                                  |
+|---------------------------|-------------|--------------------------------------------------------------|
+| `-rest`                   | `0`         | Enable the REST server.                                      |
+| `-restbind=<addr>`        | `127.0.0.1` | IP address to bind to.                                       |
+| `-restport=<port>`        | per-network | Port to listen on (1–65535).                                 |
+| `-restthreads=<n>`        | `4`         | Number of I/O threads.                                       |
+| `-restmaxconnections=<n>` | `100`       | Maximum concurrent connections (1–65535).                    |
+| `-restidletimeout=<n>`    | `30`        | Seconds before an idle connection is closed (5–3600).        |
+| `-restreuseport`          | `false`     | Allow multiple sockets to bind to the same port (Linux only).|
 
 REST Interface consistency guarantees
 -------------------------------------
 
 The [same guarantees as for the RPC Interface](/doc/JSON-RPC-interface.md#rpc-consistency-guarantees)
 apply.
-
-Limitations
------------
-
-There is a known issue in the REST interface that can cause a node to crash if
-too many http connections are being opened at the same time because the system runs
-out of available file descriptors. To prevent this from happening you might
-want to increase the number of maximum allowed file descriptors in your system
-and try to prevent opening too many connections to your rest interface at the
-same time if this is under your control. It is hard to give general advice
-since this depends on your system but if you make several hundred requests at
-once you are definitely at risk of encountering this issue.
 
 Supported API
 -------------
@@ -97,7 +97,7 @@ input and output serialization (relevant for `bin` and `hex` output formats).
 
 Example:
 ```
-$ curl localhost:19998/rest/getutxos/checkmempool/b2cdfd7b89def827ff8af7cd9bff7627ff72e5e8b0f71210f92ea7a4000c5d75-0.json 2>/dev/null | json_pp
+$ curl localhost:19997/rest/getutxos/checkmempool/b2cdfd7b89def827ff8af7cd9bff7627ff72e5e8b0f71210f92ea7a4000c5d75-0.json 2>/dev/null | json_pp
 {
    "chainHeight" : 325347,
    "chaintipHash" : "00000000fb01a7f3745a717f8caebee056c484e6e0bfe4a9591c235bb70506fb",
@@ -133,4 +133,4 @@ Refer to the `getrawmempool` RPC help for details.
 
 Risks
 -------------
-Running a web browser on the same node with a REST enabled dashd can be a risk. Accessing prepared XSS websites could read out tx/block data of your node by placing links like `<script src="http://127.0.0.1:19998/rest/tx/1234567890.json">` which might break the nodes privacy.
+Running a web browser on the same node with a REST enabled dashd can be a risk. Accessing prepared XSS websites could read out tx/block data of your node by placing links like `<script src="http://127.0.0.1:19997/rest/tx/1234567890.json">` which might break the nodes privacy.

@@ -1160,6 +1160,15 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether the wallet module was compiled with BDB support."""
         return self.config["components"].getboolean("USE_BDB")
 
+    def is_drogon_compiled(self):
+        """Checks whether dashd was compiled with Drogon support."""
+        return self.config["components"].getboolean("USE_DROGON", fallback=False)
+
+    def skip_if_no_drogon(self):
+        """Skip the running test if dashd has not been compiled with Drogon support."""
+        if not self.is_drogon_compiled():
+            raise SkipTest("dashd has not been built with Drogon enabled.")
+
 MASTERNODE_COLLATERAL = 1000
 EVONODE_COLLATERAL = 4000
 
