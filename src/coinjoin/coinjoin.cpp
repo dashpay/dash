@@ -116,17 +116,13 @@ void CCoinJoinBaseSession::SetNull()
     nTimeLastSuccessfulStep = GetTime();
 }
 
-CCoinJoinBaseManager::CCoinJoinBaseManager() = default;
-
-CCoinJoinBaseManager::~CCoinJoinBaseManager() = default;
-
-void CCoinJoinBaseManager::SetNull()
+void CoinJoinQueueManager::SetNull()
 {
     LOCK(cs_vecqueue);
     vecCoinJoinQueue.clear();
 }
 
-void CCoinJoinBaseManager::CheckQueue()
+void CoinJoinQueueManager::CheckQueue()
 {
     TRY_LOCK(cs_vecqueue, lockDS);
     if (!lockDS) return; // it's ok to fail here, we run this quite frequently
@@ -135,7 +131,7 @@ void CCoinJoinBaseManager::CheckQueue()
     auto it = vecCoinJoinQueue.begin();
     while (it != vecCoinJoinQueue.end()) {
         if (it->IsTimeOutOfBounds()) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinBaseManager::%s -- Removing a queue (%s)\n", __func__, it->ToString());
+            LogPrint(BCLog::COINJOIN, "CoinJoinQueueManager::%s -- Removing a queue (%s)\n", __func__, it->ToString());
             it = vecCoinJoinQueue.erase(it);
         } else {
             ++it;
@@ -143,7 +139,33 @@ void CCoinJoinBaseManager::CheckQueue()
     }
 }
 
-bool CCoinJoinBaseManager::GetQueueItemAndTry(CCoinJoinQueue& dsqRet)
+std::optional<bool> CoinJoinQueueManager::TryHasQueueFromMasternode(const COutPoint& outpoint) const
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if (!lockDS) return std::nullopt;
+    return std::ranges::any_of(vecCoinJoinQueue, [&outpoint](const auto& q) { return q.masternodeOutpoint == outpoint; });
+}
+
+std::optional<bool> CoinJoinQueueManager::TryCheckDuplicate(const CCoinJoinQueue& dsq) const
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if (!lockDS) return std::nullopt;
+    for (const auto& q : vecCoinJoinQueue) {
+        if (q == dsq) return true;
+        if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) return true;
+    }
+    return false;
+}
+
+bool CoinJoinQueueManager::TryAddQueue(CCoinJoinQueue dsq)
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if (!lockDS) return false;
+    vecCoinJoinQueue.push_back(std::move(dsq));
+    return true;
+}
+
+bool CoinJoinQueueManager::GetQueueItemAndTry(CCoinJoinQueue& dsqRet)
 {
     TRY_LOCK(cs_vecqueue, lockDS);
     if (!lockDS) return false; // it's ok to fail here, we run this quite frequently
