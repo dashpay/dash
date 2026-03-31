@@ -293,6 +293,11 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
         // This is critical: for intra-block spends (tx1 creates output, tx2 spends it),
         // reverse order ensures spends are undone before outputs, preventing phantom UTXOs.
         // blockundo.vtxundo[i] corresponds to block.vtx[i+1] (coinbase skipped)
+        if (blockundo.vtxundo.size() != block.vtx.size() - 1) {
+            return error("%s: Undo data size mismatch for block %s (expected %zu, got %zu)", __func__,
+                         pindex->GetBlockHash().ToString(), block.vtx.size() - 1, blockundo.vtxundo.size());
+        }
+
         for (size_t i = blockundo.vtxundo.size(); i-- > 0;) {
             const CTransactionRef& tx = block.vtx[i + 1];
             const CTxUndo& txundo = blockundo.vtxundo[i];
@@ -321,6 +326,10 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
             }
 
             // Undo inputs (restore to unspent index, remove spending from history)
+            if (tx->vin.size() != txundo.vprevout.size()) {
+                return error("%s: Undo data mismatch for tx %s", __func__, txhash.ToString());
+            }
+
             for (size_t j = 0; j < tx->vin.size(); j++) {
                 const CTxIn& input = tx->vin[j];
                 const Coin& coin = txundo.vprevout[j];
