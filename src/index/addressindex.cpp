@@ -289,9 +289,11 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
         std::vector<CAddressIndexEntry> addressIndex;
         std::vector<CAddressUnspentIndexEntry> addressUnspentIndex;
 
-        // Process transactions in reverse to undo them
+        // Process transactions in reverse to undo them (matching DisconnectBlock order).
+        // This is critical: for intra-block spends (tx1 creates output, tx2 spends it),
+        // reverse order ensures spends are undone before outputs, preventing phantom UTXOs.
         // blockundo.vtxundo[i] corresponds to block.vtx[i+1] (coinbase skipped)
-        for (size_t i = 0; i < blockundo.vtxundo.size(); i++) {
+        for (size_t i = blockundo.vtxundo.size(); i-- > 0;) {
             const CTransactionRef& tx = block.vtx[i + 1];
             const CTxUndo& txundo = blockundo.vtxundo[i];
             const uint256 txhash = tx->GetHash();
