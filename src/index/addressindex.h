@@ -67,9 +67,6 @@ protected:
     /// Custom rewind to handle both transaction history and unspent index
     bool Rewind(const CBlockIndex* current_tip, const CBlockIndex* new_tip) override;
 
-    /// Handle block disconnections (e.g., from invalidateblock)
-    void BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
-
     BaseIndex::DB& GetDB() const override;
 
     const char* GetName() const override { return "addressindex"; }

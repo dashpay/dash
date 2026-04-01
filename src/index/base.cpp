@@ -285,6 +285,30 @@ void BaseIndex::BlockConnected(const std::shared_ptr<const CBlock>& block, const
     }
 }
 
+void BaseIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
+{
+    if (!m_synced) {
+        return;
+    }
+
+    const CBlockIndex* best_block_index = m_best_block_index.load();
+
+    // Ignore stale-branch disconnect notifications that do not connect to the indexed chain.
+    // We must check that pindex itself is on the indexed chain, not just that it shares
+    // a parent — otherwise same-height siblings would incorrectly trigger a rewind.
+    if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
+        if (best_block_index->GetAncestor(pindex->nHeight) != pindex) {
+            LogPrintf("%s: WARNING: Block %s is not on the indexed chain " /* Continued */
+                      "(tip=%s); not updating index\n",
+                      __func__, pindex->GetBlockHash().ToString(), best_block_index->GetBlockHash().ToString());
+            return;
+        }
+        if (!Rewind(best_block_index, pindex->pprev)) {
+            FatalError("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
+        }
+    }
+}
+
 void BaseIndex::ChainStateFlushed(const CBlockLocator& locator)
 {
     if (!m_synced) {

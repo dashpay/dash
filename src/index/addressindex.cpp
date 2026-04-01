@@ -391,28 +391,6 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
     return BaseIndex::Rewind(current_tip, new_tip);
 }
 
-void AddressIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
-{
-    // When a block is disconnected (e.g., via invalidateblock), we need to rewind the index
-    // to remove this block's data
-    const CBlockIndex* best_block_index = CurrentIndex();
-
-    // Ignore stale-branch disconnect notifications that do not connect to the indexed chain.
-    // We must check that pindex itself is on the indexed chain, not just that it shares
-    // a parent — otherwise same-height siblings would incorrectly trigger a rewind.
-    if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
-        if (best_block_index->GetAncestor(pindex->nHeight) != pindex) {
-            LogPrintf("%s: WARNING: Block %s is not on the indexed chain " /* Continued */
-                      "(tip=%s); not updating index\n",
-                      __func__, pindex->GetBlockHash().ToString(), best_block_index->GetBlockHash().ToString());
-            return;
-        }
-        if (!Rewind(best_block_index, pindex->pprev)) {
-            FatalError("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
-        }
-    }
-}
-
 BaseIndex::DB& AddressIndex::GetDB() const { return *m_db; }
 
 bool AddressIndex::GetAddressIndex(const uint160& address_hash, const AddressType type,
