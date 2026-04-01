@@ -56,6 +56,7 @@ NetQuorum::NetQuorum(PeerManagerInternal* peer_manager, CBLSWorker& bls_worker,
 
 void NetQuorum::Start()
 {
+    if (!m_role) return;
     assert(m_worker_count > 0);
     workerPool.resize(m_worker_count);
     RenameThreadPool(workerPool, "q-mngr");
@@ -584,6 +585,7 @@ void NetQuorum::DataRecoveryThread(gsl::not_null<const CBlockIndex*> block_index
 
 void NetQuorum::StartVvecSyncThread(gsl::not_null<const CBlockIndex*> block_index, CQuorumCPtr pQuorum) const
 {
+    if (pQuorum->qc->validMembers.empty()) return;
     if (!pQuorum->TryClaimRecovery()) {
         LogPrint(BCLog::LLMQ, "NetQuorum::%s -- Already running\n", __func__);
         return;
@@ -616,6 +618,8 @@ void NetQuorum::TryStartVvecSyncThread(gsl::not_null<const CBlockIndex*> block_i
 void NetQuorum::StartSkShareRecoveryThread(gsl::not_null<const CBlockIndex*> pIndex, CQuorumCPtr pQuorum,
                                            uint16_t nDataMaskIn) const
 {
+    if (pQuorum->qc->validMembers.empty()) return;
+
     if (!pQuorum->TryClaimRecovery()) {
         LogPrint(BCLog::LLMQ, "NetQuorum::%s -- Already running\n", __func__);
         return;

@@ -42,6 +42,7 @@ enum class VerifyRecSigStatus : uint8_t {
     Valid,
 };
 
+class QuorumRole;
 class CDKGSessionManager;
 class CQuorumBlockProcessor;
 class CQuorumSnapshotManager;
