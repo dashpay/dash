@@ -557,9 +557,8 @@ static RPCHelpMan getblockhashes()
         throw JSONRPCError(RPC_MISC_ERROR, "Timestamp index is not enabled. Start with -timestampindex to enable.");
     }
 
-    const IndexSummary summary = g_timestampindex->GetSummary();
-    if (!summary.synced) {
-        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Timestamp index is syncing. Current height: %d", summary.best_block_height));
+    if (!g_timestampindex->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Timestamp index is syncing. Current height: %d", g_timestampindex->GetSummary().best_block_height));
     }
 
     unsigned int high = request.params[0].getInt<int>();

@@ -500,9 +500,8 @@ static RPCHelpMan getaddressutxos()
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
 
-    const IndexSummary summary = g_addressindex->GetSummary();
-    if (!summary.synced) {
-        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    if (!g_addressindex->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", g_addressindex->GetSummary().best_block_height));
     }
 
     std::vector<CAddressUnspentIndexEntry> unspentOutputs;
@@ -593,9 +592,8 @@ static RPCHelpMan getaddressdeltas()
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
 
-    const IndexSummary summary = g_addressindex->GetSummary();
-    if (!summary.synced) {
-        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    if (!g_addressindex->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", g_addressindex->GetSummary().best_block_height));
     }
 
     for (const auto& address : addresses) {
@@ -666,25 +664,21 @@ static RPCHelpMan getaddressbalance()
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
 
-    // Check sync status first to return a clear error message.
-    const IndexSummary summary = g_addressindex->GetSummary();
-    if (!summary.synced) {
-        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    if (!g_addressindex->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", g_addressindex->GetSummary().best_block_height));
     }
 
-    for (const auto& address : addresses) {
-        if (!g_addressindex->GetAddressIndex(address.first, address.second, addressIndex,
-                                             /*start=*/0, /*end=*/0)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+    int nHeight;
+    {
+        LOCK(::cs_main);
+        for (const auto& address : addresses) {
+            if (!g_addressindex->GetAddressIndex(address.first, address.second, addressIndex,
+                                                 /*start=*/0, /*end=*/0)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+            }
         }
+        nHeight = g_addressindex->GetSummary().best_block_height;
     }
-
-    // Use the pre-query indexed height for maturity checks. GetAddressIndex() internally
-    // calls BlockUntilSyncedToCurrentChain() which may advance the index, but using the
-    // height from before the query is conservative: it avoids a race where a new block
-    // arrives between the query and a second GetSummary() call, which could cause maturity
-    // to be evaluated at a height ahead of the returned data.
-    const int nHeight = summary.best_block_height;
 
 
     CAmount balance = 0;
@@ -760,9 +754,8 @@ static RPCHelpMan getaddresstxids()
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
 
-    const IndexSummary summary = g_addressindex->GetSummary();
-    if (!summary.synced) {
-        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
+    if (!g_addressindex->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", g_addressindex->GetSummary().best_block_height));
     }
 
     for (const auto& address : addresses) {
@@ -847,7 +840,10 @@ static RPCHelpMan getspentinfo()
     CSpentIndexValue value;
     bool found = false;
 
-    // Check the async index first (may return false if still syncing)
+    // Sync the index to the current chain tip before querying.
+    // We don't fail here if not synced — the result may still come from mempool below.
+    g_spentindex->BlockUntilSyncedToCurrentChain();
+
     if (g_spentindex->GetSpentInfo(key, value)) {
         found = true;
     }

@@ -177,9 +177,5 @@ BaseIndex::DB& SpentIndex::GetDB() const { return *m_db; }
 
 bool SpentIndex::GetSpentInfo(const CSpentIndexKey& key, CSpentIndexValue& value) const
 {
-    if (!BlockUntilSyncedToCurrentChain()) {
-        return false;
-    }
-
     return m_db->ReadSpentIndex(key, value);
 }

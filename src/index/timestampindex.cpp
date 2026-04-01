@@ -114,9 +114,5 @@ BaseIndex::DB& TimestampIndex::GetDB() const { return *m_db; }
 
 bool TimestampIndex::GetBlockHashes(uint32_t high, uint32_t low, std::vector<uint256>& hashes) const
 {
-    if (!BlockUntilSyncedToCurrentChain()) {
-        return false;
-    }
-
     return m_db->ReadRange(high, low, hashes);
 }

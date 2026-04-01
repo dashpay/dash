@@ -78,10 +78,11 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, const  CTxMemPool
     CSpentIndexTxInfo *txSpentInfoPtr{nullptr};
 
     // Add spent information if spentindex is enabled
-    // Note: We query the async index BEFORE acquiring cs_main since BlockUntilSyncedToCurrentChain()
-    // requires cs_main NOT to be held
     CSpentIndexTxInfo txSpentInfo;
     if (g_spentindex) {
+        // Sync once before all queries to ensure consistent snapshot
+        g_spentindex->BlockUntilSyncedToCurrentChain();
+
         txSpentInfo = CSpentIndexTxInfo{};
         // Collect spent info for inputs
         for (const auto& txin : tx.vin) {

@@ -418,19 +418,11 @@ BaseIndex::DB& AddressIndex::GetDB() const { return *m_db; }
 bool AddressIndex::GetAddressIndex(const uint160& address_hash, const AddressType type,
                                    std::vector<CAddressIndexEntry>& entries, const int32_t start, const int32_t end) const
 {
-    if (!BlockUntilSyncedToCurrentChain()) {
-        return false;
-    }
-
     return m_db->ReadAddressIndex(address_hash, type, entries, start, end);
 }
 
 bool AddressIndex::GetAddressUnspentIndex(const uint160& address_hash, const AddressType type,
                                           std::vector<CAddressUnspentIndexEntry>& entries, const bool height_sort) const
 {
-    if (!BlockUntilSyncedToCurrentChain()) {
-        return false;
-    }
-
     return m_db->ReadAddressUnspentIndex(address_hash, type, entries, height_sort);
 }
