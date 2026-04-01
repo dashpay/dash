@@ -100,16 +100,17 @@ std::string CQuorumDataRequest::GetErrorString() const
     return "UNDEFINED";
 }
 
-CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker) : params(_params), blsCache(_blsWorker)
+CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
+                 CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex,
+                 const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members) :
+    params{_params},
+    qc{std::move(_qc)},
+    m_quorum_base_block_index{_pQuorumBaseBlockIndex},
+    minedBlockHash{_minedBlockHash},
+    members{_members.begin(), _members.end()},
+    blsCache{_blsWorker}
 {
-}
-
-void CQuorum::Init(CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members)
-{
-    qc = std::move(_qc);
-    m_quorum_base_block_index = _pQuorumBaseBlockIndex;
-    members = std::vector(_members.begin(), _members.end());
-    minedBlockHash = _minedBlockHash;
+    assert(qc != nullptr);
 }
 
 bool CQuorum::SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn)
