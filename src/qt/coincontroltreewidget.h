@@ -22,6 +22,8 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
+    bool isCheckboxClick(QTreeWidgetItem* item, const QPoint& pos) const;
+
     QTreeWidgetItem* m_lastClickedItem{nullptr};
 };
 
