@@ -198,6 +198,8 @@ BASE_SCRIPTS = [
     'wallet_createwallet.py --legacy-wallet',
     'wallet_createwallet.py --usecli',
     'wallet_createwallet.py --descriptors',
+    'wallet_dust_protection.py --legacy-wallet',
+    'wallet_dust_protection.py --descriptors',
     'wallet_reorgsrestore.py',
     'wallet_listtransactions.py --legacy-wallet',
     'wallet_listtransactions.py --descriptors',
