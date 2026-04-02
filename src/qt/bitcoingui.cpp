@@ -87,7 +87,7 @@ constexpr int GOV_CYCLE_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / (GOV_CYCLE_FRAME_COUN
 // Per-frame interval for the spinner animation
 constexpr int SPINNER_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / SPINNER_FRAMES};
 
-constexpr int FONT_SCALE_MIN{-100};
+constexpr int FONT_SCALE_MIN{-50};
 constexpr int FONT_SCALE_MAX{100};
 constexpr int FONT_SCALE_SHORTCUT_STEP{3};
 } // anonymous namespace
