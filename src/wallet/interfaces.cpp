@@ -344,6 +344,16 @@ public:
         }
         return true;
     }
+    void setDustProtectionThreshold(CAmount threshold) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        m_wallet->m_dust_protection_threshold = threshold;
+    }
+    void lockExistingDustOutputs() override
+    {
+        LOCK(m_wallet->cs_wallet);
+        m_wallet->LockExistingDustOutputs();
+    }
     std::vector<COutPoint> listProTxCoins() override
     {
         LOCK(m_wallet->cs_wallet);

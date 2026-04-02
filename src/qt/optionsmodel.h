@@ -26,6 +26,8 @@ static constexpr uint16_t DEFAULT_GUI_PROXY_PORT = 9050;
 
 /** Default threshold for dust attack protection (in duffs) */
 static constexpr qint64 DEFAULT_DUST_PROTECTION_THRESHOLD = 10000;
+/** Maximum threshold for dust attack protection (in duffs), matches GUI spinbox and CLI cap */
+static constexpr qint64 MAX_GUI_DUST_PROTECTION_THRESHOLD = 1000000;
 
 /**
  * Convert configured prune target MiB to displayed GB. Round up to avoid underestimating max disk usage.
@@ -139,8 +141,11 @@ public:
     bool getShowGovernanceClock() const { return m_show_governance_clock; }
     bool getShowGovernanceTab() const { return m_enable_governance; }
     bool getShowAdvancedCJUI() { return fShowAdvancedCJUI; }
-    bool getDustProtection() const { return fDustProtection; }
-    qint64 getDustProtectionThreshold() const { return nDustProtectionThreshold; }
+    /* Effective dust protection state: CLI arg takes precedence over GUI setting.
+     * Unlike getOption() (which only reads persistent settings for the Options
+     * dialog / mapper), these return what the core wallet is actually using. */
+    bool getDustProtection() const;
+    qint64 getDustProtectionThreshold() const;
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool isOptionOverridden(const QString& option) const { return strOverriddenByCommandLine.contains(option); }
 
@@ -173,8 +178,6 @@ private:
     bool m_enable_governance;
     bool m_show_governance_clock;
     bool fShowAdvancedCJUI;
-    bool fDustProtection{false};
-    qint64 nDustProtectionThreshold{DEFAULT_DUST_PROTECTION_THRESHOLD};
 
     /* settings that were overridden by command-line */
     QString strOverriddenByCommandLine;
