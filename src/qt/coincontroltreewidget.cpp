@@ -5,6 +5,8 @@
 #include <qt/coincontroltreewidget.h>
 #include <qt/coincontroldialog.h>
 
+#include <QStyle>
+#include <QStyleOptionViewItem>
 #include <QTreeWidgetItemIterator>
 
 CoinControlTreeWidget::CoinControlTreeWidget(QWidget *parent) :
@@ -47,27 +49,55 @@ static bool isLeafItem(QTreeWidgetItem* item)
     return item && item->data(COLUMN_ADDRESS, Qt::UserRole).toString().length() == 64;
 }
 
+static bool isCheckboxClick(QTreeWidget* tree, QTreeWidgetItem* item, const QPoint& pos)
+{
+    int COLUMN_CHECKBOX = 0;
+
+    if (!tree || !item || tree->columnAt(pos.x()) != COLUMN_CHECKBOX) {
+        return false;
+    }
+
+    const QModelIndex index = tree->indexFromItem(item, COLUMN_CHECKBOX);
+    if (!index.isValid()) {
+        return false;
+    }
+
+    QStyleOptionViewItem option;
+    option.initFrom(tree);
+    option.rect = tree->visualRect(index);
+    option.features = QStyleOptionViewItem::HasCheckIndicator;
+    option.checkState = item->checkState(COLUMN_CHECKBOX);
+
+    return tree->style()->subElementRect(QStyle::SE_ItemViewItemCheckIndicator, &option, tree).contains(pos);
+}
+
 void CoinControlTreeWidget::mouseReleaseEvent(QMouseEvent *event)
 {
     int COLUMN_CHECKBOX = 0;
 
     QTreeWidgetItem* clickedItem = itemAt(event->pos());
+    const bool isCheckboxInteraction = isCheckboxClick(this, clickedItem, event->pos());
 
     bool isShiftClick = (event->button() == Qt::LeftButton)
                         && (event->modifiers() & Qt::ShiftModifier)
                         && m_lastClickedItem
                         && clickedItem
                         && clickedItem != m_lastClickedItem
+                        && isCheckboxInteraction
                         && isLeafItem(clickedItem)
                         && !clickedItem->isDisabled()
                         && !m_lastClickedItem->isDisabled();
 
     if (!isShiftClick) {
         // Normal click — let Qt handle the checkbox toggle on release
+        const Qt::CheckState previousState = clickedItem ? clickedItem->checkState(COLUMN_CHECKBOX) : Qt::Unchecked;
         QTreeWidget::mouseReleaseEvent(event);
         // Record anchor after toggle so we capture the post-toggle state
         if (event->button() == Qt::LeftButton && clickedItem
-                && isLeafItem(clickedItem) && !clickedItem->isDisabled()) {
+                && isCheckboxInteraction
+                && isLeafItem(clickedItem)
+                && !clickedItem->isDisabled()
+                && clickedItem->checkState(COLUMN_CHECKBOX) != previousState) {
             m_lastClickedItem = clickedItem;
         }
         return;
