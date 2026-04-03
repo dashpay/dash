@@ -47,6 +47,7 @@ static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransactionRef>& txs)
     SimpleUTXOMap utxos;
     for (auto [i, tx] : std23::views::enumerate(txs)) {
         for (auto [j, output] : std23::views::enumerate(tx->vout)) {
+            if (output.scriptPubKey.IsUnspendable()) continue;
             utxos.try_emplace(COutPoint(tx->GetHash(), j), std::make_pair((int)i + 1, output.nValue));
         }
     }
