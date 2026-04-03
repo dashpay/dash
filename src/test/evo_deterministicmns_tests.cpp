@@ -6,6 +6,7 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <index/txindex.h>
 #include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <evo/providertx.h>
@@ -20,6 +21,7 @@
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
+#include <test/util/index.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <validation.h>
@@ -38,6 +40,7 @@ static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransactionRef>& txs)
     for (size_t i = 0; i < txs.size(); i++) {
         auto& tx = txs[i];
         for (size_t j = 0; j < tx->vout.size(); j++) {
+            if (tx->vout[j].scriptPubKey.IsUnspendable()) continue;
             utxos.emplace(COutPoint(tx->GetHash(), j), std::make_pair((int)i + 1, tx->vout[j].nValue));
         }
     }
@@ -782,6 +785,9 @@ void FuncVerifyDB(TestChainSetup& setup)
 
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_collateral}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
+    // tx_collateral is looked up later via GetTransaction/g_txindex (in CreateProUpRevTx),
+    // ensure the txindex has indexed this block before that happens
+    IndexWaitSynced(*g_txindex);
     dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
     BOOST_CHECK_EQUAL(chainman.ActiveChain().Height(), nHeight + 1);
     BOOST_CHECK_EQUAL(block->GetHash(), chainman.ActiveChain().Tip()->GetBlockHash());
