@@ -39,6 +39,7 @@
 #include <txdb.h>
 #include <node/context.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -347,7 +348,7 @@ public:
     void setDustProtectionThreshold(CAmount threshold) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->m_dust_protection_threshold = threshold;
+        m_wallet->m_dust_protection_threshold = std::clamp(threshold, CAmount{0}, MAX_DUST_PROTECTION_THRESHOLD);
     }
     void lockExistingDustOutputs() override
     {

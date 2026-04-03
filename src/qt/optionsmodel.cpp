@@ -746,7 +746,7 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
         int64_t val = SettingToInt(setting(), 0);
         if (val > 0) return qlonglong(val);
         return suffix.empty() ? getOption(option, "-prev") :
-                                qlonglong(DEFAULT_DUST_PROTECTION_THRESHOLD);
+                                qlonglong(DEFAULT_GUI_DUST_PROTECTION_THRESHOLD);
     }
 #endif // ENABLE_WALLET
     case Prune:
@@ -1243,7 +1243,7 @@ void OptionsModel::checkAndMigrate()
             bool was_enabled = settings.value("fDustProtection", false).toBool();
             qint64 threshold = std::min<qint64>(
                 settings.value("nDustProtectionThreshold",
-                               qlonglong(DEFAULT_DUST_PROTECTION_THRESHOLD)).toLongLong(),
+                               qlonglong(DEFAULT_GUI_DUST_PROTECTION_THRESHOLD)).toLongLong(),
                 MAX_GUI_DUST_PROTECTION_THRESHOLD);
             if (was_enabled && threshold > 0) {
                 setOption(DustProtection, true);

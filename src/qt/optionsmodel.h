@@ -25,7 +25,7 @@ extern const char *DEFAULT_GUI_PROXY_HOST;
 static constexpr uint16_t DEFAULT_GUI_PROXY_PORT = 9050;
 
 /** Default threshold for dust attack protection (in duffs) */
-static constexpr qint64 DEFAULT_DUST_PROTECTION_THRESHOLD = 10000;
+static constexpr qint64 DEFAULT_GUI_DUST_PROTECTION_THRESHOLD = 10000;
 /** Maximum threshold for dust attack protection (in duffs), matches GUI spinbox and CLI cap */
 static constexpr qint64 MAX_GUI_DUST_PROTECTION_THRESHOLD = 1000000;
 
