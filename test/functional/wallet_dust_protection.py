@@ -156,21 +156,30 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.sync_all()
 
         assert_equal(len(node3.listlockunspent()), 0)
-        num_dust = len(node3.listunspent())
+
+        # Capture exact dust outpoints before restart
+        THRESHOLD = 10000
+        expected_outpoints = set()
+        for utxo in node3.listunspent():
+            if utxo['amount'] <= THRESHOLD * DUFFS:
+                expected_outpoints.add((utxo['txid'], utxo['vout']))
+        assert len(expected_outpoints) > 0, "Test requires at least one dust UTXO on node3"
 
         # Restart node3 WITH dust protection — all existing dust should get locked
-        self.restart_node(3, ["-dustrelayfee=0", "-dustprotectionthreshold=10000"])
+        self.restart_node(3, ["-dustrelayfee=0", "-dustprotectionthreshold=%d" % THRESHOLD])
         self.connect_nodes(0, 3)
 
         locked = node3.listlockunspent()
-        assert_equal(len(locked), num_dust)
+        locked_outpoints = {(entry['txid'], entry['vout']) for entry in locked}
+        assert_equal(locked_outpoints, expected_outpoints)
 
         # Restart again WITHOUT protection — locks should persist (written to DB)
         self.restart_node(3, ["-dustrelayfee=0"])
         self.connect_nodes(0, 3)
 
         locked = node3.listlockunspent()
-        assert_equal(len(locked), num_dust)
+        locked_outpoints = {(entry['txid'], entry['vout']) for entry in locked}
+        assert_equal(locked_outpoints, expected_outpoints)
 
         # Cleanup
         node3.lockunspent(True, locked)
