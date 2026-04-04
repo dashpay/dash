@@ -445,15 +445,14 @@ void NetQuorum::TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex
 {
     if (!m_quorums_recovery) return;
 
-    bool is_masternode = m_role->IsMasternode();
+    const bool is_masternode = m_role->IsMasternode();
+    const uint256 proTxHash = is_masternode ? m_role->GetProTxHash() : uint256{};
 
-    LogPrint(BCLog::LLMQ, "NetQuorum::%s -- Process block %s\n", __func__, block_index->GetBlockHash().ToString());
-
-    const uint256 proTxHash = m_role->GetProTxHash();
+    LogPrint(BCLog::LLMQ, "NetQuorum::%s -- Process block %s as protx_hash=%s\n", __func__, block_index->GetBlockHash().ToString(), proTxHash.ToString());
 
     for (const auto& params : Params().GetConsensus().llmqs) {
         auto vecQuorums = m_qman.ScanQuorums(params.type, block_index, params.keepOldConnections);
-        const bool fWeAreQuorumTypeMember = is_masternode &&std::ranges::any_of(vecQuorums, [&proTxHash](const auto& pQuorum) {
+        const bool fWeAreQuorumTypeMember = is_masternode && std::ranges::any_of(vecQuorums, [&proTxHash](const auto& pQuorum) {
             return pQuorum->IsValidMember(proTxHash);
         });
 

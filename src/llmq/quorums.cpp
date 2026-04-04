@@ -111,6 +111,7 @@ CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
     blsCache{_blsWorker}
 {
     assert(qc != nullptr);
+    assert(m_quorum_base_block_index != nullptr);
 }
 
 bool CQuorum::SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn)
