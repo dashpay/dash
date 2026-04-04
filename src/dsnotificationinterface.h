@@ -25,9 +25,10 @@ public:
                                       const std::unique_ptr<CDeterministicMNManager>& dmnman);
     virtual ~CDSNotificationInterface();
 
-protected:
     // CValidationInterface
     void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) override;
+protected:
+    // CValidationInterface
     void AcceptedBlockHeader(const CBlockIndex *pindexNew) override;
     void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) override;
     void SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) override;

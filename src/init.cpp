@@ -2432,7 +2432,18 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
             const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
-            GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
+            if (node.active_ctx) {
+                // On masternodes, defer the full broadcast until after
+                // nodeman->Init() so that GetProTxHash() is available
+                // for quorum connection setup and skShare derivation.
+                // Only kick CDSNotificationInterface here (cached block
+                // height for DS/MN payments/budgets).
+                g_ds_notification_interface->InitializeCurrentBlockTip(tip, ibd);
+            } else {
+                // Non-masternode nodes (including observer-only): broadcast
+                // to all subscribers now; no proTxHash dependency.
+                GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
+            }
         }
 
         // Seed InstantSend tip-height cache; NetInstantSend receives future
