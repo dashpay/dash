@@ -80,10 +80,13 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Rebuild depends prefix
+        env:
+          DEPENDS_HOST: ${{ inputs.depends-host }}
+          DEP_OPTS: ${{ inputs.depends-dep-opts }}
         run: |
           # Use the HOST and DEP_OPTS from the depends build, not this build-target
           # This ensures the build_id matches the cached packages
-          make -j$(nproc) -C depends HOST="${{ inputs.depends-host }}" ${{ inputs.depends-dep-opts }}
+          env ${DEP_OPTS} make -j$(nproc) -C depends HOST="${DEPENDS_HOST}"
         shell: bash
 
       - name: Restore ccache cache
@@ -155,7 +158,6 @@ jobs:
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          BASE_OUTDIR="/output"
           source ./ci/dash/matrix.sh
           ./ci/dash/test_unittests.sh
         shell: bash

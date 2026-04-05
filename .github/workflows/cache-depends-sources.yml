@@ -12,6 +12,9 @@ on:
     # Run daily at 6 AM UTC on the default branch to keep cache warm
     - cron: '0 6 * * *'
 
+permissions:
+  contents: read
+
 jobs:
   cache-sources:
     name: Cache depends sources
@@ -23,6 +26,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Check for cached sources
         id: cache-check

@@ -55,6 +55,7 @@ jobs:
         id: setup
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
+          RUNS_ON: ${{ inputs.runs-on }}
         run: |
           source ./ci/dash/matrix.sh
           echo "DEP_OPTS=${DEP_OPTS}" >> "${GITHUB_OUTPUT}"
@@ -64,7 +65,7 @@ jobs:
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
           DOCKERFILE_HASH="${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}"
           PACKAGES_HASH="${{ hashFiles('depends/packages/*', 'depends/Makefile') }}"
-          CACHE_KEY="depends-${DOCKERFILE_HASH}-${{ inputs.runs-on }}-${{ inputs.build-target }}-${DEP_HASH}-${PACKAGES_HASH}"
+          CACHE_KEY="depends-${DOCKERFILE_HASH}-${RUNS_ON}-${BUILD_TARGET}-${DEP_HASH}-${PACKAGES_HASH}"
           echo "cache-key=${CACHE_KEY}" >> "${GITHUB_OUTPUT}"
           echo "Cache key: ${CACHE_KEY}"
         shell: bash
@@ -103,6 +104,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Restore depends sources
         uses: actions/cache/restore@v5
@@ -130,8 +132,8 @@ jobs:
 
       - name: Build depends
         env:
-          HOST: ${{ steps.setup.outputs.HOST }}
-          DEP_OPTS: ${{ steps.setup.outputs.DEP_OPTS }}
+          HOST: ${{ needs.check-cache.outputs.host }}
+          DEP_OPTS: ${{ needs.check-cache.outputs.dep-opts }}
         run: |
           if [ "${HOST}" = "x86_64-apple-darwin" ]; then
             ./contrib/containers/guix/scripts/setup-sdk

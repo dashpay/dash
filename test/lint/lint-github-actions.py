@@ -34,10 +34,13 @@ IGNORED = {
         'predict-conflicts.yml:3',
         'semantic-pull-request.yml:3',
     ],
-    # inputs.context is passed to docker/build-push-action but only from internal
-    # workflow_call callers with hardcoded paths - not user-controllable
+    # inputs.context/file/name are passed to docker/build-push-action but only from
+    # internal workflow_call callers with hardcoded paths - not user-controllable.
+    # hashFiles(inputs.file) in the manifest run block produces a hash string.
     'template-injection': [
-        'build-container.yml:60',
+        'build-container.yml:70',
+        'build-container.yml:114',
+        'build-container.yml:157',
     ],
     # packages:write at workflow level is required because reusable workflows
     # (build-container.yml) inherit caller permissions and need it to push to ghcr.io
