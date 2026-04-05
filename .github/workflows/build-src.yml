@@ -48,16 +48,19 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 50
+          persist-credentials: false
 
       - name: Initial setup
         id: setup
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
           git config --global --add safe.directory "$PWD"
           git fetch -fu origin develop:develop
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           echo "HOST=${HOST}" >> $GITHUB_OUTPUT
-          echo "PR_BASE_SHA=${{ github.event.pull_request.base.sha || '' }}" >> $GITHUB_OUTPUT
+          echo "PR_BASE_SHA=${PR_BASE_SHA}" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Restore SDKs cache
@@ -77,10 +80,13 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Rebuild depends prefix
+        env:
+          DEPENDS_HOST: ${{ inputs.depends-host }}
+          DEP_OPTS: ${{ inputs.depends-dep-opts }}
         run: |
           # Use the HOST and DEP_OPTS from the depends build, not this build-target
           # This ensures the build_id matches the cached packages
-          make -j$(nproc) -C depends HOST="${{ inputs.depends-host }}" ${{ inputs.depends-dep-opts }}
+          env ${DEP_OPTS} make -j$(nproc) -C depends HOST="${DEPENDS_HOST}"
         shell: bash
 
       - name: Restore ccache cache
@@ -93,12 +99,13 @@ jobs:
             ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-
 
       - name: Build source
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
           CCACHE_MAXSIZE="600M"
           CACHE_DIR="/cache"
           mkdir /output
           BASE_OUTDIR="/output"
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/build_src.sh
           ccache -X 9
@@ -129,9 +136,9 @@ jobs:
 
       - name: Run linters
         if: inputs.build-target == 'linux64_multiprocess'
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          CACHE_DIR="/cache"
-          export BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/lint-tidy.sh
         shell: bash
@@ -148,16 +155,18 @@ jobs:
           key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
 
       - name: Run unit tests
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/test_unittests.sh
         shell: bash
 
       - name: Bundle artifacts
         id: bundle
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          export BUILD_TARGET="${{ inputs.build-target }}"
           export BUNDLE_KEY="build-${BUILD_TARGET}-$(git rev-parse --short=8 HEAD)"
           find "build-ci/dashcore-${BUILD_TARGET}/src/" -name "*.a" -type f -delete
           find "build-ci/dashcore-${BUILD_TARGET}/src/" -name "*.o" -type f -delete
