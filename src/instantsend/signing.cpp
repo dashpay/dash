@@ -73,14 +73,14 @@ void InstantSendSigner::ClearLockFromQueue(const InstantSendLockPtr& islock)
     txToCreatingInstantSendLocks.erase(islock->txid);
 }
 
-MessageProcessingResult InstantSendSigner::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
+llmq::RecoveredSigResult InstantSendSigner::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
 {
     if (!m_isman.IsInstantSendEnabled()) {
-        return {};
+        return std::monostate{};
     }
 
     if (Params().GetConsensus().llmqTypeDIP0024InstantSend == Consensus::LLMQType::LLMQ_NONE) {
-        return {};
+        return std::monostate{};
     }
 
     uint256 txid;
@@ -92,7 +92,7 @@ MessageProcessingResult InstantSendSigner::HandleNewRecoveredSig(const llmq::CRe
     } else if (/*isInstantSendLock=*/WITH_LOCK(cs_creating, return creatingInstantSendLocks.count(recoveredSig.getId()))) {
         HandleNewInstantSendLockRecoveredSig(recoveredSig);
     }
-    return {};
+    return std::monostate{};
 }
 
 bool InstantSendSigner::IsInstantSendMempoolSigningEnabled() const

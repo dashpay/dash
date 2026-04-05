@@ -13,11 +13,9 @@
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
-#include <msg_result.h>
+#include <netmessagemaker.h>
 #include <util/helpers.h>
 #include <util/std23.h>
-
-#include <netmessagemaker.h>
 #include <util/thread.h>
 #include <util/time.h>
 #include <validation.h>
@@ -1535,11 +1533,11 @@ void CSigSharesManager::ForceReAnnouncement(const CQuorum& quorum, Consensus::LL
     }
 }
 
-MessageProcessingResult CSigSharesManager::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
+RecoveredSigResult CSigSharesManager::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
 {
     auto signHash = recoveredSig.buildSignHash().Get();
     LOCK(cs);
     RemoveSigSharesForSession(signHash);
-    return {};
+    return std::monostate{};
 }
 } // namespace llmq

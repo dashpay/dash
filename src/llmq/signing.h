@@ -8,7 +8,6 @@
 #include <bls/bls.h>
 #include <llmq/params.h>
 #include <llmq/types.h>
-#include <msg_result.h>
 #include <net_types.h>
 #include <random.h>
 #include <saltedhasher.h>
@@ -18,20 +17,26 @@
 #include <memory>
 #include <string_view>
 #include <unordered_map>
+#include <variant>
 
 class CChainState;
 class CDataStream;
 class CDBBatch;
 class CDBWrapper;
 class CInv;
+class CTransaction;
 struct RPCResult;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
 
 class UniValue;
+using CTransactionRef = std::shared_ptr<const CTransaction>;
 
 namespace llmq {
+
+using RecoveredSigResult = std::variant<std::monostate, CInv, CTransactionRef>;
+
 class CQuorumManager;
 class CSigSharesManager;
 class SignHash;
@@ -151,8 +156,7 @@ class CRecoveredSigsListener
 public:
     virtual ~CRecoveredSigsListener() = default;
 
-    // TODO: simplify returned type to std::variant<CInv, CTransaction, std::monostate>
-    [[nodiscard]] virtual MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) = 0;
+    [[nodiscard]] virtual RecoveredSigResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) = 0;
 };
 
 class CSigningManager

@@ -13,7 +13,6 @@
 
 class CScheduler;
 class CMasternodeSync;
-struct MessageProcessingResult;
 namespace llmq {
 class CInstantSendManager;
 class CRecoveredSig;
@@ -80,7 +79,7 @@ public:
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_try_sign, !cs_signer);
 
-    [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig) override
+    [[nodiscard]] llmq::RecoveredSigResult HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_signer);
 
     void Cleanup() EXCLUSIVE_LOCKS_REQUIRED(!cs_signer);

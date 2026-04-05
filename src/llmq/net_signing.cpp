@@ -166,7 +166,12 @@ void NetSigning::ProcessRecoveredSig(std::shared_ptr<const CRecoveredSig> recove
 
     auto listeners = m_sig_manager.GetListeners();
     for (auto& l : listeners) {
-        m_peer_manager->PeerPostProcessMessage(l->HandleNewRecoveredSig(*recovered_sig));
+        auto result = l->HandleNewRecoveredSig(*recovered_sig);
+        if (const auto* inv = std::get_if<CInv>(&result)) {
+            m_peer_manager->PeerRelayInv(*inv);
+        } else if (const auto* tx_ref = std::get_if<CTransactionRef>(&result)) {
+            m_peer_manager->PeerRelayTransaction((*tx_ref)->GetHash());
+        }
     }
 
     // TODO refactor to use a better abstraction analogous to IsAllMembersConnectedEnabled
