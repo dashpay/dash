@@ -233,11 +233,6 @@ PartiallySignedTransaction ProcessPSBT(const std::string& psbt_string, const Cor
     if (g_txindex) g_txindex->BlockUntilSyncedToCurrentChain();
     const NodeContext& node = EnsureAnyNodeContext(context);
 
-    // If we can't find the corresponding full transaction for all of our inputs,
-    // this will be used to find just the utxos for the segwit inputs for which
-    // the full transaction isn't found
-    std::map<COutPoint, Coin> coins;
-
     // Fetch previous transactions:
     // First, look in the txindex and the mempool
     for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
@@ -260,8 +255,6 @@ PartiallySignedTransaction ProcessPSBT(const std::string& psbt_string, const Cor
         }
         if (tx) {
             psbt_input.non_witness_utxo = tx;
-        } else {
-            coins[tx_in.prevout]; // Create empty map entry keyed by prevout
         }
     }
 

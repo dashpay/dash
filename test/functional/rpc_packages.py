@@ -293,12 +293,12 @@ class RPCPackagesTest(BitcoinTestFramework):
         peer.wait_for_broadcast([tx["tx"].hash for tx in package_txns])
         self.generate(node, 1)
 
-    def test_submit_cpfp(self):
+    def test_submit_package_with_modified_fees(self):
         node = self.nodes[0]
         peer = node.add_p2p_connection(P2PTxInvStore())
 
-        # Package with 2 parents and 1 child. One parent pays for itself using modified fees, and
-        # another is below the mempool minimum feerate but is bumped by the child.
+        # Package with 2 parents and 1 child. One parent pays for itself using modified fees
+        # (prioritisetransaction), and the other pays at the relay fee rate.
         tx_poor = self.wallet.create_self_transfer(fee_rate=node.getnetworkinfo()["relayfee"])
         tx_rich = self.wallet.create_self_transfer(fee=0, fee_rate=0)
         node.prioritisetransaction(tx_rich["txid"], int(DEFAULT_FEE * COIN))
@@ -333,8 +333,8 @@ class RPCPackagesTest(BitcoinTestFramework):
             self.test_submit_child_with_parents(num_parents, False)
             self.test_submit_child_with_parents(num_parents, True)
 
-        self.log.info("Submitpackage valid packages with CPFP")
-        self.test_submit_cpfp()
+        self.log.info("Submitpackage valid packages with modified fees (prioritisetransaction)")
+        self.test_submit_package_with_modified_fees()
 
         self.log.info("Submitpackage only allows packages of 1 child with its parents")
         # Chain of 3 transactions has too many generations

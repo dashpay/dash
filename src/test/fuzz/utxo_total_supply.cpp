@@ -36,6 +36,10 @@ FUZZ_TARGET(utxo_total_supply)
         LOCK(::cs_main);
         return chainman.ActiveHeight();
     };
+    const auto ActiveTip = [&]() {
+        LOCK(::cs_main);
+        return chainman.ActiveTip();
+    };
     const auto PrepareNextBlock = [&]() {
         // Use OP_FALSE to avoid BIP30 check from hitting early
         auto block = PrepareBlock(node, CScript{} << OP_FALSE);
@@ -111,7 +115,7 @@ FUZZ_TARGET(utxo_total_supply)
     }
     current_block->hashMerkleRoot = BlockMerkleRoot(*current_block);
     assert(!MineBlock(node, current_block).IsNull());
-    circulation += GetBlockSubsidy(chainman.ActiveTip(), Params().GetConsensus());
+    circulation += GetBlockSubsidy(ActiveTip(), Params().GetConsensus());
 
     assert(ActiveHeight() == 1);
     UpdateUtxoStats();
@@ -143,7 +147,7 @@ FUZZ_TARGET(utxo_total_supply)
 
                 const auto prev_utxo_stats = utxo_stats;
                 if (was_valid) {
-                    circulation += GetBlockSubsidy(chainman.ActiveTip(), Params().GetConsensus());
+                    circulation += GetBlockSubsidy(ActiveTip(), Params().GetConsensus());
 
                     if (duplicate_coinbase_height == ActiveHeight()) {
                         // we mined the duplicate coinbase
