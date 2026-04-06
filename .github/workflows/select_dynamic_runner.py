@@ -22,6 +22,9 @@ DEFAULT_STATUSES = ("queued", "in_progress")
 DEFAULT_RUNNER_AMD64 = "ubuntu-24.04"
 DEFAULT_RUNNER_ARM64 = "ubuntu-24.04-arm"
 REQUEST_TIMEOUT_SECONDS = 10
+# Prefixes — any label starting with one of these indicates a non-GitHub-hosted runner
+NON_GITHUB_HOSTED_RUNNER_PREFIXES = ("blacksmith-",)
+SELF_HOSTED_LABEL = "self-hosted"
 
 
 def parse_next_link(link_header: str) -> Optional[str]:
@@ -78,6 +81,19 @@ def iter_pages(
         next_url = parse_next_link(headers.get("Link", ""))
 
 
+def targets_github_hosted_runner(job: Dict) -> bool:
+    """Return True if the job targets GitHub-hosted runners, not Blacksmith or self-hosted."""
+    for label in job.get("labels", []):
+        if not isinstance(label, str):
+            continue
+        if label == SELF_HOSTED_LABEL:
+            return False
+        for prefix in NON_GITHUB_HOSTED_RUNNER_PREFIXES:
+            if label.startswith(prefix):
+                return False
+    return True
+
+
 def count_queued_jobs(
     fetch_json: Callable[[str], Tuple[Dict, Dict[str, str]]],
     repos: Sequence[str],
@@ -104,7 +120,7 @@ def count_queued_jobs(
             ).format(repo, run_id)
             for payload in iter_pages(fetch_json, jobs_url):
                 for job in payload.get("jobs", []):
-                    if job.get("status") == "queued":
+                    if job.get("status") == "queued" and targets_github_hosted_runner(job):
                         queued_jobs += 1
 
     return queued_jobs

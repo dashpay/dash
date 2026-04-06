@@ -29,9 +29,9 @@ class SelectDynamicRunnerTest(unittest.TestCase):
             jobs_url: (
                 {
                     "jobs": [
-                        {"status": "queued"},
-                        {"status": "queued"},
-                        {"status": "in_progress"},
+                        {"status": "queued", "labels": ["ubuntu-24.04"]},
+                        {"status": "queued", "labels": ["ubuntu-24.04"]},
+                        {"status": "in_progress", "labels": ["ubuntu-24.04"]},
                     ]
                 },
                 {},
@@ -42,6 +42,39 @@ class SelectDynamicRunnerTest(unittest.TestCase):
             return responses[url]
 
         self.assertEqual(MODULE.count_queued_jobs(fetch_json, [repo]), 2)
+
+    def test_count_queued_jobs_excludes_blacksmith_jobs(self):
+        repo = "dashpay/dash"
+        queued_url = (
+            "https://api.github.com/repos/{}/actions/runs?status=queued&per_page=100"
+        ).format(repo)
+        in_progress_url = (
+            "https://api.github.com/repos/{}/actions/runs?status=in_progress&per_page=100"
+        ).format(repo)
+        jobs_url = (
+            "https://api.github.com/repos/{}/actions/runs/101/jobs?per_page=100"
+        ).format(repo)
+
+        responses = {
+            queued_url: ({"workflow_runs": [{"id": 101}]}, {}),
+            in_progress_url: ({"workflow_runs": []}, {}),
+            jobs_url: (
+                {
+                    "jobs": [
+                        {"status": "queued", "labels": ["ubuntu-24.04"]},
+                        {"status": "queued", "labels": ["blacksmith-4vcpu-ubuntu-2404"]},
+                        {"status": "queued", "labels": ["blacksmith-4vcpu-ubuntu-2404-arm"]},
+                        {"status": "queued", "labels": ["self-hosted", "linux"]},
+                    ]
+                },
+                {},
+            ),
+        }
+
+        def fetch_json(url):
+            return responses[url]
+
+        self.assertEqual(MODULE.count_queued_jobs(fetch_json, [repo]), 1)
 
     def test_label_override_selects_blacksmith_even_with_low_backlog(self):
         outputs = MODULE.select_runners(
@@ -74,7 +107,7 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         responses = {
             queued_url: ({"workflow_runs": [{"id": 101}]}, {}),
             in_progress_url: ({"workflow_runs": []}, {}),
-            jobs_url: ({"jobs": [{"status": "queued"}] * 11}, {}),
+            jobs_url: ({"jobs": [{"status": "queued", "labels": ["ubuntu-24.04"]}] * 11}, {}),
         }
 
         outputs = MODULE.select_runners(
