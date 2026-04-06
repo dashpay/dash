@@ -745,7 +745,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams, uint256* hash_out)
 {
     block.SetNull();
 
@@ -763,9 +763,11 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+    const uint256 hash{block.GetHash()};
+    if (!CheckProofOfWork(hash, block.nBits, consensusParams)) {
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
     }
+    if (hash_out) *hash_out = hash;
 
     return true;
 }
@@ -774,10 +776,11 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 {
     const FlatFilePos block_pos{WITH_LOCK(cs_main, return pindex->GetBlockPos())};
 
-    if (!ReadBlockFromDisk(block, block_pos, consensusParams)) {
+    uint256 hash;
+    if (!ReadBlockFromDisk(block, block_pos, consensusParams, &hash)) {
         return false;
     }
-    if (block.GetHash() != pindex->GetBlockHash()) {
+    if (hash != pindex->GetBlockHash()) {
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      pindex->ToString(), block_pos.ToString());
     }

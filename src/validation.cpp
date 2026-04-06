@@ -3971,7 +3971,7 @@ static bool CheckBlockHeader(const CBlockHeader& block, const uint256& hash, Blo
     return true;
 }
 
-bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
+bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, const uint256* known_hash)
 {
     // These are checks that are independent of context.
 
@@ -3982,7 +3982,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, block.GetHash(), state, consensusParams, fCheckPOW))
+    if (!CheckBlockHeader(block, known_hash ? *known_hash : block.GetHash(), state, consensusParams, fCheckPOW))
         return false;
 
     // Check the merkle root.
@@ -4182,11 +4182,9 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     return true;
 }
 
-bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValidationState& state, CBlockIndex** ppindex)
+bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValidationState& state, CBlockIndex** ppindex, const uint256& hash)
 {
     AssertLockHeld(cs_main);
-    // Check for duplicate
-    uint256 hash = block.GetHash();
 
     // TODO : ENABLE BLOCK CACHE IN SPECIFIC CASES
     BlockMap::iterator miSelf{m_blockman.m_block_index.find(hash)};
@@ -4320,7 +4318,7 @@ bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& 
         LOCK(cs_main);
         for (const CBlockHeader& header : headers) {
             CBlockIndex *pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
-            bool accepted{AcceptBlockHeader(header, state, &pindex)};
+            bool accepted{AcceptBlockHeader(header, state, &pindex, header.GetHash())};
             ActiveChainstate().CheckBlockIndex();
 
             if (!accepted) {
@@ -4343,7 +4341,7 @@ bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& 
 }
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
-bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock)
+bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, const uint256* known_hash)
 {
     auto start = Now<SteadyMicroseconds>();
 
@@ -4355,7 +4353,8 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
     CBlockIndex *pindexDummy = nullptr;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
-    bool accepted_header{m_chainman.AcceptBlockHeader(block, state, &pindex)};
+    const uint256 hash{known_hash ? *known_hash : block.GetHash()};
+    bool accepted_header{m_chainman.AcceptBlockHeader(block, state, &pindex, hash)};
     CheckBlockIndex();
 
     if (!accepted_header)
@@ -4394,7 +4393,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
         if (pindex->nChainWork < nMinimumChainWork) return true;
     }
 
-    if (!CheckBlock(block, state, m_params.GetConsensus()) ||
+    if (!CheckBlock(block, state, m_params.GetConsensus(), true, true, &hash) ||
         !ContextualCheckBlock(block, state, m_chainman, pindex->pprev)) {
         if (state.IsInvalid() && state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
@@ -5146,7 +5145,7 @@ void CChainState::LoadExternalBlockFile(
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
-                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr)) {
+                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, &hash)) {
                             nLoaded++;
                         }
                         if (state.IsError()) {
@@ -5179,14 +5178,15 @@ void CChainState::LoadExternalBlockFile(
                     while (range.first != range.second) {
                         std::multimap<uint256, FlatFilePos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (ReadBlockFromDisk(*pblockrecursive, it->second, m_params.GetConsensus())) {
-                            LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
+                        uint256 blockhash;
+                        if (ReadBlockFromDisk(*pblockrecursive, it->second, m_params.GetConsensus(), &blockhash)) {
+                            LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, blockhash.ToString(),
                                     head.ToString());
                             LOCK(cs_main);
                             BlockValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr)) {
+                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, &blockhash)) {
                                 nLoaded++;
-                                queue.push_back(pblockrecursive->GetHash());
+                                queue.push_back(blockhash);
                             }
                         }
                         range.first++;
