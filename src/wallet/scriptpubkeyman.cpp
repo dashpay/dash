@@ -1978,6 +1978,8 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
         if (!hdChainDecrypted.GetAccount(0, acc)) {
             throw std::runtime_error(std::string(__func__) + ": GetAccount(0) failed");
         }
+        out.external_chain_counter = acc.nExternalChainCounter;
+        out.internal_chain_counter = acc.nInternalChainCounter;
 
         // Derive the master key from the seed and extract the mnemonic for both
         // the migration combo descriptors below and the active descriptors that
@@ -2355,6 +2357,18 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
     assert(m_wallet_descriptor.range_end - 1 == m_max_cached_index);
 
     NotifyCanGetAddressesChanged();
+    return true;
+}
+
+bool DescriptorScriptPubKeyMan::AdvanceNextIndexTo(int32_t target)
+{
+    LOCK(cs_desc_man);
+    if (target <= m_wallet_descriptor.next_index) return true;
+    // TopUp() bases its new_range_end on next_index + size, so request enough
+    // to cover the gap from the current next_index up to target.
+    if (!TopUp(target - m_wallet_descriptor.next_index)) return false;
+    m_wallet_descriptor.next_index = target;
+    WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
     return true;
 }
 

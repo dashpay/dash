@@ -4355,6 +4355,18 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
         // Use the existing master key if we have it
         if (data.master_key.key.IsValid()) {
             SetupDescriptorScriptPubKeyMans(data.master_key, data.mnemonic, data.mnemonic_passphrase);
+
+            // Advance the active pkh() descriptors past the legacy chain
+            // counters so post-migration getnewaddress doesn't hand back
+            // addresses the legacy wallet already derived. The historical
+            // scripts themselves are still recognized by the inactive combo
+            // descriptors built in MigrateToDescriptor.
+            for (bool internal : {false, true}) {
+                auto* desc_spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(GetScriptPubKeyMan(/*internal=*/internal));
+                if (desc_spk_man == nullptr) continue;
+                const uint32_t counter = internal ? data.internal_chain_counter : data.external_chain_counter;
+                if (counter > 0) desc_spk_man->AdvanceNextIndexTo(counter);
+            }
         } else {
             // Setup with a new seed if we don't.
             SetupDescriptorScriptPubKeyMans("", "");

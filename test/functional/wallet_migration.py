@@ -100,6 +100,16 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.assert_addr_info_equal(addr_info, old_addr_info)
         self.assert_addr_info_equal(change_addr_info, old_change_addr_info)
 
+        self.log.info("Test for re-using old addresses after migration")
+        new_addr = basic0.getnewaddress()
+        new_change = basic0.getrawchangeaddress()
+        assert not new_addr == addr
+        assert not new_change == change
+        assert_equal(addr_info["hdkeypath"], "m/44'/1'/0'/0/0")
+        assert_equal(change_addr_info["hdkeypath"], "m/44'/1'/0'/1/0")
+        assert_equal(basic0.getaddressinfo(new_addr)["hdkeypath"], "m/44'/1'/0'/0/2")
+        assert_equal(basic0.getaddressinfo(new_change)["hdkeypath"], "m/44'/1'/0'/1/2")
+
         self.log.info("Test migration of a basic keys only wallet with a balance")
         basic1 = self.create_legacy_wallet("basic1")
 

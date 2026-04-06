@@ -111,6 +111,15 @@ struct MigrationData
     CExtKey master_key;
     SecureString mnemonic;
     SecureString mnemonic_passphrase;
+    // Highest BIP44 index the legacy wallet ever derived per chain (external/0,
+    // internal/1). The active pkh() descriptors created during migration must
+    // start handing out the next address from this index, otherwise post-
+    // migration getnewaddress would re-derive addresses the legacy wallet had
+    // already given out. Carried via MigrationData purely to advance the active
+    // descriptors' next_index — the inactive combo descriptors built in
+    // MigrateToDescriptor already cover the history themselves.
+    uint32_t external_chain_counter{0};
+    uint32_t internal_chain_counter{0};
     std::vector<std::pair<std::string, int64_t>> watch_descs;
     std::vector<std::pair<std::string, int64_t>> solvable_descs;
     std::vector<std::unique_ptr<DescriptorScriptPubKeyMan>> desc_spkms;
