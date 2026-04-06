@@ -1974,6 +1974,17 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
             hdChainDecrypted = m_hd_chain;
         }
 
+        // Stock Dash legacy wallets only ever use a single BIP44 account (index 0):
+        // GenerateNewKey is hardcoded to account 0 at every call site and the chain
+        // is initialized with exactly one AddAccount(). A wallet created by a
+        // modified build with multiple accounts cannot be migrated by this code path
+        // since the descriptor wallet also only uses one account — bail out instead
+        // of silently dropping the higher accounts' keys.
+        if (hdChainDecrypted.CountAccounts() != 1) {
+            throw std::runtime_error(strprintf("%s: legacy HD chain has %d accounts; "
+                "migration only supports wallets with a single BIP44 account",
+                __func__, hdChainDecrypted.CountAccounts()));
+        }
         CHDAccount acc;
         if (!hdChainDecrypted.GetAccount(0, acc)) {
             throw std::runtime_error(std::string(__func__) + ": GetAccount(0) failed");
