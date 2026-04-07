@@ -78,6 +78,10 @@ class WalletMigrationTest(BitcoinTestFramework):
         assert_equal(old_change_addr_info["ismine"], True)
         assert_equal(old_change_addr_info["hdkeypath"], "m/44'/1'/0'/1/0")
 
+        legacy_hdinfo = basic0.dumphdinfo()
+        legacy_mnemonic = legacy_hdinfo["mnemonic"]
+        legacy_mnemonic_passphrase = legacy_hdinfo["mnemonicpassphrase"]
+
         # Note: migration could take a while.
         basic0.migratewallet()
 
@@ -99,6 +103,10 @@ class WalletMigrationTest(BitcoinTestFramework):
         change_addr_info = basic0.getaddressinfo(change)
         self.assert_addr_info_equal(addr_info, old_addr_info)
         self.assert_addr_info_equal(change_addr_info, old_change_addr_info)
+
+        for d in basic0.listdescriptors(True)["descriptors"]:
+            assert_equal(d["mnemonic"], legacy_mnemonic)
+            assert_equal(d["mnemonicpassphrase"], legacy_mnemonic_passphrase)
 
         self.log.info("Test for re-using old addresses after migration")
         new_addr = basic0.getnewaddress()
