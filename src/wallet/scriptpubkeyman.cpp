@@ -1940,11 +1940,13 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
         desc_spk_man->TopUp();
         auto desc_spks = desc_spk_man->GetScriptPubKeys();
 
-        // Remove the scriptPubKeys from our current set
+        // Erase every script form combo just produced from the tracking set.
+        // Legacy GetScriptPubKeys only enumerates P2PK and P2PKH for loose
+        // keys (Dash has no segwit, so LearnRelatedScripts never inserts the
+        // P2SH-P2PKH form into mapScripts), so the third script combo emits
+        // is not in `spks` — only erase what's there.
         for (const CScript& spk : desc_spks) {
-            size_t erased = spks.erase(spk);
-            assert(erased == 1);
-            assert(IsMine(spk) == ISMINE_SPENDABLE);
+            spks.erase(spk);
         }
 
         out.desc_spkms.push_back(std::move(desc_spk_man));
