@@ -3977,12 +3977,15 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     auto start = Now<SteadyMicroseconds>();
 
+    assert(!known_hash || *known_hash == block.GetHash());
+
     if (block.fChecked)
         return true;
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, known_hash ? *known_hash : block.GetHash(), state, consensusParams, fCheckPOW))
+    const uint256 hash{known_hash ? *known_hash : block.GetHash()};
+    if (!CheckBlockHeader(block, hash, state, consensusParams, fCheckPOW))
         return false;
 
     // Check the merkle root.
@@ -4186,6 +4189,8 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
 {
     AssertLockHeld(cs_main);
 
+    assert(hash == block.GetHash());
+
     // TODO : ENABLE BLOCK CACHE IN SPECIFIC CASES
     BlockMap::iterator miSelf{m_blockman.m_block_index.find(hash)};
     if (hash != GetConsensus().hashGenesisBlock) {
@@ -4352,6 +4357,8 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
 
     CBlockIndex *pindexDummy = nullptr;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
+
+    assert(!known_hash || *known_hash == block.GetHash());
 
     const uint256 hash{known_hash ? *known_hash : block.GetHash()};
     bool accepted_header{m_chainman.AcceptBlockHeader(block, state, &pindex, hash)};
