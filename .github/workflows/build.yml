@@ -21,7 +21,8 @@ concurrency:
 jobs:
   check-skip:
     name: Check skip conditions
-    runs-on: ${{ vars.RUNNER_AMD64 || 'ubuntu-24.04' }}
+    # Keep the bootstrap job cheap; RUNNER_CHECK_SKIP can point to a small Blacksmith ARM runner.
+    runs-on: ${{ vars.RUNNER_CHECK_SKIP || 'ubuntu-24.04-arm' }}
     outputs:
       skip: ${{ steps.skip-check.outputs.skip }}
       runner-amd64: ${{ steps.select-runner.outputs.runner_amd64 }}
