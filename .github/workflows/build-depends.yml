@@ -11,6 +11,10 @@ on:
         description: "Path to built container at registry"
         required: true
         type: string
+      base-image-digest:
+        description: "Short hash of the CI base image manifest for cache busting"
+        required: true
+        type: string
       runs-on:
         description: "Runner label to use (e.g., ubuntu-24.04 or ubuntu-24.04-arm)"
         required: true
@@ -33,6 +37,7 @@ jobs:
     outputs:
       cache-hit: ${{ steps.cache-check.outputs.cache-hit }}
       cache-key: ${{ steps.setup.outputs.cache-key }}
+      cache-key-prefix: ${{ steps.setup.outputs.cache-key-prefix }}
       host: ${{ steps.setup.outputs.HOST }}
       dep-opts: ${{ steps.setup.outputs.DEP_OPTS }}
     steps:
@@ -62,7 +67,9 @@ jobs:
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
           DOCKERFILE_HASH="${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}"
           PACKAGES_HASH="${{ hashFiles('depends/packages/*', 'depends/Makefile') }}"
-          CACHE_KEY="depends-${DOCKERFILE_HASH}-${{ inputs.runs-on }}-${{ inputs.build-target }}-${DEP_HASH}-${PACKAGES_HASH}"
+          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${{ inputs.base-image-digest }}-${{ inputs.runs-on }}-${{ inputs.build-target }}"
+          CACHE_KEY="${CACHE_KEY_PREFIX}-${DEP_HASH}-${PACKAGES_HASH}"
+          echo "cache-key-prefix=${CACHE_KEY_PREFIX}" >> "${GITHUB_OUTPUT}"
           echo "cache-key=${CACHE_KEY}" >> "${GITHUB_OUTPUT}"
           echo "Cache key: ${CACHE_KEY}"
         shell: bash
@@ -124,7 +131,7 @@ jobs:
           path: depends/built/${{ needs.check-cache.outputs.host }}
           key: ${{ needs.check-cache.outputs.cache-key }}
           restore-keys: |
-            depends-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}-${{ inputs.build-target }}-
+            ${{ needs.check-cache.outputs.cache-key-prefix }}-
 
       - name: Build depends
         run: |
