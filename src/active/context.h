@@ -78,6 +78,7 @@ public:
 
 protected:
     // CValidationInterface
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
 public:

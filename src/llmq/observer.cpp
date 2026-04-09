@@ -33,6 +33,11 @@ ObserverContext::~ObserverContext()
     m_qman.DisconnectManagers();
 }
 
+void ObserverContext::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd)
+{
+    UpdatedBlockTip(tip, nullptr, ibd);
+}
+
 void ObserverContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
 {
     if (fInitialDownload || pindexNew == pindexFork) // In IBD or blocks were disconnected without any new ones

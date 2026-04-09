@@ -51,6 +51,7 @@ public:
     bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override { return false; }
 protected:
     // CValidationInterface
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
 public:
