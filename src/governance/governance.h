@@ -444,6 +444,4 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 };
 
-bool AreSuperblocksEnabled(const CSporkManager& sporkman);
-
 #endif // BITCOIN_GOVERNANCE_GOVERNANCE_H

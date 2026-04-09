@@ -731,12 +731,10 @@ static RPCHelpMan getblocktemplate()
         }
     }
 
-    // next bock is a superblock and we need governance info to correctly construct it
-    CHECK_NONFATAL(node.sporkman);
-    if (AreSuperblocksEnabled(*node.sporkman)
-        && !node.mn_sync->IsSynced()
-        && CSuperblock::IsValidBlockHeight(active_chain.Height() + 1))
-            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is syncing with network...");
+    if (!node.mn_sync->IsSynced() && CSuperblock::IsValidBlockHeight(active_chain.Height() + 1)) {
+        // Next block is a superblock but we need governance info to correctly construct it.
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is syncing with network...");
+    }
 
     static unsigned int nTransactionsUpdatedLast;
     const CTxMemPool& mempool = EnsureMemPool(node);
@@ -962,7 +960,7 @@ static RPCHelpMan getblocktemplate()
     }
     result.pushKV("superblock", superblockObjArray);
     result.pushKV("superblocks_started", pindexPrev->nHeight + 1 > consensusParams.nSuperblockStartBlock);
-    result.pushKV("superblocks_enabled", AreSuperblocksEnabled(*node.sporkman));
+    result.pushKV("superblocks_enabled", true);
 
     result.pushKV("coinbase_payload", HexStr(pblock->vtx[0]->vExtraPayload));
 

@@ -89,7 +89,6 @@ class DashGovernanceTest (DashTestFramework):
         self.expected_v20_budget = satoshi_round("18.57142860")
 
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 4070908800)
-        self.nodes[0].sporkupdate("SPORK_9_SUPERBLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()
 
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 0)

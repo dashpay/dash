@@ -241,17 +241,6 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
 
     // we are synced and possibly on a superblock now
 
-    if (!AreSuperblocksEnabled(m_sporkman)) {
-        // should NOT allow superblocks at all, when superblocks are disabled
-        // revert to block reward limits in this case
-        LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Superblocks are disabled, no superblocks allowed\n", __func__);
-        if(!isBlockRewardValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, superblocks are disabled",
-                                    nBlockHeight, block.vtx[0]->GetValueOut(), blockReward);
-        }
-        return isBlockRewardValueMet;
-    }
-
     if (!check_superblock) return true;
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
@@ -308,26 +297,23 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
     }
 
     // superblocks started
+    if (!check_superblock) return true;
 
-    if (AreSuperblocksEnabled(m_sporkman)) {
-        if (!check_superblock) return true;
-        const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-        if (m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
-            if (m_govman.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
-                                           blockSubsidy + feeReward)) {
-                LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
-                // continue validation, should also pay MN
-            } else {
-                LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
-                // should NOT allow such superblocks, when superblocks are enabled
-                return false;
-            }
+    const auto tip_mn_list = m_dmnman.GetListAtChainTip();
+    if (m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+        if (m_govman.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
+                                       blockSubsidy + feeReward)) {
+            LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", /* Continued */
+                     __func__, nBlockHeight, txNew.ToString());
+            // continue validation, should also pay MN
         } else {
-            LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- No triggered superblock detected at height %d\n", __func__, nBlockHeight);
+            LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", /* Continued */
+                      __func__, nBlockHeight, txNew.ToString());
+            return false;
         }
     } else {
-        // should NOT allow superblocks at all, when superblocks are disabled
-        LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Superblocks are disabled, no superblocks allowed\n", __func__);
+        LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- No triggered superblock detected at height %d\n",
+                 __func__, nBlockHeight);
     }
 
     return true;
@@ -338,10 +324,9 @@ void CMNPaymentsProcessor::FillBlockPayments(CMutableTransaction& txNew, const C
 {
     int nBlockHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
 
-    // only create superblocks if spork is enabled AND if superblock is actually triggered
-    // (height should be validated inside)
+    // Only create superblocks when one is actually triggered.
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-    if (AreSuperblocksEnabled(m_sporkman) && m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+    if (m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
         LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Triggered superblock creation at height %d\n", __func__, nBlockHeight);
         m_govman.GetSuperblockPayments(tip_mn_list, nBlockHeight, voutSuperblockPaymentsRet);
     }

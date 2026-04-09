@@ -1490,8 +1490,3 @@ std::vector<std::shared_ptr<const CGovernanceObject>> CGovernanceManager::GetApp
 
     return ret;
 }
-
-bool AreSuperblocksEnabled(const CSporkManager& sporkman)
-{
-    return sporkman.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED);
-}
