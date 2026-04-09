@@ -2514,10 +2514,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         if (node.active_ctx) {
             node.active_ctx->nodeman->Init(chainman.ActiveTip());
-            // Re-initialize block tip for handlers that depend on
-            // proTxHash (set by nodeman->Init above).  The first call
-            // at step 7d ran before Init, so quorum connections were
-            // skipped for masternodes with a null proTxHash.
+            // Now that nodeman->Init has set proTxHash, fan out the
+            // startup tip to all CValidationInterface subscribers.
+            // The earlier call only kicked CDSNotificationInterface
+            // directly because the full broadcast (NetQuorum,
+            // ActiveContext) depends on a valid proTxHash.
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
             const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
             GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
