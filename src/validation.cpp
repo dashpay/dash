@@ -5185,8 +5185,8 @@ void CChainState::LoadExternalBlockFile(
                     while (range.first != range.second) {
                         std::multimap<uint256, FlatFilePos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        uint256 blockhash;
-                        if (ReadBlockFromDisk(*pblockrecursive, it->second, m_params.GetConsensus(), &blockhash)) {
+                        if (auto opt_hash{ReadBlockFromDisk(*pblockrecursive, it->second, m_params.GetConsensus())}) {
+                            const uint256& blockhash = *opt_hash;
                             LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, blockhash.ToString(),
                                     head.ToString());
                             LOCK(cs_main);

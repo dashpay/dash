@@ -745,42 +745,44 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams, uint256* hash_out)
+std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
 {
     block.SetNull();
 
     // Open history file to read
     CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull()) {
-        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+        error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+        return std::nullopt;
     }
 
     // Read block
     try {
         filein >> block;
     } catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+        error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+        return std::nullopt;
     }
 
     // Check the header
     const uint256 hash{block.GetHash()};
     if (!CheckProofOfWork(hash, block.nBits, consensusParams)) {
-        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+        error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+        return std::nullopt;
     }
-    if (hash_out) *hash_out = hash;
 
-    return true;
+    return hash;
 }
 
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
 {
     const FlatFilePos block_pos{WITH_LOCK(cs_main, return pindex->GetBlockPos())};
 
-    uint256 hash;
-    if (!ReadBlockFromDisk(block, block_pos, consensusParams, &hash)) {
+    const auto hash{ReadBlockFromDisk(block, block_pos, consensusParams)};
+    if (!hash) {
         return false;
     }
-    if (hash != pindex->GetBlockHash()) {
+    if (*hash != pindex->GetBlockHash()) {
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      pindex->ToString(), block_pos.ToString());
     }

@@ -13,6 +13,7 @@
 #include <txdb.h>
 
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -221,7 +222,7 @@ fs::path GetBlockPosFilename(const FlatFilePos& pos);
 void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 
 /** Functions for disk access for blocks */
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams, uint256* hash_out = nullptr);
+std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
 bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
