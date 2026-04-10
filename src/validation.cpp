@@ -4358,6 +4358,9 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
     CBlockIndex *pindexDummy = nullptr;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
+    // If the caller supplies a pre-computed hash, verify it in debug builds.
+    // In release builds a wrong hash is still caught: AcceptBlockHeader calls
+    // CheckBlockHeader which runs CheckProofOfWork against the header's nBits.
     ASSERT_IF_DEBUG(!known_hash || *known_hash == block.GetHash());
 
     const uint256 hash{known_hash ? *known_hash : block.GetHash()};

@@ -203,8 +203,9 @@ BOOST_AUTO_TEST_CASE(processnewblock_signals_ordering)
 }
 
 /**
- * Test that CheckBlock and AcceptBlock work correctly when a pre-computed
- * known_hash is supplied (the reindex optimization path).
+ * Test that AcceptBlock works correctly when a pre-computed known_hash is
+ * supplied, exercising the reindex optimization path through AcceptBlockHeader
+ * and CheckBlock.
  */
 BOOST_AUTO_TEST_CASE(checkblock_accept_known_hash)
 {
@@ -214,17 +215,11 @@ BOOST_AUTO_TEST_CASE(checkblock_accept_known_hash)
 
     auto good = GoodBlock(Params().GenesisBlock().GetHash());
     const uint256 hash{good->GetHash()};
-    const CChainParams& chainparams = Params();
 
-    // CheckBlock with correct known_hash should succeed
-    {
-        BlockValidationState state;
-        BOOST_CHECK(CheckBlock(*good, state, chainparams.GetConsensus(),
-                               /*fCheckPOW=*/true, /*fCheckMerkleRoot=*/true, &hash));
-        BOOST_CHECK(state.IsValid());
-    }
-
-    // AcceptBlock with correct known_hash should succeed
+    // AcceptBlock with correct known_hash should succeed.
+    // Do not call CheckBlock beforehand: that would set fChecked=true,
+    // causing AcceptBlock's internal CheckBlock to short-circuit and skip
+    // the known_hash path. Keeping fChecked=false mirrors the reindex flow.
     {
         LOCK(::cs_main);
         BlockValidationState state;
