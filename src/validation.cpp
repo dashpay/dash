@@ -3977,7 +3977,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     auto start = Now<SteadyMicroseconds>();
 
-    assert(!known_hash || *known_hash == block.GetHash());
+    ASSERT_IF_DEBUG(!known_hash || *known_hash == block.GetHash());
 
     if (block.fChecked)
         return true;
@@ -4189,7 +4189,7 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
 {
     AssertLockHeld(cs_main);
 
-    assert(hash == block.GetHash());
+    ASSERT_IF_DEBUG(hash == block.GetHash());
 
     // TODO : ENABLE BLOCK CACHE IN SPECIFIC CASES
     BlockMap::iterator miSelf{m_blockman.m_block_index.find(hash)};
@@ -4358,7 +4358,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
     CBlockIndex *pindexDummy = nullptr;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
-    assert(!known_hash || *known_hash == block.GetHash());
+    ASSERT_IF_DEBUG(!known_hash || *known_hash == block.GetHash());
 
     const uint256 hash{known_hash ? *known_hash : block.GetHash()};
     bool accepted_header{m_chainman.AcceptBlockHeader(block, state, &pindex, hash)};
