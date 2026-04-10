@@ -50,10 +50,10 @@ static RPCHelpMan listaddressbalances()
             {"minamount", RPCArg::Type::NUM, RPCArg::Default{0}, "Minimum balance in " + CURRENCY_UNIT + " an address should have to be shown in the list"},
         },
         RPCResult{
-            RPCResult::Type::ARR, "", "",
-            {
-                {RPCResult::Type::STR_AMOUNT, "amount", "The Dash address and the amount in " + CURRENCY_UNIT},
-            }
+                RPCResult::Type::OBJ_DYN, "addresses", "Balances of addresses",
+                {
+                        {RPCResult::Type::STR_AMOUNT, "address", "the amount in " + CURRENCY_UNIT},
+                }
         },
         RPCExamples{
             HelpExampleCli("listaddressbalances", "")
