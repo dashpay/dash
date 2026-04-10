@@ -55,8 +55,6 @@ class DashGovernanceTest (DashTestFramework):
         self.sync_blocks()
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
-        self.wait_for_sporks_same()
-
         # Move to the superblock cycle start block
         n = sb_cycle - self.nodes[0].getblockcount() % sb_cycle
         if n > 0:

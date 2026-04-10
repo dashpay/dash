@@ -14,10 +14,12 @@
 #include <core_io.h>
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
+#include <governance/classes.h>
 #include <key_io.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
 #include <evo/evodb.h>
+#include <masternode/sync.h>
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
@@ -41,10 +43,6 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
-
-#include <governance/classes.h>
-#include <governance/governance.h>
-#include <masternode/sync.h>
 
 #include <memory>
 #include <stdint.h>

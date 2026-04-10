@@ -40,7 +40,6 @@ class CGovernanceObject;
 class CGovernanceVote;
 class CMasternodeMetaMan;
 class CMasternodeSync;
-class CSporkManager;
 class CSuperblock;
 
 class UniValue;
