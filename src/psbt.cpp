@@ -286,6 +286,13 @@ bool SignPSBTInput(const SigningProvider& provider, PartiallySignedTransaction& 
     return sig_complete;
 }
 
+void RemoveUnnecessaryTransactions(PartiallySignedTransaction& /* psbtx */, const int& /* sighash_type */)
+{
+    // Dash does not support segwit, so there are no witness_utxos to consider.
+    // In Bitcoin, this function drops non_witness_utxos when all inputs are
+    // segwit v1+, which cannot occur in Dash.
+}
+
 bool FinalizePSBT(PartiallySignedTransaction& psbtx)
 {
     // Finalize input signatures -- in case we have partial signatures that add up to a complete

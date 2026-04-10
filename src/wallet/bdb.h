@@ -187,6 +187,7 @@ private:
     bool WriteKey(CDataStream&& key, CDataStream&& value, bool overwrite = true) override;
     bool EraseKey(CDataStream&& key) override;
     bool HasKey(CDataStream&& key) override;
+    bool ErasePrefix(Span<const std::byte> prefix) override;
 
 protected:
     Db* pdb{nullptr};
@@ -214,6 +215,7 @@ public:
     bool TxnBegin() override;
     bool TxnCommit() override;
     bool TxnAbort() override;
+    DbTxn* txn() const { return activeTxn; }
 };
 
 std::string BerkeleyDatabaseVersion();

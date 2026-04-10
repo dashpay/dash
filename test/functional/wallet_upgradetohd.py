@@ -66,10 +66,16 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
             for out in outs:
                 if out['value'] == 1:
                     keypath = node.getaddressinfo(out['scriptPubKey']['address'])['hdkeypath']
-                    assert_equal(keypath, "m/44'/1'/0'/0/%d" % i)
+                    if self.options.descriptors:
+                        assert_equal(keypath, "m/44h/1h/0h/0/%d" % i)
+                    else:
+                        assert_equal(keypath, "m/44'/1'/0'/0/%d" % i)
                 else:
                     keypath = node.getaddressinfo(out['scriptPubKey']['address'])['hdkeypath']
-                    assert_equal(keypath, "m/44'/1'/0'/1/%d" % i)
+                    if self.options.descriptors:
+                        assert_equal(keypath, "m/44h/1h/0h/1/%d" % i)
+                    else:
+                        assert_equal(keypath, "m/44'/1'/0'/1/%d" % i)
 
         self.bump_mocktime(1)
         self.generate(node, 1, sync_fun=self.no_op)

@@ -69,7 +69,7 @@ static void add_coin(const CAmount& nValue, int nInput, CoinSet& set, CAmount fe
     set.insert(coin);
 }
 
-static void add_coin(CoinsResult& available_coins, CWallet& wallet, const CAmount& nValue, CFeeRate feerate = CFeeRate(0), int nAge = 6*24, bool fIsFromMe = false, int nInput =0, bool spendable = false)
+static void add_coin(CoinsResult& available_coins, CWallet& wallet, const CAmount& nValue, CFeeRate feerate = CFeeRate(0), int nAge = 6*24, bool fIsFromMe = false, int nInput =0, bool spendable = false, int custom_size = 0)
 {
     CMutableTransaction tx;
     tx.nLockTime = nextLockTime++;        // so all transactions get different hashes
@@ -85,7 +85,13 @@ static void add_coin(CoinsResult& available_coins, CWallet& wallet, const CAmoun
     assert(ret.second);
     CWalletTx& wtx = (*ret.first).second;
     const auto& txout = wtx.tx->vout.at(nInput);
-    available_coins.legacy.emplace_back(COutPoint(wtx.GetHash(), nInput), txout, nAge, CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr), /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, wtx.GetTxTime(), fIsFromMe, feerate);
+    available_coins.legacy.emplace_back(COutPoint(wtx.GetHash(), nInput), txout, nAge, custom_size == 0 ? CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr) : custom_size, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, wtx.GetTxTime(), fIsFromMe, feerate);
+}
+
+inline std::optional<SelectionResult> SelectCoinsBnB(std::vector<OutputGroup>& utxo_pool, const CAmount& selection_target, const CAmount& cost_of_change)
+{
+    auto res{wallet::SelectCoinsBnB(utxo_pool, selection_target, cost_of_change, MAX_STANDARD_TX_SIZE)};
+    return res ? std::optional<SelectionResult>(*res) : std::nullopt;
 }
 
 /** Check if SelectionResult a is equivalent to SelectionResult b.
@@ -117,6 +123,13 @@ static bool EqualResult(const SelectionResult& a, const SelectionResult& b)
     return ret.first == a.GetInputSet().end() && ret.second == b.GetInputSet().end();
 }
 
+static int GetSelectionWeight(const SelectionResult& result)
+{
+    return std::accumulate(result.GetInputSet().cbegin(), result.GetInputSet().cend(), 0, [](int sum, const COutput& coin) {
+        return sum + std::max(coin.input_bytes, 0);
+    });
+}
+
 static CAmount make_hard_case(int utxos, std::vector<COutput>& utxo_pool)
 {
     utxo_pool.clear();
@@ -142,7 +155,8 @@ inline std::vector<OutputGroup>& GroupCoins(const std::vector<COutput>& availabl
 
 inline std::optional<SelectionResult> KnapsackSolver(std::vector<OutputGroup>& groups, const CAmount& nTargetValue, CAmount change_target, FastRandomContext& rng)
 {
-    return KnapsackSolver(groups, nTargetValue, change_target, rng, /*fFullyMixedOnly=*/false, /*maxTxFee=*/DEFAULT_TRANSACTION_MAXFEE);
+    auto res{wallet::KnapsackSolver(groups, nTargetValue, change_target, rng, MAX_STANDARD_TX_SIZE, /*fFullyMixedOnly=*/false, /*maxTxFee=*/DEFAULT_TRANSACTION_MAXFEE)};
+    return res ? std::optional<SelectionResult>(*res) : std::nullopt;
 }
 
 inline std::vector<OutputGroup>& KnapsackGroupOutputs(const std::vector<COutput>& available_coins, CWallet& wallet, const CoinEligibilityFilter& filter)
@@ -913,6 +927,165 @@ BOOST_AUTO_TEST_CASE(effective_value_test)
     // input bytes unknown (input_bytes = -1), pass fees in constructor
     COutput output5(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0);
     BOOST_CHECK_EQUAL(output5.GetEffectiveValue(), nValue); // The effective value should be equal to the absolute value if input_bytes is -1
+}
+
+static util::Result<SelectionResult> SelectCoinsSRDResult(const CAmount& target,
+                                                          const CoinSelectionParams& cs_params,
+                                                          const node::NodeContext& m_node,
+                                                          int max_weight,
+                                                          std::function<CoinsResult(CWallet&)> coin_setup)
+{
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", gArgs, CreateMockWalletDatabase());
+    wallet->LoadWallet();
+    LOCK(wallet->cs_wallet);
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    wallet->SetupDescriptorScriptPubKeyMans("", "");
+
+    CoinEligibilityFilter filter(0, 0, 0);
+    auto available_coins = coin_setup(*wallet);
+    auto groups = GroupOutputs(*wallet, available_coins.all(), cs_params, filter, /*positive_only=*/true);
+    return wallet::SelectCoinsSRD(groups, target, cs_params.rng_fast, max_weight);
+}
+
+BOOST_AUTO_TEST_CASE(srd_tests)
+{
+    FastRandomContext rand;
+    CoinSelectionParams dummy_params{
+        rand,
+        /*change_output_size=*/34,
+        /*change_spend_size=*/68,
+        /*min_change_target=*/CENT,
+        /*effective_feerate=*/CFeeRate(0),
+        /*long_term_feerate=*/CFeeRate(0),
+        /*discard_feerate=*/CFeeRate(0),
+        /*tx_noinputs_size=*/10 + 34,
+        /*avoid_partial=*/false,
+    };
+
+    {
+        const auto& res = SelectCoinsSRDResult(49.5L * COIN, dummy_params, m_node, /*max_weight=*/10000, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 10; ++j) {
+                add_coin(available_coins, wallet, CAmount(1 * COIN));
+                add_coin(available_coins, wallet, CAmount(2 * COIN));
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(!res);
+        BOOST_CHECK(util::ErrorString(res).empty());
+    }
+
+    {
+        const auto& res = SelectCoinsSRDResult(49.5L * COIN, dummy_params, m_node, /*max_weight=*/1000, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 10; ++j) {
+                add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+                add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(!res);
+        BOOST_CHECK(util::ErrorString(res).original.find("The inputs size exceeds the maximum weight") != std::string::npos);
+    }
+
+    {
+        const auto& res = SelectCoinsSRDResult(25.33L * COIN, dummy_params, m_node, /*max_weight=*/10000, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 60; ++j) {
+                add_coin(available_coins, wallet, CAmount(0.33 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            for (int i = 0; i < 10; ++i) {
+                add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(res);
+    }
+}
+
+static std::optional<SelectionResult> select_coins(const CAmount& target, const CoinSelectionParams& cs_params, const CCoinControl& cc, std::function<CoinsResult(CWallet&)> coin_setup, const node::NodeContext& m_node)
+{
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", gArgs, CreateMockWalletDatabase());
+    wallet->LoadWallet();
+    LOCK(wallet->cs_wallet);
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    wallet->SetupDescriptorScriptPubKeyMans("", "");
+
+    auto available_coins = coin_setup(*wallet);
+    auto result = SelectCoins(*wallet, available_coins, target, cc, cs_params);
+    if (result) {
+        BOOST_CHECK_LE(static_cast<int>(cs_params.tx_noinputs_size) + GetSelectionWeight(*result), MAX_STANDARD_TX_SIZE);
+        BOOST_CHECK_GE(result->GetSelectedValue(), target);
+    }
+    return result;
+}
+
+static bool has_coin(const CoinSet& set, CAmount amount)
+{
+    return std::any_of(set.begin(), set.end(), [&](const auto& coin) { return coin.GetEffectiveValue() == amount; });
+}
+
+BOOST_AUTO_TEST_CASE(check_max_weight)
+{
+    const CAmount target = 49.5L * COIN;
+    CCoinControl cc;
+
+    FastRandomContext rand;
+    CoinSelectionParams cs_params{
+        rand,
+        /*change_output_size=*/34,
+        /*change_spend_size=*/68,
+        /*min_change_target=*/CENT,
+        /*effective_feerate=*/CFeeRate(0),
+        /*long_term_feerate=*/CFeeRate(0),
+        /*discard_feerate=*/CFeeRate(0),
+        /*tx_noinputs_size=*/10 + 34,
+        /*avoid_partial=*/false,
+    };
+
+    {
+        const auto result = select_coins(target, cs_params, cc, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 1515; ++j) {
+                add_coin(available_coins, wallet, CAmount(0.033 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            add_coin(available_coins, wallet, CAmount(50 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            return available_coins;
+        }, m_node);
+
+        BOOST_CHECK(result);
+        BOOST_CHECK_EQUAL(result->GetInputSet().size(), 1U);
+        BOOST_CHECK_EQUAL(result->GetInputSet().begin()->GetEffectiveValue(), 50 * COIN);
+    }
+
+    {
+        const auto result = select_coins(target, cs_params, cc, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 400; ++j) {
+                add_coin(available_coins, wallet, CAmount(0.0625 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            for (int j = 0; j < 2000; ++j) {
+                add_coin(available_coins, wallet, CAmount(0.025 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            return available_coins;
+        }, m_node);
+
+        BOOST_REQUIRE(result);
+        BOOST_CHECK(has_coin(result->GetInputSet(), CAmount(0.0625 * COIN)));
+        BOOST_CHECK(has_coin(result->GetInputSet(), CAmount(0.025 * COIN)));
+    }
+
+    {
+        const auto result = select_coins(target, cs_params, cc, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 1515; ++j) {
+                add_coin(available_coins, wallet, CAmount(0.033 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            return available_coins;
+        }, m_node);
+
+        BOOST_CHECK(!result);
+    }
 }
 
 /* --------------------------- Dash-specific tests start here --------------------------- */
