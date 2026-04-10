@@ -32,6 +32,7 @@ namespace Consensus { struct Params; }
 namespace llmq {
 class CQuorumBlockProcessor;
 class CQuorumManager;
+class CQuorumProofManager;
 class CQuorumSnapshotManager;
 } // namespace llmq
 
@@ -49,12 +50,14 @@ private:
     const Consensus::Params& m_consensus_params;
     const chainlock::Chainlocks& m_chainlocks;
     const llmq::CQuorumManager& m_qman;
+    llmq::CQuorumProofManager& m_quorum_proof_manager;
 
 public:
     explicit CSpecialTxProcessor(CCreditPoolManager& cpoolman, CDeterministicMNManager& dmnman, CMNHFManager& mnhfman,
                                  llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
                                  const ChainstateManager& chainman, const Consensus::Params& consensus_params,
-                                 const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman) :
+                                 const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman,
+                                 llmq::CQuorumProofManager& quorum_proof_manager) :
         m_cpoolman(cpoolman),
         m_dmnman{dmnman},
         m_mnhfman{mnhfman},
@@ -63,7 +66,8 @@ public:
         m_chainman(chainman),
         m_consensus_params{consensus_params},
         m_chainlocks{chainlocks},
-        m_qman{qman}
+        m_qman{qman},
+        m_quorum_proof_manager{quorum_proof_manager}
     {
     }
 

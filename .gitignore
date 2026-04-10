@@ -180,3 +180,4 @@ compile_commands.json
 # Linux perf profiling artifacts
 perf.data
 perf.data.old
+activity.md

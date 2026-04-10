@@ -33,6 +33,7 @@ namespace llmq {
 class CInstantSendManager;
 class CQuorumBlockProcessor;
 class CQuorumManager;
+class CQuorumProofManager;
 class CQuorumSnapshotManager;
 } // namespace llmq
 namespace node {
@@ -62,7 +63,8 @@ public:
                                llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                const Consensus::Params& consensus_params, const CMasternodeSync& mn_sync,
                                const CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
-                               const llmq::CQuorumManager& qman);
+                               const llmq::CQuorumManager& qman,
+                               llmq::CQuorumProofManager& quorum_proof_manager);
     ~CChainstateHelper();
 
     /** Passthrough functions to chainlock::Chainlocks */

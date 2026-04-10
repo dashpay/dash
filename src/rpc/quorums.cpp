@@ -14,6 +14,7 @@
 #include <llmq/dkgsession.h>
 #include <llmq/observer/context.h>
 #include <llmq/options.h>
+#include <llmq/quorumproofs.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
@@ -1243,6 +1244,292 @@ static RPCHelpMan submitchainlock()
 }
 
 
+static RPCHelpMan getchainlockbyheight()
+{
+    return RPCHelpMan{"getchainlockbyheight",
+        "Get the chainlock for a specific height from the index.\n",
+        {
+            {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Block height"},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "height", "Chainlocked height"},
+                {RPCResult::Type::STR_HEX, "blockhash", "Block hash"},
+                {RPCResult::Type::STR_HEX, "signature", "BLS signature"},
+                {RPCResult::Type::NUM, "cbtx_height", "Height where CL was embedded"},
+            }},
+        RPCExamples{
+            HelpExampleCli("getchainlockbyheight", "100")
+            + HelpExampleRpc("getchainlockbyheight", "100")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const int height = request.params[0].getInt<int>();
+    if (height < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "height must be non-negative");
+    }
+
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const ChainstateManager& chainman = EnsureChainman(node);
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+
+    auto entry = llmq_ctx.quorum_proof_manager->GetChainlockByHeight(height);
+    if (!entry.has_value()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Chainlock not found for height");
+    }
+
+    // Get the block hash at the chainlocked height
+    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return chainman.ActiveChain()[height]);
+    if (pindex == nullptr) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found at height");
+    }
+    uint256 blockHash = pindex->GetBlockHash();
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("height", height);
+    result.pushKV("blockhash", blockHash.ToString());
+    result.pushKV("signature", entry->signature.ToString());
+    result.pushKV("cbtx_height", entry->cbtxHeight);
+
+    return result;
+},
+    };
+}
+
+/**
+ * Build a QuorumCheckpoint from just a block hash by looking up active chainlock quorums.
+ * This allows simplified RPC calls where the user only needs to provide a block hash.
+ */
+static llmq::QuorumCheckpoint BuildCheckpointFromBlockHash(
+    const uint256& blockHash,
+    const ChainstateManager& chainman,
+    const llmq::CQuorumManager& qman)
+{
+    llmq::QuorumCheckpoint checkpoint;
+    checkpoint.blockHash = blockHash;
+
+    // Look up the block index
+    const CBlockIndex* pindex = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(blockHash));
+    if (!pindex) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+    }
+    checkpoint.height = pindex->nHeight;
+
+    // Get the chainlock LLMQ type
+    const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    if (!llmq_params_opt.has_value()) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Chainlock LLMQ type not configured");
+    }
+
+    // Scan for active chainlock quorums at this block
+    auto quorums = qman.ScanQuorums(llmqType, pindex, llmq_params_opt->signingActiveQuorumCount);
+    for (const auto& quorum : quorums) {
+        llmq::QuorumCheckpoint::QuorumEntry entry;
+        entry.quorumHash = quorum->qc->quorumHash;
+        entry.quorumType = llmqType;
+        entry.publicKey = quorum->qc->quorumPublicKey;
+        checkpoint.chainlockQuorums.push_back(std::move(entry));
+    }
+
+    return checkpoint;
+}
+
+/**
+ * Parse a QuorumCheckpoint from RPC JSON object.
+ * Supports simplified format with just block_hash, or full format with all fields.
+ */
+static llmq::QuorumCheckpoint ParseCheckpointFromRPC(
+    const UniValue& checkpointObj,
+    const ChainstateManager& chainman,
+    const llmq::CQuorumManager& qman)
+{
+    const uint256 blockHash = ParseHashV(checkpointObj["block_hash"], "block_hash");
+
+    // Check if simplified format (only block_hash provided)
+    const bool hasHeight = checkpointObj.exists("height") && !checkpointObj["height"].isNull();
+    const bool hasQuorums = checkpointObj.exists("chainlock_quorums") &&
+                            !checkpointObj["chainlock_quorums"].isNull() &&
+                            checkpointObj["chainlock_quorums"].isArray();
+
+    // If height or chainlock_quorums not provided, derive from block hash
+    if (!hasHeight || !hasQuorums) {
+        return BuildCheckpointFromBlockHash(blockHash, chainman, qman);
+    }
+
+    // Full format provided - parse all fields
+    llmq::QuorumCheckpoint checkpoint;
+    checkpoint.blockHash = blockHash;
+    checkpoint.height = checkpointObj["height"].getInt<int32_t>();
+
+    for (const auto& q : checkpointObj["chainlock_quorums"].get_array().getValues()) {
+        llmq::QuorumCheckpoint::QuorumEntry entry;
+        entry.quorumHash = ParseHashV(q["quorum_hash"], "quorum_hash");
+        entry.quorumType = static_cast<Consensus::LLMQType>(q["quorum_type"].getInt<uint8_t>());
+        if (!entry.publicKey.SetHexStr(q["public_key"].get_str(), /*specificLegacyScheme=*/false)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid public_key format");
+        }
+        checkpoint.chainlockQuorums.push_back(std::move(entry));
+    }
+
+    return checkpoint;
+}
+
+static RPCHelpMan getquorumproofchain()
+{
+    return RPCHelpMan{"getquorumproofchain",
+        "Generate a proof chain from a checkpoint to a target quorum.\n"
+        "This proof can be used to trustlessly verify a quorum's public key.\n"
+        "If only block_hash is provided in checkpoint, height and chainlock_quorums are derived automatically.\n",
+        {
+            {"checkpoint", RPCArg::Type::OBJ, RPCArg::Optional::NO, "Checkpoint data",
+                {
+                    {"block_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Checkpoint block hash"},
+                    {"height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "Checkpoint height (derived from block_hash if omitted)"},
+                    {"chainlock_quorums", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "Known CL quorum hashes and public keys (derived from block_hash if omitted)",
+                        {
+                            {"", RPCArg::Type::OBJ, RPCArg::Optional::NO, "",
+                                {
+                                    {"quorum_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Quorum hash"},
+                                    {"quorum_type", RPCArg::Type::NUM, RPCArg::Optional::NO, "LLMQ type"},
+                                    {"public_key", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Quorum public key"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            {"quorum_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Target quorum hash"},
+            {"llmq_type", RPCArg::Type::NUM, RPCArg::Optional::NO, "Target LLMQ type"},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::ARR, "headers", "Block headers in the proof chain",
+                    {{RPCResult::Type::OBJ, "", false, "Header object"}}},
+                {RPCResult::Type::ARR, "chainlocks", "Chainlock proofs",
+                    {{RPCResult::Type::OBJ, "", false, "Chainlock entry"}}},
+                {RPCResult::Type::ARR, "quorum_proofs", "Quorum commitment proofs",
+                    {{RPCResult::Type::OBJ, "", false, "Quorum proof entry"}}},
+                {RPCResult::Type::STR_HEX, "proof_hex", "Serialized proof (hex)"},
+            }},
+        RPCExamples{
+            HelpExampleCli("getquorumproofchain", "'{\"block_hash\":\"...\"}' \"abcd...\" 104")
+            + HelpExampleCli("getquorumproofchain", "'{\"block_hash\":\"...\",\"height\":100,\"chainlock_quorums\":[]}' \"abcd...\" 104")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+    const ChainstateManager& chainman = EnsureChainman(node);
+
+    const llmq::QuorumCheckpoint checkpoint = ParseCheckpointFromRPC(request.params[0].get_obj(), chainman, *llmq_ctx.qman);
+
+    const uint256 targetQuorumHash = ParseHashV(request.params[1], "quorum_hash");
+    const Consensus::LLMQType targetType = static_cast<Consensus::LLMQType>(request.params[2].getInt<int>());
+
+    if (!Params().GetLLMQ(targetType).has_value()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid LLMQ type");
+    }
+
+    auto proofChain = llmq_ctx.quorum_proof_manager->BuildProofChain(
+        checkpoint, targetType, targetQuorumHash, *llmq_ctx.qman, chainman.ActiveChain(), chainman.m_blockman);
+
+    if (!proofChain.has_value()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Failed to build proof chain - quorum not found or no chainlock coverage");
+    }
+
+    UniValue result = proofChain->ToJson();
+
+    // Add serialized hex
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << proofChain.value();
+    result.pushKV("proof_hex", HexStr(ss));
+
+    return result;
+},
+    };
+}
+
+static RPCHelpMan verifyquorumproofchain()
+{
+    return RPCHelpMan{"verifyquorumproofchain",
+        "Verify a quorum proof chain and return the target quorum's public key.\n"
+        "If only block_hash is provided in checkpoint, height and chainlock_quorums are derived automatically.\n",
+        {
+            {"checkpoint", RPCArg::Type::OBJ, RPCArg::Optional::NO, "Checkpoint data",
+                {
+                    {"block_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Checkpoint block hash"},
+                    {"height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "Checkpoint height (derived from block_hash if omitted)"},
+                    {"chainlock_quorums", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "Known CL quorum hashes and public keys (derived from block_hash if omitted)",
+                        {
+                            {"", RPCArg::Type::OBJ, RPCArg::Optional::NO, "",
+                                {
+                                    {"quorum_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Quorum hash"},
+                                    {"quorum_type", RPCArg::Type::NUM, RPCArg::Optional::NO, "LLMQ type"},
+                                    {"public_key", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Quorum public key"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            {"proof_hex", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Serialized proof chain (hex)"},
+            {"quorum_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Expected target quorum hash"},
+            {"llmq_type", RPCArg::Type::NUM, RPCArg::Optional::NO, "Expected LLMQ type"},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::BOOL, "valid", "Whether the proof is valid"},
+                {RPCResult::Type::STR_HEX, "quorum_public_key", /*optional=*/ true, "Verified public key (if valid)"},
+                {RPCResult::Type::STR, "error", /*optional=*/ true, "Error message (if invalid)"},
+            }},
+        RPCExamples{
+            HelpExampleCli("verifyquorumproofchain",
+                "'{\"block_hash\":\"0000...\"}' \"<proof_hex>\" \"<quorum_hash>\" 104")
+            + HelpExampleCli("verifyquorumproofchain",
+                "'{\"block_hash\":\"0000...\",\"height\":100,\"chainlock_quorums\":[{\"quorum_hash\":\"abcd...\",\"quorum_type\":104,\"public_key\":\"1234...\"}]}' "
+                "\"<proof_hex>\" \"<quorum_hash>\" 104")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+    const ChainstateManager& chainman = EnsureChainman(node);
+
+    const llmq::QuorumCheckpoint checkpoint = ParseCheckpointFromRPC(request.params[0].get_obj(), chainman, *llmq_ctx.qman);
+
+    // Deserialize the proof
+    const std::vector<unsigned char> proofData = ParseHex(request.params[1].get_str());
+    CDataStream ss(proofData, SER_NETWORK, PROTOCOL_VERSION);
+
+    llmq::QuorumProofChain proofChain;
+    try {
+        ss >> proofChain;
+    } catch (const std::exception& e) {
+        UniValue result(UniValue::VOBJ);
+        result.pushKV("valid", false);
+        result.pushKV("error", strprintf("Failed to deserialize proof: %s", e.what()));
+        return result;
+    }
+
+    const uint256 expectedQuorumHash = ParseHashV(request.params[2], "quorum_hash");
+    const Consensus::LLMQType expectedType = static_cast<Consensus::LLMQType>(request.params[3].getInt<uint8_t>());
+
+    if (!Params().GetLLMQ(expectedType).has_value()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid LLMQ type");
+    }
+
+    auto verifyResult = llmq_ctx.quorum_proof_manager->VerifyProofChain(
+        checkpoint, proofChain, expectedType, expectedQuorumHash);
+
+    return verifyResult.ToJson();
+},
+    };
+}
+
 void RegisterQuorumsRPCCommands(CRPCTable &tableRPC)
 {
     static const CRPCCommand commands[]{
@@ -1266,6 +1553,9 @@ void RegisterQuorumsRPCCommands(CRPCTable &tableRPC)
         {"evo", &submitchainlock},
         {"evo", &verifychainlock},
         {"evo", &verifyislock},
+        {"evo", &getchainlockbyheight},
+        {"evo", &getquorumproofchain},
+        {"evo", &verifyquorumproofchain},
     };
     for (const auto& command : commands) {
         tableRPC.appendCommand(command.name, &command);
