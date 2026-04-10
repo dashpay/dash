@@ -1844,7 +1844,7 @@ class DashTestFramework(BitcoinTestFramework):
         for i in range(1, num_simple_nodes):
             force_finish_mnsync(self.nodes[i])
 
-        # Enable InstantSend (including block filtering) and ChainLocks by default
+        # Enable InstantSend and ChainLocks by default
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 0)
         self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()

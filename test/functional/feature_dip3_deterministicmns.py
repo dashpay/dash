@@ -173,6 +173,7 @@ class DIP3Test(BitcoinTestFramework):
 
         multisig = self.nodes[0].createmultisig(1, [addr1Obj['pubkey'], addr2Obj['pubkey']])['address']
         self.update_mn_payee(mns[0], multisig)
+        self.wait_until(lambda: self.nodes[0].mnsync("status")['IsSynced'])
         found_multisig_payee = False
         for _ in range(len(mns)):
             bt = self.nodes[0].getblocktemplate()
