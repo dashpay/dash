@@ -203,6 +203,39 @@ BOOST_AUTO_TEST_CASE(processnewblock_signals_ordering)
 }
 
 /**
+ * Test that AcceptBlock works correctly when a pre-computed known_hash is
+ * supplied, exercising the reindex optimization path through AcceptBlockHeader
+ * and CheckBlock.
+ */
+BOOST_AUTO_TEST_CASE(checkblock_accept_known_hash)
+{
+    bool ignored;
+    BOOST_REQUIRE(Assert(m_node.chainman)->ProcessNewBlock(
+        std::make_shared<CBlock>(Params().GenesisBlock()), true, &ignored));
+
+    auto good = GoodBlock(Params().GenesisBlock().GetHash());
+    const uint256 hash{good->GetHash()};
+
+    // AcceptBlock with correct known_hash should succeed.
+    // Do not call CheckBlock beforehand: that would set fChecked=true,
+    // causing AcceptBlock's internal CheckBlock to short-circuit and skip
+    // the known_hash path. Keeping fChecked=false mirrors the reindex flow.
+    {
+        LOCK(::cs_main);
+        BlockValidationState state;
+        CBlockIndex* pindex = nullptr;
+        bool newblock = false;
+        BOOST_REQUIRE(m_node.chainman->ActiveChainstate().AcceptBlock(
+            good, state, &pindex, /*fRequested=*/true,
+            /*dbp=*/nullptr, &newblock, &hash));
+        BOOST_REQUIRE(state.IsValid());
+        BOOST_REQUIRE(newblock);
+        BOOST_REQUIRE(pindex != nullptr);
+        BOOST_CHECK_EQUAL(pindex->GetBlockHash(), hash);
+    }
+}
+
+/**
  * Test that mempool updates happen atomically with reorgs.
  *
  * This prevents RPC clients, among others, from retrieving immediately-out-of-date mempool data
