@@ -727,11 +727,11 @@ static RPCHelpMan getblocktemplate()
         if (active_chainstate.IsInitialBlockDownload()) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
         }
-    }
 
-    if (!node.mn_sync->IsSynced() && CSuperblock::IsValidBlockHeight(active_chain.Height() + 1)) {
-        // Next block is a superblock but we need governance info to correctly construct it.
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is syncing with network...");
+        if (!node.mn_sync->IsSynced() && CSuperblock::IsValidBlockHeight(active_chain.Height() + 1)) {
+            // Next block is a superblock but we need governance info to correctly construct it.
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is syncing with network...");
+        }
     }
 
     static unsigned int nTransactionsUpdatedLast;

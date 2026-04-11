@@ -13,3 +13,7 @@ Updated RPCs
 
 * `getblocktemplate` now always reports `superblocks_enabled` as `true`. The
   field is retained for backwards compatibility.
+
+* `getblocktemplate` now requires a fully synced node at superblock heights.
+  This check is skipped on test networks. Previously it was gated by
+  `SPORK_9_SUPERBLOCKS_ENABLED` which was already always active on mainnet.
