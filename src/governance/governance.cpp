@@ -11,16 +11,17 @@
 #include <governance/validators.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
-#include <spork.h>
 
 #include <chain.h>
 #include <chainparams.h>
 #include <common/bloom.h>
 #include <deploymentstatus.h>
+#include <net.h>
 #include <node/interface_ui.h>
 #include <protocol.h>
 #include <shutdown.h>
 #include <timedata.h>
+#include <util/check.h>
 #include <util/thread.h>
 #include <util/time.h>
 #include <validationinterface.h>
@@ -1489,9 +1490,4 @@ std::vector<std::shared_ptr<const CGovernanceObject>> CGovernanceManager::GetApp
     });
 
     return ret;
-}
-
-bool AreSuperblocksEnabled(const CSporkManager& sporkman)
-{
-    return sporkman.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED);
 }

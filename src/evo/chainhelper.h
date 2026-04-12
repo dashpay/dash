@@ -19,7 +19,6 @@ class CMasternodeSync;
 class CMNHFManager;
 class CMNPaymentsProcessor;
 class CSpecialTxProcessor;
-class CSporkManager;
 class CTransaction;
 class uint256;
 struct CCreditPool;
@@ -61,8 +60,7 @@ public:
                                llmq::CInstantSendManager& isman, llmq::CQuorumBlockProcessor& qblockman,
                                llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                const Consensus::Params& consensus_params, const CMasternodeSync& mn_sync,
-                               const CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
-                               const llmq::CQuorumManager& qman);
+                               const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman);
     ~CChainstateHelper();
 
     /** Passthrough functions to chainlock::Chainlocks */

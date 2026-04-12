@@ -40,7 +40,6 @@ class CGovernanceObject;
 class CGovernanceVote;
 class CMasternodeMetaMan;
 class CMasternodeSync;
-class CSporkManager;
 class CSuperblock;
 
 class UniValue;
@@ -443,7 +442,5 @@ private:
     void RemoveInvalidVotes()
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 };
-
-bool AreSuperblocksEnabled(const CSporkManager& sporkman);
 
 #endif // BITCOIN_GOVERNANCE_GOVERNANCE_H

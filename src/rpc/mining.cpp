@@ -14,10 +14,12 @@
 #include <core_io.h>
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
+#include <governance/classes.h>
 #include <key_io.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
 #include <evo/evodb.h>
+#include <masternode/sync.h>
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
@@ -41,10 +43,6 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
-
-#include <governance/classes.h>
-#include <governance/governance.h>
-#include <masternode/sync.h>
 
 #include <memory>
 #include <stdint.h>
@@ -729,14 +727,12 @@ static RPCHelpMan getblocktemplate()
         if (active_chainstate.IsInitialBlockDownload()) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
         }
-    }
 
-    // next bock is a superblock and we need governance info to correctly construct it
-    CHECK_NONFATAL(node.sporkman);
-    if (AreSuperblocksEnabled(*node.sporkman)
-        && !node.mn_sync->IsSynced()
-        && CSuperblock::IsValidBlockHeight(active_chain.Height() + 1))
+        if (!node.mn_sync->IsSynced() && CSuperblock::IsValidBlockHeight(active_chain.Height() + 1)) {
+            // Next block is a superblock but we need governance info to correctly construct it.
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is syncing with network...");
+        }
+    }
 
     static unsigned int nTransactionsUpdatedLast;
     const CTxMemPool& mempool = EnsureMemPool(node);
@@ -962,7 +958,7 @@ static RPCHelpMan getblocktemplate()
     }
     result.pushKV("superblock", superblockObjArray);
     result.pushKV("superblocks_started", pindexPrev->nHeight + 1 > consensusParams.nSuperblockStartBlock);
-    result.pushKV("superblocks_enabled", AreSuperblocksEnabled(*node.sporkman));
+    result.pushKV("superblocks_enabled", true);
 
     result.pushKV("coinbase_payload", HexStr(pblock->vtx[0]->vExtraPayload));
 
