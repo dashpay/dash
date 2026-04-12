@@ -35,7 +35,6 @@
 
 //Dash only features
 
-extern int nWalletBackups;
 extern const std::string gCoinJoinName;
 
 class UniValue;
