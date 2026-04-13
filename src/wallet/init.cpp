@@ -203,10 +203,6 @@ void WalletInit::AutoLockMasternodeCollaterals(interfaces::WalletLoader& wallet_
 
 void WalletInit::InitCoinJoinSettings(CCoinJoinClientManager& mgr) const
 {
-    CCoinJoinClientOptions::SetEnabled(gArgs.GetBoolArg("-enablecoinjoin", true));
-    if (!CCoinJoinClientOptions::IsEnabled()) {
-        return;
-    }
     bool fAutoStart = gArgs.GetBoolArg("-coinjoinautostart", DEFAULT_COINJOIN_AUTOSTART);
     if (fAutoStart) {
         mgr.startMixing();

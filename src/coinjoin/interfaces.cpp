@@ -32,13 +32,13 @@ public:
     explicit CoinJoinLoaderImpl(NodeContext& node) :
         m_node(node)
     {
-        // Enablement will be re-evaluated when a wallet is added or removed
-        CCoinJoinClientOptions::SetEnabled(false);
+        CCoinJoinClientOptions::SetEnabled(gArgs.GetBoolArg("-enablecoinjoin", true));
     }
 
     void AddWallet(const std::shared_ptr<CWallet>& wallet) override
     {
         manager().addWallet(wallet);
+        if (!CCoinJoinClientOptions::IsEnabled()) return;
         manager().doForClient(wallet->GetName(), [](CCoinJoinClientManager& mgr) {
             g_wallet_init_interface.InitCoinJoinSettings(mgr);
         });
