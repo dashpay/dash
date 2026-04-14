@@ -38,6 +38,29 @@ def dash_cli(*args, datadir=None):
         return None
 
 
+# Must match src/version.h PROTOCOL_VERSION. The Dash-specific deserialize/
+# roundtrip fuzz harnesses (src/test/fuzz/deserialize_dash.cpp,
+# src/test/fuzz/roundtrip_dash.cpp) read a 4-byte little-endian int from the
+# start of the buffer and use it as the stream version before deserializing
+# the object. Chain data we extract is serialized at PROTOCOL_VERSION, so we
+# prepend that value to seeds for those targets.
+DASH_STREAM_VERSION = 70240
+DASH_STREAM_VERSION_PREFIX = DASH_STREAM_VERSION.to_bytes(4, byteorder="little", signed=False)
+
+
+def _needs_stream_version_prefix(target_name):
+    """Return True if this target's harness consumes a 4-byte stream version prefix.
+
+    Matches the DashDeserializeFromFuzzingInput / DashRoundtripFromFuzzingInput
+    helpers used by every dash_*_deserialize and dash_*_roundtrip target. Non-Dash
+    targets (block_deserialize, block, decode_tx, ...) don't use that helper and
+    must be left untouched.
+    """
+    return target_name.startswith("dash_") and (
+        target_name.endswith("_deserialize") or target_name.endswith("_roundtrip")
+    )
+
+
 def save_corpus_input(output_dir, target_name, data_hex):
     """Save a hex-encoded blob as a corpus input file."""
     target_dir = output_dir / target_name
@@ -48,6 +71,9 @@ def save_corpus_input(output_dir, target_name, data_hex):
     except ValueError:
         print(f"WARNING: Invalid hex data for target {target_name}, skipping", file=sys.stderr)
         return False
+
+    if _needs_stream_version_prefix(target_name):
+        raw_bytes = DASH_STREAM_VERSION_PREFIX + raw_bytes
 
     filename = hashlib.sha256(raw_bytes).hexdigest()[:16]
     filepath = target_dir / filename
@@ -218,7 +244,7 @@ def extract_special_txs(output_dir, count=100, datadir=None):
 
             # Get raw transaction
             txid = tx.get("txid", "")
-            raw_tx = dash_cli("getrawtransaction", txid, datadir=datadir)
+            raw_tx = dash_cli("getrawtransaction", txid, "false", block_hash, datadir=datadir)
             if not raw_tx:
                 continue
 
@@ -265,9 +291,7 @@ def extract_governance_objects(output_dir, datadir=None):
         for _obj_hash, obj_data in objects.items():
             data_hex = obj_data.get("DataHex", "")
             if data_hex:
-                if save_corpus_input(output_dir, "dash_governance_object_deserialize", data_hex):
-                    saved += 1
-                if save_corpus_input(output_dir, "dash_governance_object_roundtrip", data_hex):
+                if save_corpus_input(output_dir, "dash_governance_object_common_deserialize", data_hex):
                     saved += 1
     except (json.JSONDecodeError, AttributeError):
         pass

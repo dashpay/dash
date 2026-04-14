@@ -110,6 +110,7 @@ FUZZ_TARGET(process_message_dash, .init = initialize_process_message_dash)
     CSerializedNetMsg net_msg;
     net_msg.m_type = fuzzed_data_provider.PickValueInArray(DASH_MESSAGE_TYPES);
     if (!LIMIT_TO_MESSAGE_TYPE.empty() && net_msg.m_type != LIMIT_TO_MESSAGE_TYPE) {
+        g_setup->m_node.connman->StopNodes();
         return;
     }
     net_msg.data = ConsumeRandomLengthByteVector(fuzzed_data_provider, MAX_PROTOCOL_MESSAGE_LENGTH);

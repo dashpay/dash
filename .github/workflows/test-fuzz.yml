@@ -54,8 +54,8 @@ jobs:
 
           # Layer 1: bitcoin-core inherited corpus
           if git clone --depth=1 https://github.com/bitcoin-core/qa-assets /tmp/qa-assets; then
-            if [ -d "/tmp/qa-assets/fuzz_corpora" ]; then
-              cp -r /tmp/qa-assets/fuzz_corpora/. /tmp/fuzz_corpus/
+            if [ -d "/tmp/qa-assets/fuzz_seed_corpus" ]; then
+              cp -r /tmp/qa-assets/fuzz_seed_corpus/. /tmp/fuzz_corpus/
               echo "Loaded bitcoin-core corpus"
             fi
           else

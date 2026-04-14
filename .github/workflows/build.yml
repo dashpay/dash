@@ -321,12 +321,12 @@ jobs:
   test-linux64_fuzz:
     name: linux64_fuzz-test
     uses: ./.github/workflows/test-fuzz.yml
-    needs: [check-skip, container-slim, src-linux64_fuzz]
+    needs: [check-skip, container, src-linux64_fuzz]
     if: ${{ vars.SKIP_LINUX64_FUZZ == '' }}
     with:
       bundle-key: ${{ needs.src-linux64_fuzz.outputs.key }}
       build-target: linux64_fuzz
-      container-path: ${{ needs.container-slim.outputs.path }}
+      container-path: ${{ needs.container.outputs.path }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   test-linux64:

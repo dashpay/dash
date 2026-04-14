@@ -36,6 +36,7 @@ TARGET_LIST=""
 EXCLUDE_LIST=""
 SINGLE_CYCLE=false
 DRY_RUN=false
+DAEMON_ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=0"
 
 shuffle_lines() {
     if command -v shuf >/dev/null 2>&1; then
@@ -169,7 +170,7 @@ run_target() {
     local exit_code=0
     if [[ -n "$TIMEOUT_BIN" ]]; then
         FUZZ="$target" \
-        ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=0" \
+        ASAN_OPTIONS="${ASAN_OPTIONS:+${ASAN_OPTIONS}:}${DAEMON_ASAN_OPTIONS}" \
         UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:report_error_type=1" \
         "$TIMEOUT_BIN" $((TIME_PER_TARGET + 30)) "$FUZZ_BIN" \
             -rss_limit_mb="$RSS_LIMIT_MB" \
@@ -181,7 +182,7 @@ run_target() {
             > "$target_log" 2>&1 || exit_code=$?
     else
         FUZZ="$target" \
-        ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=0" \
+        ASAN_OPTIONS="${ASAN_OPTIONS:+${ASAN_OPTIONS}:}${DAEMON_ASAN_OPTIONS}" \
         UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:report_error_type=1" \
         "$FUZZ_BIN" \
             -rss_limit_mb="$RSS_LIMIT_MB" \
@@ -202,9 +203,9 @@ run_target() {
         log "CRASH" "Artifacts saved to: ${target_crashes}/"
 
         # Extract crash details from log
-        grep -E "SUMMARY|ERROR|BINGO|crash-|timeout-|oom-" "$target_log" 2>/dev/null | while IFS= read -r line; do
+        while IFS= read -r line; do
             log "CRASH" "  $line"
-        done
+        done < <(grep -E "SUMMARY|ERROR|BINGO|crash-|timeout-|oom-" "$target_log" 2>/dev/null || true)
     fi
 
     # Log stats
