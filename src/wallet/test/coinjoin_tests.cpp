@@ -10,7 +10,9 @@
 #include <coinjoin/options.h>
 #include <coinjoin/util.h>
 #include <consensus/amount.h>
+#include <interfaces/coinjoin.h>
 #include <node/context.h>
+#include <util/system.h>
 #include <util/translation.h>
 #include <policy/settings.h>
 #include <validation.h>
@@ -25,6 +27,9 @@ BOOST_FIXTURE_TEST_SUITE(coinjoin_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(coinjoin_options_tests)
 {
+    gArgs.ForceSetArg("-enablecoinjoin", "0");
+    const auto loader{interfaces::MakeCoinJoinLoader(m_node)};
+
     BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetSessions(), DEFAULT_COINJOIN_SESSIONS);
     BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetRounds(), DEFAULT_COINJOIN_ROUNDS);
     BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetRandomRounds(), COINJOIN_RANDOM_ROUNDS);
