@@ -5,6 +5,7 @@
 #include <test/data/key_io_invalid.json.h>
 #include <test/data/key_io_valid.json.h>
 
+#include <bech32.h>
 #include <chainparams.h>
 #include <key.h>
 #include <key_io.h>
@@ -144,6 +145,104 @@ BOOST_AUTO_TEST_CASE(key_io_invalid)
             BOOST_CHECK_MESSAGE(!privkey.IsValid(), "IsValid privkey in mainnet:" + strTest);
         }
     }
+}
+
+// DIP-18: Dash Platform bech32m address encoding.
+BOOST_AUTO_TEST_CASE(dip18_platform_roundtrip)
+{
+    struct Sample {
+        std::string hash_hex;
+        std::string address;
+        std::string chain;
+        bool is_p2sh;
+    };
+    // Samples from DIP-0018 (Test Vectors section).
+    const Sample samples[] = {
+        {"f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs",  CBaseChainParams::MAIN, false},
+        {"a5ff0046217fd1c7d238e3e146cc5bfd90832a7e", "dash1kzjl7qzxy9lar37j8r37z3kvt07epqe20ckxfezw",  CBaseChainParams::MAIN, false},
+        {"6d92674fd64472a3dfcfc3ebcfed7382bf699d7b", "dash1kpkeye606ez89g7lelp7hnldwwpt76va0v3j6x28",  CBaseChainParams::MAIN, false},
+        {"f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", "tdash1krma5z3ttj75la4m93xcndna9ullamq9y5fzq2j7", CBaseChainParams::TESTNET, false},
+        {"a5ff0046217fd1c7d238e3e146cc5bfd90832a7e", "tdash1kzjl7qzxy9lar37j8r37z3kvt07epqe20cxp68nq", CBaseChainParams::TESTNET, false},
+        {"6d92674fd64472a3dfcfc3ebcfed7382bf699d7b", "tdash1kpkeye606ez89g7lelp7hnldwwpt76va0vp4fcmf", CBaseChainParams::TESTNET, false},
+        {"43fa183cf3fb6e9e7dc62b692aeb4fc8d8045636", "dash1sppl5xpu70aka8nacc4kj2htflydspzkxch4cad6",  CBaseChainParams::MAIN, true},
+        {"43fa183cf3fb6e9e7dc62b692aeb4fc8d8045636", "tdash1sppl5xpu70aka8nacc4kj2htflydspzkxc8jtru5", CBaseChainParams::TESTNET, true},
+    };
+    for (const auto& s : samples) {
+        SelectParams(s.chain);
+        std::string err;
+        PlatformDestination dest = DecodePlatformDestination(s.address, err);
+        BOOST_REQUIRE_MESSAGE(IsValidPlatformDestination(dest),
+                              std::string{"decode failed: "} + s.address + " err=" + err);
+        std::vector<unsigned char> got_hash;
+        if (s.is_p2sh) {
+            BOOST_REQUIRE(std::holds_alternative<PlatformP2SHDestination>(dest));
+            const auto& h = std::get<PlatformP2SHDestination>(dest);
+            got_hash.assign(h.begin(), h.end());
+        } else {
+            BOOST_REQUIRE(std::holds_alternative<PlatformP2PKHDestination>(dest));
+            const auto& h = std::get<PlatformP2PKHDestination>(dest);
+            got_hash.assign(h.begin(), h.end());
+        }
+        BOOST_CHECK_EQUAL(HexStr(got_hash), std::string(s.hash_hex));
+        BOOST_CHECK_EQUAL(EncodePlatformDestination(dest), std::string(s.address));
+    }
+    SelectParams(CBaseChainParams::MAIN);
+}
+
+BOOST_AUTO_TEST_CASE(dip18_platform_invalid)
+{
+    SelectParams(CBaseChainParams::MAIN);
+    std::string err;
+
+    // Wrong HRP for the selected network (testnet string on mainnet).
+    BOOST_CHECK(!IsValidPlatformDestination(
+        DecodePlatformDestination("tdash1krma5z3ttj75la4m93xcndna9ullamq9y5fzq2j7", err)));
+
+    // Mixed case is forbidden by BIP-173.
+    BOOST_CHECK(!IsValidPlatformDestination(
+        DecodePlatformDestination("Dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs", err)));
+
+    // Bech32 (BIP-173) checksum MUST be rejected; only bech32m is valid for DIP-18.
+    // Re-encode the same 21-byte payload with the BIP-173 generator and verify rejection.
+    {
+        std::vector<uint8_t> payload = ParseHex("b0f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525");
+        std::vector<uint8_t> values;
+        ConvertBits<8, 5, true>([&](uint8_t b) { values.push_back(b); }, payload.begin(), payload.end());
+        const std::string bech32_str = bech32::Encode(bech32::Encoding::BECH32, "dash", values);
+        BOOST_REQUIRE(!bech32_str.empty());
+        BOOST_CHECK(!IsValidPlatformDestination(DecodePlatformDestination(bech32_str, err)));
+    }
+
+    // Unknown DIP-18 type byte (0x00) must be rejected.
+    {
+        std::vector<uint8_t> payload = ParseHex("00f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525");
+        std::vector<uint8_t> values;
+        ConvertBits<8, 5, true>([&](uint8_t b) { values.push_back(b); }, payload.begin(), payload.end());
+        const std::string bad = bech32::Encode(bech32::Encoding::BECH32M, "dash", values);
+        BOOST_REQUIRE(!bad.empty());
+        BOOST_CHECK(!IsValidPlatformDestination(DecodePlatformDestination(bad, err)));
+    }
+
+    // Wrong payload length (19-byte hash) must be rejected.
+    {
+        std::vector<uint8_t> payload = ParseHex("b0f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec05");
+        std::vector<uint8_t> values;
+        ConvertBits<8, 5, true>([&](uint8_t b) { values.push_back(b); }, payload.begin(), payload.end());
+        const std::string bad = bech32::Encode(bech32::Encoding::BECH32M, "dash", values);
+        BOOST_REQUIRE(!bad.empty());
+        BOOST_CHECK(!IsValidPlatformDestination(DecodePlatformDestination(bad, err)));
+    }
+
+    // Empty / garbage inputs.
+    BOOST_CHECK(!IsValidPlatformDestination(DecodePlatformDestination("", err)));
+    BOOST_CHECK(!IsValidPlatformDestination(DecodePlatformDestination("not-an-address", err)));
+
+    // Mainnet address on testnet must fail.
+    SelectParams(CBaseChainParams::TESTNET);
+    BOOST_CHECK(!IsValidPlatformDestination(
+        DecodePlatformDestination("dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs", err)));
+
+    SelectParams(CBaseChainParams::MAIN);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
