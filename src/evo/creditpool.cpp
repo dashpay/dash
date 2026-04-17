@@ -300,18 +300,14 @@ bool CCreditPoolDiff::Unlock(const CTransaction& tx, TxValidationState& state)
 bool CCreditPoolDiff::ProcessLockUnlockTransaction(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, TxValidationState& state)
 {
     if (!tx.IsSpecialTxVersion()) return true;
-    if (tx.nType != TRANSACTION_ASSET_LOCK && tx.nType != TRANSACTION_ASSET_UNLOCK) return true;
-
-    if (!CheckAssetLockUnlockTx(blockman, qman, tx, pindexPrev, pool.indexes, state)) {
-        // pass the state returned by the function above
-        return false;
-    }
 
     try {
         switch (tx.nType) {
         case TRANSACTION_ASSET_LOCK:
+            if (!CheckAssetLockTx(tx, state)) return false; // pass the state set by CheckAssetLockTx
             return Lock(tx, state);
         case TRANSACTION_ASSET_UNLOCK:
+            if (!CheckAssetUnlockTx(blockman, qman, tx, pindexPrev, pool.indexes, state)) return false; // pass the state set by CheckAssetUnlockTx
             return Unlock(tx, state);
         default:
             return true;
