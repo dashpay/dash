@@ -784,7 +784,7 @@ public:
     // Setting fDisconnect to true will cause the node to be disconnected the
     // next time DisconnectNodes() runs
     std::atomic_bool fDisconnect{false};
-    std::atomic<int64_t> nDisconnectLingerTime{0};
+    std::atomic<SteadyClock::time_point> nDisconnectLingerTime{SteadyClock::time_point{}};
     std::atomic_bool fSocketShutdown{false};
     std::atomic_bool fOtherSideDisconnected { false };
     // If 'true' this node will be disconnected on CMasternodeMan::ProcessMasternodeConnections()

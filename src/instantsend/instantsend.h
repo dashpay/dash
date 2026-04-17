@@ -78,7 +78,7 @@ private:
     Uint256HashSet pendingRetryTxs GUARDED_BY(cs_pendingRetry);
 
     mutable Mutex cs_timingsTxSeen;
-    Uint256HashMap<int64_t> timingsTxSeen GUARDED_BY(cs_timingsTxSeen);
+    Uint256HashMap<SteadyClock::time_point> timingsTxSeen GUARDED_BY(cs_timingsTxSeen);
 
     mutable Mutex cs_height_cache;
     static constexpr size_t MAX_BLOCK_HEIGHT_CACHE{16384};
