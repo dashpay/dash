@@ -33,9 +33,6 @@ struct Params;
 namespace llmq {
 class CQuorumManager;
 } // namespace llmq
-namespace node {
-class BlockManager;
-} // namespace node
 
 struct CCreditPool {
     CAmount locked{0};
@@ -70,15 +67,14 @@ struct CCreditPool {
  * limits should stay same and depends only on the previous block.
  */
 class CCreditPoolDiff {
-private:
+public:
     const CCreditPool pool;
+private:
     std::unordered_set<uint64_t> newIndexes;
 
     CAmount sessionLocked{0};
     CAmount sessionUnlocked{0};
     CAmount platformReward{0};
-
-    const CBlockIndex *pindexPrev{nullptr};
 
 public:
     explicit CCreditPoolDiff(CCreditPool starter, const CBlockIndex *pindexPrev,
@@ -90,7 +86,7 @@ public:
      * to change amount of credit pool
      * @return true if transaction can be included in this block
      */
-    bool ProcessLockUnlockTransaction(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, TxValidationState& state);
+    bool ProcessLockUnlockTransaction(const CTransaction& tx, TxValidationState& state);
 
     /**
      * this function returns total amount of credits for the next block
@@ -147,7 +143,7 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
 };
 
-std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpoolman, const node::BlockManager& blockman, const llmq::CQuorumManager& qman,
+std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpoolman,
                                                          const CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams,
                                                          const CAmount blockSubsidy, BlockValidationState& state);
 
