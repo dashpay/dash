@@ -70,7 +70,7 @@ static CMutableTransaction CreateAssetLockTx(FillableSigningProvider& keystore, 
     creditOutputs[1].nValue = 13 * CENT;
     creditOutputs[1].scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
 
-    CAssetLockPayload assetLockTx(creditOutputs);
+    CAssetLockPayload assetLockTx(creditOutputs, CAssetLockPayload::INITIAL_VERSION);
 
     CMutableTransaction tx;
     tx.nVersion = 3;
@@ -124,9 +124,8 @@ static CMutableTransaction CreateAssetUnlockTx(FillableSigningProvider& keystore
 
 BOOST_FIXTURE_TEST_SUITE(evo_assetlocks_tests, TestChain100Setup)
 
-BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
+static void CheckAssetLockCommon(uint8_t version, bool is_v24_active)
 {
-
     LOCK(cs_main);
     FillableSigningProvider keystore;
     CCoinsView coinsDummy;
@@ -135,7 +134,13 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
     CKey key;
     key.MakeNewKey(true);
 
-    const CTransaction tx{CreateAssetLockTx(keystore, coins, key)};
+    CMutableTransaction baseTx = CreateAssetLockTx(keystore, coins, key);
+    const auto basePayload = GetTxPayload<CAssetLockPayload>(CTransaction(baseTx));
+    const std::vector<CTxOut> creditOutputs = basePayload->getCreditOutputs();
+
+    SetTxPayload(baseTx, CAssetLockPayload(creditOutputs, version));
+
+    const CTransaction tx{baseTx};
     std::string reason;
     BOOST_CHECK(IsStandardTx(CTransaction(tx), reason));
 
@@ -144,7 +149,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
     BOOST_CHECK_MESSAGE(CheckTransaction(CTransaction(tx), tx_state), strTest);
     BOOST_CHECK(tx_state.IsValid());
 
-    BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state));
+    BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, is_v24_active));
 
     BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins));
 
@@ -155,14 +160,14 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
         const auto opt_payload = GetTxPayload<CAssetLockPayload>(tx);
 
         BOOST_CHECK(opt_payload.has_value());
-        BOOST_CHECK(opt_payload->getVersion() == 1);
+        BOOST_CHECK(opt_payload->getVersion() == version);
     }
 
     {
         // Wrong type "Asset Unlock TX" instead "Asset Lock TX"
         CMutableTransaction txWrongType(tx);
         txWrongType.nType = TRANSACTION_ASSET_UNLOCK;
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txWrongType), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txWrongType), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-type");
     }
 
@@ -176,40 +181,35 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
         BOOST_CHECK(inSum == outSum);
 
         // Outputs should not be bigger than inputs
-        CMutableTransaction txBigOutput(tx);
+        CMutableTransaction txBigOutput(baseTx);
         txBigOutput.vout[0].nValue += 1;
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txBigOutput), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txBigOutput), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-creditamount");
 
         // Smaller outputs are allown
-        CMutableTransaction txSmallOutput(tx);
+        CMutableTransaction txSmallOutput(baseTx);
         txSmallOutput.vout[1].nValue -= 1;
-        BOOST_CHECK(CheckAssetLockTx(CTransaction(txSmallOutput), tx_state));
+        BOOST_CHECK(CheckAssetLockTx(CTransaction(txSmallOutput), tx_state, is_v24_active));
     }
-
-    const auto assetLockPayload = GetTxPayload<CAssetLockPayload>(tx);
-    const std::vector<CTxOut> creditOutputs = assetLockPayload->getCreditOutputs();
 
     {
         // Sum of credit output greater than OP_RETURN
         std::vector<CTxOut> wrongOutput = creditOutputs;
         wrongOutput[0].nValue += CENT;
-        CAssetLockPayload greaterCreditsPayload(wrongOutput);
 
-        CMutableTransaction txGreaterCredits(tx);
-        SetTxPayload(txGreaterCredits, greaterCreditsPayload);
+        CMutableTransaction txGreaterCredits(baseTx);
+        SetTxPayload(txGreaterCredits, CAssetLockPayload(wrongOutput, version));
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txGreaterCredits), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txGreaterCredits), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-creditamount");
 
         // Sum of credit output less than OP_RETURN
         wrongOutput[1].nValue -= 2 * CENT;
-        CAssetLockPayload lessCreditsPayload(wrongOutput);
 
-        CMutableTransaction txLessCredits(tx);
-        SetTxPayload(txLessCredits, lessCreditsPayload);
+        CMutableTransaction txLessCredits(baseTx);
+        SetTxPayload(txLessCredits, CAssetLockPayload(wrongOutput, version));
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txLessCredits), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txLessCredits), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-creditamount");
     }
 
@@ -217,24 +217,23 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
         // Credit output is out-of-range
         std::vector<CTxOut> creditOutputsOutOfRange = creditOutputs;
         creditOutputsOutOfRange[0].nValue = 0;
-        CAssetLockPayload invalidOutputsPayload(creditOutputsOutOfRange);
 
-        CMutableTransaction txInvalidOutputs(tx);
-        SetTxPayload(txInvalidOutputs, invalidOutputsPayload);
+        CMutableTransaction txInvalidOutputs(baseTx);
+        SetTxPayload(txInvalidOutputs, CAssetLockPayload(creditOutputsOutOfRange, version));
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txInvalidOutputs), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txInvalidOutputs), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-credit-outofrange");
 
         // one of output is out of range
         creditOutputsOutOfRange[0].nValue = MAX_MONEY + 1;
-        SetTxPayload(txInvalidOutputs, CAssetLockPayload{creditOutputsOutOfRange});
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txInvalidOutputs), tx_state));
+        SetTxPayload(txInvalidOutputs, CAssetLockPayload(creditOutputsOutOfRange, version));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txInvalidOutputs), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-credit-outofrange");
 
         // sum of some of output is out of range
         creditOutputsOutOfRange[0].nValue = MAX_MONEY + 1 - creditOutputsOutOfRange[1].nValue;
-        SetTxPayload(txInvalidOutputs, CAssetLockPayload{creditOutputsOutOfRange});
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txInvalidOutputs), tx_state));
+        SetTxPayload(txInvalidOutputs, CAssetLockPayload(creditOutputsOutOfRange, version));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txInvalidOutputs), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-credit-outofrange");
 
     }
@@ -242,57 +241,157 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
         // One credit output keys is not pub key
         std::vector<CTxOut> creditOutputsNotPubkey = creditOutputs;
         creditOutputsNotPubkey[0].scriptPubKey = CScript() << OP_1;
-        CAssetLockPayload notPubkeyPayload(creditOutputsNotPubkey);
 
-        CMutableTransaction txNotPubkey(tx);
-        SetTxPayload(txNotPubkey, notPubkeyPayload);
+        CMutableTransaction txNotPubkey(baseTx);
+        SetTxPayload(txNotPubkey, CAssetLockPayload(creditOutputsNotPubkey, version));
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txNotPubkey), tx_state));
-        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-pubKeyHash");
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txNotPubkey), tx_state, is_v24_active));
+        if (version >= 2) {
+            BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-script-pubkey");
+        } else {
+            BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-pubKeyHash");
+        }
 
     }
 
     {
         // OP_RETURN must be only one, not more
-        CMutableTransaction txMultipleReturn(tx);
+        CMutableTransaction txMultipleReturn(baseTx);
         txMultipleReturn.vout[1].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txMultipleReturn), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txMultipleReturn), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-multiple-return");
 
     }
 
     {
         // zero/negative OP_RETURN
-        CMutableTransaction txReturnOutOfRange(tx);
+        CMutableTransaction txReturnOutOfRange(baseTx);
         txReturnOutOfRange.vout[0].nValue = 0;
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txReturnOutOfRange), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txReturnOutOfRange), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-opreturn-outofrange");
 
         txReturnOutOfRange.vout[0].nValue = MAX_MONEY + 1;
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txReturnOutOfRange), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txReturnOutOfRange), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-opreturn-outofrange");
     }
 
 
     {
         // OP_RETURN is missing
-        CMutableTransaction txNoReturn(tx);
+        CMutableTransaction txNoReturn(baseTx);
         txNoReturn.vout[0].scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txNoReturn), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txNoReturn), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-no-return");
     }
 
     {
         // OP_RETURN should not have any data
-        CMutableTransaction txReturnData(tx);
+        CMutableTransaction txReturnData(baseTx);
         txReturnData.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("abcd");
 
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txReturnData), tx_state));
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txReturnData), tx_state, is_v24_active));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-non-empty-return");
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(evo_assetlock, TestChain100Setup)
+{
+    CheckAssetLockCommon(CAssetLockPayload::INITIAL_VERSION, /*is_v24_active=*/false);
+    CheckAssetLockCommon(CAssetLockPayload::INITIAL_VERSION, /*is_v24_active=*/true);
+    CheckAssetLockCommon(CAssetLockPayload::CURRENT_VERSION, /*is_v24_active=*/true);
+}
+
+BOOST_FIXTURE_TEST_CASE(evo_assetlock_v2, TestChain100Setup)
+{
+    LOCK(cs_main);
+    FillableSigningProvider keystore;
+    CCoinsView coinsDummy;
+    CCoinsViewCache coins(&coinsDummy);
+
+    CKey key;
+    key.MakeNewKey(true);
+
+    CMutableTransaction tx = CreateAssetLockTx(keystore, coins, key);
+    TxValidationState tx_state;
+
+    const auto v1Payload = GetTxPayload<CAssetLockPayload>(CTransaction(tx));
+    const std::vector<CTxOut> creditOutputs = v1Payload->getCreditOutputs();
+
+    // Build v2 payload with same P2PKH credit outputs
+    CAssetLockPayload v2Payload(creditOutputs);
+    BOOST_CHECK(v2Payload.getVersion() == CAssetLockPayload::CURRENT_VERSION);
+    SetTxPayload(tx, v2Payload);
+
+    {
+        // v2 P2PKH: accepted with is_v24_active=true
+        BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, /*is_v24_active=*/true));
+    }
+
+    {
+        // v2 P2PKH: rejected pre-v24
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(tx), tx_state, /*is_v24_active=*/false));
+        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-version-2");
+    }
+
+    {
+        // v2 with P2SH credit output: accepted with is_v24_active=true
+        CScript p2sh_script = GetScriptForDestination(ScriptHash(CScript() << OP_1));
+        std::vector<CTxOut> p2shOutputs(1);
+        p2shOutputs[0].nValue = 30 * CENT;
+        p2shOutputs[0].scriptPubKey = p2sh_script;
+
+        CMutableTransaction txP2SH(tx);
+        SetTxPayload(txP2SH, CAssetLockPayload(p2shOutputs));
+
+        BOOST_CHECK(CheckAssetLockTx(CTransaction(txP2SH), tx_state, /*is_v24_active=*/true));
+    }
+
+    {
+        // v1 with P2SH credit output: rejected even post-v24
+        CScript p2sh_script = GetScriptForDestination(ScriptHash(CScript() << OP_1));
+        std::vector<CTxOut> p2shOutputs(1);
+        p2shOutputs[0].nValue = 30 * CENT;
+        p2shOutputs[0].scriptPubKey = p2sh_script;
+
+        CMutableTransaction txV1P2SH(tx);
+        SetTxPayload(txV1P2SH, CAssetLockPayload(p2shOutputs, CAssetLockPayload::INITIAL_VERSION));
+
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txV1P2SH), tx_state, /*is_v24_active=*/true));
+        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-pubKeyHash");
+    }
+
+    {
+        // v2 with non-P2PKH/non-P2SH credit output: rejected
+        std::vector<CTxOut> badOutputs(1);
+        badOutputs[0].nValue = 30 * CENT;
+        badOutputs[0].scriptPubKey = CScript() << OP_1;
+
+        CMutableTransaction txBad(tx);
+        SetTxPayload(txBad, CAssetLockPayload(badOutputs));
+
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txBad), tx_state, /*is_v24_active=*/true));
+        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-script-pubkey");
+    }
+
+    {
+        // v1 still works post-v24
+        CMutableTransaction txV1(tx);
+        SetTxPayload(txV1, CAssetLockPayload(creditOutputs, CAssetLockPayload::INITIAL_VERSION));
+
+        BOOST_CHECK(CheckAssetLockTx(CTransaction(txV1), tx_state, /*is_v24_active=*/true));
+    }
+
+    {
+        // version 3 (future): rejected even post-v24
+        CMutableTransaction txV3(tx);
+        SetTxPayload(txV3, CAssetLockPayload(creditOutputs, /*nVersion=*/3));
+
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txV3), tx_state, /*is_v24_active=*/true));
+        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-version");
     }
 }
 

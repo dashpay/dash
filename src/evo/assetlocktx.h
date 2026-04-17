@@ -37,8 +37,8 @@ private:
     std::vector<CTxOut> creditOutputs;
 
 public:
-    explicit CAssetLockPayload(const std::vector<CTxOut>& creditOutputs) :
-        creditOutputs(creditOutputs)
+    explicit CAssetLockPayload(const std::vector<CTxOut>& creditOutputs, uint8_t nVersion = CURRENT_VERSION) :
+        nVersion(nVersion), creditOutputs(creditOutputs)
     {}
 
     CAssetLockPayload() = default;
