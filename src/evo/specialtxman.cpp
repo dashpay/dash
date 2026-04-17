@@ -138,7 +138,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
         case TRANSACTION_MNHF_SIGNAL:
             return CheckMNHFTx(chainman, qman, tx, pindexPrev, state);
         case TRANSACTION_ASSET_LOCK:
-            return CheckAssetLockTx(tx, state);
+            return CheckAssetLockTx(tx, state, DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24));
         case TRANSACTION_ASSET_UNLOCK:
             return CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, state);
         }
