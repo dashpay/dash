@@ -306,17 +306,12 @@ MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnma
     } // cs_ProcessDSQueue
     return ret;
 }
-#endif // ENABLE_WALLET
 
 std::unique_ptr<CJWalletManager> CJWalletManager::make(ChainstateManager& chainman, CDeterministicMNManager& dmnman,
                                                        CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool,
                                                        const CMasternodeSync& mn_sync,
                                                        const llmq::CInstantSendManager& isman, bool relay_txes)
 {
-#ifdef ENABLE_WALLET
     return std::make_unique<CJWalletManagerImpl>(chainman, dmnman, mn_metaman, mempool, mn_sync, isman, relay_txes);
-#else
-    // Cannot be constructed if wallet support isn't built
-    assert(false);
-#endif // ENABLE_WALLET
 }
+#endif // ENABLE_WALLET

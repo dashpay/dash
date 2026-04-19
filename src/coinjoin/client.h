@@ -179,15 +179,15 @@ private:
     // Keep track of current block height
     int nCachedBlockHeight{0};
 
+    int nCachedNumBlocks{std::numeric_limits<int>::max()};    // used for the overview screen
+    bool fCreateAutoBackups{true}; // builtin support for automatic backups
+
     bool WaitForAnotherBlock() const;
 
     // Make sure we have enough keys since last backup
     bool CheckAutomaticBackup();
 
 public:
-    int nCachedNumBlocks{std::numeric_limits<int>::max()};    // used for the overview screen
-    bool fCreateAutoBackups{true}; // builtin support for automatic backups
-
     CCoinJoinClientManager() = delete;
     CCoinJoinClientManager(const CCoinJoinClientManager&) = delete;
     CCoinJoinClientManager& operator=(const CCoinJoinClientManager&) = delete;

@@ -597,13 +597,15 @@ void OverviewPage::coinJoinStatus(bool fForce)
 
     QString strCoinJoinName = QString::fromStdString(gCoinJoinName);
     bool notMixing{false};
+    bool refreshProgress{false};
     walletModel->withCoinJoin([&](auto& client) {
         notMixing = !client.isMixing();
         if (notMixing && nBestHeight != client.getCachedBlocks()) {
             client.setCachedBlocks(nBestHeight);
-            updateCoinJoinProgress();
+            refreshProgress = true;
         }
     });
+    if (refreshProgress) updateCoinJoinProgress();
     if (notMixing) {
         setWidgetsVisible(false);
         ui->toggleCoinJoin->setText(tr("Start %1").arg(strCoinJoinName));
@@ -687,14 +689,16 @@ void OverviewPage::coinJoinStatus(bool fForce)
     }
 
     // check coinjoin status and unlock if needed
+    bool refreshProgressTail{false};
     walletModel->withCoinJoin([&](auto& client) {
         if (nBestHeight != client.getCachedBlocks()) {
             // Balance and number of transactions might have changed
             client.setCachedBlocks(nBestHeight);
-            updateCoinJoinProgress();
+            refreshProgressTail = true;
         }
         ui->labelSubmittedDenom->setText(m_privacy ? "####" : QString(client.getSessionDenoms().c_str()));
     });
+    if (refreshProgressTail) updateCoinJoinProgress();
 
     setWidgetsVisible(true);
 }

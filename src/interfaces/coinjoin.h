@@ -49,7 +49,7 @@ public:
     virtual void FlushWallet(const std::string&) = 0;
     //! Execute a callback with the CoinJoin client for the given wallet, under the wallet manager lock.
     //! Returns false if the wallet was not found.
-    virtual bool WithClient(const std::string& name, std::function<void(Client&)> func) = 0;
+    virtual bool WithClient(const std::string& name, const std::function<void(Client&)>& func) = 0;
 };
 } // namespace CoinJoin
 

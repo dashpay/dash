@@ -51,7 +51,7 @@ public:
     {
         manager().flushWallet(name);
     }
-    bool WithClient(const std::string& name, std::function<void(interfaces::CoinJoin::Client&)> func) override
+    bool WithClient(const std::string& name, const std::function<void(interfaces::CoinJoin::Client&)>& func) override
     {
         return manager().doForClient(name, [&](CCoinJoinClientManager& mgr) { func(mgr); });
     }

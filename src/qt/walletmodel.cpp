@@ -87,9 +87,9 @@ void WalletModel::setClientModel(ClientModel* client_model)
     if (!m_client_model) timer->stop();
 }
 
-bool WalletModel::withCoinJoin(std::function<void(interfaces::CoinJoin::Client&)> func) const
+bool WalletModel::withCoinJoin(const std::function<void(interfaces::CoinJoin::Client&)>& func) const
 {
-    return m_node.coinJoinLoader()->WithClient(m_wallet->getWalletName(), std::move(func));
+    return m_node.coinJoinLoader()->WithClient(m_wallet->getWalletName(), func);
 }
 
 void WalletModel::updateStatus()
