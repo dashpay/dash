@@ -41,9 +41,7 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.skip_if_no_wallet()
 
     def run_test(self):
-        self.log.info("Generate coins for the sender (node0)")
-        self.generate(self.nodes[0], COINBASE_MATURITY + 10)
-        self.sync_all()
+        self.generate(self.nodes[0], COINBASE_MATURITY + 1)
 
         self.test_external_dust_locked()
         self.test_self_send_not_locked()
@@ -72,7 +70,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
 
         # Confirm and verify still locked
         self.generate(self.nodes[0], 1)
-        self.sync_all()
         locked = node1.listlockunspent()
         assert_equal(len(locked), 1)
         assert_equal(locked[0]['txid'], txid)
@@ -89,7 +86,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         addr_fund = node1.getnewaddress()
         self.nodes[0].sendtoaddress(addr_fund, 1)
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
         # Unlock everything so node1 can spend
         locked = node1.listlockunspent()
@@ -106,7 +102,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         assert_equal(len(locked), 0)
 
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
     def test_above_threshold_not_locked(self):
         """UTXOs above the threshold should NOT be locked."""
@@ -127,7 +122,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         assert_equal(len(locked), 0)
 
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
     def test_disabled_threshold(self):
         """With default threshold (0), nothing should be locked."""
@@ -142,7 +136,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         assert_equal(len(locked), 0)
 
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
     def test_existing_utxos_locked_on_restart(self):
         """Pre-existing dust UTXOs should be locked when node starts with -dustprotectionthreshold."""
@@ -153,7 +146,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         addr = node3.getnewaddress()
         self.nodes[0].sendtoaddress(addr, 8000 * DUFFS)
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
         assert_equal(len(node3.listlockunspent()), 0)
 
@@ -202,7 +194,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.nodes[0].sendtoaddress(addr_a, 5000 * DUFFS)
         self.nodes[0].sendtoaddress(addr_b, 7000 * DUFFS)
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
         # Both wallets should have their dust locked
         locked_a = wallet_a.listlockunspent()
@@ -214,7 +205,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         addr_a2 = wallet_a.getnewaddress()
         self.nodes[0].sendtoaddress(addr_a2, 20000 * DUFFS)
         self.generate(self.nodes[0], 1)
-        self.sync_all()
 
         # wallet_a still has only 1 locked UTXO (the dust one)
         locked_a = wallet_a.listlockunspent()
