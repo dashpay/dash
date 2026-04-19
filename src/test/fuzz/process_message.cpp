@@ -17,10 +17,11 @@
 #include <validationinterface.h>
 #include <version.h>
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -62,9 +63,11 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     if (!LIMIT_TO_MESSAGE_TYPE.empty() && random_message_type != LIMIT_TO_MESSAGE_TYPE) {
         return;
     }
-    // Skip Dash message types that require subsystem initialization not present in the fuzz harness
-    static const std::set<std::string> skip_message_types{"mnauth"};
-    if (skip_message_types.count(random_message_type)) {
+    // Skip Dash message types that require subsystem initialization not present in the fuzz harness.
+    // TODO: initialize the masternode/LLMQ contexts here (see process_message_dash.cpp) and remove
+    // this list so these handlers get real coverage.
+    static constexpr std::array<std::string_view, 1> skip_message_types{"mnauth"};
+    if (std::find(skip_message_types.begin(), skip_message_types.end(), random_message_type) != skip_message_types.end()) {
         return;
     }
     CNode& p2p_node = *ConsumeNodeAsUniquePtr(fuzzed_data_provider).release();

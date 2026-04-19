@@ -332,6 +332,10 @@ int64_t ConsumeTime(FuzzedDataProvider& fuzzed_data_provider, const std::optiona
 CMutableTransaction ConsumeTransaction(FuzzedDataProvider& fuzzed_data_provider, const std::optional<std::vector<uint256>>& prevout_txids, const int max_num_in, const int max_num_out) noexcept
 {
     CMutableTransaction tx_mut;
+    // Narrowed to int16_t: Dash encodes nType in the upper 16 bits of nVersion
+    // for SPECIAL_VERSION transactions. Fuzzing the full int32_t range triggers
+    // unrelated special-tx-type crashes that swamp this target; callers wanting
+    // broad nVersion coverage should use the special_tx_validation fuzz target.
     tx_mut.nVersion = fuzzed_data_provider.ConsumeBool() ?
                           CTransaction::CURRENT_VERSION :
                           fuzzed_data_provider.ConsumeIntegral<int16_t>();

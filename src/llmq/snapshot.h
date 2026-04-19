@@ -78,8 +78,12 @@ public:
         size_t cnt = ReadCompactSize(s);
         ReadFixedBitSet(s, activeQuorumMembers, cnt);
         cnt = ReadCompactSize(s);
+        // Reset the destination so in-place re-deserialization (e.g. via CDBWrapper::Read
+        // reusing an existing snapshot object) doesn't append onto stale entries.
+        // Note: intentionally no reserve(cnt) — cnt comes from an unbounded ReadCompactSize
+        // on a P2P-reachable path (QRINFO), and eager reservation would let a peer force
+        // large allocations from a tiny message.
         mnSkipList.clear();
-        mnSkipList.reserve(cnt);
         for ([[maybe_unused]] const auto _ : util::irange(cnt)) {
             int obj;
             s >> obj;

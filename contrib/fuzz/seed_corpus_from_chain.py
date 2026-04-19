@@ -38,24 +38,40 @@ def dash_cli(*args, datadir=None):
         return None
 
 
-# Must match src/version.h PROTOCOL_VERSION. The Dash-specific deserialize/
-# roundtrip fuzz harnesses (src/test/fuzz/deserialize_dash.cpp,
-# src/test/fuzz/roundtrip_dash.cpp) read a 4-byte little-endian int from the
-# start of the buffer and use it as the stream version before deserializing
-# the object. Chain data we extract is serialized at PROTOCOL_VERSION, so we
-# prepend that value to seeds for those targets.
-DASH_STREAM_VERSION = 70240
-DASH_STREAM_VERSION_PREFIX = DASH_STREAM_VERSION.to_bytes(4, byteorder="little", signed=False)
+# Must match src/version.h PROTOCOL_VERSION. Several fuzz harnesses read a
+# 4-byte little-endian int from the start of the buffer and use it as the
+# stream version before deserializing the object:
+#   * The Dash-specific helpers DashDeserializeFromFuzzingInput /
+#     DashRoundtripFromFuzzingInput (src/test/fuzz/deserialize_dash.cpp,
+#     src/test/fuzz/roundtrip_dash.cpp), used by dash_*_deserialize and
+#     dash_*_roundtrip targets.
+#   * The upstream block target (src/test/fuzz/block.cpp), which reads the
+#     version int inline before deserializing CBlock.
+#   * The upstream block_deserialize target (src/test/fuzz/deserialize.cpp),
+#     via DeserializeFromFuzzingInput when no explicit protocol_version is
+#     passed.
+# Chain data we extract is serialized at PROTOCOL_VERSION, so we prepend
+# that value to seeds for those targets.
+STREAM_VERSION = 70240
+STREAM_VERSION_PREFIX = STREAM_VERSION.to_bytes(4, byteorder="little", signed=False)
+
+# Non-Dash targets (outside the dash_* naming convention) whose harnesses
+# also consume the 4-byte stream version prefix described above.
+_NON_DASH_STREAM_VERSION_TARGETS = frozenset({"block", "block_deserialize"})
 
 
 def _needs_stream_version_prefix(target_name):
     """Return True if this target's harness consumes a 4-byte stream version prefix.
 
     Matches the DashDeserializeFromFuzzingInput / DashRoundtripFromFuzzingInput
-    helpers used by every dash_*_deserialize and dash_*_roundtrip target. Non-Dash
-    targets (block_deserialize, block, decode_tx, ...) don't use that helper and
-    must be left untouched.
+    helpers used by every dash_*_deserialize and dash_*_roundtrip target, plus
+    the upstream ``block`` and ``block_deserialize`` targets which do the same
+    (see src/test/fuzz/block.cpp and src/test/fuzz/deserialize.cpp). Other
+    non-Dash targets (decode_tx, ...) don't consume such a prefix and must be
+    left untouched.
     """
+    if target_name in _NON_DASH_STREAM_VERSION_TARGETS:
+        return True
     return target_name.startswith("dash_") and (
         target_name.endswith("_deserialize") or target_name.endswith("_roundtrip")
     )
@@ -73,7 +89,7 @@ def save_corpus_input(output_dir, target_name, data_hex):
         return False
 
     if _needs_stream_version_prefix(target_name):
-        raw_bytes = DASH_STREAM_VERSION_PREFIX + raw_bytes
+        raw_bytes = STREAM_VERSION_PREFIX + raw_bytes
 
     filename = hashlib.sha256(raw_bytes).hexdigest()[:16]
     filepath = target_dir / filename
@@ -315,7 +331,42 @@ def extract_masternode_list(output_dir, datadir=None):
             if not protx_hash:
                 continue
 
-            raw_tx = dash_cli("getrawtransaction", protx_hash, datadir=datadir)
+            state = mn.get("state")
+            if not isinstance(state, dict):
+                print(f"WARNING: Missing state for protx {protx_hash}, skipping", file=sys.stderr)
+                continue
+
+            registered_height = state.get("registeredHeight")
+            try:
+                registered_height = int(registered_height)
+            except (TypeError, ValueError):
+                print(
+                    f"WARNING: Invalid registeredHeight for protx {protx_hash}: {registered_height!r}",
+                    file=sys.stderr,
+                )
+                continue
+
+            block_hash = dash_cli("getblockhash", str(registered_height), datadir=datadir)
+            if not block_hash:
+                continue
+
+            block_json = dash_cli("getblock", block_hash, "1", datadir=datadir)
+            if not block_json:
+                continue
+
+            try:
+                block = json.loads(block_json)
+            except json.JSONDecodeError:
+                continue
+
+            if protx_hash not in block.get("tx", []):
+                print(
+                    f"WARNING: ProRegTx {protx_hash} not found in registeredHeight block {registered_height} ({block_hash}), skipping",
+                    file=sys.stderr,
+                )
+                continue
+
+            raw_tx = dash_cli("getrawtransaction", protx_hash, "false", block_hash, datadir=datadir)
             if not raw_tx:
                 continue
 
@@ -325,7 +376,7 @@ def extract_masternode_list(output_dir, datadir=None):
 
             # Extract the special payload for payload-specific targets
             # ProRegTx type is 1, get extraPayloadSize from verbose tx
-            verbose_tx = dash_cli("getrawtransaction", protx_hash, "true", datadir=datadir)
+            verbose_tx = dash_cli("getrawtransaction", protx_hash, "true", block_hash, datadir=datadir)
             if not verbose_tx:
                 continue
             try:

@@ -52,14 +52,21 @@ jobs:
         run: |
           mkdir -p /tmp/fuzz_corpus
 
+          # Fail the job if neither external qa-assets source is reachable — otherwise we
+          # silently degrade to synthetic-only/empty-corpus smoke runs and CI goes green on
+          # no signal. Synthetic seeds are additive only; they do not substitute for the
+          # curated external corpora.
+          loaded_external=0
+
           # Layer 1: bitcoin-core inherited corpus
           if git clone --depth=1 https://github.com/bitcoin-core/qa-assets /tmp/qa-assets; then
             if [ -d "/tmp/qa-assets/fuzz_seed_corpus" ]; then
               cp -r /tmp/qa-assets/fuzz_seed_corpus/. /tmp/fuzz_corpus/
               echo "Loaded bitcoin-core corpus"
+              loaded_external=1
             fi
           else
-            echo "WARNING: Failed to clone bitcoin-core/qa-assets (non-fatal)"
+            echo "::warning::Failed to clone bitcoin-core/qa-assets"
           fi
 
           # Layer 2: Dash-specific corpus (overlays on top)
@@ -67,14 +74,22 @@ jobs:
             if [ -d "/tmp/dash-qa-assets/fuzz/corpora" ]; then
               cp -r /tmp/dash-qa-assets/fuzz/corpora/. /tmp/fuzz_corpus/
               echo "Loaded Dash-specific corpus"
+              loaded_external=1
             fi
           else
-            echo "WARNING: Failed to clone dashpay/qa-assets (non-fatal)"
+            echo "::warning::Failed to clone dashpay/qa-assets"
           fi
 
-          # Layer 3: Generate synthetic seeds for Dash-specific targets
+          if [ "$loaded_external" -eq 0 ]; then
+            echo "::error::No external corpus sources reachable - refusing to run synthetic-only/empty-corpus smoke tests that produce no signal"
+            exit 1
+          fi
+
+          # Layer 3: Generate synthetic seeds for Dash-specific targets (additive only —
+          # gated on external corpus being present so we never pass on synthetic-only runs).
           if [ -f "contrib/fuzz/seed_corpus_from_chain.py" ]; then
-            python3 contrib/fuzz/seed_corpus_from_chain.py --synthetic-only -o /tmp/fuzz_corpus
+            python3 contrib/fuzz/seed_corpus_from_chain.py --synthetic-only -o /tmp/fuzz_corpus || \
+              echo "::warning::Synthetic seed generation failed; continuing with external corpus only"
           fi
         shell: bash
 
@@ -112,10 +127,15 @@ jobs:
           FAILED=0
           PASSED=0
           FAILED_TARGETS=""
+          # libFuzzer writes crash-/leak-/oom-/timeout- files to this directory on failure
+          # via -artifact_prefix, so the "Upload crash artifacts" step below can collect them.
+          ARTIFACT_DIR=/tmp/fuzz_artifacts
+          mkdir -p "$ARTIFACT_DIR"
 
           while IFS= read -r target; do
             [ -z "$target" ] && continue
             corpus_dir="/tmp/fuzz_corpus/${target}"
+            artifact_prefix="${ARTIFACT_DIR}/${target}-"
 
             if [ ! -d "$corpus_dir" ] || [ -z "$(ls -A "$corpus_dir" 2>/dev/null)" ]; then
               # No corpus for this target — run with empty input for 10s
@@ -128,6 +148,7 @@ jobs:
                   -rss_limit_mb=4000 \
                   -max_total_time=10 \
                   -reload=0 \
+                  -artifact_prefix="$artifact_prefix" \
                   "$corpus_dir" 2>&1; then
                 echo "PASS: $target (empty corpus)"
                 PASSED=$((PASSED + 1))
@@ -146,6 +167,7 @@ jobs:
             if FUZZ="$target" timeout 3600 "$FUZZ_BIN" \
                 -rss_limit_mb=4000 \
                 -runs=0 \
+                -artifact_prefix="$artifact_prefix" \
                 "$corpus_dir" 2>&1; then
               echo "PASS: $target"
               PASSED=$((PASSED + 1))
@@ -171,3 +193,12 @@ jobs:
             exit 1
           fi
         shell: bash
+
+      - name: Upload crash artifacts
+        if: failure() && steps.fuzz-test.conclusion == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes-${{ inputs.build-target }}
+          path: /tmp/fuzz_artifacts
+          if-no-files-found: ignore
+          retention-days: 30

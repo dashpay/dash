@@ -68,6 +68,33 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
     BOOST_CHECK(deserialized.mnSkipList == snapshot.mnSkipList);
 }
 
+BOOST_AUTO_TEST_CASE(quorum_snapshot_inplace_redeserialization_test)
+{
+    // Regression test: CDBWrapper::Read performs in-place deserialization into a caller-supplied
+    // object. The Unserialize path must reset mnSkipList so stale entries from a prior read are
+    // not retained when a smaller snapshot is read into the same object.
+    CQuorumSnapshot first(CreateBitVector(8, {0, 2, 4, 6}), SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
+                          {100, 200, 300, 400, 500});
+    CQuorumSnapshot second(CreateBitVector(4, {1, 3}), SnapshotSkipMode::MODE_NO_SKIPPING_ENTRIES, {7, 8});
+
+    CDataStream ss1(SER_NETWORK, PROTOCOL_VERSION);
+    ss1 << first;
+    CDataStream ss2(SER_NETWORK, PROTOCOL_VERSION);
+    ss2 << second;
+
+    CQuorumSnapshot target;
+    ss1 >> target;
+    BOOST_CHECK(target.mnSkipList == first.mnSkipList);
+
+    // Re-deserialize into the same object. Without the clear() in Unserialize, the second
+    // snapshot's entries would be appended onto the first snapshot's entries.
+    ss2 >> target;
+    BOOST_CHECK(target.activeQuorumMembers == second.activeQuorumMembers);
+    BOOST_CHECK_EQUAL(target.mnSkipListMode, second.mnSkipListMode);
+    BOOST_CHECK(target.mnSkipList == second.mnSkipList);
+    BOOST_CHECK_EQUAL(target.mnSkipList.size(), second.mnSkipList.size());
+}
+
 BOOST_AUTO_TEST_CASE(quorum_snapshot_skip_modes_test)
 {
     // Test all skip modes

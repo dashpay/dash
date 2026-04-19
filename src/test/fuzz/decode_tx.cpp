@@ -14,6 +14,9 @@
 
 FUZZ_TARGET(decode_tx)
 {
+    // Dash's DecodeHexTx takes no try_no_witness/try_witness flags (no witness support),
+    // so unlike upstream we can't assert all decode attempts fail — a fuzzer-generated
+    // buffer can coincidentally be a valid serialized transaction.
     const std::string tx_hex = HexStr(std::string{buffer.begin(), buffer.end()});
     CMutableTransaction mtx;
     (void)DecodeHexTx(mtx, tx_hex);

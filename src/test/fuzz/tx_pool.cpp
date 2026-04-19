@@ -141,7 +141,10 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
     }
     outpoints_rbf = outpoints_supply;
 
-    // The sum of the values of all spendable outpoints
+    // The sum of the values of all spendable outpoints.
+    // Upstream Bitcoin uses 50; Dash's regtest block subsidy is ~10x higher, so
+    // matching the real coinbase value avoids accounting mismatches that make
+    // the mempool refuse fuzzer-generated spends.
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 500 * COIN};
 
     CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1};

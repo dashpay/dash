@@ -126,10 +126,18 @@ FUZZ_TARGET(simplified_mn_list_diff, .init = initialize_simplified_mn_list_diff)
             new_state->BanIfNotBanned(fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 100000));
             break;
         case 7:
-            new_state->platformNodeID = Uint160FromTag(next_unique_tag++ ^ 0x12121212ULL);
+            // platformNodeID is only serialized in CSimplifiedMNListEntry when nType == Evo.
+            // Mutating it on a Regular MN would break the round-trip invariant below.
+            if (old_mn->nType == MnType::Evo) {
+                new_state->platformNodeID = Uint160FromTag(next_unique_tag++ ^ 0x12121212ULL);
+            }
             break;
         case 8:
-            new_state->platformHTTPPort = fuzzed_data_provider.ConsumeIntegral<uint16_t>();
+            // platformHTTPPort is only serialized when nType == Evo && nVersion < ExtAddr;
+            // MakeMasternode/case 1 never set nVersion >= ExtAddr, so guarding on Evo suffices.
+            if (old_mn->nType == MnType::Evo) {
+                new_state->platformHTTPPort = fuzzed_data_provider.ConsumeIntegral<uint16_t>();
+            }
             break;
         case 9:
             new_state->nRegisteredHeight = fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 10000);

@@ -21,7 +21,10 @@ std::string HexEncodeString(const std::string& input)
     static constexpr char HEX_DIGITS[] = "0123456789abcdef";
     std::string out;
     out.reserve(input.size() * 2);
-    for (const unsigned char ch : input) {
+    // std::string holds char, which may be signed. Cast explicitly to avoid UBSan's
+    // implicit-integer-sign-change on the char->unsigned char conversion.
+    for (const char raw : input) {
+        const auto ch = static_cast<unsigned char>(raw);
         out.push_back(HEX_DIGITS[ch >> 4]);
         out.push_back(HEX_DIGITS[ch & 0x0f]);
     }

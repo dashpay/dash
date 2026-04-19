@@ -97,13 +97,17 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "getaddressmempool",     // Dash: requires address index
     "getaddresstxids",       // Dash: requires address index
     "getaddressutxos",       // Dash: requires address index
+    "getassetunlockstatuses", // Dash: requires chainstate
     "getbestchainlock",      // Dash: requires LLMQ subsystem
+    "getblockfrompeer",      // avoid network activity
     "getblockhashes",        // Dash: requires timestamp index
     "getblockheaders",       // Dash: requires block index
     "getcoinjoininfo",       // Dash: requires MN subsystem
     "getgovernanceinfo",     // Dash: requires governance subsystem
     "getislocks",            // Dash: requires LLMQ subsystem
     "getmerkleblocks",       // Dash: requires block index
+    "getrawtransactionmulti", // Dash: requires chainstate
+    "gettxchainlocks",       // Dash: requires LLMQ subsystem
     "getspentinfo",          // Dash: requires spent index
     "getspecialtxes",        // Dash: requires block index
     "getsuperblockbudget",   // Dash: requires governance subsystem
@@ -112,8 +116,10 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "gobject check",         // Dash: requires governance subsystem
     "gobject count",         // Dash: requires governance subsystem
     "gobject deserialize",   // Dash: requires governance subsystem
+    "gobject diff",          // Dash: requires governance subsystem
     "gobject get",           // Dash: requires governance subsystem
     "gobject getcurrentvotes", // Dash: requires governance subsystem
+    "gobject list",          // Dash: requires governance subsystem
     "gobject list-prepared", // Dash: requires governance subsystem
     "gobject prepare",       // Dash: requires governance subsystem
     "gobject submit",        // Dash: requires governance subsystem
@@ -124,6 +130,7 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "masternode",            // Dash: requires MN subsystem
     "masternode connect",    // Dash: requires MN subsystem
     "masternode count",      // Dash: requires MN subsystem
+    "masternode list",       // Dash: requires MN subsystem
     "masternode outputs",    // Dash: requires MN subsystem
     "masternode payments",   // Dash: requires MN subsystem
     "masternode status",     // Dash: requires MN subsystem
@@ -131,6 +138,7 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "masternodelist",        // Dash: requires MN subsystem
     "mnauth",                // Dash: requires MN subsystem
     "mnsync",                // Dash: requires MN subsystem
+    "protx",                 // Dash: requires MN subsystem
     "protx diff",            // Dash: requires MN subsystem
     "protx info",            // Dash: requires MN subsystem
     "protx list",            // Dash: requires MN subsystem
@@ -138,6 +146,8 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "protx register_submit", // Dash: requires MN subsystem
     "protx revoke",          // Dash: requires MN subsystem
     "protx update_service",  // Dash: requires MN subsystem
+    "quorum",                // Dash: requires LLMQ subsystem
+    "quorum dkginfo",        // Dash: requires LLMQ subsystem
     "quorum dkgsimerror",    // Dash: requires LLMQ subsystem
     "quorum dkgstatus",      // Dash: requires LLMQ subsystem
     "quorum getdata",        // Dash: requires LLMQ subsystem
@@ -149,6 +159,7 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "quorum listextended",   // Dash: requires LLMQ subsystem
     "quorum memberof",       // Dash: requires LLMQ subsystem
     "quorum platformsign",   // Dash: requires LLMQ subsystem
+    "quorum rotationinfo",   // Dash: requires LLMQ subsystem
     "quorum selectquorum",   // Dash: requires LLMQ subsystem
     "quorum sign",           // Dash: requires LLMQ subsystem
     "quorum verify",         // Dash: requires LLMQ subsystem

@@ -10,9 +10,7 @@
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
 
-#include <algorithm>
 #include <array>
-#include <limits>
 #include <string>
 
 /** Holds a mixing input
@@ -130,8 +128,9 @@ constexpr int CalculateAmountPriority(CAmount nInputAmount)
     }
 
     //nondenom return largest first
-    const int64_t val = -(nInputAmount / COIN);
-    return int(std::clamp<int64_t>(val, std::numeric_limits<int>::min(), std::numeric_limits<int>::max()));
+    // nInputAmount is bounded to [0, MAX_MONEY] by the guard at the top of this function,
+    // so (nInputAmount / COIN) fits comfortably in int.
+    return -1 * (nInputAmount / COIN);
 }
 
 } // namespace CoinJoin
