@@ -4365,7 +4365,10 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
                 auto* desc_spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(GetScriptPubKeyMan(/*internal=*/internal));
                 if (desc_spk_man == nullptr) continue;
                 const uint32_t counter = internal ? data.internal_chain_counter : data.external_chain_counter;
-                if (counter > 0) desc_spk_man->AdvanceNextIndexTo(counter);
+                if (counter > 0 && !desc_spk_man->AdvanceNextIndexTo(counter)) {
+                    error = _("Error: Failed to advance active descriptor past legacy chain counter during migration.");
+                    return false;
+                }
             }
         } else {
             // Setup with a new seed if we don't.
@@ -4656,7 +4659,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
 
     // Make a backup of the DB
     fs::path this_wallet_dir = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename())).parent_path();
-    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", wallet_name, GetTime()));
+    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", wallet_name.empty() ? "wallet" : wallet_name, GetTime()));
     fs::path backup_path = this_wallet_dir / backup_filename;
     if (!local_wallet->BackupWallet(fs::PathToString(backup_path))) {
         return util::Error{_("Error: Unable to make a backup of your wallet")};

@@ -1881,6 +1881,18 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
         return std::nullopt;
     }
 
+    // Wrap every DB write produced by the per-chain TopUp() calls below in a
+    // single SQLite transaction. Without this, each key/script insert auto-
+    // commits and fsyncs to disk, turning a large-chain migration (e.g. a Dash
+    // wallet with a long CoinJoin-driven external counter) into tens of
+    // thousands of tiny commits. SQLiteBatch tracks transaction ownership per
+    // batch, so inner WalletBatches created inside TopUp share this outer
+    // transaction rather than fighting it.
+    WalletBatch migration_batch(m_storage.GetDatabase());
+    if (!migration_batch.TxnBegin()) {
+        throw std::runtime_error(std::string(__func__) + ": failed to begin migration transaction");
+    }
+
     MigrationData out;
 
     std::unordered_set<CScript, SaltedSipHasher> spks{GetScriptPubKeys()};
@@ -2139,6 +2151,11 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
 
     // Make sure that we have accounted for all scriptPubKeys
     assert(spks.size() == 0);
+
+    if (!migration_batch.TxnCommit()) {
+        throw std::runtime_error(std::string(__func__) + ": failed to commit migration transaction");
+    }
+
     return out;
 }
 
@@ -2146,7 +2163,23 @@ bool LegacyScriptPubKeyMan::DeleteRecords()
 {
     LOCK(cs_KeyStore);
     WalletBatch batch(m_storage.GetDatabase());
-    return batch.EraseRecords(DBKeys::LEGACY_TYPES);
+    // Wrap the legacy-record deletion in a single SQLite transaction. Without
+    // this, EraseRecords cursor-walks the entire DB and every matching row's
+    // Erase auto-commits+fsyncs on its own — legacy wallets with thousands of
+    // KEY/HDPUBKEY/POOL/KEYMETA rows then take minutes instead of milliseconds.
+    if (!batch.TxnBegin()) {
+        WalletLogPrintf("DeleteRecords: TxnBegin failed\n");
+        return false;
+    }
+    if (!batch.EraseRecords(DBKeys::LEGACY_TYPES)) {
+        batch.TxnAbort();
+        return false;
+    }
+    if (!batch.TxnCommit()) {
+        WalletLogPrintf("DeleteRecords: TxnCommit failed\n");
+        return false;
+    }
+    return true;
 }
 
 util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination()

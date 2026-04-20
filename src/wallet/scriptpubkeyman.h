@@ -611,7 +611,7 @@ public:
     //! script at `target`. Used by wallet migration to make sure the active
     //! pkh() descriptors don't re-derive addresses the legacy wallet had
     //! already given out. No-op if next_index is already at or beyond target.
-    bool AdvanceNextIndexTo(int32_t target);
+    [[nodiscard]] bool AdvanceNextIndexTo(int32_t target);
 
     std::vector<WalletDestination> MarkUnusedAddresses(WalletBatch &batch, const CScript& script, const std::optional<int64_t>& block_time) override;
 

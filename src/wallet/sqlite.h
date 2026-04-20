@@ -24,6 +24,12 @@ private:
 
     bool m_cursor_init = false;
 
+    // True iff TxnBegin() succeeded on this batch and has not yet been
+    // matched by TxnCommit()/TxnAbort(). Only the batch that started the
+    // transaction auto-aborts in Close(); other batches sharing the SQLite
+    // connection while an outer transaction is in flight must not interfere.
+    bool m_txn_started{false};
+
     sqlite3_stmt* m_read_stmt{nullptr};
     sqlite3_stmt* m_insert_stmt{nullptr};
     sqlite3_stmt* m_overwrite_stmt{nullptr};
