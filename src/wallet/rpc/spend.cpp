@@ -27,17 +27,36 @@ static void ParseRecipients(const UniValue& address_amounts, const UniValue& sub
     std::set<CTxDestination> destinations;
     int i = 0;
     for (const std::string& address: address_amounts.getKeys()) {
+        CScript script_pub_key;
+        bool is_platform = false;
+
         CTxDestination dest = DecodeDestination(address);
-        if (!IsValidDestination(dest)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + address);
+        if (IsValidDestination(dest)) {
+            if (destinations.count(dest)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ") + address);
+            }
+            destinations.insert(dest);
+            script_pub_key = GetScriptForDestination(dest);
+        } else {
+            std::string platform_error;
+            PlatformDestination platform_dest = DecodePlatformDestination(address, platform_error);
+            if (!IsValidPlatformDestination(platform_dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash Platform address: ") + address);
+            }
+            is_platform = true;
+            if (const auto* pkh = std::get_if<PlatformP2PKHDestination>(&platform_dest)) {
+                uint160 hash;
+                std::copy(pkh->begin(), pkh->end(), hash.begin());
+                script_pub_key = GetScriptForDestination(PKHash(hash));
+            } else if (const auto* sh = std::get_if<PlatformP2SHDestination>(&platform_dest)) {
+                uint160 hash;
+                std::copy(sh->begin(), sh->end(), hash.begin());
+                script_pub_key = GetScriptForDestination(ScriptHash(hash));
+            } else {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Unsupported Platform address type: ") + address);
+            }
         }
 
-        if (destinations.count(dest)) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ") + address);
-        }
-        destinations.insert(dest);
-
-        CScript script_pub_key = GetScriptForDestination(dest);
         CAmount amount = AmountFromValue(address_amounts[i++]);
 
         bool subtract_fee = false;
@@ -48,7 +67,7 @@ static void ParseRecipients(const UniValue& address_amounts, const UniValue& sub
             }
         }
 
-        CRecipient recipient = {script_pub_key, amount, subtract_fee};
+        CRecipient recipient = {script_pub_key, amount, subtract_fee, is_platform};
         recipients.push_back(recipient);
     }
 }

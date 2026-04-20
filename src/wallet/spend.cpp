@@ -6,7 +6,9 @@
 #include <coinjoin/options.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
+#include <evo/assetlocktx.h>
 #include <evo/dmn_types.h>
+#include <evo/specialtx.h>
 #include <interfaces/chain.h>
 #include <policy/policy.h>
 #include <script/signingprovider.h>
@@ -769,13 +771,43 @@ static void DiscourageFeeSniping(CMutableTransaction& tx, FastRandomContext& rng
 
 static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         CWallet& wallet,
-        const std::vector<CRecipient>& vecSend,
+        const std::vector<CRecipient>& vecSend_in,
         int change_pos,
         const CCoinControl& coin_control,
         bool sign,
         int nExtraPayloadSize) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     AssertLockHeld(wallet.cs_wallet);
+
+    // DIP-27 v2: when platform recipients are present, build asset-lock payload
+    // and replace platform recipients with an OP_RETURN output.
+    std::optional<CAssetLockPayload> opt_assetLockPayload;
+    std::vector<CRecipient> vecSend;
+    const bool has_platform = std::any_of(vecSend_in.cbegin(), vecSend_in.cend(),
+                                           [](const auto& r) { return r.fPlatformTransfer; });
+    if (has_platform) {
+        std::vector<CTxOut> creditOutputs;
+        CAmount platform_total{0};
+
+        for (const auto& recipient : vecSend_in) {
+            if (recipient.fPlatformTransfer) {
+                creditOutputs.emplace_back(recipient.nAmount, recipient.scriptPubKey);
+                platform_total += recipient.nAmount;
+            } else {
+                vecSend.push_back(recipient);
+            }
+        }
+
+        opt_assetLockPayload.emplace(creditOutputs);
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << *opt_assetLockPayload;
+        nExtraPayloadSize = ss.size();
+
+        vecSend.insert(vecSend.begin(),
+                       {CScript() << OP_RETURN << ParseHex(""), platform_total, /*fSubtractFeeFromAmount=*/false});
+    } else {
+        vecSend = vecSend_in;
+    }
 
     // out variables, to be packed into returned result structure
     CAmount nFeeRet;
@@ -1054,6 +1086,12 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     // Give up if change keypool ran out and change is required
     if (scriptChange.empty() && nChangePosInOut != -1) {
         return util::Error{error};
+    }
+
+    if (opt_assetLockPayload) {
+        txNew.nVersion = 3;
+        txNew.nType = TRANSACTION_ASSET_LOCK;
+        SetTxPayload(txNew, *opt_assetLockPayload);
     }
 
     if (sign && !wallet.SignTransaction(txNew)) {

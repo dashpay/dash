@@ -260,6 +260,7 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
+    bool fPlatformTransfer{false};
 };
 
 struct WalletTxHasher
