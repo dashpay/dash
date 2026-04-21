@@ -99,43 +99,54 @@ def convertbits(data, frombits, tobits, pad=True):
     return ret
 
 
-def decode_segwit_address(hrp, addr):
-    """Decode a segwit address."""
+DIP18_TYPE_P2PKH = 0xb0
+DIP18_TYPE_P2SH = 0x80
+
+
+def encode_platform_p2pkh(hrp, keyhash):
+    """Encode a 20-byte keyhash as a DIP-18 Platform P2PKH bech32m address."""
+    assert len(keyhash) == 20
+    payload = [DIP18_TYPE_P2PKH] + list(keyhash)
+    data = convertbits(payload, 8, 5)
+    return bech32_encode(Encoding.BECH32M, hrp, data)
+
+
+def encode_platform_p2sh(hrp, scripthash):
+    """Encode a 20-byte scripthash as a DIP-18 Platform P2SH bech32m address."""
+    assert len(scripthash) == 20
+    payload = [DIP18_TYPE_P2SH] + list(scripthash)
+    data = convertbits(payload, 8, 5)
+    return bech32_encode(Encoding.BECH32M, hrp, data)
+
+
+def decode_platform_address(hrp, addr):
+    """Decode a DIP-18 bech32m platform address. Returns (type_byte, hash_bytes) or (None, None)."""
     encoding, hrpgot, data = bech32_decode(addr)
-    if hrpgot != hrp:
+    if encoding != Encoding.BECH32M or hrpgot != hrp:
         return (None, None)
-    decoded = convertbits(data[1:], 5, 8, False)
-    if decoded is None or len(decoded) < 2 or len(decoded) > 40:
+    payload = convertbits(data, 5, 8, pad=False)
+    if payload is None or len(payload) != 21:
         return (None, None)
-    if data[0] > 16:
+    type_byte = payload[0]
+    if type_byte not in (DIP18_TYPE_P2PKH, DIP18_TYPE_P2SH):
         return (None, None)
-    if data[0] == 0 and len(decoded) != 20 and len(decoded) != 32:
-        return (None, None)
-    if (data[0] == 0 and encoding != Encoding.BECH32) or (data[0] != 0 and encoding != Encoding.BECH32M):
-        return (None, None)
-    return (data[0], decoded)
+    return (type_byte, bytes(payload[1:]))
 
-
-def encode_segwit_address(hrp, witver, witprog):
-    """Encode a segwit address."""
-    encoding = Encoding.BECH32 if witver == 0 else Encoding.BECH32M
-    ret = bech32_encode(encoding, hrp, [witver] + convertbits(witprog, 8, 5))
-    if decode_segwit_address(hrp, ret) == (None, None):
-        return None
-    return ret
 
 class TestFrameworkScript(unittest.TestCase):
-    def test_segwit_encode_decode(self):
-        def test_python_bech32(addr):
-            hrp = addr[:4]
-            self.assertEqual(hrp, "bcrt")
-            (witver, witprog) = decode_segwit_address(hrp, addr)
-            self.assertEqual(encode_segwit_address(hrp, witver, witprog), addr)
+    def test_platform_encode_decode(self):
+        def test_platform_roundtrip(hrp, addr, expected_type):
+            typ, payload = decode_platform_address(hrp, addr)
+            self.assertIsNotNone(typ)
+            self.assertEqual(typ, expected_type)
+            if expected_type == DIP18_TYPE_P2PKH:
+                self.assertEqual(encode_platform_p2pkh(hrp, payload), addr)
+            else:
+                self.assertEqual(encode_platform_p2sh(hrp, payload), addr)
 
-        # P2WPKH
-        test_python_bech32('bcrt1qthmht0k2qnh3wy7336z05lu2km7emzfpm3wg46')
-        # P2WSH
-        test_python_bech32('bcrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3xueyj')
-        test_python_bech32('bcrt1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsqseac85')
-        # P2TR
-        test_python_bech32('bcrt1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqc8gma6')
+        # DIP-18 P2PKH
+        test_platform_roundtrip('dash', 'dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs', DIP18_TYPE_P2PKH)
+        test_platform_roundtrip('tdash', 'tdash1krma5z3ttj75la4m93xcndna9ullamq9y5fzq2j7', DIP18_TYPE_P2PKH)
+        # DIP-18 P2SH
+        test_platform_roundtrip('dash', 'dash1sppl5xpu70aka8nacc4kj2htflydspzkxch4cad6', DIP18_TYPE_P2SH)
+        test_platform_roundtrip('tdash', 'tdash1sppl5xpu70aka8nacc4kj2htflydspzkxc8jtru5', DIP18_TYPE_P2SH)
