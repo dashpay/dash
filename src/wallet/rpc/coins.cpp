@@ -170,7 +170,7 @@ RPCHelpMan listaddressbalances()
             {"minamount", RPCArg::Type::NUM, RPCArg::Default{0}, "Minimum balance in " + CURRENCY_UNIT + " an address should have to be shown in the list"},
         },
         RPCResult{
-                RPCResult::Type::OBJ_DYN, "addresses", "Balances of addresses",
+                RPCResult::Type::OBJ_DYN, "", "Balances of addresses",
                 {
                         {RPCResult::Type::STR_AMOUNT, "address", "the amount in " + CURRENCY_UNIT},
                 }
