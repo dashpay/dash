@@ -63,7 +63,7 @@ class AssetLocksTest(DashTestFramework):
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
 
-    def create_assetlock(self, coin, amount, pubkey):
+    def create_assetlock(self, coin, amount, pubkey, version=1):
         node_wallet = self.nodes[0]
 
 
@@ -77,7 +77,7 @@ class AssetLocksTest(DashTestFramework):
             credit_outputs.append(CTxOut(COIN, key_to_p2pkh_script(pubkey)))
         credit_outputs.append(CTxOut(tmp_amount, key_to_p2pkh_script(pubkey)))
 
-        lockTx_payload = CAssetLockTx(1, credit_outputs)
+        lockTx_payload = CAssetLockTx(version, credit_outputs)
 
         remaining = sum(int(COIN * c['amount']) for c in coins) - tiny_amount - amount
 
@@ -270,6 +270,7 @@ class AssetLocksTest(DashTestFramework):
         self.test_withdrawal_limits(node_wallet, node, pubkey)
         self.test_mn_rr(node_wallet, node, pubkey)
         self.test_withdrawals_fork(node_wallet, node, pubkey)
+        self.test_asset_locks_v2_pre_v24(node_wallet, node, pubkey)
         self.test_v24_fork(node_wallet, node, pubkey)
         self.test_non_standard(node_wallet, node, pubkey)
 
@@ -708,7 +709,10 @@ class AssetLocksTest(DashTestFramework):
     def test_v24_fork(self, node_wallet, node, pubkey):
         self.log.info("Testing asset unlock after 'v24' activation...")
         self.activate_by_name('v24', 750)
+        self.mempool_size = node_wallet.getmempoolinfo()['size']
         self.log.info(f'post-v24 height: {node.getblockcount()} credit: {self.get_credit_pool_balance()}')
+
+        self.test_asset_locks_v2(node_wallet, node, pubkey)
 
         index = 601
         while index < 611:
@@ -759,6 +763,70 @@ class AssetLocksTest(DashTestFramework):
         self.log.info(f"{txid_in_block} should not be mined")
         tip_hash = self.generate(node, 1)[0]
         assert txid_in_block not in node.getblock(tip_hash)['tx']
+
+    def test_asset_locks_v2_pre_v24(self, node_wallet, node, pubkey):
+        self.log.info("Testing asset lock v2 rejection before v24 activation...")
+        assert not softfork_active(node_wallet, 'v24')
+
+        self.mempool_size = node_wallet.getmempoolinfo()['size']
+
+        coins = node_wallet.listunspent(query_options={'minimumAmount': 1})
+        coin = coins.pop()
+        lock_tx = self.create_assetlock(coin, COIN, pubkey, version=2)
+        self.check_mempool_result(tx=lock_tx,
+            result_expected={'allowed': False, 'reject-reason': 'bad-assetlocktx-version-2'})
+        self.log.info("v2 asset lock correctly rejected pre-v24")
+
+    def test_asset_locks_v2(self, node_wallet, node, pubkey):
+        self.log.info("Testing asset lock v2 after v24 activation...")
+        assert softfork_active(node_wallet, 'v24')
+
+        locked = self.get_credit_pool_balance()
+
+        self.log.info("Test v2 asset lock accepted post-v24...")
+        coins = node_wallet.listunspent(query_options={'minimumAmount': 1})
+        coin = coins.pop()
+        lock_tx = self.create_assetlock(coin, COIN, pubkey, version=2)
+        self.check_mempool_result(tx=lock_tx,
+            result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
+        self.send_tx(lock_tx)
+        locked += node.getblocktemplate()['masternode'][0]['amount'] + COIN
+        self.generate(node, 1)
+        assert_equal(self.get_credit_pool_balance(), locked)
+
+        self.log.info("Test decoderawtransaction shows platform address for v2...")
+        rpc_tx = node.getrawtransaction(lock_tx.rehash(), 1)
+        assert_equal(rpc_tx['assetLockTx']['version'], 2)
+        for credit_output in rpc_tx['assetLockTx']['creditOutputs']:
+            assert 'address' in credit_output
+            assert credit_output['address'].startswith('tdash1')
+
+        self.log.info("Test validateaddress recognizes platform addresses...")
+        platform_addr = rpc_tx['assetLockTx']['creditOutputs'][0]['address']
+        val = node_wallet.validateaddress(platform_addr)
+        assert_equal(val['isvalid'], True)
+        assert_equal(val['isplatform'], True)
+
+        self.log.info("Test sendtoaddress to a platform address creates v2 asset-lock tx...")
+        txid = node_wallet.sendtoaddress(platform_addr, 1.0)
+        self.sync_mempools()
+        raw = node_wallet.getrawtransaction(txid, 1)
+        assert_equal(raw['type'], 8)
+        assert_equal(raw['assetLockTx']['version'], 2)
+        assert_equal(len(raw['assetLockTx']['creditOutputs']), 1)
+        assert_equal(raw['assetLockTx']['creditOutputs'][0]['valueSat'], COIN)
+        assert_equal(raw['assetLockTx']['creditOutputs'][0]['address'], platform_addr)
+
+        op_return_found = any(
+            vout['scriptPubKey']['type'] == 'nulldata' and vout['valueSat'] == COIN
+            for vout in raw['vout']
+        )
+        assert op_return_found
+
+        locked += node.getblocktemplate()['masternode'][0]['amount'] + COIN
+        self.generate(node, 1)
+        assert_equal(self.get_credit_pool_balance(), locked)
+        self.log.info("v2 asset lock via sendtoaddress confirmed and credit pool updated")
 
 
     def test_non_standard(self, node_wallet, node, pubkey):
