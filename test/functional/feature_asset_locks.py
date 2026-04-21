@@ -29,6 +29,7 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
+    hash160,
     OP_RETURN,
 )
 from test_framework.script_util import (
@@ -42,6 +43,7 @@ from test_framework.util import (
     assert_greater_than_or_equal,
     softfork_active,
 )
+from test_framework.segwit_addr import encode_platform_p2pkh
 from test_framework.wallet_util import bytes_to_wif
 
 llmq_type_test = 106 # LLMQType::LLMQ_TEST_PLATFORM
@@ -783,50 +785,49 @@ class AssetLocksTest(DashTestFramework):
 
         locked = self.get_credit_pool_balance()
 
-        self.log.info("Test v2 asset lock accepted post-v24...")
+        self.log.info("Test v2 mempool acceptance, sendtoaddress, v1 compat, validateaddress...")
         coins = node_wallet.listunspent(query_options={'minimumAmount': 1})
-        coin = coins.pop()
-        lock_tx = self.create_assetlock(coin, COIN, pubkey, version=2)
-        self.check_mempool_result(tx=lock_tx,
+
+        # v2 via raw construction
+        lock_tx_v2 = self.create_assetlock(coins.pop(), COIN, pubkey, version=2)
+        self.check_mempool_result(tx=lock_tx_v2,
             result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
-        self.send_tx(lock_tx)
-        locked += node.getblocktemplate()['masternode'][0]['amount'] + COIN
-        self.generate(node, 1)
-        assert_equal(self.get_credit_pool_balance(), locked)
+        self.send_tx(lock_tx_v2)
 
-        self.log.info("Test decoderawtransaction shows platform address for v2...")
-        rpc_tx = node.getrawtransaction(lock_tx.rehash(), 1)
-        assert_equal(rpc_tx['assetLockTx']['version'], 2)
-        for credit_output in rpc_tx['assetLockTx']['creditOutputs']:
-            assert 'address' in credit_output
-            assert credit_output['address'].startswith('tdash1')
+        # v2 via sendtoaddress (two different platform addresses)
+        platform_addr_from_key = encode_platform_p2pkh('tdash', hash160(pubkey))
+        txid1 = node_wallet.sendtoaddress(platform_addr_from_key, 1.0)
 
-        self.log.info("Test validateaddress recognizes platform addresses...")
-        platform_addr = rpc_tx['assetLockTx']['creditOutputs'][0]['address']
-        val = node_wallet.validateaddress(platform_addr)
+        val = node_wallet.validateaddress(platform_addr_from_key)
         assert_equal(val['isvalid'], True)
         assert_equal(val['isplatform'], True)
 
-        self.log.info("Test sendtoaddress to a platform address creates v2 asset-lock tx...")
-        txid = node_wallet.sendtoaddress(platform_addr, 1.0)
-        self.sync_mempools()
-        raw = node_wallet.getrawtransaction(txid, 1)
-        assert_equal(raw['type'], 8)
-        assert_equal(raw['assetLockTx']['version'], 2)
-        assert_equal(len(raw['assetLockTx']['creditOutputs']), 1)
-        assert_equal(raw['assetLockTx']['creditOutputs'][0]['valueSat'], COIN)
-        assert_equal(raw['assetLockTx']['creditOutputs'][0]['address'], platform_addr)
+        # v1 still accepted post-v24
+        lock_tx_v1 = self.create_assetlock(coins.pop(), COIN, pubkey, version=1)
+        self.send_tx(lock_tx_v1)
 
-        op_return_found = any(
-            vout['scriptPubKey']['type'] == 'nulldata' and vout['valueSat'] == COIN
-            for vout in raw['vout']
-        )
-        assert op_return_found
-
-        locked += node.getblocktemplate()['masternode'][0]['amount'] + COIN
+        # mine all at once
+        locked += node.getblocktemplate()['masternode'][0]['amount'] + 3 * COIN
         self.generate(node, 1)
         assert_equal(self.get_credit_pool_balance(), locked)
-        self.log.info("v2 asset lock via sendtoaddress confirmed and credit pool updated")
+
+        # verify v2 raw tx JSON
+        rpc_v2 = node.getrawtransaction(lock_tx_v2.rehash(), 1)
+        assert_equal(rpc_v2['assetLockTx']['version'], 2)
+        assert rpc_v2['assetLockTx']['creditOutputs'][0]['address'].startswith('tdash1')
+
+        # verify v2 sendtoaddress tx JSON
+        raw1 = node.getrawtransaction(txid1, 1)
+        assert_equal(raw1['type'], 8)
+        assert_equal(raw1['assetLockTx']['version'], 2)
+        assert_equal(raw1['assetLockTx']['creditOutputs'][0]['valueSat'], COIN)
+        assert_equal(raw1['assetLockTx']['creditOutputs'][0]['address'], platform_addr_from_key)
+        assert any(vout['scriptPubKey']['type'] == 'nulldata' and vout['valueSat'] == COIN for vout in raw1['vout'])
+
+        # verify v1 has no 'address' in JSON
+        rpc_v1 = node.getrawtransaction(lock_tx_v1.rehash(), 1)
+        assert_equal(rpc_v1['assetLockTx']['version'], 1)
+        assert 'address' not in rpc_v1['assetLockTx']['creditOutputs'][0]
 
 
     def test_non_standard(self, node_wallet, node, pubkey):
