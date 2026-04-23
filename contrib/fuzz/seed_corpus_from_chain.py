@@ -57,7 +57,7 @@ STREAM_VERSION_PREFIX = STREAM_VERSION.to_bytes(4, byteorder="little", signed=Fa
 
 # Non-Dash targets (outside the dash_* naming convention) whose harnesses
 # also consume the 4-byte stream version prefix described above.
-_NON_DASH_STREAM_VERSION_TARGETS = frozenset({"block", "block_deserialize"})
+_NON_DASH_STREAM_VERSION_TARGETS = frozenset({"block", "block_deserialize", "blockmerkleroot"})
 
 
 def _needs_stream_version_prefix(target_name):
@@ -210,6 +210,8 @@ def extract_blocks(output_dir, count=20, datadir=None):
             if save_corpus_input(output_dir, "block_deserialize", block_hex):
                 saved += 1
             if save_corpus_input(output_dir, "block", block_hex):
+                saved += 1
+            if save_corpus_input(output_dir, "blockmerkleroot", block_hex):
                 saved += 1
 
     print(f"  Saved {saved} block corpus inputs")
