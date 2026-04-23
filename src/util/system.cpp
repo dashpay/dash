@@ -999,7 +999,8 @@ bool ArgsManager::ReadConfigStream(std::istream& stream, const std::string& file
 
 fs::path ArgsManager::GetConfigFilePath() const
 {
-    return GetConfigFile(GetPathArg("-conf", BITCOIN_CONF_FILENAME));
+    LOCK(cs_args);
+    return *Assert(m_config_path);
 }
 
 bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
@@ -1008,9 +1009,12 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
         LOCK(cs_args);
         m_settings.ro_config.clear();
         m_config_sections.clear();
+        m_config_path = AbsPathForConfigVal(GetPathArg("-conf", BITCOIN_CONF_FILENAME), /*net_specific=*/false);
     }
 
+    const fs::path orig_datadir_path{GetDataDirBase()};
     const auto conf_path{GetConfigFilePath()};
+    const fs::path& orig_config_path{conf_path};
     std::ifstream stream{conf_path};
 
     // not ok to have a config file specified that cannot be opened
@@ -1058,7 +1062,7 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
             const size_t default_includes = add_includes({});
 
             for (const std::string& conf_file_name : conf_file_names) {
-                std::ifstream conf_file_stream{GetConfigFile(fs::PathFromString(conf_file_name))};
+                std::ifstream conf_file_stream{AbsPathForConfigVal(fs::PathFromString(conf_file_name), /*net_specific=*/false)};
                 if (conf_file_stream.good()) {
                     if (!ReadConfigStream(conf_file_stream, conf_file_name, error, ignore_invalid_keys)) {
                         return false;
@@ -1097,6 +1101,32 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
     if (!CheckDataDirOption()) {
         error = strprintf("specified data directory \"%s\" does not exist.", GetArg("-datadir", ""));
         return false;
+    }
+
+    const fs::path base_path = GetDataDirBase();
+    const fs::path base_config_path = base_path / BITCOIN_CONF_FILENAME;
+    if (fs::exists(base_config_path) && !fs::equivalent(orig_config_path, base_config_path)) {
+        const std::string cli_config_path = GetArg("-conf", "");
+        const std::string config_source = cli_config_path.empty()
+            ? strprintf("data directory %s", fs::quoted(fs::PathToString(orig_datadir_path)))
+            : strprintf("command line argument %s", fs::quoted("-conf=" + cli_config_path));
+        const std::string ignored_conf_error = strprintf(
+            "Data directory %1$s contains a %2$s file which is ignored, because a different configuration file "
+            "%3$s from %4$s is being used instead. Possible ways to address this would be to:\n"
+            "- Delete or rename the %2$s file in data directory %1$s.\n"
+            "- Change datadir= or conf= options to specify one configuration file, not two, and use "
+            "includeconf= to include any other configuration files.\n"
+            "- Set allowignoredconf=1 option to treat this condition as a warning, not an error.",
+            fs::quoted(fs::PathToString(base_path)),
+            fs::quoted(BITCOIN_CONF_FILENAME),
+            fs::quoted(fs::PathToString(orig_config_path)),
+            config_source);
+        if (GetBoolArg("-allowignoredconf", false)) {
+            LogPrintf("Warning: %s\n", ignored_conf_error);
+        } else {
+            error = ignored_conf_error;
+            return false;
+        }
     }
     return true;
 }
