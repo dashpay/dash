@@ -118,8 +118,8 @@ FUZZ_TARGET(deterministic_mn_list_diff, .init = initialize_deterministic_mn_list
             new_state->confirmedHash = HashFromTag(next_unique_tag++ ^ 0x33333333ULL);
             break;
         case 4: {
-            CBLSSecretKey sk;
-            sk.MakeNewKey();
+            const uint256 operator_seed = HashFromTag(next_unique_tag++ ^ 0x04040404ULL);
+            const CBLSSecretKey sk{Span<const unsigned char>{operator_seed.begin(), operator_seed.size()}};
             new_state->nVersion = ProTxVersion::BasicBLS;
             new_state->pubKeyOperator.Set(sk.GetPublicKey(), /*specificLegacyScheme=*/false);
             break;

@@ -62,8 +62,8 @@ FUZZ_TARGET(bls_operations, .init = initialize_bls_operations)
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
 
     // Test both legacy and basic BLS schemes.
-    // Intentionally mutating this global: each fuzz run is an isolated process,
-    // so there is no cross-run state leakage.
+    // Intentionally mutating this global: each invocation overwrites it before use,
+    // so later iterations do not inherit stale scheme state from earlier ones.
     const bool use_legacy = fuzzed_data_provider.ConsumeBool();
     bls::bls_legacy_scheme.store(use_legacy);
 
