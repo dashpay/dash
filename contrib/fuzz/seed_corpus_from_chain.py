@@ -100,6 +100,163 @@ def save_corpus_input(output_dir, target_name, data_hex):
     return False
 
 
+def _compact_size(n):
+    """Encode an unsigned integer as a Bitcoin/Dash CompactSize (aka VarInt)."""
+    if n < 253:
+        return bytes([n])
+    if n < 0x10000:
+        return b"\xfd" + n.to_bytes(2, "little")
+    if n < 0x100000000:
+        return b"\xfe" + n.to_bytes(4, "little")
+    return b"\xff" + n.to_bytes(8, "little")
+
+
+def _var_bytes(b):
+    """CompactSize length prefix + the bytes themselves (vector<unsigned char>)."""
+    return _compact_size(len(b)) + b
+
+
+def _uint256_from_hex(h):
+    """Convert an RPC-form uint256 hex string (big-endian display) to its 32-byte
+    wire representation (little-endian internal). Empty/missing input -> zero hash.
+    """
+    if not h:
+        return b"\x00" * 32
+    raw = bytes.fromhex(h)
+    if len(raw) != 32:
+        raise ValueError(f"uint256 hex must be 32 bytes, got {len(raw)}")
+    return raw[::-1]
+
+
+def _parse_outpoint_short(s):
+    """Parse a masternode-outpoint short form 'txid-n' into wire bytes
+    (uint256 hash + uint32 n). Returns zeroed outpoint on missing/invalid input.
+    RPC exposes the signing masternode outpoint as "txid-n" (COutPoint::ToStringShort)."""
+    if not s or "-" not in s:
+        return b"\x00" * 32 + (0).to_bytes(4, "little")
+    txid, _, idx = s.rpartition("-")
+    try:
+        n = int(idx)
+    except ValueError:
+        return b"\x00" * 32 + (0).to_bytes(4, "little")
+    try:
+        return _uint256_from_hex(txid) + n.to_bytes(4, "little")
+    except ValueError:
+        return b"\x00" * 32 + (0).to_bytes(4, "little")
+
+
+def serialize_governance_object(obj_data):
+    """Serialize a structurally valid Governance::Object from a `gobject list` RPC entry.
+
+    The fuzz target ``dash_governance_object_common_deserialize`` reads a full
+    Governance::Object (see src/governance/common.h SERIALIZE_METHODS). The RPC
+    exposes only a subset of the fields; the rest are filled with documented
+    best-effort defaults so the seed is structurally sound rather than random bytes.
+
+    Field sources:
+      * ``hashParent``      — not exposed by RPC (root-object semantics); zeroed.
+      * ``revision``        — not exposed by RPC; defaulted to 1.
+      * ``time``            — from ``CreationTime`` (int64 seconds).
+      * ``collateralHash``  — from ``CollateralHash`` (hex, RPC display order).
+      * ``vchData``         — from ``DataHex`` (raw payload bytes).
+      * ``type``            — from ``ObjectType`` (int: UNKNOWN=0, PROPOSAL=1, TRIGGER=2).
+      * ``masternodeOutpoint`` — from ``SigningMasternode`` ("txid-n"), if present.
+      * ``vchSig``          — not exposed by RPC; left empty.
+    """
+    hash_parent = b"\x00" * 32
+    revision = 1
+    try:
+        time_ = int(obj_data.get("CreationTime", 0))
+    except (TypeError, ValueError):
+        time_ = 0
+    try:
+        collateral_hash = _uint256_from_hex(obj_data.get("CollateralHash", ""))
+    except ValueError:
+        collateral_hash = b"\x00" * 32
+
+    data_hex = obj_data.get("DataHex", "") or ""
+    try:
+        vch_data = bytes.fromhex(data_hex)
+    except ValueError:
+        vch_data = b""
+
+    try:
+        obj_type = int(obj_data.get("ObjectType", 0))
+    except (TypeError, ValueError):
+        obj_type = 0
+
+    outpoint = _parse_outpoint_short(obj_data.get("SigningMasternode", ""))
+    vch_sig = b""
+
+    return (
+        hash_parent
+        + revision.to_bytes(4, "little", signed=True)
+        + time_.to_bytes(8, "little", signed=True)
+        + collateral_hash
+        + _var_bytes(vch_data)
+        + obj_type.to_bytes(4, "little", signed=True)
+        + outpoint
+        + _var_bytes(vch_sig)
+    )
+
+
+def serialize_quorum_data_request(llmq_type, quorum_hash_hex, pro_tx_hash_hex="", n_data_mask=3):
+    """Serialize a llmq::CQuorumDataRequest (src/llmq/quorums.h).
+
+    Wire layout: llmqType (uint8) + quorumHash (uint256) + nDataMask (uint16 LE)
+    + proTxHash (uint256) + nError (uint8, NONE=0). nError is optional per the
+    SERIALIZE_METHODS (try/catch on read, conditional on write) — we include it
+    with NONE so the seed round-trips cleanly.
+
+    nDataMask defaults to QUORUM_VERIFICATION_VECTOR|ENCRYPTED_CONTRIBUTIONS (0x3)
+    for maximal coverage; RPC doesn't expose a concrete in-flight request.
+    """
+    return (
+        bytes([llmq_type & 0xFF])
+        + _uint256_from_hex(quorum_hash_hex)
+        + (n_data_mask & 0xFFFF).to_bytes(2, "little")
+        + _uint256_from_hex(pro_tx_hash_hex)
+        + bytes([0])  # nError = NONE
+    )
+
+
+def serialize_get_quorum_rotation_info(block_request_hash_hex, base_block_hashes_hex, extra_share=False):
+    """Serialize a llmq::CGetQuorumRotationInfo (src/llmq/snapshot.h).
+
+    Wire layout: vector<uint256> baseBlockHashes + uint256 blockRequestHash + bool extraShare.
+    """
+    out = _compact_size(len(base_block_hashes_hex))
+    for h in base_block_hashes_hex:
+        out += _uint256_from_hex(h)
+    out += _uint256_from_hex(block_request_hash_hex)
+    out += bytes([1 if extra_share else 0])
+    return out
+
+
+def serialize_quorum_snapshot(active_quorum_members, skip_list, mn_skip_list_mode=0):
+    """Serialize a llmq::CQuorumSnapshot (src/llmq/snapshot.h).
+
+    Wire layout: mnSkipListMode (int, 4 bytes LE — SnapshotSkipMode enum underlying type is int)
+    + CompactSize(len(activeQuorumMembers)) + WriteFixedBitSet(activeQuorumMembers)
+    + CompactSize(len(mnSkipList)) + int32 LE for each skip-list entry.
+    """
+    count = len(active_quorum_members)
+    out = mn_skip_list_mode.to_bytes(4, "little", signed=True)
+    out += _compact_size(count)
+
+    nbytes = (count + 7) // 8
+    buf = bytearray(nbytes)
+    for i, v in enumerate(active_quorum_members):
+        if v:
+            buf[i // 8] |= 1 << (i % 8)
+    out += bytes(buf)
+
+    out += _compact_size(len(skip_list))
+    for x in skip_list:
+        out += int(x).to_bytes(4, "little", signed=True)
+    return out
+
+
 def read_compact_size(raw, offset):
     """Decode a CompactSize integer from raw bytes at offset."""
     if offset >= len(raw):
@@ -297,7 +454,15 @@ def extract_special_txs(output_dir, count=100, datadir=None):
 
 
 def extract_governance_objects(output_dir, datadir=None):
-    """Extract governance objects (proposals, triggers)."""
+    """Extract governance objects (proposals, triggers) into structurally valid seeds.
+
+    The fuzz target deserializes a full Governance::Object, not raw payload bytes,
+    so we reconstruct the object from the RPC fields (CollateralHash, CreationTime,
+    ObjectType, SigningMasternode, DataHex) and synthesize best-effort defaults for
+    fields the RPC doesn't expose (hashParent, revision, vchSig). CGovernanceObject's
+    non-disk serialization is just ``m_obj`` (see src/governance/object.h:248) so the
+    same bytes are valid seeds for dash_governance_object_{deserialize,roundtrip}.
+    """
     print("Extracting governance objects...")
     result = dash_cli("gobject", "list", "all", datadir=datadir)
     if not result:
@@ -306,13 +471,30 @@ def extract_governance_objects(output_dir, datadir=None):
     saved = 0
     try:
         objects = json.loads(result)
-        for _obj_hash, obj_data in objects.items():
-            data_hex = obj_data.get("DataHex", "")
-            if data_hex:
-                if save_corpus_input(output_dir, "dash_governance_object_common_deserialize", data_hex):
-                    saved += 1
     except (json.JSONDecodeError, AttributeError):
-        pass
+        return 0
+
+    if not isinstance(objects, dict):
+        return 0
+
+    targets = [
+        "dash_governance_object_common_deserialize",
+        "dash_governance_object_deserialize",
+        "dash_governance_object_roundtrip",
+    ]
+
+    for obj_hash, obj_data in objects.items():
+        if not isinstance(obj_data, dict):
+            continue
+        try:
+            serialized = serialize_governance_object(obj_data)
+        except (ValueError, OverflowError) as e:
+            print(f"WARNING: Skipping governance object {obj_hash}: {e}", file=sys.stderr)
+            continue
+        seed_hex = serialized.hex()
+        for target in targets:
+            if save_corpus_input(output_dir, target, seed_hex):
+                saved += 1
 
     print(f"  Saved {saved} governance corpus inputs")
     return saved
@@ -408,13 +590,29 @@ def extract_masternode_list(output_dir, datadir=None):
 
 
 def extract_quorum_info(output_dir, datadir=None):
-    """Extract quorum-related data from the chain.
+    """Seed the quorum-specific P2P/message fuzz targets from live chain data.
 
-    Note: quorum snapshot deserialize targets expect binary-serialized
-    CQuorumSnapshot data, not JSON. We extract final commitment transactions
-    from blocks instead, which are already captured by extract_special_txs()
-    for type 6 (TRANSACTION_QUORUM_COMMITMENT). This function focuses on
-    extracting quorum memberof data as raw bytes for other quorum targets.
+    Drives three fuzz-target families (each with _deserialize and _roundtrip):
+      * dash_quorum_data_request_*        — CQuorumDataRequest (QGETDATA message)
+      * dash_get_quorum_rotation_info_*   — CGetQuorumRotationInfo (QGETRTINFO message)
+      * dash_quorum_snapshot_*            — CQuorumSnapshot (QRINFO payload piece)
+
+    We derive inputs from ``quorum list`` + ``quorum info`` + ``quorum rotationinfo``:
+
+      * CQuorumDataRequest: if ``quorum info`` exposes a real member proTxHash we
+        use it with nDataMask=3 (VV|EC); otherwise we fall back to a zero proTxHash
+        with nDataMask=1 (verification-vector only). Both shapes are structurally
+        valid per the protocol.
+      * CQuorumSnapshot: prefer snapshots returned by ``quorum rotationinfo``
+        (``quorumSnapshotAtHMinus{C,2C,3C}`` and ``quorumSnapshotList``), whose
+        ``activeQuorumMembers`` / ``mnSkipListMode`` / ``mnSkipList`` fields are
+        serialized verbatim. Fall back to the ``quorum info`` member-validity
+        bitmap with an empty skip list + MODE_NO_SKIPPING if rotationinfo is
+        unavailable for that quorum.
+      * CGetQuorumRotationInfo: serialize the exact requests that rotationinfo
+        actually answered (blockRequestHash == quorumHash, empty baseBlockHashes,
+        extraShare=false). Only fall back to a tip-hash + quorum-hash composite
+        when no rotationinfo request succeeded.
     """
     print("Extracting quorum data...")
     result = dash_cli("quorum", "list", datadir=datadir)
@@ -423,48 +621,222 @@ def extract_quorum_info(output_dir, datadir=None):
 
     # quorum info expects a numeric llmqType, but quorum list returns string keys
     llmq_type_map = {
-        "llmq_50_60": "1",
-        "llmq_400_60": "2",
-        "llmq_400_85": "3",
-        "llmq_100_67": "4",
-        "llmq_60_75": "5",
-        "llmq_25_67": "6",
-        "llmq_test": "100",
-        "llmq_devnet": "101",
-        "llmq_test_v17": "102",
-        "llmq_test_dip0024": "103",
-        "llmq_test_instantsend": "104",
-        "llmq_devnet_dip0024": "105",
-        "llmq_test_platform": "106",
-        "llmq_devnet_platform": "107",
+        "llmq_50_60": 1,
+        "llmq_400_60": 2,
+        "llmq_400_85": 3,
+        "llmq_100_67": 4,
+        "llmq_60_75": 5,
+        "llmq_25_67": 6,
+        "llmq_test": 100,
+        "llmq_devnet": 101,
+        "llmq_test_v17": 102,
+        "llmq_test_dip0024": 103,
+        "llmq_test_instantsend": 104,
+        "llmq_devnet_dip0024": 105,
+        "llmq_test_platform": 106,
+        "llmq_devnet_platform": 107,
     }
 
     saved = 0
     try:
         quorum_list = json.loads(result)
-        for qtype, hashes in quorum_list.items():
-            numeric_type = llmq_type_map.get(qtype)
-            if numeric_type is None:
-                print(f"WARNING: Unknown quorum type '{qtype}', skipping", file=sys.stderr)
-                continue
-            for qhash in hashes[:5]:  # Limit per type
-                # Get the quorum commitment transaction via selectquorum
-                # which gives us the quorumHash we can look up in blocks
-                qinfo_str = dash_cli("quorum", "info", numeric_type, qhash, datadir=datadir)
-                if not qinfo_str:
-                    continue
-                try:
-                    qinfo = json.loads(qinfo_str)
-                except json.JSONDecodeError:
-                    continue
-                # Extract the commitment tx if available
-                mining_hash = qinfo.get("minedBlock", "")
-                if mining_hash:
-                    block_hex = dash_cli("getblock", mining_hash, "0", datadir=datadir)
-                    if block_hex and save_corpus_input(output_dir, "block_deserialize", block_hex):
-                        saved += 1
     except (json.JSONDecodeError, AttributeError):
-        pass
+        return 0
+
+    if not isinstance(quorum_list, dict):
+        return 0
+
+    # Collect quorum hashes across types (used as a fallback for
+    # CGetQuorumRotationInfo seeds if no rotationinfo request succeeds).
+    all_quorum_hashes = []
+    # Track the exact (blockRequestHash, baseBlockHashes, extraShare) tuples
+    # for which we successfully invoked `quorum rotationinfo` — these become
+    # the preferred CGetQuorumRotationInfo seeds.
+    successful_rotation_requests = []
+
+    for qtype, hashes in quorum_list.items():
+        numeric_type = llmq_type_map.get(qtype)
+        if numeric_type is None:
+            print(f"WARNING: Unknown quorum type '{qtype}', skipping", file=sys.stderr)
+            continue
+        if not isinstance(hashes, list):
+            continue
+
+        for qhash in hashes[:5]:  # Limit per type
+            if not isinstance(qhash, str) or not qhash:
+                continue
+            all_quorum_hashes.append(qhash)
+
+            # Fetch quorum info once up-front so we can both pull a real
+            # member proTxHash for CQuorumDataRequest and use its
+            # member-validity bitmap as a CQuorumSnapshot fallback.
+            qinfo = None
+            qinfo_str = dash_cli("quorum", "info", str(numeric_type), qhash, datadir=datadir)
+            if qinfo_str:
+                try:
+                    parsed = json.loads(qinfo_str)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    qinfo = parsed
+
+            # --- Seed dash_quorum_data_request_{deserialize,roundtrip} ---
+            # If we have a real member proTxHash, emit a VV|EC request (mask=3);
+            # otherwise emit a zero-proTxHash VV-only request (mask=1). Both
+            # match the CQuorumDataRequest protocol surface.
+            member_protx = ""
+            if qinfo:
+                members = qinfo.get("members", [])
+                if isinstance(members, list):
+                    for m in members:
+                        if not isinstance(m, dict):
+                            continue
+                        p = m.get("proTxHash", "")
+                        if isinstance(p, str) and p:
+                            member_protx = p
+                            break
+            n_data_mask = 3 if member_protx else 1
+            try:
+                qdr = serialize_quorum_data_request(
+                    numeric_type, qhash, member_protx, n_data_mask=n_data_mask
+                )
+            except ValueError as e:
+                print(f"WARNING: Skipping CQuorumDataRequest seed for {qhash}: {e}", file=sys.stderr)
+            else:
+                seed_hex = qdr.hex()
+                for target in [
+                    "dash_quorum_data_request_deserialize",
+                    "dash_quorum_data_request_roundtrip",
+                ]:
+                    if save_corpus_input(output_dir, target, seed_hex):
+                        saved += 1
+
+            # --- Seed dash_quorum_snapshot_{deserialize,roundtrip} ---
+            # Prefer real rotationinfo snapshots when available.
+            snapshot_seeded = False
+            rot_str = dash_cli("quorum", "rotationinfo", qhash, "false", datadir=datadir)
+            rot_info = None
+            if rot_str:
+                try:
+                    parsed = json.loads(rot_str)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    rot_info = parsed
+                    successful_rotation_requests.append((qhash, [], False))
+
+            if rot_info is not None:
+                snapshot_candidates = []
+                for key in (
+                    "quorumSnapshotAtHMinusC",
+                    "quorumSnapshotAtHMinus2C",
+                    "quorumSnapshotAtHMinus3C",
+                ):
+                    s = rot_info.get(key)
+                    if isinstance(s, dict):
+                        snapshot_candidates.append(s)
+                snap_list = rot_info.get("quorumSnapshotList", [])
+                if isinstance(snap_list, list):
+                    snapshot_candidates.extend(s for s in snap_list if isinstance(s, dict))
+
+                for snap in snapshot_candidates:
+                    active_raw = snap.get("activeQuorumMembers", [])
+                    skip_list_raw = snap.get("mnSkipList", [])
+                    skip_mode_raw = snap.get("mnSkipListMode", 0)
+                    if not isinstance(active_raw, list):
+                        continue
+                    if not isinstance(skip_list_raw, list):
+                        skip_list_raw = []
+                    try:
+                        skip_mode_int = int(skip_mode_raw)
+                    except (TypeError, ValueError):
+                        skip_mode_int = 0
+                    try:
+                        snap_bytes = serialize_quorum_snapshot(
+                            [bool(x) for x in active_raw],
+                            [int(x) for x in skip_list_raw],
+                            mn_skip_list_mode=skip_mode_int,
+                        )
+                    except (ValueError, OverflowError, TypeError) as e:
+                        print(
+                            f"WARNING: Skipping rotationinfo CQuorumSnapshot seed for {qhash}: {e}",
+                            file=sys.stderr,
+                        )
+                        continue
+                    seed_hex = snap_bytes.hex()
+                    for target in [
+                        "dash_quorum_snapshot_deserialize",
+                        "dash_quorum_snapshot_roundtrip",
+                    ]:
+                        if save_corpus_input(output_dir, target, seed_hex):
+                            saved += 1
+                    snapshot_seeded = True
+
+            # Fall back to the quorum-info-derived approximation only when
+            # rotationinfo didn't yield a usable snapshot.
+            if not snapshot_seeded and qinfo:
+                members = qinfo.get("members", [])
+                if isinstance(members, list) and members:
+                    active = [bool(m.get("valid", False)) for m in members if isinstance(m, dict)]
+                    try:
+                        snap = serialize_quorum_snapshot(active, [])
+                    except (ValueError, OverflowError) as e:
+                        print(
+                            f"WARNING: Skipping CQuorumSnapshot seed for {qhash}: {e}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        seed_hex = snap.hex()
+                        for target in [
+                            "dash_quorum_snapshot_deserialize",
+                            "dash_quorum_snapshot_roundtrip",
+                        ]:
+                            if save_corpus_input(output_dir, target, seed_hex):
+                                saved += 1
+
+    # --- Seed dash_get_quorum_rotation_info_{deserialize,roundtrip} ---
+    # Prefer the exact requests rotationinfo actually answered. Each is a
+    # minimal (blockRequestHash, [], extraShare=false) tuple matching the
+    # CLI call we issued above.
+    variants = []
+    if successful_rotation_requests:
+        for block_request_hash, base_hashes, extra_share in successful_rotation_requests[:8]:
+            try:
+                variants.append(
+                    serialize_get_quorum_rotation_info(
+                        block_request_hash, base_hashes, extra_share=extra_share
+                    )
+                )
+            except ValueError as e:
+                print(f"WARNING: Skipping CGetQuorumRotationInfo seed: {e}", file=sys.stderr)
+    elif all_quorum_hashes:
+        # Fallback when no rotationinfo call succeeded: synthesize tip-hash
+        # + quorum-hash variants so the corpus isn't empty.
+        tip_hash = dash_cli("getbestblockhash", datadir=datadir)
+        if tip_hash:
+            try:
+                variants.append(
+                    serialize_get_quorum_rotation_info(
+                        tip_hash, all_quorum_hashes[:8], extra_share=False
+                    )
+                )
+                variants.append(
+                    serialize_get_quorum_rotation_info(
+                        tip_hash, all_quorum_hashes[:1], extra_share=True
+                    )
+                )
+            except ValueError as e:
+                print(f"WARNING: Skipping CGetQuorumRotationInfo fallback seeds: {e}", file=sys.stderr)
+                variants = []
+
+    for seed in variants:
+        seed_hex = seed.hex()
+        for target in [
+            "dash_get_quorum_rotation_info_deserialize",
+            "dash_get_quorum_rotation_info_roundtrip",
+        ]:
+            if save_corpus_input(output_dir, target, seed_hex):
+                saved += 1
 
     print(f"  Saved {saved} quorum corpus inputs")
     return saved
