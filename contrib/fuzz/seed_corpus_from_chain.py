@@ -19,8 +19,10 @@ Requirements:
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -38,6 +40,18 @@ def dash_cli(*args, datadir=None):
         return None
 
 
+def _read_protocol_version():
+    """Read PROTOCOL_VERSION from src/version.h."""
+    version_header = Path(__file__).resolve().parents[2] / "src" / "version.h"
+    match = re.search(
+        r"static\s+const\s+int\s+PROTOCOL_VERSION\s*=\s*(\d+)\s*;",
+        version_header.read_text(encoding="utf-8"),
+    )
+    if not match:
+        raise RuntimeError(f"Could not parse PROTOCOL_VERSION from {version_header}")
+    return int(match.group(1))
+
+
 # Must match src/version.h PROTOCOL_VERSION. Several fuzz harnesses read a
 # 4-byte little-endian int from the start of the buffer and use it as the
 # stream version before deserializing the object:
@@ -52,12 +66,21 @@ def dash_cli(*args, datadir=None):
 #     passed.
 # Chain data we extract is serialized at PROTOCOL_VERSION, so we prepend
 # that value to seeds for those targets.
-STREAM_VERSION = 70240
+PROTOCOL_VERSION = _read_protocol_version()
+STREAM_VERSION = PROTOCOL_VERSION
 STREAM_VERSION_PREFIX = STREAM_VERSION.to_bytes(4, byteorder="little", signed=False)
 
 # Non-Dash targets (outside the dash_* naming convention) whose harnesses
 # also consume the 4-byte stream version prefix described above.
 _NON_DASH_STREAM_VERSION_TARGETS = frozenset({"block", "block_deserialize", "blockmerkleroot"})
+_DESERIALIZE_ONLY_DASH_TARGETS = frozenset(
+    {
+        "dash_governance_vote_deserialize",
+        "dash_vote_instance_deserialize",
+        "dash_vote_rec_deserialize",
+        "dash_governance_vote_file_deserialize",
+    }
+)
 
 
 def _needs_stream_version_prefix(target_name):
@@ -116,6 +139,31 @@ def _var_bytes(b):
     return _compact_size(len(b)) + b
 
 
+def _var_list(items):
+    """CompactSize length prefix + concatenated serialized entries."""
+    return _compact_size(len(items)) + b"".join(items)
+
+
+def _serialize_int32(value):
+    return int(value).to_bytes(4, "little", signed=True)
+
+
+def _serialize_uint32(value):
+    return int(value).to_bytes(4, "little", signed=False)
+
+
+def _serialize_int64(value):
+    return int(value).to_bytes(8, "little", signed=True)
+
+
+def _serialize_uint64(value):
+    return int(value).to_bytes(8, "little", signed=False)
+
+
+def _serialize_bool(value):
+    return bytes([1 if value else 0])
+
+
 def _uint256_from_hex(h):
     """Convert an RPC-form uint256 hex string (big-endian display) to its 32-byte
     wire representation (little-endian internal). Empty/missing input -> zero hash.
@@ -143,6 +191,134 @@ def _parse_outpoint_short(s):
         return _uint256_from_hex(txid) + n.to_bytes(4, "little")
     except ValueError:
         return b"\x00" * 32 + (0).to_bytes(4, "little")
+
+
+def _serialize_outpoint(txid_hex="", n=0):
+    return _uint256_from_hex(txid_hex) + _serialize_uint32(n)
+
+
+def _serialize_dynbitset(bits):
+    count = len(bits)
+    nbytes = (count + 7) // 8
+    buf = bytearray(nbytes)
+    for i, value in enumerate(bits):
+        if value:
+            buf[i // 8] |= 1 << (i % 8)
+    return _compact_size(count) + bytes(buf)
+
+
+def _serialize_string(value):
+    return _var_bytes(value.encode("utf-8"))
+
+
+def _serialize_txin(prev_txid_hex="", prev_n=0, script_sig=b"", sequence=0xFFFFFFFF):
+    return _serialize_outpoint(prev_txid_hex, prev_n) + _var_bytes(script_sig) + _serialize_uint32(sequence)
+
+
+def _serialize_txout(value=0, script_pubkey=b""):
+    return int(value).to_bytes(8, "little", signed=True) + _var_bytes(script_pubkey)
+
+
+def _serialize_transaction(vin=None, vout=None, n_version=2, n_type=0, n_lock_time=0, extra_payload=b""):
+    vin = list(vin or [])
+    vout = list(vout or [])
+    n32bit_version = (int(n_version) & 0xFFFF) | ((int(n_type) & 0xFFFF) << 16)
+    out = _serialize_uint32(n32bit_version)
+    out += _var_list(vin)
+    out += _var_list(vout)
+    out += _serialize_uint32(n_lock_time)
+    if n_version >= 3 and n_type != 0:
+        out += _var_bytes(extra_payload)
+    return out
+
+
+def _final_commitment_from_tx_payload(payload_hex):
+    """Extract the embedded CFinalCommitment from a CFinalCommitmentTxPayload."""
+    try:
+        payload = bytes.fromhex(payload_hex)
+    except ValueError as e:
+        raise ValueError("payload is not valid hex") from e
+    if len(payload) < 6:
+        raise ValueError("payload too short for CFinalCommitmentTxPayload header")
+    return payload[6:]
+
+
+_GOVERNANCE_OUTCOME_NAME_TO_INT = {
+    "none": 0,
+    "yes": 1,
+    "no": 2,
+    "abstain": 3,
+}
+
+_GOVERNANCE_SIGNAL_NAME_TO_INT = {
+    "none": 0,
+    "funding": 1,
+    "valid": 2,
+    "delete": 3,
+    "endorsed": 4,
+}
+
+
+def parse_governance_vote_record(vote_record, parent_hash_hex):
+    """Parse one `gobject getcurrentvotes` string into CGovernanceVote fields."""
+    if not isinstance(vote_record, str):
+        raise ValueError("vote record must be a string")
+    parts = vote_record.split(":")
+    if len(parts) != 5:
+        raise ValueError(f"unexpected governance vote format: {vote_record!r}")
+    outpoint_text, timestamp_text, outcome_text, signal_text, _vote_weight = parts
+    if "-" not in outpoint_text:
+        raise ValueError(f"unexpected masternode outpoint format: {outpoint_text!r}")
+    txid_text, _, n_text = outpoint_text.rpartition("-")
+    try:
+        timestamp = int(timestamp_text)
+    except ValueError as e:
+        raise ValueError(f"invalid governance vote timestamp: {timestamp_text!r}") from e
+    outcome = _GOVERNANCE_OUTCOME_NAME_TO_INT.get(outcome_text.lower())
+    if outcome is None:
+        raise ValueError(f"unknown governance vote outcome: {outcome_text!r}")
+    signal = _GOVERNANCE_SIGNAL_NAME_TO_INT.get(signal_text.lower())
+    if signal is None:
+        raise ValueError(f"unknown governance vote signal: {signal_text!r}")
+    return {
+        "masternode_txid": txid_text,
+        "masternode_n": int(n_text),
+        "parent_hash": parent_hash_hex,
+        "outcome": outcome,
+        "signal": signal,
+        "timestamp": timestamp,
+        "signature": b"",
+    }
+
+
+def serialize_governance_vote(parsed_vote):
+    """Serialize CGovernanceVote exactly as in src/governance/vote.h."""
+    return (
+        _serialize_outpoint(parsed_vote["masternode_txid"], parsed_vote["masternode_n"])
+        + _uint256_from_hex(parsed_vote["parent_hash"])
+        + _serialize_int32(parsed_vote["outcome"])
+        + _serialize_int32(parsed_vote["signal"])
+        + _serialize_int64(parsed_vote["timestamp"])
+        + _var_bytes(parsed_vote.get("signature", b""))
+    )
+
+
+def serialize_vote_instance(outcome, updated_time, creation_time):
+    """Serialize vote_instance_t exactly as in src/governance/object.h."""
+    return _serialize_int32(outcome) + _serialize_int64(updated_time) + _serialize_int64(creation_time)
+
+
+def serialize_vote_rec(signal_to_instance):
+    """Serialize vote_rec_t (std::map<int, vote_instance_t>)."""
+    items = []
+    for signal, instance in sorted(signal_to_instance.items()):
+        items.append(_serialize_int32(signal) + instance)
+    return _var_list(items)
+
+
+def serialize_governance_vote_file(votes):
+    """Serialize CGovernanceObjectVoteFile from a list of serialized CGovernanceVote entries."""
+    return _serialize_int32(len(votes)) + _var_list(votes)
 
 
 def serialize_governance_object(obj_data):
@@ -449,6 +625,19 @@ def extract_special_txs(output_dir, count=100, datadir=None):
                     if save_corpus_input(output_dir, f"{target}{suffix}", payload_hex):
                         saved += 1
 
+                if tx_type == 6:
+                    try:
+                        commitment_hex = _final_commitment_from_tx_payload(payload_hex).hex()
+                    except ValueError as e:
+                        print(
+                            f"WARNING: Skipping final commitment seed for tx {txid}: {e}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        for suffix in ["_deserialize", "_roundtrip"]:
+                            if save_corpus_input(output_dir, f"dash_final_commitment{suffix}", commitment_hex):
+                                saved += 1
+
     print(f"  Saved {saved} special transaction corpus inputs")
     return saved
 
@@ -482,6 +671,10 @@ def extract_governance_objects(output_dir, datadir=None):
         "dash_governance_object_deserialize",
         "dash_governance_object_roundtrip",
     ]
+    vote_targets = ["dash_governance_vote_deserialize"]
+    vote_instance_targets = ["dash_vote_instance_deserialize"]
+    vote_rec_targets = ["dash_vote_rec_deserialize"]
+    vote_file_targets = ["dash_governance_vote_file_deserialize"]
 
     for obj_hash, obj_data in objects.items():
         if not isinstance(obj_data, dict):
@@ -495,6 +688,55 @@ def extract_governance_objects(output_dir, datadir=None):
         for target in targets:
             if save_corpus_input(output_dir, target, seed_hex):
                 saved += 1
+
+        votes_result = dash_cli("gobject", "getcurrentvotes", obj_hash, datadir=datadir)
+        if not votes_result:
+            continue
+        try:
+            votes_map = json.loads(votes_result)
+        except (json.JSONDecodeError, AttributeError):
+            continue
+        if not isinstance(votes_map, dict):
+            continue
+
+        serialized_votes = []
+        signal_to_instance = {}
+        for vote_hash, vote_record in votes_map.items():
+            del vote_hash  # Key is informational only; serialized vote recomputes its own hash.
+            try:
+                parsed_vote = parse_governance_vote_record(vote_record, obj_hash)
+                serialized_vote = serialize_governance_vote(parsed_vote)
+            except (ValueError, OverflowError) as e:
+                print(f"WARNING: Skipping governance vote for {obj_hash}: {e}", file=sys.stderr)
+                continue
+
+            serialized_votes.append(serialized_vote)
+            vote_hex = serialized_vote.hex()
+            for target in vote_targets:
+                if save_corpus_input(output_dir, target, vote_hex):
+                    saved += 1
+
+            updated_time = parsed_vote["timestamp"]
+            instance = serialize_vote_instance(
+                parsed_vote["outcome"], updated_time, updated_time
+            )
+            signal_to_instance[parsed_vote["signal"]] = instance
+            instance_hex = instance.hex()
+            for target in vote_instance_targets:
+                if save_corpus_input(output_dir, target, instance_hex):
+                    saved += 1
+
+        if signal_to_instance:
+            vote_rec_hex = serialize_vote_rec(signal_to_instance).hex()
+            for target in vote_rec_targets:
+                if save_corpus_input(output_dir, target, vote_rec_hex):
+                    saved += 1
+
+        if serialized_votes:
+            vote_file_hex = serialize_governance_vote_file(serialized_votes).hex()
+            for target in vote_file_targets:
+                if save_corpus_input(output_dir, target, vote_file_hex):
+                    saved += 1
 
     print(f"  Saved {saved} governance corpus inputs")
     return saved
@@ -851,19 +1093,80 @@ def create_synthetic_seeds(output_dir):
     print("Creating synthetic seed inputs...")
     saved = 0
 
+    minimal_tx = _serialize_transaction()
+    minimal_txin = _serialize_txin()
+    minimal_txout = _serialize_txout()
+    minimal_final_commitment = (
+        (3).to_bytes(2, "little")
+        + bytes([1])
+        + b"\x00" * 32
+        + _serialize_dynbitset([])
+        + _serialize_dynbitset([])
+        + b"\x00" * 48
+        + b"\x00" * 32
+        + b"\x00" * 96
+        + b"\x00" * 96
+    )
+    minimal_governance_vote = serialize_governance_vote(
+        {
+            "masternode_txid": "00" * 32,
+            "masternode_n": 0,
+            "parent_hash": "00" * 32,
+            "outcome": 1,
+            "signal": 1,
+            "timestamp": 0,
+            "signature": b"",
+        }
+    )
+    minimal_vote_instance = serialize_vote_instance(1, 0, 0)
+    minimal_vote_rec = serialize_vote_rec({1: minimal_vote_instance})
+    minimal_vote_file = serialize_governance_vote_file([minimal_governance_vote])
+    minimal_bls_ies_blob = b"\x00" * 48 + b"\x00" * 32 + _var_bytes(b"seed")
+    minimal_bls_ies_multi = b"\x00" * 48 + b"\x00" * 32 + _var_list([_var_bytes(b"seed0"), _var_bytes(b"seed1")])
+    minimal_coinjoin_entry = _var_list([minimal_txin]) + minimal_tx + _var_list([minimal_txout])
+    minimal_coinjoin_broadcast_tx = minimal_tx + b"\x00" * 32 + _var_bytes(b"") + _serialize_int64(0)
+    minimal_premature_commitment = (
+        bytes([1])
+        + b"\x00" * 32
+        + b"\x00" * 32
+        + _serialize_dynbitset([True])
+        + b"\x00" * 48
+        + b"\x00" * 32
+        + b"\x00" * 96
+        + b"\x00" * 96
+    )
+
     # Targets that need synthetic seeds (serialized structs with known formats)
     synthetic_seeds = {
         # CoinJoin messages — minimal valid-ish payloads
         "dash_coinjoin_accept_deserialize": [
-            "00000000" + "00" * 4,  # nDenom(4) + txCollateral
+            (_serialize_int32(0) + minimal_tx).hex(),  # nDenom + txCollateral
+        ],
+        "dash_coinjoin_entry_deserialize": [
+            minimal_coinjoin_entry.hex(),
         ],
         "dash_coinjoin_queue_deserialize": [
-            "00000000" + "00" * 48 + "00" * 96 + "0000000000000000",  # nDenom + proTxHash + vchSig + nTime
+            (
+                _serialize_int32(0)
+                + b"\x00" * 32
+                + _serialize_int64(0)
+                + _serialize_bool(False)
+                + _var_bytes(b"")
+            ).hex(),
         ],
         "dash_coinjoin_status_update_deserialize": [
-            "00000000" + "00000000" + "00000000",  # nSessionID + nState + nStatusUpdate
+            (_serialize_int32(0) + _serialize_int32(0) + _serialize_int32(0) + _serialize_int32(0)).hex(),
+        ],
+        "dash_coinjoin_broadcast_tx_deserialize": [
+            minimal_coinjoin_broadcast_tx.hex(),
         ],
         # LLMQ messages
+        "dash_final_commitment_deserialize": [
+            minimal_final_commitment.hex(),
+        ],
+        "dash_final_commitment_tx_payload_deserialize": [
+            ((1).to_bytes(2, "little") + _serialize_uint32(0) + minimal_final_commitment).hex(),
+        ],
         "dash_recovered_sig_deserialize": [
             "64" + "00" * 32 + "00" * 32 + "00" * 96,  # llmqType + quorumHash + id + sig
         ],
@@ -881,6 +1184,29 @@ def create_synthetic_seeds(output_dir):
         "dash_dkg_complaint_deserialize": [
             "64" + "00" * 32 + "00" * 32 + "0000" + "00",  # minimal
         ],
+        "dash_dkg_premature_commitment_deserialize": [
+            minimal_premature_commitment.hex(),
+        ],
+        # Governance
+        "dash_governance_vote_deserialize": [
+            minimal_governance_vote.hex(),
+        ],
+        "dash_vote_instance_deserialize": [
+            minimal_vote_instance.hex(),
+        ],
+        "dash_vote_rec_deserialize": [
+            minimal_vote_rec.hex(),
+        ],
+        "dash_governance_vote_file_deserialize": [
+            minimal_vote_file.hex(),
+        ],
+        # BLS IES
+        "dash_bls_ies_encrypted_blob_deserialize": [
+            minimal_bls_ies_blob.hex(),
+        ],
+        "dash_bls_ies_multi_recipient_blobs_deserialize": [
+            minimal_bls_ies_multi.hex(),
+        ],
     }
 
     for target, seeds in synthetic_seeds.items():
@@ -889,11 +1215,55 @@ def create_synthetic_seeds(output_dir):
                 saved += 1
             # Also save roundtrip variant
             roundtrip_target = target.replace("_deserialize", "_roundtrip")
-            if save_corpus_input(output_dir, roundtrip_target, seed_hex):
+            if target not in _DESERIALIZE_ONLY_DASH_TARGETS and save_corpus_input(output_dir, roundtrip_target, seed_hex):
                 saved += 1
 
     print(f"  Created {saved} synthetic seed inputs")
     return saved
+
+
+def _run_helper_self_checks():
+    """Deterministic checks for new governance/final-commitment helpers."""
+    parsed_vote = parse_governance_vote_record(
+        "11" * 32 + "-2:1700000000:yes:funding:1",
+        "22" * 32,
+    )
+    assert parsed_vote["masternode_txid"] == "11" * 32
+    assert parsed_vote["masternode_n"] == 2
+    assert parsed_vote["signal"] == 1
+    assert parsed_vote["outcome"] == 1
+    vote_bytes = serialize_governance_vote(parsed_vote)
+    assert len(vote_bytes) == 32 + 4 + 32 + 4 + 4 + 8 + 1
+
+    vote_instance = serialize_vote_instance(1, 1700000000, 1690000000)
+    assert len(vote_instance) == 20
+    vote_rec = serialize_vote_rec({1: vote_instance, 2: serialize_vote_instance(2, 1700000100, 1690000000)})
+    assert vote_rec.startswith(b"\x02")
+    vote_file = serialize_governance_vote_file([vote_bytes])
+    assert vote_file[:4] == _serialize_int32(1)
+
+    payload = bytes.fromhex("0100") + _serialize_uint32(42) + b"\xaa\xbb\xcc"
+    assert _final_commitment_from_tx_payload(payload.hex()) == b"\xaa\xbb\xcc"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        create_synthetic_seeds(tmp_path)
+        required_targets = [
+            "dash_final_commitment_deserialize",
+            "dash_final_commitment_roundtrip",
+            "dash_governance_vote_deserialize",
+            "dash_vote_instance_deserialize",
+            "dash_vote_rec_deserialize",
+            "dash_governance_vote_file_deserialize",
+            "dash_bls_ies_encrypted_blob_deserialize",
+            "dash_bls_ies_encrypted_blob_roundtrip",
+            "dash_bls_ies_multi_recipient_blobs_deserialize",
+            "dash_bls_ies_multi_recipient_blobs_roundtrip",
+            "dash_coinjoin_entry_deserialize",
+            "dash_coinjoin_entry_roundtrip",
+        ]
+        missing = [target for target in required_targets if not any((tmp_path / target).iterdir())]
+        assert not missing, f"missing synthetic seeds for: {', '.join(missing)}"
 
 
 def main():

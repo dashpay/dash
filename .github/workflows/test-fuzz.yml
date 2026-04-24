@@ -52,32 +52,51 @@ jobs:
         run: |
           mkdir -p /tmp/fuzz_corpus
 
+          BITCOIN_QA_ASSETS_SHA=ef5d7720f2a1ac20607bd5fba16137f4bfbcfec6
+          DASH_QA_ASSETS_SHA=b4d1a7ce41a9a21d522381944ba84b60b1ad5b60
+
           # Fail the job if neither external qa-assets source is reachable — otherwise we
           # silently degrade to synthetic-only/empty-corpus smoke runs and CI goes green on
           # no signal. Synthetic seeds are additive only; they do not substitute for the
           # curated external corpora.
           loaded_external=0
 
+          fetch_pinned_repo() {
+            local repo_url="$1"
+            local repo_sha="$2"
+            local dest_dir="$3"
+            local resolved_sha
+
+            rm -rf "$dest_dir"
+            git init --quiet "$dest_dir"
+            git -C "$dest_dir" remote add origin "$repo_url"
+            git -C "$dest_dir" fetch --depth=1 origin "$repo_sha" || return 1
+            git -C "$dest_dir" checkout --quiet --detach FETCH_HEAD || return 1
+            resolved_sha=$(git -C "$dest_dir" rev-parse HEAD) || return 1
+            echo "Resolved ${repo_url} to ${resolved_sha}"
+            [ "$resolved_sha" = "$repo_sha" ]
+          }
+
           # Layer 1: bitcoin-core inherited corpus
-          if git clone --depth=1 https://github.com/bitcoin-core/qa-assets /tmp/qa-assets; then
+          if fetch_pinned_repo https://github.com/bitcoin-core/qa-assets "$BITCOIN_QA_ASSETS_SHA" /tmp/qa-assets; then
             if [ -d "/tmp/qa-assets/fuzz_seed_corpus" ]; then
               cp -r /tmp/qa-assets/fuzz_seed_corpus/. /tmp/fuzz_corpus/
               echo "Loaded bitcoin-core corpus"
               loaded_external=1
             fi
           else
-            echo "::warning::Failed to clone bitcoin-core/qa-assets"
+            echo "::warning::Failed to fetch bitcoin-core/qa-assets at ${BITCOIN_QA_ASSETS_SHA}"
           fi
 
           # Layer 2: Dash-specific corpus (overlays on top)
-          if git clone --depth=1 https://github.com/dashpay/qa-assets /tmp/dash-qa-assets; then
+          if fetch_pinned_repo https://github.com/dashpay/qa-assets "$DASH_QA_ASSETS_SHA" /tmp/dash-qa-assets; then
             if [ -d "/tmp/dash-qa-assets/fuzz/corpora" ]; then
               cp -r /tmp/dash-qa-assets/fuzz/corpora/. /tmp/fuzz_corpus/
               echo "Loaded Dash-specific corpus"
               loaded_external=1
             fi
           else
-            echo "::warning::Failed to clone dashpay/qa-assets"
+            echo "::warning::Failed to fetch dashpay/qa-assets at ${DASH_QA_ASSETS_SHA}"
           fi
 
           if [ "$loaded_external" -eq 0 ]; then

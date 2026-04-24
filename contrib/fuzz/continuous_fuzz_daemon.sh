@@ -46,6 +46,11 @@ shuffle_lines() {
     fi
 }
 
+count_crash_artifacts() {
+    local crash_dir="$1"
+    find "$crash_dir" -type f \( -name 'crash-*' -o -name 'timeout-*' -o -name 'oom-*' \) 2>/dev/null | wc -l | tr -d '[:space:]'
+}
+
 # --- Parse arguments ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -167,6 +172,9 @@ run_target() {
 
     log "INFO" "Fuzzing target: ${target} for ${TIME_PER_TARGET}s"
 
+    local artifacts_before
+    artifacts_before=$(count_crash_artifacts "$target_crashes")
+
     local exit_code=0
     if [[ -n "$TIMEOUT_BIN" ]]; then
         FUZZ="$target" \
@@ -194,12 +202,12 @@ run_target() {
             > "$target_log" 2>&1 || exit_code=$?
     fi
 
-    # Check for crashes
-    local crash_count
-    crash_count=$(find "$target_crashes" -name 'crash-*' -o -name 'timeout-*' -o -name 'oom-*' 2>/dev/null | wc -l)
+    local artifacts_after
+    artifacts_after=$(count_crash_artifacts "$target_crashes")
+    local new_artifacts=$((artifacts_after - artifacts_before))
 
-    if [[ "$crash_count" -gt 0 ]]; then
-        log "CRASH" "Target '${target}' produced ${crash_count} crash artifact(s)!"
+    if [[ "$new_artifacts" -gt 0 ]]; then
+        log "CRASH" "Target '${target}' produced ${new_artifacts} new crash artifact(s)!"
         log "CRASH" "Artifacts saved to: ${target_crashes}/"
 
         # Extract crash details from log
@@ -220,7 +228,7 @@ run_target() {
         log "WARN" "Target '${target}' exited with code ${exit_code}: corpus=${corpus_size} files (${corpus_bytes})"
     fi
 
-    return 0  # Don't fail the daemon on individual target failures
+    [[ "$new_artifacts" -eq 0 && "$exit_code" -eq 0 ]]
 }
 
 # --- Main loop ---
@@ -258,7 +266,8 @@ main() {
 
         # Snapshot crash count before this cycle
         local crashes_before
-        crashes_before=$(find "$CRASHES_DIR" -name 'crash-*' -o -name 'timeout-*' -o -name 'oom-*' 2>/dev/null | wc -l)
+        crashes_before=$(count_crash_artifacts "$CRASHES_DIR")
+        local cycle_failures=0
 
         # Shuffle targets each cycle for variety
         local shuffled
@@ -266,20 +275,22 @@ main() {
 
         while IFS= read -r target; do
             [[ -z "$target" ]] && continue
-            run_target "$target"
+            if ! run_target "$target"; then
+                cycle_failures=$((cycle_failures + 1))
+            fi
         done <<< "$shuffled"
 
         # Cycle summary
         local total_corpus
         total_corpus=$(du -sh "$CORPUS_DIR" 2>/dev/null | cut -f1)
         local total_crashes
-        total_crashes=$(find "$CRASHES_DIR" -name 'crash-*' -o -name 'timeout-*' -o -name 'oom-*' 2>/dev/null | wc -l)
+        total_crashes=$(count_crash_artifacts "$CRASHES_DIR")
         local new_crashes=$((total_crashes - crashes_before))
-        log "INFO" "=== Cycle ${cycle} complete: total corpus=${total_corpus}, new crashes=${new_crashes}, total crashes=${total_crashes} ==="
+        log "INFO" "=== Cycle ${cycle} complete: total corpus=${total_corpus}, new crashes=${new_crashes}, total crashes=${total_crashes}, failed targets=${cycle_failures} ==="
 
         if $SINGLE_CYCLE; then
-            if [[ "$new_crashes" -gt 0 ]]; then
-                log "WARN" "Single-cycle mode — exiting with ${new_crashes} new crash(es) found"
+            if [[ "$cycle_failures" -gt 0 ]]; then
+                log "WARN" "Single-cycle mode — exiting with ${cycle_failures} failed target(s)"
                 exit 1
             fi
             log "INFO" "Single-cycle mode — exiting"
