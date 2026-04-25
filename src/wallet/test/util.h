@@ -5,6 +5,7 @@
 #ifndef BITCOIN_WALLET_TEST_UTIL_H
 #define BITCOIN_WALLET_TEST_UTIL_H
 
+#include <cstdint>
 #include <memory>
 
 class ArgsManager;
@@ -19,8 +20,13 @@ class Loader;
 
 namespace wallet {
 class CWallet;
+class WalletDatabase;
+struct WalletContext;
 
 std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, interfaces::CoinJoin::Loader& coinjoin_loader, CChain& cchain, ArgsManager& args, const CKey& key);
+std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context);
+std::shared_ptr<CWallet> TestLoadWallet(std::unique_ptr<WalletDatabase> database, WalletContext& context, uint64_t create_flags);
+void TestUnloadWallet(WalletContext& context, std::shared_ptr<CWallet>&& wallet);
 } // namespace wallet
 
 #endif // BITCOIN_WALLET_TEST_UTIL_H
