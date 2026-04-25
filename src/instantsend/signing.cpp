@@ -384,10 +384,6 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
 
     auto id = islock.GetRequestId();
 
-    if (m_sigman.HasRecoveredSigForId(llmqType, id)) {
-        return;
-    }
-
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt);
     const auto quorum = llmq::SelectQuorumForSigning(llmq_params_opt.value(), m_chainstate.m_chain, m_qman, id);
@@ -402,6 +398,9 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
                              quorum->m_quorum_base_block_index->nHeight % llmq_params_opt->dkgInterval;
     islock.cycleHash = quorum->m_quorum_base_block_index->GetAncestor(cycle_height)->GetBlockHash();
 
+    // Emplace into creatingInstantSendLocks first so that any concurrent recsig listener
+    // (firing on a parallel verification worker) finds the entry and handles reconstruction
+    // through HandleNewInstantSendLockRecoveredSig.
     {
         LOCK(cs_creating);
         auto e = creatingInstantSendLocks.emplace(id, std::move(islock));
@@ -409,6 +408,33 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
             return;
         }
         txToCreatingInstantSendLocks.emplace(tx.GetHash(), &e.first->second);
+    }
+
+    // After emplacing, check whether the recsig is already in db. If yes, the listener
+    // either already ran while creating was empty (so we must reconstruct here), or it
+    // ran after our emplace and already removed the entry (so the find below misses).
+    // Either case is handled correctly by the find/erase pattern.
+    if (llmq::CRecoveredSig recSig; m_sigman.GetRecoveredSigForId(llmqType, id, recSig)) {
+        InstantSendLockPtr islock_ptr;
+        {
+            LOCK(cs_creating);
+            auto it = creatingInstantSendLocks.find(id);
+            if (it == creatingInstantSendLocks.end()) {
+                // The listener already fired after our emplace and reconstructed; nothing to do.
+                return;
+            }
+            islock_ptr = std::make_shared<InstantSendLock>(std::move(it->second));
+            txToCreatingInstantSendLocks.erase(islock_ptr->txid);
+            creatingInstantSendLocks.erase(it);
+        }
+        if (recSig.getMsgHash() != tx.GetHash()) {
+            LogPrintf("%s -- txid=%s: existing recovered islock sig has conflicting msgHash %s\n",
+                      __func__, tx.GetHash().ToString(), recSig.getMsgHash().ToString());
+            return;
+        }
+        islock_ptr->sig = recSig.sig;
+        m_isman.TryEmplacePendingLock(::SerializeHash(*islock_ptr), /*id=*/-1, islock_ptr);
+        return;
     }
 
     m_shareman.AsyncSignIfMember(llmqType, m_sigman, id, tx.GetHash(), quorum->m_quorum_base_block_index->GetBlockHash());
