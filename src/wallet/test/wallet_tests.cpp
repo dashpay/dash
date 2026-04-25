@@ -51,32 +51,6 @@ static_assert(DEFAULT_TRANSACTION_MINFEE >= DEFAULT_MIN_RELAY_TX_FEE, "wallet mi
 
 BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 
-static std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context)
-{
-    DatabaseOptions options;
-    options.create_flags = WALLET_FLAG_DESCRIPTORS;
-    DatabaseStatus status;
-    bilingual_str error;
-    std::vector<bilingual_str> warnings;
-    auto database = MakeWalletDatabase("", options, status, error);
-    auto wallet = CWallet::Create(context, "", std::move(database), options.create_flags, error, warnings);
-    if (context.coinjoin_loader) {
-        // TODO: see CreateWalletWithoutChain
-        AddWallet(context, wallet);
-    }
-    NotifyWalletLoaded(context, wallet);
-    return wallet;
-}
-
-static void TestUnloadWallet(WalletContext& context, std::shared_ptr<CWallet>&& wallet)
-{
-    std::vector<bilingual_str> warnings;
-    SyncWithValidationInterfaceQueue();
-    wallet->m_chain_notifications_handler.reset();
-    RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt, warnings);
-    UnloadWallet(std::move(wallet));
-}
-
 static CMutableTransaction TestSimpleSpend(const CTransaction& from, uint32_t index, const CKey& key, const CScript& pubkey)
 {
     CMutableTransaction mtx;
@@ -820,8 +794,9 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     // being blocked
     wallet = TestLoadWallet(context);
     BOOST_CHECK(rescan_completed);
-    // AddToWallet events for block_tx and mempool_tx
-    BOOST_CHECK_EQUAL(addtx_count, 2);
+    // Loading will also ask for current mempool transactions
+    // AddToWallet events for block_tx and mempool_tx (x2)
+    BOOST_CHECK_EQUAL(addtx_count, 3);
     {
         LOCK(wallet->cs_wallet);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);
@@ -835,7 +810,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     SyncWithValidationInterfaceQueue();
     // AddToWallet events for block_tx and mempool_tx events are counted a
     // second time as the notification queue is processed
-    BOOST_CHECK_EQUAL(addtx_count, 4);
+    BOOST_CHECK_EQUAL(addtx_count, 5);
 
     TestUnloadWallet(context, std::move(wallet));
 
@@ -857,7 +832,9 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
             SyncWithValidationInterfaceQueue();
         });
     wallet = TestLoadWallet(context);
-    BOOST_CHECK_EQUAL(addtx_count, 2);
+    // Since mempool transactions are requested at the end of loading, there will
+    // be 2 additional AddToWallet calls, one from the previous test, and a duplicate for mempool_tx
+    BOOST_CHECK_EQUAL(addtx_count, 2 + 2);
     {
         LOCK(wallet->cs_wallet);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);

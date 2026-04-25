@@ -43,3 +43,8 @@ libtest_util_a_SOURCES = \
   test/util/validation.cpp \
   test/util/wallet.cpp \
   $(TEST_UTIL_H)
+
+if ENABLE_WALLET
+libtest_util_a_SOURCES += \
+  wallet/test/load_util.cpp
+endif
