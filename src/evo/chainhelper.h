@@ -34,19 +34,13 @@ class CQuorumBlockProcessor;
 class CQuorumManager;
 class CQuorumSnapshotManager;
 } // namespace llmq
-namespace node {
-class BlockAssembler;
-} // namespace node
-
 class CChainstateHelper
 {
-    friend class node::BlockAssembler;
-
 private:
     llmq::CInstantSendManager& isman;
-    const std::unique_ptr<CCreditPoolManager> credit_pool_manager;
 
 public:
+    const std::unique_ptr<CCreditPoolManager> credit_pool_manager;
     const chainlock::Chainlocks& m_chainlocks;
     const std::unique_ptr<CMNHFManager> ehf_manager;
     const std::unique_ptr<CMNPaymentsProcessor> mn_payments;
