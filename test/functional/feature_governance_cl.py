@@ -148,7 +148,7 @@ class DashGovernanceTest (DashTestFramework):
 
         def governance_tip_updated(node):
             with open(node.debug_log_path, encoding='utf-8') as dl:
-                seek_pos = node.debug_log_bytes() - 100 * 1024  # read the last 100 KiB only
+                seek_pos = node.debug_log_size(mode="rb") - 100 * 1024  # read the last 100 KiB only
                 dl.seek(seek_pos if seek_pos > 0 else 0)
                 debug_log_part = dl.read()
             return expected_msg in debug_log_part
