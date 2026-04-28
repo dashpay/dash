@@ -111,6 +111,10 @@ static const unsigned int DEFAULT_TX_CONFIRM_TARGET = 6;
 static const bool DEFAULT_WALLETBROADCAST = true;
 static const bool DEFAULT_DISABLE_WALLET = false;
 static const bool DEFAULT_WALLETCROSSCHAIN = false;
+//! -dustprotectionthreshold default (0 = disabled)
+static constexpr CAmount DEFAULT_DUST_PROTECTION_THRESHOLD{0};
+//! -dustprotectionthreshold maximum (matches GUI spinbox cap)
+static constexpr CAmount MAX_DUST_PROTECTION_THRESHOLD{1000000};
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = COIN / 10;
 //! Discourage users to set fees higher than this amount (in satoshis) per kB
@@ -604,6 +608,14 @@ public:
     std::vector<COutPoint> ListProTxCoins(const std::set<COutPoint>& utxos) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void LockProTxCoins(const std::set<COutPoint>& utxos, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
+    /** Returns true if the given output of a wallet transaction is a dust protection target:
+     *  value is in (0, threshold], tx is normal type, not coinbase, and not from this wallet. */
+    bool IsDustProtectionTarget(const CWalletTx& wtx, unsigned int output_index) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Lock dust outputs in a specific transaction if dust protection is enabled. */
+    void CheckAndLockDustOutputs(const uint256& txHash, WalletBatch& batch) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Lock all existing dust UTXOs if dust protection is enabled. Called on wallet load. */
+    void LockExistingDustOutputs() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+
     /*
      * Rescan abort properties
      */
@@ -791,6 +803,10 @@ public:
     CAmount m_max_aps_fee{DEFAULT_MAX_AVOIDPARTIALSPEND_FEE}; //!< note: this is absolute fee, not fee rate
     /** Absolute maximum transaction fee (in satoshis) used by default for the wallet */
     CAmount m_default_max_tx_fee{DEFAULT_TRANSACTION_MAXFEE};
+
+    /** Dust protection threshold in duffs. UTXOs from external transactions at or below this value
+     *  are automatically locked to prevent dust attacks. 0 = disabled. Override with -dustprotectionthreshold. */
+    CAmount m_dust_protection_threshold{DEFAULT_DUST_PROTECTION_THRESHOLD};
 
     size_t KeypoolCountExternalKeys() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool TopUpKeyPool(unsigned int kpSize = 0);

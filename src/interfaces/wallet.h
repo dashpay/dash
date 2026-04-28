@@ -179,6 +179,12 @@ public:
     //! Unlock the provided coins in a single batch.
     virtual bool unlockCoins(const std::vector<COutPoint>& outputs) = 0;
 
+    //! Set dust protection threshold (does not lock anything by itself).
+    virtual void setDustProtectionThreshold(CAmount threshold) = 0;
+
+    //! Lock all existing dust UTXOs that match the current threshold.
+    virtual void lockExistingDustOutputs() = 0;
+
     //! List protx coins.
     virtual std::vector<COutPoint> listProTxCoins() = 0;
 

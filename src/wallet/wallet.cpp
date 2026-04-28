@@ -57,6 +57,16 @@
 using interfaces::FoundBlock;
 
 namespace wallet {
+static isminetype InputIsMine(const CWallet& wallet, const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+{
+    AssertLockHeld(wallet.cs_wallet);
+    const CWalletTx* prev = wallet.GetWalletTx(txin.prevout.hash);
+    if (prev && txin.prevout.n < prev->tx->vout.size()) {
+        return wallet.IsMine(prev->tx->vout[txin.prevout.n]);
+    }
+    return ISMINE_NO;
+}
+
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
         "You need to rescan the blockchain in order to correctly mark used "
@@ -1068,6 +1078,10 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
     }
 
     LockProTxCoins(candidates, &batch);
+
+    if (fInsertedNew) {
+        CheckAndLockDustOutputs(hash, batch);
+    }
 
     //// debug print
     WalletLogPrintf("AddToWallet %s  %s%s %s\n", hash.ToString(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""), TxStateString(state));
@@ -2790,6 +2804,73 @@ void CWallet::LockProTxCoins(const std::set<COutPoint>& utxos, WalletBatch* batc
     }
 }
 
+bool CWallet::IsDustProtectionTarget(const CWalletTx& wtx, unsigned int output_index) const
+{
+    AssertLockHeld(cs_wallet);
+
+    if (m_dust_protection_threshold <= 0) return false;
+
+    const CTransactionRef& tx = wtx.tx;
+    if (tx->IsCoinBase() || tx->nType != TRANSACTION_NORMAL) return false;
+
+    if (output_index >= tx->vout.size()) return false;
+    const CTxOut& txout = tx->vout[output_index];
+
+    if (txout.nValue <= 0 || txout.nValue > m_dust_protection_threshold) return false;
+    if (IsMine(txout) == ISMINE_NO) return false;
+
+    // Skip self-sends: if any input is ours, this is not an external dust attack.
+    for (const auto& txin : tx->vin) {
+        if (InputIsMine(*this, txin) != ISMINE_NO) return false;
+    }
+
+    return true;
+}
+
+void CWallet::CheckAndLockDustOutputs(const uint256& txHash, WalletBatch& batch)
+{
+    AssertLockHeld(cs_wallet);
+
+    if (m_dust_protection_threshold <= 0) return;
+
+    auto it = mapWallet.find(txHash);
+    if (it == mapWallet.end()) return;
+
+    const CWalletTx& wtx = it->second;
+    for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+        if (IsDustProtectionTarget(wtx, i)) {
+            LockCoin(COutPoint(txHash, i), &batch);
+        }
+    }
+}
+
+void CWallet::LockExistingDustOutputs()
+{
+    AssertLockHeld(cs_wallet);
+
+    if (m_dust_protection_threshold <= 0) return;
+
+    WalletBatch batch(GetDatabase());
+    for (const auto* pwtx : GetSpendableTXs()) {
+        const CWalletTx& wtx = *pwtx;
+
+        if (IsTxImmatureCoinBase(wtx)) continue;
+
+        const int depth = GetTxDepthInMainChain(wtx);
+        if (depth < 0) continue;
+        if (depth == 0 && !wtx.InMempool()) continue;
+
+        for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+            const COutPoint outpoint(wtx.GetHash(), i);
+            if (IsLockedCoin(outpoint) || IsSpent(outpoint)) continue;
+
+            if (IsDustProtectionTarget(wtx, i)) {
+                LockCoin(outpoint, &batch);
+            }
+        }
+    }
+}
+
 /** @} */ // end of Actions
 
 void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const {
@@ -3284,6 +3365,16 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     walletInstance->m_confirm_target = args.GetIntArg("-txconfirmtarget", DEFAULT_TX_CONFIRM_TARGET);
     walletInstance->m_spend_zero_conf_change = args.GetBoolArg("-spendzeroconfchange", DEFAULT_SPEND_ZEROCONF_CHANGE);
 
+    walletInstance->m_dust_protection_threshold = args.GetIntArg("-dustprotectionthreshold", DEFAULT_DUST_PROTECTION_THRESHOLD);
+    if (walletInstance->m_dust_protection_threshold < 0) {
+        error = strprintf(_("Invalid value for %s: must be >= 0"), "-dustprotectionthreshold");
+        return nullptr;
+    }
+    if (walletInstance->m_dust_protection_threshold > MAX_DUST_PROTECTION_THRESHOLD) {
+        error = strprintf(_("Invalid value for %s: exceeds maximum (%d)"), "-dustprotectionthreshold", MAX_DUST_PROTECTION_THRESHOLD);
+        return nullptr;
+    }
+
     walletInstance->WalletLogPrintf("Wallet completed loading in %15dms\n", Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
 
     // Try to top up keypool. No-op if the wallet is locked.
@@ -3303,6 +3394,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     {
         LOCK(walletInstance->cs_wallet);
         walletInstance->SetBroadcastTransactions(args.GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
+        walletInstance->LockExistingDustOutputs();
         walletInstance->WalletLogPrintf("setExternalKeyPool.size() = %u\n",   walletInstance->KeypoolCountExternalKeys());
         walletInstance->WalletLogPrintf("GetKeyPoolSize() = %u\n",   walletInstance->GetKeyPoolSize());
         walletInstance->WalletLogPrintf("mapWallet.size() = %u\n",            walletInstance->mapWallet.size());

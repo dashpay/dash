@@ -72,6 +72,8 @@ static const char* SettingName(OptionsModel::OptionID option)
     case OptionsModel::FontScale: return "font-scale";
     case OptionsModel::FontWeightBold: return "font-weight-bold";
     case OptionsModel::FontWeightNormal: return "font-weight-normal";
+    case OptionsModel::DustProtection: return "dustprotectionthreshold";
+    case OptionsModel::DustProtectionThreshold: return "dustprotectionthreshold";
     default: throw std::logic_error(strprintf("GUI option %i has no corresponding node setting.", option));
     }
 }
@@ -370,14 +372,8 @@ bool OptionsModel::Init(bilingual_str& error)
     if (!settings.contains("fLowKeysWarning"))
         settings.setValue("fLowKeysWarning", true);
 
-    // Dust protection
-    if (!settings.contains("fDustProtection"))
-        settings.setValue("fDustProtection", false);
-    fDustProtection = settings.value("fDustProtection", false).toBool();
-
-    if (!settings.contains("nDustProtectionThreshold"))
-        settings.setValue("nDustProtectionThreshold", (qlonglong)DEFAULT_DUST_PROTECTION_THRESHOLD);
-    nDustProtectionThreshold = settings.value("nDustProtectionThreshold", (qlonglong)DEFAULT_DUST_PROTECTION_THRESHOLD).toLongLong();
+    // Dust protection - now managed through the CLI-shared settings framework
+    // (see SettingName mapping for DustProtection/DustProtectionThreshold)
 #endif // ENABLE_WALLET
 
     // These are shared with the core or have a command-line parameter
@@ -385,7 +381,7 @@ bool OptionsModel::Init(bilingual_str& error)
     for (OptionID option : {DatabaseCache, ThreadsScriptVerif, SpendZeroConfChange, ExternalSignerPath, MapPortUPnP,
                             MapPortNatpmp, Listen, Server, Prune, ProxyUse, ProxyUseTor, Language, CoinJoinAmount,
                             CoinJoinDenomsGoal, CoinJoinDenomsHardCap, CoinJoinEnabled, CoinJoinMultiSession,
-                            CoinJoinRounds, CoinJoinSessions}) {
+                            CoinJoinRounds, CoinJoinSessions, DustProtection}) {
         std::string setting = SettingName(option);
         if (node().isSettingIgnored(setting)) addOverriddenOption("-" + setting);
         try {
@@ -611,6 +607,22 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
     return successful;
 }
 
+bool OptionsModel::getDustProtection() const
+{
+    if (gArgs.IsArgSet("-dustprotectionthreshold")) {
+        return gArgs.GetIntArg("-dustprotectionthreshold", 0) > 0;
+    }
+    return getOption(DustProtection).toBool();
+}
+
+qint64 OptionsModel::getDustProtectionThreshold() const
+{
+    if (gArgs.IsArgSet("-dustprotectionthreshold")) {
+        return std::max<int64_t>(gArgs.GetIntArg("-dustprotectionthreshold", 0), 0);
+    }
+    return getOption(DustProtectionThreshold).toLongLong();
+}
+
 QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) const
 {
     auto setting = [&]{ return node().getPersistentSetting(SettingName(option) + suffix); };
@@ -729,9 +741,13 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
     case KeepChangeAddress:
         return fKeepChangeAddress;
     case DustProtection:
-        return fDustProtection;
-    case DustProtectionThreshold:
-        return qlonglong(nDustProtectionThreshold);
+        return SettingToInt(setting(), 0) > 0;
+    case DustProtectionThreshold: {
+        int64_t val = SettingToInt(setting(), 0);
+        if (val > 0) return qlonglong(val);
+        return suffix.empty() ? getOption(option, "-prev") :
+                                qlonglong(DEFAULT_GUI_DUST_PROTECTION_THRESHOLD);
+    }
 #endif // ENABLE_WALLET
     case Prune:
         return PruneEnabled(setting());
@@ -1025,14 +1041,26 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
         Q_EMIT keepChangeAddressChanged(fKeepChangeAddress);
         break;
     case DustProtection:
-        fDustProtection = value.toBool();
-        settings.setValue("fDustProtection", fDustProtection);
-        Q_EMIT dustProtectionChanged();
+        if (changed()) {
+            if (suffix.empty() && !value.toBool()) setOption(option, true, "-prev");
+            if (value.toBool()) {
+                update(std::max<int64_t>(getOption(DustProtectionThreshold).toLongLong(), 1));
+            } else {
+                update(0);
+            }
+            if (suffix.empty() && value.toBool()) UpdateRwSetting(node(), option, "-prev", {});
+            Q_EMIT dustProtectionChanged();
+        }
         break;
     case DustProtectionThreshold:
-        nDustProtectionThreshold = value.toLongLong();
-        settings.setValue("nDustProtectionThreshold", qlonglong(nDustProtectionThreshold));
-        Q_EMIT dustProtectionChanged();
+        if (changed()) {
+            if (suffix.empty() && !getOption(DustProtection).toBool()) {
+                setOption(option, value, "-prev");
+            } else {
+                update(std::max<int64_t>(value.toLongLong(), 1));
+            }
+            Q_EMIT dustProtectionChanged();
+        }
         break;
 #endif // ENABLE_WALLET
     case Prune:
@@ -1207,6 +1235,28 @@ void OptionsModel::checkAndMigrate()
         migrate_setting(FontWeightNormal, "fontWeightNormal");
     }
 #ifdef ENABLE_WALLET
+    // Custom migration for dust protection: two old QSettings keys → one settings.json value.
+    // If enabled, migrate the threshold as the active value. If disabled but a custom threshold
+    // was set, save it to -prev so re-enabling restores the user's preference.
+    if (settings.contains("fDustProtection") || settings.contains("nDustProtectionThreshold")) {
+        if (node().getPersistentSetting(SettingName(DustProtection)).isNull()) {
+            bool was_enabled = settings.value("fDustProtection", false).toBool();
+            qint64 threshold = std::min<qint64>(
+                settings.value("nDustProtectionThreshold",
+                               qlonglong(DEFAULT_GUI_DUST_PROTECTION_THRESHOLD)).toLongLong(),
+                MAX_GUI_DUST_PROTECTION_THRESHOLD);
+            if (was_enabled && threshold > 0) {
+                setOption(DustProtection, true);
+                setOption(DustProtectionThreshold, qlonglong(threshold));
+            } else if (!was_enabled && threshold > 0) {
+                // Remember the custom threshold so re-enabling restores it.
+                setOption(DustProtectionThreshold, qlonglong(threshold), "-prev");
+            }
+        }
+        settings.remove("fDustProtection");
+        settings.remove("nDustProtectionThreshold");
+    }
+
     migrate_setting(CoinJoinAmount, "nCoinJoinAmount");
     migrate_setting(CoinJoinDenomsGoal, "nCoinJoinDenomsGoal");
     migrate_setting(CoinJoinDenomsHardCap, "nCoinJoinDenomsHardCap");

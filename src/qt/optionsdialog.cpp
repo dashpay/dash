@@ -266,6 +266,13 @@ void OptionsDialog::setModel(OptionsModel *_model)
         setMapper();
         mapper->toFirst();
 
+        // Must be AFTER mapper->toFirst() because toFirst() triggers
+        // toggled signals that would re-enable the spinbox.
+        if (strLabel.contains("-dustprotectionthreshold")) {
+            ui->dustProtection->setEnabled(false);
+            ui->dustProtectionThreshold->setEnabled(false);
+        }
+
         // If governance is disabled at the node level, force-disable governance checkboxes.
         if (m_client_model && !m_client_model->node().gov().isEnabled()) {
             ui->showGovernanceTab->setChecked(false);

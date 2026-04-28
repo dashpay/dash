@@ -71,6 +71,12 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
     argsman.AddArg("-signer=<cmd>", "External signing tool, see doc/external-signer.md", ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
 #endif
     argsman.AddArg("-spendzeroconfchange", strprintf("Spend unconfirmed change when sending transactions (default: %u)", DEFAULT_SPEND_ZEROCONF_CHANGE), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
+    argsman.AddArg("-dustprotectionthreshold=<n>",
+        strprintf("Automatically lock UTXOs from incoming external transactions at or below <n> duffs "
+                  "to protect against dust attacks. Locked UTXOs persist across restarts and are not "
+                  "automatically unlocked when threshold changes; use lockunspent RPC to unlock manually "
+                  "(0 = disabled, default: %d, max: %d)", DEFAULT_DUST_PROTECTION_THRESHOLD, MAX_DUST_PROTECTION_THRESHOLD),
+        ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
     argsman.AddArg("-wallet=<path>", "Specify wallet path to load at startup. Can be used multiple times to load multiple wallets. Path is to a directory containing wallet data and log files. If the path is not absolute, it is interpreted relative to <walletdir>. This only loads existing wallets and does not create new ones. For backwards compatibility this also accepts names of existing top-level data files in <walletdir>.", ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::WALLET);
     argsman.AddArg("-walletbackupsdir=<dir>", "Specify full path to directory for automatic wallet backups (must exist)", ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
     argsman.AddArg("-walletbroadcast", strprintf("Make the wallet broadcast transactions (default: %u)", DEFAULT_WALLETBROADCAST), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
