@@ -5,21 +5,19 @@
 #ifndef BITCOIN_ACTIVE_CONTEXT_H
 #define BITCOIN_ACTIVE_CONTEXT_H
 
-#include <llmq/options.h>
+#include <llmq/quorumsman.h>
 
 #include <validationinterface.h>
 
 #include <gsl/pointers.h>
+#include <span.h>
 
 #include <memory>
 
 class CActiveMasternodeManager;
-class CBLSSecretKey;
 class CBLSWorker;
-class ChainstateManager;
 class CCoinJoinServer;
 class CConnman;
-class CDeterministicMNManager;
 class CGovernanceManager;
 class CMasternodeMetaMan;
 class CMasternodeSync;
@@ -38,23 +36,19 @@ class InstantSendSigner;
 } // namespace instantsend
 namespace llmq {
 class CDKGDebugManager;
-class CDKGSessionManager;
 class CEHFSignalsHandler;
 class CInstantSendManager;
-class CQuorumBlockProcessor;
-class CQuorumManager;
-class CQuorumSnapshotManager;
 class CSigningManager;
 class CSigSharesManager;
-class QuorumParticipant;
 } // namespace llmq
 namespace util {
 struct DbWrapperParams;
 } // namespace util
 
-struct ActiveContext final : public CValidationInterface {
+struct ActiveContext final : public llmq::QuorumRole, public CValidationInterface {
 private:
-    llmq::CQuorumManager& m_qman;
+    CBLSWorker& m_bls_worker;
+    const bool m_quorums_watch{false};
 
 public:
     ActiveContext() = delete;
@@ -67,19 +61,24 @@ public:
                            llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
                            llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
                            const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
-                           const llmq::QvvecSyncModeMap& sync_map, const util::DbWrapperParams& db_params,
-                           bool quorums_recovery, bool quorums_watch);
+                           const util::DbWrapperParams& db_params, bool quorums_watch);
     ~ActiveContext();
 
-    void Start(CConnman& connman, PeerManager& peerman, int16_t worker_count);
+    void Start(CConnman& connman, PeerManager& peerman);
     void Stop();
-    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
 
     CCoinJoinServer& GetCJServer() const;
     void SetCJServer(gsl::not_null<CCoinJoinServer*> cj_server);
 
+    // QuorumRole
+    bool IsMasternode() const override;
+    bool IsWatching() const override;
+    uint256 GetProTxHash() const override;
+    bool SetQuorumSecretKeyShare(llmq::CQuorum& quorum, Span<CBLSSecretKey> skContributions) const override;
+
 protected:
     // CValidationInterface
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
 public:
@@ -95,7 +94,6 @@ public:
 private:
     const std::unique_ptr<GovernanceSigner> gov_signer;
     const std::unique_ptr<llmq::CEHFSignalsHandler> ehf_sighandler;
-    const std::unique_ptr<llmq::QuorumParticipant> qman_handler;
     const std::unique_ptr<chainlock::ChainLockSigner> cl_signer;
 
 public:

@@ -618,6 +618,42 @@ CDKGMember* CDKGSession::GetMemberAtIndex(size_t index) const
     return members[index].get();
 }
 
+bool CDKGSession::GetContribution(const uint256& hash, CDKGContribution& ret) const
+{
+    LOCK(invCs);
+    auto it = contributions.find(hash);
+    if (it == contributions.end()) return false;
+    ret = it->second;
+    return true;
+}
+
+bool CDKGSession::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
+{
+    LOCK(invCs);
+    auto it = complaints.find(hash);
+    if (it == complaints.end()) return false;
+    ret = it->second;
+    return true;
+}
+
+bool CDKGSession::GetJustification(const uint256& hash, CDKGJustification& ret) const
+{
+    LOCK(invCs);
+    auto it = justifications.find(hash);
+    if (it == justifications.end()) return false;
+    ret = it->second;
+    return true;
+}
+
+bool CDKGSession::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
+{
+    LOCK(invCs);
+    auto it = prematureCommitments.find(hash);
+    if (it == prematureCommitments.end() || !validCommitments.count(hash)) return false;
+    ret = it->second;
+    return true;
+}
+
 template <typename MsgType>
 std::optional<CDKGSession::ReceiveMessageState> CDKGSession::ReceiveMessagePreamble(const MsgType& msg, MsgPhase phase, CDKGLogger& logger)
 {

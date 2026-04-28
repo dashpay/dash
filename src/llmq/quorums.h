@@ -12,6 +12,7 @@
 #include <saltedhasher.h>
 
 #include <serialize.h>
+#include <span.h>
 #include <sync.h>
 #include <threadsafety.h>
 #include <uint256.h>
@@ -25,12 +26,20 @@ class CBlockIndex;
 class CDBWrapper;
 namespace llmq {
 class CQuorum;
+class CQuorumDataRequest;
 class CQuorumManager;
-class QuorumObserver;
-class QuorumParticipant;
-}; // namespace llmq
+class QuorumRole;
+} // namespace llmq
 
 namespace llmq {
+
+enum class DataRequestStatus : uint8_t {
+    NotFound,
+    Requested,
+    Pending,
+    Processed,
+};
+
 extern const std::string DB_QUORUM_SK_SHARE;
 extern const std::string DB_QUORUM_QUORUM_VVEC;
 
@@ -159,15 +168,13 @@ public:
 class CQuorum
 {
     friend class CQuorumManager;
-    friend class llmq::QuorumObserver;
-    friend class llmq::QuorumParticipant;
 
 public:
     const Consensus::LLMQParams params;
-    CFinalCommitmentPtr qc;
-    const CBlockIndex* m_quorum_base_block_index{nullptr};
-    uint256 minedBlockHash;
-    std::vector<CDeterministicMNCPtr> members;
+    const CFinalCommitmentPtr qc;
+    const CBlockIndex* m_quorum_base_block_index;
+    const uint256 minedBlockHash;
+    const std::vector<CDeterministicMNCPtr> members;
 
 private:
     // Recovery of public key shares is very slow, so we start a background thread that pre-populates a cache so that
@@ -181,9 +188,10 @@ private:
     CBLSSecretKey skShare GUARDED_BY(cs_vvec_shShare);
 
 public:
-    CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker);
+    CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
+            CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members);
+
     ~CQuorum() = default;
-    void Init(CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members);
 
     bool SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn) EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
     void SetVerificationVector(BLSVerificationVectorPtr vvec_in) EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare)
@@ -195,12 +203,22 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
 
     bool HasVerificationVector() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
+    std::shared_ptr<const std::vector<CBLSPublicKey>> GetVerificationVector() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare)
+    {
+        LOCK(cs_vvec_shShare);
+        return quorumVvec;
+    }
     bool IsMember(const uint256& proTxHash) const;
     bool IsValidMember(const uint256& proTxHash) const;
     int GetMemberIndex(const uint256& proTxHash) const;
 
     CBLSPublicKey GetPubKeyShare(size_t memberIdx) const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
     CBLSSecretKey GetSkShare() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
+
+    //! Try to claim exclusive data recovery for this quorum. Returns true if claimed.
+    bool TryClaimRecovery() const { bool expected = false; return fQuorumDataRecoveryThreadRunning.compare_exchange_strong(expected, true); }
+    bool IsRecoveryRunning() const { return fQuorumDataRecoveryThreadRunning; }
+    void ReleaseRecovery() const { fQuorumDataRecoveryThreadRunning = false; }
 
 private:
     bool HasVerificationVectorInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs_vvec_shShare);

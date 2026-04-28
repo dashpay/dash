@@ -276,13 +276,9 @@ public:
  */
 class CDKGSession
 {
-    friend class ActiveDKGSession;
-    friend class ActiveDKGSessionHandler;
-    friend class CDKGSessionHandler;
-    friend class CDKGSessionManager;
     friend class CDKGLogger;
 
-private:
+protected:
     enum class MsgPhase : uint8_t {
         Contribution,
         Complaint,
@@ -296,7 +292,7 @@ private:
         bool should_process{true};
     };
 
-private:
+protected:
     CBLSWorker& blsWorker;
     CBLSWorkerCache cache;
     CDeterministicMNManager& m_dmnman;
@@ -307,7 +303,7 @@ private:
     const Consensus::LLMQParams& params;
     const CBlockIndex* const m_quorum_base_block_index;
 
-private:
+protected:
     int quorumIndex{0};
     std::vector<std::unique_ptr<CDKGMember>> members;
     std::map<uint256, size_t> membersMap;
@@ -397,6 +393,12 @@ public:
     // All Phases 5-in-1 for single-node-quorum
     virtual CFinalCommitment FinalizeSingleCommitment() { return {}; }
 
+    //! Look up a received message by hash. Used by CDKGSessionHandler subclasses to implement their Get* virtuals.
+    [[nodiscard]] bool GetContribution(const uint256& hash, CDKGContribution& ret) const EXCLUSIVE_LOCKS_REQUIRED(!invCs);
+    [[nodiscard]] bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const EXCLUSIVE_LOCKS_REQUIRED(!invCs);
+    [[nodiscard]] bool GetJustification(const uint256& hash, CDKGJustification& ret) const EXCLUSIVE_LOCKS_REQUIRED(!invCs);
+    [[nodiscard]] bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const EXCLUSIVE_LOCKS_REQUIRED(!invCs);
+
 public:
     [[nodiscard]] bool AreWeMember() const { return !myProTxHash.IsNull(); }
     [[nodiscard]] CDKGMember* GetMember(const uint256& proTxHash) const;
@@ -414,7 +416,6 @@ protected:
         return false;
     }
 
-private:
     [[nodiscard]] bool ShouldSimulateError(DKGError::type type) const;
 
     template <typename MsgType>

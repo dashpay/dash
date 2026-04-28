@@ -6,19 +6,21 @@
 
 #include <active/dkgsessionhandler.h>
 #include <active/masternode.h>
-#include <active/quorums.h>
+#include <bls/bls_worker.h>
 #include <chainlock/handler.h>
 #include <chainlock/signing.h>
+#include <evo/deterministicmns.h>
 #include <governance/governance.h>
 #include <governance/signing.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/signing.h>
-#include <llmq/context.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/ehf_signals.h>
+#include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
+#include <masternode/sync.h>
 #include <util/check.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -30,17 +32,16 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
                              llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
                              llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
                              const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
-                             const llmq::QvvecSyncModeMap& sync_map, const util::DbWrapperParams& db_params,
-                             bool quorums_recovery, bool quorums_watch) :
-    m_qman{qman},
+                             const util::DbWrapperParams& db_params, bool quorums_watch) :
+    llmq::QuorumRole{qman},
+    m_bls_worker{bls_worker},
+    m_quorums_watch{quorums_watch},
     nodeman{std::make_unique<CActiveMasternodeManager>(connman, dmnman, operator_sk)},
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params, quorums_watch)},
     shareman{std::make_unique<llmq::CSigSharesManager>(connman, chainman, sigman, *nodeman, qman, sporkman)},
     gov_signer{std::make_unique<GovernanceSigner>(connman, dmnman, govman, *nodeman, chainman, mn_sync)},
     ehf_sighandler{std::make_unique<llmq::CEHFSignalsHandler>(chainman, sigman, *shareman, qman)},
-    qman_handler{std::make_unique<llmq::QuorumParticipant>(bls_worker, connman, dmnman, qman, qsnapman, *nodeman, chainman,
-                                                           mn_sync, sporkman, sync_map, quorums_recovery, quorums_watch)},
     cl_signer{std::make_unique<chainlock::ChainLockSigner>(chainman.ActiveChainstate(), chainlocks, clhandler, isman,
                                                            qman, sigman, *shareman, mn_sync)},
     is_signer{std::make_unique<instantsend::InstantSendSigner>(chainman.ActiveChainstate(), chainlocks, isman, sigman,
@@ -52,7 +53,7 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
                                                                qblockman, qsnapman, *nodeman, chainman, sporkman,
                                                                llmq_params, quorums_watch, quorum_idx);
     });
-    m_qman.ConnectManagers(qman_handler.get(), qdkgsman.get());
+    m_qman.ConnectManagers(this, qdkgsman.get());
 }
 
 ActiveContext::~ActiveContext()
@@ -60,9 +61,8 @@ ActiveContext::~ActiveContext()
     m_qman.DisconnectManagers();
 }
 
-void ActiveContext::Start(CConnman& connman, PeerManager& peerman, int16_t worker_count)
+void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
 {
-    qman_handler->Start(worker_count);
     qdkgsman->StartThreads(connman, peerman);
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();
@@ -81,7 +81,6 @@ void ActiveContext::Stop()
     cl_signer->UnregisterRecoveryInterface();
     cl_signer->Stop();
     qdkgsman->StopThreads();
-    qman_handler->Stop();
 }
 
 CCoinJoinServer& ActiveContext::GetCJServer() const
@@ -99,9 +98,6 @@ void ActiveContext::SetCJServer(gsl::not_null<CCoinJoinServer*> cj_server)
 void ActiveContext::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd)
 {
     UpdatedBlockTip(tip, nullptr, ibd);
-    if (tip) {
-        qman_handler->InitializeQuorumConnections(tip);
-    }
 }
 
 void ActiveContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
@@ -113,5 +109,26 @@ void ActiveContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIn
     ehf_sighandler->UpdatedBlockTip(pindexNew);
     gov_signer->UpdatedBlockTip(pindexNew);
     qdkgsman->UpdatedBlockTip(pindexNew, fInitialDownload);
-    qman_handler->UpdatedBlockTip(pindexNew, fInitialDownload);
+}
+
+bool ActiveContext::IsMasternode() const
+{
+    // We are only initialized if masternode mode is enabled
+    return true;
+}
+
+bool ActiveContext::IsWatching() const
+{
+    // Watch-only mode can co-exist with masternode mode
+    return m_quorums_watch;
+}
+
+uint256 ActiveContext::GetProTxHash() const
+{
+    return nodeman->GetProTxHash();
+}
+
+bool ActiveContext::SetQuorumSecretKeyShare(llmq::CQuorum& quorum, Span<CBLSSecretKey> skContributions) const
+{
+    return quorum.SetSecretKeyShare(m_bls_worker.AggregateSecretKeys(skContributions), nodeman->GetProTxHash());
 }

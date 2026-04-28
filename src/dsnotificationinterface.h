@@ -25,9 +25,8 @@ public:
                                       const std::unique_ptr<CDeterministicMNManager>& dmnman);
     virtual ~CDSNotificationInterface();
 
-    // a small helper to initialize current block height in sub-modules on startup
-    void InitializeCurrentBlockTip();
-
+    // CValidationInterface
+    void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) override;
 protected:
     // CValidationInterface
     void AcceptedBlockHeader(const CBlockIndex *pindexNew) override;

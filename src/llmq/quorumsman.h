@@ -5,40 +5,32 @@
 #ifndef BITCOIN_LLMQ_QUORUMSMAN_H
 #define BITCOIN_LLMQ_QUORUMSMAN_H
 
+#include <bls/bls_ies.h>
 #include <evo/types.h>
-#include <llmq/observer/quorums.h>
-#include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/types.h>
-#include <msg_result.h>
 #include <saltedhasher.h>
 #include <unordered_lru_cache.h>
 
 #include <sync.h>
 #include <util/threadinterrupt.h>
-#include <util/time.h>
 
 #include <gsl/pointers.h>
 
-#include <atomic>
 #include <deque>
 #include <map>
 #include <memory>
 #include <thread>
-#include <utility>
 
 class CBLSSignature;
 class CBLSWorker;
 class CBlockIndex;
 class CChain;
-class CConnman;
-class CDataStream;
 class CDeterministicMNManager;
 class CDBWrapper;
 class CEvoDB;
 class ChainstateManager;
-class CNode;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -50,23 +42,17 @@ enum class VerifyRecSigStatus : uint8_t {
     Valid,
 };
 
+class QuorumRole;
 class CDKGSessionManager;
 class CQuorumBlockProcessor;
 class CQuorumSnapshotManager;
-class QuorumObserver;
-class QuorumParticipant;
 
 /**
  * The quorum manager maintains quorums which were mined on chain. When a quorum is requested from the manager,
  * it will lookup the commitment (through CQuorumBlockProcessor) and build a CQuorum object from it.
- *
- * It is also responsible for initialization of the intra-quorum connections for new quorums.
  */
-class CQuorumManager final : public QuorumObserverParent
+class CQuorumManager final
 {
-    friend class llmq::QuorumObserver;
-    friend class llmq::QuorumParticipant;
-
 private:
     CBLSWorker& blsWorker;
     CDeterministicMNManager& m_dmnman;
@@ -74,7 +60,7 @@ private:
     CQuorumSnapshotManager& m_qsnapman;
     const ChainstateManager& m_chainman;
     llmq::CDKGSessionManager* m_qdkgsman{nullptr};
-    llmq::QuorumObserver* m_handler{nullptr};
+    llmq::QuorumRole* m_handler{nullptr};
 
 private:
     mutable Mutex cs_db;
@@ -110,7 +96,7 @@ public:
                             const ChainstateManager& chainman, const util::DbWrapperParams& db_params);
     ~CQuorumManager();
 
-    void ConnectManagers(gsl::not_null<llmq::QuorumObserver*> handler, gsl::not_null<llmq::CDKGSessionManager*> qdkgsman)
+    void ConnectManagers(gsl::not_null<llmq::QuorumRole*> handler, gsl::not_null<llmq::CDKGSessionManager*> qdkgsman)
     {
         // Prohibit double initialization
         assert(m_handler == nullptr);
@@ -126,17 +112,9 @@ public:
 
     bool GetEncryptedContributions(Consensus::LLMQType llmq_type, const CBlockIndex* block_index,
                                    const std::vector<bool>& valid_members, const uint256& protx_hash,
-                                   std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vec_enc) const override;
-
-    [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& pfrom, CConnman& connman, std::string_view msg_type,
-                                                         CDataStream& vRecv)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !cs_data_requests, !m_cs_maps, !m_cache_cs);
+                                   std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vec_enc) const;
 
     static bool HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockProcessor& quorum_block_processor, const uint256& quorumHash);
-
-    bool RequestQuorumData(CNode* pfrom, CConnman& connman, const CQuorum& quorum, uint16_t nDataMask,
-                           const uint256& proTxHash = uint256()) const override
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
 
     // all these methods will lock cs_main for a short period of time
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
@@ -146,19 +124,34 @@ public:
 
     // this one is cs_main-free
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
-                                         size_t nCountRequested) const override
+                                         size_t nCountRequested) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     bool IsMasternode() const;
     bool IsWatching() const;
 
-    bool IsDataRequestPending(const uint256& proRegTx, bool we_requested, const uint256& quorumHash,
-                              Consensus::LLMQType llmqType) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    DataRequestStatus GetDataRequestStatus(const uint256& proRegTx, bool we_requested, const uint256& quorumHash,
-                                           Consensus::LLMQType llmqType) const override
+    //! Request tracking for QGETDATA/QDATA — used by NetQuorum and RPC
+    bool RegisterDataRequest(const CQuorumDataRequestKey& key, const CQuorumDataRequest& request,
+                             bool add_expiry_bias = true) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    void CleanupExpiredDataRequests() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
-    void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    enum class DataResponseValidation : uint8_t { OK, NotRequested, AlreadyReceived, Mismatch };
+    DataResponseValidation ValidateDataResponse(const CQuorumDataRequestKey& key,
+                                                const CQuorumDataRequest& response) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
+    bool IsDataRequestPending(const uint256& proRegTx, bool we_requested, const uint256& quorumHash,
+                              Consensus::LLMQType llmqType) const EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
+    DataRequestStatus GetDataRequestStatus(const uint256& proRegTx, bool we_requested, const uint256& quorumHash,
+                                           Consensus::LLMQType llmqType) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
+    void CleanupExpiredDataRequests() const EXCLUSIVE_LOCKS_REQUIRED(!cs_data_requests);
+
+    void CleanupOldQuorumData(const Uint256HashSet& dbKeysToSkip) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+
+    //! Used by NetQuorum for QDATA processing
+    CQuorumPtr GetCachedMutableQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cs_maps);
+    void WriteContributions(const CQuorumPtr& quorum) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    void QueueQuorumForWarming(CQuorumCPtr pQuorum) const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);
 
 private:
     // all private methods here are cs_main-free
@@ -173,7 +166,6 @@ private:
                           bool populate_cache = true) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
-    void QueueQuorumForWarming(CQuorumCPtr pQuorum) const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);
     void CacheWarmingThreadMain() const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);
     void MigrateOldQuorumDB(CEvoDB& evoDb) const EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
 };
@@ -190,6 +182,29 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
 VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain& active_chain, const CQuorumManager& qman,
                                       int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig,
                                       int signOffset = SIGN_HEIGHT_OFFSET);
+
+/**
+ * Base class providing the interface used by CQuorumManager and NetQuorum.
+ * Both ObserverContext and ActiveContext inherit from this class.
+ */
+class QuorumRole
+{
+protected:
+    CQuorumManager& m_qman;
+
+public:
+    QuorumRole() = delete;
+    QuorumRole(const QuorumRole&) = delete;
+    QuorumRole& operator=(const QuorumRole&) = delete;
+    explicit QuorumRole(CQuorumManager& qman) : m_qman{qman} {}
+    virtual ~QuorumRole() = default;
+
+    virtual bool IsMasternode() const = 0;
+    virtual bool IsWatching() const = 0;
+    virtual uint256 GetProTxHash() const { return {}; }
+    virtual bool SetQuorumSecretKeyShare(CQuorum& quorum, Span<CBLSSecretKey> skContributions) const = 0;
+};
+
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_QUORUMSMAN_H

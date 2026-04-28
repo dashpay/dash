@@ -12,7 +12,7 @@
 #include <llmq/context.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
-#include <llmq/observer/context.h>
+#include <llmq/observer.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -28,6 +28,7 @@
 #include <deploymentstatus.h>
 #include <index/txindex.h>
 #include <net_processing.h>
+#include <netmessagemaker.h>
 #include <node/context.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
@@ -923,7 +924,13 @@ static RPCHelpMan quorum_getdata()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
     }
     return connman.ForNode(nodeId, [&](CNode* pNode) {
-        return llmq_ctx.qman->RequestQuorumData(pNode, connman, *quorum, nDataMask, proTxHash);
+        if (pNode->GetVerifiedProRegTxHash().IsNull()) return false;
+        if (!quorum->m_quorum_base_block_index) return false;
+        const llmq::CQuorumDataRequest request(llmqType, quorum->qc->quorumHash, nDataMask, proTxHash);
+        const llmq::CQuorumDataRequestKey key(pNode->GetVerifiedProRegTxHash(), true, quorum->qc->quorumHash, llmqType);
+        if (!llmq_ctx.qman->RegisterDataRequest(key, request)) return false;
+        connman.PushMessage(pNode, CNetMsgMaker(pNode->GetCommonVersion()).Make(NetMsgType::QGETDATA, request));
+        return true;
     });
 },
     };

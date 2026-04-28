@@ -8,6 +8,7 @@
 #include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <masternode/sync.h>
+#include <msg_result.h>
 #include <stats/client.h>
 #include <util/std23.h>
 
