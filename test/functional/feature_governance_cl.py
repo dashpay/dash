@@ -147,10 +147,10 @@ class DashGovernanceTest (DashTestFramework):
         expected_msg = f'CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: {tip_height}'
 
         def governance_tip_updated(node):
-            with open(node.debug_log_path, encoding='utf-8') as dl:
+            with open(node.debug_log_path, "rb") as dl:
                 seek_pos = node.debug_log_size(mode="rb") - 100 * 1024  # read the last 100 KiB only
                 dl.seek(seek_pos if seek_pos > 0 else 0)
-                debug_log_part = dl.read()
+                debug_log_part = dl.read().decode("utf-8", errors="replace")
             return expected_msg in debug_log_part
 
         for node in self.nodes[0:5]:
