@@ -22,13 +22,10 @@ template <typename T>
 [[nodiscard]] uint16_t GetMaxFromDeployment(gsl::not_null<const CBlockIndex*> pindexPrev,
                                             const ChainstateManager& chainman, std::optional<bool> is_basic_override)
 {
-    constexpr bool is_extaddr_eligible{std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpServTx> ||
-        std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpRegTx>};
-    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
-    return ProTxVersion::GetMax(
-        is_basic_override ? *is_basic_override
-                          : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19),
-        is_extaddr_eligible ? is_v24_active : false);
+    return ProTxVersion::GetMax(is_basic_override ? *is_basic_override
+                                                  : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(),
+                                                                          Consensus::DEPLOYMENT_V19),
+                                DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24));
 }
 template uint16_t GetMaxFromDeployment<CProRegTx>(gsl::not_null<const CBlockIndex*> pindexPrev,
                                                   const ChainstateManager& chainman,
