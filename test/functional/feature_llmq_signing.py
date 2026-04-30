@@ -41,6 +41,7 @@ class LLMQSigningTest(DashTestFramework):
 
         if self.options.spork21:
             assert self.mninfo[0].get_node(self).getconnectioncount() == self.llmq_size
+            self.assert_qsendrecsigs_symmetric()
 
         id = "0000000000000000000000000000000000000000000000000000000000000001"
         msgHash = "0000000000000000000000000000000000000000000000000000000000000002"
@@ -199,6 +200,37 @@ class LLMQSigningTest(DashTestFramework):
             # Let 2 seconds pass so that the next node is used for recovery, which should succeed
             self.bump_mocktime(2)
             wait_for_sigs(True, False, True, 2)
+
+    def assert_qsendrecsigs_symmetric(self):
+        # If only one direction's QSENDRECSIGS arrives, the receiving side keeps
+        # m_wants_recsigs=false and silently drops half of all recsig pushes.
+        self.log.info("Assert QSENDRECSIGS was exchanged in both directions on every MN-MN edge")
+        mn_protxs = {mn.proTxHash for mn in self.mninfo}
+
+        def all_symmetric():
+            for mn in self.mninfo:
+                expected_peers = mn_protxs - {mn.proTxHash}
+                quorum_peers = {}
+                for p in mn.get_node(self).getpeerinfo():
+                    peer_protx = p.get("verified_proregtx_hash", "")
+                    if peer_protx not in expected_peers:
+                        continue
+                    quorum_peers.setdefault(peer_protx, []).append(p)
+
+                if set(quorum_peers.keys()) != expected_peers:
+                    return False
+
+                for peer_infos in quorum_peers.values():
+                    if not any(
+                        p.get("bytessent_per_msg", {}).get("qsendrecsigs", 0) > 0 and
+                        p.get("bytesrecv_per_msg", {}).get("qsendrecsigs", 0) > 0
+                        for p in peer_infos
+                    ):
+                        return False
+            return True
+
+        self.wait_until(all_symmetric, timeout=10)
+
 
 if __name__ == '__main__':
     LLMQSigningTest().main()
