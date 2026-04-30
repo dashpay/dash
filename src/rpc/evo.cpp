@@ -788,8 +788,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
 
     CProRegTx ptx;
     ptx.nType = mnType;
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProRegTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                 chainman, /*is_basic_override=*/!use_legacy);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
+                                            /*is_basic_override=*/!use_legacy);
     ptx.netInfo = NetInfoInterface::MakeNetInfo(ptx.nVersion);
 
     if (action == ProTxRegisterAction::Fund) {
@@ -1103,9 +1103,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a %s", ptx.proTxHash.ToString(), GetMnType(mnType).description));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpServTx>(WITH_LOCK(::cs_main,
-                                                                              return chainman.ActiveChain().Tip()),
-                                                                    chainman);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman);
 
     // Legacy masternodes must upgrade to BasicBLS before using higher versions.
     // Clamp to BasicBLS to avoid "bad-protx-version-upgrade" validation failure.
@@ -1233,8 +1231,8 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     EnsureWalletIsUnlocked(*wallet);
 
     CProUpRegTx ptx;
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRegTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                   chainman, /*is_basic_override=*/!use_legacy);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
+                                            /*is_basic_override=*/!use_legacy);
 
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
     auto dmn = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
@@ -1367,8 +1365,7 @@ static RPCHelpMan protx_revoke()
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRevTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                   chainman);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman);
 
     // Legacy masternodes must upgrade to BasicBLS before using higher versions.
     // Clamp to BasicBLS to avoid "bad-protx-version-upgrade" validation failure.

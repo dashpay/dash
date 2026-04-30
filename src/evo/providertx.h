@@ -9,6 +9,7 @@
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
 #include <evo/specialtx.h>
+#include <evo/types.h>
 #include <primitives/transaction.h>
 #include <util/std23.h>
 
@@ -17,47 +18,13 @@
 #include <netaddress.h>
 #include <pubkey.h>
 
-#include <univalue.h>
 #include <gsl/pointers.h>
+#include <univalue.h>
 
 #include <vector>
 
-class CBlockIndex;
-class ChainstateManager;
 class TxValidationState;
 struct RPCResult;
-
-namespace ProTxVersion {
-enum : uint16_t {
-    LegacyBLS = 1,
-    BasicBLS  = 2,
-    ExtAddr   = 3,
-};
-
-/** Get highest permissible ProTx version based on flags set. */
-[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr)
-{
-    if (is_basic_scheme_active) {
-        if (is_extended_addr) {
-            // Requires *both* forks to be active to use extended addresses. is_basic_scheme_active could
-            // be set to false due to RPC specialization, so we must evaluate is_extended_addr *last* to
-            // avoid accidentally upgrading a legacy BLS node to basic BLS due to v24 activation.
-            return ProTxVersion::ExtAddr;
-        }
-        return ProTxVersion::BasicBLS;
-    }
-    return ProTxVersion::LegacyBLS;
-}
-
-/** Get highest permissible ProTx version based on deployment status
- *  Note: The override is needed because some RPCs need to use deployment status information for everything *except*
- *        the BLS version upgrade since they are specializations for a specific BLS version. This is a one-off.
- *  TODO: Resolve this oddity. Consider deprecating legacy BLS-only RPCs so we can remove them eventually.
- */
-template <typename T>
-[[nodiscard]] uint16_t GetMaxFromDeployment(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                                            std::optional<bool> is_basic_override = std::nullopt);
-} // namespace ProTxVersion
 
 class MasternodePayoutShare
 {
@@ -172,8 +139,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProRegTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 class CProUpServTx
@@ -234,8 +204,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProUpServTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 class CProUpRegTx
@@ -295,8 +268,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProUpRegTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 class CProUpRevTx
@@ -346,8 +322,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProUpRevTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 template <typename ProTx>

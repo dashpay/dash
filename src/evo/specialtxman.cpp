@@ -976,7 +976,11 @@ std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<c
         state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-payload");
         return std::nullopt;
     }
-    if (!opt_ptx->IsTriviallyValid(pindexPrev, chainman, state)) {
+    if (opt_ptx->nVersion > DeploymentToProtxVersion(pindexPrev, chainman)) {
+        state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version");
+        return std::nullopt;
+    }
+    if (!opt_ptx->IsTriviallyValid(state)) {
         // pass the state returned by the function above
         return std::nullopt;
     }

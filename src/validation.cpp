@@ -5885,3 +5885,12 @@ bool IsBIP30Unspendable(const CBlockIndex& block_index)
     return (block_index.nHeight==91722 && block_index.GetBlockHash() == uint256S("0x00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e")) ||
            (block_index.nHeight==91812 && block_index.GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"));
 }
+
+[[nodiscard]] uint16_t DeploymentToProtxVersion(gsl::not_null<const CBlockIndex*> pindexPrev,
+                                                const ChainstateManager& chainman, std::optional<bool> is_basic_override)
+{
+    return ProTxVersion::GetMax(
+        is_basic_override ? *is_basic_override
+                          : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19),
+        DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24));
+}
