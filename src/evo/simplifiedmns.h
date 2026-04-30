@@ -6,14 +6,15 @@
 #define BITCOIN_EVO_SIMPLIFIEDMNS_H
 
 #include <bls/bls.h>
+#include <consensus/validation.h>
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
 #include <evo/providertx.h>
-#include <util/helpers.h>
-
+#include <evo/types.h>
 #include <merkleblock.h>
 #include <netaddress.h>
 #include <pubkey.h>
+#include <util/helpers.h>
 
 #include <gsl/pointers.h>
 

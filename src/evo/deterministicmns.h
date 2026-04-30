@@ -7,15 +7,12 @@
 
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
-#include <evo/providertx.h>
 #include <evo/types.h>
 
-#include <arith_uint256.h>
 #include <clientversion.h>
 #include <consensus/params.h>
 #include <crypto/common.h>
 #include <saltedhasher.h>
-#include <scheduler.h>
 #include <sync.h>
 
 #include <gsl/pointers.h>
