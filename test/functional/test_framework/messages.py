@@ -2447,6 +2447,23 @@ class msg_qsigshare:
         return "msg_qsigshare(sigShares=%d)" % (len(self.sig_shares))
 
 
+class msg_qsendrecsigs:
+    __slots__ = ("on",)
+    msgtype = b"qsendrecsigs"
+
+    def __init__(self, on=True):
+        self.on = on
+
+    def deserialize(self, f):
+        self.on = bool(struct.unpack("<?", f.read(1))[0])
+
+    def serialize(self):
+        return struct.pack("<?", self.on)
+
+    def __repr__(self):
+        return f"msg_qsendrecsigs(on={self.on})"
+
+
 class msg_qwatch:
     __slots__ = ()
     msgtype = b"qwatch"
