@@ -963,8 +963,8 @@ static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, TxVali
 }
 
 template <typename ProTx>
-static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                                                const ChainstateManager& chainman, TxValidationState& state)
+std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                         const ChainstateManager& chainman, TxValidationState& state)
 {
     if (tx.nType != ProTx::SPECIALTX_TYPE) {
         state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-type");
