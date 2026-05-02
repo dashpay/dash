@@ -264,11 +264,9 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cache);
 
     /**
-     * ProcessGetSporks is used to handle the 'getsporks' p2p message.
-     *
-     * For 'getsporks', it sends active sporks to the requesting peer.
+     * ActiveSporks is used to handle the 'getsporks' p2p message.
      */
-    void ProcessGetSporks(CNode& peer, CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage>> ActiveSporks() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
      * UpdateSpork is used by the spork RPC command to set a new spork value, sign

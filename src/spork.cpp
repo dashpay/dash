@@ -12,7 +12,6 @@
 #include <logging.h>
 #include <messagesigner.h>
 #include <net.h>
-#include <netmessagemaker.h>
 #include <protocol.h>
 #include <script/standard.h>
 #include <timedata.h>
@@ -130,8 +129,6 @@ MessageProcessingResult CSporkManager::ProcessMessage(CNode& peer, CConnman& con
 {
     if (msg_type == NetMsgType::SPORK) {
         return ProcessSpork(peer.GetId(), vRecv);
-    } else if (msg_type == NetMsgType::GETSPORKS) {
-        ProcessGetSporks(peer, connman);
     }
     return {};
 }
@@ -195,16 +192,11 @@ MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vR
     return ret;
 }
 
-void CSporkManager::ProcessGetSporks(CNode& peer, CConnman& connman)
+std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage>> CSporkManager::ActiveSporks() const
 {
     LOCK(cs); // make sure to not lock this together with cs_main
-    for (const auto& pair : mapSporksActive) {
-        for (const auto& signerSporkPair : pair.second) {
-            connman.PushMessage(&peer, CNetMsgMaker(peer.GetCommonVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
-        }
-    }
+    return mapSporksActive;
 }
-
 
 std::optional<CInv> CSporkManager::UpdateSpork(SporkId nSporkID, SporkValue nValue)
 {

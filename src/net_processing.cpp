@@ -5462,6 +5462,16 @@ void PeerManagerImpl::ProcessMessage(
         return;
     }
 
+    if (msg_type == NetMsgType::GETSPORKS) {
+        // For 'getsporks', active sporks is sent to the requesting peer.
+        auto active_sporks = m_sporkman.ActiveSporks();
+        for (const auto& pair : active_sporks) {
+            for (const auto& signerSporkPair : pair.second) {
+                m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
+            }
+        }
+    }
+
     if (msg_type == NetMsgType::QUORUMROTATIONINFO) {
         // we have never requested this
         Misbehaving(pfrom.GetId(), 100, strprintf("received not-requested quorumrotationinfo. peer=%d", pfrom.GetId()));
