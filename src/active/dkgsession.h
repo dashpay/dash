@@ -29,25 +29,22 @@ public:
 
 public:
     // Phase 1: contribution
-    void Contribute(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override;
-    void SendContributions(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override;
+    std::optional<CDKGContribution> Contribute() override;
+    std::optional<CDKGContribution> SendContributions() override;
     void VerifyPendingContributions() override EXCLUSIVE_LOCKS_REQUIRED(cs_pending);
 
     // Phase 2: complaint
-    void VerifyAndComplain(CConnman& connman, CDKGPendingMessages& pendingMessages, PeerManager& peerman) override
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
+    std::optional<CDKGComplaint> VerifyAndComplain(CConnman& connman) override EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
     void VerifyConnectionAndMinProtoVersions(CConnman& connman) const override;
-    void SendComplaint(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override;
+    std::optional<CDKGComplaint> SendComplaint() override;
 
     // Phase 3: justification
-    void VerifyAndJustify(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override
-        EXCLUSIVE_LOCKS_REQUIRED(!invCs);
-    void SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman,
-                           const Uint256HashSet& forMembers) override;
+    std::optional<CDKGJustification> VerifyAndJustify() override EXCLUSIVE_LOCKS_REQUIRED(!invCs);
+    std::optional<CDKGJustification> SendJustification(const Uint256HashSet& forMembers) override;
 
     // Phase 4: commit
-    void VerifyAndCommit(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override;
-    void SendCommitment(CDKGPendingMessages& pendingMessages, PeerManager& peerman) override;
+    std::optional<CDKGPrematureCommitment> VerifyAndCommit() override;
+    std::optional<CDKGPrematureCommitment> SendCommitment() override;
 
     // Phase 5: aggregate/finalize
     std::vector<CFinalCommitment> FinalizeCommitments() EXCLUSIVE_LOCKS_REQUIRED(!invCs) override;

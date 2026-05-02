@@ -517,7 +517,11 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
     WaitForNextPhase(QuorumPhase::Initialized, QuorumPhase::Contribute, curQuorumHash);
 
     // Contribute
-    auto fContributeStart = [this, &peerman]() { curSession->Contribute(pendingContributions, peerman); };
+    auto fContributeStart = [this, &peerman]() {
+        if (auto qc = curSession->Contribute(); qc) {
+            pendingContributions.PushPendingMessage(-1, *qc, peerman);
+        }
+    };
     auto fContributeWait = [this, &connman, &peerman] {
         return ProcessPendingMessageBatch<CDKGContribution>(connman, *curSession, pendingContributions, peerman, 8);
     };
@@ -525,7 +529,9 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
 
     // Complain
     auto fComplainStart = [this, &connman, &peerman]() {
-        curSession->VerifyAndComplain(connman, pendingComplaints, peerman);
+        if (auto qc = curSession->VerifyAndComplain(connman); qc) {
+            pendingComplaints.PushPendingMessage(-1, *qc, peerman);
+        }
     };
     auto fComplainWait = [this, &connman, &peerman] {
         return ProcessPendingMessageBatch<CDKGComplaint>(connman, *curSession, pendingComplaints, peerman, 8);
@@ -533,14 +539,22 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
     HandlePhase(QuorumPhase::Complain, QuorumPhase::Justify, curQuorumHash, 0.05, fComplainStart, fComplainWait);
 
     // Justify
-    auto fJustifyStart = [this, &peerman]() { curSession->VerifyAndJustify(pendingJustifications, peerman); };
+    auto fJustifyStart = [this, &peerman]() {
+        if (auto qj = curSession->VerifyAndJustify(); qj) {
+            pendingJustifications.PushPendingMessage(-1, *qj, peerman);
+        }
+    };
     auto fJustifyWait = [this, &connman, &peerman] {
         return ProcessPendingMessageBatch<CDKGJustification>(connman, *curSession, pendingJustifications, peerman, 8);
     };
     HandlePhase(QuorumPhase::Justify, QuorumPhase::Commit, curQuorumHash, 0.05, fJustifyStart, fJustifyWait);
 
     // Commit
-    auto fCommitStart = [this, &peerman]() { curSession->VerifyAndCommit(pendingPrematureCommitments, peerman); };
+    auto fCommitStart = [this, &peerman]() {
+        if (auto qc = curSession->VerifyAndCommit(); qc) {
+            pendingPrematureCommitments.PushPendingMessage(-1, *qc, peerman);
+        }
+    };
     auto fCommitWait = [this, &connman, &peerman] {
         return ProcessPendingMessageBatch<CDKGPrematureCommitment>(connman, *curSession, pendingPrematureCommitments,
                                                                    peerman, 8);
