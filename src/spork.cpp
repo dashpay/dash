@@ -4,17 +4,15 @@
 
 #include <spork.h>
 
-#include <flat-database.h>
-#include <util/helpers.h>
-
 #include <chainparams.h>
+#include <flat-database.h>
 #include <key_io.h>
 #include <logging.h>
 #include <messagesigner.h>
-#include <net.h>
 #include <protocol.h>
 #include <script/standard.h>
 #include <timedata.h>
+#include <util/helpers.h>
 #include <util/message.h> // for MESSAGE_MAGIC
 #include <util/string.h>
 
@@ -125,41 +123,29 @@ void CSporkManager::CheckAndRemove()
     }
 }
 
-MessageProcessingResult CSporkManager::ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type, CDataStream& vRecv)
+bool CSporkManager::IsSporkValid(const CSporkMessage& spork)
 {
-    if (msg_type == NetMsgType::SPORK) {
-        return ProcessSpork(peer.GetId(), vRecv);
-    }
-    return {};
-}
-
-MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vRecv)
-{
-    CSporkMessage spork;
-    vRecv >> spork;
-
-    uint256 hash = spork.GetHash();
-
-    MessageProcessingResult ret{};
-    ret.m_to_erase = CInv{MSG_SPORK, hash};
-
     if (spork.nTimeSigned > GetAdjustedTime() + 2 * 60 * 60) {
         LogPrint(BCLog::SPORK, "CSporkManager::ProcessSpork -- ERROR: too far into the future\n");
-        ret.m_error = MisbehavingError{100};
-        return ret;
+        return false;
     }
 
     auto opt_keyIDSigner = spork.GetSignerKeyID();
 
     if (opt_keyIDSigner == std::nullopt || WITH_LOCK(cs, return !setSporkPubKeyIDs.count(*opt_keyIDSigner))) {
         LogPrint(BCLog::SPORK, "CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
-        ret.m_error = MisbehavingError{100};
-        return ret;
+        return false;
     }
+    return true;
+}
 
-    std::string strLogMsg{strprintf("SPORK -- hash: %s id: %d value: %10d peer=%d", hash.ToString(), spork.nSporkID,
-                                    spork.nValue, from)};
-    auto keyIDSigner = *opt_keyIDSigner;
+bool CSporkManager::ProcessSpork(const CSporkMessage& spork)
+{
+    uint256 hash = spork.GetHash();
+    std::string strLogMsg{strprintf("SPORK -- hash: %s id: %d value: %10d", hash.ToString(), spork.nSporkID,
+                                    spork.nValue)};
+    assert(spork.GetSignerKeyID().has_value());
+    auto keyIDSigner = spork.GetSignerKeyID().value();
 
     {
         LOCK(cs); // make sure to not lock this together with cs_main
@@ -167,7 +153,7 @@ MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vR
             if (mapSporksActive[spork.nSporkID].count(keyIDSigner)) {
                 if (mapSporksActive[spork.nSporkID][keyIDSigner].nTimeSigned >= spork.nTimeSigned) {
                     LogPrint(BCLog::SPORK, "%s seen\n", strLogMsg);
-                    return ret;
+                    return false;
                 } else {
                     LogPrintf("%s updated\n", strLogMsg);
                 }
@@ -188,8 +174,7 @@ MessageProcessingResult CSporkManager::ProcessSpork(NodeId from, CDataStream& vR
         }
     }
 
-    ret.m_inventory.emplace_back(MSG_SPORK, hash);
-    return ret;
+    return true;
 }
 
 std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage>> CSporkManager::ActiveSporks() const

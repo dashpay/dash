@@ -5,16 +5,11 @@
 #ifndef BITCOIN_SPORK_H
 #define BITCOIN_SPORK_H
 
-#include <msg_result.h>
-
 #include <hash.h>
 #include <key.h>
-#include <net.h>
-#include <net_types.h>
 #include <pubkey.h>
 #include <saltedhasher.h>
 #include <sync.h>
-#include <uint256.h>
 
 #include <array>
 #include <optional>
@@ -22,11 +17,11 @@
 #include <unordered_map>
 #include <vector>
 
-class CConnman;
 template<typename T>
 class CFlatDB;
-class CNode;
 class CDataStream;
+class uint256;
+class CInv;
 
 class CSporkMessage;
 class CSporkManager;
@@ -249,18 +244,18 @@ public:
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
-     * ProcessMessage is used to call ProcessSpork and ProcessGetSporks. See below
+     * IsSporkValid validate signed time and pubkey
+     * If these values mismatch function returns false [spork is invalid]
+     * If spork validation failed, peer should be punished
      */
-    [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type,
-                                                         CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
-
+    [[nodiscard]] bool IsSporkValid(const CSporkMessage& spork) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     /**
      * ProcessSpork is used to handle the 'spork' p2p message.
      *
      * For 'spork', it validates the spork and adds it to the internal spork storage and
      * performs any necessary processing.
      */
-    [[nodiscard]] MessageProcessingResult ProcessSpork(NodeId from, CDataStream& vRecv)
+    [[nodiscard]] bool ProcessSpork(const CSporkMessage& spork)
         EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cache);
 
     /**
