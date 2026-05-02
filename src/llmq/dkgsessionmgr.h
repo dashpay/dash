@@ -8,9 +8,10 @@
 #include <bls/bls.h>
 #include <bls/bls_worker.h>
 #include <chainparams.h>
+#include <consensus/params.h>
 #include <net_types.h>
-#include <util/helpers.h>
 #include <sync.h>
+#include <util/helpers.h>
 
 #include <map>
 #include <memory>
@@ -23,16 +24,15 @@ class CBLSIESEncryptedObject;
 
 class CActiveMasternodeManager;
 class CBlockIndex;
+class CConnman;
 class CDBWrapper;
 class CDeterministicMNManager;
-class CDKGDebugManager;
 class ChainstateManager;
+class CNode;
 class CMasternodeMetaMan;
 class CSporkManager;
 class PeerManager;
 class CInv;
-class CNode;
-class CConnman;
 struct MessageProcessingResult;
 namespace util {
 struct DbWrapperParams;
@@ -48,6 +48,11 @@ class CDKGJustification;
 class CDKGPrematureCommitment;
 class CDKGSessionHandler;
 class CQuorumSnapshotManager;
+class CDKGSessionHandler;
+class CDKGContribution;
+class CDKGComplaint;
+class CDKGJustification;
+class CDKGPrematureCommitment;
 
 class CDKGSessionManager
 {
