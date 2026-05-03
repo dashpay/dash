@@ -248,7 +248,7 @@ public:
      * If these values mismatch function returns false [spork is invalid]
      * If spork validation failed, peer should be punished
      */
-    [[nodiscard]] bool IsSporkValid(const CSporkMessage& spork) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    [[nodiscard]] bool IsSporkValid(const CSporkMessage& spork) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     /**
      * ProcessSpork is used to handle the 'spork' p2p message.
      *

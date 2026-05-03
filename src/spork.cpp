@@ -123,17 +123,17 @@ void CSporkManager::CheckAndRemove()
     }
 }
 
-bool CSporkManager::IsSporkValid(const CSporkMessage& spork)
+bool CSporkManager::IsSporkValid(const CSporkMessage& spork) const
 {
     if (spork.nTimeSigned > GetAdjustedTime() + 2 * 60 * 60) {
-        LogPrint(BCLog::SPORK, "CSporkManager::ProcessSpork -- ERROR: too far into the future\n");
+        LogPrint(BCLog::SPORK, "CSporkManager::%s -- ERROR: too far into the future\n", __func__);
         return false;
     }
 
     auto opt_keyIDSigner = spork.GetSignerKeyID();
 
     if (opt_keyIDSigner == std::nullopt || WITH_LOCK(cs, return !setSporkPubKeyIDs.count(*opt_keyIDSigner))) {
-        LogPrint(BCLog::SPORK, "CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
+        LogPrint(BCLog::SPORK, "CSporkManager::%s -- ERROR: invalid signature\n", __func__);
         return false;
     }
     return true;
