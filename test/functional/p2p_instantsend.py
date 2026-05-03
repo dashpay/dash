@@ -164,11 +164,9 @@ class InstantSendTest(DashTestFramework):
 
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         self.wait_for_instantlock(txid)
-        for _, obs in observers:
-            obs.sync_with_ping()
 
-        assert any(obs.isdlock_inv_seen for _, obs in observers), \
-            "non-MN peer with QSENDRECSIGS got no MSG_ISDLOCK inv"
+        for _, obs in observers:
+            obs.wait_until(lambda obs=obs: obs.isdlock_inv_seen, timeout=10)
 
         for node, _ in observers:
             node.disconnect_p2ps()
