@@ -21,8 +21,8 @@ class RecSigsObserver(P2PInterface):
         super().__init__()
         self.isdlock_inv_seen = False
 
-    def send_qsendrecsigs(self, on=True):
-        self.send_message(msg_qsendrecsigs(on))
+    def send_qsendrecsigs(self, wants_recsigs=True):
+        self.send_message(msg_qsendrecsigs(wants_recsigs))
 
     def on_inv(self, message):
         for inv in message.inv:
@@ -156,21 +156,22 @@ class InstantSendTest(DashTestFramework):
         self.log.info("Non-MN peer started with -watchquorums must still get ISDLOCK invs")
         observers = []
         for mn in self.mninfo:
-            obs = mn.get_node(self).add_p2p_connection(RecSigsObserver())
+            node = mn.get_node(self)
+            obs = node.add_p2p_connection(RecSigsObserver())
             obs.send_qsendrecsigs(True)
             obs.sync_with_ping()
-            observers.append(obs)
+            observers.append((node, obs))
 
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         self.wait_for_instantlock(txid)
-        for obs in observers:
+        for _, obs in observers:
             obs.sync_with_ping()
 
-        assert any(o.isdlock_inv_seen for o in observers), \
+        assert any(obs.isdlock_inv_seen for _, obs in observers), \
             "non-MN peer with QSENDRECSIGS got no MSG_ISDLOCK inv"
 
-        # Skip disconnect_p2ps(): the next sub-test "test_instantsend_after_restart()"
-        # restarts all nodes and tears down these P2P connections anyway.
+        for node, _ in observers:
+            node.disconnect_p2ps()
 
     def test_instantsend_after_restart(self):
         self.log.info("Testing InstantSend works after full restart without new blocks")

@@ -2448,20 +2448,20 @@ class msg_qsigshare:
 
 
 class msg_qsendrecsigs:
-    __slots__ = ("on",)
+    __slots__ = ("wants_recsigs",)
     msgtype = b"qsendrecsigs"
 
-    def __init__(self, on=True):
-        self.on = on
+    def __init__(self, wants_recsigs=True):
+        self.wants_recsigs = wants_recsigs
 
     def deserialize(self, f):
-        self.on = bool(struct.unpack("<?", f.read(1))[0])
+        self.wants_recsigs = bool(struct.unpack("<?", f.read(1))[0])
 
     def serialize(self):
-        return struct.pack("<?", self.on)
+        return struct.pack("<?", self.wants_recsigs)
 
     def __repr__(self):
-        return f"msg_qsendrecsigs(on={self.on})"
+        return f"msg_qsendrecsigs(wants_recsigs={self.wants_recsigs})"
 
 
 class msg_qwatch:

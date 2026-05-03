@@ -622,6 +622,7 @@ class P2PInterface(P2PConnection):
     def on_platformban(self, message): pass
     def on_qgetdata(self, message): pass
     def on_qdata(self, message): pass
+    def on_qsendrecsigs(self, message): pass
     def on_qwatch(self, message): pass
 
     def on_verack(self, message): pass
