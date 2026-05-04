@@ -45,6 +45,8 @@ class LLMQSigningTest(DashTestFramework):
         id = "0000000000000000000000000000000000000000000000000000000000000001"
         msgHash = "0000000000000000000000000000000000000000000000000000000000000002"
         msgHashConflict = "0000000000000000000000000000000000000000000000000000000000000003"
+        submit_true_id = "0000000000000000000000000000000000000000000000000000000000000004"
+        submit_true_msgHash = "0000000000000000000000000000000000000000000000000000000000000005"
 
         def check_sigs(hasrecsigs, isconflicting1, isconflicting2):
             for mn in self.mninfo: # type: MasternodeInfo
@@ -61,6 +63,22 @@ class LLMQSigningTest(DashTestFramework):
 
         def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout):
             assert not self.wait_until(lambda: not check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
+
+        def wait_for_recsig(mn, request_id, request_msg_hash, timeout):
+            self.wait_until(
+                lambda: mn.get_node(self).quorum("hasrecsig", q_type, request_id, request_msg_hash),
+                timeout=timeout,
+            )
+
+        def rpc_sig_share_to_p2p(sig_share_rpc):
+            sig_share = CSigShare()
+            sig_share.llmqType = int(sig_share_rpc["llmqType"])
+            sig_share.quorumHash = int(sig_share_rpc["quorumHash"], 16)
+            sig_share.quorumMember = int(sig_share_rpc["quorumMember"])
+            sig_share.id = int(sig_share_rpc["id"], 16)
+            sig_share.msgHash = int(sig_share_rpc["msgHash"], 16)
+            sig_share.sigShare = bytes.fromhex(sig_share_rpc["signature"])
+            return sig_share
 
         # Initial state
         wait_for_sigs(False, False, False, 1)
@@ -79,6 +97,14 @@ class LLMQSigningTest(DashTestFramework):
         # Sign third share and test optional submit parameter if spork21 is enabled, should result in recovered sig
         # and conflict for msgHashConflict
         if self.options.spork21:
+            # Sign a distinct request through the default submit=true path to assert sig share relay and recovery.
+            q_submit_true = self.nodes[0].quorum('selectquorum', q_type, submit_true_id)
+            submit_true_recovery_member = self.get_mninfo(q_submit_true['recoveryMembers'][0])
+            submit_true_signers = [mn for mn in self.mninfo if mn != submit_true_recovery_member][:3]
+            for mn in submit_true_signers:
+                mn.get_node(self).quorum("sign", q_type, submit_true_id, submit_true_msgHash)
+            wait_for_recsig(submit_true_recovery_member, submit_true_id, submit_true_msgHash, 15)
+
             # 1. Providing an invalid quorum hash and set submit=false, should throw an error
             assert_raises_rpc_error(-8, 'quorum not found', self.mninfo[2].get_node(self).quorum, "sign", q_type, id, msgHash, id, False)
             # 2. Providing a valid quorum hash and set submit=false, should return a valid sigShare object
@@ -86,15 +112,14 @@ class LLMQSigningTest(DashTestFramework):
             sig_share_rpc_2 = self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash, "", False)
             assert_equal(sig_share_rpc_1, sig_share_rpc_2)
             assert_sigs_nochange(False, False, False, 3)
-            # 3. Sending the sig share received from RPC to the recovery member through P2P interface, should result
-            # in a recovered sig
-            sig_share = CSigShare()
-            sig_share.llmqType = int(sig_share_rpc_1["llmqType"])
-            sig_share.quorumHash = int(sig_share_rpc_1["quorumHash"], 16)
-            sig_share.quorumMember = int(sig_share_rpc_1["quorumMember"])
-            sig_share.id = int(sig_share_rpc_1["id"], 16)
-            sig_share.msgHash = int(sig_share_rpc_1["msgHash"], 16)
-            sig_share.sigShare = bytes.fromhex(sig_share_rpc_1["signature"])
+            # 3. Sending enough sig shares received from RPC to the recovery member through P2P interface, should
+            # result in a recovered sig. Build all threshold shares explicitly so this test does not depend on the
+            # asynchronous submit=true shares above being relayed before the timeout expires.
+            sig_shares = [
+                rpc_sig_share_to_p2p(self.mninfo[i].get_node(self).quorum("sign", q_type, id, msgHash, quorumHash, False))
+                for i in range(2)
+            ]
+            sig_shares.append(rpc_sig_share_to_p2p(sig_share_rpc_1))
             for mn in self.mninfo: # type: MasternodeInfo
                 assert mn.get_node(self).getconnectioncount() == self.llmq_size
             # Get the current recovery member of the quorum
@@ -102,8 +127,8 @@ class LLMQSigningTest(DashTestFramework):
             mn: MasternodeInfo = self.get_mninfo(q['recoveryMembers'][0])
             # Open a P2P connection to it
             p2p_interface = mn.get_node(self).add_p2p_connection(P2PInterface())
-            # Send the last required QSIGSHARE message to the recovery member
-            p2p_interface.send_message(msg_qsigshare([sig_share]))
+            # Send the required QSIGSHARE messages to the recovery member
+            p2p_interface.send_and_ping(msg_qsigshare(sig_shares))
         else:
             # If spork21 is not enabled just sign regularly
             self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash)
