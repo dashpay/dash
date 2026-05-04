@@ -24,6 +24,10 @@
 export LC_ALL=C
 set -euo pipefail
 
+# Resolve repo root from the script location so defaults work from any cwd.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+
 # --- Configuration defaults ---
 FUZZ_BIN=""
 TIMEOUT_BIN=""
@@ -36,7 +40,11 @@ TARGET_LIST=""
 EXCLUDE_LIST=""
 SINGLE_CYCLE=false
 DRY_RUN=false
-DAEMON_ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=0"
+# Keep leak detection enabled so the daemon surfaces leak findings the same way
+# .github/workflows/test-fuzz.yml does; noisy dependency leaks are filtered via the
+# LSAN suppressions file rather than globally disabled.
+DAEMON_ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1"
+DAEMON_LSAN_OPTIONS="suppressions=${REPO_ROOT}/test/sanitizer_suppressions/lsan"
 
 shuffle_lines() {
     if command -v shuf >/dev/null 2>&1; then
@@ -48,7 +56,7 @@ shuffle_lines() {
 
 count_crash_artifacts() {
     local crash_dir="$1"
-    find "$crash_dir" -type f \( -name 'crash-*' -o -name 'timeout-*' -o -name 'oom-*' \) 2>/dev/null | wc -l | tr -d '[:space:]'
+    find "$crash_dir" -type f \( -name 'crash-*' -o -name 'timeout-*' -o -name 'oom-*' -o -name 'leak-*' \) 2>/dev/null | wc -l | tr -d '[:space:]'
 }
 
 # --- Parse arguments ---
@@ -73,7 +81,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Validate numeric arguments ---
-if ! [[ "$TIME_PER_TARGET" =~ ^[0-9]+$ ]]; then
+if ! [[ "$TIME_PER_TARGET" =~ ^[0-9]+$ ]] || (( TIME_PER_TARGET < 1 )); then
     echo "ERROR: --time-per-target must be a positive integer, got '$TIME_PER_TARGET'" >&2
     exit 1
 fi
@@ -179,6 +187,7 @@ run_target() {
     if [[ -n "$TIMEOUT_BIN" ]]; then
         FUZZ="$target" \
         ASAN_OPTIONS="${ASAN_OPTIONS:+${ASAN_OPTIONS}:}${DAEMON_ASAN_OPTIONS}" \
+        LSAN_OPTIONS="${LSAN_OPTIONS:+${LSAN_OPTIONS}:}${DAEMON_LSAN_OPTIONS}" \
         UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:report_error_type=1" \
         "$TIMEOUT_BIN" $((TIME_PER_TARGET + 30)) "$FUZZ_BIN" \
             -rss_limit_mb="$RSS_LIMIT_MB" \
@@ -191,6 +200,7 @@ run_target() {
     else
         FUZZ="$target" \
         ASAN_OPTIONS="${ASAN_OPTIONS:+${ASAN_OPTIONS}:}${DAEMON_ASAN_OPTIONS}" \
+        LSAN_OPTIONS="${LSAN_OPTIONS:+${LSAN_OPTIONS}:}${DAEMON_LSAN_OPTIONS}" \
         UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:report_error_type=1" \
         "$FUZZ_BIN" \
             -rss_limit_mb="$RSS_LIMIT_MB" \
@@ -213,7 +223,7 @@ run_target() {
         # Extract crash details from log
         while IFS= read -r line; do
             log "CRASH" "  $line"
-        done < <(grep -E "SUMMARY|ERROR|BINGO|crash-|timeout-|oom-" "$target_log" 2>/dev/null || true)
+        done < <(grep -E "SUMMARY|ERROR|BINGO|LeakSanitizer|crash-|timeout-|oom-|leak-" "$target_log" 2>/dev/null || true)
     fi
 
     # Log stats
