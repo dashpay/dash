@@ -59,6 +59,17 @@ src/test/coinjoin_*.cpp
 src/test/dip0020opcodes_tests.cpp
 src/test/dynamic_activation*.cpp
 src/test/evo*.cpp
+src/test/fuzz/asset_lock_unlock.cpp
+src/test/fuzz/bls_operations.cpp
+src/test/fuzz/coinjoin.cpp
+src/test/fuzz/deserialize_dash.cpp
+src/test/fuzz/deterministic_mn_list_diff.cpp
+src/test/fuzz/governance_proposal_validator.cpp
+src/test/fuzz/llmq_messages.cpp
+src/test/fuzz/process_message_dash.cpp
+src/test/fuzz/roundtrip_dash.cpp
+src/test/fuzz/simplified_mn_list_diff.cpp
+src/test/fuzz/special_tx_validation.cpp
 src/test/llmq*.cpp
 src/test/util/llmq_tests.h
 src/test/governance*.cpp

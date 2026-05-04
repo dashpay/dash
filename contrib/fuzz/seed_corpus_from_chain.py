@@ -79,6 +79,7 @@ _DESERIALIZE_ONLY_DASH_TARGETS = frozenset(
         "dash_vote_instance_deserialize",
         "dash_vote_rec_deserialize",
         "dash_governance_vote_file_deserialize",
+        "dash_mnhf_tx_deserialize",
     }
 )
 
@@ -1184,8 +1185,27 @@ def create_synthetic_seeds(output_dir):
         "dash_dkg_complaint_deserialize": [
             "64" + "00" * 32 + "00" * 32 + "0000" + "00",  # minimal
         ],
+        "dash_dkg_justification_deserialize": [
+            # llmqType (uint8) + quorumHash (32) + proTxHash (32) +
+            # CompactSize(0) for contributions vector + CBLSSignature (96)
+            ("64" + "00" * 32 + "00" * 32 + "00" + "00" * 96),
+        ],
         "dash_dkg_premature_commitment_deserialize": [
             minimal_premature_commitment.hex(),
+        ],
+        # Sig-share inventory / batched messages
+        "dash_sig_shares_inv_deserialize": [
+            # VARINT(sessionId=0) + CompactSize(invSize=0) + AUTOBITSET selector=0
+            "000000",
+        ],
+        "dash_batched_sig_shares_deserialize": [
+            # VARINT(sessionId=0) + CompactSize(0) for empty sigShares vector
+            "0000",
+        ],
+        # MN HF signal
+        "dash_mnhf_tx_deserialize": [
+            # versionBit (uint8) + quorumHash (32) + CBLSSignature non-legacy (96)
+            ("00" + "00" * 32 + "00" * 96),
         ],
         # Governance
         "dash_governance_vote_deserialize": [
@@ -1215,7 +1235,9 @@ def create_synthetic_seeds(output_dir):
                 saved += 1
             # Also save roundtrip variant
             roundtrip_target = target.replace("_deserialize", "_roundtrip")
-            if target not in _DESERIALIZE_ONLY_DASH_TARGETS and save_corpus_input(output_dir, roundtrip_target, seed_hex):
+            if target not in _DESERIALIZE_ONLY_DASH_TARGETS and save_corpus_input(
+                output_dir, roundtrip_target, seed_hex
+            ):
                 saved += 1
 
     print(f"  Created {saved} synthetic seed inputs")
@@ -1261,6 +1283,13 @@ def _run_helper_self_checks():
             "dash_bls_ies_multi_recipient_blobs_roundtrip",
             "dash_coinjoin_entry_deserialize",
             "dash_coinjoin_entry_roundtrip",
+            "dash_dkg_justification_deserialize",
+            "dash_dkg_justification_roundtrip",
+            "dash_sig_shares_inv_deserialize",
+            "dash_sig_shares_inv_roundtrip",
+            "dash_batched_sig_shares_deserialize",
+            "dash_batched_sig_shares_roundtrip",
+            "dash_mnhf_tx_deserialize",
         ]
         missing = [target for target in required_targets if not any((tmp_path / target).iterdir())]
         assert not missing, f"missing synthetic seeds for: {', '.join(missing)}"

@@ -332,13 +332,24 @@ int64_t ConsumeTime(FuzzedDataProvider& fuzzed_data_provider, const std::optiona
 CMutableTransaction ConsumeTransaction(FuzzedDataProvider& fuzzed_data_provider, const std::optional<std::vector<uint256>>& prevout_txids, const int max_num_in, const int max_num_out) noexcept
 {
     CMutableTransaction tx_mut;
-    // Narrowed to int16_t: Dash encodes nType in the upper 16 bits of nVersion
-    // for SPECIAL_VERSION transactions. Fuzzing the full int32_t range triggers
-    // unrelated special-tx-type crashes that swamp this target; callers wanting
-    // broad nVersion coverage should use the special_tx_validation fuzz target.
-    tx_mut.nVersion = fuzzed_data_provider.ConsumeBool() ?
-                          CTransaction::CURRENT_VERSION :
-                          fuzzed_data_provider.ConsumeIntegral<int16_t>();
+    // Dash splits the on-wire 32-bit version field into a 16-bit nVersion and a
+    // 16-bit nType (upper bits). Keep a common normal-tx path
+    // (nType == TRANSACTION_NORMAL) so this helper doesn't drown the fuzzer in unrelated
+    // special-tx-type crashes; gate the full 32-bit coverage behind a bool so
+    // it still gets exercised but doesn't dominate every non-current case.
+    if (fuzzed_data_provider.ConsumeBool()) {
+        // Full 32-bit serialized version coverage: low 16 bits -> nVersion,
+        // high 16 bits -> nType.
+        const auto n32bit_version = fuzzed_data_provider.ConsumeIntegral<int32_t>();
+        tx_mut.nVersion = static_cast<int16_t>(n32bit_version & 0xffff);
+        tx_mut.nType = static_cast<uint16_t>((n32bit_version >> 16) & 0xffff);
+    } else {
+        // Common normal-tx path: high bits zero, narrow nVersion fuzzing.
+        tx_mut.nVersion = fuzzed_data_provider.ConsumeBool() ?
+                              CTransaction::CURRENT_VERSION :
+                              fuzzed_data_provider.ConsumeIntegral<int16_t>();
+        tx_mut.nType = TRANSACTION_NORMAL;
+    }
     tx_mut.nLockTime = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
     const auto num_in = fuzzed_data_provider.ConsumeIntegralInRange<int>(0, max_num_in);
     const auto num_out = fuzzed_data_provider.ConsumeIntegralInRange<int>(0, max_num_out);

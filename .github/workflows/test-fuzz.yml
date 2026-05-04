@@ -126,8 +126,9 @@ jobs:
             exit 1
           fi
 
-          # detect_leaks=0 is intentional for fuzz regression due to libFuzzer/LSan noise.
-          export ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=0"
+          # Leak detection stays enabled; known-noisy dependency leaks are filtered via
+          # LSAN_OPTIONS suppressions instead of being globally disabled.
+          export ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1"
           export LSAN_OPTIONS="suppressions=${BUILD_DIR}/test/sanitizer_suppressions/lsan"
           export UBSAN_OPTIONS="suppressions=${BUILD_DIR}/test/sanitizer_suppressions/ubsan:print_stacktrace=1:halt_on_error=1:report_error_type=1"
 
@@ -185,7 +186,7 @@ jobs:
             echo "::group::${target} ($(find "$corpus_dir" -maxdepth 1 -type f | wc -l) inputs)"
             if FUZZ="$target" timeout 3600 "$FUZZ_BIN" \
                 -rss_limit_mb=4000 \
-                -runs=0 \
+                -runs=1 \
                 -artifact_prefix="$artifact_prefix" \
                 "$corpus_dir" 2>&1; then
               echo "PASS: $target"
