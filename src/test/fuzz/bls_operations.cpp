@@ -268,23 +268,37 @@ FUZZ_TARGET(bls_ies, .init = initialize_bls_operations)
         break;
     }
     case 2: {
-        // Roundtrip: encrypt then decrypt with matching keys
+        // Roundtrip: encrypt then decrypt with matching keys.
+        //
+        // We deliberately do NOT call CBLSIESMultiRecipientBlobs::InitEncrypt(): it pulls the
+        // ephemeral secret key and ivSeed from external randomness (MakeNewKey() and
+        // GetStrongRandBytes), which makes the same fuzz input non-deterministic across runs
+        // and breaks libFuzzer crash reproduction. Instead, fill the public ephemeralSecretKey,
+        // ephemeralPubKey, ivSeed, ivVector, and blobs fields directly from the fuzz buffer,
+        // mirroring InitEncrypt's behavior. The production BLS IES API is not modified.
         CBLSSecretKey recipient_sk = MakeSecretKey(fuzzed_data_provider);
         if (!recipient_sk.IsValid()) break;
 
         CBLSPublicKey recipient_pk = recipient_sk.GetPublicKey();
         if (!recipient_pk.IsValid()) break;
 
+        CBLSSecretKey ephemeral_sk = MakeSecretKey(fuzzed_data_provider);
+        if (!ephemeral_sk.IsValid()) break;
+
         const size_t data_size = fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, 128);
         auto plaintext = fuzzed_data_provider.ConsumeBytes<uint8_t>(data_size);
         plaintext.resize(data_size);
 
-        // Encrypt
         CBLSIESMultiRecipientBlobs multi;
-        multi.InitEncrypt(1);
+        multi.ephemeralSecretKey = ephemeral_sk;
+        multi.ephemeralPubKey = ephemeral_sk.GetPublicKey();
+        multi.ivSeed = MakeHash(fuzzed_data_provider);
+        // Replicate InitEncrypt's per-recipient IV chain so Decrypt's IV walk matches.
+        multi.ivVector.assign(1, multi.ivSeed);
+        multi.blobs.resize(1);
+
         bool encrypted = multi.Encrypt(0, recipient_pk, plaintext);
         if (encrypted) {
-            // Decrypt
             CBLSIESMultiRecipientBlobs::Blob decrypted;
             bool decrypted_ok = multi.Decrypt(0, recipient_sk, decrypted);
             if (decrypted_ok) {

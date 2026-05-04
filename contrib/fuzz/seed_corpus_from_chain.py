@@ -19,6 +19,7 @@ Requirements:
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -52,9 +53,9 @@ def _read_protocol_version():
     return int(match.group(1))
 
 
-# Must match src/version.h PROTOCOL_VERSION. Several fuzz harnesses read a
-# 4-byte little-endian int from the start of the buffer and use it as the
-# stream version before deserializing the object:
+# The stream version is needed by several fuzz harnesses that read a 4-byte
+# little-endian int from the start of the buffer and use it as the stream
+# version before deserializing the object:
 #   * The Dash-specific helpers DashDeserializeFromFuzzingInput /
 #     DashRoundtripFromFuzzingInput (src/test/fuzz/deserialize_dash.cpp,
 #     src/test/fuzz/roundtrip_dash.cpp), used by dash_*_deserialize and
@@ -65,10 +66,37 @@ def _read_protocol_version():
 #     via DeserializeFromFuzzingInput when no explicit protocol_version is
 #     passed.
 # Chain data we extract is serialized at PROTOCOL_VERSION, so we prepend
-# that value to seeds for those targets.
-PROTOCOL_VERSION = _read_protocol_version()
-STREAM_VERSION = PROTOCOL_VERSION
-STREAM_VERSION_PREFIX = STREAM_VERSION.to_bytes(4, byteorder="little", signed=False)
+# that value to seeds for those targets. The lookup is deferred to first use
+# so `--help` and callers that supply --stream-version / DASH_FUZZ_STREAM_VERSION
+# don't require an in-tree src/version.h.
+_STREAM_VERSION_OVERRIDE = None
+_STREAM_VERSION_CACHE = None
+
+
+def _resolve_stream_version():
+    """Return the stream version, preferring an explicit override and falling back
+    to parsing src/version.h. Cached after first successful resolution."""
+    global _STREAM_VERSION_CACHE
+    if _STREAM_VERSION_CACHE is not None:
+        return _STREAM_VERSION_CACHE
+    if _STREAM_VERSION_OVERRIDE is not None:
+        _STREAM_VERSION_CACHE = _STREAM_VERSION_OVERRIDE
+        return _STREAM_VERSION_CACHE
+    env_override = os.environ.get("DASH_FUZZ_STREAM_VERSION")
+    if env_override:
+        try:
+            _STREAM_VERSION_CACHE = int(env_override)
+        except ValueError as e:
+            raise RuntimeError(
+                f"DASH_FUZZ_STREAM_VERSION must be an integer, got {env_override!r}"
+            ) from e
+        return _STREAM_VERSION_CACHE
+    _STREAM_VERSION_CACHE = _read_protocol_version()
+    return _STREAM_VERSION_CACHE
+
+
+def _stream_version_prefix():
+    return _resolve_stream_version().to_bytes(4, byteorder="little", signed=False)
 
 # Non-Dash targets (outside the dash_* naming convention) whose harnesses
 # also consume the 4-byte stream version prefix described above.
@@ -113,7 +141,7 @@ def save_corpus_input(output_dir, target_name, data_hex):
         return False
 
     if _needs_stream_version_prefix(target_name):
-        raw_bytes = STREAM_VERSION_PREFIX + raw_bytes
+        raw_bytes = _stream_version_prefix() + raw_bytes
 
     filename = hashlib.sha256(raw_bytes).hexdigest()[:16]
     filepath = target_dir / filename
@@ -1137,6 +1165,134 @@ def create_synthetic_seeds(output_dir):
         + b"\x00" * 96
     )
 
+    # CCreditPool (src/evo/creditpool.h):
+    #   locked (int64) + currentLimit (int64) + latelyUnlocked (int64) + ranges (set<Range>)
+    # An empty CRangesSet is just CompactSize(0) = 1 byte.
+    minimal_credit_pool = (
+        _serialize_int64(0)
+        + _serialize_int64(0)
+        + _serialize_int64(0)
+        + _compact_size(0)
+    )
+
+    # CDeterministicMNState (src/evo/dmnstate.h) at nVersion=LegacyBLS=1:
+    #   * pubKeyOperator is wrapped with legacy=true (48 bytes)
+    #   * NetInfoSerWrapper(is_extended=false): MnNetInfo unserializes a CService
+    #     whose wire format without ADDRV2_FORMAT is V1 (16-byte IPv6 addr + 2-byte BE port).
+    #   * platformP2PPort/HTTPPort are emitted only when nVersion < ExtAddr=3.
+    minimal_dmn_state = (
+        _serialize_int32(1)         # nVersion = LegacyBLS
+        + _serialize_int32(0)       # nRegisteredHeight
+        + _serialize_int32(0)       # nLastPaidHeight
+        + _serialize_int32(0)       # nConsecutivePayments
+        + _serialize_int32(0)       # nPoSePenalty
+        + _serialize_int32(0)       # nPoSeRevivedHeight
+        + _serialize_int32(0)       # nPoSeBanHeight
+        + b"\x00\x00"               # nRevocationReason (uint16)
+        + b"\x00" * 32              # confirmedHash
+        + b"\x00" * 32              # confirmedHashWithProRegTxHash
+        + b"\x00" * 20              # keyIDOwner (uint160)
+        + b"\x00" * 48              # pubKeyOperator (legacy CBLSLazyPublicKey)
+        + b"\x00" * 20              # keyIDVoting (uint160)
+        + b"\x00" * 18              # MnNetInfo: CService V1 (16-byte addr + 2-byte port)
+        + _compact_size(0)          # scriptPayout (empty CScript)
+        + _compact_size(0)          # scriptOperatorPayout
+        + b"\x00" * 20              # platformNodeID (uint160)
+        + b"\x00\x00"               # platformP2PPort
+        + b"\x00\x00"               # platformHTTPPort
+    )
+
+    # CDeterministicMN (src/evo/deterministicmns.h) at PROTOCOL_VERSION:
+    #   proTxHash + VARINT(internalId) + collateralOutpoint + nOperatorReward
+    #   + pdmnState (shared_ptr inlines the pointed-to object) + nType (uint16, only present
+    #   when stream version >= DMN_TYPE_PROTO_VERSION which holds for our PROTOCOL_VERSION prefix).
+    minimal_deterministic_mn = (
+        b"\x00" * 32                       # proTxHash
+        + b"\x00"                          # VARINT(internalId=0)
+        + _serialize_outpoint("", 0)       # collateralOutpoint (32 + 4)
+        + b"\x00\x00"                      # nOperatorReward (uint16)
+        + minimal_dmn_state                # pdmnState
+        + b"\x00\x00"                      # nType (MnType, uint16)
+    )
+
+    # CSimplifiedMNListEntry (src/evo/simplifiedmns.h) with nVersion=LegacyBLS=1:
+    #   PROTOCOL_VERSION >= SMNLE_VERSIONED_PROTO_VERSION so nVersion is always read first.
+    #   Because nVersion < BasicBLS, no nType / platform fields are emitted.
+    minimal_smn_list_entry = (
+        b"\x01\x00"                 # nVersion = LegacyBLS (uint16 LE)
+        + b"\x00" * 32              # proRegTxHash
+        + b"\x00" * 32              # confirmedHash
+        + b"\x00" * 18              # MnNetInfo: V1 CService
+        + b"\x00" * 48              # pubKeyOperator (legacy)
+        + b"\x00" * 20              # keyIDVoting
+        + b"\x00"                   # isValid = false
+    )
+
+    # CProUpRegTx (src/evo/providertx.h) at nVersion=LegacyBLS=1:
+    #   nVersion(2) + proTxHash(32) + nMode(2) + pubKeyOperator(legacy CBLSLazyPublicKey, 48)
+    #   + keyIDVoting(20) + scriptPayout(empty CScript -> CompactSize(0)) + inputsHash(32) + vchSig(empty -> CompactSize(0)).
+    minimal_proupreg_tx = (
+        b"\x01\x00"                 # nVersion = LegacyBLS
+        + b"\x00" * 32              # proTxHash
+        + b"\x00\x00"               # nMode (uint16)
+        + b"\x00" * 48              # pubKeyOperator (legacy)
+        + b"\x00" * 20              # keyIDVoting
+        + _compact_size(0)          # scriptPayout (empty)
+        + b"\x00" * 32              # inputsHash
+        + _compact_size(0)          # vchSig (empty)
+    )
+
+    # CProUpRevTx (src/evo/providertx.h) at nVersion=LegacyBLS=1:
+    #   nVersion(2) + proTxHash(32) + nReason(2) + inputsHash(32) + sig(legacy CBLSSignature, 96).
+    minimal_prouprev_tx = (
+        b"\x01\x00"                 # nVersion = LegacyBLS
+        + b"\x00" * 32              # proTxHash
+        + b"\x00\x00"               # nReason (uint16)
+        + b"\x00" * 32              # inputsHash
+        + b"\x00" * 96              # sig (legacy CBLSSignature)
+    )
+
+    # CGetSimplifiedMNListDiff (src/evo/smldiff.h): just baseBlockHash + blockHash.
+    minimal_get_smn_list_diff = b"\x00" * 32 + b"\x00" * 32
+
+    # An empty CPartialMerkleTree (src/merkleblock.h):
+    #   nTransactions(uint32=0) + vHash(CompactSize(0)) + bytes(CompactSize(0))
+    minimal_partial_merkle_tree = (
+        _serialize_uint32(0)
+        + _compact_size(0)
+        + _compact_size(0)
+    )
+
+    # CSimplifiedMNListDiff (src/evo/smldiff.h) at PROTOCOL_VERSION >= MNLISTDIFF_CHAINLOCKS_PROTO_VERSION:
+    #   nVersion(uint16) + baseBlockHash(32) + blockHash(32) + cbTxMerkleTree(CPartialMerkleTree)
+    #   + cbTx(CMutableTransaction) + deletedMNs(CompactSize(0)) + mnList(CompactSize(0))
+    #   + deletedQuorums(CompactSize(0)) + newQuorums(CompactSize(0)) + quorumsCLSigs(CompactSize(0)).
+    # nVersion is read first because PROTOCOL_VERSION >= MNLISTDIFF_VERSION_ORDER.
+    minimal_smn_list_diff = (
+        b"\x01\x00"                          # nVersion
+        + b"\x00" * 32                       # baseBlockHash
+        + b"\x00" * 32                       # blockHash
+        + minimal_partial_merkle_tree        # cbTxMerkleTree
+        + minimal_tx                         # cbTx (n_version=2, type=0, empty vin/vout)
+        + _compact_size(0)                   # deletedMNs
+        + _compact_size(0)                   # mnList
+        + _compact_size(0)                   # deletedQuorums
+        + _compact_size(0)                   # newQuorums
+        + _compact_size(0)                   # quorumsCLSigs
+    )
+
+    # llmq P2P / message types — reuse the shared serializers so the synthetic
+    # form stays in lockstep with what extract_quorum_info() emits from chain data.
+    minimal_quorum_data_request = serialize_quorum_data_request(
+        llmq_type=1, quorum_hash_hex="00" * 32, pro_tx_hash_hex="", n_data_mask=1
+    )
+    minimal_get_quorum_rotation_info = serialize_get_quorum_rotation_info(
+        block_request_hash_hex="00" * 32, base_block_hashes_hex=[], extra_share=False
+    )
+    minimal_quorum_snapshot = serialize_quorum_snapshot(
+        active_quorum_members=[], skip_list=[], mn_skip_list_mode=0
+    )
+
     # Targets that need synthetic seeds (serialized structs with known formats)
     synthetic_seeds = {
         # CoinJoin messages — minimal valid-ish payloads
@@ -1169,13 +1325,17 @@ def create_synthetic_seeds(output_dir):
             ((1).to_bytes(2, "little") + _serialize_uint32(0) + minimal_final_commitment).hex(),
         ],
         "dash_recovered_sig_deserialize": [
-            "64" + "00" * 32 + "00" * 32 + "00" * 96,  # llmqType + quorumHash + id + sig
+            # CRecoveredSig: llmqType (uint8) + quorumHash (32) + id (32) + msgHash (32) + sig (96)
+            "64" + "00" * 32 + "00" * 32 + "00" * 32 + "00" * 96,
         ],
         "dash_sig_ses_ann_deserialize": [
-            "64" + "00" * 32 + "00000000" + "00" * 32,  # llmqType + quorumHash + nSessionId + id
+            # CSigSesAnn: VARINT(sessionId=0) + llmqType (uint8) + quorumHash (32) + id (32) + msgHash (32)
+            "00" + "64" + "00" * 32 + "00" * 32 + "00" * 32,
         ],
         "dash_sig_share_deserialize": [
-            "64" + "00" * 32 + "00000000" + "00" * 32 + "0000" + "00" * 96,
+            # CSigShare: llmqType (uint8) + quorumHash (32) + quorumMember (uint16 LE)
+            #          + id (32) + msgHash (32) + sigShare (96, BLS lazy)
+            "64" + "00" * 32 + "0000" + "00" * 32 + "00" * 32 + "00" * 96,
         ],
         # MNAuth
         "dash_mnauth_deserialize": [
@@ -1183,7 +1343,9 @@ def create_synthetic_seeds(output_dir):
         ],
         # DKG messages
         "dash_dkg_complaint_deserialize": [
-            "64" + "00" * 32 + "00" * 32 + "0000" + "00",  # minimal
+            # CDKGComplaint: llmqType + quorumHash + proTxHash + DYNBITSET(badMembers)
+            #              + DYNBITSET(complainForMembers) + sig (96 bytes)
+            "64" + "00" * 32 + "00" * 32 + "00" + "00" + "00" * 96,
         ],
         "dash_dkg_justification_deserialize": [
             # llmqType (uint8) + quorumHash (32) + proTxHash (32) +
@@ -1226,6 +1388,41 @@ def create_synthetic_seeds(output_dir):
         ],
         "dash_bls_ies_multi_recipient_blobs_deserialize": [
             minimal_bls_ies_multi.hex(),
+        ],
+        # evo/ types — minimal valid serializations matching the C++ layouts above.
+        "dash_credit_pool_deserialize": [
+            minimal_credit_pool.hex(),
+        ],
+        "dash_dmn_state_deserialize": [
+            minimal_dmn_state.hex(),
+        ],
+        "dash_deterministic_mn_deserialize": [
+            minimal_deterministic_mn.hex(),
+        ],
+        "dash_smn_list_entry_deserialize": [
+            minimal_smn_list_entry.hex(),
+        ],
+        "dash_proupreg_tx_deserialize": [
+            minimal_proupreg_tx.hex(),
+        ],
+        "dash_prouprev_tx_deserialize": [
+            minimal_prouprev_tx.hex(),
+        ],
+        "dash_get_smn_list_diff_deserialize": [
+            minimal_get_smn_list_diff.hex(),
+        ],
+        "dash_smn_list_diff_deserialize": [
+            minimal_smn_list_diff.hex(),
+        ],
+        # llmq P2P/message types — keep in sync with extract_quorum_info().
+        "dash_quorum_data_request_deserialize": [
+            minimal_quorum_data_request.hex(),
+        ],
+        "dash_get_quorum_rotation_info_deserialize": [
+            minimal_get_quorum_rotation_info.hex(),
+        ],
+        "dash_quorum_snapshot_deserialize": [
+            minimal_quorum_snapshot.hex(),
         ],
     }
 
@@ -1283,26 +1480,118 @@ def _run_helper_self_checks():
             "dash_bls_ies_multi_recipient_blobs_roundtrip",
             "dash_coinjoin_entry_deserialize",
             "dash_coinjoin_entry_roundtrip",
+            "dash_dkg_complaint_deserialize",
+            "dash_dkg_complaint_roundtrip",
             "dash_dkg_justification_deserialize",
             "dash_dkg_justification_roundtrip",
             "dash_sig_shares_inv_deserialize",
             "dash_sig_shares_inv_roundtrip",
             "dash_batched_sig_shares_deserialize",
             "dash_batched_sig_shares_roundtrip",
+            "dash_recovered_sig_deserialize",
+            "dash_recovered_sig_roundtrip",
+            "dash_sig_ses_ann_deserialize",
+            "dash_sig_ses_ann_roundtrip",
+            "dash_sig_share_deserialize",
+            "dash_sig_share_roundtrip",
+            "dash_mnauth_deserialize",
+            "dash_mnauth_roundtrip",
             "dash_mnhf_tx_deserialize",
+            "dash_credit_pool_deserialize",
+            "dash_credit_pool_roundtrip",
+            "dash_dmn_state_deserialize",
+            "dash_dmn_state_roundtrip",
+            "dash_deterministic_mn_deserialize",
+            "dash_deterministic_mn_roundtrip",
+            "dash_smn_list_entry_deserialize",
+            "dash_smn_list_entry_roundtrip",
+            "dash_proupreg_tx_deserialize",
+            "dash_proupreg_tx_roundtrip",
+            "dash_prouprev_tx_deserialize",
+            "dash_prouprev_tx_roundtrip",
+            "dash_get_smn_list_diff_deserialize",
+            "dash_get_smn_list_diff_roundtrip",
+            "dash_smn_list_diff_deserialize",
+            "dash_smn_list_diff_roundtrip",
+            "dash_quorum_data_request_deserialize",
+            "dash_quorum_data_request_roundtrip",
+            "dash_get_quorum_rotation_info_deserialize",
+            "dash_get_quorum_rotation_info_roundtrip",
+            "dash_quorum_snapshot_deserialize",
+            "dash_quorum_snapshot_roundtrip",
         ]
         missing = [target for target in required_targets if not any((tmp_path / target).iterdir())]
         assert not missing, f"missing synthetic seeds for: {', '.join(missing)}"
+
+        # Assert the LLMQ seed sizes match the C++ serialization layouts so the
+        # synthetic seeds aren't silently truncated again (regression guard).
+        def _seed_bytes(target):
+            files = list((tmp_path / target).iterdir())
+            assert len(files) == 1, f"{target}: expected one synthetic seed, got {len(files)}"
+            return files[0].read_bytes()
+
+        # The Dash deserialize/roundtrip wrappers prepend a 4-byte stream version.
+        prefix = len(_stream_version_prefix())
+        # CRecoveredSig: 1 + 32 + 32 + 32 + 96 = 193
+        assert len(_seed_bytes("dash_recovered_sig_deserialize")) == prefix + 193
+        # CSigSesAnn (VARINT(0)=1 byte): 1 + 1 + 32 + 32 + 32 = 98
+        assert len(_seed_bytes("dash_sig_ses_ann_deserialize")) == prefix + 98
+        # CSigShare: 1 + 32 + 2 + 32 + 32 + 96 = 195
+        assert len(_seed_bytes("dash_sig_share_deserialize")) == prefix + 195
+        # CDKGComplaint with empty bitsets: 1 + 32 + 32 + 1 + 1 + 96 = 163
+        assert len(_seed_bytes("dash_dkg_complaint_deserialize")) == prefix + 163
+        # CCreditPool: int64*3 + CompactSize(0) = 8*3 + 1 = 25
+        assert len(_seed_bytes("dash_credit_pool_deserialize")) == prefix + 25
+        # CDeterministicMNState (LegacyBLS layout): see minimal_dmn_state above.
+        # 4*7 + 2 + 32 + 32 + 20 + 48 + 20 + 18 + 1 + 1 + 20 + 2 + 2 = 226
+        assert len(_seed_bytes("dash_dmn_state_deserialize")) == prefix + 226
+        # CDeterministicMN: 32 + 1 + 36 + 2 + 226 + 2 = 299
+        assert len(_seed_bytes("dash_deterministic_mn_deserialize")) == prefix + 299
+        # CSimplifiedMNListEntry (LegacyBLS): 2 + 32 + 32 + 18 + 48 + 20 + 1 = 153
+        assert len(_seed_bytes("dash_smn_list_entry_deserialize")) == prefix + 153
+        # CProUpRegTx (LegacyBLS): 2 + 32 + 2 + 48 + 20 + 1 + 32 + 1 = 138
+        assert len(_seed_bytes("dash_proupreg_tx_deserialize")) == prefix + 138
+        # CProUpRevTx (LegacyBLS): 2 + 32 + 2 + 32 + 96 = 164
+        assert len(_seed_bytes("dash_prouprev_tx_deserialize")) == prefix + 164
+        # CGetSimplifiedMNListDiff: 32 + 32 = 64
+        assert len(_seed_bytes("dash_get_smn_list_diff_deserialize")) == prefix + 64
+        # CSimplifiedMNListDiff at PROTOCOL_VERSION (>= MNLISTDIFF_CHAINLOCKS_PROTO_VERSION):
+        # nVersion(2) + baseBlockHash(32) + blockHash(32)
+        # + cbTxMerkleTree(uint32+CompactSize(0)+CompactSize(0)=6)
+        # + cbTx(n32bitVersion(4)+CompactSize(0)+CompactSize(0)+nLockTime(4)=10)
+        # + 5*CompactSize(0) (deletedMNs/mnList/deletedQuorums/newQuorums/quorumsCLSigs) = 5
+        # = 2 + 64 + 6 + 10 + 5 = 87
+        assert len(_seed_bytes("dash_smn_list_diff_deserialize")) == prefix + 87
+        # CQuorumDataRequest: llmqType(1) + quorumHash(32) + nDataMask(2) + proTxHash(32) + nError(1) = 68
+        assert len(_seed_bytes("dash_quorum_data_request_deserialize")) == prefix + 68
+        # CGetQuorumRotationInfo (empty baseBlockHashes): CompactSize(0)+blockRequestHash(32)+bool(1) = 34
+        assert len(_seed_bytes("dash_get_quorum_rotation_info_deserialize")) == prefix + 34
+        # CQuorumSnapshot (empty active members + empty skip list):
+        # mnSkipListMode(int32=4) + CompactSize(0) for active bitset + CompactSize(0) for skip list = 6
+        assert len(_seed_bytes("dash_quorum_snapshot_deserialize")) == prefix + 6
+
+    # --stream-version override path: setting the override must not require
+    # src/version.h, and _stream_version_prefix must round-trip the value.
+    global _STREAM_VERSION_OVERRIDE, _STREAM_VERSION_CACHE
+    saved_override, saved_cache = _STREAM_VERSION_OVERRIDE, _STREAM_VERSION_CACHE
+    try:
+        _STREAM_VERSION_OVERRIDE = 0x12345678
+        _STREAM_VERSION_CACHE = None
+        assert _stream_version_prefix() == b"\x78\x56\x34\x12"
+    finally:
+        _STREAM_VERSION_OVERRIDE = saved_override
+        _STREAM_VERSION_CACHE = saved_cache
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Extract seed corpus from a running Dash node for fuzz testing"
     )
+    # --output-dir is required for normal/synthetic-only runs but not for --self-check,
+    # so the flag is enforced post-parse rather than via argparse's required=True.
     parser.add_argument(
         "--output-dir", "-o",
-        required=True,
-        help="Output directory for corpus files"
+        help="Output directory for corpus files (required unless --self-check)"
     )
     parser.add_argument(
         "--datadir",
@@ -1317,7 +1606,38 @@ def main():
         action="store_true",
         help="Only generate synthetic seeds (no RPC required)"
     )
+    parser.add_argument(
+        "--self-check",
+        action="store_true",
+        help=(
+            "Run deterministic helper self-checks (governance/final-commitment "
+            "serializers and the synthetic seed generator) and exit. Does not "
+            "require --output-dir."
+        ),
+    )
+    parser.add_argument(
+        "--stream-version",
+        type=int,
+        default=None,
+        help=(
+            "Stream version (4-byte LE prefix) to use for harnesses that consume one. "
+            "Overrides DASH_FUZZ_STREAM_VERSION and the src/version.h fallback. "
+            "Useful when running outside an in-tree source checkout."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.stream_version is not None:
+        global _STREAM_VERSION_OVERRIDE
+        _STREAM_VERSION_OVERRIDE = args.stream_version
+
+    if args.self_check:
+        _run_helper_self_checks()
+        print("seed_corpus_from_chain.py: self-check passed")
+        return
+
+    if not args.output_dir:
+        parser.error("--output-dir/-o is required unless --self-check is passed")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

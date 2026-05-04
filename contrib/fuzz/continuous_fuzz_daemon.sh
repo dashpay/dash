@@ -85,7 +85,7 @@ if ! [[ "$TIME_PER_TARGET" =~ ^[0-9]+$ ]] || (( TIME_PER_TARGET < 1 )); then
     echo "ERROR: --time-per-target must be a positive integer, got '$TIME_PER_TARGET'" >&2
     exit 1
 fi
-if ! [[ "$RSS_LIMIT_MB" =~ ^[0-9]+$ ]]; then
+if ! [[ "$RSS_LIMIT_MB" =~ ^[0-9]+$ ]] || (( RSS_LIMIT_MB < 1 )); then
     echo "ERROR: --rss-limit must be a positive integer, got '$RSS_LIMIT_MB'" >&2
     exit 1
 fi

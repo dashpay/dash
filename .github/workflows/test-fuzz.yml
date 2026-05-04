@@ -107,8 +107,7 @@ jobs:
           # Layer 3: Generate synthetic seeds for Dash-specific targets (additive only —
           # gated on external corpus being present so we never pass on synthetic-only runs).
           if [ -f "contrib/fuzz/seed_corpus_from_chain.py" ]; then
-            python3 contrib/fuzz/seed_corpus_from_chain.py --synthetic-only -o /tmp/fuzz_corpus || \
-              echo "::warning::Synthetic seed generation failed; continuing with external corpus only"
+            python3 contrib/fuzz/seed_corpus_from_chain.py --synthetic-only -o /tmp/fuzz_corpus
           fi
         shell: bash
 
@@ -152,12 +151,57 @@ jobs:
           ARTIFACT_DIR=/tmp/fuzz_artifacts
           mkdir -p "$ARTIFACT_DIR"
 
+          # Allowlist of Dash-specific fuzz targets (names beginning with "dash_") that are
+          # permitted to run as smoke-only when no corpus is present. Keep this list small
+          # and documented: every entry is a target we have explicitly decided cannot have
+          # a meaningful corpus yet (e.g. trivially-stateless harnesses). Adding a Dash
+          # target here MUST be justified in review — the default for new dash_* targets
+          # is to fail when the corpus is missing so they do not silently degrade to a
+          # 10-second smoke run that produces no signal.
+          DASH_SMOKE_ONLY_ALLOWLIST=""
+
+          is_dash_smoke_allowed() {
+            local t="$1"
+            for allowed in $DASH_SMOKE_ONLY_ALLOWLIST; do
+              [ "$t" = "$allowed" ] && return 0
+            done
+            return 1
+          }
+
           while IFS= read -r target; do
             [ -z "$target" ] && continue
             corpus_dir="/tmp/fuzz_corpus/${target}"
             artifact_prefix="${ARTIFACT_DIR}/${target}-"
 
+            # Classify a non-zero exit code from `timeout`/libFuzzer. timeout(1) reports
+            # 124 when the time budget elapsed, and 128+SIGNAL when the child was killed
+            # (137 = SIGKILL, 143 = SIGTERM). Treat those as "timeout/kill" and any other
+            # non-zero status as a generic crash. Both still fail the job.
+            classify_exit() {
+              case "$1" in
+                124|137|143) echo "timeout" ;;
+                *) echo "crash" ;;
+              esac
+            }
+
             if [ ! -d "$corpus_dir" ] || [ -z "$(ls -A "$corpus_dir" 2>/dev/null)" ]; then
+              # Dash-specific targets (names beginning "dash_") MUST have corpus inputs from
+              # either the pinned dashpay/qa-assets layer or the synthetic seeder. Falling
+              # back to a 10-second empty-corpus smoke run produces no real signal and was
+              # masking missing-corpus regressions for newly added Dash harnesses. Inherited
+              # upstream/non-Dash targets are still allowed the smoke fallback so we do not
+              # regress on bitcoin-core targets that legitimately ship without a corpus.
+              case "$target" in
+                dash_*)
+                  if ! is_dash_smoke_allowed "$target"; then
+                    echo "::error::FAIL: $target has no corpus inputs in /tmp/fuzz_corpus/${target} — Dash-specific targets must ship with corpus data (qa-assets or synthetic seeder); refusing to silently smoke-test"
+                    FAILED=$((FAILED + 1))
+                    FAILED_TARGETS="${FAILED_TARGETS}  - ${target} (missing-corpus)\n"
+                    continue
+                  fi
+                  echo "::warning::${target} is on the documented Dash smoke-only allowlist — running 10s empty-corpus check"
+                  ;;
+              esac
               # No corpus for this target — run with empty input for 10s
               # This catches basic initialization crashes
               echo "::group::${target} (empty corpus, 10s run)"
@@ -174,9 +218,10 @@ jobs:
                 PASSED=$((PASSED + 1))
               else
                 EXIT_CODE=$?
-                echo "::error::FAIL: $target exited with code $EXIT_CODE"
+                KIND=$(classify_exit "$EXIT_CODE")
+                echo "::error::FAIL: $target exited with code $EXIT_CODE (${KIND})"
                 FAILED=$((FAILED + 1))
-                FAILED_TARGETS="${FAILED_TARGETS}  - ${target} (exit code ${EXIT_CODE})\n"
+                FAILED_TARGETS="${FAILED_TARGETS}  - ${target} (${KIND}, exit code ${EXIT_CODE})\n"
               fi
               echo "::endgroup::"
               continue
@@ -192,9 +237,11 @@ jobs:
               echo "PASS: $target"
               PASSED=$((PASSED + 1))
             else
-              echo "::error::FAIL: $target"
+              EXIT_CODE=$?
+              KIND=$(classify_exit "$EXIT_CODE")
+              echo "::error::FAIL: $target exited with code $EXIT_CODE (${KIND})"
               FAILED=$((FAILED + 1))
-              FAILED_TARGETS="${FAILED_TARGETS}  - ${target}\n"
+              FAILED_TARGETS="${FAILED_TARGETS}  - ${target} (${KIND}, exit code ${EXIT_CODE})\n"
             fi
             echo "::endgroup::"
           done <<< "$TARGETS"

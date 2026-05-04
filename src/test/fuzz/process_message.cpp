@@ -63,9 +63,10 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     if (!LIMIT_TO_MESSAGE_TYPE.empty() && random_message_type != LIMIT_TO_MESSAGE_TYPE) {
         return;
     }
-    // Skip Dash message types that require subsystem initialization not present in the fuzz harness.
-    // TODO: initialize the masternode/LLMQ contexts here (see process_message_dash.cpp) and remove
-    // this list so these handlers get real coverage.
+    // Skip Dash message types that require subsystem initialization not present in
+    // this upstream-style harness. MNAUTH coverage is provided by the Dash-aware
+    // `process_message_dash` harness (src/test/fuzz/process_message_dash.cpp), which
+    // sets up the masternode/LLMQ contexts the handler depends on.
     static constexpr std::array<std::string_view, 1> skip_message_types{"mnauth"};
     if (std::find(skip_message_types.begin(), skip_message_types.end(), random_message_type) != skip_message_types.end()) {
         return;
