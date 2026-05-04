@@ -80,11 +80,18 @@ class NodeNetworkLimitedTest(BitcoinTestFramework):
 
         # connect unsynced node 2 with pruned NODE_NETWORK_LIMITED peer
         # because node 2 is in IBD and node 0 is a NODE_NETWORK_LIMITED peer, sync must not be possible
-        self.connect_nodes(0, 2)
-        try:
-            self.sync_blocks([self.nodes[0], self.nodes[2]], timeout=5)
-        except Exception:
-            pass
+        with self.nodes[0].wait_for_debug_log(
+                [b"Ignore block request below NODE_NETWORK_LIMITED threshold"], timeout=15):
+            try:
+                self.connect_nodes(0, 2)
+            except AssertionError as e:
+                if "peer disconnected" not in str(e):
+                    raise
+                self.log.info("NODE_NETWORK_LIMITED peer disconnected unsynced peer before connect completed")
+            try:
+                self.sync_blocks([self.nodes[0], self.nodes[2]], timeout=5)
+            except AssertionError:
+                pass  # expected: NODE_NETWORK_LIMITED peer cannot serve IBD blocks
         # node2 must remain at height 0
         assert_equal(self.nodes[2].getblockheader(self.nodes[2].getbestblockhash())['height'], 0)
 
