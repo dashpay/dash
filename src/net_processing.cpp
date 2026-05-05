@@ -970,9 +970,6 @@ private:
     bool AlreadyHave(const CInv& inv)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_recent_confirmed_transactions_mutex);
 
-    bool DKGSessionAlreadyHave(const CInv& inv);
-    MessageProcessingResult DKGSessionProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type, CDataStream& vRecv);
-
     /**
      * Filter for transactions that were recently rejected by the mempool.
      * These are not rerequested until the chain tip changes, at which point
@@ -2372,11 +2369,6 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 
     case MSG_QUORUM_FINAL_COMMITMENT:
         return m_llmq_ctx->quorum_block_processor->HasMineableCommitment(inv.hash);
-    case MSG_QUORUM_CONTRIB:
-    case MSG_QUORUM_COMPLAINT:
-    case MSG_QUORUM_JUSTIFICATION:
-    case MSG_QUORUM_PREMATURE_COMMITMENT:
-        return DKGSessionAlreadyHave(inv);
     case MSG_QUORUM_RECOVERED_SIG:
     // TODO: move it to NetSigning
         return m_llmq_ctx->sigman->AlreadyHave(inv);
@@ -2388,6 +2380,10 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
     case MSG_PLATFORM_BAN:
         return m_mn_metaman.AlreadyHavePlatformBan(inv.hash);
 
+    case MSG_QUORUM_CONTRIB:
+    case MSG_QUORUM_COMPLAINT:
+    case MSG_QUORUM_JUSTIFICATION:
+    case MSG_QUORUM_PREMATURE_COMMITMENT:
     case MSG_DSQ:
         if (m_cj_walletman && m_cj_walletman->hasQueue(inv.hash)) return true;
         for (const auto& handler : m_handlers) {
@@ -2398,16 +2394,6 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 
     // Don't know what it is, just say we already got one
     return true;
-}
-
-bool PeerManagerImpl::DKGSessionAlreadyHave(const CInv& inv)
-{
-    if (m_observer_ctx) {
-        return m_observer_ctx->qdkgsman->AlreadyHave(inv);
-    } else if (m_active_ctx) {
-        return m_active_ctx->qdkgsman->AlreadyHave(inv);
-    }
-    return false;
 }
 
 bool PeerManagerImpl::AlreadyHaveBlock(const uint256& block_hash)
@@ -2939,38 +2925,6 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             if (m_llmq_ctx->quorum_block_processor->GetMineableCommitmentByHash(
                     inv.hash, o)) {
                 m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_CONTRIB)) {
-            llmq::CDKGContribution o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetContribution(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_COMPLAINT)) {
-            llmq::CDKGComplaint o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetComplaint(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
-            llmq::CDKGJustification o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetJustification(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
-            llmq::CDKGPrematureCommitment o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetPrematureCommitment(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
                 push = true;
             }
         }
@@ -5503,7 +5457,6 @@ void PeerManagerImpl::ProcessMessage(
         if (m_cj_walletman) {
             PostProcessMessage(m_cj_walletman->processMessage(pfrom, m_chainman.ActiveChainstate(), m_connman, m_mempool, msg_type, vRecv), pfrom.GetId());
         }
-        PostProcessMessage(DKGSessionProcessMessage(pfrom, is_masternode, msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, (m_active_ctx ? m_active_ctx->nodeman.get() : nullptr), m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(m_llmq_ctx->quorum_block_processor->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(ProcessPlatformBanMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());
@@ -5529,26 +5482,6 @@ void PeerManagerImpl::ProcessMessage(
     LogPrint(BCLog::NET, "Unknown command \"%s\" from peer=%d\n", SanitizeString(msg_type), pfrom.GetId());
 
     return;
-}
-
-MessageProcessingResult PeerManagerImpl::DKGSessionProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type, CDataStream& vRecv)
-{
-    if (m_active_ctx) {
-        assert(is_masternode);
-        return m_active_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv);
-    } else if (m_observer_ctx) {
-        assert(!is_masternode);
-        return m_observer_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv);
-    }
-    assert(!is_masternode);
-    if (msg_type == NetMsgType::QCONTRIB
-        || msg_type == NetMsgType::QCOMPLAINT
-        || msg_type == NetMsgType::QJUSTIFICATION
-        || msg_type == NetMsgType::QPCOMMITMENT
-        || msg_type == NetMsgType::QWATCH) {
-        return MisbehavingError{10};
-    }
-    return {};
 }
 
 bool PeerManagerImpl::MaybeDiscourageAndDisconnect(CNode& pnode, Peer& peer)
