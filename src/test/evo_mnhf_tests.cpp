@@ -11,6 +11,7 @@
 #include <uint256.h>
 #include <util/string.h>
 #include <validation.h>
+#include <versionbits.h>
 
 #include <boost/test/unit_test.hpp>
 #include <test/util/setup_common.h>
@@ -19,10 +20,10 @@
 #include <vector>
 
 
-static CMutableTransaction CreateMNHFTx(const uint256& quorumHash, const CBLSSignature& cblSig, const uint16_t& versionBit)
+static CMutableTransaction CreateMNHFTx(const uint256& quorumHash, const CBLSSignature& cblSig, const uint16_t& versionBit, const uint16_t payload_version = MNHFTxPayload::CURRENT_VERSION)
 {
     MNHFTxPayload extraPayload;
-    extraPayload.nVersion = 1;
+    extraPayload.nVersion = payload_version;
     extraPayload.signal.versionBit = versionBit;
     extraPayload.signal.quorumHash = quorumHash;
     extraPayload.signal.sig = cblSig;
@@ -68,18 +69,63 @@ BOOST_AUTO_TEST_CASE(verify_mnhf_specialtx_tests)
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
     const CBlockIndex* pindex = chainman->ActiveChain().Tip();
     uint256 hash = GetRandHash();
-    TxValidationState state;
+    { // bad type
+        CMutableTransaction tx = CreateMNHFTx(hash, sig, bit);
+        tx.nVersion = 2;
+        TxValidationState state;
+        CheckMNHFTx(*chainman, qman, CTransaction(tx), pindex, state);
+        BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-type");
+    }
+
+    { // bad payload
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_MNHF_SIGNAL;
+        tx.vExtraPayload = {0x01};
+        TxValidationState state;
+        CheckMNHFTx(*chainman, qman, CTransaction(tx), pindex, state);
+        BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-payload");
+    }
+
+    { // bad version
+        const CTransaction tx{CTransaction(CreateMNHFTx(hash, sig, bit, 0))};
+        TxValidationState state;
+        CheckMNHFTx(*chainman, qman, tx, pindex, state);
+        BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-version");
+    }
 
     { // wrong quorum (we don't have any indeed)
         const CTransaction tx{CTransaction(CreateMNHFTx(hash, sig, bit))};
-        CheckMNHFTx(*chainman, qman, CTransaction(tx), pindex, state);
+        TxValidationState state;
+        CheckMNHFTx(*chainman, qman, tx, pindex, state);
         BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-quorum-hash");
     }
 
     { // non EHF fork
         const CTransaction tx{CTransaction(CreateMNHFTx(hash, sig, 28))};
-        CheckMNHFTx(*chainman, qman, CTransaction(tx), pindex, state);
+        TxValidationState state;
+        CheckMNHFTx(*chainman, qman, tx, pindex, state);
         BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-non-ehf");
+    }
+
+    { // out-of-bounds bit is rejected before quorum lookup
+        MNHFTx mnhfTx;
+        mnhfTx.versionBit = VERSIONBITS_NUM_BITS;
+        mnhfTx.quorumHash = hash;
+        mnhfTx.sig = sig;
+        TxValidationState state;
+        BOOST_CHECK(!mnhfTx.Verify(qman, hash, GetRandHash(), GetRandHash(), state));
+        BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-nbit-out-of-bounds");
+    }
+
+    { // well-formed bit still requires a known quorum
+        MNHFTx mnhfTx;
+        mnhfTx.versionBit = bit;
+        mnhfTx.quorumHash = hash;
+        mnhfTx.sig = sig;
+        TxValidationState state;
+        BOOST_CHECK(!mnhfTx.Verify(qman, hash, GetRandHash(), GetRandHash(), state));
+        BOOST_CHECK_EQUAL(state.ToString(), "bad-mnhf-missing-quorum");
     }
 }
 

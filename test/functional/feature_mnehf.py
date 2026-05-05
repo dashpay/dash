@@ -8,12 +8,17 @@ import struct
 from io import BytesIO
 
 from test_framework.authproxy import JSONRPCException
+from test_framework.blocktools import (
+    create_block,
+    create_coinbase,
+)
 from test_framework.key import ECKey
 from test_framework.messages import (
     CMnEhf,
     CTransaction,
     hash256,
     ser_string,
+    tx_from_hex,
 )
 
 from test_framework.test_framework import (
@@ -79,6 +84,7 @@ class MnehfTest(DashTestFramework):
 
         mnehf_payload.quorumSig = bytearray.fromhex(recsig["sig"])
         mnehf_tx.vExtraPayload = mnehf_payload.serialize()
+        mnehf_tx.rehash()
         return mnehf_tx
 
 
@@ -121,6 +127,34 @@ class MnehfTest(DashTestFramework):
             self.log.info(f"Send tx triggered an error: {e.error}")
             assert expected_error in e.error['message']
 
+    def assert_mempool_reject(self, tx, reject_reason):
+        result = self.nodes[0].testmempoolaccept([tx.serialize().hex()])[0]
+        assert_equal(result["allowed"], False)
+        assert reject_reason in result["reject-reason"], result
+
+    def assert_submitblock(self, txs, expected_error):
+        node = self.nodes[0]
+        best_block_hash = node.getbestblockhash()
+        best_block = node.getblock(best_block_hash)
+        height = best_block["height"] + 1
+        block_time = best_block["time"] + 1
+
+        coinbase = create_coinbase(height, dip4_activated=True, v20_activated=True)
+        gbt = node.getblocktemplate()
+        coinbase.vExtraPayload = bytes.fromhex(gbt["coinbase_payload"])
+        coinbase.rehash()
+
+        block = create_block(int(best_block_hash, 16), coinbase, block_time, version=4)
+        for tx_obj in gbt["transactions"]:
+            tx = tx_from_hex(tx_obj["data"])
+            if tx.nType == 6:
+                block.vtx.append(tx)
+        block.vtx.extend(txs)
+        block.hashMerkleRoot = block.calc_merkle_root()
+        block.solve()
+
+        assert_equal(node.submitblock(block.serialize().hex()), expected_error)
+
 
     def run_test(self):
         node = self.nodes[0]
@@ -148,6 +182,18 @@ class MnehfTest(DashTestFramework):
         self.log.info(f"ehf tx: {ehf_tx_sent}")
         ehf_unknown_tx_sent = self.send_tx(ehf_unknown_tx)
         self.log.info(f"unknown ehf tx: {ehf_unknown_tx_sent}")
+
+        self.log.info("Testing MNHF rejection for invalid signature")
+        invalid_sig_tx = self.create_mnehf(27, pubkey)
+        invalid_sig_payload = CMnEhf()
+        invalid_sig_payload.deserialize(BytesIO(invalid_sig_tx.vExtraPayload))
+        wrong_sig_payload = CMnEhf()
+        wrong_sig_payload.deserialize(BytesIO(ehf_tx.vExtraPayload))
+        invalid_sig_payload.quorumSig = wrong_sig_payload.quorumSig
+        invalid_sig_tx.vExtraPayload = invalid_sig_payload.serialize()
+        invalid_sig_tx.rehash()
+        self.assert_mempool_reject(invalid_sig_tx, "bad-mnhf-invalid")
+
         self.sync_all()
         ehf_blockhash = self.generate(self.nodes[1], 1)[0]
 
@@ -212,7 +258,8 @@ class MnehfTest(DashTestFramework):
         self.check_fork('active')
 
         self.log.info("Testing duplicate EHF signal with same bit")
-        ehf_tx_duplicate = self.send_tx(self.create_mnehf(28, pubkey))
+        self.assert_submitblock([ehf_tx], "bad-mnhf-duplicate")
+        ehf_tx_duplicate = self.send_tx(ehf_tx)
         tip_blockhash = self.generate(node, 1, sync_fun=lambda: self.sync_blocks())[0]
         block = node.getblock(tip_blockhash)
         assert ehf_tx_duplicate in node.getrawmempool() and ehf_tx_duplicate not in block['tx']
