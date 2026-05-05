@@ -77,10 +77,9 @@ bool CDKGPendingMessages::HasSeen(const uint256& hash) const
     return seenMessages.count(hash) != 0;
 }
 
-void CDKGPendingMessages::Misbehaving(const NodeId from, const int score, PeerManager& peerman)
+void CDKGPendingMessages::PushOwnPendingMessage(CDataStream& vRecv)
 {
-    if (from == -1) return;
-    peerman.Misbehaving(from, score);
+    [[maybe_unused]] auto result = PushPendingMessage(/*from=*/-1, vRecv);
 }
 
 void CDKGPendingMessages::Clear()

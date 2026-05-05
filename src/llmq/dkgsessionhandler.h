@@ -73,19 +73,32 @@ public:
     explicit CDKGPendingMessages(size_t _maxMessagesPerNode, uint32_t _invType) :
             invType(_invType), maxMessagesPerNode(_maxMessagesPerNode) {};
 
+    /**
+     * Real-peer path: enqueue a serialized DKG message received from a peer.
+     * The returned MessageProcessingResult conveys the erase request / misbehavior
+     * back up to PeerManager so DKG state stays peerman-free.
+     */
     [[nodiscard]] MessageProcessingResult PushPendingMessage(NodeId from, CDataStream& vRecv)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
+
+    /**
+     * Self-inject path: enqueue a DKG message we just produced ourselves under
+     * the conventional from=-1 NodeId. No peer-side effects are possible, so
+     * the inner MessageProcessingResult is unconditionally discarded.
+     */
+    void PushOwnPendingMessage(CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
+
     std::list<BinaryMessage> PopPendingMessages(size_t maxCount) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     bool HasSeen(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
-    void Misbehaving(NodeId from, int score, PeerManager& peerman);
     void Clear() EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
 
+    /** Self-inject convenience overload: serialize @msg and route to the binary self-inject path. */
     template <typename Message>
-    void PushPendingMessage(NodeId from, Message& msg, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages)
+    void PushOwnPendingMessage(Message& msg) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages)
     {
         CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
         ds << msg;
-        peerman.PostProcessMessage(PushPendingMessage(from, ds), from);
+        PushOwnPendingMessage(ds);
     }
 
     // Might return nullptr messages, which indicates that deserialization failed for some reason
