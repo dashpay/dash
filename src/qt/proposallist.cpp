@@ -81,6 +81,7 @@ ProposalList::ProposalList(QWidget* parent) :
     proposalModelProxy->setSourceModel(proposalModel);
     proposalModelProxy->setSortRole(Qt::EditRole);
     proposalModelProxy->setFilterKeyColumn(ProposalModel::Column::TITLE); // filter by title column...
+    proposalModelProxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
     connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
 
     // Changes to number of rows should update proposal count display.
