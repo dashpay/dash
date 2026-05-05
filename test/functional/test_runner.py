@@ -598,7 +598,7 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enab
     flags = ['--cachedir={}'.format(cache_dir)] + args
 
     if enable_coverage:
-        coverage = RPCCoverage()
+        coverage = RPCCoverage(tmpdir)
         flags.append(coverage.flag)
         logging.debug("Initializing coverage directory at %s" % coverage.dir)
     else:
@@ -889,8 +889,8 @@ class RPCCoverage():
     See also: test/functional/test_framework/coverage.py
 
     """
-    def __init__(self):
-        self.dir = tempfile.mkdtemp(prefix="coverage")
+    def __init__(self, tmpdir):
+        self.dir = tempfile.mkdtemp(prefix="coverage", dir=tmpdir)
         self.flag = '--coveragedir=%s' % self.dir
 
     def report_rpc_coverage(self):
