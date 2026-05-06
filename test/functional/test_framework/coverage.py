@@ -54,6 +54,7 @@ class AuthServiceProxyWrapper():
         rpc_method = self.auth_service_proxy_instance._service_name
 
         if self.coverage_logfile:
+            os.makedirs(os.path.dirname(self.coverage_logfile), exist_ok=True)
             with open(self.coverage_logfile, 'a+', encoding='utf8') as f:
                 f.write("%s\n" % rpc_method)
 
@@ -92,6 +93,7 @@ def write_all_rpc_commands(dirname: str, node: AuthServiceProxy) -> bool:
 
     """
     filename = os.path.join(dirname, REFERENCE_FILENAME)
+    os.makedirs(dirname, exist_ok=True)
 
     if os.path.isfile(filename):
         return False
