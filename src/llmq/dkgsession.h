@@ -22,14 +22,8 @@
 #include <optional>
 #include <unordered_set>
 
-class CActiveMasternodeManager;
 class CConnman;
-class CDeterministicMN;
-class CMasternodeMetaMan;
-class CSporkManager;
 namespace llmq {
-class ActiveDKGSession;
-class ActiveDKGSessionHandler;
 class CDKGDebugManager;
 class CDKGSession;
 class CDKGSessionManager;

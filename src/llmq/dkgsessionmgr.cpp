@@ -8,7 +8,6 @@
 #include <evo/deterministicmns.h>
 #include <llmq/dkgsessionhandler.h>
 #include <llmq/options.h>
-#include <llmq/params.h>
 #include <llmq/utils.h>
 #include <msg_result.h>
 #include <spork.h>

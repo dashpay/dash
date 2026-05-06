@@ -21,8 +21,6 @@
 #include <util/thread.h>
 #include <validation.h>
 
-#include <typeinfo>
-
 namespace llmq {
 
 namespace {

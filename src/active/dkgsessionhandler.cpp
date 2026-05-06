@@ -6,14 +6,14 @@
 
 #include <active/dkgsession.h>
 #include <active/masternode.h>
-#include <evo/deterministicmns.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
 #include <llmq/net_quorum.h>
 
+#include <chainparams.h>
 #include <deploymentstatus.h>
 #include <logging.h>
-#include <validation.h>
+#include <util/time.h>
 
 namespace llmq {
 ActiveDKGSessionHandler::ActiveDKGSessionHandler(

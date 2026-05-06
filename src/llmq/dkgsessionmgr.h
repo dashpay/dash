@@ -6,7 +6,6 @@
 #define BITCOIN_LLMQ_DKGSESSIONMGR_H
 
 #include <bls/bls.h>
-#include <bls/bls_worker.h>
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <net_types.h>
@@ -17,28 +16,23 @@
 #include <map>
 #include <memory>
 #include <string_view>
-#include <utility>
 
 template <class T>
 class CBLSIESMultiRecipientObjects;
 template <class T>
 class CBLSIESEncryptedObject;
 
-class CActiveMasternodeManager;
 class CBlockIndex;
 class CDBWrapper;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CNode;
-class CMasternodeMetaMan;
 class CSporkManager;
 class CInv;
 struct MessageProcessingResult;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
-
-class UniValue;
 
 namespace llmq
 {

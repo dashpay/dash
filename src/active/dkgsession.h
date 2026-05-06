@@ -7,6 +7,12 @@
 
 #include <llmq/dkgsession.h>
 
+#include <optional>
+
+class CActiveMasternodeManager;
+class CSporkManager;
+class CMasternodeMetaMan;
+
 namespace llmq {
 class ActiveDKGSession final : public llmq::CDKGSession
 {
