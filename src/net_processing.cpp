@@ -40,7 +40,6 @@
 #include <util/trace.h>
 #include <validation.h>
 
-#include <active/context.h>
 #include <chainlock/chainlock.h>
 #include <chainlock/handler.h>
 #include <coinjoin/coinjoin.h>
@@ -53,9 +52,6 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
-#include <llmq/dkgsession.h>
-#include <llmq/dkgsessionmgr.h>
-#include <llmq/observer.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -588,11 +584,10 @@ public:
                     CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                     CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
                     chainlock::ChainlockHandler& clhandler,
-                    const std::unique_ptr<ActiveContext>& active_ctx,
+                    CActiveMasternodeManager* nodeman,
                     const std::unique_ptr<CDeterministicMNManager>& dmnman,
                     const std::unique_ptr<CJWalletManager>& cj_walletman,
-                    const std::unique_ptr<LLMQContext>& llmq_ctx,
-                    const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs);
+                    const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs);
 
     ~PeerManagerImpl()
     {
@@ -815,11 +810,10 @@ private:
     ChainstateManager& m_chainman;
     CTxMemPool& m_mempool;
     std::unique_ptr<TxReconciliationTracker> m_txreconciliation;
-    const std::unique_ptr<ActiveContext>& m_active_ctx;
+    CActiveMasternodeManager* const m_nodeman; //!< null if non-masternode mode; non-null implies masternode mode
     const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
     const std::unique_ptr<CJWalletManager>& m_cj_walletman;
     const std::unique_ptr<LLMQContext>& m_llmq_ctx;
-    const std::unique_ptr<llmq::ObserverContext>& m_observer_ctx;
     CMasternodeMetaMan& m_mn_metaman;
     CMasternodeSync& m_mn_sync;
     CSporkManager& m_sporkman;
@@ -1650,7 +1644,7 @@ void PeerManagerImpl::RequestObject(NodeId nodeid, const CInv& inv, std::chrono:
 
     // Calculate the time to try requesting this transaction. Use
     // fPreferredDownload as a proxy for outbound peers.
-    std::chrono::microseconds process_time = CalculateObjectGetDataTime(inv, current_time, /*is_masternode=*/m_active_ctx != nullptr,
+    std::chrono::microseconds process_time = CalculateObjectGetDataTime(inv, current_time, /*is_masternode=*/m_nodeman != nullptr,
                                                                         !state->fPreferredDownload);
 
     peer_download_state.m_object_process_time.emplace(process_time, inv);
@@ -2059,13 +2053,12 @@ std::unique_ptr<PeerManager> PeerManager::make(const CChainParams& chainparams, 
                                                CMasternodeSync& mn_sync,
                                                CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
                                                chainlock::ChainlockHandler& clhandler,
-                                               const std::unique_ptr<ActiveContext>& active_ctx,
+                                               CActiveMasternodeManager* nodeman,
                                                const std::unique_ptr<CDeterministicMNManager>& dmnman,
                                                const std::unique_ptr<CJWalletManager>& cj_walletman,
-                                               const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                               const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs)
+                                               const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs)
 {
-    return std::make_unique<PeerManagerImpl>(chainparams, connman, addrman, banman, dstxman, chainman, pool, mn_metaman, mn_sync, sporkman, chainlocks, clhandler, active_ctx, dmnman, cj_walletman, llmq_ctx, observer_ctx, ignore_incoming_txs);
+    return std::make_unique<PeerManagerImpl>(chainparams, connman, addrman, banman, dstxman, chainman, pool, mn_metaman, mn_sync, sporkman, chainlocks, clhandler, nodeman, dmnman, cj_walletman, llmq_ctx, ignore_incoming_txs);
 }
 
 PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman, BanMan* banman,
@@ -2074,11 +2067,10 @@ PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& conn
                                  CSporkManager& sporkman,
                                  const chainlock::Chainlocks& chainlocks,
                                  chainlock::ChainlockHandler& clhandler,
-                                 const std::unique_ptr<ActiveContext>& active_ctx,
+                                 CActiveMasternodeManager* nodeman,
                                  const std::unique_ptr<CDeterministicMNManager>& dmnman,
                                  const std::unique_ptr<CJWalletManager>& cj_walletman,
-                                 const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                 const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs)
+                                 const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs)
     : m_chainparams(chainparams),
       m_connman(connman),
       m_addrman(addrman),
@@ -2086,11 +2078,10 @@ PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& conn
       m_dstxman(dstxman),
       m_chainman(chainman),
       m_mempool(pool),
-      m_active_ctx(active_ctx),
+      m_nodeman(nodeman),
       m_dmnman(dmnman),
       m_cj_walletman(cj_walletman),
       m_llmq_ctx(llmq_ctx),
-      m_observer_ctx(observer_ctx),
       m_mn_metaman(mn_metaman),
       m_mn_sync(mn_sync),
       m_sporkman(sporkman),
@@ -3680,7 +3671,7 @@ void PeerManagerImpl::ProcessMessage(
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(msg_type), vRecv.size(), pfrom.GetId());
     ::g_stats_client->inc("message.received." + SanitizeString(msg_type), 1.0f);
 
-    const bool is_masternode = m_active_ctx != nullptr;
+    const bool is_masternode = m_nodeman != nullptr;
 
     PeerRef peer = GetPeerRef(pfrom.GetId());
     if (peer == nullptr) return;
@@ -3954,7 +3945,7 @@ void PeerManagerImpl::ProcessMessage(
         }
 
         if (is_masternode && !pfrom.m_masternode_probe_connection) {
-            CMNAuth::PushMNAUTH(pfrom, m_connman, *m_active_ctx->nodeman);
+            CMNAuth::PushMNAUTH(pfrom, m_connman, *Assert(m_nodeman));
         }
 
         // Tell our peer we prefer to receive headers rather than inv's
@@ -5457,7 +5448,7 @@ void PeerManagerImpl::ProcessMessage(
         if (m_cj_walletman) {
             PostProcessMessage(m_cj_walletman->processMessage(pfrom, m_chainman.ActiveChainstate(), m_connman, m_mempool, msg_type, vRecv), pfrom.GetId());
         }
-        PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, (m_active_ctx ? m_active_ctx->nodeman.get() : nullptr), m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
+        PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, m_nodeman, m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(m_llmq_ctx->quorum_block_processor->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(ProcessPlatformBanMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());
 
@@ -5955,7 +5946,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
 
     assert(m_llmq_ctx);
 
-    const bool is_masternode = m_active_ctx != nullptr;
+    const bool is_masternode = m_nodeman != nullptr;
 
     PeerRef peer = GetPeerRef(pto->GetId());
     if (!peer) return false;
