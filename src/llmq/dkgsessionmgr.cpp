@@ -46,20 +46,6 @@ CDKGSessionManager::CDKGSessionManager(CDeterministicMNManager& dmnman, CQuorumS
 
 CDKGSessionManager::~CDKGSessionManager() = default;
 
-void CDKGSessionManager::StartThreads(CConnman& connman, PeerManager& peerman)
-{
-    for (auto& [_, dkgType] : dkgSessionHandlers) {
-        Assert(dkgType)->StartThread(connman, peerman);
-    }
-}
-
-void CDKGSessionManager::StopThreads()
-{
-    for (auto& [_, dkgType] : dkgSessionHandlers) {
-        Assert(dkgType)->StopThread();
-    }
-}
-
 void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload)
 {
     CleanupCache();

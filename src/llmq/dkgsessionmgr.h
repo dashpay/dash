@@ -11,11 +11,13 @@
 #include <consensus/params.h>
 #include <net_types.h>
 #include <sync.h>
+#include <util/check.h>
 #include <util/helpers.h>
 
 #include <map>
 #include <memory>
 #include <string_view>
+#include <utility>
 
 template <class T>
 class CBLSIESMultiRecipientObjects;
@@ -24,14 +26,12 @@ class CBLSIESEncryptedObject;
 
 class CActiveMasternodeManager;
 class CBlockIndex;
-class CConnman;
 class CDBWrapper;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CNode;
 class CMasternodeMetaMan;
 class CSporkManager;
-class PeerManager;
 class CInv;
 struct MessageProcessingResult;
 namespace util {
@@ -121,8 +121,17 @@ public:
         }
     }
 
-    void StartThreads(CConnman& connman, PeerManager& peerman);
-    void StopThreads();
+    /**
+     * Visit every registered handler with @p fn(CDKGSessionHandler&). Used by
+     * the DKG NetHandler to drive per-handler phase threads.
+     */
+    template <typename HandlerFn>
+    void ForEachHandler(HandlerFn&& fn)
+    {
+        for (auto& [_, handler] : dkgSessionHandlers) {
+            fn(*Assert(handler));
+        }
+    }
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload)
         EXCLUSIVE_LOCKS_REQUIRED(!contributionsCacheCs);

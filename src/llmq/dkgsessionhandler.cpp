@@ -106,4 +106,12 @@ MessageProcessingResult CDKGSessionHandler::ProcessMessage(NodeId from, std::str
     }
     return {};
 }
+
+void CDKGSessionHandler::ClearPendingMessages()
+{
+    pendingContributions.Clear();
+    pendingComplaints.Clear();
+    pendingJustifications.Clear();
+    pendingPrematureCommitments.Clear();
+}
 } // namespace llmq

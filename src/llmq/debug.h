@@ -116,6 +116,12 @@ public:
                                  std::function<bool(CDKGDebugMemberStatus& status)>&& func)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_lockStatus);
 
+    //! Set the locally tracked phase to @p newPhase if different.
+    void MarkPhaseAdvanced(Consensus::LLMQType llmqType, int quorumIndex, QuorumPhase newPhase)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_lockStatus);
+    //! Mark the local session as aborted.
+    void MarkAborted(Consensus::LLMQType llmqType, int quorumIndex) EXCLUSIVE_LOCKS_REQUIRED(!cs_lockStatus);
+
     size_t GetSessionCount() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_lockStatus);
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional, bool inner_optional = false);

@@ -8,7 +8,6 @@
 #include <msg_result.h>
 
 #include <net.h> // for NodeId
-#include <net_processing.h>
 #include <protocol.h>
 #include <serialize.h>
 #include <streams.h>
@@ -23,8 +22,6 @@
 #include <vector>
 
 class CBlockIndex;
-class CConnman;
-class PeerManager;
 
 namespace Consensus {
 struct LLMQParams;
@@ -129,16 +126,10 @@ public:
 
 /**
  * Handles multiple sequential sessions of one specific LLMQ type. There is one instance of this class per LLMQ type.
- *
- * It internally starts the phase handler thread, which constantly loops and sequentially processes one session at a
- * time and waiting for the next phase if necessary.
  */
 class CDKGSessionHandler
 {
-private:
-    friend class CDKGSessionManager;
-
-protected:
+public:
     const Consensus::LLMQParams& params;
 
     // Do not guard these, they protect their internals themselves
@@ -153,14 +144,14 @@ public:
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv);
 
+    void ClearPendingMessages();
+
 public:
     virtual bool GetContribution(const uint256& hash, CDKGContribution& ret) const { return false; }
     virtual bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const { return false; }
     virtual bool GetJustification(const uint256& hash, CDKGJustification& ret) const { return false; }
     virtual bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const { return false; }
     virtual QuorumPhase GetPhase() const { return QuorumPhase::Idle; }
-    virtual void StartThread(CConnman& connman, PeerManager& peerman) {}
-    virtual void StopThread() {}
     virtual void UpdatedBlockTip(const CBlockIndex* pindexNew) {}
 };
 } // namespace llmq

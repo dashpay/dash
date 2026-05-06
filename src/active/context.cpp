@@ -63,9 +63,8 @@ ActiveContext::~ActiveContext()
     m_qman.DisconnectManagers();
 }
 
-void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
+void ActiveContext::Start()
 {
-    qdkgsman->StartThreads(connman, peerman);
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();
     is_signer->RegisterRecoveryInterface();
@@ -82,7 +81,6 @@ void ActiveContext::Stop()
     is_signer->UnregisterRecoveryInterface();
     cl_signer->UnregisterRecoveryInterface();
     cl_signer->Stop();
-    qdkgsman->StopThreads();
 }
 
 CCoinJoinServer& ActiveContext::GetCJServer() const

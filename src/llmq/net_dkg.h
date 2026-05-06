@@ -8,6 +8,8 @@
 #include <net_processing.h>
 
 #include <memory>
+#include <thread>
+#include <vector>
 
 class CActiveMasternodeManager;
 class CBLSWorker;
@@ -17,6 +19,7 @@ class ChainstateManager;
 class CMasternodeMetaMan;
 class CSporkManager;
 namespace llmq {
+class ActiveDKGSessionHandler;
 class CDKGDebugManager;
 class CDKGSessionManager;
 class CQuorumBlockProcessor;
@@ -55,6 +58,13 @@ public:
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
     bool AlreadyHave(const CInv& inv) override;
     bool ProcessGetData(CNode& pfrom, const CInv& inv, CConnman& connman, const CNetMsgMaker& msgMaker) override;
+    /**
+     * Drives one phase-handler thread per ActiveDKGSessionHandler in active mode;
+     * no-op in observer mode (no curSession to drive).
+     */
+    void Start() override;
+    void Stop() override;
+    void Interrupt() override;
 
 private:
     //! Bundle of refs that exist only in active masternode mode.
@@ -70,9 +80,14 @@ private:
         CConnman& connman;
     };
 
+    void PhaseHandlerThread(ActiveDKGSessionHandler& handler);
+    void HandleDKGRound(ActiveDKGSessionHandler& handler);
+
     CDKGSessionManager& m_qdkgsman;
     const CSporkManager& m_sporkman;
     const std::unique_ptr<ActiveDKG> m_active; //!< null in observer mode, non-null in active mode
+
+    std::vector<std::thread> m_phase_threads;
 };
 
 /**

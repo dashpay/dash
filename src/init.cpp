@@ -2389,7 +2389,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.peerman->ScheduleHandlers(*node.scheduler);
 
     if (node.active_ctx) {
-        node.active_ctx->Start(*node.connman, *node.peerman);
+        node.active_ctx->Start();
         node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.active_ctx->qdkgsman)), std::chrono::hours{1});
     }
 

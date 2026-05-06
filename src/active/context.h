@@ -68,7 +68,7 @@ public:
                            const util::DbWrapperParams& db_params, bool quorums_watch);
     ~ActiveContext();
 
-    void Start(CConnman& connman, PeerManager& peerman);
+    void Start();
     void Stop();
 
     CCoinJoinServer& GetCJServer() const;
