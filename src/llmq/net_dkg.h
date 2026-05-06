@@ -5,8 +5,13 @@
 #ifndef BITCOIN_LLMQ_NET_DKG_H
 #define BITCOIN_LLMQ_NET_DKG_H
 
+#include <consensus/params.h>
 #include <net_processing.h>
+#include <sync.h>
+#include <uint256.h>
+#include <unordered_lru_cache.h>
 
+#include <map>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -46,16 +51,18 @@ class NetDKG final : public NetHandler
 {
 public:
     //! Observer-mode constructor.
-    NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman);
+    NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
+           const ChainstateManager& chainman, bool quorums_watch);
 
     //! Active-mode constructor: takes the masternode-only dep bundle as required references.
     NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
+           const ChainstateManager& chainman, bool quorums_watch,
            CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
            CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
-           const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman, CConnman& connman);
+           const CActiveMasternodeManager& mn_activeman, CConnman& connman);
 
     // NetHandler
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_indexed_quorums_cache);
     bool AlreadyHave(const CInv& inv) override;
     bool ProcessGetData(CNode& pfrom, const CInv& inv, CConnman& connman, const CNetMsgMaker& msgMaker) override;
     /**
@@ -76,7 +83,6 @@ private:
         CQuorumBlockProcessor& qblockman;
         CQuorumSnapshotManager& qsnapman;
         const CActiveMasternodeManager& mn_activeman;
-        const ChainstateManager& chainman;
         CConnman& connman;
     };
 
@@ -85,7 +91,13 @@ private:
 
     CDKGSessionManager& m_qdkgsman;
     const CSporkManager& m_sporkman;
+    const ChainstateManager& m_chainman;
+    const bool m_quorums_watch;
     const std::unique_ptr<ActiveDKG> m_active; //!< null in observer mode, non-null in active mode
+
+    /** Cache: quorum hash → quorum index, populated lazily by ProcessMessage. */
+    mutable Mutex cs_indexed_quorums_cache;
+    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<int>> indexed_quorums_cache GUARDED_BY(cs_indexed_quorums_cache);
 
     std::vector<std::thread> m_phase_threads;
 };

@@ -2235,13 +2235,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     if (node.active_ctx) {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
-            node.peerman.get(), *node.sporkman, *node.active_ctx->qdkgsman,
+            node.peerman.get(), *node.sporkman, *node.active_ctx->qdkgsman, chainman, quorums_watch,
             *node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman,
             *node.active_ctx->dkgdbgman, *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman,
-            *node.active_ctx->nodeman, chainman, *node.connman));
+            *node.active_ctx->nodeman, *node.connman));
     } else if (node.observer_ctx) {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
-            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman));
+            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman, chainman, /*quorums_watch=*/true));
     } else {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKGStub>(node.peerman.get()));
     }

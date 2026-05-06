@@ -5,23 +5,19 @@
 #ifndef BITCOIN_LLMQ_DKGSESSIONHANDLER_H
 #define BITCOIN_LLMQ_DKGSESSIONHANDLER_H
 
-#include <msg_result.h>
-
 #include <net.h> // for NodeId
-#include <protocol.h>
-#include <serialize.h>
-#include <streams.h>
 #include <sync.h>
-#include <uint256.h>
 
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
 
+class CDataStream;
 class CBlockIndex;
+class uint256;
 
 namespace Consensus {
 struct LLMQParams;
@@ -59,7 +55,6 @@ public:
     using BinaryMessage = std::pair<NodeId, std::shared_ptr<CDataStream>>;
 
 private:
-    const uint32_t invType;
     const size_t maxMessagesPerNode;
     mutable Mutex cs_messages;
     std::list<BinaryMessage> pendingMessages GUARDED_BY(cs_messages);
@@ -67,36 +62,21 @@ private:
     Uint256HashSet seenMessages GUARDED_BY(cs_messages);
 
 public:
-    explicit CDKGPendingMessages(size_t _maxMessagesPerNode, uint32_t _invType) :
-            invType(_invType), maxMessagesPerNode(_maxMessagesPerNode) {};
+    explicit CDKGPendingMessages(size_t _maxMessagesPerNode) :
+        maxMessagesPerNode(_maxMessagesPerNode) {};
 
     /**
-     * Real-peer path: enqueue a serialized DKG message received from a peer.
-     * The returned MessageProcessingResult conveys the erase request / misbehavior
-     * back up to PeerManager so DKG state stays peerman-free.
+     * Enqueue a serialized DKG message under @p from with content hash @p hash.
+     * Caller is responsible for hashing the payload and (for real peers)
+     * routing the erase-request to PeerManager. Drops the message silently on
+     * per-node capacity overflow or duplicate hash.
      */
-    [[nodiscard]] MessageProcessingResult PushPendingMessage(NodeId from, CDataStream& vRecv)
+    void PushPendingMessage(NodeId from, std::shared_ptr<CDataStream> pm, const uint256& hash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
-
-    /**
-     * Self-inject path: enqueue a DKG message we just produced ourselves under
-     * the conventional from=-1 NodeId. No peer-side effects are possible, so
-     * the inner MessageProcessingResult is unconditionally discarded.
-     */
-    void PushOwnPendingMessage(CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
 
     std::list<BinaryMessage> PopPendingMessages(size_t maxCount) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     bool HasSeen(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     void Clear() EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
-
-    /** Self-inject convenience overload: serialize @msg and route to the binary self-inject path. */
-    template <typename Message>
-    void PushOwnPendingMessage(Message& msg) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages)
-    {
-        CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
-        ds << msg;
-        PushOwnPendingMessage(ds);
-    }
 
     // Might return nullptr messages, which indicates that deserialization failed for some reason
     template <typename Message>
@@ -141,8 +121,6 @@ public:
 public:
     explicit CDKGSessionHandler(const Consensus::LLMQParams& _params);
     virtual ~CDKGSessionHandler();
-
-    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv);
 
     void ClearPendingMessages();
 

@@ -25,7 +25,6 @@ class CMNHFManager;
 class CSporkManager;
 class CTxMemPool;
 class GovernanceSigner;
-class PeerManager;
 namespace chainlock {
 class Chainlocks;
 class ChainlockHandler;

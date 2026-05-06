@@ -8,14 +8,12 @@
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <consensus/params.h>
-#include <net_types.h>
 #include <sync.h>
 #include <util/check.h>
 #include <util/helpers.h>
 
 #include <map>
 #include <memory>
-#include <string_view>
 
 template <class T>
 class CBLSIESMultiRecipientObjects;
@@ -26,9 +24,7 @@ class CBlockIndex;
 class CDBWrapper;
 class CDeterministicMNManager;
 class ChainstateManager;
-class CNode;
 class CSporkManager;
-class CInv;
 struct MessageProcessingResult;
 namespace util {
 struct DbWrapperParams;
@@ -67,7 +63,6 @@ private:
     CQuorumSnapshotManager& m_qsnapman;
     const ChainstateManager& m_chainman;
     const CSporkManager& m_sporkman;
-    const bool m_quorums_watch{false};
 
 private:
     std::unique_ptr<CDBWrapper> db{nullptr};
@@ -99,7 +94,7 @@ public:
     CDKGSessionManager& operator=(const CDKGSessionManager&) = delete;
     explicit CDKGSessionManager(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                                 const ChainstateManager& chainman, const CSporkManager& sporkman,
-                                const util::DbWrapperParams& db_params, bool quorums_watch);
+                                const util::DbWrapperParams& db_params);
     ~CDKGSessionManager();
 
     template <typename HandlerFn>
@@ -127,12 +122,24 @@ public:
         }
     }
 
+    /**
+     * Invoke @p fn(CDKGSessionHandler&) for the handler registered under @p key,
+     * if one exists. Returns true iff the handler was found (and the callback ran).
+     * Returning the handler by reference inside the callback prevents callers from
+     * keeping a dangling pointer outside the handler's lifetime.
+     */
+    template <typename HandlerFn>
+    bool DoForHandler(const SessionHandlerKey& key, HandlerFn&& fn)
+    {
+        auto it = dkgSessionHandlers.find(key);
+        if (it == dkgSessionHandlers.end()) return false;
+        fn(*Assert(it->second));
+        return true;
+    }
+
     void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload)
         EXCLUSIVE_LOCKS_REQUIRED(!contributionsCacheCs);
 
-    [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type,
-                                                         CDataStream& vRecv);
-    bool AlreadyHave(const CInv& inv) const;
     bool GetContribution(const uint256& hash, CDKGContribution& ret) const;
     bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const;
     bool GetJustification(const uint256& hash, CDKGJustification& ret) const;
