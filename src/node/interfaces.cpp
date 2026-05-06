@@ -403,7 +403,7 @@ public:
             context().govman->AddPostponedObject(govobj);
             context().govman->RelayObject(govobj);
         } else {
-            context().govman->AddGovernanceObject(govobj);
+            context().govman->AddGovernanceObject(govobj, "<local>");
         }
         out_object_hash = govobj.GetHash().ToString();
         return true;

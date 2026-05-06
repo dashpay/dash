@@ -321,7 +321,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str = "nullptr") override
+    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
 
     // Superblocks

@@ -831,7 +831,7 @@ void CGovernanceManager::CheckPostponedObjects()
         bool fMissingConfirmations;
         if (govobj.IsCollateralValid(m_chainman, strError, fMissingConfirmations)) {
             if (govobj.IsValidLocally(Assert(m_dmnman)->GetListAtChainTip(), m_chainman, strError, false)) {
-                AddGovernanceObjectInternal(govobj, "nullptr");
+                AddGovernanceObjectInternal(govobj, "<postponed>");
             } else {
                 LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());
             }

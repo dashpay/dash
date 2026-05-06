@@ -413,7 +413,7 @@ static RPCHelpMan gobject_submit()
         node.govman->AddPostponedObject(govobj);
         node.govman->RelayObject(govobj);
     } else {
-        node.govman->AddGovernanceObject(govobj);
+        node.govman->AddGovernanceObject(govobj, "<local>");
     }
 
     return govobj.GetHash().ToString();
