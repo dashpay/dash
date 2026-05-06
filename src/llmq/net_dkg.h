@@ -28,7 +28,9 @@ class ActiveDKGSessionHandler;
 class CDKGDebugManager;
 class CDKGSessionManager;
 class CQuorumBlockProcessor;
+class CQuorumManager;
 class CQuorumSnapshotManager;
+class QuorumRole;
 } // namespace llmq
 
 namespace llmq {
@@ -52,13 +54,16 @@ class NetDKG final : public NetHandler
 public:
     //! Observer-mode constructor.
     NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-           const ChainstateManager& chainman, bool quorums_watch);
+           const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role);
 
     //! Active-mode constructor: takes the masternode-only dep bundle as required references.
     NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-           const ChainstateManager& chainman, bool quorums_watch, CBLSWorker& bls_worker, CDeterministicMNManager& dmnman,
-           CMasternodeMetaMan& mn_metaman, CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman,
-           CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager& mn_activeman, CConnman& connman);
+           const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role,
+           CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
+           CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
+           const CActiveMasternodeManager& mn_activeman, CConnman& connman);
+
+    ~NetDKG();
 
     // NetHandler
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override
@@ -76,13 +81,11 @@ public:
 private:
     //! Bundle of refs that exist only in active masternode mode.
     struct ActiveDKG {
-        CBLSWorker& bls_worker;
         CDeterministicMNManager& dmnman;
         CMasternodeMetaMan& mn_metaman;
         CDKGDebugManager& dkgdbgman;
         CQuorumBlockProcessor& qblockman;
         CQuorumSnapshotManager& qsnapman;
-        const CActiveMasternodeManager& mn_activeman;
         CConnman& connman;
     };
 
@@ -90,6 +93,7 @@ private:
     void HandleDKGRound(ActiveDKGSessionHandler& handler);
 
     CDKGSessionManager& m_qdkgsman;
+    CQuorumManager& m_qman;
     const CSporkManager& m_sporkman;
     const ChainstateManager& m_chainman;
     const bool m_quorums_watch;

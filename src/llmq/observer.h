@@ -9,22 +9,17 @@
 
 #include <validationinterface.h>
 
-#include <gsl/pointers.h>
 #include <span.h>
 
 #include <memory>
 
-class CBLSWorker;
 class CBlockIndex;
 class CDeterministicMNManager;
-class CMasternodeMetaMan;
 class CSporkManager;
 namespace llmq {
 class CDKGDebugManager;
 class CDKGSessionManager;
 class CQuorum;
-class CQuorumBlockProcessor;
-class CQuorumDataRequest;
 class CQuorumSnapshotManager;
 } // namespace llmq
 namespace util {
@@ -37,10 +32,9 @@ public:
     ObserverContext() = delete;
     ObserverContext(const ObserverContext&) = delete;
     ObserverContext& operator=(const ObserverContext&) = delete;
-    ObserverContext(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman,
-                    CMasternodeMetaMan& mn_metaman, llmq::CQuorumBlockProcessor& qblockman,
-                    llmq::CQuorumManager& qman, llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
-                    const CSporkManager& sporkman, const util::DbWrapperParams& db_params);
+    ObserverContext(CDeterministicMNManager& dmnman, llmq::CQuorumManager& qman, llmq::CQuorumSnapshotManager& qsnapman,
+                    const ChainstateManager& chainman, const CSporkManager& sporkman,
+                    const util::DbWrapperParams& db_params);
     ~ObserverContext();
 
     // QuorumRole

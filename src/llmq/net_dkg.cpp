@@ -14,6 +14,7 @@
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/net_quorum.h>
 #include <llmq/options.h>
+#include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>
 #include <net.h>
@@ -214,30 +215,45 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
 
 
 NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-               const ChainstateManager& chainman, bool quorums_watch) :
+               const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role) :
     NetHandler(peer_manager),
     m_qdkgsman{qdkgsman},
+    m_qman{qman},
     m_sporkman{sporkman},
     m_chainman{chainman},
     m_quorums_watch{quorums_watch},
     m_active{nullptr}
 {
+    m_qdkgsman.InitializeHandlers([](const Consensus::LLMQParams& llmq_params,
+                                     [[maybe_unused]] int quorum_idx) -> std::unique_ptr<CDKGSessionHandler> {
+        return std::make_unique<CDKGSessionHandler>(llmq_params);
+    });
+    m_qman.ConnectManagers(&role, &m_qdkgsman);
 }
 
 NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-               const ChainstateManager& chainman, bool quorums_watch, CBLSWorker& bls_worker,
-               CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman, CDKGDebugManager& dkgdbgman,
-               CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
+               const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role,
+               CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
+               CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
                const CActiveMasternodeManager& mn_activeman, CConnman& connman) :
     NetHandler(peer_manager),
     m_qdkgsman{qdkgsman},
+    m_qman{qman},
     m_sporkman{sporkman},
     m_chainman{chainman},
     m_quorums_watch{quorums_watch},
-    m_active{std::make_unique<ActiveDKG>(
-        ActiveDKG{bls_worker, dmnman, mn_metaman, dkgdbgman, qblockman, qsnapman, mn_activeman, connman})}
+    m_active{std::make_unique<ActiveDKG>(ActiveDKG{dmnman, mn_metaman, dkgdbgman, qblockman, qsnapman, connman})}
 {
+    m_qdkgsman.InitializeHandlers(
+        [&](const Consensus::LLMQParams& llmq_params, int quorum_idx) -> std::unique_ptr<ActiveDKGSessionHandler> {
+            return std::make_unique<ActiveDKGSessionHandler>(bls_worker, dmnman, mn_metaman, dkgdbgman, qdkgsman,
+                                                             qblockman, qsnapman, mn_activeman, chainman, sporkman,
+                                                             llmq_params, quorums_watch, quorum_idx);
+        });
+    m_qman.ConnectManagers(&role, &m_qdkgsman);
 }
+
+NetDKG::~NetDKG() { m_qman.DisconnectManagers(); }
 
 void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
