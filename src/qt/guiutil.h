@@ -227,6 +227,9 @@ namespace GUIUtil
         const QString &filter,
         QString *selectedSuffixOut);
 
+    /** Get existing directory, convenience wrapper for QFileDialog::getExistingDirectory. */
+    QString getExistingDirectory(QWidget* parent, const QString& caption, const QString& dir);
+
     /** Get connection type to call object slot in GUI thread with invokeMethod. The call will be blocking.
 
        @returns If called from the GUI thread, return a Qt::DirectConnection.

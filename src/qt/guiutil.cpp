@@ -497,6 +497,13 @@ QString ExtractFirstSuffixFromFilter(const QString& filter)
     return suffix;
 }
 
+static QFileDialog::Options GetFileDialogOptions()
+{
+    return gArgs.GetBoolArg("-nativefiledialogs", /*fDefault=*/true)
+        ? QFileDialog::Options()
+        : QFileDialog::Options(QFileDialog::DontUseNativeDialog);
+}
+
 QString getSaveFileName(QWidget *parent, const QString &caption, const QString &dir,
     const QString &filter,
     QString *selectedSuffixOut)
@@ -512,7 +519,7 @@ QString getSaveFileName(QWidget *parent, const QString &caption, const QString &
         myDir = dir;
     }
     /* Directly convert path to native OS path separators */
-    QString result = QDir::toNativeSeparators(QFileDialog::getSaveFileName(parent, caption, myDir, filter, &selectedFilter));
+    QString result = QDir::toNativeSeparators(QFileDialog::getSaveFileName(parent, caption, myDir, filter, &selectedFilter, GetFileDialogOptions()));
 
     QString selectedSuffix = ExtractFirstSuffixFromFilter(selectedFilter);
 
@@ -552,7 +559,7 @@ QString getOpenFileName(QWidget *parent, const QString &caption, const QString &
         myDir = dir;
     }
     /* Directly convert path to native OS path separators */
-    QString result = QDir::toNativeSeparators(QFileDialog::getOpenFileName(parent, caption, myDir, filter, &selectedFilter));
+    QString result = QDir::toNativeSeparators(QFileDialog::getOpenFileName(parent, caption, myDir, filter, &selectedFilter, GetFileDialogOptions()));
 
     if(selectedSuffixOut)
     {
@@ -560,6 +567,11 @@ QString getOpenFileName(QWidget *parent, const QString &caption, const QString &
         ;
     }
     return result;
+}
+
+QString getExistingDirectory(QWidget* parent, const QString& caption, const QString& dir)
+{
+    return QDir::toNativeSeparators(QFileDialog::getExistingDirectory(parent, caption, dir, QFileDialog::ShowDirsOnly | GetFileDialogOptions()));
 }
 
 Qt::ConnectionType blockingGUIThreadConnection()
