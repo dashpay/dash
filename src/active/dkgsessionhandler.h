@@ -35,7 +35,8 @@ class CQuorumSnapshotManager;
 
 namespace llmq {
 //! Thrown by Wait*, Sleep* and HandlePhase to bail out of the current DKG round.
-class AbortPhaseException : public std::exception {
+class AbortPhaseException : public std::exception
+{
 };
 
 class ActiveDKGSessionHandler final : public llmq::CDKGSessionHandler

@@ -66,10 +66,7 @@ void ActiveDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
              params.name, quorumIndex, currentHeight, pQuorumBaseBlockIndex->nHeight, std23::to_underlying(oldPhase), std23::to_underlying(phase));
 }
 
-uint256 ActiveDKGSessionHandler::GetCurrentQuorumHash() const
-{
-    return WITH_LOCK(cs_phase_qhash, return quorumHash);
-}
+uint256 ActiveDKGSessionHandler::GetCurrentQuorumHash() const { return WITH_LOCK(cs_phase_qhash, return quorumHash); }
 
 std::pair<QuorumPhase, uint256> ActiveDKGSessionHandler::GetPhaseAndQuorumHash() const
 {

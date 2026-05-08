@@ -28,7 +28,8 @@ namespace llmq {
 namespace {
 // returns a set of NodeIds which sent invalid messages
 template <typename Message>
-std::unordered_set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<std::pair<NodeId, std::shared_ptr<Message>>>& messages)
+std::unordered_set<NodeId> BatchVerifyMessageSigs(CDKGSession& session,
+                                                  const std::vector<std::pair<NodeId, std::shared_ptr<Message>>>& messages)
 {
     if (messages.empty()) {
         return {};
@@ -81,9 +82,10 @@ std::unordered_set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const st
         }
 
         // are all messages from the same node?
-        bool nodeIdsAllSame = std::adjacent_find( messages.begin(), messages.end(), [](const auto& first, const auto& second){
-            return first.first != second.first;
-        }) == messages.end();
+        bool nodeIdsAllSame = std::adjacent_find(messages.begin(), messages.end(),
+                                                 [](const auto& first, const auto& second) {
+                                                     return first.first != second.first;
+                                                 }) == messages.end();
 
         // if yes, take a short path and return a set with only him
         if (nodeIdsAllSame) {
@@ -335,9 +337,10 @@ void NetDKG::PhaseHandlerThread(ActiveDKGSessionHandler& handler)
     }
 }
 
-static void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, CMasternodeMetaMan& mn_metaman,
-                               const CSporkManager& sporkman, const UtilParameters& util_params,
-                               const CDeterministicMNList& tip_mn_list, const uint256& myProTxHash)
+static void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman,
+                                      CMasternodeMetaMan& mn_metaman, const CSporkManager& sporkman,
+                                      const UtilParameters& util_params, const CDeterministicMNList& tip_mn_list,
+                                      const uint256& myProTxHash)
 {
     assert(mn_metaman.IsValid());
 
@@ -389,8 +392,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
     handler.ClearPendingMessages();
     uint256 curQuorumHash = handler.GetCurrentQuorumHash();
 
-    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(::cs_main,
-                                                         return active.chainman.m_blockman.LookupBlockIndex(curQuorumHash));
+    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(::cs_main, return active.chainman.m_blockman.LookupBlockIndex(
+                                                                        curQuorumHash));
 
     if (!pQuorumBaseBlockIndex || !handler.InitNewQuorum(pQuorumBaseBlockIndex)) {
         // should actually never happen
@@ -414,12 +417,12 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
 
     const auto tip_mn_list = active.dmnman.GetListAtChainTip();
     llmq::EnsureQuorumConnections(handler.params, active.connman, m_sporkman,
-                                   {active.dmnman, active.qsnapman, active.chainman, pQuorumBaseBlockIndex},
-                                   tip_mn_list, curSession->ProTx(), /*is_masternode=*/true, handler.QuorumsWatch());
+                                  {active.dmnman, active.qsnapman, active.chainman, pQuorumBaseBlockIndex}, tip_mn_list,
+                                  curSession->ProTx(), /*is_masternode=*/true, handler.QuorumsWatch());
     if (curSession->AreWeMember()) {
         AddQuorumProbeConnections(handler.params, active.connman, active.mn_metaman, m_sporkman,
-                                         {active.dmnman, active.qsnapman, active.chainman, pQuorumBaseBlockIndex},
-                                         tip_mn_list, curSession->ProTx());
+                                  {active.dmnman, active.qsnapman, active.chainman, pQuorumBaseBlockIndex}, tip_mn_list,
+                                  curSession->ProTx());
     }
 
     handler.WaitForNextPhase(QuorumPhase::Initialized, QuorumPhase::Contribute, curQuorumHash);
@@ -434,7 +437,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
         return ProcessPendingMessageBatch<CDKGContribution>(active.connman, *curSession, handler.pendingContributions,
                                                             *m_peer_manager, 8);
     };
-    handler.HandlePhase(QuorumPhase::Contribute, QuorumPhase::Complain, curQuorumHash, 0.05, fContributeStart, fContributeWait);
+    handler.HandlePhase(QuorumPhase::Contribute, QuorumPhase::Complain, curQuorumHash, 0.05, fContributeStart,
+                        fContributeWait);
 
     // Complain
     auto fComplainStart = [curSession, &handler, &active]() {
@@ -468,8 +472,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
     };
     auto fCommitWait = [this, curSession, &handler, &active] {
         return ProcessPendingMessageBatch<CDKGPrematureCommitment>(active.connman, *curSession,
-                                                                   handler.pendingPrematureCommitments,
-                                                                   *m_peer_manager, 8);
+                                                                   handler.pendingPrematureCommitments, *m_peer_manager,
+                                                                   8);
     };
     handler.HandlePhase(QuorumPhase::Commit, QuorumPhase::Finalize, curQuorumHash, 0.1, fCommitStart, fCommitWait);
 
