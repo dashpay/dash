@@ -579,14 +579,21 @@ void updateFonts()
         ++nUpdatable;
 
         QFont font = w->font();
-        assert(font.pointSize() > 0);
+        double font_size = font.pointSizeF();
+        if (font_size <= 0 && font.pixelSize() > 0) {
+            font_size = font.pixelSize() * 72.0 / w->logicalDpiY();
+            font.setPointSizeF(font_size);
+        }
+        if (font_size <= 0) {
+            continue;
+        }
         font.setFamily(qApp->font().family());
         font.setWeight(g_font_registry.GetWeightNormal());
         font.setStyleName(qApp->font().styleName());
         font.setStyle(qApp->font().style());
 
         // Insert/Get the default font size of the widget
-        auto itDefault = mapWidgetDefaultFontSizes.emplace(w, font.pointSize());
+        auto itDefault = mapWidgetDefaultFontSizes.emplace(w, font_size);
 
         auto it = mapFontUpdates.find(w);
         if (it != mapFontUpdates.end()) {
