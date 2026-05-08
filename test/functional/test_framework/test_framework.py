@@ -1624,8 +1624,12 @@ class DashTestFramework(BitcoinTestFramework):
         try:
             created_mn_info = self.dynamically_prepare_masternode(mn_idx, evo, rnd)
             protx_success = True
-        except Exception:
-            self.log.info("dynamically_prepare_masternode failed")
+        except Exception as e:
+            log_fn = self.log.info if should_be_rejected else self.log.exception
+            log_fn(
+                "dynamically_prepare_masternode failed (mn_idx=%s, evo=%s, rnd=%s, should_be_rejected=%s): %r",
+                mn_idx, evo, rnd, should_be_rejected, getattr(e, "error", repr(e)),
+            )
 
         assert_equal(protx_success, not should_be_rejected)
 
@@ -1707,8 +1711,12 @@ class DashTestFramework(BitcoinTestFramework):
             evo_info.bury_tx(self, genIdx=0, txid=protx_result, depth=1)
             self.log.info("Updated EvoNode %s: platformNodeID=%s, platformP2PPort=%s, platformHTTPPort=%s" % (evo_info.proTxHash, platform_node_id, addrs_platform_p2p, addrs_platform_https))
             protx_success = True
-        except Exception:
-            self.log.info("protx_evo rejected")
+        except Exception as e:
+            log_fn = self.log.info if should_be_rejected else self.log.exception
+            log_fn(
+                "protx_evo rejected (proTxHash=%s, rnd=%s, should_be_rejected=%s): %r",
+                evo_info.proTxHash, rnd, should_be_rejected, getattr(e, "error", repr(e)),
+            )
 
         assert_equal(protx_success, not should_be_rejected)
 
