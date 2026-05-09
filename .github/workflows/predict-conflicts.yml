@@ -8,11 +8,11 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write # mshick/add-pr-comment updates PR conversation comments via the Issues API
   # Enforce other not needed permissions are off
   actions: none
   checks: none
   deployments: none
-  issues: none
   packages: none
   repository-projects: none
   security-events: none
