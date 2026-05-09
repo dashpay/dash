@@ -244,22 +244,25 @@ public:
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
-     * IsSporkValid validate signed time and pubkey
-     * If these values mismatch function returns false [spork is invalid]
-     * If spork validation failed, peer should be punished
+     * GetValidSporkSigner validates signed time and recovers the signer pubkey.
+     * Returns the signer's CKeyID on success, or std::nullopt if the spork is invalid
+     * (peer should be punished in that case).
      */
-    [[nodiscard]] bool IsSporkValid(const CSporkMessage& spork) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    [[nodiscard]] std::optional<CKeyID> GetValidSporkSigner(const CSporkMessage& spork) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
     /**
-     * ProcessSpork is used to handle the 'spork' p2p message.
-     *
-     * For 'spork', it validates the spork and adds it to the internal spork storage and
-     * performs any necessary processing.
+     * ProcessSpork adds the spork to local state. Returns true if the spork was new or
+     * updated and should be relayed. `keyIDSigner` must be the signer key previously
+     * recovered via GetValidSporkSigner. `peer_log_suffix` is appended to log lines for
+     * cross-referencing with the source peer (e.g. " peer=42").
      */
-    [[nodiscard]] bool ProcessSpork(const CSporkMessage& spork)
+    [[nodiscard]] bool ProcessSpork(const CSporkMessage& spork, const CKeyID& keyIDSigner,
+                                    std::string_view peer_log_suffix = {})
         EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cache);
 
     /**
-     * ActiveSporks is used to handle the 'getsporks' p2p message.
+     * ActiveSporks returns a snapshot of currently active sporks indexed by SporkId then
+     * signer CKeyID. Used by net_processing to answer the 'getsporks' p2p message.
      */
     std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage>> ActiveSporks() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 

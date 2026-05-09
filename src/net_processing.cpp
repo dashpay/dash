@@ -5469,11 +5469,12 @@ void PeerManagerImpl::ProcessMessage(
         uint256 hash = spork.GetHash();
         CInv spork_inv{MSG_SPORK, hash};
         WITH_LOCK(::cs_main, EraseObjectRequest(pfrom.GetId(), spork_inv));
-        if (!m_sporkman.IsSporkValid(spork)) {
+        auto opt_signer = m_sporkman.GetValidSporkSigner(spork);
+        if (!opt_signer) {
             Misbehaving(pfrom.GetId(), 100, strprintf("invalid spork received. peer=%d", pfrom.GetId()));
             return;
         }
-        if (m_sporkman.ProcessSpork(spork)) {
+        if (m_sporkman.ProcessSpork(spork, *opt_signer, strprintf(" peer=%d", pfrom.GetId()))) {
             RelayInv(spork_inv);
         }
         return;

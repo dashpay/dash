@@ -123,31 +123,27 @@ void CSporkManager::CheckAndRemove()
     }
 }
 
-bool CSporkManager::IsSporkValid(const CSporkMessage& spork) const
+std::optional<CKeyID> CSporkManager::GetValidSporkSigner(const CSporkMessage& spork) const
 {
     if (spork.nTimeSigned > GetAdjustedTime() + 2 * 60 * 60) {
         LogPrint(BCLog::SPORK, "CSporkManager::%s -- ERROR: too far into the future\n", __func__);
-        return false;
+        return std::nullopt;
     }
 
     auto opt_keyIDSigner = spork.GetSignerKeyID();
 
     if (opt_keyIDSigner == std::nullopt || WITH_LOCK(cs, return !setSporkPubKeyIDs.count(*opt_keyIDSigner))) {
         LogPrint(BCLog::SPORK, "CSporkManager::%s -- ERROR: invalid signature\n", __func__);
-        return false;
+        return std::nullopt;
     }
-    return true;
+    return opt_keyIDSigner;
 }
 
-bool CSporkManager::ProcessSpork(const CSporkMessage& spork)
+bool CSporkManager::ProcessSpork(const CSporkMessage& spork, const CKeyID& keyIDSigner, std::string_view peer_log_suffix)
 {
     uint256 hash = spork.GetHash();
-    std::string strLogMsg{strprintf("SPORK -- hash: %s id: %d value: %10d", hash.ToString(), spork.nSporkID,
-                                    spork.nValue)};
-
-    if (!spork.GetSignerKeyID().has_value()) return false;
-
-    auto keyIDSigner = spork.GetSignerKeyID().value();
+    std::string strLogMsg{strprintf("SPORK -- hash: %s id: %d value: %10d%s", hash.ToString(), spork.nSporkID,
+                                    spork.nValue, peer_log_suffix)};
 
     {
         LOCK(cs); // make sure to not lock this together with cs_main
