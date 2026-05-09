@@ -19,11 +19,12 @@ DEPLOYMENT_ARGS = [
 
 class FeatureIndexPruneTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 4
+        self.num_nodes = 5
         self.extra_args = [
             ["-fastprune", "-prune=1", "-blockfilterindex=1"] + DEPLOYMENT_ARGS,
             ["-fastprune", "-prune=1", "-coinstatsindex=1"] + DEPLOYMENT_ARGS,
             ["-fastprune", "-prune=1", "-blockfilterindex=1", "-coinstatsindex=1"] + DEPLOYMENT_ARGS,
+            ["-fastprune", "-prune=1", "-timestampindex"] + DEPLOYMENT_ARGS,
             [] + DEPLOYMENT_ARGS,
         ]
 
@@ -41,10 +42,16 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         expected = {**expected_filter, **expected_stats}
         self.wait_until(lambda: self.nodes[2].getindexinfo() == expected)
 
+        expected_timestamp = {
+            'timestampindex': {'synced': True, 'best_block_height': height}
+        }
+        self.wait_until(lambda: self.nodes[3].getindexinfo() == expected_timestamp)
+
     def reconnect_nodes(self):
         self.connect_nodes(0,1)
         self.connect_nodes(0,2)
         self.connect_nodes(0,3)
+        self.connect_nodes(0,4)
 
     def mine_batches(self, blocks):
         n = blocks // 250
@@ -53,39 +60,51 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.generate(self.nodes[0], blocks % 250)
 
     def restart_without_indices(self):
-        for i in range(3):
+        for i in range(4):
             self.restart_node(i, extra_args=["-fastprune", "-prune=1"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
         self.reconnect_nodes()
+
+    def assert_timestampindex_covers(self, height):
+        # Timestamps are not strictly monotonic on regtest, so probe a small
+        # window and just verify the queried block is covered.
+        timestamp_node = self.nodes[3]
+        block_hash = timestamp_node.getblockhash(height)
+        block_time = timestamp_node.getblock(block_hash)["time"]
+        hashes = timestamp_node.getblockhashes(block_time, block_time)
+        assert block_hash in hashes
 
     def run_test(self):
         filter_nodes = [self.nodes[0], self.nodes[2]]
         stats_nodes = [self.nodes[1], self.nodes[2]]
 
-        self.log.info("check if we can access blockfilters and coinstats when pruning is enabled but no blocks are actually pruned")
+        self.log.info("check if we can access blockfilters, coinstats, and timestampindex when pruning is enabled but no blocks are actually pruned")
         self.sync_index(height=200)
         tip = self.nodes[0].getbestblockhash()
         for node in filter_nodes:
             assert_greater_than(len(node.getblockfilter(tip)['filter']), 0)
         for node in stats_nodes:
             assert node.gettxoutsetinfo(hash_type="muhash", hash_or_height=tip)['muhash']
+        self.assert_timestampindex_covers(height=200)
 
         self.mine_batches(500)
         self.sync_index(height=700)
 
         self.log.info("prune some blocks")
-        for node in self.nodes[:2]:
+        for node in [self.nodes[0], self.nodes[1], self.nodes[3]]:
             with node.assert_debug_log(['limited pruning to height 689']):
                 pruneheight_new = node.pruneblockchain(400)
                 # the prune heights used here and below are magic numbers that are determined by the
                 # thresholds at which block files wrap, so they depend on disk serialization and default block file size.
                 assert_equal(pruneheight_new, 367)
 
-        self.log.info("check if we can access the tips blockfilter and coinstats when we have pruned some blocks")
+        self.log.info("check if we can access the tips blockfilter, coinstats, and timestampindex when we have pruned some blocks")
         tip = self.nodes[0].getbestblockhash()
         for node in filter_nodes:
             assert_greater_than(len(node.getblockfilter(tip)['filter']), 0)
         for node in stats_nodes:
             assert node.gettxoutsetinfo(hash_type="muhash", hash_or_height=tip)['muhash']
+        # Pick a height that's been mined and indexed but isn't pruned (367 < 500 < 700).
+        self.assert_timestampindex_covers(height=500)
 
         self.log.info("check if we can access the blockfilter and coinstats of a pruned block")
         height_hash = self.nodes[0].getblockhash(2)
@@ -111,7 +130,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.mine_batches(749)
 
         self.log.info("prune exactly up to the indices best blocks while the indices are disabled")
-        for i in range(3):
+        for i in range(4):
             pruneheight_2 = self.nodes[i].pruneblockchain(1000)
             assert_equal(pruneheight_2, 735)
             # Restart the nodes again with the indices activated
@@ -124,7 +143,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.restart_without_indices()
         self.mine_batches(1000)
 
-        for i in range(3):
+        for i in range(4):
             pruneheight_3 = self.nodes[i].pruneblockchain(2000)
             assert_greater_than(pruneheight_3, pruneheight_2)
             self.stop_node(i, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
@@ -132,31 +151,45 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.log.info("make sure we get an init error when starting the nodes again with the indices")
         filter_msg = "Error: basic block filter index best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
         stats_msg = "Error: coinstatsindex best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
-        for i, msg in enumerate([filter_msg, stats_msg, filter_msg]):
+        timestamp_msg = "Error: timestampindex best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
+        # Node 2 has both blockfilter and coinstats indexes; the blockfilter init runs first and produces the error.
+        for i, msg in enumerate([filter_msg, stats_msg, filter_msg, timestamp_msg]):
             self.nodes[i].assert_start_raises_init_error(extra_args=self.extra_args[i], expected_msg=f"{EXPECTED_STDERR_NO_GOV_PRUNE}\n{msg}")
 
         self.log.info("make sure the nodes start again with the indices and an additional -reindex arg")
-        for i in range(3):
+        for i in range(4):
             restart_args = self.extra_args[i]+["-reindex"]
             self.restart_node(i, extra_args=restart_args, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
             # The nodes need to be reconnected to the non-pruning node upon restart, otherwise they will be stuck
-            self.connect_nodes(i, 3)
+            self.connect_nodes(i, 4)
 
         self.sync_blocks(timeout=300)
         self.sync_index(height=2500)
 
-        for node in self.nodes[:2]:
+        for node in [self.nodes[0], self.nodes[1], self.nodes[3]]:
             with node.assert_debug_log(['limited pruning to height 2489']):
                 pruneheight_new = node.pruneblockchain(2500)
                 assert_equal(pruneheight_new, 2207)
 
         self.log.info("ensure that prune locks don't prevent indices from failing in a reorg scenario")
         with self.nodes[0].assert_debug_log(['basic block filter index prune lock moved back to 2480']):
-            self.nodes[3].invalidateblock(self.nodes[0].getblockhash(2480))
-            self.generate(self.nodes[3], 30)
+            self.nodes[4].invalidateblock(self.nodes[0].getblockhash(2480))
+            self.generate(self.nodes[4], 30)
 
         for idx in range(self.num_nodes):
-            self.nodes[idx].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE if idx != 3 else "")
+            self.nodes[idx].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE if idx != 4 else "")
+
+        self.log.info("ensure -prune is incompatible with -addressindex and -spentindex at startup")
+        # Reuse the unrestricted control node datadir for these init-error checks; -prune
+        # rejects them immediately during arg parsing, before any chainstate is touched.
+        self.nodes[4].assert_start_raises_init_error(
+            extra_args=["-prune=1", "-addressindex"] + DEPLOYMENT_ARGS,
+            expected_msg="Error: Prune mode is incompatible with -addressindex.",
+        )
+        self.nodes[4].assert_start_raises_init_error(
+            extra_args=["-prune=1", "-spentindex"] + DEPLOYMENT_ARGS,
+            expected_msg="Error: Prune mode is incompatible with -spentindex.",
+        )
 
 
 if __name__ == '__main__':

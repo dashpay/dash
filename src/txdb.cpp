@@ -24,6 +24,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <iterator>
+#include <optional>
 
 static constexpr uint8_t DB_COIN{'C'};
 static constexpr uint8_t DB_BLOCK_FILES{'f'};
@@ -348,19 +349,22 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
  * @tparam KeyType       The index key struct type
  * @tparam ValueType     The index value type
  * @param source_db      The old database to migrate from (CBlockTreeDB)
- * @param target_db      The new database to migrate to
+ * @param target_db      The new database to migrate to, or nullptr to discard
+ *                       source entries without copying them (for stale legacy data)
  * @param index_name     Human-readable name for logging
  * @param batch_size     Maximum batch size before flushing
- * @return               Number of entries migrated, or -1 on error
+ * @return               Number of source entries processed, -1 on error,
+ *                       or -2 if shutdown was requested mid-migration
  */
 template <uint8_t DbKey, typename KeyType, typename ValueType>
-static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper& target_db,
+static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper* target_db,
                             const char* index_name, size_t batch_size)
 {
     using KeyPair = std::pair<uint8_t, KeyType>;
 
     size_t count = 0;
-    CDBBatch new_batch(target_db);
+    std::optional<CDBBatch> new_batch;
+    if (target_db) new_batch.emplace(*target_db);
     CDBBatch erase_batch(source_db);
 
     KeyPair start = std::make_pair(DbKey, KeyType());
@@ -375,22 +379,32 @@ static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper& target_db,
     pcursor->Seek(start);
 
     while (pcursor->Valid()) {
+        // Allow the user to abort a long-running migration without leaving
+        // the source/target DBs in a half-applied state.
+        if (ShutdownRequested()) {
+            LogPrintf("Shutdown requested during %s migration, aborting before next batch\n", index_name);
+            return -2;
+        }
         if (pcursor->GetKey(key) && key.first == DbKey) {
-            if (!pcursor->GetValue(value)) {
-                LogPrintf("Failed to read %s value\n", index_name);
-                return -1;
+            if (target_db) {
+                if (!pcursor->GetValue(value)) {
+                    LogPrintf("Failed to read %s value\n", index_name);
+                    return -1;
+                }
+                new_batch->Write(key, value);
             }
-
-            new_batch.Write(key, value);
             erase_batch.Erase(key);
             count++;
             pcursor->Next();
 
-            if (new_batch.SizeEstimate() > batch_size) {
-                LogPrintf("Migrating partial batch of %s entries (%.2f MiB, %d entries)...\n",
-                         index_name, new_batch.SizeEstimate() * (1.0 / 1048576.0), count);
+            const size_t estimated = new_batch ? new_batch->SizeEstimate() : erase_batch.SizeEstimate();
+            if (estimated > batch_size) {
+                LogPrintf("Processing partial batch of %s entries (%.2f MiB, %d entries)...\n",
+                         index_name, estimated * (1.0 / 1048576.0), count);
                 erased_since_compact += erase_batch.SizeEstimate();
-                if (!target_db.WriteBatch(new_batch)) {
+                // Sync target writes before erasing source so a crash cannot leave
+                // entries erased from source without durably reaching target.
+                if (target_db && !target_db->WriteBatch(*new_batch, /*fSync=*/true)) {
                     LogPrintf("Failed to write %s batch to new database\n", index_name);
                     return -1;
                 }
@@ -398,7 +412,7 @@ static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper& target_db,
                     LogPrintf("Failed to erase old %s data\n", index_name);
                     return -1;
                 }
-                new_batch.Clear();
+                if (new_batch) new_batch->Clear();
                 erase_batch.Clear();
 
                 // Compact periodically to reclaim disk space
@@ -419,7 +433,7 @@ static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper& target_db,
     }
 
     // Always write final batch with sync to ensure durability
-    if (!target_db.WriteBatch(new_batch, true)) {
+    if (target_db && !target_db->WriteBatch(*new_batch, /*fSync=*/true)) {
         LogPrintf("Failed to write final %s batch\n", index_name);
         return -1;
     }
@@ -427,13 +441,13 @@ static int64_t MigrateIndex(CBlockTreeDB& source_db, CDBWrapper& target_db,
         LogPrintf("Failed to erase final %s batch\n", index_name);
         return -1;
     }
-    new_batch.Clear();
+    if (new_batch) new_batch->Clear();
     erase_batch.Clear();
 
     // Close iterator before final compaction
     pcursor.reset();
 
-    // Compact final range if we migrated any keys
+    // Compact final range if we processed any keys
     if (count > 0) {
         source_db.CompactRange(start, key);
     }
@@ -462,6 +476,16 @@ static bool FinalizeMigration(CDBWrapper& target_db, const uint256& best_block_h
     return true;
 }
 
+// Returns true if the target index database has no best-block locator yet —
+// i.e. the new async index has never been finalized on this datadir. Used to
+// guard FinalizeMigration so we don't regress an already-advanced locator
+// (e.g. left by ThreadSync after a previous successful migration).
+static bool TargetNeedsLocator(CDBWrapper& target_db)
+{
+    CBlockLocator existing;
+    return !target_db.Read(DB_BEST_BLOCK, existing) || existing.IsNull();
+}
+
 bool CBlockTreeDB::MigrateOldIndexData()
 {
     // Migrate old synchronous index data that was stored in the block index database
@@ -482,6 +506,19 @@ bool CBlockTreeDB::MigrateOldIndexData()
 
     LogPrintf("Checking for old index data in block index database...\n");
 
+    // The legacy synchronous index code persisted a flag in the block index DB whenever
+    // the user changed -addressindex/-spentindex/-timestampindex, and refused to start
+    // with a re-enabled index unless the user reindexed. That re-enable check is gone now,
+    // so we use these flags to detect stale on-disk data: if the flag is missing or false,
+    // the legacy entries don't cover the suffix of the chain that ran with the index
+    // disabled, and copying them while stamping the chainstate tip as the locator would
+    // mark an incomplete index as fully synced. In that case we discard the source entries
+    // instead and let the new async index resync from genesis.
+    bool legacy_flag = false;
+    const bool addressindex_was_current   = ReadFlag("addressindex",   legacy_flag) && legacy_flag;
+    const bool spentindex_was_current     = ReadFlag("spentindex",     legacy_flag) && legacy_flag;
+    const bool timestampindex_was_current = ReadFlag("timestampindex", legacy_flag) && legacy_flag;
+
     size_t batch_size = (size_t)gArgs.GetIntArg("-dbbatchsize", nDefaultDbBatchSize);
     size_t total_count = 0;
     const fs::path indexes_path = gArgs.GetDataDirNet() / "indexes";
@@ -501,19 +538,36 @@ bool CBlockTreeDB::MigrateOldIndexData()
         }
     }
 
+    // Returns true if migration of this index step succeeded (count >= 0); on
+    // shutdown (-2) and error (-1) returns false, leaving the caller to bail
+    // without finalizing — the source DB still has the un-processed remainder
+    // so the next start can resume.
+    auto handle_count = [](int64_t count, const char* index_name, const char* func_name,
+                           bool was_current, size_t& total) -> bool {
+        if (count < 0) return error("%s: Failed to migrate %s", func_name, index_name);
+        if (count > 0) {
+            LogPrintf("%s %d %s entries\n",
+                      was_current ? "Migrated" : "Discarded stale", count, index_name);
+            total += count;
+        }
+        return true;
+    };
+
     // Migrate timestamp index (only if enabled)
     if (fTimestampIndex) {
         const fs::path db_path = indexes_path / "timestampindex";
         CDBWrapper timestamp_db(db_path, 0, false, false);
 
+        // Pass nullptr to discard rather than copy if legacy data is stale.
+        CDBWrapper* target = timestampindex_was_current ? &timestamp_db : nullptr;
         int64_t count = MigrateIndex<DB_TIMESTAMPINDEX, CTimestampIndexKey, bool>(
-            *this, timestamp_db, "timestamp index", batch_size);
-        if (count < 0) {
-            return error("%s: Failed to migrate timestamp index", __func__);
+            *this, target, "timestamp index", batch_size);
+        if (!handle_count(count, "timestamp index", __func__, timestampindex_was_current, total_count)) {
+            return false;
         }
-        if (count > 0) {
-            LogPrintf("Migrated %d timestamp index entries\n", count);
-            total_count += count;
+        // Finalize even when count==0 to recover from a previous run that crashed
+        // after writing target data but before writing the locator.
+        if (timestampindex_was_current && TargetNeedsLocator(timestamp_db)) {
             if (!FinalizeMigration(timestamp_db, best_block_hash, "timestamp index")) {
                 return false;
             }
@@ -525,14 +579,13 @@ bool CBlockTreeDB::MigrateOldIndexData()
         const fs::path db_path = indexes_path / "spentindex";
         CDBWrapper spent_db(db_path, 0, false, false);
 
+        CDBWrapper* target = spentindex_was_current ? &spent_db : nullptr;
         int64_t count = MigrateIndex<DB_SPENTINDEX, CSpentIndexKey, CSpentIndexValue>(
-            *this, spent_db, "spent index", batch_size);
-        if (count < 0) {
-            return error("%s: Failed to migrate spent index", __func__);
+            *this, target, "spent index", batch_size);
+        if (!handle_count(count, "spent index", __func__, spentindex_was_current, total_count)) {
+            return false;
         }
-        if (count > 0) {
-            LogPrintf("Migrated %d spent index entries\n", count);
-            total_count += count;
+        if (spentindex_was_current && TargetNeedsLocator(spent_db)) {
             if (!FinalizeMigration(spent_db, best_block_hash, "spent index")) {
                 return false;
             }
@@ -544,30 +597,23 @@ bool CBlockTreeDB::MigrateOldIndexData()
         const fs::path db_path = indexes_path / "addressindex";
         CDBWrapper address_db(db_path, 0, false, false);
 
+        CDBWrapper* target = addressindex_was_current ? &address_db : nullptr;
+
         // Migrate address index (transaction history)
         int64_t address_count = MigrateIndex<DB_ADDRESSINDEX, CAddressIndexKey, CAmount>(
-            *this, address_db, "address index", batch_size);
-        if (address_count < 0) {
-            return error("%s: Failed to migrate address index", __func__);
-        }
-        if (address_count > 0) {
-            LogPrintf("Migrated %d address index entries\n", address_count);
-            total_count += address_count;
+            *this, target, "address index", batch_size);
+        if (!handle_count(address_count, "address index", __func__, addressindex_was_current, total_count)) {
+            return false;
         }
 
         // Migrate address unspent index
         int64_t unspent_count = MigrateIndex<DB_ADDRESSUNSPENTINDEX, CAddressUnspentKey, CAddressUnspentValue>(
-            *this, address_db, "address unspent index", batch_size);
-        if (unspent_count < 0) {
-            return error("%s: Failed to migrate address unspent index", __func__);
-        }
-        if (unspent_count > 0) {
-            LogPrintf("Migrated %d address unspent index entries\n", unspent_count);
-            total_count += unspent_count;
+            *this, target, "address unspent index", batch_size);
+        if (!handle_count(unspent_count, "address unspent index", __func__, addressindex_was_current, total_count)) {
+            return false;
         }
 
-        // Write best block locator if we migrated any address index data
-        if (address_count > 0 || unspent_count > 0) {
+        if (addressindex_was_current && TargetNeedsLocator(address_db)) {
             if (!FinalizeMigration(address_db, best_block_hash, "address and address unspent indexes")) {
                 return false;
             }
@@ -577,7 +623,7 @@ bool CBlockTreeDB::MigrateOldIndexData()
     if (total_count > 0) {
         LogPrintf("Compacting remaining block index database...\n");
         CompactFull();
-        LogPrintf("Successfully migrated %d index entries to new databases\n", total_count);
+        LogPrintf("Successfully processed %d legacy index entries\n", total_count);
     } else {
         LogPrintf("No old index data found\n");
     }
