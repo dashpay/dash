@@ -26,7 +26,8 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
     if (peer.IsInboundConn()) {
         const CService expected_service{mn_activeman.GetService()};
         const CService connected_service{static_cast<const CService&>(peer.addrBind)};
-        if (expected_service != connected_service) {
+        if (expected_service.GetPort() != connected_service.GetPort() ||
+            expected_service.GetNetwork() != peer.ConnectedThroughNetwork()) {
             LogPrint(BCLog::NET_NETCONN, /* Continued */
                      "CMNAuth::%s -- Not sending MNAUTH on unexpected local service, expected=%s, connected=%s, "
                      "peer=%d\n",

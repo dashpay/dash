@@ -355,6 +355,8 @@ BASE_SCRIPTS = [
     'rpc_masternode.py',
     'p2p_mnauth.py --v1transport',
     'p2p_mnauth.py --v2transport',
+    'p2p_mnauth_onion.py --v1transport',
+    'p2p_mnauth_onion.py --v2transport',
     'rpc_mnauth.py',
     'rpc_verifychainlock.py',
     'wallet_create_tx.py --legacy-wallet',

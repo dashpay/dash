@@ -7,6 +7,8 @@
 Test MNAUTH emission on the registered masternode service only.
 """
 
+import platform
+
 from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
@@ -22,13 +24,24 @@ class P2PMNAUTHTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
+        # Disable the framework's implicit `bind=127.0.0.1` so all binds for the
+        # masternode are visible in this file rather than coming from the conf.
+        self.bind_to_localhost_only = False
         self.alt_port = p2p_port(10)
         self.mn_port = p2p_port(2)
-        self.set_dash_test_params(3, 1, extra_args=[
-            [],
-            [],
-            [f"-bind=127.0.0.1:{self.alt_port}", f"-externalip=127.0.0.1:{self.mn_port}"],
-        ])
+        # NAT-style variant requires a non-127.0.0.1 loopback bind; only Linux
+        # routes 127.0.0.0/8 to lo by default.
+        self.nat_capable = platform.system() == "Linux"
+
+        mn_args = [
+            f"-bind=127.0.0.1:{self.mn_port}",
+            f"-bind=127.0.0.1:{self.alt_port}",
+            f"-externalip=127.0.0.1:{self.mn_port}",
+        ]
+        if self.nat_capable:
+            mn_args.append(f"-bind=127.0.0.2:{self.mn_port}")
+
+        self.set_dash_test_params(3, 1, extra_args=[[], [], mn_args])
 
     def run_test(self):
         masternode: MasternodeInfo = self.mninfo[0]
@@ -50,6 +63,12 @@ class P2PMNAUTHTest(DashTestFramework):
         with masternode_node.assert_debug_log(["Not sending MNAUTH on unexpected local service"]):
             with connector.assert_debug_log(["connection is a masternode probe but first received message is not MNAUTH"]):
                 assert_equal(connector.masternode("connect", alternate_addr, use_v2transport), "successfully connected")
+
+        if self.nat_capable:
+            nat_addr = f"127.0.0.2:{self.mn_port}"
+            self.log.info(f"Connect to a different loopback IP on the registered port over {'v2' if use_v2transport else 'v1'} (NAT-style: addrBind address differs from advertised externalip, ports match) and expect MNAUTH")
+            with connector.assert_debug_log([f"Masternode probe successful for {masternode.proTxHash}"]):
+                assert_equal(connector.masternode("connect", nat_addr, use_v2transport), "successfully connected")
 
 
 if __name__ == '__main__':
