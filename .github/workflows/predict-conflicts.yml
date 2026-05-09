@@ -35,7 +35,7 @@ jobs:
         continue-on-error: true
       - name: Post conflict comment
         if: steps.validate_conflicts.outputs.has_conflicts == 'true'
-        uses: mshick/add-pr-comment@v2
+        uses: mshick/add-pr-comment@v3
         with:
           message-id: conflict-prediction
           message: |
@@ -48,7 +48,7 @@ jobs:
             Please coordinate with the authors of these PRs to avoid merge conflicts.
       - name: Remove conflict comment if no conflicts
         if: steps.validate_conflicts.outputs.has_conflicts == 'false'
-        uses: mshick/add-pr-comment@v2
+        uses: mshick/add-pr-comment@v3
         with:
           message-id: conflict-prediction
           message: |
