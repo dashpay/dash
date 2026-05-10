@@ -6,6 +6,7 @@
 
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
+#include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionhandler.h>
 #include <llmq/dkgsessionmgr.h>

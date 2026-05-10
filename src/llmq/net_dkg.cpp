@@ -9,6 +9,7 @@
 #include <evo/deterministicmns.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
+#include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionmgr.h>

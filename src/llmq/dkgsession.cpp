@@ -5,6 +5,7 @@
 #include <llmq/dkgsession.h>
 
 #include <batchedlogger.h>
+#include <bls/bls_worker.h>
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
 #include <llmq/debug.h>
@@ -66,6 +67,11 @@ CDKGMember::CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx) :
     idx(_idx),
     id(_dmn->proTxHash)
 {
+}
+
+uint256 CDKGPrematureCommitment::GetSignHash() const
+{
+    return BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
 }
 
 CDKGSession::CDKGSession(CBLSWorker& _blsWorker, CDeterministicMNManager& dmnman, CDKGDebugManager& _dkgDebugManager,
@@ -617,6 +623,10 @@ CDKGMember* CDKGSession::GetMemberAtIndex(size_t index) const
     if (index >= members.size()) return nullptr;
     return members[index].get();
 }
+
+std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments() { return {}; }
+
+CFinalCommitment CDKGSession::FinalizeSingleCommitment() { return {}; }
 
 bool CDKGSession::GetContribution(const uint256& hash, CDKGContribution& ret) const
 {
