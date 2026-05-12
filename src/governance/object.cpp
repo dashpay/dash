@@ -12,11 +12,11 @@
 #include <masternode/sync.h>
 
 #include <chainparams.h>
-#include <core_io.h>
 #include <index/txindex.h>
 #include <logging.h>
 #include <node/interface_ui.h>
 #include <timedata.h>
+#include <util/strencodings.h>
 #include <util/time.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -491,12 +491,12 @@ bool CGovernanceObject::IsCollateralValid(const ChainstateManager& chainman, std
     CAmount nMinFee = GetMinCollateralFee();
 
     LogPrint(BCLog::GOBJECT, "CGovernanceObject::IsCollateralValid -- txCollateral->vout.size() = %s, findScript = %s, nMinFee = %lld\n",
-                txCollateral->vout.size(), ScriptToAsmStr(findScript, false), nMinFee);
+                txCollateral->vout.size(), HexStr(findScript), nMinFee);
 
     bool foundOpReturn = false;
     for (const auto& output : txCollateral->vout) {
         LogPrint(BCLog::GOBJECT, "CGovernanceObject::IsCollateralValid -- txout = %s, output.nValue = %lld, output.scriptPubKey = %s\n",
-                    output.ToString(), output.nValue, ScriptToAsmStr(output.scriptPubKey, false));
+                    output.ToString(), output.nValue, HexStr(output.scriptPubKey));
         if (!output.scriptPubKey.IsPayToPublicKeyHash() && !output.scriptPubKey.IsUnspendable()) {
             strError = strprintf("Invalid Script %s", txCollateral->ToString());
             LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);

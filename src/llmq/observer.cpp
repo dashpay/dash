@@ -6,6 +6,7 @@
 
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/dkgsessionhandler.h>
 
 #include <chain.h>
 #include <validation.h>

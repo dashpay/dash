@@ -23,7 +23,6 @@ class CGovernanceException;
 class CGovernanceVote;
 class ChainstateManager;
 class CMasternodeSync;
-class CNode;
 enum vote_outcome_enum_t : int;
 
 class GovernanceSignerParent
@@ -42,7 +41,7 @@ public:
     virtual std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const = 0;
     virtual std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(
         const CDeterministicMNList& tip_mn_list) = 0;
-    virtual void AddGovernanceObject(CGovernanceObject& govobj, const CNode* pfrom = nullptr) = 0;
+    virtual void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str) = 0;
 };
 
 class GovernanceSigner

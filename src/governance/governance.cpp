@@ -181,7 +181,7 @@ void CGovernanceManager::AddPostponedObjectInternal(const CGovernanceObject& gov
     mapPostponedObjects.emplace(govobj.GetHash(), std::make_shared<CGovernanceObject>(govobj));
 }
 
-bool CGovernanceManager::ProcessObject(const CNode& peer, const uint256& nHash, CGovernanceObject& govobj)
+bool CGovernanceManager::ProcessObject(const std::string& peer_str, const uint256& nHash, CGovernanceObject& govobj)
 {
     std::string strHash = nHash.ToString();
 
@@ -227,7 +227,7 @@ bool CGovernanceManager::ProcessObject(const CNode& peer, const uint256& nHash, 
         }
     }
 
-    AddGovernanceObjectInternal(govobj, &peer);
+    AddGovernanceObjectInternal(govobj, peer_str);
     return true;
 }
 
@@ -260,7 +260,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
     }
 }
 
-void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_obj, const CNode* pfrom)
+void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_obj, const std::string& peer_str)
 {
     AssertLockHeld(::cs_main);
     AssertLockHeld(cs_store);
@@ -308,7 +308,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
         return;
     }
 
-    LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- %s new, received from peer %s\n", strHash, pfrom ? pfrom->GetLogString() : "nullptr");
+    LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- %s new, received from peer %s\n", strHash, peer_str);
     RelayObject(*govobj);
 
     // Update the rate buffer
@@ -325,10 +325,10 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
     uiInterface.NotifyGovernanceChanged();
 }
 
-void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, const CNode* pfrom)
+void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str)
 {
     LOCK2(::cs_main, cs_store);
-    AddGovernanceObjectInternal(govobj, pfrom);
+    AddGovernanceObjectInternal(govobj, peer_str);
 }
 
 void CGovernanceManager::CheckAndRemove()
@@ -752,14 +752,14 @@ bool CGovernanceManager::ProcessVoteAndRelay(const CGovernanceVote& vote, CGover
     AssertLockNotHeld(cs_store);
     AssertLockNotHeld(cs_relay);
     uint256 hashToRequest; // Ignored for local votes (no peer to request from)
-    bool fOK = ProcessVote(/*pfrom=*/nullptr, vote, exception, hashToRequest);
+    bool fOK = ProcessVote(vote, exception, hashToRequest);
     if (fOK) {
         RelayVote(vote);
     }
     return fOK;
 }
 
-bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, CGovernanceException& exception,
+bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception,
                                      uint256& hashToRequest)
 {
     AssertLockNotHeld(cs_store);
@@ -831,7 +831,7 @@ void CGovernanceManager::CheckPostponedObjects()
         bool fMissingConfirmations;
         if (govobj.IsCollateralValid(m_chainman, strError, fMissingConfirmations)) {
             if (govobj.IsValidLocally(Assert(m_dmnman)->GetListAtChainTip(), m_chainman, strError, false)) {
-                AddGovernanceObjectInternal(govobj);
+                AddGovernanceObjectInternal(govobj, "<postponed>");
             } else {
                 LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());
             }

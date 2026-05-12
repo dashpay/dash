@@ -5,6 +5,7 @@
 #include <active/context.h>
 #include <active/masternode.h>
 #include <chainlock/chainlock.h>
+#include <chainlock/clsig.h>
 #include <chainlock/handler.h>
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>

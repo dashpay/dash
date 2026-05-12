@@ -4,11 +4,8 @@
 
 #include <evo/dmnstate.h>
 
-#include <script/standard.h>
-
 #include <evo/netinfo.h>
-#include <rpc/evo_util.h>
-
+#include <script/standard.h>
 #include <univalue.h>
 
 std::string CDeterministicMNState::ToString() const

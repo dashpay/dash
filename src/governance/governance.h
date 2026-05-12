@@ -321,7 +321,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    void AddGovernanceObject(CGovernanceObject& govobj, const CNode* pfrom = nullptr) override
+    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
 
     // Superblocks
@@ -375,13 +375,13 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     /// Called to indicate a requested object or vote has been received
     bool AcceptMessage(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool ProcessObject(const CNode& peer, const uint256& hash, CGovernanceObject& govobj)
+    bool ProcessObject(const std::string& peer_str, const uint256& hash, CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_store, !cs_relay);
 
     CDeterministicMNManager& GetMNManager();
     /** Process a governance vote. Returns true on success.
      *  If the vote is for an unknown object (orphan), hashToRequest is set to the object hash. */
-    bool ProcessVote(CNode* pfrom, const CGovernanceVote& vote, CGovernanceException& exception, uint256& hashToRequest)
+    bool ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception, uint256& hashToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
 
@@ -401,7 +401,7 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     // Internal counterpart to "Signer interface"
-    void AddGovernanceObjectInternal(CGovernanceObject& govobj, const CNode* pfrom = nullptr)
+    void AddGovernanceObjectInternal(CGovernanceObject& govobj, const std::string& peer_str)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, cs_store, !cs_relay);
 
     // ...
