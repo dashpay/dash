@@ -69,6 +69,7 @@ from test_framework.messages import (
     msg_pong,
     msg_qdata,
     msg_qgetdata,
+    msg_qsendrecsigs,
     msg_sendaddrv2,
     msg_sendcmpct,
     msg_sendheaders,
@@ -177,7 +178,7 @@ MESSAGEMAP = {
     b"qjustify": None,
     b"qpcommit": None,
     b"qrinfo": None,
-    b"qsendrecsigs": None,
+    b"qsendrecsigs": msg_qsendrecsigs,
     b"qsigrec": None,
     b"qsigsesann": None,
     b"qsigshare": None,
@@ -621,6 +622,7 @@ class P2PInterface(P2PConnection):
     def on_platformban(self, message): pass
     def on_qgetdata(self, message): pass
     def on_qdata(self, message): pass
+    def on_qsendrecsigs(self, message): pass
     def on_qwatch(self, message): pass
 
     def on_verack(self, message): pass

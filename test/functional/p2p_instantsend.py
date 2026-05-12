@@ -3,6 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+from test_framework.messages import msg_qsendrecsigs
+from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
 
@@ -11,6 +13,24 @@ p2p_instantsend.py
 
 Tests InstantSend functionality (prevent doublespend for unconfirmed transactions)
 '''
+
+class RecSigsObserver(P2PInterface):
+    """Non-MN peer that opts in to recsigs and records every ISDLOCK inv it sees."""
+
+    def __init__(self):
+        super().__init__()
+        self.isdlock_inv_seen = False
+
+    def send_qsendrecsigs(self, wants_recsigs=True):
+        self.send_message(msg_qsendrecsigs(wants_recsigs))
+
+    def on_inv(self, message):
+        for inv in message.inv:
+            # MSG_ISDLOCK inv type, see src/protocol.h
+            if inv.type == 31:
+                self.isdlock_inv_seen = True
+        super().on_inv(message)
+
 
 class InstantSendTest(DashTestFramework):
     def add_options(self, parser):
@@ -36,6 +56,7 @@ class InstantSendTest(DashTestFramework):
 
         self.test_mempool_doublespend()
         self.test_block_doublespend()
+        self.test_isdlock_relayed_to_recsigs_observer()
         self.test_instantsend_after_restart()
 
     def test_block_doublespend(self):
@@ -130,6 +151,25 @@ class InstantSendTest(DashTestFramework):
         assert_equal(receiver.getwalletinfo()["balance"], 0)
         # mine more blocks
         self.generate(self.nodes[0], 2)
+
+    def test_isdlock_relayed_to_recsigs_observer(self):
+        self.log.info("Non-MN peer started with -watchquorums must still get ISDLOCK invs")
+        observers = []
+        for mn in self.mninfo:
+            node = mn.get_node(self)
+            obs = node.add_p2p_connection(RecSigsObserver())
+            obs.send_qsendrecsigs(True)
+            obs.sync_with_ping()
+            observers.append((node, obs))
+
+        txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
+        self.wait_for_instantlock(txid)
+
+        for _, obs in observers:
+            obs.wait_until(lambda obs=obs: obs.isdlock_inv_seen, timeout=10)
+
+        for node, _ in observers:
+            node.disconnect_p2ps()
 
     def test_instantsend_after_restart(self):
         self.log.info("Testing InstantSend works after full restart without new blocks")
