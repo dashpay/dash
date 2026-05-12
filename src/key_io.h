@@ -28,4 +28,35 @@ CTxDestination DecodeDestination(const std::string& str, std::string& error_msg)
 bool IsValidDestinationString(const std::string& str);
 bool IsValidDestinationString(const std::string& str, const CChainParams& params);
 
+/**
+ * DIP-18 Dash Platform addresses (bech32m).
+ *
+ * Platform addresses decode to a 20-byte HASH160 prefixed by a type byte:
+ *   0xb0 -> Platform P2PKH (addresses of the form dash1k... / tdash1k...)
+ *   0x80 -> Platform P2SH  (addresses of the form dash1s... / tdash1s...)
+ *
+ * Unlike base58 Dash addresses, Platform destinations have no on-chain
+ * scriptPubKey: they are only valid as credit output recipients of an
+ * asset-lock special transaction (see DIP-27 and src/evo/assetlocktx.h).
+ */
+struct PlatformP2PKHDestination : public BaseHash<uint160>
+{
+    PlatformP2PKHDestination() = default;
+    explicit PlatformP2PKHDestination(const uint160& hash) : BaseHash(hash) {}
+};
+
+struct PlatformP2SHDestination : public BaseHash<uint160>
+{
+    PlatformP2SHDestination() = default;
+    explicit PlatformP2SHDestination(const uint160& hash) : BaseHash(hash) {}
+};
+
+using PlatformDestination = std::variant<CNoDestination, PlatformP2PKHDestination, PlatformP2SHDestination>;
+
+bool IsValidPlatformDestination(const PlatformDestination& dest);
+std::string EncodePlatformDestination(const PlatformDestination& dest);
+PlatformDestination DecodePlatformDestination(const std::string& str);
+PlatformDestination DecodePlatformDestination(const std::string& str, std::string& error_str);
+PlatformDestination DecodePlatformDestination(const std::string& str, const CChainParams& params, std::string& error_str);
+
 #endif // BITCOIN_KEY_IO_H

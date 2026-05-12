@@ -83,6 +83,7 @@ TEST_FRAMEWORK_MODULES = [
     "crypto.poly1305",
     "crypto.ripemd160",
     "script",
+    "segwit_addr",
 ]
 
 EXTENDED_SCRIPTS = [
