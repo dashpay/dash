@@ -166,7 +166,7 @@ public:
      *                       NextHeadersRequestLocator and send a getheaders message using it.
      */
     ProcessingResult ProcessNextHeaders(const std::vector<CBlockHeader>&
-            received_headers, bool full_headers_message);
+            received_headers, const std::vector<uint256>& hashes, bool full_headers_message);
 
     /** Issue the next GETHEADERS message to our peer.
      *
@@ -188,14 +188,14 @@ private:
      *  processed headers.
      *  On failure, this invokes Finalize() and returns false.
      */
-    bool ValidateAndStoreHeadersCommitments(const std::vector<CBlockHeader>& headers);
+    bool ValidateAndStoreHeadersCommitments(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes);
 
     /** In PRESYNC, process and update state for a single header */
-    bool ValidateAndProcessSingleHeader(const CBlockHeader& current);
+    bool ValidateAndProcessSingleHeader(const CBlockHeader& current, const uint256& hash);
 
     /** In REDOWNLOAD, check a header's commitment (if applicable) and add to
      * buffer for later processing */
-    bool ValidateAndStoreRedownloadedHeader(const CBlockHeader& header);
+    bool ValidateAndStoreRedownloadedHeader(const CBlockHeader& header, const uint256& hash);
 
     /** Return a set of headers that satisfy our proof-of-work threshold */
     std::vector<CBlockHeader> PopHeadersReadyForAcceptance();

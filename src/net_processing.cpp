@@ -771,6 +771,7 @@ private:
     */
     void ProcessHeadersMessage(CNode& pfrom, Peer& peer,
                                std::vector<CBlockHeader>&& headers,
+                               std::vector<uint256>&& hashes,
                                bool via_compact_block, bool uses_compressed)
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_headers_presync_mutex, g_msgproc_mutex);
     [[nodiscard]] MessageProcessingResult ProcessPlatformBanMessage(NodeId node, std::string_view msg_type, CDataStream& vRecv)
@@ -778,7 +779,7 @@ private:
 
     /** Various helpers for headers processing, invoked by ProcessHeadersMessage() */
     /** Return true if headers are continuous and have valid proof-of-work (DoS points assigned on failure) */
-    bool CheckHeadersPoW(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams, CNode& pfrom) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    bool CheckHeadersPoW(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, const Consensus::Params& consensusParams, CNode& pfrom) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     /** Calculate an anti-DoS work threshold for headers chains */
     arith_uint256 GetAntiDoSWorkThreshold();
     /** Deal with state tracking and headers sync for peers that send the
@@ -787,7 +788,7 @@ private:
     void HandleFewUnconnectingHeaders(CNode& pfrom, Peer& peer, const std::vector<CBlockHeader>& headers)
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, g_msgproc_mutex);
     /** Return true if the headers connect to each other, false otherwise */
-    bool CheckHeadersAreContinuous(const std::vector<CBlockHeader>& headers) const;
+    bool CheckHeadersAreContinuous(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes) const;
     /** Try to continue a low-work headers sync that has already begun.
      * Assumes the caller has already verified the headers connect, and has
      * checked that each header satisfies the proof-of-work target included in
@@ -807,7 +808,7 @@ private:
      *              acceptance by the caller).
      */
     bool IsContinuationOfLowWorkHeadersSync(Peer& peer, CNode& pfrom,
-            std::vector<CBlockHeader>& headers, bool uses_compressed)
+            std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, bool uses_compressed)
         EXCLUSIVE_LOCKS_REQUIRED(peer.m_headers_sync_mutex, !m_headers_presync_mutex, g_msgproc_mutex);
     /** Check work on a headers chain to be processed, and if insufficient,
      * initiate our anti-DoS headers sync mechanism.
@@ -822,7 +823,7 @@ private:
      */
     bool TryLowWorkHeadersSync(Peer& peer, CNode& pfrom,
                                   const CBlockIndex* chain_start_header,
-                                  std::vector<CBlockHeader>& headers, bool uses_compressed)
+                                  std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, bool uses_compressed)
         EXCLUSIVE_LOCKS_REQUIRED(!peer.m_headers_sync_mutex, !m_peer_mutex, !m_headers_presync_mutex, g_msgproc_mutex);
 
     /** Return true if the given header is an ancestor of
@@ -3162,16 +3163,16 @@ void PeerManagerImpl::SendBlockTransactions(CNode& pfrom, const CBlock& block, c
     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::BLOCKTXN, resp));
 }
 
-bool PeerManagerImpl::CheckHeadersPoW(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams, CNode& pfrom)
+bool PeerManagerImpl::CheckHeadersPoW(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, const Consensus::Params& consensusParams, CNode& pfrom)
 {
     // Do these headers have proof-of-work matching what's claimed?
-    if (!HasValidProofOfWork(headers, consensusParams)) {
+    if (!HasValidProofOfWork(headers, hashes, consensusParams)) {
         Misbehaving(pfrom.GetId(), 100, "header with invalid proof of work");
         return false;
     }
 
     // Are these headers connected to each other?
-    if (!CheckHeadersAreContinuous(headers)) {
+    if (!CheckHeadersAreContinuous(headers, hashes)) {
         Misbehaving(pfrom.GetId(), 20, "non-continuous headers sequence");
         return false;
     }
@@ -3232,22 +3233,21 @@ void PeerManagerImpl::HandleFewUnconnectingHeaders(CNode& pfrom, Peer& peer,
     }
 }
 
-bool PeerManagerImpl::CheckHeadersAreContinuous(const std::vector<CBlockHeader>& headers) const
+bool PeerManagerImpl::CheckHeadersAreContinuous(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes) const
 {
-    uint256 hashLastBlock;
-    for (const CBlockHeader& header : headers) {
-        if (!hashLastBlock.IsNull() && header.hashPrevBlock != hashLastBlock) {
+    assert(headers.size() == hashes.size());
+    for (size_t i = 1; i < headers.size(); ++i) {
+        if (headers[i].hashPrevBlock != hashes[i - 1]) {
             return false;
         }
-        hashLastBlock = header.GetHash();
     }
     return true;
 }
 
-bool PeerManagerImpl::IsContinuationOfLowWorkHeadersSync(Peer& peer, CNode& pfrom, std::vector<CBlockHeader>& headers, bool uses_compressed)
+bool PeerManagerImpl::IsContinuationOfLowWorkHeadersSync(Peer& peer, CNode& pfrom, std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, bool uses_compressed)
 {
     if (peer.m_headers_sync) {
-        auto result = peer.m_headers_sync->ProcessNextHeaders(headers, headers.size() == GetHeadersLimit(pfrom, uses_compressed));
+        auto result = peer.m_headers_sync->ProcessNextHeaders(headers, hashes, headers.size() == GetHeadersLimit(pfrom, uses_compressed));
         if (result.request_more) {
             auto locator = peer.m_headers_sync->NextHeadersRequestLocator();
             // If we were instructed to ask for a locator, it should not be empty.
@@ -3331,7 +3331,7 @@ bool PeerManagerImpl::IsContinuationOfLowWorkHeadersSync(Peer& peer, CNode& pfro
     return false;
 }
 
-bool PeerManagerImpl::TryLowWorkHeadersSync(Peer& peer, CNode& pfrom, const CBlockIndex* chain_start_header, std::vector<CBlockHeader>& headers, bool uses_compressed)
+bool PeerManagerImpl::TryLowWorkHeadersSync(Peer& peer, CNode& pfrom, const CBlockIndex* chain_start_header, std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, bool uses_compressed)
 {
     // Calculate the total work on this chain.
     arith_uint256 total_work = chain_start_header->nChainWork + CalculateHeadersWork(headers);
@@ -3363,7 +3363,7 @@ bool PeerManagerImpl::TryLowWorkHeadersSync(Peer& peer, CNode& pfrom, const CBlo
             // Now a HeadersSyncState object for tracking this synchronization
             // is created, process the headers using it as normal. Failures are
             // handled inside of IsContinuationOfLowWorkHeadersSync.
-            (void)IsContinuationOfLowWorkHeadersSync(peer, pfrom, headers, uses_compressed);
+            (void)IsContinuationOfLowWorkHeadersSync(peer, pfrom, headers, hashes, uses_compressed);
         } else {
             LogPrint(BCLog::NET, "Ignoring low-work chain (height=%u) from peer=%d\n", chain_start_header->nHeight + headers.size(), pfrom.GetId());
         }
@@ -3534,8 +3534,10 @@ void PeerManagerImpl::UpdatePeerStateForReceivedHeaders(CNode& pfrom,
 
 void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
                                             std::vector<CBlockHeader>&& headers,
+                                            std::vector<uint256>&& hashes,
                                             bool via_compact_block, bool uses_compressed)
 {
+    Assume(headers.size() == hashes.size());
     size_t nCount = headers.size();
 
     if (nCount == 0) {
@@ -3556,7 +3558,7 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
     // We'll rely on headers having valid proof-of-work further down, as an
     // anti-DoS criteria (note: this check is required before passing any
     // headers into HeadersSyncState).
-    if (!CheckHeadersPoW(headers, m_chainparams.GetConsensus(), pfrom)) {
+    if (!CheckHeadersPoW(headers, hashes, m_chainparams.GetConsensus(), pfrom)) {
         // Misbehaving() calls are handled within CheckHeadersPoW(), so we can
         // just return. (Note that even if a header is announced via compact
         // block, the header itself should be valid, so this type of error can
@@ -3578,7 +3580,7 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
     {
         LOCK(peer.m_headers_sync_mutex);
 
-        already_validated_work = IsContinuationOfLowWorkHeadersSync(peer, pfrom, headers, uses_compressed);
+        already_validated_work = IsContinuationOfLowWorkHeadersSync(peer, pfrom, headers, hashes, uses_compressed);
 
         // The headers we passed in may have been:
         // - untouched, perhaps if no headers-sync was in progress, or some
@@ -3620,7 +3622,7 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
     const CBlockIndex *last_received_header{nullptr};
     {
         LOCK(cs_main);
-        last_received_header = m_chainman.m_blockman.LookupBlockIndex(headers.back().GetHash());
+        last_received_header = m_chainman.m_blockman.LookupBlockIndex(hashes.back());
         if (IsAncestorOfBestHeaderOrTip(last_received_header)) {
             already_validated_work = true;
         }
@@ -3637,7 +3639,7 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
     // Do anti-DoS checks to determine if we should process or store for later
     // processing.
     if (!already_validated_work && TryLowWorkHeadersSync(peer, pfrom,
-                chain_start_header, headers, uses_compressed)) {
+                chain_start_header, headers, hashes, uses_compressed)) {
         // If we successfully started a low-work headers sync, then there
         // should be no headers to process any further.
         Assume(headers.empty());
@@ -5330,7 +5332,7 @@ void PeerManagerImpl::ProcessMessage(
             // the peer if the header turns out to be for an invalid block.
             // Note that if a peer tries to build on an invalid chain, that
             // will be detected and the peer will be disconnected/discouraged.
-            return ProcessHeadersMessage(pfrom, *peer, {cmpctblock.header}, /*via_compact_block=*/true, UsesCompressedHeaders(*peer));
+            return ProcessHeadersMessage(pfrom, *peer, {cmpctblock.header}, {cmpctblock.header.GetHash()}, /*via_compact_block=*/true, UsesCompressedHeaders(*peer));
         }
 
         if (fBlockReconstructed) {
@@ -5473,7 +5475,14 @@ void PeerManagerImpl::ProcessMessage(
             }
         }
 
-        ProcessHeadersMessage(pfrom, *peer, std::move(headers), /*via_compact_block=*/false, msg_type == NetMsgType::HEADERS2);
+        // Pre-compute each header's hash once so downstream PRESYNC/REDOWNLOAD/
+        // CheckHeadersPoW/CheckHeadersAreContinuous reuse it instead of
+        // recomputing X11 multiple times per header.
+        std::vector<uint256> hashes;
+        hashes.reserve(headers.size());
+        for (const CBlockHeader& h : headers) hashes.push_back(h.GetHash());
+
+        ProcessHeadersMessage(pfrom, *peer, std::move(headers), std::move(hashes), /*via_compact_block=*/false, msg_type == NetMsgType::HEADERS2);
 
         // Check if the headers presync progress needs to be reported to validation.
         // This needs to be done without holding the m_headers_presync_mutex lock.

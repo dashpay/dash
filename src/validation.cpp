@@ -3878,10 +3878,13 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     return true;
 }
 
-bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
+bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes, const Consensus::Params& consensusParams)
 {
-    return std::all_of(headers.cbegin(), headers.cend(),
-            [&](const auto& header) { return CheckProofOfWork(header.GetHash(), header.nBits, consensusParams);});
+    assert(headers.size() == hashes.size());
+    for (size_t i = 0; i < headers.size(); ++i) {
+        if (!CheckProofOfWork(hashes[i], headers[i].nBits, consensusParams)) return false;
+    }
+    return true;
 }
 
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)
