@@ -8,11 +8,11 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write # mshick/add-pr-comment updates PR conversation comments via the Issues API
   # Enforce other not needed permissions are off
   actions: none
   checks: none
   deployments: none
-  issues: none
   packages: none
   repository-projects: none
   security-events: none
@@ -35,7 +35,8 @@ jobs:
         continue-on-error: true
       - name: Post conflict comment
         if: steps.validate_conflicts.outputs.has_conflicts == 'true'
-        uses: mshick/add-pr-comment@v2
+        continue-on-error: true
+        uses: mshick/add-pr-comment@v3
         with:
           message-id: conflict-prediction
           message: |
@@ -48,7 +49,8 @@ jobs:
             Please coordinate with the authors of these PRs to avoid merge conflicts.
       - name: Remove conflict comment if no conflicts
         if: steps.validate_conflicts.outputs.has_conflicts == 'false'
-        uses: mshick/add-pr-comment@v2
+        continue-on-error: true
+        uses: mshick/add-pr-comment@v3
         with:
           message-id: conflict-prediction
           message: |
