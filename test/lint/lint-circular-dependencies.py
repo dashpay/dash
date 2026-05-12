@@ -47,11 +47,11 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "masternode/payments -> validation -> masternode/payments",
     "net -> netmessagemaker -> net",
     "netaddress -> netbase -> netaddress",
-    "qt/appearancewidget -> qt/guiutil -> qt/appearancewidget",
     "qt/bitcoinaddressvalidator -> qt/guiutil -> qt/bitcoinaddressvalidator",
     "qt/bitcoingui -> qt/guiutil -> qt/bitcoingui",
     "qt/clientfeeds -> qt/clientmodel -> qt/clientfeeds",
     "qt/guiutil -> qt/qvalidatedlineedit -> qt/guiutil",
+    "qt/guiutil -> qt/guiutil_font -> qt/guiutil",
     "wallet/coinjoin -> wallet/receive -> wallet/coinjoin",
 )
 

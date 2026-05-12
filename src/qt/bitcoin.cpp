@@ -18,6 +18,7 @@
 #include <net.h>
 #include <node/interface_ui.h>
 #include <noui.h>
+#include <qt/appearancewidget.h>
 #include <qt/bitcoingui.h>
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
@@ -439,7 +440,7 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
         Q_EMIT windowShown(window);
 
         // Let the users setup their preferred appearance if there are no settings for it defined yet.
-        GUIUtil::setupAppearance(window, clientModel->getOptionsModel());
+        AppearanceWidget::setupAppearance(window, clientModel->getOptionsModel());
 
 #ifdef ENABLE_WALLET
         // Now that initialization/startup is done, process any command-line

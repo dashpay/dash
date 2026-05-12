@@ -9,14 +9,18 @@
 #include <qt/forms/ui_appearancewidget.h>
 
 #include <qt/appearancewidget.h>
+#include <qt/guiutil.h>
+#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 
 #include <util/system.h>
 
 #include <QComboBox>
 #include <QDataWidgetMapper>
+#include <QDialogButtonBox>
 #include <QFontDialog>
 #include <QFontInfo>
+#include <QLabel>
 #include <QSettings>
 #include <QSlider>
 
@@ -297,5 +301,47 @@ void AppearanceWidget::updateWeightSlider(const bool fForce)
         assert(nIndexNormal != -1 && nIndexBold != -1);
         updateFontWeightNormal(nIndexNormal, true);
         updateFontWeightBold(nIndexBold, true);
+    }
+}
+
+void AppearanceWidget::setupAppearance(QWidget* parent, OptionsModel* model)
+{
+    if (!QSettings().value("fAppearanceSetupDone", false).toBool()) {
+        // Create the dialog
+        QDialog dlg(parent);
+        dlg.setObjectName("AppearanceSetup");
+        dlg.setWindowTitle(QObject::tr("Appearance Setup"));
+        dlg.setWindowIcon(QIcon(":icons/dash"));
+        // And the widgets we add to it
+        QLabel lblHeading(QObject::tr("Please choose your preferred settings for the appearance of %1").arg(PACKAGE_NAME), &dlg);
+        lblHeading.setObjectName("lblHeading");
+        lblHeading.setWordWrap(true);
+        QLabel lblSubHeading(QObject::tr("This can also be adjusted later in the \"Appearance\" tab of the preferences."), &dlg);
+        lblSubHeading.setObjectName("lblSubHeading");
+        lblSubHeading.setWordWrap(true);
+        AppearanceWidget appearance(&dlg);
+        appearance.setModel(model);
+        QFrame line(&dlg);
+        line.setFrameShape(QFrame::HLine);
+        QDialogButtonBox buttonBox(QDialogButtonBox::Save);
+        // Put them into a vbox and add the vbox to the dialog
+        QVBoxLayout layout;
+        layout.addWidget(&lblHeading);
+        layout.addWidget(&lblSubHeading);
+        layout.addWidget(&line);
+        layout.addWidget(&appearance);
+        layout.addWidget(&buttonBox);
+        dlg.setLayout(&layout);
+        // Adjust the headings
+        GUIUtil::setFont({&lblHeading}, {GUIUtil::FontWeight::Bold, 16});
+        GUIUtil::setFont({&lblSubHeading}, {GUIUtil::FontWeight::Normal, 14, true});
+        // Make sure the dialog closes and accepts the settings if save has been pressed
+        QObject::connect(&buttonBox, &QDialogButtonBox::accepted, [&]() {
+            QSettings().setValue("fAppearanceSetupDone", true);
+            appearance.accept();
+            dlg.accept();
+        });
+        // And fire it!
+        dlg.exec();
     }
 }

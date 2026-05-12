@@ -7,8 +7,6 @@
 
 #include <QWidget>
 
-#include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 
 namespace Ui {
@@ -56,6 +54,11 @@ private:
     OptionsModel::FontChoice prevMoneyFont{OptionsModel::FontChoiceAbstract::ApplicationFont};
 
     void updateWeightSlider(bool fForce = false);
+
+public:
+    // Setup appearance settings if not done yet
+    static void setupAppearance(QWidget* parent, OptionsModel* model);
+
 };
 
 #endif // BITCOIN_QT_APPEARANCEWIDGET_H
