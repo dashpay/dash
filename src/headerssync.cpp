@@ -66,10 +66,11 @@ void HeadersSyncState::Finalize()
  *  Validate and store commitments, and compare total chainwork to our target to
  *  see if we can switch to REDOWNLOAD mode.  */
 HeadersSyncState::ProcessingResult HeadersSyncState::ProcessNextHeaders(const
-        std::vector<CBlockHeader>& received_headers, const bool full_headers_message)
+        std::vector<CBlockHeader>& received_headers, const std::vector<uint256>& hashes, const bool full_headers_message)
 {
     ProcessingResult ret;
 
+    Assume(received_headers.size() == hashes.size());
     Assume(!received_headers.empty());
     if (received_headers.empty()) return ret;
 
@@ -80,7 +81,7 @@ HeadersSyncState::ProcessingResult HeadersSyncState::ProcessNextHeaders(const
         // During PRESYNC, we minimally validate block headers and
         // occasionally add commitments to them, until we reach our work
         // threshold (at which point m_download_state is updated to REDOWNLOAD).
-        ret.success = ValidateAndStoreHeadersCommitments(received_headers);
+        ret.success = ValidateAndStoreHeadersCommitments(received_headers, hashes);
         if (ret.success) {
             if (full_headers_message || m_download_state == State::REDOWNLOAD) {
                 // A full headers message means the peer may have more to give us;
@@ -101,8 +102,8 @@ HeadersSyncState::ProcessingResult HeadersSyncState::ProcessNextHeaders(const
         // gets big enough (meaning that we've checked enough commitments),
         // we'll return a batch of headers to the caller for processing.
         ret.success = true;
-        for (const auto& hdr : received_headers) {
-            if (!ValidateAndStoreRedownloadedHeader(hdr)) {
+        for (size_t i = 0; i < received_headers.size(); ++i) {
+            if (!ValidateAndStoreRedownloadedHeader(received_headers[i], hashes[i])) {
                 // Something went wrong -- the peer gave us an unexpected chain.
                 // We could consider looking at the reason for failure and
                 // punishing the peer, but for now just give up on sync.
@@ -136,11 +137,13 @@ HeadersSyncState::ProcessingResult HeadersSyncState::ProcessNextHeaders(const
     return ret;
 }
 
-bool HeadersSyncState::ValidateAndStoreHeadersCommitments(const std::vector<CBlockHeader>& headers)
+bool HeadersSyncState::ValidateAndStoreHeadersCommitments(const std::vector<CBlockHeader>& headers, const std::vector<uint256>& hashes)
 {
     // The caller should not give us an empty set of headers.
     Assume(headers.size() > 0);
     if (headers.size() == 0) return true;
+
+    Assume(headers.size() == hashes.size());
 
     Assume(m_download_state == State::PRESYNC);
     if (m_download_state != State::PRESYNC) return false;
@@ -156,8 +159,8 @@ bool HeadersSyncState::ValidateAndStoreHeadersCommitments(const std::vector<CBlo
 
     // If it does connect, (minimally) validate and occasionally store
     // commitments.
-    for (const auto& hdr : headers) {
-        if (!ValidateAndProcessSingleHeader(hdr)) {
+    for (size_t i = 0; i < headers.size(); ++i) {
+        if (!ValidateAndProcessSingleHeader(headers[i], hashes[i])) {
             return false;
         }
     }
@@ -174,7 +177,7 @@ bool HeadersSyncState::ValidateAndStoreHeadersCommitments(const std::vector<CBlo
     return true;
 }
 
-bool HeadersSyncState::ValidateAndProcessSingleHeader(const CBlockHeader& current)
+bool HeadersSyncState::ValidateAndProcessSingleHeader(const CBlockHeader& current, const uint256& hash)
 {
     Assume(m_download_state == State::PRESYNC);
     if (m_download_state != State::PRESYNC) return false;
@@ -194,7 +197,7 @@ bool HeadersSyncState::ValidateAndProcessSingleHeader(const CBlockHeader& curren
 
     if (next_height % HEADER_COMMITMENT_PERIOD == m_commit_offset) {
         // Add a commitment.
-        m_header_commitments.push_back(m_hasher(current.GetHash()) & 1);
+        m_header_commitments.push_back(m_hasher(hash) & 1);
         if (m_header_commitments.size() > m_max_commitments) {
             // The peer's chain is too long; give up.
             // It's possible the chain grew since we started the sync; so
@@ -212,7 +215,7 @@ bool HeadersSyncState::ValidateAndProcessSingleHeader(const CBlockHeader& curren
     return true;
 }
 
-bool HeadersSyncState::ValidateAndStoreRedownloadedHeader(const CBlockHeader& header)
+bool HeadersSyncState::ValidateAndStoreRedownloadedHeader(const CBlockHeader& header, const uint256& hash)
 {
     Assume(m_download_state == State::REDOWNLOAD);
     if (m_download_state != State::REDOWNLOAD) return false;
@@ -260,7 +263,7 @@ bool HeadersSyncState::ValidateAndStoreRedownloadedHeader(const CBlockHeader& he
             // we've run out of commitments.
             return false;
         }
-        bool commitment = m_hasher(header.GetHash()) & 1;
+        bool commitment = m_hasher(hash) & 1;
         bool expected_commitment = m_header_commitments.front();
         m_header_commitments.pop_front();
         if (commitment != expected_commitment) {
@@ -272,7 +275,7 @@ bool HeadersSyncState::ValidateAndStoreRedownloadedHeader(const CBlockHeader& he
     // Store this header for later processing.
     m_redownloaded_headers.push_back(header);
     m_redownload_buffer_last_height = next_height;
-    m_redownload_buffer_last_hash = header.GetHash();
+    m_redownload_buffer_last_hash = hash;
 
     return true;
 }
