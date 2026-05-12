@@ -305,7 +305,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                     LogPrintf("CreateNewBlock() h[%d] CbTx failed to find best CL. Inserting null CL\n", nHeight);
                 }
                 BlockValidationState state;
-                const auto creditPoolDiff = GetCreditPoolDiffForBlock(*m_chain_helper.credit_pool_manager, m_blockman, m_qman, *pblock, pindexPrev, chainparams.GetConsensus(), blockSubsidy, state);
+                const auto creditPoolDiff = GetCreditPoolDiffForBlock(*m_chain_helper.credit_pool_manager, *pblock, pindexPrev, chainparams.GetConsensus(), blockSubsidy, state);
                 if (creditPoolDiff == std::nullopt) {
                     throw std::runtime_error(strprintf("%s: GetCreditPoolDiffForBlock failed: %s", __func__, state.ToString()));
                 }
@@ -544,7 +544,20 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             // `state` is local here because used only to log info about this specific tx
             TxValidationState state;
 
-            if (!creditPoolDiff->ProcessLockUnlockTransaction(m_blockman, m_qman, iter->GetTx(), state)) {
+            if (iter->GetTx().IsSpecialTxVersion() && iter->GetTx().nType == TRANSACTION_ASSET_UNLOCK) {
+                // ASSET_UNLOCK transactions may expire after being added to mempool
+                // They should not be included to the block
+                if (!CheckAssetUnlockTx(m_blockman, m_qman, iter->GetTx(), pindexPrev, creditPoolDiff->pool.indexes, state)) {
+                    if (fUsingModified) {
+                        mapModifiedTx.get<ancestor_score>().erase(modit);
+                        failedTx.insert(iter);
+                    }
+                    LogPrintf("%s: asset unlock tx %s is skipped due %s\n",
+                              __func__, iter->GetTx().GetHash().ToString(), state.ToString());
+                    continue;
+                }
+            }
+            if (!creditPoolDiff->ProcessLockUnlockTransaction(iter->GetTx(), state)) {
                 if (fUsingModified) {
                     mapModifiedTx.get<ancestor_score>().erase(modit);
                     failedTx.insert(iter);

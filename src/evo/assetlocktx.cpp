@@ -24,21 +24,6 @@ using node::BlockManager;
 
 
 /**
- *  Common code for Asset Lock and Asset Unlock
- */
-bool CheckAssetLockUnlockTx(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, TxValidationState& state)
-{
-    switch (tx.nType) {
-    case TRANSACTION_ASSET_LOCK:
-        return CheckAssetLockTx(tx, state);
-    case TRANSACTION_ASSET_UNLOCK:
-        return CheckAssetUnlockTx(blockman, qman, tx, pindexPrev, indexes, state);
-    default:
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-not-asset-locks-at-all");
-    }
-}
-
-/**
  * Asset Lock Transaction
  */
 bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state)

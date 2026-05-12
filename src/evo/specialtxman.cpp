@@ -743,7 +743,7 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
 
     try {
         const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_consensus_params);
-        const auto creditPoolDiff = GetCreditPoolDiffForBlock(m_cpoolman, m_chainman.m_blockman, m_qman, block,
+        const auto creditPoolDiff = GetCreditPoolDiffForBlock(m_cpoolman, block,
                                                               pindex->pprev, m_consensus_params, blockSubsidy, state);
         if (!creditPoolDiff.has_value()) return false;
 

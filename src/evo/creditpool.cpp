@@ -22,7 +22,6 @@
 #include <memory>
 #include <stack>
 
-using node::BlockManager;
 using node::ReadBlockFromDisk;
 
 // Forward declaration to prevent a new circular dependencies through masternode/payments.h
@@ -248,8 +247,7 @@ CCreditPoolManager::~CCreditPoolManager() = default;
 
 CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexPrev,
                                  const Consensus::Params& consensusParams, const CAmount blockSubsidy) :
-    pool(std::move(starter)),
-    pindexPrev(pindexPrev)
+    pool(std::move(starter))
 {
     assert(pindexPrev);
 
@@ -297,15 +295,9 @@ bool CCreditPoolDiff::Unlock(const CTransaction& tx, TxValidationState& state)
     return true;
 }
 
-bool CCreditPoolDiff::ProcessLockUnlockTransaction(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, TxValidationState& state)
+bool CCreditPoolDiff::ProcessLockUnlockTransaction(const CTransaction& tx, TxValidationState& state)
 {
     if (!tx.IsSpecialTxVersion()) return true;
-    if (tx.nType != TRANSACTION_ASSET_LOCK && tx.nType != TRANSACTION_ASSET_UNLOCK) return true;
-
-    if (!CheckAssetLockUnlockTx(blockman, qman, tx, pindexPrev, pool.indexes, state)) {
-        // pass the state returned by the function above
-        return false;
-    }
 
     try {
         switch (tx.nType) {
@@ -322,7 +314,7 @@ bool CCreditPoolDiff::ProcessLockUnlockTransaction(const BlockManager& blockman,
     }
 }
 
-std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpoolman, const BlockManager& blockman, const llmq::CQuorumManager& qman,
+std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpoolman,
                                                          const CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams,
                                                          const CAmount blockSubsidy, BlockValidationState& state)
 {
@@ -333,7 +325,7 @@ std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpo
         for (size_t i = 1; i < block.vtx.size(); ++i) {
             const auto& tx = *block.vtx[i];
             TxValidationState tx_state;
-            if (!creditPoolDiff.ProcessLockUnlockTransaction(blockman, qman, tx, tx_state)) {
+            if (!creditPoolDiff.ProcessLockUnlockTransaction(tx, tx_state)) {
                 assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS);
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Process Lock/Unlock Transaction failed at Credit Pool (tx hash %s) %s", tx.GetHash().ToString(), tx_state.GetDebugMessage()));
