@@ -113,6 +113,7 @@ private:
     void HandleDKGRound(CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
     void PhaseHandlerThread(CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
 };
+
 } // namespace llmq
 
 #endif // BITCOIN_ACTIVE_DKGSESSIONHANDLER_H

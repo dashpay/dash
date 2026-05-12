@@ -15,7 +15,6 @@
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
-#include <net.h>
 #include <random.h>
 #include <util/time.h>
 #include <validation.h>
@@ -23,7 +22,6 @@
 #include <atomic>
 #include <map>
 #include <optional>
-#include <ranges>
 
 /**
  * Forward declarations
@@ -777,120 +775,5 @@ std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType
     return result;
 }
 
-bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, const CSporkManager& sporkman,
-                             const UtilParameters& util_params, const CDeterministicMNList& tip_mn_list,
-                             const uint256& myProTxHash, bool is_masternode, bool quorums_watch)
-{
-    if (!is_masternode && !quorums_watch) {
-        return false;
-    }
-
-    auto members = GetAllQuorumMembers(llmqParams.type, util_params);
-    if (members.empty()) {
-        return false;
-    }
-
-    bool isMember = std::ranges::find_if(members, [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) !=
-                    members.end();
-
-    if (!isMember && !quorums_watch) {
-        return false;
-    }
-
-    LogPrint(BCLog::NET_NETCONN, "%s -- isMember=%d for quorum %s:\n", __func__, isMember,
-             util_params.m_base_index->GetBlockHash().ToString());
-
-    Uint256HashSet connections;
-    Uint256HashSet relayMembers;
-    if (isMember) {
-        connections = GetQuorumConnections(llmqParams, sporkman, util_params, myProTxHash, /*onlyOutbound=*/true);
-        // If all-members-connected is enabled for this quorum type, leverage the full-mesh
-        // connections for low-latency recovered sig propagation by treating all members as
-        // relay members (instead of the ring-based subset). This ensures peers will send
-        // QSENDRECSIGS to each other across the full mesh and set m_wants_recsigs widely.
-        if (IsAllMembersConnectedEnabled(llmqParams.type, sporkman)) {
-            for (const auto& dmn : members) {
-                if (dmn->proTxHash != myProTxHash) {
-                    relayMembers.emplace(dmn->proTxHash);
-                }
-            }
-        } else {
-            relayMembers = GetQuorumRelayMembers(llmqParams, util_params, myProTxHash, true);
-        }
-    } else {
-        auto cindexes = CalcDeterministicWatchConnections(llmqParams.type, util_params.m_base_index, members.size(), 1);
-        for (auto idx : cindexes) {
-            connections.emplace(members[idx]->proTxHash);
-        }
-        relayMembers = connections;
-    }
-    if (!connections.empty()) {
-        if (!connman.HasMasternodeQuorumNodes(llmqParams.type, util_params.m_base_index->GetBlockHash()) &&
-            LogAcceptDebug(BCLog::LLMQ)) {
-            std::string debugMsg = strprintf("%s -- adding masternodes quorum connections for quorum %s:\n", __func__,
-                                             util_params.m_base_index->GetBlockHash().ToString());
-            for (const auto& c : connections) {
-                auto dmn = tip_mn_list.GetValidMN(c);
-                if (!dmn) {
-                    debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
-                } else {
-                    debugMsg += strprintf("  %s (%s)\n", c.ToString(),
-                                          dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
-                }
-            }
-            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
-        }
-        connman.SetMasternodeQuorumNodes(llmqParams.type, util_params.m_base_index->GetBlockHash(), connections);
-    }
-    if (!relayMembers.empty()) {
-        connman.SetMasternodeQuorumRelayMembers(llmqParams.type, util_params.m_base_index->GetBlockHash(), relayMembers);
-    }
-    return true;
-}
-
-void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, CMasternodeMetaMan& mn_metaman,
-                               const CSporkManager& sporkman, const UtilParameters& util_params,
-                               const CDeterministicMNList& tip_mn_list, const uint256& myProTxHash)
-{
-    assert(mn_metaman.IsValid());
-
-    if (!IsQuorumPoseEnabled(llmqParams.type, sporkman)) {
-        return;
-    }
-
-    auto members = GetAllQuorumMembers(llmqParams.type, util_params);
-    auto curTime = GetTime<std::chrono::seconds>().count();
-
-    Uint256HashSet probeConnections;
-    for (const auto& dmn : members) {
-        if (dmn->proTxHash == myProTxHash) {
-            continue;
-        }
-        auto lastOutbound = mn_metaman.GetLastOutboundSuccess(dmn->proTxHash);
-        if (curTime - lastOutbound < 10 * 60) {
-            // avoid re-probing nodes too often
-            continue;
-        }
-        probeConnections.emplace(dmn->proTxHash);
-    }
-
-    if (!probeConnections.empty()) {
-        if (LogAcceptDebug(BCLog::LLMQ)) {
-            std::string debugMsg = strprintf("%s -- adding masternodes probes for quorum %s:\n", __func__,
-                                             util_params.m_base_index->GetBlockHash().ToString());
-            for (const auto& c : probeConnections) {
-                auto dmn = tip_mn_list.GetValidMN(c);
-                if (!dmn) {
-                    debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
-                } else {
-                    debugMsg += strprintf("  %s (%s)\n", c.ToString(),
-                                          dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
-                }
-            }
-            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
-        }
-        connman.AddPendingProbeConnections(probeConnections);
-    }
-}
 } // namespace utils
 } // namespace llmq

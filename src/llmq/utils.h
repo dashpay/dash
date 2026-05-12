@@ -20,11 +20,8 @@
 #include <vector>
 
 class CBlockIndex;
-class CConnman;
-class CDeterministicMNList;
 class CDeterministicMNManager;
 class ChainstateManager;
-class CMasternodeMetaMan;
 class CSporkManager;
 namespace llmq {
 class CQuorumSnapshotManager;
@@ -75,14 +72,6 @@ Uint256HashSet GetQuorumConnections(const Consensus::LLMQParams& llmqParams, con
 
 Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, const UtilParameters& util_params,
                                      const uint256& forMember, bool onlyOutbound);
-
-bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, const CSporkManager& sporkman,
-                             const UtilParameters& util_params, const CDeterministicMNList& tip_mn_list,
-                             const uint256& myProTxHash, bool is_masternode, bool quorums_watch);
-
-void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, CMasternodeMetaMan& mn_metaman,
-                               const CSporkManager& sporkman, const UtilParameters& util_params,
-                               const CDeterministicMNList& tip_mn_list, const uint256& myProTxHash);
 
 template <typename CacheType>
 inline void InitQuorumsCache(CacheType& cache, const Consensus::Params& consensus_params, bool limit_by_connections = true)
