@@ -5462,6 +5462,35 @@ void PeerManagerImpl::ProcessMessage(
         return;
     }
 
+    if (msg_type == NetMsgType::SPORK) {
+        CSporkMessage spork;
+        vRecv >> spork;
+
+        uint256 hash = spork.GetHash();
+        CInv spork_inv{MSG_SPORK, hash};
+        WITH_LOCK(::cs_main, EraseObjectRequest(pfrom.GetId(), spork_inv));
+        auto opt_signer = m_sporkman.GetValidSporkSigner(spork);
+        if (!opt_signer) {
+            Misbehaving(pfrom.GetId(), 100, strprintf("invalid spork received. peer=%d", pfrom.GetId()));
+            return;
+        }
+        if (m_sporkman.ProcessSpork(spork, *opt_signer, strprintf(" peer=%d", pfrom.GetId()))) {
+            RelayInv(spork_inv);
+        }
+        return;
+    }
+
+    if (msg_type == NetMsgType::GETSPORKS) {
+        // For 'getsporks', active sporks is sent to the requesting peer.
+        auto active_sporks = m_sporkman.ActiveSporks();
+        for (const auto& pair : active_sporks) {
+            for (const auto& signerSporkPair : pair.second) {
+                m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
+            }
+        }
+        return;
+    }
+
     if (msg_type == NetMsgType::QUORUMROTATIONINFO) {
         // we have never requested this
         Misbehaving(pfrom.GetId(), 100, strprintf("received not-requested quorumrotationinfo. peer=%d", pfrom.GetId()));
@@ -5508,7 +5537,6 @@ void PeerManagerImpl::ProcessMessage(
             PostProcessMessage(m_cj_walletman->processMessage(pfrom, m_chainman.ActiveChainstate(), m_connman, m_mempool, msg_type, vRecv), pfrom.GetId());
         }
         PostProcessMessage(DKGSessionProcessMessage(pfrom, is_masternode, msg_type, vRecv), pfrom.GetId());
-        PostProcessMessage(m_sporkman.ProcessMessage(pfrom, m_connman, msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, (m_active_ctx ? m_active_ctx->nodeman.get() : nullptr), m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(m_llmq_ctx->quorum_block_processor->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(ProcessPlatformBanMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());

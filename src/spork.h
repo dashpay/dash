@@ -5,16 +5,11 @@
 #ifndef BITCOIN_SPORK_H
 #define BITCOIN_SPORK_H
 
-#include <msg_result.h>
-
 #include <hash.h>
 #include <key.h>
-#include <net.h>
-#include <net_types.h>
 #include <pubkey.h>
 #include <saltedhasher.h>
 #include <sync.h>
-#include <uint256.h>
 
 #include <array>
 #include <optional>
@@ -22,11 +17,11 @@
 #include <unordered_map>
 #include <vector>
 
-class CConnman;
 template<typename T>
 class CFlatDB;
-class CNode;
 class CDataStream;
+class uint256;
+class CInv;
 
 class CSporkMessage;
 class CSporkManager;
@@ -249,26 +244,27 @@ public:
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
-     * ProcessMessage is used to call ProcessSpork and ProcessGetSporks. See below
+     * GetValidSporkSigner validates signed time and recovers the signer pubkey.
+     * Returns the signer's CKeyID on success, or std::nullopt if the spork is invalid
+     * (peer should be punished in that case).
      */
-    [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type,
-                                                         CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
-
+    [[nodiscard]] std::optional<CKeyID> GetValidSporkSigner(const CSporkMessage& spork) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
     /**
-     * ProcessSpork is used to handle the 'spork' p2p message.
-     *
-     * For 'spork', it validates the spork and adds it to the internal spork storage and
-     * performs any necessary processing.
+     * ProcessSpork adds the spork to local state. Returns true if the spork was new or
+     * updated and should be relayed. `keyIDSigner` must be the signer key previously
+     * recovered via GetValidSporkSigner. `peer_log_suffix` is appended to log lines for
+     * cross-referencing with the source peer (e.g. " peer=42").
      */
-    [[nodiscard]] MessageProcessingResult ProcessSpork(NodeId from, CDataStream& vRecv)
+    [[nodiscard]] bool ProcessSpork(const CSporkMessage& spork, const CKeyID& keyIDSigner,
+                                    std::string_view peer_log_suffix = {})
         EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cache);
 
     /**
-     * ProcessGetSporks is used to handle the 'getsporks' p2p message.
-     *
-     * For 'getsporks', it sends active sporks to the requesting peer.
+     * ActiveSporks returns a snapshot of currently active sporks indexed by SporkId then
+     * signer CKeyID. Used by net_processing to answer the 'getsporks' p2p message.
      */
-    void ProcessGetSporks(CNode& peer, CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage>> ActiveSporks() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
      * UpdateSpork is used by the spork RPC command to set a new spork value, sign
