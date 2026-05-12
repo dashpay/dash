@@ -4657,9 +4657,19 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         return util::Error{_("Error: This wallet is already a descriptor wallet")};
     }
 
-    // Make a backup of the DB
+    // Make a backup of the DB in the wallet's directory with a unique filename
+    // based on the wallet name and current timestamp. The backup filename uses
+    // the basename of the wallet path (or "wallet" if the name is blank) so that
+    // path-style wallet names cannot escape the wallet directory.
+    // TODO: backport bitcoin/bitcoin#32273 to also move the backup into the
+    //       top-level walletdir and unify with upstream.
     fs::path this_wallet_dir = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename())).parent_path();
-    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", wallet_name.empty() ? "wallet" : wallet_name, GetTime()));
+    const std::string backup_prefix = wallet_name.empty() ? "wallet" : [&] {
+        // fs::weakly_canonical resolves relative specifiers and removes trailing slashes.
+        const auto legacy_wallet_path = fs::weakly_canonical(GetWalletDir() / fs::PathFromString(wallet_name));
+        return fs::PathToString(legacy_wallet_path.filename());
+    }();
+    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", backup_prefix, GetTime()));
     fs::path backup_path = this_wallet_dir / backup_filename;
     if (!local_wallet->BackupWallet(fs::PathToString(backup_path))) {
         return util::Error{_("Error: Unable to make a backup of your wallet")};
