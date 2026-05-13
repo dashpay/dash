@@ -2414,7 +2414,9 @@ bool DescriptorScriptPubKeyMan::AdvanceNextIndexTo(int32_t target)
     // to cover the gap from the current next_index up to target.
     if (!TopUp(target - m_wallet_descriptor.next_index)) return false;
     m_wallet_descriptor.next_index = target;
-    WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
+    if (!WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor)) {
+        return false;
+    }
     return true;
 }
 
