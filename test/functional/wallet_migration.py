@@ -517,6 +517,31 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         assert_equal(bals, wallet.getbalances())
 
+    def test_wallet_name_with_slashes(self):
+        self.log.info("Test migration of a wallet whose name contains slashes places the backup inside the wallet's directory")
+        # createwallet allows nested wallet names; the backup-filename
+        # derivation in MigrateLegacyToDescriptor must reduce the name to a
+        # single basename so the backup file cannot end up in a nested or
+        # nonexistent subdirectory.
+        nested_name = "nested/subdir_wallet"
+        wallet = self.create_legacy_wallet(nested_name)
+        wallet.getnewaddress()
+
+        migrate_result = wallet.migratewallet()
+        backup_path = migrate_result["backup_path"]
+
+        # Backup must live directly inside the wallet's own directory.
+        expected_wallet_dir = os.path.join(self.nodes[0].datadir, "regtest", "wallets", "nested", "subdir_wallet")
+        assert_equal(os.path.dirname(os.path.abspath(backup_path)), os.path.abspath(expected_wallet_dir))
+
+        # Basename must use the sanitized prefix derived from the wallet
+        # name's last component, not the full "nested/..." path.
+        backup_basename = os.path.basename(backup_path)
+        assert backup_basename.startswith("subdir_wallet-"), backup_basename
+        assert backup_basename.endswith(".legacy.bak"), backup_basename
+
+        self.assert_is_sqlite(nested_name)
+
     def run_test(self):
         self.generate(self.nodes[0], 101)
 
@@ -529,6 +554,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.test_encrypted()
         self.test_unloaded()
         self.test_unloaded_by_path()
+        self.test_wallet_name_with_slashes()
 
 if __name__ == '__main__':
     WalletMigrationTest().main()

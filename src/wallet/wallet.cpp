@@ -4664,11 +4664,15 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
     // TODO: backport bitcoin/bitcoin#32273 to also move the backup into the
     //       top-level walletdir and unify with upstream.
     fs::path this_wallet_dir = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename())).parent_path();
-    const std::string backup_prefix = wallet_name.empty() ? "wallet" : [&] {
+    std::string backup_prefix;
+    if (!wallet_name.empty()) {
         // fs::weakly_canonical resolves relative specifiers and removes trailing slashes.
         const auto legacy_wallet_path = fs::weakly_canonical(GetWalletDir() / fs::PathFromString(wallet_name));
-        return fs::PathToString(legacy_wallet_path.filename());
-    }();
+        backup_prefix = fs::PathToString(legacy_wallet_path.filename());
+    }
+    // Fall back when the name was blank or canonicalizes to an empty filename
+    // (e.g. "/", "."), so we never emit a file like "-1748432384.legacy.bak".
+    if (backup_prefix.empty()) backup_prefix = "wallet";
     fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", backup_prefix, GetTime()));
     fs::path backup_path = this_wallet_dir / backup_filename;
     if (!local_wallet->BackupWallet(fs::PathToString(backup_path))) {
