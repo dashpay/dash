@@ -337,6 +337,44 @@ int weightToArg(const QFont::Weight weight)
     return mapWeightArgs.second.find(weight)->second;
 }
 
+bool isValidWeightArg(int arg)
+{
+    QFont::Weight weight;
+    return weightFromArg(arg, weight) && g_font_registry.IsValidWeight(weight);
+}
+
+int currentWeightArg(FontWeight slot)
+{
+    return weightToArg(slot == FontWeight::Bold ? g_font_registry.GetWeightBold()
+                                                : g_font_registry.GetWeightNormal());
+}
+
+int defaultWeightArg(FontWeight slot)
+{
+    return weightToArg(slot == FontWeight::Bold ? g_font_registry.GetWeightBoldDefault()
+                                                : g_font_registry.GetWeightNormalDefault());
+}
+
+void setWeightFromArg(FontWeight slot, int arg)
+{
+    QFont::Weight weight;
+    if (!weightFromArg(arg, weight)) return;
+    if (slot == FontWeight::Bold) {
+        g_font_registry.SetWeightBold(weight);
+    } else {
+        g_font_registry.SetWeightNormal(weight);
+    }
+}
+
+std::vector<int> supportedWeightArgs()
+{
+    std::vector<int> ret;
+    for (const auto& w : g_font_registry.GetSupportedWeights()) {
+        ret.push_back(weightToArg(w));
+    }
+    return ret;
+}
+
 //! Internal helper to create a font with explicit weight (used for font detection)
 static QFont getFontWithWeight(const QString& font_name, QFont::Weight weight, double point_size)
 {
