@@ -6,7 +6,6 @@
 
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
-#include <governance/classes.h>
 #include <governance/governance.h>
 #include <governance/superblock.h>
 #include <masternode/sync.h>

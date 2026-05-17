@@ -5,9 +5,9 @@
 #include <active/context.h>
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
-#include <governance/classes.h>
 #include <governance/common.h>
 #include <governance/governance.h>
+#include <governance/superblock.h>
 #include <governance/validators.h>
 #include <governance/vote.h>
 #include <masternode/sync.h>

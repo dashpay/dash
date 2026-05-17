@@ -5,8 +5,8 @@
 #ifndef BITCOIN_GOVERNANCE_SIGNING_H
 #define BITCOIN_GOVERNANCE_SIGNING_H
 
-#include <governance/classes.h>
 #include <governance/object.h>
+#include <governance/superblock.h>
 
 #include <uint256.h>
 

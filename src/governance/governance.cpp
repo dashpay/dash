@@ -6,7 +6,6 @@
 
 #include <evo/deterministicmns.h>
 #include <flat-database.h>
-#include <governance/classes.h>
 #include <governance/common.h>
 #include <governance/superblock.h>
 #include <governance/validators.h>

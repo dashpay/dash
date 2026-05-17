@@ -5,7 +5,6 @@
 #include <masternode/payments.h>
 
 #include <evo/deterministicmns.h>
-#include <governance/classes.h>
 #include <governance/superblock.h>
 #include <masternode/sync.h>
 

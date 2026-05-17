@@ -15,7 +15,6 @@
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
-#include <governance/classes.h>
 #include <governance/exceptions.h>
 #include <external_signer.h>
 #include <governance/governance.h>
