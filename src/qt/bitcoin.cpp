@@ -503,8 +503,8 @@ static void SetupUIArgs(ArgsManager& argsman)
     argsman.AddArg("-custom-css-dir", "Set a directory which contains custom css files. Those will be used as stylesheets for the UI.", ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-family", QObject::tr("Set the font family. Possible values: %1. (default: %2)").arg(Join(GUIUtil::getFonts(/*selectable_only=*/true), ", ")).arg(GUIUtil::FontRegistry::DEFAULT_FONT).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-scale", QObject::tr("Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)").arg(-100).arg(100).arg(GUIUtil::FontRegistry::DEFAULT_FONT_SCALE).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-weight-bold", QObject::tr("Set the font weight for bold texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_BOLD)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-weight-normal", QObject::tr("Set the font weight for normal texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_NORMAL)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    argsman.AddArg("-font-weight-bold", QObject::tr("Set the font weight for bold texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    argsman.AddArg("-font-weight-normal", QObject::tr("Set the font weight for normal texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-lang=<lang>", QObject::tr("Set language, for example \"de_DE\" (default: system locale)").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-min", QObject::tr("Start minimized").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-resetguisettings", QObject::tr("Reset all settings changed in the GUI").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
@@ -728,23 +728,23 @@ int GuiMain(int argc, char* argv[])
     }
     // Validate/set normal font weight
     if (gArgs.IsArgSet("-font-weight-normal")) {
-        QFont::Weight weight;
-        if (!GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-normal", GUIUtil::weightToArg(GUIUtil::g_font_registry.GetWeightNormal())), weight)) {
+        const int arg = gArgs.GetIntArg("-font-weight-normal", GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal));
+        if (!GUIUtil::isValidWeightArg(arg)) {
             QMessageBox::critical(nullptr, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-weight-normal invalid. Valid range %1 to %2.").arg(0).arg(8));
             return EXIT_FAILURE;
         }
-        GUIUtil::g_font_registry.SetWeightNormal(weight);
+        GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, arg);
     }
     // Validate/set bold font weight
     if (gArgs.IsArgSet("-font-weight-bold")) {
-        QFont::Weight weight;
-        if (!GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-bold", GUIUtil::weightToArg(GUIUtil::g_font_registry.GetWeightBold())), weight)) {
+        const int arg = gArgs.GetIntArg("-font-weight-bold", GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold));
+        if (!GUIUtil::isValidWeightArg(arg)) {
             QMessageBox::critical(nullptr, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-weight-bold invalid. Valid range %1 to %2.").arg(0).arg(8));
             return EXIT_FAILURE;
         }
-        GUIUtil::g_font_registry.SetWeightBold(weight);
+        GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, arg);
     }
     // Validate/set font scale
     if (gArgs.IsArgSet("-font-scale")) {

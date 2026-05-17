@@ -24,6 +24,9 @@
 #include <QSettings>
 #include <QSlider>
 
+#include <algorithm>
+#include <cstdlib>
+
 int setFontChoice(QComboBox* cb, const OptionsModel::FontChoice& fc)
 {
     int i;
@@ -82,8 +85,8 @@ AppearanceWidget::AppearanceWidget(QWidget* parent) :
     prevTheme{GUIUtil::getActiveTheme()},
     prevScale{GUIUtil::g_font_registry.GetFontScale()},
     prevFontFamily{GUIUtil::g_font_registry.GetFont()},
-    prevWeightNormal{GUIUtil::g_font_registry.GetWeightNormal()},
-    prevWeightBold{GUIUtil::g_font_registry.GetWeightBold()}
+    prevWeightNormalArg{GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal)},
+    prevWeightBoldArg{GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold)}
 {
     ui->setupUi(this);
 
@@ -139,11 +142,11 @@ AppearanceWidget::~AppearanceWidget()
         if (prevScale != GUIUtil::g_font_registry.GetFontScale()) {
             GUIUtil::g_font_registry.SetFontScale(prevScale);
         }
-        if (prevWeightNormal != GUIUtil::g_font_registry.GetWeightNormal()) {
-            GUIUtil::g_font_registry.SetWeightNormal(prevWeightNormal);
+        if (prevWeightNormalArg != GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal)) {
+            GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, prevWeightNormalArg);
         }
-        if (prevWeightBold != GUIUtil::g_font_registry.GetWeightBold()) {
-            GUIUtil::g_font_registry.SetWeightBold(prevWeightBold);
+        if (prevWeightBoldArg != GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold)) {
+            GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, prevWeightBoldArg);
         }
         // Restore monospace font if cancelled
         if (model) {
@@ -198,18 +201,14 @@ void AppearanceWidget::setModel(OptionsModel* _model)
         if (is_overridden) {
             ui->fontWeightNormalSlider->setEnabled(false);
         }
-        if (const auto idx{GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightNormal())}; idx != -1) {
-            ui->fontWeightNormalSlider->setValue(idx);
-        }
+        ui->fontWeightNormalSlider->setValue(GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal));
     }
 
     if (bool is_overridden{_model->isOptionOverridden("-font-weight-bold")}; is_overridden || override_family) {
         if (is_overridden) {
             ui->fontWeightBoldSlider->setEnabled(false);
         }
-        if (const auto idx{GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightBold())}; idx != -1) {
-            ui->fontWeightBoldSlider->setValue(idx);
-        }
+        ui->fontWeightBoldSlider->setValue(GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold));
     }
 }
 
@@ -252,9 +251,11 @@ void AppearanceWidget::updateFontWeightNormal(int nValue, bool fForce)
     if (nValue > ui->fontWeightBoldSlider->value() && !fForce) {
         nSliderValue = ui->fontWeightBoldSlider->value();
     }
+    nSliderValue = std::ranges::min(GUIUtil::supportedWeightArgs(), {},
+                                    [nSliderValue](int x) { return std::abs(x - nSliderValue); });
     const QSignalBlocker blocker(ui->fontWeightNormalSlider);
     ui->fontWeightNormalSlider->setValue(nSliderValue);
-    GUIUtil::g_font_registry.SetWeightNormal(GUIUtil::g_font_registry.IdxToWeight(ui->fontWeightNormalSlider->value()));
+    GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, nSliderValue);
     GUIUtil::setApplicationFont();
     GUIUtil::updateFonts();
 }
@@ -265,9 +266,11 @@ void AppearanceWidget::updateFontWeightBold(int nValue, bool fForce)
     if (nValue < ui->fontWeightNormalSlider->value() && !fForce) {
         nSliderValue = ui->fontWeightNormalSlider->value();
     }
+    nSliderValue = std::ranges::min(GUIUtil::supportedWeightArgs(), {},
+                                    [nSliderValue](int x) { return std::abs(x - nSliderValue); });
     const QSignalBlocker blocker(ui->fontWeightBoldSlider);
     ui->fontWeightBoldSlider->setValue(nSliderValue);
-    GUIUtil::g_font_registry.SetWeightBold(GUIUtil::g_font_registry.IdxToWeight(ui->fontWeightBoldSlider->value()));
+    GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, nSliderValue);
     GUIUtil::setApplicationFont();
     GUIUtil::updateFonts();
 }
@@ -287,20 +290,19 @@ void AppearanceWidget::updateMoneyFont(int index)
 
 void AppearanceWidget::updateWeightSlider(const bool fForce)
 {
-    int nMaximum = GUIUtil::g_font_registry.GetSupportedWeights().size() - 1;
+    const auto supported = GUIUtil::supportedWeightArgs();
+    const int nMin = supported.front();
+    const int nMax = supported.back();
 
-    ui->fontWeightNormalSlider->setMinimum(0);
-    ui->fontWeightNormalSlider->setMaximum(nMaximum);
+    ui->fontWeightNormalSlider->setMinimum(nMin);
+    ui->fontWeightNormalSlider->setMaximum(nMax);
 
-    ui->fontWeightBoldSlider->setMinimum(0);
-    ui->fontWeightBoldSlider->setMaximum(nMaximum);
+    ui->fontWeightBoldSlider->setMinimum(nMin);
+    ui->fontWeightBoldSlider->setMaximum(nMax);
 
-    if (fForce || !GUIUtil::g_font_registry.IsValidWeight(prevWeightNormal) || !GUIUtil::g_font_registry.IsValidWeight(prevWeightBold)) {
-        int nIndexNormal = GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightNormalDefault());
-        int nIndexBold = GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightBoldDefault());
-        assert(nIndexNormal != -1 && nIndexBold != -1);
-        updateFontWeightNormal(nIndexNormal, true);
-        updateFontWeightBold(nIndexBold, true);
+    if (fForce || !GUIUtil::isValidWeightArg(prevWeightNormalArg) || !GUIUtil::isValidWeightArg(prevWeightBoldArg)) {
+        updateFontWeightNormal(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal), true);
+        updateFontWeightBold(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold), true);
     }
 }
 

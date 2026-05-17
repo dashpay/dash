@@ -49,8 +49,9 @@ private:
     QString prevTheme;
     int prevScale;
     QString prevFontFamily;
-    QFont::Weight prevWeightNormal;
-    QFont::Weight prevWeightBold;
+    //! Snapshots stored as -font-weight-* arg ints (0..8), matching slider values.
+    int prevWeightNormalArg;
+    int prevWeightBoldArg;
     OptionsModel::FontChoice prevMoneyFont{OptionsModel::FontChoiceAbstract::ApplicationFont};
 
     void updateWeightSlider(bool fForce = false);
