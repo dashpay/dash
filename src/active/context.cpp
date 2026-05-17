@@ -12,6 +12,7 @@
 #include <evo/deterministicmns.h>
 #include <governance/governance.h>
 #include <governance/signing.h>
+#include <governance/superblock.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/signing.h>
 #include <llmq/debug.h>
@@ -26,7 +27,8 @@
 #include <validationinterface.h>
 
 ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman, CConnman& connman,
-                             CDeterministicMNManager& dmnman, CGovernanceManager& govman, CMasternodeMetaMan& mn_metaman,
+                             CDeterministicMNManager& dmnman, CGovernanceManager& govman,
+                             governance::SuperblockManager& superblocks, CMasternodeMetaMan& mn_metaman,
                              CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
                              chainlock::ChainlockHandler& clhandler, llmq::CInstantSendManager& isman,
                              llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
@@ -40,7 +42,7 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
     qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params, quorums_watch)},
     shareman{std::make_unique<llmq::CSigSharesManager>(connman, chainman, sigman, *nodeman, qman, sporkman)},
-    gov_signer{std::make_unique<GovernanceSigner>(connman, dmnman, govman, *nodeman, chainman, mn_sync)},
+    gov_signer{std::make_unique<GovernanceSigner>(connman, dmnman, govman, superblocks, *nodeman, chainman, mn_sync)},
     ehf_sighandler{std::make_unique<llmq::CEHFSignalsHandler>(chainman, sigman, *shareman, qman)},
     cl_signer{std::make_unique<chainlock::ChainLockSigner>(chainman.ActiveChainstate(), chainlocks, clhandler, isman,
                                                            qman, sigman, *shareman, mn_sync)},

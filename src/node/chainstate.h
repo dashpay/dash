@@ -14,8 +14,8 @@
 class CChainstateHelper;
 class CDeterministicMNManager;
 class CEvoDB;
-class CGovernanceManager;
 class ChainstateManager;
+class CMasternodeSync;
 class CMasternodeMetaMan;
 class CSporkManager;
 class CTxMemPool;
@@ -77,10 +77,10 @@ enum class ChainstateLoadingError {
  */
 std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      ChainstateManager& chainman,
-                                                     CGovernanceManager& govman,
                                                      CMasternodeMetaMan& mn_metaman,
                                                      CSporkManager& sporkman,
                                                      chainlock::Chainlocks& chainlocks,
+                                                     const CMasternodeSync& mn_sync,
                                                      std::unique_ptr<CChainstateHelper>& chain_helper,
                                                      std::unique_ptr<CDeterministicMNManager>& dmnman,
                                                      std::unique_ptr<CEvoDB>& evodb,
@@ -107,10 +107,10 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
 
 /** Initialize Dash-specific components during chainstate initialization */
 void DashChainstateSetup(ChainstateManager& chainman,
-                         CGovernanceManager& govman,
                          CMasternodeMetaMan& mn_metaman,
                          CSporkManager& sporkman,
                          chainlock::Chainlocks& chainlocks,
+                         const CMasternodeSync& mn_sync,
                          std::unique_ptr<CChainstateHelper>& chain_helper,
                          std::unique_ptr<CDeterministicMNManager>& dmnman,
                          CEvoDB& evodb,

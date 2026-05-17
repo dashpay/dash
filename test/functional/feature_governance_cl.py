@@ -158,7 +158,7 @@ class DashGovernanceTest (DashTestFramework):
 
         self.log.info("Bump mocktime to trigger governance cleanup")
         for delta, expected in (
-            (5 * 60, ['CleanAndRemoveTriggers -- Removing trigger object']),  # mark old triggers for deletion
+            (5 * 60, ['SuperblockManager::Clean -- Removing trigger object']),  # mark old triggers for deletion
             (10 * 60, ['UpdateCachesAndClean -- Governance Objects: 0']),  # deletion after delay
         ):
             self.mocktime += delta

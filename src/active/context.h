@@ -31,6 +31,9 @@ class Chainlocks;
 class ChainlockHandler;
 class ChainLockSigner;
 } // namespace chainlock
+namespace governance {
+class SuperblockManager;
+} // namespace governance
 namespace instantsend {
 class InstantSendSigner;
 } // namespace instantsend
@@ -55,7 +58,8 @@ public:
     ActiveContext(const ActiveContext&) = delete;
     ActiveContext& operator=(const ActiveContext&) = delete;
     explicit ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman, CConnman& connman,
-                           CDeterministicMNManager& dmnman, CGovernanceManager& govman, CMasternodeMetaMan& mn_metaman,
+                           CDeterministicMNManager& dmnman, CGovernanceManager& govman,
+                           governance::SuperblockManager& superblocks, CMasternodeMetaMan& mn_metaman,
                            CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
                            chainlock::ChainlockHandler& clhandler, llmq::CInstantSendManager& isman,
                            llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,

@@ -370,9 +370,9 @@ void PrepareShutdown(NodeContext& node)
     // and reset all to nullptr.
     node.observer_ctx.reset();
     node.active_ctx.reset();
+    node.govman.reset();
     node.mn_sync.reset();
     node.sporkman.reset();
-    node.govman.reset();
     node.netfulfilledman.reset();
     node.mn_metaman.reset();
 
@@ -1959,7 +1959,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     assert(!node.mempool);
     assert(!node.chainman);
-    assert(!node.govman);
     assert(!node.mn_sync);
     const int mempool_check_ratio = std::clamp<int>(args.GetIntArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0, 1000000);
 
@@ -1979,8 +1978,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
          */
         node.mn_sync = std::make_unique<CMasternodeSync>(std::make_unique<NodeSyncNotifierImpl>(*node.connman, *node.netfulfilledman));
 
-        node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, node.dmnman, *node.mn_sync);
-
         const bool fReset = fReindex;
         bilingual_str strLoadError;
 
@@ -1990,10 +1987,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         try {
             maybe_load_error = LoadChainstate(fReset,
                                               chainman,
-                                              *node.govman,
                                               *node.mn_metaman,
                                               *node.sporkman,
                                               *node.chainlocks,
+                                              *node.mn_sync,
                                               node.chain_helper,
                                               node.dmnman,
                                               node.evodb,
@@ -2172,6 +2169,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.clhandler = std::make_unique<chainlock::ChainlockHandler>(*node.chainlocks, chainman, *node.mempool, *node.mn_sync);
     RegisterValidationInterface(node.clhandler.get());
 
+    assert(!node.govman);
+    node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, *node.chain_helper->superblocks, node.dmnman, *node.mn_sync);
+
     assert(!node.peerman);
     node.peerman = PeerManager::make(chainparams, *node.connman, *node.addrman, node.banman.get(), *node.dstxman,
                                      chainman, *node.mempool, *node.mn_metaman, *node.mn_sync,
@@ -2198,7 +2198,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
         }
         // Will init later in ThreadImport
-        node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman, *node.govman, *node.mn_metaman,
+        node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman,
+                                                          *node.govman, *node.chain_helper->superblocks, *node.mn_metaman,
                                                           *node.sporkman, *node.chainlocks, *node.mempool, *node.clhandler, *node.llmq_ctx->isman,
                                                           *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, *node.llmq_ctx->sigman,
                                                           *node.mn_sync, operator_sk, dash_db_params, quorums_watch);

@@ -26,12 +26,17 @@ class ChainstateManager;
 class CMasternodeSync;
 enum vote_outcome_enum_t : int;
 
+namespace governance {
+class SuperblockManager;
+}
+
 class GovernanceSigner
 {
 private:
     CConnman& m_connman;
     CDeterministicMNManager& m_dmnman;
     CGovernanceManager& m_govman;
+    governance::SuperblockManager& m_superblocks;
     const CActiveMasternodeManager& m_mn_activeman;
     const ChainstateManager& m_chainman;
     const CMasternodeSync& m_mn_sync;
@@ -44,8 +49,8 @@ public:
     GovernanceSigner(const GovernanceSigner&) = delete;
     GovernanceSigner& operator=(const GovernanceSigner&) = delete;
     explicit GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, CGovernanceManager& govman,
-                              const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
-                              const CMasternodeSync& mn_sync);
+                              governance::SuperblockManager& superblocks, const CActiveMasternodeManager& mn_activeman,
+                              const ChainstateManager& chainman, const CMasternodeSync& mn_sync);
     ~GovernanceSigner();
 
     void UpdatedBlockTip(const CBlockIndex* pindex);

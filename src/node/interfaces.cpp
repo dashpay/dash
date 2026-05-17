@@ -20,6 +20,7 @@
 #include <external_signer.h>
 #include <governance/governance.h>
 #include <governance/object.h>
+#include <governance/superblock.h>
 #include <governance/vote.h>
 #include <index/blockfilterindex.h>
 #include <init.h>
@@ -309,9 +310,9 @@ public:
     }
     std::optional<int32_t> getProposalFundedHeight(const uint256& proposal_hash) override
     {
-        if (context().govman != nullptr && context().chainman != nullptr) {
+        if (context().chain_helper != nullptr && context().chainman != nullptr) {
             const int32_t nTipHeight = context().chainman->ActiveHeight();
-            for (const auto& trigger : context().govman->GetActiveTriggers()) {
+            for (const auto& trigger : context().chain_helper->superblocks->GetActiveTriggers()) {
                 if (!trigger || trigger->GetBlockHeight() > nTipHeight) continue;
                 for (const auto& hash : trigger->GetProposalHashes()) {
                     if (hash == proposal_hash) {

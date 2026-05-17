@@ -4,31 +4,48 @@
 
 #include <evo/chainhelper.h>
 
-#include <chainparams.h>
-
 #include <chainlock/chainlock.h>
+#include <chainparams.h>
 #include <evo/creditpool.h>
 #include <evo/mnhftx.h>
 #include <evo/specialtxman.h>
+#include <governance/superblock.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
+#include <logging.h>
 #include <masternode/payments.h>
+#include <masternode/sync.h>
 
-CChainstateHelper::CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmnman, CGovernanceManager& govman,
+CChainstateHelper::CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmnman, const CMasternodeSync& mn_sync,
                                      llmq::CInstantSendManager& isman, llmq::CQuorumBlockProcessor& qblockman,
                                      llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                      const Consensus::Params& consensus_params, const chainlock::Chainlocks& chainlocks,
                                      const llmq::CQuorumManager& qman) :
     isman{isman},
+    mn_sync{mn_sync},
     credit_pool_manager{std::make_unique<CCreditPoolManager>(evodb, chainman)},
     m_chainlocks{chainlocks},
     ehf_manager{std::make_unique<CMNHFManager>(evodb, chainman, qman)},
-    mn_payments{std::make_unique<CMNPaymentsProcessor>(dmnman, govman, chainman, consensus_params)},
+    superblocks{std::make_unique<governance::SuperblockManager>()},
+    mn_payments{std::make_unique<CMNPaymentsProcessor>(dmnman, *superblocks, chainman, consensus_params)},
     special_tx{std::make_unique<CSpecialTxProcessor>(*credit_pool_manager, dmnman, *ehf_manager, qblockman, qsnapman,
                                                      chainman, consensus_params, chainlocks, qman)}
 {}
 
 CChainstateHelper::~CChainstateHelper() = default;
+
+bool CChainstateHelper::IsSuperblockValidationRequired(const CBlockIndex* const pindex)
+{
+    if (m_chainlocks.GetBestChainLockHeight() >= pindex->nHeight) {
+        LogPrint(BCLog::MNPAYMENTS, "%s -- validation of chainlocked block=%s is skipped\n", __func__, pindex->GetBlockHash().ToString());
+        return false;
+    }
+    if (!mn_sync.IsSynced()) {
+        LogPrint(BCLog::MNPAYMENTS, "%s -- WARNING! Node is not fully synced, checked superblock for block=%s max bounds only\n", __func__, pindex->GetBlockHash().ToString());
+        return false;
+    }
+    return true;
+}
 
 /** Passthrough functions to chainlock::Chainlocks */
 bool CChainstateHelper::HasConflictingChainLock(int nHeight, const uint256& blockHash) const
