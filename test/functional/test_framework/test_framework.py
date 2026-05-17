@@ -1560,7 +1560,7 @@ class DashTestFramework(BitcoinTestFramework):
         spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
-        self.wait_for_sporks_same()
+        self.wait_for_sporks_same(timeout=60)
 
         # mine blocks in batches
         batch_size = 50 if not slow_mode else 10
@@ -1591,7 +1591,7 @@ class DashTestFramework(BitcoinTestFramework):
         # revert spork17 changes
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork17_value)
-        self.wait_for_sporks_same()
+        self.wait_for_sporks_same(timeout=60)
 
     def activate_v20(self, expected_activation_height=None):
         self.activate_by_name('v20', expected_activation_height)
