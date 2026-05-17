@@ -20,36 +20,18 @@ class CConnman;
 class CDeterministicMNList;
 class CDeterministicMNManager;
 class CGovernanceException;
+class CGovernanceManager;
 class CGovernanceVote;
 class ChainstateManager;
 class CMasternodeSync;
 enum vote_outcome_enum_t : int;
-
-class GovernanceSignerParent
-{
-public:
-    virtual ~GovernanceSignerParent() = default;
-
-    virtual bool IsValid() const = 0;
-    virtual bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list,
-                                   std::shared_ptr<CSuperblock>& pSuperblockRet, int nBlockHeight) = 0;
-    virtual bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus = false) = 0;
-    virtual bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman) = 0;
-    virtual int GetCachedBlockHeight() const = 0;
-    virtual std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) = 0;
-    virtual std::shared_ptr<CGovernanceObject> FindGovernanceObjectByDataHash(const uint256& nDataHash) = 0;
-    virtual std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const = 0;
-    virtual std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(
-        const CDeterministicMNList& tip_mn_list) = 0;
-    virtual void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str) = 0;
-};
 
 class GovernanceSigner
 {
 private:
     CConnman& m_connman;
     CDeterministicMNManager& m_dmnman;
-    GovernanceSignerParent& m_govman;
+    CGovernanceManager& m_govman;
     const CActiveMasternodeManager& m_mn_activeman;
     const ChainstateManager& m_chainman;
     const CMasternodeSync& m_mn_sync;
@@ -61,7 +43,7 @@ public:
     GovernanceSigner() = delete;
     GovernanceSigner(const GovernanceSigner&) = delete;
     GovernanceSigner& operator=(const GovernanceSigner&) = delete;
-    explicit GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, GovernanceSignerParent& govman,
+    explicit GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, CGovernanceManager& govman,
                               const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
                               const CMasternodeSync& mn_sync);
     ~GovernanceSigner();

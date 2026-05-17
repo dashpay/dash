@@ -7,8 +7,7 @@
 
 #include <cachemap.h>
 #include <cachemultimap.h>
-#include <governance/signing.h>
-
+#include <primitives/transaction.h>
 #include <protocol.h>
 #include <sync.h>
 
@@ -231,7 +230,7 @@ public:
 //
 // Governance Manager : Contains all proposals for the budget
 //
-class CGovernanceManager : public GovernanceStore, public GovernanceSignerParent
+class CGovernanceManager : public GovernanceStore
 {
     friend class CGovernanceObject;
 
@@ -271,7 +270,7 @@ public:
     ~CGovernanceManager();
 
     // Basic initialization and querying
-    bool IsValid() const override { return is_valid; }
+    bool IsValid() const { return is_valid; }
     bool IsValidAndSynced() const;
     bool LoadCache(bool load_cache)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -287,7 +286,7 @@ public:
     bool AreRateChecksEnabled() const { return fRateChecksEnabled; }
 
     // Getters/Setters
-    int GetCachedBlockHeight() const override { return nCachedBlockHeight; }
+    int GetCachedBlockHeight() const { return nCachedBlockHeight; }
     int64_t GetLastDiffTime() const { return nTimeLastDiff; }
     std::vector<CGovernanceVote> GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -304,7 +303,7 @@ public:
      */
     bool ConfirmInventoryRequest(const CInv& inv)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman) override
+    bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
     void RelayObject(const CGovernanceObject& obj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
@@ -316,13 +315,13 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
 
     // Signer interface
-    bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus = false) override
+    bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus = false)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::shared_ptr<CGovernanceObject> FindGovernanceObjectByDataHash(const uint256& nDataHash) override
+    std::shared_ptr<CGovernanceObject> FindGovernanceObjectByDataHash(const uint256& nDataHash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
+    std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str) override
+    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
 
     // Superblocks
@@ -337,7 +336,7 @@ public:
 
     // Thread-safe accessors
     bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
-                           int nBlockHeight) override
+                           int nBlockHeight)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool HaveObjectForHash(const uint256& nHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -347,11 +346,11 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) override
+    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     int GetVoteCount() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override
+    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     void AddPostponedObject(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);

@@ -7,6 +7,7 @@
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
+#include <governance/governance.h>
 #include <masternode/sync.h>
 
 #include <chainparams.h>
@@ -22,7 +23,7 @@ namespace {
 constexpr std::chrono::seconds GOVERNANCE_FUDGE_WINDOW{2h};
 } // anonymous namespace
 
-GovernanceSigner::GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, GovernanceSignerParent& govman,
+GovernanceSigner::GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, CGovernanceManager& govman,
                                    const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
                                    const CMasternodeSync& mn_sync) :
     m_connman{connman},
