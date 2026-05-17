@@ -264,6 +264,22 @@ void setFontBodyHTML(QTextEdit* widget, const QString& src, double base_size)
         }
     }
 }
+
+bool weightFromArg(int nArg, QFont::Weight& weight)
+{
+    auto it = mapWeightArgs.first.find(nArg);
+    if (it == mapWeightArgs.first.end()) {
+        return false;
+    }
+    weight = it->second;
+    return true;
+}
+
+int weightToArg(const QFont::Weight weight)
+{
+    assert(mapWeightArgs.second.count(weight));
+    return mapWeightArgs.second.find(weight)->second;
+}
 } // anonymous namespace
 
 namespace GUIUtil {
@@ -319,22 +335,6 @@ bool FontRegistry::SetFont(const QString& font)
     }
     m_font = font;
     return true;
-}
-
-bool weightFromArg(int nArg, QFont::Weight& weight)
-{
-    auto it = mapWeightArgs.first.find(nArg);
-    if (it == mapWeightArgs.first.end()) {
-        return false;
-    }
-    weight = it->second;
-    return true;
-}
-
-int weightToArg(const QFont::Weight weight)
-{
-    assert(mapWeightArgs.second.count(weight));
-    return mapWeightArgs.second.find(weight)->second;
 }
 
 bool isValidWeightArg(int arg)

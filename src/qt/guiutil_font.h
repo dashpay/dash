@@ -134,12 +134,6 @@ struct FontAttrib {
     ~FontAttrib();
 };
 
-/** Convert weight value from args (0-8) to QFont::Weight */
-bool weightFromArg(int nArg, QFont::Weight& weight);
-
-/** Convert QFont::Weight to an arg value (0-8) */
-int weightToArg(const QFont::Weight weight);
-
 /* Weight operations expressed in caller-friendly arg ints (0..8). This is the
  * format used by `-font-weight-*` CLI args and QSettings persistence. Callers
  * that need slider positions (idx in 0..supportedWeightArgs().size()-1) build
