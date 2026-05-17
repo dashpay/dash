@@ -20,10 +20,8 @@
 #include <net.h>
 #include <node/interface_ui.h>
 #include <protocol.h>
-#include <shutdown.h>
 #include <timedata.h>
 #include <util/check.h>
-#include <util/thread.h>
 #include <util/time.h>
 #include <validationinterface.h>
 

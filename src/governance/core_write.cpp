@@ -7,6 +7,7 @@
 #include <governance/governance.h>
 #include <governance/object.h>
 #include <rpc/util.h>
+#include <tinyformat.h>
 #include <util/check.h>
 
 #include <univalue.h>

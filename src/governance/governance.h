@@ -8,7 +8,6 @@
 #include <cachemap.h>
 #include <cachemultimap.h>
 #include <primitives/transaction.h>
-#include <protocol.h>
 #include <sync.h>
 
 #include <chrono>
@@ -17,37 +16,31 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <string_view>
 #include <vector>
 
 class CBloomFilter;
 class CBlockIndex;
-class CChain;
 class CConnman;
+class CDataStream;
+class CDeterministicMNList;
+class CDeterministicMNManager;
 class ChainstateManager;
 template<typename T>
 class CFlatDB;
-class CInv;
-class CNode;
-struct RPCResult;
-
-class CDeterministicMNList;
-class CDeterministicMNManager;
 class CGovernanceException;
-class CGovernanceManager;
 class CGovernanceObject;
 class CGovernanceVote;
+class CInv;
 class CMasternodeMetaMan;
 class CMasternodeSync;
-class CSuperblock;
+class CService;
+struct RPCResult;
+class UniValue;
 
 namespace governance {
 class SuperblockManager;
 } // namespace governance
 
-class UniValue;
-
-using CSuperblock_sptr = std::shared_ptr<CSuperblock>;
 using vote_time_pair_t = std::pair<CGovernanceVote, int64_t>;
 
 static constexpr int RATE_BUFFER_SIZE = 5;
