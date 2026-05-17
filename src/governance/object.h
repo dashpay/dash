@@ -17,7 +17,6 @@
 
 class CBLSPublicKey;
 class CDeterministicMNList;
-class CGovernanceManager;
 class CGovernanceObject;
 class CGovernanceVote;
 class ChainstateManager;
@@ -284,7 +283,7 @@ public:
     void LoadData();
     void GetData(UniValue& objResult) const;
 
-    bool ProcessVote(CMasternodeMetaMan& mn_metaman, CGovernanceManager& govman, const CDeterministicMNList& tip_mn_list,
+    bool ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled, const CDeterministicMNList& tip_mn_list,
                      const CGovernanceVote& vote, CGovernanceException& exception)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 

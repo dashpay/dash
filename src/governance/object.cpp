@@ -6,7 +6,6 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
-#include <governance/governance.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
@@ -56,7 +55,7 @@ CGovernanceObject::CGovernanceObject(const CGovernanceObject& other) :
 {
 }
 
-bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, CGovernanceManager& govman, const CDeterministicMNList& tip_mn_list,
+bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled, const CDeterministicMNList& tip_mn_list,
                                     const CGovernanceVote& vote, CGovernanceException& exception)
 {
     assert(mn_metaman.IsValid());
@@ -123,7 +122,7 @@ bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, CGovernanceM
 
     int64_t nNow = GetAdjustedTime();
     int64_t nVoteTimeUpdate = voteInstanceRef.nTime;
-    if (govman.AreRateChecksEnabled()) {
+    if (fRateChecksEnabled) {
         int64_t nTimeDelta = nNow - voteInstanceRef.nTime;
         if (nTimeDelta < GOVERNANCE_UPDATE_MIN) {
             std::string msg{strprintf("CGovernanceObject::%s -- Masternode voting too often, MN outpoint = %s, "

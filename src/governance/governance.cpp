@@ -253,7 +253,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
         CGovernanceException e;
         if (time < nNow) {
             fRemove = true;
-        } else if (govobj.ProcessVote(m_mn_metaman, *this, tip_mn_list, vote, e)) {
+        } else if (govobj.ProcessVote(m_mn_metaman, fRateChecksEnabled, tip_mn_list, vote, e)) {
             RelayVote(vote);
             fRemove = true;
         }
@@ -811,7 +811,7 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         return false;
     }
 
-    bool fOk = govobj.ProcessVote(m_mn_metaman, *this, Assert(m_dmnman)->GetListAtChainTip(), vote, exception);
+    bool fOk = govobj.ProcessVote(m_mn_metaman, fRateChecksEnabled, Assert(m_dmnman)->GetListAtChainTip(), vote, exception);
     if (fOk) {
         fOk = cmapVoteToObject.Insert(nHashVote, it->second);
     } else if (exception.GetType() == GOVERNANCE_EXCEPTION_PERMANENT_ERROR && exception.GetNodePenalty() == 20) {
