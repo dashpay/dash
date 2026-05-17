@@ -337,6 +337,21 @@ bool FontRegistry::SetFont(const QString& font)
     return true;
 }
 
+int defaultFontScale() { return FontRegistry::DEFAULT_FONT_SCALE; }
+int defaultFontSize() { return FontRegistry::DEFAULT_FONT_SIZE; }
+QString defaultFontFamily() { return FontRegistry::DEFAULT_FONT.toString(); }
+
+bool registerFont(const QString& font, bool selectable, bool skip_checks)
+{
+    return g_font_registry.RegisterFont(font, selectable, skip_checks);
+}
+
+bool setActiveFont(const QString& font) { return g_font_registry.SetFont(font); }
+QString activeFont() { return g_font_registry.GetFont(); }
+
+void setFontScale(int font_scale) { g_font_registry.SetFontScale(font_scale); }
+int fontScale() { return g_font_registry.GetFontScale(); }
+
 bool isValidWeightArg(int arg)
 {
     QFont::Weight weight;

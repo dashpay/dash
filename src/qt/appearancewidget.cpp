@@ -83,8 +83,8 @@ AppearanceWidget::AppearanceWidget(QWidget* parent) :
     QWidget(parent),
     ui{new Ui::AppearanceWidget()},
     prevTheme{GUIUtil::getActiveTheme()},
-    prevScale{GUIUtil::g_font_registry.GetFontScale()},
-    prevFontFamily{GUIUtil::g_font_registry.GetFont()},
+    prevScale{GUIUtil::fontScale()},
+    prevFontFamily{GUIUtil::activeFont()},
     prevWeightNormalArg{GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal)},
     prevWeightBoldArg{GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold)}
 {
@@ -134,13 +134,13 @@ AppearanceWidget::~AppearanceWidget()
         if (prevTheme != GUIUtil::getActiveTheme()) {
             updateTheme(prevTheme);
         }
-        if (prevFontFamily != GUIUtil::g_font_registry.GetFont()) {
-            const bool setfont_ret{GUIUtil::g_font_registry.SetFont(prevFontFamily)};
+        if (prevFontFamily != GUIUtil::activeFont()) {
+            const bool setfont_ret{GUIUtil::setActiveFont(prevFontFamily)};
             assert(setfont_ret);
             GUIUtil::setApplicationFont();
         }
-        if (prevScale != GUIUtil::g_font_registry.GetFontScale()) {
-            GUIUtil::g_font_registry.SetFontScale(prevScale);
+        if (prevScale != GUIUtil::fontScale()) {
+            GUIUtil::setFontScale(prevScale);
         }
         if (prevWeightNormalArg != GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal)) {
             GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, prevWeightNormalArg);
@@ -187,14 +187,14 @@ void AppearanceWidget::setModel(OptionsModel* _model)
     const bool override_family{_model->isOptionOverridden("-font-family")};
     if (override_family) {
         ui->fontFamily->setEnabled(false);
-        if (const auto idx{ui->fontFamily->findText(GUIUtil::g_font_registry.GetFont())}; idx != -1) {
+        if (const auto idx{ui->fontFamily->findText(GUIUtil::activeFont())}; idx != -1) {
             ui->fontFamily->setCurrentIndex(idx);
         }
     }
 
     if (_model->isOptionOverridden("-font-scale")) {
         ui->fontScaleSlider->setEnabled(false);
-        ui->fontScaleSlider->setValue(GUIUtil::g_font_registry.GetFontScale());
+        ui->fontScaleSlider->setValue(GUIUtil::fontScale());
     }
 
     if (bool is_overridden{_model->isOptionOverridden("-font-weight-normal")}; is_overridden || override_family) {
@@ -232,7 +232,7 @@ void AppearanceWidget::updateTheme(const QString& theme)
 
 void AppearanceWidget::updateFontFamily(int index)
 {
-    const bool setfont_ret{GUIUtil::g_font_registry.SetFont(GUIUtil::g_fonts_known[ui->fontFamily->itemData(index).toInt()].first)};
+    const bool setfont_ret{GUIUtil::setActiveFont(GUIUtil::g_fonts_known[ui->fontFamily->itemData(index).toInt()].first)};
     assert(setfont_ret);
     GUIUtil::setApplicationFont();
     GUIUtil::updateFonts();
@@ -241,7 +241,7 @@ void AppearanceWidget::updateFontFamily(int index)
 
 void AppearanceWidget::updateFontScale(int nScale)
 {
-    GUIUtil::g_font_registry.SetFontScale(nScale);
+    GUIUtil::setFontScale(nScale);
     GUIUtil::updateFonts();
 }
 

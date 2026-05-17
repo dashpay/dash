@@ -134,10 +134,26 @@ struct FontAttrib {
     ~FontAttrib();
 };
 
+/** Default values for the corresponding `-font-*` options (used in arg help
+ *  text and as persistence fallbacks). */
+int defaultFontScale();
+int defaultFontSize();
+QString defaultFontFamily();
+
+/** Register a font name as known. If selectable, it shows up in the appearance
+ *  picker. `skip_checks` bypasses the QFontDatabase availability test — only
+ *  legal right after QFontDatabase::addApplicationFont. */
+[[nodiscard]] bool registerFont(const QString& font, bool selectable, bool skip_checks = false);
+/** Switch the active font family. The family must have been registered. */
+[[nodiscard]] bool setActiveFont(const QString& font);
+/** Currently active font family. */
+QString activeFont();
+
+void setFontScale(int font_scale);
+int fontScale();
+
 /* Weight operations expressed in caller-friendly arg ints (0..8). This is the
- * format used by `-font-weight-*` CLI args and QSettings persistence. Callers
- * that need slider positions (idx in 0..supportedWeightArgs().size()-1) build
- * that bridge themselves from `supportedWeightArgs()`. */
+ * format used by `-font-weight-*` CLI args and QSettings persistence. */
 
 /** True if `arg` (0..8) maps to a weight supported by the active font. */
 bool isValidWeightArg(int arg);

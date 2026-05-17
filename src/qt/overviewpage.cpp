@@ -63,7 +63,7 @@ public:
         QRect rectBottomHalf(mainRect.left() + xspace, mainRect.top() + ypad + halfheight + 5, mainRect.width() - xspace, halfheight);
         QRect rectBounding;
         QColor colorForeground;
-        constexpr auto initial_size{GUIUtil::FontRegistry::DEFAULT_FONT_SIZE};
+        const auto initial_size{GUIUtil::defaultFontSize()};
 
         // Grab model indexes for desired data from TransactionTableModel
         QModelIndex indexDate = index.sibling(index.row(), TransactionTableModel::Date);

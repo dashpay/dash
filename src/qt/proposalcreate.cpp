@@ -39,7 +39,7 @@ ProposalCreate::ProposalCreate(WalletModel* walletModel, QWidget* parent) :
     m_ui->setupUi(this);
     m_ui->labelError->setStyleSheet(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR));
     m_ui->labelTotalValue->setFont(
-        GUIUtil::getScaledFont(GUIUtil::FontRegistry::DEFAULT_FONT_SIZE, /*bold=*/true, /*multiplier=*/1.05));
+        GUIUtil::getScaledFont(GUIUtil::defaultFontSize(), /*bold=*/true, /*multiplier=*/1.05));
 
     // Allow payment amount field to stretch horizontally
     if (auto* lineEdit = m_ui->paymentAmount->findChild<QLineEdit*>()) {

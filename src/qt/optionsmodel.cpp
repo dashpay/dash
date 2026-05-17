@@ -257,8 +257,8 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-family");
     }
     if (GUIUtil::fontsLoaded()) {
-        if (auto font_name = QString::fromStdString(SettingToString(node().getPersistentSetting("font-family"), GUIUtil::FontRegistry::DEFAULT_FONT.toUtf8().toStdString()));
-            GUIUtil::g_font_registry.RegisterFont(font_name, /*selectable=*/true) && GUIUtil::g_font_registry.SetFont(font_name)) {
+        if (auto font_name = QString::fromStdString(SettingToString(node().getPersistentSetting("font-family"), GUIUtil::defaultFontFamily().toStdString()));
+            GUIUtil::registerFont(font_name, /*selectable=*/true) && GUIUtil::setActiveFont(font_name)) {
             GUIUtil::setApplicationFont();
         }
     }
@@ -268,7 +268,7 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-scale");
     }
     if (GUIUtil::fontsLoaded()) {
-        GUIUtil::g_font_registry.SetFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::FontRegistry::DEFAULT_FONT_SCALE));
+        GUIUtil::setFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::defaultFontScale()));
     }
 
     // Font Weight (Normal)
@@ -541,7 +541,7 @@ QFont OptionsModel::getFontForChoice(const FontChoice& fc)
     if (std::holds_alternative<FontChoiceAbstract>(fc)) {
         switch (std::get<FontChoiceAbstract>(fc)) {
         case FontChoiceAbstract::ApplicationFont:
-            f.setFamily(GUIUtil::g_font_registry.GetFont());
+            f.setFamily(GUIUtil::activeFont());
             break;
         case FontChoiceAbstract::EmbeddedFont:
             f = GUIUtil::fixedPitchFont(true);
@@ -702,9 +702,9 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
     case Theme:
         return settings.value("theme");
     case FontFamily:
-        return QString::fromStdString(SettingToString(setting(), GUIUtil::FontRegistry::DEFAULT_FONT.toUtf8().toStdString()));
+        return QString::fromStdString(SettingToString(setting(), GUIUtil::defaultFontFamily().toStdString()));
     case FontScale:
-        return qlonglong(SettingToInt(setting(), GUIUtil::FontRegistry::DEFAULT_FONT_SCALE));
+        return qlonglong(SettingToInt(setting(), GUIUtil::defaultFontScale()));
     case FontWeightNormal:
         return qlonglong(SettingToInt(setting(), GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal)));
     case FontWeightBold:
