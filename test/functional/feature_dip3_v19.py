@@ -79,7 +79,7 @@ class DIP3V19Test(DashTestFramework):
 
         self.mine_quorum(llmq_type_name='llmq_test', llmq_type=100)
 
-        self.activate_by_name('v19', expected_activation_height=200)
+        self.activate_by_name('v19', expected_activation_height=200, spork_sync_timeout=60)
         self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
 
         mn_list_after = self.nodes[0].masternodelist()

@@ -1555,7 +1555,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.v20_height = height
         self.mn_rr_height = height
 
-    def activate_by_name(self, name, expected_activation_height=None, slow_mode=True):
+    def activate_by_name(self, name, expected_activation_height=None, slow_mode=True, spork_sync_timeout=30):
         assert not softfork_active(self.nodes[0], name)
         self.log.info("Wait for " + name + " activation")
 
@@ -1563,7 +1563,7 @@ class DashTestFramework(BitcoinTestFramework):
         spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
-        self.wait_for_sporks_same()
+        self.wait_for_sporks_same(timeout=spork_sync_timeout)
 
         # mine blocks in batches
         batch_size = 50 if not slow_mode else 10
@@ -1594,7 +1594,7 @@ class DashTestFramework(BitcoinTestFramework):
         # revert spork17 changes
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork17_value)
-        self.wait_for_sporks_same()
+        self.wait_for_sporks_same(timeout=spork_sync_timeout)
 
     def activate_v20(self, expected_activation_height=None):
         self.activate_by_name('v20', expected_activation_height)
