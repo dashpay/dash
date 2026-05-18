@@ -344,7 +344,7 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
                                            llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE);
     assert(!maybe_load_error.has_value());
 
-    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.chain_helper->superblocks, m_node.dmnman, *m_node.mn_sync);
+    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.chain_helper->superblocks, *m_node.dmnman, *m_node.mn_sync);
 
     auto maybe_verify_error = VerifyLoadedChainstate(
         chainman,

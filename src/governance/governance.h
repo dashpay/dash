@@ -242,7 +242,7 @@ private:
     CMasternodeMetaMan& m_mn_metaman;
     const ChainstateManager& m_chainman;
     governance::SuperblockManager& m_superblocks;
-    const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
+    CDeterministicMNManager& m_dmnman;
     CMasternodeSync& m_mn_sync;
 
     int64_t nTimeLastDiff{0};
@@ -262,8 +262,8 @@ public:
     CGovernanceManager(const CGovernanceManager&) = delete;
     CGovernanceManager& operator=(const CGovernanceManager&) = delete;
     explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
-                                governance::SuperblockManager& superblocks,
-                                const std::unique_ptr<CDeterministicMNManager>& dmnman, CMasternodeSync& mn_sync);
+                                governance::SuperblockManager& superblocks, CDeterministicMNManager& dmnman,
+                                CMasternodeSync& mn_sync);
     ~CGovernanceManager();
 
     // Basic initialization and querying
