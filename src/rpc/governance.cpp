@@ -7,8 +7,8 @@
 #include <evo/deterministicmns.h>
 #include <governance/common.h>
 #include <governance/governance.h>
+#include <governance/object.h>
 #include <governance/superblock.h>
-#include <governance/validators.h>
 #include <governance/vote.h>
 #include <masternode/sync.h>
 
@@ -124,7 +124,7 @@ static RPCHelpMan gobject_check()
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
         std::string strValidationError;
-        if (!ValidateProposal(strDataHex, strValidationError)) {
+        if (!governance::ValidateProposal(strDataHex, strValidationError)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + strValidationError);
         }
     } else {
@@ -195,7 +195,7 @@ static RPCHelpMan gobject_prepare()
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
         std::string strValidationError;
-        if (!ValidateProposal(strDataHex, strValidationError)) {
+        if (!governance::ValidateProposal(strDataHex, strValidationError)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + strValidationError);
         }
     }
@@ -377,7 +377,7 @@ static RPCHelpMan gobject_submit()
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
         std::string strValidationError;
-        if (!ValidateProposal(strDataHex, strValidationError)) {
+        if (!governance::ValidateProposal(strDataHex, strValidationError)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + strValidationError);
         }
     }

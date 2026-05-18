@@ -64,7 +64,7 @@
 #include <validationinterface.h>
 #include <warnings.h>
 
-#include <governance/validators.h>
+#include <governance/common.h>
 
 #if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
@@ -359,7 +359,7 @@ public:
             return std::nullopt;
         }
         std::string strValidationError;
-        if (!ValidateProposal(data_hex, strValidationError)) {
+        if (!governance::ValidateProposal(data_hex, strValidationError)) {
             error = "Invalid proposal data: " + strValidationError;
             return std::nullopt;
         }
@@ -385,7 +385,7 @@ public:
         if (govobj.GetObjectType() == GovernanceObject::TRIGGER) { error = "Submission of triggers is not available"; return false; }
         if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
             std::string strValidationError;
-            if (!ValidateProposal(data_hex, strValidationError)) { error = "Invalid proposal data: " + strValidationError; return false; }
+            if (!governance::ValidateProposal(data_hex, strValidationError)) { error = "Invalid proposal data: " + strValidationError; return false; }
         }
         const CTxMemPool& mempool = *Assert(context().mempool);
         bool fMissingConfirmations{false};

@@ -356,4 +356,14 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 
+namespace governance {
+/**
+ * Validate the serialized proposal data (hex-encoded JSON).
+ * Returns true on success. On failure, returns false and fills strErrorOut
+ * with a semicolon-delimited list of detected issues.
+ */
+bool ValidateProposal(const std::string& strDataHex, std::string& strErrorOut,
+                      bool fCheckExpiration = true, bool fAllowScript = true);
+} // namespace governance
+
 #endif // BITCOIN_GOVERNANCE_OBJECT_H

@@ -6,7 +6,6 @@
 #include <qt/forms/ui_proposalcreate.h>
 
 #include <governance/object.h>
-#include <governance/validators.h>
 #include <interfaces/node.h>
 #include <util/moneystr.h>
 #include <util/strencodings.h>
@@ -255,7 +254,7 @@ void ProposalCreate::validateFields()
 
     buildJsonAndHex();
     std::string strValidationError;
-    if (ValidateProposal(m_hex.toStdString(), strValidationError)) {
+    if (governance::ValidateProposal(m_hex.toStdString(), strValidationError)) {
         m_ui->labelError->clear();
     } else {
         // Show first error only

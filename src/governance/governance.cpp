@@ -7,8 +7,8 @@
 #include <evo/deterministicmns.h>
 #include <flat-database.h>
 #include <governance/common.h>
+#include <governance/object.h>
 #include <governance/superblock.h>
-#include <governance/validators.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 
@@ -418,7 +418,7 @@ void CGovernanceManager::CheckAndRemove()
         } else {
             if (pObj->GetObjectType() == GovernanceObject::PROPOSAL) {
                 std::string strValidationError;
-                if (!ValidateProposal(pObj->GetDataAsHexString(), strValidationError)) {
+                if (!governance::ValidateProposal(pObj->GetDataAsHexString(), strValidationError)) {
                     LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- set for deletion expired obj %s\n", strHash);
                     pObj->PrepareDeletion(nNow.count());
                 }

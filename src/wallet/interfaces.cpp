@@ -33,7 +33,6 @@
 #include <wallet/wallet.h>
 #include <wallet/hdchain.h>
 #include <wallet/scriptpubkeyman.h>
-#include <governance/validators.h>
 #include <evo/deterministicmns.h>
 #include <masternode/sync.h>
 #include <txdb.h>

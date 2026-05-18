@@ -236,7 +236,6 @@ BITCOIN_CORE_H = \
   governance/object.h \
   governance/signing.h \
   governance/superblock.h \
-  governance/validators.h \
   governance/vote.h \
   governance/votedb.h \
   gsl/assert.h \
@@ -525,7 +524,6 @@ libbitcoin_node_a_SOURCES = \
   governance/object.cpp \
   governance/signing.cpp \
   governance/superblock.cpp \
-  governance/validators.cpp \
   governance/vote.cpp \
   governance/votedb.cpp \
   gsl/assert.cpp \
