@@ -12,7 +12,6 @@
 
 class CBLSPublicKey;
 class CDeterministicMNList;
-class CGovernanceVote;
 class CKeyID;
 
 // INTENTION OF MASTERNODES REGARDING ITEM

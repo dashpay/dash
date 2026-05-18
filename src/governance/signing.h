@@ -17,14 +17,10 @@
 class CActiveMasternodeManager;
 class CBlockIndex;
 class CConnman;
-class CDeterministicMNList;
 class CDeterministicMNManager;
-class CGovernanceException;
 class CGovernanceManager;
-class CGovernanceVote;
 class ChainstateManager;
 class CMasternodeSync;
-enum vote_outcome_enum_t : int;
 
 namespace governance {
 class SuperblockManager;

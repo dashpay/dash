@@ -20,11 +20,8 @@
 
 class CChain;
 class CDeterministicMNList;
-class CSuperblock;
 class CTransaction;
 class CTxOut;
-
-using CSuperblock_sptr = std::shared_ptr<CSuperblock>;
 
 CAmount ParsePaymentAmount(const std::string& strAmount);
 
@@ -115,6 +112,8 @@ public:
 
     std::vector<uint256> GetProposalHashes() const;
 };
+
+using CSuperblock_sptr = std::shared_ptr<CSuperblock>;
 
 namespace governance {
 

@@ -12,16 +12,12 @@
 
 #include <span.h>
 
-#include <univalue.h>
-
 #include <exception>
 #include <iosfwd>
 #include <string>
 
 class CBLSPublicKey;
 class CDeterministicMNList;
-class CGovernanceObject;
-class CGovernanceVote;
 class ChainstateManager;
 class CMasternodeMetaMan;
 struct RPCResult;
