@@ -32,15 +32,19 @@ def prepare_object(node, object_type, parent_hash, creation_time, revision, name
         "data": proposal_template,
     }
 
-def have_trigger_for_height(nodes, sb_block_height):
+def have_trigger_for_height(nodes, sb_block_height, signal="valid"):
     count = 0
     for node in nodes:
-        valid_triggers = node.gobject("list", "valid", "triggers")
-        for trigger in list(valid_triggers.values()):
+        triggers = node.gobject("list", signal, "triggers")
+        for trigger in list(triggers.values()):
             if json.loads(trigger["DataString"])["event_block_height"] != sb_block_height:
                 continue
             if trigger['AbsoluteYesCount'] > 0:
                 count = count + 1
                 break
     return count == len(nodes)
+
+
+def have_funded_trigger_for_height(nodes, sb_block_height):
+    return have_trigger_for_height(nodes, sb_block_height, signal="funding")
 
