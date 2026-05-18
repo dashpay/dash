@@ -348,6 +348,7 @@ bool registerFont(const QString& font, bool selectable, bool skip_checks)
 
 bool setActiveFont(const QString& font) { return g_font_registry.SetFont(font); }
 QString activeFont() { return g_font_registry.GetFont(); }
+const std::vector<std::pair<QString, bool>>& knownFonts() { return g_fonts_known; }
 
 void setFontScale(int font_scale) { g_font_registry.SetFontScale(font_scale); }
 int fontScale() { return g_font_registry.GetFontScale(); }

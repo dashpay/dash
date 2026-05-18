@@ -148,6 +148,8 @@ QString defaultFontFamily();
 [[nodiscard]] bool setActiveFont(const QString& font);
 /** Currently active font family. */
 QString activeFont();
+/** Known fonts and their "selectable in UI" flag, in registration order. */
+const std::vector<std::pair<QString, /*selectable=*/bool>>& knownFonts();
 
 void setFontScale(int font_scale);
 int fontScale();

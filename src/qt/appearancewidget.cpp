@@ -94,8 +94,9 @@ AppearanceWidget::AppearanceWidget(QWidget* parent) :
         ui->theme->addItem(entry, QVariant(entry));
     }
 
-    for (size_t idx{0}; idx < GUIUtil::g_fonts_known.size(); idx++) {
-        const auto& [font, selectable] = GUIUtil::g_fonts_known[idx];
+    const auto& known = GUIUtil::knownFonts();
+    for (size_t idx{0}; idx < known.size(); idx++) {
+        const auto& [font, selectable] = known[idx];
         if (selectable) { ui->fontFamily->addItem(font, QVariant((uint16_t)idx)); }
     }
 
@@ -232,7 +233,7 @@ void AppearanceWidget::updateTheme(const QString& theme)
 
 void AppearanceWidget::updateFontFamily(int index)
 {
-    const bool setfont_ret{GUIUtil::setActiveFont(GUIUtil::g_fonts_known[ui->fontFamily->itemData(index).toInt()].first)};
+    const bool setfont_ret{GUIUtil::setActiveFont(GUIUtil::knownFonts()[ui->fontFamily->itemData(index).toInt()].first)};
     assert(setfont_ret);
     GUIUtil::setApplicationFont();
     GUIUtil::updateFonts();
