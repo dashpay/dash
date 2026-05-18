@@ -72,9 +72,7 @@ class FontRegistry {
 public:
     [[nodiscard]] bool RegisterFont(const QString& font, bool selectable, bool skip_checks = false);
 
-    bool IsValidWeight(const QFont::Weight& weight) const { return WeightToIdx(weight) != -1; }
-    int WeightToIdx(const QFont::Weight& weight) const;
-    QFont::Weight IdxToWeight(int index) const;
+    bool IsValidWeight(const QFont::Weight& weight) const;
 
     [[nodiscard]] bool SetFont(const QString& font);
     void SetFontScale(int font_scale) { m_font_scale = font_scale; }
@@ -523,22 +521,10 @@ bool FontRegistry::SetFont(const QString& font)
     return true;
 }
 
-QFont::Weight FontRegistry::IdxToWeight(int index) const
+bool FontRegistry::IsValidWeight(const QFont::Weight& weight) const
 {
-    const auto vecWeights = GetSupportedWeights();
-    assert(vecWeights.size() > uint64_t(index));
-    return vecWeights.at(index);
-}
-
-int FontRegistry::WeightToIdx(const QFont::Weight& weight) const
-{
-    const auto vecWeights = GetSupportedWeights();
-    for (uint64_t index = 0; index < vecWeights.size(); ++index) {
-        if (weight == vecWeights.at(index)) {
-            return index;
-        }
-    }
-    return -1;
+    const auto supported = GetSupportedWeights();
+    return std::find(supported.begin(), supported.end(), weight) != supported.end();
 }
 } // anonymous namespace
 
