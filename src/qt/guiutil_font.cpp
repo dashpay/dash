@@ -822,7 +822,7 @@ QFont fixedPitchFont(bool use_embedded_font)
     });
 }
 
-void registerWidget(QTextEdit* widget, const QString& html)
+void setStyledHtml(QTextEdit* widget, const QString& html)
 {
     if (!widget) return;
     double base_size{DEFAULT_FONT_SIZE};

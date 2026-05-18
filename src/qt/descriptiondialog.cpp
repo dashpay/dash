@@ -16,7 +16,7 @@ DescriptionDialog::DescriptionDialog(const QString& title, const QString& html, 
 {
     ui->setupUi(this);
     setWindowTitle(title);
-    GUIUtil::registerWidget(ui->detailText, html);
+    GUIUtil::setStyledHtml(ui->detailText, html);
     GUIUtil::updateFonts();
     GUIUtil::handleCloseWindowShortcut(this);
 }

@@ -74,8 +74,10 @@ bool loadFonts();
 /** Check if the fonts have been loaded successfully */
 bool fontsLoaded();
 
-/** Register a QTextEdit for font styling. Applies immediately and updates when fonts change. */
-void registerWidget(QTextEdit* widget, const QString& html);
+/** Set HTML content on a QTextEdit with font-aware styling. Captures the
+ *  widget's base point size on first call so re-application on font/theme
+ *  changes preserves it. Subsequent calls update the HTML. */
+void setStyledHtml(QTextEdit* widget, const QString& html);
 
 /** Set an application wide default font, depends on the selected theme */
 void setApplicationFont();
