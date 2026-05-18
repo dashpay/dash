@@ -601,6 +601,8 @@ bool loadFonts()
         qDebug() << qstrprintf("%s: %s loaded with id %d", __func__, font_name.toStdString(), vecFontIds.back());
     };
 
+    // Import the embedded Roboto Mono used by fixedPitchFont(use_embedded_font=true)
+    importFont(":fonts/monospace");
     // Import the italic Montserrat variant as it doesn't map to a weight
     importFont(qstrprintf(":fonts/%s-Italic", MONTSERRAT_FONT_STR.toUtf8().toStdString()));
     // Import the rest of Montserrat variants

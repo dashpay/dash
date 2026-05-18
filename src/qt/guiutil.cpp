@@ -43,7 +43,6 @@
 #include <QDialog>
 #include <QFileDialog>
 #include <QFont>
-#include <QFontDatabase>
 #include <QFontMetrics>
 #include <QGuiApplication>
 #include <QJsonObject>
@@ -430,12 +429,6 @@ bool hasEntryData(const QAbstractItemView *view, int column, int role)
     QModelIndexList selection = getEntryData(view, column);
     if (selection.isEmpty()) return false;
     return !selection.at(0).data(role).toString().isEmpty();
-}
-
-void LoadFont(const QString& file_name)
-{
-    const int id = QFontDatabase::addApplicationFont(file_name);
-    assert(id != -1);
 }
 
 QString getDefaultDataDirectory()
