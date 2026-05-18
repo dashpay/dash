@@ -14,6 +14,7 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QFont>
 #include <QFontDatabase>
 #include <QFontMetrics>
 #include <QPointer>

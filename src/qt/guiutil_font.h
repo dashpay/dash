@@ -5,7 +5,6 @@
 #ifndef BITCOIN_QT_GUIUTIL_FONT_H
 #define BITCOIN_QT_GUIUTIL_FONT_H
 
-#include <QFont>
 #include <QString>
 
 #include <cstdint>
@@ -13,6 +12,7 @@
 #include <vector>
 
 QT_BEGIN_NAMESPACE
+class QFont;
 class QTextEdit;
 class QWidget;
 QT_END_NAMESPACE
