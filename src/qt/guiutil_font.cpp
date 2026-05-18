@@ -17,9 +17,11 @@
 #include <QFontDatabase>
 #include <QFontMetrics>
 #include <QPointer>
+#include <QStringView>
 #include <QTextBlock>
 #include <QTextCharFormat>
 #include <QTextCursor>
+#include <QTextEdit>
 #include <QWidget>
 
 #include <cmath>
@@ -28,6 +30,113 @@
 #include <utility>
 
 namespace {
+// TODO: Switch to QUtf8StringView when we switch to Qt 6
+constexpr QStringView MONTSERRAT_FONT_STR{u"Montserrat"};
+constexpr QStringView OS_FONT_STR{u"SystemDefault"};
+constexpr QStringView OS_MONO_FONT_STR{u"SystemMonospace"};
+constexpr QStringView ROBOTO_MONO_FONT_STR{u"Roboto Mono"};
+
+constexpr int DEFAULT_FONT_SCALE{0};
+constexpr int DEFAULT_FONT_SIZE{12};
+constexpr QStringView DEFAULT_FONT{OS_FONT_STR};
+constexpr QFont::Weight TARGET_WEIGHT_BOLD{QFont::Medium};
+constexpr QFont::Weight TARGET_WEIGHT_NORMAL{
+#ifdef Q_OS_MACOS
+    QFont::ExtraLight
+#else
+    QFont::Light
+#endif // Q_OS_MACOS
+};
+
+//! Per-font weight cache (defaults + user-selected bold/normal + supported list).
+struct FontInfo {
+    QFont::Weight m_bold;
+    QFont::Weight m_bold_default;
+    QFont::Weight m_normal;
+    QFont::Weight m_normal_default;
+    std::vector<QFont::Weight> m_supported_weights;
+
+    FontInfo() = delete;
+    explicit FontInfo(const QString& font_name);
+    ~FontInfo();
+
+private:
+    QFont::Weight GetBestMatch(const QString& font_name, QFont::Weight target);
+    void CalcDefaultWeights(const QString& font_name);
+    void CalcSupportedWeights(const QString& font_name);
+};
+
+//! Global font state (active family, scale, per-font cache). File-private —
+//! external callers go through the free-function API in qt/guiutil_font.h.
+class FontRegistry {
+public:
+    [[nodiscard]] bool RegisterFont(const QString& font, bool selectable, bool skip_checks = false);
+
+    bool IsValidWeight(const QFont::Weight& weight) const { return WeightToIdx(weight) != -1; }
+    int WeightToIdx(const QFont::Weight& weight) const;
+    QFont::Weight IdxToWeight(int index) const;
+
+    [[nodiscard]] bool SetFont(const QString& font);
+    void SetFontScale(int font_scale) { m_font_scale = font_scale; }
+    void SetWeightBold(const QFont::Weight& bold)
+    {
+        assert(m_weights.count(m_font));
+        m_weights.at(m_font).m_bold = bold;
+    }
+    void SetWeightNormal(const QFont::Weight& normal)
+    {
+        assert(m_weights.count(m_font));
+        m_weights.at(m_font).m_normal = normal;
+    }
+
+    double GetScaledFontSize(double size) const { return std::round(size * (1 + (m_font_scale * m_scale_steps)) * 4) / 4.0; }
+    QString GetFont() const { return m_font; }
+    int GetFontScale() const { return m_font_scale; }
+    int GetFontSize() const { return m_font_size; }
+    QFont::Weight GetWeightBold() const
+    {
+        if (auto it = m_weights.find(m_font); it != m_weights.end()) { return it->second.m_bold; }
+        return TARGET_WEIGHT_BOLD;
+    }
+    QFont::Weight GetWeightNormal() const
+    {
+        if (auto it = m_weights.find(m_font); it != m_weights.end()) { return it->second.m_normal; }
+        return TARGET_WEIGHT_NORMAL;
+    }
+    QFont::Weight GetWeightBoldDefault() const
+    {
+        if (auto it = m_weights.find(m_font); it != m_weights.end()) { return it->second.m_bold_default; }
+        return TARGET_WEIGHT_BOLD;
+    }
+    QFont::Weight GetWeightNormalDefault() const
+    {
+        if (auto it = m_weights.find(m_font); it != m_weights.end()) { return it->second.m_normal_default; }
+        return TARGET_WEIGHT_NORMAL;
+    }
+    std::vector<QFont::Weight> GetSupportedWeights() const
+    {
+        if (auto it = m_weights.find(m_font); it != m_weights.end()) { return it->second.m_supported_weights; }
+        return {TARGET_WEIGHT_NORMAL, TARGET_WEIGHT_BOLD};
+    }
+
+private:
+    double m_scale_steps{0.01};
+    QString m_font{DEFAULT_FONT.toUtf8()};
+    int m_font_scale{DEFAULT_FONT_SCALE};
+    int m_font_size{DEFAULT_FONT_SIZE};
+    std::map<QString, FontInfo> m_weights;
+};
+
+FontRegistry g_font_registry;
+
+//! Fonts known by the client
+std::vector<std::pair<QString, /*selectable=*/bool>> g_fonts_known{
+    {MONTSERRAT_FONT_STR.toUtf8(), true},
+    {OS_FONT_STR.toUtf8(), true},
+    {OS_MONO_FONT_STR.toUtf8(), false},
+    {ROBOTO_MONO_FONT_STR.toUtf8(), false},
+};
+
 //! Instance of font database shared among calls
 std::unique_ptr<QFontDatabase> g_font_db{nullptr};
 
@@ -127,6 +236,22 @@ QString qstrprintf(const std::string& fmt, const Args&... args)
     return QString::fromStdString(tfm::format(fmt, args...));
 }
 
+bool weightFromArg(int nArg, QFont::Weight& weight)
+{
+    auto it = mapWeightArgs.first.find(nArg);
+    if (it == mapWeightArgs.first.end()) {
+        return false;
+    }
+    weight = it->second;
+    return true;
+}
+
+int weightToArg(const QFont::Weight weight)
+{
+    assert(mapWeightArgs.second.count(weight));
+    return mapWeightArgs.second.find(weight)->second;
+}
+
 //! Returns a properly weighted QFont object with the selected font
 QFont getFont(const GUIUtil::FontAttrib& font_attrib)
 {
@@ -137,9 +262,9 @@ QFont getFont(const GUIUtil::FontAttrib& font_attrib)
 
     // Resolve weight from FontWeight type
     const QFont::Weight weight = (font_attrib.m_weight_type == GUIUtil::FontWeight::Bold)
-                               ? GUIUtil::g_font_registry.GetWeightBold() : GUIUtil::g_font_registry.GetWeightNormal();
+                               ? g_font_registry.GetWeightBold() : g_font_registry.GetWeightNormal();
 
-    if (font_attrib.m_font == GUIUtil::MONTSERRAT_FONT_STR) {
+    if (font_attrib.m_font == MONTSERRAT_FONT_STR) {
         assert(mapMontserrat.count(weight));
 #ifdef Q_OS_MACOS
         font.setFamily(font_attrib.m_font);
@@ -161,20 +286,20 @@ QFont getFont(const GUIUtil::FontAttrib& font_attrib)
             font.setFamily(qstrprintf("%s %s", font_attrib.m_font.toStdString(), mapMontserrat.at(weight).first));
         }
 #endif // Q_OS_MACOS
-    } else if (font_attrib.m_font == GUIUtil::OS_FONT_STR) {
+    } else if (font_attrib.m_font == OS_FONT_STR) {
         font.setFamily(g_default_font->family());
-    } else if (font_attrib.m_font == GUIUtil::OS_MONO_FONT_STR) {
+    } else if (font_attrib.m_font == OS_MONO_FONT_STR) {
         font.setFamily(QFontDatabase::systemFont(QFontDatabase::FixedFont).family());
     } else {
         font.setFamily(font_attrib.m_font);
     }
 
-    if (font_attrib.m_font == GUIUtil::ROBOTO_MONO_FONT_STR || font_attrib.m_font == GUIUtil::OS_MONO_FONT_STR) {
+    if (font_attrib.m_font == ROBOTO_MONO_FONT_STR || font_attrib.m_font == OS_MONO_FONT_STR) {
         font.setStyleHint(QFont::Monospace);
     }
 
 #ifdef Q_OS_MACOS
-    if (font_attrib.m_font != GUIUtil::MONTSERRAT_FONT_STR)
+    if (font_attrib.m_font != MONTSERRAT_FONT_STR)
 #endif // Q_OS_MACOS
     {
         font.setWeight(weight);
@@ -182,7 +307,7 @@ QFont getFont(const GUIUtil::FontAttrib& font_attrib)
     }
 
     if (font_attrib.m_point_size != -1) {
-        font.setPointSizeF(GUIUtil::g_font_registry.GetScaledFontSize(font_attrib.m_point_size));
+        font.setPointSizeF(g_font_registry.GetScaledFontSize(font_attrib.m_point_size));
     }
 
     if (gArgs.GetBoolArg("-debug-ui", false)) {
@@ -257,7 +382,7 @@ void setFontBodyHTML(QTextEdit* widget, const QString& src, double base_size)
                 }
 #endif // Q_OS_MACOS
                 if (scale_add > 0) {
-                    fmt.setFontPointSize(GUIUtil::g_font_registry.GetScaledFontSize(base_size * (1 + scale_add)));
+                    fmt.setFontPointSize(g_font_registry.GetScaledFontSize(base_size * (1 + scale_add)));
                 }
                 cursor.mergeCharFormat(fmt);
             }
@@ -265,33 +390,37 @@ void setFontBodyHTML(QTextEdit* widget, const QString& src, double base_size)
     }
 }
 
-bool weightFromArg(int nArg, QFont::Weight& weight)
+//! Internal helper to create a font with explicit weight (used for font detection)
+QFont getFontWithWeight(const QString& font_name, QFont::Weight weight, double point_size)
 {
-    auto it = mapWeightArgs.first.find(nArg);
-    if (it == mapWeightArgs.first.end()) {
-        return false;
+    QFont font;
+    if (font_name == MONTSERRAT_FONT_STR) {
+        if (mapMontserrat.count(weight)) {
+#ifdef Q_OS_MACOS
+            font.setFamily(font_name);
+            font.setStyleName(QString::fromStdString(mapMontserrat.at(weight).first));
+#else
+            if (weight == QFont::Normal || weight == QFont::Bold) {
+                font.setFamily(font_name);
+            } else {
+                font.setFamily(qstrprintf("%s %s", font_name.toStdString(), mapMontserrat.at(weight).first));
+            }
+#endif
+        }
+    } else if (font_name == OS_FONT_STR && g_default_font) {
+        font.setFamily(g_default_font->family());
+    } else {
+        font.setFamily(font_name);
     }
-    weight = it->second;
-    return true;
+#ifdef Q_OS_MACOS
+    if (font_name != MONTSERRAT_FONT_STR)
+#endif
+    {
+        font.setWeight(weight);
+    }
+    font.setPointSizeF(point_size);
+    return font;
 }
-
-int weightToArg(const QFont::Weight weight)
-{
-    assert(mapWeightArgs.second.count(weight));
-    return mapWeightArgs.second.find(weight)->second;
-}
-} // anonymous namespace
-
-namespace GUIUtil {
-//! Fonts known by the client
-std::vector<std::pair<QString, /*selectable=*/bool>> g_fonts_known{
-    {MONTSERRAT_FONT_STR.toUtf8(), true},
-    {OS_FONT_STR.toUtf8(), true},
-    {OS_MONO_FONT_STR.toUtf8(), false},
-    {ROBOTO_MONO_FONT_STR.toUtf8(), false},
-};
-
-FontRegistry g_font_registry;
 
 FontInfo::FontInfo(const QString& font_name)
 {
@@ -303,9 +432,66 @@ FontInfo::FontInfo(const QString& font_name)
 
 FontInfo::~FontInfo() = default;
 
+void FontInfo::CalcSupportedWeights(const QString& font_name)
+{
+    auto getTestWidth = [](const QString& font_name, QFont::Weight weight) -> int {
+        QFont font = getFontWithWeight(font_name, weight, DEFAULT_FONT_SIZE);
+        return GUIUtil::TextWidth(QFontMetrics(font), ("Check the width of this text to see if the weight change has an impact!"));
+    };
+    QFont::Weight prevWeight = vecWeightConsider.front();
+    bool isFirst = true;
+    for (const auto& weight : vecWeightConsider) {
+        if (isFirst) {
+            isFirst = false;
+            continue;
+        }
+        if (getTestWidth(font_name, prevWeight) != getTestWidth(font_name, weight)) {
+            if (m_supported_weights.empty()) {
+                m_supported_weights.push_back(prevWeight);
+            }
+            m_supported_weights.push_back(weight);
+        }
+        prevWeight = weight;
+    }
+    if (m_supported_weights.empty()) {
+        m_supported_weights.push_back(QFont::Normal);
+    }
+}
+
+QFont::Weight FontInfo::GetBestMatch(const QString& font_name, QFont::Weight target)
+{
+    assert(!m_supported_weights.empty());
+
+    QFont::Weight bestWeight = m_supported_weights.front();
+    int nBestDiff = abs(bestWeight - target);
+    for (const auto& weight : m_supported_weights) {
+        int nDiff = abs(weight - target);
+        if (nDiff < nBestDiff) {
+            bestWeight = weight;
+            nBestDiff = nDiff;
+        }
+    }
+    return bestWeight;
+}
+
+void FontInfo::CalcDefaultWeights(const QString& font_name)
+{
+    assert(!m_supported_weights.empty());
+
+    m_normal_default = GetBestMatch(font_name, TARGET_WEIGHT_NORMAL);
+    m_bold_default = GetBestMatch(font_name, TARGET_WEIGHT_BOLD);
+    if (m_normal_default == m_bold_default) {
+        // If the results are the same use the next possible weight for bold font
+        auto it = std::find(m_supported_weights.begin(), m_supported_weights.end(), m_normal_default);
+        if (++it != m_supported_weights.end()) {
+            m_bold_default = *it;
+        }
+    }
+}
+
 bool FontRegistry::RegisterFont(const QString& font, bool selectable, bool skip_checks)
 {
-    const auto font_strs{getFonts(/*selectable_only=*/false)};
+    const auto font_strs{GUIUtil::getFonts(/*selectable_only=*/false)};
     auto font_it{std::find(font_strs.begin(), font_strs.end(), font)};
     if (m_weights.count(font)) {
         // Font's already registered
@@ -337,9 +523,48 @@ bool FontRegistry::SetFont(const QString& font)
     return true;
 }
 
-int defaultFontScale() { return FontRegistry::DEFAULT_FONT_SCALE; }
-int defaultFontSize() { return FontRegistry::DEFAULT_FONT_SIZE; }
-QString defaultFontFamily() { return FontRegistry::DEFAULT_FONT.toString(); }
+QFont::Weight FontRegistry::IdxToWeight(int index) const
+{
+    const auto vecWeights = GetSupportedWeights();
+    assert(vecWeights.size() > uint64_t(index));
+    return vecWeights.at(index);
+}
+
+int FontRegistry::WeightToIdx(const QFont::Weight& weight) const
+{
+    const auto vecWeights = GetSupportedWeights();
+    for (uint64_t index = 0; index < vecWeights.size(); ++index) {
+        if (weight == vecWeights.at(index)) {
+            return index;
+        }
+    }
+    return -1;
+}
+} // anonymous namespace
+
+namespace GUIUtil {
+
+FontAttrib::FontAttrib(QString font, FontWeight weight_type, double point_size, bool is_italic) :
+    m_font{font},
+    m_weight_type{weight_type},
+    m_point_size{point_size},
+    m_is_italic{is_italic}
+{
+}
+
+FontAttrib::FontAttrib(FontWeight weight_type, double point_size, bool is_italic) :
+    m_font{g_font_registry.GetFont()},
+    m_weight_type{weight_type},
+    m_point_size{point_size},
+    m_is_italic{is_italic}
+{
+}
+
+FontAttrib::~FontAttrib() = default;
+
+int defaultFontScale() { return DEFAULT_FONT_SCALE; }
+int defaultFontSize() { return DEFAULT_FONT_SIZE; }
+QString defaultFontFamily() { return DEFAULT_FONT.toString(); }
 
 bool registerFont(const QString& font, bool selectable, bool skip_checks)
 {
@@ -390,113 +615,6 @@ std::vector<int> supportedWeightArgs()
     }
     return ret;
 }
-
-//! Internal helper to create a font with explicit weight (used for font detection)
-static QFont getFontWithWeight(const QString& font_name, QFont::Weight weight, double point_size)
-{
-    QFont font;
-    if (font_name == MONTSERRAT_FONT_STR) {
-        if (mapMontserrat.count(weight)) {
-#ifdef Q_OS_MACOS
-            font.setFamily(font_name);
-            font.setStyleName(QString::fromStdString(mapMontserrat.at(weight).first));
-#else
-            if (weight == QFont::Normal || weight == QFont::Bold) {
-                font.setFamily(font_name);
-            } else {
-                font.setFamily(qstrprintf("%s %s", font_name.toStdString(), mapMontserrat.at(weight).first));
-            }
-#endif
-        }
-    } else if (font_name == OS_FONT_STR && g_default_font) {
-        font.setFamily(g_default_font->family());
-    } else {
-        font.setFamily(font_name);
-    }
-#ifdef Q_OS_MACOS
-    if (font_name != MONTSERRAT_FONT_STR)
-#endif
-    {
-        font.setWeight(weight);
-    }
-    font.setPointSizeF(point_size);
-    return font;
-}
-
-void FontInfo::CalcSupportedWeights(const QString& font_name)
-{
-    auto getTestWidth = [](const QString& font_name, QFont::Weight weight) -> int {
-        QFont font = getFontWithWeight(font_name, weight, FontRegistry::DEFAULT_FONT_SIZE);
-        return TextWidth(QFontMetrics(font), ("Check the width of this text to see if the weight change has an impact!"));
-    };
-    QFont::Weight prevWeight = vecWeightConsider.front();
-    bool isFirst = true;
-    for (const auto& weight : vecWeightConsider) {
-        if (isFirst) {
-            isFirst = false;
-            continue;
-        }
-        if (getTestWidth(font_name, prevWeight) != getTestWidth(font_name, weight)) {
-            if (m_supported_weights.empty()) {
-                m_supported_weights.push_back(prevWeight);
-            }
-            m_supported_weights.push_back(weight);
-        }
-        prevWeight = weight;
-    }
-    if (m_supported_weights.empty()) {
-        m_supported_weights.push_back(QFont::Normal);
-    }
-}
-
-QFont::Weight FontInfo::GetBestMatch(const QString& font_name, QFont::Weight target)
-{
-    assert(!m_supported_weights.empty());
-
-    QFont::Weight bestWeight = m_supported_weights.front();
-    int nBestDiff = abs(bestWeight - target);
-    for (const auto& weight : m_supported_weights) {
-        int nDiff = abs(weight - target);
-        if (nDiff < nBestDiff) {
-            bestWeight = weight;
-            nBestDiff = nDiff;
-        }
-    }
-    return bestWeight;
-}
-
-void FontInfo::CalcDefaultWeights(const QString& font_name)
-{
-    assert(!m_supported_weights.empty());
-
-    m_normal_default = GetBestMatch(font_name, FontRegistry::TARGET_WEIGHT_NORMAL);
-    m_bold_default = GetBestMatch(font_name, FontRegistry::TARGET_WEIGHT_BOLD);
-    if (m_normal_default == m_bold_default) {
-        // If the results are the same use the next possible weight for bold font
-        auto it = std::find(m_supported_weights.begin(), m_supported_weights.end(), m_normal_default);
-        if (++it != m_supported_weights.end()) {
-            m_bold_default = *it;
-        }
-    }
-}
-
-FontAttrib::FontAttrib(QString font, FontWeight weight_type, double point_size, bool is_italic) :
-    m_font{font},
-    m_weight_type{weight_type},
-    m_point_size{point_size},
-    m_is_italic{is_italic}
-{
-}
-
-FontAttrib::FontAttrib(FontWeight weight_type, double point_size, bool is_italic) :
-    m_font{g_font_registry.GetFont()},
-    m_weight_type{weight_type},
-    m_point_size{point_size},
-    m_is_italic{is_italic}
-{
-}
-
-FontAttrib::~FontAttrib() = default;
 
 bool loadFonts()
 {
@@ -717,24 +835,6 @@ QFont getScaledFont(double baseSize, bool bold, double multiplier)
     });
 }
 
-QFont::Weight FontRegistry::IdxToWeight(int index) const
-{
-    const auto vecWeights = GetSupportedWeights();
-    assert(vecWeights.size() > uint64_t(index));
-    return vecWeights.at(index);
-}
-
-int FontRegistry::WeightToIdx(const QFont::Weight& weight) const
-{
-    const auto vecWeights = GetSupportedWeights();
-    for (uint64_t index = 0; index < vecWeights.size(); ++index) {
-        if (weight == vecWeights.at(index)) {
-            return index;
-        }
-    }
-    return -1;
-}
-
 QFont fixedPitchFont(bool use_embedded_font)
 {
     return getFont({
@@ -746,7 +846,7 @@ QFont fixedPitchFont(bool use_embedded_font)
 void registerWidget(QTextEdit* widget, const QString& html)
 {
     if (!widget) return;
-    double base_size{FontRegistry::DEFAULT_FONT_SIZE};
+    double base_size{DEFAULT_FONT_SIZE};
     auto it{mapTextEditStyleUpdates.find(widget)};
     if (it != mapTextEditStyleUpdates.end()) {
         // Widget already registered, preserve stored base_size and update HTML
