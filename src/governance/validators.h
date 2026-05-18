@@ -7,42 +7,12 @@
 
 #include <string>
 
-#include <univalue.h>
-
-class CProposalValidator
-{
-private:
-    UniValue objJSON;
-    bool fJSONValid{false};
-    bool fAllowScript;
-    std::string strErrorMessages;
-
-public:
-    explicit CProposalValidator(const std::string& strDataHexIn = std::string(), bool fAllowScript = true);
-
-    bool Validate(bool fCheckExpiration = true);
-
-    const std::string& GetErrorMessages() const
-    {
-        return strErrorMessages;
-    }
-
-private:
-    void ParseStrHexData(const std::string& strHexData);
-    void ParseJSONData(const std::string& strJSONData);
-
-    bool GetDataValue(const std::string& strKey, std::string& strValueRet);
-    bool GetDataValue(const std::string& strKey, int64_t& nValueRet);
-    bool GetDataValue(const std::string& strKey, double& dValueRet);
-
-    bool ValidateType();
-    bool ValidateName();
-    bool ValidateStartEndEpoch(bool fCheckExpiration = true);
-    bool ValidatePaymentAmount();
-    bool ValidatePaymentAddress();
-    bool ValidateURL();
-
-    bool CheckURL(const std::string& strURLIn);
-};
+/**
+ * Validate the serialized proposal data (hex-encoded JSON).
+ * Returns true on success. On failure, returns false and fills strErrorOut
+ * with a semicolon-delimited list of detected issues.
+ */
+bool ValidateProposal(const std::string& strDataHex, std::string& strErrorOut, bool fCheckExpiration = true,
+                      bool fAllowScript = true);
 
 #endif // BITCOIN_GOVERNANCE_VALIDATORS_H

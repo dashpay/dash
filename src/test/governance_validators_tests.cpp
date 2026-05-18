@@ -45,15 +45,18 @@ BOOST_AUTO_TEST_CASE(valid_proposals_test)
 
         // legacy format
         std::string strHexData1 = CreateEncodedProposalObject(objProposal);
-        CProposalValidator validator0(strHexData1, fAllowScript);
-        BOOST_CHECK(!validator0.Validate());
-        BOOST_CHECK_EQUAL(validator0.GetErrorMessages(), "Proposal must be a JSON object;JSON parsing error;");
+        std::string strErrorMessages;
+        BOOST_CHECK(!ValidateProposal(strHexData1, strErrorMessages, /*fCheckExpiration=*/true, fAllowScript));
+        BOOST_CHECK_EQUAL(strErrorMessages, "Proposal must be a JSON object;JSON parsing error;");
 
         // current format
         std::string strHexData2 = HexStr(objProposal.write());
-        CProposalValidator validator2(strHexData2, fAllowScript);
-        BOOST_CHECK_MESSAGE(validator2.Validate(false), validator2.GetErrorMessages());
-        BOOST_CHECK_MESSAGE(!validator2.Validate(), validator2.GetErrorMessages());
+        std::string strErrorMessages2;
+        BOOST_CHECK_MESSAGE(ValidateProposal(strHexData2, strErrorMessages2, /*fCheckExpiration=*/false, fAllowScript),
+                            strErrorMessages2);
+        std::string strErrorMessages3;
+        BOOST_CHECK_MESSAGE(!ValidateProposal(strHexData2, strErrorMessages3, /*fCheckExpiration=*/true, fAllowScript),
+                            strErrorMessages3);
     }
 }
 
@@ -69,14 +72,19 @@ BOOST_AUTO_TEST_CASE(invalid_proposals_test)
 
         // legacy format
         std::string strHexData1 = CreateEncodedProposalObject(objProposal);
-        CProposalValidator validator1(strHexData1, false);
-        BOOST_CHECK(!validator1.Validate());
-        BOOST_CHECK_MESSAGE(!validator1.Validate(false), validator1.GetErrorMessages());
+        std::string strErrorMessages1;
+        BOOST_CHECK(!ValidateProposal(strHexData1, strErrorMessages1, /*fCheckExpiration=*/true, /*fAllowScript=*/false));
+        std::string strErrorMessages1b;
+        BOOST_CHECK_MESSAGE(!ValidateProposal(strHexData1, strErrorMessages1b, /*fCheckExpiration=*/false,
+                                              /*fAllowScript=*/false),
+                            strErrorMessages1b);
 
         // current format
         std::string strHexData2 = HexStr(objProposal.write());
-        CProposalValidator validator2(strHexData2, false);
-        BOOST_CHECK_MESSAGE(!validator2.Validate(false), validator2.GetErrorMessages());
+        std::string strErrorMessages2;
+        BOOST_CHECK_MESSAGE(!ValidateProposal(strHexData2, strErrorMessages2, /*fCheckExpiration=*/false,
+                                              /*fAllowScript=*/false),
+                            strErrorMessages2);
     }
 }
 

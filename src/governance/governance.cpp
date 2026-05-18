@@ -417,8 +417,8 @@ void CGovernanceManager::CheckAndRemove()
             mapObjects.erase(it++);
         } else {
             if (pObj->GetObjectType() == GovernanceObject::PROPOSAL) {
-                CProposalValidator validator(pObj->GetDataAsHexString());
-                if (!validator.Validate()) {
+                std::string strValidationError;
+                if (!ValidateProposal(pObj->GetDataAsHexString(), strValidationError)) {
                     LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- set for deletion expired obj %s\n", strHash);
                     pObj->PrepareDeletion(nNow.count());
                 }

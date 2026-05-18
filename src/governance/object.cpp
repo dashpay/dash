@@ -426,12 +426,12 @@ bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, 
 
     switch (m_obj.type) {
     case GovernanceObject::PROPOSAL: {
-        CProposalValidator validator(GetDataAsHexString());
         // Note: It's ok to have expired proposals
         // they are going to be cleared by CGovernanceManager::CheckAndRemove()
         // TODO: should they be tagged as "expired" to skip vote downloading?
-        if (!validator.Validate(false)) {
-            strError = strprintf("Invalid proposal data, error messages: %s", validator.GetErrorMessages());
+        std::string strValidationError;
+        if (!ValidateProposal(GetDataAsHexString(), strValidationError, /*fCheckExpiration=*/false)) {
+            strError = strprintf("Invalid proposal data, error messages: %s", strValidationError);
             return false;
         }
         if (fCheckCollateral && !IsCollateralValid(chainman, strError, fMissingConfirmations)) {

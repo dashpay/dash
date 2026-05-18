@@ -358,9 +358,9 @@ public:
             error = "Invalid object type, only proposals can be validated";
             return std::nullopt;
         }
-        CProposalValidator validator(data_hex);
-        if (!validator.Validate()) {
-            error = "Invalid proposal data: " + validator.GetErrorMessages();
+        std::string strValidationError;
+        if (!ValidateProposal(data_hex, strValidationError)) {
+            error = "Invalid proposal data: " + strValidationError;
             return std::nullopt;
         }
         const ChainstateManager& chainman = *Assert(context().chainman);
@@ -384,8 +384,8 @@ public:
         CGovernanceObject govobj(parent, revision, created_time, fee_txid, data_hex);
         if (govobj.GetObjectType() == GovernanceObject::TRIGGER) { error = "Submission of triggers is not available"; return false; }
         if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-            CProposalValidator validator(data_hex);
-            if (!validator.Validate()) { error = "Invalid proposal data: " + validator.GetErrorMessages(); return false; }
+            std::string strValidationError;
+            if (!ValidateProposal(data_hex, strValidationError)) { error = "Invalid proposal data: " + strValidationError; return false; }
         }
         const CTxMemPool& mempool = *Assert(context().mempool);
         bool fMissingConfirmations{false};

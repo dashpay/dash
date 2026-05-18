@@ -123,9 +123,9 @@ static RPCHelpMan gobject_check()
     CGovernanceObject govobj(hashParent, nRevision, nTime, uint256(), strDataHex);
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-        CProposalValidator validator(strDataHex);
-        if (!validator.Validate())  {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + validator.GetErrorMessages());
+        std::string strValidationError;
+        if (!ValidateProposal(strDataHex, strValidationError)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + strValidationError);
         }
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid object type, only proposals can be validated");
@@ -194,9 +194,9 @@ static RPCHelpMan gobject_prepare()
                 govobj.GetDataAsPlainString(), govobj.GetHash().ToString());
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-        CProposalValidator validator(strDataHex);
-        if (!validator.Validate()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + validator.GetErrorMessages());
+        std::string strValidationError;
+        if (!ValidateProposal(strDataHex, strValidationError)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + strValidationError);
         }
     }
 
@@ -376,9 +376,9 @@ static RPCHelpMan gobject_submit()
     }
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-        CProposalValidator validator(strDataHex);
-        if (!validator.Validate()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + validator.GetErrorMessages());
+        std::string strValidationError;
+        if (!ValidateProposal(strDataHex, strValidationError)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages: " + strValidationError);
         }
     }
 

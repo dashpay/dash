@@ -254,12 +254,12 @@ void ProposalCreate::validateFields()
     }
 
     buildJsonAndHex();
-    CProposalValidator validator(m_hex.toStdString());
-    if (validator.Validate()) {
+    std::string strValidationError;
+    if (ValidateProposal(m_hex.toStdString(), strValidationError)) {
         m_ui->labelError->clear();
     } else {
         // Show first error only
-        QString errors = QString::fromStdString(validator.GetErrorMessages());
+        QString errors = QString::fromStdString(strValidationError);
         if (int semicolon = errors.indexOf(';'); semicolon > 0) {
             errors = errors.left(semicolon);
         }
