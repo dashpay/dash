@@ -42,12 +42,10 @@ int defaultFontScale();
 int defaultFontSize();
 QString defaultFontFamily();
 
-/** Register a font name as known. If selectable, it shows up in the appearance
- *  picker. `skip_checks` bypasses the QFontDatabase availability test — only
- *  legal right after QFontDatabase::addApplicationFont. */
-[[nodiscard]] bool registerFont(const QString& font, bool selectable, bool skip_checks = false);
-/** Switch the active font family. The family must have been registered. */
-[[nodiscard]] bool setActiveFont(const QString& font);
+/** Switch the active font family. Registers `font_name` if not yet known and
+ *  applies the new font to qApp. Empty `font_name` means "use defaultFontFamily()".
+ *  No-op if loadFonts() hasn't completed. Returns true on success. */
+bool setActiveFont(const QString& font_name = {});
 /** Currently active font family. */
 QString activeFont();
 /** Known fonts and their "selectable in UI" flag, in registration order. */
@@ -90,9 +88,6 @@ void setFont(const std::vector<QWidget*>& vecWidgets, const FontAttrib& font_att
 /** Update the font of all widgets where a custom font has been set with
     GUIUtil::setFont */
 void updateFonts();
-
-/** Get list of all selectable fonts */
-std::vector<QString> getFonts(bool selectable_only);
 
 /** Get the default bold QFont */
 QFont getFontBold();

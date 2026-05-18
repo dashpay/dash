@@ -501,7 +501,11 @@ static void SetupUIArgs(ArgsManager& argsman)
 {
     argsman.AddArg("-choosedatadir", strprintf(QObject::tr("Choose data directory on startup (default: %u)").toStdString(), DEFAULT_CHOOSE_DATADIR), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-custom-css-dir", "Set a directory which contains custom css files. Those will be used as stylesheets for the UI.", ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-family", QObject::tr("Set the font family. Possible values: %1. (default: %2)").arg(Join(GUIUtil::getFonts(/*selectable_only=*/true), ", ")).arg(GUIUtil::defaultFontFamily()).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    std::vector<QString> selectable_fonts;
+    for (const auto& [name, selectable] : GUIUtil::knownFonts()) {
+        if (selectable) selectable_fonts.push_back(name);
+    }
+    argsman.AddArg("-font-family", QObject::tr("Set the font family. Possible values: %1. (default: %2)").arg(Join(selectable_fonts, ", ")).arg(GUIUtil::defaultFontFamily()).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-scale", QObject::tr("Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)").arg(-100).arg(100).arg(GUIUtil::defaultFontScale()).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-weight-bold", QObject::tr("Set the font weight for bold texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-weight-normal", QObject::tr("Set the font weight for normal texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
@@ -720,8 +724,8 @@ int GuiMain(int argc, char* argv[])
 
     // Validate/set font family
     if (gArgs.IsArgSet("-font-family")) {
-        QString family = gArgs.GetArg("-font-family", GUIUtil::defaultFontFamily().toStdString()).c_str();
-        if (!GUIUtil::registerFont(family, /*selectable=*/true) || !GUIUtil::setActiveFont(family)) {
+        const QString family = QString::fromStdString(gArgs.GetArg("-font-family", ""));
+        if (!GUIUtil::setActiveFont(family)) {
             QMessageBox::critical(nullptr, PACKAGE_NAME, QObject::tr("Error: Font \"%1\" could not be loaded.").arg(family));
             return EXIT_FAILURE;
         }

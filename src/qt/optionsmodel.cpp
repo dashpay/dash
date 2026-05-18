@@ -257,10 +257,9 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-family");
     }
     if (GUIUtil::fontsLoaded()) {
-        if (auto font_name = QString::fromStdString(SettingToString(node().getPersistentSetting("font-family"), GUIUtil::defaultFontFamily().toStdString()));
-            GUIUtil::registerFont(font_name, /*selectable=*/true) && GUIUtil::setActiveFont(font_name)) {
-            GUIUtil::setApplicationFont();
-        }
+        const QString font_name = QString::fromStdString(
+            SettingToString(node().getPersistentSetting("font-family"), ""));
+        GUIUtil::setActiveFont(font_name);
     }
 
     // Font Scale

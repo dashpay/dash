@@ -489,13 +489,12 @@ void FontInfo::CalcDefaultWeights(const QString& font_name)
 
 bool FontRegistry::RegisterFont(const QString& font, bool selectable, bool skip_checks)
 {
-    const auto font_strs{GUIUtil::getFonts(/*selectable_only=*/false)};
-    auto font_it{std::find(font_strs.begin(), font_strs.end(), font)};
+    auto font_it = std::find_if(g_fonts_known.begin(), g_fonts_known.end(),
+                                [&](const auto& p) { return p.first == font; });
     if (m_weights.count(font)) {
-        // Font's already registered
-        assert(font_it != font_strs.end());
-        // Overwrite selectable flag
-        g_fonts_known.at(std::distance(font_strs.begin(), font_it)).second = selectable;
+        // Font's already registered — overwrite selectable flag
+        assert(font_it != g_fonts_known.end());
+        font_it->second = selectable;
         return true;
     }
     if (!skip_checks) {
@@ -506,7 +505,7 @@ bool FontRegistry::RegisterFont(const QString& font, bool selectable, bool skip_
         }
     }
     m_weights.emplace(font, FontInfo(font));
-    if (font_it == font_strs.end()) {
+    if (font_it == g_fonts_known.end()) {
         g_fonts_known.emplace_back(font, selectable);
     }
     return true;
@@ -552,12 +551,15 @@ int defaultFontScale() { return DEFAULT_FONT_SCALE; }
 int defaultFontSize() { return DEFAULT_FONT_SIZE; }
 QString defaultFontFamily() { return DEFAULT_FONT.toString(); }
 
-bool registerFont(const QString& font, bool selectable, bool skip_checks)
+bool setActiveFont(const QString& font_name)
 {
-    return g_font_registry.RegisterFont(font, selectable, skip_checks);
+    if (!fontsLoaded()) return false;
+    const QString name = font_name.isEmpty() ? defaultFontFamily() : font_name;
+    if (!g_font_registry.RegisterFont(name, /*selectable=*/true)) return false;
+    if (!g_font_registry.SetFont(name)) return false;
+    setApplicationFont();
+    return true;
 }
-
-bool setActiveFont(const QString& font) { return g_font_registry.SetFont(font); }
 QString activeFont() { return g_font_registry.GetFont(); }
 const std::vector<std::pair<QString, bool>>& knownFonts() { return g_fonts_known; }
 
@@ -792,15 +794,6 @@ void updateFonts()
     for (const auto& [widget, data] : mapTextEditStyleUpdates) {
         setFontBodyHTML(widget, data.html, data.base_size);
     }
-}
-
-std::vector<QString> getFonts(bool selectable_only)
-{
-    std::vector<QString> ret;
-    for (const auto& [font, selectable] : g_fonts_known) {
-        if (selectable || !selectable_only) { ret.emplace_back(font); }
-    }
-    return ret;
 }
 
 QFont getFontBold()
