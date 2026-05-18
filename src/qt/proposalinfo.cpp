@@ -15,7 +15,6 @@
 #include <qt/clientmodel.h>
 #include <qt/donutchart.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/proposalmodel.h>
 

@@ -17,7 +17,6 @@
 #include <qt/clientfeeds.h>
 #include <qt/descriptiondialog.h>
 #include <qt/masternodemodel.h>
-#include <qt/guiutil_font.h>
 #include <qt/proposalcreate.h>
 #include <qt/proposallist.h>
 #include <qt/proposalmodel.h>

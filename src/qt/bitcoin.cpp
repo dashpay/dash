@@ -23,7 +23,6 @@
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/initexecutor.h>
 #include <qt/intro.h>
 #include <qt/networkstyle.h>

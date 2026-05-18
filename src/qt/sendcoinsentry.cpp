@@ -13,7 +13,6 @@
 #include <qt/addressbookpage.h>
 #include <qt/addresstablemodel.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/walletmodel.h>
 

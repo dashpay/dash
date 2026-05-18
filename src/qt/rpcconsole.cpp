@@ -14,7 +14,6 @@
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
 #include <qt/proposalinfo.h>
-#include <qt/guiutil_font.h>
 #include <qt/guiutil.h>
 #include <qt/informationwidget.h>
 #include <qt/masternodemodel.h>

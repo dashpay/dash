@@ -11,11 +11,9 @@
 #include <util/moneystr.h>
 #include <util/strencodings.h>
 
-#include <qt/descriptiondialog.h>
-#include <qt/guiutil_font.h>
-
 #include <qt/bitcoinamountfield.h>
 #include <qt/bitcoinunits.h>
+#include <qt/descriptiondialog.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/qvalidatedlineedit.h>

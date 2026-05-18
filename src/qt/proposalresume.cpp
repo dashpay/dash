@@ -7,7 +7,7 @@
 
 #include <governance/governance.h>
 
-#include <qt/guiutil_font.h>
+#include <qt/guiutil.h>
 #include <qt/proposalmodel.h>
 
 #include <interfaces/node.h>

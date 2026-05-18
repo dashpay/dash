@@ -10,7 +10,6 @@
 
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
-#include <qt/guiutil_font.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 

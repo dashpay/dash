@@ -25,8 +25,10 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <utility>
+#include <vector>
 
 class QValidatedLineEdit;
 class SendCoinsRecipient;
@@ -49,6 +51,7 @@ class QLineEdit;
 class QMenu;
 class QPoint;
 class QProgressDialog;
+class QTextEdit;
 class QUrl;
 class QWidget;
 QT_END_NAMESPACE
@@ -127,6 +130,9 @@ namespace GUIUtil
     QString dateTimeStr(const QDateTime &datetime);
     QString dateTimeStr(qint64 nTime);
 
+    // Return a monospace font
+    QFont fixedPitchFont(bool use_embedded_font = false);
+
     // Set up widget for address
     void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool fAllowURI = false);
 
@@ -177,6 +183,61 @@ namespace GUIUtil
     bool hasEntryData(const QAbstractItemView *view, int column, int role);
 
     void setClipboard(const QString& str);
+
+    enum class FontWeight : uint8_t {
+        Normal,
+        Bold,
+    };
+
+    /** Load Dash-specific application fonts. Returns false if any failed to load. */
+    bool loadFonts();
+    /** True once loadFonts() has completed successfully. */
+    bool fontsLoaded();
+    /** Set the application-wide default font (depends on active font/theme). */
+    void setApplicationFont();
+
+    /** Defaults for the `-font-*` CLI options (used in arg help and as persistence fallbacks). */
+    int defaultFontScale();
+    int defaultFontSize();
+    QString defaultFontFamily();
+
+    /** Switch the active font family. Registers `font_name` if unknown and applies it to qApp.
+     *  Empty `font_name` means "use defaultFontFamily()". No-op if loadFonts() hasn't run. */
+    bool setActiveFont(const QString& font_name = {});
+    QString activeFont();
+    /** Known fonts and their "selectable in UI" flag, in registration order. */
+    const std::vector<std::pair<QString, /*selectable=*/bool>>& knownFonts();
+
+    void setFontScale(int font_scale);
+    int fontScale();
+
+    /* Weight operations expressed as caller-friendly arg ints 0..8 -- the format used by
+     * `-font-weight-*` CLI args and QSettings persistence. */
+    int currentWeightArg(FontWeight slot);
+    /** Default-best-match weight for `slot`. Valid before loadFonts() too. */
+    int defaultWeightArg(FontWeight slot);
+    /** Apply a weight. Returns false if `arg` is out of 0..8 or unsupported by the active
+     *  font (no state change in that case). */
+    bool setWeightFromArg(FontWeight slot, int arg);
+    /** Active font's supported weight args, low-to-high. */
+    std::vector<int> supportedWeightArgs();
+
+    /** Register `widgets` to receive the given font attributes on the next updateFonts() pass.
+     *  Uses the currently active font family unless one is given explicitly. */
+    void setFont(const std::vector<QWidget*>& widgets, FontWeight weight, double point_size = -1, bool is_italic = false);
+    void setFont(const std::vector<QWidget*>& widgets, const QString& font, FontWeight weight, double point_size = -1, bool is_italic = false);
+    /** Re-apply fonts to all widgets previously registered via setFont(). */
+    void updateFonts();
+
+    /** Get the default bold / normal QFont. */
+    QFont getFontBold();
+    QFont getFontNormal();
+    /** Get a scaled font with the given base size, weight, and optional multiplier. */
+    QFont getScaledFont(double baseSize, bool bold, double multiplier = 1);
+
+    /** Set HTML content on a QTextEdit with font-aware styling. Captures the widget's base
+     *  point size on first call so re-application on font/theme changes preserves it. */
+    void setStyledHtml(QTextEdit* widget, const QString& html);
 
     /**
      * Determine default data directory for operating system.

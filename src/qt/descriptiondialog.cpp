@@ -6,7 +6,6 @@
 #include <qt/forms/ui_descriptiondialog.h>
 
 #include <qt/descriptiondialog.h>
-#include <qt/guiutil_font.h>
 
 #include <qt/guiutil.h>
 

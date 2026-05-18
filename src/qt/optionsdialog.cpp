@@ -14,7 +14,6 @@
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 
 #include <interfaces/coinjoin.h>

@@ -20,7 +20,6 @@
 #include <qt/clientmodel.h>
 #include <qt/createwalletdialog.h>
 #include <qt/guiconstants.h>
-#include <qt/guiutil_font.h>
 #include <qt/guiutil.h>
 #include <qt/masternodelist.h>
 #include <qt/modaloverlay.h>

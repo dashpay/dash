@@ -2,15 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <qt/guiutil_font.h>
+#include <qt/guiutil.h>
 
 #include <util/helpers.h>
 
 #include <tinyformat.h>
 #include <util/std23.h>
 #include <util/system.h>
-
-#include <qt/guiutil.h>
 
 #include <QApplication>
 #include <QDebug>
@@ -76,7 +74,7 @@ private:
 };
 
 //! Global font state (active family, scale, per-font cache). File-private —
-//! external callers go through the free-function API in qt/guiutil_font.h.
+//! external callers go through the free-function API in qt/guiutil.h.
 class FontRegistry {
 public:
     [[nodiscard]] bool RegisterFont(const QString& font, bool selectable, bool skip_checks = false);

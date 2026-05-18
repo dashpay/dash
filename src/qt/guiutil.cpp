@@ -5,7 +5,6 @@
 
 #include <qt/guiutil.h>
 
-#include <qt/guiutil_font.h>
 #include <qt/bitcoinaddressvalidator.h>
 #include <qt/bitcoingui.h>
 #include <qt/bitcoinunits.h>
@@ -43,6 +42,7 @@
 #include <QDialog>
 #include <QFileDialog>
 #include <QFont>
+#include <QFontDatabase>
 #include <QFontMetrics>
 #include <QGuiApplication>
 #include <QJsonObject>

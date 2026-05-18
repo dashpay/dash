@@ -8,13 +8,11 @@
 #include <governance/object.h>
 #include <governance/vote.h>
 
-#include <qt/guiutil_font.h>
+#include <qt/clientmodel.h>
+#include <qt/guiutil.h>
 
 #include <chainparams.h>
 #include <interfaces/node.h>
-
-#include <qt/clientmodel.h>
-#include <qt/guiutil.h>
 
 #include <univalue.h>
 

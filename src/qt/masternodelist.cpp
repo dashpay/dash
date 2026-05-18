@@ -11,7 +11,6 @@
 #include <qt/clientmodel.h>
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/walletmodel.h>
 
 #include <QApplication>
