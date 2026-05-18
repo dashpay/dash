@@ -15,12 +15,45 @@
 #include <logging.h>
 #include <node/interface_ui.h>
 #include <timedata.h>
+#include <tinyformat.h>
 #include <util/strencodings.h>
 #include <util/time.h>
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <iostream>
 #include <string>
+
+std::ostream& operator<<(std::ostream& os, governance_exception_type_enum_t eType)
+{
+    switch (eType) {
+    case GOVERNANCE_EXCEPTION_NONE:
+        os << "GOVERNANCE_EXCEPTION_NONE";
+        break;
+    case GOVERNANCE_EXCEPTION_WARNING:
+        os << "GOVERNANCE_EXCEPTION_WARNING";
+        break;
+    case GOVERNANCE_EXCEPTION_PERMANENT_ERROR:
+        os << "GOVERNANCE_EXCEPTION_PERMANENT_ERROR";
+        break;
+    case GOVERNANCE_EXCEPTION_TEMPORARY_ERROR:
+        os << "GOVERNANCE_EXCEPTION_TEMPORARY_ERROR";
+        break;
+    case GOVERNANCE_EXCEPTION_INTERNAL_ERROR:
+        os << "GOVERNANCE_EXCEPTION_INTERNAL_ERROR";
+        break;
+    }
+    return os;
+}
+
+CGovernanceException::CGovernanceException(const std::string& strMessageIn,
+                                           governance_exception_type_enum_t eTypeIn,
+                                           int nNodePenaltyIn) :
+    strMessage{strprintf("%s:%s", eTypeIn, strMessageIn)},
+    eType{eTypeIn},
+    nNodePenalty{nNodePenaltyIn}
+{
+}
 
 CGovernanceObject::CGovernanceObject()
 {

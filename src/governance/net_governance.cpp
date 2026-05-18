@@ -7,7 +7,6 @@
 #include <chainparams.h>
 #include <common/bloom.h>
 #include <evo/deterministicmns.h>
-#include <governance/exceptions.h>
 #include <governance/governance.h>
 #include <governance/object.h>
 #include <logging.h>

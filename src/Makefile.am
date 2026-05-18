@@ -231,7 +231,6 @@ BITCOIN_CORE_H = \
   external_signer.h \
   dsnotificationinterface.h \
   governance/common.h \
-  governance/exceptions.h \
   governance/governance.h \
   governance/net_governance.h \
   governance/object.h \
@@ -521,7 +520,6 @@ libbitcoin_node_a_SOURCES = \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \
   flatfile.cpp \
-  governance/exceptions.cpp \
   governance/governance.cpp \
   governance/net_governance.cpp \
   governance/object.cpp \
