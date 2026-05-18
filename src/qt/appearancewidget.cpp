@@ -301,7 +301,7 @@ void AppearanceWidget::updateWeightSlider(const bool fForce)
     ui->fontWeightBoldSlider->setMinimum(nMin);
     ui->fontWeightBoldSlider->setMaximum(nMax);
 
-    if (fForce || !GUIUtil::isValidWeightArg(prevWeightNormalArg) || !GUIUtil::isValidWeightArg(prevWeightBoldArg)) {
+    if (fForce) {
         updateFontWeightNormal(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal), true);
         updateFontWeightBold(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold), true);
     }

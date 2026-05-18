@@ -279,15 +279,13 @@ bool OptionsModel::Init(bilingual_str& error)
     if (GUIUtil::fontsLoaded()) {
         // If font was overridden by CLI but weight wasn't, use the font's default weight
         const int default_arg = GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal);
-        int arg = default_arg;
-        if (!override_family || isOptionOverridden("-font-weight-normal")) {
-            arg = SettingToInt(node().getPersistentSetting("font-weight-normal"), default_arg);
-            if (!GUIUtil::isValidWeightArg(arg)) {
-                arg = default_arg;
-                node().forceSetting("font-weight-normal", arg);
-            }
+        const int arg = (!override_family || isOptionOverridden("-font-weight-normal"))
+            ? SettingToInt(node().getPersistentSetting("font-weight-normal"), default_arg)
+            : default_arg;
+        if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, arg)) {
+            node().forceSetting("font-weight-normal", default_arg);
+            GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, default_arg);
         }
-        GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, arg);
     }
 
     // Font Weight (Bold)
@@ -297,15 +295,13 @@ bool OptionsModel::Init(bilingual_str& error)
     if (GUIUtil::fontsLoaded()) {
         // If font was overridden by CLI but weight wasn't, use the font's default weight
         const int default_arg = GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold);
-        int arg = default_arg;
-        if (!override_family || isOptionOverridden("-font-weight-bold")) {
-            arg = SettingToInt(node().getPersistentSetting("font-weight-bold"), default_arg);
-            if (!GUIUtil::isValidWeightArg(arg)) {
-                arg = default_arg;
-                node().forceSetting("font-weight-bold", arg);
-            }
+        const int arg = (!override_family || isOptionOverridden("-font-weight-bold"))
+            ? SettingToInt(node().getPersistentSetting("font-weight-bold"), default_arg)
+            : default_arg;
+        if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, arg)) {
+            node().forceSetting("font-weight-bold", default_arg);
+            GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, default_arg);
         }
-        GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, arg);
     }
 
     // Apply font changes

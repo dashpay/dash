@@ -566,12 +566,6 @@ const std::vector<std::pair<QString, bool>>& knownFonts() { return g_fonts_known
 void setFontScale(int font_scale) { g_font_registry.SetFontScale(font_scale); }
 int fontScale() { return g_font_registry.GetFontScale(); }
 
-bool isValidWeightArg(int arg)
-{
-    QFont::Weight weight;
-    return weightFromArg(arg, weight) && g_font_registry.IsValidWeight(weight);
-}
-
 int currentWeightArg(FontWeight slot)
 {
     return weightToArg(slot == FontWeight::Bold ? g_font_registry.GetWeightBold()
@@ -584,15 +578,16 @@ int defaultWeightArg(FontWeight slot)
                                                 : g_font_registry.GetWeightNormalDefault());
 }
 
-void setWeightFromArg(FontWeight slot, int arg)
+bool setWeightFromArg(FontWeight slot, int arg)
 {
     QFont::Weight weight;
-    if (!weightFromArg(arg, weight)) return;
+    if (!weightFromArg(arg, weight) || !g_font_registry.IsValidWeight(weight)) return false;
     if (slot == FontWeight::Bold) {
         g_font_registry.SetWeightBold(weight);
     } else {
         g_font_registry.SetWeightNormal(weight);
     }
+    return true;
 }
 
 std::vector<int> supportedWeightArgs()
