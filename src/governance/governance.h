@@ -229,8 +229,6 @@ public:
 //
 class CGovernanceManager : public GovernanceStore
 {
-    friend class CGovernanceObject;
-
 private:
     using db_type = CFlatDB<GovernanceStore>;
     using object_ref_cm_t = CacheMap<uint256, std::shared_ptr<CGovernanceObject>>;
