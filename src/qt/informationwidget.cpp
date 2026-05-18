@@ -28,7 +28,7 @@ InformationWidget::InformationWidget(QWidget* parent) :
                       ui->label_10,
                       ui->labelMempoolTitle,
                       ui->labelNetwork},
-                     {GUIUtil::FontWeight::Bold, 16});
+                     GUIUtil::FontWeight::Bold, 16);
 
     for (auto* element : {ui->label_10, ui->labelNetwork, ui->labelMempoolTitle}) {
         element->setContentsMargins(0, 10, 0, 0);

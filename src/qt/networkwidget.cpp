@@ -43,7 +43,7 @@ NetworkWidget::NetworkWidget(QWidget* parent) :
                       ui->labelInstantSend,
                       ui->labelMasternodes,
                       ui->labelQuorums},
-                     {GUIUtil::FontWeight::Bold, 16});
+                     GUIUtil::FontWeight::Bold, 16);
 
     for (auto* element : {ui->labelInstantSend, ui->labelMasternodes, ui->labelChainLocks}) {
         element->setContentsMargins(0, 10, 0, 0);

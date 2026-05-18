@@ -24,18 +24,6 @@ enum class FontWeight : uint8_t {
     Bold,
 };
 
-struct FontAttrib {
-    QString m_font;
-    FontWeight m_weight_type;
-    double m_point_size{-1};
-    bool m_is_italic{false};
-
-    FontAttrib(QString font, FontWeight weight_type, double point_size = -1, bool is_italic = false);
-    // cppcheck-suppress noExplicitConstructor
-    FontAttrib(FontWeight weight_type, double point_size = -1, bool is_italic = false);
-    ~FontAttrib();
-};
-
 /** Default values for the corresponding `-font-*` options (used in arg help
  *  text and as persistence fallbacks). */
 int defaultFontScale();
@@ -82,10 +70,11 @@ void setStyledHtml(QTextEdit* widget, const QString& html);
 /** Set an application wide default font, depends on the selected theme */
 void setApplicationFont();
 
-/** Workaround to set correct font styles in all themes since there is a bug in macOS which leads to
-    issues loading variations of montserrat in css it also keeps track of the set fonts to update on
-    theme changes. */
-void setFont(const std::vector<QWidget*>& vecWidgets, const FontAttrib& font_attrib);
+/** Register `widgets` to receive the given font attributes on the next updateFonts() pass.
+ *  Uses the currently active font family. */
+void setFont(const std::vector<QWidget*>& widgets, FontWeight weight, double point_size = -1, bool is_italic = false);
+/** Same as above, but with an explicit font family. */
+void setFont(const std::vector<QWidget*>& widgets, const QString& font, FontWeight weight, double point_size = -1, bool is_italic = false);
 
 /** Update the font of all widgets where a custom font has been set with
     GUIUtil::setFont */

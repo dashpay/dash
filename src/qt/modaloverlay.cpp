@@ -25,7 +25,7 @@ ModalOverlay::ModalOverlay(bool enable_wallet, QWidget* parent)
                       ui->labelSyncDone,
                       ui->labelProgressIncrease,
                       ui->labelEstimatedTimeLeft,
-                     }, {GUIUtil::FontWeight::Bold});
+                     }, GUIUtil::FontWeight::Bold);
 
     ui->warningIcon->setPixmap(GUIUtil::getIcon("warning", GUIUtil::ThemedColor::ORANGE).pixmap(48, 48));
 

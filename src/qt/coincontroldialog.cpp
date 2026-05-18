@@ -67,7 +67,7 @@ CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _m
                       ui->labelCoinControlFeeText,
                       ui->labelCoinControlAfterFeeText,
                       ui->labelCoinControlChangeText
-                     }, {GUIUtil::FontWeight::Bold});
+                     }, GUIUtil::FontWeight::Bold);
 
     GUIUtil::updateFonts();
 

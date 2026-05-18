@@ -58,7 +58,7 @@ ProposalList::ProposalList(QWidget* parent) :
     ui->setupUi(this);
 
     GUIUtil::setFont({ui->label_count_2, ui->countLabel},
-                     {GUIUtil::FontWeight::Bold, 14});
+                     GUIUtil::FontWeight::Bold, 14);
 
     ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->govTableView->setModel(proposalModelProxy);
