@@ -387,7 +387,11 @@ class DashGovernanceTest (DashTestFramework):
             for _ in range(sb_maturity_window - 1):
                 self.bump_mocktime(1)
                 self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
-                self.wait_until(lambda: have_trigger_for_height(self.nodes, sb_block_height), timeout=1, do_assert=False)
+                self.wait_until(
+                    lambda sb_height=sb_block_height: have_trigger_for_height(self.nodes, sb_height),
+                    timeout=1,
+                    do_assert=False,
+                )
             # Wait for new trigger and votes
             self.wait_until(lambda sb_height=sb_block_height: have_funded_trigger_for_height(self.nodes, sb_height))
             # Mine superblock
