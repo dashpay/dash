@@ -521,6 +521,7 @@ void SuperblockManager::Clear()
 {
     LOCK(cs_sb);
     m_triggers.clear();
+    m_loaded = false;
 }
 
 std::vector<CSuperblock_sptr> SuperblockManager::GetActiveTriggers() const

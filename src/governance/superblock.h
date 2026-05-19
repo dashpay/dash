@@ -123,6 +123,11 @@ namespace governance {
  * AddTrigger() and notifies us via RemoveTrigger() when it erases the
  * underlying object from its store. Each entry holds a strong reference
  * to the underlying CGovernanceObject so we never look it up by hash.
+ *
+ * Lifetime: typically owned by CChainstateHelper, which outlives the
+ * paired CGovernanceManager. The govman drives m_loaded via SetLoaded()
+ * from LoadCache() and Clear()s us in its destructor, so IsValid() and
+ * the trigger map track the live govman's state.
  */
 class SuperblockManager
 {

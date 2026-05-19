@@ -303,7 +303,6 @@ ChainTestingSetup::~ChainTestingSetup()
     StopScriptCheckWorkerThreads();
     GetMainSignals().FlushBackgroundCallbacks();
     GetMainSignals().UnregisterBackgroundSignalScheduler();
-    m_node.govman.reset();
     m_node.mn_sync.reset();
     m_node.chainman.reset();
     m_node.mempool.reset();
@@ -431,6 +430,11 @@ TestingSetup::~TestingSetup()
     if (m_node.connman) {
         m_node.connman->Stop();
     }
+
+    // govman holds a reference to chain_helper->superblocks, so it must be reset
+    // before DashChainstateSetupClose() destroys chain_helper (matches PrepareShutdown
+    // ordering in init.cpp).
+    m_node.govman.reset();
 
     // DashChainstateSetup() is called by LoadChainstate() internally but
     // winding them down is our responsibility
