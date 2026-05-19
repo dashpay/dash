@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -60,6 +61,9 @@ QT_END_NAMESPACE
  */
 namespace GUIUtil
 {
+    /** Default value for the `-uiplatform` arg ("macosx" / "windows" / "other"). */
+    std::string defaultUIPlatform();
+
     /* Enumeration of possible "colors" */
     enum class ThemedColor {
         /* Transaction list -- TX status decoration - default color */

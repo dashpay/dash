@@ -6,7 +6,6 @@
 #include <qt/guiutil.h>
 
 #include <qt/bitcoinaddressvalidator.h>
-#include <qt/bitcoingui.h>
 #include <qt/bitcoinunits.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/sendcoinsrecipient.h>
@@ -163,6 +162,17 @@ static const std::map<ThemedStyle, QString> themedDarkStyles = {
     { ThemedStyle::TS_PRIMARY, "color:#c7c7c7;" },
     { ThemedStyle::TS_SECONDARY, "color:#aaa;" },
 };
+
+std::string defaultUIPlatform()
+{
+#if defined(Q_OS_MACOS)
+    return "macosx";
+#elif defined(Q_OS_WIN)
+    return "windows";
+#else
+    return "other";
+#endif
+}
 
 QColor getThemedQColor(ThemedColor color)
 {
@@ -876,7 +886,7 @@ void loadStyleSheet(bool fForceUpdate)
                 return false;
             }
 
-            std::string platformName = gArgs.GetArg("-uiplatform", BitcoinGUI::DEFAULT_UIPLATFORM);
+            std::string platformName = gArgs.GetArg("-uiplatform", defaultUIPlatform());
             stylesheet = std::make_unique<QString>();
 
             for (const auto& file : vecFiles) {

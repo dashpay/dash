@@ -74,8 +74,6 @@ class BitcoinGUI : public QMainWindow
     Q_OBJECT
 
 public:
-    static const std::string DEFAULT_UIPLATFORM;
-
     explicit BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle, QWidget* parent = nullptr);
     ~BitcoinGUI();
 

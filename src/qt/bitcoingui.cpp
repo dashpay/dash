@@ -86,16 +86,6 @@ constexpr int GOV_CYCLE_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / (GOV_CYCLE_FRAME_COUN
 constexpr int SPINNER_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / SPINNER_FRAMES};
 } // anonymous namespace
 
-const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
-#if defined(Q_OS_MACOS)
-        "macosx"
-#elif defined(Q_OS_WIN)
-        "windows"
-#else
-        "other"
-#endif
-        ;
-
 BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle, QWidget* parent) :
     QMainWindow(parent),
     m_node(node),

@@ -412,7 +412,7 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
         m_splash = nullptr;
 
         // Log this only after AppInitMain finishes, as then logging setup is guaranteed complete
-        qInfo() << "Platform customization:" << gArgs.GetArg("-uiplatform", BitcoinGUI::DEFAULT_UIPLATFORM).c_str();
+        qInfo() << "Platform customization:" << gArgs.GetArg("-uiplatform", GUIUtil::defaultUIPlatform()).c_str();
         clientModel = new ClientModel(node(), optionsModel);
         window->setClientModel(clientModel, &tip_info);
 
@@ -512,7 +512,7 @@ static void SetupUIArgs(ArgsManager& argsman)
     argsman.AddArg("-min", QObject::tr("Start minimized").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-resetguisettings", QObject::tr("Reset all settings changed in the GUI").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-splash", strprintf(QObject::tr("Show splash screen on startup (default: %u)").toStdString(), DEFAULT_SPLASHSCREEN), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", BitcoinGUI::DEFAULT_UIPLATFORM), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
+    argsman.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", GUIUtil::defaultUIPlatform()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-debug-ui", "Updates the UI's stylesheets in realtime with changes made to the css files in -custom-css-dir and forces some widgets to show up which are usually only visible under certain circumstances. (default: 0)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-windowtitle=<name>", _("Sets a window title which is appended to \"Dash Core - \"").translated, ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
 }
