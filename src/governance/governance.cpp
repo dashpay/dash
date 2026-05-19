@@ -66,8 +66,7 @@ GovernanceStore::GovernanceStore() :
 {
 }
 
-CGovernanceManager::CGovernanceManager(CMasternodeMetaMan& mn_metaman,
-                                       const ChainstateManager& chainman,
+CGovernanceManager::CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
                                        governance::SuperblockManager& superblocks,
                                        const std::unique_ptr<CDeterministicMNManager>& dmnman, CMasternodeSync& mn_sync) :
     m_db{std::make_unique<db_type>("governance.dat", "magicGovernanceCache")},
@@ -305,8 +304,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Before trigger block, GetDataAsPlainString = %s, nObjectType = %d\n",
                 Assert(govobj)->GetDataAsPlainString(), std23::to_underlying(govobj->GetObjectType()));
 
-    if (govobj->GetObjectType() == GovernanceObject::TRIGGER &&
-        !m_superblocks.AddTrigger(govobj, nCachedBlockHeight)) {
+    if (govobj->GetObjectType() == GovernanceObject::TRIGGER && !m_superblocks.AddTrigger(govobj, nCachedBlockHeight)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- undo adding invalid trigger object: hash = %s\n", nHash.ToString());
         govobj->PrepareDeletion(GetTime<std::chrono::seconds>().count());
         return;

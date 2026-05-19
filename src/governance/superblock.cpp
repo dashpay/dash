@@ -25,8 +25,8 @@ bool SuperblockManager::AddTrigger(std::shared_ptr<CGovernanceObject> obj, int c
 
     LOCK(cs_sb);
     if (m_triggers.count(nHash)) {
-        LogPrint(BCLog::GOBJECT, "SuperblockManager::%s -- Already have hash, nHash = %s, size = %s\n",
-                 __func__, nHash.GetHex(), m_triggers.size());
+        LogPrint(BCLog::GOBJECT, "SuperblockManager::%s -- Already have hash, nHash = %s, size = %s\n", __func__,
+                 nHash.GetHex(), m_triggers.size());
         return false;
     }
 
@@ -92,8 +92,7 @@ void SuperblockManager::Clean(int cachedHeight)
                 break;
             }
         }
-        LogPrint(BCLog::GOBJECT, "SuperblockManager::%s -- %smarked for removal\n", __func__,
-                 remove ? "" : "NOT ");
+        LogPrint(BCLog::GOBJECT, "SuperblockManager::%s -- %smarked for removal\n", __func__, remove ? "" : "NOT ");
 
         if (remove) {
             std::string strDataAsPlainString = "nullptr";
@@ -129,15 +128,15 @@ std::vector<CSuperblock_sptr> SuperblockManager::GetActiveTriggers() const
     return vecResults;
 }
 
-bool SuperblockManager::GetBestSuperblock(const CDeterministicMNList& tip_mn_list,
-                                          CSuperblock_sptr& sbRet, int nBlockHeight) const
+bool SuperblockManager::GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& sbRet,
+                                          int nBlockHeight) const
 {
     LOCK(cs_sb);
     return GetBestSuperblockInternal(tip_mn_list, sbRet, nBlockHeight);
 }
 
-bool SuperblockManager::GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list,
-                                                  CSuperblock_sptr& sbRet, int nBlockHeight) const
+bool SuperblockManager::GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& sbRet,
+                                                  int nBlockHeight) const
 {
     AssertLockHeld(cs_sb);
     if (!CSuperblock::IsValidBlockHeight(nBlockHeight)) {

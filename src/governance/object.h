@@ -284,8 +284,7 @@ public:
     void GetData(UniValue& objResult) const;
 
     bool ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled, const CDeterministicMNList& tip_mn_list,
-                     const CGovernanceVote& vote, CGovernanceException& exception)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+                     const CGovernanceVote& vote, CGovernanceException& exception) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /// Called when MN's which have voted on this object have been removed
     void ClearMasternodeVotes(const CDeterministicMNList& tip_mn_list)

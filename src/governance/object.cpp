@@ -55,8 +55,9 @@ CGovernanceObject::CGovernanceObject(const CGovernanceObject& other) :
 {
 }
 
-bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled, const CDeterministicMNList& tip_mn_list,
-                                    const CGovernanceVote& vote, CGovernanceException& exception)
+bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled,
+                                    const CDeterministicMNList& tip_mn_list, const CGovernanceVote& vote,
+                                    CGovernanceException& exception)
 {
     assert(mn_metaman.IsValid());
 

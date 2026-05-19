@@ -41,8 +41,7 @@ class CMasternodeMetaMan;
 class CMasternodeSync;
 class CSuperblock;
 
-namespace governance
-{
+namespace governance {
 class SuperblockManager;
 } // namespace governance
 
@@ -269,11 +268,9 @@ public:
     CGovernanceManager() = delete;
     CGovernanceManager(const CGovernanceManager&) = delete;
     CGovernanceManager& operator=(const CGovernanceManager&) = delete;
-    explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman,
-                                const ChainstateManager& chainman,
+    explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
                                 governance::SuperblockManager& superblocks,
-                                const std::unique_ptr<CDeterministicMNManager>& dmnman,
-                                CMasternodeSync& mn_sync);
+                                const std::unique_ptr<CDeterministicMNManager>& dmnman, CMasternodeSync& mn_sync);
     ~CGovernanceManager();
 
     // Basic initialization and querying
@@ -339,8 +336,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     int GetVoteCount() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     void AddPostponedObject(const CGovernanceObject& govobj)

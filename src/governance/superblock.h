@@ -40,8 +40,7 @@ public:
 
     /** Register a TRIGGER governance object. Returns true if the resulting
      *  trigger is live (not already height-expired). */
-    bool AddTrigger(std::shared_ptr<CGovernanceObject> obj, int cachedHeight)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+    bool AddTrigger(std::shared_ptr<CGovernanceObject> obj, int cachedHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
     /** Single-direction notification from CGovernanceManager when it erases
      *  a TRIGGER object from its store. */
@@ -56,23 +55,18 @@ public:
 
     std::vector<CSuperblock_sptr> GetActiveTriggers() const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
-    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list,
-                           CSuperblock_sptr& sbRet, int nBlockHeight) const
+    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& sbRet, int nBlockHeight) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
-    bool IsSuperblockTriggered(const CDeterministicMNList& tip_mn_list, int nBlockHeight)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+    bool IsSuperblockTriggered(const CDeterministicMNList& tip_mn_list, int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
-    bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list,
-                           const CTransaction& txNew, int nBlockHeight, CAmount blockReward) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+    bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list, const CTransaction& txNew,
+                           int nBlockHeight, CAmount blockReward) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
     bool GetSuperblockPayments(const CDeterministicMNList& tip_mn_list, int nBlockHeight,
-                               std::vector<CTxOut>& voutSuperblockRet) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+                               std::vector<CTxOut>& voutSuperblockRet) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
-    void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+    void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
 private:
     struct TriggerEntry {
@@ -80,9 +74,8 @@ private:
         std::shared_ptr<CGovernanceObject> obj;
     };
 
-    bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list,
-                                   CSuperblock_sptr& sbRet, int nBlockHeight) const
-        EXCLUSIVE_LOCKS_REQUIRED(cs_sb);
+    bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& sbRet,
+                                   int nBlockHeight) const EXCLUSIVE_LOCKS_REQUIRED(cs_sb);
 
     mutable Mutex cs_sb;
     std::atomic<bool> m_loaded{false};
