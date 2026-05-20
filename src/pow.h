@@ -26,12 +26,15 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
  * given height is not possible, given the proof-of-work on the prior block as
  * specified by old_nbits.
  *
- * This function only checks that the new value is within a factor of 4 of the
- * old value for blocks at the difficulty adjustment interval, and otherwise
- * requires the values to be the same.
+ * This is a non-consensus anti-DoS heuristic used by headers sync. It only
+ * enforces a bound below nPowKGWHeight, where Dash uses Bitcoin-style
+ * retargeting: there, new_nbits must be within a factor of 4 of old_nbits.
+ * From nPowKGWHeight onwards (KGW/DGW per-block retargeting) there is no
+ * useful per-pair bound, so it always returns true. See the comment above the
+ * definition in pow.cpp for the full rationale.
  *
  * Always returns true on networks where min difficulty blocks are allowed,
- * such as regtest/testnet.
+ * such as regtest/testnet/devnet.
  */
 bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t height, uint32_t old_nbits, uint32_t new_nbits);
 
