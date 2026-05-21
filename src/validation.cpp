@@ -2187,18 +2187,6 @@ void StopScriptCheckWorkerThreads()
     scriptcheckqueue.StopWorkerThreads();
 }
 
-bool GetBlockHash(const CChain& active_chain, uint256& hashRet, int nBlockHeight)
-{
-    LOCK(cs_main);
-
-    if (active_chain.Tip() == nullptr) return false;
-    if (nBlockHeight < -1 || nBlockHeight > active_chain.Height()) return false;
-    if (nBlockHeight == -1) nBlockHeight = active_chain.Height();
-    hashRet = active_chain[nBlockHeight]->GetBlockHash();
-
-    return true;
-}
-
 /**
  * Threshold condition checker that triggers when unknown versionbits are seen on the network.
  */
