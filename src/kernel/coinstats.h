@@ -58,7 +58,7 @@ struct CCoinsStats {
     CAmount total_coinbase_amount{0};
     //! The unspendable coinbase amount from the genesis block
     CAmount total_unspendables_genesis_block{0};
-    //! The two unspendable coinbase outputs total amount caused by BIP30
+    //! There's no unspendable coinbase outputs in dash core. TODO: remove it with a version bump
     CAmount total_unspendables_bip30{0};
     //! Total cumulative amount of outputs sent to unspendable scripts (OP_RETURN for example) up to and including this block
     CAmount total_unspendables_scripts{0};

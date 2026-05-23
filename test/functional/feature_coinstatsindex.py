@@ -135,7 +135,6 @@ class CoinStatsIndexTest(BitcoinTestFramework):
                 'coinbase': 0,
                 'unspendables': {
                     'genesis_block': 50,
-                    'bip30': 0,
                     'scripts': 0,
                     'unclaimed_rewards': 0
                 }
@@ -152,7 +151,6 @@ class CoinStatsIndexTest(BitcoinTestFramework):
                 'coinbase': Decimal('500.00025500'),
                 'unspendables': {
                     'genesis_block': 0,
-                    'bip30': 0,
                     'scripts': 0,
                     'unclaimed_rewards': 0,
                 }
@@ -189,7 +187,6 @@ class CoinStatsIndexTest(BitcoinTestFramework):
                 'coinbase': Decimal('500.00101000'),
                 'unspendables': {
                     'genesis_block': 0,
-                    'bip30': 0,
                     'scripts': Decimal('20.99900000'),
                     'unclaimed_rewards': 0,
                 }
@@ -220,7 +217,6 @@ class CoinStatsIndexTest(BitcoinTestFramework):
                 'coinbase': 40,
                 'unspendables': {
                     'genesis_block': 0,
-                    'bip30': 0,
                     'scripts': 0,
                     'unclaimed_rewards': 460
                 }
