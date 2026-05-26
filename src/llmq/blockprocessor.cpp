@@ -490,13 +490,13 @@ uint256 CQuorumBlockProcessor::GetQuorumBlockHash(const Consensus::LLMQParams& l
 
     int quorumStartHeight = nHeight - (nHeight % llmqParams.dkgInterval) + quorumIndex;
 
-    uint256 quorumBlockHash;
-    if (!GetBlockHash(active_chain, quorumBlockHash, quorumStartHeight)) {
+    const CBlockIndex* pindex = active_chain[quorumStartHeight];
+    if (pindex == nullptr) {
         LogPrint(BCLog::LLMQ, "[GetQuorumBlockHash] llmqType[%d] h[%d] qi[%d] quorumStartHeight[%d] quorumHash[EMPTY]\n", std23::to_underlying(llmqParams.type), nHeight, quorumIndex, quorumStartHeight);
         return {};
     }
 
-    return quorumBlockHash;
+    return pindex->GetBlockHash();
 }
 
 bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const

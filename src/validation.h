@@ -1103,12 +1103,6 @@ bool DeploymentEnabled(const ChainstateManager& chainman, DEP dep)
     return DeploymentEnabled(chainman.GetConsensus(), dep);
 }
 
-/**
- * Return true if hash can be found in active_chain at nBlockHeight height.
- * Fills hashRet with found hash, if no nBlockHeight is specified - active_chain.Height() is used.
- */
-bool GetBlockHash(const CChain& active_chain, uint256& hashRet, int nBlockHeight = -1);
-
 using FopenFn = std::function<FILE*(const fs::path&, const char*)>;
 
 /** Dump the mempool to disk. */
