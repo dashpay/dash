@@ -11,6 +11,8 @@
 #include <sync.h>
 #include <uint256.h>
 
+#include <vector>
+
 class CBlockIndex;
 class CSporkManager;
 class uint256;
@@ -57,6 +59,9 @@ private:
 
     chainlock::ChainLockSig bestChainLockWithKnownBlock GUARDED_BY(cs);
 
+    // Queue for coinbase chainlocks pending asynchronous processing by ChainlockHandler
+    std::vector<chainlock::ChainLockSig> pendingCoinbaseChainLocks GUARDED_BY(cs);
+
 public:
     Chainlocks(const CSporkManager& sporkman);
 
@@ -82,6 +87,13 @@ public:
     void AcceptedBlockHeader(gsl::not_null<const CBlockIndex*> pindexNew) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void ResetChainlock() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    // Queue a coinbase chainlock for asynchronous processing by the ChainlockHandler.
+    // Called during block validation to avoid blocking the main validation flow.
+    void QueueCoinbaseChainLock(const chainlock::ChainLockSig& clsig) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    // Drain pending coinbase chainlocks for processing by ChainlockHandler.
+    std::vector<chainlock::ChainLockSig> DrainPendingCoinbaseChainLocks() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 
 } // namespace chainlock

@@ -41,7 +41,7 @@ private:
 
 public:
     const std::unique_ptr<CCreditPoolManager> credit_pool_manager;
-    const chainlock::Chainlocks& m_chainlocks;
+    chainlock::Chainlocks& m_chainlocks;
     const std::unique_ptr<CMNHFManager> ehf_manager;
     const std::unique_ptr<CMNPaymentsProcessor> mn_payments;
     const std::unique_ptr<CSpecialTxProcessor> special_tx;
@@ -54,7 +54,7 @@ public:
                                llmq::CInstantSendManager& isman, llmq::CQuorumBlockProcessor& qblockman,
                                llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                const Consensus::Params& consensus_params, const CMasternodeSync& mn_sync,
-                               const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman);
+                               chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman);
     ~CChainstateHelper();
 
     /** Passthrough functions to chainlock::Chainlocks */

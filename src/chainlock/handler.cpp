@@ -56,15 +56,44 @@ ChainlockHandler::~ChainlockHandler()
     scheduler_thread->join();
 }
 
-void ChainlockHandler::Start()
+void ChainlockHandler::Start(const llmq::CQuorumManager& qman)
 {
     scheduler->scheduleEvery(
         [&]() {
             CheckActiveState();
+            ProcessPendingCoinbaseChainLocks(qman);
             EnforceBestChainLock();
             Cleanup();
         },
         std::chrono::seconds{5});
+}
+
+void ChainlockHandler::ProcessPendingCoinbaseChainLocks(const llmq::CQuorumManager& qman)
+{
+    AssertLockNotHeld(cs);
+    AssertLockNotHeld(cs_main);
+
+    if (!isEnabled) {
+        return;
+    }
+
+    auto pending = m_chainlocks.DrainPendingCoinbaseChainLocks();
+    // Process newest first (LIFO): once a newer chainlock is accepted, older
+    // ones short-circuit on the cheap height check below.
+    for (auto it = pending.rbegin(); it != pending.rend(); ++it) {
+        const auto& clsig = *it;
+        // Cheap height check before computing a hash; during reindex this
+        // skips ~all queued entries without paying for SHA256.
+        if (clsig.getHeight() <= m_chainlocks.GetBestChainLockHeight()) {
+            continue;
+        }
+        const uint256 hash = ::SerializeHash(clsig);
+        if (WITH_LOCK(cs, return seenChainLocks.count(hash) != 0)) {
+            continue;
+        }
+        // Process as if we discovered it locally (from = -1 means internal/coinbase).
+        (void)ProcessNewChainLock(-1, clsig, qman, hash);
+    }
 }
 
 void ChainlockHandler::Stop() { scheduler->stop(); }
