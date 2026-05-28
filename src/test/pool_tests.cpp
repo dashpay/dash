@@ -5,6 +5,7 @@
 #include <memusage.h>
 #include <support/allocators/pool.h>
 #include <test/util/poolresourcetester.h>
+#include <test/util/random.h>
 #include <test/util/setup_common.h>
 
 #include <boost/test/unit_test.hpp>

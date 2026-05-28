@@ -5,6 +5,7 @@
 #ifndef BITCOIN_TEST_UTIL_LLMQ_TESTS_H
 #define BITCOIN_TEST_UTIL_LLMQ_TESTS_H
 
+#include <test/util/random.h>
 #include <test/util/setup_common.h>
 
 #include <arith_uint256.h>

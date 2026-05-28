@@ -18,6 +18,7 @@
 #include <crypto/sha512.h>
 #include <random.h>
 #include <streams.h>
+#include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
 

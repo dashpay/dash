@@ -6,6 +6,7 @@
 
 #include <checkqueue.h>
 #include <sync.h>
+#include <test/util/random.h>
 #include <util/time.h>
 
 #include <boost/test/unit_test.hpp>

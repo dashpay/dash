@@ -7,6 +7,7 @@
 #include <cuckoocache.h>
 #include <random.h>
 #include <script/sigcache.h>
+#include <test/util/random.h>
 
 #include <boost/test/unit_test.hpp>
 

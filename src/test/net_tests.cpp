@@ -15,6 +15,7 @@
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
+#include <test/util/random.h>
 #include <test/util/validation.h>
 #include <timedata.h>
 #include <util/strencodings.h>

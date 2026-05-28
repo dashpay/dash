@@ -7,6 +7,7 @@
 #include <base58.h>
 #include <test/util/json.h>
 #include <test/util/setup_common.h> // for InsecureRand*
+#include <test/util/random.h>
 #include <util/strencodings.h>
 #include <util/vector.h>
 
