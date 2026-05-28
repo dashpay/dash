@@ -17,7 +17,7 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <node/blockstorage.h>
 #include <policy/feerate.h>
 #include <policy/packages.h>

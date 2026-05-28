@@ -7,11 +7,11 @@
 
 #include <assert.h>
 #include <clientversion.h>
-#include <fs.h>
 #include <logging.h>
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
+#include <util/fs.h>
 
 #include <sys/types.h>
 

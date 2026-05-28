@@ -4,7 +4,8 @@
 
 #include <dbwrapper.h>
 
-#include <fs.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <logging.h>
 #include <random.h>
 #include <util/strencodings.h>

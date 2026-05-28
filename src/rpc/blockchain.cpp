@@ -17,7 +17,7 @@
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
 #include <evo/chainhelper.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
 #include <index/txindex.h>

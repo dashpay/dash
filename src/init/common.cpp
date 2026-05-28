@@ -10,7 +10,7 @@
 #include <clientversion.h>
 #include <crypto/sha256.h>
 #include <crypto/x11/dispatch.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <key.h>
 #include <logging.h>
 #include <node/interface_ui.h>

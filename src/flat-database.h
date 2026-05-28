@@ -7,7 +7,7 @@
 
 #include <clientversion.h>
 #include <chainparams.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <hash.h>
 #include <streams.h>
 #include <util/system.h>

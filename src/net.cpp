@@ -19,7 +19,7 @@
 #include <consensus/consensus.h>
 #include <crypto/sha256.h>
 #include <node/eviction.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <i2p.h>
 #include <key.h>
 #include <memusage.h>

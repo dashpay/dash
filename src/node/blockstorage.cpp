@@ -9,7 +9,7 @@
 #include <clientversion.h>
 #include <consensus/validation.h>
 #include <flatfile.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <hash.h>
 #include <pow.h>
 #include <shutdown.h>

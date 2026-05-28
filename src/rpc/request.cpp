@@ -6,7 +6,8 @@
 
 #include <rpc/request.h>
 
-#include <fs.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <random.h>
 #include <rpc/protocol.h>
 #include <util/system.h>
