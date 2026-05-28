@@ -68,6 +68,8 @@ class SnapshotMetadata;
 } // namespace node
 namespace chainlock { class Chainlocks; }
 
+enum class MnRewardEra; // defined in masternode/payments.h
+
 /** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
 static const unsigned int DEFAULT_MEMPOOL_EXPIRY = 336;
 /** Maximum number of dedicated script-checking threads allowed */
@@ -1102,6 +1104,9 @@ bool DeploymentEnabled(const ChainstateManager& chainman, DEP dep)
 {
     return DeploymentEnabled(chainman.GetConsensus(), dep);
 }
+
+/** Determine the masternode reward era for the block following pindexPrev. */
+MnRewardEra GetMnRewardEraAfter(const CBlockIndex* pindexPrev, const ChainstateManager& chainman);
 
 using FopenFn = std::function<FILE*(const fs::path&, const char*)>;
 
