@@ -6,7 +6,6 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <masternode/sync.h>
 #include <node/blockstorage.h>
 #include <spork.h>
 #include <stats/client.h>
@@ -15,11 +14,9 @@ using node::fImporting;
 using node::fReindex;
 
 namespace llmq {
-CInstantSendManager::CInstantSendManager(CSporkManager& sporkman, const CMasternodeSync& mn_sync,
-                                         const util::DbWrapperParams& db_params) :
+CInstantSendManager::CInstantSendManager(CSporkManager& sporkman, const util::DbWrapperParams& db_params) :
     db{db_params},
-    spork_manager{sporkman},
-    m_mn_sync{mn_sync}
+    spork_manager{sporkman}
 {
 }
 
@@ -467,14 +464,6 @@ int CInstantSendManager::GetTipHeight() const
 bool CInstantSendManager::IsInstantSendEnabled() const
 {
     return !fReindex && !fImporting && spork_manager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
-}
-
-bool CInstantSendManager::RejectConflictingBlocks() const
-{
-    if (!m_mn_sync.IsBlockchainSynced()) {
-        return false;
-    }
-    return true;
 }
 
 Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)

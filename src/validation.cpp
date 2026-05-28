@@ -2600,7 +2600,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
 
-    if (m_chain_helper->ShouldInstantSendRejectConflicts()) {
+    if (!IsInitialBlockDownload()) {
         // Require other nodes to comply, send them some data in case they are missing it.
         const bool has_chainlock = m_chain_helper->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
         for (const auto& tx : block.vtx) {
