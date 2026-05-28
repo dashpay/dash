@@ -596,7 +596,7 @@ public:
         return AddChecksum(ret);
     }
 
-    bool ToPrivateString(const SigningProvider& arg, std::string& out) const override final
+    bool ToPrivateString(const SigningProvider& arg, std::string& out) const override
     {
         bool ret = ToStringHelper(&arg, out, StringType::PRIVATE);
         out = AddChecksum(out);
@@ -686,6 +686,7 @@ public:
         }
     }
     bool IsSingleType() const final { return true; }
+    bool ToPrivateString(const SigningProvider& arg, std::string& out) const final { return false; }
 };
 
 /** A parsed raw(H) descriptor. */
@@ -711,6 +712,7 @@ public:
         }
     }
     bool IsSingleType() const final { return true; }
+    bool ToPrivateString(const SigningProvider& arg, std::string& out) const final { return false; }
 };
 
 /** A parsed pk(P) descriptor. */

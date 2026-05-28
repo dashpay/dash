@@ -239,6 +239,9 @@ public:
 
     virtual uint256 GetID() const { return uint256(); }
 
+    /** Returns a set of all the scriptPubKeys that this ScriptPubKeyMan watches */
+    virtual std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const { return {}; };
+
     /** Prepends the wallet name in logging output to ease debugging in multi-wallet use cases */
     template<typename... Params>
     void WalletLogPrintf(std::string fmt, Params... parameters) const {
@@ -251,6 +254,8 @@ public:
     /** Keypool has new keys */
     boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
 };
+
+class DescriptorScriptPubKeyMan;
 
 class LegacyScriptPubKeyMan : public ScriptPubKeyMan, public FillableSigningProvider
 {
@@ -507,6 +512,13 @@ public:
     const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
 
     std::set<CKeyID> GetKeys() const override;
+    std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const override;
+
+    /** Get the DescriptorScriptPubKeyMans (with private keys) that have the same scriptPubKeys as this LegacyScriptPubKeyMan.
+     * Does not modify this ScriptPubKeyMan. */
+    std::optional<MigrationData> MigrateToDescriptor();
+    /** Delete all the records ofthis LegacyScriptPubKeyMan from disk*/
+    bool DeleteRecords();
 };
 
 /** Wraps a LegacyScriptPubKeyMan so that it can be returned in a new unique_ptr. Does not provide privkeys */
@@ -594,6 +606,13 @@ public:
     // (with or without private keys), the "keypool" is a single xpub.
     bool TopUp(unsigned int size = 0) override;
 
+    //! Fast-forward this descriptor's next_index to `target` (topping up the
+    //! script cache as needed) so the next GetNewDestination() returns the
+    //! script at `target`. Used by wallet migration to make sure the active
+    //! pkh() descriptors don't re-derive addresses the legacy wallet had
+    //! already given out. No-op if next_index is already at or beyond target.
+    [[nodiscard]] bool AdvanceNextIndexTo(int32_t target);
+
     std::vector<WalletDestination> MarkUnusedAddresses(WalletBatch &batch, const CScript& script, const std::optional<int64_t>& block_time) override;
 
     bool IsHDEnabled() const override;
@@ -636,12 +655,12 @@ public:
     bool HasWalletDescriptor(const WalletDescriptor& desc) const;
     void UpdateWalletDescriptor(WalletDescriptor& descriptor);
     bool CanUpdateToWalletDescriptor(const WalletDescriptor& descriptor, std::string& error);
-    void AddDescriptorKey(const CKey& key, const CPubKey &pubkey);
+    void AddDescriptorKey(const CKey& key, const CPubKey &pubkey, const SecureString& mnemonic = "", const SecureString& mnemonic_passphrase = "");
     void WriteDescriptor();
 
     WalletDescriptor GetWalletDescriptor() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
-    std::vector<CScript> GetScriptPubKeys() const;
-    std::vector<CScript> GetScriptPubKeys(int32_t minimum_index) const;
+    std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const override;
+    std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys(int32_t minimum_index) const;
     int32_t GetEndRange() const;
 
     bool GetDescriptorString(std::string& out, const bool priv) const;

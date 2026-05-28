@@ -390,8 +390,11 @@ SQLiteBatch::SQLiteBatch(SQLiteDatabase& database)
 
 void SQLiteBatch::Close()
 {
-    // If m_db is in a transaction (i.e. not in autocommit mode), then abort the transaction in progress
-    if (m_database.m_db && sqlite3_get_autocommit(m_database.m_db) == 0) {
+    // If this batch started a transaction that was never committed/aborted,
+    // abort it now. We intentionally only abort transactions this batch owns:
+    // nested WalletBatches sharing the SQLite connection must not roll back an
+    // outer transaction started by a different batch.
+    if (m_txn_started && m_database.m_db && sqlite3_get_autocommit(m_database.m_db) == 0) {
         if (TxnAbort()) {
             LogPrintf("SQLiteBatch: Batch closed unexpectedly without the transaction being explicitly committed or aborted\n");
         } else {
@@ -558,26 +561,38 @@ bool SQLiteBatch::TxnBegin()
     int res = sqlite3_exec(m_database.m_db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to begin the transaction\n");
+    } else {
+        m_txn_started = true;
     }
     return res == SQLITE_OK;
 }
 
 bool SQLiteBatch::TxnCommit()
 {
+    // Refuse to operate on a transaction this batch does not own, so a nested
+    // batch whose TxnBegin() failed cannot accidentally commit an outer
+    // transaction started by a different batch on the shared connection.
+    if (!m_txn_started) return false;
     if (!m_database.m_db || sqlite3_get_autocommit(m_database.m_db) != 0) return false;
     int res = sqlite3_exec(m_database.m_db, "COMMIT TRANSACTION", nullptr, nullptr, nullptr);
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to commit the transaction\n");
+    } else {
+        m_txn_started = false;
     }
     return res == SQLITE_OK;
 }
 
 bool SQLiteBatch::TxnAbort()
 {
+    // Refuse to operate on a transaction this batch does not own; see TxnCommit.
+    if (!m_txn_started) return false;
     if (!m_database.m_db || sqlite3_get_autocommit(m_database.m_db) != 0) return false;
     int res = sqlite3_exec(m_database.m_db, "ROLLBACK TRANSACTION", nullptr, nullptr, nullptr);
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to abort the transaction\n");
+    } else {
+        m_txn_started = false;
     }
     return res == SQLITE_OK;
 }
