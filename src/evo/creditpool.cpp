@@ -14,6 +14,7 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <logging.h>
+#include <masternode/payments.h>
 #include <node/blockstorage.h>
 #include <validation.h>
 
@@ -23,9 +24,6 @@
 #include <stack>
 
 using node::ReadBlockFromDisk;
-
-// Forward declaration to prevent a new circular dependencies through masternode/payments.h
-CAmount PlatformShare(const CAmount masternodeReward);
 
 static const std::string DB_CREDITPOOL_SNAPSHOT = "cpm_S";
 
