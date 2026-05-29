@@ -44,6 +44,8 @@ enum class MnRewardEra {
     EvoReward,  // MN_RR: platform share is reallocated from the masternode reward
 };
 
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active);
+
 class CMNPaymentsProcessor
 {
 private:
