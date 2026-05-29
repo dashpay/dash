@@ -2023,7 +2023,7 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
         const std::string xpub_str = EncodeExtPubKey(master_key.Neuter());
         for (int i = 0; i < 2; ++i) {
             const uint32_t chain_counter = (i == 1) ? acc.nInternalChainCounter : acc.nExternalChainCounter;
-            const std::string desc_str = strprintf("combo(%s/%d'/%d'/0'/%d/*)",
+            const std::string desc_str = strprintf("combo(%s/%dh/%dh/0h/%d/*)",
                 xpub_str, BIP32_PURPOSE_STANDARD, Params().ExtCoinType(), i);
             FlatSigningProvider keys;
             std::string error;

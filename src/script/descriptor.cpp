@@ -424,6 +424,7 @@ public:
     {
         if (m_derive == DeriveType::HARDENED) {
             out = ToString(/*normalized=*/true);
+
             return true;
         }
         // Step backwards to find the last hardened step in the path

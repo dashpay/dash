@@ -48,7 +48,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         assert_equal(addr_info["address"], addr_info_old["address"])
         assert_equal(addr_info["scriptPubKey"], addr_info_old["scriptPubKey"])
         assert_equal(addr_info["ismine"], addr_info_old["ismine"])
-        assert_equal(addr_info["hdkeypath"], addr_info_old["hdkeypath"])
+        assert_equal(addr_info["hdkeypath"], addr_info_old["hdkeypath"].replace("'","h"))
         assert_equal(addr_info["solvable"], addr_info_old["solvable"])
         assert_equal(addr_info["ischange"], addr_info_old["ischange"])
         assert_equal(addr_info["hdmasterfingerprint"], addr_info_old["hdmasterfingerprint"])
@@ -90,8 +90,8 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.assert_is_sqlite("basic0")
 
         # The wallet should create the following descriptors:
-        # * BIP44 descriptors in the form of "44'/1'/0'/0/*" and "44'/1'/0'/1/*" (2 descriptors)
-        # * Inactive DIP0009 CoinJoin: pkh(xpub/9'/1'/4'/0'/0/*) (1 descriptor)
+        # * BIP44 descriptors in the form of "44h/1h/0h/0/*" and "44h/1h/0h/1/*" (2 descriptors)
+        # * Inactive DIP0009 CoinJoin: pkh(xpub/9h/1h/4h/0h/0/*) (1 descriptor)
         # * Inactive Migration descriptors for the legacy HD keys (2 combo descriptors)
         # Dash uses the same BIP44 paths for both legacy and descriptor wallets, but
         # combo descriptor can not be active
@@ -113,10 +113,10 @@ class WalletMigrationTest(BitcoinTestFramework):
         new_change = basic0.getrawchangeaddress()
         assert not new_addr == addr
         assert not new_change == change
-        assert_equal(addr_info["hdkeypath"], "m/44'/1'/0'/0/0")
-        assert_equal(change_addr_info["hdkeypath"], "m/44'/1'/0'/1/0")
-        assert_equal(basic0.getaddressinfo(new_addr)["hdkeypath"], "m/44'/1'/0'/0/2")
-        assert_equal(basic0.getaddressinfo(new_change)["hdkeypath"], "m/44'/1'/0'/1/2")
+        assert_equal(addr_info["hdkeypath"], "m/44h/1h/0h/0/0")
+        assert_equal(change_addr_info["hdkeypath"], "m/44h/1h/0h/1/0")
+        assert_equal(basic0.getaddressinfo(new_addr)["hdkeypath"], "m/44h/1h/0h/0/2")
+        assert_equal(basic0.getaddressinfo(new_change)["hdkeypath"], "m/44h/1h/0h/1/2")
 
         self.log.info("Test migration of a basic keys only wallet with a balance")
         basic1 = self.create_legacy_wallet("basic1")
