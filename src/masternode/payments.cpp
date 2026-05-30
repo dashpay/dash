@@ -30,7 +30,7 @@ CAmount PlatformShare(const CAmount reward)
     return platformReward;
 }
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, MnRewardEra era)
 {
     CAmount ret = blockValue/5; // start at 20%
 
@@ -63,7 +63,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
         return ret;
     }
 
-    if (fV20Active) {
+    if (era != MnRewardEra::Classic) {
         // Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
         // Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
         // Previous reallocation periods are dropped.
@@ -106,13 +106,12 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
 
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
 
-    const bool fV20Active = era != MnRewardEra::Classic;
-    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, fV20Active);
+    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, era);
 
     // Credit Pool doesn't exist before V20. If any part of reward will re-allocated to credit pool before v20
     // activation these fund will be just permanently lost. Applicable for devnets, regtest, testnet
     if (era == MnRewardEra::EvoReward) {
-        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, fV20Active);
+        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, era);
         const CAmount platformReward = PlatformShare(masternodeSubsidyReward);
         masternodeReward -= platformReward;
 
