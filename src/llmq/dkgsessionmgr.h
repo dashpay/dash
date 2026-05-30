@@ -25,7 +25,6 @@ class CDBWrapper;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CSporkManager;
-struct MessageProcessingResult;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -38,11 +37,6 @@ class CDKGJustification;
 class CDKGPrematureCommitment;
 class CDKGSessionHandler;
 class CQuorumSnapshotManager;
-class CDKGSessionHandler;
-class CDKGContribution;
-class CDKGComplaint;
-class CDKGJustification;
-class CDKGPrematureCommitment;
 
 class CDKGSessionManager
 {
