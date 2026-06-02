@@ -12,8 +12,8 @@
 
 class CBlock;
 class CBlockIndex;
+class CChain;
 class CDeterministicMNManager;
-class ChainstateManager;
 class CTransaction;
 class CTxOut;
 
@@ -44,6 +44,12 @@ enum class MnRewardEra {
     EvoReward,  // MN_RR: platform share is reallocated from the masternode reward
 };
 
+enum class SuperBlockCheckType {
+    NoCheck, // for chainlocked blocks or during sync
+    AllowDuplicates,
+    DisallowDuplicates,
+};
+
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, MnRewardEra era);
 
 class CMNPaymentsProcessor
@@ -51,7 +57,6 @@ class CMNPaymentsProcessor
 private:
     CDeterministicMNManager& m_dmnman;
     governance::SuperblockManager& m_superblocks;
-    const ChainstateManager& m_chainman;
     const Consensus::Params& m_consensus_params;
 
 private:
@@ -65,16 +70,15 @@ private:
 
 public:
     explicit CMNPaymentsProcessor(CDeterministicMNManager& dmnman, governance::SuperblockManager& superblocks,
-                                  const ChainstateManager& chainman, const Consensus::Params& consensus_params) :
+                                  const Consensus::Params& consensus_params) :
         m_dmnman{dmnman},
         m_superblocks{superblocks},
-        m_chainman{chainman},
         m_consensus_params{consensus_params}
     {
     }
 
-    bool IsBlockValueValid(const CBlock& block, const CBlockIndex* pindexPrev, const CAmount blockReward, std::string& strErrorRet, const bool check_superblock);
-    bool IsBlockPayeeValid(const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era, const bool check_superblock);
+    bool IsBlockValueValid(const CChain& active_chain, const CBlock& block, const CBlockIndex* pindexPrev, const CAmount blockReward, std::string& strErrorRet, SuperBlockCheckType check_superblock);
+    bool IsBlockPayeeValid(const CChain& active_chain, const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era, SuperBlockCheckType check_superblock);
     void FillBlockPayments(CMutableTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
                            MnRewardEra era, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet);
 };

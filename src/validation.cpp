@@ -2419,9 +2419,13 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime5_2 = GetTimeMicros(); nTimeSubsidy += nTime5_2 - nTime5_1;
     LogPrint(BCLog::BENCHMARK, "      - GetBlockSubsidy: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5_2 - nTime5_1), nTimeSubsidy * MICRO, nTimeSubsidy * MILLI / nBlocksTotal);
 
-    const bool check_superblock = m_chain_helper->IsSuperblockValidationRequired(pindex);
+    const SuperBlockCheckType check_superblock = !m_chain_helper->IsSuperblockValidationRequired(pindex)
+        ? SuperBlockCheckType::NoCheck
+        : DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24) ?
+            SuperBlockCheckType::DisallowDuplicates : SuperBlockCheckType::AllowDuplicates;
 
-    if (!m_chain_helper->mn_payments->IsBlockValueValid(block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
+
+    if (!m_chain_helper->mn_payments->IsBlockValueValid(m_chainman.ActiveChain(), block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): %s\n", strError);
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-amount");
@@ -2431,7 +2435,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     LogPrint(BCLog::BENCHMARK, "      - IsBlockValueValid: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5_3 - nTime5_2), nTimeValueValid * MICRO, nTimeValueValid * MILLI / nBlocksTotal);
 
     const MnRewardEra mn_reward_era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
-    if (!m_chain_helper->mn_payments->IsBlockPayeeValid(*block.vtx[0], pindex->pprev, blockSubsidy, feeReward, mn_reward_era, check_superblock)) {
+    if (!m_chain_helper->mn_payments->IsBlockPayeeValid(m_chainman.ActiveChain(), *block.vtx[0], pindex->pprev, blockSubsidy, feeReward, mn_reward_era, check_superblock)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): couldn't find masternode or superblock payments\n");
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-payee");

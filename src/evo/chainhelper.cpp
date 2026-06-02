@@ -27,7 +27,7 @@ CChainstateHelper::CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmn
     m_chainlocks{chainlocks},
     ehf_manager{std::make_unique<CMNHFManager>(evodb, chainman, qman)},
     superblocks{std::make_unique<governance::SuperblockManager>()},
-    mn_payments{std::make_unique<CMNPaymentsProcessor>(dmnman, *superblocks, chainman, consensus_params)},
+    mn_payments{std::make_unique<CMNPaymentsProcessor>(dmnman, *superblocks, consensus_params)},
     special_tx{std::make_unique<CSpecialTxProcessor>(*credit_pool_manager, dmnman, *ehf_manager, qblockman, qsnapman,
                                                      chainman, consensus_params, chainlocks, qman)}
 {}
