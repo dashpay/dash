@@ -9,7 +9,6 @@
 #include <masternode/sync.h>
 
 #include <chain.h>
-#include <chainparams.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
 #include <key_io.h>
@@ -30,13 +29,13 @@ CAmount PlatformShare(const CAmount reward)
     return platformReward;
 }
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, MnRewardEra era)
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensus_params, MnRewardEra era)
 {
     CAmount ret = blockValue/5; // start at 20%
 
-    const int nMNPIBlock = Params().GetConsensus().nMasternodePaymentsIncreaseBlock;
-    const int nMNPIPeriod = Params().GetConsensus().nMasternodePaymentsIncreasePeriod;
-    const int nReallocActivationHeight = Params().GetConsensus().BRRHeight;
+    const int nMNPIBlock = consensus_params.nMasternodePaymentsIncreaseBlock;
+    const int nMNPIPeriod = consensus_params.nMasternodePaymentsIncreasePeriod;
+    const int nReallocActivationHeight = consensus_params.BRRHeight;
 
                                                                       // mainnet:
     if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
@@ -54,7 +53,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, MnRewardEra era)
         return ret;
     }
 
-    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
+    int nSuperblockCycle = consensus_params.nSuperblockCycle;
     // Actual realocation starts in the cycle next to one activation happens in
     int nReallocStart = nReallocActivationHeight - nReallocActivationHeight % nSuperblockCycle + nSuperblockCycle;
 
@@ -106,12 +105,12 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, MnRewardEra era)
 
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
 
-    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, era);
+    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, m_consensus_params, era);
 
     // Credit Pool doesn't exist before V20. If any part of reward will re-allocated to credit pool before v20
     // activation these fund will be just permanently lost. Applicable for devnets, regtest, testnet
     if (era == MnRewardEra::EvoReward) {
-        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, era);
+        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, m_consensus_params, era);
         const CAmount platformReward = PlatformShare(masternodeSubsidyReward);
         masternodeReward -= platformReward;
 

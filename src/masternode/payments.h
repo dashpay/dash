@@ -50,7 +50,7 @@ enum class SuperBlockCheckType {
     DisallowDuplicates,
 };
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, MnRewardEra era);
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensus_params, MnRewardEra era);
 
 class CMNPaymentsProcessor
 {

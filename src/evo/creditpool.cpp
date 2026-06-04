@@ -251,7 +251,7 @@ CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexP
 
     if (DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_MN_RR)) {
         // If credit pool exists, it means v20 is activated
-        platformReward = PlatformShare(GetMasternodePayment(pindexPrev->nHeight + 1, blockSubsidy, MnRewardEra::EvoReward));
+        platformReward = PlatformShare(GetMasternodePayment(pindexPrev->nHeight + 1, blockSubsidy, consensusParams, MnRewardEra::EvoReward));
     }
 }
 
