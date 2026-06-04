@@ -1312,7 +1312,8 @@ dash_chainstate_LDADD = \
   $(LIBSECP256K1) \
   $(LIBDASHBLS) \
   $(LIBLEVELDB) \
-  $(LIBMEMENV)
+  $(LIBMEMENV) \
+  $(GMP_LIBS)
 
 # Required for obj/build.h to be generated first.
 # More details: https://www.gnu.org/software/automake/manual/html_node/Built-Sources-Example.html
