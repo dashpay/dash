@@ -54,7 +54,7 @@ class NetDKG final : public NetHandler
 public:
     //! Observer-mode constructor.
     NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-           const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role);
+           const ChainstateManager& chainman, CQuorumManager& qman, QuorumRole& role);
 
     //! Active-mode constructor: takes the masternode-only dep bundle as required references.
     NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
@@ -96,7 +96,6 @@ private:
     CQuorumManager& m_qman;
     const CSporkManager& m_sporkman;
     const ChainstateManager& m_chainman;
-    const bool m_quorums_watch;
     const std::unique_ptr<ActiveDKG> m_active; //!< null in observer mode, non-null in active mode
 
     /** Cache: quorum hash → quorum index, populated lazily by ProcessMessage. */

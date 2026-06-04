@@ -216,13 +216,12 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
 
 
 NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-               const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role) :
+               const ChainstateManager& chainman, CQuorumManager& qman, QuorumRole& role) :
     NetHandler(peer_manager),
     m_qdkgsman{qdkgsman},
     m_qman{qman},
     m_sporkman{sporkman},
     m_chainman{chainman},
-    m_quorums_watch{quorums_watch},
     m_active{nullptr}
 {
     m_qdkgsman.InitializeHandlers([](const Consensus::LLMQParams& llmq_params,
@@ -242,7 +241,6 @@ NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman,
     m_qman{qman},
     m_sporkman{sporkman},
     m_chainman{chainman},
-    m_quorums_watch{quorums_watch},
     m_active{std::make_unique<ActiveDKG>(ActiveDKG{dmnman, mn_metaman, dkgdbgman, qblockman, qsnapman, connman})}
 {
     m_qdkgsman.InitializeHandlers(

@@ -2241,7 +2241,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             *node.active_ctx->nodeman, *node.connman));
     } else if (node.observer_ctx) {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
-            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman, chainman, /*quorums_watch=*/true,
+            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman, chainman,
             *node.llmq_ctx->qman, *node.observer_ctx));
     } else {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKGStub>(node.peerman.get()));
