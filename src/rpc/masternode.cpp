@@ -228,12 +228,18 @@ static std::string GetRequiredPaymentsString(governance::SuperblockManager& supe
 {
     std::string strPayments = "Unknown";
     if (payee) {
-        CTxDestination dest;
-        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest)) {
-            NONFATAL_UNREACHABLE();
+        strPayments.clear();
+        for (const auto& payout : GetOwnerPayouts(payee->pdmnState->nVersion, payee->pdmnState->scriptPayout,
+                                                  payee->pdmnState->payouts)) {
+            CTxDestination dest;
+            if (!ExtractDestination(payout.scriptPayout, dest)) {
+                NONFATAL_UNREACHABLE();
+            }
+            if (!strPayments.empty()) strPayments += ", ";
+            strPayments += EncodeDestination(dest);
         }
-        strPayments = EncodeDestination(dest);
         if (payee->nOperatorReward != 0 && payee->pdmnState->scriptOperatorPayout != CScript()) {
+            CTxDestination dest;
             if (!ExtractDestination(payee->pdmnState->scriptOperatorPayout, dest)) {
                 NONFATAL_UNREACHABLE();
             }
@@ -632,7 +638,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             }
         }
 
-        CScript payeeScript = dmn.pdmnState->scriptPayout;
+        CScript payeeScript = GetOwnerPayouts(dmn.pdmnState->nVersion, dmn.pdmnState->scriptPayout, dmn.pdmnState->payouts).front().scriptPayout;
         CTxDestination payeeDest;
         std::string payeeStr = "UNKNOWN";
         if (ExtractDestination(payeeScript, payeeDest)) {

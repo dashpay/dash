@@ -15,16 +15,21 @@
 #include <tinyformat.h>
 #include <validation.h>
 
+#include <set>
+
 namespace ProTxVersion {
 template <typename T>
 [[nodiscard]] uint16_t GetMaxFromDeployment(gsl::not_null<const CBlockIndex*> pindexPrev,
                                             const ChainstateManager& chainman, std::optional<bool> is_basic_override)
 {
     constexpr bool is_extaddr_eligible{std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpServTx>};
+    constexpr bool is_multipayout_eligible{std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpRegTx>};
+    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
     return ProTxVersion::GetMax(
         is_basic_override ? *is_basic_override
                           : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19),
-        is_extaddr_eligible ? DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24) : false);
+        is_extaddr_eligible ? is_v24_active : false,
+        is_multipayout_eligible ? is_v24_active : false);
 }
 template uint16_t GetMaxFromDeployment<CProRegTx>(gsl::not_null<const CBlockIndex*> pindexPrev,
                                                   const ChainstateManager& chainman,
@@ -39,6 +44,109 @@ template uint16_t GetMaxFromDeployment<CProUpRevTx>(gsl::not_null<const CBlockIn
                                                     const ChainstateManager& chainman,
                                                     std::optional<bool> is_basic_override);
 } // namespace ProTxVersion
+
+MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout)
+{
+    return {{CMasternodePayoutShare::MAX_REWARD, script_payout}};
+}
+
+MasternodePayoutShares GetOwnerPayouts(const uint16_t nVersion, const CScript& script_payout,
+                                       const MasternodePayoutShares& payouts)
+{
+    return nVersion >= ProTxVersion::MultiPayout ? payouts : LegacyPayoutAsList(script_payout);
+}
+
+static bool IsValidPayoutScript(const CScript& script)
+{
+    return script.IsPayToPublicKeyHash() || script.IsPayToScriptHash();
+}
+
+bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKeyID& keyIDOwner,
+                                const CKeyID& keyIDVoting, TxValidationState& state)
+{
+    if (payouts.empty() || payouts.size() > 8) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payouts-count");
+    }
+
+    uint32_t total_reward{0};
+    std::set<CScript> seen_scripts;
+    for (const auto& payout : payouts) {
+        if (payout.reward < CMasternodePayoutShare::MIN_REWARD || payout.reward > CMasternodePayoutShare::MAX_REWARD) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-reward");
+        }
+        total_reward += payout.reward;
+
+        if (!IsValidPayoutScript(payout.scriptPayout)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
+        }
+        if (!seen_scripts.emplace(payout.scriptPayout).second) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dup");
+        }
+
+        CTxDestination payout_dest;
+        if (!ExtractDestination(payout.scriptPayout, payout_dest)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
+        }
+        if (payout_dest == CTxDestination(PKHash(keyIDOwner)) || payout_dest == CTxDestination(PKHash(keyIDVoting))) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+        }
+    }
+
+    if (total_reward != CMasternodePayoutShare::MAX_REWARD) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-reward-sum");
+    }
+    return true;
+}
+
+bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestination& collateral_dest,
+                         const CKeyID& keyIDOwner, const CKeyID& keyIDVoting, TxValidationState& state)
+{
+    if (collateral_dest == CTxDestination(PKHash(keyIDOwner)) ||
+        collateral_dest == CTxDestination(PKHash(keyIDVoting))) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
+    }
+
+    const auto* collateral_pkhash = std::get_if<PKHash>(&collateral_dest);
+    if (!collateral_pkhash) {
+        return true;
+    }
+
+    for (const auto& payout : payouts) {
+        CTxDestination payout_dest;
+        if (ExtractDestination(payout.scriptPayout, payout_dest) &&
+            payout_dest == CTxDestination(*collateral_pkhash)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+        }
+    }
+    return true;
+}
+
+std::string PayoutListToString(const MasternodePayoutShares& payouts)
+{
+    std::string ret;
+    for (const auto& payout : payouts) {
+        CTxDestination dest;
+        const std::string payout_str = ExtractDestination(payout.scriptPayout, dest) ? EncodeDestination(dest) : HexStr(payout.scriptPayout);
+        if (!ret.empty()) ret += ",";
+        ret += strprintf("%d:%s", payout.reward, payout_str);
+    }
+    return ret;
+}
+
+UniValue PayoutListToJson(const MasternodePayoutShares& payouts)
+{
+    UniValue ret(UniValue::VARR);
+    for (const auto& payout : payouts) {
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("reward", payout.reward);
+        if (CTxDestination dest; ExtractDestination(payout.scriptPayout, dest)) {
+            obj.pushKV("address", EncodeDestination(dest));
+        }
+        obj.pushKV("script", HexStr(payout.scriptPayout));
+        ret.push_back(obj);
+    }
+    return ret;
+}
 
 template <typename ProTx>
 bool IsNetInfoTriviallyValid(const ProTx& proTx, TxValidationState& state)
@@ -86,10 +194,9 @@ bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
     if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
     }
-    if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
-    }
-    if (netInfo->CanStorePlatform() != (nVersion == ProTxVersion::ExtAddr)) {
+    const auto owner_payouts = GetOwnerPayouts(nVersion, scriptPayout, payouts);
+    if (!IsPayoutListTriviallyValid(owner_payouts, keyIDOwner, keyIDVoting, state)) return false;
+    if (netInfo->CanStorePlatform() != (nVersion >= ProTxVersion::ExtAddr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-netinfo-version");
     }
     if (!netInfo->IsEmpty() && !IsNetInfoTriviallyValid(*this, state)) {
@@ -100,16 +207,6 @@ bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
         if (!entry.IsTriviallyValid()) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
         }
-    }
-
-    CTxDestination payoutDest;
-    if (!ExtractDestination(scriptPayout, payoutDest)) {
-        // should not happen as we checked script types before
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
-    }
-    // don't allow reuse of payout key for other keys (don't allow people to put the payee key onto an online server)
-    if (payoutDest == CTxDestination(PKHash(keyIDOwner)) || payoutDest == CTxDestination(PKHash(keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
     }
 
     if (nOperatorReward > 10000) {
@@ -125,13 +222,7 @@ std::string CProRegTx::MakeSignString() const
 
     // We only include the important stuff in the string form...
 
-    CTxDestination destPayout;
-    std::string strPayout;
-    if (ExtractDestination(scriptPayout, destPayout)) {
-        strPayout = EncodeDestination(destPayout);
-    } else {
-        strPayout = HexStr(scriptPayout);
-    }
+    const std::string strPayout = PayoutListToString(GetOwnerPayouts(nVersion, scriptPayout, payouts));
 
     s += strPayout + "|";
     s += strprintf("%d", nOperatorReward) + "|";
@@ -146,11 +237,7 @@ std::string CProRegTx::MakeSignString() const
 
 std::string CProRegTx::ToString() const
 {
-    CTxDestination dest;
-    std::string payee = "unknown";
-    if (ExtractDestination(scriptPayout, dest)) {
-        payee = EncodeDestination(dest);
-    }
+    const std::string payee = PayoutListToString(GetOwnerPayouts(nVersion, scriptPayout, payouts));
 
     return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, netInfo=%s, nOperatorReward=%f, "
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s%s)\n",
@@ -171,7 +258,7 @@ bool CProUpServTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev
     if (nVersion < ProTxVersion::BasicBLS && nType == MnType::Evo) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-evo-version");
     }
-    if (netInfo->CanStorePlatform() != (nVersion == ProTxVersion::ExtAddr)) {
+    if (netInfo->CanStorePlatform() != (nVersion >= ProTxVersion::ExtAddr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-netinfo-version");
     }
     if (netInfo->IsEmpty()) {
@@ -223,19 +310,13 @@ bool CProUpRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev,
     if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
     }
-    if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
-    }
+    if (!IsPayoutListTriviallyValid(GetOwnerPayouts(nVersion, scriptPayout, payouts), CKeyID{}, keyIDVoting, state)) return false;
     return true;
 }
 
 std::string CProUpRegTx::ToString() const
 {
-    CTxDestination dest;
-    std::string payee = "unknown";
-    if (ExtractDestination(scriptPayout, dest)) {
-        payee = EncodeDestination(dest);
-    }
+    const std::string payee = PayoutListToString(GetOwnerPayouts(nVersion, scriptPayout, payouts));
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
         nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee);

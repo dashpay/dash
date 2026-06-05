@@ -396,7 +396,14 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 newState->pubKeyOperator = opt_proTx->pubKeyOperator;
             }
             newState->keyIDVoting = opt_proTx->keyIDVoting;
-            newState->scriptPayout = opt_proTx->scriptPayout;
+            newState->nVersion = opt_proTx->nVersion;
+            if (opt_proTx->nVersion >= ProTxVersion::MultiPayout) {
+                newState->payouts = opt_proTx->payouts;
+                newState->scriptPayout.clear();
+            } else {
+                newState->scriptPayout = opt_proTx->scriptPayout;
+                newState->payouts.clear();
+            }
 
             newList.UpdateMN(opt_proTx->proTxHash, newState);
 
@@ -911,6 +918,9 @@ static bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
         // Only new entries (ProRegTx) and service updates (ProUpServTx) can use ExtAddr versioning
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
     }
+    if (tx_type != TRANSACTION_PROVIDER_UPDATE_REGISTRAR && tx_version == ProTxVersion::MultiPayout) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
+    }
 
     return true;
 }
@@ -986,10 +996,8 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
 
     // don't allow reuse of collateral key for other keys (don't allow people to put the collateral key onto an online server)
     // this check applies to internal and external collateral, but internal collaterals are not necessarily a P2PKH
-    if (collateralTxDest == CTxDestination(PKHash(opt_ptx->keyIDOwner)) ||
-        collateralTxDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
-    }
+    if (!IsPayoutListKeySafe(GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts),
+                             collateralTxDest, opt_ptx->keyIDOwner, opt_ptx->keyIDVoting, state)) return false;
 
     if (pindexPrev) {
         auto mnList = dmnman.GetListForBlock(pindexPrev);
@@ -1140,12 +1148,6 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    CTxDestination payoutDest;
-    if (!ExtractDestination(opt_ptx->scriptPayout, payoutDest)) {
-        // should not happen as we checked script types before
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
-    }
-
     auto mnList = dmnman.GetListForBlock(pindexPrev);
     auto dmn = mnList.GetMN(opt_ptx->proTxHash);
     if (!dmn) {
@@ -1157,11 +1159,8 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    // don't allow reuse of payee key for other keys (don't allow people to put the payee key onto an online server)
-    if (payoutDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) ||
-        payoutDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
-    }
+    const auto owner_payouts = GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts);
+    if (!IsPayoutListTriviallyValid(owner_payouts, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting, state)) return false;
 
     Coin coin;
     if (!view.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent()) {
@@ -1174,10 +1173,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     if (!ExtractDestination(coin.out.scriptPubKey, collateralTxDest)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-collateral-dest");
     }
-    if (collateralTxDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) ||
-        collateralTxDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
-    }
+    if (!IsPayoutListKeySafe(owner_payouts, collateralTxDest, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting, state)) return false;
 
     if (mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
         auto otherDmn = mnList.GetUniquePropertyMN(opt_ptx->pubKeyOperator);

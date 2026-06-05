@@ -45,7 +45,8 @@ CSimplifiedMNListEntry CDeterministicMN::to_sml_entry() const
     const CDeterministicMNState& state{*pdmnState};
     return CSimplifiedMNListEntry(proTxHash, state.confirmedHash, state.netInfo, state.pubKeyOperator,
                                   state.keyIDVoting, !state.IsBanned(), state.platformHTTPPort, state.platformNodeID,
-                                  state.scriptPayout, state.scriptOperatorPayout, state.nVersion, nType);
+                                  state.scriptPayout, GetOwnerPayouts(state.nVersion, state.scriptPayout, state.payouts),
+                                  state.scriptOperatorPayout, state.nVersion, nType);
 }
 
 std::string CDeterministicMN::ToString() const

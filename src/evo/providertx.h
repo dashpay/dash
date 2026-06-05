@@ -20,6 +20,8 @@
 #include <univalue.h>
 #include <gsl/pointers.h>
 
+#include <vector>
+
 class CBlockIndex;
 class ChainstateManager;
 class TxValidationState;
@@ -30,12 +32,17 @@ enum : uint16_t {
     LegacyBLS = 1,
     BasicBLS  = 2,
     ExtAddr   = 3,
+    MultiPayout = 4,
 };
 
 /** Get highest permissible ProTx version based on flags set. */
-[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr)
+[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr,
+                                        const bool is_multi_payout = false)
 {
     if (is_basic_scheme_active) {
+        if (is_multi_payout) {
+            return ProTxVersion::MultiPayout;
+        }
         if (is_extended_addr) {
             // Requires *both* forks to be active to use extended addresses. is_basic_scheme_active could
             // be set to false due to RPC specialization, so we must evaluate is_extended_addr *last* to
@@ -57,6 +64,46 @@ template <typename T>
                                             std::optional<bool> is_basic_override = std::nullopt);
 } // namespace ProTxVersion
 
+class CMasternodePayoutShare
+{
+public:
+    static constexpr uint16_t MIN_REWARD = 100;
+    static constexpr uint16_t MAX_REWARD = 10000;
+
+    uint16_t reward{MAX_REWARD};
+    CScript scriptPayout;
+
+    CMasternodePayoutShare() = default;
+    CMasternodePayoutShare(uint16_t reward, CScript script_payout) :
+        reward(reward),
+        scriptPayout(std::move(script_payout))
+    {
+    }
+
+    SERIALIZE_METHODS(CMasternodePayoutShare, obj)
+    {
+        READWRITE(obj.reward, obj.scriptPayout);
+    }
+
+    friend bool operator==(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b)
+    {
+        return a.reward == b.reward && a.scriptPayout == b.scriptPayout;
+    }
+    friend bool operator!=(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b) { return !(a == b); }
+};
+
+using MasternodePayoutShares = std::vector<CMasternodePayoutShare>;
+
+[[nodiscard]] MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout);
+[[nodiscard]] MasternodePayoutShares GetOwnerPayouts(uint16_t nVersion, const CScript& script_payout,
+                                                     const MasternodePayoutShares& payouts);
+[[nodiscard]] bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKeyID& keyIDOwner,
+                                              const CKeyID& keyIDVoting, TxValidationState& state);
+[[nodiscard]] bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestination& collateral_dest,
+                                       const CKeyID& keyIDOwner, const CKeyID& keyIDVoting, TxValidationState& state);
+[[nodiscard]] std::string PayoutListToString(const MasternodePayoutShares& payouts);
+[[nodiscard]] UniValue PayoutListToJson(const MasternodePayoutShares& payouts);
+
 class CProRegTx
 {
 public:
@@ -75,6 +122,7 @@ public:
     CKeyID keyIDVoting;
     uint16_t nOperatorReward{0};
     CScript scriptPayout;
+    MasternodePayoutShares payouts;
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
@@ -84,7 +132,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -98,8 +146,20 @@ public:
                 obj.keyIDOwner,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
                 obj.keyIDVoting,
-                obj.nOperatorReward,
-                obj.scriptPayout,
+                obj.nOperatorReward
+        );
+        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+            uint8_t payouts_count{0};
+            SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
+            READWRITE(payouts_count);
+            SER_READ(obj, obj.payouts.resize(payouts_count));
+            for (auto& payout : obj.payouts) {
+                READWRITE(payout);
+            }
+        } else {
+            READWRITE(obj.scriptPayout);
+        }
+        READWRITE(
                 obj.inputsHash
         );
         if (obj.nType == MnType::Evo) {
@@ -151,7 +211,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -202,6 +262,7 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     CScript scriptPayout;
+    MasternodePayoutShares payouts;
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
@@ -211,7 +272,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -219,8 +280,20 @@ public:
                 obj.proTxHash,
                 obj.nMode,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
-                obj.keyIDVoting,
-                obj.scriptPayout,
+                obj.keyIDVoting
+        );
+        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+            uint8_t payouts_count{0};
+            SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
+            READWRITE(payouts_count);
+            SER_READ(obj, obj.payouts.resize(payouts_count));
+            for (auto& payout : obj.payouts) {
+                READWRITE(payout);
+            }
+        } else {
+            READWRITE(obj.scriptPayout);
+        }
+        READWRITE(
                 obj.inputsHash
         );
         if (!(s.GetType() & SER_GETHASH)) {
@@ -265,7 +338,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }

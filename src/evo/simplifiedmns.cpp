@@ -23,6 +23,7 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const uint256& proreg_tx_hash, co
                                                const CBLSLazyPublicKey& pubkey_operator, const CKeyID& keyid_voting,
                                                bool is_valid, uint16_t platform_http_port,
                                                const uint160& platform_node_id, const CScript& script_payout,
+                                               const MasternodePayoutShares& payouts_in,
                                                const CScript& script_operator_payout, uint16_t version, MnType type) :
     proRegTxHash(proreg_tx_hash),
     confirmedHash(confirmed_hash),
@@ -33,6 +34,7 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const uint256& proreg_tx_hash, co
     platformHTTPPort(platform_http_port),
     platformNodeID(platform_node_id),
     scriptPayout(script_payout),
+    payouts(payouts_in),
     scriptOperatorPayout(script_operator_payout),
     nVersion(version),
     nType(type)

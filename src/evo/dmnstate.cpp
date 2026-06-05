@@ -16,17 +16,19 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = EncodeDestination(dest);
     }
+    const auto owner_payouts = GetOwnerPayouts(nVersion, scriptPayout, payouts);
+    const std::string payoutList = PayoutListToString(owner_payouts);
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
     }
 
     return strprintf("CDeterministicMNState(nVersion=%d, nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, "
                      "nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
-                     "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, netInfo=%s, payoutAddress=%s, "
+                     "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, netInfo=%s, payoutAddress=%s, payouts=%s, "
                      "operatorPayoutAddress=%s)\n",
                      nVersion, nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight,
                      nRevocationReason, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(),
-                     EncodeDestination(PKHash(keyIDVoting)), netInfo->ToString(), payoutAddress, operatorPayoutAddress);
+                     EncodeDestination(PKHash(keyIDVoting)), netInfo->ToString(), payoutAddress, payoutList, operatorPayoutAddress);
 }
 
 UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
@@ -72,6 +74,9 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
         if (ExtractDestination(state.scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));
         }
+    }
+    if (fields & Field_payouts) {
+        obj.pushKV("payouts", PayoutListToJson(state.payouts));
     }
     if (fields & Field_scriptOperatorPayout) {
         CTxDestination dest;

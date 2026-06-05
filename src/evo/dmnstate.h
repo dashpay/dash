@@ -57,6 +57,7 @@ public:
     CKeyID keyIDVoting;
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
+    MasternodePayoutShares payouts;
     CScript scriptOperatorPayout;
 
     uint160 platformNodeID{};
@@ -72,6 +73,7 @@ public:
         keyIDVoting(proTx.keyIDVoting),
         netInfo(proTx.netInfo),
         scriptPayout(proTx.scriptPayout),
+        payouts(proTx.payouts),
         platformNodeID(proTx.platformNodeID),
         platformP2PPort(proTx.platformP2PPort),
         platformHTTPPort(proTx.platformHTTPPort)
@@ -98,8 +100,13 @@ public:
         READWRITE(
             obj.keyIDVoting,
             NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                              obj.nVersion >= ProTxVersion::ExtAddr),
-            obj.scriptPayout,
+                              obj.nVersion >= ProTxVersion::ExtAddr));
+        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+            READWRITE(obj.payouts);
+        } else {
+            READWRITE(obj.scriptPayout);
+        }
+        READWRITE(
             obj.scriptOperatorPayout,
             obj.platformNodeID);
         if (obj.nVersion < ProTxVersion::ExtAddr) {
@@ -176,6 +183,7 @@ public:
         Field_platformNodeID = 0x10000,
         Field_platformP2PPort = 0x20000,
         Field_platformHTTPPort = 0x40000,
+        Field_payouts = 0x80000,
     };
 
 private:
@@ -203,6 +211,7 @@ private:
         DMN_STATE_MEMBER(keyIDVoting),
         DMN_STATE_MEMBER(netInfo),
         DMN_STATE_MEMBER(scriptPayout),
+        DMN_STATE_MEMBER(payouts),
         DMN_STATE_MEMBER(scriptOperatorPayout),
         DMN_STATE_MEMBER(nConsecutivePayments),
         DMN_STATE_MEMBER(platformNodeID),

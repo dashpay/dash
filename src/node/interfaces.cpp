@@ -105,6 +105,7 @@ class MnEntryImpl : public MnEntry
 {
 private:
     CDeterministicMNCPtr m_dmn;
+    mutable CScript m_script_payout;
 
 public:
     MnEntryImpl(const CDeterministicMNCPtr& dmn) :
@@ -122,7 +123,12 @@ public:
     const CKeyID& getKeyIdOwner() const override { return m_dmn->pdmnState->keyIDOwner; }
     const CKeyID& getKeyIdVoting() const override { return m_dmn->pdmnState->keyIDVoting; }
     const COutPoint& getCollateralOutpoint() const override { return m_dmn->collateralOutpoint; }
-    const CScript& getScriptPayout() const override { return m_dmn->pdmnState->scriptPayout; }
+    const CScript& getScriptPayout() const override
+    {
+        m_script_payout = GetOwnerPayouts(m_dmn->pdmnState->nVersion, m_dmn->pdmnState->scriptPayout,
+                                          m_dmn->pdmnState->payouts).front().scriptPayout;
+        return m_script_payout;
+    }
     const CScript& getScriptOperatorPayout() const override { return m_dmn->pdmnState->scriptOperatorPayout; }
     const int32_t& getLastPaidHeight() const override { return m_dmn->pdmnState->nLastPaidHeight; }
     const int32_t& getPoSePenalty() const override { return m_dmn->pdmnState->nPoSePenalty; }
