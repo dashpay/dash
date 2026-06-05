@@ -61,7 +61,7 @@ public:
     using SessionHandlerMap = std::map<SessionHandlerKey, std::unique_ptr<CDKGSessionHandler>>;
 
 private:
-    static constexpr int64_t MAX_CONTRIBUTION_CACHE_TIME = 60 * 1000;
+    static constexpr auto MAX_CONTRIBUTION_CACHE_TIME = 60s;
 
 private:
     CDeterministicMNManager& m_dmnman;
@@ -88,7 +88,7 @@ private:
         }
     };
     struct ContributionsCacheEntry {
-        int64_t entryTime;
+        SteadyClock::time_point entryTime;
         BLSVerificationVectorPtr vvec;
         CBLSSecretKey skContribution;
     };

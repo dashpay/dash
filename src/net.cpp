@@ -2119,7 +2119,7 @@ void CConnman::DisconnectNodes()
                 // the socket), we can be pretty sure that they are not interested in any pending messages anymore and
                 // thus can immediately close the socket.
                 if (!pnode->fOtherSideDisconnected) {
-                    if (pnode->nDisconnectLingerTime == 0) {
+                    if (pnode->nDisconnectLingerTime.load() == SteadyClock::time_point{}) {
                         // let's not immediately close the socket but instead wait for at least 100ms so that there is a
                         // chance to flush all/some pending data. Otherwise the other side might not receive REJECT messages
                         // that were pushed right before setting fDisconnect=true
@@ -2127,9 +2127,9 @@ void CConnman::DisconnectNodes()
                         //   1. vSendMsg must be empty and all messages sent via send(). This is ensured by SocketHandler()
                         //      being called before DisconnectNodes and also by the linger time
                         //   2. Internal socket send buffers must be flushed. This is ensured solely by the linger time
-                        pnode->nDisconnectLingerTime = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) + 100;
+                        pnode->nDisconnectLingerTime = SteadyClock::now() + 100ms;
                     }
-                    if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) < pnode->nDisconnectLingerTime) {
+                    if (SteadyClock::now() < pnode->nDisconnectLingerTime.load()) {
                         // everything flushed to the kernel?
                         const auto& [to_send, more, _msg_type] = pnode->m_transport->GetBytesToSend(pnode->nSendMsgSize != 0);
                         const bool queue_is_empty{to_send.empty() && !more};
@@ -2636,18 +2636,18 @@ void CConnman::ThreadSocketHandler(CMasternodeSync& mn_sync)
 {
     AssertLockNotHeld(m_total_bytes_sent_mutex);
 
-    int64_t nLastCleanupNodes = 0;
+    auto nLastCleanupNodes = SteadyClock::time_point{};
 
     while (!interruptNet)
     {
         // Handle sockets before we do the next round of disconnects. This allows us to flush send buffers one last time
         // before actually closing sockets. Receiving is however skipped in case a peer is pending to be disconnected
         SocketHandler(mn_sync);
-        if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - nLastCleanupNodes > 1000) {
+        if (SteadyClock::now() - nLastCleanupNodes > 1s) {
             ForEachNode(AllNodes, [&](CNode* pnode) {
                 if (InactivityCheck(*pnode)) pnode->fDisconnect = true;
             });
-            nLastCleanupNodes = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+            nLastCleanupNodes = SteadyClock::now();
         }
         DisconnectNodes();
         NotifyNumConnectionsChanged(mn_sync);
@@ -3663,7 +3663,7 @@ void CConnman::ThreadMessageHandler()
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    int64_t nLastSendMessagesTimeMasternodes = 0;
+    auto nLastSendMessagesTimeMasternodes = SteadyClock::time_point{};
 
     FastRandomContext rng;
     while (!flagInterruptMsgProc)
@@ -3671,9 +3671,9 @@ void CConnman::ThreadMessageHandler()
         bool fMoreWork = false;
 
         bool fSkipSendMessagesForMasternodes = true;
-        if (TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now()) - nLastSendMessagesTimeMasternodes >= 100) {
+        if (SteadyClock::now() - nLastSendMessagesTimeMasternodes >= 100ms) {
             fSkipSendMessagesForMasternodes = false;
-            nLastSendMessagesTimeMasternodes = TicksSinceEpoch<std::chrono::milliseconds>(SystemClock::now());
+            nLastSendMessagesTimeMasternodes = SteadyClock::now();
         }
 
         // Randomize the order in which we process messages from/to our peers.
