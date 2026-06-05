@@ -9,6 +9,7 @@
 #include <fs.h>
 #include <net_types.h> // For banmap_t
 #include <univalue.h>
+#include <util/result.h>
 
 #include <memory>
 #include <optional>
@@ -50,7 +51,7 @@ public:
 };
 
 /** Returns an error string on failure */
-std::optional<bilingual_str> LoadAddrman(const NetGroupManager& netgroupman, const ArgsManager& args, std::unique_ptr<AddrMan>& addrman);
+util::Result<std::unique_ptr<AddrMan>> LoadAddrman(const NetGroupManager& netgroupman, const ArgsManager& args);
 
 /**
  * Dump the anchor IP address database (anchors.dat)
