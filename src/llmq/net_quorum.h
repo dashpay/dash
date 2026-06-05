@@ -32,6 +32,7 @@ namespace llmq {
 class CQuorumManager;
 class CQuorumSnapshotManager;
 class QuorumRole;
+struct UtilParameters;
 } // namespace llmq
 
 namespace llmq {
@@ -122,6 +123,11 @@ private:
     mutable ctpl::thread_pool workerPool;
     mutable CThreadInterrupt quorumThreadInterrupt;
 };
+
+bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, const CSporkManager& sporkman,
+                             const UtilParameters& util_params, const CDeterministicMNList& tip_mn_list,
+                             const uint256& myProTxHash, bool is_masternode, bool quorums_watch);
+
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_NET_QUORUM_H
