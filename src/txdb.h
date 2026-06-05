@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,9 +9,7 @@
 
 #include <coins.h>
 #include <dbwrapper.h>
-#include <spentindex.h>
 #include <sync.h>
-#include <timestampindex.h>
 
 #include <memory>
 #include <optional>
@@ -89,27 +88,13 @@ public:
     bool WriteReindexing(bool fReindexing);
     void ReadReindexing(bool &fReindexing);
 
-    bool ReadSpentIndex(const CSpentIndexKey key, CSpentIndexValue& value);
-    bool UpdateSpentIndex(const std::vector<CSpentIndexEntry>& vect);
-
-    bool ReadAddressUnspentIndex(const uint160& addressHash, const AddressType type,
-                                 std::vector<CAddressUnspentIndexEntry>& vect);
-    bool UpdateAddressUnspentIndex(const std::vector<CAddressUnspentIndexEntry>& vect);
-
-    bool WriteAddressIndex(const std::vector<CAddressIndexEntry>& vect);
-    bool EraseAddressIndex(const std::vector<CAddressIndexEntry>& vect);
-    bool ReadAddressIndex(const uint160& addressHash, const AddressType type,
-                          std::vector<CAddressIndexEntry>& addressIndex,
-                          const int32_t start = 0, const int32_t end = 0);
-
-    bool WriteTimestampIndex(const CTimestampIndexKey& timestampIndex);
-    bool EraseTimestampIndex(const CTimestampIndexKey& timestampIndex);
-    bool ReadTimestampIndex(const uint32_t high, const uint32_t low, std::vector<uint256>& hashes);
-
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
     bool LoadBlockIndexGuts(const Consensus::Params& consensusParams, std::function<CBlockIndex*(const uint256&)> insertBlockIndex)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    /// Migrate old synchronous index data to new async index databases
+    bool MigrateOldIndexData() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
 
 #endif // BITCOIN_TXDB_H

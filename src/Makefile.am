@@ -160,8 +160,6 @@ BITCOIN_CORE_H = \
   active/dkgsessionhandler.h \
   active/masternode.h \
   addrdb.h \
-  addressindex.h \
-  spentindex.h \
   addrman.h \
   addrman_impl.h \
   attributes.h \
@@ -250,10 +248,17 @@ BITCOIN_CORE_H = \
   httprpc.h \
   httpserver.h \
   i2p.h \
+  index/addressindex.h \
+  index/addressindex_types.h \
+  index/addressindex_util.h \
   index/base.h \
   index/blockfilterindex.h \
   index/coinstatsindex.h \
   index/disktxpos.h \
+  index/spentindex.h \
+  index/spentindex_types.h \
+  index/timestampindex.h \
+  index/timestampindex_types.h \
   index/txindex.h \
   indirectmap.h \
   init.h \
@@ -348,7 +353,6 @@ BITCOIN_CORE_H = \
   rpc/blockchain.h \
   rpc/client.h \
   rpc/evo_util.h \
-  rpc/index_util.h \
   rpc/mempool.h \
   rpc/mining.h \
   rpc/protocol.h \
@@ -383,7 +387,6 @@ BITCOIN_CORE_H = \
   support/events.h \
   support/lockedpool.h \
   sync.h \
-  timestampindex.h \
   threadsafety.h \
   timedata.h \
   torcontrol.h \
@@ -488,7 +491,6 @@ libbitcoin_node_a_SOURCES = \
   active/dkgsessionhandler.cpp \
   active/masternode.cpp \
   addrdb.cpp \
-  addressindex.cpp \
   addrman.cpp \
   banman.cpp \
   batchedlogger.cpp \
@@ -534,9 +536,13 @@ libbitcoin_node_a_SOURCES = \
   httprpc.cpp \
   httpserver.cpp \
   i2p.cpp \
+  index/addressindex.cpp \
+  index/addressindex_util.cpp \
   index/base.cpp \
   index/blockfilterindex.cpp \
   index/coinstatsindex.cpp \
+  index/spentindex.cpp \
+  index/timestampindex.cpp \
   index/txindex.cpp \
   init.cpp \
   instantsend/db.cpp \
@@ -599,7 +605,6 @@ libbitcoin_node_a_SOURCES = \
   rpc/coinjoin.cpp \
   rpc/evo.cpp \
   rpc/fees.cpp \
-  rpc/index_util.cpp \
   rpc/masternode.cpp \
   rpc/mempool.cpp \
   rpc/governance.cpp \

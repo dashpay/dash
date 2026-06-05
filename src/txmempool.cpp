@@ -11,6 +11,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <hash.h>
+#include <index/addressindex_util.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
@@ -28,8 +29,15 @@
 #include <instantsend/instantsend.h>
 
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <ranges>
+
+// Forward declarations for index globals and utilities
+class AddressIndex;
+class SpentIndex;
+extern std::unique_ptr<AddressIndex> g_addressindex;
+extern std::unique_ptr<SpentIndex> g_spentindex;
 
 bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
 {
@@ -529,6 +537,8 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
 
 void CTxMemPool::addAddressIndex(const CTxMemPoolEntry& entry, const CCoinsViewCache& view)
 {
+    if (!g_addressindex) return;
+
     LOCK(cs);
     const CTransaction& tx = entry.GetTx();
     std::vector<CMempoolAddressDeltaKey> inserted;
@@ -570,7 +580,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry& entry, const CCoinsViewC
     mapAddressInserted.insert(std::make_pair(txhash, inserted));
 }
 
-bool CTxMemPool::getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& addresses,
+void CTxMemPool::getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& addresses,
                                  std::vector<CMempoolAddressDeltaEntry>& results) const
 {
     LOCK(cs);
@@ -582,7 +592,6 @@ bool CTxMemPool::getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& add
             ait++;
         }
     }
-    return true;
 }
 
 void CTxMemPool::removeAddressIndex(const uint256 txhash)
@@ -598,6 +607,8 @@ void CTxMemPool::removeAddressIndex(const uint256 txhash)
 
 void CTxMemPool::addSpentIndex(const CTxMemPoolEntry& entry, const CCoinsViewCache& view)
 {
+    if (!g_spentindex) return;
+
     LOCK(cs);
 
     const CTransaction& tx = entry.GetTx();

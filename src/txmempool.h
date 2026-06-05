@@ -14,11 +14,12 @@
 #include <utility>
 #include <vector>
 
-#include <addressindex.h>
 #include <coins.h>
 #include <consensus/amount.h>
 #include <evo/netinfo.h>
 #include <gsl/pointers.h>
+#include <index/addressindex_types.h>
+#include <index/spentindex_types.h>
 #include <indirectmap.h>
 #include <netaddress.h>
 #include <policy/feerate.h>
@@ -26,7 +27,6 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <random.h>
-#include <spentindex.h>
 #include <sync.h>
 #include <util/epochguard.h>
 #include <util/hasher.h>
@@ -621,7 +621,7 @@ public:
     void addUnchecked(const CTxMemPoolEntry& entry, setEntries& setAncestors, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
 
     void addAddressIndex(const CTxMemPoolEntry& entry, const CCoinsViewCache& view);
-    bool getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& addresses,
+    void getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& addresses,
                          std::vector<CMempoolAddressDeltaEntry>& results) const;
     void removeAddressIndex(const uint256 txhash);
 

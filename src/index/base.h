@@ -6,6 +6,7 @@
 #define BITCOIN_INDEX_BASE_H
 
 #include <dbwrapper.h>
+#include <tinyformat.h>
 #include <util/threadinterrupt.h>
 #include <validationinterface.h>
 
@@ -89,6 +90,8 @@ protected:
 
     void BlockConnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
 
+    void BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
+
     void ChainStateFlushed(const CBlockLocator& locator) override;
 
     const CBlockIndex* CurrentIndex() { return m_best_block_index.load(); };
@@ -111,6 +114,15 @@ protected:
 
     /// Get the name of the index for display in logs.
     virtual const char* GetName() const = 0;
+
+    /// Trigger a fatal index error and initiate shutdown.
+    static void FatalErrorImpl(const std::string& message);
+
+    template <typename... Args>
+    void FatalError(const char* fmt, const Args&... args) const
+    {
+        FatalErrorImpl(tfm::format(fmt, args...));
+    }
 
     /// Update the internal best block index as well as the prune lock.
     void SetBestBlockIndex(const CBlockIndex* block);

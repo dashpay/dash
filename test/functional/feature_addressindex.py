@@ -15,7 +15,6 @@ from test_framework.messages import (
     COIN,
 )
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.test_node import ErrorMatch
 from test_framework.script_util import (
     keyhash_to_p2pkh_script,
     scripthash_to_p2sh_script,
@@ -49,14 +48,12 @@ class AddressIndexTest(BitcoinTestFramework):
         self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
-        self.log.info("Test that settings can be disabled without -reindex...")
+        self.log.info("Test that settings can be disabled and re-enabled...")
         self.restart_node(1, ["-addressindex=0"])
         self.connect_nodes(0, 1)
         self.sync_all()
-        self.log.info("Test that settings can't be enabled without -reindex...")
-        self.stop_node(1)
-        self.nodes[1].assert_start_raises_init_error(["-addressindex"], "You need to rebuild the database using -reindex to enable -addressindex", match=ErrorMatch.PARTIAL_REGEX)
-        self.start_node(1, ["-addressindex", "-reindex"])
+        # AddressIndex is now async, so it can be enabled without -reindex
+        self.restart_node(1, ["-addressindex"])
         self.connect_nodes(0, 1)
         self.sync_all()
 
