@@ -13,7 +13,6 @@
 #include <qt/addressbookpage.h>
 #include <qt/addresstablemodel.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/walletmodel.h>
 
@@ -36,7 +35,7 @@ SendCoinsEntry::SendCoinsEntry(QWidget* parent) :
     GUIUtil::setFont({ui->payToLabel,
                      ui->labellLabel,
                      ui->amountLabel,
-                     ui->messageLabel}, {GUIUtil::FontWeight::Normal, 15});
+                     ui->messageLabel}, GUIUtil::FontWeight::Normal, 15);
 
     GUIUtil::updateFonts();
 

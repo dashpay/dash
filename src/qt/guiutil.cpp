@@ -5,9 +5,7 @@
 
 #include <qt/guiutil.h>
 
-#include <qt/appearancewidget.h>
 #include <qt/bitcoinaddressvalidator.h>
-#include <qt/bitcoingui.h>
 #include <qt/bitcoinunits.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/sendcoinsrecipient.h>
@@ -41,7 +39,6 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDialog>
-#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontDatabase>
@@ -166,6 +163,17 @@ static const std::map<ThemedStyle, QString> themedDarkStyles = {
     { ThemedStyle::TS_SECONDARY, "color:#aaa;" },
 };
 
+std::string defaultUIPlatform()
+{
+#if defined(Q_OS_MACOS)
+    return "macosx";
+#elif defined(Q_OS_WIN)
+    return "windows";
+#else
+    return "other";
+#endif
+}
+
 QColor getThemedQColor(ThemedColor color)
 {
     QString theme = QSettings().value("theme", "").toString();
@@ -258,48 +266,6 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool fAllow
         QString::fromStdString(DummyAddress(Params()))));
     widget->setValidator(new BitcoinAddressEntryValidator(parent, fAllowURI));
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
-}
-
-void setupAppearance(QWidget* parent, OptionsModel* model)
-{
-    if (!QSettings().value("fAppearanceSetupDone", false).toBool()) {
-        // Create the dialog
-        QDialog dlg(parent);
-        dlg.setObjectName("AppearanceSetup");
-        dlg.setWindowTitle(QObject::tr("Appearance Setup"));
-        dlg.setWindowIcon(QIcon(":icons/dash"));
-        // And the widgets we add to it
-        QLabel lblHeading(QObject::tr("Please choose your preferred settings for the appearance of %1").arg(PACKAGE_NAME), &dlg);
-        lblHeading.setObjectName("lblHeading");
-        lblHeading.setWordWrap(true);
-        QLabel lblSubHeading(QObject::tr("This can also be adjusted later in the \"Appearance\" tab of the preferences."), &dlg);
-        lblSubHeading.setObjectName("lblSubHeading");
-        lblSubHeading.setWordWrap(true);
-        AppearanceWidget appearance(&dlg);
-        appearance.setModel(model);
-        QFrame line(&dlg);
-        line.setFrameShape(QFrame::HLine);
-        QDialogButtonBox buttonBox(QDialogButtonBox::Save);
-        // Put them into a vbox and add the vbox to the dialog
-        QVBoxLayout layout;
-        layout.addWidget(&lblHeading);
-        layout.addWidget(&lblSubHeading);
-        layout.addWidget(&line);
-        layout.addWidget(&appearance);
-        layout.addWidget(&buttonBox);
-        dlg.setLayout(&layout);
-        // Adjust the headings
-        setFont({&lblHeading}, {GUIUtil::FontWeight::Bold, 16});
-        setFont({&lblSubHeading}, {GUIUtil::FontWeight::Normal, 14, true});
-        // Make sure the dialog closes and accepts the settings if save has been pressed
-        QObject::connect(&buttonBox, &QDialogButtonBox::accepted, [&]() {
-            QSettings().setValue("fAppearanceSetupDone", true);
-            appearance.accept();
-            dlg.accept();
-        });
-        // And fire it!
-        dlg.exec();
-    }
 }
 
 void AddButtonShortcut(QAbstractButton* button, const QKeySequence& shortcut)
@@ -473,12 +439,6 @@ bool hasEntryData(const QAbstractItemView *view, int column, int role)
     QModelIndexList selection = getEntryData(view, column);
     if (selection.isEmpty()) return false;
     return !selection.at(0).data(role).toString().isEmpty();
-}
-
-void LoadFont(const QString& file_name)
-{
-    const int id = QFontDatabase::addApplicationFont(file_name);
-    assert(id != -1);
 }
 
 QString getDefaultDataDirectory()
@@ -926,7 +886,7 @@ void loadStyleSheet(bool fForceUpdate)
                 return false;
             }
 
-            std::string platformName = gArgs.GetArg("-uiplatform", BitcoinGUI::DEFAULT_UIPLATFORM);
+            std::string platformName = gArgs.GetArg("-uiplatform", defaultUIPlatform());
             stylesheet = std::make_unique<QString>();
 
             for (const auto& file : vecFiles) {

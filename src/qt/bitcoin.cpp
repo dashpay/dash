@@ -18,11 +18,11 @@
 #include <net.h>
 #include <node/interface_ui.h>
 #include <noui.h>
+#include <qt/appearancewidget.h>
 #include <qt/bitcoingui.h>
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/initexecutor.h>
 #include <qt/intro.h>
 #include <qt/networkstyle.h>
@@ -412,7 +412,7 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
         m_splash = nullptr;
 
         // Log this only after AppInitMain finishes, as then logging setup is guaranteed complete
-        qInfo() << "Platform customization:" << gArgs.GetArg("-uiplatform", BitcoinGUI::DEFAULT_UIPLATFORM).c_str();
+        qInfo() << "Platform customization:" << gArgs.GetArg("-uiplatform", GUIUtil::defaultUIPlatform()).c_str();
         clientModel = new ClientModel(node(), optionsModel);
         window->setClientModel(clientModel, &tip_info);
 
@@ -439,7 +439,7 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
         Q_EMIT windowShown(window);
 
         // Let the users setup their preferred appearance if there are no settings for it defined yet.
-        GUIUtil::setupAppearance(window, clientModel->getOptionsModel());
+        AppearanceWidget::setupAppearance(window, clientModel->getOptionsModel());
 
 #ifdef ENABLE_WALLET
         // Now that initialization/startup is done, process any command-line
@@ -500,15 +500,19 @@ static void SetupUIArgs(ArgsManager& argsman)
 {
     argsman.AddArg("-choosedatadir", strprintf(QObject::tr("Choose data directory on startup (default: %u)").toStdString(), DEFAULT_CHOOSE_DATADIR), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-custom-css-dir", "Set a directory which contains custom css files. Those will be used as stylesheets for the UI.", ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-family", QObject::tr("Set the font family. Possible values: %1. (default: %2)").arg(Join(GUIUtil::getFonts(/*selectable_only=*/true), ", ")).arg(GUIUtil::FontRegistry::DEFAULT_FONT).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-scale", QObject::tr("Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)").arg(-100).arg(100).arg(GUIUtil::FontRegistry::DEFAULT_FONT_SCALE).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-weight-bold", QObject::tr("Set the font weight for bold texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_BOLD)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-weight-normal", QObject::tr("Set the font weight for normal texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_NORMAL)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    std::vector<QString> selectable_fonts;
+    for (const auto& [name, selectable] : GUIUtil::knownFonts()) {
+        if (selectable) selectable_fonts.push_back(name);
+    }
+    argsman.AddArg("-font-family", QObject::tr("Set the font family. Possible values: %1. (default: %2)").arg(Join(selectable_fonts, ", ")).arg(GUIUtil::defaultFontFamily()).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    argsman.AddArg("-font-scale", QObject::tr("Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)").arg(-100).arg(100).arg(GUIUtil::defaultFontScale()).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    argsman.AddArg("-font-weight-bold", QObject::tr("Set the font weight for bold texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    argsman.AddArg("-font-weight-normal", QObject::tr("Set the font weight for normal texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-lang=<lang>", QObject::tr("Set language, for example \"de_DE\" (default: system locale)").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-min", QObject::tr("Start minimized").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-resetguisettings", QObject::tr("Reset all settings changed in the GUI").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-splash", strprintf(QObject::tr("Show splash screen on startup (default: %u)").toStdString(), DEFAULT_SPLASHSCREEN), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", BitcoinGUI::DEFAULT_UIPLATFORM), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
+    argsman.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", GUIUtil::defaultUIPlatform()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-debug-ui", "Updates the UI's stylesheets in realtime with changes made to the css files in -custom-css-dir and forces some widgets to show up which are usually only visible under certain circumstances. (default: 0)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-windowtitle=<name>", _("Sets a window title which is appended to \"Dash Core - \"").translated, ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
 }
@@ -546,7 +550,6 @@ int GuiMain(int argc, char* argv[])
 #endif
 
     BitcoinApplication app;
-    GUIUtil::LoadFont(QStringLiteral(":/fonts/monospace"));
 
     /// 2. Parse command-line options. We do this after qt in order to show an error if there are problems parsing these
     // Command-line options take precedence:
@@ -719,42 +722,40 @@ int GuiMain(int argc, char* argv[])
 
     // Validate/set font family
     if (gArgs.IsArgSet("-font-family")) {
-        QString family = gArgs.GetArg("-font-family", GUIUtil::FontRegistry::DEFAULT_FONT.toUtf8().toStdString()).c_str();
-        if (!GUIUtil::g_font_registry.RegisterFont(family, /*selectable=*/true) || !GUIUtil::g_font_registry.SetFont(family)) {
+        const QString family = QString::fromStdString(gArgs.GetArg("-font-family", ""));
+        if (!GUIUtil::setActiveFont(family)) {
             QMessageBox::critical(nullptr, PACKAGE_NAME, QObject::tr("Error: Font \"%1\" could not be loaded.").arg(family));
             return EXIT_FAILURE;
         }
     }
     // Validate/set normal font weight
     if (gArgs.IsArgSet("-font-weight-normal")) {
-        QFont::Weight weight;
-        if (!GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-normal", GUIUtil::weightToArg(GUIUtil::g_font_registry.GetWeightNormal())), weight)) {
+        const int arg = gArgs.GetIntArg("-font-weight-normal", GUIUtil::currentWeightArg(GUIUtil::FontWeight::Normal));
+        if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, arg)) {
             QMessageBox::critical(nullptr, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-weight-normal invalid. Valid range %1 to %2.").arg(0).arg(8));
             return EXIT_FAILURE;
         }
-        GUIUtil::g_font_registry.SetWeightNormal(weight);
     }
     // Validate/set bold font weight
     if (gArgs.IsArgSet("-font-weight-bold")) {
-        QFont::Weight weight;
-        if (!GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-bold", GUIUtil::weightToArg(GUIUtil::g_font_registry.GetWeightBold())), weight)) {
+        const int arg = gArgs.GetIntArg("-font-weight-bold", GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold));
+        if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, arg)) {
             QMessageBox::critical(nullptr, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-weight-bold invalid. Valid range %1 to %2.").arg(0).arg(8));
             return EXIT_FAILURE;
         }
-        GUIUtil::g_font_registry.SetWeightBold(weight);
     }
     // Validate/set font scale
     if (gArgs.IsArgSet("-font-scale")) {
         const int nScaleMin = -100, nScaleMax = 100;
-        int nScale = gArgs.GetIntArg("-font-scale", GUIUtil::g_font_registry.GetFontScale());
+        int nScale = gArgs.GetIntArg("-font-scale", GUIUtil::fontScale());
         if (nScale < nScaleMin || nScale > nScaleMax) {
             QMessageBox::critical(nullptr, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-scale invalid. Valid range %1 to %2.").arg(nScaleMin).arg(nScaleMax));
             return EXIT_FAILURE;
         }
-        GUIUtil::g_font_registry.SetFontScale(nScale);
+        GUIUtil::setFontScale(nScale);
     }
     // Apply font changes
     GUIUtil::updateFonts();

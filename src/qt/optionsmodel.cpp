@@ -12,7 +12,6 @@
 #include <qt/bitcoinunits.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 
 #include <interfaces/node.h>
 #include <mapport.h>
@@ -146,28 +145,6 @@ static int ParsePruneSizeGB(const QVariant& prune_size)
     return std::max(1, prune_size.toInt());
 }
 
-static int GetFallbackWeightIndex(bool is_bold)
-{
-    if (is_bold) {
-        // If the currently selected weight is not supported fallback to the second lightest weight for bold font
-        // or the lightest if there is only one.
-        return GUIUtil::g_font_registry.GetSupportedWeights().size() > 1 ? 1 : 0;
-    } else {
-        // If the currently selected weight is not supported fallback to the lightest weight for normal font.
-        return 0;
-    }
-}
-
-static int WeightArgToIdx(bool is_bold, int weight_arg)
-{
-    if (QFont::Weight weight; GUIUtil::weightFromArg(weight_arg, weight)) {
-        if (int index = GUIUtil::g_font_registry.WeightToIdx(weight); index != -1) {
-            return index;
-        }
-    }
-    return GetFallbackWeightIndex(is_bold);
-}
-
 struct ProxySetting {
     bool is_set;
     QString ip;
@@ -279,10 +256,9 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-family");
     }
     if (GUIUtil::fontsLoaded()) {
-        if (auto font_name = QString::fromStdString(SettingToString(node().getPersistentSetting("font-family"), GUIUtil::FontRegistry::DEFAULT_FONT.toUtf8().toStdString()));
-            GUIUtil::g_font_registry.RegisterFont(font_name, /*selectable=*/true) && GUIUtil::g_font_registry.SetFont(font_name)) {
-            GUIUtil::setApplicationFont();
-        }
+        const QString font_name = QString::fromStdString(
+            SettingToString(node().getPersistentSetting("font-family"), ""));
+        GUIUtil::setActiveFont(font_name);
     }
 
     // Font Scale
@@ -290,7 +266,7 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-scale");
     }
     if (GUIUtil::fontsLoaded()) {
-        GUIUtil::g_font_registry.SetFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::FontRegistry::DEFAULT_FONT_SCALE));
+        GUIUtil::setFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::defaultFontScale()));
     }
 
     // Font Weight (Normal)
@@ -301,15 +277,14 @@ bool OptionsModel::Init(bilingual_str& error)
     const bool override_family{isOptionOverridden("-font-family")};
     if (GUIUtil::fontsLoaded()) {
         // If font was overridden by CLI but weight wasn't, use the font's default weight
-        QFont::Weight weight{GUIUtil::g_font_registry.GetWeightNormalDefault()};
-        if (!override_family || isOptionOverridden("-font-weight-normal")) {
-            const auto raw_weight{SettingToInt(node().getPersistentSetting("font-weight-normal"), GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_NORMAL))};
-            if (!GUIUtil::weightFromArg(raw_weight, weight) || !GUIUtil::g_font_registry.IsValidWeight(weight)) {
-                weight = GUIUtil::g_font_registry.IdxToWeight(GetFallbackWeightIndex(/*is_bold=*/false));
-                node().forceSetting("font-weight-normal", GUIUtil::weightToArg(weight));
-            }
+        const int default_arg = GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal);
+        const int arg = (!override_family || isOptionOverridden("-font-weight-normal"))
+            ? SettingToInt(node().getPersistentSetting("font-weight-normal"), default_arg)
+            : default_arg;
+        if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, arg)) {
+            node().forceSetting("font-weight-normal", default_arg);
+            GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, default_arg);
         }
-        GUIUtil::g_font_registry.SetWeightNormal(weight);
     }
 
     // Font Weight (Bold)
@@ -318,15 +293,14 @@ bool OptionsModel::Init(bilingual_str& error)
     }
     if (GUIUtil::fontsLoaded()) {
         // If font was overridden by CLI but weight wasn't, use the font's default weight
-        QFont::Weight weight{GUIUtil::g_font_registry.GetWeightBoldDefault()};
-        if (!override_family || isOptionOverridden("-font-weight-bold")) {
-            const auto raw_weight{SettingToInt(node().getPersistentSetting("font-weight-bold"), GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_BOLD))};
-            if (!GUIUtil::weightFromArg(raw_weight, weight) || !GUIUtil::g_font_registry.IsValidWeight(weight)) {
-                weight = GUIUtil::g_font_registry.IdxToWeight(GetFallbackWeightIndex(/*is_bold=*/true));
-                node().forceSetting("font-weight-bold", GUIUtil::weightToArg(weight));
-            }
+        const int default_arg = GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold);
+        const int arg = (!override_family || isOptionOverridden("-font-weight-bold"))
+            ? SettingToInt(node().getPersistentSetting("font-weight-bold"), default_arg)
+            : default_arg;
+        if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, arg)) {
+            node().forceSetting("font-weight-bold", default_arg);
+            GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, default_arg);
         }
-        GUIUtil::g_font_registry.SetWeightBold(weight);
     }
 
     // Apply font changes
@@ -561,7 +535,7 @@ QFont OptionsModel::getFontForChoice(const FontChoice& fc)
     if (std::holds_alternative<FontChoiceAbstract>(fc)) {
         switch (std::get<FontChoiceAbstract>(fc)) {
         case FontChoiceAbstract::ApplicationFont:
-            f.setFamily(GUIUtil::g_font_registry.GetFont());
+            f.setFamily(GUIUtil::activeFont());
             break;
         case FontChoiceAbstract::EmbeddedFont:
             f = GUIUtil::fixedPitchFont(true);
@@ -722,13 +696,13 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
     case Theme:
         return settings.value("theme");
     case FontFamily:
-        return QString::fromStdString(SettingToString(setting(), GUIUtil::FontRegistry::DEFAULT_FONT.toUtf8().toStdString()));
+        return QString::fromStdString(SettingToString(setting(), GUIUtil::defaultFontFamily().toStdString()));
     case FontScale:
-        return qlonglong(SettingToInt(setting(), GUIUtil::FontRegistry::DEFAULT_FONT_SCALE));
+        return qlonglong(SettingToInt(setting(), GUIUtil::defaultFontScale()));
     case FontWeightNormal:
-        return WeightArgToIdx(/*is_bold=*/false, SettingToInt(setting(), GUIUtil::g_font_registry.GetWeightNormalDefault()));
+        return qlonglong(SettingToInt(setting(), GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal)));
     case FontWeightBold:
-        return WeightArgToIdx(/*is_bold=*/true, SettingToInt(setting(), GUIUtil::g_font_registry.GetWeightBoldDefault()));
+        return qlonglong(SettingToInt(setting(), GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold)));
     case Language:
         return QString::fromStdString(SettingToString(setting(), ""));
     case FontForMoney:
@@ -997,18 +971,12 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
             update(value.toInt());
         }
         break;
-    case FontWeightNormal: {
+    case FontWeightNormal:
+    case FontWeightBold:
         if (changed()) {
-            update(GUIUtil::weightToArg(GUIUtil::g_font_registry.IdxToWeight(value.toInt())));
+            update(value.toInt());
         }
         break;
-    }
-    case FontWeightBold: {
-        if (changed()) {
-            update(GUIUtil::weightToArg(GUIUtil::g_font_registry.IdxToWeight(value.toInt())));
-        }
-        break;
-    }
     case Language:
         if (changed()) {
             update(value.toString().toStdString());
@@ -1200,8 +1168,6 @@ void OptionsModel::checkAndMigrate()
                 ProxySetting parsed = ParseProxyString(value.toString());
                 setOption(ProxyIPTor, parsed.ip);
                 setOption(ProxyPortTor, parsed.port);
-            } else if (option == FontWeightNormal || option == FontWeightBold) {
-                setOption(option, WeightArgToIdx(/*is_bold=*/option == FontWeightBold, value.toInt()));
             } else {
                 setOption(option, value);
             }

@@ -7,7 +7,6 @@
 
 #include <qt/addresstablemodel.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/receiverequestdialog.h>
 #include <qt/recentrequeststablemodel.h>
@@ -22,10 +21,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(QWidget* parent) :
 {
     ui->setupUi(this);
 
-    GUIUtil::setFont({ui->label_6}, {GUIUtil::FontWeight::Bold, 16});
+    GUIUtil::setFont({ui->label_6}, GUIUtil::FontWeight::Bold, 16);
     GUIUtil::setFont({ui->label,
                       ui->label_2,
-                      ui->label_3}, {GUIUtil::FontWeight::Normal, 15});
+                      ui->label_3}, GUIUtil::FontWeight::Normal, 15);
     GUIUtil::updateFonts();
 
     // context menu

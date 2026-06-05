@@ -9,7 +9,6 @@
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/transactionfilterproxy.h>
 #include <qt/transactionoverviewwidget.h>
@@ -63,7 +62,7 @@ public:
         QRect rectBottomHalf(mainRect.left() + xspace, mainRect.top() + ypad + halfheight + 5, mainRect.width() - xspace, halfheight);
         QRect rectBounding;
         QColor colorForeground;
-        constexpr auto initial_size{GUIUtil::FontRegistry::DEFAULT_FONT_SIZE};
+        const auto initial_size{GUIUtil::defaultFontSize()};
 
         // Grab model indexes for desired data from TransactionTableModel
         QModelIndex indexDate = index.sibling(index.row(), TransactionTableModel::Date);
@@ -150,16 +149,16 @@ OverviewPage::OverviewPage(QWidget* parent) :
     GUIUtil::setFont({ui->label_4,
                       ui->label_5,
                       ui->labelCoinJoinHeader
-                     }, {GUIUtil::FontWeight::Bold, 16});
+                     }, GUIUtil::FontWeight::Bold, 16);
 
-    GUIUtil::setFont({ui->labelTotalText}, {GUIUtil::FontWeight::Bold, 14});
+    GUIUtil::setFont({ui->labelTotalText}, GUIUtil::FontWeight::Bold, 14);
 
     GUIUtil::setFont({ui->labelBalanceText,
                       ui->labelPendingText,
                       ui->labelImmatureText,
                       ui->labelWatchonly,
                       ui->labelSpendable
-                     }, {GUIUtil::FontWeight::Bold});
+                     }, GUIUtil::FontWeight::Bold);
 
     GUIUtil::updateFonts();
 
@@ -380,7 +379,7 @@ void OverviewPage::setMonospacedFont(const QFont& f)
     GUIUtil::setFont({
         ui->labelTotal,
         ui->labelWatchTotal,
-    }, {f.family(), GUIUtil::FontWeight::Bold, 14});
+    }, f.family(), GUIUtil::FontWeight::Bold, 14);
 
     GUIUtil::setFont({
         ui->labelAmountRounds,
@@ -392,7 +391,7 @@ void OverviewPage::setMonospacedFont(const QFont& f)
         ui->labelWatchAvailable,
         ui->labelWatchPending,
         ui->labelWatchImmature,
-    }, {f.family(), GUIUtil::FontWeight::Bold});
+    }, f.family(), GUIUtil::FontWeight::Bold);
 
     GUIUtil::updateFonts();
 }

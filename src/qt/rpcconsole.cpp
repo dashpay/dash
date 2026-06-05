@@ -14,7 +14,6 @@
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>
 #include <qt/proposalinfo.h>
-#include <qt/guiutil_font.h>
 #include <qt/guiutil.h>
 #include <qt/informationwidget.h>
 #include <qt/masternodemodel.h>
@@ -489,7 +488,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
     GUIUtil::setFont({ui->peerHeading,
                       ui->label_repair_header,
                       ui->banHeading
-                     }, {GUIUtil::FontWeight::Bold, 16});
+                     }, GUIUtil::FontWeight::Bold, 16);
 
     GUIUtil::updateFonts();
 
@@ -1073,8 +1072,8 @@ void RPCConsole::showPage(int index)
         }
     }
 
-    GUIUtil::setFont({btnActive}, {GUIUtil::FontWeight::Bold, 16});
-    GUIUtil::setFont(vecNormal, {GUIUtil::FontWeight::Normal, 16});
+    GUIUtil::setFont({btnActive}, GUIUtil::FontWeight::Bold, 16);
+    GUIUtil::setFont(vecNormal, GUIUtil::FontWeight::Normal, 16);
     GUIUtil::updateFonts();
 
     ui->stackedWidgetRPC->setCurrentIndex(index);

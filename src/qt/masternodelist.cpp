@@ -11,7 +11,6 @@
 #include <qt/clientmodel.h>
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/walletmodel.h>
 
 #include <QApplication>
@@ -88,7 +87,7 @@ MasternodeList::MasternodeList(QWidget* parent) :
 {
     ui->setupUi(this);
 
-    GUIUtil::setFont({ui->label_count, ui->countLabel}, {GUIUtil::FontWeight::Bold, 14});
+    GUIUtil::setFont({ui->label_count, ui->countLabel}, GUIUtil::FontWeight::Bold, 14);
 
     // Set up proxy model
     m_proxy_model->setSourceModel(m_model);

@@ -20,7 +20,6 @@
 #include <qt/clientmodel.h>
 #include <qt/createwalletdialog.h>
 #include <qt/guiconstants.h>
-#include <qt/guiutil_font.h>
 #include <qt/guiutil.h>
 #include <qt/masternodelist.h>
 #include <qt/modaloverlay.h>
@@ -86,16 +85,6 @@ constexpr int GOV_CYCLE_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / (GOV_CYCLE_FRAME_COUN
 // Per-frame interval for the spinner animation
 constexpr int SPINNER_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / SPINNER_FRAMES};
 } // anonymous namespace
-
-const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
-#if defined(Q_OS_MACOS)
-        "macosx"
-#elif defined(Q_OS_WIN)
-        "windows"
-#else
-        "other"
-#endif
-        ;
 
 BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle, QWidget* parent) :
     QMainWindow(parent),
@@ -795,7 +784,7 @@ void BitcoinGUI::createToolBars()
         connect(tabGroup, qOverload<QAbstractButton *, bool>(&QButtonGroup::buttonToggled), this, &BitcoinGUI::highlightTabButton);
 
         for (auto button : tabGroup->buttons()) {
-            GUIUtil::setFont({button}, {GUIUtil::FontWeight::Normal, 16});
+            GUIUtil::setFont({button}, GUIUtil::FontWeight::Normal, 16);
             button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
             button->setToolTip(button->statusTip());
             button->setCheckable(true);
@@ -1305,7 +1294,7 @@ void BitcoinGUI::openClicked()
 
 void BitcoinGUI::highlightTabButton(QAbstractButton *button, bool checked)
 {
-    GUIUtil::setFont({button}, {checked ? GUIUtil::FontWeight::Bold : GUIUtil::FontWeight::Normal, 16});
+    GUIUtil::setFont({button}, checked ? GUIUtil::FontWeight::Bold : GUIUtil::FontWeight::Normal, 16);
     GUIUtil::updateFonts();
 }
 

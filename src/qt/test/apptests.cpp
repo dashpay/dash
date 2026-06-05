@@ -8,7 +8,7 @@
 #include <key.h>
 #include <qt/bitcoin.h>
 #include <qt/bitcoingui.h>
-#include <qt/guiutil_font.h>
+#include <qt/guiutil.h>
 #include <qt/networkstyle.h>
 #include <qt/rpcconsole.h>
 #include <shutdown.h>

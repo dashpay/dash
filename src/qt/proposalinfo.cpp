@@ -15,7 +15,6 @@
 #include <qt/clientmodel.h>
 #include <qt/donutchart.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/optionsmodel.h>
 #include <qt/proposalmodel.h>
 
@@ -55,7 +54,7 @@ ProposalInfo::ProposalInfo(QWidget* parent) :
                       ui->labelNode,
                       ui->labelParticipation,
                       ui->labelProposals},
-                      {GUIUtil::FontWeight::Bold, 16});
+                     GUIUtil::FontWeight::Bold, 16);
 
     for (auto* element : {ui->labelNode, ui->labelParticipation, ui->labelProposals}) {
         element->setContentsMargins(0, 10, 0, 0);

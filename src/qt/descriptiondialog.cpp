@@ -6,7 +6,6 @@
 #include <qt/forms/ui_descriptiondialog.h>
 
 #include <qt/descriptiondialog.h>
-#include <qt/guiutil_font.h>
 
 #include <qt/guiutil.h>
 
@@ -16,7 +15,7 @@ DescriptionDialog::DescriptionDialog(const QString& title, const QString& html, 
 {
     ui->setupUi(this);
     setWindowTitle(title);
-    GUIUtil::registerWidget(ui->detailText, html);
+    GUIUtil::setStyledHtml(ui->detailText, html);
     GUIUtil::updateFonts();
     GUIUtil::handleCloseWindowShortcut(this);
 }

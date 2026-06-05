@@ -11,7 +11,6 @@
 #include <qt/askpassphrasedialog.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
-#include <qt/guiutil_font.h>
 #include <qt/mnemonicverificationdialog.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
@@ -69,7 +68,7 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
 
     GUIUtil::setFont({transactionSumLabel,
                       transactionSum,
-                     }, {GUIUtil::FontWeight::Bold, 14});
+                     }, GUIUtil::FontWeight::Bold, 14);
     GUIUtil::updateFonts();
 
     hbox_buttons->addWidget(transactionSum);

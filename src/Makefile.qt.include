@@ -151,7 +151,6 @@ BITCOIN_QT_H = \
   qt/donutchart.h \
   qt/editaddressdialog.h \
   qt/guiconstants.h \
-  qt/guiutil_font.h \
   qt/guiutil.h \
   qt/informationwidget.h \
   qt/initexecutor.h \
