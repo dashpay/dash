@@ -501,7 +501,7 @@ static void SetupUIArgs(ArgsManager& argsman)
     argsman.AddArg("-choosedatadir", strprintf(QObject::tr("Choose data directory on startup (default: %u)").toStdString(), DEFAULT_CHOOSE_DATADIR), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-custom-css-dir", "Set a directory which contains custom css files. Those will be used as stylesheets for the UI.", ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-family", QObject::tr("Set the font family. Possible values: %1. (default: %2)").arg(Join(GUIUtil::getFonts(/*selectable_only=*/true), ", ")).arg(GUIUtil::FontRegistry::DEFAULT_FONT).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
-    argsman.AddArg("-font-scale", QObject::tr("Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)").arg(-100).arg(100).arg(GUIUtil::FontRegistry::DEFAULT_FONT_SCALE).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+    argsman.AddArg("-font-scale", QObject::tr("Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)").arg(-50).arg(100).arg(GUIUtil::FontRegistry::DEFAULT_FONT_SCALE).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-weight-bold", QObject::tr("Set the font weight for bold texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_BOLD)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-font-weight-normal", QObject::tr("Set the font weight for normal texts. Possible range %1 to %2 (default: %3)").arg(0).arg(8).arg(GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_NORMAL)).toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
     argsman.AddArg("-lang=<lang>", QObject::tr("Set language, for example \"de_DE\" (default: system locale)").toStdString(), ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
@@ -747,7 +747,7 @@ int GuiMain(int argc, char* argv[])
     }
     // Validate/set font scale
     if (gArgs.IsArgSet("-font-scale")) {
-        const int nScaleMin = -100, nScaleMax = 100;
+        const int nScaleMin = -50, nScaleMax = 100;
         int nScale = gArgs.GetIntArg("-font-scale", GUIUtil::g_font_registry.GetFontScale());
         if (nScale < nScaleMin || nScale > nScaleMax) {
             QMessageBox::critical(nullptr, PACKAGE_NAME,

@@ -140,7 +140,7 @@ namespace GUIUtil
      * @param[in] button    QAbstractButton to assign shortcut to
      * @param[in] shortcut  QKeySequence to use as shortcut
      */
-    void AddButtonShortcut(QAbstractButton* button, const QKeySequence& shortcut);
+    void AddButtonShortcut(QAbstractButton* button, const QKeySequence& shortcut, Qt::ShortcutContext context = Qt::WindowShortcut);
 
     // Parse "dash:" URI into recipient object, return true on successful parsing
     bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out);

@@ -63,6 +63,7 @@ make -C depends -j"$(( $(nproc) - 1 ))" | tail 5
             --enable-werror
 
 # Build with parallel jobs (leaving one core free)
+# NOTE: Individual object files cannot be built separately; always do a full build
 make -j"$(( $(nproc) - 1 ))"
 ```
 

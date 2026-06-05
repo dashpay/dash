@@ -558,6 +558,17 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 
     setButtonIcons();
 
+    // Register console font-size shortcuts once (not in setButtonIcons which
+    // re-runs on theme changes and would create duplicate QShortcut objects).
+    //: Main shortcut to increase the RPC console font size.
+    GUIUtil::AddButtonShortcut(ui->fontBiggerButton, tr("Ctrl++"), Qt::WidgetWithChildrenShortcut);
+    //: Secondary shortcut to increase the RPC console font size.
+    GUIUtil::AddButtonShortcut(ui->fontBiggerButton, tr("Ctrl+="), Qt::WidgetWithChildrenShortcut);
+    //: Main shortcut to decrease the RPC console font size.
+    GUIUtil::AddButtonShortcut(ui->fontSmallerButton, tr("Ctrl+-"), Qt::WidgetWithChildrenShortcut);
+    //: Secondary shortcut to decrease the RPC console font size.
+    GUIUtil::AddButtonShortcut(ui->fontSmallerButton, tr("Ctrl+_"), Qt::WidgetWithChildrenShortcut);
+
     // Install event filter for up and down arrow
     ui->lineEdit->installEventFilter(this);
     ui->lineEdit->setMaxLength(16 * 1024 * 1024);
@@ -1031,8 +1042,8 @@ void RPCConsole::clear(bool keep_prompt)
            " without fully understanding the ramifications of a command.%8")
             .arg(PACKAGE_NAME,
                  "<b>" + ui->clearButton->shortcut().toString(QKeySequence::NativeText) + "</b>",
-                 "<b>" + ui->fontBiggerButton->shortcut().toString(QKeySequence::NativeText) + "</b>",
-                 "<b>" + ui->fontSmallerButton->shortcut().toString(QKeySequence::NativeText) + "</b>",
+                 "<b>" + QKeySequence(tr("Ctrl++")).toString(QKeySequence::NativeText) + "</b>",
+                 "<b>" + QKeySequence(tr("Ctrl+-")).toString(QKeySequence::NativeText) + "</b>",
                  "<b>help</b>",
                  "<b>help-console</b>",
                  "<span class=\"secwarning\">",
@@ -1347,16 +1358,7 @@ void RPCConsole::setButtonIcons()
     GUIUtil::setIcon(ui->clearButton, "remove", GUIUtil::ThemedColor::RED, consoleButtonsSize);
 
     GUIUtil::setIcon(ui->fontBiggerButton, "fontbigger", GUIUtil::ThemedColor::BLUE, consoleButtonsSize);
-    //: Main shortcut to increase the RPC console font size.
-    ui->fontBiggerButton->setShortcut(tr("Ctrl++"));
-    //: Secondary shortcut to increase the RPC console font size.
-    GUIUtil::AddButtonShortcut(ui->fontBiggerButton, tr("Ctrl+="));
-
     GUIUtil::setIcon(ui->fontSmallerButton, "fontsmaller", GUIUtil::ThemedColor::BLUE, consoleButtonsSize);
-    //: Main shortcut to decrease the RPC console font size.
-    ui->fontSmallerButton->setShortcut(tr("Ctrl+-"));
-    //: Secondary shortcut to decrease the RPC console font size.
-    GUIUtil::AddButtonShortcut(ui->fontSmallerButton, tr("Ctrl+_"));
 }
 
 void RPCConsole::reloadThemedWidgets()
