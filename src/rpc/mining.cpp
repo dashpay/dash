@@ -14,7 +14,7 @@
 #include <core_io.h>
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
-#include <governance/classes.h>
+#include <governance/superblock.h>
 #include <key_io.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>

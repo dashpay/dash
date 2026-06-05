@@ -15,11 +15,10 @@
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
-#include <governance/classes.h>
-#include <governance/exceptions.h>
 #include <external_signer.h>
 #include <governance/governance.h>
 #include <governance/object.h>
+#include <governance/superblock.h>
 #include <governance/vote.h>
 #include <index/blockfilterindex.h>
 #include <init.h>
@@ -65,7 +64,7 @@
 #include <validationinterface.h>
 #include <warnings.h>
 
-#include <governance/validators.h>
+#include <governance/common.h>
 
 #if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
@@ -309,9 +308,9 @@ public:
     }
     std::optional<int32_t> getProposalFundedHeight(const uint256& proposal_hash) override
     {
-        if (context().govman != nullptr && context().chainman != nullptr) {
+        if (context().chain_helper != nullptr && context().chainman != nullptr) {
             const int32_t nTipHeight = context().chainman->ActiveHeight();
-            for (const auto& trigger : context().govman->GetActiveTriggers()) {
+            for (const auto& trigger : context().chain_helper->superblocks->GetActiveTriggers()) {
                 if (!trigger || trigger->GetBlockHeight() > nTipHeight) continue;
                 for (const auto& hash : trigger->GetProposalHashes()) {
                     if (hash == proposal_hash) {
@@ -359,9 +358,9 @@ public:
             error = "Invalid object type, only proposals can be validated";
             return std::nullopt;
         }
-        CProposalValidator validator(data_hex);
-        if (!validator.Validate()) {
-            error = "Invalid proposal data: " + validator.GetErrorMessages();
+        std::string strValidationError;
+        if (!governance::ValidateProposal(data_hex, strValidationError)) {
+            error = "Invalid proposal data: " + strValidationError;
             return std::nullopt;
         }
         const ChainstateManager& chainman = *Assert(context().chainman);
@@ -385,8 +384,8 @@ public:
         CGovernanceObject govobj(parent, revision, created_time, fee_txid, data_hex);
         if (govobj.GetObjectType() == GovernanceObject::TRIGGER) { error = "Submission of triggers is not available"; return false; }
         if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-            CProposalValidator validator(data_hex);
-            if (!validator.Validate()) { error = "Invalid proposal data: " + validator.GetErrorMessages(); return false; }
+            std::string strValidationError;
+            if (!governance::ValidateProposal(data_hex, strValidationError)) { error = "Invalid proposal data: " + strValidationError; return false; }
         }
         const CTxMemPool& mempool = *Assert(context().mempool);
         bool fMissingConfirmations{false};

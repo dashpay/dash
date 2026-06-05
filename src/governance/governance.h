@@ -7,9 +7,7 @@
 
 #include <cachemap.h>
 #include <cachemultimap.h>
-#include <governance/signing.h>
-
-#include <protocol.h>
+#include <primitives/transaction.h>
 #include <sync.h>
 
 #include <chrono>
@@ -18,33 +16,31 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <string_view>
 #include <vector>
 
 class CBloomFilter;
 class CBlockIndex;
-class CChain;
 class CConnman;
+class CDataStream;
+class CDeterministicMNList;
+class CDeterministicMNManager;
 class ChainstateManager;
 template<typename T>
 class CFlatDB;
-class CInv;
-class CNode;
-struct RPCResult;
-
-class CDeterministicMNList;
-class CDeterministicMNManager;
 class CGovernanceException;
-class CGovernanceManager;
 class CGovernanceObject;
 class CGovernanceVote;
+class CInv;
 class CMasternodeMetaMan;
 class CMasternodeSync;
-class CSuperblock;
-
+class CService;
+struct RPCResult;
 class UniValue;
 
-using CSuperblock_sptr = std::shared_ptr<CSuperblock>;
+namespace governance {
+class SuperblockManager;
+} // namespace governance
+
 using vote_time_pair_t = std::pair<CGovernanceVote, int64_t>;
 
 static constexpr int RATE_BUFFER_SIZE = 5;
@@ -231,21 +227,20 @@ public:
 //
 // Governance Manager : Contains all proposals for the budget
 //
-class CGovernanceManager : public GovernanceStore, public GovernanceSignerParent
+class CGovernanceManager : public GovernanceStore
 {
-    friend class CGovernanceObject;
-
 private:
     using db_type = CFlatDB<GovernanceStore>;
     using object_ref_cm_t = CacheMap<uint256, std::shared_ptr<CGovernanceObject>>;
 
 private:
     const std::unique_ptr<db_type> m_db;
-    bool is_valid{false};
+    bool is_loaded{false};
 
     CMasternodeMetaMan& m_mn_metaman;
     const ChainstateManager& m_chainman;
-    const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
+    governance::SuperblockManager& m_superblocks;
+    CDeterministicMNManager& m_dmnman;
     CMasternodeSync& m_mn_sync;
 
     int64_t nTimeLastDiff{0};
@@ -256,7 +251,6 @@ private:
     std::set<uint256> setAdditionalRelayObjects;
     std::map<uint256, std::chrono::seconds> m_requested_hash_time;
     bool fRateChecksEnabled{true};
-    std::map<uint256, std::shared_ptr<CSuperblock>> mapTrigger;
 
     mutable Mutex cs_relay;
     std::vector<CInv> m_relay_invs GUARDED_BY(cs_relay);
@@ -265,14 +259,13 @@ public:
     CGovernanceManager() = delete;
     CGovernanceManager(const CGovernanceManager&) = delete;
     CGovernanceManager& operator=(const CGovernanceManager&) = delete;
-    explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman,
-                                const ChainstateManager& chainman,
-                                const std::unique_ptr<CDeterministicMNManager>& dmnman, CMasternodeSync& mn_sync);
+    explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
+                                governance::SuperblockManager& superblocks, CDeterministicMNManager& dmnman,
+                                CMasternodeSync& mn_sync);
     ~CGovernanceManager();
 
     // Basic initialization and querying
-    bool IsValid() const override { return is_valid; }
-    bool IsValidAndSynced() const;
+    bool IsValid() const { return is_loaded; }
     bool LoadCache(bool load_cache)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
@@ -287,7 +280,7 @@ public:
     bool AreRateChecksEnabled() const { return fRateChecksEnabled; }
 
     // Getters/Setters
-    int GetCachedBlockHeight() const override { return nCachedBlockHeight; }
+    int GetCachedBlockHeight() const { return nCachedBlockHeight; }
     int64_t GetLastDiffTime() const { return nTimeLastDiff; }
     std::vector<CGovernanceVote> GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -304,7 +297,7 @@ public:
      */
     bool ConfirmInventoryRequest(const CInv& inv)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman) override
+    bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
     void RelayObject(const CGovernanceObject& obj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
@@ -316,29 +309,16 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
 
     // Signer interface
-    bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus = false) override
+    bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus = false)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::shared_ptr<CGovernanceObject> FindGovernanceObjectByDataHash(const uint256& nDataHash) override
+    std::shared_ptr<CGovernanceObject> FindGovernanceObjectByDataHash(const uint256& nDataHash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
+    std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str) override
+    void AddGovernanceObject(CGovernanceObject& govobj, const std::string& peer_str)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
 
-    // Superblocks
-    bool GetSuperblockPayments(const CDeterministicMNList& tip_mn_list, int nBlockHeight,
-                               std::vector<CTxOut>& voutSuperblockRet)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool IsSuperblockTriggered(const CDeterministicMNList& tip_mn_list, int nBlockHeight)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list,
-                           const CTransaction& txNew, int nBlockHeight, CAmount blockReward)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-
     // Thread-safe accessors
-    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
-                           int nBlockHeight) override
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool HaveObjectForHash(const uint256& nHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool HaveVoteForHash(const uint256& nHash) const
@@ -347,11 +327,8 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) override
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     int GetVoteCount() const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     void AddPostponedObject(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -390,12 +367,7 @@ private:
     // Internal counterparts to "Thread-safe accessors"
     void AddPostponedObjectInternal(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-    bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
-                                   int nBlockHeight)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
     std::shared_ptr<CGovernanceObject> FindGovernanceObjectInternal(const uint256& nHash)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     std::shared_ptr<const CGovernanceObject> FindConstGovernanceObjectInternal(const uint256& nHash) const
@@ -418,26 +390,10 @@ private:
     void InitOnLoad()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
-    /*
-     * Trigger Management (formerly CGovernanceTriggerManager)
-     *   - Track governance objects which are triggers
-     *   - After triggers are activated and executed, they can be removed
-    */
-    bool AddNewTrigger(uint256 nHash)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-    void CleanAndRemoveTriggers()
-        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-
-    void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-
     void CheckOrphanVotes(CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store, !cs_relay);
 
     void RebuildIndexes()
-        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-
-    void AddCachedTriggers()
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     void RemoveInvalidVotes()

@@ -19,7 +19,6 @@ class CActiveMasternodeManager;
 class CCoinJoinQueue;
 class CDeterministicMNManager;
 class CDSTXManager;
-class CGovernanceManager;
 class ChainstateManager;
 class CInv;
 class CJWalletManager;
@@ -111,7 +110,7 @@ public:
     static std::unique_ptr<PeerManager> make(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman,
                                              BanMan* banman, CDSTXManager& dstxman, ChainstateManager& chainman,
                                              CTxMemPool& pool, CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
-                                             CGovernanceManager& govman, CSporkManager& sporkman,
+                                             CSporkManager& sporkman,
                                              const chainlock::Chainlocks& chainlocks,
                                              chainlock::ChainlockHandler& clhandler,
                                              const std::unique_ptr<ActiveContext>& active_ctx,

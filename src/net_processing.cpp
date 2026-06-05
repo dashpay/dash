@@ -48,7 +48,6 @@
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
 #include <evo/smldiff.h>
-#include <governance/governance.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <llmq/blockprocessor.h>
@@ -586,7 +585,7 @@ class PeerManagerImpl final : public PeerManager
 public:
     PeerManagerImpl(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman, BanMan* banman,
                     CDSTXManager& dstxman, ChainstateManager& chainman, CTxMemPool& pool,
-                    CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync, CGovernanceManager& govman,
+                    CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                     CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
                     chainlock::ChainlockHandler& clhandler,
                     const std::unique_ptr<ActiveContext>& active_ctx,
@@ -822,7 +821,6 @@ private:
     const std::unique_ptr<llmq::ObserverContext>& m_observer_ctx;
     CMasternodeMetaMan& m_mn_metaman;
     CMasternodeSync& m_mn_sync;
-    CGovernanceManager& m_govman;
     CSporkManager& m_sporkman;
     const chainlock::Chainlocks& m_chainlocks;
     // TODO: consider further refactoring ChainlockHandler to NetHandler to avoid boiler code in PeerManager
@@ -2060,7 +2058,7 @@ std::optional<std::string> PeerManagerImpl::FetchBlock(NodeId peer_id, const CBl
 std::unique_ptr<PeerManager> PeerManager::make(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman,
                                                BanMan* banman, CDSTXManager& dstxman, ChainstateManager& chainman,
                                                CTxMemPool& pool, CMasternodeMetaMan& mn_metaman,
-                                               CMasternodeSync& mn_sync, CGovernanceManager& govman,
+                                               CMasternodeSync& mn_sync,
                                                CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
                                                chainlock::ChainlockHandler& clhandler,
                                                const std::unique_ptr<ActiveContext>& active_ctx,
@@ -2069,12 +2067,12 @@ std::unique_ptr<PeerManager> PeerManager::make(const CChainParams& chainparams, 
                                                const std::unique_ptr<LLMQContext>& llmq_ctx,
                                                const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs)
 {
-    return std::make_unique<PeerManagerImpl>(chainparams, connman, addrman, banman, dstxman, chainman, pool, mn_metaman, mn_sync, govman, sporkman, chainlocks, clhandler, active_ctx, dmnman, cj_walletman, llmq_ctx, observer_ctx, ignore_incoming_txs);
+    return std::make_unique<PeerManagerImpl>(chainparams, connman, addrman, banman, dstxman, chainman, pool, mn_metaman, mn_sync, sporkman, chainlocks, clhandler, active_ctx, dmnman, cj_walletman, llmq_ctx, observer_ctx, ignore_incoming_txs);
 }
 
 PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman, BanMan* banman,
                                  CDSTXManager& dstxman, ChainstateManager& chainman, CTxMemPool& pool,
-                                 CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync, CGovernanceManager& govman,
+                                 CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                                  CSporkManager& sporkman,
                                  const chainlock::Chainlocks& chainlocks,
                                  chainlock::ChainlockHandler& clhandler,
@@ -2097,7 +2095,6 @@ PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& conn
       m_observer_ctx(observer_ctx),
       m_mn_metaman(mn_metaman),
       m_mn_sync(mn_sync),
-      m_govman(govman),
       m_sporkman(sporkman),
       m_chainlocks(chainlocks),
       m_clhandler{clhandler},
@@ -2367,7 +2364,10 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 
     case MSG_GOVERNANCE_OBJECT:
     case MSG_GOVERNANCE_OBJECT_VOTE:
-        return !m_govman.ConfirmInventoryRequest(inv);
+        for (const auto& handler : m_handlers) {
+            if (handler->AlreadyHave(inv)) return true;
+        }
+        return false;
 
     case MSG_QUORUM_FINAL_COMMITMENT:
         return m_llmq_ctx->quorum_block_processor->HasMineableCommitment(inv.hash);
@@ -2387,7 +2387,6 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
     case MSG_PLATFORM_BAN:
         return m_mn_metaman.AlreadyHavePlatformBan(inv.hash);
 
-    // At the end inventories that are handled by NetHandler
     case MSG_DSQ:
         if (m_cj_walletman && m_cj_walletman->hasQueue(inv.hash)) return true;
         for (const auto& handler : m_handlers) {
@@ -2930,36 +2929,6 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         if (!push && inv.type == MSG_SPORK) {
             if (auto opt_spork = m_sporkman.GetSporkByHash(inv.hash)) {
                 m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::SPORK, *opt_spork));
-                push = true;
-            }
-        }
-
-        if (!push && inv.type == MSG_GOVERNANCE_OBJECT) {
-            CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
-            bool topush = false;
-            if (m_govman.HaveObjectForHash(inv.hash)) {
-                ss.reserve(1000);
-                if (m_govman.SerializeObjectForHash(inv.hash, ss)) {
-                    topush = true;
-                }
-            }
-            if (topush) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, ss));
-                push = true;
-            }
-        }
-
-        if (!push && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
-            CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
-            bool topush = false;
-            if (m_govman.HaveVoteForHash(inv.hash)) {
-                ss.reserve(1000);
-                if (m_govman.SerializeVoteForHash(inv.hash, ss)) {
-                    topush = true;
-                }
-            }
-            if (topush) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss));
                 push = true;
             }
         }

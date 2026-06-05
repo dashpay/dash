@@ -6,25 +6,82 @@
 #define BITCOIN_GOVERNANCE_OBJECT_H
 
 #include <governance/common.h>
-#include <governance/exceptions.h>
 #include <governance/vote.h>
 #include <governance/votedb.h>
 #include <sync.h>
 
 #include <span.h>
 
-#include <univalue.h>
+#include <exception>
+#include <iosfwd>
+#include <string>
 
 class CBLSPublicKey;
 class CDeterministicMNList;
-class CGovernanceManager;
-class CGovernanceObject;
-class CGovernanceVote;
 class ChainstateManager;
 class CMasternodeMetaMan;
 struct RPCResult;
 
 extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
+
+enum governance_exception_type_enum_t {
+    /// Default value, normally indicates no exception condition occurred
+    GOVERNANCE_EXCEPTION_NONE = 0,
+    /// Unusual condition requiring no caller action
+    GOVERNANCE_EXCEPTION_WARNING = 1,
+    /// Requested operation cannot be performed
+    GOVERNANCE_EXCEPTION_PERMANENT_ERROR = 2,
+    /// Requested operation not currently possible, may resubmit later
+    GOVERNANCE_EXCEPTION_TEMPORARY_ERROR = 3,
+    /// Unexpected error (ie. should not happen unless there is a bug in the code)
+    GOVERNANCE_EXCEPTION_INTERNAL_ERROR = 4
+};
+
+std::ostream& operator<<(std::ostream& os, governance_exception_type_enum_t eType);
+
+/**
+ * A class which encapsulates information about a governance exception condition
+ *
+ * Derives from std::exception so is suitable for throwing
+ * (ie. will be caught by a std::exception handler) but may also be used as a
+ * normal object.
+ */
+class CGovernanceException : public std::exception
+{
+private:
+    std::string strMessage;
+
+    governance_exception_type_enum_t eType;
+
+    int nNodePenalty;
+
+public:
+    explicit CGovernanceException(const std::string& strMessageIn = "",
+        governance_exception_type_enum_t eTypeIn = GOVERNANCE_EXCEPTION_NONE,
+        int nNodePenaltyIn = 0);
+
+    ~CGovernanceException() noexcept override = default;
+
+    const char* what() const noexcept override
+    {
+        return strMessage.c_str();
+    }
+
+    const std::string& GetMessage() const
+    {
+        return strMessage;
+    }
+
+    governance_exception_type_enum_t GetType() const
+    {
+        return eType;
+    }
+
+    int GetNodePenalty() const
+    {
+        return nNodePenalty;
+    }
+};
 
 static constexpr double GOVERNANCE_FILTER_FP_RATE = 0.001;
 static constexpr CAmount GOVERNANCE_PROPOSAL_FEE_TX = (1 * COIN);
@@ -284,9 +341,8 @@ public:
     void LoadData();
     void GetData(UniValue& objResult) const;
 
-    bool ProcessVote(CMasternodeMetaMan& mn_metaman, CGovernanceManager& govman, const CDeterministicMNList& tip_mn_list,
-                     const CGovernanceVote& vote, CGovernanceException& exception)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled, const CDeterministicMNList& tip_mn_list,
+                     const CGovernanceVote& vote, CGovernanceException& exception) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /// Called when MN's which have voted on this object have been removed
     void ClearMasternodeVotes(const CDeterministicMNList& tip_mn_list)
@@ -299,5 +355,15 @@ public:
     std::set<uint256> RemoveInvalidVotes(const CDeterministicMNList& tip_mn_list, const COutPoint& mnOutpoint)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
+
+namespace governance {
+/**
+ * Validate the serialized proposal data (hex-encoded JSON).
+ * Returns true on success. On failure, returns false and fills strErrorOut
+ * with a semicolon-delimited list of detected issues.
+ */
+bool ValidateProposal(const std::string& strDataHex, std::string& strErrorOut,
+                      bool fCheckExpiration = true, bool fAllowScript = true);
+} // namespace governance
 
 #endif // BITCOIN_GOVERNANCE_OBJECT_H

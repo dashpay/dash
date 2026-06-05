@@ -234,14 +234,12 @@ BITCOIN_CORE_H = \
   evo/types.h \
   external_signer.h \
   dsnotificationinterface.h \
-  governance/classes.h \
   governance/common.h \
-  governance/exceptions.h \
   governance/governance.h \
   governance/net_governance.h \
   governance/object.h \
   governance/signing.h \
-  governance/validators.h \
+  governance/superblock.h \
   governance/vote.h \
   governance/votedb.h \
   gsl/assert.h \
@@ -525,13 +523,11 @@ libbitcoin_node_a_SOURCES = \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \
   flatfile.cpp \
-  governance/classes.cpp \
-  governance/exceptions.cpp \
   governance/governance.cpp \
   governance/net_governance.cpp \
   governance/object.cpp \
   governance/signing.cpp \
-  governance/validators.cpp \
+  governance/superblock.cpp \
   governance/vote.cpp \
   governance/votedb.cpp \
   gsl/assert.cpp \

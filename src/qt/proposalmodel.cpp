@@ -4,8 +4,8 @@
 
 #include <qt/proposalmodel.h>
 
-#include <governance/classes.h>
 #include <governance/object.h>
+#include <governance/superblock.h>
 #include <governance/vote.h>
 
 #include <qt/guiutil_font.h>

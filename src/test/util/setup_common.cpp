@@ -134,7 +134,7 @@ std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
                                              bool ignore_incoming_txs)
 {
     return PeerManager::make(chainparams, connman, *node.addrman, banman, *node.dstxman, *node.chainman, *node.mempool, *node.mn_metaman,
-                             *node.mn_sync, *node.govman, *node.sporkman, *node.chainlocks, *node.clhandler, node.active_ctx, node.dmnman, node.cj_walletman,
+                             *node.mn_sync, *node.sporkman, *node.chainlocks, *node.clhandler, node.active_ctx, node.dmnman, node.cj_walletman,
                              node.llmq_ctx, node.observer_ctx, ignore_incoming_txs);
 }
 
@@ -144,8 +144,8 @@ void DashChainstateSetup(ChainstateManager& chainman,
                          bool llmq_dbs_wipe,
                          const Consensus::Params& consensus_params)
 {
-    DashChainstateSetup(chainman, *Assert(node.govman.get()), *Assert(node.mn_metaman.get()),
-                        *Assert(node.sporkman.get()), *Assert(node.chainlocks), node.chain_helper, node.dmnman, *node.evodb,
+    DashChainstateSetup(chainman, *Assert(node.mn_metaman.get()),
+                        *Assert(node.sporkman.get()), *Assert(node.chainlocks), *Assert(node.mn_sync), node.chain_helper, node.dmnman, *node.evodb,
                         node.llmq_ctx, Assert(node.mempool.get()), node.args->GetDataDirNet(), llmq_dbs_in_memory, llmq_dbs_wipe,
                         llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE,
                         consensus_params);
@@ -288,7 +288,6 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
 
     m_node.mn_sync = std::make_unique<CMasternodeSync>(std::make_unique<NodeSyncNotifierImpl>(*m_node.connman, *m_node.netfulfilledman));
-    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, m_node.dmnman, *m_node.mn_sync);
 
     m_node.clhandler = std::make_unique<chainlock::ChainlockHandler>(*m_node.chainlocks, *m_node.chainman, *m_node.mempool, *m_node.mn_sync);
 
@@ -304,7 +303,6 @@ ChainTestingSetup::~ChainTestingSetup()
     StopScriptCheckWorkerThreads();
     GetMainSignals().FlushBackgroundCallbacks();
     GetMainSignals().UnregisterBackgroundSignalScheduler();
-    m_node.govman.reset();
     m_node.mn_sync.reset();
     m_node.chainman.reset();
     m_node.mempool.reset();
@@ -318,10 +316,10 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
     auto& chainman{*Assert(m_node.chainman)};
     auto maybe_load_error = LoadChainstate(fReindex.load(),
                                            chainman,
-                                           *Assert(m_node.govman.get()),
                                            *Assert(m_node.mn_metaman.get()),
                                            *Assert(m_node.sporkman.get()),
                                            *Assert(m_node.chainlocks.get()),
+                                           *Assert(m_node.mn_sync.get()),
                                            m_node.chain_helper,
                                            m_node.dmnman,
                                            m_node.evodb,
@@ -344,6 +342,8 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
                                            llmq::DEFAULT_WORKER_COUNT,
                                            llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE);
     assert(!maybe_load_error.has_value());
+
+    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.chain_helper->superblocks, *m_node.dmnman, *m_node.mn_sync);
 
     auto maybe_verify_error = VerifyLoadedChainstate(
         chainman,
@@ -430,6 +430,11 @@ TestingSetup::~TestingSetup()
     if (m_node.connman) {
         m_node.connman->Stop();
     }
+
+    // govman holds a reference to chain_helper->superblocks, so it must be reset
+    // before DashChainstateSetupClose() destroys chain_helper (matches PrepareShutdown
+    // ordering in init.cpp).
+    m_node.govman.reset();
 
     // DashChainstateSetup() is called by LoadChainstate() internally but
     // winding them down is our responsibility

@@ -4,6 +4,8 @@
 
 #include <governance/votedb.h>
 
+#include <streams.h>
+
 CGovernanceObjectVoteFile::CGovernanceObjectVoteFile() :
     listVotes(),
     mapVoteIndex()

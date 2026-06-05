@@ -8,6 +8,7 @@
 #include <common/bloom.h>
 #include <evo/deterministicmns.h>
 #include <governance/governance.h>
+#include <governance/object.h>
 #include <logging.h>
 #include <masternode/sync.h>
 #include <net.h>
@@ -197,4 +198,37 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
             }
         }
     }
+}
+
+bool NetGovernance::AlreadyHave(const CInv& inv)
+{
+    if (inv.type != MSG_GOVERNANCE_OBJECT && inv.type != MSG_GOVERNANCE_OBJECT_VOTE) {
+        return false;
+    }
+    // When governance isn't loaded (e.g. -disablegovernance), claim we already have
+    // the item so we don't fetch or track it. ConfirmInventoryRequest would otherwise
+    // grow m_requested_hash_time unbounded since CheckAndRemove never runs in that mode.
+    if (!m_gov_manager.IsValid()) return true;
+    return !m_gov_manager.ConfirmInventoryRequest(inv);
+}
+
+bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, CConnman& connman, const CNetMsgMaker& msgMaker)
+{
+    if (inv.type == MSG_GOVERNANCE_OBJECT) {
+        if (!m_gov_manager.HaveObjectForHash(inv.hash)) return false;
+        CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
+        ss.reserve(1000);
+        if (!m_gov_manager.SerializeObjectForHash(inv.hash, ss)) return false;
+        connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, ss));
+        return true;
+    }
+    if (inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
+        if (!m_gov_manager.HaveVoteForHash(inv.hash)) return false;
+        CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
+        ss.reserve(1000);
+        if (!m_gov_manager.SerializeVoteForHash(inv.hash, ss)) return false;
+        connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss));
+        return true;
+    }
+    return false;
 }

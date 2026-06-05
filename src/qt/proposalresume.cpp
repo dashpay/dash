@@ -6,12 +6,12 @@
 #include <qt/forms/ui_proposalresume.h>
 
 #include <governance/governance.h>
+#include <governance/object.h>
+#include <interfaces/node.h>
+#include <interfaces/wallet.h>
 
 #include <qt/guiutil_font.h>
 #include <qt/proposalmodel.h>
-
-#include <interfaces/node.h>
-#include <interfaces/wallet.h>
 
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>

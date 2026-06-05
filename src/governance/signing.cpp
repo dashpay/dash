@@ -6,7 +6,8 @@
 
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
-#include <governance/classes.h>
+#include <governance/governance.h>
+#include <governance/superblock.h>
 #include <masternode/sync.h>
 
 #include <chainparams.h>
@@ -22,12 +23,13 @@ namespace {
 constexpr std::chrono::seconds GOVERNANCE_FUDGE_WINDOW{2h};
 } // anonymous namespace
 
-GovernanceSigner::GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, GovernanceSignerParent& govman,
-                                   const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
-                                   const CMasternodeSync& mn_sync) :
+GovernanceSigner::GovernanceSigner(CConnman& connman, CDeterministicMNManager& dmnman, CGovernanceManager& govman,
+                                   governance::SuperblockManager& superblocks, const CActiveMasternodeManager& mn_activeman,
+                                   const ChainstateManager& chainman, const CMasternodeSync& mn_sync) :
     m_connman{connman},
     m_dmnman{dmnman},
     m_govman{govman},
+    m_superblocks{superblocks},
     m_mn_activeman{mn_activeman},
     m_chainman{chainman},
     m_mn_sync{mn_sync}
@@ -213,7 +215,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
     }
 
     // Vote NO-FUNDING for the rest of the active triggers
-    const auto activeTriggers = m_govman.GetActiveTriggers();
+    const auto activeTriggers = m_superblocks.GetActiveTriggers();
     for (const auto& trigger : activeTriggers) {
         auto govobj = m_govman.FindGovernanceObject(trigger->GetGovernanceObjHash());
         if (!govobj) {
@@ -291,7 +293,7 @@ void GovernanceSigner::UpdatedBlockTip(const CBlockIndex* pindex)
     const auto trigger_opt = CreateGovernanceTrigger(sb_opt);
     VoteGovernanceTriggers(trigger_opt);
     CSuperblock_sptr pSuperblock;
-    if (m_govman.GetBestSuperblock(m_dmnman.GetListAtChainTip(), pSuperblock, pindex->nHeight)) {
+    if (m_superblocks.GetBestSuperblock(m_dmnman.GetListAtChainTip(), pSuperblock, pindex->nHeight)) {
         ResetVotedFundingTrigger();
     }
 }

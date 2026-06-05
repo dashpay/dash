@@ -7,13 +7,14 @@
 
 #include <governance/vote.h>
 #include <serialize.h>
-#include <streams.h>
 #include <uint256.h>
 
 #include <list>
 #include <map>
+#include <set>
 #include <vector>
 
+class CDataStream;
 class CDeterministicMNList;
 
 /**
