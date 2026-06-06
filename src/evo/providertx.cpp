@@ -21,10 +21,23 @@ template <typename T>
                                             const ChainstateManager& chainman, std::optional<bool> is_basic_override)
 {
     constexpr bool is_extaddr_eligible{std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpServTx>};
-    return ProTxVersion::GetMax(
-        is_basic_override ? *is_basic_override
-                          : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19),
-        is_extaddr_eligible ? DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24) : false);
+    // DIP0026 multi-party payouts apply to the owner-side payout, which is only carried by
+    // ProRegTx and ProUpRegTx. ProUpServTx (operator payout) and ProUpRevTx are not eligible.
+    constexpr bool is_multipayout_eligible{std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpRegTx>};
+
+    const bool is_basic{is_basic_override ? *is_basic_override
+                                          : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
+    const bool is_extaddr{is_extaddr_eligible && DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
+    bool is_multipayout{is_multipayout_eligible && DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V25)};
+
+    // A v4 CProRegTx (MultiPayout > ExtAddr) implies extended-address netInfo, so multi-payout
+    // must never outrun the extended-address fork for an extaddr-eligible type. We enforce this
+    // in code rather than relying on chainparams ordering of V24/V25. CProUpRegTx carries no
+    // netInfo and is not extaddr-eligible, so it may reach v4 on DEPLOYMENT_V25 alone.
+    if (is_extaddr_eligible && is_multipayout && !is_extaddr) {
+        is_multipayout = false;
+    }
+    return ProTxVersion::GetMax(is_basic, is_extaddr, is_multipayout);
 }
 template uint16_t GetMaxFromDeployment<CProRegTx>(gsl::not_null<const CBlockIndex*> pindexPrev,
                                                   const ChainstateManager& chainman,
@@ -89,7 +102,7 @@ bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
     if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
     }
-    if (netInfo->CanStorePlatform() != (nVersion == ProTxVersion::ExtAddr)) {
+    if (netInfo->CanStorePlatform() != (nVersion >= ProTxVersion::ExtAddr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-netinfo-version");
     }
     if (!netInfo->IsEmpty() && !IsNetInfoTriviallyValid(*this, state)) {
@@ -171,7 +184,7 @@ bool CProUpServTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev
     if (nVersion < ProTxVersion::BasicBLS && nType == MnType::Evo) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-evo-version");
     }
-    if (netInfo->CanStorePlatform() != (nVersion == ProTxVersion::ExtAddr)) {
+    if (netInfo->CanStorePlatform() != (nVersion >= ProTxVersion::ExtAddr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-netinfo-version");
     }
     if (netInfo->IsEmpty()) {

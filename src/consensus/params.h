@@ -41,6 +41,7 @@ constexpr bool ValidDeployment(BuriedDeployment dep) { return dep <= DEPLOYMENT_
 enum DeploymentPos : uint16_t {
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_V24,         // Deployment of doubling withdrawal limit, extended addresses
+    DEPLOYMENT_V25,         // Deployment of DIP0026 multi-party masternode payouts
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in deploymentinfo.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };

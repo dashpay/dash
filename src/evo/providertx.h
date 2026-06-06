@@ -27,25 +27,45 @@ struct RPCResult;
 
 namespace ProTxVersion {
 enum : uint16_t {
-    LegacyBLS = 1,
-    BasicBLS  = 2,
-    ExtAddr   = 3,
+    LegacyBLS   = 1,
+    BasicBLS    = 2,
+    ExtAddr     = 3,
+    MultiPayout = 4, // DIP0026 multi-party payouts (gated by DEPLOYMENT_V25)
 };
 
 /** Get highest permissible ProTx version based on flags set. */
-[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr)
+[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr,
+                                        const bool is_multi_payout)
 {
     if (is_basic_scheme_active) {
+        // DIP0026 multi-party payouts (v4) build on top of basic BLS and are the highest
+        // version. For CProRegTx the extended-address (v3) features are implied because
+        // DEPLOYMENT_V25 only activates after DEPLOYMENT_V24; CProUpRegTx carries no netInfo
+        // and so transitions straight from v2 to v4. is_basic_scheme_active could be set to
+        // false due to RPC specialization, so it gates the whole block to avoid accidentally
+        // upgrading a legacy BLS node due to a later fork activation.
+        if (is_multi_payout) {
+            return ProTxVersion::MultiPayout;
+        }
         if (is_extended_addr) {
-            // Requires *both* forks to be active to use extended addresses. is_basic_scheme_active could
-            // be set to false due to RPC specialization, so we must evaluate is_extended_addr *last* to
-            // avoid accidentally upgrading a legacy BLS node to basic BLS due to v24 activation.
+            // Requires *both* forks to be active to use extended addresses.
             return ProTxVersion::ExtAddr;
         }
         return ProTxVersion::BasicBLS;
     }
     return ProTxVersion::LegacyBLS;
 }
+
+// Compile-time verification of the version-tier logic (DIP0026). These guarantee the gating
+// can never silently regress: basic-BLS gates everything, and multi-payout (v4) is the highest
+// version, reachable with or without extended addresses (CProUpRegTx carries no netInfo so it
+// goes v2 -> v4 directly; for CProRegTx, DEPLOYMENT_V25 only activates after DEPLOYMENT_V24).
+static_assert(GetMax(/*basic=*/false, /*extaddr=*/false, /*multipayout=*/false) == LegacyBLS);
+static_assert(GetMax(/*basic=*/false, /*extaddr=*/true,  /*multipayout=*/true ) == LegacyBLS);
+static_assert(GetMax(/*basic=*/true,  /*extaddr=*/false, /*multipayout=*/false) == BasicBLS);
+static_assert(GetMax(/*basic=*/true,  /*extaddr=*/true,  /*multipayout=*/false) == ExtAddr);
+static_assert(GetMax(/*basic=*/true,  /*extaddr=*/false, /*multipayout=*/true ) == MultiPayout);
+static_assert(GetMax(/*basic=*/true,  /*extaddr=*/true,  /*multipayout=*/true ) == MultiPayout);
 
 /** Get highest permissible ProTx version based on deployment status
  *  Note: The override is needed because some RPCs need to use deployment status information for everything *except*
@@ -84,7 +104,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -151,7 +171,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -211,7 +231,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -265,7 +285,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
             // unknown version, bail out early
             return;
         }
