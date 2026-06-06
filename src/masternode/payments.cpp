@@ -30,6 +30,34 @@ CAmount PlatformShare(const CAmount reward)
     return platformReward;
 }
 
+std::vector<CTxOut> SplitMasternodeReward(const CAmount masternodeReward, const std::vector<PayoutShare>& shares)
+{
+    std::vector<CTxOut> outs;
+    if (masternodeReward <= 0 || shares.empty()) return outs;
+
+    std::vector<CAmount> amounts(shares.size(), 0);
+    CAmount distributed = 0;
+    for (size_t i = 0; i < shares.size(); ++i) {
+        amounts[i] = masternodeReward * shares[i].payoutShareReward / PayoutShare::TOTAL_BASIS_POINTS;
+        distributed += amounts[i];
+    }
+    // The shares' basis points sum to TOTAL_BASIS_POINTS, so the flooring above loses strictly
+    // less than one satoshi per share; the leftover (< shares.size()) is handed out one satoshi
+    // per share in payoutShares order. The outputs therefore sum to exactly masternodeReward and
+    // every node computes the identical set.
+    for (size_t i = 0; i < shares.size() && distributed < masternodeReward; ++i) {
+        amounts[i] += 1;
+        distributed += 1;
+    }
+    assert(distributed == masternodeReward);
+
+    outs.reserve(shares.size());
+    for (size_t i = 0; i < shares.size(); ++i) {
+        if (amounts[i] > 0) outs.emplace_back(amounts[i], shares[i].scriptPayout);
+    }
+    return outs;
+}
+
 [[nodiscard]] bool CMNPaymentsProcessor::GetBlockTxOuts(const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
                                                         std::vector<CTxOut>& voutMasternodePaymentsRet)
 {
@@ -71,8 +99,11 @@ CAmount PlatformShare(const CAmount reward)
         masternodeReward -= operatorReward;
     }
 
-    if (masternodeReward > 0) {
-        voutMasternodePaymentsRet.emplace_back(masternodeReward, dmnPayee->pdmnState->scriptPayout);
+    // DIP0026: split the owner-side reward across the masternode's payout shares. For a pre-v4
+    // masternode GetPayoutShares() returns a single full share, so this reproduces the legacy
+    // single output exactly (one output of masternodeReward to scriptPayout).
+    for (const auto& txout : SplitMasternodeReward(masternodeReward, dmnPayee->pdmnState->GetPayoutShares())) {
+        voutMasternodePaymentsRet.push_back(txout);
     }
     if (operatorReward > 0) {
         voutMasternodePaymentsRet.emplace_back(operatorReward, dmnPayee->pdmnState->scriptOperatorPayout);
@@ -123,8 +154,15 @@ CAmount PlatformShare(const CAmount reward)
     }
 
     for (const auto& txout : voutMasternodePayments) {
-        bool found = std::ranges::any_of(txNew.vout, [&txout](const auto& txout2) { return txout == txout2; });
-        if (!found) {
+        // Multiplicity-correct: the coinbase must contain each expected payee output at least as
+        // many times as it is expected. A plain existence check (any_of) could be satisfied by a
+        // single coinbase output when two expected outputs are identical (e.g. a DIP0026 payout
+        // share paying the same script+amount as the operator or platform output), which would
+        // let a miner underpay. Counting closes that hole (and the same latent edge in the
+        // pre-DIP0026 two-party payout where owner script == operator script with equal amounts).
+        const auto need = std::ranges::count(voutMasternodePayments, txout);
+        const auto have = std::ranges::count(txNew.vout, txout);
+        if (have < need) {
             std::string str_payout;
             if (CTxDestination dest; ExtractDestination(txout.scriptPubKey, dest)) {
                 str_payout = "address=" + EncodeDestination(dest);

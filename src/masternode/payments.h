@@ -16,6 +16,7 @@ class CDeterministicMNManager;
 class ChainstateManager;
 class CTransaction;
 class CTxOut;
+class PayoutShare;
 
 struct CMutableTransaction;
 
@@ -29,6 +30,16 @@ namespace Consensus { struct Params; }
  * It is calculated based on total amount of masternode rewards (not block reward)
  */
 CAmount PlatformShare(const CAmount masternodeReward);
+
+/**
+ * DIP0026: split a masternode (owner-side) reward across its payout shares. Deterministic so
+ * every node computes the identical output set: floor each share by basis points, then hand out
+ * the leftover satoshis one per share in payoutShares order until exhausted, so the outputs sum
+ * to exactly `masternodeReward`. A single full share (the GetPayoutShares() view of a pre-v4
+ * masternode) reproduces the legacy single-output payout exactly. Zero-amount outputs are
+ * omitted. Returns empty if masternodeReward <= 0 or there are no shares.
+ */
+std::vector<CTxOut> SplitMasternodeReward(const CAmount masternodeReward, const std::vector<PayoutShare>& shares);
 
 class CMNPaymentsProcessor
 {

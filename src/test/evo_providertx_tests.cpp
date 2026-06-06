@@ -11,6 +11,8 @@
 #include <evo/netinfo.h>
 #include <key.h>
 #include <key_io.h>
+#include <masternode/payments.h>
+#include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <streams.h>
@@ -323,6 +325,62 @@ BOOST_AUTO_TEST_CASE(makesignstring_v3_unchanged)
     const std::string s = p.MakeSignString();
     BOOST_CHECK(s.rfind(expected, 0) == 0);
     BOOST_CHECK_EQUAL(s.size(), expected.size() + 64);
+}
+
+// ---- DIP0026 coinbase reward split (P6) ----
+
+static CAmount SumOuts(const std::vector<CTxOut>& outs)
+{
+    CAmount s = 0;
+    for (const auto& o : outs) s += o.nValue;
+    return s;
+}
+
+BOOST_AUTO_TEST_CASE(split_legacy_single_share)
+{
+    // A single full share (the GetPayoutShares() view of a pre-v4 MN) must reproduce the legacy
+    // single output exactly.
+    const auto outs = SplitMasternodeReward(12345, {{P2PKHScript(0x01), PayoutShare::TOTAL_BASIS_POINTS}});
+    BOOST_REQUIRE_EQUAL(outs.size(), 1U);
+    BOOST_CHECK_EQUAL(outs[0].nValue, 12345);
+    BOOST_CHECK(outs[0].scriptPubKey == P2PKHScript(0x01));
+}
+
+BOOST_AUTO_TEST_CASE(split_rounding_and_sum_invariant)
+{
+    // floors 3/3/3 = 9, leftover 1 satoshi handed to the first share -> 4/3/3, sum 10.
+    const auto outs = SplitMasternodeReward(
+        10, {{P2PKHScript(1), 3334}, {P2PKHScript(2), 3333}, {P2PKHScript(3), 3333}});
+    BOOST_REQUIRE_EQUAL(outs.size(), 3U);
+    BOOST_CHECK_EQUAL(outs[0].nValue, 4);
+    BOOST_CHECK_EQUAL(outs[1].nValue, 3);
+    BOOST_CHECK_EQUAL(outs[2].nValue, 3);
+    BOOST_CHECK_EQUAL(SumOuts(outs), 10);
+
+    // The outputs always sum to exactly the reward, across a wide range of amounts.
+    const std::vector<PayoutShare> shares{{P2PKHScript(1), 1234}, {P2PKHScript(2), 4321}, {P2PKHScript(3), 4445}};
+    for (const CAmount r : {CAmount{1}, CAmount{2}, CAmount{3}, CAmount{7}, CAmount{99}, CAmount{100},
+                            CAmount{9999}, CAmount{10000}, CAmount{100003}, CAmount{123456789}, CAmount{5000000000}}) {
+        BOOST_CHECK_EQUAL(SumOuts(SplitMasternodeReward(r, shares)), r);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(split_skips_zero_and_edges)
+{
+    // reward 1, two equal shares: floors 0/0, leftover 1 -> first gets 1, second 0 (omitted).
+    const auto outs = SplitMasternodeReward(1, {{P2PKHScript(1), 5000}, {P2PKHScript(2), 5000}});
+    BOOST_REQUIRE_EQUAL(outs.size(), 1U);
+    BOOST_CHECK_EQUAL(outs[0].nValue, 1);
+    BOOST_CHECK(outs[0].scriptPubKey == P2PKHScript(1));
+
+    // zero / negative reward or no shares -> no outputs.
+    BOOST_CHECK(SplitMasternodeReward(0, {{P2PKHScript(1), PayoutShare::TOTAL_BASIS_POINTS}}).empty());
+    BOOST_CHECK(SplitMasternodeReward(-5, {{P2PKHScript(1), PayoutShare::TOTAL_BASIS_POINTS}}).empty());
+    BOOST_CHECK(SplitMasternodeReward(100, {}).empty());
+
+    // determinism: identical inputs yield identical outputs.
+    const std::vector<PayoutShare> shares{{P2PKHScript(1), 6000}, {P2PKHScript(2), 4000}};
+    BOOST_CHECK(SplitMasternodeReward(777, shares) == SplitMasternodeReward(777, shares));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
