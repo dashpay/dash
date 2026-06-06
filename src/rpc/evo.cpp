@@ -146,12 +146,19 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"payoutAddress_register",
             {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments."}
+                "The Dash address to use for masternode reward payments.\n"
+                "Once DIP0026 (v25) is active, this may instead be a JSON object that splits the\n"
+                "reward across multiple payees, mapping each Dash address to its share in basis\n"
+                "points (1-10000); the shares must be unique and sum to exactly 10000, e.g.\n"
+                "{\"XaddrA\": 6000, \"XaddrB\": 4000}."}
         },
         {"payoutAddress_update",
             {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The Dash address to use for masternode reward payments.\n"
-                "If set to an empty string, the currently active payout address is reused."}
+                "If set to an empty string, the currently active payout (single address or shares) is reused.\n"
+                "Once DIP0026 (v25) is active, this may instead be a JSON object mapping each Dash\n"
+                "address to its share in basis points (1-10000), unique and summing to 10000, e.g.\n"
+                "{\"XaddrA\": 6000, \"XaddrB\": 4000}."}
         },
         {"proTxHash",
             {"proTxHash", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -387,6 +394,53 @@ enum class ProTxRegisterAction
     Prepare,
 };
 } // anonumous namespace
+
+// DIP0026: parse the payout RPC parameter, which is either a single address string (legacy
+// single payout) or a {"address": basisPoints, ...} object (multi-party payout). Sets either
+// scriptPayout (single) or payoutShares (multi) and returns the ProTx version to use:
+//  - single payout: never selects MultiPayout, so it is capped at single_cap_version (the
+//    highest non-multi-payout version valid for the tx type: ExtAddr for ProRegTx, BasicBLS for
+//    ProUpRegTx). This also keeps the existing pre-v25 behaviour byte-for-byte.
+//  - multi-party payout: requires max_version >= MultiPayout (i.e. DIP0026/v25 available) and
+//    selects MultiPayout. Share order follows the JSON key order, which is preserved on-chain.
+static uint16_t ParsePayoutParam(const UniValue& param, const uint16_t max_version,
+                                 const uint16_t single_cap_version, CScript& scriptPayoutRet,
+                                 std::vector<PayoutShare>& payoutSharesRet)
+{
+    scriptPayoutRet = CScript();
+    payoutSharesRet.clear();
+
+    if (param.isObject()) {
+        if (max_version < ProTxVersion::MultiPayout) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               "multi-party payouts (DIP0026) are not available yet (v25 is not active)");
+        }
+        for (const std::string& addr : param.getKeys()) {
+            const CTxDestination dest = DecodeDestination(addr);
+            if (!IsValidDestination(dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", addr));
+            }
+            const int64_t bps = param[addr].getInt<int64_t>();
+            if (bps <= 0 || bps > PayoutShare::TOTAL_BASIS_POINTS) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                                   strprintf("payout share for %s must be between 1 and %d basis points", addr,
+                                             PayoutShare::TOTAL_BASIS_POINTS));
+            }
+            payoutSharesRet.push_back(PayoutShare{GetScriptForDestination(dest), static_cast<uint16_t>(bps)});
+        }
+        if (payoutSharesRet.empty()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "payout shares object must not be empty");
+        }
+        return ProTxVersion::MultiPayout;
+    }
+
+    const CTxDestination dest = DecodeDestination(param.get_str());
+    if (!IsValidDestination(dest)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", param.get_str()));
+    }
+    scriptPayoutRet = GetScriptForDestination(dest);
+    return std::min<uint16_t>(max_version, single_cap_version);
+}
 
 static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
                                               const bool specific_legacy_bls_scheme,
@@ -743,10 +797,9 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
     ptx.nOperatorReward = operatorReward;
 
-    CTxDestination payoutDest = DecodeDestination(request.params[paramIdx + 5].get_str());
-    if (!IsValidDestination(payoutDest)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
-    }
+    // DIP0026: the payout is either a single address (string) or a {"address": basisPoints}
+    // object. Captured here, before the EvoNode params shift paramIdx, and parsed below.
+    const UniValue& payoutParam = request.params[paramIdx + 5];
 
     if (isEvoRequested) {
         if (!IsHex(request.params[paramIdx + 6].get_str())) {
@@ -760,12 +813,20 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     ptx.keyIDVoting = keyIDVoting;
-    ptx.scriptPayout = GetScriptForDestination(payoutDest);
+    // A single payout caps the version at ExtAddr (never auto-selects MultiPayout); a shares
+    // object selects MultiPayout (requires v25). ptx.nVersion currently holds the deployment max.
+    ptx.nVersion = ParsePayoutParam(payoutParam, /*max_version=*/ptx.nVersion, ProTxVersion::ExtAddr,
+                                    ptx.scriptPayout, ptx.payoutShares);
 
     if (action != ProTxRegisterAction::Fund) {
         // make sure fee calculation works
         ptx.vchSig.resize(65);
     }
+
+    // The fund/fee-source address defaults to the (first) payout address.
+    CTxDestination payoutDest;
+    ExtractDestination(ptx.payoutShares.empty() ? ptx.scriptPayout : ptx.payoutShares.front().scriptPayout,
+                       payoutDest);
 
     CTxDestination fundDest = payoutDest;
     if (!request.params[paramIdx + 6].isNull()) {
@@ -1164,15 +1225,23 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
         ptx.keyIDVoting = ParsePubKeyIDFromAddress(request.params[2].get_str(), "voting address");
     }
 
-    CTxDestination payoutDest;
-    ExtractDestination(ptx.scriptPayout, payoutDest);
-    if (!request.params[3].get_str().empty()) {
-        payoutDest = DecodeDestination(request.params[3].get_str());
-        if (!IsValidDestination(payoutDest)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[3].get_str()));
-        }
-        ptx.scriptPayout = GetScriptForDestination(payoutDest);
+    // DIP0026: the payout is either a single address (string) or a {"address": basisPoints}
+    // object. If omitted, keep the masternode's current payout and a matching version.
+    const UniValue& payoutParam = request.params[3];
+    if (!payoutParam.isNull() && !(payoutParam.isStr() && payoutParam.get_str().empty())) {
+        ptx.nVersion = ParsePayoutParam(payoutParam, /*max_version=*/ptx.nVersion, ProTxVersion::BasicBLS,
+                                        ptx.scriptPayout, ptx.payoutShares);
+    } else {
+        ptx.scriptPayout = dmn->pdmnState->scriptPayout;
+        ptx.payoutShares = dmn->pdmnState->payoutShares;
+        ptx.nVersion = dmn->pdmnState->payoutShares.empty()
+                           ? std::min<uint16_t>(ptx.nVersion, ProTxVersion::BasicBLS)
+                           : ProTxVersion::MultiPayout;
     }
+    // representative payout dest for the fee-source default (single address, or the first share)
+    CTxDestination payoutDest;
+    ExtractDestination(ptx.payoutShares.empty() ? ptx.scriptPayout : ptx.payoutShares.front().scriptPayout,
+                       payoutDest);
 
     {
         const auto pkhash{PKHash(dmn->pdmnState->keyIDOwner)};
