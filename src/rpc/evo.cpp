@@ -1236,7 +1236,7 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
         ptx.payoutShares = dmn->pdmnState->payoutShares;
         ptx.nVersion = dmn->pdmnState->payoutShares.empty()
                            ? std::min<uint16_t>(ptx.nVersion, ProTxVersion::BasicBLS)
-                           : ProTxVersion::MultiPayout;
+                           : static_cast<uint16_t>(ProTxVersion::MultiPayout);
     }
     // representative payout dest for the fee-source default (single address, or the first share)
     CTxDestination payoutDest;
