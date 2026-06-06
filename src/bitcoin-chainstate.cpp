@@ -18,7 +18,6 @@
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
-#include <governance/governance.h>
 #include <init/common.h>
 #include <llmq/context.h>
 #include <masternode/meta.h>
@@ -119,9 +118,6 @@ int main(int argc, char* argv[])
     std::unique_ptr<CEvoDB> evodb;
     std::unique_ptr<CDeterministicMNManager> dmnman;
     CMasternodeSync mn_sync{std::make_unique<NullNodeSyncNotifier>()};
-    // govman captures dmnman by const-ref; the unique_ptr is empty here and
-    // filled later inside DashChainstateSetup (called by LoadChainstate).
-    CGovernanceManager govman(metaman, chainman, dmnman, mn_sync);
     CSporkManager sporkman;
     chainlock::Chainlocks chainlocks(sporkman);
 
@@ -129,10 +125,10 @@ int main(int argc, char* argv[])
     std::unique_ptr<CChainstateHelper> chain_helper;
     auto rv = node::LoadChainstate(/*fReset=*/false,
                                    std::ref(chainman),
-                                   govman,
                                    metaman,
                                    sporkman,
                                    chainlocks,
+                                   mn_sync,
                                    chain_helper,
                                    dmnman,
                                    evodb,
@@ -140,9 +136,6 @@ int main(int argc, char* argv[])
                                    /*mempool=*/nullptr,
                                    gArgs.GetDataDirNet(),
                                    /*fPruneMode=*/false,
-                                   /*is_addrindex_enabled=*/false,
-                                   /*is_spentindex_enabled=*/false,
-                                   /*is_timeindex_enabled=*/false,
                                    chainparams.GetConsensus(),
                                    /*fReindexChainState=*/false,
                                    2 << 20,
