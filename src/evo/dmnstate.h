@@ -120,7 +120,11 @@ public:
 
     void ResetOperatorFields()
     {
-        nVersion = ProTxVersion::LegacyBLS;
+        // DIP0026: the multi-party payout is an owner-side property and must survive an operator
+        // revocation. Keep nVersion at MultiPayout when payout shares are present so they are
+        // still serialized; the (empty) netInfo is rebuilt as the matching extended type. Reset
+        // to LegacyBLS as before when there are no shares.
+        nVersion = payoutShares.empty() ? ProTxVersion::LegacyBLS : ProTxVersion::MultiPayout;
         pubKeyOperator = CBLSLazyPublicKey();
         netInfo = NetInfoInterface::MakeNetInfo(nVersion);
         scriptOperatorPayout = CScript();

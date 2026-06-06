@@ -91,6 +91,7 @@ class PayoutShare
 {
 public:
     static constexpr uint16_t TOTAL_BASIS_POINTS{10000};
+    static constexpr size_t MAX_PAYOUT_SHARES{32}; // DIP0026: at most 32 shares per ProRegTx/ProUpRegTx
 
     CScript scriptPayout;
     uint16_t payoutShareReward{0};
@@ -110,6 +111,16 @@ public:
 
     std::string ToString() const;
 };
+
+/**
+ * DIP0026: validate the owner-side payout for a ProRegTx/ProUpRegTx. For nVersion < MultiPayout
+ * this is the single scriptPayout (must be p2pkh/p2sh). For nVersion >= MultiPayout it is the
+ * payoutShares set: non-empty and at most PayoutShare::MAX_PAYOUT_SHARES, each a p2pkh/p2sh payee
+ * with a nonzero reward not exceeding TOTAL_BASIS_POINTS, no duplicate scripts, summing to exactly
+ * TOTAL_BASIS_POINTS. Sets `state` and returns false on the first violation.
+ */
+bool CheckPayoutShares(uint16_t nVersion, const CScript& scriptPayout,
+                       const std::vector<PayoutShare>& payoutShares, TxValidationState& state);
 
 class CProRegTx
 {

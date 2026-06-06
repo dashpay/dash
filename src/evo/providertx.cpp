@@ -7,6 +7,8 @@
 #include <evo/dmn_types.h>
 #include <util/std23.h>
 
+#include <set>
+
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
@@ -85,6 +87,44 @@ bool IsNetInfoTriviallyValid(const ProTx& proTx, TxValidationState& state)
     return true;
 }
 
+// DIP0026: validate the owner-side payout for a ProRegTx/ProUpRegTx. For nVersion < MultiPayout
+// this is the single scriptPayout (must be p2pkh or p2sh). For nVersion >= MultiPayout it is the
+// payoutShares set, which must be non-empty and at most MAX_PAYOUT_SHARES, each share a p2pkh/p2sh
+// payee with a nonzero reward not exceeding TOTAL_BASIS_POINTS, with no duplicate scripts, summing
+// to exactly TOTAL_BASIS_POINTS. (Uniqueness and the nonzero-reward rule are stricter than the
+// three DIP0026 conditions; see the implementation notes / companion dips PR.)
+bool CheckPayoutShares(uint16_t nVersion, const CScript& scriptPayout,
+                       const std::vector<PayoutShare>& payoutShares, TxValidationState& state)
+{
+    if (nVersion < ProTxVersion::MultiPayout) {
+        if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
+        }
+        return true;
+    }
+    if (payoutShares.empty() || payoutShares.size() > PayoutShare::MAX_PAYOUT_SHARES) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-shares-count");
+    }
+    int64_t total{0};
+    std::set<CScript> seen;
+    for (const auto& share : payoutShares) {
+        if (!share.scriptPayout.IsPayToPublicKeyHash() && !share.scriptPayout.IsPayToScriptHash()) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
+        }
+        if (share.payoutShareReward == 0 || share.payoutShareReward > PayoutShare::TOTAL_BASIS_POINTS) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-share-reward");
+        }
+        if (!seen.insert(share.scriptPayout).second) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-share-duplicate");
+        }
+        total += share.payoutShareReward;
+    }
+    if (total != PayoutShare::TOTAL_BASIS_POINTS) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-shares-sum");
+    }
+    return true;
+}
+
 bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
                                  TxValidationState& state) const
 {
@@ -107,8 +147,9 @@ bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
     if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
     }
-    if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
+    if (!CheckPayoutShares(nVersion, scriptPayout, payoutShares, state)) {
+        // pass the state returned by the helper above
+        return false;
     }
     if (netInfo->CanStorePlatform() != (nVersion >= ProTxVersion::ExtAddr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-netinfo-version");
@@ -123,14 +164,17 @@ bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
         }
     }
 
-    CTxDestination payoutDest;
-    if (!ExtractDestination(scriptPayout, payoutDest)) {
-        // should not happen as we checked script types before
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
-    }
-    // don't allow reuse of payout key for other keys (don't allow people to put the payee key onto an online server)
-    if (payoutDest == CTxDestination(PKHash(keyIDOwner)) || payoutDest == CTxDestination(PKHash(keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+    // don't allow reuse of a payout key for the owner/voting keys (don't allow people to put the
+    // payee key onto an online server). For v4 this applies to every payout share.
+    for (const auto& share : GetPayoutShares()) {
+        CTxDestination payoutDest;
+        if (!ExtractDestination(share.scriptPayout, payoutDest)) {
+            // should not happen as we checked script types before
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
+        }
+        if (payoutDest == CTxDestination(PKHash(keyIDOwner)) || payoutDest == CTxDestination(PKHash(keyIDVoting))) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+        }
     }
 
     if (nOperatorReward > 10000) {
@@ -244,8 +288,9 @@ bool CProUpRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev,
     if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
     }
-    if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
+    if (!CheckPayoutShares(nVersion, scriptPayout, payoutShares, state)) {
+        // pass the state returned by the helper above
+        return false;
     }
     return true;
 }

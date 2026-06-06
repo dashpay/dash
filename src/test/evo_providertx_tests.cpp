@@ -216,4 +216,68 @@ BOOST_AUTO_TEST_CASE(mnstatediff_tracks_payoutshares)
     BOOST_CHECK(applied.payoutShares == b.payoutShares);
 }
 
+// ---- DIP0026 payout validation reject matrix (P4) ----
+
+static CScript P2SHScript(uint8_t fill)
+{
+    return CScript() << OP_HASH160 << std::vector<unsigned char>(20, fill) << OP_EQUAL;
+}
+
+// Returns "" if CheckPayoutShares accepts, otherwise the reject reason string.
+static std::string PayoutReject(uint16_t version, const CScript& script, const std::vector<PayoutShare>& shares)
+{
+    TxValidationState state;
+    if (CheckPayoutShares(version, script, shares, state)) return "";
+    return state.GetRejectReason();
+}
+
+BOOST_AUTO_TEST_CASE(checkpayoutshares_accepts_valid)
+{
+    // v<4: a single p2pkh or p2sh scriptPayout is accepted (payoutShares ignored/empty).
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::ExtAddr, P2PKHScript(0x01), {}), "");
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::ExtAddr, P2SHScript(0x01), {}), "");
+    // v4: shares summing to exactly 10000, unique, nonzero, p2pkh/p2sh.
+    const std::vector<PayoutShare> ok{{P2PKHScript(0x01), 6000}, {P2SHScript(0x02), 4000}};
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), ok), "");
+    // exactly MAX_PAYOUT_SHARES (32) summing to 10000.
+    std::vector<PayoutShare> many;
+    int total = 0;
+    for (size_t i = 0; i < PayoutShare::MAX_PAYOUT_SHARES; ++i) {
+        const uint16_t r = (i + 1 < PayoutShare::MAX_PAYOUT_SHARES) ? 312 : uint16_t(10000 - total);
+        many.push_back({P2PKHScript(uint8_t(i + 1)), r});
+        total += r;
+    }
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), many), "");
+}
+
+BOOST_AUTO_TEST_CASE(checkpayoutshares_reject_matrix)
+{
+    // v<4 non-standard script
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::ExtAddr, CScript() << OP_TRUE, {}), "bad-protx-payee");
+    // v4 empty set
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), {}), "bad-protx-payout-shares-count");
+    // v4 too many (33)
+    std::vector<PayoutShare> tooMany;
+    for (size_t i = 0; i < PayoutShare::MAX_PAYOUT_SHARES + 1; ++i) tooMany.push_back({P2PKHScript(uint8_t(i + 1)), 303});
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), tooMany), "bad-protx-payout-shares-count");
+    // v4 sum != 10000
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(),
+                                   {{P2PKHScript(0x01), 6000}, {P2PKHScript(0x02), 3999}}),
+                      "bad-protx-payout-shares-sum");
+    // v4 a reward exceeding 10000
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), {{P2PKHScript(0x01), 10001}}),
+                      "bad-protx-payout-share-reward");
+    // v4 a zero reward
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(),
+                                   {{P2PKHScript(0x01), 0}, {P2PKHScript(0x02), 10000}}),
+                      "bad-protx-payout-share-reward");
+    // v4 duplicate script
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(),
+                                   {{P2PKHScript(0x01), 5000}, {P2PKHScript(0x01), 5000}}),
+                      "bad-protx-payout-share-duplicate");
+    // v4 non-standard script in a share
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), {{CScript() << OP_TRUE, 10000}}),
+                      "bad-protx-payee");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

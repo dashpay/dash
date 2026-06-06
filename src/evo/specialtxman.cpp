@@ -349,6 +349,13 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 // Extended addresses support in v24 means that the version can be updated
                 newState->nVersion = opt_proTx->nVersion;
             }
+            // DIP0026: a ProUpServTx (max ExtAddr) must not downgrade a multi-party-payout MN
+            // below MultiPayout, which would silently drop its payout shares on serialization.
+            // ExtAddr and MultiPayout both imply extended netInfo, so keeping the higher version
+            // is consistent with the ProUpServTx's (extended) netInfo set just below.
+            if (!newState->payoutShares.empty()) {
+                newState->nVersion = std::max<uint16_t>(newState->nVersion, ProTxVersion::MultiPayout);
+            }
             newState->netInfo = opt_proTx->netInfo;
             newState->scriptOperatorPayout = opt_proTx->scriptOperatorPayout;
             if (opt_proTx->nType == MnType::Evo) {
@@ -924,6 +931,22 @@ static bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
     if (tx_type != TRANSACTION_PROVIDER_UPDATE_SERVICE && tx_version == ProTxVersion::ExtAddr) {
         // Only new entries (ProRegTx) and service updates (ProUpServTx) can use ExtAddr versioning
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
+    }
+
+    // DIP0026: a v4 (MultiPayout) ProUpRegTx upgrades the MN state to v4, which implies
+    // extended-address netInfo. Require the target MN to already be at least ExtAddr (v3) so the
+    // version bump cannot reinterpret a non-extended netInfo. Only ProUpRegTx reaches v4 here;
+    // ProRegTx (new registration) does not pass through this function.
+    if (tx_version >= ProTxVersion::MultiPayout && state_version < ProTxVersion::ExtAddr) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-upgrade");
+    }
+    // DIP0026: once an MN uses multi-party payouts (v4), a ProUpRegTx must not downgrade it back
+    // to a single payout, which would silently drop the shares. Scoped to ProUpRegTx; a
+    // ProUpServTx/ProUpRevTx legitimately carries a lower version and its apply path preserves
+    // the multi-payout state version separately.
+    if (tx_type == TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
+        state_version >= ProTxVersion::MultiPayout && tx_version < ProTxVersion::MultiPayout) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
     }
 
     return true;
