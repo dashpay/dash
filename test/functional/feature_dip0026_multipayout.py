@@ -38,14 +38,17 @@ The test:
   5. Mines until each running multi-payout masternode is the coinbase payee and
      asserts the coinbase splits the owner reward across the share addresses in the
      correct proportions (floor + remainder), summing to exactly the owner reward.
-  6. Asserts several validation rejects: shares not summing to 10000, bps out of
-     range, empty object, and a duplicate payout address.
+  6. Asserts the RPC-level validation rejects (caught by ParsePayoutParam at parse time):
+     shares not summing to 10000, a share out of (0, 10000], an empty object, and more
+     than 32 shares. Rules unreachable via the object form (duplicate scripts, non-p2pkh/p2sh
+     payees, cross-version mixing) are covered by the unit reject-matrix instead.
 """
 
 from test_framework.test_framework import DashTestFramework, MasternodeInfo
 from test_framework.util import (
     assert_equal,
     assert_greater_than,
+    assert_raises_rpc_error,
     softfork_active,
 )
 
@@ -67,6 +70,7 @@ VBPARAMS_V24 = "-vbparams=v24:0:999999999999:%d:10:8:6:5:0" % DEPLOY_MIN_ACT
 VBPARAMS_V25 = "-vbparams=v25:0:999999999999:%d:10:8:6:5:0" % DEPLOY_MIN_ACT
 
 TOTAL_BASIS_POINTS = 10000
+MAX_PAYOUT_SHARES = 32  # PayoutShare::MAX_PAYOUT_SHARES (DIP0026: at most 32 shares)
 
 # RPC error codes (src/rpc/protocol.h)
 RPC_INVALID_PARAMETER = -8     # raised by ParsePayoutParam for bad/missing payout params
@@ -176,6 +180,10 @@ class Dip0026MultiPayoutTest(DashTestFramework):
         the MN state to v3 and makes it eligible for a subsequent v4 update_registrar."""
         if node.protx("info", mn.proTxHash)["state"]["version"] >= 3:
             return
+        # Top up the masternode's fee-source address before the ProUpServTx so it always has a
+        # spendable output to pay the fee (the setup funding can be otherwise consumed/unconfirmed;
+        # mirrors feature_dip3_deterministicmns.py test_protx_update_service).
+        node.sendtoaddress(mn.fundsAddr, 0.001)
         mn.update_service(node, submit=True)
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=lambda: self.sync_blocks())
@@ -232,6 +240,46 @@ class Dip0026MultiPayoutTest(DashTestFramework):
         assert softfork_active(node, "v25")
 
         # ---------------------------------------------------------------
+        # Post-activation RPC payout-validation rejects (object form). ParsePayoutParam
+        # (src/rpc/evo.cpp) rejects these at RPC-parse time, before any transaction is built or
+        # submitted, so they surface as a clean RPC error and do not depend on the target
+        # masternode's state. We run them on a pristine, freshly-activated masternode (mninfo[2],
+        # left untouched by the conversion + payout-mining below) so no PoSe/state interference can
+        # mask a reject. Each call throws inside ParsePayoutParam, so mninfo[2] stays a plain v2 MN.
+        # A duplicate payout script cannot be expressed through a Python dict (keys are unique), so the
+        # functional matrix below does not cover it; ParsePayoutParam still rejects duplicates (a raw
+        # JSON request can carry repeated keys) and the consensus rule is unit-tested
+        # (src/test/evo_providertx_tests.cpp). Non-p2pkh/p2sh payees are impossible too: a valid
+        # address always yields a p2pkh/p2sh script.
+        # ---------------------------------------------------------------
+        self.log.info("post-activation RPC payout-validation rejects")
+        mn_r = self.mninfo[2]
+        ra, rb = node.getnewaddress(), node.getnewaddress()
+
+        def reject_payout(shares, msg):
+            mn_r.update_registrar(
+                node, submit=True, rewards_address=shares, fundsAddr=mn_r.fundsAddr,
+                expected_assert_code=RPC_INVALID_PARAMETER, expected_assert_msg=msg)
+
+        # shares summing below 10000
+        reject_payout({ra: 6000, rb: 3000}, "must sum to 10000")
+        # shares summing above 10000
+        reject_payout({ra: 6000, rb: 5000}, "must sum to 10000")
+        # a single share exceeding 10000 basis points
+        reject_payout({ra: 10001}, "must be between 1 and 10000")
+        # a zero-reward share
+        reject_payout({ra: 0, rb: 10000}, "must be between 1 and 10000")
+        # an empty payout object. Sent via a direct protx call, not reject_payout: the helper's
+        # `rewards_address or self.rewards_address` fallback replaces a falsy {} with the
+        # masternode's existing payout address, so {} would never reach the RPC. Empty operator
+        # and voting args ("") mean "reuse", and the empty-object check fires before either is used.
+        assert_raises_rpc_error(RPC_INVALID_PARAMETER, "must not be empty",
+                                node.protx, "update_registrar", mn_r.proTxHash, "", "", {}, mn_r.fundsAddr)
+        # more than MAX_PAYOUT_SHARES (32) shares
+        too_many = {node.getnewaddress(): 1 for _ in range(MAX_PAYOUT_SHARES + 1)}
+        reject_payout(too_many, "too many payout shares")
+
+        # ---------------------------------------------------------------
         # Convert an existing, running, ENABLED masternode (mninfo[0]) to a 3-way
         # multi-payout via update_registrar with the object form. mninfo[0] has
         # operator_reward == 0 (framework sets operatorReward = idx), so its whole
@@ -243,6 +291,7 @@ class Dip0026MultiPayoutTest(DashTestFramework):
         a1, a2, a3 = node.getnewaddress(), node.getnewaddress(), node.getnewaddress()
         shares_a = {a1: 2500, a2: 2500, a3: 5000}  # ordered; sums to 10000
         assert_equal(sum(shares_a.values()), TOTAL_BASIS_POINTS)
+        node.sendtoaddress(mn_a.fundsAddr, 0.001)  # ensure a spendable fee output for the ProUpRegTx
         txid = mn_a.update_registrar(node, submit=True, rewards_address=shares_a,
                                      fundsAddr=mn_a.fundsAddr)
         assert txid is not None
@@ -261,6 +310,7 @@ class Dip0026MultiPayoutTest(DashTestFramework):
         b1, b2 = node.getnewaddress(), node.getnewaddress()
         shares_b = {b1: 3333, b2: 6667}  # ordered; sums to 10000
         assert_equal(sum(shares_b.values()), TOTAL_BASIS_POINTS)
+        node.sendtoaddress(mn_b.fundsAddr, 0.001)  # ensure a spendable fee output for the ProUpRegTx
         txid = mn_b.update_registrar(node, submit=True, rewards_address=shares_b,
                                      fundsAddr=mn_b.fundsAddr)
         assert txid is not None
@@ -280,14 +330,12 @@ class Dip0026MultiPayoutTest(DashTestFramework):
         self.mine_until_payee_and_check_split(node, mn_a.proTxHash, shares_a)
         self.mine_until_payee_and_check_split(node, mn_b.proTxHash, shares_b)
 
-        # Validation rejects are covered exhaustively at the unit level by the CheckPayoutShares
-        # reject-matrix (src/test/evo_providertx_tests.cpp): empty/oversize set, non-p2pkh/p2sh
-        # payee, reward out of (0, 10000], duplicate scripts, sum != 10000, and cross-version
-        # field mixing. The pre-activation rejection above additionally exercises ParsePayoutParam's
-        # error path end-to-end. (A post-activation functional reject-matrix on mninfo[2] was
-        # dropped: after the long payout-mining phase that masternode's RPC rejects did not
-        # surface as expected, which is a test-harness/PoSe-state artifact, not a consensus gap;
-        # see dash-dip0026-notes for the follow-up to re-add it on a freshly registered v3 MN.)
+        # The dict-expressible validation rejects are exercised functionally above (post-activation
+        # reject-matrix on mninfo[2]). The rules a Python dict cannot express here, namely duplicate
+        # payout scripts (repeated keys), non-p2pkh/p2sh payees, and cross-version field mixing, are
+        # covered exhaustively at the unit level by the CheckPayoutShares reject-matrix
+        # (src/test/evo_providertx_tests.cpp). Those consensus rules run at both mempool acceptance and
+        # block connect via CheckSpecialTx, so a malformed v4 ProTx cannot be mined.
 
         self.log.info("DIP-0026 multi-party payout test passed")
 

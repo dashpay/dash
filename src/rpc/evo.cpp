@@ -415,6 +415,14 @@ static uint16_t ParsePayoutParam(const UniValue& param, const uint16_t max_versi
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                                "multi-party payouts (DIP0026) are not available yet (v25 is not active)");
         }
+        // Fail fast on the consensus payout-share rules (CheckPayoutShares, src/evo/providertx.cpp)
+        // that are reachable through the object form, so a malformed set is rejected here at the RPC
+        // instead of only later at mempool/block validation. A valid destination always yields a
+        // p2pkh/p2sh script, so the payee-type rule needs no separate check. The JSON reader does NOT
+        // collapse duplicate object keys, so a raw request can carry the same payee twice; we reject
+        // duplicate scripts to mirror consensus. CheckPayoutShares remains the authoritative gate.
+        int64_t total_bps{0};
+        std::set<CScript> seen_scripts;
         for (const std::string& addr : param.getKeys()) {
             const CTxDestination dest = DecodeDestination(addr);
             if (!IsValidDestination(dest)) {
@@ -426,10 +434,25 @@ static uint16_t ParsePayoutParam(const UniValue& param, const uint16_t max_versi
                                    strprintf("payout share for %s must be between 1 and %d basis points", addr,
                                              PayoutShare::TOTAL_BASIS_POINTS));
             }
-            payoutSharesRet.push_back(PayoutShare{GetScriptForDestination(dest), static_cast<uint16_t>(bps)});
+            const CScript script = GetScriptForDestination(dest);
+            if (!seen_scripts.insert(script).second) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("duplicate payout address: %s", addr));
+            }
+            total_bps += bps;
+            payoutSharesRet.push_back(PayoutShare{script, static_cast<uint16_t>(bps)});
         }
         if (payoutSharesRet.empty()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "payout shares object must not be empty");
+        }
+        if (payoutSharesRet.size() > PayoutShare::MAX_PAYOUT_SHARES) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               strprintf("too many payout shares: %d (maximum is %d)", payoutSharesRet.size(),
+                                         PayoutShare::MAX_PAYOUT_SHARES));
+        }
+        if (total_bps != PayoutShare::TOTAL_BASIS_POINTS) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               strprintf("payout shares must sum to %d basis points (got %d)",
+                                         PayoutShare::TOTAL_BASIS_POINTS, total_bps));
         }
         return ProTxVersion::MultiPayout;
     }
