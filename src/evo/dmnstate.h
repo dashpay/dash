@@ -56,7 +56,8 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
-    CScript scriptPayout;
+    CScript scriptPayout;                  // used for nVersion < MultiPayout
+    std::vector<PayoutShare> payoutShares; // DIP0026, used for nVersion >= MultiPayout
     CScript scriptOperatorPayout;
 
     uint160 platformNodeID{};
@@ -72,6 +73,7 @@ public:
         keyIDVoting(proTx.keyIDVoting),
         netInfo(proTx.netInfo),
         scriptPayout(proTx.scriptPayout),
+        payoutShares(proTx.payoutShares),
         platformNodeID(proTx.platformNodeID),
         platformP2PPort(proTx.platformP2PPort),
         platformHTTPPort(proTx.platformHTTPPort)
@@ -98,8 +100,15 @@ public:
         READWRITE(
             obj.keyIDVoting,
             NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                              obj.nVersion >= ProTxVersion::ExtAddr),
-            obj.scriptPayout,
+                              obj.nVersion >= ProTxVersion::ExtAddr));
+        // DIP0026: v4+ stores an array of payout shares in place of the single scriptPayout.
+        // Pre-v4 serialization is byte-for-byte unchanged.
+        if (obj.nVersion < ProTxVersion::MultiPayout) {
+            READWRITE(obj.scriptPayout);
+        } else {
+            READWRITE(obj.payoutShares);
+        }
+        READWRITE(
             obj.scriptOperatorPayout,
             obj.platformNodeID);
         if (obj.nVersion < ProTxVersion::ExtAddr) {
@@ -147,6 +156,15 @@ public:
         h.Finalize(confirmedHashWithProRegTxHash.begin());
     }
 
+    // Uniform view of the owner-side payout regardless of version: for nVersion >= MultiPayout
+    // returns the stored shares; for older versions synthesizes a single full share from
+    // scriptPayout. Downstream payout code (masternode/payments) uses this for one code path.
+    [[nodiscard]] std::vector<PayoutShare> GetPayoutShares() const
+    {
+        if (nVersion >= ProTxVersion::MultiPayout) return payoutShares;
+        return {PayoutShare{scriptPayout, PayoutShare::TOTAL_BASIS_POINTS}};
+    }
+
 public:
     std::string ToString() const;
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
@@ -176,6 +194,7 @@ public:
         Field_platformNodeID = 0x10000,
         Field_platformP2PPort = 0x20000,
         Field_platformHTTPPort = 0x40000,
+        Field_payoutShares = 0x80000, // DIP0026; appended last to keep existing diff bits stable
     };
 
 private:
@@ -207,7 +226,8 @@ private:
         DMN_STATE_MEMBER(nConsecutivePayments),
         DMN_STATE_MEMBER(platformNodeID),
         DMN_STATE_MEMBER(platformP2PPort),
-        DMN_STATE_MEMBER(platformHTTPPort)
+        DMN_STATE_MEMBER(platformHTTPPort),
+        DMN_STATE_MEMBER(payoutShares)
     );
 #undef DMN_STATE_MEMBER
 

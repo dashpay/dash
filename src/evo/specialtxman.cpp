@@ -396,7 +396,21 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 newState->pubKeyOperator = opt_proTx->pubKeyOperator;
             }
             newState->keyIDVoting = opt_proTx->keyIDVoting;
-            newState->scriptPayout = opt_proTx->scriptPayout;
+            // DIP0026: keep the state's payout representation consistent with its version. A v4
+            // ProUpRegTx carries payoutShares (and an empty scriptPayout); applying it stores the
+            // shares, clears the single-payout field, and bumps the state version so the shares
+            // persist (state serialization gates payoutShares on nVersion >= MultiPayout).
+            // Validation (CheckProUpRegTx) guarantees a v4 ProUpRegTx only targets a v3+ MN and
+            // that a v4 MN is never downgraded, so the version bump cannot corrupt netInfo or
+            // silently drop a payout.
+            if (opt_proTx->nVersion >= ProTxVersion::MultiPayout) {
+                newState->payoutShares = opt_proTx->payoutShares;
+                newState->scriptPayout = CScript();
+                newState->nVersion = std::max<uint16_t>(newState->nVersion, opt_proTx->nVersion);
+            } else {
+                newState->scriptPayout = opt_proTx->scriptPayout;
+                newState->payoutShares.clear();
+            }
 
             newList.UpdateMN(opt_proTx->proTxHash, newState);
 

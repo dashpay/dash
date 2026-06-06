@@ -5,7 +5,9 @@
 #include <evo/providertx.h>
 
 #include <bls/bls.h>
+#include <clientversion.h>
 #include <evo/dmn_types.h>
+#include <evo/dmnstate.h>
 #include <evo/netinfo.h>
 #include <key.h>
 #include <script/script.h>
@@ -143,6 +145,75 @@ BOOST_AUTO_TEST_CASE(proupregtx_v4_uses_payoutshares)
     BOOST_CHECK(out.scriptPayout.empty());
     BOOST_CHECK_EQUAL(out.payoutShares.size(), 3U);
     BOOST_CHECK(out.payoutShares == in.payoutShares);
+}
+
+// ---- DIP0026 deterministic MN state (P3) ----
+
+static CDeterministicMNState MakeMNState(uint16_t version)
+{
+    CDeterministicMNState s;
+    s.nVersion = version;
+    s.netInfo = NetInfoInterface::MakeNetInfo(version);
+    BOOST_CHECK_EQUAL(s.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.2.3.4:9999"), NetInfoStatus::Success);
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    s.pubKeyOperator.Set(sk.GetPublicKey(), /*specificLegacyScheme=*/version == ProTxVersion::LegacyBLS);
+    CKey k;
+    k.MakeNewKey(true);
+    s.keyIDOwner = k.GetPubKey().GetID();
+    s.keyIDVoting = k.GetPubKey().GetID();
+    return s;
+}
+
+BOOST_AUTO_TEST_CASE(mnstate_v4_payoutshares_roundtrip)
+{
+    CDeterministicMNState in = MakeMNState(ProTxVersion::MultiPayout);
+    in.payoutShares = {{P2PKHScript(0xa1), 5000}, {P2PKHScript(0xa2), 5000}};
+
+    CDataStream ss(SER_DISK, CLIENT_VERSION);
+    ss << in;
+    CDeterministicMNState out;
+    ss >> out;
+
+    BOOST_CHECK_EQUAL(out.nVersion, ProTxVersion::MultiPayout);
+    BOOST_CHECK(out.payoutShares == in.payoutShares);
+    BOOST_CHECK(out.scriptPayout.empty());
+    BOOST_CHECK(out.GetPayoutShares() == in.payoutShares);
+}
+
+BOOST_AUTO_TEST_CASE(mnstate_v3_scriptpayout_roundtrip)
+{
+    CDeterministicMNState in = MakeMNState(ProTxVersion::ExtAddr);
+    in.scriptPayout = P2PKHScript(0xa3);
+
+    CDataStream ss(SER_DISK, CLIENT_VERSION);
+    ss << in;
+    CDeterministicMNState out;
+    ss >> out;
+
+    BOOST_CHECK_EQUAL(out.nVersion, ProTxVersion::ExtAddr);
+    BOOST_CHECK(out.scriptPayout == in.scriptPayout);
+    BOOST_CHECK(out.payoutShares.empty());
+}
+
+BOOST_AUTO_TEST_CASE(mnstatediff_tracks_payoutshares)
+{
+    CDeterministicMNState a = MakeMNState(ProTxVersion::MultiPayout);
+    a.payoutShares = {{P2PKHScript(0xb1), PayoutShare::TOTAL_BASIS_POINTS}};
+    CDeterministicMNState b = a;
+    b.payoutShares = {{P2PKHScript(0xb2), 6000}, {P2PKHScript(0xb3), 4000}};
+
+    CDeterministicMNStateDiff diff(a, b);
+    BOOST_CHECK(diff.fields & CDeterministicMNStateDiff::Field_payoutShares);
+
+    CDataStream ss(SER_DISK, CLIENT_VERSION);
+    ss << diff;
+    CDeterministicMNStateDiff out;
+    ss >> out;
+
+    CDeterministicMNState applied = a;
+    out.ApplyToState(applied);
+    BOOST_CHECK(applied.payoutShares == b.payoutShares);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
