@@ -47,7 +47,7 @@ template uint16_t GetMaxFromDeployment<CProUpRevTx>(gsl::not_null<const CBlockIn
 
 MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout)
 {
-    return {{CMasternodePayoutShare::MAX_REWARD, script_payout}};
+    return {{script_payout, CMasternodePayoutShare::MAX_REWARD}};
 }
 
 MasternodePayoutShares GetOwnerPayouts(const uint16_t nVersion, const CScript& script_payout,
@@ -122,7 +122,7 @@ std::string PayoutListToString(const MasternodePayoutShares& payouts)
         CTxDestination dest;
         const std::string payout_str = ExtractDestination(payout.scriptPayout, dest) ? EncodeDestination(dest) : HexStr(payout.scriptPayout);
         if (!ret.empty()) ret += ",";
-        ret += strprintf("%d:%s", payout.reward, payout_str);
+        ret += strprintf("%s:%d", payout_str, payout.reward);
     }
     return ret;
 }

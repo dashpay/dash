@@ -162,27 +162,27 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
     const CKeyID owner_id = owner_key.GetPubKey().GetID();
     const CKeyID voting_id = voting_key.GetPubKey().GetID();
 
-    CheckPayouts({{10000, payout1}}, owner_id, voting_id, std::nullopt);
-    CheckPayouts({{5000, payout1}, {3000, payout2}, {2000, payout3}}, owner_id, voting_id, std::nullopt);
+    CheckPayouts({{payout1, 10000}}, owner_id, voting_id, std::nullopt);
+    CheckPayouts({{payout1, 5000}, {payout2, 3000}, {payout3, 2000}}, owner_id, voting_id, std::nullopt);
     CheckPayouts({}, owner_id, voting_id, "bad-protx-payouts-count");
 
     MasternodePayoutShares too_many;
     for (int i = 0; i < 9; ++i) {
         CKey key;
-        too_many.emplace_back(1000, NewP2PKHScript(key));
+        too_many.emplace_back(NewP2PKHScript(key), 1000);
     }
     CheckPayouts(too_many, owner_id, voting_id, "bad-protx-payouts-count");
 
-    CheckPayouts({{99, payout1}, {9901, payout2}}, owner_id, voting_id, "bad-protx-payout-reward");
-    CheckPayouts({{CMasternodePayoutShare::MAX_REWARD + 1, payout1}}, owner_id, voting_id, "bad-protx-payout-reward");
-    CheckPayouts({{5000, payout1}, {4999, payout2}}, owner_id, voting_id, "bad-protx-payout-reward-sum");
-    CheckPayouts({{5000, payout1}, {5000, payout1}}, owner_id, voting_id, "bad-protx-payee-dup");
-    CheckPayouts({{10000, CScript() << OP_RETURN}}, owner_id, voting_id, "bad-protx-payee");
-    CheckPayouts({{10000, GetScriptForDestination(PKHash(owner_id))}}, owner_id, voting_id, "bad-protx-payee-reuse");
-    CheckPayouts({{10000, GetScriptForDestination(PKHash(voting_id))}}, owner_id, voting_id, "bad-protx-payee-reuse");
+    CheckPayouts({{payout1, 99}, {payout2, 9901}}, owner_id, voting_id, "bad-protx-payout-reward");
+    CheckPayouts({{payout1, CMasternodePayoutShare::MAX_REWARD + 1}}, owner_id, voting_id, "bad-protx-payout-reward");
+    CheckPayouts({{payout1, 5000}, {payout2, 4999}}, owner_id, voting_id, "bad-protx-payout-reward-sum");
+    CheckPayouts({{payout1, 5000}, {payout1, 5000}}, owner_id, voting_id, "bad-protx-payee-dup");
+    CheckPayouts({{CScript() << OP_RETURN, 10000}}, owner_id, voting_id, "bad-protx-payee");
+    CheckPayouts({{GetScriptForDestination(PKHash(owner_id)), 10000}}, owner_id, voting_id, "bad-protx-payee-reuse");
+    CheckPayouts({{GetScriptForDestination(PKHash(voting_id)), 10000}}, owner_id, voting_id, "bad-protx-payee-reuse");
 
     TxValidationState state;
-    BOOST_CHECK(!IsPayoutListKeySafe({{10000, payout1}}, CTxDestination(PKHash(payout_key1.GetPubKey().GetID())),
+    BOOST_CHECK(!IsPayoutListKeySafe({{payout1, 10000}}, CTxDestination(PKHash(payout_key1.GetPubKey().GetID())),
                                      owner_id, voting_id, state));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-protx-payee-reuse");
 
@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
     CTxDestination p2sh_dest;
     BOOST_CHECK(ExtractDestination(p2sh_collateral, p2sh_dest));
     state = TxValidationState{};
-    BOOST_CHECK(!IsPayoutListKeySafe({{10000, p2sh_collateral}}, p2sh_dest, owner_id, voting_id, state));
+    BOOST_CHECK(!IsPayoutListKeySafe({{p2sh_collateral, 10000}}, p2sh_dest, owner_id, voting_id, state));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-protx-payee-reuse");
 }
 

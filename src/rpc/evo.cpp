@@ -303,14 +303,14 @@ static MasternodePayoutShares ParsePayouts(const UniValue& value, const std::str
             if (reward < 0 || reward > std::numeric_limits<uint16_t>::max()) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "payout reward out of range");
             }
-            payouts.emplace_back(static_cast<uint16_t>(reward), GetScriptForDestination(dest));
+            payouts.emplace_back(GetScriptForDestination(dest), static_cast<uint16_t>(reward));
         }
     } else {
         first_dest = DecodeDestination(value.get_str());
         if (!IsValidDestination(first_dest)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", value.get_str()));
         }
-        payouts.emplace_back(CMasternodePayoutShare::MAX_REWARD, GetScriptForDestination(first_dest));
+        payouts.emplace_back(GetScriptForDestination(first_dest), CMasternodePayoutShare::MAX_REWARD);
     }
     return payouts;
 }

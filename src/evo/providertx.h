@@ -70,19 +70,19 @@ public:
     static constexpr uint16_t MIN_REWARD = 100;
     static constexpr uint16_t MAX_REWARD = 10000;
 
-    uint16_t reward{MAX_REWARD};
     CScript scriptPayout;
+    uint16_t reward{MAX_REWARD};
 
     CMasternodePayoutShare() = default;
-    CMasternodePayoutShare(uint16_t reward, CScript script_payout) :
-        reward(reward),
-        scriptPayout(std::move(script_payout))
+    CMasternodePayoutShare(CScript script_payout, uint16_t reward) :
+        scriptPayout(std::move(script_payout)),
+        reward(reward)
     {
     }
 
     SERIALIZE_METHODS(CMasternodePayoutShare, obj)
     {
-        READWRITE(obj.reward, obj.scriptPayout);
+        READWRITE(obj.scriptPayout, obj.reward);
     }
 
     friend bool operator==(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b)
