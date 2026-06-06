@@ -72,8 +72,11 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
             // Add voting key ID
             AddHashElement(opt_proTx->keyIDVoting, addElement);
 
-            // Add payout script
-            AddScriptElement(opt_proTx->scriptPayout, addElement);
+            // Add payout script(s): DIP0026 v4 carries one script per payout share (the single
+            // scriptPayout is empty for v4), so iterate the version-uniform accessor.
+            for (const auto& share : opt_proTx->GetPayoutShares()) {
+                AddScriptElement(share.scriptPayout, addElement);
+            }
         }
         break;
     }
@@ -95,8 +98,11 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
             // Add voting key ID
             AddHashElement(opt_proTx->keyIDVoting, addElement);
 
-            // Add payout script
-            AddScriptElement(opt_proTx->scriptPayout, addElement);
+            // Add payout script(s): DIP0026 v4 carries one script per payout share (the single
+            // scriptPayout is empty for v4), so iterate the version-uniform accessor.
+            for (const auto& share : opt_proTx->GetPayoutShares()) {
+                AddScriptElement(share.scriptPayout, addElement);
+            }
         }
         break;
     }

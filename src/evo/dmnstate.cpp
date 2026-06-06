@@ -73,6 +73,11 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
             obj.pushKV("payoutAddress", EncodeDestination(dest));
         }
     }
+    if (fields & Field_payoutShares) {
+        UniValue shares(UniValue::VARR);
+        for (const auto& share : state.payoutShares) shares.push_back(share.ToJson());
+        obj.pushKV("payoutShares", shares);
+    }
     if (fields & Field_scriptOperatorPayout) {
         CTxDestination dest;
         if (ExtractDestination(state.scriptOperatorPayout, dest)) {

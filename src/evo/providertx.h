@@ -110,6 +110,7 @@ public:
     }
 
     std::string ToString() const;
+    [[nodiscard]] UniValue ToJson() const;
 };
 
 /**

@@ -228,16 +228,21 @@ static std::string GetRequiredPaymentsString(governance::SuperblockManager& supe
 {
     std::string strPayments = "Unknown";
     if (payee) {
-        CTxDestination dest;
-        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest)) {
-            NONFATAL_UNREACHABLE();
-        }
-        strPayments = EncodeDestination(dest);
-        if (payee->nOperatorReward != 0 && payee->pdmnState->scriptOperatorPayout != CScript()) {
-            if (!ExtractDestination(payee->pdmnState->scriptOperatorPayout, dest)) {
-                NONFATAL_UNREACHABLE();
+        // DIP0026: a v4 masternode pays multiple shares (its single scriptPayout is empty), so
+        // iterate the version-uniform accessor and join the payee addresses.
+        strPayments.clear();
+        for (const auto& share : payee->pdmnState->GetPayoutShares()) {
+            CTxDestination dest;
+            if (ExtractDestination(share.scriptPayout, dest)) {
+                if (!strPayments.empty()) strPayments += ", ";
+                strPayments += EncodeDestination(dest);
             }
-            strPayments += ", " + EncodeDestination(dest);
+        }
+        if (strPayments.empty()) strPayments = "Unknown";
+        if (payee->nOperatorReward != 0 && payee->pdmnState->scriptOperatorPayout != CScript()) {
+            if (CTxDestination dest; ExtractDestination(payee->pdmnState->scriptOperatorPayout, dest)) {
+                strPayments += ", " + EncodeDestination(dest);
+            }
         }
     }
     if (superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {

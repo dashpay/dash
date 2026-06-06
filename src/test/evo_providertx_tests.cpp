@@ -40,6 +40,21 @@ static T SerRoundtrip(const T& in)
     return out;
 }
 
+BOOST_AUTO_TEST_CASE(payoutshare_tojson)
+{
+    const UniValue j = PayoutShare{P2PKHScript(0x01), 6000}.ToJson();
+    BOOST_CHECK(j.isObject());
+    BOOST_CHECK(j.exists("payoutAddress"));
+    BOOST_CHECK(!j.exists("payoutScript"));
+    BOOST_CHECK_EQUAL(j["payoutShareReward"].getInt<int>(), 6000);
+
+    // a non-standard script is rendered as payoutScript (hex) instead of payoutAddress
+    const UniValue jn = PayoutShare{CScript() << OP_TRUE, 10000}.ToJson();
+    BOOST_CHECK(jn.exists("payoutScript"));
+    BOOST_CHECK(!jn.exists("payoutAddress"));
+    BOOST_CHECK_EQUAL(jn["payoutShareReward"].getInt<int>(), 10000);
+}
+
 BOOST_AUTO_TEST_CASE(payoutshare_roundtrip)
 {
     const PayoutShare in{P2PKHScript(0x11), 6000};

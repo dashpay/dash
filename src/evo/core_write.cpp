@@ -85,6 +85,21 @@ RPCResult GetRpcResult(const std::string& key, bool optional, const std::string&
                              __FILE__, __LINE__, __func__);
 }
 
+// DIP0026: the multi-party payout shares array, present only for v4 (MultiPayout) entities.
+RPCResult GetPayoutSharesResult()
+{
+    return {RPCResult::Type::ARR, "payoutShares", /*optional=*/true,
+            "DIP0026 multi-party payout shares (present only for v4 masternodes/transactions)",
+    {
+        {RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::STR, "payoutAddress", /*optional=*/true, "Dash address for this payout share"},
+            {RPCResult::Type::STR_HEX, "payoutScript", /*optional=*/true, "Payout script, if no address could be extracted"},
+            {RPCResult::Type::NUM, "payoutShareReward", "Reward share in basis points (1-10000)"},
+        }},
+    }};
+}
+
 RPCResult CAssetLockPayload::GetJsonHelp(const std::string& key, bool optional)
 {
     return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The asset lock special transaction",
@@ -212,6 +227,7 @@ RPCResult CDeterministicMNState::GetJsonHelp(const std::string& key, bool option
         GetRpcResult("platformP2PPort", /*optional=*/true),
         GetRpcResult("platformHTTPPort", /*optional=*/true),
         GetRpcResult("payoutAddress", /*optional=*/true),
+        GetPayoutSharesResult(),
         GetRpcResult("pubKeyOperator"),
         GetRpcResult("operatorPayoutAddress", /*optional=*/true),
     }};
@@ -246,6 +262,11 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     if (ExtractDestination(scriptPayout, dest)) {
         obj.pushKV("payoutAddress", EncodeDestination(dest));
     }
+    if (nVersion >= ProTxVersion::MultiPayout) {
+        UniValue shares(UniValue::VARR);
+        for (const auto& share : payoutShares) shares.push_back(share.ToJson());
+        obj.pushKV("payoutShares", shares);
+    }
     obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
@@ -270,6 +291,7 @@ RPCResult CDeterministicMNStateDiff::GetJsonHelp(const std::string& key, bool op
         GetRpcResult("ownerAddress", /*optional=*/true),
         GetRpcResult("votingAddress", /*optional=*/true),
         GetRpcResult("payoutAddress", /*optional=*/true),
+        GetPayoutSharesResult(),
         GetRpcResult("operatorPayoutAddress", /*optional=*/true),
         GetRpcResult("pubKeyOperator", /*optional=*/true),
         GetRpcResult("platformNodeID", /*optional=*/true),
@@ -292,6 +314,7 @@ RPCResult CProRegTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("ownerAddress"),
         GetRpcResult("votingAddress"),
         GetRpcResult("payoutAddress", /*optional=*/true),
+        GetPayoutSharesResult(),
         GetRpcResult("pubKeyOperator"),
         GetRpcResult("operatorReward"),
         GetRpcResult("platformNodeID", /*optional=*/true),
@@ -299,6 +322,18 @@ RPCResult CProRegTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("platformHTTPPort", /*optional=*/true),
         GetRpcResult("inputsHash"),
     }};
+}
+
+UniValue PayoutShare::ToJson() const
+{
+    UniValue obj(UniValue::VOBJ);
+    if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
+        obj.pushKV("payoutAddress", EncodeDestination(dest));
+    } else {
+        obj.pushKV("payoutScript", HexStr(scriptPayout));
+    }
+    obj.pushKV("payoutShareReward", payoutShareReward);
+    return obj;
 }
 
 UniValue CProRegTx::ToJson() const
@@ -316,6 +351,11 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
+    }
+    if (nVersion >= ProTxVersion::MultiPayout) {
+        UniValue shares(UniValue::VARR);
+        for (const auto& share : payoutShares) shares.push_back(share.ToJson());
+        ret.pushKV("payoutShares", shares);
     }
     ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     ret.pushKV("operatorReward", (double)nOperatorReward / 100);
@@ -338,6 +378,7 @@ RPCResult CProUpRegTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("proTxHash"),
         GetRpcResult("votingAddress"),
         GetRpcResult("payoutAddress", /*optional=*/true),
+        GetPayoutSharesResult(),
         GetRpcResult("pubKeyOperator"),
         GetRpcResult("inputsHash"),
     }};
@@ -351,6 +392,11 @@ UniValue CProUpRegTx::ToJson() const
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
+    }
+    if (nVersion >= ProTxVersion::MultiPayout) {
+        UniValue shares(UniValue::VARR);
+        for (const auto& share : payoutShares) shares.push_back(share.ToJson());
+        ret.pushKV("payoutShares", shares);
     }
     ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     ret.pushKV("inputsHash", inputsHash.ToString());
