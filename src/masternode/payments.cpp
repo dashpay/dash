@@ -34,6 +34,9 @@ std::vector<CTxOut> SplitMasternodeReward(const CAmount masternodeReward, const 
 {
     std::vector<CTxOut> outs;
     if (masternodeReward <= 0 || shares.empty()) return outs;
+    // masternodeReward is a per-block owner reward, far below the level where reward * 10000 could
+    // overflow int64; assert the consensus money range as a cheap guard (matching PlatformShare).
+    assert(MoneyRange(masternodeReward));
 
     std::vector<CAmount> amounts(shares.size(), 0);
     CAmount distributed = 0;
@@ -153,16 +156,24 @@ std::vector<CTxOut> SplitMasternodeReward(const CAmount masternodeReward, const 
         return true;
     }
 
+    // The multiplicity-correct check below is a consensus change relative to the historical
+    // existence check: it can reject a block that underpays a masternode whose owner and operator
+    // scripts collide (two identical expected outputs paid only once). To avoid an upgrade-window
+    // split it is gated behind DIP0026 (DEPLOYMENT_V25); before activation the legacy existence
+    // check is preserved byte-for-byte. Multi-party payouts only exist once V25 is active anyway.
+    const bool multipayout_active{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V25)};
+
     for (const auto& txout : voutMasternodePayments) {
-        // Multiplicity-correct: the coinbase must contain each expected payee output at least as
-        // many times as it is expected. A plain existence check (any_of) could be satisfied by a
-        // single coinbase output when two expected outputs are identical (e.g. a DIP0026 payout
-        // share paying the same script+amount as the operator or platform output), which would
-        // let a miner underpay. Counting closes that hole (and the same latent edge in the
-        // pre-DIP0026 two-party payout where owner script == operator script with equal amounts).
-        const auto need = std::ranges::count(voutMasternodePayments, txout);
-        const auto have = std::ranges::count(txNew.vout, txout);
-        if (have < need) {
+        bool found;
+        if (multipayout_active) {
+            // The coinbase must contain each expected payee output at least as many times as it is
+            // expected, so two identical expected outputs (e.g. a DIP0026 payout share paying the
+            // same script+amount as the operator/platform output) cannot be satisfied by one.
+            found = std::ranges::count(txNew.vout, txout) >= std::ranges::count(voutMasternodePayments, txout);
+        } else {
+            found = std::ranges::any_of(txNew.vout, [&txout](const auto& txout2) { return txout == txout2; });
+        }
+        if (!found) {
             std::string str_payout;
             if (CTxDestination dest; ExtractDestination(txout.scriptPubKey, dest)) {
                 str_payout = "address=" + EncodeDestination(dest);
