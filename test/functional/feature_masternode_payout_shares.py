@@ -4,6 +4,9 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test v4 masternode owner payout shares."""
 
+from test_framework.blocktools import create_block, create_coinbase
+from test_framework.messages import CTxOut, tx_from_hex
+from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, MasternodeInfo, p2p_port
 from test_framework.util import assert_equal, softfork_active
 
@@ -28,6 +31,43 @@ class MasternodePayoutSharesTest(DashTestFramework):
             self.bump_mocktime(50)
             self.generate(self.nodes[0], 50, sync_fun=self.no_op)
         assert softfork_active(self.nodes[0], "v24")
+
+    def build_block(self, node, tamper=None):
+        """Build a block extending the tip whose coinbase pays exactly the template's
+        masternode payouts, optionally mutated by ``tamper(coinbase)`` before solving."""
+        bt = node.getblocktemplate()
+        tip_hash = bt["previousblockhash"]
+
+        coinbase = create_coinbase(bt["height"])
+        coinbase.vout = []
+        mn_total = 0
+        for payee in bt["masternode"]:
+            coinbase.vout.append(CTxOut(payee["amount"], CScript(bytes.fromhex(payee["script"]))))
+            mn_total += payee["amount"]
+        miner_addr = node.get_deterministic_priv_key().address
+        miner_script = CScript(bytes.fromhex(node.getaddressinfo(miner_addr)["scriptPubKey"]))
+        coinbase.vout.append(CTxOut(bt["coinbasevalue"] - mn_total, miner_script))
+
+        # The CbTx payload's Merkle roots don't depend on the coinbase outputs (the payee
+        # selection is unchanged by our tampering), so reuse the template's payload verbatim.
+        coinbase.nVersion = 3
+        coinbase.nType = 5  # CbTx
+        coinbase.vExtraPayload = bytes.fromhex(bt["coinbase_payload"])
+
+        if tamper is not None:
+            tamper(coinbase)
+        # create_coinbase() already cached a txid; rehash so it reflects our rewritten outputs.
+        coinbase.rehash()
+
+        block = create_block(int(tip_hash, 16), coinbase, ntime=bt["curtime"], version=bt["version"])
+        # Quorum commitments from the template are mandatory in the block.
+        for tx_obj in bt["transactions"]:
+            tx = tx_from_hex(tx_obj["data"])
+            if tx.nType == 6:
+                block.vtx.append(tx)
+        block.hashMerkleRoot = block.calc_merkle_root()
+        block.solve()
+        return block
 
     def run_test(self):
         node = self.nodes[0]
@@ -109,6 +149,24 @@ class MasternodePayoutSharesTest(DashTestFramework):
         payments = node.masternode("payments")[0]["masternodes"][0]["payees"]
         payment_payees = [p for p in payments if p["script"] != "6a"]
         assert_equal([p["address"] for p in payment_payees], [payout1, payout2])
+
+        # DIP-0026 cases 13 & 14: coinbase validation must reject a block that omits an
+        # expected owner payout output or pays one the wrong amount. A faithful coinbase
+        # is accepted, proving the rejections below are caused by the tampering itself.
+        payout1_script = CScript(bytes.fromhex(node.getaddressinfo(payout1)["scriptPubKey"]))
+        payout2_script = CScript(bytes.fromhex(node.getaddressinfo(payout2)["scriptPubKey"]))
+
+        def drop_payout1(coinbase):
+            coinbase.vout = [out for out in coinbase.vout if out.scriptPubKey != payout1_script]
+
+        def shortpay_payout2(coinbase):
+            for out in coinbase.vout:
+                if out.scriptPubKey == payout2_script:
+                    out.nValue -= 1
+
+        assert_equal(node.submitblock(self.build_block(node, drop_payout1).serialize().hex()), "bad-cb-payee")
+        assert_equal(node.submitblock(self.build_block(node, shortpay_payout2).serialize().hex()), "bad-cb-payee")
+        assert_equal(node.submitblock(self.build_block(node).serialize().hex()), None)
 
         updated_payouts = [{"address": node.getnewaddress(), "reward": 1250} for _ in range(8)]
         node.sendtoaddress(mn.fundsAddr, 1)
