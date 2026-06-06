@@ -53,6 +53,14 @@ template uint16_t GetMaxFromDeployment<CProUpRevTx>(gsl::not_null<const CBlockIn
                                                     std::optional<bool> is_basic_override);
 } // namespace ProTxVersion
 
+std::string PayoutShare::ToString() const
+{
+    CTxDestination dest;
+    const std::string payee{ExtractDestination(scriptPayout, dest) ? EncodeDestination(dest)
+                                                                   : HexStr(scriptPayout)};
+    return strprintf("%s:%d", payee, payoutShareReward);
+}
+
 template <typename ProTx>
 bool IsNetInfoTriviallyValid(const ProTx& proTx, TxValidationState& state)
 {

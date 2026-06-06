@@ -77,6 +77,40 @@ template <typename T>
                                             std::optional<bool> is_basic_override = std::nullopt);
 } // namespace ProTxVersion
 
+/**
+ * DIP0026: a single multi-party payout share. The owner-side masternode block reward is split
+ * across a set of these. `payoutShareReward` is expressed in basis points (0..10000); the full
+ * set carried by a v4 ProRegTx/ProUpRegTx must sum to exactly TOTAL_BASIS_POINTS.
+ *
+ * Wire format (matches DIP0026): CompactSize scriptPayout length, scriptPayout bytes, uint16
+ * payoutShareReward. A std::vector<PayoutShare> therefore serializes as a CompactSize count
+ * followed by that many encoded shares, which is exactly the DIP `payoutSharesSize` +
+ * `payoutShares[]` layout.
+ */
+class PayoutShare
+{
+public:
+    static constexpr uint16_t TOTAL_BASIS_POINTS{10000};
+
+    CScript scriptPayout;
+    uint16_t payoutShareReward{0};
+
+    PayoutShare() = default;
+    PayoutShare(CScript script, uint16_t reward) : scriptPayout(std::move(script)), payoutShareReward(reward) {}
+
+    SERIALIZE_METHODS(PayoutShare, obj)
+    {
+        READWRITE(obj.scriptPayout, obj.payoutShareReward);
+    }
+
+    friend bool operator==(const PayoutShare& a, const PayoutShare& b)
+    {
+        return a.scriptPayout == b.scriptPayout && a.payoutShareReward == b.payoutShareReward;
+    }
+
+    std::string ToString() const;
+};
+
 class CProRegTx
 {
 public:
@@ -94,7 +128,8 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     uint16_t nOperatorReward{0};
-    CScript scriptPayout;
+    CScript scriptPayout;                  // used for nVersion < MultiPayout
+    std::vector<PayoutShare> payoutShares; // DIP0026, used for nVersion >= MultiPayout
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
@@ -118,10 +153,16 @@ public:
                 obj.keyIDOwner,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
                 obj.keyIDVoting,
-                obj.nOperatorReward,
-                obj.scriptPayout,
-                obj.inputsHash
+                obj.nOperatorReward
         );
+        // DIP0026: v4+ replaces the single scriptPayout with an array of payout shares at the
+        // same wire position. Pre-v4 serialization is byte-for-byte unchanged.
+        if (obj.nVersion < ProTxVersion::MultiPayout) {
+            READWRITE(obj.scriptPayout);
+        } else {
+            READWRITE(obj.payoutShares);
+        }
+        READWRITE(obj.inputsHash);
         if (obj.nType == MnType::Evo) {
             READWRITE(
                 obj.platformNodeID);
@@ -134,6 +175,15 @@ public:
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
         }
+    }
+
+    // Uniform view of the owner-side payout regardless of version: for nVersion >= MultiPayout
+    // returns the stored shares; for older versions synthesizes a single full share from
+    // scriptPayout. Lets downstream payout/validation code have a single code path.
+    [[nodiscard]] std::vector<PayoutShare> GetPayoutShares() const
+    {
+        if (nVersion >= ProTxVersion::MultiPayout) return payoutShares;
+        return {PayoutShare{scriptPayout, PayoutShare::TOTAL_BASIS_POINTS}};
     }
 
     // When signing with the collateral key, we don't sign the hash but a generated message instead
@@ -221,7 +271,8 @@ public:
     uint16_t nMode{0}; // only 0 supported for now
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
-    CScript scriptPayout;
+    CScript scriptPayout;                  // used for nVersion < MultiPayout
+    std::vector<PayoutShare> payoutShares; // DIP0026, used for nVersion >= MultiPayout
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
@@ -239,15 +290,28 @@ public:
                 obj.proTxHash,
                 obj.nMode,
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
-                obj.keyIDVoting,
-                obj.scriptPayout,
-                obj.inputsHash
+                obj.keyIDVoting
         );
+        // DIP0026: v4+ replaces the single scriptPayout with an array of payout shares at the
+        // same wire position. Pre-v4 serialization is byte-for-byte unchanged.
+        if (obj.nVersion < ProTxVersion::MultiPayout) {
+            READWRITE(obj.scriptPayout);
+        } else {
+            READWRITE(obj.payoutShares);
+        }
+        READWRITE(obj.inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(
                     obj.vchSig
             );
         }
+    }
+
+    // Uniform view of the owner-side payout regardless of version (see CProRegTx::GetPayoutShares).
+    [[nodiscard]] std::vector<PayoutShare> GetPayoutShares() const
+    {
+        if (nVersion >= ProTxVersion::MultiPayout) return payoutShares;
+        return {PayoutShare{scriptPayout, PayoutShare::TOTAL_BASIS_POINTS}};
     }
 
     std::string ToString() const;
