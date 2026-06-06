@@ -45,17 +45,6 @@ template uint16_t GetMaxFromDeployment<CProUpRevTx>(gsl::not_null<const CBlockIn
                                                     std::optional<bool> is_basic_override);
 } // namespace ProTxVersion
 
-MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout)
-{
-    return {{script_payout, CMasternodePayoutShare::MAX_REWARD}};
-}
-
-MasternodePayoutShares GetOwnerPayouts(const uint16_t nVersion, const CScript& script_payout,
-                                       const MasternodePayoutShares& payouts)
-{
-    return nVersion >= ProTxVersion::MultiPayout ? payouts : LegacyPayoutAsList(script_payout);
-}
-
 static bool IsValidPayoutScript(const CScript& script)
 {
     return script.IsPayToPublicKeyHash() || script.IsPayToScriptHash();
@@ -113,35 +102,6 @@ bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestina
         }
     }
     return true;
-}
-
-std::string PayoutListToString(const MasternodePayoutShares& payouts)
-{
-    std::string ret;
-    for (const auto& payout : payouts) {
-        CTxDestination dest;
-        const std::string payout_str = ExtractDestination(payout.scriptPayout, dest) ? EncodeDestination(dest) : HexStr(payout.scriptPayout);
-        if (!ret.empty()) ret += ",";
-        ret += strprintf("%s:%d", payout_str, payout.reward);
-    }
-    return ret;
-}
-
-UniValue PayoutListToJson(const MasternodePayoutShares& payouts)
-{
-    UniValue ret(UniValue::VARR);
-    for (const auto& payout : payouts) {
-        UniValue obj(UniValue::VOBJ);
-        // Payout scripts are required to be P2PKH or P2SH (see IsPayoutListTriviallyValid), so a
-        // destination can always be extracted and the address is always present.
-        CTxDestination dest;
-        ExtractDestination(payout.scriptPayout, dest);
-        obj.pushKV("address", EncodeDestination(dest));
-        obj.pushKV("script", HexStr(payout.scriptPayout));
-        obj.pushKV("reward", payout.reward);
-        ret.push_back(obj);
-    }
-    return ret;
 }
 
 template <typename ProTx>
