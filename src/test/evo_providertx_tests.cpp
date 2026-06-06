@@ -10,7 +10,9 @@
 #include <evo/dmnstate.h>
 #include <evo/netinfo.h>
 #include <key.h>
+#include <key_io.h>
 #include <script/script.h>
+#include <script/standard.h>
 #include <streams.h>
 #include <uint256.h>
 
@@ -284,6 +286,43 @@ BOOST_AUTO_TEST_CASE(checkpayoutshares_reject_matrix)
     // cross-version mixing: v<4 must not carry payout shares
     BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::ExtAddr, P2PKHScript(0x01), {{P2PKHScript(0x02), 10000}}),
                       "bad-protx-payout-shares-unexpected");
+}
+
+// ---- DIP0026 MakeSignString (external-collateral payloadSig) (P5) ----
+
+BOOST_AUTO_TEST_CASE(makesignstring_v4_format)
+{
+    CProRegTx p = MakeProReg(ProTxVersion::MultiPayout);
+    p.nOperatorReward = 250;
+    p.payoutShares = {{P2PKHScript(0xc1), 7000}, {P2SHScript(0xc2), 3000}};
+
+    CTxDestination d0, d1;
+    BOOST_REQUIRE(ExtractDestination(p.payoutShares[0].scriptPayout, d0));
+    BOOST_REQUIRE(ExtractDestination(p.payoutShares[1].scriptPayout, d1));
+    // DIP0026: <addr0>|<reward0>|<addr1>|<reward1>|<operatorReward>|<owner>|<voting>|<hash>
+    const std::string expected = EncodeDestination(d0) + "|7000|" + EncodeDestination(d1) + "|3000|"
+                                 + "250|" + EncodeDestination(PKHash(p.keyIDOwner)) + "|"
+                                 + EncodeDestination(PKHash(p.keyIDVoting)) + "|";
+
+    const std::string s = p.MakeSignString();
+    BOOST_CHECK(s.rfind(expected, 0) == 0);          // starts with the expected prefix
+    BOOST_CHECK_EQUAL(s.size(), expected.size() + 64); // followed by the 64-hex payload hash
+}
+
+BOOST_AUTO_TEST_CASE(makesignstring_v3_unchanged)
+{
+    CProRegTx p = MakeProReg(ProTxVersion::ExtAddr);
+    p.nOperatorReward = 100;
+    p.scriptPayout = P2PKHScript(0xc3);
+
+    CTxDestination d;
+    BOOST_REQUIRE(ExtractDestination(p.scriptPayout, d));
+    const std::string expected = EncodeDestination(d) + "|100|" + EncodeDestination(PKHash(p.keyIDOwner)) + "|"
+                                 + EncodeDestination(PKHash(p.keyIDVoting)) + "|";
+
+    const std::string s = p.MakeSignString();
+    BOOST_CHECK(s.rfind(expected, 0) == 0);
+    BOOST_CHECK_EQUAL(s.size(), expected.size() + 64);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

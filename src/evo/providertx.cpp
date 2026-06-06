@@ -198,12 +198,21 @@ std::string CProRegTx::MakeSignString() const
 
     // We only include the important stuff in the string form...
 
-    CTxDestination destPayout;
     std::string strPayout;
-    if (ExtractDestination(scriptPayout, destPayout)) {
-        strPayout = EncodeDestination(destPayout);
+    if (nVersion >= ProTxVersion::MultiPayout) {
+        // DIP0026: payoutSharesStr = address(share0)|reward0|...|address(shareN)|rewardN
+        for (size_t i = 0; i < payoutShares.size(); ++i) {
+            if (i > 0) strPayout += "|";
+            CTxDestination dest;
+            const std::string addr{ExtractDestination(payoutShares[i].scriptPayout, dest)
+                                       ? EncodeDestination(dest)
+                                       : HexStr(payoutShares[i].scriptPayout)};
+            strPayout += addr + "|" + strprintf("%d", payoutShares[i].payoutShareReward);
+        }
     } else {
-        strPayout = HexStr(scriptPayout);
+        CTxDestination destPayout;
+        strPayout = ExtractDestination(scriptPayout, destPayout) ? EncodeDestination(destPayout)
+                                                                 : HexStr(scriptPayout);
     }
 
     s += strPayout + "|";
