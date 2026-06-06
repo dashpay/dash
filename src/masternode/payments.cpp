@@ -77,7 +77,7 @@ CAmount PlatformShare(const CAmount reward)
     for (size_t i = 0; i < owner_payouts.size(); ++i) {
         const bool last = i + 1 == owner_payouts.size();
         const CAmount payout_amount = last ? masternodeReward - paid_owner_reward
-                                           : (masternodeReward * owner_payouts[i].reward) / 10000;
+                                           : (masternodeReward * owner_payouts[i].reward) / CMasternodePayoutShare::MAX_REWARD;
         paid_owner_reward += payout_amount;
         if (payout_amount > 0) {
             voutMasternodePaymentsRet.emplace_back(payout_amount, owner_payouts[i].scriptPayout);

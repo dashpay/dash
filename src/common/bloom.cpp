@@ -132,10 +132,9 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     switch(tx.nType) {
     case(TRANSACTION_PROVIDER_REGISTER): {
         if (const auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
-            bool found_payout = false;
-            for (const auto& payout : GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts)) {
-                found_payout = found_payout || CheckScript(payout.scriptPayout);
-            }
+            const auto owner_payouts = GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts);
+            const bool found_payout = std::any_of(owner_payouts.begin(), owner_payouts.end(),
+                                                  [&](const auto& payout) { return CheckScript(payout.scriptPayout); });
             if(contains(opt_proTx->collateralOutpoint) ||
                     contains(opt_proTx->keyIDOwner) ||
                     contains(opt_proTx->keyIDVoting) ||
@@ -164,10 +163,9 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         if (const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) {
             if(contains(opt_proTx->proTxHash))
                 return true;
-            bool found_payout = false;
-            for (const auto& payout : GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts)) {
-                found_payout = found_payout || CheckScript(payout.scriptPayout);
-            }
+            const auto owner_payouts = GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts);
+            const bool found_payout = std::any_of(owner_payouts.begin(), owner_payouts.end(),
+                                                  [&](const auto& payout) { return CheckScript(payout.scriptPayout); });
             if(contains(opt_proTx->keyIDVoting) ||
                     found_payout) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
