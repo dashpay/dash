@@ -58,7 +58,7 @@ const std::map<std::string, RPCResult> RPCRESULT_MAP{{
     {
         {RPCResult::Type::OBJ, "", "",
         {
-            {RPCResult::Type::STR, "address", /*optional=*/true, "Dash address used for this owner payout"},
+            {RPCResult::Type::STR, "address", "Dash address used for this owner payout"},
             {RPCResult::Type::STR_HEX, "script", "Owner payout scriptPubKey"},
             {RPCResult::Type::NUM, "reward", "Owner payout share in basis points"},
         }},

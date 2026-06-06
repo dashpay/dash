@@ -132,11 +132,13 @@ UniValue PayoutListToJson(const MasternodePayoutShares& payouts)
     UniValue ret(UniValue::VARR);
     for (const auto& payout : payouts) {
         UniValue obj(UniValue::VOBJ);
-        obj.pushKV("reward", payout.reward);
-        if (CTxDestination dest; ExtractDestination(payout.scriptPayout, dest)) {
-            obj.pushKV("address", EncodeDestination(dest));
-        }
+        // Payout scripts are required to be P2PKH or P2SH (see IsPayoutListTriviallyValid), so a
+        // destination can always be extracted and the address is always present.
+        CTxDestination dest;
+        ExtractDestination(payout.scriptPayout, dest);
+        obj.pushKV("address", EncodeDestination(dest));
         obj.pushKV("script", HexStr(payout.scriptPayout));
+        obj.pushKV("reward", payout.reward);
         ret.push_back(obj);
     }
     return ret;
