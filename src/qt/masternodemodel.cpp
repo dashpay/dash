@@ -56,11 +56,13 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
     auto addr_key = dmn->getNetInfoPrimary().GetKey();
     m_service_key = QByteArray(reinterpret_cast<const char*>(addr_key.data()), addr_key.size());
 
-    if (CTxDestination dest; ExtractDestination(dmn->getScriptPayout(), dest)) {
-        m_payout_address = QString::fromStdString(EncodeDestination(dest));
-    } else {
-        m_payout_address = QObject::tr("UNKNOWN");
+    QStringList payout_addresses;
+    for (const auto& script_payout : dmn->getScriptPayouts()) {
+        if (CTxDestination dest; ExtractDestination(script_payout, dest)) {
+            payout_addresses << QString::fromStdString(EncodeDestination(dest));
+        }
     }
+    m_payout_address = payout_addresses.isEmpty() ? QObject::tr("UNKNOWN") : payout_addresses.join(", ");
 
     if (m_operator_reward_pct) {
         m_operator_reward = QString::number(m_operator_reward_pct / 100.0, 'f', 2) + "%";

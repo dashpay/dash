@@ -220,10 +220,14 @@ void MasternodeList::updateMasternodeList()
 
     QSet<QString> owned_mns;
     for (const auto& entry : feed->m_entries) {
+        const auto script_payouts{entry->scriptPayoutsRaw()};
+        const bool owns_payout{std::any_of(script_payouts.begin(), script_payouts.end(), [&](const auto& script) {
+            return walletModel->wallet().isSpendable(script);
+        })};
         bool fMyMasternode{setOutpts.count(entry->collateralOutpointRaw()) ||
                            walletModel->wallet().isSpendable(PKHash(entry->keyIdOwnerRaw())) ||
                            walletModel->wallet().isSpendable(PKHash(entry->keyIdVotingRaw())) ||
-                           walletModel->wallet().isSpendable(entry->scriptPayoutRaw()) ||
+                           owns_payout ||
                            walletModel->wallet().isSpendable(entry->scriptOperatorPayoutRaw())};
         if (fMyMasternode) {
             owned_mns.insert(entry->proTxHash());

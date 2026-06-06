@@ -106,15 +106,9 @@ bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestina
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
     }
 
-    const auto* collateral_pkhash = std::get_if<PKHash>(&collateral_dest);
-    if (!collateral_pkhash) {
-        return true;
-    }
-
     for (const auto& payout : payouts) {
         CTxDestination payout_dest;
-        if (ExtractDestination(payout.scriptPayout, payout_dest) &&
-            payout_dest == CTxDestination(*collateral_pkhash)) {
+        if (ExtractDestination(payout.scriptPayout, payout_dest) && payout_dest == collateral_dest) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
         }
     }
@@ -222,7 +216,10 @@ std::string CProRegTx::MakeSignString() const
 
     // We only include the important stuff in the string form...
 
-    const std::string strPayout = PayoutListToString(GetOwnerPayouts(nVersion, scriptPayout, payouts));
+    CTxDestination dest;
+    const std::string strPayout = nVersion >= ProTxVersion::MultiPayout
+        ? PayoutListToString(payouts)
+        : (ExtractDestination(scriptPayout, dest) ? EncodeDestination(dest) : HexStr(scriptPayout));
 
     s += strPayout + "|";
     s += strprintf("%d", nOperatorReward) + "|";

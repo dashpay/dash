@@ -69,7 +69,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
             collateral_txid=mn.collateral_txid,
             collateral_vout=mn.collateral_vout,
             addrs_core_p2p=[f"127.0.0.1:{mn.nodePort}"],
-            operator_reward=0,
+            operator_reward=25,
             payouts=payouts,
             fundsAddr=mn.fundsAddr,
         )
@@ -86,6 +86,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
         assert_equal(info["state"]["version"], 4)
         assert_equal(payout_address_rewards(info["state"]["payouts"]), payouts)
         assert "payoutAddress" not in info["state"]
+        assert_equal(node.masternodelist("payee")[f"{mn.collateral_txid}-{mn.collateral_vout}"], f"{payout1}, {payout2}")
 
         mn.update_registrar(
             node,
@@ -122,6 +123,40 @@ class MasternodePayoutSharesTest(DashTestFramework):
         assert_equal(update_raw["proUpRegTx"]["version"], 4)
         assert_equal(payout_address_rewards(update_raw["proUpRegTx"]["payouts"]), updated_payouts)
         assert_equal(payout_address_rewards(node.protx("info", protx_hash)["state"]["payouts"]), updated_payouts)
+
+        operator_payout = node.getnewaddress()
+        node.sendtoaddress(mn.fundsAddr, 1)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        service_hash = mn.update_service(
+            node,
+            submit=True,
+            addrs_core_p2p=[f"127.0.0.2:{mn.nodePort}"],
+            address_operator=operator_payout,
+            fundsAddr=mn.fundsAddr,
+        )
+        assert service_hash is not None
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+
+        info = node.protx("info", protx_hash)
+        assert_equal(info["state"]["version"], 4)
+        assert_equal(payout_address_rewards(info["state"]["payouts"]), updated_payouts)
+
+        gbt_payees = [p for p in node.getblocktemplate()["masternode"] if p["script"] != "6a"]
+        operator_payees = [p for p in gbt_payees if p["payee"] == operator_payout]
+        assert_equal(len(operator_payees), 1)
+        owner_payees = [p for p in gbt_payees if p["payee"] != operator_payout]
+        assert_equal([p["payee"] for p in owner_payees], [p["address"] for p in updated_payouts])
+        masternode_total = sum(p["amount"] for p in gbt_payees)
+        operator_amount = masternode_total * 2500 // 10000
+        assert_equal(operator_payees[0]["amount"], operator_amount)
+        owner_total = masternode_total - operator_amount
+        paid_owner_total = 0
+        for i, payee in enumerate(owner_payees):
+            expected_amount = owner_total - paid_owner_total if i == len(owner_payees) - 1 else owner_total * 1250 // 10000
+            assert_equal(payee["amount"], expected_amount)
+            paid_owner_total += payee["amount"]
 
 
 if __name__ == '__main__':

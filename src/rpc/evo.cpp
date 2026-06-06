@@ -147,13 +147,31 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "The address must be unused and must differ from the collateralAddress."}
         },
         {"payoutAddress_register",
-            {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments."}
+            {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
+                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
+                "an array of payout shares.",
+                {
+                    {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                        {
+                            {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Dash payout address."},
+                            {"reward", RPCArg::Type::NUM, RPCArg::Optional::NO, "The payout share in basis points."},
+                        }},
+                },
+                "\"payoutAddress\"|[{\"address\",\"reward\"},...]", {"string or array", "string or array"}}
         },
         {"payoutAddress_update",
-            {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments.\n"
-                "If set to an empty string, the currently active payout address is reused."}
+            {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
+                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
+                "an array of payout shares.\n"
+                "If set to an empty string, the currently active payout address is reused.",
+                {
+                    {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                        {
+                            {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Dash payout address."},
+                            {"reward", RPCArg::Type::NUM, RPCArg::Optional::NO, "The payout share in basis points."},
+                        }},
+                },
+                "\"payoutAddress\"|[{\"address\",\"reward\"},...]", {"string or array", "string or array"}}
         },
         {"proTxHash",
             {"proTxHash", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -1191,6 +1209,9 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     if (!dmn) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
+    if (dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS && ptx.nVersion > ProTxVersion::BasicBLS) {
+        ptx.nVersion = ProTxVersion::BasicBLS;
+    }
 
     ptx.keyIDVoting = dmn->pdmnState->keyIDVoting;
     ptx.scriptPayout = dmn->pdmnState->scriptPayout;
@@ -1355,7 +1376,9 @@ static RPCHelpMan protx_revoke()
         // Using funds from previousely specified masternode payout address
         CTxDestination txDest;
         const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
-        ExtractDestination(owner_payouts.front().scriptPayout, txDest);
+        if (owner_payouts.empty() || !ExtractDestination(owner_payouts.front().scriptPayout, txDest)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "No payout or fee source addresses found, can't revoke");
+        }
         FundSpecialTx(*pwallet, tx, ptx, txDest);
     }
 

@@ -80,6 +80,7 @@ public:
     virtual const CKeyID& getKeyIdVoting() const = 0;
     virtual const COutPoint& getCollateralOutpoint() const = 0;
     virtual const CScript& getScriptPayout() const = 0;
+    virtual std::vector<CScript> getScriptPayouts() const = 0;
     virtual const CScript& getScriptOperatorPayout() const = 0;
     virtual const int32_t& getLastPaidHeight() const = 0;
     virtual const int32_t& getPoSePenalty() const = 0;

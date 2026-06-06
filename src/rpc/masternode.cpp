@@ -266,6 +266,20 @@ static std::string GetRequiredPaymentsString(governance::SuperblockManager& supe
     return strPayments;
 }
 
+static std::string GetOwnerPayoutsString(const CDeterministicMNState& state)
+{
+    std::string str_payees;
+    for (const auto& payout : GetOwnerPayouts(state.nVersion, state.scriptPayout, state.payouts)) {
+        CTxDestination dest;
+        if (!ExtractDestination(payout.scriptPayout, dest)) {
+            NONFATAL_UNREACHABLE();
+        }
+        if (!str_payees.empty()) str_payees += ", ";
+        str_payees += EncodeDestination(dest);
+    }
+    return str_payees.empty() ? "UNKNOWN" : str_payees;
+}
+
 static RPCHelpMan masternode_winners()
 {
     return RPCHelpMan{"masternode winners",
@@ -638,12 +652,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             }
         }
 
-        CScript payeeScript = GetOwnerPayouts(dmn.pdmnState->nVersion, dmn.pdmnState->scriptPayout, dmn.pdmnState->payouts).front().scriptPayout;
-        CTxDestination payeeDest;
-        std::string payeeStr = "UNKNOWN";
-        if (ExtractDestination(payeeScript, payeeDest)) {
-            payeeStr = EncodeDestination(payeeDest);
-        }
+        const std::string payeeStr = GetOwnerPayoutsString(*dmn.pdmnState);
 
         std::string strAddress{};
         if (strMode == "addr" || strMode == "full" || strMode == "info" || strMode == "json" || strMode == "recent" ||
