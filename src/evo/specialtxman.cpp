@@ -948,6 +948,15 @@ static bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
         state_version >= ProTxVersion::MultiPayout && tx_version < ProTxVersion::MultiPayout) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
     }
+    // DIP0026: a multi-party-payout MN (state >= MultiPayout) implies extended netInfo. A
+    // ProUpServTx carries the netInfo and the apply path keeps the state at >= MultiPayout to
+    // preserve the payout shares, so the ProUpServTx must itself be extended (>= ExtAddr);
+    // otherwise the resulting state would pair nVersion >= MultiPayout with a non-extended
+    // netInfo object and corrupt the serialized MN-list state (and its merkle root).
+    if (tx_type == TRANSACTION_PROVIDER_UPDATE_SERVICE &&
+        state_version >= ProTxVersion::MultiPayout && tx_version < ProTxVersion::ExtAddr) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
+    }
 
     return true;
 }
@@ -1177,12 +1186,6 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    CTxDestination payoutDest;
-    if (!ExtractDestination(opt_ptx->scriptPayout, payoutDest)) {
-        // should not happen as we checked script types before
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
-    }
-
     auto mnList = dmnman.GetListForBlock(pindexPrev);
     auto dmn = mnList.GetMN(opt_ptx->proTxHash);
     if (!dmn) {
@@ -1194,10 +1197,19 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    // don't allow reuse of payee key for other keys (don't allow people to put the payee key onto an online server)
-    if (payoutDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) ||
-        payoutDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+    // don't allow reuse of a payout key for the owner/voting keys (don't allow people to put the
+    // payee key onto an online server). For DIP0026 v4 this applies to every payout share; the
+    // uniform accessor yields the single scriptPayout for older versions.
+    for (const auto& share : opt_ptx->GetPayoutShares()) {
+        CTxDestination payoutDest;
+        if (!ExtractDestination(share.scriptPayout, payoutDest)) {
+            // should not happen as we checked script types in IsTriviallyValid
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
+        }
+        if (payoutDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) ||
+            payoutDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+        }
     }
 
     Coin coin;

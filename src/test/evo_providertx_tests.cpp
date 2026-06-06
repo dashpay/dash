@@ -278,6 +278,12 @@ BOOST_AUTO_TEST_CASE(checkpayoutshares_reject_matrix)
     // v4 non-standard script in a share
     BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, CScript(), {{CScript() << OP_TRUE, 10000}}),
                       "bad-protx-payee");
+    // cross-version mixing: v4 must not also carry a legacy scriptPayout
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::MultiPayout, P2PKHScript(0x09), {{P2PKHScript(0x01), 10000}}),
+                      "bad-protx-payout-script-unexpected");
+    // cross-version mixing: v<4 must not carry payout shares
+    BOOST_CHECK_EQUAL(PayoutReject(ProTxVersion::ExtAddr, P2PKHScript(0x01), {{P2PKHScript(0x02), 10000}}),
+                      "bad-protx-payout-shares-unexpected");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

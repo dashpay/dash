@@ -97,10 +97,18 @@ bool CheckPayoutShares(uint16_t nVersion, const CScript& scriptPayout,
                        const std::vector<PayoutShare>& payoutShares, TxValidationState& state)
 {
     if (nVersion < ProTxVersion::MultiPayout) {
+        // Pre-v4 carries a single scriptPayout and no shares; reject any cross-version mix.
+        if (!payoutShares.empty()) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-shares-unexpected");
+        }
         if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee");
         }
         return true;
+    }
+    // v4 carries the shares and no single scriptPayout.
+    if (!scriptPayout.empty()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-script-unexpected");
     }
     if (payoutShares.empty() || payoutShares.size() > PayoutShare::MAX_PAYOUT_SHARES) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-shares-count");
