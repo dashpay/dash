@@ -100,7 +100,8 @@ using MasternodePayoutShares = std::vector<CMasternodePayoutShare>;
 [[nodiscard]] bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKeyID& keyIDOwner,
                                               const CKeyID& keyIDVoting, TxValidationState& state);
 [[nodiscard]] bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestination& collateral_dest,
-                                       const CKeyID& keyIDOwner, const CKeyID& keyIDVoting, TxValidationState& state);
+                                       const CKeyID& keyIDOwner, const CKeyID& keyIDVoting,
+                                       bool check_payout_collateral_reuse, TxValidationState& state);
 [[nodiscard]] std::string PayoutListToString(const MasternodePayoutShares& payouts);
 [[nodiscard]] UniValue PayoutListToJson(const MasternodePayoutShares& payouts);
 

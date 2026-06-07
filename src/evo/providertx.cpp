@@ -88,17 +88,20 @@ bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKe
 }
 
 bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestination& collateral_dest,
-                         const CKeyID& keyIDOwner, const CKeyID& keyIDVoting, TxValidationState& state)
+                         const CKeyID& keyIDOwner, const CKeyID& keyIDVoting,
+                         bool check_payout_collateral_reuse, TxValidationState& state)
 {
     if (collateral_dest == CTxDestination(PKHash(keyIDOwner)) ||
         collateral_dest == CTxDestination(PKHash(keyIDVoting))) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
     }
 
-    for (const auto& payout : payouts) {
-        CTxDestination payout_dest;
-        if (ExtractDestination(payout.scriptPayout, payout_dest) && payout_dest == collateral_dest) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+    if (check_payout_collateral_reuse) {
+        for (const auto& payout : payouts) {
+            CTxDestination payout_dest;
+            if (ExtractDestination(payout.scriptPayout, payout_dest) && payout_dest == collateral_dest) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
+            }
         }
     }
     return true;

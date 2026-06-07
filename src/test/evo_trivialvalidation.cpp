@@ -183,14 +183,18 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
 
     TxValidationState state;
     BOOST_CHECK(!IsPayoutListKeySafe({{payout1, 10000}}, CTxDestination(PKHash(payout_key1.GetPubKey().GetID())),
-                                     owner_id, voting_id, state));
+                                     owner_id, voting_id, /*check_payout_collateral_reuse=*/true, state));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-protx-payee-reuse");
+    state = TxValidationState{};
+    BOOST_CHECK(IsPayoutListKeySafe({{payout1, 10000}}, CTxDestination(PKHash(payout_key1.GetPubKey().GetID())),
+                                    owner_id, voting_id, /*check_payout_collateral_reuse=*/false, state));
 
     CScript p2sh_collateral = GetScriptForDestination(ScriptHash(payout1));
     CTxDestination p2sh_dest;
     BOOST_CHECK(ExtractDestination(p2sh_collateral, p2sh_dest));
     state = TxValidationState{};
-    BOOST_CHECK(!IsPayoutListKeySafe({{p2sh_collateral, 10000}}, p2sh_dest, owner_id, voting_id, state));
+    BOOST_CHECK(!IsPayoutListKeySafe({{p2sh_collateral, 10000}}, p2sh_dest, owner_id, voting_id,
+                                     /*check_payout_collateral_reuse=*/true, state));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-protx-payee-reuse");
 }
 
