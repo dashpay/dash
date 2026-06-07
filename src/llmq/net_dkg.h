@@ -56,13 +56,13 @@ public:
 
     //! Active-mode constructor: takes the masternode-only dep bundle as required references.
     NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-           const ChainstateManager& chainman, bool quorums_watch,
-           CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
-           CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
-           const CActiveMasternodeManager& mn_activeman, CConnman& connman);
+           const ChainstateManager& chainman, bool quorums_watch, CBLSWorker& bls_worker, CDeterministicMNManager& dmnman,
+           CMasternodeMetaMan& mn_metaman, CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman,
+           CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager& mn_activeman, CConnman& connman);
 
     // NetHandler
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_indexed_quorums_cache);
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_indexed_quorums_cache);
     bool AlreadyHave(const CInv& inv) override;
     bool ProcessGetData(CNode& pfrom, const CInv& inv, CConnman& connman, const CNetMsgMaker& msgMaker) override;
     /**

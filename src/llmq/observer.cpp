@@ -12,8 +12,7 @@
 #include <validation.h>
 
 namespace llmq {
-ObserverContext::ObserverContext(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman,
-                                 CMasternodeMetaMan& mn_metaman,
+ObserverContext::ObserverContext(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                  llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
                                  llmq::CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                  const CSporkManager& sporkman, const util::DbWrapperParams& db_params) :

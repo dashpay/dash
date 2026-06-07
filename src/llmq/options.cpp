@@ -39,10 +39,7 @@ bool IsAllMembersConnectedEnabled(const Consensus::LLMQType llmqType, const CSpo
     return EvalSpork(llmqType, sporkman.GetSporkValue(SPORK_21_QUORUM_ALL_CONNECTED));
 }
 
-bool IsQuorumDKGEnabled(const CSporkManager& sporkman)
-{
-    return sporkman.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED);
-}
+bool IsQuorumDKGEnabled(const CSporkManager& sporkman) { return sporkman.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED); }
 
 bool IsQuorumPoseEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman)
 {
