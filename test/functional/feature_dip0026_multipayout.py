@@ -44,6 +44,8 @@ The test:
      payees, cross-version mixing) are covered by the unit reject-matrix instead.
 """
 
+import json
+
 from test_framework.test_framework import DashTestFramework, MasternodeInfo
 from test_framework.util import (
     assert_equal,
@@ -304,14 +306,20 @@ class Dip0026MultiPayoutTest(DashTestFramework):
         # coinbase additionally has an operator output. The split check below ignores
         # that output (different address) and validates only the owner-share split of
         # the already-operator-reduced owner reward reported by getblocktemplate.
-        self.log.info("convert mninfo[1] to a 2-way multi-payout via update_registrar")
+        #
+        # The shares here are passed as a JSON STRING rather than a dict, on purpose: dash-cli
+        # delivers the object form as a string (the payout arg is not in the rpc/client.cpp JSON
+        # conversion table), so this exercises ParsePayoutParam's string-to-object path that the dict
+        # form (real JSON-RPC object) does not. mninfo[0] above used the dict form, so both arrival
+        # shapes are covered.
+        self.log.info("convert mninfo[1] to a 2-way multi-payout via update_registrar (JSON-string form)")
         mn_b = self.mninfo[1]
         self.upgrade_mn_to_extaddr(node, mn_b)
         b1, b2 = node.getnewaddress(), node.getnewaddress()
         shares_b = {b1: 3333, b2: 6667}  # ordered; sums to 10000
         assert_equal(sum(shares_b.values()), TOTAL_BASIS_POINTS)
         node.sendtoaddress(mn_b.fundsAddr, 0.001)  # ensure a spendable fee output for the ProUpRegTx
-        txid = mn_b.update_registrar(node, submit=True, rewards_address=shares_b,
+        txid = mn_b.update_registrar(node, submit=True, rewards_address=json.dumps(shares_b),
                                      fundsAddr=mn_b.fundsAddr)
         assert txid is not None
         self.bump_mocktime(10 * 60 + 1)

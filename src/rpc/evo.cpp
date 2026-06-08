@@ -410,7 +410,26 @@ static uint16_t ParsePayoutParam(const UniValue& param, const uint16_t max_versi
     scriptPayoutRet = CScript();
     payoutSharesRet.clear();
 
-    if (param.isObject()) {
+    // The DIP0026 multi-payout form is a {"address": basisPoints} object. It can arrive either as a
+    // UniValue object (named arguments / JSON-RPC callers) or as a JSON string, because dash-cli
+    // passes this argument as a string (the payout arg is not in the rpc/client.cpp conversion
+    // table). Accept both. A single payout address is base58/bech32 and never begins with '{', so
+    // the single-address and object forms are unambiguous.
+    UniValue parsed_obj;
+    if (param.isStr()) {
+        const std::string& s{param.get_str()};
+        const size_t first{s.find_first_not_of(" \t\n\r")};
+        if (first != std::string::npos && s[first] == '{') {
+            if (!parsed_obj.read(s) || !parsed_obj.isObject()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                                   "payout must be a single address or a JSON object like "
+                                   "{\"address\": basisPoints}");
+            }
+        }
+    }
+    const UniValue& shares{param.isObject() ? param : parsed_obj};
+
+    if (shares.isObject()) {
         if (max_version < ProTxVersion::MultiPayout) {
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                                "multi-party payouts (DIP0026) are not available yet (v25 is not active)");
@@ -423,12 +442,12 @@ static uint16_t ParsePayoutParam(const UniValue& param, const uint16_t max_versi
         // duplicate scripts to mirror consensus. CheckPayoutShares remains the authoritative gate.
         int64_t total_bps{0};
         std::set<CScript> seen_scripts;
-        for (const std::string& addr : param.getKeys()) {
+        for (const std::string& addr : shares.getKeys()) {
             const CTxDestination dest = DecodeDestination(addr);
             if (!IsValidDestination(dest)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", addr));
             }
-            const int64_t bps = param[addr].getInt<int64_t>();
+            const int64_t bps = shares[addr].getInt<int64_t>();
             if (bps <= 0 || bps > PayoutShare::TOTAL_BASIS_POINTS) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER,
                                    strprintf("payout share for %s must be between 1 and %d basis points", addr,
