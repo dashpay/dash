@@ -14,6 +14,8 @@
 
 #include <univalue.h>
 
+#include <algorithm>
+
 namespace {
 constexpr std::string_view DB_QUORUM_SNAPSHOT{"llmq_S"};
 
@@ -74,10 +76,9 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
             }
             baseBlockIndexes.push_back(blockIndex);
         }
-        if (use_legacy_construction) {
-            std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
-                      [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
-        }
+        std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
+                  [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+        baseBlockIndexes.erase(std::unique(baseBlockIndexes.begin(), baseBlockIndexes.end()), baseBlockIndexes.end());
     }
 
     const CBlockIndex* tipBlockIndex = chainman.ActiveChain().Tip();

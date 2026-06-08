@@ -5,6 +5,7 @@
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
+#include <chain.h>
 #include <streams.h>
 #include <univalue.h>
 
@@ -175,6 +176,39 @@ BOOST_AUTO_TEST_CASE(quorum_rotation_info_construction_test)
 
 // Note: CQuorumRotationInfo serialization requires complex setup
 // This is better tested in functional tests
+
+BOOST_AUTO_TEST_CASE(get_last_base_block_hash_repeated_base_blocks_test)
+{
+    std::vector<CBlockIndex> blocks(4);
+    std::vector<uint256> hashes{
+        GetTestBlockHash(10),
+        GetTestBlockHash(20),
+        GetTestBlockHash(30),
+        GetTestBlockHash(40),
+    };
+    for (size_t i{0}; i < blocks.size(); ++i) {
+        blocks[i].nHeight = static_cast<int>((i + 1) * 10);
+        blocks[i].phashBlock = &hashes[i];
+    }
+
+    std::vector<const CBlockIndex*> unsorted_repeated_base_blocks{
+        &blocks[2],
+        &blocks[0],
+        &blocks[1],
+        &blocks[1],
+    };
+    BOOST_CHECK(GetLastBaseBlockHash(unsorted_repeated_base_blocks, &blocks[3], false) == hashes[2]);
+    BOOST_CHECK(GetLastBaseBlockHash(unsorted_repeated_base_blocks, &blocks[1], false) == hashes[1]);
+
+    std::vector<const CBlockIndex*> sorted_repeated_base_blocks{
+        &blocks[0],
+        &blocks[1],
+        &blocks[1],
+        &blocks[2],
+    };
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3], true) == hashes[2]);
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1], true) == hashes[1]);
+}
 
 BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_serialization_test)
 {
