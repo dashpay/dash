@@ -507,8 +507,13 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
     BOOST_REQUIRE(dmn);
     BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript3);
-    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
-    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
+    // Pre-v24, an operator-changing registrar update adopts the tx version even when that lowers the
+    // stored version: the v1 update downgrades the state to LegacyBLS and re-encodes the new operator
+    // key with the legacy scheme. This must match already-deployed consensus; version-bump hardening
+    // only applies once v24 is active.
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+    BOOST_CHECK(dmn->pdmnState->pubKeyOperator.IsLegacy());
+    BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get() == operator_key_legacy.GetPublicKey());
 };
 
 void FuncProUpRegTxV4OnLegacyRejected(TestChainSetup& setup)
