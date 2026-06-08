@@ -8,9 +8,9 @@ from test_framework.util import assert_raises_rpc_error, assert_equal
 
 class DeprecatedRpcTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 2
+        self.num_nodes = 3
         self.setup_clean_chain = True
-        self.extra_args = [[], ["-deprecatedrpc=permissive_bool"]]
+        self.extra_args = [[], ["-deprecatedrpc=permissive_bool"], ["-deprecatedrpc=service"]]
 
     def run_test(self):
         # This test should be used to verify correct behaviour of deprecated
@@ -25,6 +25,7 @@ class DeprecatedRpcTest(BitcoinTestFramework):
         # self.generate(self.nodes[1], 1)
         # self.log.info("No tested deprecated RPC methods")
         self.test_permissive_bool()
+        self.test_malformed_deprecated_service_rawtransactions()
 
     def test_permissive_bool(self):
         self.log.info("Test -deprecatedrpc=permissive_bool")
@@ -57,6 +58,17 @@ class DeprecatedRpcTest(BitcoinTestFramework):
         self.log.info("Node 1 (permissive): invalid values still rejected")
         assert_raises_rpc_error(-8, "detailed must be true, false, yes, no, 1 or 0 (not '2')", self.nodes[1].protx, "list", "valid", 2)
         assert_raises_rpc_error(-8, "detailed must be true, false, yes, no, 1 or 0 (not 'notabool')", self.nodes[1].protx, "list", "valid", "notabool")
+
+    def test_malformed_deprecated_service_rawtransactions(self):
+        self.log.info("Test malformed provider payloads do not crash -deprecatedrpc=service")
+        node = self.nodes[2]
+        block_count = node.getblockcount()
+        for tx_hex in [
+            "03000100000000000000020000",  # ProRegTx with only nVersion=0 payload
+            "03000200000000000000020000",  # ProUpServTx with only nVersion=0 payload
+        ]:
+            assert_raises_rpc_error(-1, "Internal bug detected: obj.netInfo", node.decoderawtransaction, tx_hex)
+            assert_equal(node.getblockcount(), block_count)
 
 if __name__ == '__main__':
     DeprecatedRpcTest().main()
