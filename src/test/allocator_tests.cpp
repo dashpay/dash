@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <support/allocators/mt_pooled_secure.h>
 #include <support/lockedpool.h>
 
 #include <limits>
@@ -232,6 +233,20 @@ BOOST_AUTO_TEST_CASE(lockedpool_tests_live)
     BOOST_CHECK(pool.stats().total <= (initial.total + LockedPool::ARENA_SIZE));
     // Usage must be back to where it started
     BOOST_CHECK(pool.stats().used == initial.used);
+}
+
+BOOST_AUTO_TEST_CASE(mt_pooled_secure_allocator_zero_pool_count)
+{
+    mt_pooled_secure_allocator<unsigned char> allocator{/*nrequested_size=*/32,
+                                                        /*nnext_size=*/32,
+                                                        /*nmax_size=*/0,
+                                                        /*pools_count=*/0};
+
+    auto* p = allocator.allocate(1);
+    BOOST_REQUIRE(p != nullptr);
+    *p = 0x42;
+    BOOST_CHECK_EQUAL(*p, 0x42);
+    allocator.deallocate(p, 1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
