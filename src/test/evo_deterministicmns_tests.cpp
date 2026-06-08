@@ -478,7 +478,37 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     BOOST_REQUIRE(dmn);
     BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript2);
     BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
+    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
     BOOST_REQUIRE(dmn->pdmnState->IsBanned());
+
+    CBLSSecretKey operator_key_legacy;
+    operator_key_legacy.MakeNewKey();
+    const auto payoutScript3 = GenerateRandomAddress();
+    CProUpRegTx proTxLegacy;
+    proTxLegacy.nVersion = ProTxVersion::LegacyBLS;
+    proTxLegacy.proTxHash = proTxHash;
+    proTxLegacy.pubKeyOperator.Set(operator_key_legacy.GetPublicKey(), /*legacy=*/true);
+    proTxLegacy.keyIDVoting = owner_key.GetPubKey().GetID();
+    proTxLegacy.scriptPayout = payoutScript3;
+
+    CMutableTransaction tx_upreg3;
+    tx_upreg3.nVersion = 3;
+    tx_upreg3.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    FundTransaction(chainman.ActiveChain(), tx_upreg3, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
+                    1 * COIN, setup.coinbaseKey);
+    proTxLegacy.inputsHash = CalcTxInputsHash(CTransaction(tx_upreg3));
+    CHashSigner::SignHash(::SerializeHash(proTxLegacy), owner_key, proTxLegacy.vchSig);
+    SetTxPayload(tx_upreg3, proTxLegacy);
+    SignTransaction(*(setup.m_node.mempool), tx_upreg3, setup.coinbaseKey);
+
+    setup.CreateAndProcessBlock({tx_upreg3}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript3);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
+    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
 };
 
 void FuncProUpRegTxV4OnLegacyRejected(TestChainSetup& setup)
