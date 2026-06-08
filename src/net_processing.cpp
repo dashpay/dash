@@ -76,6 +76,7 @@
 #include <optional>
 #include <ranges>
 #include <typeinfo>
+#include <vector>
 
 using node::ReadBlockFromDisk;
 using node::fImporting;
@@ -389,6 +390,10 @@ struct Peer {
 
     /** Whether this peer has already sent us a getaddr message. */
     bool m_getaddr_recvd GUARDED_BY(NetEventsInterface::g_msgproc_mutex){false};
+    /** Whether this peer has already requested sporks. */
+    bool m_getsporks_recvd GUARDED_BY(NetEventsInterface::g_msgproc_mutex){false};
+    /** Hashes of active sporks sent in the last getsporks response. */
+    std::vector<uint256> m_getsporks_last_response GUARDED_BY(NetEventsInterface::g_msgproc_mutex){};
     /** Number of addresses that can be processed from this peer. Start at 1 to
      *  permit self-announcement. */
     double m_addr_token_bucket GUARDED_BY(NetEventsInterface::g_msgproc_mutex){1.0};
@@ -5449,6 +5454,24 @@ void PeerManagerImpl::ProcessMessage(
     if (msg_type == NetMsgType::GETSPORKS) {
         // For 'getsporks', active sporks is sent to the requesting peer.
         auto active_sporks = m_sporkman.ActiveSporks();
+        std::vector<uint256> active_spork_hashes;
+        for (const auto& pair : active_sporks) {
+            for (const auto& spork_pair : pair.second) {
+                active_spork_hashes.push_back(spork_pair.second.GetHash());
+            }
+        }
+        std::sort(active_spork_hashes.begin(), active_spork_hashes.end());
+
+        // Ignore repeated requests only while the active spork set is unchanged.
+        // Functional tests and some peers request sporks again after a spork
+        // update; those requests must receive the newer active set.
+        if (peer->m_getsporks_recvd && peer->m_getsporks_last_response == active_spork_hashes) {
+            LogPrint(BCLog::NET, "Ignoring repeated \"getsporks\". peer=%d\n", pfrom.GetId());
+            return;
+        }
+        peer->m_getsporks_recvd = true;
+        peer->m_getsporks_last_response = active_spork_hashes;
+
         for (const auto& pair : active_sporks) {
             for (const auto& signerSporkPair : pair.second) {
                 m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
