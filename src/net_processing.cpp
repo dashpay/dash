@@ -4666,12 +4666,15 @@ void PeerManagerImpl::ProcessMessage(
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
         if (nInvType == MSG_DSTX) {
-           // Validate DSTX and return bRet if we need to return from here
-           uint256 hashTx = tx.GetHash();
-           const auto& [bRet, bDoReturn] = ValidateDSTX(*m_dmnman, m_dstxman, m_chainman, m_mn_metaman, m_mempool, dstx, hashTx);
-           if (bDoReturn) {
-               return;
-           }
+            // Validate DSTX and return bRet if we need to return from here
+            uint256 hashTx = tx.GetHash();
+            const auto& [bRet, bDoReturn] = ValidateDSTX(*m_dmnman, m_dstxman, m_chainman, m_mn_metaman, m_mempool, dstx, hashTx);
+            if (bDoReturn) {
+                if (!bRet) {
+                    Misbehaving(pfrom.GetId(), 10, "invalid dstx");
+                }
+                return;
+            }
         }
 
         LOCK(cs_main);
