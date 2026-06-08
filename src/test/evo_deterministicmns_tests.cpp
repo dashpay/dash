@@ -990,6 +990,45 @@ BOOST_AUTO_TEST_CASE(v19_activation_legacy)
     FuncV19Activation(setup);
 }
 
+BOOST_AUTO_TEST_CASE(v19_boundary_validation_failure_restores_bls_scheme)
+{
+    TestChainV19Setup setup;
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    BOOST_REQUIRE(!DeploymentActiveAt(*chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    struct ScopedBLSLegacySchemeRestore {
+        explicit ScopedBLSLegacySchemeRestore(bool saved_scheme) : m_saved_scheme(saved_scheme) {}
+        ~ScopedBLSLegacySchemeRestore() { bls::bls_legacy_scheme.store(m_saved_scheme); }
+        bool m_saved_scheme;
+    } bls_scheme_restore{bls::bls_legacy_scheme.load()};
+
+    CMutableTransaction bad_tx;
+    bad_tx.nVersion = 1;
+    bad_tx.vin.emplace_back(COutPoint(uint256::ONE, 0));
+    bad_tx.vout.emplace_back(1 * COIN, CScript{} << OP_TRUE);
+
+    bls::bls_legacy_scheme.store(true);
+
+    CBlock proposal_block = setup.CreateBlock({bad_tx}, coinbase_pk, chainman.ActiveChainstate());
+    {
+        LOCK(cs_main);
+        BlockValidationState state;
+        BOOST_CHECK(!TestBlockValidity(state, *Assert(setup.m_node.chainlocks), *Assert(setup.m_node.evodb), Params(),
+                                       chainman.ActiveChainstate(), proposal_block, chainman.ActiveChain().Tip(),
+                                       /*fCheckPOW=*/true, /*fCheckMerkleRoot=*/true));
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-inputs-missingorspent");
+    }
+    BOOST_CHECK(bls::bls_legacy_scheme.load());
+
+    CBlock connect_block = setup.CreateBlock({bad_tx}, coinbase_pk, chainman.ActiveChainstate());
+    const int height_before_invalid_block{chainman.ActiveChain().Height()};
+    (void)chainman.ProcessNewBlock(std::make_shared<const CBlock>(connect_block), /*force_processing=*/true, /*new_block=*/nullptr);
+    BOOST_CHECK_EQUAL(chainman.ActiveChain().Height(), height_before_invalid_block);
+    BOOST_CHECK(bls::bls_legacy_scheme.load());
+}
+
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)
 {
     TestChainDIP3Setup setup;
