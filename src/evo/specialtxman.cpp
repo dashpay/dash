@@ -1250,8 +1250,10 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     if (!ExtractDestination(coin.out.scriptPubKey, collateralTxDest)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-collateral-dest");
     }
+    const bool check_payout_collateral_reuse{
+        std::max<uint16_t>(dmn->pdmnState->nVersion, opt_ptx->nVersion) >= ProTxVersion::MultiPayout};
     if (!IsPayoutListKeySafe(owner_payouts, collateralTxDest, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting,
-                             opt_ptx->nVersion >= ProTxVersion::MultiPayout, state)) return false;
+                             check_payout_collateral_reuse, state)) return false;
 
     if (mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
         auto otherDmn = mnList.GetUniquePropertyMN(opt_ptx->pubKeyOperator);
