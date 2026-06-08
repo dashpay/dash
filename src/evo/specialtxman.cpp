@@ -454,8 +454,10 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
-            uint16_t target_version{std::max<uint16_t>(old_version, opt_proTx->nVersion)};
-            if (newState->pubKeyOperator != opt_proTx->pubKeyOperator) {
+            const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
+            const uint16_t target_version{is_v24_deployed ? std::max<uint16_t>(old_version, opt_proTx->nVersion)
+                                                          : (operator_changed ? opt_proTx->nVersion : old_version)};
+            if (operator_changed) {
                 // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
                 newState->ResetOperatorFields();
                 newState->BanIfNotBanned(nHeight);

@@ -419,6 +419,125 @@ void FuncV19Activation(TestChainSetup& setup)
     BOOST_REQUIRE(dummy_list == tip_list);
 };
 
+void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
+
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    auto tx_reg = CreateProRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, 1, GenerateRandomAddress(),
+                                 setup.coinbaseKey, owner_key, operator_key);
+    const auto proTxHash = tx_reg.GetHash();
+    setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+
+    while (!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+    }
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+
+    const auto payoutScript = GenerateRandomAddress();
+    auto tx_upreg = CreateProUpRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, proTxHash, owner_key,
+                                     operator_key.GetPublicKey(), owner_key.GetPubKey().GetID(), payoutScript,
+                                     setup.coinbaseKey);
+    const auto opt_upreg = GetTxPayload<CProUpRegTx>(tx_upreg);
+    BOOST_REQUIRE(opt_upreg);
+    BOOST_CHECK_EQUAL(opt_upreg->nVersion, ProTxVersion::BasicBLS);
+
+    setup.CreateAndProcessBlock({tx_upreg}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+    BOOST_REQUIRE(!dmn->pdmnState->IsBanned());
+
+    CBLSSecretKey operator_key_new;
+    operator_key_new.MakeNewKey();
+    const auto payoutScript2 = GenerateRandomAddress();
+    auto tx_upreg2 = CreateProUpRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, proTxHash, owner_key,
+                                      operator_key_new.GetPublicKey(), owner_key.GetPubKey().GetID(), payoutScript2,
+                                      setup.coinbaseKey);
+    setup.CreateAndProcessBlock({tx_upreg2}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript2);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
+    BOOST_REQUIRE(dmn->pdmnState->IsBanned());
+};
+
+void FuncProUpRegTxV4OnLegacyRejected(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    auto tx_reg = CreateProRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, 1, GenerateRandomAddress(),
+                                 setup.coinbaseKey, owner_key, operator_key);
+    const auto proTxHash = tx_reg.GetHash();
+    setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+
+    for (int i = 0; i < 2000 && !DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24); ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+    }
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+    BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+
+    CProUpRegTx proTx;
+    proTx.nVersion = ProTxVersion::MultiPayout;
+    proTx.proTxHash = proTxHash;
+    proTx.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    proTx.keyIDVoting = owner_key.GetPubKey().GetID();
+    proTx.payouts = {{GenerateRandomAddress(), CMasternodePayoutShare::MAX_REWARD}};
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    FundTransaction(chainman.ActiveChain(), tx, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
+                    1 * COIN, setup.coinbaseKey);
+    proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+    CHashSigner::SignHash(::SerializeHash(proTx), owner_key, proTx.vchSig);
+    SetTxPayload(tx, proTx);
+    SignTransaction(*(setup.m_node.mempool), tx, setup.coinbaseKey);
+
+    TxValidationState val_state;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!CheckProUpRegTx(CTransaction(tx), chainman.ActiveChain().Tip(), dmnman,
+                                     chainman.ActiveChainstate().CoinsTip(), chainman, val_state, /*check_sigs=*/true));
+    }
+    BOOST_CHECK_EQUAL(val_state.GetRejectReason(), "bad-protx-version-upgrade");
+};
+
 void FuncDIP3Protx(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
@@ -976,6 +1095,20 @@ TestChainV19BeforeActivationSetup::TestChainV19BeforeActivationSetup() :
     assert(!v19_active);
 }
 
+struct TestChainV24SignalBeforeV19Setup : public TestChainSetup {
+    TestChainV24SignalBeforeV19Setup() :
+        TestChainSetup(494, CBaseChainParams::REGTEST,
+                       {"-testactivationheight=v19@500", "-testactivationheight=v20@500",
+                        "-testactivationheight=mn_rr@500",
+                        "-vbparams=v24:0:9999999999:0:500:400:300:5:0"})
+    {
+        assert(!DeploymentActiveAfter(m_node.chainman->ActiveChain().Tip(), m_node.chainman->GetConsensus(),
+                                      Consensus::DEPLOYMENT_V19));
+        assert(!DeploymentActiveAfter(m_node.chainman->ActiveChain().Tip(), *m_node.chainman,
+                                      Consensus::DEPLOYMENT_V24));
+    }
+};
+
 // DIP3 can only be activated with legacy scheme (v19 is activated later)
 BOOST_AUTO_TEST_CASE(dip3_activation_legacy)
 {
@@ -988,6 +1121,18 @@ BOOST_AUTO_TEST_CASE(v19_activation_legacy)
 {
     TestChainV19BeforeActivationSetup setup;
     FuncV19Activation(setup);
+}
+
+BOOST_AUTO_TEST_CASE(proupreg_version_handling_before_v24)
+{
+    TestChainV19BeforeActivationSetup setup;
+    FuncProUpRegTxVersionHandlingBeforeV24(setup);
+}
+
+BOOST_AUTO_TEST_CASE(proupreg_v4_on_legacy_rejected)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncProUpRegTxV4OnLegacyRejected(setup);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)

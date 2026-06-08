@@ -216,6 +216,20 @@ class MasternodePayoutSharesTest(DashTestFramework):
             assert_equal(payee["amount"], expected_amount)
             paid_owner_total += payee["amount"]
 
+        self.generate(node, 1, sync_fun=self.no_op)
+        payments = node.masternode("payments")[0]["masternodes"][0]["payees"]
+        payment_payees = [p for p in payments if p["script"] != "6a"]
+        rpc_operator_payees = [p for p in payment_payees if p["address"] == operator_payout]
+        assert_equal(len(rpc_operator_payees), 1)
+        rpc_owner_payees = [p for p in payment_payees if p["address"] != operator_payout]
+        assert_equal([p["address"] for p in rpc_owner_payees], [p["address"] for p in updated_payouts])
+        assert_equal(rpc_operator_payees[0]["amount"], operator_amount)
+        paid_owner_total = 0
+        for i, payee in enumerate(rpc_owner_payees):
+            expected_amount = owner_total - paid_owner_total if i == len(rpc_owner_payees) - 1 else owner_total * 1250 // 10000
+            assert_equal(payee["amount"], expected_amount)
+            paid_owner_total += payee["amount"]
+
         node.sendtoaddress(mn.fundsAddr, 1)
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
