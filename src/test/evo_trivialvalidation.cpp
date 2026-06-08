@@ -180,6 +180,7 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
     CheckPayouts({{CScript() << OP_RETURN, 10000}}, owner_id, voting_id, "bad-protx-payee");
     CheckPayouts({{GetScriptForDestination(PKHash(owner_id)), 10000}}, owner_id, voting_id, "bad-protx-payee-reuse");
     CheckPayouts({{GetScriptForDestination(PKHash(voting_id)), 10000}}, owner_id, voting_id, "bad-protx-payee-reuse");
+    CheckPayouts({{GetScriptForDestination(PKHash(CKeyID{})), 10000}}, CKeyID{}, voting_id, std::nullopt);
 
     TxValidationState state;
     BOOST_CHECK(!IsPayoutListKeySafe({{payout1, 10000}}, CTxDestination(PKHash(payout_key1.GetPubKey().GetID())),

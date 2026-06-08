@@ -76,7 +76,8 @@ bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKe
         if (!ExtractDestination(payout.scriptPayout, payout_dest)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
         }
-        if (payout_dest == CTxDestination(PKHash(keyIDOwner)) || payout_dest == CTxDestination(PKHash(keyIDVoting))) {
+        if ((!keyIDOwner.IsNull() && payout_dest == CTxDestination(PKHash(keyIDOwner))) ||
+            payout_dest == CTxDestination(PKHash(keyIDVoting))) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
         }
     }

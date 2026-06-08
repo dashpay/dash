@@ -492,7 +492,11 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
             newState->ResetOperatorFields();
+            if (old_version >= ProTxVersion::MultiPayout && !SetStateVersion(*newState, old_version, dmn->nType, state)) {
+                return false;
+            }
             newState->BanIfNotBanned(nHeight);
             newState->nRevocationReason = opt_proTx->nReason;
 

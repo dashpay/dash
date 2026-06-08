@@ -216,6 +216,18 @@ class MasternodePayoutSharesTest(DashTestFramework):
             assert_equal(payee["amount"], expected_amount)
             paid_owner_total += payee["amount"]
 
+        node.sendtoaddress(mn.fundsAddr, 1)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        revoke_hash = mn.revoke(node, submit=True, reason=1, fundsAddr=mn.fundsAddr)
+        assert revoke_hash is not None
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+
+        info = node.protx("info", protx_hash)
+        assert_equal(info["state"]["version"], 4)
+        assert_equal(payout_address_rewards(info["state"]["payouts"]), updated_payouts)
+
 
 if __name__ == '__main__':
     MasternodePayoutSharesTest().main()
