@@ -258,8 +258,9 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
                  __func__, nodeState.GetSessionCount(llmqType), maxSessions, static_cast<int>(llmqType), pfrom.GetId());
         return false;
     }
+    const uint256 signHash = ann.buildSignHash().Get();
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
-    timeSeenForSessions.insert_or_assign(ann.buildSignHash().Get(), GetTime<std::chrono::seconds>().count());
+    timeSeenForSessions.try_emplace(signHash, GetTime<std::chrono::seconds>().count());
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.getSessionId());
     session.recvSessionId = ann.getSessionId();
