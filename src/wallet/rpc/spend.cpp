@@ -67,6 +67,9 @@ static void ParseRecipients(const UniValue& address_amounts, const UniValue& sub
             }
         }
 
+        if (is_platform && subtract_fee) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "subtractfeefromamount is not supported for Platform addresses");
+        }
         CRecipient recipient = {script_pub_key, amount, subtract_fee, is_platform};
         recipients.push_back(recipient);
     }

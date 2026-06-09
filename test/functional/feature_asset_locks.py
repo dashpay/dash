@@ -798,6 +798,18 @@ class AssetLocksTest(DashTestFramework):
         platform_addr_from_key = encode_platform_p2pkh('tdash', hash160(pubkey))
         txid1 = node_wallet.sendtoaddress(platform_addr_from_key, 1.0)
 
+        self.log.info("Test subtractfeefromamount for platform sendtoaddress")
+        try:
+            node_wallet.sendtoaddress(
+                address=platform_addr_from_key,
+                amount=1,
+                subtractfeefromamount=True,
+                fee_rate=1000,
+            )
+            raise AssertionError("subtracfeefromamount for platform address expected to generate error")
+        except JSONRPCException as e:
+            assert "subtractfeefromamount is not supported for Platform addresses" in e.error['message']
+
         val = node_wallet.validateaddress(platform_addr_from_key)
         assert_equal(val['isvalid'], True)
         assert_equal(val['isplatform'], True)
