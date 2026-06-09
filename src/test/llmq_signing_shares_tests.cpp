@@ -15,9 +15,9 @@ using namespace llmq::testutils;
 
 BOOST_FIXTURE_TEST_SUITE(llmq_signing_shares_tests, BasicTestingSetup)
 
-static CSigSesAnn MakeAnn(uint32_t session_id, uint32_t nonce)
+static CSigSesAnn MakeAnn(uint32_t session_id, uint32_t nonce, Consensus::LLMQType llmq_type = Consensus::LLMQType::LLMQ_50_60)
 {
-    return CSigSesAnn{session_id, Consensus::LLMQType::LLMQ_50_60, GetTestQuorumHash(1), GetTestQuorumHash(2), GetTestQuorumHash(nonce)};
+    return CSigSesAnn{session_id, llmq_type, GetTestQuorumHash(1), GetTestQuorumHash(2), GetTestQuorumHash(nonce)};
 }
 
 BOOST_AUTO_TEST_CASE(sig_ses_ann_respects_session_limit_but_allows_refresh)
@@ -43,6 +43,27 @@ BOOST_AUTO_TEST_CASE(sig_ses_ann_respects_session_limit_but_allows_refresh)
     BOOST_CHECK(node_state.CanCreateSessionFromAnn(ann1_refresh, max_sessions));
     node_state.GetOrCreateSessionFromAnn(ann1_refresh);
     BOOST_CHECK_EQUAL(node_state.GetSessionCount(), max_sessions);
+}
+
+BOOST_AUTO_TEST_CASE(sig_ses_ann_limit_is_per_llmq_type)
+{
+    CSigSharesNodeState node_state;
+
+    constexpr size_t max_sessions{1};
+    const CSigSesAnn ann1{MakeAnn(1, 1)};
+    const CSigSesAnn ann2{MakeAnn(2, 2)};
+    const CSigSesAnn other_type_ann{MakeAnn(3, 3, Consensus::LLMQType::LLMQ_400_60)};
+
+    BOOST_CHECK(node_state.CanCreateSessionFromAnn(ann1, max_sessions));
+    node_state.GetOrCreateSessionFromAnn(ann1);
+    BOOST_CHECK_EQUAL(node_state.GetSessionCount(), 1U);
+    BOOST_CHECK_EQUAL(node_state.GetSessionCount(Consensus::LLMQType::LLMQ_50_60), 1U);
+
+    BOOST_CHECK(!node_state.CanCreateSessionFromAnn(ann2, max_sessions));
+    BOOST_CHECK(node_state.CanCreateSessionFromAnn(other_type_ann, max_sessions));
+    node_state.GetOrCreateSessionFromAnn(other_type_ann);
+    BOOST_CHECK_EQUAL(node_state.GetSessionCount(), 2U);
+    BOOST_CHECK_EQUAL(node_state.GetSessionCount(Consensus::LLMQType::LLMQ_400_60), 1U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

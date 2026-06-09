@@ -340,6 +340,7 @@ public:
     Session& GetOrCreateSessionFromAnn(const CSigSesAnn& ann);
     [[nodiscard]] bool CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t maxSessions) const;
     [[nodiscard]] size_t GetSessionCount() const;
+    [[nodiscard]] size_t GetSessionCount(Consensus::LLMQType llmqType) const;
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
     bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
