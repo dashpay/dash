@@ -3583,7 +3583,7 @@ std::pair<bool /*ret*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMN
 
     if (!dmn) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Can't find masternode %s to verify %s\n", dstx.masternodeOutpoint.ToStringShort(), hashTx.ToString());
-        return {false, true};
+        return {true, true};
     }
 
     if (!mn_metaman.IsValidForMixingTxes(dmn->proTxHash)) {

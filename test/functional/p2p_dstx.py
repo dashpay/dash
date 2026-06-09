@@ -56,9 +56,15 @@ class P2PDSTXTest(BitcoinTestFramework):
 
         peer = self.nodes[0].add_p2p_connection(P2PInterface())
 
-        self.log.info("Unknown masternode DSTX is treated as peer misbehavior")
-        with self.nodes[0].assert_debug_log(["Misbehaving", "invalid dstx"]):
+        self.log.info("Unknown masternode DSTX is ignored without peer misbehavior")
+        with self.nodes[0].assert_debug_log([], unexpected_msgs=["Misbehaving", "invalid dstx"]):
             peer.send_and_ping(msg_dstx(self.make_dstx()))
+
+        self.log.info("Structurally invalid DSTX is treated as peer misbehavior")
+        invalid_dstx = self.make_dstx()
+        invalid_dstx.tx.vout.pop()
+        with self.nodes[0].assert_debug_log(["Misbehaving", "invalid dstx"]):
+            peer.send_and_ping(msg_dstx(invalid_dstx))
 
 
 if __name__ == '__main__':
