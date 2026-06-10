@@ -326,6 +326,8 @@ public:
         CSigSharesInv announced;
         CSigSharesInv requested;
         CSigSharesInv knows;
+
+        bool receivedAnnouncement{false};
     };
     Uint256HashMap<Session> sessions;
 
@@ -341,6 +343,7 @@ public:
     [[nodiscard]] bool CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t maxSessions) const;
     [[nodiscard]] size_t GetSessionCount() const;
     [[nodiscard]] size_t GetSessionCount(Consensus::LLMQType llmqType) const;
+    [[nodiscard]] size_t GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const;
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
     bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
