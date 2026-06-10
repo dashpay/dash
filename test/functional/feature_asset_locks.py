@@ -59,6 +59,7 @@ class AssetLocksTest(DashTestFramework):
         self.set_dash_test_params(2, 0, [[
                 "-whitelist=127.0.0.1",
                 "-llmqtestinstantsenddip0024=llmq_test_instantsend",
+                "-acceptnonstdtxn=1",
         ]] * 2, evo_count=2)
         self.mn_rr_height = 560
 
@@ -843,6 +844,14 @@ class AssetLocksTest(DashTestFramework):
 
 
     def test_non_standard(self, node_wallet, node, pubkey):
+        self.log.info("Testing that v2 and >100-input asset locks are non-standard...")
+        assert softfork_active(node_wallet, 'v24')
+
+        coin = node_wallet.listunspent(query_options={'minimumAmount': 1}).pop()
+        lock_v2 = self.create_assetlock(coin, COIN, pubkey, version=2)
+        # reserve this coin so funding the split below can not spend it
+        node_wallet.lockunspent(False, [{'txid': coin['txid'], 'vout': coin['vout']}])
+
         self.log.info("Split one coin into 101 outputs to build an asset lock with >100 inputs")
         raw = node_wallet.createrawtransaction([], [{node_wallet.getnewaddress(): 1} for _ in range(101)])
         funded = node_wallet.fundrawtransaction(raw, {'change_position': 101})['hex']
@@ -852,20 +861,25 @@ class AssetLocksTest(DashTestFramework):
         tx_many_inputs = self.create_assetlock(many_coins, COIN, pubkey)
         assert_equal(len(tx_many_inputs.vin), 101)
 
-        self.log.info("A standard node (-acceptnonstdtxn=1) rejects them; the permissive node accepts them")
-        self.restart_node(1, self.extra_args[1] + ["-acceptnonstdtxn=1"])
+        self.log.info("A standard node (-acceptnonstdtxn=0) rejects them; the permissive node accepts them")
+        self.restart_node(1, self.extra_args[1] + ["-acceptnonstdtxn=0"])
         self.connect_nodes(1, 0)
 
-        tx_hex = tx_many_inputs.serialize().hex()
-        assert_equal(node.testmempoolaccept([tx_hex])[0]['allowed'], True)
-        rejected = node_wallet.testmempoolaccept([tx_hex])[0]
-        assert_equal(rejected['allowed'], False)
-        assert_equal(rejected['reject-reason'], 'assetlocktx-too-many-inputs')
 
-        txid = node.sendrawtransaction(tx_hex)
-        block_hash = self.generate(node, 1)[0]
+        for tx, reason in [(lock_v2, 'assetlocktx-version-2'), (tx_many_inputs, 'assetlocktx-too-many-inputs')]:
+            tx_hex = tx.serialize().hex()
+            assert_equal(node_wallet.testmempoolaccept([tx_hex])[0]['allowed'], True)
+            rejected = node.testmempoolaccept([tx_hex])[0]
+            assert_equal(rejected['allowed'], False)
+            assert_equal(rejected['reject-reason'], reason)
+
+        self.log.info("They are still valid in a block: mine both and check the standard node accepts it")
+        txids = [node_wallet.sendrawtransaction(tx.serialize().hex()) for tx in [lock_v2, tx_many_inputs]]
+        block_hash = self.generate(node_wallet, 1)[0]
         for checked_node in self.nodes:
-            assert txid in checked_node.getblock(block_hash)['tx']
+            for txid in txids:
+                assert txid in checked_node.getblock(block_hash)['tx']
+
         self.restart_node(1, self.extra_args[1])
         self.connect_nodes(1, 0)
 
