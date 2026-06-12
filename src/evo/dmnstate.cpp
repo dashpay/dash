@@ -91,7 +91,6 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
             // Platform entries. From ExtAddr onwards the scalar fields are unused (always 0), so
             // when the diff carries an ExtAddr netInfo report the live port from it to stay
             // consistent with the "addresses" output below.
-            // TODO: remove this workaround for nodes that has been incorrectly migrated internal storage in the future
             const bool has_ext_netinfo = (fields & Field_netInfo) && state.netInfo->CanStorePlatform();
             if (fields & Field_platformP2PPort) {
                 obj.pushKV("platformP2PPort",
