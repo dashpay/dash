@@ -15,6 +15,7 @@ class BlockValidationState;
 class CBlock;
 class CBlockIndex;
 class CCbTx;
+class CChain;
 class CCoinsViewCache;
 class CCreditPoolManager;
 class CDeterministicMNList;
@@ -92,6 +93,11 @@ private:
                                      BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
 
+
+/** Validates the bestCLSignature / bestCLHeightDiff fields embedded in a CbTx payload. */
+bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
+                            const CChain& chain, const llmq::CQuorumManager& qman,
+                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state);
 
 bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                    CDeterministicMNManager& dmnman, const CCoinsViewCache& view, const ChainstateManager& chainman,

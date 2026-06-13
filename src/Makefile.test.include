@@ -109,6 +109,7 @@ BITCOIN_TESTS =\
   test/descriptor_tests.cpp \
   test/dynamic_activation_thresholds_tests.cpp \
   test/evo_assetlocks_tests.cpp \
+  test/evo_cbtx_tests.cpp \
   test/evo_deterministicmns_tests.cpp \
   test/evo_islock_tests.cpp \
   test/evo_mnhf_tests.cpp \
