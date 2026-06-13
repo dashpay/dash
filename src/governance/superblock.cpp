@@ -292,7 +292,7 @@ bool CSuperblock::IsValid(const CChain& active_chain, const CTransaction& txNew,
         return false;
     }
 
-    int nVoutIndex = 0;
+    int nVoutIndex = -1;
     for (int i = 0; i < nPayments; i++) {
         CGovernancePayment payment;
         if (!GetPayment(i, payment)) {
@@ -303,7 +303,10 @@ bool CSuperblock::IsValid(const CChain& active_chain, const CTransaction& txNew,
 
         bool fPaymentMatch = false;
 
-        for (int j = nVoutIndex; j < nOutputs; j++) {
+        // Start past the previously matched output so each expected payment
+        // consumes a distinct vout (two adjacent payments with the same script
+        // and amount must match two separate outputs, not the same one twice).
+        for (int j = nVoutIndex + 1; j < nOutputs; j++) {
             // Find superblock payment
             fPaymentMatch = ((payment.script == txNew.vout[j].scriptPubKey) &&
                              (payment.nAmount == txNew.vout[j].nValue));
