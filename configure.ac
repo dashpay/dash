@@ -1797,11 +1797,12 @@ AM_CONDITIONAL([BUILD_BITCOIN_UTIL], [test $build_bitcoin_util = "yes"])
 AC_MSG_RESULT($build_bitcoin_util)
 
 AC_MSG_CHECKING([whether to build experimental dash-chainstate])
-if test "$build_experimental_kernel_lib" = "no"; then
-AC_MSG_ERROR([experimental dash-chainstate cannot be built without the experimental dashkernel library. Use --with-experimental-kernel-lib]);
-else
-  AM_CONDITIONAL([BUILD_BITCOIN_CHAINSTATE], [test $build_bitcoin_chainstate = "yes"])
+if test "$build_bitcoin_chainstate" = "yes"; then
+  if test "$build_experimental_kernel_lib" = "no"; then
+    AC_MSG_ERROR([experimental dash-chainstate cannot be built without the experimental dashkernel library. Use --with-experimental-kernel-lib]);
+  fi
 fi
+AM_CONDITIONAL([BUILD_BITCOIN_CHAINSTATE], [test $build_bitcoin_chainstate = "yes"])
 AC_MSG_RESULT($build_bitcoin_chainstate)
 
 AC_MSG_CHECKING([whether to build libraries])
