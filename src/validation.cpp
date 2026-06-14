@@ -2490,7 +2490,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     const bool check_superblock = m_chain_helper->IsSuperblockValidationRequired(pindex);
 
-    if (!m_chain_helper->mn_payments->IsBlockValueValid(block, pindex->nHeight, blockSubsidy + feeReward, strError, check_superblock)) {
+    if (!m_chain_helper->mn_payments->IsBlockValueValid(block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): %s\n", strError);
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-amount");

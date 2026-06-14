@@ -245,7 +245,7 @@ CAmount CSuperblock::GetPaymentsTotalAmount()
 *   - Does this transaction match the superblock?
 */
 
-bool CSuperblock::IsValid(const CChain& active_chain, const CTransaction& txNew, int nBlockHeight, CAmount blockReward)
+bool CSuperblock::IsValid(const CChain& active_chain, const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool is_v24)
 {
     // TODO : LOCK(cs);
     // No reason for a lock here now since this method only accesses data
@@ -303,10 +303,13 @@ bool CSuperblock::IsValid(const CChain& active_chain, const CTransaction& txNew,
 
         bool fPaymentMatch = false;
 
-        // Start past the previously matched output so each expected payment
-        // consumes a distinct vout (two adjacent payments with the same script
-        // and amount must match two separate outputs, not the same one twice).
-        for (int j = nVoutIndex + 1; j < nOutputs; j++) {
+        // From V24 on, start past the previously matched output so each expected
+        // payment consumes a distinct vout (two adjacent payments with the same
+        // script and amount must match two separate outputs, not the same one
+        // twice). Before V24 the scan restarted at the previously matched index
+        // (inclusive), which is kept for backwards compatibility.
+        const int nVoutStart = is_v24 ? nVoutIndex + 1 : std::max(nVoutIndex, 0);
+        for (int j = nVoutStart; j < nOutputs; j++) {
             // Find superblock payment
             fPaymentMatch = ((payment.script == txNew.vout[j].scriptPubKey) &&
                              (payment.nAmount == txNew.vout[j].nValue));
@@ -614,12 +617,12 @@ bool SuperblockManager::IsSuperblockTriggered(const CDeterministicMNList& tip_mn
 }
 
 bool SuperblockManager::IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list,
-                                          const CTransaction& txNew, int nBlockHeight, CAmount blockReward) const
+                                          const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool is_v24) const
 {
     LOCK(cs_sb);
     CSuperblock_sptr pSuperblock;
     if (GetBestSuperblockInternal(tip_mn_list, pSuperblock, nBlockHeight)) {
-        return pSuperblock->IsValid(active_chain, txNew, nBlockHeight, blockReward);
+        return pSuperblock->IsValid(active_chain, txNew, nBlockHeight, blockReward, is_v24);
     }
     return false;
 }

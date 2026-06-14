@@ -184,8 +184,9 @@ CAmount PlatformShare(const CAmount reward)
 *   - Other blocks are 10% lower in outgoing value, so in total, no extra coins are created
 *   - When non-superblocks are detected, the normal schedule should be maintained
 */
-bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlockHeight, const CAmount blockReward, std::string& strErrorRet, const bool check_superblock)
+bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const CBlockIndex* pindexPrev, const CAmount blockReward, std::string& strErrorRet, const bool check_superblock)
 {
+    const int nBlockHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
     bool isBlockRewardValueMet = (block.vtx[0]->GetValueOut() <= blockReward);
 
     strErrorRet = "";
@@ -249,7 +250,8 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
     }
 
     // this actually also checks for correct payees and not only amount
-    if (!m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward)) {
+    const bool is_v24{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V24)};
+    if (!m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward, is_v24)) {
         // triggered but invalid? that's weird
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, block.vtx[0]->ToString()); /* Continued */
         // should NOT allow invalid superblocks, when superblocks are enabled
@@ -293,9 +295,10 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
     if (!check_superblock) return true;
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
+    const bool is_v24{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V24)};
     if (m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
         if (m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
-                                            blockSubsidy + feeReward)) {
+                                            blockSubsidy + feeReward, is_v24)) {
             LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", /* Continued */
                      __func__, nBlockHeight, txNew.ToString());
             // continue validation, should also pay MN

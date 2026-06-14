@@ -56,27 +56,38 @@ BOOST_AUTO_TEST_CASE(isvalid_duplicate_payments_require_distinct_outputs)
     const CAmount blockReward = 500 * COIN;
     CChain dummy_chain;
 
-    // Case 1 (regression): coinbase carries only ONE output matching the
+    // Case 1 (regression, V24): coinbase carries only ONE output matching the
     // duplicate expected payment. With the buggy forward scan that restarted
     // at the previously matched index, both expected payments would match the
     // single matching vout and IsValid would (incorrectly) return true.
-    // After the fix, the second expected payment must find a distinct output
+    // From V24 on, the second expected payment must find a distinct output
     // and validation must fail.
     {
         CMutableTransaction txNew;
         txNew.vout.emplace_back(blockReward - nPayAmount, scriptMinerOrMN);
         txNew.vout.emplace_back(nPayAmount, scriptPayee); // single matching output
-        BOOST_CHECK(!sb.IsValid(dummy_chain, CTransaction(txNew), nBlockHeight, blockReward));
+        BOOST_CHECK(!sb.IsValid(dummy_chain, CTransaction(txNew), nBlockHeight, blockReward, /*is_v24=*/true));
     }
 
-    // Case 2: coinbase carries TWO outputs matching the duplicate expected
+    // Case 2 (V24): coinbase carries TWO outputs matching the duplicate expected
     // payments. The fix must still accept this legitimate case.
     {
         CMutableTransaction txNew;
         txNew.vout.emplace_back(blockReward - 2 * nPayAmount, scriptMinerOrMN);
         txNew.vout.emplace_back(nPayAmount, scriptPayee);
         txNew.vout.emplace_back(nPayAmount, scriptPayee);
-        BOOST_CHECK(sb.IsValid(dummy_chain, CTransaction(txNew), nBlockHeight, blockReward));
+        BOOST_CHECK(sb.IsValid(dummy_chain, CTransaction(txNew), nBlockHeight, blockReward, /*is_v24=*/true));
+    }
+
+    // Case 3 (pre-V24): the stricter distinct-output rule is gated behind V24.
+    // Before activation the legacy scan is preserved, so the single-output
+    // coinbase from Case 1 must still be accepted to avoid changing consensus
+    // for already-validated history.
+    {
+        CMutableTransaction txNew;
+        txNew.vout.emplace_back(blockReward - nPayAmount, scriptMinerOrMN);
+        txNew.vout.emplace_back(nPayAmount, scriptPayee); // single matching output
+        BOOST_CHECK(sb.IsValid(dummy_chain, CTransaction(txNew), nBlockHeight, blockReward, /*is_v24=*/false));
     }
 }
 
