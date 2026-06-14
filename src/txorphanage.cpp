@@ -59,10 +59,10 @@ bool TxOrphanage::AddTx(const CTransactionRef& tx, NodeId peer)
 int TxOrphanage::EraseTx(const uint256& txid)
 {
     LOCK(m_mutex);
-    return _EraseTx(txid);
+    return EraseTxNoLock(txid);
 }
 
-int TxOrphanage::_EraseTx(const uint256& txid)
+int TxOrphanage::EraseTxNoLock(const uint256& txid)
 {
     AssertLockHeld(m_mutex);
     std::map<uint256, OrphanTx>::iterator it = m_orphans.find(txid);
@@ -110,7 +110,7 @@ void TxOrphanage::EraseForPeer(NodeId peer)
         std::map<uint256, OrphanTx>::iterator maybeErase = iter++; // increment to avoid iterator becoming invalid
         if (maybeErase->second.fromPeer == peer)
         {
-            nErased += _EraseTx(maybeErase->second.tx->GetHash());
+            nErased += EraseTxNoLock(maybeErase->second.tx->GetHash());
         }
     }
     if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx from peer=%d\n", nErased, peer);
@@ -132,7 +132,7 @@ void TxOrphanage::LimitOrphans(unsigned int max_orphans_size)
         {
             std::map<uint256, OrphanTx>::iterator maybeErase = iter++;
             if (maybeErase->second.nTimeExpire <= nNow) {
-                nErased += _EraseTx(maybeErase->second.tx->GetHash());
+                nErased += EraseTxNoLock(maybeErase->second.tx->GetHash());
             } else {
                 nMinExpTime = std::min(maybeErase->second.nTimeExpire, nMinExpTime);
             }
@@ -146,7 +146,7 @@ void TxOrphanage::LimitOrphans(unsigned int max_orphans_size)
     {
         // Evict a random orphan:
         size_t randompos = rng.randrange(m_orphan_list.size());
-        _EraseTx(m_orphan_list[randompos]->first);
+        EraseTxNoLock(m_orphan_list[randompos]->first);
         ++nEvicted;
     }
     if (nEvicted > 0) LogPrint(BCLog::MEMPOOL, "orphanage overflow, removed %u tx\n", nEvicted);
@@ -234,7 +234,7 @@ void TxOrphanage::EraseForBlock(const CBlock& block)
     if (vOrphanErase.size()) {
         int nErased = 0;
         for (const uint256& orphanHash : vOrphanErase) {
-            nErased += _EraseTx(orphanHash);
+            nErased += EraseTxNoLock(orphanHash);
         }
         LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx included or conflicted by block\n", nErased);
     }
