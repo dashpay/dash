@@ -3,7 +3,47 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+from test_framework.p2p import MESSAGEMAP, P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
+
+
+class msg_getsporks:
+    __slots__ = ()
+    msgtype = b"getsporks"
+
+    def deserialize(self, f):
+        pass
+
+    def serialize(self):
+        return b""
+
+    def __repr__(self):
+        return "msg_getsporks()"
+
+
+class msg_spork_raw:
+    __slots__ = ("raw",)
+    msgtype = b"spork"
+
+    def __init__(self):
+        self.raw = b""
+
+    def deserialize(self, f):
+        self.raw = f.read()
+
+    def serialize(self):
+        return self.raw
+
+    def __repr__(self):
+        return f"msg_spork_raw(len={len(self.raw)})"
+
+
+class SporkP2PInterface(P2PInterface):
+    def on_inv(self, message):
+        pass
+
+    def on_spork(self, message):
+        pass
 
 '''
 '''
@@ -43,6 +83,22 @@ class SporkTest(BitcoinTestFramework):
         spork_new_state = not spork_default_state
         self.set_test_spork_state(self.nodes[0], spork_new_state)
         self.wait_until(lambda: self.get_test_spork_state(self.nodes[1]), timeout=10)
+
+        # GETSPORKS should not resend an unchanged active spork set, but must
+        # answer again after the active spork set changes on the same connection.
+        MESSAGEMAP[b"spork"] = msg_spork_raw
+        peer = self.nodes[0].add_p2p_connection(SporkP2PInterface())
+        peer.send_message(msg_getsporks())
+        peer.wait_until(lambda: peer.message_count["spork"] > 0)
+        peer.sync_with_ping()
+        spork_responses = peer.message_count["spork"]
+        peer.send_message(msg_getsporks())
+        peer.sync_with_ping()
+        assert peer.message_count["spork"] == spork_responses
+
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
+        peer.send_message(msg_getsporks())
+        peer.wait_until(lambda: peer.message_count["spork"] > spork_responses)
 
         # restart nodes to check spork persistence
         self.stop_node(0)
