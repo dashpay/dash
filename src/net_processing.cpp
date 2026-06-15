@@ -5467,7 +5467,7 @@ void PeerManagerImpl::ProcessMessage(
         std::vector<CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_PEER_OBJECT_IN_FLIGHT + MAX_BLOCKS_IN_TRANSIT_PER_PEER) {
-            Misbehaving(pfrom.GetId(), 10, strprintf("notfound message size = %u", vInv.size()));
+            Misbehaving(pfrom.GetId(), 20, strprintf("notfound message size = %u", vInv.size()));
             return;
         }
 
