@@ -76,9 +76,18 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
             }
             baseBlockIndexes.push_back(blockIndex);
         }
-        std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
-                  [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
-        baseBlockIndexes.erase(std::unique(baseBlockIndexes.begin(), baseBlockIndexes.end()), baseBlockIndexes.end());
+        if (use_legacy_construction) {
+            // Legacy construction (served to peers < EFFICIENT_QRINFO_VERSION) only needs the
+            // input sorted; do not deduplicate so the wire response stays bit-for-bit identical
+            // to the pre-fix behavior for older peers.
+            std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
+                      [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+        } else {
+            std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
+                      [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+            baseBlockIndexes.erase(std::unique(baseBlockIndexes.begin(), baseBlockIndexes.end()),
+                                   baseBlockIndexes.end());
+        }
     }
 
     const CBlockIndex* tipBlockIndex = chainman.ActiveChain().Tip();
