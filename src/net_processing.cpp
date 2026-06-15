@@ -3539,20 +3539,31 @@ void PeerManagerImpl::ProcessGetCFCheckPt(CNode& node, Peer& peer, CDataStream& 
     m_connman.PushMessage(&node, std::move(msg));
 }
 
-// Returned score is the misbehavior penalty to apply to the relaying peer; 0 means no penalty.
+// Misbehavior penalty to apply to the relaying peer; NONE means no penalty.
+enum class DSTXValidationScore : int {
+    NONE = 0,
+    UNKNOWN_MASTERNODE = 1,
+    INVALID = 10,
+};
+
 // do_return signals the caller to stop further processing of the DSTX.
-std::pair<int /*misbehavior_score*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMNManager& dmnman, CDSTXManager& dstxman, ChainstateManager& chainman,
-                                                                             CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool, CCoinJoinBroadcastTx& dstx, uint256 hashTx)
+struct DSTXValidationResult {
+    DSTXValidationScore score;
+    bool do_return;
+};
+
+static DSTXValidationResult ValidateDSTX(CDeterministicMNManager& dmnman, CDSTXManager& dstxman, ChainstateManager& chainman,
+                                         CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool, CCoinJoinBroadcastTx& dstx, uint256 hashTx)
 {
     assert(mn_metaman.IsValid());
 
     if (!dstx.IsValidStructure()) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Invalid DSTX structure: %s\n", hashTx.ToString());
-        return {10, true};
+        return {DSTXValidationScore::INVALID, true};
     }
     if (dstxman.GetDSTX(hashTx)) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Already have %s, skipping...\n", hashTx.ToString());
-        return {0, true}; // not an error
+        return {DSTXValidationScore::NONE, true}; // not an error
     }
 
     const CBlockIndex* pindex{nullptr};
@@ -3588,26 +3599,26 @@ std::pair<int /*misbehavior_score*/, bool /*do_return*/> static ValidateDSTX(CDe
         // We can't verify the signature here, so apply only a small penalty.
         // The MN may have been removed very recently, but a peer flooding us with
         // unverifiable DSTX-es should still eventually be discouraged.
-        return {1, true};
+        return {DSTXValidationScore::UNKNOWN_MASTERNODE, true};
     }
 
     if (!mn_metaman.IsValidForMixingTxes(dmn->proTxHash)) {
         LogPrint(BCLog::COINJOIN, "DSTX -- Masternode %s is sending too many transactions %s\n", dstx.masternodeOutpoint.ToStringShort(), hashTx.ToString());
-        return {0, true};
+        return {DSTXValidationScore::NONE, true};
         // TODO: Not an error? Could it be that someone is relaying old DSTXes
         // we have no idea about (e.g we were offline)? How to handle them?
     }
 
     if (!dstx.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
         LogPrint(BCLog::COINJOIN, "DSTX -- CheckSignature() failed for %s\n", hashTx.ToString());
-        return {10, true};
+        return {DSTXValidationScore::INVALID, true};
     }
 
     LogPrint(BCLog::COINJOIN, "DSTX -- Got Masternode transaction %s\n", hashTx.ToString());
     mempool.PrioritiseTransaction(hashTx, 0.1*COIN);
     mn_metaman.DisallowMixing(dmn->proTxHash);
 
-    return {0, false};
+    return {DSTXValidationScore::NONE, false};
 }
 
 void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlock>& block, bool force_processing)
@@ -4672,10 +4683,10 @@ void PeerManagerImpl::ProcessMessage(
         // Process custom logic, no matter if tx will be accepted to mempool later or not
         if (nInvType == MSG_DSTX) {
             uint256 hashTx = tx.GetHash();
-            const auto& [misbehavior_score, bDoReturn] = ValidateDSTX(*m_dmnman, m_dstxman, m_chainman, m_mn_metaman, m_mempool, dstx, hashTx);
-            if (bDoReturn) {
-                if (misbehavior_score > 0) {
-                    Misbehaving(pfrom.GetId(), misbehavior_score, "invalid dstx");
+            const auto result = ValidateDSTX(*m_dmnman, m_dstxman, m_chainman, m_mn_metaman, m_mempool, dstx, hashTx);
+            if (result.do_return) {
+                if (result.score != DSTXValidationScore::NONE) {
+                    Misbehaving(pfrom.GetId(), static_cast<int>(result.score), "invalid dstx");
                 }
                 return;
             }
