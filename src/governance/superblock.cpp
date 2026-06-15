@@ -308,6 +308,8 @@ bool CSuperblock::IsValid(const CChain& active_chain, const CTransaction& txNew,
         // script and amount must match two separate outputs, not the same one
         // twice). Before V24 the scan restarted at the previously matched index
         // (inclusive), which is kept for backwards compatibility.
+        // TODO: After V24 is hardened/finalized so historical duplicate-output
+        // blocks cannot be encountered, simplify this path to the V24 scan only.
         const int nVoutStart = is_v24 ? nVoutIndex + 1 : std::max(nVoutIndex, 0);
         for (int j = nVoutStart; j < nOutputs; j++) {
             // Find superblock payment
