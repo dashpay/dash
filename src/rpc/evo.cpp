@@ -282,6 +282,9 @@ static MasternodePayoutShares ParsePayouts(const UniValue& value, const std::str
         if (arr.empty()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must contain at least one entry", paramName));
         }
+        if (arr.size() > 8) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must not contain more than 8 entries", paramName));
+        }
         for (size_t i = 0; i < arr.size(); ++i) {
             const UniValue& entry = arr[i];
             if (!entry.isObject()) {

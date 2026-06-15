@@ -83,6 +83,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
             {"address": payout1, "reward": 7000},
             {"address": payout2, "reward": 3000},
         ]
+        oversized_payouts = [{"address": node.getnewaddress(), "reward": 1000} for _ in range(9)]
 
         collateral_txid = node.sendmany("", {mn.collateral_address: mn.get_collateral_value(), mn.fundsAddr: 1})
         self.bump_mocktime(10 * 60 + 1)
@@ -101,6 +102,19 @@ class MasternodePayoutSharesTest(DashTestFramework):
             fundsAddr=mn.fundsAddr,
             expected_assert_code=-8,
             expected_assert_msg="payouts must contain at least one entry",
+        )
+
+        mn.register(
+            node,
+            submit=True,
+            collateral_txid=mn.collateral_txid,
+            collateral_vout=mn.collateral_vout,
+            addrs_core_p2p=[f"127.0.0.1:{mn.nodePort}"],
+            operator_reward=0,
+            payouts=oversized_payouts,
+            fundsAddr=mn.fundsAddr,
+            expected_assert_code=-8,
+            expected_assert_msg="payouts must not contain more than 8 entries",
         )
 
         protx_hash = mn.register(
@@ -135,6 +149,15 @@ class MasternodePayoutSharesTest(DashTestFramework):
             fundsAddr=mn.fundsAddr,
             expected_assert_code=-8,
             expected_assert_msg="payouts must contain at least one entry",
+        )
+
+        mn.update_registrar(
+            node,
+            submit=True,
+            payouts=oversized_payouts,
+            fundsAddr=mn.fundsAddr,
+            expected_assert_code=-8,
+            expected_assert_msg="payouts must not contain more than 8 entries",
         )
 
         gbt_payees = [p for p in node.getblocktemplate()["masternode"] if p["script"] != "6a"]
