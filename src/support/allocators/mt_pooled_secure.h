@@ -25,12 +25,15 @@ struct mt_pooled_secure_allocator : public std::allocator<T> {
     using value_type = typename traits::value_type;
     mt_pooled_secure_allocator(size_type nrequested_size = 32,
                                size_type nnext_size = 32,
-                               size_type nmax_size = 0) noexcept
+                               size_type nmax_size = 0,
+                               size_type pools_count = std::thread::hardware_concurrency()) noexcept
     {
         // we add enough bytes to the requested size so that we can store the bucket as well
         nrequested_size += sizeof(size_t);
 
-        size_t pools_count = std::thread::hardware_concurrency();
+        if (pools_count == 0) {
+            pools_count = 1;
+        }
         pools.resize(pools_count);
         for (size_t i = 0; i < pools_count; i++) {
             pools[i] = std::make_unique<internal_pool>(nrequested_size, nnext_size, nmax_size);
