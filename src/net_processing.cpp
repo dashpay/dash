@@ -40,7 +40,6 @@
 #include <util/trace.h>
 #include <validation.h>
 
-#include <active/context.h>
 #include <chainlock/chainlock.h>
 #include <chainlock/handler.h>
 #include <coinjoin/coinjoin.h>
@@ -53,9 +52,6 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
-#include <llmq/dkgsession.h>
-#include <llmq/dkgsessionmgr.h>
-#include <llmq/observer.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -593,11 +589,10 @@ public:
                     CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                     CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
                     chainlock::ChainlockHandler& clhandler,
-                    const std::unique_ptr<ActiveContext>& active_ctx,
+                    CActiveMasternodeManager* nodeman,
                     const std::unique_ptr<CDeterministicMNManager>& dmnman,
                     const std::unique_ptr<CJWalletManager>& cj_walletman,
-                    const std::unique_ptr<LLMQContext>& llmq_ctx,
-                    const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs);
+                    const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs);
 
     ~PeerManagerImpl()
     {
@@ -659,6 +654,7 @@ public:
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     bool PeerIsBanned(const NodeId node_id) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void PeerPushInventory(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInv(const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -819,11 +815,10 @@ private:
     ChainstateManager& m_chainman;
     CTxMemPool& m_mempool;
     std::unique_ptr<TxReconciliationTracker> m_txreconciliation;
-    const std::unique_ptr<ActiveContext>& m_active_ctx;
+    CActiveMasternodeManager* const m_nodeman; //!< null if non-masternode mode; non-null implies masternode mode
     const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
     const std::unique_ptr<CJWalletManager>& m_cj_walletman;
     const std::unique_ptr<LLMQContext>& m_llmq_ctx;
-    const std::unique_ptr<llmq::ObserverContext>& m_observer_ctx;
     CMasternodeMetaMan& m_mn_metaman;
     CMasternodeSync& m_mn_sync;
     CSporkManager& m_sporkman;
@@ -973,9 +968,6 @@ private:
 
     bool AlreadyHave(const CInv& inv)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_recent_confirmed_transactions_mutex);
-
-    bool DKGSessionAlreadyHave(const CInv& inv);
-    MessageProcessingResult DKGSessionProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type, CDataStream& vRecv);
 
     /**
      * Filter for transactions that were recently rejected by the mempool.
@@ -1657,7 +1649,7 @@ void PeerManagerImpl::RequestObject(NodeId nodeid, const CInv& inv, std::chrono:
 
     // Calculate the time to try requesting this transaction. Use
     // fPreferredDownload as a proxy for outbound peers.
-    std::chrono::microseconds process_time = CalculateObjectGetDataTime(inv, current_time, /*is_masternode=*/m_active_ctx != nullptr,
+    std::chrono::microseconds process_time = CalculateObjectGetDataTime(inv, current_time, /*is_masternode=*/m_nodeman != nullptr,
                                                                         !state->fPreferredDownload);
 
     peer_download_state.m_object_process_time.emplace(process_time, inv);
@@ -2066,13 +2058,12 @@ std::unique_ptr<PeerManager> PeerManager::make(const CChainParams& chainparams, 
                                                CMasternodeSync& mn_sync,
                                                CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks,
                                                chainlock::ChainlockHandler& clhandler,
-                                               const std::unique_ptr<ActiveContext>& active_ctx,
+                                               CActiveMasternodeManager* nodeman,
                                                const std::unique_ptr<CDeterministicMNManager>& dmnman,
                                                const std::unique_ptr<CJWalletManager>& cj_walletman,
-                                               const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                               const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs)
+                                               const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs)
 {
-    return std::make_unique<PeerManagerImpl>(chainparams, connman, addrman, banman, dstxman, chainman, pool, mn_metaman, mn_sync, sporkman, chainlocks, clhandler, active_ctx, dmnman, cj_walletman, llmq_ctx, observer_ctx, ignore_incoming_txs);
+    return std::make_unique<PeerManagerImpl>(chainparams, connman, addrman, banman, dstxman, chainman, pool, mn_metaman, mn_sync, sporkman, chainlocks, clhandler, nodeman, dmnman, cj_walletman, llmq_ctx, ignore_incoming_txs);
 }
 
 PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman, BanMan* banman,
@@ -2081,11 +2072,10 @@ PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& conn
                                  CSporkManager& sporkman,
                                  const chainlock::Chainlocks& chainlocks,
                                  chainlock::ChainlockHandler& clhandler,
-                                 const std::unique_ptr<ActiveContext>& active_ctx,
+                                 CActiveMasternodeManager* nodeman,
                                  const std::unique_ptr<CDeterministicMNManager>& dmnman,
                                  const std::unique_ptr<CJWalletManager>& cj_walletman,
-                                 const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                 const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs)
+                                 const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs)
     : m_chainparams(chainparams),
       m_connman(connman),
       m_addrman(addrman),
@@ -2093,11 +2083,10 @@ PeerManagerImpl::PeerManagerImpl(const CChainParams& chainparams, CConnman& conn
       m_dstxman(dstxman),
       m_chainman(chainman),
       m_mempool(pool),
-      m_active_ctx(active_ctx),
+      m_nodeman(nodeman),
       m_dmnman(dmnman),
       m_cj_walletman(cj_walletman),
       m_llmq_ctx(llmq_ctx),
-      m_observer_ctx(observer_ctx),
       m_mn_metaman(mn_metaman),
       m_mn_sync(mn_sync),
       m_sporkman(sporkman),
@@ -2376,11 +2365,6 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 
     case MSG_QUORUM_FINAL_COMMITMENT:
         return m_llmq_ctx->quorum_block_processor->HasMineableCommitment(inv.hash);
-    case MSG_QUORUM_CONTRIB:
-    case MSG_QUORUM_COMPLAINT:
-    case MSG_QUORUM_JUSTIFICATION:
-    case MSG_QUORUM_PREMATURE_COMMITMENT:
-        return DKGSessionAlreadyHave(inv);
     case MSG_QUORUM_RECOVERED_SIG:
     // TODO: move it to NetSigning
         return m_llmq_ctx->sigman->AlreadyHave(inv);
@@ -2392,6 +2376,10 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
     case MSG_PLATFORM_BAN:
         return m_mn_metaman.AlreadyHavePlatformBan(inv.hash);
 
+    case MSG_QUORUM_CONTRIB:
+    case MSG_QUORUM_COMPLAINT:
+    case MSG_QUORUM_JUSTIFICATION:
+    case MSG_QUORUM_PREMATURE_COMMITMENT:
     case MSG_DSQ:
         if (m_cj_walletman && m_cj_walletman->hasQueue(inv.hash)) return true;
         for (const auto& handler : m_handlers) {
@@ -2402,16 +2390,6 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 
     // Don't know what it is, just say we already got one
     return true;
-}
-
-bool PeerManagerImpl::DKGSessionAlreadyHave(const CInv& inv)
-{
-    if (m_observer_ctx) {
-        return m_observer_ctx->qdkgsman->AlreadyHave(inv);
-    } else if (m_active_ctx) {
-        return m_active_ctx->qdkgsman->AlreadyHave(inv);
-    }
-    return false;
 }
 
 bool PeerManagerImpl::AlreadyHaveBlock(const uint256& block_hash)
@@ -2943,38 +2921,6 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             if (m_llmq_ctx->quorum_block_processor->GetMineableCommitmentByHash(
                     inv.hash, o)) {
                 m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_CONTRIB)) {
-            llmq::CDKGContribution o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetContribution(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_COMPLAINT)) {
-            llmq::CDKGComplaint o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetComplaint(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
-            llmq::CDKGJustification o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetJustification(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
-                push = true;
-            }
-        }
-
-        if (!push && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
-            llmq::CDKGPrematureCommitment o;
-            if (m_active_ctx && m_active_ctx->qdkgsman->GetPrematureCommitment(inv.hash, o)) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
                 push = true;
             }
         }
@@ -3730,7 +3676,7 @@ void PeerManagerImpl::ProcessMessage(
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(msg_type), vRecv.size(), pfrom.GetId());
     ::g_stats_client->inc("message.received." + SanitizeString(msg_type), 1.0f);
 
-    const bool is_masternode = m_active_ctx != nullptr;
+    const bool is_masternode = m_nodeman != nullptr;
 
     PeerRef peer = GetPeerRef(pfrom.GetId());
     if (peer == nullptr) return;
@@ -4004,7 +3950,7 @@ void PeerManagerImpl::ProcessMessage(
         }
 
         if (is_masternode && !pfrom.m_masternode_probe_connection) {
-            CMNAuth::PushMNAUTH(pfrom, m_connman, *m_active_ctx->nodeman);
+            CMNAuth::PushMNAUTH(pfrom, m_connman, *Assert(m_nodeman));
         }
 
         // Tell our peer we prefer to receive headers rather than inv's
@@ -5525,8 +5471,7 @@ void PeerManagerImpl::ProcessMessage(
         if (m_cj_walletman) {
             PostProcessMessage(m_cj_walletman->processMessage(pfrom, m_chainman.ActiveChainstate(), m_connman, m_mempool, msg_type, vRecv), pfrom.GetId());
         }
-        PostProcessMessage(DKGSessionProcessMessage(pfrom, is_masternode, msg_type, vRecv), pfrom.GetId());
-        PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, (m_active_ctx ? m_active_ctx->nodeman.get() : nullptr), m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
+        PostProcessMessage(CMNAuth::ProcessMessage(pfrom, peer->m_their_services, m_connman, m_mn_metaman, m_nodeman, m_mn_sync, m_dmnman->GetListAtChainTip(), msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(m_llmq_ctx->quorum_block_processor->ProcessMessage(pfrom, msg_type, vRecv), pfrom.GetId());
         PostProcessMessage(ProcessPlatformBanMessage(pfrom.GetId(), msg_type, vRecv), pfrom.GetId());
 
@@ -5551,26 +5496,6 @@ void PeerManagerImpl::ProcessMessage(
     LogPrint(BCLog::NET, "Unknown command \"%s\" from peer=%d\n", SanitizeString(msg_type), pfrom.GetId());
 
     return;
-}
-
-MessageProcessingResult PeerManagerImpl::DKGSessionProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type, CDataStream& vRecv)
-{
-    if (m_active_ctx) {
-        assert(is_masternode);
-        return m_active_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv);
-    } else if (m_observer_ctx) {
-        assert(!is_masternode);
-        return m_observer_ctx->qdkgsman->ProcessMessage(pfrom, is_masternode, msg_type, vRecv);
-    }
-    assert(!is_masternode);
-    if (msg_type == NetMsgType::QCONTRIB
-        || msg_type == NetMsgType::QCOMPLAINT
-        || msg_type == NetMsgType::QJUSTIFICATION
-        || msg_type == NetMsgType::QPCOMMITMENT
-        || msg_type == NetMsgType::QWATCH) {
-        return MisbehavingError{10};
-    }
-    return {};
 }
 
 bool PeerManagerImpl::MaybeDiscourageAndDisconnect(CNode& pnode, Peer& peer)
@@ -6044,7 +5969,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
 
     assert(m_llmq_ctx);
 
-    const bool is_masternode = m_active_ctx != nullptr;
+    const bool is_masternode = m_nodeman != nullptr;
 
     PeerRef peer = GetPeerRef(pto->GetId());
     if (!peer) return false;
@@ -6656,6 +6581,11 @@ bool PeerManagerImpl::PeerIsBanned(const NodeId node_id)
 void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)
 {
     EraseObjectRequest(nodeid, inv);
+}
+
+void PeerManagerImpl::PeerPushInventory(NodeId nodeid, const CInv& inv)
+{
+    PushInventory(nodeid, inv);
 }
 
 void PeerManagerImpl::PeerRelayInv(const CInv& inv)

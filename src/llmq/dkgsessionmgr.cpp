@@ -8,7 +8,6 @@
 #include <evo/deterministicmns.h>
 #include <llmq/dkgsessionhandler.h>
 #include <llmq/options.h>
-#include <llmq/params.h>
 #include <llmq/utils.h>
 #include <msg_result.h>
 #include <spork.h>
@@ -21,11 +20,6 @@
 #include <deploymentstatus.h>
 #include <validation.h>
 
-static bool IsQuorumDKGEnabled(const CSporkManager& sporkman)
-{
-    return sporkman.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED);
-}
-
 namespace llmq
 {
 static const std::string DB_VVEC = "qdkg_V";
@@ -34,31 +28,16 @@ static const std::string DB_ENC_CONTRIB = "qdkg_E";
 
 CDKGSessionManager::CDKGSessionManager(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                                        const ChainstateManager& chainman, const CSporkManager& sporkman,
-                                       const util::DbWrapperParams& db_params, bool quorums_watch) :
+                                       const util::DbWrapperParams& db_params) :
     m_dmnman{dmnman},
     m_qsnapman{qsnapman},
     m_chainman{chainman},
     m_sporkman{sporkman},
-    m_quorums_watch{quorums_watch},
     db{util::MakeDbWrapper({db_params.path / "llmq" / "dkgdb", db_params.memory, db_params.wipe, /*cache_size=*/1 << 20})}
 {
 }
 
 CDKGSessionManager::~CDKGSessionManager() = default;
-
-void CDKGSessionManager::StartThreads(CConnman& connman, PeerManager& peerman)
-{
-    for (auto& [_, dkgType] : dkgSessionHandlers) {
-        Assert(dkgType)->StartThread(connman, peerman);
-    }
-}
-
-void CDKGSessionManager::StopThreads()
-{
-    for (auto& [_, dkgType] : dkgSessionHandlers) {
-        Assert(dkgType)->StopThread();
-    }
-}
 
 void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload)
 {
@@ -74,117 +53,6 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
     for (auto& [_, dkgType] : dkgSessionHandlers) {
         Assert(dkgType)->UpdatedBlockTip(pindexNew);
     }
-}
-
-MessageProcessingResult CDKGSessionManager::ProcessMessage(CNode& pfrom, bool is_masternode, std::string_view msg_type,
-                                                           CDataStream& vRecv)
-{
-    static Mutex cs_indexedQuorumsCache;
-    static std::map<Consensus::LLMQType, Uint256LruHashMap<int>> indexedQuorumsCache GUARDED_BY(cs_indexedQuorumsCache);
-
-    if (!IsQuorumDKGEnabled(m_sporkman))
-        return {};
-
-    if (msg_type != NetMsgType::QCONTRIB
-        && msg_type != NetMsgType::QCOMPLAINT
-        && msg_type != NetMsgType::QJUSTIFICATION
-        && msg_type != NetMsgType::QPCOMMITMENT
-        && msg_type != NetMsgType::QWATCH) {
-        return {};
-    }
-
-    if (msg_type == NetMsgType::QWATCH) {
-        if (!is_masternode) {
-            // non-masternodes should never receive this
-            return MisbehavingError{10};
-        }
-        pfrom.qwatch = true;
-        return {};
-    }
-
-    if (!is_masternode && !m_quorums_watch) {
-        // regular non-watching nodes should never receive any of these
-        return MisbehavingError{10};
-    }
-
-    if (vRecv.empty()) {
-        return MisbehavingError{100};
-    }
-
-    Consensus::LLMQType llmqType;
-    uint256 quorumHash;
-    vRecv >> llmqType;
-    vRecv >> quorumHash;
-    vRecv.Rewind(sizeof(uint256));
-    vRecv.Rewind(sizeof(uint8_t));
-
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
-    if (!llmq_params_opt.has_value()) {
-        LogPrintf("CDKGSessionManager -- invalid llmqType [%d]\n", std23::to_underlying(llmqType));
-        return MisbehavingError{100};
-    }
-    const auto& llmq_params = llmq_params_opt.value();
-
-    int quorumIndex{-1};
-
-    // First check cache
-    {
-        LOCK(cs_indexedQuorumsCache);
-        if (indexedQuorumsCache.empty()) {
-            utils::InitQuorumsCache(indexedQuorumsCache, m_chainman.GetConsensus());
-        }
-        indexedQuorumsCache[llmqType].get(quorumHash, quorumIndex);
-    }
-
-    // No luck, try to compute
-    if (quorumIndex == -1) {
-        const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(::cs_main,
-                                                             return m_chainman.m_blockman.LookupBlockIndex(quorumHash));
-        if (pQuorumBaseBlockIndex == nullptr) {
-            LogPrintf("CDKGSessionManager -- unknown quorumHash %s\n", quorumHash.ToString());
-            // NOTE: do not insta-ban for this, we might be lagging behind
-            return MisbehavingError{10};
-        }
-
-        if (!m_chainman.IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
-            LogPrintf("CDKGSessionManager -- llmqType [%d] quorums aren't active\n", std23::to_underlying(llmqType));
-            return MisbehavingError{100};
-        }
-
-        quorumIndex = pQuorumBaseBlockIndex->nHeight % llmq_params.dkgInterval;
-        int quorumIndexMax = IsQuorumRotationEnabled(llmq_params, pQuorumBaseBlockIndex) ?
-                llmq_params.signingActiveQuorumCount - 1 : 0;
-
-        if (quorumIndex > quorumIndexMax) {
-            LogPrintf("CDKGSessionManager -- invalid quorumHash %s\n", quorumHash.ToString());
-            return MisbehavingError{100};
-        }
-
-        if (!dkgSessionHandlers.count({llmqType, quorumIndex})) {
-            LogPrintf("CDKGSessionManager -- no session handlers for quorumIndex [%d]\n", quorumIndex);
-            return MisbehavingError{100};
-        }
-    }
-
-    assert(quorumIndex != -1);
-    WITH_LOCK(cs_indexedQuorumsCache, indexedQuorumsCache[llmqType].insert(quorumHash, quorumIndex));
-    return Assert(dkgSessionHandlers.at({llmqType, quorumIndex}))->ProcessMessage(pfrom.GetId(), msg_type, vRecv);
-}
-
-bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
-{
-    if (!IsQuorumDKGEnabled(m_sporkman))
-        return false;
-
-    for (const auto& [_, dkgType] : dkgSessionHandlers) {
-        if (Assert(dkgType)->pendingContributions.HasSeen(inv.hash)
-            || dkgType->pendingComplaints.HasSeen(inv.hash)
-            || dkgType->pendingJustifications.HasSeen(inv.hash)
-            || dkgType->pendingPrematureCommitments.HasSeen(inv.hash)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& ret) const

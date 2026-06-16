@@ -39,6 +39,7 @@ extern int16_t DEFAULT_WORKER_COUNT;
 static constexpr int8_t MAX_BLSCHECK_THREADS{33};
 
 bool IsAllMembersConnectedEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman);
+bool IsQuorumDKGEnabled(const CSporkManager& sporkman);
 bool IsQuorumPoseEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman);
 bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex);
 

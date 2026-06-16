@@ -52,7 +52,6 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
-#include <active/context.h>
 #include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/walletman.h>
@@ -131,8 +130,8 @@ std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
                                              bool ignore_incoming_txs)
 {
     return PeerManager::make(chainparams, connman, *node.addrman, banman, *node.dstxman, *node.chainman, *node.mempool, *node.mn_metaman,
-                             *node.mn_sync, *node.sporkman, *node.chainlocks, *node.clhandler, node.active_ctx, node.dmnman, node.cj_walletman,
-                             node.llmq_ctx, node.observer_ctx, ignore_incoming_txs);
+                             *node.mn_sync, *node.sporkman, *node.chainlocks, *node.clhandler, /*nodeman=*/nullptr, node.dmnman, node.cj_walletman,
+                             node.llmq_ctx, ignore_incoming_txs);
 }
 
 void DashChainstateSetup(ChainstateManager& chainman,

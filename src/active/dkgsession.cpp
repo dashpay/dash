@@ -6,6 +6,7 @@
 
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
+#include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionhandler.h>
 #include <llmq/dkgsessionmgr.h>
@@ -36,10 +37,10 @@ ActiveDKGSession::ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManag
 
 ActiveDKGSession::~ActiveDKGSession() = default;
 
-void ActiveDKGSession::Contribute(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGContribution> ActiveDKGSession::Contribute()
 {
     if (!AreWeMember()) {
-        return;
+        return std::nullopt;
     }
 
     assert(params.threshold > 1); // we should not get there with single-node-quorums
@@ -51,15 +52,15 @@ void ActiveDKGSession::Contribute(CDKGPendingMessages& pendingMessages, PeerMana
     if (!blsWorker.GenerateContributions(params.threshold, memberIds, vvecContribution, m_sk_contributions)) {
         // this should never happen actually
         logger.Batch("GenerateContributions failed");
-        return;
+        return std::nullopt;
     }
     logger.Batch("generated contributions. time=%d", t1.count());
     logger.Flush();
 
-    SendContributions(pendingMessages, peerman);
+    return SendContributions();
 }
 
-void ActiveDKGSession::SendContributions(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGContribution> ActiveDKGSession::SendContributions()
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 
@@ -69,7 +70,7 @@ void ActiveDKGSession::SendContributions(CDKGPendingMessages& pendingMessages, P
 
     if (ShouldSimulateError(DKGError::type::CONTRIBUTION_OMIT)) {
         logger.Batch("omitting");
-        return;
+        return std::nullopt;
     }
 
     CDKGContribution qc;
@@ -93,7 +94,7 @@ void ActiveDKGSession::SendContributions(CDKGPendingMessages& pendingMessages, P
 
         if (!qc.contributions->Encrypt(i, m->dmn->pdmnState->pubKeyOperator.Get(), skContrib, PROTOCOL_VERSION)) {
             logger.Batch("failed to encrypt contribution for %s", m->dmn->proTxHash.ToString());
-            return;
+            return std::nullopt;
         }
     }
 
@@ -108,7 +109,7 @@ void ActiveDKGSession::SendContributions(CDKGPendingMessages& pendingMessages, P
         return true;
     });
 
-    pendingMessages.PushPendingMessage(-1, qc, peerman);
+    return qc;
 }
 
 // Verifies all pending secret key contributions in one batch
@@ -170,10 +171,10 @@ void ActiveDKGSession::VerifyPendingContributions()
     pendingContributionVerifications.clear();
 }
 
-void ActiveDKGSession::VerifyAndComplain(CConnman& connman, CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGComplaint> ActiveDKGSession::VerifyAndComplain(CConnman& connman)
 {
     if (!AreWeMember()) {
-        return;
+        return std::nullopt;
     }
 
     {
@@ -208,7 +209,7 @@ void ActiveDKGSession::VerifyAndComplain(CConnman& connman, CDKGPendingMessages&
 
     VerifyConnectionAndMinProtoVersions(connman);
 
-    SendComplaint(pendingMessages, peerman);
+    return SendComplaint();
 }
 
 void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) const
@@ -255,7 +256,7 @@ void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) co
     }
 }
 
-void ActiveDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGComplaint> ActiveDKGSession::SendComplaint()
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 
@@ -280,7 +281,7 @@ void ActiveDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages, PeerM
     }
 
     if (badCount == 0 && complaintCount == 0) {
-        return;
+        return std::nullopt;
     }
 
     logger.Batch("sending complaint. badCount=%d, complaintCount=%d", badCount, complaintCount);
@@ -294,13 +295,13 @@ void ActiveDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages, PeerM
         return true;
     });
 
-    pendingMessages.PushPendingMessage(-1, qc, peerman);
+    return qc;
 }
 
-void ActiveDKGSession::VerifyAndJustify(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGJustification> ActiveDKGSession::VerifyAndJustify()
 {
     if (!AreWeMember()) {
-        return;
+        return std::nullopt;
     }
 
     CDKGLogger logger(*this, __func__, __LINE__);
@@ -333,13 +334,13 @@ void ActiveDKGSession::VerifyAndJustify(CDKGPendingMessages& pendingMessages, Pe
     }
 
     logger.Flush();
-    if (!justifyFor.empty()) {
-        SendJustification(pendingMessages, peerman, justifyFor);
+    if (justifyFor.empty()) {
+        return std::nullopt;
     }
+    return SendJustification(justifyFor);
 }
 
-void ActiveDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman,
-                                         const Uint256HashSet& forMembers)
+std::optional<CDKGJustification> ActiveDKGSession::SendJustification(const Uint256HashSet& forMembers)
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 
@@ -372,7 +373,7 @@ void ActiveDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, P
 
     if (ShouldSimulateError(DKGError::type::JUSTIFY_OMIT)) {
         logger.Batch("omitting");
-        return;
+        return std::nullopt;
     }
 
     qj.sig = m_mn_activeman.Sign(qj.GetSignHash(), m_use_legacy_bls);
@@ -384,13 +385,13 @@ void ActiveDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, P
         return true;
     });
 
-    pendingMessages.PushPendingMessage(-1, qj, peerman);
+    return qj;
 }
 
-void ActiveDKGSession::VerifyAndCommit(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGPrematureCommitment> ActiveDKGSession::VerifyAndCommit()
 {
     if (!AreWeMember()) {
-        return;
+        return std::nullopt;
     }
 
     CDKGLogger logger(*this, __func__, __LINE__);
@@ -429,10 +430,10 @@ void ActiveDKGSession::VerifyAndCommit(CDKGPendingMessages& pendingMessages, Pee
 
     logger.Flush();
 
-    SendCommitment(pendingMessages, peerman);
+    return SendCommitment();
 }
 
-void ActiveDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages, PeerManager& peerman)
+std::optional<CDKGPrematureCommitment> ActiveDKGSession::SendCommitment()
 {
     CDKGLogger logger(*this, __func__, __LINE__);
 
@@ -454,12 +455,12 @@ void ActiveDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages, Peer
 
     if (qc.CountValidMembers() < params.minSize) {
         logger.Batch("not enough valid members. not sending commitment");
-        return;
+        return std::nullopt;
     }
 
     if (ShouldSimulateError(DKGError::type::COMMIT_OMIT)) {
         logger.Batch("omitting");
-        return;
+        return std::nullopt;
     }
 
     cxxtimer::Timer timerTotal(true);
@@ -470,13 +471,13 @@ void ActiveDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages, Peer
     std::vector<CBLSSecretKey> skContributions;
     if (!dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
         logger.Batch("failed to get valid contributions");
-        return;
+        return std::nullopt;
     }
 
     BLSVerificationVectorPtr vvec = cache.BuildQuorumVerificationVector(::SerializeHash(memberIndexes), vvecs);
     if (vvec == nullptr) {
         logger.Batch("failed to build quorum verification vector");
-        return;
+        return std::nullopt;
     }
     t1.stop();
 
@@ -484,7 +485,7 @@ void ActiveDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages, Peer
     CBLSSecretKey skShare = cache.AggregateSecretKeys(::SerializeHash(memberIndexes), skContributions);
     if (!skShare.IsValid()) {
         logger.Batch("failed to build own secret share");
-        return;
+        return std::nullopt;
     }
     t2.stop();
 
@@ -541,7 +542,7 @@ void ActiveDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages, Peer
         return true;
     });
 
-    pendingMessages.PushPendingMessage(-1, qc, peerman);
+    return qc;
 }
 
 std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()

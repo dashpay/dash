@@ -101,6 +101,7 @@
 #include <llmq/context.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/signing.h>
+#include <llmq/net_dkg.h>
 #include <llmq/net_quorum.h>
 #include <llmq/net_signing.h>
 #include <llmq/observer.h>
@@ -2175,18 +2176,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.govman);
     node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, *node.chain_helper->superblocks, *node.dmnman, *node.mn_sync);
 
-    assert(!node.peerman);
-    node.peerman = PeerManager::make(chainparams, *node.connman, *node.addrman, node.banman.get(), *node.dstxman,
-                                     chainman, *node.mempool, *node.mn_metaman, *node.mn_sync,
-                                     *node.sporkman, *node.chainlocks, *node.clhandler, node.active_ctx, node.dmnman,
-                                     node.cj_walletman, node.llmq_ctx, node.observer_ctx, ignores_incoming_txs);
-    RegisterValidationInterface(node.peerman.get());
-
-    g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
-        *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman // todo: replace unique_ptr for dmnman to reference
-    );
-    RegisterValidationInterface(g_ds_notification_interface.get());
-
     // ********************************************************* Step 7c: Setup masternode mode or watch-only mode
     assert(!node.active_ctx);
     assert(!node.observer_ctx);
@@ -2202,17 +2191,29 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
         // Will init later in ThreadImport
         node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman,
-                                                          *node.govman, *node.chain_helper->superblocks, *node.mn_metaman,
+                                                          *node.govman, *node.chain_helper->superblocks,
                                                           *node.sporkman, *node.chainlocks, *node.mempool, *node.clhandler, *node.llmq_ctx->isman,
-                                                          *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, *node.llmq_ctx->sigman,
+                                                          *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, *node.llmq_ctx->sigman,
                                                           *node.mn_sync, operator_sk, dash_db_params, quorums_watch);
         RegisterValidationInterface(node.active_ctx.get());
     } else if (quorums_watch) {
-        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman,
-                                                                    *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman,
+        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.dmnman, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman,
                                                                     chainman, *node.sporkman, dash_db_params);
         RegisterValidationInterface(node.observer_ctx.get());
     }
+
+    assert(!node.peerman);
+    node.peerman = PeerManager::make(chainparams, *node.connman, *node.addrman, node.banman.get(), *node.dstxman,
+                                     chainman, *node.mempool, *node.mn_metaman, *node.mn_sync,
+                                     *node.sporkman, *node.chainlocks, *node.clhandler,
+                                     node.active_ctx ? node.active_ctx->nodeman.get() : nullptr,
+                                     node.dmnman, node.cj_walletman, node.llmq_ctx, ignores_incoming_txs);
+    RegisterValidationInterface(node.peerman.get());
+
+    g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
+        *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman // todo: replace unique_ptr for dmnman to reference
+    );
+    RegisterValidationInterface(g_ds_notification_interface.get());
 
     // ********************************************************* Step 7d: Setup other Dash services
 
@@ -2229,6 +2230,21 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             node.active_ctx ? node.active_ctx->nodeman.get() : nullptr,
             llmq::DEFAULT_WORKER_COUNT, sync_map, quorums_recovery);
         node.peerman->AddExtraHandler(std::move(net_quorum));
+    }
+
+    if (node.active_ctx) {
+        node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
+            node.peerman.get(), *node.sporkman, *node.active_ctx->qdkgsman, chainman, quorums_watch,
+            *node.llmq_ctx->qman, *node.active_ctx,
+            *node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman,
+            *node.active_ctx->dkgdbgman, *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman,
+            *node.active_ctx->nodeman, *node.connman));
+    } else if (node.observer_ctx) {
+        node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
+            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman, chainman,
+            *node.llmq_ctx->qman, *node.observer_ctx));
+    } else {
+        node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKGStub>(node.peerman.get()));
     }
 
     if (node.active_ctx) {
@@ -2374,7 +2390,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.peerman->ScheduleHandlers(*node.scheduler);
 
     if (node.active_ctx) {
-        node.active_ctx->Start(*node.connman, *node.peerman);
+        node.active_ctx->Start();
         node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.active_ctx->qdkgsman)), std::chrono::hours{1});
     }
 

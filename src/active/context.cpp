@@ -4,7 +4,6 @@
 
 #include <active/context.h>
 
-#include <active/dkgsessionhandler.h>
 #include <active/masternode.h>
 #include <bls/bls_worker.h>
 #include <chainlock/handler.h>
@@ -28,19 +27,18 @@
 
 ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman, CConnman& connman,
                              CDeterministicMNManager& dmnman, CGovernanceManager& govman,
-                             governance::SuperblockManager& superblocks, CMasternodeMetaMan& mn_metaman,
-                             CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
+                             governance::SuperblockManager& superblocks, CSporkManager& sporkman,
+                             const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
                              chainlock::ChainlockHandler& clhandler, llmq::CInstantSendManager& isman,
-                             llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
-                             llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
-                             const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
-                             const util::DbWrapperParams& db_params, bool quorums_watch) :
+                             llmq::CQuorumManager& qman, llmq::CQuorumSnapshotManager& qsnapman,
+                             llmq::CSigningManager& sigman, const CMasternodeSync& mn_sync,
+                             const CBLSSecretKey& operator_sk, const util::DbWrapperParams& db_params, bool quorums_watch) :
     llmq::QuorumRole{qman},
     m_bls_worker{bls_worker},
     m_quorums_watch{quorums_watch},
     nodeman{std::make_unique<CActiveMasternodeManager>(connman, dmnman, operator_sk)},
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
-    qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params, quorums_watch)},
+    qdkgsman{std::make_unique<llmq::CDKGSessionManager>(dmnman, qsnapman, chainman, sporkman, db_params)},
     shareman{std::make_unique<llmq::CSigSharesManager>(connman, chainman, sigman, *nodeman, qman, sporkman)},
     gov_signer{std::make_unique<GovernanceSigner>(connman, dmnman, govman, superblocks, *nodeman, chainman, mn_sync)},
     ehf_sighandler{std::make_unique<llmq::CEHFSignalsHandler>(chainman, sigman, *shareman, qman)},
@@ -49,23 +47,12 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
     is_signer{std::make_unique<instantsend::InstantSendSigner>(chainman.ActiveChainstate(), chainlocks, isman, sigman,
                                                                *shareman, qman, sporkman, mempool, mn_sync)}
 {
-    qdkgsman->InitializeHandlers([&](const Consensus::LLMQParams& llmq_params,
-                                     int quorum_idx) -> std::unique_ptr<llmq::ActiveDKGSessionHandler> {
-        return std::make_unique<llmq::ActiveDKGSessionHandler>(bls_worker, dmnman, mn_metaman, *dkgdbgman, *qdkgsman,
-                                                               qblockman, qsnapman, *nodeman, chainman, sporkman,
-                                                               llmq_params, quorums_watch, quorum_idx);
-    });
-    m_qman.ConnectManagers(this, qdkgsman.get());
 }
 
-ActiveContext::~ActiveContext()
-{
-    m_qman.DisconnectManagers();
-}
+ActiveContext::~ActiveContext() = default;
 
-void ActiveContext::Start(CConnman& connman, PeerManager& peerman)
+void ActiveContext::Start()
 {
-    qdkgsman->StartThreads(connman, peerman);
     cl_signer->Start();
     cl_signer->RegisterRecoveryInterface();
     is_signer->RegisterRecoveryInterface();
@@ -82,7 +69,6 @@ void ActiveContext::Stop()
     is_signer->UnregisterRecoveryInterface();
     cl_signer->UnregisterRecoveryInterface();
     cl_signer->Stop();
-    qdkgsman->StopThreads();
 }
 
 CCoinJoinServer& ActiveContext::GetCJServer() const

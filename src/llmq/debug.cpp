@@ -5,6 +5,7 @@
 #include <llmq/debug.h>
 
 #include <evo/deterministicmns.h>
+#include <llmq/dkgsessionhandler.h>
 #include <llmq/utils.h>
 #include <util/helpers.h>
 #include <util/std23.h>
@@ -207,6 +208,23 @@ void CDKGDebugManager::UpdateLocalMemberStatus(Consensus::LLMQType llmqType, int
     if (func(it->second.members.at(memberIdx))) {
         localStatus.nTime = GetAdjustedTime();
     }
+}
+
+void CDKGDebugManager::MarkPhaseAdvanced(Consensus::LLMQType llmqType, int quorumIndex, QuorumPhase newPhase)
+{
+    UpdateLocalSessionStatus(llmqType, quorumIndex, [&](CDKGDebugSessionStatus& status) {
+        bool changed = status.phase != newPhase;
+        status.phase = newPhase;
+        return changed;
+    });
+}
+
+void CDKGDebugManager::MarkAborted(Consensus::LLMQType llmqType, int quorumIndex)
+{
+    UpdateLocalSessionStatus(llmqType, quorumIndex, [&](CDKGDebugSessionStatus& status) {
+        status.statusBits.aborted = true;
+        return true;
+    });
 }
 
 } // namespace llmq

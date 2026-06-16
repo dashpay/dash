@@ -28,11 +28,7 @@ class CNetMsgMaker;
 class CSporkManager;
 class CTransaction;
 class CTxMemPool;
-struct ActiveContext;
 struct LLMQContext;
-namespace llmq {
-struct ObserverContext;
-} // namespace llmq
 namespace chainlock {
 class Chainlocks;
 class ChainlockHandler;
@@ -67,6 +63,7 @@ public:
     virtual void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") = 0;
     virtual bool PeerIsBanned(const NodeId node_id) = 0;
     virtual void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) = 0;
+    virtual void PeerPushInventory(NodeId nodeid, const CInv& inv) = 0;
     virtual void PeerRelayInv(const CInv& inv) = 0;
     virtual void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) = 0;
     virtual void PeerRelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) = 0;
@@ -107,17 +104,20 @@ protected:
 class PeerManager : public CValidationInterface, public NetEventsInterface, public PeerManagerInternal
 {
 public:
+    /**
+     * @param nodeman Non-null iff masternode mode is on; null otherwise. Used both
+     *                as the masternode-mode indicator and for direct access.
+     */
     static std::unique_ptr<PeerManager> make(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman,
                                              BanMan* banman, CDSTXManager& dstxman, ChainstateManager& chainman,
                                              CTxMemPool& pool, CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                                              CSporkManager& sporkman,
                                              const chainlock::Chainlocks& chainlocks,
                                              chainlock::ChainlockHandler& clhandler,
-                                             const std::unique_ptr<ActiveContext>& active_ctx,
+                                             CActiveMasternodeManager* nodeman,
                                              const std::unique_ptr<CDeterministicMNManager>& dmnman,
                                              const std::unique_ptr<CJWalletManager>& cj_walletman,
-                                             const std::unique_ptr<LLMQContext>& llmq_ctx,
-                                             const std::unique_ptr<llmq::ObserverContext>& observer_ctx, bool ignore_incoming_txs);
+                                             const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs);
     virtual ~PeerManager() { }
 
     /**

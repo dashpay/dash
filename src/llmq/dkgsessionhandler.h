@@ -5,26 +5,19 @@
 #ifndef BITCOIN_LLMQ_DKGSESSIONHANDLER_H
 #define BITCOIN_LLMQ_DKGSESSIONHANDLER_H
 
-#include <msg_result.h>
-
 #include <net.h> // for NodeId
-#include <net_processing.h>
-#include <protocol.h>
-#include <serialize.h>
-#include <streams.h>
 #include <sync.h>
-#include <uint256.h>
 
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
 
+class CDataStream;
 class CBlockIndex;
-class CConnman;
-class PeerManager;
+class uint256;
 
 namespace Consensus {
 struct LLMQParams;
@@ -62,7 +55,6 @@ public:
     using BinaryMessage = std::pair<NodeId, std::shared_ptr<CDataStream>>;
 
 private:
-    const uint32_t invType;
     const size_t maxMessagesPerNode;
     mutable Mutex cs_messages;
     std::list<BinaryMessage> pendingMessages GUARDED_BY(cs_messages);
@@ -70,23 +62,21 @@ private:
     Uint256HashSet seenMessages GUARDED_BY(cs_messages);
 
 public:
-    explicit CDKGPendingMessages(size_t _maxMessagesPerNode, uint32_t _invType) :
-            invType(_invType), maxMessagesPerNode(_maxMessagesPerNode) {};
+    explicit CDKGPendingMessages(size_t _maxMessagesPerNode) :
+        maxMessagesPerNode(_maxMessagesPerNode) {};
 
-    [[nodiscard]] MessageProcessingResult PushPendingMessage(NodeId from, CDataStream& vRecv)
+    /**
+     * Enqueue a serialized DKG message under @p from with content hash @p hash.
+     * Caller is responsible for hashing the payload and (for real peers)
+     * routing the erase-request to PeerManager. Drops the message silently on
+     * per-node capacity overflow or duplicate hash.
+     */
+    void PushPendingMessage(NodeId from, std::shared_ptr<CDataStream> pm, const uint256& hash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
+
     std::list<BinaryMessage> PopPendingMessages(size_t maxCount) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     bool HasSeen(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
-    void Misbehaving(NodeId from, int score, PeerManager& peerman);
     void Clear() EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
-
-    template <typename Message>
-    void PushPendingMessage(NodeId from, Message& msg, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages)
-    {
-        CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
-        ds << msg;
-        peerman.PostProcessMessage(PushPendingMessage(from, ds), from);
-    }
 
     // Might return nullptr messages, which indicates that deserialization failed for some reason
     template <typename Message>
@@ -116,16 +106,10 @@ public:
 
 /**
  * Handles multiple sequential sessions of one specific LLMQ type. There is one instance of this class per LLMQ type.
- *
- * It internally starts the phase handler thread, which constantly loops and sequentially processes one session at a
- * time and waiting for the next phase if necessary.
  */
 class CDKGSessionHandler
 {
-private:
-    friend class CDKGSessionManager;
-
-protected:
+public:
     const Consensus::LLMQParams& params;
 
     // Do not guard these, they protect their internals themselves
@@ -138,7 +122,7 @@ public:
     explicit CDKGSessionHandler(const Consensus::LLMQParams& _params);
     virtual ~CDKGSessionHandler();
 
-    [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv);
+    void ClearPendingMessages();
 
 public:
     virtual bool GetContribution(const uint256& hash, CDKGContribution& ret) const { return false; }
@@ -146,8 +130,6 @@ public:
     virtual bool GetJustification(const uint256& hash, CDKGJustification& ret) const { return false; }
     virtual bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const { return false; }
     virtual QuorumPhase GetPhase() const { return QuorumPhase::Idle; }
-    virtual void StartThread(CConnman& connman, PeerManager& peerman) {}
-    virtual void StopThread() {}
     virtual void UpdatedBlockTip(const CBlockIndex* pindexNew) {}
 };
 } // namespace llmq

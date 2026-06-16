@@ -19,13 +19,11 @@ class CBLSWorker;
 class CCoinJoinServer;
 class CConnman;
 class CGovernanceManager;
-class CMasternodeMetaMan;
 class CMasternodeSync;
 class CMNHFManager;
 class CSporkManager;
 class CTxMemPool;
 class GovernanceSigner;
-class PeerManager;
 namespace chainlock {
 class Chainlocks;
 class ChainlockHandler;
@@ -59,16 +57,15 @@ public:
     ActiveContext& operator=(const ActiveContext&) = delete;
     explicit ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman, CConnman& connman,
                            CDeterministicMNManager& dmnman, CGovernanceManager& govman,
-                           governance::SuperblockManager& superblocks, CMasternodeMetaMan& mn_metaman,
-                           CSporkManager& sporkman, const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
+                           governance::SuperblockManager& superblocks, CSporkManager& sporkman,
+                           const chainlock::Chainlocks& chainlocks, CTxMemPool& mempool,
                            chainlock::ChainlockHandler& clhandler, llmq::CInstantSendManager& isman,
-                           llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumManager& qman,
-                           llmq::CQuorumSnapshotManager& qsnapman, llmq::CSigningManager& sigman,
-                           const CMasternodeSync& mn_sync, const CBLSSecretKey& operator_sk,
-                           const util::DbWrapperParams& db_params, bool quorums_watch);
+                           llmq::CQuorumManager& qman, llmq::CQuorumSnapshotManager& qsnapman,
+                           llmq::CSigningManager& sigman, const CMasternodeSync& mn_sync,
+                           const CBLSSecretKey& operator_sk, const util::DbWrapperParams& db_params, bool quorums_watch);
     ~ActiveContext();
 
-    void Start(CConnman& connman, PeerManager& peerman);
+    void Start();
     void Stop();
 
     CCoinJoinServer& GetCJServer() const;

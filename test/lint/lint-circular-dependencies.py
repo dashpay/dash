@@ -21,7 +21,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "wallet/wallet -> wallet/walletdb -> wallet/wallet",
     "kernel/coinstats -> validation -> kernel/coinstats",
     # Dash
-    "active/context -> active/dkgsessionhandler -> llmq/dkgsessionhandler -> net_processing -> active/context",
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorumsman -> llmq/blockprocessor -> net -> banman",
     "coinjoin/client -> coinjoin/util -> wallet/wallet -> psbt -> node/transaction -> net_processing -> coinjoin/walletman -> coinjoin/client",
     "common/bloom -> evo/assetlocktx -> llmq/commitment -> evo/deterministicmns -> evo/simplifiedmns -> merkleblock -> common/bloom",
@@ -40,8 +39,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "instantsend/instantsend -> node/blockstorage -> validation -> txmempool -> instantsend/instantsend",
     "llmq/blockprocessor -> llmq/utils -> llmq/snapshot -> llmq/blockprocessor",
     "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment",
-    "llmq/dkgsessionhandler -> net_processing -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler",
-    "llmq/dkgsessionhandler -> net_processing -> llmq/observer -> llmq/dkgsessionhandler",
     "masternode/payments -> validation -> masternode/payments",
     "net -> netmessagemaker -> net",
     "netaddress -> netbase -> netaddress",

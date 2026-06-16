@@ -10,21 +10,18 @@
 #include <gsl/pointers.h>
 
 #include <atomic>
+#include <exception>
 #include <functional>
 #include <memory>
 #include <optional>
-#include <string>
-#include <thread>
 
 class CActiveMasternodeManager;
 class CBLSWorker;
 class CBlockIndex;
-class CConnman;
 class ChainstateManager;
 class CDeterministicMNManager;
 class CMasternodeMetaMan;
 class CSporkManager;
-class PeerManager;
 namespace Consensus {
 struct LLMQParams;
 } // namespace Consensus
@@ -37,6 +34,11 @@ class CQuorumSnapshotManager;
 } // namespace llmq
 
 namespace llmq {
+//! Thrown by Wait*, Sleep* and HandlePhase to bail out of the current DKG round.
+class AbortPhaseException : public std::exception
+{
+};
+
 class ActiveDKGSessionHandler final : public llmq::CDKGSessionHandler
 {
     using StartPhaseFunc = std::function<void()>;
@@ -59,8 +61,6 @@ private:
 private:
     std::atomic<bool> stopRequested{false};
     std::atomic<int> currentHeight{-1};
-    std::string m_thread_name;
-    std::thread phaseHandlerThread;
     std::unique_ptr<CDKGSession> curSession{nullptr};
 
     mutable Mutex cs_phase_qhash;
@@ -86,12 +86,20 @@ public:
     bool GetJustification(const uint256& hash, CDKGJustification& ret) const override;
     bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const override;
     QuorumPhase GetPhase() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
-    void StartThread(CConnman& connman, PeerManager& peerman) override;
-    void StopThread() override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew) override EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
 
-private:
-    std::pair<QuorumPhase, uint256> GetPhaseAndQuorumHash() const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
+    /*
+     * Phase-thread interface, called by NetDKG. Wait/Sleep/HandlePhase throw
+     * AbortPhaseException when stopRequested is set or when an unexpected
+     * phase change is observed.
+     */
+    int QuorumIndex() const { return quorumIndex; }
+    bool QuorumsWatch() const { return m_quorums_watch; }
+    uint256 GetCurrentQuorumHash() const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
+    CDKGSession* GetCurSession() { return curSession.get(); }
+
+    void RequestStop() { stopRequested = true; }
+    bool IsStopRequested() const { return stopRequested; }
 
     bool InitNewQuorum(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex);
 
@@ -110,8 +118,9 @@ private:
     void HandlePhase(QuorumPhase curPhase, QuorumPhase nextPhase, const uint256& expectedQuorumHash,
                      double randomSleepFactor, const StartPhaseFunc& startPhaseFunc,
                      const WhileWaitFunc& runWhileWaiting) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
-    void HandleDKGRound(CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
-    void PhaseHandlerThread(CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
+
+private:
+    std::pair<QuorumPhase, uint256> GetPhaseAndQuorumHash() const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
 };
 
 } // namespace llmq

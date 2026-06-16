@@ -5,7 +5,6 @@
 #ifndef BITCOIN_LLMQ_DKGSESSION_H
 #define BITCOIN_LLMQ_DKGSESSION_H
 
-#include <llmq/commitment.h>
 #include <protocol.h>
 
 #include <batchedlogger.h>
@@ -13,6 +12,7 @@
 #include <bls/bls_ies.h>
 #include <bls/bls_worker.h>
 #include <evo/types.h>
+#include <llmq/params.h>
 #include <util/std23.h>
 
 #include <saltedhasher.h>
@@ -20,19 +20,14 @@
 #include <sync.h>
 
 #include <optional>
-#include <unordered_set>
 
-class CActiveMasternodeManager;
 class CConnman;
-class CDeterministicMN;
-class CMasternodeMetaMan;
-class CSporkManager;
-class PeerManager;
+class CBLSWorker;
+class CDeterministicMNManager;
+class ChainstateManager;
+class CBlockIndex;
 namespace llmq {
-class ActiveDKGSession;
-class ActiveDKGSessionHandler;
 class CDKGDebugManager;
-class CDKGPendingMessages;
 class CDKGSession;
 class CDKGSessionManager;
 class CFinalCommitment;
@@ -201,10 +196,7 @@ public:
                 );
     }
 
-    [[nodiscard]] uint256 GetSignHash() const
-    {
-        return BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
-    }
+    [[nodiscard]] uint256 GetSignHash() const;
 };
 
 class CDKGMember
@@ -361,37 +353,45 @@ public:
      */
 
     // Phase 1: contribution
-    virtual void Contribute(CDKGPendingMessages& pendingMessages, PeerManager& peerman) {}
-    virtual void SendContributions(CDKGPendingMessages& pendingMessages, PeerManager& peerman) {}
+    virtual std::optional<CDKGContribution> Contribute() { return std::nullopt; }
+    virtual std::optional<CDKGContribution> SendContributions() { return std::nullopt; }
     bool PreVerifyMessage(const CDKGContribution& qc, bool& retBan) const;
     std::optional<CInv> ReceiveMessage(const CDKGContribution& qc) EXCLUSIVE_LOCKS_REQUIRED(!invCs, !cs_pending);
     virtual void VerifyPendingContributions() EXCLUSIVE_LOCKS_REQUIRED(cs_pending) {}
 
     // Phase 2: complaint
-    virtual void VerifyAndComplain(CConnman& connman, CDKGPendingMessages& pendingMessages, PeerManager& peerman)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_pending) {}
+    virtual std::optional<CDKGComplaint> VerifyAndComplain(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_pending)
+    {
+        return std::nullopt;
+    }
     virtual void VerifyConnectionAndMinProtoVersions(CConnman& connman) const {}
-    virtual void SendComplaint(CDKGPendingMessages& pendingMessages, PeerManager& peerman) {}
+    virtual std::optional<CDKGComplaint> SendComplaint() { return std::nullopt; }
     bool PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const;
     std::optional<CInv> ReceiveMessage(const CDKGComplaint& qc) EXCLUSIVE_LOCKS_REQUIRED(!invCs);
 
     // Phase 3: justification
-    virtual void VerifyAndJustify(CDKGPendingMessages& pendingMessages, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!invCs) {}
-    virtual void SendJustification(CDKGPendingMessages& pendingMessages, PeerManager& peerman, const Uint256HashSet& forMembers) {}
+    virtual std::optional<CDKGJustification> VerifyAndJustify() EXCLUSIVE_LOCKS_REQUIRED(!invCs)
+    {
+        return std::nullopt;
+    }
+    virtual std::optional<CDKGJustification> SendJustification(const Uint256HashSet& forMembers)
+    {
+        return std::nullopt;
+    }
     bool PreVerifyMessage(const CDKGJustification& qj, bool& retBan) const;
     std::optional<CInv> ReceiveMessage(const CDKGJustification& qj) EXCLUSIVE_LOCKS_REQUIRED(!invCs);
 
     // Phase 4: commit
-    virtual void VerifyAndCommit(CDKGPendingMessages& pendingMessages, PeerManager& peerman) {}
-    virtual void SendCommitment(CDKGPendingMessages& pendingMessages, PeerManager& peerman) {}
+    virtual std::optional<CDKGPrematureCommitment> VerifyAndCommit() { return std::nullopt; }
+    virtual std::optional<CDKGPrematureCommitment> SendCommitment() { return std::nullopt; }
     bool PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retBan) const;
     std::optional<CInv> ReceiveMessage(const CDKGPrematureCommitment& qc) EXCLUSIVE_LOCKS_REQUIRED(!invCs);
 
     // Phase 5: aggregate/finalize
-    virtual std::vector<CFinalCommitment> FinalizeCommitments() EXCLUSIVE_LOCKS_REQUIRED(!invCs) { return {}; }
+    virtual std::vector<CFinalCommitment> FinalizeCommitments() EXCLUSIVE_LOCKS_REQUIRED(!invCs);
 
     // All Phases 5-in-1 for single-node-quorum
-    virtual CFinalCommitment FinalizeSingleCommitment() { return {}; }
+    virtual CFinalCommitment FinalizeSingleCommitment();
 
     //! Look up a received message by hash. Used by CDKGSessionHandler subclasses to implement their Get* virtuals.
     [[nodiscard]] bool GetContribution(const uint256& hash, CDKGContribution& ret) const EXCLUSIVE_LOCKS_REQUIRED(!invCs);
