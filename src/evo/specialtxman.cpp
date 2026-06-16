@@ -110,7 +110,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
         return true;
 
     if (!DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-tx-type (DIP0003 is not active)");
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-tx-type-dip3-inactive");
     }
 
     try {
