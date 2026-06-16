@@ -264,7 +264,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
     if (!nodeState.CanCreateSessionFromAnn(ann, maxSessions)) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- too many sessions. cnt=%d, max=%d, llmqType=%d, node=%d\n",
                  __func__, nodeState.GetAnnouncementSessionCount(llmqType), maxSessions, static_cast<int>(llmqType), pfrom.GetId());
-        return false;
+        return true;
     }
     const uint256 signHash = ann.buildSignHash().Get();
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
