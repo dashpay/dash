@@ -76,15 +76,13 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
             }
             baseBlockIndexes.push_back(blockIndex);
         }
-        if (use_legacy_construction) {
-            // Legacy construction (served to peers < EFFICIENT_QRINFO_VERSION) only needs the
-            // input sorted; do not deduplicate so the wire response stays bit-for-bit identical
-            // to the pre-fix behavior for older peers.
-            std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
-                      [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
-        } else {
-            std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
-                      [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+        // Sort in all cases: the legacy path (served to peers < EFFICIENT_QRINFO_VERSION)
+        // relies on the order for baseBlockIndexes.back() and GetLastBaseBlockHash().
+        std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
+                  [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+        if (!use_legacy_construction) {
+            // Only deduplicate on the non-legacy path; leave the legacy path untouched so the
+            // wire response to older peers stays bit-for-bit identical to the pre-fix behavior.
             baseBlockIndexes.erase(std::unique(baseBlockIndexes.begin(), baseBlockIndexes.end()),
                                    baseBlockIndexes.end());
         }
