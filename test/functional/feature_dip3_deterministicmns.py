@@ -62,12 +62,43 @@ class DIP3Test(BitcoinTestFramework):
         self.log.info("testing rejection of ProTx before dip3 activation")
         assert self.nodes[0].getblockchaininfo()['blocks'] < 135
 
+        def dip3_inactive_error():
+            current_height = self.nodes[0].getblockcount()
+            next_block_height = current_height + 1
+            blocks_to_mine = 135 - next_block_height
+            return (
+                f"DIP0003 is not active yet; ProTx transactions are valid starting at block height 135 "
+                f"(current chain height {current_height}, next block height {next_block_height}). "
+                f"Mine {blocks_to_mine} more block{'s' if blocks_to_mine != 1 else ''} or restart "
+                "this regtest/devnet chain with DIP3 activation parameters that are already active."
+            )
+
+        before_activation_mn: MasternodeInfo = self.prepare_mn(
+            self.nodes[0], self.num_initial_mn + 2, 'mn-before-dip3-activation'
+        )
+        self.nodes[0].sendtoaddress(
+            before_activation_mn.fundsAddr, before_activation_mn.get_collateral_value() + 0.001
+        )
+        before_activation_mn.register_fund(
+            self.nodes[0],
+            submit=True,
+            expected_assert_code=-25,
+            expected_assert_msg=dip3_inactive_error(),
+        )
+
         mns: List[MasternodeInfo] = []
 
         # prepare mn which should still be accepted later when dip3 activates
         self.log.info("creating collateral for mn-before-dip3")
         before_dip3_mn: MasternodeInfo = self.prepare_mn(self.nodes[0], 1, 'mn-before-dip3')
         self.create_mn_collateral(self.nodes[0], before_dip3_mn)
+        self.nodes[0].sendtoaddress(before_dip3_mn.fundsAddr, 0.001)
+        before_dip3_mn.register(
+            self.nodes[0],
+            submit=True,
+            expected_assert_code=-25,
+            expected_assert_msg=dip3_inactive_error(),
+        )
         mns.append(before_dip3_mn)
 
         # block 150 starts enforcing DIP3 MN payments
