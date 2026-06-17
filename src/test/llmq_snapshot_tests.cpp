@@ -5,6 +5,7 @@
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
+#include <chain.h>
 #include <streams.h>
 #include <univalue.h>
 
@@ -175,6 +176,54 @@ BOOST_AUTO_TEST_CASE(quorum_rotation_info_construction_test)
 
 // Note: CQuorumRotationInfo serialization requires complex setup
 // This is better tested in functional tests
+
+BOOST_AUTO_TEST_CASE(get_last_base_block_hash_repeated_base_blocks_test)
+{
+    std::vector<CBlockIndex> blocks(4);
+    std::vector<uint256> hashes{
+        GetTestBlockHash(10),
+        GetTestBlockHash(20),
+        GetTestBlockHash(30),
+        GetTestBlockHash(40),
+    };
+    for (size_t i{0}; i < blocks.size(); ++i) {
+        blocks[i].nHeight = static_cast<int>((i + 1) * 10);
+        blocks[i].phashBlock = &hashes[i];
+    }
+
+    // Non-legacy: sorts internally, so unsorted input with duplicates is fine.
+    std::vector<const CBlockIndex*> unsorted_repeated_base_blocks{
+        &blocks[2],
+        &blocks[0],
+        &blocks[1],
+        &blocks[1],
+    };
+    BOOST_CHECK(GetLastBaseBlockHash(unsorted_repeated_base_blocks, &blocks[3], false) == hashes[2]);
+    BOOST_CHECK(GetLastBaseBlockHash(unsorted_repeated_base_blocks, &blocks[1], false) == hashes[1]);
+
+    // Legacy: relies on caller-supplied sort and tolerates duplicates as a no-op.
+    // BuildQuorumRotationInfo deliberately does NOT deduplicate in the legacy path so
+    // the wire response to older peers stays bit-for-bit identical; these checks
+    // demonstrate that the duplicate is harmless to GetLastBaseBlockHash's output.
+    std::vector<const CBlockIndex*> sorted_repeated_base_blocks{
+        &blocks[0],
+        &blocks[1],
+        &blocks[1],
+        &blocks[2],
+    };
+    std::vector<const CBlockIndex*> sorted_unique_base_blocks{
+        &blocks[0],
+        &blocks[1],
+        &blocks[2],
+    };
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3], true) == hashes[2]);
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1], true) == hashes[1]);
+    // Legacy no-op proof: duplicate vs unique input produces the same hash.
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3], true) ==
+                GetLastBaseBlockHash(sorted_unique_base_blocks, &blocks[3], true));
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1], true) ==
+                GetLastBaseBlockHash(sorted_unique_base_blocks, &blocks[1], true));
+}
 
 BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_serialization_test)
 {

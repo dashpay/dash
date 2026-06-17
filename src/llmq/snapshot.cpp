@@ -14,6 +14,8 @@
 
 #include <univalue.h>
 
+#include <algorithm>
+
 namespace {
 constexpr std::string_view DB_QUORUM_SNAPSHOT{"llmq_S"};
 
@@ -74,9 +76,15 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
             }
             baseBlockIndexes.push_back(blockIndex);
         }
-        if (use_legacy_construction) {
-            std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
-                      [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+        // Sort in all cases: the legacy path (served to peers < EFFICIENT_QRINFO_VERSION)
+        // relies on the order for baseBlockIndexes.back() and GetLastBaseBlockHash().
+        std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
+                  [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
+        if (!use_legacy_construction) {
+            // Only deduplicate on the non-legacy path; leave the legacy path untouched so the
+            // wire response to older peers stays bit-for-bit identical to the pre-fix behavior.
+            baseBlockIndexes.erase(std::unique(baseBlockIndexes.begin(), baseBlockIndexes.end()),
+                                   baseBlockIndexes.end());
         }
     }
 
