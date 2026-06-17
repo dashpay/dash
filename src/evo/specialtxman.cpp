@@ -150,7 +150,9 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         }
         const CBlockIndex* pAncestor = pindex->GetAncestor(curBlockCoinbaseCLHeight);
         if (pAncestor == nullptr) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
+            // Defense-in-depth: the range check above keeps curBlockCoinbaseCLHeight in
+            // [0, pindex->nHeight - 1], so GetAncestor() should never return nullptr here.
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff-ancestor");
         }
         uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
         chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature};

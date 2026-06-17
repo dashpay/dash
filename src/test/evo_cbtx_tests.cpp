@@ -25,6 +25,12 @@ BOOST_AUTO_TEST_SUITE(evo_cbtx_tests)
 
 // Out-of-range bestCLHeightDiff (>= pindex->nHeight) must be rejected with
 // "bad-cbtx-cldiff" so that the subsequent GetAncestor() call sees a valid height.
+//
+// The defensive nullptr branch after GetAncestor() returns "bad-cbtx-cldiff-ancestor".
+// That branch is unreachable in practice (the range check guarantees the requested
+// ancestor height is in [0, pindex->nHeight - 1], for which GetAncestor() never returns
+// nullptr) and cannot be exercised from a unit test: a fake CBlockIndex with no pprev
+// would trip GetAncestor()'s `assert(pprev)` while walking, not return nullptr.
 BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff, RegTestingSetup)
 {
     const auto& consensus_params = Params().GetConsensus();
