@@ -3028,6 +3028,11 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     assert(pindexNew->pprev == m_chain.Tip());
+    // ConnectBlock commits its BLS-scheme switch on success, but the tip isn't
+    // advanced until m_chain.SetTip() below. If a step in between (e.g.
+    // FlushStateToDisk) fails, restore the scheme so it stays in sync with the
+    // unchanged tip.
+    ScopedBLSLegacyScheme bls_scheme_guard;
     // Read block from disk.
     int64_t nTime1 = GetTimeMicros();
     std::shared_ptr<const CBlock> pthisBlock;
@@ -3082,6 +3087,7 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
     }
     // Update m_chain & related variables.
     m_chain.SetTip(*pindexNew);
+    bls_scheme_guard.Commit();
     UpdateTip(pindexNew);
 
     int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
