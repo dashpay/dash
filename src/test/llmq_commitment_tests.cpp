@@ -5,11 +5,22 @@
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
+#include <chain.h>
+#include <consensus/validation.h>
+#include <evo/specialtx.h>
 #include <llmq/commitment.h>
+#include <llmq/context.h>
+#include <llmq/utils.h>
+#include <logging.h>
+#include <node/context.h>
+#include <primitives/transaction.h>
 #include <streams.h>
+#include <util/check.h>
 #include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <algorithm>
 
 using namespace llmq;
 using namespace llmq::testutils;
@@ -84,6 +95,94 @@ BOOST_AUTO_TEST_CASE(commitment_verify_sizes_test)
     commitment.validMembers = std::vector<bool>(TEST_PARAMS.size, true);
     commitment.signers = std::vector<bool>(TEST_PARAMS.size + 1, true);
     BOOST_CHECK(!commitment.VerifySizes(TEST_PARAMS));
+}
+
+BOOST_FIXTURE_TEST_CASE(commitment_check_undersized_bitset_debug_log_test, RegTestingSetup)
+{
+    // Catches the OOB-read regression in CheckLLMQCommitment's debug-log loop
+    // by capturing log output rather than relying on undefined behaviour to
+    // trip a sanitizer. The wire-format validMembers DYNBITSET can deserialize
+    // smaller than llmq_params.size; before the clamp the loop iterated up to
+    // llmq_params.size and emitted v[0], v[1], ... reading past the bitset.
+    // With the clamp an empty bitset must produce "validMembers[]".
+    struct LogCaptureGuard {
+        const uint64_t saved_categories{LogInstance().GetCategoryMask()};
+        std::list<std::function<void(const std::string&)>>::iterator it;
+        explicit LogCaptureGuard(std::vector<std::string>& sink)
+        {
+            LogInstance().EnableCategory(BCLog::LLMQ);
+            it = LogInstance().PushBackCallback(
+                [&sink](const std::string& msg) { sink.push_back(msg); });
+        }
+        ~LogCaptureGuard()
+        {
+            LogInstance().DeleteCallback(it);
+            if (!(saved_categories & BCLog::LLMQ)) {
+                LogInstance().DisableCategory(BCLog::LLMQ);
+            }
+        }
+    };
+
+    std::vector<std::string> log_lines;
+    LogCaptureGuard guard{log_lines};
+    BOOST_REQUIRE(LogAcceptDebug(BCLog::LLMQ));
+
+    CFinalCommitmentTxPayload payload;
+    payload.nVersion = CFinalCommitmentTxPayload::CURRENT_VERSION;
+    // base_index below sits at height 0, so CheckLLMQCommitment expects
+    // qcTx.nHeight == 1. Setting it to 2 forces the function to fail with
+    // "bad-qc-height" after the pre-validation debug-log block but before
+    // LookupBlockIndex / Verify / VerifySizes, which is the path the clamp
+    // is meant to harden.
+    payload.nHeight = 2;
+    payload.commitment.nVersion = CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION;
+    payload.commitment.llmqType = TEST_PARAMS.type;
+    payload.commitment.quorumHash = GetTestQuorumHash(1);
+    // TEST_PARAMS.size is 3; an empty bitset models a malformed mined commitment.
+    payload.commitment.signers      = std::vector<bool>();
+    payload.commitment.validMembers = std::vector<bool>();
+
+    CMutableTransaction mtx;
+    mtx.nVersion = CTransaction::SPECIAL_VERSION;
+    mtx.nType    = TRANSACTION_QUORUM_COMMITMENT;
+    SetTxPayload(mtx, payload);
+    const CTransaction tx{mtx};
+
+    // Sanity check that the undersized bitsets survive payload round-trip,
+    // so the call below is genuinely exercising the OOB-prone code path.
+    const auto opt_round_trip = GetTxPayload<CFinalCommitmentTxPayload>(tx);
+    BOOST_REQUIRE(opt_round_trip.has_value());
+    BOOST_CHECK_LT(opt_round_trip->commitment.validMembers.size(), static_cast<size_t>(TEST_PARAMS.size));
+    BOOST_CHECK_LT(opt_round_trip->commitment.signers.size(),     static_cast<size_t>(TEST_PARAMS.size));
+
+    CBlockIndex base_index;
+    base_index.nHeight = 0;
+
+    const llmq::UtilParameters util_params{*Assert(m_node.dmnman),
+                                           *Assert(m_node.llmq_ctx)->qsnapman,
+                                           *Assert(m_node.chainman),
+                                           &base_index};
+
+    TxValidationState state;
+    BOOST_CHECK(!llmq::CheckLLMQCommitment(util_params, tx, state));
+    BOOST_CHECK(state.IsInvalid());
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-qc-height");
+
+    // Locate the validMembers debug line emitted by CheckLLMQCommitment and
+    // assert the loop was clamped: with an empty bitset the rendered list must
+    // be empty. Old code emitted "v[0]=..." here even though the bitset had no
+    // elements, so checking for the absence of "v[0]" pins down the regression.
+    const std::string marker = "CFinalCommitment -- CheckLLMQCommitment";
+    const auto it = std::find_if(log_lines.begin(), log_lines.end(),
+                                 [&marker](const std::string& s) {
+                                     return s.find(marker) != std::string::npos;
+                                 });
+    BOOST_REQUIRE_MESSAGE(it != log_lines.end(),
+                          "CheckLLMQCommitment debug line not captured");
+    BOOST_CHECK_MESSAGE(it->find("validMembers[]") != std::string::npos,
+                        "expected clamped 'validMembers[]', got: " + *it);
+    BOOST_CHECK_MESSAGE(it->find("v[0]") == std::string::npos,
+                        "unexpected v[0] in clamped log line: " + *it);
 }
 
 BOOST_AUTO_TEST_CASE(commitment_serialization_test)
