@@ -73,6 +73,12 @@ const std::map<std::string, RPCResult> RPCRESULT_MAP{{
     RESULT_MAP_ENTRY("votingAddress", RPCResult::Type::STR, "Dash address used for voting"),
 }};
 #undef RESULT_MAP_ENTRY
+
+template <typename Obj>
+std::string GetDeprecatedServiceField(const Obj& obj)
+{
+    return CHECK_NONFATAL(obj.netInfo)->GetPrimary().ToStringAddrPort();
+}
 } // anonymous namespace
 
 RPCResult GetRpcResult(const std::string& key, bool optional, const std::string& override_name)
@@ -222,7 +228,7 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("version", nVersion);
     if (IsServiceDeprecatedRPCEnabled()) {
-        obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+        obj.pushKV("service", GetDeprecatedServiceField(*this));
     }
     obj.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     obj.pushKV("registeredHeight", nRegisteredHeight);
@@ -309,7 +315,7 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     ret.pushKV("collateralIndex", collateralOutpoint.n);
     if (IsServiceDeprecatedRPCEnabled()) {
-        ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+        ret.pushKV("service", GetDeprecatedServiceField(*this));
     }
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
@@ -402,7 +408,7 @@ UniValue CProUpServTx::ToJson() const
     ret.pushKV("type", std23::to_underlying(nType));
     ret.pushKV("proTxHash", proTxHash.ToString());
     if (IsServiceDeprecatedRPCEnabled()) {
-        ret.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+        ret.pushKV("service", GetDeprecatedServiceField(*this));
     }
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     if (CTxDestination dest; ExtractDestination(scriptOperatorPayout, dest)) {
@@ -540,7 +546,7 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
     obj.pushKV("proRegTxHash", proRegTxHash.ToString());
     obj.pushKV("confirmedHash", confirmedHash.ToString());
     if (IsServiceDeprecatedRPCEnabled()) {
-        obj.pushKV("service", netInfo->GetPrimary().ToStringAddrPort());
+        obj.pushKV("service", GetDeprecatedServiceField(*this));
     }
     obj.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
