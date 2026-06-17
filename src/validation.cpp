@@ -143,40 +143,30 @@ using node::GetTransaction;
 
 namespace {
 
-void SetBLSLegacyScheme(bool legacy_scheme, const char* logging_context) noexcept
-{
-    if (legacy_scheme != bls::bls_legacy_scheme.load()) {
-        bls::bls_legacy_scheme.store(legacy_scheme);
-        LogPrintf("%s: bls_legacy_scheme=%d\n", logging_context, legacy_scheme);
-    }
-}
-
+//! Restores bls::bls_legacy_scheme on scope exit unless Commit() is called.
+//! ConnectBlock switches the scheme while validating a block across the V19
+//! boundary; this keeps a failed or dry-run validation from leaking that
+//! change into the process-wide flag.
 class ScopedBLSLegacyScheme
 {
 public:
-    explicit ScopedBLSLegacyScheme(const char* logging_context) noexcept :
-        m_logging_context(logging_context),
-        m_saved_scheme(bls::bls_legacy_scheme.load())
+    ScopedBLSLegacyScheme() noexcept : m_saved(bls::bls_legacy_scheme.load()) {}
+    ~ScopedBLSLegacyScheme() noexcept
     {
+        if (!m_committed && m_saved != bls::bls_legacy_scheme.load()) {
+            bls::bls_legacy_scheme.store(m_saved);
+            LogPrintf("ScopedBLSLegacyScheme: reverted bls_legacy_scheme=%d\n", m_saved);
+        }
     }
 
     ScopedBLSLegacyScheme(const ScopedBLSLegacyScheme&) = delete;
     ScopedBLSLegacyScheme& operator=(const ScopedBLSLegacyScheme&) = delete;
 
-    // Persist whatever scheme is currently active; skip the restore in the destructor.
-    void Dismiss() noexcept { m_dismissed = true; }
-
-    ~ScopedBLSLegacyScheme() noexcept
-    {
-        if (!m_dismissed) {
-            SetBLSLegacyScheme(m_saved_scheme, m_logging_context);
-        }
-    }
+    void Commit() noexcept { m_committed = true; }
 
 private:
-    const char* const m_logging_context;
-    const bool m_saved_scheme;
-    bool m_dismissed{false};
+    const bool m_saved;
+    bool m_committed{false};
 };
 
 } // namespace
@@ -2222,7 +2212,7 @@ static int64_t nBlocksTotal = 0;
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
 bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
-                               CCoinsViewCache& view, bool fJustCheck, bool preserve_bls_scheme_on_success)
+                               CCoinsViewCache& view, bool fJustCheck)
 {
     int64_t nTimeStart = GetTimeMicros();
 
@@ -2234,7 +2224,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     assert(m_chain_helper);
 
-    ScopedBLSLegacyScheme bls_scheme_guard{__func__};
+    // Roll back any BLS scheme switch below unless we fully connect the block.
+    ScopedBLSLegacyScheme bls_scheme_guard;
 
     // Check it again in case a previous version let a bad block in
     // NOTE: We don't currently (re-)invoke ContextualCheckBlock() or
@@ -2577,6 +2568,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     view.SetBestBlock(pindex->GetBlockHash());
     m_evoDb.WriteBestBlock(pindex->GetBlockHash());
 
+    // Block is committed: keep the scheme it switched to (fJustCheck dry runs returned above).
+    bls_scheme_guard.Commit();
+
     if (mnlist_updates_opt.has_value()) {
         const auto& mnlu = mnlist_updates_opt.value();
         GetMainSignals().NotifyMasternodeListChanged(false, mnlu.old_list, mnlu.diff);
@@ -2594,10 +2588,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         nTime8 - nTimeStart // in microseconds (µs)
     );
 
-    // Hand off the effective scheme to the caller's outer guard; otherwise restore on scope exit.
-    if (preserve_bls_scheme_on_success) {
-        bls_scheme_guard.Dismiss();
-    }
     return true;
 }
 
@@ -3058,13 +3048,11 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
     // When adding aggregate statistics in the future, keep in mind that
     // nBlocksTotal may be zero until the ConnectBlock() call below.
     LogPrint(BCLog::BENCHMARK, "  - Load block from disk: %.2fms\n", (nTime2 - nTime1) * MILLI);
-    // Outer guard: any failure between ConnectBlock and SetTip restores the original scheme.
-    ScopedBLSLegacyScheme bls_scheme_guard{__func__};
     {
         auto dbTx = m_evoDb.BeginTransaction();
 
         CCoinsViewCache view(&CoinsTip());
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, /*fJustCheck=*/false, /*preserve_bls_scheme_on_success=*/true);
+        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             if (state.IsInvalid())
@@ -3094,8 +3082,6 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
     }
     // Update m_chain & related variables.
     m_chain.SetTip(*pindexNew);
-    // Tip has advanced; the scheme that ConnectBlock left active is now the chain's effective scheme.
-    bls_scheme_guard.Dismiss();
     UpdateTip(pindexNew);
 
     int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
@@ -4389,8 +4375,6 @@ bool TestBlockValidity(BlockValidationState& state,
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == chainstate.m_chain.Tip());
 
-    ScopedBLSLegacyScheme bls_scheme_guard{__func__};
-
     uint256 hash = block.GetHash();
     if (chainlocks.HasConflictingChainLock(pindexPrev->nHeight + 1, hash)) {
         LogPrintf("ERROR: %s: conflicting with chainlock\n", __func__);
@@ -4491,7 +4475,8 @@ bool CVerifyDB::VerifyDB(
         return true;
     }
 
-    ScopedBLSLegacyScheme bls_scheme_guard{__func__};
+    // ConnectBlock below switches the scheme but the tip isn't advanced here; restore it on return.
+    ScopedBLSLegacyScheme bls_scheme_guard;
 
     // begin tx and let it rollback
     auto dbTx = evoDb.BeginTransaction();
@@ -4597,7 +4582,7 @@ bool CVerifyDB::VerifyDB(
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, consensus_params))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!chainstate.ConnectBlock(block, state, pindex, coins, /*fJustCheck=*/false, /*preserve_bls_scheme_on_success=*/true))
+            if (!chainstate.ConnectBlock(block, state, pindex, coins))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s (%s)", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
             if (ShutdownRequested()) return true;
         }
