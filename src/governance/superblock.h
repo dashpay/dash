@@ -107,7 +107,7 @@ public:
     bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentRet);
     CAmount GetPaymentsTotalAmount();
 
-    bool IsValid(const CChain& active_chain, const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+    bool IsValid(const CChain& active_chain, const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool is_v24);
     bool IsExpired(int heightToTest) const;
 
     std::vector<uint256> GetProposalHashes() const;
@@ -158,7 +158,7 @@ public:
     bool IsSuperblockTriggered(const CDeterministicMNList& tip_mn_list, int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
     bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list, const CTransaction& txNew,
-                           int nBlockHeight, CAmount blockReward) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+                           int nBlockHeight, CAmount blockReward, bool is_v24) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
     bool GetSuperblockPayments(const CDeterministicMNList& tip_mn_list, int nBlockHeight,
                                std::vector<CTxOut>& voutSuperblockRet) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
