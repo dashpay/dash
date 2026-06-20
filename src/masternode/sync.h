@@ -20,7 +20,7 @@ static constexpr int MASTERNODE_SYNC_GOVOBJ_VOTE     = 11;
 static constexpr int MASTERNODE_SYNC_FINISHED        = 999;
 
 static constexpr int MASTERNODE_SYNC_TICK_SECONDS    = 6;
-static constexpr int MASTERNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes so 30 seconds should be fine
+static constexpr int MASTERNODE_SYNC_TIMEOUT_SECONDS = 30; // nominal target spacing is 2.5 minutes, so 30 seconds should be fine
 static constexpr int MASTERNODE_SYNC_RESET_SECONDS   = 900; // Reset fReachedBestHeader in CMasternodeSync::Reset if UpdateBlockTip hasn't been called for this seconds
 
 class NodeSyncNotifier

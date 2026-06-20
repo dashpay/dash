@@ -166,6 +166,12 @@ struct Params {
     uint256 powLimit;
     bool fPowAllowMinDifficultyBlocks;
     bool fPowNoRetargeting;
+    /**
+     * Nominal consensus target spacing. Do not treat it as an exact
+     * user-facing wall-clock ETA: mainnet's observed spacing is about
+     * 2.626 min/block due to the historical DGW off-by-one documented by
+     * DarkGravityWave() in pow.cpp.
+     */
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
     int nPowKGWHeight;
