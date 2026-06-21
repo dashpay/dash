@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            git fetch --no-tags origin "+${BASE_REF}:refs/tmp/base_branch"
+            git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/tmp/base_branch"
             git fetch --no-tags origin "+pull/${PR_NUMBER}/head:refs/tmp/pr_head"
             if ! git merge-base --is-ancestor refs/tmp/base_branch refs/tmp/pr_head; then
               echo "PR head does not contain the tip of '${BASE_REF}'; rebase required."
