@@ -30,16 +30,18 @@ jobs:
           fetch-depth: 0
 
       - name: Check fast-forward
+        id: ff_check
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            git fetch --no-tags origin "${BASE_REF}:base_branch"
-            git fetch --no-tags origin "pull/${PR_NUMBER}/head:pr_head"
-            if ! git merge-base --is-ancestor base_branch pr_head; then
+            git fetch --no-tags origin "+${BASE_REF}:refs/tmp/base_branch"
+            git fetch --no-tags origin "+pull/${PR_NUMBER}/head:refs/tmp/pr_head"
+            if ! git merge-base --is-ancestor refs/tmp/base_branch refs/tmp/pr_head; then
               echo "PR head does not contain the tip of '${BASE_REF}'; rebase required."
+              echo "needs_rebase=true" >> "$GITHUB_OUTPUT"
               exit 1
             fi
             echo "PR head fast-forwards from '${BASE_REF}'."
@@ -48,7 +50,7 @@ jobs:
           fi
 
       - name: add labels
-        if: failure() && github.event_name == 'pull_request_target'
+        if: always() && steps.ff_check.outputs.needs_rebase == 'true' && github.event_name == 'pull_request_target'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -57,7 +59,7 @@ jobs:
           gh pr edit "${PR_NUMBER}" --add-label "needs rebase"
 
       - name: comment
-        if: failure() && github.event_name == 'pull_request_target'
+        if: always() && steps.ff_check.outputs.needs_rebase == 'true' && github.event_name == 'pull_request_target'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
