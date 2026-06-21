@@ -2,12 +2,17 @@ name: Check Merge Fast-Forward Only
 
 permissions:
   pull-requests: write
+  issues: write
 
 on:
   push:
+    branches:
+      - master
   pull_request_target:
-  pull_request_review:
-    types: [submitted]
+
+concurrency:
+  group: merge-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check_merge:
@@ -24,33 +29,30 @@ jobs:
           git config user.email "noreply@example.com"
 
       - name: Check merge --ff-only
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [[ "${{ github.ref_name }}" == "master" ]]; then
-            echo "Already on master, no need to check --ff-only"
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
+            git fetch --no-tags origin "${BASE_REF}:base_branch"
+            git fetch --no-tags origin "pull/${PR_NUMBER}/head:pr_head"
+            git checkout base_branch
+            git merge --ff-only pr_head
           else
-            git fetch --no-tags origin master:master
-            if [[ "${{ github.event_name }}" == "pull_request"* ]]; then
-              git fetch --no-tags origin ${{ github.event.pull_request.base.ref }}:base_branch
-              git checkout base_branch
-              git pull --rebase=false origin pull/${{ github.event.pull_request.number }}/head
-              git checkout master
-              git merge --ff-only base_branch
-            else
-              git checkout master
-              git merge --ff-only ${{ github.sha }}
-            fi
+            echo "Push event on '${{ github.ref_name }}'; no fast-forward check required."
           fi
 
       - name: add labels
+        if: failure() && github.event_name == 'pull_request_target'
         uses: actions-ecosystem/action-add-labels@v1
-        if: failure()
         with:
           labels: |
             needs rebase
 
       - name: comment
+        if: failure() && github.event_name == 'pull_request_target'
         uses: mshick/add-pr-comment@v3
-        if: failure()
         with:
           message: |
             This pull request has conflicts, please rebase.
