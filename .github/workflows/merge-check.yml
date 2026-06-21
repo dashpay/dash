@@ -9,6 +9,12 @@ on:
     branches:
       - master
   pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
 
 concurrency:
   group: merge-check-${{ github.event.pull_request.number || github.ref }}
@@ -23,12 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Git
-        run: |
-          git config user.name "GitHub Action"
-          git config user.email "noreply@example.com"
-
-      - name: Check merge --ff-only
+      - name: Check fast-forward
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -37,8 +38,11 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
             git fetch --no-tags origin "${BASE_REF}:base_branch"
             git fetch --no-tags origin "pull/${PR_NUMBER}/head:pr_head"
-            git checkout base_branch
-            git merge --ff-only pr_head
+            if ! git merge-base --is-ancestor base_branch pr_head; then
+              echo "PR head does not contain the tip of '${BASE_REF}'; rebase required."
+              exit 1
+            fi
+            echo "PR head fast-forwards from '${BASE_REF}'."
           else
             echo "Push event on '${{ github.ref_name }}'; no fast-forward check required."
           fi
@@ -54,7 +58,18 @@ jobs:
 
       - name: comment
         if: failure() && github.event_name == 'pull_request_target'
-        uses: mshick/add-pr-comment@v3
-        with:
-          message: |
-            This pull request has conflicts, please rebase.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- merge-check-comment -->'
+          BODY=$(printf '%s\n%s\n' "${MARKER}" "This pull request has conflicts, please rebase.")
+          EXISTING_ID=$(gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq "[.[] | select(.body | contains(\"${MARKER}\"))][0].id // empty")
+          if [[ -n "${EXISTING_ID}" ]]; then
+            gh api -X PATCH "repos/${GH_REPO}/issues/comments/${EXISTING_ID}" -f body="${BODY}"
+          else
+            gh pr comment "${PR_NUMBER}" --body "${BODY}"
+          fi
