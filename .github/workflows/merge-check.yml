@@ -45,10 +45,12 @@ jobs:
 
       - name: add labels
         if: failure() && github.event_name == 'pull_request_target'
-        uses: actions-ecosystem/action-add-labels@v1
-        with:
-          labels: |
-            needs rebase
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr edit "${PR_NUMBER}" --add-label "needs rebase"
 
       - name: comment
         if: failure() && github.event_name == 'pull_request_target'
