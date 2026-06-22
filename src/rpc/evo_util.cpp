@@ -94,8 +94,13 @@ void ProcessNetInfoPlatform(ProTx& ptx, const UniValue& input_p2p, const UniValu
                 // Empty Input: We can tolerate blank values if netInfo can store platform fields, if it cannot, we are relying
                 //              on platform{HTTP,P2P}Port, where it is mandatory even if their netInfo counterpart is optional.
                 //      String: If not parsable as port and relying on platform{HTTP,P2P}Port, bail out.
-                throw JSONRPCError(RPC_INVALID_PARAMETER,
-                                   strprintf("Invalid param for %s, ProTx version only supports ports", field_name));
+                const char* example_port{purpose == NetInfoPurpose::PLATFORM_HTTPS ? "443" : "26656"};
+                throw JSONRPCError(
+                    RPC_INVALID_PARAMETER,
+                    strprintf("Invalid param for %s, this ProTx version only accepts a bare port number "
+                              "(e.g. %s); the \"ADDR:PORT\" / address-array form requires an Extended "
+                              "addresses (ExtNetInfo) ProTx",
+                              field_name, example_port));
             }
             if (input.isArray()) {
                 const UniValue& entries = input.get_array();

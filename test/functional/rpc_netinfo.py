@@ -270,37 +270,38 @@ class NetInfoTest(BitcoinTestFramework):
                                   DEFAULT_PORT_PLATFORM_P2P, DEFAULT_PORT_PLATFORM_HTTP,
                                   -8, f"Error setting coreP2PAddrs[1] to '127.0.0.2:{self.node_evo.mn.nodePort}' (too many entries)")
 
-        # platformP2PAddrs and platformHTTPSAddrs don't accept non-numeric inputs
+        # platformP2PAddrs and platformHTTPSAddrs don't accept non-numeric inputs; the rejection should
+        # also tell users that the "ADDR:PORT" / array form needs an Extended addresses (ExtNetInfo) ProTx.
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", f"127.0.0.1:{DEFAULT_PORT_PLATFORM_P2P}", DEFAULT_PORT_PLATFORM_HTTP,
-                                  -8, "Invalid param for platformP2PAddrs, ProTx version only supports ports")
+                                  -8, "this ProTx version only accepts a bare port number (e.g. 26656); the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", [f"127.0.0.1:{DEFAULT_PORT_PLATFORM_P2P}"], DEFAULT_PORT_PLATFORM_HTTP,
-                                  -8, "Invalid param for platformP2PAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformP2PAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P, f"127.0.0.1:{DEFAULT_PORT_PLATFORM_HTTP}",
-                                  -8, "Invalid param for platformHTTPSAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformHTTPSAddrs, this ProTx version only accepts a bare port number (e.g. 443); the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P, [f"127.0.0.1:{DEFAULT_PORT_PLATFORM_HTTP}"],
-                                  -8, "Invalid param for platformHTTPSAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformHTTPSAddrs, this ProTx version only accepts a bare port number (e.g. 443); the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx")
 
         # Port numbers may not be wrapped in arrays, either as integers or strings
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", [DEFAULT_PORT_PLATFORM_P2P], DEFAULT_PORT_PLATFORM_HTTP,
-                                  -8, "Invalid param for platformP2PAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformP2PAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", [f"{DEFAULT_PORT_PLATFORM_P2P}"], DEFAULT_PORT_PLATFORM_HTTP,
-                                  -8, "Invalid param for platformP2PAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformP2PAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P, [DEFAULT_PORT_PLATFORM_HTTP],
-                                  -8, "Invalid param for platformHTTPSAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformHTTPSAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P, [f"{DEFAULT_PORT_PLATFORM_HTTP}"],
-                                  -8, "Invalid param for platformHTTPSAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformHTTPSAddrs, this ProTx version only accepts a bare port number")
 
         # coreP2PAddrs cannot be empty when registering a masternode without specifying platform fields
         self.node_evo.register_mn(self, False, "", "", "",
-                                  -8, "Invalid param for platformP2PAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformP2PAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, "", "", DEFAULT_PORT_PLATFORM_HTTP,
-                                  -8, "Invalid param for platformP2PAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformP2PAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", "", "",
                                   -8, "Invalid param for platformP2PAddrs, cannot be empty if other fields populated")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", "", DEFAULT_PORT_PLATFORM_HTTP,
                                   -8, "Invalid param for platformP2PAddrs, cannot be empty if other fields populated")
         self.node_evo.register_mn(self, False, "", DEFAULT_PORT_PLATFORM_P2P, "",
-                                  -8, "Invalid param for platformHTTPSAddrs, ProTx version only supports ports")
+                                  -8, "Invalid param for platformHTTPSAddrs, this ProTx version only accepts a bare port number")
         self.node_evo.register_mn(self, False, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P, "",
                                   -8, "Invalid param for platformHTTPSAddrs, cannot be empty if other fields populated")
 
