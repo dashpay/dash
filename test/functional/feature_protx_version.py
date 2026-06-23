@@ -4,9 +4,10 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 '''
-feature_dip3_v19.py
+feature_protx_version.py
 
-Checks DIP3 for v19
+Checks ProTx versioning across the v19 (basic BLS) and v24 (extended
+addresses) forks.
 
 '''
 from io import BytesIO
@@ -44,7 +45,7 @@ class TestP2PConn(P2PInterface):
         return self.last_mnlistdiff
 
 
-class DIP3V19Test(DashTestFramework):
+class ProTxVersionTest(DashTestFramework):
     def add_options(self, parser):
         self.add_wallet_options(parser)
 
@@ -224,4 +225,4 @@ class DIP3V19Test(DashTestFramework):
 
 
 if __name__ == '__main__':
-    DIP3V19Test().main()
+    ProTxVersionTest().main()
