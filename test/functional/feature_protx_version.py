@@ -20,7 +20,8 @@ from test_framework.test_framework import (
     MasternodeInfo,
 )
 from test_framework.util import (
-    assert_equal
+    assert_equal,
+    softfork_active,
 )
 
 
@@ -53,6 +54,7 @@ class ProTxVersionTest(DashTestFramework):
         self.extra_args = [[
             '-deprecatedrpc=legacy_mn',
             '-testactivationheight=v19@200',
+            f'-vbparams=v24:{self.mocktime}:999999999999:450:10:8:6:5:0',
         ]] * 6
         self.set_dash_test_params(6, 5, evo_count=2, extra_args=self.extra_args)
 
@@ -130,6 +132,38 @@ class ProTxVersionTest(DashTestFramework):
             assert prev_quorum != quorum
 
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+
+        self.test_protx_v24_versioning(new_mn)
+
+    def test_protx_v24_versioning(self, mn: MasternodeInfo):
+        assert not softfork_active(self.nodes[0], 'v24')
+        self.activate_by_name('v24', slow_mode=False)
+        self.log.info("Activated v24 at height:" + str(self.nodes[0].getblockcount()))
+
+        node = self.nodes[0]
+        node.sendtoaddress(mn.fundsAddr, 1)
+        self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
+        self.generate(node, 1)
+
+        self.log.info("A basic-scheme masternode reports version 2 before any post-v24 update")
+        assert_equal(node.protx('info', mn.proTxHash)['state']['version'], 2)
+
+        self.log.info("A v3 ProUpRegTx reusing the basic operator key is accepted, but leaves the "
+                      "stored masternode version at 3 even no operator key change took place")
+        protx_result = mn.update_registrar(node, submit=True, fundsAddr=mn.fundsAddr)
+        self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
+        tip = self.generate(node, 1)[0]
+        assert_equal(node.getrawtransaction(protx_result, 1, tip)['proUpRegTx']['version'], 3)
+        assert_equal(node.protx('info', mn.proTxHash)['state']['version'], 3)
+
+        self.test_revoke_protx(mn.nodeIdx, mn)
+
+        self.log.info("Masternode list reloads from disk identically after the v3 updates")
+        list_before = self.nodes[1].masternodelist()
+        self.restart_node(1, extra_args=self.extra_args[1])
+        self.connect_nodes(0, 1)
+        self.connect_nodes(1, 2)
+        assert_equal(self.nodes[1].masternodelist(), list_before)
 
     def test_revoke_protx(self, node_idx, revoke_mn: MasternodeInfo):
         funds_address = self.nodes[0].getnewaddress()
