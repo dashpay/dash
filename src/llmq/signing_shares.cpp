@@ -22,10 +22,21 @@
 
 #include <cxxtimer.hpp>
 
+#include <algorithm>
 #include <ranges>
 
 namespace llmq
 {
+namespace {
+constexpr size_t MAX_SESSIONS_PER_PEER_FACTOR{4};
+constexpr size_t MIN_SESSIONS_PER_PEER{100};
+
+size_t GetMaxSessionsForPeer(const Consensus::LLMQParams& params)
+{
+    return std::max<size_t>(size_t(params.size) * MAX_SESSIONS_PER_PEER_FACTOR, MIN_SESSIONS_PER_PEER);
+}
+} // namespace
+
 void CSigShare::UpdateKey()
 {
     key.first = this->buildSignHash().Get();
@@ -130,7 +141,30 @@ CSigSharesNodeState::Session& CSigSharesNodeState::GetOrCreateSessionFromAnn(con
     if (s.announced.inv.empty()) {
         InitSession(s, signHash, ann);
     }
+    s.receivedAnnouncement = true;
     return s;
+}
+
+bool CSigSharesNodeState::CanCreateSessionFromAnn(const llmq::CSigSesAnn& ann, size_t maxSessions) const
+{
+    return sessions.count(ann.buildSignHash().Get()) != 0 || GetAnnouncementSessionCount(ann.getLlmqType()) < maxSessions;
+}
+
+size_t CSigSharesNodeState::GetSessionCount() const
+{
+    return sessions.size();
+}
+
+size_t CSigSharesNodeState::GetSessionCount(Consensus::LLMQType llmqType) const
+{
+    return std::ranges::count_if(sessions, [&](const auto& kv) { return kv.second.llmqType == llmqType; });
+}
+
+size_t CSigSharesNodeState::GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const
+{
+    return std::ranges::count_if(sessions, [&](const auto& kv) {
+        return kv.second.receivedAnnouncement && kv.second.llmqType == llmqType;
+    });
 }
 
 CSigSharesNodeState::Session* CSigSharesNodeState::GetSessionBySignHash(const uint256& signHash)
@@ -206,7 +240,8 @@ void CSigSharesManager::UnregisterRecoveryInterface()
 bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann)
 {
     auto llmqType = ann.getLlmqType();
-    if (!Params().GetLLMQ(llmqType).has_value()) {
+    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    if (!llmq_params_opt.has_value()) {
         return false;
     }
     if (ann.getSessionId() == UNINITIALIZED_SESSION_ID || ann.getQuorumHash().IsNull() || ann.getId().IsNull() || ann.getMsgHash().IsNull()) {
@@ -225,7 +260,15 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
 
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom.GetId()];
+    const size_t maxSessions = GetMaxSessionsForPeer(*llmq_params_opt);
+    if (!nodeState.CanCreateSessionFromAnn(ann, maxSessions)) {
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- too many sessions. cnt=%d, max=%d, llmqType=%d, node=%d\n",
+                 __func__, nodeState.GetAnnouncementSessionCount(llmqType), maxSessions, static_cast<int>(llmqType), pfrom.GetId());
+        return true;
+    }
+    const uint256 signHash = ann.buildSignHash().Get();
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
+    timeSeenForSessions.try_emplace(signHash, GetTime<std::chrono::seconds>().count());
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.getSessionId());
     session.recvSessionId = ann.getSessionId();
@@ -1247,6 +1290,11 @@ void CSigSharesManager::Cleanup()
                 doneSessions.emplace(sigShare.GetSignHash());
             }
         });
+        for (const auto& [signHash, _] : timeSeenForSessions) {
+            if (doneSessions.count(signHash) == 0 && sigman.HasRecoveredSigForSession(signHash)) {
+                doneSessions.emplace(signHash);
+            }
+        }
         for (const auto& signHash : doneSessions) {
             RemoveSigSharesForSession(signHash);
         }
