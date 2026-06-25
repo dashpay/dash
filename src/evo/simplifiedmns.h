@@ -36,6 +36,7 @@ public:
     uint16_t platformHTTPPort{0};
     uint160 platformNodeID{};
     CScript scriptPayout; // mem-only
+    MasternodePayoutShares payouts; // mem-only
     CScript scriptOperatorPayout; // mem-only
     uint16_t nVersion{ProTxVersion::LegacyBLS};
     MnType nType{MnType::Regular};
@@ -45,7 +46,8 @@ public:
                            const std::shared_ptr<NetInfoInterface>& net_info, const CBLSLazyPublicKey& pubkey_operator,
                            const CKeyID& keyid_voting, bool is_valid, uint16_t platform_http_port,
                            const uint160& platform_node_id, const CScript& script_payout,
-                           const CScript& script_operator_payout, uint16_t version, MnType type);
+                           const MasternodePayoutShares& payouts, const CScript& script_operator_payout,
+                           uint16_t version, MnType type);
 
     bool operator==(const CSimplifiedMNListEntry& rhs) const
     {

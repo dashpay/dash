@@ -28,6 +28,8 @@
 #include <wallet/rpc/util.h>
 #include <walletinitinterface.h>
 
+#include <limits>
+
 #ifdef ENABLE_WALLET
 #include <wallet/coincontrol.h>
 #include <wallet/spend.h>
@@ -145,13 +147,31 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "The address must be unused and must differ from the collateralAddress."}
         },
         {"payoutAddress_register",
-            {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments."}
+            {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
+                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
+                "an array of payout shares.",
+                {
+                    {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                        {
+                            {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Dash payout address."},
+                            {"reward", RPCArg::Type::NUM, RPCArg::Optional::NO, "The payout share in basis points."},
+                        }},
+                },
+                "\"payoutAddress\"|[{\"address\",\"reward\"},...]", {"string or array", "string or array"}}
         },
         {"payoutAddress_update",
-            {"payoutAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments.\n"
-                "If set to an empty string, the currently active payout address is reused."}
+            {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
+                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
+                "an array of payout shares.\n"
+                "If set to an empty string, the currently active payout address is reused.",
+                {
+                    {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                        {
+                            {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Dash payout address."},
+                            {"reward", RPCArg::Type::NUM, RPCArg::Optional::NO, "The payout share in basis points."},
+                        }},
+                },
+                "\"payoutAddress\"|[{\"address\",\"reward\"},...]", {"string or array", "string or array"}}
         },
         {"proTxHash",
             {"proTxHash", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -252,6 +272,50 @@ static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS public key, not %s", paramName, hexKey));
     }
     return pubKey;
+}
+
+static MasternodePayoutShares ParsePayouts(const UniValue& value, const std::string& paramName, CTxDestination& first_dest)
+{
+    MasternodePayoutShares payouts;
+    if (value.isArray()) {
+        const auto& arr = value.get_array();
+        if (arr.empty()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must contain at least one entry", paramName));
+        }
+        if (arr.size() > 8) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must not contain more than 8 entries", paramName));
+        }
+        for (size_t i = 0; i < arr.size(); ++i) {
+            const UniValue& entry = arr[i];
+            if (!entry.isObject()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s entries must be objects", paramName));
+            }
+            const UniValue& address_value = entry.find_value("address");
+            const UniValue& reward_value = entry.find_value("reward");
+            if (!address_value.isStr() || !reward_value.isNum()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s entries must include address and numeric reward", paramName));
+            }
+            CTxDestination dest = DecodeDestination(address_value.get_str());
+            if (!IsValidDestination(dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", address_value.get_str()));
+            }
+            if (payouts.empty()) {
+                first_dest = dest;
+            }
+            const int64_t reward = reward_value.getInt<int64_t>();
+            if (reward < 0 || reward > std::numeric_limits<uint16_t>::max()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "payout reward out of range");
+            }
+            payouts.emplace_back(GetScriptForDestination(dest), static_cast<uint16_t>(reward));
+        }
+    } else {
+        first_dest = DecodeDestination(value.get_str());
+        if (!IsValidDestination(first_dest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", value.get_str()));
+        }
+        payouts.emplace_back(GetScriptForDestination(first_dest), CMasternodePayoutShare::MAX_REWARD);
+    }
+    return payouts;
 }
 
 template <typename SpecialTxPayload>
@@ -760,10 +824,11 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
     ptx.nOperatorReward = operatorReward;
 
-    CTxDestination payoutDest = DecodeDestination(request.params[paramIdx + 5].get_str());
-    if (!IsValidDestination(payoutDest)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
+    CTxDestination payoutDest;
+    if (request.params[paramIdx + 5].isArray() && ptx.nVersion < ProTxVersion::MultiPayout) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 4");
     }
+    ptx.payouts = ParsePayouts(request.params[paramIdx + 5], "payouts", payoutDest);
 
     if (isEvoRequested) {
         if (!IsHex(request.params[paramIdx + 6].get_str())) {
@@ -777,7 +842,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     ptx.keyIDVoting = keyIDVoting;
-    ptx.scriptPayout = GetScriptForDestination(payoutDest);
+    ptx.scriptPayout = ptx.payouts.front().scriptPayout;
 
     if (action != ProTxRegisterAction::Fund) {
         // make sure fee calculation works
@@ -1090,7 +1155,8 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
             ExtractDestination(ptx.scriptOperatorPayout, feeSource);
         } else {
             // use payout address as default source for fees
-            ExtractDestination(dmn->pdmnState->scriptPayout, feeSource);
+            const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+            ExtractDestination(owner_payouts.front().scriptPayout, feeSource);
         }
     }
 
@@ -1163,9 +1229,13 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     if (!dmn) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
+    if (dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS && ptx.nVersion > ProTxVersion::BasicBLS) {
+        ptx.nVersion = ProTxVersion::BasicBLS;
+    }
 
     ptx.keyIDVoting = dmn->pdmnState->keyIDVoting;
     ptx.scriptPayout = dmn->pdmnState->scriptPayout;
+    ptx.payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
 
     if (!request.params[1].get_str().empty()) {
         // new pubkey
@@ -1182,13 +1252,16 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     }
 
     CTxDestination payoutDest;
-    ExtractDestination(ptx.scriptPayout, payoutDest);
-    if (!request.params[3].get_str().empty()) {
-        payoutDest = DecodeDestination(request.params[3].get_str());
-        if (!IsValidDestination(payoutDest)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[3].get_str()));
+    ExtractDestination(ptx.payouts.front().scriptPayout, payoutDest);
+    if (request.params[3].isArray()) {
+        if (ptx.nVersion < ProTxVersion::MultiPayout) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 4");
         }
-        ptx.scriptPayout = GetScriptForDestination(payoutDest);
+        ptx.payouts = ParsePayouts(request.params[3], "payouts", payoutDest);
+        ptx.scriptPayout = ptx.payouts.front().scriptPayout;
+    } else if (!request.params[3].get_str().empty()) {
+        ptx.payouts = ParsePayouts(request.params[3], "payouts", payoutDest);
+        ptx.scriptPayout = ptx.payouts.front().scriptPayout;
     }
 
     {
@@ -1319,13 +1392,14 @@ static RPCHelpMan protx_revoke()
         CTxDestination txDest;
         ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
         FundSpecialTx(*pwallet, tx, ptx, txDest);
-    } else if (dmn->pdmnState->scriptPayout != CScript()) {
+    } else {
         // Using funds from previousely specified masternode payout address
         CTxDestination txDest;
-        ExtractDestination(dmn->pdmnState->scriptPayout, txDest);
+        const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+        if (owner_payouts.empty() || !ExtractDestination(owner_payouts.front().scriptPayout, txDest)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "No payout or fee source addresses found, can't revoke");
+        }
         FundSpecialTx(*pwallet, tx, ptx, txDest);
-    } else {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "No payout or fee source addresses found, can't revoke");
     }
 
     bool fSubmit{true};
@@ -1349,6 +1423,14 @@ static bool CheckWalletOwnsScript(const CWallet* const pwallet, const CScript& s
         return false;
     }
     return WITH_LOCK(pwallet->cs_wallet, return pwallet->IsMine(script)) == isminetype::ISMINE_SPENDABLE;
+}
+
+static bool CheckWalletOwnsAnyPayout(const CWallet* const pwallet, const CDeterministicMNState& state)
+{
+    for (const auto& payout : GetOwnerPayouts(state.nVersion, state.scriptPayout, state.payouts)) {
+        if (CheckWalletOwnsScript(pwallet, payout.scriptPayout)) return true;
+    }
+    return false;
 }
 
 static bool CheckWalletOwnsKey(const CWallet* const pwallet, const CKeyID& keyID) {
@@ -1398,7 +1480,7 @@ static UniValue BuildDMNListEntry(const CWallet* const pwallet, const CDetermini
         walletObj.pushKV("hasOperatorKey", false);
         walletObj.pushKV("hasVotingKey", hasVotingKey);
         walletObj.pushKV("ownsCollateral", ownsCollateral);
-        walletObj.pushKV("ownsPayeeScript", CheckWalletOwnsScript(pwallet, dmn.pdmnState->scriptPayout));
+        walletObj.pushKV("ownsPayeeScript", CheckWalletOwnsAnyPayout(pwallet, *dmn.pdmnState));
         walletObj.pushKV("ownsOperatorRewardScript", CheckWalletOwnsScript(pwallet, dmn.pdmnState->scriptOperatorPayout));
         o.pushKV("wallet", walletObj);
     }
@@ -1494,7 +1576,7 @@ static RPCHelpMan protx_list()
             if (setOutpts.count(dmn.collateralOutpoint) ||
                 CheckWalletOwnsKey(wallet.get(), dmn.pdmnState->keyIDOwner) ||
                 CheckWalletOwnsKey(wallet.get(), dmn.pdmnState->keyIDVoting) ||
-                CheckWalletOwnsScript(wallet.get(), dmn.pdmnState->scriptPayout) ||
+                CheckWalletOwnsAnyPayout(wallet.get(), *dmn.pdmnState) ||
                 CheckWalletOwnsScript(wallet.get(), dmn.pdmnState->scriptOperatorPayout)) {
                 ret.push_back(BuildDMNListEntry(wallet.get(), dmn, mn_metaman, detailed, chainman));
             }

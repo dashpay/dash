@@ -1263,7 +1263,8 @@ class MasternodeInfo:
     def register(self, node: TestNode, submit: bool, collateral_txid: Optional[str] = None, collateral_vout: Optional[int] = None,
                  addrs_core_p2p: Union[str, List[str], None] = None, ownerAddr: Optional[str] = None, pubKeyOperator: Optional[str] = None,
                  votingAddr: Optional[str] = None, operator_reward: Optional[int] = None, rewards_address: Optional[str] = None,
-                 fundsAddr: Optional[str] = None, platform_node_id: Optional[str] = None, addrs_platform_p2p: Union[int, str, List[str], None] = None,
+                 payouts: Optional[List[dict]] = None, fundsAddr: Optional[str] = None,
+                 platform_node_id: Optional[str] = None, addrs_platform_p2p: Union[int, str, List[str], None] = None,
                  addrs_platform_https: Union[int, str, List[str], None] = None, expected_assert_code: Optional[int] = None,
                  expected_assert_msg: Optional[str] = None) -> Optional[str]:
         self.validate_inputs(platform_node_id, addrs_platform_p2p, addrs_platform_https, expected_assert_code, expected_assert_msg)
@@ -1277,7 +1278,7 @@ class MasternodeInfo:
             pubKeyOperator or self.pubKeyOperator,
             votingAddr or self.votingAddr,
             operator_reward or self.operator_reward,
-            rewards_address or self.rewards_address,
+            payouts if payouts is not None else rewards_address or self.rewards_address,
         ]
         address_funds = fundsAddr or self.fundsAddr
 
@@ -1309,7 +1310,8 @@ class MasternodeInfo:
 
     def register_fund(self, node: TestNode, submit: bool, collateral_address: Optional[str] = None, addrs_core_p2p: Union[str, List[str], None] = None,
                       ownerAddr: Optional[str] = None, pubKeyOperator: Optional[str] = None, votingAddr: Optional[str] = None,
-                      operator_reward: Optional[int] = None, rewards_address: Optional[str] = None, fundsAddr: Optional[str] = None,
+                      operator_reward: Optional[int] = None, rewards_address: Optional[str] = None,
+                      payouts: Optional[List[dict]] = None, fundsAddr: Optional[str] = None,
                       platform_node_id: Optional[str] = None, addrs_platform_p2p: Union[int, str, List[str], None] = None,
                       addrs_platform_https: Union[int, str, List[str], None] = None, expected_assert_code: Optional[int] = None,
                       expected_assert_msg: Optional[str] = None) -> Optional[str]:
@@ -1331,7 +1333,7 @@ class MasternodeInfo:
             pubKeyOperator or self.pubKeyOperator,
             votingAddr or self.votingAddr,
             operator_reward or self.operator_reward,
-            rewards_address or self.rewards_address,
+            payouts if payouts is not None else rewards_address or self.rewards_address,
         ]
         address_funds = fundsAddr or self.fundsAddr
 
@@ -1396,7 +1398,7 @@ class MasternodeInfo:
         return ret
 
     def update_registrar(self, node: TestNode, submit: bool, pubKeyOperator: Optional[str] = None, votingAddr: Optional[str] = None,
-                         rewards_address: Optional[str] = None, fundsAddr: Optional[str] = None,
+                         rewards_address: Optional[str] = None, payouts: Optional[List[dict]] = None, fundsAddr: Optional[str] = None,
                          expected_assert_code: Optional[int] = None, expected_assert_msg: Optional[str] = None) -> Optional[str]:
         if (expected_assert_code and not expected_assert_msg) or (not expected_assert_code and expected_assert_msg):
             raise AssertionError("Intending to use assert_raises_rpc_error() but didn't specify code and message")
@@ -1418,7 +1420,7 @@ class MasternodeInfo:
             self.proTxHash,
             pubKeyOperator or self.pubKeyOperator,
             votingAddr or self.votingAddr,
-            rewards_address or self.rewards_address,
+            payouts if payouts is not None else rewards_address or self.rewards_address,
         ]
 
         # fundsAddr is an optional field that results in different behavior if omitted, so we don't fallback here

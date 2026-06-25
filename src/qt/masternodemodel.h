@@ -70,6 +70,7 @@ public:
     const COutPoint& collateralOutpointRaw() const { return m_dmn->getCollateralOutpoint(); }
     const CScript& scriptOperatorPayoutRaw() const { return m_dmn->getScriptOperatorPayout(); }
     const CScript& scriptPayoutRaw() const { return m_dmn->getScriptPayout(); }
+    std::vector<CScript> scriptPayoutsRaw() const { return m_dmn->getScriptPayouts(); }
     const QByteArray& serviceKey() const { return m_service_key; }
     const QString& collateralAddress() const { return m_collateral_address; }
     const QString& collateralOutpoint() const { return m_collateral_outpoint; }

@@ -933,6 +933,7 @@ libbitcoin_common_a_SOURCES = \
   deploymentinfo.cpp \
   evo/core_write.cpp \
   evo/netinfo.cpp \
+  evo/providertx_util.cpp \
   external_signer.cpp \
   governance/common.cpp \
   governance/core_write.cpp \
@@ -1202,6 +1203,7 @@ dash_chainstate_SOURCES = \
   evo/netinfo.cpp \
   evo/mnhftx.cpp \
   evo/providertx.cpp \
+  evo/providertx_util.cpp \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
   evo/specialtx.cpp \

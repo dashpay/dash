@@ -101,15 +101,29 @@ using interfaces::WalletLoader;
 
 namespace node {
 namespace {
+std::vector<CScript> GetOwnerPayoutScripts(const CDeterministicMN& dmn)
+{
+    std::vector<CScript> ret;
+    for (const auto& payout : GetOwnerPayouts(dmn.pdmnState->nVersion, dmn.pdmnState->scriptPayout,
+                                              dmn.pdmnState->payouts)) {
+        ret.emplace_back(payout.scriptPayout);
+    }
+    return ret;
+}
+
 class MnEntryImpl : public MnEntry
 {
 private:
     CDeterministicMNCPtr m_dmn;
+    const std::vector<CScript> m_script_payouts;
+    const CScript m_script_payout;
 
 public:
     MnEntryImpl(const CDeterministicMNCPtr& dmn) :
         MnEntry{dmn},
-        m_dmn{Assert(dmn)}
+        m_dmn{Assert(dmn)},
+        m_script_payouts{GetOwnerPayoutScripts(*m_dmn)},
+        m_script_payout{m_script_payouts.front()}
     {
     }
     ~MnEntryImpl() = default;
@@ -122,7 +136,8 @@ public:
     const CKeyID& getKeyIdOwner() const override { return m_dmn->pdmnState->keyIDOwner; }
     const CKeyID& getKeyIdVoting() const override { return m_dmn->pdmnState->keyIDVoting; }
     const COutPoint& getCollateralOutpoint() const override { return m_dmn->collateralOutpoint; }
-    const CScript& getScriptPayout() const override { return m_dmn->pdmnState->scriptPayout; }
+    const CScript& getScriptPayout() const override { return m_script_payout; }
+    std::vector<CScript> getScriptPayouts() const override { return m_script_payouts; }
     const CScript& getScriptOperatorPayout() const override { return m_dmn->pdmnState->scriptOperatorPayout; }
     const int32_t& getLastPaidHeight() const override { return m_dmn->pdmnState->nLastPaidHeight; }
     const int32_t& getPoSePenalty() const override { return m_dmn->pdmnState->nPoSePenalty; }

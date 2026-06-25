@@ -71,8 +71,17 @@ CAmount PlatformShare(const CAmount reward)
         masternodeReward -= operatorReward;
     }
 
-    if (masternodeReward > 0) {
-        voutMasternodePaymentsRet.emplace_back(masternodeReward, dmnPayee->pdmnState->scriptPayout);
+    const auto owner_payouts = GetOwnerPayouts(dmnPayee->pdmnState->nVersion, dmnPayee->pdmnState->scriptPayout,
+                                               dmnPayee->pdmnState->payouts);
+    CAmount paid_owner_reward{0};
+    for (size_t i = 0; i < owner_payouts.size(); ++i) {
+        const bool last = i + 1 == owner_payouts.size();
+        const CAmount payout_amount = last ? masternodeReward - paid_owner_reward
+                                           : (masternodeReward * owner_payouts[i].reward) / CMasternodePayoutShare::MAX_REWARD;
+        paid_owner_reward += payout_amount;
+        if (payout_amount > 0) {
+            voutMasternodePaymentsRet.emplace_back(payout_amount, owner_payouts[i].scriptPayout);
+        }
     }
     if (operatorReward > 0) {
         voutMasternodePaymentsRet.emplace_back(operatorReward, dmnPayee->pdmnState->scriptOperatorPayout);

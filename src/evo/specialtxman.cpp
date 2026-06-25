@@ -30,6 +30,69 @@
 #include <util/system.h>
 #include <validation.h>
 
+static bool AddNetInfoEntries(const std::shared_ptr<NetInfoInterface>& net_info, NetInfoPurpose purpose,
+                              const NetInfoList& entries, BlockValidationState& state)
+{
+    for (const auto& entry : entries) {
+        if (const auto ret{net_info->AddEntry(purpose, entry.ToStringAddrPort())}; ret != NetInfoStatus::Success) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-version");
+        }
+    }
+    return true;
+}
+
+static bool SetStateVersion(CDeterministicMNState& state_mn, uint16_t nVersion, MnType nType,
+                            BlockValidationState& state)
+{
+    const bool needs_extended = nVersion >= ProTxVersion::ExtAddr;
+    if (state_mn.nVersion == nVersion && state_mn.netInfo->CanStorePlatform() == needs_extended) {
+        return true;
+    }
+
+    auto converted_netinfo{NetInfoInterface::MakeNetInfo(nVersion)};
+    if (needs_extended) {
+        if (!AddNetInfoEntries(converted_netinfo, NetInfoPurpose::CORE_P2P,
+                               state_mn.netInfo->GetEntries(NetInfoPurpose::CORE_P2P), state)) {
+            return false;
+        }
+        if (state_mn.netInfo->CanStorePlatform()) {
+            if (!AddNetInfoEntries(converted_netinfo, NetInfoPurpose::PLATFORM_P2P,
+                                   state_mn.netInfo->GetEntries(NetInfoPurpose::PLATFORM_P2P), state) ||
+                !AddNetInfoEntries(converted_netinfo, NetInfoPurpose::PLATFORM_HTTPS,
+                                   state_mn.netInfo->GetEntries(NetInfoPurpose::PLATFORM_HTTPS), state)) {
+                return false;
+            }
+        } else if (nType == MnType::Evo && !state_mn.netInfo->IsEmpty()) {
+            const CNetAddr addr{state_mn.netInfo->GetPrimary()};
+            if ((state_mn.platformP2PPort != 0 &&
+                 converted_netinfo->AddEntry(NetInfoPurpose::PLATFORM_P2P,
+                                             CService(addr, state_mn.platformP2PPort).ToStringAddrPort()) != NetInfoStatus::Success) ||
+                (state_mn.platformHTTPPort != 0 &&
+                 converted_netinfo->AddEntry(NetInfoPurpose::PLATFORM_HTTPS,
+                                             CService(addr, state_mn.platformHTTPPort).ToStringAddrPort()) != NetInfoStatus::Success)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-version");
+            }
+        }
+        state_mn.platformP2PPort = 0;
+        state_mn.platformHTTPPort = 0;
+    } else {
+        if (!AddNetInfoEntries(converted_netinfo, NetInfoPurpose::CORE_P2P,
+                               state_mn.netInfo->GetEntries(NetInfoPurpose::CORE_P2P), state)) {
+            return false;
+        }
+        if (nType == MnType::Evo && state_mn.netInfo->CanStorePlatform() && !state_mn.netInfo->IsEmpty()) {
+            const auto p2p_entries{state_mn.netInfo->GetEntries(NetInfoPurpose::PLATFORM_P2P)};
+            const auto http_entries{state_mn.netInfo->GetEntries(NetInfoPurpose::PLATFORM_HTTPS)};
+            state_mn.platformP2PPort = p2p_entries.empty() ? 0 : p2p_entries.front().GetPort();
+            state_mn.platformHTTPPort = http_entries.empty() ? 0 : http_entries.front().GetPort();
+        }
+    }
+
+    state_mn.nVersion = nVersion;
+    state_mn.netInfo = std::move(converted_netinfo);
+    return true;
+}
+
 static bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
                                    const CChain& chain, const llmq::CQuorumManager& qman,
                                    const chainlock::Chainlocks& chainlocks, BlockValidationState& state)
@@ -345,6 +408,8 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             }
 
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            const uint16_t current_version{static_cast<uint16_t>(newState->nVersion)};
+            const uint16_t target_version{is_v24_deployed ? std::max<uint16_t>(current_version, opt_proTx->nVersion) : current_version};
             if (is_v24_deployed) {
                 // Extended addresses support in v24 means that the version can be updated
                 newState->nVersion = opt_proTx->nVersion;
@@ -365,6 +430,9 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                     newState->platformP2PPort = 0;
                     newState->platformHTTPPort = 0;
                 }
+            }
+            if (is_v24_deployed && !SetStateVersion(*newState, target_version, dmn->nType, state)) {
+                return false;
             }
             if (newState->IsBanned()) {
                 // only revive when all keys are set
@@ -393,18 +461,32 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            if (newState->pubKeyOperator != opt_proTx->pubKeyOperator) {
+            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
+            const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
+            const uint16_t target_version{is_v24_deployed ? std::max<uint16_t>(old_version, opt_proTx->nVersion)
+                                                          : (operator_changed ? opt_proTx->nVersion : old_version)};
+            if (operator_changed) {
                 // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
                 newState->ResetOperatorFields();
                 newState->BanIfNotBanned(nHeight);
-                // we update pubKeyOperator here, make sure state version matches
-                // Make sure we don't accidentally downgrade the state version if using version after basic BLS
-                newState->nVersion = newState->nVersion > ProTxVersion::BasicBLS ? newState->nVersion : opt_proTx->nVersion;
-                newState->netInfo = NetInfoInterface::MakeNetInfo(newState->nVersion);
                 newState->pubKeyOperator = opt_proTx->pubKeyOperator;
             }
             newState->keyIDVoting = opt_proTx->keyIDVoting;
-            newState->scriptPayout = opt_proTx->scriptPayout;
+            if (!SetStateVersion(*newState, target_version, dmn->nType, state)) {
+                return false;
+            }
+            if (operator_changed) {
+                newState->pubKeyOperator.SetLegacy(target_version == ProTxVersion::LegacyBLS);
+            }
+            if (target_version >= ProTxVersion::MultiPayout) {
+                newState->payouts = opt_proTx->nVersion >= ProTxVersion::MultiPayout
+                    ? opt_proTx->payouts
+                    : LegacyPayoutAsList(opt_proTx->scriptPayout);
+                newState->scriptPayout.clear();
+            } else {
+                newState->scriptPayout = opt_proTx->scriptPayout;
+                newState->payouts.clear();
+            }
 
             newList.UpdateMN(opt_proTx->proTxHash, newState);
 
@@ -423,7 +505,11 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
             newState->ResetOperatorFields();
+            if (old_version >= ProTxVersion::MultiPayout && !SetStateVersion(*newState, old_version, dmn->nType, state)) {
+                return false;
+            }
             newState->BanIfNotBanned(nHeight);
             newState->nRevocationReason = opt_proTx->nReason;
 
@@ -919,6 +1005,9 @@ static bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
         // Only new entries (ProRegTx) and service updates (ProUpServTx) can use ExtAddr versioning
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
     }
+    if (tx_type != TRANSACTION_PROVIDER_UPDATE_REGISTRAR && tx_version == ProTxVersion::MultiPayout) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
+    }
 
     return true;
 }
@@ -994,10 +1083,9 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
 
     // don't allow reuse of collateral key for other keys (don't allow people to put the collateral key onto an online server)
     // this check applies to internal and external collateral, but internal collaterals are not necessarily a P2PKH
-    if (collateralTxDest == CTxDestination(PKHash(opt_ptx->keyIDOwner)) ||
-        collateralTxDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
-    }
+    if (!IsPayoutListKeySafe(GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts),
+                             collateralTxDest, opt_ptx->keyIDOwner, opt_ptx->keyIDVoting,
+                             opt_ptx->nVersion >= ProTxVersion::MultiPayout, state)) return false;
 
     if (pindexPrev) {
         auto mnList = dmnman.GetListForBlock(pindexPrev);
@@ -1148,12 +1236,6 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    CTxDestination payoutDest;
-    if (!ExtractDestination(opt_ptx->scriptPayout, payoutDest)) {
-        // should not happen as we checked script types before
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
-    }
-
     auto mnList = dmnman.GetListForBlock(pindexPrev);
     auto dmn = mnList.GetMN(opt_ptx->proTxHash);
     if (!dmn) {
@@ -1165,11 +1247,8 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    // don't allow reuse of payee key for other keys (don't allow people to put the payee key onto an online server)
-    if (payoutDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) ||
-        payoutDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
-    }
+    const auto owner_payouts = GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts);
+    if (!IsPayoutListTriviallyValid(owner_payouts, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting, state)) return false;
 
     Coin coin;
     if (!view.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent()) {
@@ -1182,10 +1261,10 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     if (!ExtractDestination(coin.out.scriptPubKey, collateralTxDest)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-collateral-dest");
     }
-    if (collateralTxDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) ||
-        collateralTxDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-reuse");
-    }
+    const bool check_payout_collateral_reuse{
+        std::max<uint16_t>(dmn->pdmnState->nVersion, opt_ptx->nVersion) >= ProTxVersion::MultiPayout};
+    if (!IsPayoutListKeySafe(owner_payouts, collateralTxDest, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting,
+                             check_payout_collateral_reuse, state)) return false;
 
     if (mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
         auto otherDmn = mnList.GetUniquePropertyMN(opt_ptx->pubKeyOperator);
