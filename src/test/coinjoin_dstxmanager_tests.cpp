@@ -122,4 +122,71 @@ BOOST_AUTO_TEST_CASE(update_heights_block_connect_disconnect)
     }
 }
 
+BOOST_AUTO_TEST_CASE(mempool_reentry_clears_confirmed_height)
+{
+    // After a block connect sets the confirmed height, the same tx being
+    // (re)added to the mempool, e.g. via a reorg, should clear it. This
+    // drives DSTX expiry logic that watches GetConfirmedHeight().
+    CCoinJoinBroadcastTx dstx = MakeDSTX();
+    auto& man = *Assert(m_node.dstxman);
+    man.AddDSTX(dstx);
+
+    auto block = std::make_shared<CBlock>();
+    block->vtx.push_back(dstx.tx);
+    CBlockIndex index;
+    index.nHeight = 200;
+    uint256 bh = uint256S("0c");
+    index.phashBlock = &bh;
+
+    man.BlockConnected(block, &index);
+    {
+        auto got = man.GetDSTX(dstx.tx->GetHash());
+        BOOST_REQUIRE(static_cast<bool>(got));
+        BOOST_REQUIRE(got.GetConfirmedHeight().has_value());
+        BOOST_CHECK_EQUAL(*got.GetConfirmedHeight(), 200);
+    }
+
+    // Re-entry to the mempool clears the confirmed height (without removing the entry).
+    man.TransactionAddedToMempool(dstx.tx);
+    {
+        auto got = man.GetDSTX(dstx.tx->GetHash());
+        BOOST_REQUIRE(static_cast<bool>(got));
+        BOOST_CHECK(!got.GetConfirmedHeight().has_value());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(mempool_event_unrelated_tx_does_not_mutate_dstx)
+{
+    // TransactionAddedToMempool for a transaction that is not a tracked DSTX
+    // must be a no-op for any stored DSTX state.
+    CCoinJoinBroadcastTx dstx = MakeDSTX();
+    auto& man = *Assert(m_node.dstxman);
+    man.AddDSTX(dstx);
+
+    // Establish a confirmed height to detect any unwanted mutation.
+    auto block = std::make_shared<CBlock>();
+    block->vtx.push_back(dstx.tx);
+    CBlockIndex index;
+    index.nHeight = 321;
+    uint256 bh = uint256S("0d");
+    index.phashBlock = &bh;
+    man.BlockConnected(block, &index);
+
+    // Build an unrelated transaction by mutating one input of the tracked tx so it hashes differently.
+    CMutableTransaction other_mtx(*dstx.tx);
+    other_mtx.vin[0].prevout = COutPoint(uint256S("ee"), 7);
+    auto other_tx = MakeTransactionRef(other_mtx);
+    BOOST_REQUIRE(other_tx->GetHash() != dstx.tx->GetHash());
+
+    man.TransactionAddedToMempool(other_tx);
+
+    // Stored DSTX still has its confirmed height.
+    auto got = man.GetDSTX(dstx.tx->GetHash());
+    BOOST_REQUIRE(static_cast<bool>(got));
+    BOOST_REQUIRE(got.GetConfirmedHeight().has_value());
+    BOOST_CHECK_EQUAL(*got.GetConfirmedHeight(), 321);
+    // Unrelated tx was not inserted as a DSTX.
+    BOOST_CHECK(!static_cast<bool>(man.GetDSTX(other_tx->GetHash())));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
