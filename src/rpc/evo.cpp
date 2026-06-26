@@ -325,7 +325,7 @@ static MasternodePayoutShares ParsePayouts(const UniValue& value, const std::str
         if (!IsValidDestination(first_dest)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", value.get_str()));
         }
-        payouts.emplace_back(GetScriptForDestination(first_dest), CMasternodePayoutShare::MAX_REWARD);
+        payouts.emplace_back(GetScriptForDestination(first_dest), MasternodePayoutShare::MAX_REWARD);
     }
     return payouts;
 }

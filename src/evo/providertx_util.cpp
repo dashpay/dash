@@ -17,7 +17,7 @@
 
 MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout)
 {
-    return {{script_payout, CMasternodePayoutShare::MAX_REWARD}};
+    return {{script_payout, MasternodePayoutShare::MAX_REWARD}};
 }
 
 MasternodePayoutShares GetOwnerPayouts(const uint16_t nVersion, const CScript& script_payout,

@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
     CheckPayouts(too_many, owner_id, voting_id, "bad-protx-payouts-count");
 
     CheckPayouts({{payout1, 99}, {payout2, 9901}}, owner_id, voting_id, "bad-protx-payout-reward");
-    CheckPayouts({{payout1, CMasternodePayoutShare::MAX_REWARD + 1}}, owner_id, voting_id, "bad-protx-payout-reward");
+    CheckPayouts({{payout1, MasternodePayoutShare::MAX_REWARD + 1}}, owner_id, voting_id, "bad-protx-payout-reward");
     CheckPayouts({{payout1, 5000}, {payout2, 4999}}, owner_id, voting_id, "bad-protx-payout-reward-sum");
     CheckPayouts({{payout1, 5000}, {payout1, 5000}}, owner_id, voting_id, "bad-protx-payee-dup");
     CheckPayouts({{CScript() << OP_RETURN, 10000}}, owner_id, voting_id, "bad-protx-payee");

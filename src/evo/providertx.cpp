@@ -60,7 +60,7 @@ bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKe
     uint32_t total_reward{0};
     std::set<CScript> seen_scripts;
     for (const auto& payout : payouts) {
-        if (payout.reward < CMasternodePayoutShare::MIN_REWARD || payout.reward > CMasternodePayoutShare::MAX_REWARD) {
+        if (payout.reward < MasternodePayoutShare::MIN_REWARD || payout.reward > MasternodePayoutShare::MAX_REWARD) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-reward");
         }
         total_reward += payout.reward;
@@ -82,7 +82,7 @@ bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKe
         }
     }
 
-    if (total_reward != CMasternodePayoutShare::MAX_REWARD) {
+    if (total_reward != MasternodePayoutShare::MAX_REWARD) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payout-reward-sum");
     }
     return true;

@@ -64,7 +64,7 @@ template <typename T>
                                             std::optional<bool> is_basic_override = std::nullopt);
 } // namespace ProTxVersion
 
-class CMasternodePayoutShare
+class MasternodePayoutShare
 {
 public:
     static constexpr uint16_t MIN_REWARD = 100;
@@ -73,7 +73,7 @@ public:
     CScript scriptPayout;
     uint16_t reward{MAX_REWARD};
 
-    SERIALIZE_METHODS(CMasternodePayoutShare, obj)
+    SERIALIZE_METHODS(MasternodePayoutShare, obj)
     {
         READWRITE(obj.scriptPayout, obj.reward);
     }
@@ -85,7 +85,7 @@ public:
     friend bool operator!=(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b) { return !(a == b); }
 };
 
-using MasternodePayoutShares = std::vector<CMasternodePayoutShare>;
+using MasternodePayoutShares = std::vector<MasternodePayoutShare>;
 
 [[nodiscard]] MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout);
 [[nodiscard]] MasternodePayoutShares GetOwnerPayouts(uint16_t nVersion, const CScript& script_payout,
