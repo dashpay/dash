@@ -78,11 +78,8 @@ public:
         READWRITE(obj.scriptPayout, obj.reward);
     }
 
-    friend bool operator==(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b)
-    {
-        return a.reward == b.reward && a.scriptPayout == b.scriptPayout;
-    }
-    friend bool operator!=(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b) { return !(a == b); }
+    bool operator==(const MasternodePayoutShare& b) const = default;
+    bool operator!=(const MasternodePayoutShare& b) const = default;
 };
 
 using MasternodePayoutShares = std::vector<MasternodePayoutShare>;
