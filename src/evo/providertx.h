@@ -73,13 +73,6 @@ public:
     CScript scriptPayout;
     uint16_t reward{MAX_REWARD};
 
-    CMasternodePayoutShare() = default;
-    CMasternodePayoutShare(CScript script_payout, uint16_t reward) :
-        scriptPayout(std::move(script_payout)),
-        reward(reward)
-    {
-    }
-
     SERIALIZE_METHODS(CMasternodePayoutShare, obj)
     {
         READWRITE(obj.scriptPayout, obj.reward);
