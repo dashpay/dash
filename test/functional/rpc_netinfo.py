@@ -34,7 +34,6 @@ DMNSTATE_DIFF_DUMMY_ADDR = "255.255.255.255"
 # See ProTxVersion in src/evo/providertx.h
 PROTXVER_BASIC = 2
 PROTXVER_EXTADDR = 3
-PROTXVER_MULTIPAYOUT = 4
 
 # Sample domains
 DOMAINS_CLR = [
@@ -528,7 +527,7 @@ class NetInfoTest(BitcoinTestFramework):
 
         # Validate that masternode uses the current v24 extended-address-capable payload version
         grt_proregtx = self.node_simple.getrawtransaction(self.node_two.mn.proTxHash, True)['proRegTx']
-        assert_equal(grt_proregtx['version'], PROTXVER_MULTIPAYOUT)
+        assert_equal(grt_proregtx['version'], PROTXVER_EXTADDR)
 
         # Test reporting for extended addresses
         empty_common(grt_proregtx)

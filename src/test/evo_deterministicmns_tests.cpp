@@ -548,7 +548,7 @@ void FuncProUpRegTxV4OnLegacyRejected(TestChainSetup& setup)
     BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->nVersion, ProTxVersion::LegacyBLS);
 
     CProUpRegTx proTx;
-    proTx.nVersion = ProTxVersion::MultiPayout;
+    proTx.nVersion = ProTxVersion::ExtAddr;
     proTx.proTxHash = proTxHash;
     proTx.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
     proTx.keyIDVoting = owner_key.GetPubKey().GetID();
@@ -606,7 +606,7 @@ void FuncProUpRegTxV2CannotBypassV4PayoutCollateralReuse(TestChainSetup& setup)
     dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
 
     CProRegTx pro_reg;
-    pro_reg.nVersion = ProTxVersion::MultiPayout;
+    pro_reg.nVersion = ProTxVersion::ExtAddr;
     pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
     BOOST_CHECK_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
     pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
@@ -635,7 +635,7 @@ void FuncProUpRegTxV2CannotBypassV4PayoutCollateralReuse(TestChainSetup& setup)
 
     auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
     BOOST_REQUIRE(dmn);
-    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::MultiPayout);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::ExtAddr);
     BOOST_CHECK_EQUAL(dmn->pdmnState->payouts.size(), 1U);
     BOOST_CHECK(dmn->pdmnState->payouts.front().scriptPayout == script_payout);
 

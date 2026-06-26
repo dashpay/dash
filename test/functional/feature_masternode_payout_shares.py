@@ -8,9 +8,9 @@ from test_framework.blocktools import create_block, create_coinbase
 from test_framework.messages import CTxOut, tx_from_hex
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, MasternodeInfo, p2p_port
-from test_framework.util import assert_equal, softfork_active
+from test_framework.util import assert_equal
 
-V24_ACTIVATION_THRESHOLD = 100
+V24_ACTIVATION_THRESHOLD = 1
 
 
 def payout_address_rewards(payouts):
@@ -25,12 +25,6 @@ class MasternodePayoutSharesTest(DashTestFramework):
         self.set_dash_test_params(1, 0, extra_args=[[
             f"-vbparams=v24:{self.mocktime}:999999999999:{V24_ACTIVATION_THRESHOLD}:10:8:6:5:0",
         ]])
-
-    def activate_v24(self):
-        while not softfork_active(self.nodes[0], "v24"):
-            self.bump_mocktime(50)
-            self.generate(self.nodes[0], 50, sync_fun=self.no_op)
-        assert softfork_active(self.nodes[0], "v24")
 
     def build_block(self, node, tamper=None):
         """Build a block extending the tip whose coinbase pays exactly the template's
@@ -71,7 +65,6 @@ class MasternodePayoutSharesTest(DashTestFramework):
 
     def run_test(self):
         node = self.nodes[0]
-        self.activate_v24()
 
         mn = MasternodeInfo(evo=False, legacy=False)
         mn.generate_addresses(node)
@@ -133,11 +126,11 @@ class MasternodePayoutSharesTest(DashTestFramework):
         mn.set_params(proTxHash=protx_hash)
 
         raw = node.getrawtransaction(protx_hash, 1)
-        assert_equal(raw["proRegTx"]["version"], 4)
+        assert_equal(raw["proRegTx"]["version"], 3)
         assert_equal(payout_address_rewards(raw["proRegTx"]["payouts"]), payouts)
 
         info = node.protx("info", protx_hash)
-        assert_equal(info["state"]["version"], 4)
+        assert_equal(info["state"]["version"], 3)
         assert_equal(payout_address_rewards(info["state"]["payouts"]), payouts)
         assert "payoutAddress" not in info["state"]
         assert_equal(node.masternodelist("payee")[f"{mn.collateral_txid}-{mn.collateral_vout}"], f"{payout1}, {payout2}")
@@ -201,7 +194,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
         self.generate(node, 1, sync_fun=self.no_op)
 
         update_raw = node.getrawtransaction(update_hash, 1)
-        assert_equal(update_raw["proUpRegTx"]["version"], 4)
+        assert_equal(update_raw["proUpRegTx"]["version"], 3)
         assert_equal(payout_address_rewards(update_raw["proUpRegTx"]["payouts"]), updated_payouts)
         assert_equal(payout_address_rewards(node.protx("info", protx_hash)["state"]["payouts"]), updated_payouts)
 
@@ -221,7 +214,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
         self.generate(node, 1, sync_fun=self.no_op)
 
         info = node.protx("info", protx_hash)
-        assert_equal(info["state"]["version"], 4)
+        assert_equal(info["state"]["version"], 3)
         assert_equal(payout_address_rewards(info["state"]["payouts"]), updated_payouts)
 
         gbt_payees = [p for p in node.getblocktemplate()["masternode"] if p["script"] != "6a"]
@@ -262,7 +255,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
         self.generate(node, 1, sync_fun=self.no_op)
 
         info = node.protx("info", protx_hash)
-        assert_equal(info["state"]["version"], 4)
+        assert_equal(info["state"]["version"], 3)
         assert_equal(payout_address_rewards(info["state"]["payouts"]), updated_payouts)
 
 

@@ -32,17 +32,12 @@ enum : uint16_t {
     LegacyBLS = 1,
     BasicBLS  = 2,
     ExtAddr   = 3,
-    MultiPayout = 4,
 };
 
 /** Get highest permissible ProTx version based on flags set. */
-[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr,
-                                        const bool is_multi_payout = false)
+[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr)
 {
     if (is_basic_scheme_active) {
-        if (is_multi_payout) {
-            return ProTxVersion::MultiPayout;
-        }
         if (is_extended_addr) {
             // Requires *both* forks to be active to use extended addresses. is_basic_scheme_active could
             // be set to false due to RPC specialization, so we must evaluate is_extended_addr *last* to
@@ -123,7 +118,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -139,7 +134,7 @@ public:
                 obj.keyIDVoting,
                 obj.nOperatorReward
         );
-        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+        if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
             SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
             READWRITE(payouts_count);
@@ -202,7 +197,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -263,7 +258,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -273,7 +268,7 @@ public:
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
                 obj.keyIDVoting
         );
-        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+        if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
             SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
             READWRITE(payouts_count);
@@ -329,7 +324,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }

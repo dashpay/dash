@@ -152,8 +152,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"payoutAddress_register",
             {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
-                "an array of payout shares.",
+                "The Dash address to use for masternode reward payments, or after v24 activation, "
+                "an array of payout shares. Not compatible with legacy bls operator key.",
                 {
                     {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
                         {
@@ -165,8 +165,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"payoutAddress_update",
             {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
-                "an array of payout shares.\n"
+                "The Dash address to use for masternode reward payments, or after v24 activation, "
+                "an array of payout shares. Not compatible with legacy bls operator key.\n"
                 "If set to an empty string, the currently active payout address is reused.",
                 {
                     {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
@@ -837,8 +837,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     ptx.nOperatorReward = operatorReward;
 
     CTxDestination payoutDest;
-    if (request.params[paramIdx + 5].isArray() && ptx.nVersion < ProTxVersion::MultiPayout) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 4");
+    if (request.params[paramIdx + 5].isArray() && ptx.nVersion < ProTxVersion::ExtAddr) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 3");
     }
     ptx.payouts = ParsePayouts(request.params[paramIdx + 5], "payouts", payoutDest);
 
@@ -1266,8 +1266,8 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     CTxDestination payoutDest;
     ExtractDestination(ptx.payouts.front().scriptPayout, payoutDest);
     if (request.params[3].isArray()) {
-        if (ptx.nVersion < ProTxVersion::MultiPayout) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 4");
+        if (ptx.nVersion < ProTxVersion::ExtAddr) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 3");
         }
         ptx.payouts = ParsePayouts(request.params[3], "payouts", payoutDest);
         ptx.scriptPayout = ptx.payouts.front().scriptPayout;

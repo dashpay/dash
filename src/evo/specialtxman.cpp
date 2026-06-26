@@ -488,8 +488,8 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             if (operator_changed) {
                 newState->pubKeyOperator.SetLegacy(target_version == ProTxVersion::LegacyBLS);
             }
-            if (target_version >= ProTxVersion::MultiPayout) {
-                newState->payouts = opt_proTx->nVersion >= ProTxVersion::MultiPayout
+            if (target_version >= ProTxVersion::ExtAddr) {
+                newState->payouts = opt_proTx->nVersion >= ProTxVersion::ExtAddr
                     ? opt_proTx->payouts
                     : LegacyPayoutAsList(opt_proTx->scriptPayout);
                 newState->scriptPayout.clear();
@@ -517,7 +517,7 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
             newState->ResetOperatorFields();
-            if (old_version >= ProTxVersion::MultiPayout && !SetStateVersion(*newState, old_version, dmn->nType, state)) {
+            if (old_version >= ProTxVersion::ExtAddr && !SetStateVersion(*newState, old_version, dmn->nType, state)) {
                 return false;
             }
             newState->BanIfNotBanned(nHeight);
@@ -1011,11 +1011,8 @@ static bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-upgrade");
     }
 
-    if (tx_type != TRANSACTION_PROVIDER_UPDATE_SERVICE && tx_version == ProTxVersion::ExtAddr) {
+    if (tx_type != TRANSACTION_PROVIDER_UPDATE_REGISTRAR && tx_type != TRANSACTION_PROVIDER_UPDATE_SERVICE && tx_version == ProTxVersion::ExtAddr) {
         // Only new entries (ProRegTx) and service updates (ProUpServTx) can use ExtAddr versioning
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
-    }
-    if (tx_type != TRANSACTION_PROVIDER_UPDATE_REGISTRAR && tx_version == ProTxVersion::MultiPayout) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-tx-type");
     }
 
@@ -1095,7 +1092,7 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
     // this check applies to internal and external collateral, but internal collaterals are not necessarily a P2PKH
     if (!IsPayoutListKeySafe(GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts),
                              collateralTxDest, opt_ptx->keyIDOwner, opt_ptx->keyIDVoting,
-                             opt_ptx->nVersion >= ProTxVersion::MultiPayout, state)) return false;
+                             opt_ptx->nVersion >= ProTxVersion::ExtAddr, state)) return false;
 
     if (pindexPrev) {
         auto mnList = dmnman.GetListForBlock(pindexPrev);
@@ -1272,7 +1269,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-collateral-dest");
     }
     const bool check_payout_collateral_reuse{
-        std::max<uint16_t>(dmn->pdmnState->nVersion, opt_ptx->nVersion) >= ProTxVersion::MultiPayout};
+        std::max<uint16_t>(dmn->pdmnState->nVersion, opt_ptx->nVersion) >= ProTxVersion::ExtAddr};
     if (!IsPayoutListKeySafe(owner_payouts, collateralTxDest, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting,
                              check_payout_collateral_reuse, state)) return false;
 

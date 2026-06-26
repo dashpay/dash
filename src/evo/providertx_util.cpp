@@ -23,7 +23,7 @@ MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout)
 MasternodePayoutShares GetOwnerPayouts(const uint16_t nVersion, const CScript& script_payout,
                                        const MasternodePayoutShares& payouts)
 {
-    return nVersion >= ProTxVersion::MultiPayout ? payouts : LegacyPayoutAsList(script_payout);
+    return nVersion >= ProTxVersion::ExtAddr ? payouts : LegacyPayoutAsList(script_payout);
 }
 
 std::string PayoutListToString(const MasternodePayoutShares& payouts)
