@@ -1,6 +1,6 @@
-# Dash Core version v23.1.5
+# Dash Core version v23.1.3
 
-This is a new patch version release, bringing bug fixes.
+This is a new patch version release, bringing GUI improvements and bugfixes.
 This release is **optional** for all nodes, although recommended.
 
 Please report bugs using the issue tracker at GitHub:
@@ -25,15 +25,18 @@ require a reindex.
 
 # Release Notes
 
+## GUI changes
+
+- Restored the Send button when using an external signer (dash#7271).
+
 ## Bug Fixes
 
-- Corrected the checkpoint hash for height 2487500 (dash#7368).
+- Kept relaying InstantSend lock inventory messages to non-masternode peers that request recovered signatures (dash#7293).
+- Reverted an improper dual-way connection attempt avoidance change that could break recovered-signature handshakes under spork 21 (dash#7289).
+- Fixed intermittent incorrect `CheckQueue` logging for invalid blocks (dash#7312).
+- Fixed `listaddressbalances` RPC help so the documented result matches returned address balances (dash#7279).
 
-## Documentation
-
-- Updated the v23.1.4 release notes intro and wording (dash#7369).
-
-# v23.1.5 Change log
+# v23.1.3 Change log
 
 See detailed [set of changes][set-of-changes].
 
@@ -41,7 +44,8 @@ See detailed [set of changes][set-of-changes].
 
 Thanks to everyone who directly contributed to this release:
 
-- PastaClaw
+- Konstantin Akimov
+- PastaPastaPasta
 
 As well as everyone that submitted issues, reviewed pull requests and helped
 debug the release candidates.
@@ -50,8 +54,6 @@ debug the release candidates.
 
 These releases are considered obsolete. Old release notes can be found here:
 
-- [v23.1.4](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.1.4.md) released Jun/18/2026
-- [v23.1.3](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.1.3.md) released May/28/2026
 - [v23.1.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.1.2.md) released Mar/12/2026
 - [v23.1.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.1.0.md) released Feb/15/2026
 - [v23.0.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.0.2.md) released Dec/4/2025
@@ -67,4 +69,4 @@ These releases are considered obsolete. Old release notes can be found here:
 - [v21.0.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-21.0.0.md) released Jul/25/2024
 - [v20.1.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-20.1.1.md) released April/3/2024
 
-[set-of-changes]: https://github.com/dashpay/dash/compare/9adc0b16f93d15fe065692cbe77f3950419db0cb...dashpay:v23.1.5
+[set-of-changes]: https://github.com/dashpay/dash/compare/v23.1.2...dashpay:v23.1.3

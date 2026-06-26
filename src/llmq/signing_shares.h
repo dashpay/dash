@@ -43,6 +43,9 @@ using SigShareKey = std::pair<uint256, uint16_t>;
 
 constexpr uint32_t UNINITIALIZED_SESSION_ID{std::numeric_limits<uint32_t>::max()};
 
+// 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
+constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
+
 class CSigShare : virtual public CSigBase
 {
 protected:
@@ -124,6 +127,9 @@ public:
     {
         uint64_t invSize = obj.inv.size();
         READWRITE(VARINT(obj.sessionId), COMPACTSIZE(invSize));
+        if (invSize > MAX_MSGS_TOTAL_BATCHED_SIGS) {
+            throw std::ios_base::failure("CSigSharesInv::inv size too large");
+        }
         autobitset_t bitset = std::make_pair(obj.inv, (size_t)invSize);
         READWRITE(AUTOBITSET(bitset));
         SER_READ(obj, obj.inv = bitset.first);
@@ -384,8 +390,6 @@ public:
     // we try to keep total message size below 10k
     static constexpr size_t MAX_MSGS_CNT_QSIGSESANN{100};
     static constexpr size_t MAX_MSGS_CNT_QSIGSHARES{200};
-    // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
-    static constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
     static constexpr size_t MAX_MSGS_SIG_SHARES{32};
 
 private:
