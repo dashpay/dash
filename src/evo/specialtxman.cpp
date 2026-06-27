@@ -93,9 +93,9 @@ static bool SetStateVersion(CDeterministicMNState& state_mn, uint16_t nVersion, 
     return true;
 }
 
-static bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                                   const CChain& chain, const llmq::CQuorumManager& qman,
-                                   const chainlock::Chainlocks& chainlocks, BlockValidationState& state)
+bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
+                            const CChain& chain, const llmq::CQuorumManager& qman,
+                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state)
 {
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
@@ -136,6 +136,10 @@ static bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex,
 
     // IsNull() doesn't exist for CBLSSignature: we assume that a valid BLS sig is non-null
     if (cbTx.bestCLSignature.IsValid()) {
+        // Reject out-of-range bestCLHeightDiff that would yield a pre-genesis ancestor height.
+        if (cbTx.bestCLHeightDiff >= static_cast<uint32_t>(pindex->nHeight)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
+        }
         int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
         if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbTx.bestCLSignature) {
             // matches our best (but outdated) clsig, no need to verify it again
@@ -144,7 +148,13 @@ static bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex,
             cached_pindex = pindex;
             return true;
         }
-        uint256 curBlockCoinbaseCLBlockHash = pindex->GetAncestor(curBlockCoinbaseCLHeight)->GetBlockHash();
+        const CBlockIndex* pAncestor = pindex->GetAncestor(curBlockCoinbaseCLHeight);
+        if (pAncestor == nullptr) {
+            // Defense-in-depth: the range check above keeps curBlockCoinbaseCLHeight in
+            // [0, pindex->nHeight - 1], so GetAncestor() should never return nullptr here.
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff-ancestor");
+        }
+        uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
         chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature};
         llmq::VerifyRecSigStatus ret = chainlock::VerifyChainLock(consensus_params, chain, qman, clsig);
         if (ret != llmq::VerifyRecSigStatus::Valid) {
