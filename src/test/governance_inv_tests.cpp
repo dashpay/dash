@@ -11,6 +11,7 @@
 #include <netfulfilledman.h>
 #include <node/connection_types.h>
 #include <protocol.h>
+#include <scheduler.h>
 #include <streams.h>
 #include <uint256.h>
 #include <util/time.h>
@@ -22,6 +23,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <thread>
 #include <vector>
 
 using namespace std::chrono_literals;
@@ -178,6 +180,47 @@ BOOST_AUTO_TEST_CASE(peerman_inv_routes_to_governance_request_cache)
     }
 
     m_node.peerman->FinalizeNode(peer);
+}
+
+// Pins the periodic-cleanup wiring the deleted functional test exercised via
+// node.mockscheduler: NetGovernance::Schedule queues a task that calls
+// CGovernanceManager::CheckAndRemove, so an expired inv request is purged
+// without any manual CheckAndRemove call.
+BOOST_AUTO_TEST_CASE(net_governance_schedule_drives_check_and_remove)
+{
+    // NetGovernance::Schedule's periodic callback short-circuits on
+    // !m_node_sync.IsSynced(); advance from GOVERNANCE to FINISHED.
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsSynced());
+
+    // Pre-load an entry that has already passed RELIABLE_PROPAGATION_TIME so
+    // the very next CheckAndRemove evicts it.
+    const CInv inv{MSG_GOVERNANCE_OBJECT, uint256S("05")};
+    BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(inv));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), 1U);
+    SetMockTime(GetTime<std::chrono::seconds>() + RELIABLE_PROPAGATION_TIME + 1s);
+
+    // Drive a dedicated scheduler so the assertion is independent of
+    // m_node.scheduler's existing workload.
+    CScheduler scheduler;
+    NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
+                          *m_node.netfulfilledman, *m_node.connman);
+    net_gov.Schedule(scheduler);
+    std::thread worker([&] { scheduler.serviceQueue(); });
+
+    // First periodic fire is at +5min; bump the clock so the queue is ready.
+    scheduler.MockForward(std::chrono::minutes{5});
+
+    // The cleanup runs on the worker thread; poll briefly. scheduleEvery
+    // reschedules itself, so we cannot use StopWhenDrained -- stop manually.
+    for (int i = 0; i < 500; ++i) {
+        if (m_node.govman->RequestedHashCacheSizeForTesting() == 0U) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    }
+    scheduler.stop();
+    if (worker.joinable()) worker.join();
+
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), 0U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
