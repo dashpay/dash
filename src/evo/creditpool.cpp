@@ -14,6 +14,7 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <logging.h>
+#include <masternode/payments.h>
 #include <node/blockstorage.h>
 #include <validation.h>
 
@@ -23,9 +24,6 @@
 #include <stack>
 
 using node::ReadBlockFromDisk;
-
-// Forward declaration to prevent a new circular dependencies through masternode/payments.h
-CAmount PlatformShare(const CAmount masternodeReward);
 
 static const std::string DB_CREDITPOOL_SNAPSHOT = "cpm_S";
 
@@ -253,7 +251,7 @@ CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexP
 
     if (DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_MN_RR)) {
         // If credit pool exists, it means v20 is activated
-        platformReward = PlatformShare(GetMasternodePayment(pindexPrev->nHeight + 1, blockSubsidy, /*fV20Active=*/ true));
+        platformReward = PlatformShare(GetMasternodePayment(pindexPrev->nHeight + 1, blockSubsidy, consensusParams, MnRewardEra::EvoReward));
     }
 }
 

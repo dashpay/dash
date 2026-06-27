@@ -16,7 +16,6 @@
 #include <primitives/block.h>
 #include <script/standard.h>
 #include <tinyformat.h>
-#include <validation.h>
 
 #include <cassert>
 #include <ranges>
@@ -30,20 +29,88 @@ CAmount PlatformShare(const CAmount reward)
     return platformReward;
 }
 
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensus_params, MnRewardEra era)
+{
+    CAmount ret = blockValue/5; // start at 20%
+
+    const int nMNPIBlock = consensus_params.nMasternodePaymentsIncreaseBlock;
+    const int nMNPIPeriod = consensus_params.nMasternodePaymentsIncreasePeriod;
+    const int nReallocActivationHeight = consensus_params.BRRHeight;
+
+                                                                      // mainnet:
+    if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
+
+    if (nHeight < nReallocActivationHeight) {
+        // Block Reward Realocation is not activated yet, nothing to do
+        return ret;
+    }
+
+    int nSuperblockCycle = consensus_params.nSuperblockCycle;
+    // Actual realocation starts in the cycle next to one activation happens in
+    int nReallocStart = nReallocActivationHeight - nReallocActivationHeight % nSuperblockCycle + nSuperblockCycle;
+
+    if (nHeight < nReallocStart) {
+        // Activated but we have to wait for the next cycle to start realocation, nothing to do
+        return ret;
+    }
+
+    if (era != MnRewardEra::Classic) {
+        // Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
+        // Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
+        // Previous reallocation periods are dropped.
+        return blockValue * 3 / 4;
+    }
+
+    // Periods used to reallocate the masternode reward from 50% to 60%
+    static std::vector<int> vecPeriods{
+        513, // Period 1:  51.3%
+        526, // Period 2:  52.6%
+        533, // Period 3:  53.3%
+        540, // Period 4:  54%
+        546, // Period 5:  54.6%
+        552, // Period 6:  55.2%
+        557, // Period 7:  55.7%
+        562, // Period 8:  56.2%
+        567, // Period 9:  56.7%
+        572, // Period 10: 57.2%
+        577, // Period 11: 57.7%
+        582, // Period 12: 58.2%
+        585, // Period 13: 58.5%
+        588, // Period 14: 58.8%
+        591, // Period 15: 59.1%
+        594, // Period 16: 59.4%
+        597, // Period 17: 59.7%
+        599, // Period 18: 59.9%
+        600  // Period 19: 60%
+    };
+
+    int nReallocCycle = nSuperblockCycle * 3;
+    int nCurrentPeriod = std::min<int>((nHeight - nReallocStart) / nReallocCycle, vecPeriods.size() - 1);
+
+    return static_cast<CAmount>(blockValue * vecPeriods[nCurrentPeriod] / 1000);
+}
+
 [[nodiscard]] bool CMNPaymentsProcessor::GetBlockTxOuts(const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
-                                                        std::vector<CTxOut>& voutMasternodePaymentsRet)
+                                                        MnRewardEra era, std::vector<CTxOut>& voutMasternodePaymentsRet)
 {
     voutMasternodePaymentsRet.clear();
 
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
 
-    bool fV20Active = DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_V20);
-    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, fV20Active);
+    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockSubsidy + feeReward, m_consensus_params, era);
 
     // Credit Pool doesn't exist before V20. If any part of reward will re-allocated to credit pool before v20
     // activation these fund will be just permanently lost. Applicable for devnets, regtest, testnet
-    if (fV20Active && DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)) {
-        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, fV20Active);
+    if (era == MnRewardEra::EvoReward) {
+        CAmount masternodeSubsidyReward = GetMasternodePayment(nBlockHeight, blockSubsidy, m_consensus_params, era);
         const CAmount platformReward = PlatformShare(masternodeSubsidyReward);
         masternodeReward -= platformReward;
 
@@ -96,12 +163,12 @@ CAmount PlatformShare(const CAmount reward)
 *   Get masternode payment tx outputs
 */
 [[nodiscard]] bool CMNPaymentsProcessor::GetMasternodeTxOuts(const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
-                                                             std::vector<CTxOut>& voutMasternodePaymentsRet)
+                                                             MnRewardEra era, std::vector<CTxOut>& voutMasternodePaymentsRet)
 {
     // make sure it's not filled yet
     voutMasternodePaymentsRet.clear();
 
-    if(!GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePaymentsRet)) {
+    if(!GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, era, voutMasternodePaymentsRet)) {
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR Failed to get payee\n", __func__);
         return false;
     }
@@ -117,7 +184,7 @@ CAmount PlatformShare(const CAmount reward)
 }
 
 [[nodiscard]] bool CMNPaymentsProcessor::IsTransactionValid(const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy,
-                                                            const CAmount feeReward)
+                                                            const CAmount feeReward, MnRewardEra era)
 {
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
     if (!DeploymentDIP0003Enforced(nBlockHeight, m_consensus_params)) {
@@ -126,7 +193,7 @@ CAmount PlatformShare(const CAmount reward)
     }
 
     std::vector<CTxOut> voutMasternodePayments;
-    if (!GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePayments)) {
+    if (!GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, era, voutMasternodePayments)) {
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Failed to get payees for block at height %s\n", __func__, nBlockHeight);
         return true;
     }
@@ -193,7 +260,7 @@ CAmount PlatformShare(const CAmount reward)
 *   - Other blocks are 10% lower in outgoing value, so in total, no extra coins are created
 *   - When non-superblocks are detected, the normal schedule should be maintained
 */
-bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const CBlockIndex* pindexPrev, const CAmount blockReward, std::string& strErrorRet, const bool check_superblock)
+bool CMNPaymentsProcessor::IsBlockValueValid(const CChain& active_chain, const CBlock& block, const CBlockIndex* pindexPrev, const CAmount blockReward, std::string& strErrorRet, SuperBlockCheckType check_superblock)
 {
     const int nBlockHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
     bool isBlockRewardValueMet = (block.vtx[0]->GetValueOut() <= blockReward);
@@ -214,7 +281,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const CBlockIn
 
     LogPrint(BCLog::MNPAYMENTS, "block.vtx[0]->GetValueOut() %lld <= blockReward %lld\n", block.vtx[0]->GetValueOut(), blockReward);
 
-    CAmount nSuperblockMaxValue =  blockReward + CSuperblock::GetPaymentsLimit(m_chainman.ActiveChain(), nBlockHeight);
+    CAmount nSuperblockMaxValue =  blockReward + CSuperblock::GetPaymentsLimit(active_chain, nBlockHeight);
     bool isSuperblockMaxValueMet = (block.vtx[0]->GetValueOut() <= nSuperblockMaxValue);
 
     LogPrint(BCLog::GOBJECT, "block.vtx[0]->GetValueOut() %lld <= nSuperblockMaxValue %lld\n", block.vtx[0]->GetValueOut(), nSuperblockMaxValue);
@@ -242,7 +309,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const CBlockIn
         return true;
     }
 
-    if (!check_superblock) return true;
+    if (check_superblock == SuperBlockCheckType::NoCheck) return true;
 
     // we are synced and possibly on a superblock now
 
@@ -259,8 +326,8 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const CBlockIn
     }
 
     // this actually also checks for correct payees and not only amount
-    const bool is_v24{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V24)};
-    if (!m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward, is_v24)) {
+    const bool is_v24{check_superblock == SuperBlockCheckType::DisallowDuplicates};
+    if (!m_superblocks.IsValidSuperblock(active_chain, tip_mn_list, *block.vtx[0], nBlockHeight, blockReward, is_v24)) {
         // triggered but invalid? that's weird
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, block.vtx[0]->ToString()); /* Continued */
         // should NOT allow invalid superblocks, when superblocks are enabled
@@ -272,12 +339,12 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const CBlockIn
     return true;
 }
 
-bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, const bool check_superblock)
+bool CMNPaymentsProcessor::IsBlockPayeeValid(const CChain& active_chain, const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era, SuperBlockCheckType check_superblock)
 {
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
 
     // Check for correct masternode payment
-    if (IsTransactionValid(txNew, pindexPrev, blockSubsidy, feeReward)) {
+    if (IsTransactionValid(txNew, pindexPrev, blockSubsidy, feeReward, era)) {
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- Valid masternode payment at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
     } else {
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid masternode payment detected at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
@@ -301,12 +368,12 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
     }
 
     // superblocks started
-    if (!check_superblock) return true;
+    if (check_superblock == SuperBlockCheckType::NoCheck) return true;
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-    const bool is_v24{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V24)};
+    const bool is_v24{check_superblock == SuperBlockCheckType::DisallowDuplicates};
     if (m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
-        if (m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
+        if (m_superblocks.IsValidSuperblock(active_chain, tip_mn_list, txNew, nBlockHeight,
                                             blockSubsidy + feeReward, is_v24)) {
             LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", /* Continued */
                      __func__, nBlockHeight, txNew.ToString());
@@ -325,7 +392,7 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
 }
 
 void CMNPaymentsProcessor::FillBlockPayments(CMutableTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
-                                             std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet)
+                                             MnRewardEra era, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet)
 {
     int nBlockHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
 
@@ -336,7 +403,7 @@ void CMNPaymentsProcessor::FillBlockPayments(CMutableTransaction& txNew, const C
         m_superblocks.GetSuperblockPayments(tip_mn_list, nBlockHeight, voutSuperblockPaymentsRet);
     }
 
-    if (!GetMasternodeTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePaymentsRet)) {
+    if (!GetMasternodeTxOuts(pindexPrev, blockSubsidy, feeReward, era, voutMasternodePaymentsRet)) {
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- No masternode to pay (MN list probably empty)\n", __func__);
     }
 

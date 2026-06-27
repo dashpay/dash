@@ -319,7 +319,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Update coinbase transaction with additional info about masternode and governance payments,
     // get some info back to pass to getblocktemplate
-    m_chain_helper.mn_payments->FillBlockPayments(coinbaseTx, pindexPrev, blockSubsidy, nFees, pblocktemplate->voutMasternodePayments, pblocktemplate->voutSuperblockPayments);
+    const MnRewardEra mn_reward_era{GetMnRewardEraAfter(pindexPrev, m_chainstate.m_chainman)};
+    m_chain_helper.mn_payments->FillBlockPayments(coinbaseTx, pindexPrev, blockSubsidy, nFees, mn_reward_era, pblocktemplate->voutMasternodePayments, pblocktemplate->voutSuperblockPayments);
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;

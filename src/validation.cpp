@@ -1563,75 +1563,6 @@ CAmount GetBlockSubsidy(const CBlockIndex* const pindex, const Consensus::Params
     return GetBlockSubsidyInner(pindex->pprev->nBits, pindex->pprev->nHeight, consensusParams, isV20Active);
 }
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
-{
-    CAmount ret = blockValue/5; // start at 20%
-
-    const int nMNPIBlock = Params().GetConsensus().nMasternodePaymentsIncreaseBlock;
-    const int nMNPIPeriod = Params().GetConsensus().nMasternodePaymentsIncreasePeriod;
-    const int nReallocActivationHeight = Params().GetConsensus().BRRHeight;
-
-                                                                      // mainnet:
-    if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-
-    if (nHeight < nReallocActivationHeight) {
-        // Block Reward Realocation is not activated yet, nothing to do
-        return ret;
-    }
-
-    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
-    // Actual realocation starts in the cycle next to one activation happens in
-    int nReallocStart = nReallocActivationHeight - nReallocActivationHeight % nSuperblockCycle + nSuperblockCycle;
-
-    if (nHeight < nReallocStart) {
-        // Activated but we have to wait for the next cycle to start realocation, nothing to do
-        return ret;
-    }
-
-    if (fV20Active) {
-        // Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
-        // Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
-        // Previous reallocation periods are dropped.
-        return blockValue * 3 / 4;
-    }
-
-    // Periods used to reallocate the masternode reward from 50% to 60%
-    static std::vector<int> vecPeriods{
-        513, // Period 1:  51.3%
-        526, // Period 2:  52.6%
-        533, // Period 3:  53.3%
-        540, // Period 4:  54%
-        546, // Period 5:  54.6%
-        552, // Period 6:  55.2%
-        557, // Period 7:  55.7%
-        562, // Period 8:  56.2%
-        567, // Period 9:  56.7%
-        572, // Period 10: 57.2%
-        577, // Period 11: 57.7%
-        582, // Period 12: 58.2%
-        585, // Period 13: 58.5%
-        588, // Period 14: 58.8%
-        591, // Period 15: 59.1%
-        594, // Period 16: 59.4%
-        597, // Period 17: 59.7%
-        599, // Period 18: 59.9%
-        600  // Period 19: 60%
-    };
-
-    int nReallocCycle = nSuperblockCycle * 3;
-    int nCurrentPeriod = std::min<int>((nHeight - nReallocStart) / nReallocCycle, vecPeriods.size() - 1);
-
-    return static_cast<CAmount>(blockValue * vecPeriods[nCurrentPeriod] / 1000);
-}
-
 CoinsViews::CoinsViews(
     fs::path ldb_name,
     size_t cache_size_bytes,
@@ -2488,9 +2419,13 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime5_2 = GetTimeMicros(); nTimeSubsidy += nTime5_2 - nTime5_1;
     LogPrint(BCLog::BENCHMARK, "      - GetBlockSubsidy: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5_2 - nTime5_1), nTimeSubsidy * MICRO, nTimeSubsidy * MILLI / nBlocksTotal);
 
-    const bool check_superblock = m_chain_helper->IsSuperblockValidationRequired(pindex);
+    const SuperBlockCheckType check_superblock = !m_chain_helper->IsSuperblockValidationRequired(pindex)
+        ? SuperBlockCheckType::NoCheck
+        : DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24) ?
+            SuperBlockCheckType::DisallowDuplicates : SuperBlockCheckType::AllowDuplicates;
 
-    if (!m_chain_helper->mn_payments->IsBlockValueValid(block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
+
+    if (!m_chain_helper->mn_payments->IsBlockValueValid(m_chainman.ActiveChain(), block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): %s\n", strError);
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-amount");
@@ -2499,7 +2434,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime5_3 = GetTimeMicros(); nTimeValueValid += nTime5_3 - nTime5_2;
     LogPrint(BCLog::BENCHMARK, "      - IsBlockValueValid: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5_3 - nTime5_2), nTimeValueValid * MICRO, nTimeValueValid * MILLI / nBlocksTotal);
 
-    if (!m_chain_helper->mn_payments->IsBlockPayeeValid(*block.vtx[0], pindex->pprev, blockSubsidy, feeReward, check_superblock)) {
+    const MnRewardEra mn_reward_era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
+    if (!m_chain_helper->mn_payments->IsBlockPayeeValid(m_chainman.ActiveChain(), *block.vtx[0], pindex->pprev, blockSubsidy, feeReward, mn_reward_era, check_superblock)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): couldn't find masternode or superblock payments\n");
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-payee");
@@ -5254,6 +5190,14 @@ bool CChainState::ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
         ret = FlushStateToDisk(state, FlushStateMode::ALWAYS);
     }
     return ret;
+}
+
+MnRewardEra GetMnRewardEraAfter(const CBlockIndex* pindexPrev, const ChainstateManager& chainman)
+{
+    const Consensus::Params& params{chainman.GetConsensus()};
+    if (!DeploymentActiveAfter(pindexPrev, params, Consensus::DEPLOYMENT_V20)) return MnRewardEra::Classic;
+    if (!DeploymentActiveAfter(pindexPrev, params, Consensus::DEPLOYMENT_MN_RR)) return MnRewardEra::CreditPool;
+    return MnRewardEra::EvoReward;
 }
 
 static const uint64_t MEMPOOL_DUMP_VERSION = 1;
