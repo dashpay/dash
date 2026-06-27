@@ -13,6 +13,9 @@ namespace Ui {
 class InformationWidget;
 } // namespace Ui
 
+enum class SyncType;
+enum class SynchronizationState;
+
 class InformationWidget : public QWidget
 {
     Q_OBJECT
@@ -29,7 +32,7 @@ public Q_SLOTS:
     /** Set network state shown in the UI */
     void setNetworkActive(bool networkActive);
     /** Set number of blocks, last block date and last block hash shown in the UI */
-    void setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool headers);
+    void setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state);
     /** Set size (number of transactions and memory usage) of the mempool in the UI */
     void setMempoolSize(long numberOfTxs, size_t dynUsage, size_t maxUsage);
 

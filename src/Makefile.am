@@ -245,6 +245,7 @@ BITCOIN_CORE_H = \
   flat-database.h \
   flatfile.h \
   fs.h \
+  headerssync.h \
   httprpc.h \
   httpserver.h \
   i2p.h \
@@ -397,6 +398,7 @@ BITCOIN_CORE_H = \
   undo.h \
   unordered_lru_cache.h \
   util/bip32.h \
+  util/bitdeque.h \
   util/bytevectorhash.h \
   util/check.h \
   util/edge.h \
@@ -534,6 +536,7 @@ libbitcoin_node_a_SOURCES = \
   governance/vote.cpp \
   governance/votedb.cpp \
   gsl/assert.cpp \
+  headerssync.cpp \
   httprpc.cpp \
   httpserver.cpp \
   i2p.cpp \

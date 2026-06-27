@@ -151,6 +151,7 @@ class NetTest(DashTestFramework):
                 "masternode": False,
                 "network": "not_publicly_routable",
                 "permissions": [],
+                'presynced_headers': -1,
                 "relaytxes": False,
                 "services": "0000000000000000",
                 "servicesnames": [],
