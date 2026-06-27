@@ -297,6 +297,10 @@ public:
      */
     bool ConfirmInventoryRequest(const CInv& inv)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    /** Test-only accessor: number of inv hashes currently tracked by
+     *  ConfirmInventoryRequest pending expiration in CheckAndRemove. */
+    size_t RequestedHashCacheSizeForTesting() const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
     void RelayObject(const CGovernanceObject& obj)

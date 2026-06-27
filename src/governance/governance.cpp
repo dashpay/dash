@@ -608,6 +608,13 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
     return true;
 }
 
+size_t CGovernanceManager::RequestedHashCacheSizeForTesting() const
+{
+    AssertLockNotHeld(cs_store);
+    LOCK(cs_store);
+    return m_requested_hash_time.size();
+}
+
 std::vector<CInv> CGovernanceManager::GetSyncableVoteInvs(const uint256& nProp, const CBloomFilter& filter) const
 {
     LOCK(cs_store);
