@@ -14,6 +14,7 @@
 #include <evo/specialtxman.h>
 #include <llmq/context.h>
 #include <messagesigner.h>
+#include <mempool_args.h>
 #include <node/transaction.h>
 #include <policy/policy.h>
 #include <script/interpreter.h>
@@ -911,7 +912,7 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
     SetTxPayload(tx_reg, payload);
     SignTransaction(*(setup.m_node.mempool), tx_reg, setup.coinbaseKey);
 
-    CTxMemPool testPool;
+    CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
     if (setup.m_node.dmnman) {
         testPool.ConnectManagers(setup.m_node.dmnman.get(), setup.m_node.llmq_ctx->isman.get());
     }
@@ -987,7 +988,7 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     SetTxPayload(tx_reg2, payload);
     SignTransaction(*(setup.m_node.mempool), tx_reg2, setup.coinbaseKey);
 
-    CTxMemPool testPool;
+    CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
     if (setup.m_node.dmnman) {
         testPool.ConnectManagers(setup.m_node.dmnman.get(), setup.m_node.llmq_ctx->isman.get());
     }

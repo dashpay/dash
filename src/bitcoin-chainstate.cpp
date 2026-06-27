@@ -11,6 +11,9 @@
 //
 // It is part of the libbitcoinkernel project.
 
+#include <kernel/checks.h>
+#include <kernel/context.h>
+
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
@@ -32,43 +35,10 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <cassert>
 #include <filesystem>
 #include <functional>
 #include <iosfwd>
-
-const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
-
-//----------------
-// symbols g_stats_client, ValueFromAmount, GetPrettyExceptionStr are re-defined
-// here especially for dash-chainstate binary (kernel), because adding sources
-// containing them pulls too many extra dependencies recursively
-#include <stats/client.h>
-std::unique_ptr<StatsdClient> g_stats_client{std::make_unique<StatsdClient>()};
-
-UniValue ValueFromAmount(const CAmount amount)
-{
-    static_assert(COIN > 1);
-    int64_t quotient = amount / COIN;
-    int64_t remainder = amount % COIN;
-    if (amount < 0) {
-        quotient = -quotient;
-        remainder = -remainder;
-    }
-    return UniValue(UniValue::VNUM,
-            strprintf("%s%d.%08d", amount < 0 ? "-" : "", quotient, remainder));
-}
-std::string GetPrettyExceptionStr(const std::exception_ptr& e)
-{
-    try {
-        // rethrow and catch the exception as there is no other way to reliably cast to the real type (not possible with RTTI)
-        std::rethrow_exception(e);
-    } catch (const std::exception& e2) {
-        return e2.what();
-    } catch (...) {
-        throw;
-    }
-}
-//////////////////////
 
 int main(int argc, char* argv[])
 {
@@ -91,7 +61,11 @@ int main(int argc, char* argv[])
     SelectParams(CBaseChainParams::MAIN);
     const CChainParams& chainparams = Params();
 
-    init::SetGlobals(); // ECC_Start, etc.
+    kernel::Context kernel_context{};
+    // We can't use a goto here, but we can use an assert since none of the
+    // things instantiated so far requires running the epilogue to be torn down
+    // properly
+    assert(!kernel::SanityChecks(kernel_context).has_value());
 
     // Necessary for CheckInputScripts (eventually called by ProcessNewBlock),
     // which will try the script cache first and fall back to actually
@@ -112,7 +86,11 @@ int main(int argc, char* argv[])
 
 
     // SETUP: Chainstate
-    ChainstateManager chainman{chainparams};
+    const ChainstateManager::Options chainman_opts{
+        .chainparams = chainparams,
+        .adjusted_time_callback = static_cast<int64_t (*)()>(GetTime),
+    };
+    ChainstateManager chainman{chainman_opts};
 
     CMasternodeMetaMan metaman;
     std::unique_ptr<CEvoDB> evodb;
@@ -136,7 +114,6 @@ int main(int argc, char* argv[])
                                    /*mempool=*/nullptr,
                                    gArgs.GetDataDirNet(),
                                    /*fPruneMode=*/false,
-                                   chainparams.GetConsensus(),
                                    /*fReindexChainState=*/false,
                                    2 << 20,
                                    2 << 22,
@@ -157,10 +134,8 @@ int main(int argc, char* argv[])
                                                                *evodb,
                                                                false,
                                                                false,
-                                                               chainparams.GetConsensus(),
                                                                DEFAULT_CHECKBLOCKS,
-                                                               DEFAULT_CHECKLEVEL,
-                                                               /*get_unix_time_seconds=*/static_cast<int64_t (*)()>(GetTime));
+                                                               DEFAULT_CHECKLEVEL);
         if (maybe_verify_error.has_value()) {
             std::cerr << "Failed to verify loaded Chain state from your datadir." << std::endl;
             goto epilogue;
@@ -314,9 +289,7 @@ epilogue:
         }
     }
     GetMainSignals().UnregisterBackgroundSignalScheduler();
-    // Tear down Dash kernel objects before init::UnsetGlobals().
+    // Tear down Dash kernel objects before kernel::~Context().
     node::DashChainstateSetupClose(chain_helper, dmnman, llmq_ctx, /*mempool=*/nullptr);
     evodb.reset();
-
-    init::UnsetGlobals();
 }

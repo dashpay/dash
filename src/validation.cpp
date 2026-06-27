@@ -6,6 +6,9 @@
 
 #include <validation.h>
 
+#include <kernel/coinstats.h>
+#include <kernel/mempool_persist.h>
+
 #include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -18,8 +21,8 @@
 #include <consensus/validation.h>
 #include <cuckoocache.h>
 #include <flatfile.h>
+#include <fs.h>
 #include <hash.h>
-#include <kernel/coinstats.h>
 #include <logging.h>
 #include <logging/timer.h>
 #include <node/blockstorage.h>
@@ -33,8 +36,6 @@
 #include <script/script.h>
 #include <script/sigcache.h>
 #include <shutdown.h>
-
-#include <timedata.h>
 #include <tinyformat.h>
 #include <txdb.h>
 #include <txmempool.h>
@@ -43,6 +44,7 @@
 #include <util/check.h>
 #include <util/hasher.h>
 #include <util/strencodings.h>
+#include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>
 #include <util/system.h>
@@ -61,6 +63,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <deque>
 #include <numeric>
 #include <optional>
@@ -70,7 +73,9 @@
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 using kernel::ComputeUTXOStats;
+using kernel::LoadMempool;
 
+using fsbridge::FopenFn;
 using node::BlockManager;
 using node::BlockMap;
 using node::CBlockIndexHeightOnlyComparator;
@@ -346,18 +351,18 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
 // Returns the script flags which should be checked for a given block
 static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const ChainstateManager& chainman);
 
-static void LimitMempoolSize(CTxMemPool& pool, CCoinsViewCache& coins_cache, size_t limit, std::chrono::seconds age)
+static void LimitMempoolSize(CTxMemPool& pool, CCoinsViewCache& coins_cache)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main, pool.cs)
 {
     AssertLockHeld(::cs_main);
     AssertLockHeld(pool.cs);
-    int expired = pool.Expire(GetTime<std::chrono::seconds>() - age);
+    int expired = pool.Expire(GetTime<std::chrono::seconds>() - pool.m_expiry);
     if (expired != 0) {
         LogPrint(BCLog::MEMPOOL, "Expired %i transactions from the memory pool\n", expired);
     }
 
     std::vector<COutPoint> vNoSpendsRemaining;
-    pool.TrimToSize(limit, &vNoSpendsRemaining);
+    pool.TrimToSize(pool.m_max_size_bytes, &vNoSpendsRemaining);
     for (const COutPoint& removed : vNoSpendsRemaining)
         coins_cache.Uncache(removed);
 }
@@ -411,9 +416,7 @@ void CChainState::MaybeUpdateMempoolForReorg(
     // previously-confirmed transactions back to the mempool.
     // UpdateTransactionsFromBlock finds descendants of any transactions in
     // the disconnectpool that were added back and cleans up the mempool state.
-    const uint64_t ancestor_count_limit = gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-    const uint64_t ancestor_size_limit = gArgs.GetIntArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
-    m_mempool->UpdateTransactionsFromBlock(vHashUpdate, ancestor_size_limit, ancestor_count_limit);
+    m_mempool->UpdateTransactionsFromBlock(vHashUpdate);
 
     // Predicate to use for filtering transactions in removeForReorg.
     // Checks whether the transaction is still final and, if it spends a coinbase output, mature.
@@ -468,11 +471,7 @@ void CChainState::MaybeUpdateMempoolForReorg(
     // We also need to remove any now-immature transactions
     m_mempool->removeForReorg(m_chain, filter_final_and_mature);
     // Re-limit mempool size, in case we added any transactions
-    LimitMempoolSize(
-        *m_mempool,
-        this->CoinsTip(),
-        gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
-        std::chrono::hours{gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY)});
+    LimitMempoolSize(*m_mempool, this->CoinsTip());
 }
 
 /**
@@ -528,10 +527,10 @@ public:
         m_viewmempool(&active_chainstate.CoinsTip(), m_pool),
         m_active_chainstate(active_chainstate),
         m_chain_helper(active_chainstate.ChainHelper()),
-        m_limit_ancestors(gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT)),
-        m_limit_ancestor_size(gArgs.GetIntArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000),
-        m_limit_descendants(gArgs.GetIntArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT)),
-        m_limit_descendant_size(gArgs.GetIntArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000) {
+        m_limit_ancestors(m_pool.m_limits.ancestor_count),
+        m_limit_ancestor_size(m_pool.m_limits.ancestor_size_vbytes),
+        m_limit_descendants(m_pool.m_limits.descendant_count),
+        m_limit_descendant_size(m_pool.m_limits.descendant_size_vbytes) {
     }
 
     // We put the arguments we're handed into a struct, so we can pass them
@@ -715,7 +714,7 @@ private:
     {
         AssertLockHeld(::cs_main);
         AssertLockHeld(m_pool.cs);
-        CAmount mempoolRejectFee = m_pool.GetMinFee(gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(package_size);
+        CAmount mempoolRejectFee = m_pool.GetMinFee().GetFee(package_size);
         if (mempoolRejectFee > 0 && package_fee < mempoolRejectFee) {
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool min fee not met", strprintf("%d < %d", package_fee, mempoolRejectFee));
         }
@@ -1078,7 +1077,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     // in the package. LimitMempoolSize() should be called at the very end to make sure the mempool
     // is still within limits and package submission happens atomically.
     if (!args.m_package_submission && !bypass_limits) {
-        LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip(), gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000, std::chrono::hours{gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY)});
+        LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip());
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
@@ -1142,9 +1141,7 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
 
     // It may or may not be the case that all the transactions made it into the mempool. Regardless,
     // make sure we haven't exceeded max mempool size.
-    LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip(),
-                     gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
-                     std::chrono::hours{gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY)});
+    LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip());
 
     // Find the wtxids of the transactions that made it into the mempool. Allow partial submission,
     // but don't report success unless they all made it into the mempool.
@@ -2208,7 +2205,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     // Also, currently the rule against blocks more than 2 hours in the future
     // is enforced in ContextualCheckBlockHeader(); we wouldn't want to
     // re-enforce that rule here (at least until we make it impossible for
-    // GetAdjustedTime() to go backward).
+    // m_adjusted_time_callback() to go backward).
     if (!CheckBlock(block, state, m_params.GetConsensus(), !fJustCheck, !fJustCheck)) {
         if (state.GetResult() == BlockValidationResult::BLOCK_MUTATED) {
             // We don't write down blocks to disk if they may have been
@@ -2562,7 +2559,7 @@ CoinsCacheSizeState CChainState::GetCoinsCacheSizeState()
     AssertLockHeld(::cs_main);
     return this->GetCoinsCacheSizeState(
         m_coinstip_cache_size_bytes,
-        gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000);
+        m_mempool ? m_mempool->m_max_size_bytes : 0);
 }
 
 CoinsCacheSizeState CChainState::GetCoinsCacheSizeState(
@@ -4069,7 +4066,7 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
             return state.Invalid(BlockValidationResult::BLOCK_CHAINLOCK, "bad-prevblk-chainlock");
         }
 
-        if (!ContextualCheckBlockHeader(block, state, m_blockman, *this, pindexPrev, GetAdjustedTime())) {
+        if (!ContextualCheckBlockHeader(block, state, m_blockman, *this, pindexPrev, m_adjusted_time_callback())) {
             LogPrint(BCLog::VALIDATION, "%s: Consensus::ContextualCheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
             return false;
         }
@@ -4335,6 +4332,7 @@ bool TestBlockValidity(BlockValidationState& state,
                        CChainState& chainstate,
                        const CBlock& block,
                        CBlockIndex* pindexPrev,
+                       const std::function<int64_t()>& adjusted_time_callback,
                        bool fCheckPOW,
                        bool fCheckMerkleRoot)
 {
@@ -4363,7 +4361,7 @@ bool TestBlockValidity(BlockValidationState& state,
     auto dbTx = evoDb.BeginTransaction();
 
     // NOTE: CheckBlockHeader is called by CheckBlock
-    if (!ContextualCheckBlockHeader(block, state, chainstate.m_blockman, chainstate.m_chainman, pindexPrev, GetAdjustedTime()))
+    if (!ContextualCheckBlockHeader(block, state, chainstate.m_blockman, chainstate.m_chainman, pindexPrev, adjusted_time_callback()))
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, state.ToString());
     if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot))
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
@@ -4392,13 +4390,11 @@ void PruneBlockFilesManual(CChainState& active_chainstate, int nManualPruneHeigh
     }
 }
 
-void CChainState::LoadMempool(const ArgsManager& args)
+void CChainState::LoadMempool(const fs::path& load_path, FopenFn mockable_fopen_function)
 {
     if (!m_mempool) return;
-    if (args.GetBoolArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
-        ::LoadMempool(*m_mempool, *this);
-    }
-    m_mempool->SetIsLoaded(!ShutdownRequested());
+    ::LoadMempool(*m_mempool, load_path, *this, mockable_fopen_function);
+    m_mempool->SetLoadTried(!ShutdownRequested());
 }
 
 bool CChainState::LoadChainTip()
@@ -5254,164 +5250,6 @@ bool CChainState::ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
         ret = FlushStateToDisk(state, FlushStateMode::ALWAYS);
     }
     return ret;
-}
-
-static const uint64_t MEMPOOL_DUMP_VERSION = 1;
-
-bool LoadMempool(CTxMemPool& pool, CChainState& active_chainstate, FopenFn mockable_fopen_function)
-{
-    int64_t nExpiryTimeout = gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60;
-    FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat", "rb")};
-    AutoFile file{filestr};
-    if (file.IsNull()) {
-        LogPrintf("Failed to open mempool file from disk. Continuing anyway.\n");
-        return false;
-    }
-
-    int64_t count = 0;
-    int64_t expired = 0;
-    int64_t failed = 0;
-    int64_t already_there = 0;
-    int64_t unbroadcast = 0;
-    int64_t nNow = GetTime();
-
-    try {
-        uint64_t version;
-        file >> version;
-        if (version != MEMPOOL_DUMP_VERSION) {
-            return false;
-        }
-        uint64_t total_txns_to_load;
-        file >> total_txns_to_load;
-        uint64_t txns_tried = 0;
-        LogInfo("Loading %u mempool transactions from disk...\n", total_txns_to_load);
-        int next_tenth_to_report = 0;
-        while (txns_tried < total_txns_to_load) {
-            const int percentage_done(100.0 * txns_tried / total_txns_to_load);
-            if (next_tenth_to_report < percentage_done / 10) {
-                LogInfo("Progress loading mempool transactions from disk: %d%% (tried %u, %u remaining)\n",
-                        percentage_done, txns_tried, total_txns_to_load - txns_tried);
-                next_tenth_to_report = percentage_done / 10;
-            }
-            ++txns_tried;
-
-            CTransactionRef tx;
-            int64_t nTime;
-            int64_t nFeeDelta;
-            file >> tx;
-            file >> nTime;
-            file >> nFeeDelta;
-
-            CAmount amountdelta = nFeeDelta;
-            if (amountdelta) {
-                pool.PrioritiseTransaction(tx->GetHash(), amountdelta);
-            }
-            if (nTime > nNow - nExpiryTimeout) {
-                LOCK(cs_main);
-                const auto& accepted = AcceptToMemoryPool(active_chainstate, tx, nTime, /*bypass_limits=*/false, /*test_accept=*/false);
-                if (accepted.m_result_type == MempoolAcceptResult::ResultType::VALID) {
-                    ++count;
-                } else {
-                    // mempool may contain the transaction already, e.g. from
-                    // wallet(s) having loaded it while we were processing
-                    // mempool transactions; consider these as valid, instead of
-                    // failed, but mark them as 'already there'
-                    if (pool.exists(tx->GetHash())) {
-                        ++already_there;
-                    } else {
-                        ++failed;
-                    }
-                }
-            } else {
-                ++expired;
-            }
-            if (ShutdownRequested())
-                return false;
-        }
-        std::map<uint256, CAmount> mapDeltas;
-        file >> mapDeltas;
-
-        for (const auto& i : mapDeltas) {
-            pool.PrioritiseTransaction(i.first, i.second);
-        }
-
-        std::set<uint256> unbroadcast_txids;
-        file >> unbroadcast_txids;
-        unbroadcast = unbroadcast_txids.size();
-        for (const auto& txid : unbroadcast_txids) {
-            // Ensure transactions were accepted to mempool then add to
-            // unbroadcast set.
-            if (pool.get(txid) != nullptr) pool.AddUnbroadcastTx(txid);
-        }
-
-    } catch (const std::exception& e) {
-        LogPrintf("Failed to deserialize mempool data on disk: %s. Continuing anyway.\n", e.what());
-        return false;
-    }
-
-    LogPrintf("Imported mempool transactions from disk: %i succeeded, %i failed, %i expired, %i already there, %i waiting for initial broadcast\n", count, failed, expired, already_there, unbroadcast);
-    return true;
-}
-
-bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool skip_file_commit)
-{
-    int64_t start = GetTimeMicros();
-
-    std::map<uint256, CAmount> mapDeltas;
-    std::vector<TxMempoolInfo> vinfo;
-    std::set<uint256> unbroadcast_txids;
-
-    static Mutex dump_mutex;
-    LOCK(dump_mutex);
-
-    {
-        LOCK(pool.cs);
-        for (const auto &i : pool.mapDeltas) {
-            mapDeltas[i.first] = i.second;
-        }
-        vinfo = pool.infoAll();
-        unbroadcast_txids = pool.GetUnbroadcastTxs();
-    }
-
-    int64_t mid = GetTimeMicros();
-
-    try {
-        FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat.new", "wb")};
-        if (!filestr) {
-            return false;
-        }
-
-        AutoFile file{filestr};
-
-        uint64_t version = MEMPOOL_DUMP_VERSION;
-        file << version;
-
-        file << (uint64_t)vinfo.size();
-        for (const auto& i : vinfo) {
-            file << *(i.tx);
-            file << int64_t{count_seconds(i.m_time)};
-            file << int64_t{i.nFeeDelta};
-            mapDeltas.erase(i.tx->GetHash());
-        }
-
-        file << mapDeltas;
-
-        LogPrintf("Writing %d unbroadcast transactions to disk.\n", unbroadcast_txids.size());
-        file << unbroadcast_txids;
-
-        if (!skip_file_commit && !FileCommit(file.Get()))
-            throw std::runtime_error("FileCommit failed");
-        file.fclose();
-        if (!RenameOver(gArgs.GetDataDirNet() / "mempool.dat.new", gArgs.GetDataDirNet() / "mempool.dat")) {
-            throw std::runtime_error("Rename failed");
-        }
-        int64_t last = GetTimeMicros();
-        LogPrintf("Dumped mempool: %gs to copy, %gs to dump\n", (mid-start)*MICRO, (last-mid)*MICRO);
-    } catch (const std::exception& e) {
-        LogPrintf("Failed to dump mempool: %s. Continuing anyway.\n", e.what());
-        return false;
-    }
-    return true;
 }
 
 //! Guess how far we are in the verification process at the given block index

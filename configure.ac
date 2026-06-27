@@ -783,6 +783,12 @@ AC_ARG_WITH([libs],
   [build_bitcoin_libs=$withval],
   [build_bitcoin_libs=yes])
 
+AC_ARG_WITH([experimental-kernel-lib],
+  [AS_HELP_STRING([--with-experimental-kernel-lib],
+  [build experimental dashkernel library (default is to build if we're building libraries and the experimental build-chainstate executable)])],
+  [build_experimental_kernel_lib=$withval],
+  [build_experimental_kernel_lib=auto])
+
 AC_ARG_WITH([daemon],
   [AS_HELP_STRING([--with-daemon],
   [build dashd daemon (default=yes)])],
@@ -1791,15 +1797,24 @@ AM_CONDITIONAL([BUILD_BITCOIN_UTIL], [test $build_bitcoin_util = "yes"])
 AC_MSG_RESULT($build_bitcoin_util)
 
 AC_MSG_CHECKING([whether to build experimental dash-chainstate])
+if test "$build_bitcoin_chainstate" = "yes"; then
+  if test "$build_experimental_kernel_lib" = "no"; then
+    AC_MSG_ERROR([experimental dash-chainstate cannot be built without the experimental dashkernel library. Use --with-experimental-kernel-lib]);
+  fi
+fi
 AM_CONDITIONAL([BUILD_BITCOIN_CHAINSTATE], [test $build_bitcoin_chainstate = "yes"])
 AC_MSG_RESULT($build_bitcoin_chainstate)
 
 AC_MSG_CHECKING([whether to build libraries])
 AM_CONDITIONAL([BUILD_BITCOIN_LIBS], [test $build_bitcoin_libs = "yes"])
+
 if test "$build_bitcoin_libs" = "yes"; then
   AC_DEFINE([HAVE_CONSENSUS_LIB], [1], [Define this symbol if the consensus lib has been built])
   AC_CONFIG_FILES([libdashconsensus.pc:libdashconsensus.pc.in])
 fi
+
+AM_CONDITIONAL([BUILD_BITCOIN_KERNEL_LIB], [test "$build_experimental_kernel_lib" != "no" && ( test "$build_experimental_kernel_lib" = "yes" || test "$build_bitcoin_chainstate" = "yes" )])
+
 AC_MSG_RESULT($build_bitcoin_libs)
 
 AC_LANG_POP

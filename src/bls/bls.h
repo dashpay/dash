@@ -386,7 +386,6 @@ public:
     }
 };
 
-#ifndef BUILD_BITCOIN_INTERNAL
 template<typename BLSObject>
 class CBLSLazyWrapper
 {
@@ -592,7 +591,6 @@ public:
         obj.Unserialize(s, legacy);
     }
 };
-#endif
 
 using BLSVerificationVectorPtr = std::shared_ptr<std::vector<CBLSPublicKey>>;
 

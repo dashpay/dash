@@ -93,8 +93,7 @@ size_t CTxMemPoolEntry::GetTxSize() const
 }
 
 void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
-                                      const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove,
-                                      uint64_t ancestor_size_limit, uint64_t ancestor_count_limit)
+                                      const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove)
 {
     CTxMemPoolEntry::Children stageEntries, descendants;
     stageEntries = updateIt->GetMemPoolChildrenConst();
@@ -136,7 +135,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendan
             // Don't directly remove the transaction here -- doing so would
             // invalidate iterators in cachedDescendants. Mark it for removal
             // by inserting into descendants_to_remove.
-            if (descendant.GetCountWithAncestors() > ancestor_count_limit || descendant.GetSizeWithAncestors() > ancestor_size_limit) {
+            if (descendant.GetCountWithAncestors() > uint64_t(m_limits.ancestor_count) || descendant.GetSizeWithAncestors() > uint64_t(m_limits.ancestor_size_vbytes)) {
                 descendants_to_remove.insert(descendant.GetTx().GetHash());
             }
         }
@@ -144,7 +143,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendan
     mapTx.modify(updateIt, [=](CTxMemPoolEntry& e) { e.UpdateDescendantState(modifySize, modifyFee, modifyCount); });
 }
 
-void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256> &vHashesToUpdate, uint64_t ancestor_size_limit, uint64_t ancestor_count_limit)
+void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate)
 {
     AssertLockHeld(cs);
     // For each entry in vHashesToUpdate, store the set of in-mempool, but not
@@ -187,7 +186,7 @@ void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256> &vHashes
                 }
             }
         } // release epoch guard for UpdateForDescendants
-        UpdateForDescendants(it, mapMemPoolDescendantsToUpdate, setAlreadyIncluded, descendants_to_remove, ancestor_size_limit, ancestor_count_limit);
+        UpdateForDescendants(it, mapMemPoolDescendantsToUpdate, setAlreadyIncluded, descendants_to_remove);
     }
 
     for (const auto& txid : descendants_to_remove) {
@@ -439,8 +438,12 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
     assert(int(nSigOpCountWithAncestors) >= 0);
 }
 
-CTxMemPool::CTxMemPool(CBlockPolicyEstimator* estimator, int check_ratio)
-    : m_check_ratio(check_ratio), minerPolicyEstimator(estimator)
+CTxMemPool::CTxMemPool(const Options& opts)
+    : m_check_ratio{opts.check_ratio},
+      minerPolicyEstimator{opts.estimator},
+      m_max_size_bytes{opts.max_size_bytes},
+      m_expiry{opts.expiry},
+      m_limits{opts.limits}
 {
     _clear(); //lock free clear
 }
@@ -1742,16 +1745,16 @@ void CTxMemPool::GetTransactionAncestry(const uint256& txid, size_t& ancestors, 
     }
 }
 
-bool CTxMemPool::IsLoaded() const
+bool CTxMemPool::GetLoadTried() const
 {
     LOCK(cs);
-    return m_is_loaded;
+    return m_load_tried;
 }
 
-void CTxMemPool::SetIsLoaded(bool loaded)
+void CTxMemPool::SetLoadTried(bool load_tried)
 {
     LOCK(cs);
-    m_is_loaded = loaded;
+    m_load_tried = load_tried;
 }
 
 

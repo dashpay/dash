@@ -13,6 +13,7 @@
 #include <script/standard.h>
 #include <test/util/random.h>
 #include <test/util/txmempool.h>
+#include <timedata.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/system.h>
@@ -64,7 +65,7 @@ BlockAssembler MinerTestingSetup::AssemblerForTest(const CChainParams& params)
 
     options.nBlockMaxSize = DEFAULT_BLOCK_MAX_SIZE;
     options.blockMinFeeRate = blockMinFeeRate;
-    return BlockAssembler(m_node.chainman->ActiveChainstate(), m_node, m_node.mempool.get(), params, options);
+    return BlockAssembler(m_node.chainman->ActiveChainstate(), m_node, m_node.mempool.get(), options);
 }
 
 constexpr static struct {

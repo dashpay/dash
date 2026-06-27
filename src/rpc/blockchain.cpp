@@ -1090,11 +1090,11 @@ static RPCHelpMan pruneblockchain()
 
     unsigned int height = (unsigned int) heightParam;
     unsigned int chainHeight = (unsigned int) active_chain.Height();
-    if (chainHeight < Params().PruneAfterHeight())
+    if (chainHeight < chainman.GetParams().PruneAfterHeight()) {
         throw JSONRPCError(RPC_MISC_ERROR, "Blockchain is too short for pruning.");
-    else if (height > chainHeight)
+    } else if (height > chainHeight) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Blockchain is shorter than the attempted prune height.");
-    else if (height > chainHeight - MIN_BLOCKS_TO_KEEP) {
+    } else if (height > chainHeight - MIN_BLOCKS_TO_KEEP) {
         LogPrint(BCLog::RPC, "Attempt to prune blocks close to the tip.  Retaining the minimum number of blocks.\n");
         height = chainHeight - MIN_BLOCKS_TO_KEEP;
     }
@@ -1409,7 +1409,7 @@ static RPCHelpMan verifychain()
 
     CChainState& active_chainstate = chainman.ActiveChainstate();
     return CVerifyDB().VerifyDB(
-        active_chainstate, Params().GetConsensus(), active_chainstate.CoinsTip(), *CHECK_NONFATAL(node.evodb), check_level, check_depth);
+        active_chainstate, chainman.GetParams().GetConsensus(), active_chainstate.CoinsTip(), *CHECK_NONFATAL(node.evodb), check_level, check_depth);
 },
     };
 }
@@ -1563,7 +1563,7 @@ RPCHelpMan getblockchaininfo()
     if (args.IsArgSet("-devnet")) {
         obj.pushKV("chain", args.GetDevNetName());
     } else {
-        obj.pushKV("chain", Params().NetworkIDString());
+        obj.pushKV("chain", chainman.GetParams().NetworkIDString());
     }
     obj.pushKV("blocks", height);
     obj.pushKV("headers", chainman.m_best_header ? chainman.m_best_header->nHeight : -1);
@@ -1571,7 +1571,7 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("difficulty", GetDifficulty(&tip));
     obj.pushKV("time", tip.GetBlockTime());
     obj.pushKV("mediantime", tip.GetMedianTimePast());
-    obj.pushKV("verificationprogress", GuessVerificationProgress(Params().TxData(), &tip));
+    obj.pushKV("verificationprogress", GuessVerificationProgress(chainman.GetParams().TxData(), &tip));
     obj.pushKV("initialblockdownload", active_chainstate.IsInitialBlockDownload());
     obj.pushKV("chainwork", tip.nChainWork.GetHex());
     obj.pushKV("size_on_disk", chainman.m_blockman.CalculateCurrentUsage());
@@ -1912,7 +1912,7 @@ static RPCHelpMan getchaintxstats()
 
     CChain& active_chain = chainman.ActiveChain();
     const CBlockIndex* pindex;
-    int blockcount = 30 * 24 * 60 * 60 / Params().GetConsensus().nPowTargetSpacing; // By default: 1 month
+    int blockcount = 30 * 24 * 60 * 60 / chainman.GetParams().GetConsensus().nPowTargetSpacing; // By default: 1 month
 
     if (request.params[1].isNull()) {
         LOCK(cs_main);
@@ -2232,7 +2232,7 @@ static RPCHelpMan getblockstats()
     ret_all.pushKV("minfeerate", (minfeerate == MAX_MONEY) ? 0 : minfeerate);
     ret_all.pushKV("mintxsize", mintxsize == MaxBlockSize() ? 0 : mintxsize);
     ret_all.pushKV("outs", outputs);
-    ret_all.pushKV("subsidy", GetBlockSubsidy(&pindex, Params().GetConsensus()));
+    ret_all.pushKV("subsidy", GetBlockSubsidy(&pindex, chainman.GetParams().GetConsensus()));
     ret_all.pushKV("time", pindex.GetBlockTime());
     ret_all.pushKV("total_out", total_out);
     ret_all.pushKV("total_size", total_size);

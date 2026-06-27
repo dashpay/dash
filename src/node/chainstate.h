@@ -22,9 +22,6 @@ class CTxMemPool;
 struct LLMQContext;
 
 namespace chainlock { class Chainlocks; }
-namespace Consensus {
-struct Params;
-} // namespace Consensus
 namespace fs {
 class path;
 } // namespace fs
@@ -85,7 +82,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      CTxMemPool* mempool,
                                                      const fs::path& data_dir,
                                                      bool fPruneMode,
-                                                     const Consensus::Params& consensus_params,
                                                      bool fReindexChainState,
                                                      int64_t nBlockTreeDBCache,
                                                      int64_t nCoinDBCache,
@@ -115,8 +111,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
                          bool llmq_dbs_wipe,
                          int8_t bls_threads,
                          int16_t worker_count,
-                         int64_t max_recsigs_age,
-                         const Consensus::Params& consensus_params);
+                         int64_t max_recsigs_age);
 
 void DashChainstateSetupClose(std::unique_ptr<CChainstateHelper>& chain_helper,
                               std::unique_ptr<CDeterministicMNManager>& dmnman,
@@ -134,10 +129,8 @@ std::optional<ChainstateLoadVerifyError> VerifyLoadedChainstate(ChainstateManage
                                                                 CEvoDB& evodb,
                                                                 bool fReset,
                                                                 bool fReindexChainState,
-                                                                const Consensus::Params& consensus_params,
                                                                 int check_blocks,
                                                                 int check_level,
-                                                                std::function<int64_t()> get_unix_time_seconds,
                                                                 std::function<void(bool)> notify_bls_state = nullptr);
 } // namespace node
 

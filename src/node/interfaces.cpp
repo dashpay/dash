@@ -304,19 +304,19 @@ public:
     GovernanceInfo getGovernanceInfo() override
     {
         GovernanceInfo info;
-        const Consensus::Params& consensusParams = Params().GetConsensus();
         if (context().chainman) {
+            const Consensus::Params& consensusParams = context().chainman->GetConsensus();
             LOCK(::cs_main);
             CSuperblock::GetNearestSuperblocksHeights(context().chainman->ActiveHeight(), info.lastsuperblock, info.nextsuperblock);
             info.governancebudget = CSuperblock::GetPaymentsLimit(context().chainman->ActiveChain(), info.nextsuperblock);
             if (context().dmnman) {
                 info.fundingthreshold = static_cast<int>(context().dmnman->GetListAtChainTip().GetCounts().m_valid_weighted / 10);
             }
+            info.superblockcycle = consensusParams.nSuperblockCycle;
+            info.superblockmaturitywindow = consensusParams.nSuperblockMaturityWindow;
+            info.targetSpacing = consensusParams.nPowTargetSpacing;
         }
         info.proposalfee = GOVERNANCE_PROPOSAL_FEE_TX;
-        info.superblockcycle = consensusParams.nSuperblockCycle;
-        info.superblockmaturitywindow = consensusParams.nSuperblockMaturityWindow;
-        info.targetSpacing = consensusParams.nPowTargetSpacing;
         info.relayRequiredConfs = GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS;
         info.requiredConfs = GOVERNANCE_FEE_CONFIRMATIONS;
         return info;
@@ -700,8 +700,16 @@ public:
     uint64_t getLogCategories() override { return LogInstance().GetCategoryMask(); }
     bool baseInitialize() override
     {
-        return AppInitBasicSetup(gArgs) && AppInitParameterInteraction(gArgs) && AppInitSanityChecks() &&
-               AppInitLockDataDirectory() && AppInitInterfaces(*m_context);
+        if (!AppInitBasicSetup(gArgs)) return false;
+        if (!AppInitParameterInteraction(gArgs)) return false;
+
+        m_context->kernel = std::make_unique<kernel::Context>();
+        if (!AppInitSanityChecks(*m_context->kernel)) return false;
+
+        if (!AppInitLockDataDirectory()) return false;
+        if (!AppInitInterfaces(*m_context)) return false;
+
+        return true;
     }
     bool appInitMain(interfaces::BlockAndHeaderTipInfo* tip_info) override
     {
@@ -865,7 +873,7 @@ public:
     int64_t getTotalBytesSent() override { return m_context->connman ? m_context->connman->GetTotalBytesSent() : 0; }
     size_t getMempoolSize() override { return m_context->mempool ? m_context->mempool->size() : 0; }
     size_t getMempoolDynamicUsage() override { return m_context->mempool ? m_context->mempool->DynamicMemoryUsage() : 0; }
-    size_t getMempoolMaxUsage() override { return gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000; }
+    size_t getMempoolMaxUsage() override { return gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE_MB) * 1000000; }
     bool getHeaderTip(int& height, int64_t& block_time) override
     {
         LOCK(::cs_main);
@@ -892,7 +900,7 @@ public:
     uint256 getBestBlockHash() override
     {
         const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
-        return tip ? tip->GetBlockHash() : Params().GenesisBlock().GetHash();
+        return tip ? tip->GetBlockHash() : chainman().GetParams().GenesisBlock().GetHash();
     }
     int64_t getLastBlockTime() override
     {
@@ -900,7 +908,7 @@ public:
         if (chainman().ActiveChain().Tip()) {
             return chainman().ActiveChain().Tip()->GetBlockTime();
         }
-        return Params().GenesisBlock().GetBlockTime(); // Genesis block's time of current network
+        return chainman().GetParams().GenesisBlock().GetBlockTime(); // Genesis block's time of current network
     }
     std::string getLastBlockHash() override
     {
@@ -908,7 +916,7 @@ public:
         if (m_context->chainman->ActiveChain().Tip()) {
             return m_context->chainman->ActiveChain().Tip()->GetBlockHash().ToString();
         }
-        return Params().GenesisBlock().GetHash().ToString(); // Genesis block's hash of current network
+        return chainman().GetParams().GenesisBlock().GetHash().ToString(); // Genesis block's hash of current network
     }
     double getVerificationProgress() override
     {
@@ -917,7 +925,7 @@ public:
             LOCK(::cs_main);
             tip = chainman().ActiveChain().Tip();
         }
-        return GuessVerificationProgress(Params().TxData(), tip);
+        return GuessVerificationProgress(chainman().GetParams().TxData(), tip);
     }
     bool isInitialBlockDownload() override {
         return chainman().ActiveChainstate().IsInitialBlockDownload();
@@ -1333,7 +1341,7 @@ public:
     double guessVerificationProgress(const uint256& block_hash) override
     {
         LOCK(::cs_main);
-        return GuessVerificationProgress(Params().TxData(), chainman().m_blockman.LookupBlockIndex(block_hash));
+        return GuessVerificationProgress(chainman().GetParams().TxData(), chainman().m_blockman.LookupBlockIndex(block_hash));
     }
     bool hasBlocks(const uint256& block_hash, int min_height, std::optional<int> max_height) override
     {
@@ -1383,8 +1391,12 @@ public:
     }
     void getPackageLimits(unsigned int& limit_ancestor_count, unsigned int& limit_descendant_count) override
     {
-        limit_ancestor_count = gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-        limit_descendant_count = gArgs.GetIntArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
+        const CTxMemPool::Limits default_limits{};
+
+        const CTxMemPool::Limits& limits{m_node.mempool ? m_node.mempool->m_limits : default_limits};
+
+        limit_ancestor_count = limits.ancestor_count;
+        limit_descendant_count = limits.descendant_count;
     }
     bool checkChainLimits(const CTransactionRef& tx) override
     {
@@ -1392,15 +1404,12 @@ public:
         LockPoints lp;
         CTxMemPoolEntry entry(tx, 0, 0, 0, false, 0, lp);
         CTxMemPool::setEntries ancestors;
-        auto limit_ancestor_count = gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-        auto limit_ancestor_size = gArgs.GetIntArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
-        auto limit_descendant_count = gArgs.GetIntArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-        auto limit_descendant_size = gArgs.GetIntArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
+        const CTxMemPool::Limits& limits{m_node.mempool->m_limits};
         std::string unused_error_string;
         LOCK(m_node.mempool->cs);
         return m_node.mempool->CalculateMemPoolAncestors(
-            entry, ancestors, limit_ancestor_count, limit_ancestor_size,
-            limit_descendant_count, limit_descendant_size, unused_error_string);
+            entry, ancestors, limits.ancestor_count, limits.ancestor_size_vbytes,
+            limits.descendant_count, limits.descendant_size_vbytes, unused_error_string);
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {
@@ -1415,7 +1424,7 @@ public:
     CFeeRate mempoolMinFee() override
     {
         if (!m_node.mempool) return {};
-        return m_node.mempool->GetMinFee(gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000);
+        return m_node.mempool->GetMinFee();
     }
     CFeeRate relayMinFee() override { return ::minRelayTxFee; }
     CFeeRate relayIncrementalFee() override { return ::incrementalRelayFee; }

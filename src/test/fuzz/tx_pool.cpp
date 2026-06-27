@@ -3,9 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/validation.h>
+#include <mempool_args.h>
+#include <node/context.h>
 #include <node/miner.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
+#include <test/fuzz/mempool_utils.h>
 #include <test/fuzz/util.h>
 #include <test/util/mining.h>
 #include <test/util/script.h>
@@ -29,15 +32,6 @@ struct MockedTxPool : public CTxMemPool {
         LOCK(cs);
         lastRollingFeeUpdate = GetTime();
         blockSinceLastRollingFeeBump = true;
-    }
-};
-
-class DummyChainState final : public CChainState
-{
-public:
-    void SetMempool(CTxMemPool* mempool)
-    {
-        m_mempool = mempool;
     }
 };
 
@@ -99,7 +93,7 @@ void Finish(FuzzedDataProvider& fuzzed_data_provider, MockedTxPool& tx_pool, con
         options.nBlockMaxSize = fuzzed_data_provider.ConsumeIntegralInRange(0U, MaxBlockSize(true));
         options.blockMinFeeRate = CFeeRate{ConsumeMoney(fuzzed_data_provider, /*max=*/COIN)};
 
-        auto assembler = BlockAssembler{chainstate, node, static_cast<CTxMemPool*>(&tx_pool), chainstate.m_params, options};
+        auto assembler = BlockAssembler{chainstate, node, static_cast<CTxMemPool*>(&tx_pool), options};
         auto block_template = assembler.CreateNewBlock(CScript{} << OP_TRUE);
         Assert(block_template->block.vtx.size() >= 1);
     }
@@ -123,6 +117,19 @@ void MockTime(FuzzedDataProvider& fuzzed_data_provider, const CChainState& chain
     SetMockTime(time);
 }
 
+CTxMemPool MakeMempool(const NodeContext& node)
+{
+    // Take the default options for tests...
+    CTxMemPool::Options mempool_opts{MemPoolOptionsForTest(node)};
+
+    // ...override specific options for this specific fuzz suite
+    mempool_opts.estimator = nullptr;
+    mempool_opts.check_ratio = 1;
+
+    // ...and construct a CTxMemPool from it
+    return CTxMemPool{mempool_opts};
+}
+
 FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
@@ -144,7 +151,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
     // The sum of the values of all spendable outpoints
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 50 * COIN};
 
-    CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1};
+    CTxMemPool tx_pool_{MakeMempool(node)};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
@@ -320,7 +327,7 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
         txids.push_back(ConsumeUInt256(fuzzed_data_provider));
     }
 
-    CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1};
+    CTxMemPool tx_pool_{MakeMempool(node)};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
 
     chainstate.SetMempool(&tx_pool);

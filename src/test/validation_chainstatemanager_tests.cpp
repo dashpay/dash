@@ -37,7 +37,6 @@ BOOST_FIXTURE_TEST_SUITE(validation_chainstatemanager_tests, ChainTestingSetup)
 //! First create a legacy (IBD) chainstate, then create a snapshot chainstate.
 BOOST_AUTO_TEST_CASE(chainstatemanager)
 {
-    const Consensus::Params& consensus_params = Params().GetConsensus();
     ChainstateManager& manager = *m_node.chainman;
     CTxMemPool& mempool = *m_node.mempool;
     CEvoDB& evodb = *m_node.evodb;
@@ -53,7 +52,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
         /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
     WITH_LOCK(::cs_main, c1.InitCoinsCache(1 << 23));
 
-    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false, consensus_params);
+    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false);
 
     BOOST_CHECK(!manager.IsSnapshotActive());
     BOOST_CHECK(WITH_LOCK(::cs_main, return !manager.IsSnapshotValidated()));
@@ -85,7 +84,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     );
     chainstates.push_back(&c2);
 
-    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false, consensus_params);
+    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false);
 
     BOOST_CHECK_EQUAL(manager.SnapshotBlockhash().value(), snapshot_blockhash);
 

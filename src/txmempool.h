@@ -14,6 +14,9 @@
 #include <utility>
 #include <vector>
 
+#include <kernel/mempool_limits.h>
+#include <kernel/mempool_options.h>
+
 #include <coins.h>
 #include <consensus/amount.h>
 #include <evo/netinfo.h>
@@ -464,7 +467,9 @@ protected:
 
     void trackPackageRemoved(const CFeeRate& rate) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    bool m_is_loaded GUARDED_BY(cs){false};
+    bool m_load_tried GUARDED_BY(cs){false};
+
+    CFeeRate GetMinFee(size_t sizelimit) const;
 
 public:
 
@@ -577,15 +582,21 @@ public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
     std::map<uint256, CAmount> mapDeltas GUARDED_BY(cs);
 
+    using Options = kernel::MemPoolOptions;
+
+    const int64_t m_max_size_bytes;
+    const std::chrono::seconds m_expiry;
+
+    using Limits = kernel::MemPoolLimits;
+
+    const Limits m_limits;
+
     /** Create a new CTxMemPool.
      * Sanity checks will be off by default for performance, because otherwise
      * accepting transactions becomes O(N^2) where N is the number of transactions
      * in the pool.
-     *
-     * @param[in] estimator is used to estimate appropriate transaction fees.
-     * @param[in] check_ratio is the ratio used to determine how often sanity checks will run.
      */
-    explicit CTxMemPool(CBlockPolicyEstimator* estimator = nullptr, int check_ratio = 0);
+    explicit CTxMemPool(const Options& opts);
 
     /**
      * Set CDeterministicMNManager and CInstantSendManager pointers.
@@ -696,13 +707,8 @@ public:
      *
      * @param[in] vHashesToUpdate          The set of txids from the
      *     disconnected block that have been accepted back into the mempool.
-     * @param[in] ancestor_size_limit      The maximum allowed size in virtual
-     *     bytes of an entry and its ancestors
-     * @param[in] ancestor_count_limit     The maximum allowed number of
-     *     transactions including the entry and its ancestors.
      */
-    void UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate,
-            uint64_t ancestor_size_limit, uint64_t ancestor_count_limit) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main) LOCKS_EXCLUDED(m_epoch);
+    void UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main) LOCKS_EXCLUDED(m_epoch);
 
     /** Try to calculate all in-mempool ancestors of entry.
      *  (these are all calculated including the tx itself)
@@ -749,7 +755,9 @@ public:
       *  takes the fee rate to go back down all the way to 0. When the feerate
       *  would otherwise be half of this, it is set to 0 instead.
       */
-    CFeeRate GetMinFee(size_t sizelimit) const;
+    CFeeRate GetMinFee() const {
+        return GetMinFee(m_max_size_bytes);
+    }
 
     /** Remove transactions from the mempool until its dynamic size is <= sizelimit.
       *  pvNoSpendsRemaining, if set, will be populated with the list of outpoints
@@ -771,11 +779,17 @@ public:
      */
     void GetTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr) const;
 
-    /** @returns true if the mempool is fully loaded */
-    bool IsLoaded() const;
+    /**
+     * @returns true if we've made an attempt to load the mempool regardless of
+     *          whether the attempt was successful or not
+     */
+    bool GetLoadTried() const;
 
-    /** Sets the current loaded state */
-    void SetIsLoaded(bool loaded);
+    /**
+     * Set whether or not we've made an attempt to load the mempool (regardless
+     * of whether the attempt was successful or not)
+     */
+    void SetLoadTried(bool load_tried);
 
     unsigned long size() const
     {
@@ -875,14 +889,9 @@ private:
      * @param[out] descendants_to_remove Populated with the txids of entries that
      *     exceed ancestor limits. It's the responsibility of the caller to
      *     removeRecursive them.
-     * @param[in] ancestor_size_limit the max number of ancestral bytes allowed
-     *     for any descendant
-     * @param[in] ancestor_count_limit the max number of ancestor transactions
-     *     allowed for any descendant
      */
     void UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
-                              const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove,
-                              uint64_t ancestor_size_limit, uint64_t ancestor_count_limit) EXCLUSIVE_LOCKS_REQUIRED(cs);
+                              const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Update ancestors of hash to add/remove it as a descendant transaction. */
     void UpdateAncestorsOf(bool add, txiter hash, setEntries &setAncestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Set ancestor state for an entry */

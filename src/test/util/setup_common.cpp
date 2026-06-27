@@ -16,18 +16,21 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <crypto/sha256.h>
-#include <crypto/x11/dispatch.h>
 #include <index/txindex.h>
 #include <init.h>
+#include <init/common.h>
 #include <interfaces/chain.h>
+#include <mempool_args.h>
 #include <net.h>
 #include <net_processing.h>
 #include <noui.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
+#include <node/context.h>
 #include <node/miner.h>
 #include <node/sync_manager.h>
 #include <policy/fees.h>
+#include <policy/fees_args.h>
 #include <policy/settings.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
@@ -40,7 +43,9 @@
 #include <test/util/index.h>
 #include <test/util/net.h>
 #include <test/util/txmempool.h>
+#include <timedata.h>
 #include <txdb.h>
+#include <txmempool.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/thread.h>
@@ -90,6 +95,9 @@ using node::NodeContext;
 using node::VerifyLoadedChainstate;
 using node::fPruneMode;
 using node::fReindex;
+using node::LoadChainstate;
+using node::NodeContext;
+using node::VerifyLoadedChainstate;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 UrlDecodeFn* const URL_DECODE = nullptr;
@@ -126,10 +134,9 @@ std::ostream& operator<<(std::ostream& os, const uint256& num)
 std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
                                              NodeContext& node,
                                              BanMan* banman,
-                                             const CChainParams& chainparams,
                                              bool ignore_incoming_txs)
 {
-    return PeerManager::make(chainparams, connman, *node.addrman, banman, *node.dstxman, *node.chainman, *node.mempool, *node.mn_metaman,
+    return PeerManager::make(connman, *node.addrman, banman, *node.dstxman, *node.chainman, *node.mempool, *node.mn_metaman,
                              *node.mn_sync, *node.sporkman, *node.chainlocks, *node.clhandler, /*nodeman=*/nullptr, node.dmnman, node.cj_walletman,
                              node.llmq_ctx, ignore_incoming_txs);
 }
@@ -137,14 +144,12 @@ std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
 void DashChainstateSetup(ChainstateManager& chainman,
                          NodeContext& node,
                          bool llmq_dbs_in_memory,
-                         bool llmq_dbs_wipe,
-                         const Consensus::Params& consensus_params)
+                         bool llmq_dbs_wipe)
 {
     DashChainstateSetup(chainman, *Assert(node.mn_metaman.get()),
                         *Assert(node.sporkman.get()), *Assert(node.chainlocks), *Assert(node.mn_sync), node.chain_helper, node.dmnman, *node.evodb,
                         node.llmq_ctx, Assert(node.mempool.get()), node.args->GetDataDirNet(), llmq_dbs_in_memory, llmq_dbs_wipe,
-                        llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE,
-                        consensus_params);
+                        llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE);
 }
 
 void DashChainstateSetupClose(NodeContext& node)
@@ -193,10 +198,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     InitLogging(*m_node.args);
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
-    SapphireAutoDetect();
-    SHA256AutoDetect();
-    ECC_Start();
-    BLSInit();
+    m_node.kernel = std::make_unique<kernel::Context>();
     SetupEnvironment();
     SetupNetworking();
     InitSignatureCache();
@@ -260,8 +262,6 @@ BasicTestingSetup::~BasicTestingSetup()
     m_node.addrman.reset();
     m_node.netgroupman.reset();
     m_node.args = nullptr;
-
-    ECC_Stop();
 }
 
 ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
@@ -275,12 +275,16 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
     GetMainSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
-    m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
-    m_node.mempool = std::make_unique<CTxMemPool>(m_node.fee_estimator.get(), m_node.args->GetIntArg("-checkmempool", 1));
+    m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args));
+    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
-    m_node.chainman = std::make_unique<ChainstateManager>(chainparams);
+    const ChainstateManager::Options chainman_opts{
+        .chainparams = chainparams,
+        .adjusted_time_callback = GetAdjustedTime,
+    };
+    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
 
     m_node.mn_sync = std::make_unique<CMasternodeSync>(std::make_unique<NodeSyncNotifierImpl>(*m_node.connman, *m_node.netfulfilledman));
@@ -308,7 +312,6 @@ ChainTestingSetup::~ChainTestingSetup()
 
 void ChainTestingSetup::LoadVerifyActivateChainstate()
 {
-    const CChainParams& chainparams = Params();
     auto& chainman{*Assert(m_node.chainman)};
     auto maybe_load_error = LoadChainstate(fReindex.load(),
                                            chainman,
@@ -323,7 +326,6 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
                                            Assert(m_node.mempool.get()),
                                            Assert(m_node.args)->GetDataDirNet(),
                                            fPruneMode,
-                                           chainparams.GetConsensus(),
                                            m_args.GetBoolArg("-reindex-chainstate", false),
                                            m_cache_sizes.block_tree_db,
                                            m_cache_sizes.coins_db,
@@ -343,10 +345,8 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
         *Assert(m_node.evodb.get()),
         fReindex.load(),
         m_args.GetBoolArg("-reindex-chainstate", false),
-        chainparams.GetConsensus(),
         m_args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS),
         m_args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL),
-        /*get_unix_time_seconds=*/static_cast<int64_t(*)()>(GetTime),
         [](bool bls_state) {
             LogPrintf("%s: bls_legacy_scheme=%d\n", __func__, bls_state);
         });
@@ -367,7 +367,6 @@ TestingSetup::TestingSetup(
 {
     m_coins_db_in_memory = coins_db_in_memory;
     m_block_tree_db_in_memory = block_tree_db_in_memory;
-    const CChainParams& chainparams = Params();
     // Ideally we'd move all the RPC tests to the functional testing framework
     // instead of unit tests, but for now we need these here.
     RegisterAllCoreRPCCommands(tableRPC);
@@ -391,7 +390,7 @@ TestingSetup::TestingSetup(
 #endif // ENABLE_WALLET
 
     m_node.banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
-    m_node.peerman = MakePeerManager(*m_node.connman, m_node, m_node.banman.get(), chainparams,
+    m_node.peerman = MakePeerManager(*m_node.connman, m_node, m_node.banman.get(),
                                      /*ignore_incoming_txs=*/false);
     {
         CConnman::Options options;
@@ -519,9 +518,7 @@ CBlock TestChainSetup::CreateBlock(
     const CScript& scriptPubKey,
     CChainState& chainstate)
 {
-    const CChainParams& chainparams = Params();
-    CTxMemPool empty_pool;
-    CBlock block = BlockAssembler(chainstate, m_node, &empty_pool, chainparams).CreateNewBlock(scriptPubKey)->block;
+    CBlock block = BlockAssembler(chainstate, m_node, nullptr).CreateNewBlock(scriptPubKey)->block;
 
     std::vector<CTransactionRef> llmqCommitments;
     for (const auto& tx : block.vtx) {
@@ -571,7 +568,7 @@ CBlock TestChainSetup::CreateBlock(
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
 
     CBlock result = block;
     return result;
@@ -709,7 +706,7 @@ void TestChainSetup::MockMempoolMinFee(const CFeeRate& target_feerate)
                                                  /*time=*/0, /*entry_height=*/1,
                                                  /*spends_coinbase=*/true, /*sigops_count=*/1, lp));
     m_node.mempool->TrimToSize(0);
-    assert(m_node.mempool->GetMinFee(0) == target_feerate);
+    assert(m_node.mempool->GetMinFee() == target_feerate);
 }
 /**
  * @returns a real block (0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af)

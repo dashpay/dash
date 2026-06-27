@@ -285,14 +285,13 @@ CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
         pindex = pindex->pprev;
     }
 
-    const Consensus::Params& consensusParams{Params().GetConsensus()};
     while (!to_calculate.empty()) {
         const CBlockIndex* pindex_top{to_calculate.top()};
         if (pindex_top->nHeight % 1000 == 0) {
             LogPrintf("re-index EHF signals at block %d\n", pindex_top->nHeight);
         }
         CBlock block;
-        if (!ReadBlockFromDisk(block, pindex_top, consensusParams)) {
+        if (!ReadBlockFromDisk(block, pindex_top, m_chainman.GetConsensus())) {
             throw std::runtime_error("failed-getehfforblock-read");
         }
         BlockValidationState state;

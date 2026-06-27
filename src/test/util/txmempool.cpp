@@ -6,12 +6,14 @@
 
 #include <chainparams.h>
 #include <node/context.h>
+#include <mempool_args.h>
 #include <txmempool.h>
 #include <util/check.h>
 #include <util/time.h>
 #include <util/translation.h>
 
-/* TODO belongs to bitcoin/bitcoin#25290; uncomment when done
+using node::NodeContext;
+
 CTxMemPool::Options MemPoolOptionsForTest(const NodeContext& node)
 {
     CTxMemPool::Options mempool_opts{
@@ -20,11 +22,9 @@ CTxMemPool::Options MemPoolOptionsForTest(const NodeContext& node)
         // chainparams.DefaultConsistencyChecks for tests
         .check_ratio = 1,
     };
-    const auto result{ApplyArgsManOptions(*node.args, ::Params(), mempool_opts)};
-    Assert(result);
+    ApplyArgsManOptions(*node.args, mempool_opts);
     return mempool_opts;
 }
-*/
 
 CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CMutableTransaction& tx) const
 {
