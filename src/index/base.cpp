@@ -215,7 +215,7 @@ bool BaseIndex::CommitInternal(CDBBatch& batch)
     if (m_best_block_index == nullptr) {
         return false;
     }
-    GetDB().WriteBestBlock(batch, m_chainstate->m_chain.GetLocator(m_best_block_index));
+    GetDB().WriteBestBlock(batch, GetLocator(m_best_block_index));
     return true;
 }
 

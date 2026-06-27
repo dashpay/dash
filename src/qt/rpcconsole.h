@@ -9,6 +9,7 @@
 #include <config/bitcoin-config.h>
 #endif
 
+#include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/peertablemodel.h>
 #include <qt/trafficgraphdata.h>
@@ -21,7 +22,6 @@
 #include <QThread>
 #include <QWidget>
 
-class ClientModel;
 class MasternodeFeed;
 class RPCExecutor;
 class RPCTimerInterface;

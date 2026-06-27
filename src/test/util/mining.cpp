@@ -72,7 +72,7 @@ COutPoint MineBlock(const NodeContext& node, const CScript& coinbase_scriptPubKe
         assert(block->nNonce);
     }
 
-    bool processed{Assert(node.chainman)->ProcessNewBlock(block, true, nullptr)};
+    bool processed{Assert(node.chainman)->ProcessNewBlock(block, true, true, nullptr)};
     assert(processed);
 
     return {block->vtx[0]->GetHash(), 0};
@@ -120,7 +120,7 @@ COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
     bool new_block;
     BlockValidationStateCatcher bvsc{block->GetHash()};
     RegisterValidationInterface(&bvsc);
-    const bool processed{chainman.ProcessNewBlock(block, true, &new_block)};
+    const bool processed{chainman.ProcessNewBlock(block, true, true, &new_block)};
     const bool duplicate{!new_block && processed};
     assert(!duplicate);
     UnregisterValidationInterface(&bvsc);
