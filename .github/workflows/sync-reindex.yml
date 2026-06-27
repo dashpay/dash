@@ -1,0 +1,229 @@
+name: Daily Sync + Reindex
+
+# Daily regression check that a fresh build of dashd from the latest develop
+# branch can resume an existing chain, advance to tip, restart with -reindex,
+# and reach the same tip without regression.
+#
+# Runner expectations
+# -------------------
+# This workflow REQUIRES a stateful self-hosted Linux runner whose datadir
+# persists across runs (typically a Docker volume or a directory under
+# /var/lib that survives runner restarts). Hosted GitHub-Actions runners are
+# ephemeral and would re-sync from genesis on every invocation, defeating the
+# purpose of a daily regression check, so they are intentionally not allowed
+# here. The runner label is selected via the `runner` input or the
+# `RUNNER_SYNC_REINDEX` repository variable; both should resolve to a label
+# attached only to runners that have a persistent datadir mounted at the path
+# given by `SYNC_REINDEX_DATADIR` (see `doc/sync-reindex-ci.md`).
+#
+# The datadir is NOT cleaned between runs. Maintainers wanting to start over
+# should ssh to the runner and remove (or rename) the datadir before the next
+# scheduled run.
+
+on:
+  schedule:
+    # Daily at 04:17 UTC. Off-hour to avoid clashing with the weekly Guix
+    # build at 03:00 Sunday and most peak push traffic.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner label (must be a stateful self-hosted runner)'
+        required: false
+        default: ''
+      ref:
+        description: 'Git ref to check out (default: develop)'
+        required: false
+        default: 'develop'
+      network:
+        description: 'Network to sync (main|test; devnet requires extra dashd args)'
+        required: false
+        default: 'test'
+      mode:
+        description: 'Phases to run (sync|reindex|both)'
+        required: false
+        default: 'both'
+      reindex_flag:
+        description: 'Reindex flavour (-reindex or -reindex-chainstate)'
+        required: false
+        default: '-reindex'
+      phase_timeout:
+        description: 'Per-phase timeout in seconds'
+        required: false
+        default: '21600'
+      external_tip_url:
+        description: 'HTTP endpoint returning the current network tip height'
+        required: false
+        default: ''
+      extra_args:
+        description: 'Extra dashd args, e.g. devnet -port/-rpcport settings'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize: the runner has a single shared datadir, so overlapping runs
+  # would corrupt each other's state.
+  group: sync-reindex-${{ inputs.network || 'test' }}
+  cancel-in-progress: false
+
+jobs:
+  sync-reindex:
+    name: sync-reindex (${{ inputs.network || 'test' }})
+    # The label is resolved from inputs > repo variable > a safe placeholder
+    # that will fail loudly if neither is configured.
+    runs-on: ${{ inputs.runner || vars.RUNNER_SYNC_REINDEX || 'self-hosted-sync-reindex' }}
+    timeout-minutes: 720
+    env:
+      REF: ${{ inputs.ref || 'develop' }}
+      NETWORK: ${{ inputs.network || 'test' }}
+      MODE: ${{ inputs.mode || 'both' }}
+      REINDEX_FLAG: ${{ inputs.reindex_flag || '-reindex' }}
+      PHASE_TIMEOUT: ${{ inputs.phase_timeout || '21600' }}
+      # SYNC_REINDEX_DATADIR is required on the runner: see
+      # doc/sync-reindex-ci.md for setup. The default below matches the
+      # documented FHS-friendly location but can be overridden per-runner.
+      DATADIR_BASE: ${{ vars.SYNC_REINDEX_DATADIR || '/var/lib/dashcore-ci/sync-reindex' }}
+      EXTERNAL_TIP_URL: ${{ inputs.external_tip_url || vars.SYNC_REINDEX_EXTERNAL_TIP_URL || '' }}
+      EXTRA_DASHD_ARGS: ${{ inputs.extra_args || vars.SYNC_REINDEX_EXTRA_DASHD_ARGS || '' }}
+      MAKEJOBS: ${{ vars.SYNC_REINDEX_MAKEJOBS || '-j4' }}
+
+    steps:
+      - name: Sanity check runner
+        run: |
+          set -euo pipefail
+          echo "Runner: $(uname -a)"
+          echo "Datadir base: $DATADIR_BASE"
+          if [ ! -d "$DATADIR_BASE" ]; then
+            echo "ERROR: $DATADIR_BASE does not exist. The runner must mount a persistent" >&2
+            echo "directory at this path. See doc/sync-reindex-ci.md." >&2
+            exit 1
+          fi
+          # Refuse to run on a runner that didn't reserve the directory for us.
+          if ! touch "$DATADIR_BASE/.write-test" 2>/dev/null; then
+            echo "ERROR: $DATADIR_BASE is not writable by the runner user." >&2
+            exit 1
+          fi
+          rm -f "$DATADIR_BASE/.write-test"
+          if [ -z "$EXTERNAL_TIP_URL" ]; then
+            echo "ERROR: SYNC_REINDEX_EXTERNAL_TIP_URL or dispatch external_tip_url is required." >&2
+            echo "The workflow must compare against an external tip source to prove catch-up." >&2
+            exit 1
+          fi
+
+      - name: Checkout upstream ${{ env.REF }}
+        uses: actions/checkout@v6
+        with:
+          repository: dashpay/dash
+          ref: ${{ env.REF }}
+          fetch-depth: 1
+
+      - name: Record commit under test
+        run: |
+          git log -1 --pretty=format:'commit %H%n%an <%ae>%n%s%n%n%b%n'
+
+      - name: Build depends
+        run: |
+          set -euo pipefail
+          ./autogen.sh
+          HOST_TRIPLET=$(./depends/config.guess)
+          echo "HOST_TRIPLET=$HOST_TRIPLET" >> "$GITHUB_ENV"
+          # The depends build is silent on success; fail loud on errors only.
+          make -C depends HOST="$HOST_TRIPLET" $MAKEJOBS NO_QT=1 > depends-build.log 2>&1 || {
+            echo "depends build failed; tail of log:" >&2
+            tail -n 200 depends-build.log >&2
+            exit 1
+          }
+
+      - name: Configure
+        run: |
+          set -euo pipefail
+          ./configure --prefix="$PWD/depends/$HOST_TRIPLET" \
+            --disable-bench \
+            --disable-tests \
+            --without-gui \
+            --enable-reduce-exports \
+            --enable-suppress-external-warnings \
+            > configure.log 2>&1 || {
+              tail -n 200 configure.log >&2
+              exit 1
+            }
+
+      - name: Build dashd and dash-cli
+        run: |
+          set -euo pipefail
+          make $MAKEJOBS src/dashd src/dash-cli > build.log 2>&1 || {
+            tail -n 200 build.log >&2
+            exit 1
+          }
+          ./src/dashd --version
+          ./src/dash-cli --version
+
+      - name: Run sync + reindex check
+        env:
+          DATADIR: ${{ env.DATADIR_BASE }}/${{ env.NETWORK }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$DATADIR"
+          args=(
+            ./contrib/devtools/sync_reindex_check.sh
+            --dashd ./src/dashd
+            --dash-cli ./src/dash-cli
+            --datadir "$DATADIR"
+            --network "$NETWORK"
+            --mode "$MODE"
+            --reindex-flag "$REINDEX_FLAG"
+            --timeout "$PHASE_TIMEOUT"
+          )
+          if [ -n "$EXTERNAL_TIP_URL" ]; then
+            args+=(--external-tip-url "$EXTERNAL_TIP_URL")
+          fi
+          if [ -n "$EXTRA_DASHD_ARGS" ]; then
+            args+=(--extra-args "$EXTRA_DASHD_ARGS")
+          fi
+          "${args[@]}"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          set +e
+          DATADIR="$DATADIR_BASE/$NETWORK"
+          TAIL_DIR="${RUNNER_TEMP:-/tmp}/sync-reindex-log-tails"
+          mkdir -p "$TAIL_DIR"
+
+          {
+            echo "===== sync_reindex_check.log (tail) ====="
+            tail -n 500 "$DATADIR/sync_reindex_check.log" 2>/dev/null || echo "(missing)"
+          } | tee "$TAIL_DIR/sync_reindex_check.tail.log"
+
+          : > "$TAIL_DIR/debug.tail.log"
+          found_debug=0
+          while IFS= read -r debuglog; do
+            found_debug=1
+            {
+              echo "===== $debuglog (tail) ====="
+              tail -n 1000 "$debuglog" 2>/dev/null || echo "(missing $debuglog)"
+              echo
+            } | tee -a "$TAIL_DIR/debug.tail.log"
+          done < <(find "$DATADIR" -maxdepth 2 -name debug.log -type f 2>/dev/null | sort)
+          if [ "$found_debug" -eq 0 ]; then
+            {
+              echo "===== debug.log (tail) ====="
+              echo "(missing under $DATADIR)"
+            } | tee -a "$TAIL_DIR/debug.tail.log"
+          fi
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: sync-reindex-logs-${{ env.NETWORK }}-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/sync-reindex-log-tails/*.log
+            depends-build.log
+            configure.log
+            build.log
