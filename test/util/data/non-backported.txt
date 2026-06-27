@@ -65,6 +65,7 @@ src/test/dynamic_activation*.cpp
 src/test/evo*.cpp
 src/test/llmq*.cpp
 src/test/masternode_payments_tests.cpp
+src/test/masternode_params_tests.cpp
 src/test/spork_tests.cpp
 src/test/unordered_lru_cache_tests.cpp
 src/test/util/llmq_tests.h
