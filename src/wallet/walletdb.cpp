@@ -585,7 +585,10 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         } else if (strType == DBKeys::HDCHAIN || strType == DBKeys::CRYPTED_HDCHAIN) {
             CHDChain chain;
             ssValue >> chain;
-            assert ((strType == DBKeys::CRYPTED_HDCHAIN) == chain.IsCrypted());
+            if ((strType == DBKeys::CRYPTED_HDCHAIN) != chain.IsCrypted()) {
+                strErr = "Error reading wallet database: HD chain type mismatch";
+                return false;
+            }
             // Skip encryption check during loading as MASTER_KEY records may not be loaded yet.
             // Consistency will be validated after all records are loaded.
             if (!pwallet->GetOrCreateLegacyScriptPubKeyMan()->LoadHDChain(chain, /*skip_encryption_check=*/true)) {
