@@ -109,7 +109,10 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     arith_uint256 bnNew(bnPastTargetAvg);
 
     int64_t nActualTimespan = pindexLast->GetBlockTime() - pindex->GetBlockTime();
-    // NOTE: is this accurate? nActualTimespan counts it for (nPastBlocks - 1) blocks only...
+    // nActualTimespan spans (nPastBlocks - 1) intervals, while nTargetTimespan
+    // uses nPastBlocks intervals. Preserve this historical off-by-one DGW
+    // behavior: it is consensus-critical and makes observed mainnet spacing
+    // about 2.626 minutes per block rather than the nominal 2.5 minute target.
     int64_t nTargetTimespan = nPastBlocks * params.nPowTargetSpacing;
 
     if (nActualTimespan < nTargetTimespan/3)
