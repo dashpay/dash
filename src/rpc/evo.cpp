@@ -88,8 +88,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"coreP2PAddrs",
             {"coreP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\". Must be unique on the network.\n"
-                "A legacy (MnNetInfo / version-2) ProTx accepts only a single entry; multiple entries\n"
-                "require an Extended addresses (ExtNetInfo) ProTx.\n"
+                "A legacy ProTx can only store a single entry; storing multiple entries\n"
+                "requires upgrading to a version 3 ProTx.\n"
                 "Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
@@ -98,8 +98,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"coreP2PAddrs_update",
             {"coreP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\". Must be unique on the network.\n"
-                "A legacy (MnNetInfo / version-2) ProTx accepts only a single entry; multiple entries\n"
-                "require an Extended addresses (ExtNetInfo) ProTx.",
+                "A legacy ProTx can only store a single entry; storing multiple entries\n"
+                "requires upgrading to a version 3 ProTx.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
                 }}
@@ -188,8 +188,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"platformP2PAddrs",
             {"platformP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
-                "For a legacy (MnNetInfo / version-2) ProTx, pass a bare port number instead (e.g. 26656);\n"
-                "the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx.\n"
+                "For a legacy ProTx, pass a bare port number instead (e.g. 26656);\n"
+                "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
                 "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
@@ -198,8 +198,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"platformP2PAddrs_update",
             {"platformP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
-                "For a legacy (MnNetInfo / version-2) ProTx, pass a bare port number instead (e.g. 26656);\n"
-                "the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx.\n"
+                "For a legacy ProTx, pass a bare port number instead (e.g. 26656);\n"
+                "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
                 "Must be unique on the network.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
@@ -208,8 +208,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"platformHTTPSAddrs",
             {"platformHTTPSAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for their HTTPS API.\n"
-                "For a legacy (MnNetInfo / version-2) ProTx, pass a bare port number instead (e.g. 443);\n"
-                "the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx.\n"
+                "For a legacy ProTx, pass a bare port number instead (e.g. 443);\n"
+                "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
                 "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
@@ -218,8 +218,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"platformHTTPSAddrs_update",
             {"platformHTTPSAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for their HTTPS API.\n"
-                "For a legacy (MnNetInfo / version-2) ProTx, pass a bare port number instead (e.g. 443);\n"
-                "the \"ADDR:PORT\" / address-array form requires an Extended addresses (ExtNetInfo) ProTx.\n"
+                "For a legacy ProTx, pass a bare port number instead (e.g. 443);\n"
+                "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
                 "Must be unique on the network.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
