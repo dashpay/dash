@@ -260,10 +260,11 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     }
 
     CTxDestination dest;
-    if (nVersion >= ProTxVersion::ExtAddr) {
-        obj.pushKV("payouts", PayoutListToJson(payouts));
-    } else if (ExtractDestination(scriptPayout, dest)) {
-        obj.pushKV("payoutAddress", EncodeDestination(dest));
+    obj.pushKV("payouts", PayoutListToJson(GetOwnerPayouts(*this)));
+    if (nVersion < ProTxVersion::ExtAddr && IsServiceDeprecatedRPCEnabled()) {
+        if (ExtractDestination(scriptPayout, dest)) {
+            obj.pushKV("payoutAddress", EncodeDestination(dest));
+        }
     }
     obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     if (ExtractDestination(scriptOperatorPayout, dest)) {
@@ -335,10 +336,11 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    if (nVersion >= ProTxVersion::ExtAddr) {
-        ret.pushKV("payouts", PayoutListToJson(payouts));
-    } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
-        ret.pushKV("payoutAddress", EncodeDestination(dest));
+    ret.pushKV("payouts", PayoutListToJson(GetOwnerPayouts(*this)));
+    if (nVersion < ProTxVersion::ExtAddr && IsServiceDeprecatedRPCEnabled()) {
+        if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
+            ret.pushKV("payoutAddress", EncodeDestination(dest));
+        }
     }
     ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     ret.pushKV("operatorReward", (double)nOperatorReward / 100);
@@ -373,10 +375,11 @@ UniValue CProUpRegTx::ToJson() const
     ret.pushKV("version", nVersion);
     ret.pushKV("proTxHash", proTxHash.ToString());
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    if (nVersion >= ProTxVersion::ExtAddr) {
-        ret.pushKV("payouts", PayoutListToJson(payouts));
-    } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
-        ret.pushKV("payoutAddress", EncodeDestination(dest));
+    ret.pushKV("payouts", PayoutListToJson(GetOwnerPayouts(*this)));
+    if (nVersion < ProTxVersion::ExtAddr && IsServiceDeprecatedRPCEnabled()) {
+        if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
+            ret.pushKV("payoutAddress", EncodeDestination(dest));
+        }
     }
     ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
     ret.pushKV("inputsHash", inputsHash.ToString());
@@ -582,10 +585,11 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
 
     if (extended) {
         CTxDestination dest;
-        if (nVersion >= ProTxVersion::ExtAddr) {
-            obj.pushKV("payouts", PayoutListToJson(payouts));
-        } else if (ExtractDestination(scriptPayout, dest)) {
-            obj.pushKV("payoutAddress", EncodeDestination(dest));
+        obj.pushKV("payouts", PayoutListToJson(GetOwnerPayouts(*this)));
+        if (nVersion < ProTxVersion::ExtAddr && IsServiceDeprecatedRPCEnabled()) {
+            if (ExtractDestination(scriptPayout, dest)) {
+                obj.pushKV("payoutAddress", EncodeDestination(dest));
+            }
         }
         if (ExtractDestination(scriptOperatorPayout, dest)) {
             obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));

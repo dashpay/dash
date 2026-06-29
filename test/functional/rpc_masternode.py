@@ -17,6 +17,7 @@ class RPCMasternodeTest(DashTestFramework):
 
     def set_test_params(self):
         self.set_dash_test_params(4, 3)
+        self.extra_args[2] += ["-deprecatedrpc=service"]
 
     def run_test(self):
         self.log.info("test that results from `winners` and `payments` RPCs match")
@@ -82,16 +83,24 @@ class RPCMasternodeTest(DashTestFramework):
         while not checked_0_operator_reward or not checked_non_0_operator_reward:
             payments_masternode = self.nodes[0].masternode("payments")[0]["masternodes"][0]
             protx_info = self.nodes[0].protx("info", payments_masternode["proTxHash"])
+            protx_info_legacy = self.nodes[2].protx("info", payments_masternode["proTxHash"])
             if len(payments_masternode["payees"]) == 2:
-                assert_equal(protx_info["state"]["payoutAddress"], payments_masternode["payees"][1]["address"])
+                assert_equal(protx_info["state"]["payouts"], [payments_masternode["payees"][1]["address"]])
+                assert_equal(protx_info_legacy["state"]["payoutAddress"], payments_masternode["payees"][1]["address"])
                 checked_0_operator_reward = True
             else:
                 assert_equal(len(payments_masternode["payees"]), 3)
-                option1 = protx_info["state"]["payoutAddress"] == payments_masternode["payees"][1]["address"] and \
+                self.log.info(f'payouts: {protx_info["state"]["payouts"]} other: {[payments_masternode["payees"][1]["address"]]}')
+                option1 = protx_info["state"]["payouts"][0]["address"] == [payments_masternode["payees"][1]["address"]] and \
                     protx_info["state"]["operatorPayoutAddress"] == payments_masternode["payees"][2]["address"]
-                option2 = protx_info["state"]["payoutAddress"] == payments_masternode["payees"][2]["address"] and \
+                option2 = protx_info["state"]["payouts"] == [payments_masternode["payees"][2]["address"]] and \
                     protx_info["state"]["operatorPayoutAddress"] == payments_masternode["payees"][1]["address"]
                 assert option1 or option2
+                option1_legacy = protx_info_legacy["state"]["payoutAddress"] == payments_masternode["payees"][1]["address"] and \
+                    protx_info["state"]["operatorPayoutAddress"] == payments_masternode["payees"][2]["address"]
+                option2_legacy = protx_info_legacy["state"]["payoutAddress"] == payments_masternode["payees"][2]["address"] and \
+                    protx_info["state"]["operatorPayoutAddress"] == payments_masternode["payees"][1]["address"]
+                assert option1_legacy or option2_legacy
                 checked_non_0_operator_reward = True
             self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
