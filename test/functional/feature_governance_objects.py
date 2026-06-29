@@ -75,6 +75,10 @@ class DashGovernanceTest (DashTestFramework):
         # Make sure default count is 10 while there are 11 in total
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 10)
         assert_equal(len(self.nodes[0].gobject("list-prepared", 12)), 11)
+        # count greater than the number of prepared objects returns all of them (no overflow)
+        assert_equal(len(self.nodes[0].gobject("list-prepared", 1000)), 11)
+        # Very large count (near INT64_MAX) must still be clamped safely
+        assert_equal(len(self.nodes[0].gobject("list-prepared", 9223372036854775807)), 11)
         # Make sure it returns 0 objects with count=0
         assert_equal(len(self.nodes[0].gobject("list-prepared", 0)), 0)
         # And test some invalid count values
