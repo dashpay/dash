@@ -28,10 +28,6 @@
 
 using namespace std::chrono_literals;
 
-// Mirrors RELIABLE_PROPAGATION_TIME in src/governance/governance.cpp. CheckAndRemove
-// evicts requested-hash entries whose valid_until (now + this value) is in the past.
-static constexpr std::chrono::seconds RELIABLE_PROPAGATION_TIME{60};
-
 namespace {
 struct GovernanceInvSetup : public TestingSetup {
     GovernanceInvSetup() : TestingSetup{CBaseChainParams::MAIN}
@@ -75,7 +71,7 @@ struct GovernanceInvSetup : public TestingSetup {
 
 // Replaces the per-type loop in test/functional/p2p_governance_invs.py: an
 // inv hash is recorded by ConfirmInventoryRequest, deduplicated while valid,
-// and purged by CheckAndRemove only after RELIABLE_PROPAGATION_TIME.
+// and purged by CheckAndRemove only after the reliable propagation timeout.
 void CheckInvExpirationCycle(CGovernanceManager& govman, const CInv& inv)
 {
     BOOST_CHECK_EQUAL(govman.RequestedHashCacheSizeForTesting(), 0U);
@@ -96,8 +92,8 @@ void CheckInvExpirationCycle(CGovernanceManager& govman, const CInv& inv)
     BOOST_CHECK(govman.ConfirmInventoryRequest(inv));
     BOOST_CHECK_EQUAL(govman.RequestedHashCacheSizeForTesting(), 1U);
 
-    // Advance past RELIABLE_PROPAGATION_TIME and clean: the entry is evicted.
-    SetMockTime(GetTime<std::chrono::seconds>() + RELIABLE_PROPAGATION_TIME + 1s);
+    // Advance past the reliable propagation timeout and clean: the entry is evicted.
+    SetMockTime(GetTime<std::chrono::seconds>() + governance::RELIABLE_PROPAGATION_TIME + 1s);
     govman.CheckAndRemove();
     BOOST_CHECK_EQUAL(govman.RequestedHashCacheSizeForTesting(), 0U);
 
@@ -193,12 +189,12 @@ BOOST_AUTO_TEST_CASE(net_governance_schedule_drives_check_and_remove)
     m_node.mn_sync->SwitchToNextAsset();
     BOOST_REQUIRE(m_node.mn_sync->IsSynced());
 
-    // Pre-load an entry that has already passed RELIABLE_PROPAGATION_TIME so
+    // Pre-load an entry that has already passed the reliable propagation timeout so
     // the very next CheckAndRemove evicts it.
     const CInv inv{MSG_GOVERNANCE_OBJECT, uint256S("05")};
     BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(inv));
     BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), 1U);
-    SetMockTime(GetTime<std::chrono::seconds>() + RELIABLE_PROPAGATION_TIME + 1s);
+    SetMockTime(GetTime<std::chrono::seconds>() + governance::RELIABLE_PROPAGATION_TIME + 1s);
 
     // Drive a dedicated scheduler so the assertion is independent of
     // m_node.scheduler's existing workload.
@@ -211,14 +207,9 @@ BOOST_AUTO_TEST_CASE(net_governance_schedule_drives_check_and_remove)
     // First periodic fire is at +5min; bump the clock so the queue is ready.
     scheduler.MockForward(std::chrono::minutes{5});
 
-    // The cleanup runs on the worker thread; poll briefly. scheduleEvery
-    // reschedules itself, so we cannot use StopWhenDrained -- stop manually.
-    for (int i = 0; i < 500; ++i) {
-        if (m_node.govman->RequestedHashCacheSizeForTesting() == 0U) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds{10});
-    }
-    scheduler.stop();
-    if (worker.joinable()) worker.join();
+    // Queue a stop marker after the mocked-forward tasks; due cleanup runs first.
+    scheduler.scheduleFromNow([&scheduler] { scheduler.stop(); }, 1ms);
+    worker.join();
 
     BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), 0U);
 }
