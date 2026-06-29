@@ -2905,6 +2905,10 @@ bool CChainState::DisconnectTip(BlockValidationState& state, DisconnectedBlockTr
     if (!ReadBlockFromDisk(block, pindexDelete, m_params.GetConsensus())) {
         return error("DisconnectTip(): Failed to read block");
     }
+    // DisconnectBlock may switch the BLS scheme back while the tip still points
+    // at the disconnected block. Restore it if disconnect post-processing fails
+    // before m_chain.SetTip() moves the active tip backward.
+    ScopedBLSLegacyScheme bls_scheme_guard;
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -2950,6 +2954,7 @@ bool CChainState::DisconnectTip(BlockValidationState& state, DisconnectedBlockTr
     }
 
     m_chain.SetTip(*pindexDelete->pprev);
+    bls_scheme_guard.Commit();
 
     UpdateTip(pindexDelete->pprev);
     // Let wallets know transactions went from 1-confirmed to
