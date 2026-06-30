@@ -80,8 +80,9 @@ public:
 using MasternodePayoutShares = std::vector<MasternodePayoutShare>;
 
 [[nodiscard]] MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout);
-[[nodiscard]] MasternodePayoutShares GetOwnerPayouts(uint16_t nVersion, const CScript& script_payout,
-                                                     const MasternodePayoutShares& payouts);
+template<class T>
+[[nodiscard]] MasternodePayoutShares GetOwnerPayouts(const T& protx);
+
 [[nodiscard]] bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKeyID& keyIDOwner,
                                               const CKeyID& keyIDVoting, TxValidationState& state);
 [[nodiscard]] bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestination& collateral_dest,

@@ -153,7 +153,7 @@ bool CProRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, c
     if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
     }
-    const auto owner_payouts = GetOwnerPayouts(nVersion, scriptPayout, payouts);
+    const auto owner_payouts = GetOwnerPayouts(*this);
     if (!IsPayoutListTriviallyValid(owner_payouts, keyIDOwner, keyIDVoting, state)) return false;
     if (netInfo->CanStorePlatform() != (nVersion >= ProTxVersion::ExtAddr)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-netinfo-version");
@@ -199,7 +199,7 @@ std::string CProRegTx::MakeSignString() const
 
 std::string CProRegTx::ToString() const
 {
-    const std::string payee = PayoutListToString(GetOwnerPayouts(nVersion, scriptPayout, payouts));
+    const std::string payee = PayoutListToString(GetOwnerPayouts(*this));
 
     return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, netInfo=%s, nOperatorReward=%f, "
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s%s)\n",
@@ -272,13 +272,13 @@ bool CProUpRegTx::IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev,
     if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
     }
-    if (!IsPayoutListTriviallyValid(GetOwnerPayouts(nVersion, scriptPayout, payouts), CKeyID{}, keyIDVoting, state)) return false;
+    if (!IsPayoutListTriviallyValid(GetOwnerPayouts(*this), CKeyID{}, keyIDVoting, state)) return false;
     return true;
 }
 
 std::string CProUpRegTx::ToString() const
 {
-    const std::string payee = PayoutListToString(GetOwnerPayouts(nVersion, scriptPayout, payouts));
+    const std::string payee = PayoutListToString(GetOwnerPayouts(*this));
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
         nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee);

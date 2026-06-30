@@ -138,8 +138,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::P
         masternodeReward -= operatorReward;
     }
 
-    const auto owner_payouts = GetOwnerPayouts(dmnPayee->pdmnState->nVersion, dmnPayee->pdmnState->scriptPayout,
-                                               dmnPayee->pdmnState->payouts);
+    const auto owner_payouts = GetOwnerPayouts(*dmnPayee->pdmnState);
     CAmount paid_owner_reward{0};
     for (size_t i = 0; i < owner_payouts.size(); ++i) {
         const bool last = i + 1 == owner_payouts.size();

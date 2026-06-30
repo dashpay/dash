@@ -1167,7 +1167,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
             ExtractDestination(ptx.scriptOperatorPayout, feeSource);
         } else {
             // use payout address as default source for fees
-            const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+            const auto owner_payouts = GetOwnerPayouts(*dmn->pdmnState);
             ExtractDestination(owner_payouts.front().scriptPayout, feeSource);
         }
     }
@@ -1247,7 +1247,7 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
 
     ptx.keyIDVoting = dmn->pdmnState->keyIDVoting;
     ptx.scriptPayout = dmn->pdmnState->scriptPayout;
-    ptx.payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+    ptx.payouts = GetOwnerPayouts(*dmn->pdmnState);
 
     if (!request.params[1].get_str().empty()) {
         // new pubkey
@@ -1407,7 +1407,7 @@ static RPCHelpMan protx_revoke()
     } else {
         // Using funds from previousely specified masternode payout address
         CTxDestination txDest;
-        const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+        const auto owner_payouts = GetOwnerPayouts(*dmn->pdmnState);
         if (owner_payouts.empty() || !ExtractDestination(owner_payouts.front().scriptPayout, txDest)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "No payout or fee source addresses found, can't revoke");
         }
@@ -1439,7 +1439,7 @@ static bool CheckWalletOwnsScript(const CWallet* const pwallet, const CScript& s
 
 static bool CheckWalletOwnsAnyPayout(const CWallet* const pwallet, const CDeterministicMNState& state)
 {
-    for (const auto& payout : GetOwnerPayouts(state.nVersion, state.scriptPayout, state.payouts)) {
+    for (const auto& payout : GetOwnerPayouts(state)) {
         if (CheckWalletOwnsScript(pwallet, payout.scriptPayout)) return true;
     }
     return false;

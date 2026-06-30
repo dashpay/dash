@@ -1090,7 +1090,7 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
 
     // don't allow reuse of collateral key for other keys (don't allow people to put the collateral key onto an online server)
     // this check applies to internal and external collateral, but internal collaterals are not necessarily a P2PKH
-    if (!IsPayoutListKeySafe(GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts),
+    if (!IsPayoutListKeySafe(GetOwnerPayouts(*opt_ptx),
                              collateralTxDest, opt_ptx->keyIDOwner, opt_ptx->keyIDVoting,
                              opt_ptx->nVersion >= ProTxVersion::ExtAddr, state)) return false;
 
@@ -1254,7 +1254,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
-    const auto owner_payouts = GetOwnerPayouts(opt_ptx->nVersion, opt_ptx->scriptPayout, opt_ptx->payouts);
+    const auto owner_payouts = GetOwnerPayouts(*opt_ptx);
     if (!IsPayoutListTriviallyValid(owner_payouts, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting, state)) return false;
 
     Coin coin;
