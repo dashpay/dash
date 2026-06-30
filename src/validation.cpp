@@ -7,6 +7,7 @@
 #include <validation.h>
 
 #include <arith_uint256.h>
+#include <bls/bls.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <checkqueue.h>
@@ -139,6 +140,36 @@ namespace node
 CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool, const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
 } // namespace node
 using node::GetTransaction;
+
+namespace {
+
+//! Restores bls::bls_legacy_scheme on scope exit unless Commit() is called.
+//! ConnectBlock switches the scheme while validating a block across the V19
+//! boundary; this keeps a failed or dry-run validation from leaking that
+//! change into the process-wide flag.
+class ScopedBLSLegacyScheme
+{
+public:
+    ScopedBLSLegacyScheme() noexcept : m_saved(bls::bls_legacy_scheme.load()) {}
+    ~ScopedBLSLegacyScheme() noexcept
+    {
+        if (!m_committed && m_saved != bls::bls_legacy_scheme.load()) {
+            bls::bls_legacy_scheme.store(m_saved);
+            LogPrintf("ScopedBLSLegacyScheme: reverted bls_legacy_scheme=%d\n", m_saved);
+        }
+    }
+
+    ScopedBLSLegacyScheme(const ScopedBLSLegacyScheme&) = delete;
+    ScopedBLSLegacyScheme& operator=(const ScopedBLSLegacyScheme&) = delete;
+
+    void Commit() noexcept { m_committed = true; }
+
+private:
+    const bool m_saved;
+    bool m_committed{false};
+};
+
+} // namespace
 
 const CBlockIndex* CChainState::FindForkInGlobalIndex(const CBlockLocator& locator) const
 {
@@ -2127,6 +2158,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     assert(m_chain_helper);
 
+    // Roll back any BLS scheme switch below unless we fully connect the block.
+    ScopedBLSLegacyScheme bls_scheme_guard;
+
     // Check it again in case a previous version let a bad block in
     // NOTE: We don't currently (re-)invoke ContextualCheckBlock() or
     // ContextualCheckBlockHeader() here. This means that if we add a new
@@ -2473,6 +2507,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     view.SetBestBlock(pindex->GetBlockHash());
     m_evoDb.WriteBestBlock(pindex->GetBlockHash());
 
+    // Block is committed: keep the scheme it switched to (fJustCheck dry runs returned above).
+    bls_scheme_guard.Commit();
+
     if (mnlist_updates_opt.has_value()) {
         const auto& mnlu = mnlist_updates_opt.value();
         GetMainSignals().NotifyMasternodeListChanged(false, mnlu.old_list, mnlu.diff);
@@ -2807,6 +2844,10 @@ bool CChainState::DisconnectTip(BlockValidationState& state, DisconnectedBlockTr
     if (!ReadBlockFromDisk(block, pindexDelete, m_params.GetConsensus())) {
         return error("DisconnectTip(): Failed to read block");
     }
+    // DisconnectBlock may switch the BLS scheme back while the tip still points
+    // at the disconnected block. Restore it if disconnect post-processing fails
+    // before m_chain.SetTip() moves the active tip backward.
+    ScopedBLSLegacyScheme bls_scheme_guard;
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -2852,6 +2893,7 @@ bool CChainState::DisconnectTip(BlockValidationState& state, DisconnectedBlockTr
     }
 
     m_chain.SetTip(*pindexDelete->pprev);
+    bls_scheme_guard.Commit();
 
     UpdateTip(pindexDelete->pprev);
     // Let wallets know transactions went from 1-confirmed to
@@ -2930,6 +2972,11 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     assert(pindexNew->pprev == m_chain.Tip());
+    // ConnectBlock commits its BLS-scheme switch on success, but the tip isn't
+    // advanced until m_chain.SetTip() below. If a step in between (e.g.
+    // FlushStateToDisk) fails, restore the scheme so it stays in sync with the
+    // unchanged tip.
+    ScopedBLSLegacyScheme bls_scheme_guard;
     // Read block from disk.
     int64_t nTime1 = GetTimeMicros();
     std::shared_ptr<const CBlock> pthisBlock;
@@ -2984,6 +3031,7 @@ bool CChainState::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew
     }
     // Update m_chain & related variables.
     m_chain.SetTip(*pindexNew);
+    bls_scheme_guard.Commit();
     UpdateTip(pindexNew);
 
     int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
@@ -4277,11 +4325,6 @@ bool TestBlockValidity(BlockValidationState& state,
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == chainstate.m_chain.Tip());
 
-    // TODO: instead restoring bls_legacy_scheme better to keep it unchanged
-    // Moreover, current implementation is working incorrect if current function
-    // will return value too early due to error: old value won't be restored
-    auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
-
     uint256 hash = block.GetHash();
     if (chainlocks.HasConflictingChainLock(pindexPrev->nHeight + 1, hash)) {
         LogPrintf("ERROR: %s: conflicting with chainlock\n", __func__);
@@ -4309,12 +4352,6 @@ bool TestBlockValidity(BlockValidationState& state,
         return false;
 
     assert(state.IsValid());
-
-    // we could switch to another scheme while testing, switch back to the original one
-    if (bls_legacy_scheme != bls::bls_legacy_scheme.load()) {
-        bls::bls_legacy_scheme.store(bls_legacy_scheme);
-        LogPrintf("%s: bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
-    }
 
     return true;
 }
@@ -4387,6 +4424,9 @@ bool CVerifyDB::VerifyDB(
     if (chainstate.m_chain.Tip() == nullptr || chainstate.m_chain.Tip()->pprev == nullptr) {
         return true;
     }
+
+    // ConnectBlock below switches the scheme but the tip isn't advanced here; restore it on return.
+    ScopedBLSLegacyScheme bls_scheme_guard;
 
     // begin tx and let it rollback
     auto dbTx = evoDb.BeginTransaction();
@@ -4477,6 +4517,9 @@ bool CVerifyDB::VerifyDB(
 
     // check level 4: try reconnecting blocks
     if (nCheckLevel >= 4 && !skipped_l3_checks) {
+        // Each successful ConnectBlock leaves the effective scheme set globally so
+        // subsequent iterations see it. The outer bls_scheme_guard restores the
+        // original scheme when VerifyDB returns (the chain tip isn't advanced here).
         while (pindex != chainstate.m_chain.Tip()) {
             const int percentageDone = std::max(1, std::min(99, 100 - (int)(((double)(chainstate.m_chain.Height() - pindex->nHeight)) / (double)nCheckDepth * 50)));
             if (reportDone < percentageDone / 10) {
