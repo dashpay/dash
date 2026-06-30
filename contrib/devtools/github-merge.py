@@ -18,6 +18,7 @@ import os
 from sys import stdin,stdout,stderr
 import argparse
 import hashlib
+import ssl
 import subprocess
 import sys
 import json
@@ -51,10 +52,72 @@ def git_config_get(option, default=None):
     except subprocess.CalledProcessError:
         return default
 
+_SSL_CONTEXT = None
+_SSL_CONTEXT_INITIALIZED = False
+
+def _ssl_path_has_trust_material(path, is_dir=False):
+    if path is None:
+        return False
+    try:
+        if is_dir:
+            if not os.path.isdir(path):
+                return False
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    stem, dot, suffix = entry.name.partition('.')
+                    is_hash_link = (dot and len(stem) == 8 and suffix.isdigit() and
+                                    all(c in '0123456789abcdefABCDEF' for c in stem))
+                    if is_hash_link and entry.is_file(follow_symlinks=True):
+                        return True
+            return False
+        return os.path.isfile(path) and os.path.getsize(path) > 0
+    except OSError:
+        return True
+
+def _ssl_context_with_certifi_fallback():
+    '''
+    Return an SSL context backed by certifi's CA bundle when the default
+    trust store is empty (a common cause of urllib HTTPS failures against
+    api.github.com on machines where Python's OpenSSL cannot find system
+    certificates).
+
+    Returns None — leaving urllib's default behavior untouched — when:
+      * SSL_CERT_FILE or SSL_CERT_DIR is set (respect explicit user config),
+      * the default trust store already has CA certs or CA path material, or
+      * certifi is not installed.
+    '''
+    if 'SSL_CERT_FILE' in os.environ or 'SSL_CERT_DIR' in os.environ:
+        return None
+    try:
+        default_ctx = ssl.create_default_context()
+        default_paths = ssl.get_default_verify_paths()
+        if default_ctx.cert_store_stats().get('x509_ca', 0) > 0:
+            return None
+        if _ssl_path_has_trust_material(default_paths.cafile):
+            return None
+        if _ssl_path_has_trust_material(default_paths.capath, is_dir=True):
+            return None
+    except (OSError, ssl.SSLError):
+        return None
+    try:
+        import certifi
+    except ImportError:
+        return None
+    try:
+        return ssl.create_default_context(cafile=certifi.where())
+    except (OSError, ssl.SSLError):
+        return None
+
 def get_response(req_url, ghtoken):
+    global _SSL_CONTEXT, _SSL_CONTEXT_INITIALIZED
     req = Request(req_url)
     if ghtoken is not None:
         req.add_header('Authorization', 'token ' + ghtoken)
+    if not _SSL_CONTEXT_INITIALIZED:
+        _SSL_CONTEXT = _ssl_context_with_certifi_fallback()
+        _SSL_CONTEXT_INITIALIZED = True
+    if _SSL_CONTEXT is not None:
+        return urlopen(req, context=_SSL_CONTEXT)
     return urlopen(req)
 
 def retrieve_json(req_url, ghtoken, use_pagination=False):
