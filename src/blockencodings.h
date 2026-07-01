@@ -84,8 +84,6 @@ typedef enum ReadStatus_t
     READ_STATUS_OK,
     READ_STATUS_INVALID, // Invalid object, peer is sending bogus crap
     READ_STATUS_FAILED, // Failed to process object
-    READ_STATUS_CHECKBLOCK_FAILED, // Used only by FillBlock to indicate a
-                                   // failure in CheckBlock.
 } ReadStatus;
 
 class CBlockHeaderAndShortTxIDs {
@@ -136,8 +134,8 @@ public:
     CBlockHeader header;
 
     // Can be overriden for testing
-    using CheckBlockFn = std::function<bool(const CBlock&, BlockValidationState&, const Consensus::Params&, bool, bool)>;
-    CheckBlockFn m_check_block_mock{nullptr};
+    using IsBlockMutatedFn = std::function<bool(const CBlock&)>;
+    IsBlockMutatedFn m_check_block_mutated_mock{nullptr};
 
     explicit PartiallyDownloadedBlock(CTxMemPool* poolIn) : pool(poolIn) {}
 

@@ -203,16 +203,10 @@ ReadStatus PartiallyDownloadedBlock::FillBlock(CBlock& block, const std::vector<
     if (vtx_missing.size() != tx_missing_offset)
         return READ_STATUS_INVALID;
 
-    BlockValidationState state;
-    CheckBlockFn check_block = m_check_block_mock ? m_check_block_mock : CheckBlock;
-    if (!check_block(block, state, Params().GetConsensus(), /*fCheckPoW=*/true, /*fCheckMerkleRoot=*/true)) {
-        // TODO: We really want to just check merkle tree manually here,
-        // but that is expensive, and CheckBlock caches a block's
-        // "checked-status" (in the CBlock?). CBlock should be able to
-        // check its own merkle root and cache that check.
-        if (state.GetResult() == BlockValidationResult::BLOCK_MUTATED)
-            return READ_STATUS_FAILED; // Possible Short ID collision
-        return READ_STATUS_CHECKBLOCK_FAILED;
+    // Check for possible mutations early now that we have a seemingly good block
+    IsBlockMutatedFn check_mutated{m_check_block_mutated_mock ? m_check_block_mutated_mock : IsBlockMutated};
+    if (check_mutated(/*block=*/block)) {
+        return READ_STATUS_FAILED; // Possible Short ID collision
     }
 
     LogPrint(BCLog::CMPCTBLOCK, "Successfully reconstructed block %s with %lu txn prefilled, %lu txn from mempool (incl at least %lu from extra pool) and %lu txn requested\n", hash.ToString(), prefilled_count, mempool_count, extra_count, vtx_missing.size());
