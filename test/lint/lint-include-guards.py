@@ -11,7 +11,6 @@ Check include guards.
 import re
 import sys
 from subprocess import check_output
-from typing import List
 
 
 HEADER_ID_PREFIX = 'BITCOIN_'
@@ -33,7 +32,7 @@ EXCLUDE_FILES_WITH_PREFIX = ['src/crypto/ctaes',
                              'src/immer']
 
 
-def _get_header_file_lst() -> List[str]:
+def _get_header_file_lst() -> list[str]:
     """ Helper function to get a list of header filepaths to be
         checked for include guards.
     """

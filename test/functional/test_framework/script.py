@@ -8,7 +8,6 @@ This file is modified from python-bitcoinlib.
 """
 import struct
 import unittest
-from typing import List, Dict
 
 from .messages import (
     CTransaction,
@@ -97,8 +96,8 @@ class CScriptOp(int):
             _opcode_instances.append(super().__new__(cls, n))
             return _opcode_instances[n]
 
-OPCODE_NAMES: Dict[CScriptOp, str] = {}
-_opcode_instances: List[CScriptOp] = []
+OPCODE_NAMES: dict[CScriptOp, str] = {}
+_opcode_instances: list[CScriptOp] = []
 
 # Populate opcode instance table
 for n in range(0xff + 1):
