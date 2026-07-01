@@ -135,8 +135,9 @@ bool CoinStatsIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
                       read_out.first.ToString(), expected_block_hash.ToString());
 
             if (!m_db->Read(DBHashKey(expected_block_hash), read_out)) {
-                return error("%s: previous block header not found; expected %s",
+                LogError("%s: previous block header not found; expected %s\n",
                              __func__, expected_block_hash.ToString());
+                return false;
             }
         }
 
@@ -241,14 +242,16 @@ bool CoinStatsIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 
     for (int height = start_height; height <= stop_height; ++height) {
         if (!db_it.GetKey(key) || key.height != height) {
-            return error("%s: unexpected key in %s: expected (%c, %d)",
+            LogError("%s: unexpected key in %s: expected (%c, %d)\n",
                          __func__, index_name, DB_BLOCK_HEIGHT, height);
+            return false;
         }
 
         std::pair<uint256, DBVal> value;
         if (!db_it.GetValue(value)) {
-            return error("%s: unable to read value in %s at key (%c, %d)",
+            LogError("%s: unable to read value in %s at key (%c, %d)\n",
                          __func__, index_name, DB_BLOCK_HEIGHT, height);
+            return false;
         }
 
         batch.Write(DBHashKey(value.first), std::move(value.second));
@@ -283,8 +286,9 @@ bool CoinStatsIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* n
             CBlock block;
 
             if (!ReadBlockFromDisk(block, iter_tip, consensus_params)) {
-                return error("%s: Failed to read block %s from disk",
+                LogError("%s: Failed to read block %s from disk\n",
                              __func__, iter_tip->GetBlockHash().ToString());
+                return false;
             }
 
             if (!ReverseBlock(block, iter_tip)) {
@@ -351,8 +355,9 @@ bool CoinStatsIndex::Init()
         // exist. Any other errors indicate database corruption or a disk
         // failure, and starting the index would cause further corruption.
         if (m_db->Exists(DB_MUHASH)) {
-            return error("%s: Cannot read current %s state; index may be corrupted",
+            LogError("%s: Cannot read current %s state; index may be corrupted\n",
                          __func__, GetName());
+            return false;
         }
     }
 
@@ -363,14 +368,16 @@ bool CoinStatsIndex::Init()
     if (pindex) {
         DBVal entry;
         if (!LookUpOne(*m_db, pindex, entry)) {
-            return error("%s: Cannot read current %s state; index may be corrupted",
+            LogError("%s: Cannot read current %s state; index may be corrupted\n",
                             __func__, GetName());
+            return false;
         }
         uint256 out;
         m_muhash.Finalize(out);
         if (entry.muhash != out) {
-            return error("%s: Cannot read current %s state; index may be corrupted",
+            LogError("%s: Cannot read current %s state; index may be corrupted\n",
                         __func__, GetName());
+            return false;
         }
         m_transaction_output_count = entry.transaction_output_count;
         m_bogo_size = entry.bogo_size;
@@ -422,8 +429,9 @@ bool CoinStatsIndex::ReverseBlock(const CBlock& block, const CBlockIndex* pindex
                       read_out.first.ToString(), expected_block_hash.ToString());
 
             if (!m_db->Read(DBHashKey(expected_block_hash), read_out)) {
-                return error("%s: previous block header not found; expected %s",
+                LogError("%s: previous block header not found; expected %s\n",
                              __func__, expected_block_hash.ToString());
+                return false;
             }
         }
     }
