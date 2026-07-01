@@ -39,6 +39,8 @@ class UniValue;
 
 namespace governance {
 class SuperblockManager;
+// How long a requested governance inv hash remains in the request cache.
+inline constexpr std::chrono::seconds RELIABLE_PROPAGATION_TIME{60};
 } // namespace governance
 
 using vote_time_pair_t = std::pair<CGovernanceVote, int64_t>;
@@ -296,6 +298,10 @@ public:
      * false. (Note logic is inverted in AlreadyHave).
      */
     bool ConfirmInventoryRequest(const CInv& inv)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    /** Test-only accessor: number of inv hashes currently tracked by
+     *  ConfirmInventoryRequest pending expiration in CheckAndRemove. */
+    size_t RequestedHashCacheSizeForTesting() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
