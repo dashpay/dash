@@ -5200,6 +5200,17 @@ void PeerManagerImpl::ProcessMessage(
 
         LogPrint(BCLog::NET, "received block %s peer=%d\n", pblock->GetHash().ToString(), pfrom.GetId());
 
+        // Check for possible mutation as a defence-in-depth mitigation against
+        // attacks that leverage mutated blocks. Dash has no witness commitment,
+        // so this reduces to the merkle-root / 64-byte-transaction malleation
+        // checks and can be performed unconditionally.
+        if (IsBlockMutated(/*block=*/*pblock)) {
+            LogPrint(BCLog::NET, "Received mutated block from peer=%d\n", pfrom.GetId());
+            Misbehaving(*peer, 100, "mutated block");
+            WITH_LOCK(cs_main, RemoveBlockRequest(pblock->GetHash(), pfrom.GetId()));
+            return;
+        }
+
         bool forceProcessing = false;
         const uint256 hash(pblock->GetHash());
         {
