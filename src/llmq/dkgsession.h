@@ -13,6 +13,7 @@
 #include <bls/bls_worker.h>
 #include <evo/types.h>
 #include <llmq/params.h>
+#include <protocol.h>
 #include <util/std23.h>
 
 #include <saltedhasher.h>
