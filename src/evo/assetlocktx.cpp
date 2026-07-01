@@ -26,7 +26,7 @@ using node::BlockManager;
 /**
  * Asset Lock Transaction
  */
-bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state)
+bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state, bool is_v24_active)
 {
     if (tx.nType != TRANSACTION_ASSET_LOCK) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-type");
@@ -56,6 +56,9 @@ bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state)
     if (opt_assetLockTx->getVersion() == 0 || opt_assetLockTx->getVersion() > CAssetLockPayload::CURRENT_VERSION) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-version");
     }
+    if (!is_v24_active && opt_assetLockTx->getVersion() == CAssetLockPayload::CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-version-2");
+    }
 
     if (opt_assetLockTx->getCreditOutputs().empty()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-emptycreditoutputs");
@@ -68,8 +71,14 @@ bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state)
         }
 
         creditOutputsAmount += out.nValue;
-        if (!out.scriptPubKey.IsPayToPublicKeyHash()) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-pubKeyHash");
+        if (opt_assetLockTx->getVersion() >= 2) {
+            if (!out.scriptPubKey.IsPayToPublicKeyHash() && !out.scriptPubKey.IsPayToScriptHash()) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-script-pubkey");
+            }
+        } else {
+            if (!out.scriptPubKey.IsPayToPublicKeyHash()) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetlocktx-pubKeyHash");
+            }
         }
     }
     if (creditOutputsAmount != returnAmount) {
