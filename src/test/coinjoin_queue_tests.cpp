@@ -188,4 +188,59 @@ BOOST_AUTO_TEST_CASE(queuemanager_getqueueitem_marks_tried_once)
     BOOST_CHECK(!man.GetQueueItemAndTry(picked2));
 }
 
+BOOST_AUTO_TEST_CASE(queuemanager_has_queue_from_masternode_readiness)
+{
+    CoinJoinQueueManager man;
+    const int denom = CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination());
+    const int64_t now = GetAdjustedTime();
+    const COutPoint mn(uint256S("31"), 0);
+    // Single queue from `mn` with fReady=false.
+    man.AddQueue(MakeQueue(denom, now, /*fReady=*/false, mn));
+
+    // Readiness-aware lookup honors fReady.
+    BOOST_CHECK(man.HasQueueFromMasternode(mn, /*fReady=*/false));
+    BOOST_CHECK(!man.HasQueueFromMasternode(mn, /*fReady=*/true));
+
+    // Unrelated masternode is never matched.
+    const COutPoint other(uint256S("32"), 0);
+    BOOST_CHECK(!man.HasQueueFromMasternode(other, /*fReady=*/false));
+    BOOST_CHECK(!man.HasQueueFromMasternode(other, /*fReady=*/true));
+
+    // TRY variant ignores readiness, finds by outpoint only.
+    auto try_present = man.TryHasQueueFromMasternode(mn);
+    BOOST_REQUIRE(try_present.has_value());
+    BOOST_CHECK(*try_present);
+
+    auto try_absent = man.TryHasQueueFromMasternode(other);
+    BOOST_REQUIRE(try_absent.has_value());
+    BOOST_CHECK(!*try_absent);
+}
+
+BOOST_AUTO_TEST_CASE(queuemanager_try_check_duplicate)
+{
+    CoinJoinQueueManager man;
+    const int denom = CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination());
+    const int64_t now = GetAdjustedTime();
+    const COutPoint mn(uint256S("41"), 0);
+    const COutPoint other_mn(uint256S("42"), 0);
+
+    const auto seed = MakeQueue(denom, now, /*fReady=*/false, mn);
+    man.AddQueue(seed);
+
+    auto is_dup = [&](const CCoinJoinQueue& q) {
+        auto r = man.TryCheckDuplicate(q);
+        BOOST_REQUIRE(r.has_value());
+        return *r;
+    };
+
+    // Exact duplicate.
+    BOOST_CHECK(is_dup(seed));
+    // Same masternode + same readiness, different nTime: the "too many dsqs" guard still flags it.
+    BOOST_CHECK(is_dup(MakeQueue(denom, now + 1, /*fReady=*/false, mn)));
+    // Same masternode but different readiness: allowed.
+    BOOST_CHECK(!is_dup(MakeQueue(denom, now, /*fReady=*/true, mn)));
+    // Different masternode: allowed.
+    BOOST_CHECK(!is_dup(MakeQueue(denom, now, /*fReady=*/false, other_mn)));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
