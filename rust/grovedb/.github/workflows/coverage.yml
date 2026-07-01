@@ -1,0 +1,22 @@
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+      - develop
+      - v[0-9]+\.[0-9]+-dev
+
+name: Coverage
+
+jobs:
+  build:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Coverage
+        run: |
+          cargo test &&
+          curl -Os https://uploader.codecov.io/latest/linux/codecov &&
+          chmod +x codecov &&
+          ./codecov

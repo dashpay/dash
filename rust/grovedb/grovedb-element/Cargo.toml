@@ -1,0 +1,29 @@
+[package]
+name = "grovedb-element"
+description = "The storage element crate for grovedb"
+version = "4.0.0"
+authors = ["Samuel Westrich <sam@dash.org>"]
+edition = "2021"
+license = "MIT"
+homepage = "https://www.grovedb.org"
+repository = "https://github.com/dashpay/grovedb"
+readme = "../README.md"
+documentation = "https://docs.rs/grovedb"
+
+[dependencies]
+bincode = { version = "=2.0.0-rc.3" }
+bincode_derive = { version = "=2.0.0-rc.3" }
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+hex = "0.4.3"
+integer-encoding = "4.1.0"
+thiserror = "2.0.17"
+grovedb-version = { version = "4.0.0", path = "../grovedb-version" }
+grovedb-visualize = { version = "4.0.0", path = "../visualize", optional = true }
+grovedb-path = { version = "4.0.0", path = "../path" }
+
+[features]
+default = ["verify", "constructor"]
+verify = []
+constructor = []
+serde = ["dep:serde"]
+visualize = ["dep:grovedb-visualize"]

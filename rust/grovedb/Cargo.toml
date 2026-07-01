@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+exclude = ["grovedb/grovedbg"]
+members = [
+    "costs",
+    "grovedb",
+    "merk",
+    "node-grove",
+    "storage",
+    "visualize",
+    "path",
+    "grovedbg-types",
+    "grovedb-version",
+    "grovedb-epoch-based-storage-flags"
+, "grovedb-element"]

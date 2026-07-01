@@ -1,0 +1,37 @@
+name: Release Crates
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+jobs:
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Login to crates.io
+        run: cargo login ${{ secrets.CARGO_GROVE_TOKEN }}
+
+      - name: Publish crates
+        run: |
+          # Publish all workspace crates
+          cargo publish -p grovedb-version
+          cargo publish -p grovedb-costs
+          cargo publish -p grovedb-visualize
+          cargo publish -p grovedb-path
+          cargo publish -p grovedb-storage
+          cargo publish -p grovedb-epoch-based-storage-flags
+          cargo publish -p grovedbg-types
+          cargo publish -p grovedb-merk
+          cargo publish -p grovedb

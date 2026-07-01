@@ -1,0 +1,16 @@
+[package]
+name = "grovedb-epoch-based-storage-flags"
+authors = ["Samuel Westrich <sam@dash.org>"]
+description = "Epoch based storage flags for GroveDB"
+version = "4.0.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/dashpay/grovedb"
+
+[dependencies]
+grovedb-costs = { version = "4.0.0", path = "../costs" }
+
+hex = { version = "0.4.3" }
+integer-encoding = { version = "4.1.0" }
+intmap = { version = "3.1.3", features = ["serde"]}
+thiserror = { version = "2.0.17" }

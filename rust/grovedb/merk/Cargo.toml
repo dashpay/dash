@@ -1,0 +1,73 @@
+[package]
+name = "grovedb-merk"
+description = "Merkle key/value store adapted for GroveDB"
+version = "4.0.0"
+authors = ["Samuel Westrich <sam@dash.org>", "Wisdom Ogwu <wisdom@dash.org", "Evgeny Fomin <evgeny.fomin@dash.org>", "Matt Bell <mappum@gmail.com>"]
+edition = "2021"
+license = "MIT"
+homepage = "https://www.grovedb.org"
+repository = "https://github.com/dashpay/grovedb"
+readme = "README.md"
+documentation = "https://docs.rs/grovedb-merk"
+
+[dependencies]
+grovedb-costs = { version = "4.0.0", path = "../costs" }
+grovedb-path = { version = "4.0.0", path = "../path" }
+grovedb-storage = { version = "4.0.0", path = "../storage", optional = true }
+grovedb-version = { version = "4.0.0", path = "../grovedb-version" }
+grovedb-visualize = { version = "4.0.0", path = "../visualize" }
+grovedb-element = { version = "4.0.0", path = "../grovedb-element" }
+
+bincode = { version = "=2.0.0-rc.3" }
+bincode_derive = { version = "=2.0.0-rc.3" }
+hex = "0.4.3"
+indexmap = "2.2.6"
+integer-encoding = "4.1.0"
+thiserror = "2.0.17"
+serde = { version = "1.0.219", features = ["derive"], optional = true }
+rand = { version = "0.8.5", features = ["small_rng"], optional = true }
+byteorder = { version = "1.5.0" }
+blake3 = { version = "1.8.1", optional = true }
+ed = { version = "0.2.2", optional = true }
+num_cpus = { version = "1.17.0", optional = true }
+colored = { version = "3.0.0", optional = true }
+
+[features]
+default = ["full"]
+proof_debug = []
+serde = ["dep:serde", "indexmap/serde"]
+minimal = ["num_cpus",
+    "ed",
+    "blake3",
+    "grovedb-storage",
+    "grovedb-storage/rocksdb_storage",
+    "grovedb-element/visualize"
+]
+full = ["minimal",
+    "test_utils",
+    "colored_debug",
+]
+test_utils = ["rand"]
+colored_debug = ["colored"]
+verify = [
+    "ed",
+    "blake3"
+]
+grovedbg = ["full"]
+
+[dev-dependencies]
+tempfile = "3.10.1"
+criterion = "0.5.1"
+assert_matches = "1.5.0"
+
+[[bench]]
+name = "merk"
+harness = false
+
+[[bench]]
+name = "ops"
+harness = false
+
+[[bench]]
+name = "branch_queries"
+harness = false

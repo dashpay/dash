@@ -1,0 +1,19 @@
+[package]
+name = "node-grove"
+version = "0.12.2"
+description = "GroveDB node.js bindings"
+edition = "2021"
+license = "MIT"
+exclude = ["index.node"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+grovedb = { version = "4.0.0", path = "../grovedb", features = ["full", "estimated_costs"] }
+grovedb-version =  { version = "4.0.0", path = "../grovedb-version" }
+
+[dependencies.neon]
+version = "0.10.1"
+default-features = false
+features = ["napi-6", "event-queue-api", "try-catch-api"]

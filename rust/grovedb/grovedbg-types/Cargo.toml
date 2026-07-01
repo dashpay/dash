@@ -1,0 +1,12 @@
+[package]
+name = "grovedbg-types"
+version = "4.0.0"
+edition = "2021"
+description = "Common type definitions for data exchange over GroveDBG protocol"
+authors = ["Evgeny Fomin <evgeny.fomin@dash.org>"]
+license = "MIT"
+repository = "https://github.com/dashpay/grovedb"
+
+[dependencies]
+serde = { version = "1.0.219", features = ["derive"] }
+serde_with = { version = "3.9.0", features = ["base64"] }
