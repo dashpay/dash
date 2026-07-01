@@ -15,6 +15,9 @@ namespace
 
 typedef std::vector<uint8_t> data;
 
+/** The Bech32 and Bech32m checksum size */
+constexpr size_t CHECKSUM_SIZE = 6;
+
 /** The Bech32 and Bech32m character set for encoding. */
 const char* CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -133,18 +136,18 @@ inline unsigned char LowerCase(unsigned char c)
     return (c >= 'A' && c <= 'Z') ? (c - 'A') + 'a' : c;
 }
 
-/** Expand a HRP for use in checksum computation. */
-data ExpandHRP(const std::string& hrp)
+std::vector<unsigned char> PreparePolynomialCoefficients(const std::string& hrp, const data& values)
 {
     data ret;
-    ret.reserve(hrp.size() + 90);
-    ret.resize(hrp.size() * 2 + 1);
-    for (size_t i = 0; i < hrp.size(); ++i) {
-        unsigned char c = hrp[i];
-        ret[i] = c >> 5;
-        ret[i + hrp.size() + 1] = c & 0x1f;
-    }
-    ret[hrp.size()] = 0;
+    ret.reserve(hrp.size() + 1 + hrp.size() + values.size() + CHECKSUM_SIZE);
+
+    /** Expand a HRP for use in checksum computation. */
+    for (size_t i = 0; i < hrp.size(); ++i) ret.push_back(hrp[i] >> 5);
+    ret.push_back(0);
+    for (size_t i = 0; i < hrp.size(); ++i) ret.push_back(hrp[i] & 0x1f);
+
+    ret.insert(ret.end(), values.begin(), values.end());
+
     return ret;
 }
 
@@ -156,7 +159,8 @@ Encoding VerifyChecksum(const std::string& hrp, const data& values)
     // list of values would result in a new valid list. For that reason, Bech32 requires the
     // resulting checksum to be 1 instead. In Bech32m, this constant was amended. See
     // https://gist.github.com/sipa/14c248c288c3880a3b191f978a34508e for details.
-    const uint32_t check = PolyMod(Cat(ExpandHRP(hrp), values));
+    auto enc = PreparePolynomialCoefficients(hrp, values);
+    const uint32_t check = PolyMod(enc);
     if (check == EncodingConstant(Encoding::BECH32)) return Encoding::BECH32;
     if (check == EncodingConstant(Encoding::BECH32M)) return Encoding::BECH32M;
     return Encoding::INVALID;
@@ -165,11 +169,11 @@ Encoding VerifyChecksum(const std::string& hrp, const data& values)
 /** Create a checksum. */
 data CreateChecksum(Encoding encoding, const std::string& hrp, const data& values)
 {
-    data enc = Cat(ExpandHRP(hrp), values);
-    enc.resize(enc.size() + 6); // Append 6 zeroes
+    auto enc = PreparePolynomialCoefficients(hrp, values);
+    enc.insert(enc.end(), CHECKSUM_SIZE, 0x00);
     uint32_t mod = PolyMod(enc) ^ EncodingConstant(encoding); // Determine what to XOR into those 6 zeroes.
-    data ret(6);
-    for (size_t i = 0; i < 6; ++i) {
+    data ret(CHECKSUM_SIZE);
+    for (size_t i = 0; i < CHECKSUM_SIZE; ++i) {
         // Convert the 5-bit groups in mod to checksum values.
         ret[i] = (mod >> (5 * (5 - i))) & 31;
     }
@@ -184,18 +188,18 @@ std::string Encode(Encoding encoding, const std::string& hrp, const data& values
     // to return a lowercase Bech32/Bech32m string, but if given an uppercase HRP, the
     // result will always be invalid.
     for (const char& c : hrp) assert(c < 'A' || c > 'Z');
-    data checksum = CreateChecksum(encoding, hrp, values);
-    data combined = Cat(values, checksum);
-    std::string ret = hrp + '1';
-    ret.reserve(ret.size() + combined.size());
-    for (const auto c : combined) {
-        ret += CHARSET[c];
-    }
+
+    std::string ret;
+    ret.reserve(hrp.size() + 1 + values.size() + CHECKSUM_SIZE);
+    ret += hrp;
+    ret += '1';
+    for (const uint8_t& i : values) ret += CHARSET[i];
+    for (const uint8_t& i : CreateChecksum(encoding, hrp, values)) ret += CHARSET[i];
     return ret;
 }
 
 /** Decode a Bech32 or Bech32m string. */
-DecodeResult Decode(const std::string& str) {
+DecodeResult Decode(const std::string& str, CharLimit limit) {
     bool lower = false, upper = false;
     for (size_t i = 0; i < str.size(); ++i) {
         unsigned char c = str[i];
@@ -205,7 +209,8 @@ DecodeResult Decode(const std::string& str) {
     }
     if (lower && upper) return {};
     size_t pos = str.rfind('1');
-    if (str.size() > 90 || pos == str.npos || pos == 0 || pos + 7 > str.size()) {
+    if (str.size() > limit) return {};
+    if (pos == str.npos || pos == 0 || pos + CHECKSUM_SIZE >= str.size()) {
         return {};
     }
     data values(str.size() - 1 - pos);
@@ -219,12 +224,13 @@ DecodeResult Decode(const std::string& str) {
         values[i] = rev;
     }
     std::string hrp;
+    hrp.reserve(pos);
     for (size_t i = 0; i < pos; ++i) {
         hrp += LowerCase(str[i]);
     }
     Encoding result = VerifyChecksum(hrp, values);
     if (result == Encoding::INVALID) return {};
-    return {result, std::move(hrp), data(values.begin(), values.end() - 6)};
+    return {result, std::move(hrp), data(values.begin(), values.end() - CHECKSUM_SIZE)};
 }
 
 } // namespace bech32
