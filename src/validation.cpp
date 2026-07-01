@@ -1989,21 +1989,11 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
-    // Ignore blocks that contain transactions which are 'overwritten' by later transactions,
-    // unless those are already completely spent.
-    // See https://github.com/bitcoin/bitcoin/issues/22596 for additional information.
-    // Note: the blocks specified here are different than the ones used in ConnectBlock because DisconnectBlock
-    // unwinds the blocks in reverse. As a result, the inconsistency is not discovered until the earlier
-    // blocks with the duplicate coinbase transactions are disconnected.
-    bool fEnforceBIP30 = !((pindex->nHeight==91722 && pindex->GetBlockHash() == uint256S("0x00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e")) ||
-                           (pindex->nHeight==91812 && pindex->GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f")));
-
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
-        bool is_bip30_exception = (is_coinbase && !fEnforceBIP30);
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
@@ -2013,9 +2003,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 Coin coin;
                 bool is_spent = view.SpendCoin(out, &coin);
                 if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
-                    if (!is_bip30_exception) {
-                        fClean = false; // transaction output mismatch
-                    }
+                    fClean = false; // transaction output mismatch
                 }
             }
         }
@@ -2250,24 +2238,17 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     // can be duplicated to remove the ability to spend the first instance -- even after
     // being sent to another address.
     // See BIP30, CVE-2012-1909, and http://r6.ca/blog/20120206T005236Z.html for more information.
-    // This rule was originally applied to all blocks with a timestamp after March 15, 2012, 0:00 UTC.
-    // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
-    // two in the chain that violate it. This prevents exploiting the issue against nodes during their
+    // This prevents exploiting the issue against nodes during their
     // initial block download.
-    bool fEnforceBIP30 = !IsBIP30Repeat(*pindex);
 
     // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
-    // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
-    // time BIP34 activated, in each of the existing pairs the duplicate coinbase had overwritten the first
-    // before the first had been spent.  Since those coinbases are sufficiently buried it's no longer possible to create further
-    // duplicate transactions descending from the known pairs either.
+    // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.
     // If we're on the known chain at height greater than where BIP34 activated, we can save the db accesses needed for the BIP30 check.
     assert(pindex->pprev);
     CBlockIndex* pindexBIP34height = pindex->pprev->GetAncestor(m_params.GetConsensus().BIP34Height);
     //Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
-    fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height || !(pindexBIP34height->GetBlockHash() == m_params.GetConsensus().BIP34Hash));
-
-    if (fEnforceBIP30) {
+    bool fEnforceBIP30 = !pindexBIP34height || !(pindexBIP34height->GetBlockHash() == m_params.GetConsensus().BIP34Hash);
+    if (fEnforceBIP30 && pindex->nHeight <= m_params.GetConsensus().BIP34Height) {
         for (const auto& tx : block.vtx) {
             for (size_t o = 0; o < tx->vout.size(); o++) {
                 if (view.HaveCoin(COutPoint(tx->GetHash(), o))) {
@@ -5872,16 +5853,4 @@ ChainstateManager::~ChainstateManager()
     LOCK(::cs_main);
 
     m_versionbitscache.Clear();
-}
-
-bool IsBIP30Repeat(const CBlockIndex& block_index)
-{
-    return (block_index.nHeight==91842 && block_index.GetBlockHash() == uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-           (block_index.nHeight==91880 && block_index.GetBlockHash() == uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721"));
-}
-
-bool IsBIP30Unspendable(const CBlockIndex& block_index)
-{
-    return (block_index.nHeight==91722 && block_index.GetBlockHash() == uint256S("0x00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e")) ||
-           (block_index.nHeight==91812 && block_index.GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"));
 }

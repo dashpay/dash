@@ -1178,7 +1178,6 @@ static RPCHelpMan gettxoutsetinfo()
                             {RPCResult::Type::OBJ, "unspendables", "Detailed view of the unspendable categories",
                             {
                                 {RPCResult::Type::STR_AMOUNT, "genesis_block", "The unspendable amount of the Genesis block subsidy"},
-                                {RPCResult::Type::STR_AMOUNT, "bip30", "Transactions overridden by duplicates (no longer possible with BIP30)"},
                                 {RPCResult::Type::STR_AMOUNT, "scripts", "Amounts sent to scripts that are unspendable (for example OP_RETURN outputs)"},
                                 {RPCResult::Type::STR_AMOUNT, "unclaimed_rewards", "Fee rewards that miners did not claim in their coinbase transaction"},
                             }}
@@ -1282,7 +1281,6 @@ static RPCHelpMan gettxoutsetinfo()
 
             UniValue unspendables(UniValue::VOBJ);
             unspendables.pushKV("genesis_block", ValueFromAmount(stats.total_unspendables_genesis_block - prev_stats.total_unspendables_genesis_block));
-            unspendables.pushKV("bip30", ValueFromAmount(stats.total_unspendables_bip30 - prev_stats.total_unspendables_bip30));
             unspendables.pushKV("scripts", ValueFromAmount(stats.total_unspendables_scripts - prev_stats.total_unspendables_scripts));
             unspendables.pushKV("unclaimed_rewards", ValueFromAmount(stats.total_unspendables_unclaimed_rewards - prev_stats.total_unspendables_unclaimed_rewards));
             block_info.pushKV("unspendables", unspendables);
@@ -2139,9 +2137,9 @@ static RPCHelpMan getblockstats()
                 size_t out_size = GetSerializeSize(out, PROTOCOL_VERSION) + PER_UTXO_OVERHEAD;
                 utxo_size_inc += out_size;
 
-                // The Genesis block and the repeated BIP30 block coinbases don't change the UTXO
+                // The Genesis block coinbase don't change the UTXO
                 // set counts, so they have to be excluded from the statistics
-                if (pindex.nHeight == 0 || (IsBIP30Repeat(pindex) && tx->IsCoinBase())) continue;
+                if (pindex.nHeight == 0) continue;
                 // Skip unspendable outputs since they are not included in the UTXO set
                 if (out.scriptPubKey.IsUnspendable()) continue;
 

@@ -144,13 +144,6 @@ bool CoinStatsIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
         for (size_t i = 0; i < block.vtx.size(); ++i) {
             const auto& tx{block.vtx.at(i)};
 
-            // Skip duplicate txid coinbase transactions (BIP30).
-            if (IsBIP30Unspendable(*pindex) && tx->IsCoinBase()) {
-                m_total_unspendable_amount += block_subsidy;
-                m_total_unspendables_bip30 += block_subsidy;
-                continue;
-            }
-
             for (uint32_t j = 0; j < tx->vout.size(); ++j) {
                 const CTxOut& out{tx->vout[j]};
                 Coin coin{out, pindex->nHeight, tx->IsCoinBase()};
