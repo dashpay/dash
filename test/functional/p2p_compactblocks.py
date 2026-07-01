@@ -556,6 +556,45 @@ class CompactBlocksTest(BitcoinTestFramework):
         test_node.send_and_ping(msg_block(block))
         assert_equal(int(node.getbestblockhash(), 16), block.sha256)
 
+    # Multiple blocktxn responses for the same in-flight block must not cause a
+    # re-entrant FillBlock (which previously hit an assert); the second response
+    # should instead get the peer disconnected (see bitcoin#33296).
+    def test_multiple_blocktxn_response(self, test_node):
+        node = self.nodes[0]
+        utxo = self.utxos[0]
+
+        block = self.build_block_with_transactions(node, utxo, 2)
+
+        # Send compact block, prefilling only the coinbase so the node has to
+        # request the other two transactions via getblocktxn.
+        comp_block = HeaderAndShortIDs()
+        comp_block.initialize_from_block(block, prefill_list=[0])
+        test_node.send_and_ping(msg_cmpctblock(comp_block.to_p2p()))
+        with p2p_lock:
+            assert "getblocktxn" in test_node.last_message
+            absolute_indexes = test_node.last_message["getblocktxn"].block_txn_request.to_absolute()
+        assert_equal(absolute_indexes, [1, 2])
+
+        # Respond with the transactions in the wrong order so reconstruction
+        # fails (merkle root mismatch), triggering the getdata fallback while
+        # the PartiallyDownloadedBlock is left in flight.
+        msg = msg_blocktxn()
+        msg.block_transactions = BlockTransactions(block.sha256, [block.vtx[2]] + [block.vtx[1]])
+        test_node.send_and_ping(msg)
+
+        # Tip should not have updated
+        assert_equal(int(node.getbestblockhash(), 16), block.hashPrevBlock)
+
+        # We should receive a getdata request for the full block
+        test_node.wait_for_getdata([block.sha256], timeout=10)
+        assert test_node.last_message["getdata"].inv[0].type == MSG_BLOCK
+
+        # Sending the same blocktxn again must get the peer disconnected rather
+        # than re-entering FillBlock on the (now header-less) partial block.
+        with node.assert_debug_log(['previous compact block reconstruction attempt failed']):
+            test_node.send_message(msg)
+            test_node.wait_for_disconnect()
+
     def test_getblocktxn_handler(self, test_node):
         node = self.nodes[0]
         # dashd will not send blocktxn responses for blocks whose height is
@@ -920,6 +959,11 @@ class CompactBlocksTest(BitcoinTestFramework):
 
         self.log.info("Testing high-bandwidth mode states via getpeerinfo...")
         self.test_highbandwidth_mode_states_via_getpeerinfo()
+
+        self.log.info("Testing handling of multiple blocktxn responses...")
+        # Earlier tests may have left self.test_node disconnected; use a fresh peer.
+        self.test_node = self.nodes[0].add_p2p_connection(TestP2PConn())
+        self.test_multiple_blocktxn_response(self.test_node)
 
 if __name__ == '__main__':
     CompactBlocksTest().main()
