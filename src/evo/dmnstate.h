@@ -8,7 +8,6 @@
 #include <bls/bls.h>
 #include <crypto/sha256.h>
 #include <evo/providertx.h>
-#include <netaddress.h>
 #include <pubkey.h>
 #include <script/script.h>
 #include <util/helpers.h>
@@ -101,7 +100,7 @@ public:
             obj.keyIDVoting,
             NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
                               obj.nVersion >= ProTxVersion::ExtAddr));
-        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+        if (obj.nVersion >= ProTxVersion::ExtAddr) {
             READWRITE(obj.payouts);
         } else {
             READWRITE(obj.scriptPayout);

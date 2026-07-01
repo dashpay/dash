@@ -1104,6 +1104,14 @@ bool DeploymentEnabled(const ChainstateManager& chainman, DEP dep)
     return DeploymentEnabled(chainman.GetConsensus(), dep);
 }
 
+/** Get highest permissible ProTx version based on deployment status
+ *  Note: The override is needed because some RPCs need to use deployment status information for everything *except*
+ *        the BLS version upgrade since they are specializations for a specific BLS version. This is a one-off.
+ *  TODO: Resolve this oddity. Consider deprecating legacy BLS-only RPCs so we can remove them eventually.
+ */
+[[nodiscard]] uint16_t DeploymentToProtxVersion(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
+                                                std::optional<bool> is_basic_override = std::nullopt);
+
 /** Determine the masternode reward era for the block following pindexPrev. */
 MnRewardEra GetMnRewardEraAfter(const CBlockIndex* pindexPrev, const ChainstateManager& chainman);
 

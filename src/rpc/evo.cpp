@@ -152,8 +152,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"payoutAddress_register",
             {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
-                "an array of payout shares.",
+                "The Dash address to use for masternode reward payments, or after v24 activation, "
+                "an array of payout shares. Not compatible with legacy bls operator key.",
                 {
                     {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
                         {
@@ -165,8 +165,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         },
         {"payoutAddress_update",
             {"payoutAddress", RPCArg::Type::ARR, RPCArg::Optional::NO,
-                "The Dash address to use for masternode reward payments, or for v4 provider transactions, "
-                "an array of payout shares.\n"
+                "The Dash address to use for masternode reward payments, or after v24 activation, "
+                "an array of payout shares. Not compatible with legacy bls operator key.\n"
                 "If set to an empty string, the currently active payout address is reused.",
                 {
                     {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
@@ -325,7 +325,7 @@ static MasternodePayoutShares ParsePayouts(const UniValue& value, const std::str
         if (!IsValidDestination(first_dest)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", value.get_str()));
         }
-        payouts.emplace_back(GetScriptForDestination(first_dest), CMasternodePayoutShare::MAX_REWARD);
+        payouts.emplace_back(GetScriptForDestination(first_dest), MasternodePayoutShare::MAX_REWARD);
     }
     return payouts;
 }
@@ -788,8 +788,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
 
     CProRegTx ptx;
     ptx.nType = mnType;
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProRegTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                 chainman, /*is_basic_override=*/!use_legacy);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
+                                            /*is_basic_override=*/!use_legacy);
     ptx.netInfo = NetInfoInterface::MakeNetInfo(ptx.nVersion);
 
     if (action == ProTxRegisterAction::Fund) {
@@ -837,8 +837,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     ptx.nOperatorReward = operatorReward;
 
     CTxDestination payoutDest;
-    if (request.params[paramIdx + 5].isArray() && ptx.nVersion < ProTxVersion::MultiPayout) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 4");
+    if (request.params[paramIdx + 5].isArray() && ptx.nVersion < ProTxVersion::ExtAddr) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 3");
     }
     ptx.payouts = ParsePayouts(request.params[paramIdx + 5], "payouts", payoutDest);
 
@@ -1103,9 +1103,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a %s", ptx.proTxHash.ToString(), GetMnType(mnType).description));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpServTx>(WITH_LOCK(::cs_main,
-                                                                              return chainman.ActiveChain().Tip()),
-                                                                    chainman);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman);
 
     // Legacy masternodes must upgrade to BasicBLS before using higher versions.
     // Clamp to BasicBLS to avoid "bad-protx-version-upgrade" validation failure.
@@ -1167,7 +1165,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
             ExtractDestination(ptx.scriptOperatorPayout, feeSource);
         } else {
             // use payout address as default source for fees
-            const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+            const auto owner_payouts = GetOwnerPayouts(*dmn->pdmnState);
             ExtractDestination(owner_payouts.front().scriptPayout, feeSource);
         }
     }
@@ -1233,8 +1231,8 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     EnsureWalletIsUnlocked(*wallet);
 
     CProUpRegTx ptx;
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRegTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                   chainman, /*is_basic_override=*/!use_legacy);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
+                                            /*is_basic_override=*/!use_legacy);
 
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
     auto dmn = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
@@ -1247,7 +1245,7 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
 
     ptx.keyIDVoting = dmn->pdmnState->keyIDVoting;
     ptx.scriptPayout = dmn->pdmnState->scriptPayout;
-    ptx.payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+    ptx.payouts = GetOwnerPayouts(*dmn->pdmnState);
 
     if (!request.params[1].get_str().empty()) {
         // new pubkey
@@ -1266,8 +1264,8 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
     CTxDestination payoutDest;
     ExtractDestination(ptx.payouts.front().scriptPayout, payoutDest);
     if (request.params[3].isArray()) {
-        if (ptx.nVersion < ProTxVersion::MultiPayout) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 4");
+        if (ptx.nVersion < ProTxVersion::ExtAddr) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "payouts array requires provider transaction version 3");
         }
         ptx.payouts = ParsePayouts(request.params[3], "payouts", payoutDest);
         ptx.scriptPayout = ptx.payouts.front().scriptPayout;
@@ -1367,8 +1365,7 @@ static RPCHelpMan protx_revoke()
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRevTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                   chainman);
+    ptx.nVersion = DeploymentToProtxVersion(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman);
 
     // Legacy masternodes must upgrade to BasicBLS before using higher versions.
     // Clamp to BasicBLS to avoid "bad-protx-version-upgrade" validation failure.
@@ -1407,7 +1404,7 @@ static RPCHelpMan protx_revoke()
     } else {
         // Using funds from previousely specified masternode payout address
         CTxDestination txDest;
-        const auto owner_payouts = GetOwnerPayouts(dmn->pdmnState->nVersion, dmn->pdmnState->scriptPayout, dmn->pdmnState->payouts);
+        const auto owner_payouts = GetOwnerPayouts(*dmn->pdmnState);
         if (owner_payouts.empty() || !ExtractDestination(owner_payouts.front().scriptPayout, txDest)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "No payout or fee source addresses found, can't revoke");
         }
@@ -1439,7 +1436,7 @@ static bool CheckWalletOwnsScript(const CWallet* const pwallet, const CScript& s
 
 static bool CheckWalletOwnsAnyPayout(const CWallet* const pwallet, const CDeterministicMNState& state)
 {
-    for (const auto& payout : GetOwnerPayouts(state.nVersion, state.scriptPayout, state.payouts)) {
+    for (const auto& payout : GetOwnerPayouts(state)) {
         if (CheckWalletOwnsScript(pwallet, payout.scriptPayout)) return true;
     }
     return false;

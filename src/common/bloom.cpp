@@ -132,7 +132,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     switch(tx.nType) {
     case(TRANSACTION_PROVIDER_REGISTER): {
         if (const auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
-            const auto owner_payouts = GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts);
+            const auto owner_payouts = GetOwnerPayouts(*opt_proTx);
             const bool found_payout = std::any_of(owner_payouts.begin(), owner_payouts.end(),
                                                   [&](const auto& payout) { return CheckScript(payout.scriptPayout); });
             if(contains(opt_proTx->collateralOutpoint) ||
@@ -163,7 +163,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         if (const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) {
             if(contains(opt_proTx->proTxHash))
                 return true;
-            const auto owner_payouts = GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts);
+            const auto owner_payouts = GetOwnerPayouts(*opt_proTx);
             const bool found_payout = std::any_of(owner_payouts.begin(), owner_payouts.end(),
                                                   [&](const auto& payout) { return CheckScript(payout.scriptPayout); });
             if(contains(opt_proTx->keyIDVoting) ||

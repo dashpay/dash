@@ -93,6 +93,14 @@ private:
                                      BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
 
+/**
+ * This helper does some trivial validations that doesn't depends on collateral and
+ * masternode list. Use CheckPro*Tx for the full validation of transaction,
+ * including bls signatures, list of masternodes and collateral
+ */
+template <typename ProTx>
+std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                         const ChainstateManager& chainman, TxValidationState& state);
 
 /** Validates the bestCLSignature / bestCLHeightDiff fields embedded in a CbTx payload. */
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,

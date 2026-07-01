@@ -16,7 +16,7 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = EncodeDestination(dest);
     }
-    const auto owner_payouts = GetOwnerPayouts(nVersion, scriptPayout, payouts);
+    const auto owner_payouts = GetOwnerPayouts(*this);
     const std::string payoutList = PayoutListToString(owner_payouts);
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);

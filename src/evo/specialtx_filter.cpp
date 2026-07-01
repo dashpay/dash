@@ -73,7 +73,7 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
             AddHashElement(opt_proTx->keyIDVoting, addElement);
 
             // Add owner payout scripts
-            for (const auto& payout : GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts)) {
+            for (const auto& payout : GetOwnerPayouts(*opt_proTx)) {
                 AddScriptElement(payout.scriptPayout, addElement);
             }
         }
@@ -98,7 +98,7 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
             AddHashElement(opt_proTx->keyIDVoting, addElement);
 
             // Add owner payout scripts
-            for (const auto& payout : GetOwnerPayouts(opt_proTx->nVersion, opt_proTx->scriptPayout, opt_proTx->payouts)) {
+            for (const auto& payout : GetOwnerPayouts(*opt_proTx)) {
                 AddScriptElement(payout.scriptPayout, addElement);
             }
         }

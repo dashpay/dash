@@ -5,7 +5,7 @@
 #include <evo/netinfo.h>
 
 #include <chainparams.h>
-#include <evo/providertx.h>
+#include <evo/types.h>
 #include <netbase.h>
 #include <span.h>
 #include <util/check.h>

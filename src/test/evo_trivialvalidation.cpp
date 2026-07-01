@@ -11,6 +11,7 @@
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <evo/providertx.h>
+#include <evo/specialtxman.h>
 #include <key.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
@@ -32,22 +33,20 @@ template <class T>
 void TestTxHelper(const CMutableTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                   const std::optional<std::string>& expected_error, const ChainstateManager& chainman)
 {
-    const bool payload_to_fail = expected_error.has_value() && expected_error.value() == "gettxpayload-fail";
-    const auto opt_payload = GetTxPayload<T>(tx, false);
-    BOOST_CHECK_EQUAL(opt_payload.has_value(), !payload_to_fail);
-
-    // No need to check anything else if GetTxPayload() expected to fail
-    if (payload_to_fail) return;
-
     TxValidationState dummy_state;
-    BOOST_CHECK_EQUAL(opt_payload->IsTriviallyValid(pindexPrev, chainman, dummy_state), !expected_error.has_value());
+    auto opt_payload = GetValidatedPayload<T>(CTransaction{tx}, pindexPrev, chainman, dummy_state);
+
+    BOOST_CHECK_EQUAL(opt_payload.has_value(), !expected_error.has_value());
+
     if (expected_error.has_value()) {
         BOOST_CHECK_EQUAL(dummy_state.GetRejectReason(), expected_error.value());
     }
 }
 
-void trivialvalidation_runner(const ChainstateManager& chainman, const std::string& json)
+void trivialvalidation_runner(ChainstateManager& chainman, const std::string& json)
 {
+    LOCK(::cs_main);
+
     const UniValue vectors = read_json(json);
 
     for (size_t idx = 1; idx < vectors.size(); idx++) {
@@ -75,7 +74,7 @@ void trivialvalidation_runner(const ChainstateManager& chainman, const std::stri
             BOOST_CHECK_EQUAL(tx.nVersion, 3);
             BOOST_CHECK_EQUAL(tx.GetHash(), txHash);
             // Deserialization based on transaction nType
-            TxValidationState dummy_state;
+
             switch (tx.nType) {
             case TRANSACTION_PROVIDER_REGISTER: {
                 BOOST_CHECK_EQUAL(txType, "proregtx");
@@ -174,7 +173,7 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
     CheckPayouts(too_many, owner_id, voting_id, "bad-protx-payouts-count");
 
     CheckPayouts({{payout1, 99}, {payout2, 9901}}, owner_id, voting_id, "bad-protx-payout-reward");
-    CheckPayouts({{payout1, CMasternodePayoutShare::MAX_REWARD + 1}}, owner_id, voting_id, "bad-protx-payout-reward");
+    CheckPayouts({{payout1, MasternodePayoutShare::MAX_REWARD + 1}}, owner_id, voting_id, "bad-protx-payout-reward");
     CheckPayouts({{payout1, 5000}, {payout2, 4999}}, owner_id, voting_id, "bad-protx-payout-reward-sum");
     CheckPayouts({{payout1, 5000}, {payout1, 5000}}, owner_id, voting_id, "bad-protx-payee-dup");
     CheckPayouts({{CScript() << OP_RETURN, 10000}}, owner_id, voting_id, "bad-protx-payee");

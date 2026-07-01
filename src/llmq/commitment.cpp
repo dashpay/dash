@@ -5,6 +5,7 @@
 #include <llmq/commitment.h>
 
 #include <evo/deterministicmns.h>
+#include <evo/dmnstate.h>
 #include <evo/specialtx.h>
 #include <llmq/options.h>
 #include <llmq/utils.h>

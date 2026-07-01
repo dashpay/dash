@@ -9,6 +9,7 @@
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
 #include <evo/specialtx.h>
+#include <evo/types.h>
 #include <primitives/transaction.h>
 #include <util/std23.h>
 
@@ -17,54 +18,15 @@
 #include <netaddress.h>
 #include <pubkey.h>
 
-#include <univalue.h>
 #include <gsl/pointers.h>
+#include <univalue.h>
 
 #include <vector>
 
-class CBlockIndex;
-class ChainstateManager;
 class TxValidationState;
 struct RPCResult;
 
-namespace ProTxVersion {
-enum : uint16_t {
-    LegacyBLS = 1,
-    BasicBLS  = 2,
-    ExtAddr   = 3,
-    MultiPayout = 4,
-};
-
-/** Get highest permissible ProTx version based on flags set. */
-[[nodiscard]] constexpr uint16_t GetMax(const bool is_basic_scheme_active, const bool is_extended_addr,
-                                        const bool is_multi_payout = false)
-{
-    if (is_basic_scheme_active) {
-        if (is_multi_payout) {
-            return ProTxVersion::MultiPayout;
-        }
-        if (is_extended_addr) {
-            // Requires *both* forks to be active to use extended addresses. is_basic_scheme_active could
-            // be set to false due to RPC specialization, so we must evaluate is_extended_addr *last* to
-            // avoid accidentally upgrading a legacy BLS node to basic BLS due to v24 activation.
-            return ProTxVersion::ExtAddr;
-        }
-        return ProTxVersion::BasicBLS;
-    }
-    return ProTxVersion::LegacyBLS;
-}
-
-/** Get highest permissible ProTx version based on deployment status
- *  Note: The override is needed because some RPCs need to use deployment status information for everything *except*
- *        the BLS version upgrade since they are specializations for a specific BLS version. This is a one-off.
- *  TODO: Resolve this oddity. Consider deprecating legacy BLS-only RPCs so we can remove them eventually.
- */
-template <typename T>
-[[nodiscard]] uint16_t GetMaxFromDeployment(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                                            std::optional<bool> is_basic_override = std::nullopt);
-} // namespace ProTxVersion
-
-class CMasternodePayoutShare
+class MasternodePayoutShare
 {
 public:
     static constexpr uint16_t MIN_REWARD = 100;
@@ -73,30 +35,21 @@ public:
     CScript scriptPayout;
     uint16_t reward{MAX_REWARD};
 
-    CMasternodePayoutShare() = default;
-    CMasternodePayoutShare(CScript script_payout, uint16_t reward) :
-        scriptPayout(std::move(script_payout)),
-        reward(reward)
-    {
-    }
-
-    SERIALIZE_METHODS(CMasternodePayoutShare, obj)
+    SERIALIZE_METHODS(MasternodePayoutShare, obj)
     {
         READWRITE(obj.scriptPayout, obj.reward);
     }
 
-    friend bool operator==(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b)
-    {
-        return a.reward == b.reward && a.scriptPayout == b.scriptPayout;
-    }
-    friend bool operator!=(const CMasternodePayoutShare& a, const CMasternodePayoutShare& b) { return !(a == b); }
+    bool operator==(const MasternodePayoutShare& b) const = default;
+    bool operator!=(const MasternodePayoutShare& b) const = default;
 };
 
-using MasternodePayoutShares = std::vector<CMasternodePayoutShare>;
+using MasternodePayoutShares = std::vector<MasternodePayoutShare>;
 
 [[nodiscard]] MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout);
-[[nodiscard]] MasternodePayoutShares GetOwnerPayouts(uint16_t nVersion, const CScript& script_payout,
-                                                     const MasternodePayoutShares& payouts);
+template<class T>
+[[nodiscard]] MasternodePayoutShares GetOwnerPayouts(const T& protx);
+
 [[nodiscard]] bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKeyID& keyIDOwner,
                                               const CKeyID& keyIDVoting, TxValidationState& state);
 [[nodiscard]] bool IsPayoutListKeySafe(const MasternodePayoutShares& payouts, const CTxDestination& collateral_dest,
@@ -133,7 +86,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -149,7 +102,7 @@ public:
                 obj.keyIDVoting,
                 obj.nOperatorReward
         );
-        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+        if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
             SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
             READWRITE(payouts_count);
@@ -186,8 +139,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProRegTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 class CProUpServTx
@@ -212,7 +168,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -248,8 +204,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProUpServTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 class CProUpRegTx
@@ -273,7 +232,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -283,7 +242,7 @@ public:
                 CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
                 obj.keyIDVoting
         );
-        if (obj.nVersion >= ProTxVersion::MultiPayout) {
+        if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
             SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
             READWRITE(payouts_count);
@@ -309,8 +268,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProUpRegTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 class CProUpRevTx
@@ -339,7 +301,7 @@ public:
                 obj.nVersion
         );
         if (obj.nVersion == 0 ||
-            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true, /*is_multi_payout=*/true)) {
+            obj.nVersion > ProTxVersion::GetMax(/*is_basic_scheme_active=*/true, /*is_extended_addr=*/true)) {
             // unknown version, bail out early
             return;
         }
@@ -360,8 +322,11 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool IsTriviallyValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ChainstateManager& chainman,
-                          TxValidationState& state) const;
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `CheckProUpRevTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
 };
 
 template <typename ProTx>

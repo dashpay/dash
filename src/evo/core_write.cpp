@@ -260,7 +260,7 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     }
 
     CTxDestination dest;
-    if (nVersion >= ProTxVersion::MultiPayout) {
+    if (nVersion >= ProTxVersion::ExtAddr) {
         obj.pushKV("payouts", PayoutListToJson(payouts));
     } else if (ExtractDestination(scriptPayout, dest)) {
         obj.pushKV("payoutAddress", EncodeDestination(dest));
@@ -335,7 +335,7 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    if (nVersion >= ProTxVersion::MultiPayout) {
+    if (nVersion >= ProTxVersion::ExtAddr) {
         ret.pushKV("payouts", PayoutListToJson(payouts));
     } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
@@ -373,7 +373,7 @@ UniValue CProUpRegTx::ToJson() const
     ret.pushKV("version", nVersion);
     ret.pushKV("proTxHash", proTxHash.ToString());
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    if (nVersion >= ProTxVersion::MultiPayout) {
+    if (nVersion >= ProTxVersion::ExtAddr) {
         ret.pushKV("payouts", PayoutListToJson(payouts));
     } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
@@ -582,7 +582,7 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
 
     if (extended) {
         CTxDestination dest;
-        if (nVersion >= ProTxVersion::MultiPayout) {
+        if (nVersion >= ProTxVersion::ExtAddr) {
             obj.pushKV("payouts", PayoutListToJson(payouts));
         } else if (ExtractDestination(scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));

@@ -8,9 +8,7 @@
 #include <bls/bls.h>
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
-#include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
-
 #include <merkleblock.h>
 #include <netaddress.h>
 #include <pubkey.h>
