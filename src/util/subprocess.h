@@ -1,6 +1,8 @@
+// Based on the https://github.com/arun11299/cpp-subprocess project.
+
 /*!
 
-Documentation for C++ subprocessing libraray.
+Documentation for C++ subprocessing library.
 
 @copyright The code is licensed under the [MIT
   License](http://opensource.org/licenses/MIT):
@@ -31,8 +33,10 @@ Documentation for C++ subprocessing libraray.
 @version 1.0.0
 */
 
-#ifndef SUBPROCESS_HPP
-#define SUBPROCESS_HPP
+#ifndef BITCOIN_UTIL_SUBPROCESS_H
+#define BITCOIN_UTIL_SUBPROCESS_H
+
+#include <util/syserror.h>
 
 #include <algorithm>
 #include <cassert>
@@ -106,7 +110,7 @@ namespace subprocess {
 // from pipe
 static const size_t SP_MAX_ERR_BUF_SIZ = 1024;
 
-// Default buffer capcity for OutBuffer and ErrBuffer.
+// Default buffer capacity for OutBuffer and ErrBuffer.
 // If the data exceeds this capacity, the buffer size is grown
 // by 1.5 times its previous capacity
 static const size_t DEFAULT_BUF_CAP_BYTES = 8192;
@@ -148,32 +152,13 @@ class OSError: public std::runtime_error
 {
 public:
   OSError(const std::string& err_msg, int err_code):
-    std::runtime_error( err_msg + ": " + std::strerror(err_code) )
+    std::runtime_error(err_msg + ": " + SysErrorString(err_code))
   {}
 };
 
 //--------------------------------------------------------------------
-
-//Environment Variable types
-#ifndef _MSC_VER
-	using env_string_t = std::string;
-	using env_char_t = char;
-#else
-	using env_string_t = std::wstring;
-	using env_char_t = wchar_t;
-#endif
-using env_map_t = std::map<env_string_t, env_string_t>;
-using env_vector_t = std::vector<env_char_t>;
-
-//--------------------------------------------------------------------
 namespace util
 {
-  template <typename R>
-  inline bool is_ready(std::shared_future<R> const &f)
-  {
-    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-  }
-
   inline void quote_argument(const std::wstring &argument, std::wstring &command_line,
                       bool force)
   {
@@ -303,100 +288,6 @@ namespace util
     if (!SetHandleInformation(*child_handle, HANDLE_FLAG_INHERIT, 0))
       throw OSError("SetHandleInformation", 0);
   }
-
-  // env_map_t MapFromWindowsEnvironment()
-  // * Imports current Environment in a C-string table
-  // * Parses the strings by splitting on the first "=" per line
-  // * Creates a map of the variables
-  // * Returns the map
-  inline env_map_t MapFromWindowsEnvironment(){
-      wchar_t *variable_strings_ptr;
-      wchar_t *environment_strings_ptr;
-      std::wstring delimeter(L"=");
-      int del_len = delimeter.length();
-      env_map_t mapped_environment;
-
-      // Get a pointer to the environment block.
-      environment_strings_ptr = GetEnvironmentStringsW();
-      // If the returned pointer is NULL, exit.
-      if (environment_strings_ptr == NULL)
-      {
-          throw OSError("GetEnvironmentStringsW", 0);
-      }
-
-      // Variable strings are separated by NULL byte, and the block is
-      // terminated by a NULL byte.
-
-      variable_strings_ptr = (wchar_t *) environment_strings_ptr;
-
-      //Since the environment map ends with a null, we can loop until we find it.
-      while (*variable_strings_ptr)
-      {
-          // Create a string from Variable String
-          env_string_t current_line(variable_strings_ptr);
-          // Find the first "equals" sign.
-          auto pos = current_line.find(delimeter);
-          // Assuming it's not missing ...
-          if(pos!=std::wstring::npos){
-              // ... parse the key and value.
-              env_string_t key = current_line.substr(0, pos);
-              env_string_t value = current_line.substr(pos + del_len);
-              // Map the entry.
-              mapped_environment[key] = value;
-          }
-          // Jump to next line in the environment map.
-          variable_strings_ptr += std::wcslen(variable_strings_ptr) + 1;
-      }
-      // We're done with the old environment map buffer.
-      FreeEnvironmentStringsW(environment_strings_ptr);
-
-      // Return the map.
-      return mapped_environment;
-  }
-
-  // env_vector_t WindowsEnvironmentVectorFromMap(const env_map_t &source_map)
-  // * Creates a vector buffer for the new environment string table
-  // * Copies in the mapped variables
-  // * Returns the vector
-  inline env_vector_t WindowsEnvironmentVectorFromMap(const env_map_t &source_map)
-  {
-	// Make a new environment map buffer.
-	env_vector_t environment_map_buffer;
-	// Give it some space.
-	environment_map_buffer.reserve(4096);
-
-	// And fill'er up.
-	for(auto kv: source_map){
-	  // Create the line
-	  env_string_t current_line(kv.first); current_line += L"="; current_line += kv.second;
-	  // Add the line to the buffer.
-	  std::copy(current_line.begin(), current_line.end(), std::back_inserter(environment_map_buffer));
-	  // Append a null
-	  environment_map_buffer.push_back(0);
-	}
-	// Append one last null because of how Windows does it's environment maps.
-	environment_map_buffer.push_back(0);
-
-	return environment_map_buffer;
-  }
-
-  // env_vector_t CreateUpdatedWindowsEnvironmentVector(const env_map_t &changes_map)
-  // * Merges host environment with new mapped variables
-  // * Creates and returns string vector based on map
-  inline env_vector_t CreateUpdatedWindowsEnvironmentVector(const env_map_t &changes_map){
-	// Import the environment map
-	env_map_t environment_map = MapFromWindowsEnvironment();
-    // Merge in the changes with overwrite
-	for(auto& it: changes_map)
-	{
-		environment_map[it.first] = it.second;
-	}
-    // Create a Windows-usable Environment Map Buffer
-    env_vector_t environment_map_strings_vector = WindowsEnvironmentVectorFromMap(environment_map);
-
-	return environment_map_strings_vector;
-  }
-
 #endif
 
   /*!
@@ -425,26 +316,6 @@ namespace util
       init = pos;
     }
 
-    return res;
-  }
-
-
-  /*!
-   * Function: join
-   * Parameters:
-   * [in] vec : Vector of strings which needs to be joined to form
-   *            a single string with words seperated by a seperator char.
-   *  [in] sep : String used to seperate 2 words in the joined string.
-   *             Default constructed to ' ' (space).
-   *  [out] string: Joined string.
-   */
-  static inline
-  std::string join(const std::vector<std::string>& vec,
-                   const std::string& sep = " ")
-  {
-    std::string res;
-    for (auto& elem : vec) res.append(elem + sep);
-    res.erase(--res.end());
     return res;
   }
 
@@ -650,56 +521,6 @@ namespace util
  */
 
 /*!
- * The buffer size of the stdin/stdout/stderr
- * streams of the child process.
- * Default value is 0.
- */
-struct bufsize {
-  explicit bufsize(int siz): bufsiz(siz) {}
-  int  bufsiz = 0;
-};
-
-/*!
- * Option to defer spawning of the child process
- * till `Popen::start_process` API is called.
- * Default value is false.
- */
-struct defer_spawn {
-  explicit defer_spawn(bool d): defer(d) {}
-  bool defer  = false;
-};
-
-/*!
- * Option to close all file descriptors
- * when the child process is spawned.
- * The close fd list does not include
- * input/output/error if they are explicitly
- * set as part of the Popen arguments.
- *
- * Default value is false.
- */
-struct close_fds {
-  explicit close_fds(bool c): close_all(c) {}
-  bool close_all = false;
-};
-
-/*!
- * Option to make the child process as the
- * session leader and thus the process
- * group leader.
- * Default value is false.
- */
-struct session_leader {
-  explicit session_leader(bool sl): leader_(sl) {}
-  bool leader_ = false;
-};
-
-struct shell {
-  explicit shell(bool s): shell_(s) {}
-  bool shell_ = false;
-};
-
-/*!
  * Base class for all arguments involving string value.
  */
 struct string_arg
@@ -711,7 +532,7 @@ struct string_arg
 };
 
 /*!
- * Option to specify the executable name seperately
+ * Option to specify the executable name separately
  * from the args sequence.
  * In this case the cmd args must only contain the
  * options required for this executable.
@@ -723,34 +544,6 @@ struct executable: string_arg
   template <typename T>
   executable(T&& arg): string_arg(std::forward<T>(arg)) {}
 };
-
-/*!
- * Option to set the current working directory
- * of the spawned process.
- *
- * Eg: cwd{"/som/path/x"}
- */
-struct cwd: string_arg
-{
-  template <typename T>
-  cwd(T&& arg): string_arg(std::forward<T>(arg)) {}
-};
-
-/*!
- * Option to specify environment variables required by
- * the spawned process.
- *
- * Eg: environment{{ {"K1", "V1"}, {"K2", "V2"},... }}
- */
-struct environment
-{
-  environment(env_map_t&& env):
-    env_(std::move(env)) {}
-  explicit environment(const env_map_t& env):
-    env_(env) {}
-  env_map_t env_;
-};
-
 
 /*!
  * Used for redirecting input/output/error
@@ -852,7 +645,7 @@ struct error
     wr_ch_ = fd;
   }
   explicit error(IOTYPE typ) {
-    assert ((typ == PIPE || typ == STDOUT) && "STDERR not aloowed");
+    assert ((typ == PIPE || typ == STDOUT) && "STDERR not allowed");
     if (typ == PIPE) {
 #ifndef __USING_WINDOWS__
       std::tie(rd_ch_, wr_ch_) = util::pipe_cloexec();
@@ -868,44 +661,6 @@ struct error
   int wr_ch_ = -1;
 };
 
-// Impoverished, meager, needy, truly needy
-// version of type erasure to store function pointers
-// needed to provide the functionality of preexec_func
-// ATTN: Can be used only to execute functions with no
-// arguments and returning void.
-// Could have used more efficient methods, ofcourse, but
-// that wont yield me the consistent syntax which I am
-// aiming for. If you know, then please do let me know.
-
-class preexec_func
-{
-public:
-  preexec_func() {}
-
-  template <typename Func>
-  explicit preexec_func(Func f): holder_(new FuncHolder<Func>(std::move(f)))
-  {}
-
-  void operator()() {
-    (*holder_)();
-  }
-
-private:
-  struct HolderBase {
-    virtual void operator()() const = 0;
-    virtual ~HolderBase(){};
-  };
-  template <typename T>
-  struct FuncHolder: HolderBase {
-    FuncHolder(T func): func_(std::move(func)) {}
-    void operator()() const override { func_(); }
-    // The function pointer/reference
-    T func_;
-  };
-
-  std::unique_ptr<HolderBase> holder_ = nullptr;
-};
-
 // ~~~~ End Popen Args ~~~~
 
 
@@ -915,8 +670,8 @@ private:
  * This is basically used to determine the length of the actual
  * data stored inside the dynamically resized vector.
  *
- * This is what is returned as the output to communicate and check_output
- * functions, so, users must know about this class.
+ * This is what is returned as the output to the communicate
+ * function, so, users must know about this class.
  *
  * OutBuffer and ErrBuffer are just different typedefs to this class.
  */
@@ -926,22 +681,6 @@ public:
   Buffer() {}
   explicit Buffer(size_t cap) { buf.resize(cap); }
   void add_cap(size_t cap) { buf.resize(cap); }
-
-#if 0
-  Buffer(const Buffer& other):
-    buf(other.buf),
-    length(other.length)
-  {
-    std::cout << "COPY" << std::endl;
-  }
-
-  Buffer(Buffer&& other):
-    buf(std::move(other.buf)),
-    length(other.length)
-  {
-    std::cout << "MOVE" << std::endl;
-  }
-#endif
 
 public:
   std::vector<char> buf;
@@ -1005,17 +744,9 @@ struct ArgumentDeducer
   ArgumentDeducer(Popen* p): popen_(p) {}
 
   void set_option(executable&& exe);
-  void set_option(cwd&& cwdir);
-  void set_option(bufsize&& bsiz);
-  void set_option(environment&& env);
-  void set_option(defer_spawn&& defer);
-  void set_option(shell&& sh);
   void set_option(input&& inp);
   void set_option(output&& out);
   void set_option(error&& err);
-  void set_option(close_fds&& cfds);
-  void set_option(preexec_func&& prefunc);
-  void set_option(session_leader&& sleader);
 
 private:
   Popen* popen_ = nullptr;
@@ -1166,9 +897,6 @@ public:// Yes they are public
   HANDLE g_hChildStd_ERR_Wr = nullptr;
 #endif
 
-  // Buffer size for the IO streams
-  int bufsiz_ = 0;
-
   // Pipes for communicating with child
 
   // Emulates stdin
@@ -1198,26 +926,23 @@ private:
  * interface to the client.
  *
  * API's provided by the class:
- * 1. Popen({"cmd"}, output{..}, error{..}, cwd{..}, ....)
+ * Popen({"cmd"}, output{..}, error{..}, ....)
  *    Command provided as a sequence.
- * 2. Popen("cmd arg1"m output{..}, error{..}, cwd{..}, ....)
+ * Popen("cmd arg1", output{..}, error{..}, ....)
  *    Command provided in a single string.
- * 3. wait()             - Wait for the child to exit.
- * 4. retcode()          - The return code of the exited child.
- * 5. pid()              - PID of the spawned child.
- * 6. poll()             - Check the status of the running child.
- * 7. kill(sig_num)      - Kill the child. SIGTERM used by default.
- * 8. send(...)          - Send input to the input channel of the child.
- * 9. communicate(...)   - Get the output/error from the child and close the channels
- *                         from the parent side.
- *10. input()            - Get the input channel/File pointer. Can be used for
- *                         cutomizing the way of sending input to child.
- *11. output()           - Get the output channel/File pointer. Usually used
-                           in case of redirection. See piping examples.
- *12. error()            - Get the error channel/File poiner. Usually used
-                           in case of redirection.
- *13. start_process()    - Start the child process. Only to be used when
- *                         `defer_spawn` option was provided in Popen constructor.
+ * wait()             - Wait for the child to exit.
+ * retcode()          - The return code of the exited child.
+ * pid()              - PID of the spawned child.
+ * poll()             - Check the status of the running child.
+ * send(...)          - Send input to the input channel of the child.
+ * communicate(...)   - Get the output/error from the child and close the channels
+ *                      from the parent side.
+ * input()            - Get the input channel/File pointer. Can be used for
+ *                      customizing the way of sending input to child.
+ * output()           - Get the output channel/File pointer. Usually used
+                        in case of redirection. See piping examples.
+ * error()            - Get the error channel/File pointer. Usually used
+                        in case of redirection.
  */
 class Popen
 {
@@ -1235,7 +960,7 @@ public:
     // Setup the communication channels of the Popen class
     stream_.setup_comm_channels();
 
-    if (!defer_process_start_) execute_process();
+    execute_process();
   }
 
   template <typename... Args>
@@ -1247,7 +972,7 @@ public:
     // Setup the communication channels of the Popen class
     stream_.setup_comm_channels();
 
-    if (!defer_process_start_) execute_process();
+    execute_process();
   }
 
   template <typename... Args>
@@ -1258,19 +983,9 @@ public:
     // Setup the communication channels of the Popen class
     stream_.setup_comm_channels();
 
-    if (!defer_process_start_) execute_process();
+    execute_process();
   }
 
-/*
-  ~Popen()
-  {
-#ifdef __USING_WINDOWS__
-    CloseHandle(this->process_handle_);
-#endif
-  }
-*/
-
-  void start_process() noexcept(false);
 
   int pid() const noexcept { return child_pid_; }
 
@@ -1279,10 +994,6 @@ public:
   int wait() noexcept(false);
 
   int poll() noexcept(false);
-
-  // Does not fail, Caller is expected to recheck the
-  // status with a call to poll()
-  void kill(int sig_num = 9);
 
   void set_out_buf_cap(size_t cap) { stream_.set_out_buf_cap(cap); }
 
@@ -1345,20 +1056,11 @@ private:
   std::future<void> cleanup_future_;
 #endif
 
-  bool defer_process_start_ = false;
-  bool close_fds_ = false;
-  bool has_preexec_fn_ = false;
-  bool shell_ = false;
-  bool session_leader_ = false;
-
   std::string exe_name_;
-  std::string cwd_;
-  env_map_t env_;
-  preexec_func preexec_fn_;
 
   // Command in string format
   std::string args_;
-  // Comamnd provided as sequence
+  // Command provided as sequence
   std::vector<std::string> vargs_;
   std::vector<char*> cargv_;
 
@@ -1387,20 +1089,6 @@ inline void Popen::populate_c_argv()
   cargv_.reserve(vargs_.size() + 1);
   for (auto& arg : vargs_) cargv_.push_back(&arg[0]);
   cargv_.push_back(nullptr);
-}
-
-inline void Popen::start_process() noexcept(false)
-{
-  // The process was started/tried to be started
-  // in the constructor itself.
-  // For explicitly calling this API to start the
-  // process, 'defer_spawn' argument must be set to
-  // true in the constructor.
-  if (!defer_process_start_) {
-    assert (0);
-    return;
-  }
-  execute_process();
 }
 
 inline int Popen::wait() noexcept(false)
@@ -1474,33 +1162,9 @@ inline int Popen::poll() noexcept(false)
 #endif
 }
 
-inline void Popen::kill(int sig_num)
-{
-#ifdef __USING_WINDOWS__
-  if (!TerminateProcess(this->process_handle_, (UINT)sig_num)) {
-    throw OSError("TerminateProcess", 0);
-  }
-#else
-  if (session_leader_) killpg(child_pid_, sig_num);
-  else ::kill(child_pid_, sig_num);
-#endif
-}
-
-
 inline void Popen::execute_process() noexcept(false)
 {
 #ifdef __USING_WINDOWS__
-  if (this->shell_) {
-    throw OSError("shell not currently supported on windows", 0);
-  }
-
-  void* environment_string_table_ptr = nullptr;
-  env_vector_t environment_string_vector;
-  if(this->env_.size()){
-	  environment_string_vector = util::CreateUpdatedWindowsEnvironmentVector(env_);
-	  environment_string_table_ptr = (void*)environment_string_vector.data();
-  }
-
   if (exe_name_.length()) {
     this->vargs_.insert(this->vargs_.begin(), this->exe_name_);
     this->populate_c_argv();
@@ -1546,8 +1210,8 @@ inline void Popen::execute_process() noexcept(false)
                             NULL,         // process security attributes
                             NULL,         // primary thread security attributes
                             TRUE,         // handles are inherited
-                            creation_flags,	// creation flags
-                            environment_string_table_ptr,  // use provided environment
+                            creation_flags, // creation flags
+                            NULL,         // use parent's environment
                             NULL,         // use parent's current directory
                             &siStartInfo, // STARTUPINFOW pointer
                             &piProcInfo); // receives PROCESS_INFORMATION
@@ -1585,14 +1249,6 @@ inline void Popen::execute_process() noexcept(false)
 
   int err_rd_pipe, err_wr_pipe;
   std::tie(err_rd_pipe, err_wr_pipe) = util::pipe_cloexec();
-
-  if (shell_) {
-    auto new_cmd = util::join(vargs_);
-    vargs_.clear();
-    vargs_.insert(vargs_.begin(), {"/bin/sh", "-c"});
-    vargs_.push_back(new_cmd);
-    populate_c_argv();
-  }
 
   if (exe_name_.length()) {
     vargs_.insert(vargs_.begin(), exe_name_);
@@ -1660,30 +1316,6 @@ namespace detail {
     popen_->exe_name_ = std::move(exe.arg_value);
   }
 
-  inline void ArgumentDeducer::set_option(cwd&& cwdir) {
-    popen_->cwd_ = std::move(cwdir.arg_value);
-  }
-
-  inline void ArgumentDeducer::set_option(bufsize&& bsiz) {
-    popen_->stream_.bufsiz_ = bsiz.bufsiz;
-  }
-
-  inline void ArgumentDeducer::set_option(environment&& env) {
-    popen_->env_ = std::move(env.env_);
-  }
-
-  inline void ArgumentDeducer::set_option(defer_spawn&& defer) {
-    popen_->defer_process_start_ = defer.defer;
-  }
-
-  inline void ArgumentDeducer::set_option(shell&& sh) {
-    popen_->shell_ = sh.shell_;
-  }
-
-  inline void ArgumentDeducer::set_option(session_leader&& sleader) {
-    popen_->session_leader_ = sleader.leader_;
-  }
-
   inline void ArgumentDeducer::set_option(input&& inp) {
     if (inp.rd_ch_ != -1) popen_->stream_.read_from_parent_ = inp.rd_ch_;
     if (inp.wr_ch_ != -1) popen_->stream_.write_to_child_ = inp.wr_ch_;
@@ -1704,15 +1336,6 @@ namespace detail {
     }
     if (err.wr_ch_ != -1) popen_->stream_.err_write_ = err.wr_ch_;
     if (err.rd_ch_ != -1) popen_->stream_.err_read_ = err.rd_ch_;
-  }
-
-  inline void ArgumentDeducer::set_option(close_fds&& cfds) {
-    popen_->close_fds_ = cfds.close_all;
-  }
-
-  inline void ArgumentDeducer::set_option(preexec_func&& prefunc) {
-    popen_->preexec_fn_ = std::move(prefunc);
-    popen_->has_preexec_fn_ = true;
   }
 
 
@@ -1761,41 +1384,8 @@ namespace detail {
       if (stream.err_write_ != -1 && stream.err_write_ > 2)
         close(stream.err_write_);
 
-      // Close all the inherited fd's except the error write pipe
-      if (parent_->close_fds_) {
-        int max_fd = sysconf(_SC_OPEN_MAX);
-        if (max_fd == -1) throw OSError("sysconf failed", errno);
-
-        for (int i = 3; i < max_fd; i++) {
-          if (i == err_wr_pipe_) continue;
-          close(i);
-        }
-      }
-
-      // Change the working directory if provided
-      if (parent_->cwd_.length()) {
-        sys_ret = chdir(parent_->cwd_.c_str());
-        if (sys_ret == -1) throw OSError("chdir failed", errno);
-      }
-
-      if (parent_->has_preexec_fn_) {
-        parent_->preexec_fn_();
-      }
-
-      if (parent_->session_leader_) {
-        sys_ret = setsid();
-        if (sys_ret == -1) throw OSError("setsid failed", errno);
-      }
-
       // Replace the current image with the executable
-      if (parent_->env_.size()) {
-        for (auto& kv : parent_->env_) {
-          setenv(kv.first.c_str(), kv.second.c_str(), 1);
-        }
-        sys_ret = execvp(parent_->exe_name_.c_str(), parent_->cargv_.data());
-      } else {
-        sys_ret = execvp(parent_->exe_name_.c_str(), parent_->cargv_.data());
-      }
+      sys_ret = execvp(parent_->exe_name_.c_str(), parent_->cargv_.data());
 
       if (sys_ret == -1) throw OSError("execve failed", errno);
 
@@ -1838,16 +1428,7 @@ namespace detail {
 
     for (auto& h : handles) {
       if (h == nullptr) continue;
-      switch (bufsiz_) {
-      case 0:
-        setvbuf(h, nullptr, _IONBF, BUFSIZ);
-        break;
-      case 1:
-        setvbuf(h, nullptr, _IONBF, BUFSIZ);
-        break;
-      default:
-        setvbuf(h, nullptr, _IOFBF, bufsiz_);
-      };
+      setvbuf(h, nullptr, _IONBF, BUFSIZ);
     }
   #endif
   }
@@ -1983,4 +1564,4 @@ namespace detail {
 
 }
 
-#endif // SUBPROCESS_HPP
+#endif // BITCOIN_UTIL_SUBPROCESS_H
