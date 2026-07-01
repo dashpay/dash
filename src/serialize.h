@@ -827,14 +827,12 @@ template<typename Stream, typename A, typename B, typename C> void Unserialize(S
 
 /**
  * prevector
- * prevectors of unsigned char are a special case and are intended to be serialized as a single opaque blob.
  */
 template<typename Stream, unsigned int N, typename T> inline void Serialize(Stream& os, const prevector<N, T>& v);
 template<typename Stream, unsigned int N, typename T> inline void Unserialize(Stream& is, prevector<N, T>& v);
 
 /**
  * vector
- * vectors of unsigned char are a special case and are intended to be serialized as a single opaque blob.
  */
 template<typename Stream, typename T, typename A> inline void Serialize(Stream& os, const std::vector<T, A>& v);
 template<typename Stream, typename T, typename A> inline void Unserialize(Stream& is, std::vector<T, A>& v);
@@ -1002,10 +1000,9 @@ void Unserialize(Stream& is, std::basic_string_view<C>& str)
 template <typename Stream, unsigned int N, typename T>
 void Serialize(Stream& os, const prevector<N, T>& v)
 {
-    if constexpr (std::is_same_v<T, unsigned char>) {
+    if constexpr (BasicByte<T>) { // Use optimized version for unformatted basic bytes
         WriteCompactSize(os, v.size());
-        if (!v.empty())
-            os.write(MakeByteSpan(v));
+        if (!v.empty()) os.write(MakeByteSpan(v));
     } else {
         Serialize(os, Using<VectorFormatter<DefaultFormatter>>(v));
     }
@@ -1015,7 +1012,7 @@ void Serialize(Stream& os, const prevector<N, T>& v)
 template <typename Stream, unsigned int N, typename T>
 void Unserialize(Stream& is, prevector<N, T>& v)
 {
-    if constexpr (std::is_same_v<T, unsigned char>) {
+    if constexpr (BasicByte<T>) { // Use optimized version for unformatted basic bytes
         // Limit size per read so bogus size value won't cause out of memory
         v.clear();
         unsigned int nSize = ReadCompactSize(is);
@@ -1038,10 +1035,9 @@ void Unserialize(Stream& is, prevector<N, T>& v)
 template <typename Stream, typename T, typename A>
 void Serialize(Stream& os, const std::vector<T, A>& v)
 {
-    if constexpr (std::is_same_v<T, unsigned char>) {
+    if constexpr (BasicByte<T>) { // Use optimized version for unformatted basic bytes
         WriteCompactSize(os, v.size());
-        if (!v.empty())
-            os.write(MakeByteSpan(v));
+        if (!v.empty()) os.write(MakeByteSpan(v));
     } else if constexpr (std::is_same_v<T, bool>) {
         // A special case for std::vector<bool>, as dereferencing
         // std::vector<bool>::const_iterator does not result in a const bool&
@@ -1059,7 +1055,7 @@ void Serialize(Stream& os, const std::vector<T, A>& v)
 template <typename Stream, typename T, typename A>
 void Unserialize(Stream& is, std::vector<T, A>& v)
 {
-    if constexpr (std::is_same_v<T, unsigned char>) {
+    if constexpr (BasicByte<T>) { // Use optimized version for unformatted basic bytes
         // Limit size per read so bogus size value won't cause out of memory
         v.clear();
         unsigned int nSize = ReadCompactSize(is);

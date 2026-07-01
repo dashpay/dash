@@ -104,7 +104,7 @@ protected:
     size_t m_orphan_tx_size GUARDED_BY(m_mutex){0};
 
     /** Erase an orphan by txid */
-    int _EraseTx(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+    int EraseTxNoLock(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
 };
 
 #endif // BITCOIN_TXORPHANAGE_H

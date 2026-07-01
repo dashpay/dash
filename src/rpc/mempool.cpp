@@ -346,8 +346,8 @@ UniValue MempoolToJSON(const CTxMemPool& pool, const llmq::CInstantSendManager* 
             entryToJSON(pool, info, e, isman);
             // Mempool has unique entries so there is no advantage in using
             // UniValue::pushKV, which checks if the key already exists in O(N).
-            // UniValue::__pushKV is used instead which currently is O(1).
-            o.__pushKV(hash.ToString(), info);
+            // UniValue::pushKVEnd is used instead which currently is O(1).
+            o.pushKVEnd(hash.ToString(), info);
         }
         return o;
     } else {
