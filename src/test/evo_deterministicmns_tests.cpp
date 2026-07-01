@@ -5,6 +5,7 @@
 #include <test/util/setup_common.h>
 
 #include <chainparams.h>
+#include <clientversion.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
@@ -14,12 +15,14 @@
 #include <evo/specialtxman.h>
 #include <llmq/context.h>
 #include <messagesigner.h>
+#include <netbase.h>
 #include <node/transaction.h>
 #include <policy/policy.h>
 #include <script/interpreter.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
+#include <streams.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <validation.h>
@@ -665,6 +668,91 @@ void FuncProUpRegTxV2CannotBypassV4PayoutCollateralReuse(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(val_state.GetRejectReason(), "bad-protx-payee-reuse");
 }
 
+static std::shared_ptr<NetInfoInterface> DeserializeCoreP2PExtNetInfo(const std::vector<NetInfoEntry>& entries)
+{
+    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    ds << uint8_t{1};
+    WriteCompactSize(ds, 1);
+    ds << NetInfoPurpose::CORE_P2P;
+    WriteCompactSize(ds, entries.size());
+    for (const auto& entry : entries) {
+        ds << entry;
+    }
+
+    auto net_info{std::make_shared<ExtNetInfo>()};
+    ds >> *net_info;
+    return net_info;
+}
+
+static CTransaction BuildExtNetInfoProRegTx(std::shared_ptr<NetInfoInterface> net_info)
+{
+    CKey owner_key;
+    owner_key.MakeNewKey(true);
+    CBLSSecretKey operator_key;
+    operator_key.MakeNewKey();
+
+    CProRegTx pro_reg;
+    pro_reg.nVersion = ProTxVersion::ExtAddr;
+    pro_reg.netInfo = std::move(net_info);
+    pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_reg.keyIDVoting = owner_key.GetPubKey().GetID();
+    pro_reg.scriptPayout = GenerateRandomAddress();
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_REGISTER;
+    pro_reg.inputsHash = CalcTxInputsHash(CTransaction(tx));
+    SetTxPayload(tx, pro_reg);
+    return CTransaction(tx);
+}
+
+void FuncProRegTxRejectsInvalidDeserializedExtNetInfo(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    for (int i = 0; i < 2000 && !DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24); ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+    }
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+
+    auto check_reject_reason = [&](std::shared_ptr<NetInfoInterface> net_info, const std::string& reject_reason) {
+        TxValidationState state;
+        {
+            LOCK(cs_main);
+            BOOST_CHECK(!CheckProRegTx(BuildExtNetInfoProRegTx(std::move(net_info)), chainman.ActiveChain().Tip(),
+                                       dmnman, chainman.ActiveChainstate().CoinsTip(), chainman, state,
+                                       /*check_sigs=*/false));
+        }
+        BOOST_CHECK_EQUAL(state.GetResult(), TxValidationResult::TX_BAD_SPECIAL);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), reject_reason);
+    };
+
+    const uint16_t port{9998};
+    const NetInfoEntry p2p_entry{LookupNumeric("1.1.1.1", port)};
+    BOOST_REQUIRE(p2p_entry.IsTriviallyValid());
+    check_reject_reason(DeserializeCoreP2PExtNetInfo({p2p_entry, p2p_entry}), "bad-protx-dup-netinfo-entry");
+
+    std::vector<NetInfoEntry> too_many_entries;
+    for (size_t i = 1; i <= MAX_ENTRIES_EXTNETINFO + 1; ++i) {
+        const NetInfoEntry entry{LookupNumeric(strprintf("1.1.1.%d", i), port)};
+        BOOST_REQUIRE(entry.IsTriviallyValid());
+        too_many_entries.emplace_back(entry);
+    }
+    check_reject_reason(DeserializeCoreP2PExtNetInfo(too_many_entries), "bad-protx-netinfo-toomany");
+
+    DomainPort domain;
+    BOOST_REQUIRE_EQUAL(domain.Set("example.com", 443), DomainPort::Status::Success);
+    const NetInfoEntry domain_entry{domain};
+    BOOST_REQUIRE(domain_entry.IsTriviallyValid());
+    check_reject_reason(DeserializeCoreP2PExtNetInfo({domain_entry}), "bad-protx-netinfo-entry");
+}
+
 void FuncDIP3Protx(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
@@ -1266,6 +1354,12 @@ BOOST_AUTO_TEST_CASE(proupreg_v2_cannot_bypass_v4_payout_collateral_reuse)
 {
     TestChainV24SignalBeforeV19Setup setup;
     FuncProUpRegTxV2CannotBypassV4PayoutCollateralReuse(setup);
+}
+
+BOOST_AUTO_TEST_CASE(proregtx_rejects_invalid_deserialized_extnetinfo)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncProRegTxRejectsInvalidDeserializedExtNetInfo(setup);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)
