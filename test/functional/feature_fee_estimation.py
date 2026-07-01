@@ -22,7 +22,7 @@ from test_framework.wallet import MiniWallet
 
 
 def small_txpuzzle_randfee(
-    wallet, from_node, conflist, unconflist, amount, min_fee, fee_increment
+    wallet, from_node, conflist, unconflist, amount, min_fee, fee_increment, batch_reqs
 ):
     """Create and send a transaction with a random fee using MiniWallet.
 
@@ -56,8 +56,11 @@ def small_txpuzzle_randfee(
     tx.vout[0].nValue = int((total_in - amount - fee) * COIN)
     tx.vout.append(deepcopy(tx.vout[0]))
     tx.vout[1].nValue = int(amount * COIN)
+    tx.rehash()
+    txid = tx.hash
+    tx_hex = tx.serialize().hex()
 
-    txid = from_node.sendrawtransaction(hexstring=tx.serialize().hex(), maxfeerate=0)
+    batch_reqs.append(from_node.sendrawtransaction.get_request(hexstring=tx_hex, maxfeerate=0))
     unconflist.append({"txid": txid, "vout": 0, "value": total_in - amount - fee})
     unconflist.append({"txid": txid, "vout": 1, "value": amount})
 
@@ -146,6 +149,7 @@ class EstimateFeeTest(BitcoinTestFramework):
         # resorting to tx's that depend on the mempool when those run out
         for _ in range(numblocks):
             random.shuffle(self.confutxo)
+            batch_sendtx_reqs = []
             for _ in range(random.randrange(100 - 50, 100 + 50)):
                 from_index = random.randint(1, 2)
                 (tx_bytes, fee) = small_txpuzzle_randfee(
@@ -156,9 +160,12 @@ class EstimateFeeTest(BitcoinTestFramework):
                     Decimal("0.005"),
                     min_fee,
                     min_fee,
+                    batch_sendtx_reqs,
                 )
                 tx_kbytes = tx_bytes / 1000.0
                 self.fees_per_kb.append(float(fee) / tx_kbytes)
+            for node in self.nodes:
+                node.batch(batch_sendtx_reqs)
             self.sync_mempools(wait=0.1)
             mined = mining_node.getblock(self.generate(mining_node, 1)[0], True)["tx"]
             # update which txouts are confirmed
@@ -215,6 +222,7 @@ class EstimateFeeTest(BitcoinTestFramework):
         check_estimates(self.nodes[1], self.fees_per_kb)
         self.stop_node(1)
 
+
     def run_test(self):
         self.log.info("This test is time consuming, please be patient")
         self.log.info("Splitting inputs so we can generate tx's")
@@ -222,7 +230,6 @@ class EstimateFeeTest(BitcoinTestFramework):
         # Split two coinbases into many small utxos
         self.start_node(0)
         self.wallet = MiniWallet(self.nodes[0])
-        self.wallet.rescan_utxos()
         self.initial_split(self.nodes[0])
         self.log.info("Finished splitting")
 
