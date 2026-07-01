@@ -59,7 +59,7 @@ CTxDestination AddAndGetDestinationForScript(FillableSigningProvider& keystore, 
     // Add script to keystore
     keystore.AddCScript(script);
     ScriptHash sh(script);
-    // Note that scripts over 520 bytes are not yet supported.
+    // Note that scripts over MAX_SCRIPT_ELEMENT_SIZE bytes are not yet supported.
     switch (type) {
     case OutputType::LEGACY:
         keystore.AddCScript(GetScriptForDestination(sh));
