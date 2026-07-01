@@ -4938,11 +4938,11 @@ void PeerManagerImpl::ProcessMessage(
                         std::vector<CInv> vInv(1);
                         vInv[0] = CInv(MSG_BLOCK, blockhash);
                         m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETDATA, vInv));
-                        return;
                     } else {
                         // Give up for this peer and wait for other peer(s)
                         RemoveBlockRequest(pindex->GetBlockHash(), pfrom.GetId());
                     }
+                    return;
                 }
 
                 BlockTransactionsRequest req;
