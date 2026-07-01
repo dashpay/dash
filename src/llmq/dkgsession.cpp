@@ -69,11 +69,6 @@ CDKGMember::CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx) :
 {
 }
 
-uint256 CDKGPrematureCommitment::GetSignHash() const
-{
-    return BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
-}
-
 CDKGSession::CDKGSession(CBLSWorker& _blsWorker, CDeterministicMNManager& dmnman, CDKGDebugManager& _dkgDebugManager,
                          CDKGSessionManager& _dkgManager, CQuorumSnapshotManager& qsnapman,
                          const ChainstateManager& chainman, const CBlockIndex* pQuorumBaseBlockIndex,
@@ -174,6 +169,15 @@ bool CDKGSession::PreVerifyMessage(const CDKGContribution& qc, bool& retBan) con
     auto* member = GetMember(qc.proTxHash);
     if (member == nullptr) {
         logger.Batch("contributor not a member of this quorum, rejecting contribution");
+        retBan = true;
+        return false;
+    }
+
+    // Reject a structurally-invalid (e.g. all-zero) signature here. This is a cheap
+    // validity check, not the batched signature verification; it ensures the message
+    // never reaches CBLSSignature::AggregateInsecure(), which asserts validity.
+    if (!qc.sig.IsValid()) {
+        logger.Batch("invalid contribution signature");
         retBan = true;
         return false;
     }
@@ -279,6 +283,14 @@ bool CDKGSession::PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const
         return false;
     }
 
+    // Cheap validity check (not the batched signature verification): reject a
+    // structurally-invalid signature before it can reach AggregateInsecure().
+    if (!qc.sig.IsValid()) {
+        logger.Batch("invalid complaint signature");
+        retBan = true;
+        return false;
+    }
+
     if (qc.badMembers.size() != (size_t)params.size) {
         logger.Batch("invalid badMembers bitset size");
         retBan = true;
@@ -356,6 +368,14 @@ bool CDKGSession::PreVerifyMessage(const CDKGJustification& qj, bool& retBan) co
     auto* member = GetMember(qj.proTxHash);
     if (member == nullptr) {
         logger.Batch("justifier not a member of this quorum, rejecting justification");
+        retBan = true;
+        return false;
+    }
+
+    // Cheap validity check (not the batched signature verification): reject a
+    // structurally-invalid signature before it can reach AggregateInsecure().
+    if (!qj.sig.IsValid()) {
+        logger.Batch("invalid justification signature");
         retBan = true;
         return false;
     }

@@ -139,6 +139,7 @@ BASE_SCRIPTS = [
     'feature_llmq_evo.py', # NOTE: needs dash_hash to pass
     'feature_llmq_is_cl_conflicts.py', # NOTE: needs dash_hash to pass
     'feature_llmq_dkgerrors.py', # NOTE: needs dash_hash to pass
+    'feature_llmq_dkg_intake.py', # NOTE: needs dash_hash to pass
     'feature_llmq_singlenode.py', # NOTE: needs dash_hash to pass
     'feature_dip4_coinbasemerkleroots.py', # NOTE: needs dash_hash to pass
     'feature_mnehf.py', # NOTE: needs dash_hash to pass
@@ -344,6 +345,7 @@ BASE_SCRIPTS = [
     'feature_new_quorum_type_activation.py',
     'feature_governance_objects.py',
     'p2p_governance_invs.py',
+    'p2p_govsync_bloom.py',
     'rpc_uptime.py',
     'feature_discover.py',
     'wallet_resendwallettransactions.py --legacy-wallet',
