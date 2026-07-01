@@ -520,12 +520,12 @@ def get_chain_conf_names(chain):
 
 def get_bip9_details(node, key):
     """Return extra info about bip9 softfork"""
-    return node.getblockchaininfo()['softforks'][key]['bip9']
+    return node.getdeploymentinfo()['deployments'][key]['bip9']
 
 
 def softfork_active(node, key):
     """Return whether a softfork is active."""
-    return node.getblockchaininfo()['softforks'][key]['active']
+    return node.getdeploymentinfo()['deployments'][key]['active']
 
 
 def set_node_times(nodes, t):

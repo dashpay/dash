@@ -6,6 +6,7 @@
 
 Test the following RPCs:
     - getblockchaininfo
+    - getdeploymentinfo
     - getchaintxstats
     - gettxoutsetinfo
     - getblockheader
@@ -94,6 +95,7 @@ class BlockchainTest(BitcoinTestFramework):
         self._test_stopatheight()
         self._test_waitforblockheight()
         self._test_getblock()
+        self._test_getdeploymentinfo()
         self._test_y2106()
         assert self.nodes[0].verifychain(4, 0)
 
@@ -132,7 +134,6 @@ class BlockchainTest(BitcoinTestFramework):
             'mediantime',
             'pruned',
             'size_on_disk',
-            'softforks',
             'time',
             'verificationprogress',
             'warnings',
@@ -177,19 +178,6 @@ class BlockchainTest(BitcoinTestFramework):
             '-stopatheight=207',
             '-prune=550',
             '-txindex=0',
-            '-testactivationheight=bip34@2',
-            '-testactivationheight=dersig@3',
-            '-testactivationheight=cltv@4',
-            '-testactivationheight=csv@5',
-            '-testactivationheight=bip147@6',
-            '-testactivationheight=dip0001@10',
-            '-dip3params=411:511',
-            '-testactivationheight=dip0008@12',
-            '-testactivationheight=dip0024@13',
-            '-testactivationheight=brr@14',
-            '-testactivationheight=v19@15',
-            '-testactivationheight=v20@412', # no earlier than DIP0003
-            '-testactivationheight=mn_rr@413',
         ])
 
         res = self.nodes[0].getblockchaininfo()
@@ -202,7 +190,14 @@ class BlockchainTest(BitcoinTestFramework):
         assert res['automatic_pruning']
         assert_equal(res['prune_target_size'], 576716800)
         assert_greater_than(res['size_on_disk'], 0)
-        assert_equal(res['softforks'], {
+
+    def check_signalling_deploymentinfo_result(self, gdi_result, height, blockhash, status_next):
+        assert height >= 144 and height <= 287
+
+        assert_equal(gdi_result, {
+          "hash": blockhash,
+          "height": height,
+          "deployments": {
             'bip34': {'type': 'buried', 'active': True, 'height': 2},
             'bip66': {'type': 'buried', 'active': True, 'height': 3},
             'bip65': {'type': 'buried', 'active': True, 'height': 4},
@@ -221,34 +216,73 @@ class BlockchainTest(BitcoinTestFramework):
             'v24': {
                 'type': 'bip9',
                 'bip9': {
-                    'status': 'defined',
                     'start_time': 0,
                     'timeout': 9223372036854775807,  # "v24" does not have a timeout so is set to the max int64 value
-                    'since': 0,
                     'min_activation_height': 0,
-                    'ehf': True
+                    'since': 0,
+                    'status': 'defined',
+                    'status_next': 'defined',
+                    'ehf': True,
                 },
-                'active': False},
+                'active': False
+            },
             'testdummy': {
                 'type': 'bip9',
                 'bip9': {
-                    'status': 'started',
                     'bit': 28,
                     'start_time': 0,
                     'timeout': 9223372036854775807,  # testdummy does not have a timeout so is set to the max int64 value
+                    'min_activation_height': 0,
                     'since': 144,
+                    'status': 'started',
+                    'status_next': status_next,
                     'statistics': {
                         'period': 144,
                         'threshold': 108,
-                        'elapsed': HEIGHT - 143,
-                        'count': HEIGHT - 143,
+                        'elapsed': height - 143,
+                        'count': height - 143,
                         'possible': True,
                     },
-                    'min_activation_height': 0,
                     'ehf': False,
+                    'signalling': '#'*(height-143),
                 },
-                'active': False},
+                'active': False
+            }
+          }
         })
+
+    def _test_getdeploymentinfo(self):
+        # Note: continues past -stopatheight height, so must be invoked
+        # after _test_stopatheight
+
+        self.log.info("Test getdeploymentinfo")
+        self.stop_node(0)
+        self.start_node(0, extra_args=[
+            '-testactivationheight=bip34@2',
+            '-testactivationheight=dersig@3',
+            '-testactivationheight=cltv@4',
+            '-testactivationheight=csv@5',
+            '-testactivationheight=bip147@6',
+            '-testactivationheight=dip0001@10',
+            '-dip3params=411:511',
+            '-testactivationheight=dip0008@12',
+            '-testactivationheight=dip0024@13',
+            '-testactivationheight=brr@14',
+            '-testactivationheight=v19@15',
+            '-testactivationheight=v20@412', # no earlier than DIP0003
+            '-testactivationheight=mn_rr@413',
+        ])
+
+        gbci207 = self.nodes[0].getblockchaininfo()
+        self.check_signalling_deploymentinfo_result(self.nodes[0].getdeploymentinfo(), gbci207["blocks"], gbci207["bestblockhash"], "started")
+
+        # block just prior to lock in
+        self.generate(self.wallet, 287 - gbci207["blocks"])
+        gbci287 = self.nodes[0].getblockchaininfo()
+        self.check_signalling_deploymentinfo_result(self.nodes[0].getdeploymentinfo(), gbci287["blocks"], gbci287["bestblockhash"], "locked_in")
+
+        # calling with an explicit hash works
+        self.check_signalling_deploymentinfo_result(self.nodes[0].getdeploymentinfo(gbci207["bestblockhash"]), gbci207["blocks"], gbci207["bestblockhash"], "started")
 
     def _test_y2106(self):
         self.log.info("Check that block timestamps work until year 2106")
