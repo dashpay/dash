@@ -559,6 +559,8 @@ static RPCHelpMan getblocktemplate()
                             {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "client side supported softfork deployment"},
                         },
                         },
+                    {"longpollid", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "delay processing request until the result would vary significantly from the \"longpollid\" of a prior template"},
+                    {"data", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED_NAMED_ARG, "proposed block data to check, encoded in hexadecimal; valid only for mode=\"proposal\""},
                 },
                 "\"template_request\""},
         },
