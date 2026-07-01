@@ -142,6 +142,7 @@ static constexpr auto BLOCK_STALLING_TIMEOUT_MAX{64s};
 static const int MAX_CMPCTBLOCK_DEPTH = 5;
 /** Maximum depth of blocks we're willing to respond to GETBLOCKTXN requests for. */
 static const int MAX_BLOCKTXN_DEPTH = 10;
+static_assert(MAX_BLOCKTXN_DEPTH <= MIN_BLOCKS_TO_KEEP, "MAX_BLOCKTXN_DEPTH too high");
 /** Size of the "block download window": how far ahead of our current height do we fetch?
  *  Larger windows tolerate larger download speed differences between peer, but increase the potential
  *  degree of disordering of blocks on disk (which make reindexing and pruning harder). We'll probably
@@ -4473,6 +4474,7 @@ void PeerManagerImpl::ProcessMessage(
             return;
         }
 
+        FlatFilePos block_pos{};
         {
             LOCK(cs_main);
 
@@ -4483,13 +4485,20 @@ void PeerManagerImpl::ProcessMessage(
             }
 
             if (pindex->nHeight >= m_chainman.ActiveChain().Height() - MAX_BLOCKTXN_DEPTH) {
-                CBlock block;
-                bool ret = ReadBlockFromDisk(block, pindex, m_chainparams.GetConsensus());
-                assert(ret);
+                block_pos = pindex->GetBlockPos();
+            }
+        }
 
-                SendBlockTransactions(pfrom, *peer, block, req);
+        if (!block_pos.IsNull()) {
+            CBlock block;
+            const auto hash = ReadBlockFromDisk(block, block_pos, m_chainparams.GetConsensus());
+            if (!hash || *hash != req.blockhash) {
+                LogPrint(BCLog::NET, "Peer %d sent us a getblocktxn for a block we could not read\n", pfrom.GetId());
                 return;
             }
+
+            SendBlockTransactions(pfrom, *peer, block, req);
+            return;
         }
 
         // If an older block is requested (should never happen in practice,
