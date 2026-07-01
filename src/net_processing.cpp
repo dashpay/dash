@@ -4729,7 +4729,7 @@ void PeerManagerImpl::ProcessMessage(
 
                 // DoS prevention: do not allow m_orphans to grow unbounded (see CVE-2012-3789)
                 unsigned int nMaxOrphanTxSize = (unsigned int)std::max((int64_t)0, gArgs.GetIntArg("-maxorphantxsize", DEFAULT_MAX_ORPHAN_TRANSACTIONS_SIZE)) * 1000000;
-                m_orphanage.LimitOrphans(nMaxOrphanTxSize);
+                m_orphanage.LimitOrphans(nMaxOrphanTxSize, m_rng);
             } else {
                 LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
                 // We will continue to reject this tx since it has rejected
