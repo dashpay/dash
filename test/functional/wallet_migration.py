@@ -6,6 +6,7 @@
 
 import os
 import random
+import shutil
 from test_framework.descriptors import descsum_create
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -37,11 +38,13 @@ class WalletMigrationTest(BitcoinTestFramework):
             assert_equal(file_magic, b'SQLite format 3\x00')
         assert_equal(self.nodes[0].get_wallet_rpc(wallet_name).getwalletinfo()["format"], "sqlite")
 
-    def create_legacy_wallet(self, wallet_name):
-        self.nodes[0].createwallet(wallet_name=wallet_name)
+    def create_legacy_wallet(self, wallet_name, disable_private_keys=False, blank=False):
+        self.nodes[0].createwallet(wallet_name=wallet_name, descriptors=False, disable_private_keys=disable_private_keys, blank=blank)
         wallet = self.nodes[0].get_wallet_rpc(wallet_name)
-        assert_equal(wallet.getwalletinfo()["descriptors"], False)
-        assert_equal(wallet.getwalletinfo()["format"], "bdb")
+        info = wallet.getwalletinfo()
+        assert_equal(info["descriptors"], False)
+        assert_equal(info["format"], "bdb")
+        assert_equal(info["private_keys_enabled"], not disable_private_keys)
         return wallet
 
     def assert_addr_info_equal(self, addr_info, addr_info_old):
@@ -61,6 +64,15 @@ class WalletMigrationTest(BitcoinTestFramework):
             if "parent_descs" in d:
                 del d["parent_descs"]
         assert_equal(received_list_txs, expected_list_txs)
+
+    def check_address(self, wallet, addr, is_mine, is_change, label):
+        addr_info = wallet.getaddressinfo(addr)
+        assert_equal(addr_info['ismine'], is_mine)
+        assert_equal(addr_info['ischange'], is_change)
+        if label is not None:
+            assert_equal(addr_info['labels'], [label]),
+        else:
+            assert_equal(addr_info['labels'], []),
 
     def test_basic(self):
         default = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
@@ -174,8 +186,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         BASIC2_SEED_WIF = "cMai6KJ8sHnNejZctqjiYdg2KSLeiaKcuTbZQrJNEjmMY5JQw6eP"
         BASIC2_SEED_XPRV = "tprv8ZgxMBicQKsPe48qChGvN9oKqP6PP2Ecaso2tZ254CTd85JyX3dPfaWw3vWN4wgQeaNrX8ZfK3Zq2Q5LHvEoyfZv3mmJpyUz1caSFLya1Ca"
 
-        self.nodes[0].createwallet(wallet_name="basic2", blank=True)
-        basic2 = self.nodes[0].get_wallet_rpc("basic2")
+        basic2 = self.create_legacy_wallet("basic2", blank=True)
         basic2.sethdseed(True, BASIC2_SEED_WIF)
         assert_equal(basic2.getbalance(), 0)
 
@@ -228,11 +239,9 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         # Some keys in multisig do not belong to this wallet
         self.log.info("Test migration of a wallet that has some keys in a multisig")
-        self.nodes[0].createwallet(wallet_name="multisig1")
-        multisig1 = self.nodes[0].get_wallet_rpc("multisig1")
+        multisig1 = self.create_legacy_wallet("multisig1")
         ms_info = multisig1.addmultisigaddress(2, [multisig1.getnewaddress(), pub1, pub2])
         ms_info2 = multisig1.addmultisigaddress(2, [multisig1.getnewaddress(), pub1, pub2])
-        assert_equal(multisig1.getwalletinfo()["descriptors"], False)
 
         addr1 = ms_info["address"]
         addr2 = ms_info2["address"]
@@ -297,9 +306,7 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         # Wallet with an imported address. Should be the same thing as the multisig test
         self.log.info("Test migration of a wallet with watchonly imports")
-        self.nodes[0].createwallet(wallet_name="imports0")
-        imports0 = self.nodes[0].get_wallet_rpc("imports0")
-        assert_equal(imports0.getwalletinfo()["descriptors"], False)
+        imports0 = self.create_legacy_wallet("imports0")
 
         # External address label
         imports0.setlabel(default.getnewaddress(), "external")
@@ -366,11 +373,7 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         # Migrating an actual watchonly wallet should not create a new watchonly wallet
         self.log.info("Test migration of a pure watchonly wallet")
-        self.nodes[0].createwallet(wallet_name="watchonly0", disable_private_keys=True)
-        watchonly0 = self.nodes[0].get_wallet_rpc("watchonly0")
-        info = watchonly0.getwalletinfo()
-        assert_equal(info["descriptors"], False)
-        assert_equal(info["private_keys_enabled"], False)
+        watchonly0 = self.create_legacy_wallet("watchonly0", disable_private_keys=True)
 
         addr = default.getnewaddress()
         desc = default.getaddressinfo(addr)["desc"]
@@ -393,11 +396,7 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         # Migrating a wallet with pubkeys added to the keypool
         self.log.info("Test migration of a pure watchonly wallet with pubkeys in keypool")
-        self.nodes[0].createwallet(wallet_name="watchonly1", disable_private_keys=True)
-        watchonly1 = self.nodes[0].get_wallet_rpc("watchonly1")
-        info = watchonly1.getwalletinfo()
-        assert_equal(info["descriptors"], False)
-        assert_equal(info["private_keys_enabled"], False)
+        watchonly1 = self.create_legacy_wallet("watchonly1", disable_private_keys=True)
 
         addr1 = default.getnewaddress()
         addr2 = default.getnewaddress()
@@ -542,6 +541,166 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         self.assert_is_sqlite(nested_name)
 
+    def test_default_wallet(self):
+        self.log.info("Test migration of the wallet named as the empty string")
+        wallet = self.create_legacy_wallet("")
+
+        wallet.migratewallet()
+        info = wallet.getwalletinfo()
+        assert_equal(info["descriptors"], True)
+        assert_equal(info["format"], "sqlite")
+
+    def test_direct_file(self):
+        self.log.info("Test migration of a wallet that is not in a wallet directory")
+        wallet = self.create_legacy_wallet("plainfile")
+        wallet.unloadwallet()
+
+        wallets_dir = os.path.join(self.nodes[0].datadir, "regtest", "wallets")
+        wallet_path = os.path.join(wallets_dir, "plainfile")
+        wallet_dat_path = os.path.join(wallet_path, "wallet.dat")
+        shutil.copyfile(wallet_dat_path, os.path.join(wallets_dir, "plainfile.bak"))
+        shutil.rmtree(wallet_path)
+        shutil.move(os.path.join(wallets_dir, "plainfile.bak"), wallet_path)
+
+        self.nodes[0].loadwallet("plainfile")
+        info = wallet.getwalletinfo()
+        assert_equal(info["descriptors"], False)
+        assert_equal(info["format"], "bdb")
+
+        wallet.migratewallet()
+        info = wallet.getwalletinfo()
+        assert_equal(info["descriptors"], True)
+        assert_equal(info["format"], "sqlite")
+
+        assert os.path.isdir(wallet_path)
+        assert os.path.isfile(wallet_dat_path)
+
+    def test_addressbook(self):
+        df_wallet = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
+
+        self.log.info("Test migration of address book data")
+        wallet = self.create_legacy_wallet("legacy_addrbook")
+        df_wallet.sendtoaddress(wallet.getnewaddress(), 3)
+
+        # Import watch-only script to create a watch-only wallet after migration
+        watch_addr = df_wallet.getnewaddress()
+        wallet.importaddress(watch_addr)
+        df_wallet.sendtoaddress(watch_addr, 2)
+
+        # Import solvable script
+        multi_addr1 = wallet.getnewaddress()
+        multi_addr2 = wallet.getnewaddress()
+        multi_addr3 = df_wallet.getnewaddress()
+        wallet.importpubkey(df_wallet.getaddressinfo(multi_addr3)["pubkey"])
+        ms_addr_info = wallet.addmultisigaddress(2, [multi_addr1, multi_addr2, multi_addr3])
+
+        self.generate(self.nodes[0], 1)
+
+        # Test vectors
+        addr_external = {
+            "addr": df_wallet.getnewaddress(),
+            "is_mine": False,
+            "is_change": False,
+            "label": ""
+        }
+        addr_external_with_label = {
+            "addr": df_wallet.getnewaddress(),
+            "is_mine": False,
+            "is_change": False,
+            "label": "external"
+        }
+        addr_internal = {
+            "addr": wallet.getnewaddress(),
+            "is_mine": True,
+            "is_change": False,
+            "label": ""
+        }
+        addr_internal_with_label = {
+            "addr": wallet.getnewaddress(),
+            "is_mine": True,
+            "is_change": False,
+            "label": "internal"
+        }
+        change_address = {
+            "addr": wallet.getrawchangeaddress(),
+            "is_mine": True,
+            "is_change": True,
+            "label": None
+        }
+        watch_only_addr = {
+            "addr": watch_addr,
+            "is_mine": False,
+            "is_change": False,
+            "label": "imported"
+        }
+        ms_addr = {
+            "addr": ms_addr_info['address'],
+            "is_mine": False,
+            "is_change": False,
+            "label": "multisig"
+        }
+
+        # To store the change address in the addressbook need to send coins to it
+        wallet.send(outputs=[{wallet.getnewaddress(): 2}], options={"change_address": change_address['addr']})
+        self.generate(self.nodes[0], 1)
+
+        # Util wrapper func for 'addr_info'
+        def check(info, node):
+            self.check_address(node, info['addr'], info['is_mine'], info['is_change'], info["label"])
+
+        # Pre-migration: set label and perform initial checks
+        for addr_info in [addr_external, addr_external_with_label, addr_internal, addr_internal_with_label, change_address, watch_only_addr, ms_addr]:
+            if not addr_info['is_change']:
+                wallet.setlabel(addr_info['addr'], addr_info["label"])
+            check(addr_info, wallet)
+
+        # Migrate wallet
+        info_migration = wallet.migratewallet()
+        wallet_wo = self.nodes[0].get_wallet_rpc(info_migration["watchonly_name"])
+        wallet_solvables = self.nodes[0].get_wallet_rpc(info_migration["solvables_name"])
+
+        #########################
+        # Post migration checks #
+        #########################
+
+        # First check the main wallet
+        for addr_info in [addr_external, addr_external_with_label, addr_internal, addr_internal_with_label, change_address, ms_addr]:
+            check(addr_info, wallet)
+
+        # Watch-only wallet will contain the watch-only entry (with 'is_mine=True') and all external addresses ('send')
+        self.check_address(wallet_wo, watch_only_addr['addr'], is_mine=True, is_change=watch_only_addr['is_change'], label=watch_only_addr["label"])
+        for addr_info in [addr_external, addr_external_with_label, ms_addr]:
+            check(addr_info, wallet_wo)
+
+        # Solvables wallet will contain the multisig entry (with 'is_mine=True') and all external addresses ('send')
+        self.check_address(wallet_solvables, ms_addr['addr'], is_mine=True, is_change=ms_addr['is_change'], label=ms_addr["label"])
+        for addr_info in [addr_external, addr_external_with_label]:
+            check(addr_info, wallet_solvables)
+
+        ########################################################################################
+        # Now restart migrated wallets and verify that the addressbook entries are still there #
+        ########################################################################################
+
+        # First the main wallet
+        self.nodes[0].unloadwallet("legacy_addrbook")
+        self.nodes[0].loadwallet("legacy_addrbook")
+        for addr_info in [addr_external, addr_external_with_label, addr_internal, addr_internal_with_label, change_address, ms_addr]:
+            check(addr_info, wallet)
+
+        # Watch-only wallet
+        self.nodes[0].unloadwallet(info_migration["watchonly_name"])
+        self.nodes[0].loadwallet(info_migration["watchonly_name"])
+        self.check_address(wallet_wo, watch_only_addr['addr'], is_mine=True, is_change=watch_only_addr['is_change'], label=watch_only_addr["label"])
+        for addr_info in [addr_external, addr_external_with_label, ms_addr]:
+            check(addr_info, wallet_wo)
+
+        # Solvables wallet
+        self.nodes[0].unloadwallet(info_migration["solvables_name"])
+        self.nodes[0].loadwallet(info_migration["solvables_name"])
+        self.check_address(wallet_solvables, ms_addr['addr'], is_mine=True, is_change=ms_addr['is_change'], label=ms_addr["label"])
+        for addr_info in [addr_external, addr_external_with_label]:
+            check(addr_info, wallet_solvables)
+
     def run_test(self):
         self.generate(self.nodes[0], 101)
 
@@ -555,6 +714,9 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.test_unloaded()
         self.test_unloaded_by_path()
         self.test_wallet_name_with_slashes()
+        self.test_default_wallet()
+        self.test_direct_file()
+        self.test_addressbook()
 
 if __name__ == '__main__':
     WalletMigrationTest().main()

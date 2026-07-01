@@ -3240,6 +3240,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         for (auto spk_man : walletInstance->GetActiveScriptPubKeyMans()) {
             if (spk_man->HavePrivateKeys()) {
                 warnings.push_back(strprintf(_("Warning: Private keys detected in wallet {%s} with disabled private keys"), walletFile));
+                break;
             }
         }
     }
@@ -4363,16 +4364,19 @@ bool CWallet::MigrateToSQLite(bilingual_str& error)
 
     // Close this database and delete the file
     fs::path db_path = fs::PathFromString(m_database->Filename());
-    fs::path db_dir = db_path.parent_path();
     m_database->Close();
     fs::remove(db_path);
+
+    // Generate the path for the location of the migrated wallet
+    // Wallets that are plain files rather than wallet directories will be migrated to be wallet directories.
+    const fs::path wallet_path = fsbridge::AbsPathJoin(GetWalletDir(), fs::PathFromString(m_name));
 
     // Make new DB
     DatabaseOptions opts;
     opts.require_create = true;
     opts.require_format = DatabaseFormat::SQLITE;
     DatabaseStatus db_status;
-    std::unique_ptr<WalletDatabase> new_db = MakeDatabase(db_dir, opts, db_status, error);
+    std::unique_ptr<WalletDatabase> new_db = MakeDatabase(wallet_path, opts, db_status, error);
     assert(new_db); // This is to prevent doing anything further with this wallet. The original file was deleted, but a backup exists.
     m_database.reset();
     m_database = std::move(new_db);
@@ -4552,7 +4556,7 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
                 return false;
             }
         } else {
-            // Labels for everything else (send) should be cloned to all
+            // Labels for everything else ("send") should be cloned to all
             if (data.watchonly_wallet) {
                 LOCK(data.watchonly_wallet->cs_wallet);
                 // Add to the watchonly. Preserve the labels, purpose, and change-ness
@@ -4564,7 +4568,6 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
                 if (!addr_pair.second.IsChange()) {
                     data.watchonly_wallet->m_address_book[addr_pair.first].SetLabel(label);
                 }
-                continue;
             }
             if (data.solvable_wallet) {
                 LOCK(data.solvable_wallet->cs_wallet);
@@ -4577,7 +4580,6 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
                 if (!addr_pair.second.IsChange()) {
                     data.solvable_wallet->m_address_book[addr_pair.first].SetLabel(label);
                 }
-                continue;
             }
         }
     }
@@ -4589,10 +4591,10 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
         for (const auto& [destination, addr_book_data] : wallet.m_address_book) {
             auto address{EncodeDestination(destination)};
             auto purpose{addr_book_data.purpose};
-            auto label{addr_book_data.GetLabel()};
-            // don't bother writing default values (unknown purpose, empty label)
+            std::optional<std::string> label = addr_book_data.IsChange() ? std::nullopt : std::make_optional(addr_book_data.GetLabel());
+            // don't bother writing default values (unknown purpose)
             if (purpose != "unknown") batch.WritePurpose(address, purpose);
-            if (!label.empty()) batch.WriteName(address, label);
+            if (label) batch.WriteName(address, *label);
         }
     };
     if (data.watchonly_wallet) persist_address_book(*data.watchonly_wallet);
@@ -4798,7 +4800,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         // Migration successful, unload the wallet locally, then reload it.
         assert(local_wallet.use_count() == 1);
         local_wallet.reset();
-        LoadWallet(context, wallet_name, /*load_on_start=*/std::nullopt, options, status, error, warnings);
+        res.wallet = LoadWallet(context, wallet_name, /*load_on_start=*/std::nullopt, options, status, error, warnings);
         res.wallet_name = wallet_name;
     } else {
         // Migration failed, cleanup
