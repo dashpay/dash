@@ -88,8 +88,8 @@ void TrafficGraphWidget::paintEvent(QPaintEvent *)
     painter.drawLine(XMARGIN, YMARGIN + h, width() - XMARGIN, YMARGIN + h);
 
     // decide what order of magnitude we are
-    int base = floor(log10(fMax));
-    float val = pow(10.0f, base);
+    int base = std::floor(std::log10(fMax));
+    float val = std::pow(10.0f, base);
     float val2 = val;
 
     const QString units = tr("kB/s");

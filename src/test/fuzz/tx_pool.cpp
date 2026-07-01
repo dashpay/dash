@@ -311,6 +311,7 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
     SetMempoolConstraints(*node.args, fuzzed_data_provider);
 
     std::vector<uint256> txids;
+    txids.reserve(g_outpoints_coinbase_init_mature.size());
     for (const auto& outpoint : g_outpoints_coinbase_init_mature) {
         txids.push_back(outpoint.hash);
     }

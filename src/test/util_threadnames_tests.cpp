@@ -34,6 +34,7 @@ std::set<std::string> RenameEnMasse(int num_threads)
         names.insert(util::ThreadGetInternalName());
     };
 
+    threads.reserve(num_threads);
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back(RenameThisThread, i);
     }

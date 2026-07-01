@@ -278,6 +278,10 @@ class RESTTest (BitcoinTestFramework):
         assert_equal(len(json_obj), 1)  # ensure that there is one header in the json response
         assert_equal(json_obj[0]['hash'], bb_hash)  # request/response hash should be the same
 
+        # Check invalid uri (% symbol at the end of the request)
+        resp = self.test_rest_request(f"/headers/{bb_hash}%", ret_type=RetType.OBJ, status=400)
+        assert_equal(resp.read().decode('utf-8').rstrip(), "URI parsing failed, it likely contained RFC 3986 invalid characters")
+
         # Compare with normal RPC block response
         rpc_block_json = self.nodes[0].getblock(bb_hash)
         for key in ['hash', 'confirmations', 'height', 'version', 'merkleroot', 'time', 'nonce', 'bits', 'difficulty', 'chainwork', 'previousblockhash']:
@@ -348,6 +352,34 @@ class RESTTest (BitcoinTestFramework):
             assert tx in json_obj
             assert_equal(json_obj[tx]['spentby'], txs[i + 1:i + 2])
             assert_equal(json_obj[tx]['depends'], txs[i - 1:i])
+
+        # Check the mempool response for explicit parameters
+        json_obj = self.test_rest_request("/mempool/contents", query_params={"verbose": "true", "mempool_sequence": "false"})
+        assert_equal(json_obj, raw_mempool_verbose)
+
+        # Check the mempool response for not verbose
+        json_obj = self.test_rest_request("/mempool/contents", query_params={"verbose": "false"})
+        raw_mempool = self.nodes[0].getrawmempool(verbose=False)
+
+        assert_equal(json_obj, raw_mempool)
+
+        # Check the mempool response for sequence
+        json_obj = self.test_rest_request("/mempool/contents", query_params={"verbose": "false", "mempool_sequence": "true"})
+        raw_mempool = self.nodes[0].getrawmempool(verbose=False, mempool_sequence=True)
+
+        assert_equal(json_obj, raw_mempool)
+
+        # Check for error response if verbose=true and mempool_sequence=true
+        resp = self.test_rest_request("/mempool/contents", ret_type=RetType.OBJ, status=400, query_params={"verbose": "true", "mempool_sequence": "true"})
+        assert_equal(resp.read().decode('utf-8').strip(), 'Verbose results cannot contain mempool sequence values. (hint: set "verbose=false")')
+
+        # Check for error response if verbose is not "true" or "false"
+        resp = self.test_rest_request("/mempool/contents", ret_type=RetType.OBJ, status=400, query_params={"verbose": "TRUE"})
+        assert_equal(resp.read().decode('utf-8').strip(), 'The "verbose" query parameter must be either "true" or "false".')
+
+        # Check for error response if mempool_sequence is not "true" or "false"
+        resp = self.test_rest_request("/mempool/contents", ret_type=RetType.OBJ, status=400, query_params={"verbose": "false", "mempool_sequence": "TRUE"})
+        assert_equal(resp.read().decode('utf-8').strip(), 'The "mempool_sequence" query parameter must be either "true" or "false".')
 
         # Now mine the transactions
         newblockhash = self.generate(self.nodes[1], 1)
