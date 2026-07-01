@@ -61,11 +61,11 @@ std::string CSimplifiedMNListEntry::ToString() const
     }
 
     return strprintf("CSimplifiedMNListEntry(nVersion=%d, nType=%d, proRegTxHash=%s, confirmedHash=%s, netInfo=%s, "
-                     "pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, "
+                     "pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, payouts=%s, operatorPayoutAddress=%s, "
                      "platformNodeID=%s%s)\n",
                      nVersion, std23::to_underlying(nType), proRegTxHash.ToString(), confirmedHash.ToString(),
                      netInfo->ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid,
-                     payoutAddress, operatorPayoutAddress, platformNodeID.ToString(),
+                     payoutAddress, PayoutListToString(payouts), operatorPayoutAddress, platformNodeID.ToString(),
                      (nVersion >= ProTxVersion::ExtAddr ? "" : strprintf(", platformHTTPPort=%d", platformHTTPPort)));
 }
 
