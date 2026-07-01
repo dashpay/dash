@@ -522,6 +522,7 @@ void FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& fee_out,
                 {"conf_target", UniValueType(UniValue::VNUM)},
                 {"estimate_mode", UniValueType(UniValue::VSTR)},
                 {"input_sizes", UniValueType(UniValue::VARR)},
+                {"use_cj", UniValueType(UniValue::VBOOL)},
             },
             true, true);
 
@@ -571,6 +572,10 @@ void FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& fee_out,
 
         if (options.exists("subtractFeeFromOutputs") || options.exists("subtract_fee_from_outputs") )
             subtractFeeFromOutputs = (options.exists("subtract_fee_from_outputs") ? options["subtract_fee_from_outputs"] : options["subtractFeeFromOutputs"]).get_array();
+
+        if (options.exists("use_cj")) {
+            coinControl.UseCoinJoin(options["use_cj"].get_bool());
+        }
 
         SetFeeEstimateMode(wallet, coinControl, options["conf_target"], options["estimate_mode"], options["fee_rate"], override_min_fee);
       }
@@ -753,6 +758,7 @@ RPCHelpMan fundrawtransaction()
                                     },
                                 },
                              },
+                            {"use_cj", RPCArg::Type::BOOL, RPCArg::Default{false}, "Use CoinJoin funds only"},
                         },
                         FundTxDoc()),
                         "options"},
@@ -959,6 +965,7 @@ RPCHelpMan send()
                             {"vout_index", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The zero-based output index, before a change output is added."},
                         },
                     },
+                    {"use_cj", RPCArg::Type::BOOL, RPCArg::Default{false}, "Use CoinJoin funds only"},
                 },
                 FundTxDoc()),
                 "options"},
@@ -1065,6 +1072,7 @@ RPCHelpMan sendall()
                         {"lock_unspents", RPCArg::Type::BOOL, RPCArg::Default{false}, "Lock selected unspent outputs"},
                         {"psbt", RPCArg::Type::BOOL,  RPCArg::DefaultHint{"automatic"}, "Always return a PSBT, implies add_to_wallet=false."},
                         {"send_max", RPCArg::Type::BOOL, RPCArg::Default{false}, "When true, only use UTXOs that can pay for their own fees to maximize the output amount. When 'false' (default), no UTXO is left behind. send_max is incompatible with providing specific inputs."},
+                        {"use_cj", RPCArg::Type::BOOL, RPCArg::Default{false}, "Use CoinJoin funds only"},
                     },
                     FundTxDoc()
                 ),
@@ -1138,6 +1146,10 @@ RPCHelpMan sendall()
             SetFeeEstimateMode(*pwallet, coin_control, options["conf_target"], options["estimate_mode"], options["fee_rate"], /*override_min_fee=*/false);
 
             coin_control.fAllowWatchOnly = ParseIncludeWatchonly(options["include_watching"], *pwallet);
+
+            if (options.exists("use_cj")) {
+                coin_control.UseCoinJoin(options["use_cj"].get_bool());
+            }
 
             FeeCalculation fee_calc_out;
             CFeeRate fee_rate{GetMinimumFeeRate(*pwallet, coin_control, &fee_calc_out)};
