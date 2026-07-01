@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <evo/providertx.h>
-#include <evo/simplifiedmns.h>
 #include <evo/dmnstate.h>
 
 #include <key_io.h>
@@ -31,7 +30,6 @@ MasternodePayoutShares GetOwnerPayouts(const T& protx)
 template MasternodePayoutShares GetOwnerPayouts(const CProRegTx& protx);
 template MasternodePayoutShares GetOwnerPayouts(const CProUpRegTx& protx);
 template MasternodePayoutShares GetOwnerPayouts(const CDeterministicMNState& protx);
-template MasternodePayoutShares GetOwnerPayouts(const CSimplifiedMNListEntry& protx);
 
 std::string PayoutListToString(const MasternodePayoutShares& payouts)
 {

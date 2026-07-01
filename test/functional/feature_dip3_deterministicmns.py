@@ -254,8 +254,8 @@ class DIP3Test(BitcoinTestFramework):
         new_dmnState = mn.get_node(self).masternode("status")["dmnState"]
         new_voting_address_from_rpc = new_dmnState["votingAddress"]
         assert new_voting_address_from_rpc == new_voting_address
-        # make sure the payout is the same as before
-        assert old_dmnState["payouts"] == new_dmnState["payouts"]
+        # make sure payoutAddress is the same as before
+        assert old_dmnState["payoutAddress"] == new_dmnState["payoutAddress"]
 
     def prepare_mn(self, node, idx, alias) -> MasternodeInfo:
         mn = MasternodeInfo(evo=False, legacy=(not softfork_active(node, 'v19')))
@@ -290,10 +290,7 @@ class DIP3Test(BitcoinTestFramework):
         if len(self.nodes) <= mn.nodeIdx:
             self.add_nodes(mn.nodeIdx - len(self.nodes) + 1)
             assert len(self.nodes) == mn.nodeIdx + 1
-        if mn.nodeIdx == 2:
-            self.start_node(mn.nodeIdx, extra_args = self.extra_args + ['-masternodeblsprivkey=%s' % mn.keyOperator])
-        else:
-            self.start_node(mn.nodeIdx, extra_args = self.extra_args + ['-masternodeblsprivkey=%s' % mn.keyOperator] + ["-deprecatedrpc=service"])
+        self.start_node(mn.nodeIdx, extra_args = self.extra_args + ['-masternodeblsprivkey=%s' % mn.keyOperator])
         force_finish_mnsync(mn.get_node(self))
         self.connect_nodes(mn.nodeIdx, 0)
         self.sync_all()
@@ -306,7 +303,7 @@ class DIP3Test(BitcoinTestFramework):
         mn.update_registrar(self.nodes[0], submit=True, pubKeyOperator="", votingAddr="", rewards_address=payee, fundsAddr=mn.fundsAddr)
         self.generate(self.nodes[0], 1)
         info = self.nodes[0].protx('info', mn.proTxHash)
-        assert_equal([p['address'] for p in info['state']['payouts']], [payee])
+        assert info['state']['payoutAddress'] == payee
 
     def test_protx_update_service(self, mn: MasternodeInfo):
         self.nodes[0].sendtoaddress(mn.fundsAddr, 0.001)
