@@ -190,7 +190,8 @@ public:
     std::vector<CTransactionRef> vtx;
 
     // memory only
-    mutable bool fChecked;
+    mutable bool fChecked;                     // CheckBlock()
+    mutable bool m_checked_merkle_root{false}; // CheckMerkleRoot()
 
     CBlock()
     {
@@ -214,6 +215,7 @@ public:
         CBlockHeader::SetNull();
         vtx.clear();
         fChecked = false;
+        m_checked_merkle_root = false;
     }
 
     CBlockHeader GetBlockHeader() const
