@@ -84,8 +84,48 @@ class LLMQEvoNodesTest(DashTestFramework):
             self.test_masternode_count(expected_mns_count=2, expected_evo_count=i+1)
             self.dynamically_evo_update_service(evo_info)
 
+        self.log.info("Test 'quorum dkginfo' upcoming platform DKG participation uses only EvoNodes")
+        nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
+        # Mirrors llmq_test_platform.dkgInterval (src/llmq/params.h) and
+        # llmq::WORK_DIFF_DEPTH (src/llmq/snapshot.h): the quorum work block is
+        # mined work_diff_depth blocks before the quorum height, so mine up to
+        # that point to make the upcoming DKG predictable.
+        dkg_interval = 24
+        work_diff_depth = 8
+        tip = self.nodes[0].getblockcount()
+        blocks_to_next_dkg = dkg_interval - (tip % dkg_interval)
+        blocks_to_mine = blocks_to_next_dkg - work_diff_depth
+        if blocks_to_mine > 0:
+            self.generate(self.nodes[0], blocks_to_mine, sync_fun=lambda: self.sync_blocks(nodes))
+
+        tip = self.nodes[0].getblockcount()
+        expected_quorum_height = tip - (tip % dkg_interval) + dkg_interval
+        predicted_members = {}
+        for mn in self.mninfo:
+            # The RPC reports DKGs within llmq::WORK_DIFF_DEPTH blocks of the
+            # tip, exactly covering the upcoming DKG.
+            dkg_info = mn.get_node(self).quorum("dkginfo", mn.proTxHash)
+            upcoming_platform = [d for d in dkg_info["upcoming_dkgs"] if d["llmqType"] == 106]
+            assert_equal(len(upcoming_platform), 1)
+            predicted_platform = upcoming_platform[0]
+            assert_equal(predicted_platform["llmqTypeName"], "llmq_test_platform")
+            assert_equal(predicted_platform["quorumIndex"], 0)
+            assert_equal(predicted_platform["quorumHeight"], expected_quorum_height)
+            assert_equal(predicted_platform["known"], True)
+            assert_equal(predicted_platform["memberCount"], 3)
+            predicted_members[mn.proTxHash] = predicted_platform["isMember"]
+
+        predicted_member_hashes = set(proTxHash for proTxHash, is_member in predicted_members.items() if is_member)
+        assert_equal(len(predicted_member_hashes), 3)
+        assert_equal(predicted_member_hashes.issubset(set(evo_protxhash_list)), True)
+
         self.log.info("Test llmq_platform are formed only with EvoNodes")
-        for _ in range(3):
+        quorum_i_hash = self.mine_quorum(llmq_type_name='llmq_test_platform', llmq_type=106)
+        quorum_info = self.nodes[0].quorum("info", 106, quorum_i_hash)
+        assert_equal(quorum_info["height"], expected_quorum_height)
+        assert_equal(predicted_member_hashes, set(extract_quorum_members(quorum_info)))
+        self.test_quorum_members_are_evo_nodes(quorum_i_hash, llmq_type=106)
+        for _ in range(2):
             quorum_i_hash = self.mine_quorum(llmq_type_name='llmq_test_platform', llmq_type=106)
             self.test_quorum_members_are_evo_nodes(quorum_i_hash, llmq_type=106)
 

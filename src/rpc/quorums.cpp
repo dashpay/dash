@@ -990,13 +990,33 @@ static RPCHelpMan quorum_dkginfo()
         "quorum dkginfo",
         "Return information regarding DKGs.\n",
         {
-            {},
+            {"proTxHash", RPCArg::Type::STR_HEX, RPCArg::DefaultHint{"local active masternode proTxHash, if any"},
+                "The proTxHash of the masternode to report upcoming DKG participation for. Empty string is treated as the default."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
             {
                 {RPCResult::Type::NUM, "active_dkgs", "Total number of active DKG sessions this node is participating in right now"},
                 {RPCResult::Type::NUM, "next_dkg", "The number of blocks until the next potential DKG session"},
+                {RPCResult::Type::ARR, "upcoming_dkgs", /*optional=*/true, "Upcoming DKG sessions for the given proTxHash whose work block is already mined, i.e. sessions starting within the work-diff depth",
+                {
+                    {RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "llmqType", "The type of the quorum"},
+                        {RPCResult::Type::STR, "llmqTypeName", "The name of the quorum type"},
+                        {RPCResult::Type::NUM, "quorumIndex", "The quorum index within the DKG interval"},
+                        {RPCResult::Type::NUM, "quorumHeight", "The height at which the quorum session starts"},
+                        {RPCResult::Type::NUM, "blocksUntilStart", "The number of blocks until the quorum session starts"},
+                        {RPCResult::Type::STR_HEX, "proTxHash", "The proTxHash this entry was computed for"},
+                        {RPCResult::Type::BOOL, "known", "Whether participation could be determined"},
+                        {RPCResult::Type::STR, "reason", /*optional=*/true, "Why participation could not be determined"},
+                        {RPCResult::Type::BOOL, "isMember", /*optional=*/true, "Whether the masternode is a member of the upcoming quorum"},
+                        {RPCResult::Type::NUM, "memberIndex", /*optional=*/true, "The member index, or -1 if not a member"},
+                        {RPCResult::Type::NUM, "memberCount", /*optional=*/true, "The number of members in the upcoming quorum"},
+                        {RPCResult::Type::NUM, "workBlockHeight", /*optional=*/true, "The height of the work block used to compute membership"},
+                        {RPCResult::Type::STR_HEX, "workBlockHash", /*optional=*/true, "The hash of the work block used to compute membership"},
+                    }},
+                }},
             }
         },
         RPCExamples{""},
@@ -1012,7 +1032,9 @@ static RPCHelpMan quorum_dkginfo()
     ret.pushKV("active_dkgs", dkgdbgman.GetSessionCount());
 
     const ChainstateManager& chainman = EnsureChainman(node);
-    const int nTipHeight{WITH_LOCK(cs_main, return chainman.ActiveChain().Height())};
+    const CBlockIndex* const pindexTip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
+    CHECK_NONFATAL(pindexTip);
+    const int nTipHeight{pindexTip->nHeight};
     auto minNextDKG = [](const Consensus::Params& consensusParams, int nTipHeight) {
         int minDkgWindow{std::numeric_limits<int>::max()};
         for (const auto& params: consensusParams.llmqs) {
@@ -1024,6 +1046,92 @@ static RPCHelpMan quorum_dkginfo()
         return minDkgWindow;
     };
     ret.pushKV("next_dkg", minNextDKG(Params().GetConsensus(), nTipHeight));
+
+    uint256 proTxHash;
+    if (!request.params[0].isNull() && !request.params[0].get_str().empty()) {
+        proTxHash = ParseHashV(request.params[0], "proTxHash");
+    } else if (node.active_ctx) {
+        proTxHash = node.active_ctx->nodeman->GetProTxHash();
+    }
+
+    if (!proTxHash.IsNull()) {
+        UniValue upcoming(UniValue::VARR);
+        for (const auto& type : llmq::GetEnabledQuorumTypes(chainman, pindexTip)) {
+            const auto llmq_params_opt = Params().GetLLMQ(type);
+            CHECK_NONFATAL(llmq_params_opt.has_value());
+            const auto& llmq_params = llmq_params_opt.value();
+            bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params, pindexTip);
+            int quorums_num = rotation_enabled ? llmq_params.signingActiveQuorumCount : 1;
+
+            for (const int quorumIndex : util::irange(quorums_num)) {
+                int quorumHeight = nTipHeight - (nTipHeight % llmq_params.dkgInterval) + quorumIndex;
+                if (quorumHeight <= nTipHeight) {
+                    quorumHeight += llmq_params.dkgInterval;
+                }
+                if (quorumHeight <= nTipHeight || quorumHeight - nTipHeight > llmq::WORK_DIFF_DEPTH) {
+                    continue;
+                }
+
+                UniValue obj(UniValue::VOBJ);
+                obj.pushKV("llmqType", static_cast<int>(llmq_params.type));
+                obj.pushKV("llmqTypeName", std::string(llmq_params.name));
+                obj.pushKV("quorumIndex", quorumIndex);
+                obj.pushKV("quorumHeight", quorumHeight);
+                obj.pushKV("blocksUntilStart", quorumHeight - nTipHeight);
+                obj.pushKV("proTxHash", proTxHash.ToString());
+
+                if (llmq_params.useRotation) {
+                    obj.pushKV("known", false);
+                    obj.pushKV("reason", "rotated quorum prediction is not exposed yet");
+                    upcoming.push_back(obj);
+                    continue;
+                }
+
+                int workHeight = quorumHeight - llmq::WORK_DIFF_DEPTH;
+                if (workHeight < 0 || workHeight > nTipHeight) {
+                    obj.pushKV("known", false);
+                    obj.pushKV("reason", "work block is not available yet");
+                    upcoming.push_back(obj);
+                    continue;
+                }
+
+                const CBlockIndex* const pWorkBlockIndex = pindexTip->GetAncestor(workHeight);
+                if (!DeploymentActiveAfter(pWorkBlockIndex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) {
+                    obj.pushKV("known", false);
+                    obj.pushKV("reason", "pre-v20 quorum selection needs future quorum base block hash");
+                    upcoming.push_back(obj);
+                    continue;
+                }
+
+                auto mnList = CHECK_NONFATAL(node.dmnman)->GetListForBlock(pWorkBlockIndex);
+                auto predicted_members = llmq::utils::ComputeNonRotatedQuorumMembersFromWorkBlock(
+                    llmq_params.type, Params(), mnList, pWorkBlockIndex, quorumHeight, pindexTip);
+                if (!predicted_members.has_value()) {
+                    obj.pushKV("known", false);
+                    obj.pushKV("reason", "deployment state at upcoming quorum base block is not yet known");
+                    upcoming.push_back(obj);
+                    continue;
+                }
+                const auto& members = *predicted_members;
+
+                obj.pushKV("known", true);
+                int memberIndex{-1};
+                for (size_t i = 0; i < members.size(); ++i) {
+                    if (members[i]->proTxHash == proTxHash) {
+                        memberIndex = (int)i;
+                        break;
+                    }
+                }
+                obj.pushKV("isMember", memberIndex != -1);
+                obj.pushKV("memberIndex", memberIndex);
+                obj.pushKV("memberCount", (int)members.size());
+                obj.pushKV("workBlockHeight", pWorkBlockIndex->nHeight);
+                obj.pushKV("workBlockHash", pWorkBlockIndex->GetBlockHash().ToString());
+                upcoming.push_back(obj);
+            }
+        }
+        ret.pushKV("upcoming_dkgs", upcoming);
+    }
 
     return ret;
 },

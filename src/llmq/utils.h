@@ -16,10 +16,13 @@
 
 #include <gsl/pointers.h>
 
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
 class CBlockIndex;
+class CChainParams;
+class CDeterministicMNList;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CSporkManager;
@@ -66,6 +69,15 @@ std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType
 // includes members which failed DKG
 std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params,
                                                       bool reset_cache = false);
+
+// Predicts the members of a future non-rotated v20 quorum from its already-known work block,
+// before the quorum's own base block exists on chain. Returns std::nullopt when prediction is
+// not possible (e.g. V20 not yet active at the work block, or V19 activation state at the
+// future quorum base block cannot be confirmed from pDeploymentTipIndex).
+std::optional<std::vector<CDeterministicMNCPtr>> ComputeNonRotatedQuorumMembersFromWorkBlock(
+    Consensus::LLMQType llmqType, const CChainParams& chainparams, const CDeterministicMNList& mn_list,
+    gsl::not_null<const CBlockIndex*> pWorkBlockIndex, int quorumHeight,
+    gsl::not_null<const CBlockIndex*> pDeploymentTipIndex);
 
 Uint256HashSet GetQuorumConnections(const Consensus::LLMQParams& llmqParams, const CSporkManager& sporkman,
                                     const UtilParameters& util_params, const uint256& forMember, bool onlyOutbound);

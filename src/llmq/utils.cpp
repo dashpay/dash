@@ -83,6 +83,18 @@ arith_uint256 calculateQuorumScore(const CDeterministicMNCPtr& dmn, const uint25
     return UintToArith256(h);
 }
 
+uint256 GetHashModifierFromWorkBlock(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pWorkBlockIndex)
+{
+    auto cbcl = GetNonNullCoinbaseChainlock(pWorkBlockIndex);
+    if (cbcl.has_value()) {
+        // We have a non-null CL signature: calculate modifier using this CL signature
+        auto& [bestCLSignature, bestCLHeightDiff] = cbcl.value();
+        return ::SerializeHash(std::make_tuple(llmqParams.type, pWorkBlockIndex->nHeight, bestCLSignature));
+    }
+    // No non-null CL signature found in coinbase: calculate modifier using block hash only
+    return ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
+}
+
 uint256 GetHashModifier(const Consensus::LLMQParams& llmqParams, const Consensus::Params& consensus_params,
                         gsl::not_null<const CBlockIndex*> pCycleQuorumBaseBlockIndex)
 {
@@ -91,14 +103,7 @@ uint256 GetHashModifier(const Consensus::LLMQParams& llmqParams, const Consensus
 
     if (DeploymentActiveAfter(pWorkBlockIndex, consensus_params, Consensus::DEPLOYMENT_V20)) {
         // v20 is active: calculate modifier using the new way.
-        auto cbcl = GetNonNullCoinbaseChainlock(pWorkBlockIndex);
-        if (cbcl.has_value()) {
-            // We have a non-null CL signature: calculate modifier using this CL signature
-            auto& [bestCLSignature, bestCLHeightDiff] = cbcl.value();
-            return ::SerializeHash(std::make_tuple(llmqParams.type, pWorkBlockIndex->nHeight, bestCLSignature));
-        }
-        // No non-null CL signature found in coinbase: calculate modifier using block hash only
-        return ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
+        return GetHashModifierFromWorkBlock(llmqParams, pWorkBlockIndex);
     }
 
     // v20 isn't active yet: calculate modifier using the usual way
@@ -562,6 +567,45 @@ void BlsCheck::swap(BlsCheck& obj)
     std::swap(m_pubkeys, obj.m_pubkeys);
     std::swap(m_msg_hash, obj.m_msg_hash);
     std::swap(m_id_string, obj.m_id_string);
+}
+
+std::optional<std::vector<CDeterministicMNCPtr>> ComputeNonRotatedQuorumMembersFromWorkBlock(
+    Consensus::LLMQType llmqType, const CChainParams& chainparams, const CDeterministicMNList& mn_list,
+    gsl::not_null<const CBlockIndex*> pWorkBlockIndex, int quorumHeight,
+    gsl::not_null<const CBlockIndex*> pDeploymentTipIndex)
+{
+    const auto& llmq_params_opt = chainparams.GetLLMQ(llmqType);
+    if (!llmq_params_opt.has_value()) {
+        ASSERT_IF_DEBUG(false);
+        return std::nullopt;
+    }
+    const auto& llmq_params = llmq_params_opt.value();
+    if (llmq_params.useRotation || quorumHeight % llmq_params.dkgInterval != 0) {
+        ASSERT_IF_DEBUG(false);
+        return std::nullopt;
+    }
+
+    if (!DeploymentActiveAfter(pWorkBlockIndex.get(), chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
+        // pre-v20 modifier calculation needs the future quorum base block hash, which isn't known yet.
+        return std::nullopt;
+    }
+
+    // Canonical member selection gates EvoOnly on the future quorum base block. Buried
+    // deployments are monotonic and the deployment-tip context is at or before the future
+    // quorum base block on our chain, so V19 active at the tip implies V19 active there.
+    // If it is not active at the tip, we cannot know whether it will activate between the
+    // tip and the future quorum base block, so refuse to predict.
+    const bool is_platform_llmq = (llmq_params.type == chainparams.GetConsensus().llmqTypePlatform);
+    const bool v19_active_at_tip = DeploymentActiveAfter(pDeploymentTipIndex.get(), chainparams.GetConsensus(),
+                                                         Consensus::DEPLOYMENT_V19);
+    if (is_platform_llmq && !v19_active_at_tip) {
+        return std::nullopt;
+    }
+    const bool EvoOnly = is_platform_llmq && v19_active_at_tip;
+
+    const auto modifier = GetHashModifierFromWorkBlock(llmq_params, pWorkBlockIndex.get());
+
+    return CalculateQuorum(mn_list, modifier, llmq_params.size, EvoOnly);
 }
 
 QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params, bool reset_cache)

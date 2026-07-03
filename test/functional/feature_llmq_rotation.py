@@ -103,6 +103,30 @@ class LLMQQuorumRotationTest(DashTestFramework):
             assert_equal(dkg_info['next_dkg'], next_dkg)
         assert_equal(nonzero_dkgs, 4) # 1 quorums 4 nodes
 
+        self.log.info("Test 'quorum dkginfo' upcoming_dkgs before v20 (no prediction possible)")
+        pre_v20_mn = self.mninfo[0]
+        # upcoming_dkgs only reports DKGs starting within
+        # llmq::WORK_DIFF_DEPTH blocks of the tip, so mine up to that point.
+        nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
+        work_diff_depth = 8
+        tip = self.nodes[0].getblockcount()
+        blocks_to_mine = 24 - (tip % 24) - work_diff_depth
+        if blocks_to_mine > 0:
+            self.generate(self.nodes[0], blocks_to_mine, sync_fun=lambda: self.sync_blocks(nodes))
+        tip = self.nodes[0].getblockcount()
+        next_dkg = 24 - (tip % 24)
+        dkg_info = pre_v20_mn.get_node(self).quorum("dkginfo", pre_v20_mn.proTxHash)
+        # old fields must remain unchanged next to the new upcoming_dkgs array
+        assert_equal(dkg_info['next_dkg'], next_dkg)
+        upcoming_dkgs = dkg_info['upcoming_dkgs']
+        assert_greater_than_or_equal(len(upcoming_dkgs), 1)
+        for entry in upcoming_dkgs:
+            assert_equal(entry['proTxHash'], pre_v20_mn.proTxHash)
+            assert_greater_than_or_equal(entry['quorumHeight'], tip + 1)
+            assert_equal(entry['blocksUntilStart'], entry['quorumHeight'] - tip)
+            assert_equal(entry['known'], False)
+            assert 'reason' in entry
+
         expectedDeleted = []
         expectedNew = [h_100_0, h_100_1]
         quorumList = self.test_getmnlistdiff_quorums(b_h_0, b_h_1, {}, expectedDeleted, expectedNew, testQuorumsCLSigs=False)
@@ -231,8 +255,12 @@ class LLMQQuorumRotationTest(DashTestFramework):
         hmc_base_blockhash = self.nodes[0].getblockhash(block_count - (block_count % 24) - 24 - 8)
         best_block_hash = self.nodes[0].getbestblockhash()
         rpc_qr_info = self.nodes[0].quorum("rotationinfo", best_block_hash, False, [hmc_base_blockhash])
-        rpc_qr_info_repeated_base = self.nodes[0].quorum("rotationinfo", best_block_hash, False,
-                                                          [hmc_base_blockhash, hmc_base_blockhash])
+        rpc_qr_info_repeated_base = self.nodes[0].quorum(
+            "rotationinfo",
+            best_block_hash,
+            False,
+            [hmc_base_blockhash, hmc_base_blockhash],
+        )
         assert_equal(rpc_qr_info_repeated_base, rpc_qr_info)
         assert_equal(rpc_qr_info["mnListDiffTip"]["blockHash"], best_block_hash)
         assert_equal(rpc_qr_info["mnListDiffTip"]["baseBlockHash"], rpc_qr_info["mnListDiffH"]["blockHash"])
@@ -243,6 +271,63 @@ class LLMQQuorumRotationTest(DashTestFramework):
         assert_equal(rpc_qr_info["mnListDiffAtHMinusC"]["deletedQuorums"], [])
         assert_equal(rpc_qr_info["mnListDiffAtHMinus2C"]["baseBlockHash"], rpc_qr_info["mnListDiffAtHMinus3C"]["blockHash"])
         assert_equal(rpc_qr_info["mnListDiffAtHMinus3C"]["baseBlockHash"], genesis_blockhash)
+
+        self.log.info("Test 'quorum dkginfo' RPC upcoming DKG participation fields")
+        active_mn = self.mninfo[0]
+
+        # Move close enough to the next non-rotated type-100 DKG that its work block
+        # (8 blocks before the quorum session starts) is already available.
+        nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
+        dkg_interval_100 = 24
+        tip = self.nodes[0].getblockcount()
+        blocks_to_next_100_dkg = dkg_interval_100 - (tip % dkg_interval_100)
+        blocks_to_mine = blocks_to_next_100_dkg - 8
+        if blocks_to_mine > 0:
+            self.generate(self.nodes[0], blocks_to_mine, sync_fun=lambda: self.sync_blocks(nodes))
+
+        tip = self.nodes[0].getblockcount()
+        expected_quorum_height = tip - (tip % dkg_interval_100) + dkg_interval_100
+
+        # An empty proTxHash falls back to the local masternode's own proTxHash
+        dkg_info_default = active_mn.get_node(self).quorum("dkginfo", "")
+        default_upcoming_100 = [d for d in dkg_info_default["upcoming_dkgs"] if d["llmqType"] == 100]
+        assert_equal(len(default_upcoming_100), 1)
+        assert_equal(default_upcoming_100[0]["proTxHash"], active_mn.proTxHash)
+
+        # Rotated quorums cannot be predicted before their snapshots exist
+        upcoming_all = active_mn.get_node(self).quorum("dkginfo", active_mn.proTxHash)["upcoming_dkgs"]
+        rotated_entries = [d for d in upcoming_all if d["llmqType"] == llmq_type]
+        assert_greater_than_or_equal(len(rotated_entries), 1)
+        for entry in rotated_entries:
+            assert_equal(entry["known"], False)
+            assert_equal(entry["reason"], "rotated quorum prediction is not exposed yet")
+
+        predicted_members = {}
+        for mn in self.mninfo:
+            dkg_info = mn.get_node(self).quorum("dkginfo", mn.proTxHash)
+            upcoming_100 = [d for d in dkg_info["upcoming_dkgs"] if d["llmqType"] == 100]
+            assert_equal(len(upcoming_100), 1)
+            predicted_100 = upcoming_100[0]
+            assert_equal(predicted_100["llmqTypeName"], "llmq_test")
+            assert_equal(predicted_100["quorumIndex"], 0)
+            assert_equal(predicted_100["quorumHeight"], expected_quorum_height)
+            assert_equal(predicted_100["blocksUntilStart"], expected_quorum_height - tip)
+            assert_equal(predicted_100["proTxHash"], mn.proTxHash)
+            assert_equal(predicted_100["known"], True)
+            assert_equal(predicted_100["workBlockHeight"], expected_quorum_height - 8)
+            assert_equal(predicted_100["workBlockHash"], self.nodes[0].getblockhash(expected_quorum_height - 8))
+            assert_equal(predicted_100["memberCount"], self.llmq_size)
+            assert_equal(predicted_100["isMember"], predicted_100["memberIndex"] != -1)
+            predicted_members[mn.proTxHash] = predicted_100["isMember"]
+        assert_equal(sum(predicted_members.values()), self.llmq_size)
+
+        self.log.info("Mine the predicted type-100 quorum and compare selected members")
+        quorum_hash = self.mine_quorum()
+        quorum_info = self.nodes[0].quorum("info", 100, quorum_hash)
+        assert_equal(quorum_info["height"], expected_quorum_height)
+        actual_members = set(extract_quorum_members(quorum_info))
+        predicted_member_hashes = set(proTxHash for proTxHash, is_member in predicted_members.items() if is_member)
+        assert_equal(predicted_member_hashes, actual_members)
 
     def test_getmnlistdiff_quorums(self, baseBlockHash, blockHash, baseQuorumList, expectedDeleted, expectedNew, testQuorumsCLSigs = True):
         d = self.test_getmnlistdiff_base(baseBlockHash, blockHash, testQuorumsCLSigs)
