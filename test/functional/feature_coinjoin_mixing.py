@@ -17,8 +17,11 @@ Covered:
   between both participating wallets
 - round bookkeeping (listunspent coinjoin_rounds) and anonymized balance
   reporting (getbalances().mine.coinjoin, getcoinjoininfo)
-- spending fully mixed funds with sendtoaddress use_cj=true
-- coinjoin start/stop/reset while sessions are live
+- wallet recovery when a participant restarts during an active session
+- short reorg handling for confirmed mixed outputs
+- spending fully mixed funds with sendtoaddress use_cj=true, including
+  overspend rejection and partial-balance accounting
+- coinjoin start/stop/reset while sessions are live and after failures
 - client-side mixing being unavailable on masternodes
 
 Mixing timeouts (30s queue, 15s signing) are driven by mocktime; the test
@@ -63,6 +66,8 @@ PREFUNDED_COLLATERAL_OUTPUTS = 8
 PREFUNDED_BALANCE = PREFUNDED_DENOM * PREFUNDED_DENOM_OUTPUTS + PREFUNDED_COLLATERAL * PREFUNDED_COLLATERAL_OUTPUTS
 
 MASTERNODES = 6
+BACKUP_EXISTS_WARNING = ("Warning: Failed to create backup, file already exists! This could happen if you restarted "
+                         "wallet in less than 60 seconds. You can continue if you are ok with this.")
 
 
 class CoinJoinMixingTest(DashTestFramework):
@@ -99,14 +104,18 @@ class CoinJoinMixingTest(DashTestFramework):
 
         # Observability collected while pumping the mixing loop
         self.dstx = {}  # txid -> decoded tx
+        self.dstx_blocks = {}  # txid -> confirming block hash
         self.session_masternodes = set()
         self.session_states = set()
         self.max_queue_size = 0
+        self.autodenom_outputs = {}
+        self.autodenom_denoms = set()
 
         self.prepare_chain()
         self.test_mixing_unavailable_on_masternodes()
         self.test_automatic_denominating()
         self.fund_mixing_wallets()
+        self.test_active_session_restart_recovery()
         self.start_mixing()
         self.wait_for_denominations()
         self.wait_for_anonymized_balance()
@@ -114,13 +123,14 @@ class CoinJoinMixingTest(DashTestFramework):
         self.verify_mixing_transactions()
         self.test_stop_and_reset()
         self.verify_rounds_and_balances()
+        self.test_mixing_reorg_recovery()
         self.spend_mixed_funds()
         # Automatic backup names are precise to the minute. Move mocktime far
         # enough before framework shutdown so any final backup attempt cannot
         # collide with the start-of-test backup filename.
         self.bump_mocktime(60)
 
-    def pump_mixing(self):
+    def pump_mixing(self, wallets=None):
         """Advance one mixing 'tick'.
 
         Bumps mocktime (which drives client/server maintenance and the 30s
@@ -128,9 +138,11 @@ class CoinJoinMixingTest(DashTestFramework):
         assertions, captures mixing transactions from the mempool and
         confirms whatever is pending so follow-up sessions can start.
         """
-        self.bump_mocktime(3)
+        running_nodes = self.running_nodes()
+        self.bump_mocktime(3, nodes=running_nodes)
 
-        for wallet in self.wallets:
+        wallets = self.wallets if wallets is None else wallets
+        for wallet in wallets:
             info = wallet.getcoinjoininfo()
             self.max_queue_size = max(self.max_queue_size, info['queue_size'])
             for session in info['sessions']:
@@ -144,14 +156,23 @@ class CoinJoinMixingTest(DashTestFramework):
         # normal fees).
         node = self.nodes[0]
         mempool = node.getrawmempool()
+        captured = []
         for txid in mempool:
             if txid in self.dstx:
                 continue
             if node.getmempoolentry(txid)['fees']['base'] == 0:
-                self.dstx[txid] = node.getrawtransaction(txid, True)
+                tx = node.getrawtransaction(txid, True)
+                if self.is_mixing_transaction(tx):
+                    self.dstx[txid] = tx
+                    captured.append(txid)
 
         if mempool:
-            self.generate(node, 1, sync_fun=lambda: self.sync_blocks())
+            block_hash = self.generate(node, 1, sync_fun=lambda: self.sync_blocks(running_nodes))[0]
+            for txid in captured:
+                self.dstx_blocks[txid] = block_hash
+
+    def running_nodes(self):
+        return [node for node in self.nodes if node.running]
 
     def wallet_outpoints(self, wallet):
         return {(utxo['txid'], utxo['vout']) for utxo in wallet.listunspent()}
@@ -161,6 +182,49 @@ class CoinJoinMixingTest(DashTestFramework):
 
     def is_collateral(self, utxo):
         return COLLATERAL_MIN <= utxo['amount'] <= COLLATERAL_MAX
+
+    def is_mixing_transaction(self, tx):
+        if len(tx['vin']) != len(tx['vout']):
+            return False
+        values = {out['value'] for out in tx['vout']}
+        return len(values) == 1 and values.issubset(DENOM_AMOUNTS)
+
+    def settle_mempool(self):
+        self.sync_mempools([node for node in [self.nodes[0], self.w1, self.w2] if node.running])
+        if self.nodes[0].getrawmempool():
+            running_nodes = self.running_nodes()
+            self.bump_mocktime(1, nodes=running_nodes)
+            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(running_nodes))
+
+    def stop_and_reset_mixing(self, wallets=None):
+        wallets = self.wallets if wallets is None else wallets
+        for wallet in wallets:
+            if wallet.getcoinjoininfo()['running']:
+                wallet.coinjoin('stop')
+            assert_equal(wallet.coinjoin('reset'), "Mixing was reset")
+            wallet.lockunspent(True)
+
+    def lock_autodenom_outputs(self):
+        for wallet in self.wallets:
+            unspent = self.wallet_outpoints(wallet)
+            outputs = [outpoint for outpoint in self.autodenom_outputs.get(wallet.index, [])
+                       if (outpoint['txid'], outpoint['vout']) in unspent]
+            if outputs:
+                wallet.lockunspent(False, outputs)
+
+    def restart_wallet_node_allowing_recent_backup(self, index):
+        node = self.nodes[index]
+        if node.running:
+            node.log.debug("Stopping node")
+            node.stop()
+            node.stderr.seek(0)
+            stderr = node.stderr.read().decode('utf-8').strip()
+            assert stderr in ("", BACKUP_EXISTS_WARNING), f"Unexpected stderr {stderr}"
+            node.stdout.close()
+            node.stderr.close()
+            del node.p2ps[:]
+            node.wait_until_stopped()
+        self.start_node(index)
 
     def prepare_chain(self):
         # There are no InstantSend quorums here, but the framework enables the
@@ -229,14 +293,14 @@ class CoinJoinMixingTest(DashTestFramework):
             assert any(self.is_collateral(utxo) for utxo in new_outputs)
             assert all((utxo['txid'], utxo['vout']) not in initial_outpoints[wallet.index]
                        for utxo in wallet.listunspent() if self.is_denominated(utxo) or self.is_collateral(utxo))
-            wallet.coinjoin('stop')
-            assert_equal(wallet.coinjoin('reset'), "Mixing was reset")
-            wallet.lockunspent(True)
+            coinjoin_outputs = [utxo for utxo in new_outputs if self.is_denominated(utxo) or self.is_collateral(utxo)]
+            self.autodenom_outputs[wallet.index] = [{'txid': utxo['txid'], 'vout': utxo['vout']}
+                                                    for utxo in coinjoin_outputs]
+            self.autodenom_denoms.update(utxo['amount'] for utxo in coinjoin_outputs if self.is_denominated(utxo))
+        self.stop_and_reset_mixing()
+        self.lock_autodenom_outputs()
 
-        self.sync_mempools([self.nodes[0], self.w1, self.w2])
-        if self.nodes[0].getrawmempool():
-            self.bump_mocktime(1)
-            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
+        self.settle_mempool()
 
     def fund_mixing_wallets(self):
         self.log.info("Fund the mixing wallets with confirmed denominations and collaterals")
@@ -253,6 +317,64 @@ class CoinJoinMixingTest(DashTestFramework):
                                 PREFUNDED_DENOM_OUTPUTS - 1)
             assert_greater_than(sum(1 for utxo in utxos if utxo['amount'] == PREFUNDED_COLLATERAL),
                                 PREFUNDED_COLLATERAL_OUTPUTS - 1)
+
+    def test_active_session_restart_recovery(self):
+        self.log.info("Recover after a participant restarts during active mixing")
+        self.configure_mixing()
+
+        assert_equal(self.w1.coinjoin('start'), "Mixing requested")
+
+        def queue_started():
+            if self.w1.getcoinjoininfo()['queue_size'] > 0:
+                return True
+            self.pump_mixing()
+            return False
+
+        self.wait_until(queue_started, timeout=120, sleep=0.25)
+        assert_greater_than(self.w1.getcoinjoininfo()['queue_size'], 0)
+
+        assert_equal(self.w2.coinjoin('start'), "Mixing requested")
+
+        def session_started():
+            if any(wallet.getcoinjoininfo()['sessions'] for wallet in self.wallets):
+                return True
+            self.pump_mixing()
+            return False
+
+        self.wait_until(session_started, timeout=120, sleep=0.25)
+
+        self.stop_node(2)
+        self.wallets = [self.w1]
+
+        def survivor_released_session():
+            self.pump_mixing(wallets=[self.w1])
+            info = self.w1.getcoinjoininfo()
+            return not info['sessions'] or any(session['state'] == 'ERROR' for session in info['sessions'])
+
+        self.wait_until(survivor_released_session, timeout=120, sleep=0.25)
+        self.stop_and_reset_mixing([self.w1])
+        assert_equal(self.w1.listlockunspent(), [])
+
+        self.restart_node(2)
+        self.w2 = self.nodes[2]
+        self.wallets = [self.w1, self.w2]
+        self.connect_nodes(2, 0)
+        self.sync_blocks()
+        self.stop_and_reset_mixing([self.w2])
+        assert_equal(self.w2.listlockunspent(), [])
+
+        self.restart_node(1)
+        self.restart_node(2)
+        self.w1 = self.nodes[1]
+        self.w2 = self.nodes[2]
+        self.wallets = [self.w1, self.w2]
+        self.connect_nodes(1, 0)
+        self.connect_nodes(2, 0)
+        self.sync_blocks()
+        self.lock_autodenom_outputs()
+        self.settle_mempool()
+        self.bump_mocktime(60)
+        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
 
     def test_mixing_unavailable_on_masternodes(self):
         self.log.info("Client-side mixing must not be available on masternodes")
@@ -327,8 +449,8 @@ class CoinJoinMixingTest(DashTestFramework):
         # Clear masternode connection bookkeeping in the tiny regtest topology
         # while preserving the wallets and their round-one denominated outputs.
         self.bump_mocktime(60)
-        self.restart_node(1)
-        self.restart_node(2)
+        self.restart_wallet_node_allowing_recent_backup(1)
+        self.restart_wallet_node_allowing_recent_backup(2)
         self.w1 = self.nodes[1]
         self.w2 = self.nodes[2]
         self.wallets = [self.w1, self.w2]
@@ -357,10 +479,7 @@ class CoinJoinMixingTest(DashTestFramework):
         for txid, tx in self.dstx.items():
             # A mixing transaction has as many outputs as inputs and all
             # outputs are of one single denomination.
-            assert_equal(len(tx['vin']), len(tx['vout']))
-            values = {out['value'] for out in tx['vout']}
-            assert_equal(len(values), 1)
-            assert values.issubset(DENOM_AMOUNTS), f"non-denominated mixing output in {txid}: {values}"
+            assert self.is_mixing_transaction(tx), f"unexpected non-mixing transaction captured: {txid}"
             # Regtest sessions need 2 participants and each wallet runs at
             # most one session, so every mix is a joint transaction of both
             # wallets.
@@ -368,6 +487,10 @@ class CoinJoinMixingTest(DashTestFramework):
                 wallet_tx = wallet.gettransaction(txid)  # throws if unknown to the wallet
                 assert_equal(wallet_tx['txid'], txid)
         self.log.info(f"Verified {len(self.dstx)} mixing transaction(s)")
+
+        wallet_denoms = {utxo['amount'] for wallet in self.wallets for utxo in wallet.listunspent()
+                         if self.is_denominated(utxo)} | self.autodenom_denoms
+        assert_greater_than(len(wallet_denoms), 1)
 
     def verify_rounds_and_balances(self):
         self.log.info("Verify round bookkeeping and balance reporting")
@@ -379,6 +502,34 @@ class CoinJoinMixingTest(DashTestFramework):
             balances = wallet.getbalances()['mine']
             assert_equal(balances['coinjoin'], sum(utxo['amount'] for utxo in mixed))
             assert_equal(wallet.getwalletinfo()['coinjoin_balance'], balances['coinjoin'])
+
+    def confirmed_mixed_outpoints(self, wallet):
+        return {(utxo['txid'], utxo['vout']) for utxo in wallet.listunspent()
+                if utxo['coinjoin_rounds'] >= MIXING_ROUNDS_TARGET}
+
+    def test_mixing_reorg_recovery(self):
+        self.log.info("Verify mixed output bookkeeping survives a short reorg")
+        assert_greater_than(len(self.dstx_blocks), 0)
+
+        txid, block_hash = max(self.dstx_blocks.items(), key=lambda item: self.nodes[0].getblock(item[1])['height'])
+        before = {wallet.index: self.confirmed_mixed_outpoints(wallet) for wallet in self.wallets}
+        assert any(txid == outpoint[0] for outpoints in before.values() for outpoint in outpoints)
+
+        for node in self.nodes:
+            node.invalidateblock(block_hash)
+        self.sync_blocks()
+
+        after_invalidate = {wallet.index: self.confirmed_mixed_outpoints(wallet) for wallet in self.wallets}
+        assert any(len(after_invalidate[index]) < len(outpoints) for index, outpoints in before.items())
+
+        for node in self.nodes:
+            node.reconsiderblock(block_hash)
+        self.sync_blocks()
+
+        def mixed_outputs_restored():
+            return all(self.confirmed_mixed_outpoints(wallet) == before[wallet.index] for wallet in self.wallets)
+
+        self.wait_until(mixed_outputs_restored, timeout=60, sleep=0.25)
 
     def test_stop_and_reset(self):
         self.log.info("Stop mixing and reset the clients")
@@ -392,24 +543,48 @@ class CoinJoinMixingTest(DashTestFramework):
         # Confirm anything still in flight: the anonymized balance counts
         # unconfirmed outputs while listunspent does not, so the balance
         # checks below need a settled mempool.
-        self.sync_mempools([self.nodes[0], self.w1, self.w2])
-        if self.nodes[0].getrawmempool():
-            self.bump_mocktime(1)
-            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
+        self.settle_mempool()
 
     def spend_mixed_funds(self):
-        self.log.info("Spend fully mixed funds with use_cj")
-        mixed_utxos = {(utxo['txid'], utxo['vout'])
+        self.log.info("Spend mixed funds with use_cj")
+        mixed_utxos = {(utxo['txid'], utxo['vout']): utxo['amount']
                        for utxo in self.w1.listunspent() if utxo['coinjoin_rounds'] >= MIXING_ROUNDS_TARGET}
+        assert_greater_than(len(mixed_utxos), 1)
         anonymized = self.w1.getbalances()['mine']['coinjoin']
         address = self.nodes[0].getnewaddress()
+        assert_raises_rpc_error(
+            -6,
+            "Unable to locate enough mixed funds for this transaction.",
+            self.w1.sendtoaddress,
+            address=address,
+            amount=anonymized + min(mixed_utxos.values()),
+            subtractfeefromamount=True,
+            use_cj=True,
+        )
+
+        partial_amount = min(mixed_utxos.values())
+        partial_txid = self.w1.sendtoaddress(address=address, amount=partial_amount, subtractfeefromamount=True, use_cj=True)
+        partial_tx = self.w1.getrawtransaction(partial_txid, True)
+        partial_spent = Decimal("0")
+        for txin in partial_tx['vin']:
+            outpoint = (txin['txid'], txin['vout'])
+            assert outpoint in mixed_utxos, f"spent a non-mixed input: {txin['txid']}:{txin['vout']}"
+            partial_spent += mixed_utxos[outpoint]
+
+        self.sync_mempools([self.nodes[0], self.w1, self.w2])
+        self.bump_mocktime(1)
+        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
+        assert_equal(self.w1.getbalances()['mine']['coinjoin'], anonymized - partial_spent)
+
+        mixed_utxos = {(utxo['txid'], utxo['vout']): utxo['amount']
+                       for utxo in self.w1.listunspent() if utxo['coinjoin_rounds'] >= MIXING_ROUNDS_TARGET}
+        anonymized = self.w1.getbalances()['mine']['coinjoin']
         txid = self.w1.sendtoaddress(address=address, amount=anonymized, subtractfeefromamount=True, use_cj=True)
 
         # Only fully mixed inputs may fund this transaction
         tx = self.w1.getrawtransaction(txid, True)
         for txin in tx['vin']:
-            assert (txin['txid'], txin['vout']) in mixed_utxos, \
-                f"spent a non-mixed input: {txin['txid']}:{txin['vout']}"
+            assert (txin['txid'], txin['vout']) in mixed_utxos, f"spent a non-mixed input: {txin['txid']}:{txin['vout']}"
 
         self.sync_mempools([self.nodes[0], self.w1, self.w2])
         self.bump_mocktime(1)
