@@ -20,6 +20,7 @@ static constexpr int MIN_COINJOIN_DENOMS_GOAL = 10;
 static constexpr int MIN_COINJOIN_DENOMS_HARDCAP = 10;
 static constexpr int MAX_COINJOIN_SESSIONS = 10;
 static constexpr int MAX_COINJOIN_ROUNDS = 16;
+static constexpr int MIN_COINJOIN_RANDOM_ROUNDS = 0;
 static constexpr int MAX_COINJOIN_DENOMS_GOAL = 100000;
 static constexpr int MAX_COINJOIN_DENOMS_HARDCAP = 100000;
 static constexpr int MAX_COINJOIN_AMOUNT = MAX_MONEY / COIN;
@@ -49,6 +50,7 @@ static constexpr int COINJOIN_KEYS_THRESHOLD_WARNING = 100;
 static constexpr int COINJOIN_KEYS_THRESHOLD_STOP = 50;
 // Pseudorandomly mix up to this many times in addition to base round count
 static constexpr int COINJOIN_RANDOM_ROUNDS = 3;
+static constexpr int MAX_COINJOIN_RANDOM_ROUNDS = COINJOIN_RANDOM_ROUNDS;
 
 /* Application wide mixing options */
 class CCoinJoinClientOptions
@@ -65,6 +67,7 @@ public:
     static void SetMultiSessionEnabled(bool fEnabled);
     static void SetSessions(int sessions);
     static void SetRounds(int nRounds);
+    static void SetRandomRounds(int nRandomRounds);
     static void SetAmount(CAmount amount);
     static void SetDenomsGoal(int denoms_goal);
     static void SetDenomsHardCap(int denoms_hardcap);

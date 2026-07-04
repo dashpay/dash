@@ -958,6 +958,13 @@ static int WinnersToSkip()
             ? 1 : 8;
 }
 
+static bool IsDisconnectRequested(const CConnman& connman, const CService& addr)
+{
+    return connman.ForNode(addr, CConnman::AllNodes, [](const CNode* pnode) {
+        return pnode->fDisconnect.load();
+    });
+}
+
 bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
     if (!CCoinJoinClientOptions::IsEnabled()) return false;
@@ -997,7 +1004,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
 
         m_clientman.AddUsedMasternode(dmn->proTxHash);
 
-        if (connman.IsMasternodeOrDisconnectRequested(dmn->pdmnState->netInfo->GetPrimary())) {
+        if (IsDisconnectRequested(connman, dmn->pdmnState->netInfo->GetPrimary())) {
             WalletCJLogPrint(m_wallet, /* Continued */
                              "CCoinJoinClientSession::JoinExistingQueue -- skipping connection, masternode=%s\n", dmn->proTxHash.ToString());
             continue;
@@ -1067,7 +1074,7 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
             continue;
         }
 
-        if (connman.IsMasternodeOrDisconnectRequested(dmn->pdmnState->netInfo->GetPrimary())) {
+        if (IsDisconnectRequested(connman, dmn->pdmnState->netInfo->GetPrimary())) {
             WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::StartNewQueue -- skipping connection, masternode=%s\n",
                              dmn->proTxHash.ToString());
             nTries++;
@@ -1782,4 +1789,3 @@ void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
     }
     obj.pushKV("sessions", arrSessions);
 }
-

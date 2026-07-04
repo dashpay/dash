@@ -43,6 +43,12 @@ void CCoinJoinClientOptions::SetRounds(int nRounds)
     options.nCoinJoinRounds = nRounds;
 }
 
+void CCoinJoinClientOptions::SetRandomRounds(int nRandomRounds)
+{
+    CCoinJoinClientOptions& options = CCoinJoinClientOptions::Get();
+    options.nCoinJoinRandomRounds = nRandomRounds;
+}
+
 void CCoinJoinClientOptions::SetAmount(CAmount amount)
 {
     CCoinJoinClientOptions& options = CCoinJoinClientOptions::Get();
@@ -68,6 +74,7 @@ void CCoinJoinClientOptions::Init()
     instance.fCoinJoinMultiSession = gArgs.GetBoolArg("-coinjoinmultisession", DEFAULT_COINJOIN_MULTISESSION);
     instance.nCoinJoinSessions = std::min(std::max((int)gArgs.GetIntArg("-coinjoinsessions", DEFAULT_COINJOIN_SESSIONS), MIN_COINJOIN_SESSIONS), MAX_COINJOIN_SESSIONS);
     instance.nCoinJoinRounds = std::min(std::max((int)gArgs.GetIntArg("-coinjoinrounds", DEFAULT_COINJOIN_ROUNDS), MIN_COINJOIN_ROUNDS), MAX_COINJOIN_ROUNDS);
+    instance.nCoinJoinRandomRounds = std::min(std::max((int)gArgs.GetIntArg("-coinjoinrandomrounds", COINJOIN_RANDOM_ROUNDS), MIN_COINJOIN_RANDOM_ROUNDS), MAX_COINJOIN_RANDOM_ROUNDS);
     instance.nCoinJoinAmount = std::min(std::max((int)gArgs.GetIntArg("-coinjoinamount", DEFAULT_COINJOIN_AMOUNT), MIN_COINJOIN_AMOUNT), MAX_COINJOIN_AMOUNT);
     instance.nCoinJoinDenomsGoal = std::min(std::max((int)gArgs.GetIntArg("-coinjoindenomsgoal", DEFAULT_COINJOIN_DENOMS_GOAL), MIN_COINJOIN_DENOMS_GOAL), MAX_COINJOIN_DENOMS_GOAL);
     instance.nCoinJoinDenomsHardCap = std::min(std::max((int)gArgs.GetIntArg("-coinjoindenomshardcap", DEFAULT_COINJOIN_DENOMS_HARDCAP), MIN_COINJOIN_DENOMS_HARDCAP), MAX_COINJOIN_DENOMS_HARDCAP);

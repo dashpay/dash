@@ -47,6 +47,10 @@ BOOST_AUTO_TEST_CASE(coinjoin_options_tests)
 
     CCoinJoinClientOptions::SetRounds(DEFAULT_COINJOIN_ROUNDS + 10);
     BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetRounds(), DEFAULT_COINJOIN_ROUNDS + 10);
+    CCoinJoinClientOptions::SetRandomRounds(MIN_COINJOIN_RANDOM_ROUNDS);
+    BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetRandomRounds(), MIN_COINJOIN_RANDOM_ROUNDS);
+    CCoinJoinClientOptions::SetRandomRounds(COINJOIN_RANDOM_ROUNDS);
+    BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetRandomRounds(), COINJOIN_RANDOM_ROUNDS);
     CCoinJoinClientOptions::SetAmount(DEFAULT_COINJOIN_AMOUNT + 50);
     BOOST_CHECK_EQUAL(CCoinJoinClientOptions::GetAmount(), DEFAULT_COINJOIN_AMOUNT + 50);
 }
