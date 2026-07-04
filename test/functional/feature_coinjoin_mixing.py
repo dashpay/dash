@@ -8,6 +8,7 @@ Runs real mixing sessions on regtest: two wallet nodes mix through
 masternodes until funds are fully anonymized, then spend the mixed funds.
 
 Covered:
+- automatic collateral and denomination creation from ordinary wallet funds
 - use of confirmed collaterals and denominated outputs
 - full dsa -> dsq -> dsi -> dss -> dstx session flow against real masternodes
   (regtest sessions start once 2 participants joined and the queue timed out)
@@ -44,12 +45,16 @@ DENOMINATIONS = [
     100001,      # 0.001001
 ]
 DENOM_AMOUNTS = {Decimal(d) / COIN for d in DENOMINATIONS}
+COLLATERAL_MIN = Decimal(DENOMINATIONS[-1] // 10) / COIN
+COLLATERAL_MAX = COLLATERAL_MIN * 4
 
 # Keep the mixing target small so that only the smaller denominations are
 # needed and a handful of successful sessions completes the test.
 MIXING_AMOUNT_TARGET = 2
 # The protocol minimum, to finish mixing in as few sessions as possible.
 MIXING_ROUNDS_TARGET = 2
+
+AUTODENOM_FUNDING = Decimal("0.00200000")
 
 PREFUNDED_DENOM = Decimal("1.00001000")
 PREFUNDED_COLLATERAL = Decimal("0.00020000")
@@ -100,6 +105,8 @@ class CoinJoinMixingTest(DashTestFramework):
 
         self.prepare_chain()
         self.test_mixing_unavailable_on_masternodes()
+        self.test_automatic_denominating()
+        self.fund_mixing_wallets()
         self.start_mixing()
         self.wait_for_denominations()
         self.wait_for_anonymized_balance()
@@ -146,6 +153,15 @@ class CoinJoinMixingTest(DashTestFramework):
         if mempool:
             self.generate(node, 1, sync_fun=lambda: self.sync_blocks())
 
+    def wallet_outpoints(self, wallet):
+        return {(utxo['txid'], utxo['vout']) for utxo in wallet.listunspent()}
+
+    def is_denominated(self, utxo):
+        return utxo['amount'] in DENOM_AMOUNTS
+
+    def is_collateral(self, utxo):
+        return COLLATERAL_MIN <= utxo['amount'] <= COLLATERAL_MAX
+
     def prepare_chain(self):
         # There are no InstantSend quorums here, but the framework enables the
         # InstantSend spork by default, which makes the miner hold back
@@ -167,6 +183,62 @@ class CoinJoinMixingTest(DashTestFramework):
             return False
         self.wait_until(all_masternodes_paid, timeout=60)
 
+    def configure_mixing(self):
+        for wallet in self.wallets:
+            wallet.setcoinjoinamount(MIXING_AMOUNT_TARGET)
+            wallet.setcoinjoinrounds(MIXING_ROUNDS_TARGET)
+
+    def test_automatic_denominating(self):
+        self.log.info("Create CoinJoin collaterals and denominations from ordinary wallet funds")
+
+        initial_outpoints = {}
+        for wallet in self.wallets:
+            assert_equal(len(wallet.listunspent()), 0)
+            self.nodes[0].sendtoaddress(wallet.getnewaddress(), AUTODENOM_FUNDING)
+
+        self.bump_mocktime(1)
+        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
+
+        for wallet in self.wallets:
+            initial_outpoints[wallet.index] = self.wallet_outpoints(wallet)
+            assert_equal(wallet.getbalance(), AUTODENOM_FUNDING)
+            assert not any(self.is_denominated(utxo) or self.is_collateral(utxo) for utxo in wallet.listunspent())
+
+        self.configure_mixing()
+        for wallet in self.wallets:
+            assert_equal(wallet.coinjoin('start'), "Mixing requested")
+
+        def wallet_has_created_coinjoin_outputs(wallet):
+            new_outputs = [utxo for utxo in wallet.listunspent()
+                           if (utxo['txid'], utxo['vout']) not in initial_outpoints[wallet.index]]
+            return (any(self.is_denominated(utxo) for utxo in new_outputs) and
+                    any(self.is_collateral(utxo) for utxo in new_outputs))
+
+        def all_wallets_created_coinjoin_outputs():
+            if all(wallet_has_created_coinjoin_outputs(wallet) for wallet in self.wallets):
+                return True
+            self.pump_mixing()
+            return False
+
+        self.wait_until(all_wallets_created_coinjoin_outputs, timeout=180, sleep=0.25)
+
+        for wallet in self.wallets:
+            new_outputs = [utxo for utxo in wallet.listunspent()
+                           if (utxo['txid'], utxo['vout']) not in initial_outpoints[wallet.index]]
+            assert any(self.is_denominated(utxo) for utxo in new_outputs)
+            assert any(self.is_collateral(utxo) for utxo in new_outputs)
+            assert all((utxo['txid'], utxo['vout']) not in initial_outpoints[wallet.index]
+                       for utxo in wallet.listunspent() if self.is_denominated(utxo) or self.is_collateral(utxo))
+            wallet.coinjoin('stop')
+            assert_equal(wallet.coinjoin('reset'), "Mixing was reset")
+            wallet.lockunspent(True)
+
+        self.sync_mempools([self.nodes[0], self.w1, self.w2])
+        if self.nodes[0].getrawmempool():
+            self.bump_mocktime(1)
+            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
+
+    def fund_mixing_wallets(self):
         self.log.info("Fund the mixing wallets with confirmed denominations and collaterals")
         for wallet in self.wallets:
             for _ in range(PREFUNDED_DENOM_OUTPUTS):
@@ -176,7 +248,11 @@ class CoinJoinMixingTest(DashTestFramework):
         self.bump_mocktime(1)
         self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
         for wallet in self.wallets:
-            assert_equal(wallet.getbalance(), PREFUNDED_BALANCE)
+            utxos = wallet.listunspent()
+            assert_greater_than(sum(1 for utxo in utxos if utxo['amount'] == PREFUNDED_DENOM),
+                                PREFUNDED_DENOM_OUTPUTS - 1)
+            assert_greater_than(sum(1 for utxo in utxos if utxo['amount'] == PREFUNDED_COLLATERAL),
+                                PREFUNDED_COLLATERAL_OUTPUTS - 1)
 
     def test_mixing_unavailable_on_masternodes(self):
         self.log.info("Client-side mixing must not be available on masternodes")
@@ -192,9 +268,7 @@ class CoinJoinMixingTest(DashTestFramework):
 
     def start_mixing(self):
         self.log.info("Configure and start mixing on both wallets")
-        for wallet in self.wallets:
-            wallet.setcoinjoinamount(MIXING_AMOUNT_TARGET)
-            wallet.setcoinjoinrounds(MIXING_ROUNDS_TARGET)
+        self.configure_mixing()
 
         # Start one wallet first so it advertises a queue for the second
         # wallet to join instead of both wallets racing to create separate
