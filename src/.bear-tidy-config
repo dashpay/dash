@@ -1,4 +1,5 @@
 {
+  "schema": "4.0",
   "output": {
     "content": {
       "include_only_existing_source": true,
