@@ -287,7 +287,8 @@ bool BlockManager::LoadBlockIndex()
     for (CBlockIndex* pindex : vSortedByHeight) {
         if (ShutdownRequested()) return false;
         if (previous_index && pindex->nHeight > previous_index->nHeight + 1) {
-            return error("%s: block index is non-contiguous, index of height %d missing", __func__, previous_index->nHeight + 1);
+            LogError("%s: block index is non-contiguous, index of height %d missing\n", __func__, previous_index->nHeight + 1);
+            return false;
         }
         previous_index = pindex;
         pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex);
@@ -485,7 +486,8 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     // Open history file to append
     CAutoFile fileout(OpenUndoFile(pos), SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull()) {
-        return error("%s: OpenUndoFile failed", __func__);
+        LogError("%s: OpenUndoFile failed\n", __func__);
+        return false;
     }
 
     // Write index header
@@ -495,7 +497,8 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     // Write undo data
     long fileOutPos = ftell(fileout.Get());
     if (fileOutPos < 0) {
-        return error("%s: ftell failed", __func__);
+        LogError("%s: ftell failed\n", __func__);
+        return false;
     }
     pos.nPos = (unsigned int)fileOutPos;
     fileout << blockundo;
@@ -514,13 +517,15 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
     const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
 
     if (pos.IsNull()) {
-        return error("%s: no undo data available", __func__);
+        LogError("%s: no undo data available\n", __func__);
+        return false;
     }
 
     // Open history file to read
     CAutoFile filein(OpenUndoFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull()) {
-        return error("%s: OpenUndoFile failed", __func__);
+        LogError("%s: OpenUndoFile failed\n", __func__);
+        return false;
     }
 
     // Read block
@@ -531,12 +536,14 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
         verifier >> blockundo;
         filein >> hashChecksum;
     } catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        LogError("%s: Deserialize or I/O error - %s\n", __func__, e.what());
+        return false;
     }
 
     // Verify checksum
     if (hashChecksum != verifier.GetHash()) {
-        return error("%s: Checksum mismatch", __func__);
+        LogError("%s: Checksum mismatch\n", __func__);
+        return false;
     }
 
     return true;
@@ -704,7 +711,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     // Open history file to append
     CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull()) {
-        return error("WriteBlockToDisk: OpenBlockFile failed");
+        LogError("WriteBlockToDisk: OpenBlockFile failed\n");
+        return false;
     }
 
     // Write index header
@@ -714,7 +722,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     // Write block
     long fileOutPos = ftell(fileout.Get());
     if (fileOutPos < 0) {
-        return error("WriteBlockToDisk: ftell failed");
+        LogError("WriteBlockToDisk: ftell failed\n");
+        return false;
     }
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
@@ -729,7 +738,8 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     if (block.GetUndoPos().IsNull()) {
         FlatFilePos _pos;
         if (!FindUndoPos(state, block.nFile, _pos, ::GetSerializeSize(blockundo, CLIENT_VERSION) + 40)) {
-            return error("ConnectBlock(): FindUndoPos failed");
+            LogError("ConnectBlock(): FindUndoPos failed\n");
+            return false;
         }
         if (!UndoWriteToDisk(blockundo, _pos, block.pprev->GetBlockHash(), GetParams().MessageStart())) {
             return AbortNode(state, "Failed to write undo data");
@@ -790,8 +800,9 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
         return false;
     }
     if (*hash != pindex->GetBlockHash()) {
-        return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
+        LogError("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s\n",
                      pindex->ToString(), block_pos.ToString());
+        return false;
     }
     return true;
 }
@@ -810,7 +821,7 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, CCha
         nBlockSize += static_cast<unsigned int>(BLOCK_SERIALIZATION_HEADER_SIZE);
     }
     if (!FindBlockPos(blockPos, nBlockSize, nHeight, active_chain, block.GetBlockTime(), position_known)) {
-        error("%s: FindBlockPos failed", __func__);
+        LogError("%s: FindBlockPos failed\n", __func__);
         return FlatFilePos();
     }
     if (!position_known) {

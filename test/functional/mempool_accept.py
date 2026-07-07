@@ -77,6 +77,12 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
         txid_in_block = self.wallet.sendrawtransaction(from_node=node, tx_hex=raw_tx_in_block)
         self.generate(node, 1)
         self.mempool_size = 0
+        # Check negative feerate
+        assert_raises_rpc_error(-3, "Amount out of range", lambda: self.check_mempool_result(
+            result_expected=None,
+            rawtxs=[raw_tx_in_block],
+            maxfeerate=-0.01,
+        ))
         self.check_mempool_result(
             result_expected=[{'txid': txid_in_block, 'allowed': False, 'reject-reason': 'txn-already-known'}],
             rawtxs=[raw_tx_in_block],

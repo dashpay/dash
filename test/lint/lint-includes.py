@@ -14,14 +14,7 @@ import sys
 
 from subprocess import check_output, CalledProcessError
 
-
-EXCLUDED_DIRS = ["src/leveldb/",
-                 "src/crc32c/",
-                 "src/secp256k1/",
-                 "src/minisketch/",
-                 "src/dashbls/",
-                 "src/immer/",
-                 "src/crypto/x11/"]
+from lint_ignore_dirs import SHARED_EXCLUDED_SUBTREES
 
 EXPECTED_BOOST_INCLUDES = ["boost/date_time/posix_time/posix_time.hpp",
                            "boost/hana/for_each.hpp",
@@ -47,7 +40,7 @@ def get_toplevel():
 
 
 def list_files_by_suffix(suffixes):
-    exclude_args = [":(exclude)" + dir for dir in EXCLUDED_DIRS]
+    exclude_args = [":(exclude)" + dir for dir in SHARED_EXCLUDED_SUBTREES]
 
     files_list = check_output(["git", "ls-files", "src"] + exclude_args, text=True, encoding="utf8").splitlines()
 
@@ -105,7 +98,7 @@ def find_extra_boosts():
 
 
 def find_quote_syntax_inclusions():
-    exclude_args = [":(exclude)" + dir for dir in EXCLUDED_DIRS]
+    exclude_args = [":(exclude)" + dir for dir in SHARED_EXCLUDED_SUBTREES]
     quote_syntax_inclusions = list()
 
     try:

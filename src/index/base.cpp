@@ -202,7 +202,8 @@ bool BaseIndex::Commit()
 {
     CDBBatch batch(GetDB());
     if (!CommitInternal(batch) || !GetDB().WriteBatch(batch)) {
-        return error("%s: Failed to commit latest %s state", __func__, GetName());
+        LogError("%s: Failed to commit latest %s state\n", __func__, GetName());
+        return false;
     }
     return true;
 }
