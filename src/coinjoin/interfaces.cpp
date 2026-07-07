@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 using node::NodeContext;
 using wallet::CWallet;
@@ -22,55 +23,55 @@ namespace {
 
 class CoinJoinClientImpl : public interfaces::CoinJoin::Client
 {
-    CCoinJoinClientManager& m_clientman;
+    std::shared_ptr<CCoinJoinClientManager> m_clientman;
 
 public:
-    explicit CoinJoinClientImpl(CCoinJoinClientManager& clientman)
-        : m_clientman(clientman) {}
+    explicit CoinJoinClientImpl(std::shared_ptr<CCoinJoinClientManager> clientman)
+        : m_clientman(std::move(clientman)) {}
 
     void resetCachedBlocks() override
     {
-        m_clientman.nCachedNumBlocks = std::numeric_limits<int>::max();
+        m_clientman->nCachedNumBlocks = std::numeric_limits<int>::max();
     }
     void resetPool() override
     {
-        m_clientman.ResetPool();
+        m_clientman->ResetPool();
     }
     void disableAutobackups() override
     {
-        m_clientman.fCreateAutoBackups = false;
+        m_clientman->fCreateAutoBackups = false;
     }
     int getCachedBlocks() override
     {
-        return m_clientman.nCachedNumBlocks;
+        return m_clientman->nCachedNumBlocks;
     }
     void getJsonInfo(UniValue& obj) override
     {
-        return m_clientman.GetJsonInfo(obj);
+        return m_clientman->GetJsonInfo(obj);
     }
     std::string getSessionDenoms() override
     {
-        return m_clientman.GetSessionDenoms();
+        return m_clientman->GetSessionDenoms();
     }
     std::vector<std::string> getSessionStatuses() override
     {
-        return m_clientman.GetStatuses();
+        return m_clientman->GetStatuses();
     }
     void setCachedBlocks(int nCachedBlocks) override
     {
-       m_clientman.nCachedNumBlocks = nCachedBlocks;
+        m_clientman->nCachedNumBlocks = nCachedBlocks;
     }
     bool isMixing() override
     {
-        return m_clientman.IsMixing();
+        return m_clientman->IsMixing();
     }
     bool startMixing() override
     {
-        return m_clientman.StartMixing();
+        return m_clientman->StartMixing();
     }
     void stopMixing() override
     {
-        m_clientman.StopMixing();
+        m_clientman->StopMixing();
     }
 };
 
@@ -112,7 +113,7 @@ public:
     std::unique_ptr<interfaces::CoinJoin::Client> GetClient(const std::string& name) override
     {
         auto clientman = manager().getClient(name);
-        return clientman ? std::make_unique<CoinJoinClientImpl>(*clientman) : nullptr;
+        return clientman ? std::make_unique<CoinJoinClientImpl>(std::move(clientman)) : nullptr;
     }
 
     NodeContext& m_node;

@@ -221,13 +221,24 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(coinjoin_manager_start_stop_tests, CTransactionBuilderTestSetup)
 {
-    auto& cj_man = *Assert(m_node.cj_walletman->getClient(""));
-    BOOST_CHECK_EQUAL(cj_man.IsMixing(), false);
-    BOOST_CHECK_EQUAL(cj_man.StartMixing(), true);
-    BOOST_CHECK_EQUAL(cj_man.IsMixing(), true);
-    BOOST_CHECK_EQUAL(cj_man.StartMixing(), false);
-    cj_man.StopMixing();
-    BOOST_CHECK_EQUAL(cj_man.IsMixing(), false);
+    auto cj_man = Assert(m_node.cj_walletman->getClient(""));
+    BOOST_CHECK_EQUAL(cj_man->IsMixing(), false);
+    BOOST_CHECK_EQUAL(cj_man->StartMixing(), true);
+    BOOST_CHECK_EQUAL(cj_man->IsMixing(), true);
+    BOOST_CHECK_EQUAL(cj_man->StartMixing(), false);
+    cj_man->StopMixing();
+    BOOST_CHECK_EQUAL(cj_man->IsMixing(), false);
+}
+
+BOOST_FIXTURE_TEST_CASE(coinjoin_newkeypool_stops_mixing_without_lock_inversion, CTransactionBuilderTestSetup)
+{
+    auto cj_man = Assert(m_node.cj_walletman->getClient(""));
+    BOOST_REQUIRE(cj_man->StartMixing());
+    {
+        LOCK(wallet->cs_wallet);
+        BOOST_REQUIRE(wallet->GetLegacyScriptPubKeyMan()->NewKeyPool());
+    }
+    BOOST_CHECK_EQUAL(cj_man->IsMixing(), false);
 }
 
 BOOST_FIXTURE_TEST_CASE(CTransactionBuilderTest, CTransactionBuilderTestSetup)

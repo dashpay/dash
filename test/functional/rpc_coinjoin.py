@@ -50,6 +50,14 @@ class CoinJoinTest(BitcoinTestFramework):
         self.test_coinjoinsalt(w1)
         w1.unloadwallet()
 
+        if not self.options.descriptors:
+            node.createwallet(wallet_name='w_keypool', blank=False, disable_private_keys=False)
+            w_keypool = node.get_wallet_rpc('w_keypool')
+            self.test_newkeypool_stops_mixing(w_keypool)
+            w_keypool.unloadwallet()
+        else:
+            self.log.info('Skip "newkeypool" regression for descriptor wallets')
+
         node.createwallet(wallet_name='w2', blank=True, disable_private_keys=True)
         w2 = node.get_wallet_rpc('w2')
         self.test_coinjoinsalt_disabled(w2)
@@ -84,6 +92,13 @@ class CoinJoinTest(BitcoinTestFramework):
 
         # Reset mix session
         assert_equal(node.coinjoin('reset'), "Mixing was reset")
+
+    def test_newkeypool_stops_mixing(self, node):
+        self.log.info('"newkeypool" should stop mixing')
+        node.coinjoin('start')
+        assert_equal(node.getcoinjoininfo()['running'], True)
+        node.newkeypool()
+        assert_equal(node.getcoinjoininfo()['running'], False)
 
     def test_setcoinjoinamount(self, node):
         self.log.info('"setcoinjoinamount" should update mixing target')

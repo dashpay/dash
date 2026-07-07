@@ -10,8 +10,11 @@
 
 #include <validationinterface.h>
 
+#include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 class CBlockIndex;
 class CChainState;
@@ -47,7 +50,7 @@ public:
 
 public:
     virtual bool hasQueue(const uint256& hash) const = 0;
-    virtual CCoinJoinClientManager* getClient(const std::string& name) = 0;
+    virtual std::shared_ptr<CCoinJoinClientManager> getClient(const std::string& name) = 0;
     virtual MessageProcessingResult processMessage(CNode& peer, CChainState& chainstate, CConnman& connman,
                                                    CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) = 0;
     virtual std::optional<CCoinJoinQueue> getQueueFromHash(const uint256& hash) const = 0;
