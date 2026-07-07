@@ -294,15 +294,8 @@ class LLMQQuorumRotationTest(DashTestFramework):
         assert_equal(len(default_upcoming_100), 1)
         assert_equal(default_upcoming_100[0]["proTxHash"], active_mn.proTxHash)
 
-        # Rotated quorums cannot be predicted before their snapshots exist
-        upcoming_all = active_mn.get_node(self).quorum("dkginfo", active_mn.proTxHash)["upcoming_dkgs"]
-        rotated_entries = [d for d in upcoming_all if d["llmqType"] == llmq_type]
-        assert_greater_than_or_equal(len(rotated_entries), 1)
-        for entry in rotated_entries:
-            assert_equal(entry["known"], False)
-            assert_equal(entry["reason"], "rotated quorum prediction is not exposed yet")
-
         predicted_members = {}
+        predicted_rotated_members = {0: {}, 1: {}}
         for mn in self.mninfo:
             dkg_info = mn.get_node(self).quorum("dkginfo", mn.proTxHash)
             upcoming_100 = [d for d in dkg_info["upcoming_dkgs"] if d["llmqType"] == 100]
@@ -319,15 +312,37 @@ class LLMQQuorumRotationTest(DashTestFramework):
             assert_equal(predicted_100["memberCount"], self.llmq_size)
             assert_equal(predicted_100["isMember"], predicted_100["memberIndex"] != -1)
             predicted_members[mn.proTxHash] = predicted_100["isMember"]
-        assert_equal(sum(predicted_members.values()), self.llmq_size)
 
-        self.log.info("Mine the predicted type-100 quorum and compare selected members")
-        quorum_hash = self.mine_quorum()
-        quorum_info = self.nodes[0].quorum("info", 100, quorum_hash)
-        assert_equal(quorum_info["height"], expected_quorum_height)
-        actual_members = set(extract_quorum_members(quorum_info))
-        predicted_member_hashes = set(proTxHash for proTxHash, is_member in predicted_members.items() if is_member)
-        assert_equal(predicted_member_hashes, actual_members)
+            upcoming_rotated = [d for d in dkg_info["upcoming_dkgs"] if d["llmqType"] == llmq_type]
+            # All indices of the upcoming cycle share the cycle base work block, so
+            # every rotated quorumIndex must be reported once that work block is mined
+            assert_equal([d["quorumIndex"] for d in upcoming_rotated], [0, 1])
+            for predicted_rotated in upcoming_rotated:
+                quorum_index = predicted_rotated["quorumIndex"]
+                assert_equal(predicted_rotated["llmqTypeName"], llmq_type_name)
+                assert_equal(predicted_rotated["quorumHeight"], expected_quorum_height + quorum_index)
+                assert_equal(predicted_rotated["blocksUntilStart"], expected_quorum_height + quorum_index - tip)
+                assert_equal(predicted_rotated["proTxHash"], mn.proTxHash)
+                assert_equal(predicted_rotated["known"], True)
+                assert_equal(predicted_rotated["workBlockHeight"], expected_quorum_height - 8)
+                assert_equal(predicted_rotated["workBlockHash"], self.nodes[0].getblockhash(expected_quorum_height - 8))
+                assert_equal(predicted_rotated["memberCount"], self.llmq_size_dip0024)
+                assert_equal(predicted_rotated["isMember"], predicted_rotated["memberIndex"] != -1)
+                predicted_rotated_members[quorum_index][mn.proTxHash] = predicted_rotated["isMember"]
+        assert_equal(sum(predicted_members.values()), self.llmq_size)
+        for quorum_index in [0, 1]:
+            assert_equal(sum(predicted_rotated_members[quorum_index].values()), self.llmq_size_dip0024)
+
+        self.log.info("Mine the predicted rotated quorums and compare selected members")
+        quorum_infos_rotated = self.mine_cycle_quorum()
+        assert_equal(quorum_infos_rotated[0]["height"], expected_quorum_height)
+        for quorum_index, quorum_info_rotated in enumerate(quorum_infos_rotated):
+            assert_equal(quorum_info_rotated["quorumIndex"], quorum_index)
+            actual_rotated_members = set(extract_quorum_members(quorum_info_rotated))
+            predicted_rotated_member_hashes = set(
+                proTxHash for proTxHash, is_member in predicted_rotated_members[quorum_index].items() if is_member
+            )
+            assert_equal(predicted_rotated_member_hashes, actual_rotated_members)
 
     def test_getmnlistdiff_quorums(self, baseBlockHash, blockHash, baseQuorumList, expectedDeleted, expectedNew, testQuorumsCLSigs = True):
         d = self.test_getmnlistdiff_base(baseBlockHash, blockHash, testQuorumsCLSigs)

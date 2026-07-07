@@ -79,6 +79,14 @@ std::optional<std::vector<CDeterministicMNCPtr>> ComputeNonRotatedQuorumMembersF
     gsl::not_null<const CBlockIndex*> pWorkBlockIndex, int quorumHeight,
     gsl::not_null<const CBlockIndex*> pDeploymentTipIndex);
 
+// Predicts the members of a future rotated v20 quorum from its already-known cycle work block,
+// before the next cycle base block exists on chain. Returns std::nullopt when the historical
+// snapshots needed for quarter rotation are not available, or when the deployment state at the
+// future cycle base cannot be confirmed from pDeploymentTipIndex.
+std::optional<std::vector<CDeterministicMNCPtr>> ComputeRotatedQuorumMembersFromWorkBlock(
+    Consensus::LLMQType llmqType, const UtilParameters& util_params, gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
+    int quorumHeight, gsl::not_null<const CBlockIndex*> pDeploymentTipIndex);
+
 Uint256HashSet GetQuorumConnections(const Consensus::LLMQParams& llmqParams, const CSporkManager& sporkman,
                                     const UtilParameters& util_params, const uint256& forMember, bool onlyOutbound);
 

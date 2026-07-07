@@ -998,7 +998,7 @@ static RPCHelpMan quorum_dkginfo()
             {
                 {RPCResult::Type::NUM, "active_dkgs", "Total number of active DKG sessions this node is participating in right now"},
                 {RPCResult::Type::NUM, "next_dkg", "The number of blocks until the next potential DKG session"},
-                {RPCResult::Type::ARR, "upcoming_dkgs", /*optional=*/true, "Upcoming DKG sessions for the given proTxHash whose work block is already mined, i.e. sessions starting within the work-diff depth",
+                {RPCResult::Type::ARR, "upcoming_dkgs", /*optional=*/true, "Upcoming DKG sessions for the given proTxHash whose work block is already mined. For rotated quorums all indices in a cycle share the cycle base work block",
                 {
                     {RPCResult::Type::OBJ, "", "",
                     {
@@ -1047,6 +1047,48 @@ static RPCHelpMan quorum_dkginfo()
     };
     ret.pushKV("next_dkg", minNextDKG(Params().GetConsensus(), nTipHeight));
 
+    const auto quorum_type_known_enabled = [&](Consensus::LLMQType llmq_type, int quorum_base_height) {
+        const int quorum_base_predecessor_height{quorum_base_height - 1};
+        if (quorum_base_predecessor_height <= nTipHeight) {
+            const CBlockIndex* const pQuorumBasePredecessor = pindexTip->GetAncestor(quorum_base_predecessor_height);
+            return pQuorumBasePredecessor != nullptr && chainman.IsQuorumTypeEnabled(llmq_type, pQuorumBasePredecessor);
+        }
+
+        const auto& consensus = Params().GetConsensus();
+        const bool dip0020_active{quorum_base_height >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_DIP0020)};
+        const bool dip0024_active{quorum_base_height >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_DIP0024)};
+
+        // For future predecessors, only include types whose activation state is deterministic
+        // from buried deployment heights or already-active versionbits state.
+        switch (llmq_type) {
+        case Consensus::LLMQType::LLMQ_DEVNET:
+        case Consensus::LLMQType::LLMQ_TEST:
+        case Consensus::LLMQType::LLMQ_TEST_PLATFORM:
+        case Consensus::LLMQType::LLMQ_400_60:
+        case Consensus::LLMQType::LLMQ_400_85:
+        case Consensus::LLMQType::LLMQ_DEVNET_PLATFORM:
+            return true;
+        case Consensus::LLMQType::LLMQ_50_60:
+        case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND:
+            return chainman.IsQuorumTypeEnabled(llmq_type, pindexTip, dip0024_active,
+                                                quorum_base_predecessor_height >= consensus.DIP0024QuorumsHeight);
+        case Consensus::LLMQType::LLMQ_TEST_V17:
+            return DeploymentActiveAfter(pindexTip, chainman, Consensus::DEPLOYMENT_TESTDUMMY);
+        case Consensus::LLMQType::LLMQ_100_67:
+            return dip0020_active;
+        case Consensus::LLMQType::LLMQ_25_67: {
+            constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT{847000};
+            return quorum_base_predecessor_height >= TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT;
+        }
+        case Consensus::LLMQType::LLMQ_60_75:
+        case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:
+        case Consensus::LLMQType::LLMQ_TEST_DIP0024:
+            return dip0024_active;
+        default:
+            return false;
+        }
+    };
+
     uint256 proTxHash;
     if (!request.params[0].isNull() && !request.params[0].get_str().empty()) {
         proTxHash = ParseHashV(request.params[0], "proTxHash");
@@ -1056,19 +1098,42 @@ static RPCHelpMan quorum_dkginfo()
 
     if (!proTxHash.IsNull()) {
         UniValue upcoming(UniValue::VARR);
-        for (const auto& type : llmq::GetEnabledQuorumTypes(chainman, pindexTip)) {
-            const auto llmq_params_opt = Params().GetLLMQ(type);
-            CHECK_NONFATAL(llmq_params_opt.has_value());
-            const auto& llmq_params = llmq_params_opt.value();
-            bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params, pindexTip);
-            int quorums_num = rotation_enabled ? llmq_params.signingActiveQuorumCount : 1;
+        for (const auto& llmq_params : Params().GetConsensus().llmqs) {
+            // Whether a rotated cycle applies at the *upcoming* cycle base is what matters here,
+            // not whether the tip's own current cycle is rotated. Iterate every possible index
+            // for any llmq type that supports rotation and decide per-entry below.
+            const int quorums_num = llmq_params.useRotation ? llmq_params.signingActiveQuorumCount : 1;
 
             for (const int quorumIndex : util::irange(quorums_num)) {
                 int quorumHeight = nTipHeight - (nTipHeight % llmq_params.dkgInterval) + quorumIndex;
                 if (quorumHeight <= nTipHeight) {
                     quorumHeight += llmq_params.dkgInterval;
                 }
-                if (quorumHeight <= nTipHeight || quorumHeight - nTipHeight > llmq::WORK_DIFF_DEPTH) {
+                const int cycleBaseHeight{quorumHeight - quorumIndex};
+                if (!quorum_type_known_enabled(llmq_params.type, cycleBaseHeight)) {
+                    continue;
+                }
+
+                // Determine whether the *upcoming* cycle is rotated. IsQuorumRotationEnabled
+                // checks DIP0024 at cycleBaseHeight - 1. Use that actual block when it is
+                // known; otherwise use the deterministic buried DIP0024 activation height.
+                const Consensus::Params& consensus{Params().GetConsensus()};
+                std::optional<bool> rotation_predicted;
+                if (!llmq_params.useRotation) {
+                    rotation_predicted = false;
+                } else if (cycleBaseHeight < 1) {
+                    rotation_predicted = false;
+                } else if (const int cycleBasePredecessorHeight{cycleBaseHeight - 1};
+                           cycleBasePredecessorHeight <= nTipHeight) {
+                    const CBlockIndex* const pCycleBasePredecessor = pindexTip->GetAncestor(cycleBasePredecessorHeight);
+                    CHECK_NONFATAL(pCycleBasePredecessor);
+                    rotation_predicted = DeploymentActiveAfter(pCycleBasePredecessor, consensus,
+                                                               Consensus::DEPLOYMENT_DIP0024);
+                } else if (cycleBaseHeight >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_DIP0024)) {
+                    rotation_predicted = true;
+                }
+
+                if (rotation_predicted.has_value() && !*rotation_predicted && quorumIndex > 0) {
                     continue;
                 }
 
@@ -1080,15 +1145,20 @@ static RPCHelpMan quorum_dkginfo()
                 obj.pushKV("blocksUntilStart", quorumHeight - nTipHeight);
                 obj.pushKV("proTxHash", proTxHash.ToString());
 
-                if (llmq_params.useRotation) {
+                if (!rotation_predicted.has_value()) {
                     obj.pushKV("known", false);
-                    obj.pushKV("reason", "rotated quorum prediction is not exposed yet");
+                    obj.pushKV("reason", "DIP0024 activation state at upcoming cycle base is not yet known");
                     upcoming.push_back(obj);
                     continue;
                 }
+                // Rotated quorums share the work block of their cycle base, so gate
+                // availability on the work block height rather than each index's start height
+                const int workHeight{(*rotation_predicted ? cycleBaseHeight : quorumHeight) - llmq::WORK_DIFF_DEPTH};
+                if (workHeight > nTipHeight) {
+                    continue;
+                }
 
-                int workHeight = quorumHeight - llmq::WORK_DIFF_DEPTH;
-                if (workHeight < 0 || workHeight > nTipHeight) {
+                if (workHeight < 0) {
                     obj.pushKV("known", false);
                     obj.pushKV("reason", "work block is not available yet");
                     upcoming.push_back(obj);
@@ -1103,14 +1173,31 @@ static RPCHelpMan quorum_dkginfo()
                     continue;
                 }
 
-                auto mnList = CHECK_NONFATAL(node.dmnman)->GetListForBlock(pWorkBlockIndex);
-                auto predicted_members = llmq::utils::ComputeNonRotatedQuorumMembersFromWorkBlock(
-                    llmq_params.type, Params(), mnList, pWorkBlockIndex, quorumHeight, pindexTip);
-                if (!predicted_members.has_value()) {
-                    obj.pushKV("known", false);
-                    obj.pushKV("reason", "deployment state at upcoming quorum base block is not yet known");
-                    upcoming.push_back(obj);
-                    continue;
+                std::optional<std::vector<CDeterministicMNCPtr>> predicted_members;
+                if (*rotation_predicted) {
+                    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+                    predicted_members = llmq::utils::ComputeRotatedQuorumMembersFromWorkBlock(
+                        llmq_params.type,
+                        {*CHECK_NONFATAL(node.dmnman), *CHECK_NONFATAL(llmq_ctx.qsnapman), chainman, pindexTip},
+                        pWorkBlockIndex, quorumHeight, pindexTip);
+                    if (!predicted_members.has_value()) {
+                        obj.pushKV("known", false);
+                        obj.pushKV("reason", "rotated quorum snapshots or deployment state not available");
+                        upcoming.push_back(obj);
+                        continue;
+                    }
+                } else {
+                    auto mnList = CHECK_NONFATAL(node.dmnman)->GetListForBlock(pWorkBlockIndex);
+                    predicted_members = llmq::utils::ComputeNonRotatedQuorumMembersFromWorkBlock(llmq_params.type,
+                                                                                                 Params(), mnList,
+                                                                                                 pWorkBlockIndex,
+                                                                                                 quorumHeight, pindexTip);
+                    if (!predicted_members.has_value()) {
+                        obj.pushKV("known", false);
+                        obj.pushKV("reason", "deployment state at upcoming quorum base block is not yet known");
+                        upcoming.push_back(obj);
+                        continue;
+                    }
                 }
                 const auto& members = *predicted_members;
 
