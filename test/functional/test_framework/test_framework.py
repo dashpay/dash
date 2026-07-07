@@ -2225,7 +2225,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         return new_quorum
 
-    def mine_cycle_quorum(self):
+    def mine_cycle_quorum(self, after_quorum_index_0_started=None):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -2263,6 +2263,9 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_connections(q_0, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1))
         if spork23_active:
             self.wait_for_masternode_probes(q_0, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
+
+        if after_quorum_index_0_started is not None:
+            after_quorum_index_0_started(q_0)
 
         self.move_blocks(nodes, 1)
 

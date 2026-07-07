@@ -333,8 +333,30 @@ class LLMQQuorumRotationTest(DashTestFramework):
         for quorum_index in [0, 1]:
             assert_equal(sum(predicted_rotated_members[quorum_index].values()), self.llmq_size_dip0024)
 
+        def assert_mid_cycle_rotated_prediction(quorum_hash_0):
+            self.log.info("Test 'quorum dkginfo' rotated prediction after cycle index 0 starts")
+            assert_equal(self.nodes[0].getblockcount(), expected_quorum_height)
+            assert_equal(self.nodes[0].getbestblockhash(), quorum_hash_0)
+            for mn in self.mninfo:
+                dkg_info = mn.get_node(self).quorum("dkginfo", mn.proTxHash)
+                upcoming_rotated_index_1 = [
+                    d for d in dkg_info["upcoming_dkgs"]
+                    if d["llmqType"] == llmq_type
+                    and d["quorumIndex"] == 1
+                    and d["quorumHeight"] == expected_quorum_height + 1
+                ]
+                assert_equal(len(upcoming_rotated_index_1), 1)
+                predicted_rotated = upcoming_rotated_index_1[0]
+                assert_equal(predicted_rotated["known"], True)
+                assert_equal(predicted_rotated["workBlockHeight"], expected_quorum_height - 8)
+                assert_equal(predicted_rotated["workBlockHash"], self.nodes[0].getblockhash(expected_quorum_height - 8))
+                assert_equal(predicted_rotated["memberCount"], self.llmq_size_dip0024)
+                assert_equal(predicted_rotated["isMember"], predicted_rotated_members[1][mn.proTxHash])
+
         self.log.info("Mine the predicted rotated quorums and compare selected members")
-        quorum_infos_rotated = self.mine_cycle_quorum()
+        quorum_infos_rotated = self.mine_cycle_quorum(
+            after_quorum_index_0_started=assert_mid_cycle_rotated_prediction,
+        )
         assert_equal(quorum_infos_rotated[0]["height"], expected_quorum_height)
         for quorum_index, quorum_info_rotated in enumerate(quorum_infos_rotated):
             assert_equal(quorum_info_rotated["quorumIndex"], quorum_index)
