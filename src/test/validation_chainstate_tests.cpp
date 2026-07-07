@@ -14,6 +14,7 @@
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
+#include <util/check.h>
 #include <validation.h>
 
 #include <vector>
@@ -96,14 +97,14 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
 
     BOOST_CHECK_EQUAL(chainman.GetAll().size(), 2);
 
-    CChainState& background_cs{*[&] {
+    CChainState& background_cs{*Assert([&]() -> CChainState* {
         for (CChainState* cs : chainman.GetAll()) {
             if (cs != &chainman.ActiveChainstate()) {
                 return cs;
             }
         }
-        assert(false);
-    }()};
+        return nullptr;
+    }())};
 
     // Create a block to append to the validation chain.
     std::vector<CMutableTransaction> noTxns;

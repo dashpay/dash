@@ -10,7 +10,6 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
-#include <common/url.h>
 #include <compat/compat.h>
 #include <init.h>
 #include <interfaces/chain.h>
@@ -34,7 +33,6 @@
 using node::NodeContext;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
-UrlDecodeFn* const URL_DECODE = urlDecode;
 
 #if HAVE_DECL_FORK
 

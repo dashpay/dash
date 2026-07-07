@@ -9,6 +9,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <sync.h>
+#include <util/time.h>
 
 #include <map>
 #include <set>
@@ -70,7 +71,7 @@ protected:
     struct OrphanTx {
         CTransactionRef tx;
         NodeId fromPeer;
-        int64_t nTimeExpire;
+        NodeSeconds nTimeExpire;
         size_t list_pos;
         size_t nTxSize;
     };
