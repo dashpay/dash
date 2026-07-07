@@ -167,6 +167,11 @@ size_t CSigSharesNodeState::GetAnnouncementSessionCount(Consensus::LLMQType llmq
     });
 }
 
+size_t CSigSharesNodeState::GetPendingIncomingSigSharesCount() const
+{
+    return pendingIncomingSigSharesCount;
+}
+
 CSigSharesNodeState::Session* CSigSharesNodeState::GetSessionBySignHash(const uint256& signHash)
 {
     auto it = sessions.find(signHash);
@@ -201,6 +206,44 @@ bool CSigSharesNodeState::GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo
     return true;
 }
 
+bool CSigSharesNodeState::AddPendingIncomingSigShare(const llmq::CSigShare& sigShare)
+{
+    if (pendingIncomingSigSharesCount >= MAX_PENDING_SIG_SHARES_PER_NODE) {
+        return false;
+    }
+    if (!pendingIncomingSigShares.Add(sigShare.GetKey(), sigShare)) {
+        return false;
+    }
+    ++pendingIncomingSigSharesCount;
+    return true;
+}
+
+bool CSigSharesNodeState::ErasePendingIncomingSigShare(const SigShareKey& key)
+{
+    if (!pendingIncomingSigShares.Has(key)) {
+        return false;
+    }
+    pendingIncomingSigShares.Erase(key);
+    --pendingIncomingSigSharesCount;
+    return true;
+}
+
+size_t CSigSharesNodeState::ClearPendingIncomingSigShares()
+{
+    const size_t removed = pendingIncomingSigSharesCount;
+    pendingIncomingSigShares.Clear();
+    pendingIncomingSigSharesCount = 0;
+    return removed;
+}
+
+size_t CSigSharesNodeState::ErasePendingIncomingSigSharesForSession(const uint256& signHash)
+{
+    const size_t removed = pendingIncomingSigShares.CountForSignHash(signHash);
+    pendingIncomingSigShares.EraseAllForSignHash(signHash);
+    pendingIncomingSigSharesCount -= removed;
+    return removed;
+}
+
 void CSigSharesNodeState::RemoveSession(const uint256& signHash)
 {
     if (const auto it = sessions.find(signHash); it != sessions.end()) {
@@ -208,7 +251,7 @@ void CSigSharesNodeState::RemoveSession(const uint256& signHash)
         sessions.erase(it);
     }
     requestedSigShares.EraseAllForSignHash(signHash);
-    pendingIncomingSigShares.EraseAllForSignHash(signHash);
+    ErasePendingIncomingSigSharesForSession(signHash);
 }
 
 //////////////////////
@@ -422,7 +465,7 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom.GetId()];
     for (const auto& s : sigSharesToProcess) {
-        nodeState.pendingIncomingSigShares.Add(s.GetKey(), s);
+        TryAddPendingIncomingSigShare(pfrom.GetId(), nodeState, s);
     }
     return true;
 }
@@ -467,7 +510,7 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
         }
 
         auto& nodeState = nodeStates[fromId];
-        nodeState.pendingIncomingSigShares.Add(sigShare.GetKey(), sigShare);
+        TryAddPendingIncomingSigShare(fromId, nodeState, sigShare);
     }
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, id=%s, msgHash=%s, member=%d, node=%d\n", __func__,
@@ -493,6 +536,7 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
         // invalid, making batch verification fail and revert to per-share verification, which in turn would slow down
         // the whole verification process
         std::unordered_set<std::pair<NodeId, uint256>, StaticSaltedHasher> uniqueSignHashes;
+        size_t erasedCount{0};
         IterateNodesRandom(
             nodeStates,
             [&]() {
@@ -501,7 +545,7 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
                 // using here template IterateNodesRandom makes impossible to use lock annotation
             },
             [&](NodeId nodeId, CSigSharesNodeState& ns) NO_THREAD_SAFETY_ANALYSIS {
-                if (ns.pendingIncomingSigShares.Empty()) {
+                if (ns.banned || ns.pendingIncomingSigShares.Empty()) {
                     return false;
                 }
                 const auto& sigShare = *ns.pendingIncomingSigShares.GetFirst();
@@ -511,10 +555,14 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
                     uniqueSignHashes.emplace(nodeId, sigShare.GetSignHash());
                     retSigShares[nodeId].emplace_back(sigShare);
                 }
-                ns.pendingIncomingSigShares.Erase(sigShare.GetKey());
+                if (ns.ErasePendingIncomingSigShare(sigShare.GetKey())) {
+                    ++erasedCount;
+                }
                 return !ns.pendingIncomingSigShares.Empty();
             },
             rnd);
+
+        pendingIncomingSigSharesCount -= erasedCount;
 
         if (retSigShares.empty()) {
             return false;
@@ -524,7 +572,7 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
         more_work = std::any_of(nodeStates.begin(), nodeStates.end(),
                                 [](const auto& entry) {
                                     const auto& ns = entry.second;
-                                    return !ns.pendingIncomingSigShares.Empty();
+                                    return !ns.banned && !ns.pendingIncomingSigShares.Empty();
                                 });
     }
 
@@ -1230,6 +1278,28 @@ CSigShare CSigSharesManager::RebuildSigShare(const CSigSharesNodeState::SessionI
     return sigShare;
 }
 
+bool CSigSharesManager::TryAddPendingIncomingSigShare(NodeId nodeId, CSigSharesNodeState& nodeState, const CSigShare& sigShare)
+{
+    AssertLockHeld(cs);
+
+    if (pendingIncomingSigSharesCount >= MAX_PENDING_SIG_SHARES_TOTAL) {
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- global pending sig shares cap reached (%d), dropping sigShare. node=%d\n",
+                 __func__, MAX_PENDING_SIG_SHARES_TOTAL, nodeId);
+        return false;
+    }
+    if (nodeState.GetPendingIncomingSigSharesCount() >= MAX_PENDING_SIG_SHARES_PER_NODE) {
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- per-node pending sig shares cap reached (%d), dropping sigShare. node=%d\n",
+                 __func__, MAX_PENDING_SIG_SHARES_PER_NODE, nodeId);
+        return false;
+    }
+
+    if (!nodeState.AddPendingIncomingSigShare(sigShare)) {
+        return false;
+    }
+    ++pendingIncomingSigSharesCount;
+    return true;
+}
+
 void CSigSharesManager::Cleanup()
 {
     constexpr auto CLEANUP_INTERVAL{5s};
@@ -1366,6 +1436,7 @@ void CSigSharesManager::Cleanup()
             AssertLockHeld(cs);
             sigSharesRequested.Erase(k);
         });
+        pendingIncomingSigSharesCount -= it->second.GetPendingIncomingSigSharesCount();
         nodeStates.erase(nodeId);
     }
 }
@@ -1375,7 +1446,9 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     AssertLockHeld(cs);
 
     for (auto& [_, nodeState] : nodeStates) {
+        const size_t pending_before{nodeState.GetPendingIncomingSigSharesCount()};
         nodeState.RemoveSession(signHash);
+        pendingIncomingSigSharesCount -= pending_before - nodeState.GetPendingIncomingSigSharesCount();
     }
 
     sigSharesRequested.EraseAllForSignHash(signHash);
@@ -1397,6 +1470,7 @@ void CSigSharesManager::RemoveNodesIf(std::function<bool(NodeId)> predicate)
                 AssertLockHeld(cs);
                 sigSharesRequested.Erase(k);
             });
+            pendingIncomingSigSharesCount -= it->second.GetPendingIncomingSigSharesCount();
             it = nodeStates.erase(it);
         } else {
             ++it;
@@ -1425,6 +1499,7 @@ void CSigSharesManager::MarkAsBanned(NodeId nodeId)
         sigSharesRequested.Erase(k);
     });
     nodeState.requestedSigShares.Clear();
+    pendingIncomingSigSharesCount -= nodeState.ClearPendingIncomingSigShares();
     nodeState.banned = true;
 }
 
@@ -1444,7 +1519,9 @@ bool CSigSharesManager::IsAnyPendingProcessing() const
     LOCK(cs);
     // Check if there's work, spawn a helper if so
     return std::any_of(nodeStates.begin(), nodeStates.end(),
-                       [](const auto& entry) { return !entry.second.pendingIncomingSigShares.Empty(); });
+                       [](const auto& entry) {
+                           return !entry.second.banned && !entry.second.pendingIncomingSigShares.Empty();
+                       });
 }
 
 std::shared_ptr<CRecoveredSig> CSigSharesManager::SignAndProcessSingleShare(PendingSignatureData work)

@@ -103,6 +103,54 @@ BOOST_AUTO_TEST_CASE(sig_ses_ann_limit_is_per_llmq_type)
     BOOST_CHECK_EQUAL(node_state.GetSessionCount(Consensus::LLMQType::LLMQ_400_60), 1U);
 }
 
+BOOST_AUTO_TEST_CASE(pending_sig_shares_per_node_cap_drops_without_growth)
+{
+    CSigSharesNodeState node_state;
+
+    for (size_t i{0}; i < MAX_PENDING_SIG_SHARES_PER_NODE; ++i) {
+        BOOST_CHECK(node_state.AddPendingIncomingSigShare(MakeSigShare(i + 1)));
+    }
+
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), MAX_PENDING_SIG_SHARES_PER_NODE);
+    BOOST_CHECK(!node_state.AddPendingIncomingSigShare(MakeSigShare(MAX_PENDING_SIG_SHARES_PER_NODE + 1)));
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), MAX_PENDING_SIG_SHARES_PER_NODE);
+}
+
+BOOST_AUTO_TEST_CASE(pending_sig_shares_counts_unique_entries)
+{
+    CSigSharesNodeState node_state;
+    const CSigShare sig_share1{MakeSigShare(1)};
+    const CSigShare sig_share2{MakeSigShare(2)};
+
+    BOOST_CHECK(node_state.AddPendingIncomingSigShare(sig_share1));
+    BOOST_CHECK(!node_state.AddPendingIncomingSigShare(sig_share1));
+    BOOST_CHECK(node_state.AddPendingIncomingSigShare(sig_share2));
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), 2U);
+
+    BOOST_CHECK(node_state.ErasePendingIncomingSigShare(sig_share1.GetKey()));
+    BOOST_CHECK(!node_state.ErasePendingIncomingSigShare(sig_share1.GetKey()));
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), 1U);
+
+    BOOST_CHECK_EQUAL(node_state.ClearPendingIncomingSigShares(), 1U);
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), 0U);
+}
+
+BOOST_AUTO_TEST_CASE(pending_sig_shares_session_removal_updates_count)
+{
+    CSigSharesNodeState node_state;
+    const CSigShare sig_share1{MakeSigShare(1)};
+    const CSigShare sig_share2{MakeSigShare(2)};
+
+    BOOST_CHECK(node_state.AddPendingIncomingSigShare(sig_share1));
+    BOOST_CHECK(node_state.AddPendingIncomingSigShare(sig_share2));
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), 2U);
+
+    node_state.RemoveSession(sig_share1.GetSignHash());
+    BOOST_CHECK_EQUAL(node_state.GetPendingIncomingSigSharesCount(), 1U);
+    BOOST_CHECK(!node_state.pendingIncomingSigShares.Has(sig_share1.GetKey()));
+    BOOST_CHECK(node_state.pendingIncomingSigShares.Has(sig_share2.GetKey()));
+}
+
 BOOST_AUTO_TEST_CASE(deterministic_outbound_connection_test)
 {
     // Test deterministic behavior

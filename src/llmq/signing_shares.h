@@ -46,6 +46,12 @@ constexpr uint32_t UNINITIALIZED_SESSION_ID{std::numeric_limits<uint32_t>::max()
 // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
 constexpr size_t MAX_MSGS_TOTAL_BATCHED_SIGS{400};
 
+// Backpressure bounds for the pending (not-yet-verified) sig-share queue. Incoming QSIGSHARE and
+// QBSIGSHARES traffic is cheap to admit but later consumes memory and BLS verification worker
+// capacity, so over-cap shares are dropped silently without scoring misbehaviour.
+static constexpr size_t MAX_PENDING_SIG_SHARES_PER_NODE{1000};
+static constexpr size_t MAX_PENDING_SIG_SHARES_TOTAL{10000};
+
 class CSigShare : virtual public CSigBase
 {
 protected:
@@ -340,6 +346,7 @@ public:
     std::unordered_map<uint32_t, Session*> sessionByRecvId;
 
     SigShareMap<CSigShare> pendingIncomingSigShares;
+    size_t pendingIncomingSigSharesCount{0};
     SigShareMap<int64_t> requestedSigShares;
 
     bool banned{false};
@@ -350,9 +357,14 @@ public:
     [[nodiscard]] size_t GetSessionCount() const;
     [[nodiscard]] size_t GetSessionCount(Consensus::LLMQType llmqType) const;
     [[nodiscard]] size_t GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const;
+    [[nodiscard]] size_t GetPendingIncomingSigSharesCount() const;
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
     bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
+    bool AddPendingIncomingSigShare(const CSigShare& sigShare);
+    bool ErasePendingIncomingSigShare(const SigShareKey& key);
+    size_t ClearPendingIncomingSigShares();
+    size_t ErasePendingIncomingSigSharesForSession(const uint256& signHash);
 
     void RemoveSession(const uint256& signHash);
 };
@@ -405,6 +417,7 @@ private:
     Uint256HashMap<int64_t> timeSeenForSessions GUARDED_BY(cs);
 
     std::unordered_map<NodeId, CSigSharesNodeState> nodeStates GUARDED_BY(cs);
+    size_t pendingIncomingSigSharesCount GUARDED_BY(cs){0};
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs);
     SigShareMap<bool> sigSharesQueuedToAnnounce GUARDED_BY(cs);
 
@@ -484,6 +497,8 @@ private:
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in);
+    bool TryAddPendingIncomingSigShare(NodeId nodeId, CSigSharesNodeState& nodeState, const CSigShare& sigShare)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void RemoveSigSharesForSession(const uint256& signHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
