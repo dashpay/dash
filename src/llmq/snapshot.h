@@ -98,7 +98,7 @@ public:
 
     std::vector<uint256> baseBlockHashes;
     uint256 blockRequestHash;
-    bool extraShare;
+    bool extraShare{false};
 
     template <typename Stream>
     void Serialize(Stream& s) const
