@@ -88,8 +88,13 @@ bool CheckDKGMessageStructure(std::string_view msg_type, const CDataStream& vRec
         if (msg_type == NetMsgType::QCONTRIB) {
             CDKGContribution qc;
             s >> qc;
+            // Contributions encrypt one blob per actual selected member. That count is
+            // between minSize and size (not necessarily equal to params.size), matching
+            // the later session-worker check against members.size().
             return qc.vvec != nullptr && qc.vvec->size() == threshold &&
-                   qc.contributions != nullptr && qc.contributions->blobs.size() == size;
+                   qc.contributions != nullptr &&
+                   qc.contributions->blobs.size() >= static_cast<size_t>(params.minSize) &&
+                   qc.contributions->blobs.size() <= size;
         } else if (msg_type == NetMsgType::QCOMPLAINT) {
             CDKGComplaint qc;
             s >> qc;

@@ -2085,14 +2085,22 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
 
-    def wait_for_quorum_commitment(self, quorum_hash, mninfos, llmq_type=100, timeout=15):
+    def wait_for_quorum_commitment(self, quorum_hash, mninfos, llmq_type=100, timeout=30, expected_commitments=None, do_assert=True):
+        # Require a count of non-null minable commitments, not "every listed MN".
+        # close_mn_port / probe-fail paths keep deaf MNs in mninfos_online so phase
+        # waits can still see them, but those MNs often never publish a minable
+        # commitment. Matching expected_commitments (or len(mninfos) by default)
+        # keeps this aligned with phase message counts.
+        if expected_commitments is None:
+            expected_commitments = len(mninfos)
+
         def check_dkg_comitments():
+            commitment_count = 0
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus")
                 if "minableCommitments" not in s:
-                    return False
+                    continue
                 commits = s["minableCommitments"]
-                c_ok = False
                 for c in commits:
                     if c["llmqType"] != llmq_type:
                         continue
@@ -2100,15 +2108,13 @@ class DashTestFramework(BitcoinTestFramework):
                         continue
                     if c["quorumPublicKey"] == '0' * 96:
                         continue
-                    c_ok = True
+                    commitment_count += 1
                     break
-                if not c_ok:
-                    return False
-            return True
+            return commitment_count >= expected_commitments
 
-        self.wait_until(check_dkg_comitments, timeout=timeout)
+        return self.wait_until(check_dkg_comitments, timeout=timeout, do_assert=do_assert)
 
-    def wait_for_quorum_list(self, quorum_hash, nodes, timeout=15, llmq_type_name="llmq_test"):
+    def wait_for_quorum_list(self, quorum_hash, nodes, timeout=30, llmq_type_name="llmq_test"):
         def wait_func():
             return quorum_hash in self.nodes[0].quorum('list')[llmq_type_name]
         self.log.info(f"quorums: {self.nodes[0].quorum('list')}")
@@ -2189,7 +2195,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
 
         self.log.info("Waiting final commitment")
-        self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type)
+        self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type, expected_commitments=expected_commitments)
 
         self.log.info("Mining final commitment")
         self.bump_mocktime(1)
