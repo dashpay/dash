@@ -92,13 +92,34 @@ public:
 class CGetQuorumRotationInfo
 {
 public:
+    // 256 entries cover more than ten days of hourly DIP0024 rotation bases
+    // while bounding peer-controlled allocation and cs_main work.
+    static constexpr size_t MAX_BASE_BLOCK_HASHES{256};
+
     std::vector<uint256> baseBlockHashes;
     uint256 blockRequestHash;
     bool extraShare;
 
-    SERIALIZE_METHODS(CGetQuorumRotationInfo, obj)
+    template <typename Stream>
+    void Serialize(Stream& s) const
     {
-        READWRITE(obj.baseBlockHashes, obj.blockRequestHash, obj.extraShare);
+        s << baseBlockHashes << blockRequestHash << extraShare;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        const size_t base_block_hashes_size{ReadCompactSize(s)};
+        if (base_block_hashes_size > MAX_BASE_BLOCK_HASHES) {
+            throw std::ios_base::failure("CGetQuorumRotationInfo::baseBlockHashes size too large");
+        }
+        baseBlockHashes.clear();
+        baseBlockHashes.reserve(base_block_hashes_size);
+        while (baseBlockHashes.size() < base_block_hashes_size) {
+            baseBlockHashes.emplace_back();
+            s >> baseBlockHashes.back();
+        }
+        s >> blockRequestHash >> extraShare;
     }
 };
 

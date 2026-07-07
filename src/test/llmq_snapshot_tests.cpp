@@ -245,6 +245,16 @@ BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_serialization_test)
     BOOST_CHECK(TestSerializationRoundtrip(emptyInfo));
 }
 
+BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_rejects_oversized_base_block_hashes)
+{
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    WriteCompactSize(stream, CGetQuorumRotationInfo::MAX_BASE_BLOCK_HASHES + 1);
+
+    CGetQuorumRotationInfo getInfo;
+    BOOST_CHECK_THROW(stream >> getInfo, std::ios_base::failure);
+    BOOST_CHECK(getInfo.baseBlockHashes.empty());
+}
+
 BOOST_AUTO_TEST_CASE(quorum_rotation_info_serialization_test)
 {
     // Note: mnListDiff{smth} testing requires proper CSimplifiedMNListDiff setup
