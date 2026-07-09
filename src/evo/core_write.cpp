@@ -199,7 +199,11 @@ UniValue CProRegTx::ToJson() const
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
     ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    if (nVersion >= ProTxVersion::ExtAddr) {
+    if (IsShared()) {
+        ret.pushKV("shares", ShareListToJson(shares));
+        ret.pushKV("earlyPeriodBlocks", static_cast<int64_t>(nEarlyPeriodBlocks));
+        ret.pushKV("earlyPenalty", nEarlyPenalty);
+    } else if (nVersion >= ProTxVersion::ExtAddr) {
         ret.pushKV("payouts", PayoutListToJson(payouts));
     } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
