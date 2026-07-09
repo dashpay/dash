@@ -117,6 +117,7 @@ BASE_SCRIPTS = [
     'feature_llmq_simplepose.py', # NOTE: needs dash_hash to pass
     'feature_dip3_deterministicmns.py --descriptors', # NOTE: needs dash_hash to pass
     'feature_masternode_payout_shares.py',
+    'feature_masternode_shares.py',
     'feature_llmq_signing.py', # NOTE: needs dash_hash to pass
     'feature_llmq_signing.py --spork21', # NOTE: needs dash_hash to pass
     'feature_llmq_simplepose.py --disable-spork23', # NOTE: needs dash_hash to pass
