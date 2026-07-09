@@ -16,8 +16,10 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = EncodeDestination(dest);
     }
-    const auto owner_payouts = GetOwnerPayouts(*this);
-    const std::string payoutList = PayoutListToString(owner_payouts);
+    const std::string payoutList = IsShared()
+                                       ? strprintf("shares(%s), earlyPeriodBlocks=%d, earlyPenalty=%d",
+                                                   ShareListToString(shares), nEarlyPeriodBlocks, nEarlyPenalty)
+                                       : PayoutListToString(GetOwnerPayouts(*this));
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
     }
@@ -77,6 +79,15 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
     }
     if (fields & Field_payouts) {
         obj.pushKV("payouts", PayoutListToJson(state.payouts));
+    }
+    if (fields & Field_shares) {
+        obj.pushKV("shares", ShareListToJson(state.shares));
+    }
+    if (fields & Field_nEarlyPeriodBlocks) {
+        obj.pushKV("earlyPeriodBlocks", static_cast<int64_t>(state.nEarlyPeriodBlocks));
+    }
+    if (fields & Field_nEarlyPenalty) {
+        obj.pushKV("earlyPenalty", state.nEarlyPenalty);
     }
     if (fields & Field_scriptOperatorPayout) {
         CTxDestination dest;

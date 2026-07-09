@@ -60,6 +60,9 @@ public:
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
     MasternodePayoutShares payouts;
+    CollateralShares shares; // non-empty = shared masternode (joinSigs are not kept in state)
+    uint32_t nEarlyPeriodBlocks{0};
+    CAmount nEarlyPenalty{0};
     CScript scriptOperatorPayout;
 
     uint160 platformNodeID{};
@@ -76,6 +79,9 @@ public:
         netInfo(proTx.netInfo),
         scriptPayout(proTx.scriptPayout),
         payouts(proTx.payouts),
+        shares(proTx.shares),
+        nEarlyPeriodBlocks(proTx.nEarlyPeriodBlocks),
+        nEarlyPenalty(proTx.nEarlyPenalty),
         platformNodeID(proTx.platformNodeID),
         platformP2PPort(proTx.platformP2PPort),
         platformHTTPPort(proTx.platformHTTPPort)
@@ -104,7 +110,7 @@ public:
             NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
                               obj.nVersion >= ProTxVersion::ExtAddr));
         if (obj.nVersion >= ProTxVersion::ExtAddr) {
-            READWRITE(obj.payouts);
+            READWRITE(obj.payouts, obj.shares, obj.nEarlyPeriodBlocks, obj.nEarlyPenalty);
         } else {
             READWRITE(obj.scriptPayout);
         }
@@ -147,6 +153,8 @@ public:
         nPoSeBanHeight = -1;
         nPoSeRevivedHeight = nRevivedHeight;
     }
+    /** Whether this is a shared masternode (DIP: decentralized masternode shares) */
+    [[nodiscard]] bool IsShared() const { return !shares.empty(); }
     void UpdateConfirmedHash(const uint256& _proTxHash, const uint256& _confirmedHash)
     {
         confirmedHash = _confirmedHash;
@@ -186,6 +194,9 @@ public:
         Field_platformP2PPort = 0x20000,
         Field_platformHTTPPort = 0x40000,
         Field_payouts = 0x80000,
+        Field_shares = 0x100000,
+        Field_nEarlyPeriodBlocks = 0x200000,
+        Field_nEarlyPenalty = 0x400000,
     };
 
 private:
@@ -214,6 +225,9 @@ private:
         DMN_STATE_MEMBER(netInfo),
         DMN_STATE_MEMBER(scriptPayout),
         DMN_STATE_MEMBER(payouts),
+        DMN_STATE_MEMBER(shares),
+        DMN_STATE_MEMBER(nEarlyPeriodBlocks),
+        DMN_STATE_MEMBER(nEarlyPenalty),
         DMN_STATE_MEMBER(scriptOperatorPayout),
         DMN_STATE_MEMBER(nConsecutivePayments),
         DMN_STATE_MEMBER(platformNodeID),

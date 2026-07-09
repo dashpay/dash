@@ -324,6 +324,18 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
         if (const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx)) {
             entry.pushKV("assetUnlockTx", opt_assetUnlockTx->ToJson());
         }
+    } else if (tx.nType == TRANSACTION_PROVIDER_DISSOLVE) {
+        if (const auto opt_proTx = GetTxPayload<CProDisTx>(tx)) {
+            entry.pushKV("proDisTx", opt_proTx->ToJson());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        if (const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx)) {
+            entry.pushKV("proUpShareTx", opt_proTx->ToJson());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        if (const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx)) {
+            entry.pushKV("proUpSharedRegTx", opt_proTx->ToJson());
+        }
     }
 
     if (have_undo) {

@@ -134,6 +134,7 @@ CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& from, cons
             CSimplifiedMNListEntry sme2(fromPtr->to_sml_entry());
             if ((sme1 != sme2) || (extended && (sme1.scriptPayout != sme2.scriptPayout ||
                                                 sme1.payouts != sme2.payouts ||
+                                                sme1.shares != sme2.shares ||
                                                 sme1.scriptOperatorPayout != sme2.scriptOperatorPayout))) {
                 diffRet.mnList.push_back(std::move(sme1));
             }
