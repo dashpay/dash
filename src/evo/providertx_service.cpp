@@ -721,6 +721,10 @@ ProviderTxResult<ProviderTxSubmission> UpdateRegistrar(node::NodeContext& node, 
         return Error(ProviderTxErrorCode::INVALID_PARAMETER,
                      strprintf("masternode %s not found", request.pro_tx_hash.ToString()));
     }
+    if (dmn->pdmnState->IsShared()) {
+        return Error(ProviderTxErrorCode::INVALID_PARAMETER,
+                     "masternode is shared; use protx update_share or protx update_shared_registrar_prepare");
+    }
 
     CProUpRegTx payload;
     payload.nVersion = chain_snapshot.provider_tx_version;
