@@ -88,6 +88,21 @@ class MasternodeSharesTest(DashTestFramework):
             {"amount": 600 * COIN, "refundAddress": refund1, "ownerAddress": owner1},
             {"amount": 400 * COIN, "refundAddress": refund2, "ownerAddress": owner2},
         ]
+
+        # register_shared_prepare preflights the consensus rules so consensus-invalid terms fail
+        # before any participant signs: a share sum below the collateral, and a penalty that is
+        # not strictly below the smallest share
+        preflight_funding = self.build_funding_tx(node)
+        preflight_args = [f"127.0.0.1:{p2p_port(1)}", node.bls("generate")["public"],
+                          node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS]
+        bad_shares = [dict(shares[0], amount=shares[0]["amount"] - 1), shares[1]]
+        assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
+                                "register_shared_prepare", preflight_funding, bad_shares,
+                                *preflight_args, EARLY_PENALTY)
+        assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
+                                "register_shared_prepare", preflight_funding, shares,
+                                *preflight_args, 400 * COIN)
+
         protx_hash, collateral_index = self.register_shared(node, shares, port_offset=1)
 
         raw = node.getrawtransaction(protx_hash, 1)
