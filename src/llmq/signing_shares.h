@@ -160,6 +160,55 @@ public:
 };
 
 /**
+ * Outcome of pre-verifying sig shares received from a peer before scheduling
+ * the expensive BLS verification.
+ *
+ * The first group of failures is benign: the local node simply cannot verify
+ * shares for this quorum (e.g. the quorum is not active anymore, the node is
+ * not a member or it missed the quorum verification vector in the DKG). The
+ * peer did nothing provably wrong, so these must never lead to a ban.
+ *
+ * The second group means the peer sent structurally malformed data that no
+ * honest node would produce, so the peer should be banned (see ShouldBan()).
+ */
+enum class PreVerifyResult {
+    Success,
+    // benign: we can't verify shares for this quorum, never ban
+    QuorumTooOld,
+    NotAMember,
+    MissingVerificationVector,
+    // malformed peer data, ban
+    DuplicateMember,
+    MemberOutOfBounds,
+    MemberNotValid,
+};
+
+[[nodiscard]] constexpr bool ShouldBan(PreVerifyResult result)
+{
+    switch (result) {
+    case PreVerifyResult::DuplicateMember:
+    case PreVerifyResult::MemberOutOfBounds:
+    case PreVerifyResult::MemberNotValid:
+        return true;
+    case PreVerifyResult::Success:
+    case PreVerifyResult::QuorumTooOld:
+    case PreVerifyResult::NotAMember:
+    case PreVerifyResult::MissingVerificationVector:
+        return false;
+    } // no default case, so the compiler can warn about missing cases
+    return false;
+}
+
+/**
+ * Pre-verify a batch of sig shares (QBSIGSHARES) before scheduling the
+ * expensive BLS verification. our_protx_hash is the local masternode's proTx
+ * hash and is_quorum_active is resolved by the caller (see IsQuorumActive());
+ * both are passed as plain values to keep this function unit-testable.
+ */
+[[nodiscard]] PreVerifyResult PreVerifyBatchedSigShares(const uint256& our_protx_hash, bool is_quorum_active,
+                                                        const CQuorum& quorum, const CBatchedSigShares& batchedSigShares);
+
+/**
  * Two-level (signHash -> quorumMember) map with a running entry count, so Size() is O(1)
  * instead of a fold over all sign hash buckets. All structural mutations go through the
  * counted methods; Buckets() is for lookups and in-place value updates only.
