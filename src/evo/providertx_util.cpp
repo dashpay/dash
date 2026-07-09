@@ -48,3 +48,39 @@ UniValue PayoutListToJson(const MasternodePayoutShares& payouts)
     }
     return ret;
 }
+
+std::string ShareListToString(const CollateralShares& shares)
+{
+    std::string ret;
+    for (const auto& share : shares) {
+        CTxDestination dest;
+        const std::string refund_str = ExtractDestination(share.scriptRefund, dest) ? EncodeDestination(dest)
+                                                                                    : HexStr(share.scriptRefund);
+        if (!ret.empty()) ret += ",";
+        ret += strprintf("%s:%d", refund_str, share.amount);
+    }
+    return ret;
+}
+
+UniValue ShareListToJson(const CollateralShares& shares)
+{
+    UniValue ret(UniValue::VARR);
+    for (const auto& share : shares) {
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("amount", share.amount);
+        // Refund and reward scripts are required to be P2PKH or P2SH (see IsShareListTriviallyValid),
+        // so a destination can always be extracted and the addresses are always present.
+        CTxDestination refund_dest;
+        ExtractDestination(share.scriptRefund, refund_dest);
+        obj.pushKV("refundAddress", EncodeDestination(refund_dest));
+        obj.pushKV("refundScript", HexStr(share.scriptRefund));
+        CTxDestination reward_dest;
+        ExtractDestination(share.RewardScript(), reward_dest);
+        obj.pushKV("rewardAddress", EncodeDestination(reward_dest));
+        obj.pushKV("rewardScript", HexStr(share.RewardScript()));
+        obj.pushKV("ownerAddress", EncodeDestination(PKHash(share.keyIDOwner)));
+        ret.push_back(obj);
+    }
+    return ret;
+}
+

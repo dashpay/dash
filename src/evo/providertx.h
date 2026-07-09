@@ -46,6 +46,62 @@ public:
 
 using MasternodePayoutShares = std::vector<MasternodePayoutShare>;
 
+/** Serializes a 65-byte compact recoverable ECDSA signature without a length prefix */
+struct CompactSignatureFormatter {
+    template <typename Stream, typename V>
+    static void Ser(Stream& s, const V& v)
+    {
+        if (v.size() != CPubKey::COMPACT_SIGNATURE_SIZE) {
+            throw std::ios_base::failure("compact signature size mismatch");
+        }
+        s.write(AsBytes(Span{v}));
+    }
+    template <typename Stream, typename V>
+    static void Unser(Stream& s, V& v)
+    {
+        v.resize(CPubKey::COMPACT_SIGNATURE_SIZE);
+        s.read(AsWritableBytes(Span{v}));
+    }
+};
+
+/** One participant's contribution to a shared masternode collateral */
+class CCollateralShare
+{
+public:
+    static constexpr CAmount MIN_AMOUNT{100 * COIN};
+
+    CAmount amount{0};
+    CScript scriptRefund;
+    CScript scriptReward; //!< empty means "use scriptRefund"
+    CKeyID keyIDOwner;
+
+    CCollateralShare() = default;
+    CCollateralShare(CAmount amount, CScript script_refund, CScript script_reward, CKeyID key_id_owner) :
+        amount(amount),
+        scriptRefund(std::move(script_refund)),
+        scriptReward(std::move(script_reward)),
+        keyIDOwner(key_id_owner)
+    {
+    }
+
+    SERIALIZE_METHODS(CCollateralShare, obj)
+    {
+        READWRITE(obj.amount, obj.scriptRefund, obj.scriptReward, obj.keyIDOwner);
+    }
+
+    /** The script this share's portion of owner rewards is paid to */
+    const CScript& RewardScript() const { return scriptReward.empty() ? scriptRefund : scriptReward; }
+
+    friend bool operator==(const CCollateralShare& a, const CCollateralShare& b)
+    {
+        return a.amount == b.amount && a.scriptRefund == b.scriptRefund && a.scriptReward == b.scriptReward &&
+               a.keyIDOwner == b.keyIDOwner;
+    }
+    friend bool operator!=(const CCollateralShare& a, const CCollateralShare& b) { return !(a == b); }
+};
+
+using CollateralShares = std::vector<CCollateralShare>;
+
 [[nodiscard]] MasternodePayoutShares LegacyPayoutAsList(const CScript& script_payout);
 template<class T>
 [[nodiscard]] MasternodePayoutShares GetOwnerPayouts(const T& protx)
@@ -67,10 +123,22 @@ template<class T>
                                               uint16_t version, const uint160* platform_node_id, uint16_t platform_p2p_port,
                                               uint16_t platform_http_port, bool allow_empty, TxValidationState& state);
 
+[[nodiscard]] bool IsShareListTriviallyValid(const CollateralShares& shares,
+                                             const std::vector<std::vector<unsigned char>>& join_sigs,
+                                             uint32_t early_period_blocks, CAmount early_penalty,
+                                             CAmount required_collateral, const CKeyID& keyIDVoting,
+                                             TxValidationState& state);
+[[nodiscard]] std::string ShareListToString(const CollateralShares& shares);
+[[nodiscard]] UniValue ShareListToJson(const CollateralShares& shares);
+
 class CProRegTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_REGISTER;
+
+    static constexpr uint8_t MIN_SHARES{2};
+    static constexpr uint8_t MAX_SHARES{8};
+    static constexpr uint32_t MAX_EARLY_PERIOD_BLOCKS{420480}; // approx. two years at 2.5-minute blocks
 
     uint16_t nVersion{ProTxVersion::LegacyBLS}; // message version
     MnType nType{MnType::Regular};
@@ -86,6 +154,10 @@ public:
     uint16_t nOperatorReward{0};
     CScript scriptPayout;
     MasternodePayoutShares payouts;
+    CollateralShares shares;                            // non-empty = shared masternode registration
+    std::vector<std::vector<unsigned char>> vchJoinSigs; // one consent signature per share, in share order
+    uint32_t nEarlyPeriodBlocks{0};
+    CAmount nEarlyPenalty{0};
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
@@ -119,6 +191,23 @@ public:
             for (auto& payout : obj.payouts) {
                 READWRITE(payout);
             }
+            uint8_t shares_count{0};
+            // One join signature per share: a mismatched in-memory object cannot round-trip, so
+            // fail the write up front like CompactSignatureFormatter does for a malformed signature
+            SER_WRITE(obj, if (obj.vchJoinSigs.size() != obj.shares.size()) {
+                throw std::ios_base::failure("join signature count mismatch");
+            });
+            SER_WRITE(obj, shares_count = static_cast<uint8_t>(obj.shares.size()));
+            READWRITE(shares_count);
+            SER_READ(obj, obj.shares.resize(shares_count));
+            for (auto& share : obj.shares) {
+                READWRITE(share);
+            }
+            SER_READ(obj, obj.vchJoinSigs.resize(shares_count));
+            for (auto& sig : obj.vchJoinSigs) {
+                READWRITE(Using<CompactSignatureFormatter>(sig));
+            }
+            READWRITE(obj.nEarlyPeriodBlocks, obj.nEarlyPenalty);
         } else {
             READWRITE(obj.scriptPayout);
         }
@@ -138,6 +227,9 @@ public:
             READWRITE(obj.vchSig);
         }
     }
+
+    /** Whether this is a shared masternode registration (DIP: decentralized masternode shares) */
+    [[nodiscard]] bool IsShared() const { return !shares.empty(); }
 
     // When signing with the collateral key, we don't sign the hash but a generated message instead
     // This is needed for HW wallet support which can only sign text messages as of now
