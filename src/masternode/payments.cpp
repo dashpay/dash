@@ -168,15 +168,27 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::P
         masternodeReward -= operatorReward;
     }
 
-    const auto owner_payouts = GetOwnerPayouts(*dmnPayee->pdmnState);
-    CAmount paid_owner_reward{0};
-    for (size_t i = 0; i < owner_payouts.size(); ++i) {
-        const bool last = i + 1 == owner_payouts.size();
-        const CAmount payout_amount = last ? masternodeReward - paid_owner_reward
-                                           : (masternodeReward * owner_payouts[i].reward) / MasternodePayoutShare::MAX_REWARD;
-        paid_owner_reward += payout_amount;
-        if (payout_amount > 0) {
-            voutMasternodePaymentsRet.emplace_back(payout_amount, owner_payouts[i].scriptPayout);
+    if (dmnPayee->pdmnState->IsShared()) {
+        // Shared masternodes split the owner reward by recorded collateral contribution, paying
+        // each share's reward script (or its refund script when no reward script is set)
+        const auto& shares = dmnPayee->pdmnState->shares;
+        const auto amounts = SplitAmountByShares(masternodeReward, shares);
+        for (size_t i = 0; i < shares.size(); ++i) {
+            if (amounts[i] > 0) {
+                voutMasternodePaymentsRet.emplace_back(amounts[i], shares[i].RewardScript());
+            }
+        }
+    } else {
+        const auto owner_payouts = GetOwnerPayouts(*dmnPayee->pdmnState);
+        CAmount paid_owner_reward{0};
+        for (size_t i = 0; i < owner_payouts.size(); ++i) {
+            const bool last = i + 1 == owner_payouts.size();
+            const CAmount payout_amount = last ? masternodeReward - paid_owner_reward
+                                               : (masternodeReward * owner_payouts[i].reward) / MasternodePayoutShare::MAX_REWARD;
+            paid_owner_reward += payout_amount;
+            if (payout_amount > 0) {
+                voutMasternodePaymentsRet.emplace_back(payout_amount, owner_payouts[i].scriptPayout);
+            }
         }
     }
     if (operatorReward > 0) {
