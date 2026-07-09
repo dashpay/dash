@@ -33,6 +33,9 @@ public:
     static bool VerifyHash(const uint256& hash, const CPubKey& pubkey, const std::vector<unsigned char>& vchSig, std::string& strErrorRet);
     /// Verify the hash signature, returns true if successful
     static bool VerifyHash(const uint256& hash, const CKeyID& keyID, const std::vector<unsigned char>& vchSig, std::string& strErrorRet);
+    /// Verify the hash signature and additionally require the exact 65-byte size and a low-S value,
+    /// making the signature bytes non-malleable by third parties. Returns true if successful.
+    static bool VerifyHashCanonical(const uint256& hash, const CKeyID& keyID, const std::vector<unsigned char>& vchSig, std::string& strErrorRet);
 };
 
 #endif // BITCOIN_MESSAGESIGNER_H

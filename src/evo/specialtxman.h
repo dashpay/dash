@@ -20,12 +20,21 @@ class CCoinsViewCache;
 class CCreditPoolManager;
 class CDeterministicMNList;
 class CDeterministicMNManager;
+class CProDisTx;
 class CTransaction;
 class ChainstateManager;
 class Chainstate;
 class CMNHFManager;
 class TxValidationState;
 struct MNListUpdates;
+
+/** Where a special transaction is being validated. Some checks (currently only ProDisTx) must
+ *  defer to RebuildListFromBlock in block context because the referenced masternode may have been
+ *  registered earlier in the same block. */
+enum class SpecialTxContext : uint8_t {
+    Mempool,
+    Block,
+};
 
 namespace chainlock {
 class Chainlocks;
@@ -118,6 +127,28 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
                      TxValidationState& state, bool check_sigs);
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                      const ChainstateManager& chainman, TxValidationState& state, bool check_sigs);
+bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
+                   const ChainstateManager& chainman, TxValidationState& state, bool check_sigs,
+                   SpecialTxContext context);
+bool CheckProUpShareTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                       CDeterministicMNManager& dmnman, const ChainstateManager& chainman, TxValidationState& state,
+                       bool check_sigs);
+bool CheckProUpSharedRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                           CDeterministicMNManager& dmnman, const ChainstateManager& chainman,
+                           TxValidationState& state, bool check_sigs);
+/** Full ProDisTx validation against a given masternode list and spend height. Used by mempool
+ *  validation (tip list, tip height + 1) and by RebuildListFromBlock (the evolving list, which
+ *  includes masternodes registered earlier in the same block, per the DIP). */
+bool CheckProDisTxForList(const CTransaction& tx, const CProDisTx& ptx, const CDeterministicMNList& mnList,
+                          int nSpendHeight, TxValidationState& state, bool check_sigs);
+
+/** Consensus rule (v24): an input whose prevout pays the shared-collateral template script may
+ *  only be spent by a ProDisTx. Applies to every transaction; callers gate on v24 activation. */
+bool CheckSharedCollateralSpends(const CTransaction& tx, const CCoinsViewCache& view, TxValidationState& state);
+/** Consensus rule (v24): an output paying the shared-collateral template script is only valid as
+ *  the collateral output of a shared registration. Applies to every transaction, including the
+ *  coinbase; callers gate on v24 activation. */
+bool CheckSharedCollateralTemplateOutputs(const CTransaction& tx, TxValidationState& state);
 
 
 /**

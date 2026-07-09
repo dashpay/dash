@@ -43,5 +43,6 @@ void SetTxPayload(CMutableTransaction& tx, const T& payload)
 }
 
 uint256 CalcTxInputsHash(const CTransaction& tx);
+uint256 CalcTxOutputsHash(const CTransaction& tx);
 
 #endif // BITCOIN_EVO_SPECIALTX_H

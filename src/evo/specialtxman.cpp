@@ -14,6 +14,7 @@
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
 #include <evo/netinfo.h>
+#include <evo/sharedcollateral.h>
 #include <evo/simplifiedmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -22,6 +23,7 @@
 #include <messagesigner.h>
 #include <util/helpers.h>
 
+#include <arith_uint256.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
@@ -202,8 +204,8 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
                                 const ChainstateManager& chainman, const llmq::CQuorumManager& qman,
                                 const CChain* chain,
                                 const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsViewCache& view,
-                                const std::optional<CRangesSet>& indexes, bool check_sigs, TxValidationState& state)
-    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+                                const std::optional<CRangesSet>& indexes, bool check_sigs, SpecialTxContext context,
+                                TxValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
 
@@ -224,6 +226,12 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
             return CheckProUpRegTx(tx, pindexPrev, dmnman, view, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
             return CheckProUpRevTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
+        case TRANSACTION_PROVIDER_DISSOLVE:
+            return CheckProDisTx(tx, pindexPrev, dmnman, chainman, state, check_sigs, context);
+        case TRANSACTION_PROVIDER_UPDATE_SHARE:
+            return CheckProUpShareTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
+        case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR:
+            return CheckProUpSharedRegTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
         case TRANSACTION_COINBASE: {
             if (!tx.IsCoinBase()) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-invalid");
@@ -257,7 +265,7 @@ bool CSpecialTxProcessor::CheckSpecialTx(const CTransaction& tx, const CBlockInd
 {
     AssertLockHeld(::cs_main);
     return CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, nullptr, tx, pindexPrev, view, std::nullopt, check_sigs,
-                               state);
+                               SpecialTxContext::Mempool, state);
 }
 
 static void HandleQuorumCommitment(const llmq::CFinalCommitment& qc, const std::vector<CDeterministicMNCPtr>& members,
@@ -395,7 +403,16 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
                 }
             }
-            if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+            if (proTx.IsShared()) {
+                for (const auto& share : proTx.shares) {
+                    if (newList.HasUniqueProperty(share.keyIDOwner)) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+                    }
+                }
+                if (newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+                }
+            } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
             }
 
@@ -485,9 +502,10 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 return false;
             }
             if (newState->IsBanned()) {
-                // only revive when all keys are set
+                // only revive when all keys are set (a shared masternode has a null keyIDOwner;
+                // its share owner keys are immutable and always set)
                 if (newState->pubKeyOperator != CBLSLazyPublicKey() && !newState->keyIDVoting.IsNull() &&
-                    !newState->keyIDOwner.IsNull()) {
+                    (newState->IsShared() || !newState->keyIDOwner.IsNull())) {
                     newState->Revive(nHeight);
                     if (debugLogs) {
                         LogPrintf("%s -- MN %s revived at height %d\n", __func__, opt_proTx->proTxHash.ToString(), nHeight);
@@ -520,6 +538,10 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             auto dmn = newList.GetMN(opt_proTx->proTxHash);
             if (!dmn) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+            }
+            if (dmn->pdmnState->IsShared()) {
+                // shared masternodes are updated via ProUpShareTx / ProUpSharedRegTx exclusively
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-shared-mn");
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
@@ -604,6 +626,110 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 LogPrintf("%s -- MN %s revoked operator key at height %d: %s\n", __func__,
                           opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
             }
+        } else if (tx.nType == TRANSACTION_PROVIDER_DISSOLVE) {
+            const auto opt_proTx = GetTxPayload<CProDisTx>(tx);
+            if (!opt_proTx) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+            }
+
+            // Authoritative validation: newList at this position equals the previous block's list
+            // plus earlier transactions in this block, so a masternode registered and dissolved
+            // within one block is handled per the DIP.
+            //
+            // The masternode is NOT removed here. Removal is deferred to the collateral-spend
+            // sweep below, exactly as an ordinary collateral spend is handled. This keeps the
+            // effect of a dissolution independent of its position among the block's other provider
+            // transactions: a same-masternode ProUpShareTx / ProUpSharedRegTx placed after the
+            // ProDisTx still applies during this pass (the masternode is still present) and only
+            // then does the sweep remove it, so the block is valid regardless of ordering.
+            if (TxValidationState tx_state;
+                !CheckProDisTxForList(tx, *opt_proTx, newList, nHeight, tx_state, /*check_sigs=*/true)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
+                                     tx_state.GetDebugMessage());
+            }
+        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+            const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
+            if (!opt_proTx) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+            }
+
+            auto dmn = newList.GetMN(opt_proTx->proTxHash);
+            if (!dmn) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+            }
+            if (!dmn->pdmnState->IsShared() || opt_proTx->shareIndex >= dmn->pdmnState->shares.size()) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupshare-index");
+            }
+
+            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            newState->shares[opt_proTx->shareIndex].scriptReward = opt_proTx->scriptReward;
+
+            // CheckProUpShareTx ran against pindexPrev, so a shared registrar update earlier in
+            // this block is invisible to it and could have moved the voting key onto this share's
+            // scripts. Recheck the separation rule against the state as rebuilt so far.
+            if (!IsShareListVotingKeySafe(newState->shares, newState->keyIDVoting)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupshare-payee-reuse");
+            }
+
+            newList.UpdateMN(opt_proTx->proTxHash, newState);
+
+            if (debugLogs) {
+                LogPrintf("%s -- MN %s updated share at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(),
+                          nHeight, opt_proTx->ToString());
+            }
+        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+            const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
+            if (!opt_proTx) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+            }
+
+            auto dmn = newList.GetMN(opt_proTx->proTxHash);
+            if (!dmn) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+            }
+            if (!dmn->pdmnState->IsShared()) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupsharedreg-not-shared");
+            }
+
+            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
+            const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
+            if (operator_changed) {
+                // Operator-key change semantics match ProUpRegTx: reset all operator related
+                // fields and put the MN into PoSe-banned state until a new ProUpServTx arrives
+                newState->ResetOperatorFields();
+                newState->BanIfNotBanned(nHeight);
+                newState->pubKeyOperator = opt_proTx->pubKeyOperator;
+            }
+            newState->keyIDVoting = opt_proTx->keyIDVoting;
+            // Shared masternodes are always ExtAddr or later; restore the state version that
+            // ResetOperatorFields() cleared
+            if (!SetStateVersion(*newState, old_version, dmn->nType, state)) {
+                return false;
+            }
+            if (operator_changed) {
+                newState->pubKeyOperator.SetLegacy(false);
+            }
+
+            // CheckProUpSharedRegTx ran against pindexPrev, so transactions earlier in this same
+            // block are invisible to it. Re-evaluate against the list as rebuilt so far: another
+            // update may have taken the operator key (under either encoding; the re-key in
+            // UpdateMN() would throw out of block assembly), and a share reward update may have
+            // moved a share script onto the new voting key.
+            if (operator_changed && newList.HasOperatorKeyUnderAnyScheme(opt_proTx->pubKeyOperator.Get(),
+                                                                         /*self=*/opt_proTx->proTxHash)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+            }
+            if (!IsShareListVotingKeySafe(newState->shares, newState->keyIDVoting)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupsharedreg-payee-reuse");
+            }
+
+            newList.UpdateMN(opt_proTx->proTxHash, newState);
+
+            if (debugLogs) {
+                LogPrintf("%s -- MN %s updated shared registrar at height %d: %s\n", __func__,
+                          opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
+            }
         } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
             const auto opt_qc = GetTxPayload<llmq::CFinalCommitmentTxPayload>(tx);
             if (!opt_qc) {
@@ -641,6 +767,14 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
         for (const auto& in : tx.vin) {
             auto dmn = newList.GetMNByCollateral(in.prevout);
             if (dmn && dmn->collateralOutpoint == in.prevout) {
+                if (dmn->pdmnState->IsShared() && tx.nType != TRANSACTION_PROVIDER_DISSOLVE) {
+                    // Shared collateral may only be spent by a ProDisTx. Any other spender is
+                    // invalid (the ProDisTx that spends it was already validated in the loop above).
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-shared-collateral-spend");
+                }
+                // A shared masternode's dissolution takes effect here, in the same collateral-spend
+                // phase as every other masternode removal, so its timing does not depend on where
+                // the ProDisTx sits among the block's other provider transactions.
                 newList.RemoveMN(dmn->proTxHash);
 
                 if (debugLogs) {
@@ -744,7 +878,18 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             indexes = std::move(creditPool.indexes);
         }
 
+        const bool is_v24_active{DeploymentActiveAt(*pindex, m_chainman, Consensus::DEPLOYMENT_V24)};
         for (size_t i = 0; i < block.vtx.size(); ++i) {
+            // The shared-collateral creation rule applies to every transaction, including the
+            // coinbase and non-special transactions, which CheckSpecialTxInner never sees
+            if (is_v24_active) {
+                if (TxValidationState tx_state; !CheckSharedCollateralTemplateOutputs(*block.vtx[i], tx_state)) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
+                                         strprintf("Shared collateral check failed (tx hash %s) %s",
+                                                   block.vtx[i]->GetHash().ToString(), tx_state.GetDebugMessage()));
+                }
+            }
+
             // we validated CCbTx above, starts from the 2nd transaction
             if (i == 0 && block.vtx[i]->nType == TRANSACTION_COINBASE) continue;
 
@@ -754,7 +899,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             // consensus failures and "TX_BAD_SPECIAL"
             if (!CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, &chainstate.m_chain,
                                      *ptr_tx, pindex->pprev, view, indexes,
-                                     fCheckCbTxMerkleRoots, tx_state)) {
+                                     fCheckCbTxMerkleRoots, SpecialTxContext::Block, tx_state)) {
                 assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS || tx_state.GetResult() == TxValidationResult::TX_BAD_SPECIAL);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Special Transaction check failed (tx hash %s) %s", ptr_tx->GetHash().ToString(), tx_state.GetDebugMessage()));
@@ -1094,7 +1239,12 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral");
         }
 
-        if (!ExtractDestination(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey, collateralTxDest)) {
+        if (opt_ptx->IsShared()) {
+            // Shared collateral must use exactly the template script; there is no destination to extract
+            if (!sharedcollateral::IsSharedCollateralScript(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey)) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-collateral-script");
+            }
+        } else if (!ExtractDestination(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey, collateralTxDest)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-collateral-dest");
         }
 
@@ -1103,7 +1253,9 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
 
     // don't allow reuse of collateral key for other keys (don't allow people to put the collateral key onto an online server)
     // this check applies to internal and external collateral, but internal collaterals are not necessarily a P2PKH
-    if (!IsPayoutListKeySafe(GetOwnerPayouts(*opt_ptx),
+    // (shared collateral has no destination at all; refund/reward key reuse is checked in IsShareListTriviallyValid)
+    if (!opt_ptx->IsShared() &&
+        !IsPayoutListKeySafe(GetOwnerPayouts(*opt_ptx),
                              collateralTxDest, opt_ptx->keyIDOwner, opt_ptx->keyIDVoting,
                              opt_ptx->nVersion >= ProTxVersion::ExtAddr, state)) return false;
 
@@ -1127,8 +1279,19 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
             }
         }
 
-        // never allow duplicate keys, even if this ProTx would replace an existing MN
-        if (mnList.HasUniqueProperty(opt_ptx->keyIDOwner) || mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
+        // never allow duplicate keys, even if this ProTx would replace an existing MN. Share owner
+        // keys live in the same uniqueness namespace as keyIDOwner, so reuse is blocked in both
+        // directions between shared and non-shared masternodes.
+        if (opt_ptx->IsShared()) {
+            for (const auto& share : opt_ptx->shares) {
+                if (mnList.HasUniqueProperty(share.keyIDOwner)) {
+                    return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
+                }
+            }
+            if (mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
+            }
+        } else if (mnList.HasUniqueProperty(opt_ptx->keyIDOwner) || mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
         }
 
@@ -1170,6 +1333,18 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
         // collateral is part of this ProRegTx, so we know the collateral is owned by the issuer
         if (!opt_ptx->vchSig.empty()) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-sig");
+        }
+        if (opt_ptx->IsShared() && check_sigs) {
+            // every participant must consent to the exact funding inputs, outputs, share table,
+            // penalty terms and registrar configuration
+            const uint256 consent_hash = opt_ptx->MakeSharedRegConsentHash(tx);
+            for (size_t i = 0; i < opt_ptx->shares.size(); i++) {
+                if (std::string strError;
+                    !CHashSigner::VerifyHashCanonical(consent_hash, opt_ptx->shares[i].keyIDOwner,
+                                                      opt_ptx->vchJoinSigs[i], strError)) {
+                    return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-sig");
+                }
+            }
         }
     }
 
@@ -1283,6 +1458,12 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-hash");
     }
 
+    // Shared masternodes have no registrar owner key; they are updated via ProUpShareTx and
+    // ProUpSharedRegTx exclusively
+    if (dmn->pdmnState->IsShared()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shared-mn");
+    }
+
     if (!IsVersionChangeValid(pindexPrev, dmn->pdmnState->nVersion, opt_ptx->nVersion, chainman, state)) {
         // pass the state returned by the function above
         return false;
@@ -1377,6 +1558,288 @@ bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return false;
     }
 
+    return true;
+}
+
+bool CheckProUpShareTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                       CDeterministicMNManager& dmnman, const ChainstateManager& chainman, TxValidationState& state,
+                       bool check_sigs)
+{
+    const auto opt_ptx = GetValidatedPayload<CProUpShareTx>(tx, pindexPrev, chainman, state);
+    if (!opt_ptx) {
+        // pass the state returned by the function above
+        return false;
+    }
+    if (!DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-proupshare-too-early");
+    }
+
+    const auto mnList = dmnman.GetListForBlock(pindexPrev);
+    const auto dmn = mnList.GetMN(opt_ptx->proTxHash);
+    if (!dmn) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-hash");
+    }
+    const auto& mnState = *dmn->pdmnState;
+    if (!mnState.IsShared()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-not-shared");
+    }
+    if (opt_ptx->shareIndex >= mnState.shares.size()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-index");
+    }
+
+    // The new reward script is subject to the same payee-reuse restrictions as at registration
+    if (!opt_ptx->scriptReward.empty()) {
+        CTxDestination dest;
+        if (!ExtractDestination(opt_ptx->scriptReward, dest)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-dest");
+        }
+        if (dest == CTxDestination(PKHash(mnState.keyIDVoting))) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-reuse");
+        }
+        for (const auto& share : mnState.shares) {
+            if (dest == CTxDestination(PKHash(share.keyIDOwner))) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-reuse");
+            }
+        }
+    }
+
+    if (!CheckInputsHash(tx, *opt_ptx, state)) {
+        // pass the state returned by the function above
+        return false;
+    }
+    if (check_sigs) {
+        if (std::string strError;
+            !CHashSigner::VerifyHashCanonical(::SerializeHash(*opt_ptx),
+                                              mnState.shares[opt_ptx->shareIndex].keyIDOwner, opt_ptx->vchSig,
+                                              strError)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-sig");
+        }
+    }
+
+    return true;
+}
+
+bool CheckProUpSharedRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                           CDeterministicMNManager& dmnman, const ChainstateManager& chainman,
+                           TxValidationState& state, bool check_sigs)
+{
+    const auto opt_ptx = GetValidatedPayload<CProUpSharedRegTx>(tx, pindexPrev, chainman, state);
+    if (!opt_ptx) {
+        // pass the state returned by the function above
+        return false;
+    }
+    if (!DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-proupsharedreg-too-early");
+    }
+
+    const auto mnList = dmnman.GetListForBlock(pindexPrev);
+    const auto dmn = mnList.GetMN(opt_ptx->proTxHash);
+    if (!dmn) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-hash");
+    }
+    const auto& mnState = *dmn->pdmnState;
+    if (!mnState.IsShared()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-not-shared");
+    }
+
+    // A shared registrar update requires unanimity: one signature per share, in share order
+    if (opt_ptx->vchSigs.size() != mnState.shares.size()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-sig-count");
+    }
+
+    // Same rule as the ordinary registrar path: the legacy and basic encodings of one BLS key
+    // occupy different unique-property slots, so probe both
+    if (mnList.HasOperatorKeyUnderAnyScheme(opt_ptx->pubKeyOperator.Get(), /*self=*/opt_ptx->proTxHash)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
+    }
+
+    // The new voting key is subject to the same payee-separation rule as at registration
+    if (!IsShareListVotingKeySafe(mnState.shares, opt_ptx->keyIDVoting)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-payee-reuse");
+    }
+
+    if (!CheckInputsHash(tx, *opt_ptx, state)) {
+        // pass the state returned by the function above
+        return false;
+    }
+    if (check_sigs) {
+        const uint256 payload_hash = ::SerializeHash(*opt_ptx);
+        for (size_t i = 0; i < mnState.shares.size(); i++) {
+            if (std::string strError; !CHashSigner::VerifyHashCanonical(payload_hash, mnState.shares[i].keyIDOwner,
+                                                                        opt_ptx->vchSigs[i], strError)) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-sig");
+            }
+        }
+    }
+
+    return true;
+}
+
+bool CheckProDisTxForList(const CTransaction& tx, const CProDisTx& ptx, const CDeterministicMNList& mnList,
+                          int nSpendHeight, TxValidationState& state, bool check_sigs)
+{
+    const auto dmn = mnList.GetMN(ptx.proTxHash);
+    if (!dmn) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-hash");
+    }
+    const auto& mnState = *dmn->pdmnState;
+    if (!mnState.IsShared()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-not-shared");
+    }
+    const auto& shares = mnState.shares;
+
+    // Exactly one input: the masternode's collateral outpoint, with an empty scriptSig (the
+    // empty-scriptSig rule keeps the txid non-malleable; the template script needs no witness)
+    if (tx.vin.size() != 1 || tx.vin[0].prevout != dmn->collateralOutpoint || !tx.vin[0].scriptSig.empty()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-input");
+    }
+    if (ptx.actorIndex >= shares.size()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-actor");
+    }
+
+    // The signature count defines the mode: exactly one (unilateral, by the actor) or exactly one
+    // per share in share order (unanimous). shares.size() >= 2, so the two cannot coincide.
+    if (ptx.vchSigs.size() != 1 && ptx.vchSigs.size() != shares.size()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-sig-count");
+    }
+    const bool unanimous{ptx.vchSigs.size() == shares.size()};
+
+    // requiredPenalty is non-increasing in nSpendHeight, which makes ProDisTx validity monotone:
+    // once valid, always valid (see the DIP's "Output rules" section)
+    const bool early{nSpendHeight - mnState.nRegisteredHeight < static_cast<int64_t>(mnState.nEarlyPeriodBlocks)};
+    const CAmount required_penalty{(unanimous || !early) ? 0 : mnState.nEarlyPenalty};
+
+    // One output per non-actor share, paying its refund script, in share order, plus optionally
+    // one final actor output. A zero-value actor output must be omitted. No other outputs.
+    const size_t non_actor_count{shares.size() - 1};
+    if (tx.vout.size() != non_actor_count && tx.vout.size() != non_actor_count + 1) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-payee-count");
+    }
+
+    CAmount non_actor_total{0};
+    for (size_t i = 0; i < shares.size(); i++) {
+        if (i != ptx.actorIndex) non_actor_total += shares[i].amount;
+    }
+
+    size_t out_idx{0};
+    CAmount bonus_total{0};
+    for (size_t i = 0; i < shares.size(); i++) {
+        if (i == ptx.actorIndex) continue;
+        const auto& out = tx.vout[out_idx++];
+        if (out.scriptPubKey != shares[i].scriptRefund) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-payee");
+        }
+        // Minimum-based rules: bonus[i] >= floor(P * amount[i] / W). The floor is element-wise
+        // monotone in P, which is what preserves monotone validity; overpaying is always valid.
+        const CAmount bonus{out.nValue - shares[i].amount};
+        const CAmount min_bonus{[&]() {
+            if (required_penalty == 0) return CAmount{0};
+            // 128-bit intermediate: penalty and amount can each approach the full collateral
+            arith_uint256 v{static_cast<uint64_t>(required_penalty)};
+            v *= arith_uint256{static_cast<uint64_t>(shares[i].amount)};
+            v /= arith_uint256{static_cast<uint64_t>(non_actor_total)};
+            return static_cast<CAmount>(v.GetLow64());
+        }()};
+        if (bonus < min_bonus) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-penalty-floor");
+        }
+        bonus_total += bonus;
+    }
+    if (tx.vout.size() == non_actor_count + 1) {
+        const auto& actor_out = tx.vout.back();
+        if (actor_out.scriptPubKey != shares[ptx.actorIndex].scriptRefund) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-payee");
+        }
+        if (actor_out.nValue == 0) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-actor-output-zero");
+        }
+    }
+    // The per-recipient floors discard sub-duff remainders; the bonus sum rule forces the
+    // remainder onto some non-actor output
+    if (bonus_total < required_penalty) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-penalty-sum");
+    }
+
+    if (check_sigs) {
+        const uint256 sign_hash{ptx.MakeSignHash(tx, static_cast<uint8_t>(ptx.vchSigs.size()))};
+        if (unanimous) {
+            for (size_t i = 0; i < shares.size(); i++) {
+                if (std::string strError; !CHashSigner::VerifyHashCanonical(sign_hash, shares[i].keyIDOwner,
+                                                                            ptx.vchSigs[i], strError)) {
+                    return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-sig");
+                }
+            }
+        } else {
+            if (std::string strError; !CHashSigner::VerifyHashCanonical(sign_hash, shares[ptx.actorIndex].keyIDOwner,
+                                                                        ptx.vchSigs[0], strError)) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-sig");
+            }
+        }
+    }
+
+    return true;
+}
+
+bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                   CDeterministicMNManager& dmnman, const ChainstateManager& chainman, TxValidationState& state,
+                   bool check_sigs, SpecialTxContext context)
+{
+    const auto opt_ptx = GetValidatedPayload<CProDisTx>(tx, pindexPrev, chainman, state);
+    if (!opt_ptx) {
+        // pass the state returned by the function above
+        return false;
+    }
+    if (!DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-prodis-too-early");
+    }
+
+    const auto mnList = dmnman.GetListForBlock(pindexPrev);
+    if (!mnList.GetMN(opt_ptx->proTxHash)) {
+        if (context == SpecialTxContext::Block) {
+            // The masternode may have been registered earlier in the same block, which this
+            // pindexPrev-based list cannot see. RebuildListFromBlock performs the authoritative
+            // check against the evolving list and rejects the block if the masternode is still
+            // unknown at the transaction's position.
+            return true;
+        }
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-hash");
+    }
+    return CheckProDisTxForList(tx, *opt_ptx, mnList, pindexPrev->nHeight + 1, state, check_sigs);
+}
+
+bool CheckSharedCollateralSpends(const CTransaction& tx, const CCoinsViewCache& view, TxValidationState& state)
+{
+    if (tx.IsCoinBase()) return true;
+    for (const auto& in : tx.vin) {
+        // The template is anyone-can-spend at the script layer, so this consensus-level rule is
+        // the only thing restricting spends: only a ProDisTx may consume a template output. The
+        // ProDisTx's own validation then ties the outpoint to its masternode. Pre-activation
+        // template outputs belong to no masternode and are permanently frozen by this rule.
+        const Coin& coin = view.AccessCoin(in.prevout);
+        if (!coin.IsSpent() && sharedcollateral::IsSharedCollateralScript(coin.out.scriptPubKey)) {
+            if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_PROVIDER_DISSOLVE) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shared-collateral-spend");
+            }
+        }
+    }
+    return true;
+}
+
+bool CheckSharedCollateralTemplateOutputs(const CTransaction& tx, TxValidationState& state)
+{
+    for (uint32_t i = 0; i < tx.vout.size(); i++) {
+        if (!sharedcollateral::IsSharedCollateralScript(tx.vout[i].scriptPubKey)) continue;
+        // An output paying the template script is only valid as the collateral output of a shared
+        // registration. Anywhere else it would either escape the spend covenant or freeze funds.
+        if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_PROVIDER_REGISTER) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shared-collateral-create");
+        }
+        const auto opt_ptx = GetTxPayload<CProRegTx>(tx);
+        if (!opt_ptx || !opt_ptx->IsShared() || !opt_ptx->collateralOutpoint.hash.IsNull() ||
+            opt_ptx->collateralOutpoint.n != i) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shared-collateral-create");
+        }
+    }
     return true;
 }
 

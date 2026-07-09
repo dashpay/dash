@@ -9,6 +9,7 @@
 #include <util/std23.h>
 
 #include <chainparams.h>
+#include <clientversion.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <hash.h>
@@ -132,6 +133,20 @@ bool IsShareListTriviallyValid(const CollateralShares& shares,
     }
     if (early_penalty < 0 || early_penalty >= min_amount) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
+    }
+    return true;
+}
+
+bool IsShareListVotingKeySafe(const CollateralShares& shares, const CKeyID& keyIDVoting)
+{
+    const CTxDestination voting_dest{PKHash(keyIDVoting)};
+    for (const auto& share : shares) {
+        for (const CScript* script : {&share.scriptRefund, &share.RewardScript()}) {
+            CTxDestination dest;
+            if (ExtractDestination(*script, dest) && dest == voting_dest) {
+                return false;
+            }
+        }
     }
     return true;
 }
@@ -331,6 +346,43 @@ bool CProRegTx::IsTriviallyValid(TxValidationState& state) const
     return true;
 }
 
+uint256 CProRegTx::MakeSharedRegConsentHash(const CTransaction& tx) const
+{
+    // Per the decentralized masternode shares DIP the consent digest binds every participant to
+    // the exact funding inputs (prevouts and sequences), all outputs (including the collateral
+    // output and every change output), the full share table, the penalty terms and the registrar
+    // configuration. It deliberately does not rely on the sighash modes of funding-input
+    // signatures. Covering the sequences matters: BIP68 gives them consensus meaning on
+    // version >= 2 transactions, so an uncovered sequence rewrite could impose a months-long
+    // relative timelock on a fully consented registration.
+    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    hw << std::string("DashSharedMNReg");
+    hw << nVersion;
+    hw << tx.nVersion;
+    hw << tx.nType;
+    hw << tx.nLockTime;
+    hw << CalcTxInputsHash(tx);
+    for (const auto& in : tx.vin) {
+        hw << in.nSequence;
+    }
+    hw << CalcTxOutputsHash(tx);
+    hw << nType;
+    hw << nMode;
+    hw << NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(netInfo),
+                            nVersion >= ProTxVersion::ExtAddr);
+    hw << keyIDVoting;
+    hw << CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(pubKeyOperator),
+                                          nVersion == ProTxVersion::LegacyBLS);
+    hw << nOperatorReward;
+    hw << static_cast<uint8_t>(shares.size());
+    for (const auto& share : shares) {
+        hw << share;
+    }
+    hw << nEarlyPeriodBlocks;
+    hw << nEarlyPenalty;
+    return hw.GetHash();
+}
+
 std::string CProRegTx::MakeSignString() const
 {
     std::string s;
@@ -461,4 +513,110 @@ std::string CProUpRevTx::ToString() const
 {
     return strprintf("CProUpRevTx(nVersion=%d, proTxHash=%s, nReason=%d)",
         nVersion, proTxHash.ToString(), nReason);
+}
+
+uint256 CProDisTx::MakeSignHash(const CTransaction& tx, uint8_t sig_count) const
+{
+    // The digest commits to the transaction's actual input(s) and outputs directly; the payload
+    // deliberately carries no inputsHash/outputsHash copies. It also commits to the signature
+    // count, which selects the dissolution mode, so a third party cannot reinterpret a penalty-free
+    // unanimous dissolution as a unilateral one (or vice versa) by dropping/adding signatures.
+    // Together with the empty-scriptSig rule and the low-S requirement this pins every free byte of
+    // a ProDisTx, so its txid is non-malleable by third parties.
+    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    hw << std::string("DashSharedMNDissolve");
+    hw << nVersion;
+    hw << tx.nVersion;
+    hw << tx.nType;
+    hw << tx.nLockTime;
+    for (const auto& in : tx.vin) {
+        hw << in.prevout;
+    }
+    for (const auto& in : tx.vin) {
+        hw << in.nSequence;
+    }
+    for (const auto& out : tx.vout) {
+        hw << out;
+    }
+    hw << proTxHash;
+    hw << actorIndex;
+    hw << sig_count;
+    return hw.GetHash();
+}
+
+bool CProDisTx::IsTriviallyValid(TxValidationState& state) const
+{
+    if (nVersion == 0 || nVersion > CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-prodis-version");
+    }
+    if (vchSigs.empty() || vchSigs.size() > CProRegTx::MAX_SHARES) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-sig-count");
+    }
+    for (const auto& sig : vchSigs) {
+        if (sig.size() != CPubKey::COMPACT_SIGNATURE_SIZE) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-sig-size");
+        }
+    }
+    return true;
+}
+
+std::string CProDisTx::ToString() const
+{
+    return strprintf("CProDisTx(nVersion=%d, proTxHash=%s, actorIndex=%d, sigCount=%d)",
+        nVersion, proTxHash.ToString(), actorIndex, vchSigs.size());
+}
+
+bool CProUpShareTx::IsTriviallyValid(TxValidationState& state) const
+{
+    if (nVersion == 0 || nVersion > CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-proupshare-version");
+    }
+    if (!scriptReward.empty()) {
+        if (sharedcollateral::IsSharedCollateralScript(scriptReward)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-template");
+        }
+        if (!IsValidPayoutScript(scriptReward)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee");
+        }
+    }
+    return true;
+}
+
+std::string CProUpShareTx::ToString() const
+{
+    CTxDestination dest;
+    const std::string reward = scriptReward.empty()
+        ? "refund"
+        : (ExtractDestination(scriptReward, dest) ? EncodeDestination(dest) : HexStr(scriptReward));
+    return strprintf("CProUpShareTx(nVersion=%d, proTxHash=%s, shareIndex=%d, rewardAddress=%s)",
+        nVersion, proTxHash.ToString(), shareIndex, reward);
+}
+
+bool CProUpSharedRegTx::IsTriviallyValid(TxValidationState& state) const
+{
+    if (nVersion == 0 || nVersion > CURRENT_VERSION) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-proupsharedreg-version");
+    }
+    if (!pubKeyOperator.Get().IsValid() || keyIDVoting.IsNull()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-key-null");
+    }
+    if (pubKeyOperator.IsLegacy()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
+    }
+    if (vchSigs.empty() || vchSigs.size() > CProRegTx::MAX_SHARES) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-sig-count");
+    }
+    for (const auto& sig : vchSigs) {
+        if (sig.size() != CPubKey::COMPACT_SIGNATURE_SIZE) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-sig-size");
+        }
+    }
+    return true;
+}
+
+std::string CProUpSharedRegTx::ToString() const
+{
+    return strprintf("CProUpSharedRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, sigCount=%d)",
+        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)),
+        vchSigs.size());
 }

@@ -128,6 +128,9 @@ template<class T>
                                              uint32_t early_period_blocks, CAmount early_penalty,
                                              CAmount required_collateral, const CKeyID& keyIDVoting,
                                              TxValidationState& state);
+/** Whether no share refund or effective reward script pays the voting key's P2PKH destination,
+ *  the registration-time separation rule that voting-key and reward-script updates must preserve */
+[[nodiscard]] bool IsShareListVotingKeySafe(const CollateralShares& shares, const CKeyID& keyIDVoting);
 [[nodiscard]] std::string ShareListToString(const CollateralShares& shares);
 [[nodiscard]] UniValue ShareListToJson(const CollateralShares& shares);
 
@@ -230,6 +233,11 @@ public:
 
     /** Whether this is a shared masternode registration (DIP: decentralized masternode shares) */
     [[nodiscard]] bool IsShared() const { return !shares.empty(); }
+
+    /** The digest each share owner signs (joinSigs) to consent to a shared registration. It binds
+     *  every participant to the exact funding inputs, all outputs, the full share table, the
+     *  penalty terms and the registrar configuration of the containing transaction. */
+    [[nodiscard]] uint256 MakeSharedRegConsentHash(const CTransaction& tx) const;
 
     // When signing with the collateral key, we don't sign the hash but a generated message instead
     // This is needed for HW wallet support which can only sign text messages as of now
@@ -426,6 +434,126 @@ public:
     /**
      * Note: this check validates only some trivial consensus rules
      * Use `CheckProUpRevTx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
+};
+
+class CProDisTx
+{
+public:
+    static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_DISSOLVE;
+    static constexpr uint16_t CURRENT_VERSION = 1;
+
+    uint16_t nVersion{CURRENT_VERSION};
+    uint256 proTxHash;
+    uint16_t actorIndex{0};
+    // Exactly one signature (unilateral, by shares[actorIndex]) or one per share in share order
+    // (unanimous); the signature count defines the mode
+    std::vector<std::vector<unsigned char>> vchSigs;
+
+    SERIALIZE_METHODS(CProDisTx, obj)
+    {
+        READWRITE(obj.nVersion, obj.proTxHash, obj.actorIndex);
+        uint8_t sig_count{0};
+        SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));
+        READWRITE(sig_count);
+        SER_READ(obj, obj.vchSigs.resize(sig_count));
+        for (auto& sig : obj.vchSigs) {
+            READWRITE(Using<CompactSignatureFormatter>(sig));
+        }
+    }
+
+    /** The digest every dissolution signature commits to. It covers the transaction's actual
+     *  input(s) and outputs directly, plus the signature count, which selects the mode
+     *  (1 = unilateral, sharesCount = unanimous). Committing the count is what stops a third party
+     *  from reinterpreting a penalty-free unanimous dissolution as a unilateral one (or vice
+     *  versa) by dropping/adding signatures, which would change the txid. Callers pass the count
+     *  the transaction will carry; verification passes the actual vchSigs.size(). */
+    [[nodiscard]] uint256 MakeSignHash(const CTransaction& tx, uint8_t sig_count) const;
+
+    std::string ToString() const;
+
+    [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
+    [[nodiscard]] UniValue ToJson() const;
+
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `Check*Tx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
+};
+
+class CProUpShareTx
+{
+public:
+    static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_SHARE;
+    static constexpr uint16_t CURRENT_VERSION = 1;
+
+    uint16_t nVersion{CURRENT_VERSION};
+    uint256 proTxHash;
+    uint16_t shareIndex{0};
+    CScript scriptReward; //!< empty means "use the refund script"
+    uint256 inputsHash;   // replay protection
+    std::vector<unsigned char> vchSig;
+
+    SERIALIZE_METHODS(CProUpShareTx, obj)
+    {
+        READWRITE(obj.nVersion, obj.proTxHash, obj.shareIndex, obj.scriptReward, obj.inputsHash);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(obj.vchSig);
+        }
+    }
+
+    std::string ToString() const;
+
+    [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
+    [[nodiscard]] UniValue ToJson() const;
+
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `Check*Tx` or GetValidatedPayload<T> helper for full validation
+     */
+    bool IsTriviallyValid(TxValidationState& state) const;
+};
+
+class CProUpSharedRegTx
+{
+public:
+    static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR;
+    static constexpr uint16_t CURRENT_VERSION = 1;
+
+    uint16_t nVersion{CURRENT_VERSION};
+    uint256 proTxHash;
+    CBLSLazyPublicKey pubKeyOperator;
+    CKeyID keyIDVoting;
+    uint256 inputsHash; // replay protection
+    // One signature per share, in share order; a shared registrar update requires unanimity
+    std::vector<std::vector<unsigned char>> vchSigs;
+
+    SERIALIZE_METHODS(CProUpSharedRegTx, obj)
+    {
+        READWRITE(obj.nVersion, obj.proTxHash,
+                  CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), /*legacy=*/false),
+                  obj.keyIDVoting, obj.inputsHash);
+        if (!(s.GetType() & SER_GETHASH)) {
+            uint8_t sig_count{0};
+            SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));
+            READWRITE(sig_count);
+            SER_READ(obj, obj.vchSigs.resize(sig_count));
+            for (auto& sig : obj.vchSigs) {
+                READWRITE(Using<CompactSignatureFormatter>(sig));
+            }
+        }
+    }
+
+    std::string ToString() const;
+
+    [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
+    [[nodiscard]] UniValue ToJson() const;
+
+    /**
+     * Note: this check validates only some trivial consensus rules
+     * Use `Check*Tx` or GetValidatedPayload<T> helper for full validation
      */
     bool IsTriviallyValid(TxValidationState& state) const;
 };
