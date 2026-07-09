@@ -11,6 +11,9 @@
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
+#include <evo/providertx.h>
+#include <evo/sharedcollateral.h>
+#include <evo/specialtx.h>
 #include <policy/feerate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -109,8 +112,21 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
 
     unsigned int nDataOut = 0;
     TxoutType whichType;
-    for (const CTxOut& txout : tx.vout) {
+    for (uint32_t i = 0; i < tx.vout.size(); i++) {
+        const CTxOut& txout = tx.vout[i];
         if (!::IsStandard(txout.scriptPubKey, max_datacarrier_bytes, whichType)) {
+            // The shared-collateral template is intentionally nonstandard everywhere except in the
+            // one shape the consensus creation rule can accept: the declared collateral output of a
+            // shared registration. A template output in any other shape can never be spent, so
+            // relaying it would only propagate permanently frozen outputs.
+            if (tx.IsSpecialTxVersion() && tx.nType == TRANSACTION_PROVIDER_REGISTER &&
+                sharedcollateral::IsSharedCollateralScript(txout.scriptPubKey)) {
+                if (const auto opt_ptx = GetTxPayload<CProRegTx>(tx);
+                    opt_ptx && opt_ptx->IsShared() && opt_ptx->collateralOutpoint.hash.IsNull() &&
+                    opt_ptx->collateralOutpoint.n == i) {
+                    continue;
+                }
+            }
             reason = "scriptpubkey";
             return false;
         }
@@ -163,6 +179,13 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         std::vector<std::vector<unsigned char> > vSolutions;
         TxoutType whichType = Solver(prev.scriptPubKey, vSolutions);
         if (whichType == TxoutType::NONSTANDARD) {
+            // A ProDisTx spends the (nonstandard) shared-collateral template with an empty
+            // scriptSig; consensus pins everything else about the spend, and 7 bytes of
+            // OP_DROP/OP_TRUE carry no script-evaluation DoS surface
+            if (tx.IsSpecialTxVersion() && tx.nType == TRANSACTION_PROVIDER_DISSOLVE &&
+                sharedcollateral::IsSharedCollateralScript(prev.scriptPubKey)) {
+                continue;
+            }
             return false;
         } else if (whichType == TxoutType::SCRIPTHASH) {
             std::vector<std::vector<unsigned char> > stack;
