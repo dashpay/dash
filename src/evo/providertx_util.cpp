@@ -4,6 +4,7 @@
 
 #include <evo/providertx.h>
 
+#include <arith_uint256.h>
 #include <key_io.h>
 #include <script/standard.h>
 #include <tinyformat.h>
@@ -84,3 +85,31 @@ UniValue ShareListToJson(const CollateralShares& shares)
     return ret;
 }
 
+std::vector<CAmount> SplitAmountByShares(const CAmount total, const CollateralShares& shares)
+{
+    // DIP-0026's single rounding convention, with share amounts as weights: every entry except
+    // the last receives floor(total * amount / weight_total) and the last entry receives the
+    // remainder, so the split always sums to total exactly.
+    CAmount weight_total{0};
+    for (const auto& share : shares) {
+        weight_total += share.amount;
+    }
+    std::vector<CAmount> ret;
+    ret.reserve(shares.size());
+    CAmount paid{0};
+    for (size_t i = 0; i < shares.size(); i++) {
+        CAmount payout;
+        if (i + 1 == shares.size()) {
+            payout = total - paid;
+        } else {
+            // 128-bit intermediate: total * amount overflows int64 for real-world values
+            arith_uint256 v{static_cast<uint64_t>(total)};
+            v *= arith_uint256{static_cast<uint64_t>(shares[i].amount)};
+            v /= arith_uint256{static_cast<uint64_t>(weight_total)};
+            payout = static_cast<CAmount>(v.GetLow64());
+        }
+        paid += payout;
+        ret.push_back(payout);
+    }
+    return ret;
+}

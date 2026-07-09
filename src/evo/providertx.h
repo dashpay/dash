@@ -133,6 +133,9 @@ template<class T>
 [[nodiscard]] bool IsShareListVotingKeySafe(const CollateralShares& shares, const CKeyID& keyIDVoting);
 [[nodiscard]] std::string ShareListToString(const CollateralShares& shares);
 [[nodiscard]] UniValue ShareListToJson(const CollateralShares& shares);
+/** Split an amount across shares proportionally to their collateral amounts: sequential floor,
+ *  remainder to the last entry. The result always sums to total exactly. */
+[[nodiscard]] std::vector<CAmount> SplitAmountByShares(CAmount total, const CollateralShares& shares);
 
 class CProRegTx
 {
