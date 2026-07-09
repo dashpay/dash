@@ -663,7 +663,15 @@ void CTxMemPool::addUncheckedProTx(CDeterministicMNManager& dmnman, indexed_tran
         for (const auto& entry : proTx.netInfo->GetEntries()) {
             mapProTxAddresses.emplace(entry, tx_hash);
         }
-        mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx_hash);
+        if (proTx.IsShared()) {
+            // A shared registration has a null keyIDOwner (which must never enter the map, or two
+            // shared registrations would collide on it); the share owner keys take its place
+            for (const auto& share : proTx.shares) {
+                mapProTxPubKeyIDs.emplace(share.keyIDOwner, tx_hash);
+            }
+        } else {
+            mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx_hash);
+        }
         mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx_hash);
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull()) {
             mapProTxPlatformNodeIDs.emplace(proTx.platformNodeID, tx_hash);
@@ -704,6 +712,23 @@ void CTxMemPool::addUncheckedProTx(CDeterministicMNManager& dmnman, indexed_tran
         mapAssetUnlockExpiry.insert({tx_hash, assetUnlockTx.getHeightToExpiry()});
     } else if (tx.nType == TRANSACTION_MNHF_SIGNAL) {
         PrioritiseTransaction(tx_hash, 0.1 * COIN);
+    } else if (tx.nType == TRANSACTION_PROVIDER_DISSOLVE) {
+        // Registering in mapProTxRefs makes removeProTxSpentCollateralConflicts evict pending
+        // updates for the masternode (and any competing dissolution) when a ProDisTx confirms
+        auto proTx = *Assert(GetTxPayload<CProDisTx>(tx));
+        mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        auto proTx = *Assert(GetTxPayload<CProUpShareTx>(tx));
+        mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        auto proTx = *Assert(GetTxPayload<CProUpSharedRegTx>(tx));
+        mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
+        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx_hash);
+        auto dmn = Assert(dmnman.GetListAtChainTip().GetMN(proTx.proTxHash));
+        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+        if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
+            newit->isKeyChangeProTx = true;
+        }
     }
 }
 
@@ -773,7 +798,13 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
         for (const auto& entry : proTx.netInfo->GetEntries()) {
             mapProTxAddresses.erase(entry);
         }
-        mapProTxPubKeyIDs.erase(proTx.keyIDOwner);
+        if (proTx.IsShared()) {
+            for (const auto& share : proTx.shares) {
+                mapProTxPubKeyIDs.erase(share.keyIDOwner);
+            }
+        } else {
+            mapProTxPubKeyIDs.erase(proTx.keyIDOwner);
+        }
         mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull()) {
             mapProTxPlatformNodeIDs.erase(proTx.platformNodeID);
@@ -798,6 +829,16 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
         eraseProTxRef(proTx.proTxHash, tx_hash);
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
         mapAssetUnlockExpiry.erase(tx_hash);
+    } else if (tx.nType == TRANSACTION_PROVIDER_DISSOLVE) {
+        auto proTx = *Assert(GetTxPayload<CProDisTx>(tx));
+        eraseProTxRef(proTx.proTxHash, tx_hash);
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        auto proTx = *Assert(GetTxPayload<CProUpShareTx>(tx));
+        eraseProTxRef(proTx.proTxHash, tx_hash);
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        auto proTx = *Assert(GetTxPayload<CProUpSharedRegTx>(tx));
+        eraseProTxRef(proTx.proTxHash, tx_hash);
+        mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
     }
 }
 
@@ -1002,6 +1043,13 @@ void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const ui
         if (txit == mapTx.end()) {
             continue;
         }
+        // ProDisTx and ProUpShareTx are authorized by share owner keys, not the operator key, so
+        // an operator-key change (or revocation) must not evict them. They carry the default
+        // zero validForProTxKey and would otherwise always be treated as stale here.
+        const uint16_t refType{txit->GetTx().nType};
+        if (refType == TRANSACTION_PROVIDER_DISSOLVE || refType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+            continue;
+        }
         if (txit->validForProTxKey != newKeyHash) {
             conflictingTxs.emplace(txit->GetTx().GetHash());
         }
@@ -1040,7 +1088,13 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
                 }
             }
         }
-        removeProTxPubKeyConflicts(tx, proTx.keyIDOwner);
+        if (proTx.IsShared()) {
+            for (const auto& share : proTx.shares) {
+                removeProTxPubKeyConflicts(tx, share.keyIDOwner);
+            }
+        } else {
+            removeProTxPubKeyConflicts(tx, proTx.keyIDOwner);
+        }
         removeProTxPubKeyConflicts(tx, proTx.pubKeyOperator);
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull()) {
             removeProTxPlatformNodeIDConflicts(tx, proTx.platformNodeID);
@@ -1085,6 +1139,15 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
         }
 
         removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(CBLSPublicKey()));
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
+        if (!opt_proTx) {
+            LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx_hash.ToString());
+            return;
+        }
+
+        removeProTxPubKeyConflicts(tx, opt_proTx->pubKeyOperator);
+        removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(opt_proTx->pubKeyOperator));
     }
 }
 
@@ -1391,11 +1454,18 @@ bool CTxMemPool::existsProviderTxCrossSchemeConflict(const CTransaction& tx) con
             auto txit = mapTx.find(it->second);
             if (txit == mapTx.end()) continue;
             if (txit->GetTx().GetHash() == tx.GetHash()) continue; // ourselves
-            if (!self_protx.IsNull() && txit->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+            if (!self_protx.IsNull()) {
                 // The same masternode's own in-flight registrar update is not a conflict.
-                if (const auto other = GetTxPayload<CProUpRegTx>(txit->GetTx());
-                    other && other->proTxHash == self_protx) {
-                    continue;
+                if (txit->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+                    if (const auto other = GetTxPayload<CProUpRegTx>(txit->GetTx());
+                        other && other->proTxHash == self_protx) {
+                        continue;
+                    }
+                } else if (txit->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+                    if (const auto other = GetTxPayload<CProUpSharedRegTx>(txit->GetTx());
+                        other && other->proTxHash == self_protx) {
+                        continue;
+                    }
                 }
             }
             return true;
@@ -1418,6 +1488,18 @@ bool CTxMemPool::existsProviderTxCrossSchemeConflict(const CTransaction& tx) con
         // encoding the masternode already holds in the list fails CheckSpecialTx
         // before reaching the mempool. Probing here would wrongly block updates
         // for one member of a pre-activation cross-scheme pair.
+        auto dmnman = Assert(m_dmnman.load(std::memory_order_acquire));
+        if (auto dmn = dmnman->GetListAtChainTip().GetMN(opt_proTx->proTxHash);
+            dmn && opt_proTx->pubKeyOperator == dmn->pdmnState->pubKeyOperator) {
+            return false;
+        }
+        return probe(opt_proTx->pubKeyOperator, opt_proTx->proTxHash);
+    }
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
+        if (!opt_proTx) return true;
+        // Same-key skip as the ordinary registrar path above: a no-op key carry-over cannot
+        // create a new cross-scheme claim.
         auto dmnman = Assert(m_dmnman.load(std::memory_order_acquire));
         if (auto dmn = dmnman->GetListAtChainTip().GetMN(opt_proTx->proTxHash);
             dmn && opt_proTx->pubKeyOperator == dmn->pdmnState->pubKeyOperator) {
@@ -1460,7 +1542,18 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
                 return true;
             }
         }
-        if (mapProTxPubKeyIDs.count(proTx.keyIDOwner) || mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
+        if (proTx.IsShared()) {
+            // share owner keys occupy the same conflict namespace as keyIDOwner, in both
+            // directions between pending shared and non-shared registrations
+            for (const auto& share : proTx.shares) {
+                if (mapProTxPubKeyIDs.count(share.keyIDOwner)) {
+                    return true;
+                }
+            }
+            if (mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
+                return true;
+            }
+        } else if (mapProTxPubKeyIDs.count(proTx.keyIDOwner) || mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
             return true;
         }
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull() && mapProTxPlatformNodeIDs.count(proTx.platformNodeID)) {
@@ -1535,6 +1628,79 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
+            }
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
+        if (!opt_proTx) {
+            LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx_hash.ToString());
+            return true; // i.e. can't decode payload == conflict
+        }
+        auto& proTx = *opt_proTx;
+
+        // this method should only be called with validated ProTxs
+        auto dmn = dmnman->GetListAtChainTip().GetMN(proTx.proTxHash);
+        if (!dmn) {
+            LogPrint(BCLog::MEMPOOL, "%s: ERROR: Masternode is not in the list, proTxHash: %s\n", __func__, proTx.proTxHash.ToString());
+            return true; // i.e. failed to find validated ProTx == conflict
+        }
+        // only allow one operator key change in the mempool
+        if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
+            if (hasKeyChangeInMempool(proTx.proTxHash)) {
+                return true;
+            }
+        }
+
+        // A pending share reward update could move a share script onto the new voting key, a
+        // combination block validation rejects in any order. Check each pending update
+        // independently, not a composed table: every subset of a pairwise-safe set is then valid
+        // in every block order, so an honest miner never assembles the forbidden pair. An empty
+        // pending reward script falls back to the immutable refund script, which the tip-level
+        // CheckProUpSharedRegTx already vetted.
+        const CTxDestination voting_dest{PKHash(proTx.keyIDVoting)};
+        for (auto its = mapProTxRefs.equal_range(proTx.proTxHash); its.first != its.second; ++its.first) {
+            auto txit = mapTx.find(its.first->second);
+            if (txit == mapTx.end() || txit->GetTx().nType != TRANSACTION_PROVIDER_UPDATE_SHARE) {
+                continue;
+            }
+            const auto other = GetTxPayload<CProUpShareTx>(txit->GetTx());
+            if (!other || other->scriptReward.empty()) {
+                continue;
+            }
+            if (CTxDestination dest; ExtractDestination(other->scriptReward, dest) && dest == voting_dest) {
+                return true;
+            }
+        }
+
+        auto it = mapProTxBlsPubKeyHashes.find(proTx.pubKeyOperator.GetHash());
+        return it != mapProTxBlsPubKeyHashes.end() && it->second != proTx.proTxHash;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
+        if (!opt_proTx) {
+            LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx_hash.ToString());
+            return true; // i.e. can't decode payload == conflict
+        }
+        auto& proTx = *opt_proTx;
+
+        // this method should only be called with validated ProTxs
+        auto dmn = dmnman->GetListAtChainTip().GetMN(proTx.proTxHash);
+        if (!dmn) {
+            LogPrint(BCLog::MEMPOOL, "%s: ERROR: Masternode is not in the list, proTxHash: %s\n", __func__, proTx.proTxHash.ToString());
+            return true; // i.e. failed to find validated ProTx == conflict
+        }
+        // The mirror image of the check above: a pending shared registrar update could move the
+        // voting key onto this update's new reward script. An empty new reward script falls back
+        // to the immutable refund script, which the registrar update's own admission checks vetted.
+        if (CTxDestination dest; !proTx.scriptReward.empty() && ExtractDestination(proTx.scriptReward, dest)) {
+            for (auto its = mapProTxRefs.equal_range(proTx.proTxHash); its.first != its.second; ++its.first) {
+                auto txit = mapTx.find(its.first->second);
+                if (txit == mapTx.end() || txit->GetTx().nType != TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+                    continue;
+                }
+                if (const auto other = GetTxPayload<CProUpSharedRegTx>(txit->GetTx());
+                    other && dest == CTxDestination(PKHash(other->keyIDVoting))) {
+                    return true;
+                }
             }
         }
     }
