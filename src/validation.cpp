@@ -379,7 +379,10 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
                 tx.nType != TRANSACTION_MNHF_SIGNAL &&
                 tx.nType != TRANSACTION_ASSET_LOCK &&
-                tx.nType != TRANSACTION_ASSET_UNLOCK) {
+                tx.nType != TRANSACTION_ASSET_UNLOCK &&
+                tx.nType != TRANSACTION_PROVIDER_DISSOLVE &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_SHARE &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)

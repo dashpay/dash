@@ -33,6 +33,9 @@ enum {
     TRANSACTION_MNHF_SIGNAL = 7,
     TRANSACTION_ASSET_LOCK = 8,
     TRANSACTION_ASSET_UNLOCK = 9,
+    TRANSACTION_PROVIDER_DISSOLVE = 10,
+    TRANSACTION_PROVIDER_UPDATE_SHARE = 11,
+    TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR = 12,
 };
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */

@@ -233,6 +233,7 @@ BITCOIN_CORE_H = \
   evo/netinfo.h \
   evo/providertx.h \
   evo/providertx_service.h \
+  evo/sharedcollateral.h \
   evo/simplifiedmns.h \
   evo/smldiff.h \
   evo/specialtx.h \
