@@ -127,7 +127,11 @@ void CSporkManager::CheckAndRemove()
 MessageProcessingResult CSporkManager::ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type, CDataStream& vRecv)
 {
     if (msg_type == NetMsgType::SPORK) {
-        return ProcessSpork(peer.GetId(), vRecv);
+        try {
+            return ProcessSpork(peer.GetId(), vRecv);
+        } catch (const std::ios_base::failure& e) {
+            return MisbehavingError{100, strprintf("malformed spork received. peer=%d error=%s", peer.GetId(), e.what())};
+        }
     } else if (msg_type == NetMsgType::GETSPORKS) {
         ProcessGetSporks(peer, connman);
     }
