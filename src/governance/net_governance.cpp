@@ -216,7 +216,7 @@ bool NetGovernance::AlreadyHave(const CInv& inv)
     }
     // When governance isn't loaded (e.g. -disablegovernance), claim we already have
     // the item so we don't fetch or track it. ConfirmInventoryRequest would otherwise
-    // grow m_requested_hash_time unbounded since CheckAndRemove never runs in that mode.
+    // fill and continually churn the request cache since CheckAndRemove never runs in that mode.
     if (!m_gov_manager.IsValid()) return true;
     return !m_gov_manager.ConfirmInventoryRequest(inv);
 }

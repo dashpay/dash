@@ -24,6 +24,7 @@
 #include <util/time.h>
 #include <validationinterface.h>
 
+#include <algorithm>
 #include <ranges>
 
 const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
@@ -441,17 +442,11 @@ void CGovernanceManager::CheckAndRemove()
     }
 
     // forget about expired requests
-    for (auto r_it = m_requested_hash_time.begin(); r_it != m_requested_hash_time.end();) {
-        if (r_it->second < nNow) {
-            m_requested_hash_time.erase(r_it++);
-        } else {
-            ++r_it;
-        }
-    }
+    PruneExpiredRequestedHashes(nNow);
     }
 
-    LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- %s, m_requested_hash_time size=%d\n",
-             ToString(), m_requested_hash_time.size());
+    LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- %s, request cache size=%d\n", ToString(),
+             m_requested_hashes.GetSize());
 }
 
 std::vector<CInv> CGovernanceManager::FetchRelayInventory()
@@ -595,13 +590,33 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
         return false;
     }
 
-    const auto valid_until = GetTime<std::chrono::seconds>() + RELIABLE_PROPAGATION_TIME;
-    const auto& [_itr, inserted] = m_requested_hash_time.emplace(inv.hash, valid_until);
+    const auto nNow = GetTime<std::chrono::seconds>();
+    const auto valid_until = nNow + RELIABLE_PROPAGATION_TIME;
 
-    if (inserted) {
+    if (!m_requested_hashes.HasKey(inv.hash)) {
+        // Opportunistically reclaim expired slots before we lean on eviction.
+        if (m_requested_hashes.GetSize() >= governance::MAX_REQUESTED_HASHES && m_requested_hash_time_next_cleanup < nNow) {
+            PruneExpiredRequestedHashes(nNow);
+        }
+
+        // Preserve intake liveness under saturation. Returning false here would
+        // make AlreadyHave suppress all new governance INVs, letting one peer
+        // that keeps the cache full eclipse honest announcements. CacheMap::Insert
+        // instead evicts its oldest (back) entry when full, so a new hash is
+        // always admitted; memory stays bounded by MAX_REQUESTED_HASHES.
+        if (m_requested_hashes.GetSize() >= governance::MAX_REQUESTED_HASHES) {
+            LogPrint(BCLog::GOBJECT, /* Continued */
+                     "CGovernanceManager::ConfirmInventoryRequest request cache full, evicting oldest to admit %s inv hash %s\n",
+                     inv.type == MSG_GOVERNANCE_OBJECT ? "object" : "vote", inv.hash.ToString());
+        }
+
+        m_requested_hashes.Insert(inv.hash, valid_until);
+        if (valid_until < m_requested_hash_time_next_cleanup) {
+            m_requested_hash_time_next_cleanup = valid_until;
+        }
         LogPrint(BCLog::GOBJECT, /* Continued */
-                 "CGovernanceManager::ConfirmInventoryRequest added %s inv hash to m_requested_hash_time, size=%d\n",
-                 inv.type == MSG_GOVERNANCE_OBJECT ? "object" : "vote", m_requested_hash_time.size());
+                 "CGovernanceManager::ConfirmInventoryRequest added %s inv hash to request cache, size=%d\n",
+                 inv.type == MSG_GOVERNANCE_OBJECT ? "object" : "vote", m_requested_hashes.GetSize());
     }
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::ConfirmInventoryRequest reached end, returning true\n");
@@ -612,7 +627,35 @@ size_t CGovernanceManager::RequestedHashCacheSizeForTesting() const
 {
     AssertLockNotHeld(cs_store);
     LOCK(cs_store);
-    return m_requested_hash_time.size();
+    return m_requested_hashes.GetSize();
+}
+
+size_t CGovernanceManager::RequestedHashCacheMaxSizeForTesting() const
+{
+    return governance::MAX_REQUESTED_HASHES;
+}
+
+void CGovernanceManager::PruneExpiredRequestedHashes(std::chrono::seconds now)
+{
+    AssertLockHeld(cs_store);
+
+    // CacheMap::Insert adds entries at the front and its capacity eviction
+    // removes from the back, so the back remains the oldest inserted request.
+    // Expiration order can differ if the wall clock moves backwards, however,
+    // so inspect every entry rather than stopping at the first unexpired one.
+    const auto& items = m_requested_hashes.GetItemList();
+    auto next_cleanup = std::chrono::seconds::max();
+    for (auto it = items.begin(); it != items.end();) {
+        const auto& item = *it++;
+        if (item.value >= now) {
+            next_cleanup = std::min(next_cleanup, item.value);
+            continue;
+        }
+        // Copy the key before Erase; it aliases the list node being destroyed.
+        const uint256 hash = item.key;
+        m_requested_hashes.Erase(hash);
+    }
+    m_requested_hash_time_next_cleanup = next_cleanup;
 }
 
 std::vector<CInv> CGovernanceManager::GetSyncableVoteInvs(const uint256& nProp, const CBloomFilter& filter) const
@@ -951,13 +994,10 @@ bool CGovernanceManager::AcceptMessage(const uint256& nHash)
 {
     AssertLockNotHeld(cs_store);
     LOCK(cs_store);
-    auto it = m_requested_hash_time.find(nHash);
-    if (it == m_requested_hash_time.end()) {
-        // We never requested this
-        return false;
-    }
-    // Only accept one response
-    m_requested_hash_time.erase(it);
+    // Only accept one response. Returns false when we never requested this
+    // hash, i.e. the peer sent an unsolicited or already-consumed message.
+    if (!m_requested_hashes.HasKey(nHash)) return false;
+    m_requested_hashes.Erase(nHash);
     return true;
 }
 
@@ -1017,7 +1057,8 @@ void CGovernanceManager::Clear()
     cmapVoteToObject.Clear();
     mapPostponedObjects.clear();
     setAdditionalRelayObjects.clear();
-    m_requested_hash_time.clear();
+    m_requested_hashes.Clear();
+    m_requested_hash_time_next_cleanup = std::chrono::seconds::max();
     fRateChecksEnabled = true;
     m_superblocks.Clear();
 }
@@ -1152,7 +1193,7 @@ void CGovernanceManager::RemoveInvalidVotes()
                 cmapVoteToObject.Erase(voteHash);
                 cmapInvalidVotes.Erase(voteHash);
                 cmmapOrphanVotes.Erase(voteHash);
-                m_requested_hash_time.erase(voteHash);
+                m_requested_hashes.Erase(voteHash);
             }
         }
     }

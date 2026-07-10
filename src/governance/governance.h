@@ -41,6 +41,9 @@ namespace governance {
 class SuperblockManager;
 // How long a requested governance inv hash remains in the request cache.
 inline constexpr std::chrono::seconds RELIABLE_PROPAGATION_TIME{60};
+// Bound pending governance inv request hashes retained before responses arrive
+// or periodic cleanup expires them.
+inline constexpr size_t MAX_REQUESTED_HASHES{50000};
 } // namespace governance
 
 using vote_time_pair_t = std::pair<CGovernanceVote, int64_t>;
@@ -251,7 +254,15 @@ private:
     object_ref_cm_t cmapVoteToObject;
     std::map<uint256, std::shared_ptr<CGovernanceObject>> mapPostponedObjects;
     std::set<uint256> setAdditionalRelayObjects;
-    std::map<uint256, std::chrono::seconds> m_requested_hash_time;
+    // Governance inv hashes we have requested and are awaiting a response for,
+    // mapped to each hash's expiration time. CacheMap bounds the set at
+    // MAX_REQUESTED_HASHES; when full it evicts its oldest (back) entry on
+    // Insert so a new honest hash is always admitted rather than suppressed
+    // (see ConfirmInventoryRequest). Newest entries sit at the front and oldest
+    // at the back for capacity eviction. Expiry pruning scans all entries because
+    // wall-clock rollback can make expiration order differ from insertion order.
+    CacheMap<uint256, std::chrono::seconds> m_requested_hashes{governance::MAX_REQUESTED_HASHES};
+    std::chrono::seconds m_requested_hash_time_next_cleanup{std::chrono::seconds::max()};
     bool fRateChecksEnabled{true};
 
     mutable Mutex cs_relay;
@@ -302,6 +313,9 @@ public:
     /** Test-only accessor: number of inv hashes currently tracked by
      *  ConfirmInventoryRequest pending expiration in CheckAndRemove. */
     size_t RequestedHashCacheSizeForTesting() const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    /** Test-only accessor: maximum inv hashes tracked before dropping new requests. */
+    size_t RequestedHashCacheMaxSizeForTesting() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool ProcessVoteAndRelay(const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store, !cs_relay);
@@ -403,6 +417,9 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     void RemoveInvalidVotes()
+        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
+
+    void PruneExpiredRequestedHashes(std::chrono::seconds now)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 };
 

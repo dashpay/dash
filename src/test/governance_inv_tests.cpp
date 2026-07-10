@@ -19,6 +19,8 @@
 
 #include <test/util/setup_common.h>
 
+#include <arith_uint256.h>
+
 #include <boost/test/unit_test.hpp>
 
 #include <atomic>
@@ -115,6 +117,138 @@ BOOST_AUTO_TEST_CASE(object_inv_request_expiration)
 BOOST_AUTO_TEST_CASE(vote_inv_request_expiration)
 {
     CheckInvExpirationCycle(*m_node.govman, CInv{MSG_GOVERNANCE_OBJECT_VOTE, uint256S("02")});
+}
+
+BOOST_AUTO_TEST_CASE(inv_request_cache_prunes_after_clock_rollback)
+{
+    const auto initial_time = GetTime<std::chrono::seconds>();
+    const uint256 older_hash = uint256S("03");
+    const uint256 newer_hash = uint256S("04");
+
+    BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, older_hash}));
+
+    // A request inserted after a wall-clock rollback expires before the older
+    // insertion, so expiration order no longer matches CacheMap order.
+    SetMockTime(initial_time - 30s);
+    BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, newer_hash}));
+
+    SetMockTime(initial_time + 31s);
+    m_node.govman->CheckAndRemove();
+
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), 1U);
+    BOOST_CHECK(m_node.govman->AcceptMessage(older_hash));
+    BOOST_CHECK(!m_node.govman->AcceptMessage(newer_hash));
+}
+
+BOOST_AUTO_TEST_CASE(inv_request_cache_is_bounded)
+{
+    const size_t max_size = m_node.govman->RequestedHashCacheMaxSizeForTesting();
+    BOOST_REQUIRE_GT(max_size, 0U);
+
+    for (size_t i = 0; i < max_size; ++i) {
+        const auto hash = ArithToUint256(arith_uint256{i + 100});
+        BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, hash}));
+    }
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    // Duplicate hash does not grow the cache.
+    const CInv duplicate_inv{MSG_GOVERNANCE_OBJECT, ArithToUint256(arith_uint256{100})};
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(duplicate_inv));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    // Saturation must not cause AlreadyHave to suppress a new honest hash. The
+    // over-limit hash is admitted (return true) and the oldest tracked hash is
+    // evicted to keep the cache bounded at max_size.
+    const CInv over_limit_inv{MSG_GOVERNANCE_OBJECT, ArithToUint256(arith_uint256{max_size + 100})};
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(over_limit_inv));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    SetMockTime(GetTime<std::chrono::seconds>() + governance::RELIABLE_PROPAGATION_TIME + 1s);
+
+    const CInv after_expiry_inv{MSG_GOVERNANCE_OBJECT, ArithToUint256(arith_uint256{max_size + 101})};
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(after_expiry_inv));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), 1U);
+}
+
+// Guards against an eclipse where one peer saturates the request cache with
+// 50k announcements and AlreadyHave would then suppress every subsequent
+// honest INV. After the cache is full, a new hash must still be admitted
+// (ConfirmInventoryRequest returns true -> AlreadyHave returns false), the
+// oldest tracked hash is evicted, and total memory stays bounded at max_size.
+BOOST_AUTO_TEST_CASE(inv_request_cache_preserves_liveness_under_saturation)
+{
+    const size_t max_size = m_node.govman->RequestedHashCacheMaxSizeForTesting();
+    BOOST_REQUIRE_GT(max_size, 0U);
+
+    // Simulate an attacker saturating the cache with fresh, distinct hashes.
+    const uint256 oldest_hash = ArithToUint256(arith_uint256{1});
+    BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, oldest_hash}));
+    for (size_t i = 1; i < max_size; ++i) {
+        const auto hash = ArithToUint256(arith_uint256{i + 1});
+        BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, hash}));
+    }
+    BOOST_REQUIRE_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    // Honest peer announces a brand new hash while the cache is saturated: it
+    // must be admitted so we can request it from that peer, and the cache
+    // must not exceed its bound.
+    const CInv honest_inv{MSG_GOVERNANCE_OBJECT, ArithToUint256(arith_uint256{max_size + 1000})};
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(honest_inv));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    // AcceptMessage returns true iff the hash is currently tracked in the
+    // request cache. Use it as an oracle to prove FIFO eviction actually
+    // ran on the oldest entry and left the fresh honest entry intact.
+    BOOST_CHECK(!m_node.govman->AcceptMessage(oldest_hash));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+    BOOST_CHECK(m_node.govman->AcceptMessage(honest_inv.hash));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size - 1);
+
+    // Vote INVs must also remain admissible under object-INV saturation.
+    const CInv honest_vote{MSG_GOVERNANCE_OBJECT_VOTE, ArithToUint256(arith_uint256{max_size + 2000})};
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(honest_vote));
+    BOOST_CHECK(m_node.govman->AcceptMessage(honest_vote.hash));
+}
+
+// Guards eviction ordering across an accept-then-reannounce sequence. A hash is
+// tracked, consumed by AcceptMessage, then re-announced so it becomes one of the
+// newest entries. Because CacheMap keeps its index and ordering list in lockstep
+// on every erase, the re-announced entry sits at the front and a later eviction
+// must drop a truly-oldest entry instead of the freshly re-announced one.
+BOOST_AUTO_TEST_CASE(inv_request_cache_eviction_survives_accept_then_reannounce)
+{
+    const size_t max_size = m_node.govman->RequestedHashCacheMaxSizeForTesting();
+    BOOST_REQUIRE_GT(max_size, 2U);
+
+    // Track a hash; filling the rest below leaves it as the oldest entry.
+    const uint256 reannounced = ArithToUint256(arith_uint256{7});
+    BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, reannounced}));
+
+    // Fill the rest of the cache so the next new hash triggers eviction.
+    for (size_t i = 1; i < max_size; ++i) {
+        BOOST_REQUIRE(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT,
+            ArithToUint256(arith_uint256{i + 100})}));
+    }
+    BOOST_REQUIRE_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    // AcceptMessage the hash (this is what NetGovernance does after successfully
+    // receiving the object/vote). It removes the entry from index and order
+    // together, so no stale ordering slot can linger.
+    BOOST_REQUIRE(m_node.govman->AcceptMessage(reannounced));
+    BOOST_REQUIRE_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size - 1);
+
+    // Re-announcing `reannounced` re-inserts it as one of the newest entries
+    // with a fresh valid_until.
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(CInv{MSG_GOVERNANCE_OBJECT, reannounced}));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+
+    // A brand new hash now forces eviction. The truly-oldest tracked entry must
+    // be evicted, leaving the freshly re-announced entry intact.
+    const CInv new_inv{MSG_GOVERNANCE_OBJECT, ArithToUint256(arith_uint256{max_size + 500})};
+    BOOST_CHECK(m_node.govman->ConfirmInventoryRequest(new_inv));
+    BOOST_CHECK_EQUAL(m_node.govman->RequestedHashCacheSizeForTesting(), max_size);
+    BOOST_CHECK(m_node.govman->AcceptMessage(reannounced));
+    BOOST_CHECK(m_node.govman->AcceptMessage(new_inv.hash));
 }
 
 // Replaces the end-to-end check the old functional test performed via real P2P:
