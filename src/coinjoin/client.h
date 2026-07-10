@@ -8,6 +8,7 @@
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/util.h>
 #include <evo/types.h>
+#include <interfaces/coinjoin.h>
 #include <msg_result.h>
 
 #include <net_types.h>
@@ -15,7 +16,6 @@
 #include <util/ranges.h>
 #include <util/translation.h>
 
-#include <atomic>
 #include <deque>
 #include <memory>
 #include <utility>
@@ -84,13 +84,15 @@ public:
                                    const std::unique_ptr<CCoinJoinClientQueueManager>& queueman);
     ~CoinJoinWalletManager();
 
-    void Add(const std::shared_ptr<wallet::CWallet>& wallet) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    bool Add(const std::shared_ptr<wallet::CWallet>& wallet) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
     void DoMaintenance(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     void Remove(const std::string& name) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
     void Flush(const std::string& name) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     CCoinJoinClientManager* Get(const std::string& name) const EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
+    bool DoForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     template <typename Callable>
     void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
@@ -240,7 +242,7 @@ public:
 
 /** Used to keep track of current status of mixing pool
  */
-class CCoinJoinClientManager
+class CCoinJoinClientManager : public interfaces::CoinJoin::Client
 {
 private:
     const std::shared_ptr<wallet::CWallet> m_wallet;
@@ -254,8 +256,6 @@ private:
     // TODO: or map<denom, CCoinJoinClientSession> ??
     std::deque<CCoinJoinClientSession> deqSessions GUARDED_BY(cs_deqsessions);
 
-    std::atomic<bool> fMixing{false};
-
     int nCachedLastSuccessBlock{0};
     int nMinBlocksToWait{1}; // how many blocks to wait for after one successful mixing tx in non-multisession mode
     bilingual_str strAutoDenomResult;
@@ -263,15 +263,15 @@ private:
     // Keep track of current block height
     int nCachedBlockHeight{0};
 
+    int nCachedNumBlocks{std::numeric_limits<int>::max()};    // used for the overview screen
+    bool fCreateAutoBackups{true}; // builtin support for automatic backups
+
     bool WaitForAnotherBlock() const;
 
     // Make sure we have enough keys since last backup
     bool CheckAutomaticBackup();
 
 public:
-    int nCachedNumBlocks{std::numeric_limits<int>::max()};    // used for the overview screen
-    bool fCreateAutoBackups{true}; // builtin support for automatic backups
-
     CCoinJoinClientManager() = delete;
     CCoinJoinClientManager(const CCoinJoinClientManager&) = delete;
     CCoinJoinClientManager& operator=(const CCoinJoinClientManager&) = delete;
@@ -282,14 +282,6 @@ public:
     ~CCoinJoinClientManager();
 
     void ProcessMessage(CNode& peer, CChainState& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-
-    bool StartMixing();
-    void StopMixing();
-    bool IsMixing() const;
-    void ResetPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-
-    std::vector<std::string> GetStatuses() const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
-    std::string GetSessionDenoms() EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
     bool GetMixingMasternodesInfo(std::vector<CDeterministicMNCPtr>& vecDmnsRet) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
@@ -314,7 +306,18 @@ public:
     void DoMaintenance(ChainstateManager& chainman, CConnman& connman, const CTxMemPool& mempool)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
-    void GetJsonInfo(UniValue& obj) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    // interfaces::CoinJoin::Client overrides
+    void resetCachedBlocks() override { nCachedNumBlocks = std::numeric_limits<int>::max(); }
+    int getCachedBlocks() const override { return nCachedNumBlocks; }
+    void setCachedBlocks(int nCachedBlocks) override { nCachedNumBlocks = nCachedBlocks; }
+    void disableAutobackups() override { fCreateAutoBackups = false; }
+    void resetPool() override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    UniValue getJsonInfo() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    std::vector<std::string> getSessionStatuses() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    std::string getSessionDenoms() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    bool isMixing() const override;
+    bool startMixing() override;
+    void stopMixing() override;
 };
 
 #endif // BITCOIN_COINJOIN_CLIENT_H
