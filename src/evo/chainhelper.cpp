@@ -9,6 +9,7 @@
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot.h>
 #include <evo/specialtxman.h>
 #include <governance/superblock.h>
 #include <hash.h>
@@ -27,6 +28,8 @@ CChainstateHelper::CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmn
     isman{isman},
     mn_sync{mn_sync},
     m_dmnman{dmnman},
+    m_qblockman{qblockman},
+    m_qsnapman{qsnapman},
     credit_pool_manager{std::make_unique<CCreditPoolManager>(evodb, chainman)},
     m_chainlocks{chainlocks},
     ehf_manager{std::make_unique<CMNHFManager>(evodb, chainman)},
@@ -66,7 +69,7 @@ int32_t CChainstateHelper::GetBestChainLockHeight() const { return m_chainlocks.
 
 uint256 CChainstateHelper::GetDeterministicMNListHash(const CBlockIndex* pindex) const
 {
-    return SerializeHash(m_dmnman.GetListForBlock(Assert(pindex)));
+    return evo::CanonicalMNListHash(m_dmnman.GetListForBlock(Assert(pindex)));
 }
 
 /** Passthrough functions to CCreditPoolManager */

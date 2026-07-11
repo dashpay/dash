@@ -237,6 +237,15 @@ public:
 
     std::optional<CQuorumSnapshot> GetSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     void StoreSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
+    /** Seed EvoDB without publishing state to the shared NORMAL-chainstate cache. */
+    bool SeedSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex,
+                              const CQuorumSnapshot& snapshot);
+    /** Seed/read the exact v20 score modifier keyed by type and work block. */
+    bool SeedQuorumModifier(Consensus::LLMQType llmq_type, const uint256& work_block_hash,
+                            const uint256& modifier);
+    std::optional<uint256> GetSeededQuorumModifier(Consensus::LLMQType llmq_type,
+                                                   const uint256& work_block_hash) const;
+    void InvalidateSnapshotCacheForBlock(Consensus::LLMQType llmq_type, const uint256& block_hash);
 };
 } // namespace llmq
 
