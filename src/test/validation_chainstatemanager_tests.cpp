@@ -1068,6 +1068,25 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, obsolete_marker));
 }
 
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_records_only_required_background_work_mn_hashes, SnapshotTestSetup)
+{
+    auto [validation_chainstate, _] = this->SetupSnapshot();
+    const uint256 required_block{GetRandHash()};
+    const uint256 unrelated_block{GetRandHash()};
+    const uint256 required_hash{GetRandHash()};
+
+    auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL);
+    m_node.evodb->WriteRequiredWorkMNListHashes({required_block});
+    validation_chainstate->SetRequiredBackgroundMNListHashes({required_block});
+    validation_chainstate->RecordBackgroundMNListHash(required_block, required_hash);
+    validation_chainstate->RecordBackgroundMNListHash(unrelated_block, GetRandHash());
+
+    uint256 captured_hash;
+    BOOST_REQUIRE(m_node.evodb->ReadBackgroundWorkMNListHash(required_block, captured_hash));
+    BOOST_CHECK_EQUAL(captured_hash, required_hash);
+    BOOST_CHECK(!m_node.evodb->ReadBackgroundWorkMNListHash(unrelated_block, captured_hash));
+}
+
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename, SnapshotTestSetup)
 {
     this->SetupSnapshot();

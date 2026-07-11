@@ -661,7 +661,8 @@ std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlo
     return quorumMembers[quorumIndex];
 }
 
-QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params, bool reset_cache)
+static QuorumMembers GetAllQuorumMembersInternal(Consensus::LLMQType llmqType, const UtilParameters& util_params,
+                                                 bool reset_cache)
 {
     static RecursiveMutex cs_members;
     static std::map<Consensus::LLMQType, Uint256LruHashMap<QuorumMembers>> mapQuorumMembers GUARDED_BY(cs_members);
@@ -757,6 +758,22 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
     LOCK(cs_members);
     mapQuorumMembers[llmqType].insert(util_params.m_base_index->GetBlockHash(), quorumMembers);
     return quorumMembers;
+}
+
+QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params, bool reset_cache)
+{
+    try {
+        return GetAllQuorumMembersInternal(llmqType, util_params, reset_cache);
+    } catch (const evo::SnapshotStateMismatchError& e) {
+        // Outside block connection there is no EvoDB transaction to unwind, so
+        // P2P, RPC, DKG, and quorum-manager callers can immediately enter the
+        // controlled invalid-snapshot path. During block connect/disconnect,
+        // defer to the Chainstate boundary after its transaction rolls back.
+        if (const_cast<ChainstateManager&>(util_params.m_chainman).HandleSnapshotStateMismatch(e.what())) {
+            return {};
+        }
+        throw;
+    }
 }
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)

@@ -134,6 +134,8 @@ public:
       * it can happen if there limits of withdrawal (unlock) exceed
       */
     CCreditPool GetCreditPool(const CBlockIndex* block) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
+    /** Seed a full pool snapshot in the current EvoDB transaction. */
+    bool SeedSnapshot(const CBlockIndex* block, const CCreditPool& pool) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
 
 private:
     std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);

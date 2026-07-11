@@ -272,12 +272,15 @@ BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)
     const uint256 normal_tip = BlockHash(30);
     const uint256 snapshot_tip = BlockHash(300);
     const uint256 mn_list_hash = BlockHash(3);
+    const std::vector<uint256> required_work{BlockHash(10), BlockHash(20)};
 
     WriteMarker(db, EvoDbIdentity::NORMAL, normal_tip);
     {
         auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
         db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_tip);
         db.WriteSnapshotBaseMNListHash(mn_list_hash);
+        db.WriteRequiredWorkMNListHashes(required_work);
+        for (const auto& hash : required_work) db.WriteBackgroundWorkMNListHash(hash, BlockHash(40));
         db.WriteDualChainstateMarker();
         tx->Commit();
     }
@@ -291,12 +294,17 @@ BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)
     uint256 value;
     BOOST_CHECK(!db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, value));
     BOOST_CHECK(!db.ReadSnapshotBaseMNListHash(value));
+    std::vector<uint256> required_value;
+    BOOST_CHECK(!db.ReadRequiredWorkMNListHashes(required_value));
+    for (const auto& hash : required_work) BOOST_CHECK(!db.ReadBackgroundWorkMNListHash(hash, value));
     BOOST_CHECK(!db.HasDualChainstateMarker());
 
     WriteMarker(db, EvoDbIdentity::SNAPSHOT, BlockHash(301));
     {
         auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
         db.WriteSnapshotBaseMNListHash(BlockHash(4));
+        db.WriteRequiredWorkMNListHashes(required_work);
+        for (const auto& hash : required_work) db.WriteBackgroundWorkMNListHash(hash, BlockHash(41));
         db.WriteDualChainstateMarker();
         tx->Commit();
     }
@@ -307,6 +315,8 @@ BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)
     BOOST_CHECK(db.VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
     BOOST_CHECK(!db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, value));
     BOOST_CHECK(!db.ReadSnapshotBaseMNListHash(value));
+    BOOST_CHECK(!db.ReadRequiredWorkMNListHashes(required_value));
+    for (const auto& hash : required_work) BOOST_CHECK(!db.ReadBackgroundWorkMNListHash(hash, value));
     BOOST_CHECK(!db.HasDualChainstateMarker());
 }
 

@@ -354,6 +354,7 @@ BASE_SCRIPTS = [
     'wallet_fallbackfee.py --legacy-wallet',
     'wallet_fallbackfee.py --descriptors',
     'rpc_dumptxoutset.py',
+    'feature_assumeutxo_dash.py',
     'feature_minchainwork.py',
     'rpc_estimatefee.py',
     'p2p_unrequested_blocks.py', # NOTE: needs dash_hash to pass

@@ -42,6 +42,12 @@ CEvoDB::CEvoDB(const util::DbWrapperParams& db_params) :
 
 CEvoDB::~CEvoDB() = default;
 
+bool CEvoDB::HasActiveTransaction()
+{
+    LOCK(cs);
+    return active_transaction.has_value();
+}
+
 CEvoDB::TransactionContext& CEvoDB::GetContext(EvoDbIdentity identity)
 {
     auto it = transaction_contexts.find(identity);
@@ -182,6 +188,37 @@ bool CEvoDB::ReadBackgroundMNListHash(uint256& block_hash, uint256& mn_list_hash
     return true;
 }
 
+void CEvoDB::WriteRequiredWorkMNListHashes(const std::vector<uint256>& block_hashes)
+{
+    Write(EVODB_REQUIRED_WORK_MNLISTS, block_hashes);
+}
+
+bool CEvoDB::ReadRequiredWorkMNListHashes(std::vector<uint256>& block_hashes)
+{
+    return Read(EVODB_REQUIRED_WORK_MNLISTS, block_hashes);
+}
+
+void CEvoDB::WriteBackgroundWorkMNListHash(const uint256& block_hash, const uint256& mn_list_hash)
+{
+    Write(std::make_pair(EVODB_BACKGROUND_WORK_MNLIST_HASH, block_hash), mn_list_hash);
+}
+
+bool CEvoDB::ReadBackgroundWorkMNListHash(const uint256& block_hash, uint256& mn_list_hash)
+{
+    return Read(std::make_pair(EVODB_BACKGROUND_WORK_MNLIST_HASH, block_hash), mn_list_hash);
+}
+
+static void EraseHistoricalMNListMarkers(CDBWrapper& db, CDBBatch& batch)
+{
+    std::vector<uint256> required;
+    if (db.Read(EVODB_REQUIRED_WORK_MNLISTS, required)) {
+        for (const auto& block_hash : required) {
+            batch.Erase(std::make_pair(EVODB_BACKGROUND_WORK_MNLIST_HASH, block_hash));
+        }
+    }
+    batch.Erase(EVODB_REQUIRED_WORK_MNLISTS);
+}
+
 bool CEvoDB::PromoteSnapshotMarkers(const uint256& expected_snapshot_tip)
 {
     LOCK(cs);
@@ -198,7 +235,9 @@ bool CEvoDB::PromoteSnapshotMarkers(const uint256& expected_snapshot_tip)
         uint256 normal_tip;
         const bool already_promoted = db->Read(EVODB_BEST_BLOCK, normal_tip) && normal_tip == expected_snapshot_tip &&
                                       !db->Exists(EVODB_DUAL_CHAINSTATE) && !db->Exists(EVODB_SNAPSHOT_MNLIST_HASH) &&
-                                      !db->Exists(EVODB_BACKGROUND_MNLIST_HASH);
+                                      !db->Exists(EVODB_BACKGROUND_MNLIST_HASH) &&
+                                      !db->Exists(EVODB_REQUIRED_WORK_MNLISTS) &&
+                                      !db->Exists(EVODB_SNAPSHOT_EVO_SECTION);
         if (already_promoted) m_default_identity = EvoDbIdentity::NORMAL;
         return already_promoted;
     }
@@ -209,6 +248,8 @@ bool CEvoDB::PromoteSnapshotMarkers(const uint256& expected_snapshot_tip)
     batch.Erase(snapshot_key);
     batch.Erase(EVODB_SNAPSHOT_MNLIST_HASH);
     batch.Erase(EVODB_BACKGROUND_MNLIST_HASH);
+    EraseHistoricalMNListMarkers(*db, batch);
+    batch.Erase(EVODB_SNAPSHOT_EVO_SECTION);
     batch.Erase(EVODB_DUAL_CHAINSTATE);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     // The dual-chainstate run is over: the promoted state is the NORMAL
@@ -231,6 +272,8 @@ bool CEvoDB::DiscardSnapshotMarkers()
     batch.Erase(std::make_pair(EVODB_BEST_BLOCK, uint8_t{1}));
     batch.Erase(EVODB_SNAPSHOT_MNLIST_HASH);
     batch.Erase(EVODB_BACKGROUND_MNLIST_HASH);
+    EraseHistoricalMNListMarkers(*db, batch);
+    batch.Erase(EVODB_SNAPSHOT_EVO_SECTION);
     batch.Erase(EVODB_DUAL_CHAINSTATE);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     // The snapshot chainstate is gone; transaction-less access must resolve

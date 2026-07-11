@@ -125,12 +125,12 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
             return pool;
         }
     }
-    if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0) {
-        if (evoDb.Read(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
-            LOCK(cache_mutex);
-            creditPoolCache.insert(block_hash, pool);
-            return pool;
-        }
+    // Snapshot activation may deliberately seed a full state at a height that
+    // is not one of the normal periodic checkpoints.
+    if (evoDb.Read(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
+        LOCK(cache_mutex);
+        creditPoolCache.insert(block_hash, pool);
+        return pool;
     }
     return std::nullopt;
 }
@@ -153,6 +153,12 @@ void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const
         LOCK(cache_mutex);
         creditPoolCache.insert(block_hash, pool);
     }
+}
+
+bool CCreditPoolManager::SeedSnapshot(const CBlockIndex* block, const CCreditPool& pool)
+{
+    assert(block != nullptr);
+    return evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block->GetBlockHash()), pool);
 }
 
 CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev)
