@@ -529,6 +529,10 @@ static UniValue quorum_sign_helper(const JSONRPCRequest& request, Consensus::LLM
     if (!request.params[3].isNull()) {
         fSubmit = ParseBoolV(request.params[3], "submit");
     }
+    if (!llmq::CSigSharesManager::IsQuorumSigningAllowed(chainman)) {
+        throw JSONRPCError(RPC_MISC_ERROR,
+                           "Quorum signing is disabled until snapshot background validation completes");
+    }
     if (fSubmit) {
         return CHECK_NONFATAL(node.active_ctx)->shareman->AsyncSignIfMember(llmqType, *llmq_ctx.sigman, id, msgHash, quorumHash);
     } else {

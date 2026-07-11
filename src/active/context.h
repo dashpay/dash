@@ -12,6 +12,7 @@
 #include <gsl/pointers.h>
 #include <span.h>
 
+#include <atomic>
 #include <memory>
 
 class CActiveMasternodeManager;
@@ -49,7 +50,9 @@ struct DbWrapperParams;
 struct ActiveContext final : public llmq::QuorumRole, public CValidationInterface {
 private:
     CBLSWorker& m_bls_worker;
+    ChainstateManager& m_chainman;
     const bool m_quorums_watch{false};
+    std::atomic_bool m_snapshot_duty_blocked{false};
 
 public:
     ActiveContext() = delete;

@@ -20,6 +20,7 @@
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
+#include <logging.h>
 #include <masternode/sync.h>
 #include <util/check.h>
 #include <validation.h>
@@ -35,6 +36,7 @@ ActiveContext::ActiveContext(CBLSWorker& bls_worker, ChainstateManager& chainman
                              const CBLSSecretKey& operator_sk, const util::DbWrapperParams& db_params, bool quorums_watch) :
     llmq::QuorumRole{qman},
     m_bls_worker{bls_worker},
+    m_chainman{chainman},
     m_quorums_watch{quorums_watch},
     nodeman{std::make_unique<CActiveMasternodeManager>(connman, dmnman, operator_sk)},
     dkgdbgman{std::make_unique<llmq::CDKGDebugManager>(dmnman, qsnapman, chainman)},
@@ -94,6 +96,17 @@ void ActiveContext::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIn
         return;
 
     nodeman->UpdatedBlockTip(pindexNew, pindexFork, fInitialDownload);
+
+    if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+        if (!m_snapshot_duty_blocked.exchange(true)) {
+            LogPrintf("Masternode DKG participation and quorum signing are disabled until snapshot background validation completes\n");
+        }
+        return;
+    }
+    if (m_snapshot_duty_blocked.exchange(false)) {
+        LogPrintf("Snapshot background validation completed; masternode DKG participation and quorum signing are enabled\n");
+    }
+
     ehf_sighandler->UpdatedBlockTip(pindexNew);
     gov_signer->UpdatedBlockTip(pindexNew);
     qdkgsman->UpdatedBlockTip(pindexNew, fInitialDownload);

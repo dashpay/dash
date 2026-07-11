@@ -190,6 +190,7 @@ static RPCHelpMan masternode_status()
                 CDeterministicMNState::GetJsonHelp(/*key=*/"dmnState", /*optional=*/true),
                 {RPCResult::Type::STR, "state", "Masternode state (human-readable string)"},
                 {RPCResult::Type::STR, "status", "Masternode status (human-readable string, based on current state)"},
+                {RPCResult::Type::BOOL, "quorumParticipation", "Whether DKG participation and quorum signing are enabled"},
             }
         },
         RPCExamples{""},
@@ -215,7 +216,11 @@ static RPCHelpMan masternode_status()
         mnObj.pushKV("dmnState", dmn->pdmnState->ToJson(dmn->nType));
     }
     mnObj.pushKV("state", mn_activeman.GetStateString());
-    mnObj.pushKV("status", mn_activeman.GetStatus());
+    const bool quorum_participation = !EnsureChainman(node).IsSnapshotActiveAndUnvalidated();
+    mnObj.pushKV("status", quorum_participation ? mn_activeman.GetStatus() :
+        strprintf("%s; DKG participation and quorum signing disabled until snapshot background validation completes",
+                  mn_activeman.GetStatus()));
+    mnObj.pushKV("quorumParticipation", quorum_participation);
 
     return mnObj;
 },

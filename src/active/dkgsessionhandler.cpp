@@ -14,6 +14,7 @@
 #include <deploymentstatus.h>
 #include <logging.h>
 #include <util/time.h>
+#include <validation.h>
 
 namespace llmq {
 ActiveDKGSessionHandler::ActiveDKGSessionHandler(
@@ -41,6 +42,8 @@ ActiveDKGSessionHandler::~ActiveDKGSessionHandler() = default;
 
 void ActiveDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
+    if (m_chainman.IsSnapshotActiveAndUnvalidated()) return;
+
     //AssertLockNotHeld(cs_main);
     //Indexed quorums (greater than 0) are enabled with Quorum Rotation
     if (quorumIndex > 0 && !IsQuorumRotationEnabled(params, pindexNew)) {
@@ -76,6 +79,10 @@ std::pair<QuorumPhase, uint256> ActiveDKGSessionHandler::GetPhaseAndQuorumHash()
 
 bool ActiveDKGSessionHandler::InitNewQuorum(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex)
 {
+    if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+        LogPrint(BCLog::LLMQ_DKG, "%s -- refusing DKG participation while snapshot background validation is incomplete\n", __func__);
+        return false;
+    }
     if (!DeploymentDIP0003Enforced(pQuorumBaseBlockIndex->nHeight, Params().GetConsensus())) {
         return false;
     }
@@ -100,6 +107,10 @@ void ActiveDKGSessionHandler::WaitForNextPhase(std::optional<QuorumPhase> curPha
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? std23::to_underlying(*curPhase) : -1, std23::to_underlying(nextPhase));
 
     while (true) {
+        if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+            LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting because snapshot background validation is incomplete\n", __func__, params.name, quorumIndex);
+            throw AbortPhaseException();
+        }
         if (stopRequested) {
             LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting due to stop/shutdown requested\n", __func__, params.name, quorumIndex);
             throw AbortPhaseException();
@@ -139,6 +150,10 @@ void ActiveDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash) con
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d]- starting\n", __func__, params.name, quorumIndex);
 
     while (true) {
+        if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+            LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting because snapshot background validation is incomplete\n", __func__, params.name, quorumIndex);
+            throw AbortPhaseException();
+        }
         if (stopRequested) {
             LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting due to stop/shutdown requested\n", __func__, params.name, quorumIndex);
             throw AbortPhaseException();
@@ -186,6 +201,10 @@ void ActiveDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase, const uint2
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting sleep for %d ms, curPhase=%d\n", __func__, params.name, quorumIndex, sleepTime, std23::to_underlying(curPhase));
 
     while (SteadyClock::now() < endTime) {
+        if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+            LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting because snapshot background validation is incomplete\n", __func__, params.name, quorumIndex);
+            throw AbortPhaseException();
+        }
         if (stopRequested) {
             LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting due to stop/shutdown requested\n", __func__, params.name, quorumIndex);
             throw AbortPhaseException();
@@ -220,6 +239,10 @@ void ActiveDKGSessionHandler::HandlePhase(QuorumPhase curPhase, QuorumPhase next
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, std23::to_underlying(curPhase), std23::to_underlying(nextPhase));
 
     SleepBeforePhase(curPhase, expectedQuorumHash, randomSleepFactor, runWhileWaiting);
+    if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+        LogPrint(BCLog::LLMQ_DKG, "%s -- refusing DKG participation while snapshot background validation is incomplete\n", __func__);
+        throw AbortPhaseException();
+    }
     startPhaseFunc();
     WaitForNextPhase(curPhase, nextPhase, expectedQuorumHash, runWhileWaiting);
 
