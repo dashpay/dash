@@ -168,9 +168,10 @@ struct NetworkSetup
 };
 static NetworkSetup g_networksetup_instance;
 
-BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
+BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args, bool dash_dbs_in_memory)
     : m_path_root{fs::temp_directory_path() / "test_common_" PACKAGE_NAME / g_insecure_rand_ctx_temp_path.rand256().ToString()},
-      m_args{}
+      m_args{},
+      m_dash_dbs_in_memory{dash_dbs_in_memory}
 {
     m_node.args = &gArgs;
     std::vector<const char*> arguments = Cat(
@@ -243,7 +244,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
     m_node.sporkman = std::make_unique<CSporkManager>();
     m_node.chainlocks = std::make_unique<chainlock::Chainlocks>(*m_node.sporkman);
-    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = true, .wipe = true});
+    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
 
     static bool noui_connected = false;
     if (!noui_connected) {
@@ -258,10 +259,10 @@ BasicTestingSetup::~BasicTestingSetup()
 {
     SetMockTime(0s); // Reset mocktime for following tests
     LogInstance().DisconnectTestLogger();
+    m_node.evodb.reset();
     fs::remove_all(m_path_root);
     gArgs.ClearArgs();
 
-    m_node.evodb.reset();
     m_node.sporkman.reset();
     m_node.netfulfilledman.reset();
     m_node.mn_metaman.reset();
@@ -273,8 +274,8 @@ BasicTestingSetup::~BasicTestingSetup()
     m_node.args = nullptr;
 }
 
-ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
-    : BasicTestingSetup(chainName, extra_args)
+ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args, bool dash_dbs_in_memory)
+    : BasicTestingSetup(chainName, extra_args, dash_dbs_in_memory)
 {
     const CChainParams& chainparams = Params();
 
@@ -326,7 +327,7 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
     options.mempool = Assert(m_node.mempool.get());
     options.block_tree_db_in_memory = m_block_tree_db_in_memory;
     options.coins_db_in_memory = m_coins_db_in_memory;
-    options.dash_dbs_in_memory = true;
+    options.dash_dbs_in_memory = m_dash_dbs_in_memory;
     options.reindex = node::fReindex;
     options.reindex_chainstate = m_args.GetBoolArg("-reindex-chainstate", false);
     options.prune = node::fPruneMode;
@@ -370,8 +371,9 @@ TestingSetup::TestingSetup(
     const std::string& chainName,
     const std::vector<const char*>& extra_args,
     const bool coins_db_in_memory,
-    const bool block_tree_db_in_memory)
-    : ChainTestingSetup(chainName, extra_args)
+    const bool block_tree_db_in_memory,
+    const bool dash_dbs_in_memory)
+    : ChainTestingSetup(chainName, extra_args, dash_dbs_in_memory)
 {
     m_coins_db_in_memory = coins_db_in_memory;
     m_block_tree_db_in_memory = block_tree_db_in_memory;
@@ -445,8 +447,9 @@ TestChain100Setup::TestChain100Setup(
         const std::string& chain_name,
         const std::vector<const char*>& extra_args,
         const bool coins_db_in_memory,
-        const bool block_tree_db_in_memory)
-    : TestChainSetup{100, chain_name, extra_args, coins_db_in_memory, block_tree_db_in_memory}
+        const bool block_tree_db_in_memory,
+        const bool dash_dbs_in_memory)
+    : TestChainSetup{100, chain_name, extra_args, coins_db_in_memory, block_tree_db_in_memory, dash_dbs_in_memory}
 {
 }
 
@@ -455,8 +458,9 @@ TestChainSetup::TestChainSetup(
         const std::string& chain_name,
         const std::vector<const char*>& extra_args,
         const bool coins_db_in_memory,
-        const bool block_tree_db_in_memory)
-    : TestingSetup{chain_name, extra_args, coins_db_in_memory, block_tree_db_in_memory}
+        const bool block_tree_db_in_memory,
+        const bool dash_dbs_in_memory)
+    : TestingSetup{chain_name, extra_args, coins_db_in_memory, block_tree_db_in_memory, dash_dbs_in_memory}
 {
     SetMockTime(1598887952);
     constexpr std::array<unsigned char, 32> vchKey = {

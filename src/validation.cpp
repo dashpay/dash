@@ -1619,6 +1619,19 @@ Chainstate::Chainstate(CTxMemPool* mempool,
       m_chainman(chainman),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
+::EvoDbIdentity Chainstate::EvoDbIdentity() const
+{
+    return m_from_snapshot_blockhash ? ::EvoDbIdentity::SNAPSHOT : ::EvoDbIdentity::NORMAL;
+}
+
+std::string Chainstate::EvoDbInconsistencyMessage()
+{
+    if (m_chainman.GetAll().size() == 1 && m_evoDb.HasDualChainstateMarker()) {
+        return "Found EvoDB inconsistency after a previous dual-chainstate run; you must reindex to continue";
+    }
+    return "Found EvoDB inconsistency, you must reindex to continue";
+}
+
 void Chainstate::InitCoinsDB(
     size_t cache_size_bytes,
     bool in_memory,
@@ -1959,9 +1972,9 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
     assert(m_chain_helper);
 
     bool fDIP0003Active = DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
-    if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindex->GetBlockHash())) {
+    if (fDIP0003Active && !m_evoDb.VerifyBestBlock(EvoDbIdentity(), pindex->GetBlockHash())) {
         // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
-        AbortNode("Found EvoDB inconsistency, you must reindex to continue");
+        AbortNode(EvoDbInconsistencyMessage());
         return DISCONNECT_FAILED;
     }
 
@@ -2037,7 +2050,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
-    m_evoDb.WriteBestBlock(pindex->pprev->GetBlockHash());
+    m_evoDb.WriteBestBlock(EvoDbIdentity(), pindex->pprev->GetBlockHash());
 
     if (mnlist_updates_opt.has_value()) {
         auto& mnlu = mnlist_updates_opt.value();
@@ -2192,9 +2205,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     if (pindex->pprev) {
         bool fDIP0003Active = DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
-        if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindex->pprev->GetBlockHash())) {
+        if (fDIP0003Active && !m_evoDb.VerifyBestBlock(EvoDbIdentity(), pindex->pprev->GetBlockHash())) {
             // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
-            return AbortNode(state, "Found EvoDB inconsistency, you must reindex to continue");
+            return AbortNode(state, EvoDbInconsistencyMessage());
         }
     }
     nBlocksTotal++;
@@ -2502,7 +2515,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
-    m_evoDb.WriteBestBlock(pindex->GetBlockHash());
+    m_evoDb.WriteBestBlock(EvoDbIdentity(), pindex->GetBlockHash());
 
     // Block is committed: keep the scheme it switched to (fJustCheck dry runs returned above).
     bls_scheme_guard.Commit();
@@ -2687,7 +2700,7 @@ bool Chainstate::FlushStateToDisk(
             }
             {
                 LOG_TIME_SECONDS("write evodb cache to disk");
-                if (!m_evoDb.CommitRootTransaction()) {
+                if (!m_evoDb.CommitRootTransaction(EvoDbIdentity())) {
                     return AbortNode(state, "Failed to commit EvoDB");
                 }
             }
@@ -2848,7 +2861,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
-        auto dbTx = m_evoDb.BeginTransaction();
+        auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
         CCoinsViewCache view(&CoinsTip());
         assert(view.GetBestBlock() == pindexDelete->GetBlockHash());
@@ -2995,7 +3008,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     // nBlocksTotal may be zero until the ConnectBlock() call below.
     LogPrint(BCLog::BENCHMARK, "  - Load block from disk: %.2fms\n", (nTime2 - nTime1) * MILLI);
     {
-        auto dbTx = m_evoDb.BeginTransaction();
+        auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
         CCoinsViewCache view(&CoinsTip());
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
@@ -4382,7 +4395,7 @@ bool TestBlockValidity(BlockValidationState& state,
     indexDummy.phashBlock = &block_hash;
 
     // begin tx and let it rollback
-    auto dbTx = evoDb.BeginTransaction();
+    auto dbTx = evoDb.BeginTransaction(chainstate.EvoDbIdentity());
 
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, chainstate.m_blockman, chainstate.m_chainman, pindexPrev, adjusted_time_callback()))
@@ -4470,7 +4483,7 @@ bool CVerifyDB::VerifyDB(
     ScopedBLSLegacyScheme bls_scheme_guard;
 
     // begin tx and let it rollback
-    auto dbTx = evoDb.BeginTransaction();
+    auto dbTx = evoDb.BeginTransaction(chainstate.EvoDbIdentity());
 
     // Verify blocks in the best chain
     if (nCheckDepth <= 0 || nCheckDepth > chainstate.m_chain.Height()) {
@@ -4651,12 +4664,12 @@ bool Chainstate::ReplayBlocks()
         pindexFork = LastCommonAncestor(pindexOld, pindexNew);
         assert(pindexFork != nullptr);
         const bool fDIP0003Active = DeploymentActiveAt(*pindexOld, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
-        if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindexOld->GetBlockHash())) {
-            return error("ReplayBlocks(DASH): Found EvoDB inconsistency");
+        if (fDIP0003Active && !m_evoDb.VerifyBestBlock(EvoDbIdentity(), pindexOld->GetBlockHash())) {
+            return error("ReplayBlocks(DASH): %s", EvoDbInconsistencyMessage());
         }
     }
 
-    auto dbTx = m_evoDb.BeginTransaction();
+    auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
     // Rollback along the old branch.
     while (pindexOld != pindexFork) {
@@ -4689,7 +4702,7 @@ bool Chainstate::ReplayBlocks()
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
-    m_evoDb.WriteBestBlock(pindexNew->GetBlockHash());
+    m_evoDb.WriteBestBlock(EvoDbIdentity(), pindexNew->GetBlockHash());
     bool flushed = cache.Flush();
     assert(flushed);
     dbTx->Commit();
@@ -4704,7 +4717,7 @@ void Chainstate::UnloadBlockIndex()
     setBlockIndexCandidates.clear();
 }
 
-bool ChainstateManager::LoadBlockIndex()
+bool ChainstateManager::LoadBlockIndex(bool reset_assumed_valid)
 {
     AssertLockHeld(cs_main);
     // Load block index from databases
@@ -4718,6 +4731,42 @@ bool ChainstateManager::LoadBlockIndex()
         std::vector<CBlockIndex*> vSortedByHeight{m_blockman.GetAllBlockIndices()};
         std::sort(vSortedByHeight.begin(), vSortedByHeight.end(),
                   CBlockIndexHeightOnlyComparator());
+
+        if (reset_assumed_valid) {
+            // The snapshot chainstate is being removed for -reindex-chainstate,
+            // so metadata faked solely for snapshot use must not survive.
+            for (CBlockIndex* index : vSortedByHeight) {
+                if (!index->IsAssumedValid()) continue;
+
+                index->nStatus &= ~BLOCK_ASSUMED_VALID;
+                if (!index->IsValid(BLOCK_VALID_TRANSACTIONS)) {
+                    index->nTx = 0;
+                }
+                m_blockman.m_dirty_blockindex.insert(index);
+            }
+
+            // Recompute chain transaction counts after removing fake nTx values,
+            // including descendants and forks whose linkage depended on them.
+            m_blockman.m_blocks_unlinked.clear();
+            for (CBlockIndex* index : vSortedByHeight) {
+                const unsigned int old_chain_tx{index->nChainTx};
+                if (index->nTx > 0 && (!index->pprev || index->pprev->nChainTx > 0)) {
+                    index->nChainTx = (index->pprev ? index->pprev->nChainTx : 0) + index->nTx;
+                } else {
+                    index->nChainTx = 0;
+                    if (index->nTx > 0 && index->pprev) {
+                        m_blockman.m_blocks_unlinked.emplace(index->pprev, index);
+                    }
+                }
+                if (index->nChainTx != old_chain_tx) {
+                    m_blockman.m_dirty_blockindex.insert(index);
+                }
+            }
+
+            // Persist the cleanup before deleting the snapshot directory so a
+            // failed write leaves startup able to retry it.
+            if (!m_blockman.WriteBlockIndexDB()) return false;
+        }
 
         // Find start of assumed-valid region.
         int first_assumed_valid_height = std::numeric_limits<int>::max();
@@ -5341,6 +5390,7 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool,
     m_ibd_chainstate = std::make_unique<Chainstate>(
         mempool, m_blockman, *this, evoDb, chain_helper);
     m_active_chainstate = m_ibd_chainstate.get();
+    evoDb.SetActiveChainstateIdentity(EvoDbIdentity::NORMAL);
     return *m_active_chainstate;
 }
 
@@ -5356,7 +5406,7 @@ const AssumeutxoData* ExpectedAssumeutxo(
     return nullptr;
 }
 
-static bool DeleteCoinsDBFromDisk(const fs::path db_path, bool is_snapshot)
+[[nodiscard]] static bool DeleteCoinsDBFromDisk(const fs::path db_path, bool is_snapshot)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
@@ -5496,6 +5546,7 @@ bool ChainstateManager::ActivateSnapshot(
         assert(chaintip_loaded);
 
         m_active_chainstate = m_snapshot_chainstate.get();
+        m_active_chainstate->m_evoDb.SetActiveChainstateIdentity(EvoDbIdentity::SNAPSHOT);
 
         LogPrintf("[snapshot] successfully activated snapshot %s\n", base_blockhash.ToString());
         LogPrintf("[snapshot] (%.2f MB)\n",
@@ -5703,6 +5754,17 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     index->nChainTx = au_data.nChainTx;
     snapshot_chainstate.setBlockIndexCandidates.insert(snapshot_start_block);
 
+    {
+        auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        snapshot_chainstate.m_evoDb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_blockhash);
+        snapshot_chainstate.m_evoDb.WriteDualChainstateMarker();
+        db_tx->Commit();
+    }
+    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT)) {
+        LogPrintf("[snapshot] failed to commit snapshot EvoDB marker\n");
+        return false;
+    }
+
     LogPrintf("[snapshot] validated snapshot (%.2f MB)\n",
         coins_cache.DynamicMemoryUsage() / (1000 * 1000));
     return true;
@@ -5809,6 +5871,26 @@ void ChainstateManager::ResetChainstates()
     m_active_chainstate = nullptr;
 }
 
+bool ChainstateManager::DeleteSnapshotChainstate()
+{
+    AssertLockHeld(::cs_main);
+    assert(m_ibd_chainstate);
+
+    // Reindex startup deliberately skips snapshot activation because its EvoDB
+    // marker has already been wiped, so use the discovered on-disk directory.
+    if (const auto snapshot_datadir = node::FindSnapshotChainstateDir()) {
+        if (!DeleteCoinsDBFromDisk(*snapshot_datadir, /*is_snapshot=*/true)) {
+            LogPrintf("Deletion of %s failed. Please remove it manually to continue reindexing.\n",
+                      fs::PathToString(*snapshot_datadir));
+            return false;
+        }
+    }
+    m_active_chainstate = m_ibd_chainstate.get();
+    m_active_chainstate->m_evoDb.SetActiveChainstateIdentity(EvoDbIdentity::NORMAL);
+    m_snapshot_chainstate.reset();
+    return true;
+}
+
 ChainstateManager::~ChainstateManager()
 {
     LOCK(::cs_main);
@@ -5828,35 +5910,46 @@ bool IsBIP30Unspendable(const CBlockIndex& block_index)
            (block_index.nHeight==91812 && block_index.GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"));
 }
 
-bool ChainstateManager::DetectSnapshotChainstate(CTxMemPool* mempool)
+bool ChainstateManager::DetectSnapshotChainstate(CTxMemPool* mempool, bilingual_str& error)
 {
     assert(!m_snapshot_chainstate);
     std::optional<fs::path> path = node::FindSnapshotChainstateDir();
     if (!path) {
-        return false;
+        return true;
     }
     std::optional<uint256> base_blockhash = node::ReadSnapshotBaseBlockhash(*path);
     if (!base_blockhash) {
-        return false;
+        return true;
     }
     LogPrintf("[snapshot] detected active snapshot chainstate (%s) - loading\n",
         fs::PathToString(*path));
 
-    this->ActivateExistingSnapshot(mempool, *base_blockhash);
+    if (!this->ActivateExistingSnapshot(mempool, *base_blockhash)) {
+        error = _("Snapshot chainstate EvoDB marker is missing. Reindex is required.");
+        return false;
+    }
     return true;
 }
 
-Chainstate& ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash)
+Chainstate* ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash)
 {
     assert(!m_snapshot_chainstate);
+    CEvoDB& evo_db = this->ActiveChainstate().m_evoDb;
+    uint256 snapshot_evo_tip;
+    if (!evo_db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_evo_tip)) {
+        LogPrintf("[snapshot] snapshot EvoDB marker is missing for base block %s\n",
+                  base_blockhash.ToString());
+        return nullptr;
+    }
     m_snapshot_chainstate = std::make_unique<Chainstate>(
         mempool, m_blockman, *this,
-        this->ActiveChainstate().m_evoDb,
+        evo_db,
         this->ActiveChainstate().m_chain_helper,
         base_blockhash);
     LogPrintf("[snapshot] switching active chainstate to %s\n", m_snapshot_chainstate->ToString());
     m_active_chainstate = m_snapshot_chainstate.get();
-    return *m_snapshot_chainstate;
+    evo_db.SetActiveChainstateIdentity(EvoDbIdentity::SNAPSHOT);
+    return m_snapshot_chainstate.get();
 }
 
 ChainstateRole Chainstate::GetRole() const

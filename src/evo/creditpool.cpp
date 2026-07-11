@@ -136,12 +136,16 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
 
 void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const CCreditPool &pool)
 {
+    if (height % DISK_SNAPSHOT_PERIOD == 0) {
+        if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
+            LogPrintf("ERROR: CCreditPoolManager::%s -- EvoDB credit pool mismatch for block %s\n",
+                      __func__, block_hash.ToString());
+            throw std::runtime_error("EvoDB credit pool payload mismatch");
+        }
+    }
     {
         LOCK(cache_mutex);
         creditPoolCache.insert(block_hash, pool);
-    }
-    if (height % DISK_SNAPSHOT_PERIOD == 0) {
-        evoDb.Write(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool);
     }
 }
 

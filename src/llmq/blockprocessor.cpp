@@ -22,9 +22,11 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <saltedhasher.h>
+#include <streams.h>
 #include <sync.h>
 #include <validation.h>
 
+#include <algorithm>
 #include <map>
 
 static void PreComputeQuorumMembers(CDeterministicMNManager& dmnman, llmq::CQuorumSnapshotManager& qsnapman,
@@ -44,6 +46,35 @@ static const std::string DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT = "q_mcih";
 static const std::string DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED = "q_mcihi";
 
 static const std::string DB_BEST_BLOCK_UPGRADE = "q_bbu2";
+
+bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
+                                        gsl::not_null<const CBlockIndex*> pindex,
+                                        Consensus::LLMQType llmq_type, const uint256& quorum_hash)
+{
+    AssertLockHeld(::cs_main);
+    const auto chainstates = chainstate.m_chainman.GetAll();
+    const bool block_used_by_other_chainstate = std::any_of(
+        chainstates.begin(), chainstates.end(),
+        [&](const Chainstate* other) {
+            return other != &chainstate && other->m_chain.Contains(pindex);
+        });
+    if (block_used_by_other_chainstate) {
+        return false;
+    }
+    evo_db.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmq_type, quorum_hash)));
+    return true;
+}
+
+template <typename T>
+static bool SerializedEqual(const T& lhs, const T& rhs)
+{
+    CDataStream lhs_stream{SER_DISK, CLIENT_VERSION};
+    CDataStream rhs_stream{SER_DISK, CLIENT_VERSION};
+    lhs_stream << lhs;
+    rhs_stream << rhs;
+    return lhs_stream.size() == rhs_stream.size() &&
+           std::equal(lhs_stream.begin(), lhs_stream.end(), rhs_stream.begin());
+}
 
 CQuorumBlockProcessor::CQuorumBlockProcessor(Chainstate& chainstate, CDeterministicMNManager& dmnman, CEvoDB& evoDb,
                                              CQuorumSnapshotManager& qsnapman, int8_t bls_threads) :
@@ -319,8 +350,11 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
         return true;
     }
 
-    if (HasMinedCommitment(llmq_params.type, quorumHash)) {
-        // should not happen as it's already handled in ProcessBlock
+    const auto stored_commitment = GetMinedCommitment(llmq_params.type, quorumHash);
+    if (!stored_commitment.first.IsNull() &&
+        !SerializedEqual(stored_commitment, std::make_pair(qc, blockHash))) {
+        // Preserve the existing duplicate-commitment result while allowing an
+        // exact block re-derivation to proceed through all validation below.
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-dup");
     }
 
@@ -359,7 +393,11 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
 
     // Store commitment in DB
     auto cacheKey = std::make_pair(llmq_params.type, quorumHash);
-    m_evoDb.Write(std::make_pair(DB_MINED_COMMITMENT, cacheKey), std::make_pair(qc, blockHash));
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_MINED_COMMITMENT, cacheKey), std::make_pair(qc, blockHash))) {
+        LogPrintf("ERROR: CQuorumBlockProcessor::%s -- EvoDB quorum commitment mismatch for quorum %s\n",
+                  __func__, quorumHash.ToString());
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-dup");
+    }
 
     if (rotation_enabled) {
         m_evoDb.Write(BuildInversedHeightKeyIndexed(llmq_params.type, nHeight, int(qc.quorumIndex)), pQuorumBaseBlockIndex->nHeight);
@@ -397,15 +435,18 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
             continue;
         }
 
-        m_evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
-
-        const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
-        assert(llmq_params_opt.has_value());
-
-        if (IsQuorumRotationEnabled(llmq_params_opt.value(), pindex)) {
-            m_evoDb.Erase(BuildInversedHeightKeyIndexed(qc.llmqType, pindex->nHeight, int(qc.quorumIndex)));
+        if (!EraseMinedCommitmentIfUnreferenced(m_evoDb, m_chainstate, pindex, qc.llmqType, qc.quorumHash)) {
+            LogPrint(BCLog::LLMQ, "%s -- retaining commitment for block %s used by another chainstate\n",
+                     __func__, pindex->GetBlockHash().ToString());
         } else {
-            m_evoDb.Erase(BuildInversedHeightKey(qc.llmqType, pindex->nHeight));
+            const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
+            assert(llmq_params_opt.has_value());
+
+            if (IsQuorumRotationEnabled(llmq_params_opt.value(), pindex)) {
+                m_evoDb.Erase(BuildInversedHeightKeyIndexed(qc.llmqType, pindex->nHeight, int(qc.quorumIndex)));
+            } else {
+                m_evoDb.Erase(BuildInversedHeightKey(qc.llmqType, pindex->nHeight));
+            }
         }
 
         WITH_LOCK(minableCommitmentsCs, mapHasMinedCommitmentCache[qc.llmqType].erase(qc.quorumHash));

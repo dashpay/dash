@@ -33,6 +33,18 @@
 
 using node::SnapshotMetadata;
 
+namespace {
+
+void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash)
+{
+    auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+    evodb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, hash);
+    tx->Commit();
+    BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+}
+
+} // namespace
+
 BOOST_FIXTURE_TEST_SUITE(validation_chainstatemanager_tests, ChainTestingSetup)
 
 //! Basic tests for ChainstateManager.
@@ -81,8 +93,11 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     // Create a snapshot-based chainstate.
     //
     const uint256 snapshot_blockhash = GetRandHash();
-    Chainstate& c2 = WITH_LOCK(::cs_main, return manager.ActivateExistingSnapshot(
+    SeedSnapshotMarker(evodb, snapshot_blockhash);
+    Chainstate* c2_ptr = WITH_LOCK(::cs_main, return manager.ActivateExistingSnapshot(
         &mempool, snapshot_blockhash));
+    BOOST_REQUIRE(c2_ptr);
+    Chainstate& c2 = *c2_ptr;
     chainstates.push_back(&c2);
 
     DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false);
@@ -158,7 +173,11 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
 
     // Create a snapshot-based chainstate.
     //
-    Chainstate& c2 = WITH_LOCK(cs_main, return manager.ActivateExistingSnapshot(&mempool, GetRandHash()));
+    const uint256 snapshot_blockhash = GetRandHash();
+    SeedSnapshotMarker(evodb, snapshot_blockhash);
+    Chainstate* c2_ptr = WITH_LOCK(cs_main, return manager.ActivateExistingSnapshot(&mempool, snapshot_blockhash));
+    BOOST_REQUIRE(c2_ptr);
+    Chainstate& c2 = *c2_ptr;
     chainstates.push_back(&c2);
     c2.InitCoinsDB(
         /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
@@ -191,6 +210,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                               {},
                               /*coins_db_in_memory=*/false,
                               /*block_tree_db_in_memory=*/false,
+                              /*dash_dbs_in_memory=*/false,
                           }
     {
     }
@@ -288,6 +308,15 @@ struct SnapshotTestSetup : TestChain100Setup {
 
         Chainstate& snapshot_chainstate = chainman.ActiveChainstate();
 
+        // To be checked against later when we try loading a subsequent snapshot.
+        uint256 loaded_snapshot_blockhash{*chainman.SnapshotBlockhash()};
+
+        BOOST_CHECK(m_node.evodb->VerifyBestBlock(
+            EvoDbIdentity::SNAPSHOT, loaded_snapshot_blockhash));
+        BOOST_CHECK(m_node.evodb->VerifyBestBlock(
+            EvoDbIdentity::NORMAL, loaded_snapshot_blockhash));
+        BOOST_CHECK(m_node.evodb->HasDualChainstateMarker());
+
         {
             LOCK(::cs_main);
 
@@ -306,9 +335,6 @@ struct SnapshotTestSetup : TestChain100Setup {
         const CBlockIndex* tip = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip());
 
         BOOST_CHECK_EQUAL(tip->nChainTx, au_data.nChainTx);
-
-        // To be checked against later when we try loading a subsequent snapshot.
-        uint256 loaded_snapshot_blockhash{*chainman.SnapshotBlockhash()};
 
         // Make some assertions about the both chainstates. These checks ensure the
         // legacy chainstate hasn't changed and that the newly created chainstate
@@ -343,6 +369,10 @@ struct SnapshotTestSetup : TestChain100Setup {
         // Mine some new blocks on top of the activated snapshot chainstate.
         constexpr size_t new_coins{100};
         mineBlocks(new_coins);  // Defined in TestChain100Setup.
+
+        const uint256 snapshot_tip = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()->GetBlockHash());
+        BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_tip));
+        BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, loaded_snapshot_blockhash));
 
         {
             LOCK(::cs_main);
@@ -420,6 +450,65 @@ struct SnapshotTestSetup : TestChain100Setup {
     }
 };
 
+struct SnapshotReindexTestSetup : ChainTestingSetup {
+    const bool m_old_reindex{node::fReindex};
+
+    SnapshotReindexTestSetup() :
+        ChainTestingSetup{CBaseChainParams::REGTEST, {}, /*dash_dbs_in_memory=*/false}
+    {
+        m_coins_db_in_memory = false;
+        m_block_tree_db_in_memory = false;
+    }
+
+    ~SnapshotReindexTestSetup() { node::fReindex = m_old_reindex; }
+
+    void CheckSnapshotReindexLoad(bool reindex, bool reindex_chainstate)
+    {
+        ChainstateManager& chainman = *Assert(m_node.chainman);
+        const uint256 base_blockhash = GetRandHash();
+        {
+            LOCK(::cs_main);
+            chainman.InitializeChainstate(m_node.mempool.get(), *m_node.evodb, m_node.chain_helper);
+            SeedSnapshotMarker(*m_node.evodb, base_blockhash);
+            Chainstate* snapshot_chainstate = chainman.ActivateExistingSnapshot(m_node.mempool.get(), base_blockhash);
+            BOOST_REQUIRE(snapshot_chainstate);
+            snapshot_chainstate->InitCoinsDB(
+                /*cache_size_bytes=*/1 << 20, /*in_memory=*/false, /*should_wipe=*/true);
+            BOOST_REQUIRE(node::WriteSnapshotBaseBlockhash(*snapshot_chainstate));
+            chainman.ResetChainstates();
+        }
+        BOOST_REQUIRE(node::FindSnapshotChainstateDir());
+
+        node::ChainstateLoadOptions options;
+        options.mempool = Assert(m_node.mempool.get());
+        options.block_tree_db_in_memory = m_block_tree_db_in_memory;
+        options.coins_db_in_memory = m_coins_db_in_memory;
+        options.dash_dbs_in_memory = m_dash_dbs_in_memory;
+        options.reindex = reindex;
+        options.reindex_chainstate = reindex_chainstate;
+        options.bls_threads = llmq::DEFAULT_BLSCHECK_THREADS;
+        options.worker_count = llmq::DEFAULT_WORKER_COUNT;
+        options.max_recsigs_age = llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE;
+
+        const auto [status, error] = node::LoadChainstate(chainman, *Assert(m_node.mn_metaman.get()),
+                                                          *Assert(m_node.sporkman.get()), *Assert(m_node.chainlocks.get()),
+                                                          *Assert(m_node.mn_sync.get()), m_node.chain_helper,
+                                                          m_node.dmnman, m_node.evodb, m_node.llmq_ctx,
+                                                          Assert(m_node.args)->GetDataDirNet(), m_cache_sizes, options);
+        BOOST_REQUIRE_MESSAGE(status == node::ChainstateLoadStatus::SUCCESS, error.original);
+        BOOST_CHECK(!node::FindSnapshotChainstateDir());
+        BOOST_CHECK(!chainman.IsSnapshotActive());
+        BOOST_CHECK_EQUAL(chainman.GetAll().size(), 1);
+        BOOST_CHECK(!chainman.ActiveChainstate().m_from_snapshot_blockhash);
+
+        uint256 snapshot_marker;
+        BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_marker));
+
+        DashChainstateSetupClose(m_node);
+        WITH_LOCK(::cs_main, chainman.ResetChainstates());
+    }
+};
+
 //! Test basic snapshot activation.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
 {
@@ -487,8 +576,12 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
 
     BOOST_CHECK_EQUAL(expected_assumed_valid, num_assumed_valid);
 
-    Chainstate& cs2 = WITH_LOCK(::cs_main,
-        return chainman.ActivateExistingSnapshot(&mempool, GetRandHash()));
+    const uint256 snapshot_blockhash = GetRandHash();
+    SeedSnapshotMarker(*m_node.evodb, snapshot_blockhash);
+    Chainstate* cs2_ptr = WITH_LOCK(::cs_main,
+        return chainman.ActivateExistingSnapshot(&mempool, snapshot_blockhash));
+    BOOST_REQUIRE(cs2_ptr);
+    Chainstate& cs2 = *cs2_ptr;
 
     reload_all_block_indexes();
 
@@ -502,6 +595,22 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
     BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.count(validated_tip), 1);
     BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.count(assumed_tip), 1);
     BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.size(), num_indexes);
+
+    // -reindex-chainstate removes the snapshot before rebuilding coins. Its
+    // block-index load must therefore clear snapshot-only metadata before
+    // enforcing the single-chainstate invariants.
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE(chainman.DeleteSnapshotChainstate());
+        cs1.UnloadBlockIndex();
+        BOOST_REQUIRE(chainman.LoadBlockIndex(/*reset_assumed_valid=*/true));
+        BOOST_CHECK_EQUAL(chainman.GetAll().size(), 1);
+        for (int i = assumed_valid_start_idx; i < last_assumed_valid_idx; ++i) {
+            CBlockIndex* index = cs1.m_chain[i];
+            BOOST_CHECK(!index->IsAssumedValid());
+            BOOST_CHECK_EQUAL(index->nTx, 0);
+        }
+    }
 }
 
 //! Ensure that snapshot chainstates initialize properly when found on disk.
@@ -563,6 +672,43 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
             }
         }
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init_missing_evodb_marker, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+
+    {
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        m_node.evodb->Erase(std::make_pair(EVODB_BEST_BLOCK, uint8_t{1}));
+        tx->Commit();
+    }
+    BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+
+    ChainstateManager& restarted = this->SimulateNodeRestart();
+    WITH_LOCK(::cs_main, restarted.InitializeChainstate(
+        m_node.mempool.get(), *m_node.evodb, m_node.chain_helper));
+
+    bilingual_str error;
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return restarted.DetectSnapshotChainstate(m_node.mempool.get(), error)));
+    BOOST_CHECK(error.original.find("Snapshot chainstate EvoDB marker") != std::string::npos);
+
+    WITH_LOCK(::cs_main, restarted.ResetChainstates());
+    fs::remove_all(gArgs.GetDataDirNet() / "chainstate_snapshot");
+    this->LoadVerifyActivateChainstate();
+    g_txindex = std::make_unique<TxIndex>(1 << 20, /*memory=*/true);
+    BOOST_REQUIRE(g_txindex->Start(restarted.ActiveChainstate()));
+    IndexWaitSynced(*g_txindex);
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init_reindex_missing_evodb_marker, SnapshotReindexTestSetup)
+{
+    CheckSnapshotReindexLoad(/*reindex=*/true, /*reindex_chainstate=*/false);
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init_reindex_chainstate_missing_evodb_marker, SnapshotReindexTestSetup)
+{
+    CheckSnapshotReindexLoad(/*reindex=*/false, /*reindex_chainstate=*/true);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

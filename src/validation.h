@@ -57,6 +57,7 @@ class CTxMemPool;
 class TxValidationState;
 class CChainstateHelper;
 class ChainstateManager;
+enum class EvoDbIdentity;
 struct PrecomputedTransactionData;
 struct ChainTxData;
 struct DisconnectedBlockTransactions;
@@ -541,6 +542,11 @@ public:
     //!
     //! @sa ChainstateRole
     ChainstateRole GetRole() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Return the stable EvoDB identity corresponding to this chainstate's coins DB.
+    ::EvoDbIdentity EvoDbIdentity() const;
+
+    std::string EvoDbInconsistencyMessage();
 
     /**
      * Initialize the CoinsViews UTXO set database management data structures. The in-memory
@@ -1095,8 +1101,10 @@ public:
     [[nodiscard]] MempoolAcceptResult ProcessTransaction(const CTransactionRef& tx, bool test_accept=false, bool bypass_limits=false)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    //! Load the block tree and coins database from disk, initializing state if we're running with -reindex
-    bool LoadBlockIndex() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    //! Load the block tree and coins database from disk, initializing state if we're running with -reindex.
+    //! If reset_assumed_valid is true, remove snapshot-only block index metadata before
+    //! populating the remaining chainstate's candidate set.
+    bool LoadBlockIndex(bool reset_assumed_valid = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     //! Check to see if caches are out of balance and if so, call
     //! ResizeCoinsCaches() as needed.
@@ -1108,14 +1116,17 @@ public:
 
     //! When starting up, search the datadir for a chainstate based on a UTXO
     //! snapshot that is in the process of being validated.
-    bool DetectSnapshotChainstate(CTxMemPool* mempool) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool DetectSnapshotChainstate(CTxMemPool* mempool, bilingual_str& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     void ResetChainstates() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    //! Remove the snapshot-based chainstate and all on-disk artifacts.
+    //! Used when reindex{-chainstate} is called during snapshot use.
+    [[nodiscard]] bool DeleteSnapshotChainstate() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     //! Switch the active chainstate to one based on a UTXO snapshot that was loaded
     //! previously.
-    Chainstate& ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash)
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    Chainstate* ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     ~ChainstateManager();
 };

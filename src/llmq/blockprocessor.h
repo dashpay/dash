@@ -38,6 +38,12 @@ namespace llmq
 class CFinalCommitment;
 class CQuorumSnapshotManager;
 
+/** Erase a mined commitment unless another chainstate still contains its block. */
+bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
+                                        gsl::not_null<const CBlockIndex*> pindex,
+                                        Consensus::LLMQType llmq_type, const uint256& quorum_hash)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 class CQuorumBlockProcessor
 {
 private:

@@ -96,11 +96,14 @@ void DashChainstateSetupClose(node::NodeContext& node);
 struct BasicTestingSetup {
     node::NodeContext m_node; // keep as first member to be destructed last
 
-    explicit BasicTestingSetup(const std::string& chainName = CBaseChainParams::MAIN, const std::vector<const char*>& extra_args = {});
+    explicit BasicTestingSetup(const std::string& chainName = CBaseChainParams::MAIN,
+                               const std::vector<const char*>& extra_args = {},
+                               bool dash_dbs_in_memory = true);
     ~BasicTestingSetup();
 
     const fs::path m_path_root;
     ArgsManager m_args;
+    const bool m_dash_dbs_in_memory;
 };
 
 
@@ -113,7 +116,9 @@ struct ChainTestingSetup : public BasicTestingSetup {
     bool m_coins_db_in_memory{true};
     bool m_block_tree_db_in_memory{true};
 
-    explicit ChainTestingSetup(const std::string& chainName = CBaseChainParams::MAIN, const std::vector<const char*>& extra_args = {});
+    explicit ChainTestingSetup(const std::string& chainName = CBaseChainParams::MAIN,
+                               const std::vector<const char*>& extra_args = {},
+                               bool dash_dbs_in_memory = true);
     ~ChainTestingSetup();
 
     // Supplies a chainstate, if one is needed
@@ -127,7 +132,8 @@ struct TestingSetup : public ChainTestingSetup {
         const std::string& chainName = CBaseChainParams::MAIN,
         const std::vector<const char*>& extra_args = {},
         const bool coins_db_in_memory = true,
-        const bool block_tree_db_in_memory = true);
+        const bool block_tree_db_in_memory = true,
+        const bool dash_dbs_in_memory = true);
     ~TestingSetup();
 };
 
@@ -147,7 +153,8 @@ struct TestChainSetup : public TestingSetup
                    const std::string& chain_name = CBaseChainParams::REGTEST,
                    const std::vector<const char*>& extra_args = {},
                    const bool coins_db_in_memory = true,
-                   const bool block_tree_db_in_memory = true);
+                   const bool block_tree_db_in_memory = true,
+                   const bool dash_dbs_in_memory = true);
     ~TestChainSetup();
 
     /**
@@ -225,7 +232,8 @@ struct TestChain100Setup : public TestChainSetup {
         const std::string& chain_name = CBaseChainParams::REGTEST,
         const std::vector<const char*>& extra_args = {},
         const bool coins_db_in_memory = true,
-        const bool block_tree_db_in_memory = true);
+        const bool block_tree_db_in_memory = true,
+        const bool dash_dbs_in_memory = true);
 };
 
 /**

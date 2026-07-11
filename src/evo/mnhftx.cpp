@@ -336,13 +336,16 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
 {
     assert(pindex != nullptr);
     const uint256& blockHash = pindex->GetBlockHash();
+    if (DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V20) &&
+        !m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
+        LogPrintf("ERROR: CMNHFManager::%s -- EvoDB MNHF state mismatch for block %s\n",
+                  __func__, blockHash.ToString());
+        throw std::runtime_error("EvoDB MNHF payload mismatch");
+    }
     {
         LOCK(cs_cache);
         mnhfCache.insert(blockHash, signals);
     }
-    if (!DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
-
-    m_evoDb.Write(std::make_pair(DB_SIGNALS_v2, blockHash), signals);
 }
 
 void CMNHFManager::AddSignal(const CBlockIndex* const pindex, int bit)

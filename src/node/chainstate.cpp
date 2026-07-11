@@ -5,12 +5,13 @@
 #include <node/chainstate.h>
 
 #include <chain.h>
-#include <coins.h>
 #include <chainparamsbase.h>
+#include <coins.h>
 #include <consensus/params.h>
 #include <deploymentstatus.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
+#include <node/utxo_snapshot.h>
 #include <sync.h>
 #include <threadsafety.h>
 #include <tinyformat.h>
@@ -60,19 +61,22 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman,
     // Load the fully validated chainstate.
     chainman.InitializeChainstate(options.mempool, *evodb, chain_helper);
 
-    // Load a chain created from a UTXO snapshot, if any exist.
-    chainman.DetectSnapshotChainstate(options.mempool);
+    // Load a chain created from a UTXO snapshot, if any exist. Reindexing wipes
+    // EvoDB before this point, so record the persisted snapshot independently
+    // and do not try to activate it without its marker.
+    const bool has_snapshot{node::FindSnapshotChainstateDir().has_value()};
+    if (has_snapshot && !(options.reindex || options.reindex_chainstate)) {
+        bilingual_str snapshot_error;
+        if (!chainman.DetectSnapshotChainstate(options.mempool, snapshot_error)) {
+            return {ChainstateLoadStatus::FAILURE, snapshot_error};
+        }
+    }
 
     auto& pblocktree{chainman.m_blockman.m_block_tree_db};
     // new CBlockTreeDB tries to delete the existing file, which
     // fails if it's still open from the previous loop. Close it first:
     pblocktree.reset();
     pblocktree.reset(new CBlockTreeDB(cache_sizes.block_tree_db, options.block_tree_db_in_memory, options.reindex));
-
-    DashChainstateSetup(chainman, mn_metaman, sporkman, chainlocks, mn_sync, chain_helper,
-                        dmnman, *evodb, llmq_ctx, options.mempool, data_dir, options.dash_dbs_in_memory,
-                        /*llmq_dbs_wipe=*/options.reindex || options.reindex_chainstate, options.bls_threads, options.worker_count,
-                        options.max_recsigs_age);
 
     if (options.reindex) {
         pblocktree->WriteReindexing(true);
@@ -88,10 +92,22 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman,
     // block file from disk.
     // Note that it also sets fReindex global based on the disk flag!
     // From here on, fReindex and options.reindex values may be different!
-    if (!chainman.LoadBlockIndex()) {
+    if (!chainman.LoadBlockIndex(/*reset_assumed_valid=*/has_snapshot && options.reindex_chainstate)) {
         if (options.check_interrupt && options.check_interrupt()) return {ChainstateLoadStatus::INTERRUPTED, {}};
         return {ChainstateLoadStatus::FAILURE, _("Error loading block database")};
     }
+
+    if (has_snapshot && (options.reindex || options.reindex_chainstate)) {
+        LogPrintf("[snapshot] deleting snapshot chainstate due to reindexing\n");
+        if (!chainman.DeleteSnapshotChainstate()) {
+            return {ChainstateLoadStatus::FAILURE, _("Couldn't remove snapshot chainstate")};
+        }
+    }
+
+    DashChainstateSetup(chainman, mn_metaman, sporkman, chainlocks, mn_sync, chain_helper, dmnman, *evodb, llmq_ctx,
+                        options.mempool, data_dir, options.dash_dbs_in_memory,
+                        /*llmq_dbs_wipe=*/options.reindex || options.reindex_chainstate, options.bls_threads,
+                        options.worker_count, options.max_recsigs_age);
 
     if (!chainman.BlockIndex().empty() &&
             !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashGenesisBlock)) {
@@ -159,7 +175,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman,
         // TODO: CEvoDB instance should probably be a part of Chainstate
         // (for multiple chainstates to actually work in parallel)
         // and not a global
-        if (&chainman.ActiveChainstate() == chainstate && !evodb->CommitRootTransaction()) {
+        if (&chainman.ActiveChainstate() == chainstate && !evodb->CommitRootTransaction(chainstate->EvoDbIdentity())) {
             return {ChainstateLoadStatus::FAILURE, _("Failed to commit Evo database")};
         }
 
