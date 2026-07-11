@@ -1058,6 +1058,9 @@ public:
     //! Is there a snapshot in use and has it been fully validated?
     bool IsSnapshotValidated() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return m_snapshot_validated; }
 
+    //! Whether active-state-dependent masternode duties must remain disabled.
+    bool IsSnapshotActiveAndUnvalidated() const;
+
     /**
      * Process an incoming block. This only returns after the best known valid
      * block is made active. Note that it does not, however, guarantee that the

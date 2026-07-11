@@ -28,17 +28,34 @@
 #include <llmq/context.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing.h>
+#include <llmq/signing_shares.h>
 #include <node/blockstorage.h>
+#include <node/interface_ui.h>
 
 #include <tinyformat.h>
 
 #include <vector>
 
+#include <boost/signals2/connection.hpp>
 #include <boost/test/unit_test.hpp>
 
 using node::SnapshotMetadata;
 
 namespace {
+
+class TipEventCounter final : public CValidationInterface
+{
+public:
+    int block_connected{0};
+    int updated_tip{0};
+    int mn_list_changed{0};
+    int chainstate_flushed{0};
+
+    void BlockConnected(const std::shared_ptr<const CBlock>&, const CBlockIndex*) override { ++block_connected; }
+    void UpdatedBlockTip(const CBlockIndex*, const CBlockIndex*, bool) override { ++updated_tip; }
+    void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override { ++mn_list_changed; }
+    void ChainStateFlushed(const CBlockLocator&) override { ++chainstate_flushed; }
+};
 
 void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash)
 {
@@ -73,6 +90,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     WITH_LOCK(::cs_main, c1.InitCoinsCache(1 << 23));
 
     DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false);
+    BOOST_REQUIRE(c1.LoadGenesisBlock());
 
     BOOST_CHECK(!manager.IsSnapshotActive());
     BOOST_CHECK(WITH_LOCK(::cs_main, return !manager.IsSnapshotValidated()));
@@ -112,8 +130,10 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     c2.InitCoinsDB(
         /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
     WITH_LOCK(::cs_main, c2.InitCoinsCache(1 << 23));
-    // Unlike c1, which doesn't have any blocks. Gets us different tip, height.
+    // Give the snapshot chainstate its own genesis candidate and tip.
     c2.LoadGenesisBlock();
+    WITH_LOCK(::cs_main, c2.setBlockIndexCandidates.insert(
+        manager.m_blockman.LookupBlockIndex(Params().GenesisBlock().GetHash())));
     BlockValidationState dummy_state;
     BOOST_CHECK(c2.ActivateBestChain(dummy_state, nullptr));
 
@@ -136,6 +156,28 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     // Ensure that these pointers actually correspond to different
     // CCoinsViewCache instances.
     BOOST_CHECK(exp_tip != exp_tip2);
+
+    // Connect genesis through the now-background chainstate. This exercises
+    // Dash special-transaction and quorum processing with a non-active caller,
+    // and background validation must not emit active-tip notifications.
+    SyncWithValidationInterfaceQueue();
+    TipEventCounter event_counter;
+    RegisterValidationInterface(&event_counter);
+    int ui_mn_list_changed{0};
+    auto ui_connection = uiInterface.NotifyMasternodeListChanged_connect(
+        [&](const CDeterministicMNList&, const CBlockIndex*) { ++ui_mn_list_changed; });
+    BlockValidationState background_state;
+    BOOST_CHECK(c1.ActivateBestChain(background_state, nullptr));
+    WITH_LOCK(::cs_main, c1.ForceFlushStateToDisk());
+    SyncWithValidationInterfaceQueue();
+    ui_connection.disconnect();
+    UnregisterValidationInterface(&event_counter);
+    BOOST_CHECK_EQUAL(c1.m_chain.Tip(), WITH_LOCK(::cs_main, return manager.ActiveChain().Genesis()));
+    BOOST_CHECK_EQUAL(event_counter.block_connected, 0);
+    BOOST_CHECK_EQUAL(event_counter.updated_tip, 0);
+    BOOST_CHECK_EQUAL(event_counter.mn_list_changed, 0);
+    BOOST_CHECK_EQUAL(event_counter.chainstate_flushed, 0);
+    BOOST_CHECK_EQUAL(ui_mn_list_changed, 0);
 
     // Let scheduler events finish running to avoid accessing memory that is going to be unloaded
     SyncWithValidationInterfaceQueue();

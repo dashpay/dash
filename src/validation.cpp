@@ -2052,7 +2052,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
     view.SetBestBlock(pindex->pprev->GetBlockHash());
     m_evoDb.WriteBestBlock(EvoDbIdentity(), pindex->pprev->GetBlockHash());
 
-    if (mnlist_updates_opt.has_value()) {
+    if (this == &m_chainman.ActiveChainstate() && mnlist_updates_opt.has_value()) {
         auto& mnlu = mnlist_updates_opt.value();
         GetMainSignals().NotifyMasternodeListChanged(true, mnlu.old_list, mnlu.diff);
         uiInterface.NotifyMasternodeListChanged(mnlu.new_list, pindex->pprev);
@@ -2520,7 +2520,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // Block is committed: keep the scheme it switched to (fJustCheck dry runs returned above).
     bls_scheme_guard.Commit();
 
-    if (mnlist_updates_opt.has_value()) {
+    if (this == &m_chainman.ActiveChainstate() && mnlist_updates_opt.has_value()) {
         const auto& mnlu = mnlist_updates_opt.value();
         GetMainSignals().NotifyMasternodeListChanged(false, mnlu.old_list, mnlu.diff);
         uiInterface.NotifyMasternodeListChanged(mnlu.new_list, pindex);
@@ -2714,8 +2714,9 @@ bool Chainstate::FlushStateToDisk(
                    (bool)fFlushForPrune);
         }
     }
-    if (full_flush_completed) {
+    if (full_flush_completed && this == &m_chainman.ActiveChainstate()) {
         // Update best block in wallet (so we can detect restored wallets).
+        // TODO(assumeutxo): upstream tags this notification with ChainstateRole instead of suppressing; adopt when backporting index/wallet assumeutxo support.
         GetMainSignals().ChainStateFlushed(m_chain.GetLocator());
     }
     } catch (const std::runtime_error& e) {
@@ -2908,7 +2909,9 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     UpdateTip(pindexDelete->pprev);
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
-    GetMainSignals().BlockDisconnected(pblock, pindexDelete);
+    if (this == &m_chainman.ActiveChainstate()) {
+        GetMainSignals().BlockDisconnected(pblock, pindexDelete);
+    }
 
     int64_t nTime2 = GetTimeMicros();
 
@@ -3335,9 +3338,11 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 }
                 pindexNewTip = m_chain.Tip();
 
-                for (const PerBlockConnectTrace& trace : connectTrace.GetBlocksConnected()) {
-                    assert(trace.pblock && trace.pindex);
-                    GetMainSignals().BlockConnected(trace.pblock, trace.pindex);
+                if (this == &m_chainman.ActiveChainstate()) {
+                    for (const PerBlockConnectTrace& trace : connectTrace.GetBlocksConnected()) {
+                        assert(trace.pblock && trace.pindex);
+                        GetMainSignals().BlockConnected(trace.pblock, trace.pindex);
+                    }
                 }
             } while (!m_chain.Tip() || (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)));
             if (!blocks_connected) return true;
@@ -3347,7 +3352,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
             // Notify external listeners about the new tip.
             // Enqueue while holding cs_main to ensure that UpdatedBlockTip is called in the order in which blocks are connected
-            if (pindexFork != pindexNewTip) {
+            if (this == &m_chainman.ActiveChainstate() && pindexFork != pindexNewTip) {
                 // Notify ValidationInterface subscribers
                 GetMainSignals().SynchronousUpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
                 GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
@@ -3556,8 +3561,10 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         }
 
         InvalidChainFound(to_mark_failed);
-        GetMainSignals().SynchronousUpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
-        GetMainSignals().UpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
+        if (this == &m_chainman.ActiveChainstate()) {
+            GetMainSignals().SynchronousUpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
+            GetMainSignals().UpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
+        }
     }
 
     // Only notify about a new block tip if the active chain was modified.
@@ -3659,8 +3666,10 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
     }
 
     ConflictingChainFound(pindex);
-    GetMainSignals().SynchronousUpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
-    GetMainSignals().UpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
+    if (this == &m_chainman.ActiveChainstate()) {
+        GetMainSignals().SynchronousUpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
+        GetMainSignals().UpdatedBlockTip(m_chain.Tip(), nullptr, IsInitialBlockDownload());
+    }
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
@@ -5781,6 +5790,12 @@ bool ChainstateManager::IsSnapshotActive() const
 {
     LOCK(::cs_main);
     return m_snapshot_chainstate && m_active_chainstate == m_snapshot_chainstate.get();
+}
+
+bool ChainstateManager::IsSnapshotActiveAndUnvalidated() const
+{
+    LOCK(::cs_main);
+    return m_snapshot_chainstate && m_active_chainstate == m_snapshot_chainstate.get() && !m_snapshot_validated;
 }
 
 bool ChainstateManager::IsQuorumTypeEnabled(const Consensus::LLMQType llmqType,
