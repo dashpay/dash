@@ -1668,9 +1668,10 @@ std::string Chainstate::EvoDbInconsistencyMessage()
 const CBlockIndex* Chainstate::SnapshotBase()
 {
     if (!m_from_snapshot_blockhash) return nullptr;
-    // Unlike upstream, a missing base block is not Assert()ed away: synthetic
-    // unit fixtures activate a snapshot chainstate before inserting its base
-    // into the block index, and ChainstateManager::LoadBlockIndex() reports a
+    // Unlike upstream, a missing base block is not Assert()ed away: snapshot
+    // detection precedes LoadBlockIndex during startup, synthetic unit
+    // fixtures activate a snapshot chainstate before inserting its base into
+    // the block index, and ChainstateManager::LoadBlockIndex() reports a
     // missing on-disk base as a startup error rather than an abort. Callers
     // that require existence Assert at the call site.
     if (!m_cached_snapshot_base) m_cached_snapshot_base = m_chainman.m_blockman.LookupBlockIndex(*m_from_snapshot_blockhash);
@@ -3917,7 +3918,8 @@ void Chainstate::TryAddBlockIndexCandidate(CBlockIndex* pindex)
         // For the background chainstate, we only consider connecting blocks
         // towards the snapshot base (which can't be nullptr or else we'll
         // never make progress).
-        const CBlockIndex* snapshot_base{Assert(m_chainman.GetSnapshotBaseBlock())};
+        const CBlockIndex* snapshot_base{m_chainman.GetSnapshotBaseBlock()};
+        if (!snapshot_base) return;
         if (snapshot_base->GetAncestor(pindex->nHeight) == pindex) {
             setBlockIndexCandidates.insert(pindex);
         }
@@ -5699,6 +5701,7 @@ bool ChainstateManager::ActivateSnapshot(
     }
     if (!snapshot_ok) {
         LOCK(::cs_main);
+        this->ReleaseSnapshotPruneLock();
         this->MaybeRebalanceCaches();
 
         // PopulateAndValidateSnapshot commits the snapshot best-block and
@@ -5806,6 +5809,11 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
                   base_blockhash.ToString());
         return false;
     }
+
+    // Protect the full base block before the long-running population step.
+    // Snapshot activation is not visible yet, so use the resolved base directly.
+    WITH_LOCK(::cs_main, m_blockman.UpdatePruneLock(
+        "assumeutxo", {.height_first = snapshot_start_block->nHeight}));
 
     int base_height = snapshot_start_block->nHeight;
     auto maybe_au_data = ExpectedAssumeutxo(base_height, GetParams());
@@ -6273,6 +6281,7 @@ bool ChainstateManager::HandleSnapshotStateMismatch(
     m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
     m_snapshot_chainstate->m_mempool = nullptr;
     m_snapshot_chainstate->m_disabled = true;
+    ReleaseSnapshotPruneLock();
     assert(!IsUsable(m_snapshot_chainstate.get()));
     assert(IsUsable(m_ibd_chainstate.get()));
 
@@ -6406,7 +6415,10 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     }
 
     // The base block is necessarily available after background validation
-    // reaches it. Complete any CbTx checks that could not run at snapshot load.
+    // reaches it. The assumeutxo prune lock is held until this check completes,
+    // so the shared BlockManager cannot prune the base out from under the
+    // snapshot chainstate. Complete any CbTx checks deferred at snapshot load.
+    assert(index_new.nStatus & BLOCK_HAVE_DATA);
     if (DeploymentActiveAt(index_new, GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
         evo::CEvoSnapshot retained_snapshot;
         CBlock base_block;
@@ -6481,6 +6493,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         snapshot_blockhash.ToString());
 
     m_ibd_chainstate->m_disabled = true;
+    ReleaseSnapshotPruneLock();
     this->MaybeRebalanceCaches();
 
     return SnapshotCompletionResult::SUCCESS;
@@ -6606,6 +6619,24 @@ void ChainstateManager::ResetChainstates()
     m_ibd_chainstate.reset();
     m_snapshot_chainstate.reset();
     m_active_chainstate = nullptr;
+}
+
+void ChainstateManager::ProtectSnapshotBaseFromPruning()
+{
+    AssertLockHeld(::cs_main);
+    const CBlockIndex* base{GetSnapshotBaseBlock()};
+    if (!base) return;
+
+    // The generic prune-lock buffer makes this conservative: automatic and
+    // manual pruning both stop below the base, keeping its full block available
+    // for Dash's deferred CbTx/evo check at background-validation completion.
+    m_blockman.UpdatePruneLock("assumeutxo", {.height_first = base->nHeight});
+}
+
+void ChainstateManager::ReleaseSnapshotPruneLock()
+{
+    AssertLockHeld(::cs_main);
+    m_blockman.DeletePruneLock("assumeutxo");
 }
 
 ChainstateManager::~ChainstateManager()

@@ -181,6 +181,57 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     m_node.dmnman.reset();
 }
 
+BOOST_AUTO_TEST_CASE(snapshot_startup_missing_base_header_is_nonfatal)
+{
+    ChainstateManager& manager = *m_node.chainman;
+    Chainstate& background = WITH_LOCK(::cs_main, return manager.InitializeChainstate(
+        m_node.mempool.get(), *m_node.evodb, m_node.chain_helper));
+    background.InitCoinsDB(/*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
+    WITH_LOCK(::cs_main, background.InitCoinsCache(1 << 23));
+    m_node.dmnman = std::make_unique<CDeterministicMNManager>(*m_node.evodb, *Assert(m_node.mn_metaman.get()));
+    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false);
+    BOOST_REQUIRE(background.LoadGenesisBlock());
+
+    const uint256 missing_base{GetRandHash()};
+    SeedSnapshotMarker(*m_node.evodb, missing_base);
+    Chainstate* snapshot = WITH_LOCK(::cs_main, return manager.ActivateExistingSnapshot(
+        m_node.mempool.get(), missing_base));
+    BOOST_REQUIRE(snapshot);
+
+    // Startup detection is allowed to precede receipt/loading of the base
+    // header. Accessors and background candidate setup must fail softly.
+    WITH_LOCK(::cs_main, {
+        BOOST_CHECK(snapshot->SnapshotBase() == nullptr);
+        const size_t candidates_before{background.setBlockIndexCandidates.size()};
+        background.TryAddBlockIndexCandidate(manager.m_blockman.LookupBlockIndex(
+            manager.GetConsensus().hashGenesisBlock));
+        BOOST_CHECK_EQUAL(background.setBlockIndexCandidates.size(), candidates_before);
+    });
+
+    DashChainstateSetupClose(m_node);
+    // dmnman holds a reference to m_node.evodb, it mustn't outlive it
+    m_node.dmnman.reset();
+}
+
+BOOST_FIXTURE_TEST_CASE(snapshot_prune_lock_release_survives_disconnect, TestChain100Setup)
+{
+    ChainstateManager& manager{*Assert(m_node.chainman)};
+
+    WITH_LOCK(::cs_main, {
+        manager.m_blockman.UpdatePruneLock("assumeutxo", {.height_first = manager.ActiveHeight()});
+        manager.ReleaseSnapshotPruneLock();
+        BOOST_CHECK(!manager.m_blockman.DeletePruneLock("assumeutxo"));
+    });
+
+    BlockValidationState state;
+    BOOST_REQUIRE(manager.ActiveChainstate().InvalidateBlock(
+        state, WITH_LOCK(::cs_main, return manager.ActiveTip())));
+
+    // DisconnectTip rewinds every remaining prune lock. The released snapshot
+    // lock must not be recreated or start constraining pruning after a reorg.
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !manager.m_blockman.DeletePruneLock("assumeutxo")));
+}
+
 //! Test rebalancing the caches associated with each chainstate.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_rebalance_caches, TestChain100Setup)
 {

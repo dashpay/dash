@@ -1246,6 +1246,10 @@ public:
 
     void ResetChainstates() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    //! Keep the snapshot base block available for deferred Dash evo validation.
+    void ProtectSnapshotBaseFromPruning() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void ReleaseSnapshotPruneLock() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     //! Switch the active chainstate to one based on a UTXO snapshot that was loaded
     //! previously.
     Chainstate* ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash)

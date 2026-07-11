@@ -2075,6 +2075,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     const bool quorums_watch = args.GetBoolArg("-watchquorums", llmq::DEFAULT_WATCH_QUORUMS);
     const llmq::QvvecSyncModeMap sync_map{llmq::GetEnabledQuorumVvecSyncEntries(args)};
     const util::DbWrapperParams dash_db_params{.path = args.GetDataDirNet(), .memory = false, .wipe = (fReindex || fReindexChainState)};
+    // TODO(assumeutxo M5): runtime loadtxoutset must recreate/rebind the
+    // Chainstate&-holding ActiveContext signers and NetInstantSend below after
+    // ChainstateManager switches active chainstates. Startup detection and the
+    // completion-time ResetChainstates path finish before these are constructed.
     if (const auto operator_sk_str = args.GetArg("-masternodeblsprivkey", ""); !operator_sk_str.empty()) {
         const CBLSSecretKey operator_sk{ParseHex(operator_sk_str)};
         if (!operator_sk.IsValid()) {

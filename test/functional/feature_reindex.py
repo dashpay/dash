@@ -11,6 +11,7 @@
 """
 
 import os
+from pathlib import Path
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.messages import MAGIC_BYTES
 from test_framework.util import assert_equal
@@ -25,9 +26,19 @@ class ReindexTest(BitcoinTestFramework):
         self.generatetoaddress(self.nodes[0], 3, self.nodes[0].get_deterministic_priv_key().address)
         blockcount = self.nodes[0].getblockcount()
         self.stop_nodes()
+        chain_dir = Path(self.nodes[0].datadir) / self.nodes[0].chain
+        snapshot_artifacts = [
+            chain_dir / "chainstate_snapshot",
+            chain_dir / "chainstate_snapshot_INVALID",
+            chain_dir / "chainstate_todelete",
+        ]
+        for artifact in snapshot_artifacts:
+            artifact.mkdir()
+            (artifact / "stale").touch()
         extra_args = [["-reindex-chainstate", "-txindex=0"]] if justchainstate else [["-reindex", f"-txindex={txindex}"]]
         self.start_nodes(extra_args)
         assert_equal(self.nodes[0].getblockcount(), blockcount)  # start_node is blocking on reindex
+        assert all(not artifact.exists() for artifact in snapshot_artifacts)
         self.log.info("Success")
 
     # Check that blocks can be processed out of order

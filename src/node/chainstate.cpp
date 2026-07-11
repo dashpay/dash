@@ -37,6 +37,26 @@
 #include <vector>
 
 namespace node {
+static bool RemoveSnapshotChainstateArtifacts(const fs::path& data_dir, bilingual_str& error)
+{
+    // Explicit reindexing discards both coins databases and EvoDB. Remove every
+    // snapshot lifecycle directory at the same time so a directory whose b_dcs*
+    // markers were wiped cannot be detected as a resumable snapshot below.
+    for (const auto& name : {"chainstate_snapshot", "chainstate_snapshot_INVALID", "chainstate_todelete"}) {
+        const fs::path path{data_dir / name};
+        if (!fs::exists(path)) continue;
+        try {
+            fs::remove_all(path);
+            DirectoryCommit(data_dir);
+        } catch (const fs::filesystem_error& e) {
+            error = strprintf(_("Failed to remove snapshot chainstate artifact %s for reindex: %s"),
+                              fs::PathToString(path), e.what());
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bilingual_str& error)
 {
     const fs::path normal{data_dir / "chainstate"};
@@ -189,6 +209,10 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         return {ChainstateLoadStatus::FAILURE, _("Error loading block database")};
     }
 
+    // Detection happens before LoadBlockIndex. Once the base is resolvable,
+    // keep its full block available for Dash's completion-time CbTx check.
+    chainman.ProtectSnapshotBaseFromPruning();
+
     if (!chainman.BlockIndex().empty() &&
             !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashGenesisBlock)) {
         // If the loaded chain has a wrong genesis, bail out immediately
@@ -325,6 +349,13 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     }
 
     LOCK(cs_main);
+
+    if (options.reindex || options.reindex_chainstate) {
+        bilingual_str cleanup_error;
+        if (!RemoveSnapshotChainstateArtifacts(options.data_dir, cleanup_error)) {
+            return {ChainstateLoadStatus::FAILURE, cleanup_error};
+        }
+    }
 
     evodb.reset();
     // TODO: pass DbWrapperParams as options instead multiple params
