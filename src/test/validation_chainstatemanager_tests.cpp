@@ -410,11 +410,11 @@ struct SnapshotTestSetup : TestChain100Setup {
         return std::make_tuple(&validation_chainstate, &snapshot_chainstate);
     }
 
-    // Simulate a restart of the node by flushing all state to disk, clearing the
-    // existing ChainstateManager, and unloading the block index.
+    // Simulate a restart of the node by optionally flushing all state to disk,
+    // clearing the existing ChainstateManager, and unloading the block index.
     //
     // @returns a reference to the "restarted" ChainstateManager
-    ChainstateManager& SimulateNodeRestart()
+    ChainstateManager& SimulateNodeRestart(bool flush_chainstates = true)
     {
         ChainstateManager& chainman = *Assert(m_node.chainman);
 
@@ -428,8 +428,10 @@ struct SnapshotTestSetup : TestChain100Setup {
         g_txindex.reset();
         {
             LOCK(::cs_main);
-            for (Chainstate* cs : chainman.GetAll()) {
-                cs->ForceFlushStateToDisk();
+            if (flush_chainstates) {
+                for (Chainstate* cs : chainman.GetAll()) {
+                    cs->ForceFlushStateToDisk();
+                }
             }
             // Tear down Dash managers connected to the mempool and old chainstate
             // before LoadVerifyActivateChainstate() recreates them below.
@@ -672,6 +674,92 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
             }
         }
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_reorg_erase_guard, SnapshotTestSetup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    const auto llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    const uint256 shared_quorum_hash = GetRandHash();
+    const uint256 snapshot_only_quorum_hash = GetRandHash();
+    const auto shared_key = std::make_pair(std::string{"q_mc"}, std::make_pair(llmq_type, shared_quorum_hash));
+    const auto snapshot_only_key = std::make_pair(std::string{"q_mc"}, std::make_pair(llmq_type, snapshot_only_quorum_hash));
+    const CBlockIndex* shared_block;
+    const CBlockIndex* snapshot_only_block;
+    {
+        LOCK(::cs_main);
+        shared_block = snapshot_chainstate->m_chain[background_chainstate->m_chain.Height()];
+        snapshot_only_block = snapshot_chainstate->m_chain[background_chainstate->m_chain.Height() + 1];
+        BOOST_REQUIRE(background_chainstate->m_chain.Contains(shared_block));
+        BOOST_REQUIRE(!background_chainstate->m_chain.Contains(snapshot_only_block));
+    }
+
+    // Constructing a mined quorum commitment through snapshot activation is
+    // impractical here, so exercise the production erase guard with its real
+    // second Chainstate and synthetic commitment keys written through EvoDB.
+    {
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        m_node.evodb->Write(shared_key, shared_block->GetBlockHash());
+        m_node.evodb->Write(snapshot_only_key, snapshot_only_block->GetBlockHash());
+        tx->Commit();
+    }
+    BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+
+    {
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        BOOST_CHECK(!WITH_LOCK(::cs_main, return llmq::EraseMinedCommitmentIfUnreferenced(
+            *m_node.evodb, *snapshot_chainstate, shared_block, llmq_type, shared_quorum_hash)));
+        BOOST_CHECK(WITH_LOCK(::cs_main, return llmq::EraseMinedCommitmentIfUnreferenced(
+            *m_node.evodb, *snapshot_chainstate, snapshot_only_block, llmq_type, snapshot_only_quorum_hash)));
+        tx->Commit();
+    }
+
+    {
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        uint256 value;
+        BOOST_CHECK(m_node.evodb->Read(shared_key, value));
+        BOOST_CHECK(!m_node.evodb->Read(snapshot_only_key, value));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_snapshot_only_flush_restart, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    uint256 normal_marker;
+    BOOST_REQUIRE(m_node.evodb->ReadBestBlock(EvoDbIdentity::NORMAL, normal_marker));
+
+    mineBlocks(1);
+    const uint256 snapshot_marker = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()->GetBlockHash());
+    WITH_LOCK(::cs_main, chainman.ActiveChainstate().ForceFlushStateToDisk());
+
+    ChainstateManager& restarted = this->SimulateNodeRestart(/*flush_chainstates=*/false);
+    this->LoadVerifyActivateChainstate();
+    g_txindex = std::make_unique<TxIndex>(1 << 20, /*memory=*/true);
+    BOOST_REQUIRE(g_txindex->Start(restarted.ActiveChainstate()));
+    IndexWaitSynced(*g_txindex);
+
+    BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_marker));
+    BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, normal_marker));
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE_EQUAL(restarted.GetAll().size(), 2);
+        for (Chainstate* chainstate : restarted.GetAll()) {
+            BOOST_CHECK(m_node.evodb->VerifyBestBlock(chainstate->EvoDbIdentity(), chainstate->CoinsTip().GetBestBlock()));
+        }
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_legacy_pair_after_snapshot, SnapshotTestSetup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    WITH_LOCK(::cs_main, background_chainstate->ForceFlushStateToDisk());
+    WITH_LOCK(::cs_main, snapshot_chainstate->ForceFlushStateToDisk());
+
+    uint256 legacy_marker;
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Read(EVODB_BEST_BLOCK, legacy_marker));
+    const uint256 background_coins_tip = WITH_LOCK(::cs_main, return background_chainstate->CoinsTip().GetBestBlock());
+    BOOST_CHECK_EQUAL(legacy_marker, background_coins_tip);
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init_missing_evodb_marker, SnapshotTestSetup)
