@@ -8,6 +8,7 @@
 #include <consensus/params.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
+#include <evo/snapshot_types.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <llmq/snapshot.h>
@@ -40,12 +41,6 @@ class CQuorumSnapshotManager;
 } // namespace llmq
 
 namespace evo {
-
-class SnapshotStateMismatchError : public std::runtime_error
-{
-public:
-    using std::runtime_error::runtime_error;
-};
 
 static constexpr uint16_t EVO_SNAPSHOT_VERSION{3};
 /** Serialized little-endian bytes are "DASHEVO\0". */

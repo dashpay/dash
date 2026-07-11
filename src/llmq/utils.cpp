@@ -6,7 +6,7 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
-#include <evo/snapshot.h>
+#include <evo/snapshot_types.h>
 #include <llmq/options.h>
 #include <llmq/snapshot.h>
 #include <llmq/types.h>

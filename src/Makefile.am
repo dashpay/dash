@@ -231,6 +231,7 @@ BITCOIN_CORE_H = \
   evo/mnauth.h \
   evo/mnhftx.h \
   evo/netinfo.h \
+  evo/snapshot_types.h \
   evo/providertx.h \
   evo/simplifiedmns.h \
   evo/smldiff.h \
@@ -540,6 +541,7 @@ libbitcoin_node_a_SOURCES = \
   evo/mnauth.cpp \
   evo/mnhftx.cpp \
   evo/snapshot.cpp \
+  evo/snapshot_load.cpp \
   evo/providertx.cpp \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
@@ -1382,6 +1384,7 @@ libdashkernel_la_SOURCES = \
   util/threadnames.cpp \
   util/time.cpp \
   util/tokenpipe.cpp \
+  evo/snapshot_load.cpp \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
