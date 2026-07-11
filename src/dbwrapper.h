@@ -669,6 +669,22 @@ public:
         return parent.Read(ssKey, value);
     }
 
+    /** Read a value only if it is present in this transaction's write set. */
+    template <typename K, typename V>
+    bool ReadPending(const K& key, V& value) {
+        const CDataStream ssKey = KeyToDataStream(key);
+        auto it = writes.find(ssKey);
+        if (it == writes.end()) {
+            return false;
+        }
+        auto* impl = dynamic_cast<ValueHolderImpl<V>*>(it->second.get());
+        if (!impl) {
+            throw std::runtime_error("ReadPending called with V != previously written type");
+        }
+        value = impl->value;
+        return true;
+    }
+
     template <typename K>
     bool Exists(const K& key) {
         return Exists(KeyToDataStream(key));
