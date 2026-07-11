@@ -21,11 +21,13 @@
 #include <gsl/pointers.h>
 #include <immer/map.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <limits>
 #include <numeric>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 class CBlock;
 class CBlockIndex;
@@ -593,9 +595,15 @@ public:
         s << addedMNs;
 
         WriteCompactSize(s, updatedMNs.size());
-        for (const auto& [internalId, pdmnState] : updatedMNs) {
+        std::vector<uint64_t> updatedMNsInternalIds;
+        updatedMNsInternalIds.reserve(updatedMNs.size());
+        for (const auto& entry : updatedMNs) {
+            updatedMNsInternalIds.emplace_back(entry.first);
+        }
+        std::sort(updatedMNsInternalIds.begin(), updatedMNsInternalIds.end());
+        for (const auto& internalId : updatedMNsInternalIds) {
             WriteVarInt<Stream, VarIntMode::DEFAULT, uint64_t>(s, internalId);
-            s << pdmnState;
+            s << updatedMNs.at(internalId);
         }
 
         WriteCompactSize(s, removedMns.size());

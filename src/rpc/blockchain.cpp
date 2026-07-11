@@ -1457,7 +1457,7 @@ static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniValue& 
     softforks.pushKV(DeploymentName(dep), rv);
 }
 
-static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, const std::unordered_map<uint8_t, int>& signals, UniValue& softforks, const ChainstateManager& chainman, Consensus::DeploymentPos id)
+static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, const AbstractEHFManager::Signals& signals, UniValue& softforks, const ChainstateManager& chainman, Consensus::DeploymentPos id)
 {
     // For BIP9 deployments.
 

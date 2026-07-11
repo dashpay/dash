@@ -105,7 +105,7 @@ public:
 class AbstractEHFManager
 {
 public:
-    using Signals = std::unordered_map<uint8_t, int>;
+    using Signals = std::map<uint8_t, int>;
 
 public:
     AbstractEHFManager() = default;

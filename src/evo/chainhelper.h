@@ -6,9 +6,9 @@
 #define BITCOIN_EVO_CHAINHELPER_H
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
-#include <unordered_map>
 
 class CBlockIndex;
 class CCreditPoolManager;
@@ -77,7 +77,7 @@ public:
     bool IsInstantSendWaitingForTx(const uint256& hash) const;
     bool RemoveConflictingISLockByTx(const CTransaction& tx);
 
-    std::unordered_map<uint8_t, int> GetSignalsStage(const CBlockIndex* const pindexPrev);
+    std::map<uint8_t, int> GetSignalsStage(const CBlockIndex* const pindexPrev);
 };
 
 #endif // BITCOIN_EVO_CHAINHELPER_H

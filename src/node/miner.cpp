@@ -473,7 +473,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     }
 
     // This map with signals is used only to find duplicates
-    std::unordered_map<uint8_t, int> signals = m_chain_helper.ehf_manager->GetSignalsStage(pindexPrev);
+    auto signals = m_chain_helper.ehf_manager->GetSignalsStage(pindexPrev);
 
     // mapModifiedTx will store sorted packages after they are modified
     // because some of their txs are already in the block
