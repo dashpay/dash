@@ -84,7 +84,8 @@ public:
 
     bool BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, const CBlockIndex* blockIndex,
                           const llmq::CQuorumBlockProcessor& quorum_block_processor);
-    bool BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex);
+    bool BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex, std::string& errorRet)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson(bool extended = false) const;
@@ -94,5 +95,8 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
                                const llmq::CQuorumBlockProcessor& qblockman, const llmq::CQuorumManager& qman,
                                const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet,
                                std::string& errorRet, bool extended = false) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Whether a serving failure is caused by this node not retaining the requested block data. */
+bool IsBlockDataUnavailableError(const std::string& error);
 
 #endif // BITCOIN_EVO_SMLDIFF_H

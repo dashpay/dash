@@ -67,7 +67,8 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
     return true;
 }
 
-bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex)
+bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex,
+                                                     std::string& errorRet)
 {
     // Group quorums (indexes corresponding to entries of newQuorums) per CBlockIndex containing the expected CL
     // signature in CbTx. We want to avoid to load CbTx now, as more than one quorum will target the same block: hence
@@ -89,6 +90,12 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
         // first DKG) - 8 In case of non-rotation, quorums rely on the CL sig expected in the block of the DKG - 8
         const CBlockIndex* pWorkBaseBlockIndex = blockIndex->GetAncestor(quorum->m_quorum_base_block_index->nHeight -
                                                                          quorum->qc->quorumIndex - 8);
+        if (!(pWorkBaseBlockIndex->nStatus & BLOCK_HAVE_DATA)) {
+            errorRet = strprintf("block data for quorum work block %s is not available (pruned or below an unvalidated "
+                                 "snapshot base)",
+                                 pWorkBaseBlockIndex->GetBlockHash().ToString());
+            return false;
+        }
 
         workBaseBlockIndexMap.insert(std::make_pair(pWorkBaseBlockIndex, idx));
     }
@@ -182,6 +189,16 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
         errorRet = strprintf("base block %s is higher then block %s", baseBlockHash.ToString(), blockHash.ToString());
         return false;
     }
+    if (!(baseBlockIndex->nStatus & BLOCK_HAVE_DATA)) {
+        errorRet = strprintf("block data for base block %s is not available (pruned or below an unvalidated snapshot base)",
+                             baseBlockIndex->GetBlockHash().ToString());
+        return false;
+    }
+    if (!(blockIndex->nStatus & BLOCK_HAVE_DATA)) {
+        errorRet = strprintf("block data for block %s is not available (pruned or below an unvalidated snapshot base)",
+                             blockIndex->GetBlockHash().ToString());
+        return false;
+    }
 
     auto baseDmnList = dmnman.GetListForBlock(baseBlockIndex);
     auto dmnList = dmnman.GetListForBlock(blockIndex);
@@ -198,8 +215,8 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
     }
 
     if (DeploymentActiveAfter(blockIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
-        if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, blockIndex)) {
-            errorRet = strprintf("failed to build quorum chainlock info");
+        if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, blockIndex, errorRet)) {
+            if (errorRet.empty()) errorRet = strprintf("failed to build quorum chainlock info");
             return false;
         }
     }
@@ -222,4 +239,9 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
     mnListDiffRet.cbTxMerkleTree = CPartialMerkleTree(vHashes, vMatch);
 
     return true;
+}
+
+bool IsBlockDataUnavailableError(const std::string& error)
+{
+    return error.find("is not available (pruned or below an unvalidated snapshot base)") != std::string::npos;
 }

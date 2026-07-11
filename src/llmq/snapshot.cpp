@@ -19,10 +19,20 @@
 namespace {
 constexpr std::string_view DB_QUORUM_SNAPSHOT{"llmq_S"};
 
+bool CheckBlockDataAvailable(gsl::not_null<const CBlockIndex*> pindex, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    if (pindex->nStatus & BLOCK_HAVE_DATA) return true;
+    error = strprintf("block data for block %s is not available (pruned or below an unvalidated snapshot base)",
+                      pindex->GetBlockHash().ToString());
+    return false;
+}
+
 //! Constructs a llmq::CycleData and populate it with metadata
 std::optional<llmq::CycleData> ConstructCycle(llmq::CQuorumSnapshotManager& qsnapman,
                                               const Consensus::LLMQType& llmq_type, bool skip_snap, int32_t height,
                                               gsl::not_null<const CBlockIndex*> index_tip, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     llmq::CycleData ret;
     ret.m_cycle_index = index_tip->GetAncestor(height);
@@ -30,11 +40,13 @@ std::optional<llmq::CycleData> ConstructCycle(llmq::CQuorumSnapshotManager& qsna
         error = "Cannot find block";
         return std::nullopt;
     }
+    if (!CheckBlockDataAvailable(ret.m_cycle_index, error)) return std::nullopt;
     ret.m_work_index = ret.m_cycle_index->GetAncestor(ret.m_cycle_index->nHeight - llmq::WORK_DIFF_DEPTH);
     if (!ret.m_work_index) {
         error = "Cannot find work block";
         return std::nullopt;
     }
+    if (!CheckBlockDataAvailable(ret.m_work_index, error)) return std::nullopt;
     if (!skip_snap) {
         if (auto opt_snap = qsnapman.GetSnapshotForBlock(llmq_type, ret.m_cycle_index); opt_snap.has_value()) {
             ret.m_snap = opt_snap.value();
@@ -74,6 +86,7 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
                 errorRet = strprintf("block %s is not in the active chain", blockHash.ToString());
                 return false;
             }
+            if (!CheckBlockDataAvailable(blockIndex, errorRet)) return false;
             baseBlockIndexes.push_back(blockIndex);
         }
         // Sort in all cases: the legacy path (served to peers < EFFICIENT_QRINFO_VERSION)
@@ -93,6 +106,7 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
         errorRet = strprintf("tip block not found");
         return false;
     }
+    if (!CheckBlockDataAvailable(tipBlockIndex, errorRet)) return false;
     if (use_legacy_construction) {
         // Build MN list Diff always with highest baseblock
         if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman, baseBlockIndexes.back()->GetBlockHash(),
@@ -106,6 +120,7 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
         errorRet = strprintf("block not found");
         return false;
     }
+    if (!CheckBlockDataAvailable(blockIndex, errorRet)) return false;
 
     // Quorum rotation is enabled only for InstantSend atm.
     Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;

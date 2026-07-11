@@ -5509,7 +5509,15 @@ void PeerManagerImpl::ProcessMessage(
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, mnListDiff));
         } else {
             strError = strprintf("getmnlistdiff failed for baseBlockHash=%s, blockHash=%s. error=%s", cmd.baseBlockHash.ToString(), cmd.blockHash.ToString(), strError);
-            Misbehaving(*peer, 1, strError);
+            if (IsBlockDataUnavailableError(strError)) {
+                // The peer made a plausible request which this pruned or
+                // snapshot-backed node cannot serve. Like pruned getdata,
+                // silently drop it without attributing our missing history to
+                // the peer.
+                LogPrint(BCLog::NET, "%s\n", strError);
+            } else {
+                Misbehaving(*peer, 1, strError);
+            }
         }
         return;
     }
@@ -5549,7 +5557,11 @@ void PeerManagerImpl::ProcessMessage(
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QUORUMROTATIONINFO, quorumRotationInfoRet));
         } else {
             strError = strprintf("getquorumrotationinfo failed for size(baseBlockHashes)=%d, blockRequestHash=%s. error=%s", cmd.baseBlockHashes.size(), cmd.blockRequestHash.ToString(), strError);
-            Misbehaving(*peer, 1, strError);
+            if (IsBlockDataUnavailableError(strError)) {
+                LogPrint(BCLog::NET, "%s\n", strError);
+            } else {
+                Misbehaving(*peer, 1, strError);
+            }
         }
         return;
     }

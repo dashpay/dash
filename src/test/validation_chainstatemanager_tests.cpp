@@ -22,6 +22,7 @@
 
 #include <chainlock/handler.h>
 #include <evo/evodb.h>
+#include <evo/smldiff.h>
 #include <governance/governance.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -824,6 +825,32 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
         BOOST_CHECK(qman.GetQuorum(llmq_type, quorum_hash, background_chainstate->m_chain) == nullptr);
         BOOST_CHECK(qman.GetQuorum(llmq_type, quorum_hash, snapshot_chainstate->m_chain) != nullptr);
         BOOST_CHECK(qman.GetQuorum(llmq_type, quorum_hash, background_chainstate->m_chain) == nullptr);
+
+        // The requested endpoints are available, but the quorum's ChainLock
+        // work block is below the unvalidated snapshot base and unavailable.
+        // Do not turn that read failure into a null ChainLock signature.
+        const CBlockIndex* request_base = snapshot_mined_block->pprev;
+        CBlockIndex* quorum_work_block = snapshot_chainstate->m_chain[quorum_base->nHeight - seeded_commitment.quorumIndex - 8];
+        BOOST_REQUIRE(request_base->nStatus & BLOCK_HAVE_DATA);
+        BOOST_REQUIRE(snapshot_mined_block->nStatus & BLOCK_HAVE_DATA);
+        BOOST_REQUIRE_LT(quorum_work_block->nHeight, request_base->nHeight);
+        const uint32_t old_work_status = quorum_work_block->nStatus;
+        auto& consensus = const_cast<Consensus::Params&>(m_node.chainman->GetConsensus());
+        const int old_v20_height = consensus.V20Height;
+        quorum_work_block->nStatus &= ~BLOCK_HAVE_DATA;
+        consensus.V20Height = 1;
+
+        CSimplifiedMNListDiff response;
+        std::string error;
+        BOOST_CHECK(!BuildSimplifiedMNListDiff(*m_node.dmnman, *m_node.chainman, qblockman, qman,
+                                               request_base->GetBlockHash(), snapshot_mined_block->GetBlockHash(),
+                                               response, error));
+
+        consensus.V20Height = old_v20_height;
+        quorum_work_block->nStatus = old_work_status;
+        BOOST_CHECK(IsBlockDataUnavailableError(error));
+        BOOST_CHECK(error.find(quorum_work_block->GetBlockHash().ToString()) != std::string::npos);
+        BOOST_CHECK(response.quorumsCLSigs.empty());
 
         BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash));
         BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
