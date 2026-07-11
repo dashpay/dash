@@ -173,6 +173,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
 
 static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSnapshotManager& qsnapman,
                                 const ChainstateManager& chainman, const llmq::CQuorumManager& qman,
+                                const CChain* chain,
                                 const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsViewCache& view,
                                 const std::optional<CRangesSet>& indexes, bool check_sigs, TxValidationState& state)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -209,11 +210,13 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
         case TRANSACTION_QUORUM_COMMITMENT:
             return llmq::CheckLLMQCommitment({dmnman, qsnapman, chainman, pindexPrev}, tx, state);
         case TRANSACTION_MNHF_SIGNAL:
-            return CheckMNHFTx(chainman, qman, tx, pindexPrev, state);
+            return chain ? CheckMNHFTx(chainman, qman, *chain, tx, pindexPrev, state) :
+                           CheckMNHFTx(chainman, qman, tx, pindexPrev, state);
         case TRANSACTION_ASSET_LOCK:
             return CheckAssetLockTx(tx, state);
         case TRANSACTION_ASSET_UNLOCK:
-            return CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, state);
+            return chain ? CheckAssetUnlockTx(chainman.m_blockman, qman, *chain, tx, pindexPrev, indexes, state) :
+                           CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, state);
         }
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
@@ -226,7 +229,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
 bool CSpecialTxProcessor::CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsViewCache& view, bool check_sigs, TxValidationState& state)
 {
     AssertLockHeld(::cs_main);
-    return CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, tx, pindexPrev, view, std::nullopt, check_sigs,
+    return CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, nullptr, tx, pindexPrev, view, std::nullopt, check_sigs,
                                state);
 }
 
@@ -616,7 +619,7 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
     return true;
 }
 
-bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, const CCoinsViewCache& view, bool fJustCheck,
+bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, const CCoinsViewCache& view, bool fJustCheck,
                                                    bool fCheckCbTxMerkleRoots, BlockValidationState& state, std::optional<MNListUpdates>& updatesRet)
 {
     AssertLockHeld(::cs_main);
@@ -680,7 +683,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
             TxValidationState tx_state;
             // At this moment CheckSpecialTx() may fail by 2 possible ways:
             // consensus failures and "TX_BAD_SPECIAL"
-            if (!CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, *ptr_tx, pindex->pprev, view, indexes,
+            if (!CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, &chainstate.m_chain,
+                                     *ptr_tx, pindex->pprev, view, indexes,
                                      fCheckCbTxMerkleRoots, tx_state)) {
                 assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS || tx_state.GetResult() == TxValidationResult::TX_BAD_SPECIAL);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
@@ -704,7 +708,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
         LogPrint(BCLog::BENCHMARK, "      - CheckCreditPoolDiffForBlock: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3),
                  nTimeCreditPool * 0.000001);
 
-        if (!m_qblockman.ProcessBlock(block, pindex, state, fJustCheck, fCheckCbTxMerkleRoots)) {
+        if (!m_qblockman.ProcessBlock(chainstate, block, pindex, state, fJustCheck, fCheckCbTxMerkleRoots)) {
             // pass the state returned by the function above
             return false;
         }
@@ -765,7 +769,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
             LogPrint(BCLog::BENCHMARK, "      - CalcCbTxMerkleRootQuorums: %.2fms [%.2fs]\n",
                      0.001 * (nTime6_2 - nTime6_1), nTimeMerkleQuorums * 0.000001);
 
-            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, m_chainman.ActiveChain(), m_qman,
+            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chainstate.m_chain, m_qman,
                                         m_chainlocks, state)) {
                 // pass the state returned by the function above
                 return false;
@@ -803,7 +807,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
     return true;
 }
 
-bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, std::optional<MNListUpdates>& updatesRet)
+bool CSpecialTxProcessor::UndoSpecialTxsInBlock(Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, std::optional<MNListUpdates>& updatesRet)
 {
     AssertLockHeld(::cs_main);
 
@@ -825,7 +829,7 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const CBlock& block, const CBloc
             return false;
         }
 
-        if (!m_qblockman.UndoBlock(block, pindex)) {
+        if (!m_qblockman.UndoBlock(chainstate, block, pindex)) {
             return false;
         }
     } catch (const std::exception& e) {

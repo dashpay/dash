@@ -17,7 +17,7 @@ LLMQContext::LLMQContext(CDeterministicMNManager& dmnman, CEvoDB& evo_db, CSpork
                          int16_t worker_count, int64_t max_recsigs_age) :
     bls_worker{std::make_shared<CBLSWorker>()},
     qsnapman{std::make_unique<llmq::CQuorumSnapshotManager>(evo_db)},
-    quorum_block_processor{std::make_unique<llmq::CQuorumBlockProcessor>(chainman.ActiveChainstate(), dmnman, evo_db,
+    quorum_block_processor{std::make_unique<llmq::CQuorumBlockProcessor>(chainman, dmnman, evo_db,
                                                                          *qsnapman, bls_threads)},
     qman{std::make_unique<llmq::CQuorumManager>(*bls_worker, dmnman, evo_db, *quorum_block_processor, *qsnapman,
                                                 chainman, db_params)},

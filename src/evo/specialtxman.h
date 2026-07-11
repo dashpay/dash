@@ -22,6 +22,7 @@ class CDeterministicMNList;
 class CDeterministicMNManager;
 class CTransaction;
 class ChainstateManager;
+class Chainstate;
 class CMNHFManager;
 class TxValidationState;
 struct MNListUpdates;
@@ -70,10 +71,10 @@ public:
 
     bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsViewCache& view, bool check_sigs, TxValidationState& state)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, const CCoinsViewCache& view, bool fJustCheck,
+    bool ProcessSpecialTxsInBlock(Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, const CCoinsViewCache& view, bool fJustCheck,
                                   bool fCheckCbTxMerkleRoots, BlockValidationState& state, std::optional<MNListUpdates>& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, std::optional<MNListUpdates>& updatesRet)
+    bool UndoSpecialTxsInBlock(Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, std::optional<MNListUpdates>& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 

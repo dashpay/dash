@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include <chainparams.h>
+#include <compat/endian.h>
 #include <consensus/validation.h>
 #include <index/txindex.h>
 #include <node/chainstate.h>
@@ -23,7 +24,11 @@
 #include <evo/evodb.h>
 #include <governance/governance.h>
 #include <llmq/blockprocessor.h>
+#include <llmq/commitment.h>
+#include <llmq/context.h>
+#include <llmq/quorumsman.h>
 #include <llmq/signing.h>
+#include <node/blockstorage.h>
 
 #include <tinyformat.h>
 
@@ -719,6 +724,86 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_reorg_erase_guard, SnapshotTestS
         uint256 value;
         BOOST_CHECK(m_node.evodb->Read(shared_key, value));
         BOOST_CHECK(!m_node.evodb->Read(snapshot_only_key, value));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, SnapshotTestSetup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    const auto llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    const auto llmq_params = Params().GetLLMQ(llmq_type).value();
+    const int target_height = background_chainstate->m_chain.Height() + 1;
+    BOOST_REQUIRE_GE(target_height % llmq_params.dkgInterval, llmq_params.dkgMiningWindowStart);
+    BOOST_REQUIRE_LE(target_height % llmq_params.dkgInterval, llmq_params.dkgMiningWindowEnd);
+
+    const CBlockIndex* quorum_base;
+    const CBlockIndex* snapshot_mined_block;
+    {
+        LOCK(::cs_main);
+        quorum_base = background_chainstate->m_chain[target_height - (target_height % llmq_params.dkgInterval)];
+        snapshot_mined_block = snapshot_chainstate->m_chain[target_height];
+        BOOST_REQUIRE(quorum_base);
+        BOOST_REQUIRE(snapshot_mined_block);
+        BOOST_REQUIRE(background_chainstate->m_chain.Contains(quorum_base));
+        BOOST_REQUIRE(!background_chainstate->m_chain.Contains(snapshot_mined_block));
+        BOOST_REQUIRE(snapshot_chainstate->m_chain.Contains(snapshot_mined_block));
+    }
+
+    const uint256 quorum_hash = quorum_base->GetBlockHash();
+    const auto key = std::make_pair(std::string{"q_mc"}, std::make_pair(llmq_type, quorum_hash));
+    const auto inverse_height_key = std::make_tuple(std::string{"q_mcih"}, llmq_type,
+                                                    htobe32_internal(~uint32_t{0} - target_height));
+    const llmq::CFinalCommitment seeded_commitment{llmq_params, quorum_hash};
+    {
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        m_node.evodb->Write(key, std::make_pair(seeded_commitment, snapshot_mined_block->GetBlockHash()));
+        m_node.evodb->Write(inverse_height_key, quorum_base->nHeight);
+        tx->Commit();
+    }
+
+    std::pair<llmq::CFinalCommitment, uint256> raw_commitment;
+    BOOST_CHECK(!m_node.evodb->GetRawDB().Read(key, raw_commitment));
+    int raw_quorum_height;
+    BOOST_CHECK(!m_node.evodb->GetRawDB().Read(inverse_height_key, raw_quorum_height));
+
+    auto& qblockman = *Assert(m_node.llmq_ctx)->quorum_block_processor;
+    auto& qman = *Assert(m_node.llmq_ctx)->qman;
+    {
+        LOCK(::cs_main);
+        const auto mined_commitments = qblockman.GetMinedCommitmentsUntilBlock(llmq_type, snapshot_mined_block,
+                                                                               /*maxCount=*/1);
+        BOOST_REQUIRE_EQUAL(mined_commitments.size(), 1);
+        BOOST_CHECK_EQUAL(mined_commitments.front(), quorum_base);
+
+        // Exercise quorum resolution itself, including the cache-order hazard:
+        // the first background lookup must not negatively cache the unflushed
+        // snapshot commitment, and a later positive cache entry must not make
+        // that commitment resolve for the background chain.
+        BOOST_CHECK(qman.GetQuorum(llmq_type, quorum_hash, background_chainstate->m_chain) == nullptr);
+        BOOST_CHECK(qman.GetQuorum(llmq_type, quorum_hash, snapshot_chainstate->m_chain) != nullptr);
+        BOOST_CHECK(qman.GetQuorum(llmq_type, quorum_hash, background_chainstate->m_chain) == nullptr);
+
+        BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash));
+        BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
+        BOOST_CHECK(!qblockman.HasMinedCommitment(llmq_type, quorum_hash, background_chainstate->m_chain));
+
+        BOOST_CHECK(llmq::CQuorumManager::HasQuorum(llmq_type, qblockman, quorum_hash));
+        BOOST_CHECK(llmq::CQuorumManager::HasQuorum(llmq_type, qblockman, quorum_hash,
+                                                    snapshot_chainstate->m_chain));
+        BOOST_CHECK(!llmq::CQuorumManager::HasQuorum(llmq_type, qblockman, quorum_hash,
+                                                     background_chainstate->m_chain));
+
+        // ConnectBlock accepts exactly this required count. The record from
+        // snapshot chain A therefore cannot suppress the commitment expected
+        // in chain B's block at the same height.
+        BOOST_CHECK_EQUAL(qblockman.GetNumCommitmentsRequired(llmq_params, snapshot_chainstate->m_chain, target_height), 0);
+        BOOST_CHECK_EQUAL(qblockman.GetNumCommitmentsRequired(llmq_params, background_chainstate->m_chain, target_height), 1);
+
+        CBlock block;
+        BOOST_REQUIRE(node::ReadBlockFromDisk(block, snapshot_mined_block, Params().GetConsensus()));
+        BlockValidationState state;
+        BOOST_CHECK(qblockman.ProcessBlock(*background_chainstate, block, snapshot_mined_block, state,
+                                           /*fJustCheck=*/true, /*fBLSChecks=*/false));
     }
 }
 

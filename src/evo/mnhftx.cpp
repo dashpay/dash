@@ -103,7 +103,9 @@ bool MNHFTxPayload::IsTriviallyValid(TxValidationState& state) const
     return true;
 }
 
-bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
+template <typename GetQuorum>
+static bool CheckMNHFTxImpl(const ChainstateManager& chainman, GetQuorum&& get_quorum,
+                            const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
 {
     if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_MNHF_SIGNAL) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-type");
@@ -141,7 +143,7 @@ bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& 
     const uint256 msgHash = tx_copy.GetHash();
 
     const Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypeMnhf;
-    const auto quorum = qman.GetQuorum(llmqType, mnhfTx.signal.quorumHash);
+    const auto quorum = get_quorum(llmqType, mnhfTx.signal.quorumHash);
     if (!quorum) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-missing-quorum");
     }
@@ -152,6 +154,23 @@ bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& 
     }
 
     return true;
+}
+
+bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman,
+                 const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
+{
+    return CheckMNHFTxImpl(chainman, [&](Consensus::LLMQType llmq_type, const uint256& quorum_hash) {
+        return qman.GetQuorum(llmq_type, quorum_hash);
+    }, tx, pindexPrev, state);
+}
+
+bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CChain& chain,
+                 const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
+{
+    AssertLockHeld(::cs_main);
+    return CheckMNHFTxImpl(chainman, [&](Consensus::LLMQType llmq_type, const uint256& quorum_hash) NO_THREAD_SAFETY_ANALYSIS {
+        return qman.GetQuorum(llmq_type, quorum_hash, chain);
+    }, tx, pindexPrev, state);
 }
 
 std::optional<uint8_t> extractEHFSignal(const CTransaction& tx)

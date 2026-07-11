@@ -146,6 +146,13 @@ bool CQuorumManager::HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockP
     return quorum_block_processor.HasMinedCommitment(llmqType, quorumHash);
 }
 
+bool CQuorumManager::HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockProcessor& quorum_block_processor,
+                               const uint256& quorumHash, const CChain& chain)
+{
+    AssertLockHeld(::cs_main);
+    return quorum_block_processor.HasMinedCommitment(llmqType, quorumHash, chain);
+}
+
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, size_t nCountRequested) const
 {
     const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainman.ActiveTip());
@@ -155,6 +162,21 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType,
                                                      gsl::not_null<const CBlockIndex*> pindexStart,
                                                      size_t nCountRequested) const
+{
+    return ScanQuorums(llmqType, pindexStart, nCountRequested, nullptr);
+}
+
+std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType,
+                                                     gsl::not_null<const CBlockIndex*> pindexStart,
+                                                     size_t nCountRequested, const CChain& chain) const
+{
+    AssertLockHeld(::cs_main);
+    return ScanQuorums(llmqType, pindexStart, nCountRequested, &chain);
+}
+
+std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType,
+                                                     gsl::not_null<const CBlockIndex*> pindexStart,
+                                                     size_t nCountRequested, const CChain* chain) const
 {
     if (nCountRequested == 0 || !m_chainman.IsQuorumTypeEnabled(llmqType, pindexStart)) {
         return {};
@@ -185,7 +207,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     size_t nScanCommitments{nCountRequested};
     std::vector<CQuorumCPtr> vecResultQuorums;
 
-    {
+    if (chain == nullptr) {
         LOCK(m_cs_maps);
         if (scanQuorumsCache.empty()) {
             for (const auto& llmq : Params().GetConsensus().llmqs) {
@@ -220,6 +242,8 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             // If there is nothing in cache request at least keepOldConnections because this gets cached then later
             nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
         }
+    } else {
+        nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
     }
 
     // Get the block indexes of the mined commitments to build the required quorums from
@@ -237,7 +261,14 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         // We assume that every quorum asked for is available to us on hand, if this
         // fails then we can assume that something has gone wrong and we should stop
         // trying to process any further and return a blank.
-        auto quorum = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
+        CQuorumCPtr quorum;
+        if (chain) {
+            quorum = [&]() NO_THREAD_SAFETY_ANALYSIS {
+                return GetQuorum(llmqType, pQuorumBaseBlockIndex, *chain, populate_cache);
+            }();
+        } else {
+            quorum = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
+        }
         if (!quorum) {
             LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, blockHash=%s, populate_cache=%s\n",
                       __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
@@ -248,7 +279,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     }
 
     const size_t nCountResult{vecResultQuorums.size()};
-    if (nCountResult > 0) {
+    if (nCountResult > 0 && chain == nullptr) {
         LOCK(m_cs_maps);
         // Don't cache more than keepOldConnections elements
         // because signing by old quorums requires the exact quorum hash
@@ -344,6 +375,19 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint25
     return GetQuorum(llmqType, pQuorumBaseBlockIndex);
 }
 
+CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash,
+                                      const CChain& chain) const
+{
+    AssertLockHeld(::cs_main);
+
+    const auto* pQuorumBaseBlockIndex = m_chainman.m_blockman.LookupBlockIndex(quorumHash);
+    if (!pQuorumBaseBlockIndex) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- block %s not found\n", __func__, quorumHash.ToString());
+        return nullptr;
+    }
+    return GetQuorum(llmqType, pQuorumBaseBlockIndex, chain);
+}
+
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool populate_cache) const
 {
     auto quorumHash = pQuorumBaseBlockIndex->GetBlockHash();
@@ -351,6 +395,25 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_nul
     // we must check this before we look into the cache. Reorgs might have happened which would mean we might have
     // cached quorums which are not in the active chain anymore
     if (!HasQuorum(llmqType, quorumBlockProcessor, quorumHash)) {
+        return nullptr;
+    }
+
+    CQuorumPtr pQuorum;
+    if (LOCK(m_cs_maps); mapQuorumsCache[llmqType].get(quorumHash, pQuorum)) {
+        return pQuorum;
+    }
+
+    return BuildQuorumFromCommitment(llmqType, pQuorumBaseBlockIndex, populate_cache);
+}
+
+CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType,
+                                      gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
+                                      const CChain& chain, bool populate_cache) const
+{
+    AssertLockHeld(::cs_main);
+
+    const auto quorumHash = pQuorumBaseBlockIndex->GetBlockHash();
+    if (!HasQuorum(llmqType, quorumBlockProcessor, quorumHash, chain)) {
         return nullptr;
     }
 

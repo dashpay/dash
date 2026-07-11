@@ -21,6 +21,7 @@
 class BlockValidationState;
 class CBlock;
 class CBlockIndex;
+class CChain;
 class CEvoDB;
 class CTransaction;
 class ChainstateManager;
@@ -156,5 +157,8 @@ private:
 
 std::optional<uint8_t> extractEHFSignal(const CTransaction& tx);
 bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state);
+bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& qman, const CChain& chain,
+                 const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 #endif // BITCOIN_EVO_MNHFTX_H
