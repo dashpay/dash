@@ -91,7 +91,24 @@ const CTxOut& FindNonChangeParentOutput(const CWallet& wallet, const COutPoint& 
  */
 std::map<CTxDestination, std::vector<COutput>> ListCoins(const CWallet& wallet) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 
-std::vector<OutputGroup> GroupOutputs(const CWallet& wallet, const std::vector<COutput>& outputs, const CoinSelectionParams& coin_sel_params, const CoinEligibilityFilter& filter, bool positive_only);
+// An eligibility filter to run coin selection with, and whether OutputTypes may be mixed
+// while doing so.
+struct SelectionFilter {
+    CoinEligibilityFilter filter;
+    bool allow_mixed_output_types{true};
+};
+
+/**
+ * Group outputs, computing both the positive-only and mixed groups in a single pass.
+ */
+Groups GroupOutputs(const CWallet& wallet, const std::vector<COutput>& outputs, const CoinSelectionParams& coin_sel_params, const CoinEligibilityFilter& filter);
+
+/**
+ * Group outputs for every filter in `filters` in a single pass over `outputs`, so callers that
+ * need groups for several CoinEligibilityFilters (e.g. AutomaticCoinSelection's ordered_filters
+ * walk) don't have to re-run the grouping process once per filter.
+ */
+FilteredOutputGroups GroupOutputs(const CWallet& wallet, const std::vector<COutput>& outputs, const CoinSelectionParams& coin_sel_params, const std::vector<SelectionFilter>& filters);
 
 /**
  * Attempt to find a valid input set that preserves privacy by not mixing OutputTypes.
@@ -99,10 +116,13 @@ std::vector<OutputGroup> GroupOutputs(const CWallet& wallet, const std::vector<C
  * the solution (according to the waste metric) will be chosen. If a valid input cannot be found from any
  * single OutputType, fallback to running `ChooseSelectionResult()` over all available coins.
  *
+ * Performs no grouping itself: both `groups` and `mixed_groups` must already have been computed by
+ * the caller (e.g. via GroupOutputs' filter-list overload), once, ahead of every filter it walks.
+ *
  * param@[in]  wallet                    The wallet which provides solving data for the coins
  * param@[in]  nTargetValue              The target value
- * param@[in]  eligibility_filter        A filter containing rules for which coins are allowed to be included in this selection
- * param@[in]  available_coins           The struct of coins, organized by OutputType, available for selection prior to filtering
+ * param@[in]  groups                    The groups (positive-only and mixed) already computed for this filter over available_coins.legacy
+ * param@[in]  mixed_groups              The groups already computed for this filter over available_coins.all() (legacy + other), used only if allow_mixed_output_types
  * param@[in]  coin_selection_params     Parameters for the coin selection
  * param@[in]  allow_mixed_output_types  Relax restriction that SelectionResults must be of the same OutputType
  * returns                               If successful, a SelectionResult containing the input set
@@ -110,7 +130,7 @@ std::vector<OutputGroup> GroupOutputs(const CWallet& wallet, const std::vector<C
  *                                                  or (2) an specific error message if there was something particularly wrong (e.g. a selection
  *                                                  result that surpassed the tx max weight size).
  */
-util::Result<SelectionResult> AttemptSelection(const CWallet& wallet, const CAmount& nTargetValue, const CoinEligibilityFilter& eligibility_filter, const CoinsResult& available_coins,
+util::Result<SelectionResult> AttemptSelection(const CWallet& wallet, const CAmount& nTargetValue, Groups& groups, Groups& mixed_groups,
                                                 const CoinSelectionParams& coin_selection_params, bool allow_mixed_output_types, CoinType nCoinType = CoinType::ALL_COINS);
 
 /**
@@ -118,23 +138,21 @@ util::Result<SelectionResult> AttemptSelection(const CWallet& wallet, const CAmo
  * Multiple coin selection algorithms will be run and the input set that produces the least waste
  * (according to the waste metric) will be chosen.
  *
- * param@[in]  wallet                    The wallet which provides solving data for the coins
  * param@[in]  nTargetValue              The target value
- * param@[in]  eligilibity_filter        A filter containing rules for which coins are allowed to be included in this selection
- * param@[in]  available_coins           The struct of coins, organized by OutputType, available for selection prior to filtering
+ * param@[in]  groups                    The struct containing the outputs grouped by script and divided by (1) positive only outputs and (2) all outputs (positive + negative).
  * param@[in]  coin_selection_params     Parameters for the coin selection
  * returns                               If successful, a SelectionResult containing the input set
  *                                       If failed, returns (1) an empty error message if the target was not reached (general "Insufficient funds")
  *                                                  or (2) an specific error message if there was something particularly wrong (e.g. a selection
  *                                                  result that surpassed the tx max weight size).
  */
-util::Result<SelectionResult> ChooseSelectionResult(const CWallet& wallet, const CAmount& nTargetValue, const CoinEligibilityFilter& eligibility_filter, const std::vector<COutput>& available_coins,
-                                                     const CoinSelectionParams& coin_selection_params, CoinType nCoinType = CoinType::ALL_COINS);
+util::Result<SelectionResult> ChooseSelectionResult(const CAmount& nTargetValue, Groups& groups, const CoinSelectionParams& coin_selection_params,
+                                                     CoinType nCoinType = CoinType::ALL_COINS, CAmount max_tx_fee = 0);
 
 // User manually selected inputs that must be part of the transaction
 struct PreSelectedInputs
 {
-    std::set<COutput> coins;
+    std::set<std::shared_ptr<COutput>> coins;
     // If subtract fee from outputs is disabled, the 'total_amount'
     // will be the sum of each output effective value
     // instead of the sum of the outputs amount
@@ -147,7 +165,7 @@ struct PreSelectedInputs
         } else {
             total_amount += output.GetEffectiveValue();
         }
-        coins.insert(output);
+        coins.insert(std::make_shared<COutput>(output));
     }
 };
 
