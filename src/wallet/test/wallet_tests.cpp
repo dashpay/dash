@@ -1304,6 +1304,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     // First run the tests with only one input containing 100k duffs
     {
         coinControl = CCoinControl();
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         coinControl.Select(GetCoins({{100000, false}})[0]);
 
         // Start with fallback feerate
@@ -1344,6 +1346,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     // Now use 4 different inputs with a total of 100k duff
     {
         coinControl = CCoinControl();
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         auto setCoins = GetCoins({{1000, false}, {5000, false}, {10000, false}, {84000, false}});
         for (auto coin : setCoins) {
             coinControl.Select(coin);
@@ -1388,6 +1392,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     // Last use 10 equal inputs with a total of 100k duff
     {
         coinControl = CCoinControl();
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         auto setCoins = GetCoins({{10000, false}, {10000, false}, {10000, false}, {10000, false}, {10000, false},
                                   {10000, false}, {10000, false}, {10000, false}, {10000, false}, {10000, false}});
 
@@ -1481,6 +1487,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     {
         coinControl = CCoinControl();
         coinControl.m_feerate = CFeeRate(fallbackFee);
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         coinControl.Select(GetCoins({{100000, false}})[0]);
 
         BOOST_CHECK(CreateTransaction({{25000, false}, {25000, false}, {25000, false}}, {}, 0, true, ChangeTest::ChangeExpected));
@@ -1527,6 +1535,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
 
         coinControl = CCoinControl();
         coinControl.m_feerate = CFeeRate(fallbackFee);
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         coinControl.Select(GetCoins({{100 * COIN, false}})[0]);
 
         BOOST_CHECK(CreateTransaction({{-5000, false}}, strAmountNotNegative, false));

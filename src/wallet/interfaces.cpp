@@ -467,6 +467,8 @@ public:
 
         CCoinControl coin_control;
         coin_control.destChange = fund_destination;
+        // Fund from the given address only, spending no more of its coins than necessary.
+        coin_control.m_allow_other_inputs = false;
         coin_control.fRequireAllInputs = false;
         for (const auto& output : AvailableCoinsListUnspent(*m_wallet).all()) {
             CTxDestination destination;
