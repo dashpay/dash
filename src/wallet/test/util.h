@@ -25,6 +25,7 @@ class Loader;
 namespace wallet {
 class CWallet;
 class WalletDatabase;
+struct WalletContext;
 
 extern const std::string ADDRESS_B58T_UNSPENDABLE;
 extern const std::string ADDRESS_BCRT1_UNSPENDABLE;
@@ -35,6 +36,12 @@ std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, interfaces
 std::string getnewaddress(CWallet& w);
 /** Returns a new destination from the wallet. Dash only supports OutputType::LEGACY. */
 CTxDestination getNewDestination(CWallet& w);
+
+std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context);
+std::shared_ptr<CWallet> TestLoadWallet(std::unique_ptr<WalletDatabase> database, WalletContext& context, uint64_t create_flags);
+void TestUnloadWallet(std::shared_ptr<CWallet>&& wallet);
+/** Dash: unload a wallet that was registered in the context for the CoinJoin loader. */
+void TestUnloadWallet(WalletContext& context, std::shared_ptr<CWallet>&& wallet);
 
 // Creates a copy of the provided database
 std::unique_ptr<WalletDatabase> DuplicateMockDatabase(WalletDatabase& database);
