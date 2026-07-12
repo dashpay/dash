@@ -58,6 +58,91 @@ BOOST_FIXTURE_TEST_CASE(SubtractFee, TestChain100Setup)
     BOOST_CHECK_EQUAL(fee, check_tx(fee + 123));
 }
 
+// Regression test for a Dash-specific bug: CreateTransactionInternal() estimates the
+// non-input part of the transaction size (used to size coin selection's target and, via
+// SelectionResult::m_target, the change amount) assuming the vin-count CompactSize prefix
+// is always 1 byte. Once the final input count reaches 253 or more, the real prefix is 3
+// bytes, so the fee actually collected falls a couple of duffs short of the fee needed for
+// the accurately-measured final size, and CreateTransactionInternal() used to bail out with
+// "Fee needed > fee paid" (see spend.cpp's tx_noinputs_size and the STR_INTERNAL_BUG check).
+//
+// Funds a wallet with `input_count` confirmed CENT UTXOs, then requires all of them as
+// inputs (via CCoinControl::fRequireAllInputs) to a transaction that leaves enough value
+// behind for a change output, and checks that transaction creation succeeds.
+//
+// UTXOs are funded in chunks of at most 100 per transaction (well under the CompactSize
+// boundary being tested) so that setup itself never has to cross a CompactSize boundary on
+// the *output* side, which would otherwise obscure the input-count regression under test.
+static void CheckManyRequiredInputs(TestChain100Setup& setup, size_t input_count)
+{
+    setup.CreateAndProcessBlock({}, GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey()));
+    auto wallet = CreateSyncedWallet(*setup.m_node.chain, *setup.m_node.coinjoin_loader, *Assert(setup.m_node.chainman), setup.m_args, setup.coinbaseKey);
+
+    std::vector<COutPoint> outpoints;
+    outpoints.reserve(input_count);
+    static constexpr size_t CHUNK_SIZE{100};
+    for (size_t funded = 0; funded < input_count; funded += CHUNK_SIZE) {
+        const size_t chunk = std::min(CHUNK_SIZE, input_count - funded);
+
+        CCoinControl fund_control;
+        fund_control.m_feerate.emplace(10000);
+        fund_control.fOverrideFeeRate = true;
+        std::vector<CRecipient> recipients;
+        recipients.reserve(chunk);
+        for (size_t i = 0; i < chunk; ++i) {
+            recipients.push_back({GetScriptForDestination(getNewDestination(*wallet)), CENT, /*subtract fee=*/false});
+        }
+        auto fund_res = CreateTransaction(*wallet, recipients, RANDOM_CHANGE_POSITION, fund_control);
+        BOOST_REQUIRE(fund_res);
+        const CTransactionRef fund_tx = fund_res->tx;
+
+        // Confirm the funding transaction, mirroring CreateTransactionTestSetup::GetCoins()
+        // in wallet_tests.cpp: CreateSyncedWallet() does not register the wallet for chain
+        // notifications, so the confirmation has to be reflected into mapWallet manually.
+        wallet->CommitTransaction(fund_tx, {}, {});
+        setup.CreateAndProcessBlock({CMutableTransaction(*fund_tx)}, GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey()));
+        const CBlockIndex* tip{WITH_LOCK(Assert(setup.m_node.chainman)->GetMutex(), return setup.m_node.chainman->ActiveChain().Tip())};
+        {
+            LOCK(wallet->cs_wallet);
+            wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
+            auto it = wallet->mapWallet.find(fund_tx->GetHash());
+            BOOST_REQUIRE(it != wallet->mapWallet.end());
+            it->second.m_state = TxStateConfirmed{tip->GetBlockHash(), tip->nHeight, /*index=*/1};
+        }
+
+        for (size_t i = 0; i < chunk; ++i) outpoints.emplace_back(fund_tx->GetHash(), i);
+    }
+
+    CCoinControl coin_control;
+    coin_control.m_feerate.emplace(10000);
+    coin_control.fOverrideFeeRate = true;
+    coin_control.fRequireAllInputs = true;
+    coin_control.m_allow_other_inputs = false;
+    for (const auto& outpoint : outpoints) coin_control.Select(outpoint);
+
+    // Send most of the selected value to a single recipient, leaving one CENT of slack for
+    // the fee and a change output (not subtracting the fee from the recipient, so the "Fee
+    // needed > fee paid" internal-bug check applies).
+    const CAmount total{CAmount(input_count) * CENT};
+    CRecipient recipient{GetScriptForDestination(getNewDestination(*wallet)), total - CENT, /*subtract fee=*/false};
+    auto res = CreateTransaction(*wallet, {recipient}, RANDOM_CHANGE_POSITION, coin_control);
+    BOOST_CHECK(res);
+}
+
+// Below the CompactSize boundary: the vin-count prefix really is 1 byte, so this must always
+// succeed, with or without the fix.
+BOOST_FIXTURE_TEST_CASE(CompactSizeInputCountBelowBoundary, TestChain100Setup)
+{
+    CheckManyRequiredInputs(*this, 252);
+}
+
+// At the CompactSize boundary: 253 inputs need a 3-byte vin-count prefix. This is the case
+// that used to fail with "Fee needed > fee paid".
+BOOST_FIXTURE_TEST_CASE(CompactSizeInputCountAtBoundary, TestChain100Setup)
+{
+    CheckManyRequiredInputs(*this, 253);
+}
+
 static void TestFillInputToWeight(int64_t additional_weight, int64_t expected_scriptsig_size)
 {
     static const int64_t EMPTY_INPUT_WEIGHT = ::GetSerializeSize(CTxIn());

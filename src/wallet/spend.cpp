@@ -1106,8 +1106,39 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         nBytes += GetSizeOfCompactSize(nExtraPayloadSize) + nExtraPayloadSize;
     }
 
-    const CAmount fee_needed = coin_selection_params.m_effective_feerate.GetFee(nBytes);
+    CAmount fee_needed = coin_selection_params.m_effective_feerate.GetFee(nBytes);
     nFeeRet = result.GetSelectedValue() - recipients_sum - change_amount;
+
+    // Dash: coin selection sizes its target (and, through SelectionResult::m_target, the
+    // change amount) using coin_selection_params.tx_noinputs_size, which assumes the vin-count
+    // CompactSize prefix is always 1 byte because the final input count isn't known yet. Once
+    // the tx crosses a CompactSize size class (253+ inputs), the true prefix is wider than
+    // assumed and fee_needed (computed from the accurately-measured final nBytes above) can
+    // exceed nFeeRet by a few duffs. Recover the shortfall from the change output, which is
+    // otherwise unspoken for, instead of failing the whole transaction.
+    if (!coin_selection_params.m_subtract_fee_outputs && fee_needed > nFeeRet && nChangePosInOut != -1) {
+        const CAmount shortfall = fee_needed - nFeeRet;
+        CTxOut& change = txNew.vout.at(nChangePosInOut);
+        if (change.nValue - shortfall >= coin_selection_params.min_viable_change) {
+            change.nValue -= shortfall;
+            nFeeRet += shortfall;
+        } else {
+            // The change output can't absorb the shortfall without becoming uneconomical.
+            // Drop it entirely, let its whole value go to the fee, and resize since removing
+            // an output changes the transaction's serialized size.
+            nFeeRet += change.nValue;
+            txNew.vout.erase(txNew.vout.begin() + nChangePosInOut);
+            nChangePosInOut = -1;
+            nBytes = CalculateMaximumSignedTxSize(CTransaction(txNew), &wallet, &coin_control);
+            if (nBytes == -1) {
+                return util::Error{_("Missing solving data for estimating transaction size")};
+            }
+            if (nExtraPayloadSize != 0) {
+                nBytes += GetSizeOfCompactSize(nExtraPayloadSize) + nExtraPayloadSize;
+            }
+            fee_needed = coin_selection_params.m_effective_feerate.GetFee(nBytes);
+        }
+    }
 
     // The only time that fee_needed should be less than the amount available for fees is when
     // we are subtracting the fee from the outputs. If this occurs at any other time, it is a bug.
