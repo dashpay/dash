@@ -920,6 +920,7 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
                             "The database might be corrupted or the software version is not compatible with one of your wallet descriptors. ";
                     strErr += "Please try running the latest software version";
                     pwallet->WalletLogPrintf("%s\n", strErr);
+                    m_batch->CloseCursor();
                     return DBErrors::UNKNOWN_DESCRIPTOR;
                 } else {
                     // Leave other errors alone, if we try to fix them we might make things worse.
