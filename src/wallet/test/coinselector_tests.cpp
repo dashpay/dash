@@ -1071,7 +1071,7 @@ BOOST_AUTO_TEST_CASE(srd_tests)
     }
 }
 
-static std::optional<SelectionResult> select_coins(const CAmount& target, const CoinSelectionParams& cs_params, const CCoinControl& cc, std::function<CoinsResult(CWallet&)> coin_setup, const node::NodeContext& m_node)
+static util::Result<SelectionResult> select_coins(const CAmount& target, const CoinSelectionParams& cs_params, const CCoinControl& cc, std::function<CoinsResult(CWallet&)> coin_setup, const node::NodeContext& m_node)
 {
     std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", gArgs, CreateMockWalletDatabase());
     wallet->LoadWallet();
@@ -1153,6 +1153,9 @@ BOOST_AUTO_TEST_CASE(check_max_weight)
         }, m_node);
 
         BOOST_CHECK(!result);
+        BOOST_CHECK_EQUAL(util::ErrorString(result).original,
+                           "The inputs size exceeds the maximum weight. Please try sending a smaller amount or "
+                           "manually consolidating your wallet's UTXOs");
     }
 }
 

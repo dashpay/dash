@@ -10,6 +10,8 @@
 #include <primitives/transaction.h>
 #include <random.h>
 #include <util/result.h>
+#include <util/system.h>
+#include <util/check.h>
 
 #include <optional>
 
@@ -184,6 +186,7 @@ struct CoinEligibilityFilter
     /** When avoid_reuse=true and there are full groups (OUTPUT_GROUP_MAX_ENTRIES), whether or not to use any partial groups.*/
     const bool m_include_partial_groups{false};
 
+    CoinEligibilityFilter() = delete;
     CoinEligibilityFilter(int conf_mine, int conf_theirs, uint64_t max_ancestors) : conf_mine(conf_mine), conf_theirs(conf_theirs), max_ancestors(max_ancestors), max_descendants(max_ancestors) {}
     CoinEligibilityFilter(int conf_mine, int conf_theirs, uint64_t max_ancestors, uint64_t max_descendants) : conf_mine(conf_mine), conf_theirs(conf_theirs), max_ancestors(max_ancestors), max_descendants(max_descendants) {}
     CoinEligibilityFilter(int conf_mine, int conf_theirs, uint64_t max_ancestors, uint64_t max_descendants, bool include_partial) : conf_mine(conf_mine), conf_theirs(conf_theirs), max_ancestors(max_ancestors), max_descendants(max_descendants), m_include_partial_groups(include_partial) {}
@@ -294,6 +297,17 @@ private:
     bool m_use_effective{false};
     /** The computed waste */
     std::optional<CAmount> m_waste;
+
+    template<typename T>
+    void InsertInputs(const T& inputs)
+    {
+        // Store sum of combined input sets to check that the results have no shared UTXOs
+        const size_t expected_count = m_selected_inputs.size() + inputs.size();
+        util::insert(m_selected_inputs, inputs);
+        if (m_selected_inputs.size() != expected_count) {
+            throw std::runtime_error(STR_INTERNAL_BUG("Shared UTXOs among selection results"));
+        }
+    }
 
 public:
     explicit SelectionResult(const CAmount target, SelectionAlgorithm algo)

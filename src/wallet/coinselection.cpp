@@ -582,24 +582,28 @@ void SelectionResult::Clear()
 
 void SelectionResult::AddInput(const OutputGroup& group)
 {
-    util::insert(m_selected_inputs, group.m_outputs);
+    // As it can fail, combine inputs first
+    InsertInputs(group.m_outputs);
     m_use_effective = !group.m_subtract_fee_outputs;
 }
 
 void SelectionResult::AddInputs(const std::set<COutput>& inputs, bool subtract_fee_outputs)
 {
-    util::insert(m_selected_inputs, inputs);
+    // As it can fail, combine inputs first
+    InsertInputs(inputs);
     m_use_effective = !subtract_fee_outputs;
 }
 
 void SelectionResult::Merge(const SelectionResult& other)
 {
+    // As it can fail, combine inputs first
+    InsertInputs(other.m_selected_inputs);
+
     m_target += other.m_target;
     m_use_effective |= other.m_use_effective;
     if (m_algo == SelectionAlgorithm::MANUAL) {
         m_algo = other.m_algo;
     }
-    util::insert(m_selected_inputs, other.m_selected_inputs);
 }
 
 const std::set<COutput>& SelectionResult::GetInputSet() const
