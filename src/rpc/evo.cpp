@@ -372,6 +372,8 @@ static void FundSpecialTx(CWallet& wallet, CMutableTransaction& tx, const Specia
 
     CCoinControl coinControl;
     coinControl.destChange = fundDest;
+    // Fund from the given address only, spending no more of its coins than necessary.
+    coinControl.m_allow_other_inputs = false;
     coinControl.fRequireAllInputs = false;
 
     for (const auto& out : AvailableCoinsListUnspent(wallet).all()) {

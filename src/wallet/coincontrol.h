@@ -48,7 +48,7 @@ public:
     bool m_include_unsafe_inputs = false;
     //! If true, the selection process can add extra unselected inputs from the wallet
     //! while requires all selected inputs be used
-    bool m_allow_other_inputs = false;
+    bool m_allow_other_inputs = true;
     //! If false, only include as many inputs as necessary to fulfill a coin selection request. Only usable together with m_allow_other_inputs
     bool fRequireAllInputs = true;
     //! Includes watch only addresses which are solvable

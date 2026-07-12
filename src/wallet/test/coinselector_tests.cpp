@@ -349,9 +349,13 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         add_coin(available_coins, *wallet, 2 * CENT, coin_selection_params_bnb.m_effective_feerate, 6 * 24, false, 0, true);
         CCoinControl coin_control;
         coin_control.m_allow_other_inputs = true;
-        coin_control.Select(available_coins.all().at(0).outpoint);
+        COutput select_coin = available_coins.all().at(0);
+        coin_control.Select(select_coin.outpoint);
+        PreSelectedInputs selected_input;
+        selected_input.Insert(select_coin, coin_selection_params_bnb.m_subtract_fee_outputs);
+        available_coins.legacy.erase(available_coins.legacy.begin());
         coin_selection_params_bnb.m_effective_feerate = CFeeRate(0);
-        const auto result10 = SelectCoins(*wallet, available_coins, 10 * CENT, coin_control, coin_selection_params_bnb);
+        const auto result10 = SelectCoins(*wallet, available_coins, selected_input, 10 * CENT, coin_control, coin_selection_params_bnb);
         BOOST_CHECK(result10);
     }
     {
@@ -374,7 +378,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         expected_result.Clear();
         add_coin(10 * CENT, 2, expected_result);
         CCoinControl coin_control;
-        const auto result11 = SelectCoins(*wallet, available_coins, 10 * CENT, coin_control, coin_selection_params_bnb);
+        const auto result11 = SelectCoins(*wallet, available_coins, /*pre_set_inputs=*/{}, 10 * CENT, coin_control, coin_selection_params_bnb);
         BOOST_CHECK(EquivalentResult(expected_result, *result11));
         available_coins.clear();
 
@@ -389,7 +393,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         expected_result.Clear();
         add_coin(9 * CENT, 2, expected_result);
         add_coin(1 * CENT, 2, expected_result);
-        const auto result12 = SelectCoins(*wallet, available_coins, 10 * CENT, coin_control, coin_selection_params_bnb);
+        const auto result12 = SelectCoins(*wallet, available_coins, /*pre_set_inputs=*/{}, 10 * CENT, coin_control, coin_selection_params_bnb);
         // NOTE: Dash does not use BnB and therefore, this check will fail
         // BOOST_CHECK(EquivalentResult(expected_result, *result12));
         available_coins.clear();
@@ -406,8 +410,12 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         add_coin(9 * CENT, 2, expected_result);
         add_coin(1 * CENT, 2, expected_result);
         coin_control.m_allow_other_inputs = true;
-        coin_control.Select(available_coins.all().at(1).outpoint); // pre select 9 coin
-        const auto result13 = SelectCoins(*wallet, available_coins, 10 * CENT, coin_control, coin_selection_params_bnb);
+        COutput select_coin = available_coins.all().at(1); // pre select 9 coin
+        coin_control.Select(select_coin.outpoint);
+        PreSelectedInputs selected_input;
+        selected_input.Insert(select_coin, coin_selection_params_bnb.m_subtract_fee_outputs);
+        available_coins.legacy.erase(++available_coins.legacy.begin());
+        const auto result13 = SelectCoins(*wallet, available_coins, selected_input, 10 * CENT, coin_control, coin_selection_params_bnb);
         BOOST_CHECK(EquivalentResult(expected_result, *result13));
     }
 }
@@ -795,7 +803,7 @@ BOOST_AUTO_TEST_CASE(SelectCoins_test)
         cs_params.m_cost_of_change = 1;
         cs_params.min_viable_change = 1;
         CCoinControl cc;
-        const auto result = SelectCoins(*wallet, available_coins, target, cc, cs_params);
+        const auto result = SelectCoins(*wallet, available_coins, /*pre_set_inputs=*/{}, target, cc, cs_params);
         BOOST_CHECK(result);
         BOOST_CHECK_GE(result->GetSelectedValue(), target);
     }
@@ -977,7 +985,10 @@ BOOST_AUTO_TEST_CASE(SelectCoins_effective_value_test)
     cc.SetInputWeight(output.outpoint, 148);
     cc.SelectExternal(output.outpoint, output.txout);
 
-    const auto result = SelectCoins(*wallet, available_coins, target, cc, cs_params);
+    const auto preset_inputs = *Assert(FetchSelectedInputs(*wallet, cc, cs_params));
+    available_coins.legacy.erase(available_coins.legacy.begin());
+
+    const auto result = SelectCoins(*wallet, available_coins, preset_inputs, target, cc, cs_params);
     BOOST_CHECK(!result);
 }
 
@@ -1064,7 +1075,7 @@ static std::optional<SelectionResult> select_coins(const CAmount& target, const 
     wallet->SetupDescriptorScriptPubKeyMans("", "");
 
     auto available_coins = coin_setup(*wallet);
-    auto result = SelectCoins(*wallet, available_coins, target, cc, cs_params);
+    auto result = SelectCoins(*wallet, available_coins, /*pre_set_inputs=*/{}, target, cc, cs_params);
     if (result) {
         BOOST_CHECK_LE(static_cast<int>(cs_params.tx_noinputs_size) + GetSelectionWeight(*result), MAX_STANDARD_TX_SIZE);
         BOOST_CHECK_GE(result->GetSelectedValue(), target);
@@ -1178,12 +1189,15 @@ BOOST_AUTO_TEST_CASE(minimum_inputs_test)
         /*tx_noinputs_size=*/0,
         /*avoid_partial=*/false,
     };
-    auto result = SelectCoins(*wallet, available_coins, target, coin_control, coin_selection_params);
+    const auto pre_set_inputs = *Assert(FetchSelectedInputs(*wallet, coin_control, coin_selection_params));
+    auto result = SelectCoins(*wallet, available_coins, pre_set_inputs, target, coin_control, coin_selection_params);
     BOOST_REQUIRE(result);
 
-    // Should consume only the first two coins (9 + 16) >= 25 and account correctly
+    // Should consume only two of the three coins: no single coin covers the 25 target, and any
+    // two of them do. Which two are picked depends on the pre-selected inputs ordering, so only
+    // assert on the input count and that the target is actually covered.
     BOOST_CHECK_EQUAL(result->GetInputSet().size(), 2);
-    BOOST_CHECK_EQUAL(result->GetSelectedValue(), 25 * COIN);
+    BOOST_CHECK_GE(result->GetSelectedValue(), target);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
