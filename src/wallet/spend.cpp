@@ -589,7 +589,13 @@ std::optional<SelectionResult> SelectCoins(const CWallet& wallet, CoinsResult& a
         if (all_inputs) {
             result.AddInput(preset_inputs);
         }
-        if (result.GetSelectedValue() < nTargetValue) return std::nullopt;
+
+        if (!coin_selection_params.m_subtract_fee_outputs && result.GetSelectedEffectiveValue() < nTargetValue) {
+            return std::nullopt;
+        } else if (result.GetSelectedValue() < nTargetValue) {
+            return std::nullopt;
+        }
+
         result.ComputeAndSetWaste(coin_selection_params.min_viable_change, coin_selection_params.m_cost_of_change, coin_selection_params.m_change_fee);
         return result;
     }
