@@ -22,11 +22,16 @@ class Loader;
 
 namespace wallet {
 class CWallet;
+struct DatabaseOptions;
+class WalletDatabase;
 
 extern const std::string ADDRESS_B58T_UNSPENDABLE;
 extern const std::string ADDRESS_BCRT1_UNSPENDABLE;
 
 std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, interfaces::CoinJoin::Loader& coinjoin_loader, ChainstateManager& chainman, ArgsManager& args, const CKey& key);
+
+// Creates a copy of the provided database
+std::unique_ptr<WalletDatabase> DuplicateMockDatabase(WalletDatabase& database, DatabaseOptions& options);
 
 /** Returns a new encoded destination from the wallet */
 std::string getnewaddress(CWallet& w);
