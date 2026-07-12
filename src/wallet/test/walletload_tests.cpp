@@ -34,7 +34,7 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(wallet_load_unknown_descriptor, TestingSetup)
 {
-    std::unique_ptr<WalletDatabase> database = CreateMockWalletDatabase();
+    std::unique_ptr<WalletDatabase> database = CreateMockableWalletDatabase();
     {
         // Write unknown active descriptor
         WalletBatch batch(*database, false);
@@ -85,7 +85,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_load_verif_crypted_key_checksum, TestingSetup)
         // Dash: upstream uses LegacyScriptPubKeyMan::SetupGeneration() + GetNewDestination(),
         // which have not been backported. Add a key directly via AddKeyPubKey() instead; this
         // preserves the test's intent (an encrypted legacy wallet with one known crypted key).
-        std::shared_ptr<CWallet> wallet(new CWallet(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", m_args, CreateMockWalletDatabase()));
+        std::shared_ptr<CWallet> wallet(new CWallet(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", m_args, CreateMockableWalletDatabase()));
         LOCK(wallet->cs_wallet);
         auto legacy_spkm = wallet->GetOrCreateLegacyScriptPubKeyMan();
         first_key.MakeNewKey(/*fCompressed=*/true);
@@ -95,9 +95,8 @@ BOOST_FIXTURE_TEST_CASE(wallet_load_verif_crypted_key_checksum, TestingSetup)
         BOOST_CHECK(wallet->EncryptWallet("encrypt"));
         wallet->Flush();
 
-        DatabaseOptions options;
         for (int i=0; i < NUMBER_OF_TESTS; i++) {
-            dbs.emplace_back(DuplicateMockDatabase(wallet->GetDatabase(), options));
+            dbs.emplace_back(DuplicateMockDatabase(wallet->GetDatabase()));
         }
     }
 

@@ -14,7 +14,7 @@
 #include <wallet/wallet.h>
 
 using wallet::CWallet;
-using wallet::CreateMockWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::DBErrors;
 using wallet::getNewDestination;
 using wallet::WALLET_FLAG_DESCRIPTORS;
@@ -83,7 +83,7 @@ static void WalletCreateTx(benchmark::Bench& bench, bool allow_other_inputs, std
 {
     const auto test_setup = MakeNoLogFileContext<const TestingSetup>();
 
-    CWallet wallet{test_setup->m_node.chain.get(), test_setup->m_node.coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase()};
+    CWallet wallet{test_setup->m_node.chain.get(), test_setup->m_node.coinjoin_loader.get(), "", gArgs, CreateMockableWalletDatabase()};
     {
         LOCK(wallet.cs_wallet);
         wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);

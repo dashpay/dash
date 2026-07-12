@@ -8,6 +8,7 @@
 #include <policy/policy.h>
 #include <wallet/coinselection.h>
 #include <wallet/spend.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 
 #include <set>
@@ -17,7 +18,7 @@ using wallet::CHANGE_LOWER;
 using wallet::CoinEligibilityFilter;
 using wallet::CoinSelectionParams;
 using wallet::COutput;
-using wallet::CreateDummyWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::CWallet;
 using wallet::CWalletTx;
 using wallet::OutputGroup;
@@ -44,7 +45,7 @@ static void CoinSelection(benchmark::Bench& bench)
 {
     NodeContext node;
     auto chain = interfaces::MakeChain(node);
-    CWallet wallet(chain.get(), /*coinjoin_loader=*/nullptr, "", gArgs, CreateDummyWalletDatabase());
+    CWallet wallet(chain.get(), /*coinjoin_loader=*/nullptr, "", gArgs, CreateMockableWalletDatabase());
     std::vector<std::unique_ptr<CWalletTx>> wtxs;
     LOCK(wallet.cs_wallet);
 

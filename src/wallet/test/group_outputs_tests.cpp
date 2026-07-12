@@ -6,6 +6,7 @@
 
 #include <wallet/coinselection.h>
 #include <wallet/spend.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 
 #include <boost/test/unit_test.hpp>
@@ -17,7 +18,7 @@ static int nextLockTime = 0;
 
 static std::shared_ptr<CWallet> NewWallet(const node::NodeContext& m_node, const ArgsManager& args)
 {
-    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", args, CreateMockWalletDatabase());
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", args, CreateMockableWalletDatabase());
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);

@@ -23,6 +23,7 @@
 #include <wallet/context.h>
 #include <wallet/db.h>
 #include <wallet/spend.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
@@ -143,7 +144,7 @@ class CTransactionBuilderTestSetup : public TestChain100Setup
 {
 public:
     CTransactionBuilderTestSetup() :
-        wallet{std::make_unique<CWallet>(m_node.chain.get(), m_node.coinjoin_loader.get(), "", m_args, CreateMockWalletDatabase())}
+        wallet{std::make_unique<CWallet>(m_node.chain.get(), m_node.coinjoin_loader.get(), "", m_args, CreateMockableWalletDatabase())}
     {
         // NOTE: minRelayTxFee is a global other suites mutate without restoring the
         // default (transaction_tests leaves it at DUST_RELAY_TX_FEE), which makes the
