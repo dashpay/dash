@@ -302,6 +302,10 @@ CoinsResult AvailableCoins(const CWallet& wallet,
 
             // Cache total amount as we go
             result.total_amount += output.nValue;
+            if (coin.HasEffectiveValue()) {
+                result.total_effective_amount = result.total_effective_amount.has_value() ?
+                        *result.total_effective_amount + coin.GetEffectiveValue() : coin.GetEffectiveValue();
+            }
             // Checks the sum amount of all UTXO's.
             if (nMinimumSumAmount != MAX_MONEY) {
                 if (result.total_amount >= nMinimumSumAmount) {
@@ -598,6 +602,14 @@ std::optional<SelectionResult> SelectCoins(const CWallet& wallet, CoinsResult& a
         }
         result.ComputeAndSetWaste(coin_selection_params.min_viable_change, coin_selection_params.m_cost_of_change, coin_selection_params.m_change_fee);
         return result;
+    }
+
+    // Return early if we cannot cover the target with the wallet's UTXO.
+    // We use the total effective value if we are not subtracting fee from outputs and 'available_coins' contains the data.
+    CAmount available_coins_total_amount = coin_selection_params.m_subtract_fee_outputs ? available_coins.GetTotalAmount() :
+            (available_coins.GetEffectiveTotalAmount().has_value() ? *available_coins.GetEffectiveTotalAmount() : 0);
+    if (selection_target > available_coins_total_amount) {
+        return std::nullopt; // Insufficient funds
     }
 
     // Start wallet Coin Selection procedure

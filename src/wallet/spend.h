@@ -51,8 +51,13 @@ struct CoinsResult {
     uint64_t size() const;
     void clear();
 
-    /** Sum of all available coins */
+    /** Sum of all available coins raw value */
     CAmount total_amount{0};
+    /** Sum of all available coins effective value (each output value minus fees required to spend it) */
+    std::optional<CAmount> total_effective_amount{0};
+
+    CAmount GetTotalAmount() const { return total_amount; }
+    std::optional<CAmount> GetEffectiveTotalAmount() const { return total_effective_amount; }
 };
 
 /**
