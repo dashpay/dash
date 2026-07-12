@@ -960,16 +960,33 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
                                          0);           /*nMaximumCount*/
     }
 
-    // Choose coins to use
-    std::optional<SelectionResult> result = SelectCoins(wallet, available_coins, preset_inputs, /*nTargetValue=*/selection_target, coin_control, coin_selection_params);
-    if (!result) {
-        if (coin_control.nCoinType == CoinType::ONLY_NONDENOMINATED) {
-            return util::Error{_("Unable to locate enough non-denominated funds for this transaction.")};
-        } else if (coin_control.nCoinType == CoinType::ONLY_FULLY_MIXED) {
-            return util::Error{_("Unable to locate enough mixed funds for this transaction.") +
-                               Untranslated(" ") + strprintf(_("%s uses exact denominated amounts to send funds, you might simply need to mix some more coins."), gCoinJoinName)};
+    // Choose coins to use. Coin selection estimates CompactSize prefixes before the final input
+    // and output counts are known. If either count crosses a boundary, retry with the exact prefix
+    // fees included in the target.
+    std::optional<SelectionResult> result;
+    while (true) {
+        result = SelectCoins(wallet, available_coins, preset_inputs, /*nTargetValue=*/selection_target, coin_control, coin_selection_params);
+        if (!result) {
+            if (coin_control.nCoinType == CoinType::ONLY_NONDENOMINATED) {
+                return util::Error{_("Unable to locate enough non-denominated funds for this transaction.")};
+            } else if (coin_control.nCoinType == CoinType::ONLY_FULLY_MIXED) {
+                return util::Error{_("Unable to locate enough mixed funds for this transaction.") +
+                                   Untranslated(" ") + strprintf(_("%s uses exact denominated amounts to send funds, you might simply need to mix some more coins."), gCoinJoinName)};
+            }
+            return util::Error{_("Insufficient funds.")};
         }
-        return util::Error{_("Insufficient funds.")};
+        if (coin_selection_params.m_subtract_fee_outputs) break;
+
+        const size_t vin_count_delta = GetSizeOfCompactSize(result->GetInputSet().size()) - 1;
+        const CAmount change_amount = coin_control.nCoinType == CoinType::ONLY_FULLY_MIXED
+                                          ? 0
+                                          : result->GetChange(coin_selection_params.min_viable_change, coin_selection_params.m_change_fee);
+        const size_t vout_count_delta = GetSizeOfCompactSize(vecSend.size() + (change_amount > 0)) -
+                                        GetSizeOfCompactSize(vecSend.size());
+        const CAmount adjusted_target = recipients_sum + coin_selection_params.m_effective_feerate.GetFee(
+            coin_selection_params.tx_noinputs_size + vin_count_delta + vout_count_delta);
+        if (adjusted_target <= selection_target) break;
+        selection_target = adjusted_target;
     }
     TRACE5(coin_selection, selected_coins, wallet.GetName().c_str(), GetAlgorithmName(result->GetAlgo()).c_str(), result->GetTarget(), result->GetWaste(), result->GetSelectedValue());
 
