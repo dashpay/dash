@@ -2255,8 +2255,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             }
             return InitError(strprintf(_("Failed to clear governance cache at %s"), file_path));
         }
-        node.peerman->AddExtraHandler(std::make_unique<NetGovernance>(node.peerman.get(), *node.govman, *node.mn_sync, *node.netfulfilledman, *node.connman));
     }
+    // Always register NetGovernance so it can suppress governance inv items in AlreadyHave()
+    // even when -disablegovernance is set. The handler's ProcessMessage/Schedule paths
+    // early-return on !IsValid(), and AlreadyHave() short-circuits to true so we don't
+    // track governance inventory that cannot be processed.
+    node.peerman->AddExtraHandler(std::make_unique<NetGovernance>(node.peerman.get(), *node.govman, *node.mn_sync, *node.netfulfilledman, *node.connman));
     node.peerman->AddExtraHandler(std::make_unique<SyncManager>(node.peerman.get(), *node.govman, *node.mn_sync, *node.connman, *node.netfulfilledman));
 
     // ********************************************************* Step 8: start indexers
