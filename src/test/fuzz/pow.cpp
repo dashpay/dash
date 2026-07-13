@@ -117,6 +117,10 @@ FUZZ_TARGET(pow_transition, .init = initialize_pow)
         blocks.emplace_back(std::move(current_block));
     }
     auto last_block{blocks.back().get()};
-    unsigned int new_nbits{GetNextWorkRequired(last_block, nullptr, consensus_params)};
+    CBlockHeader next_header;
+    next_header.nVersion = version;
+    next_header.nTime = new_time;
+    next_header.nBits = nbits;
+    unsigned int new_nbits{GetNextWorkRequired(last_block, &next_header, consensus_params)};
     Assert(PermittedDifficultyTransition(consensus_params, last_block->nHeight + 1, last_block->nBits, new_nbits));
 }
