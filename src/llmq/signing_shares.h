@@ -157,11 +157,15 @@ public:
 public:
     SERIALIZE_METHODS(CBatchedSigShares, obj)
     {
-        READWRITE(VARINT(obj.sessionId), obj.sigShares);
+        READWRITE(VARINT(obj.sessionId), LIMITED_VECTOR(obj.sigShares, MAX_MSGS_TOTAL_BATCHED_SIGS));
     }
 
     [[nodiscard]] std::string ToInvString() const;
 };
+
+//! Decode a QBSIGSHARES payload while enforcing both the outer batch count and
+//! aggregate inner sig-share count. Throws std::ios_base::failure on overflow.
+std::vector<CBatchedSigShares> UnserializeBatchedSigShares(CDataStream& vRecv);
 
 /**
  * Two-level (signHash -> quorumMember) map with a running entry count, so Size() is O(1)
