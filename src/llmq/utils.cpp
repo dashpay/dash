@@ -378,8 +378,6 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
 
     size_t quorumSize = static_cast<size_t>(llmqParams.size);
     auto quarterSize{quorumSize / 4};
-    const auto modifier = GetHashModifier(llmqParams, util_params.m_chainman.GetConsensus(), util_params.m_base_index,
-                                          &util_params.m_qsnapman);
 
     if (allMns.GetCounts().enabled() < quarterSize) {
         return quarterQuorumMembers;
@@ -732,7 +730,7 @@ static QuorumMembers GetAllQuorumMembersInternal(Consensus::LLMQType llmqType, c
         const CBlockIndex* pWorkBlockIndex = pCycleQuorumBaseBlockIndex->GetAncestor(cycleQuorumBaseHeight -
                                                                                      WORK_DIFF_DEPTH);
         const auto modifier = GetHashModifier(llmq_params, util_params.m_chainman.GetConsensus(),
-                                              pCycleQuorumBaseBlockIndex);
+                                              pCycleQuorumBaseBlockIndex, &util_params.m_qsnapman);
         auto q = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params.replace_index(pCycleQuorumBaseBlockIndex),
                                                        pWorkBlockIndex, cycleQuorumBaseHeight, modifier,
                                                        /*predicting=*/false);
