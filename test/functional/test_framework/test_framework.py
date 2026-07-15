@@ -21,6 +21,8 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 
 from typing import List, Optional, Union
@@ -2003,6 +2005,7 @@ class DashTestFramework(BitcoinTestFramework):
                     wait_proc()
                 return False
 
+            found_session = False
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus")
                 for qs in s["session"]:
@@ -2010,6 +2013,7 @@ class DashTestFramework(BitcoinTestFramework):
                         continue
                     if qs["status"]["quorumHash"] != quorum_hash:
                         continue
+                    found_session = True
                     for qc in s["quorumConnections"]:
                         if "quorumConnections" not in qc:
                             continue
@@ -2025,11 +2029,14 @@ class DashTestFramework(BitcoinTestFramework):
                                 cnt += 1
                         if cnt < expected_connections:
                             return ret()
-                        return True
-                    # a session with no matching connections - not ok
-                    return ret()
+                        break
+                    else:
+                        # a session with no matching connections - not ok
+                        return ret()
+                    break
                 # a node with no sessions - ok
-                pass
+            if found_session:
+                return True
             # no sessions at all - not ok
             return ret()
 
@@ -2539,3 +2546,43 @@ class DashTestFramework(BitcoinTestFramework):
                     c += 1
             return c >= count
         self.wait_until(test, timeout=timeout)
+
+
+class TestFrameworkQuorumConnections(unittest.TestCase):
+    @staticmethod
+    def dkg_status(quorum_hash, connected):
+        return {
+            "session": [{
+                "llmqType": "llmq_test",
+                "status": {"quorumHash": quorum_hash},
+            }],
+            "quorumConnections": [{
+                "llmqType": "llmq_test",
+                "quorumHash": quorum_hash,
+                "quorumConnections": [{"connected": value} for value in connected],
+            }],
+        }
+
+    def test_wait_for_all_members(self):
+        def mninfo(status):
+            node = SimpleNamespace(quorum=lambda _command: status)
+            return SimpleNamespace(get_node=lambda _framework: node)
+
+        quorum_hash = "11" * 32
+        results = []
+        framework = SimpleNamespace(wait_until=lambda predicate, **kwargs: results.append(predicate()))
+        wait_proc_calls = []
+        mninfos = [
+            mninfo(self.dkg_status(quorum_hash, [True, True])),
+            mninfo(self.dkg_status(quorum_hash, [True, False])),
+        ]
+        DashTestFramework.wait_for_quorum_connections(
+            framework, quorum_hash, 2, mninfos, wait_proc=lambda: wait_proc_calls.append(True))
+        self.assertEqual(results, [False])
+        self.assertEqual(wait_proc_calls, [True])
+
+        mninfos[1] = mninfo(self.dkg_status(quorum_hash, [True, True]))
+        DashTestFramework.wait_for_quorum_connections(
+            framework, quorum_hash, 2, mninfos, wait_proc=lambda: wait_proc_calls.append(True))
+        self.assertEqual(results, [False, True])
+        self.assertEqual(wait_proc_calls, [True])
