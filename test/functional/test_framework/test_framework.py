@@ -1998,14 +1998,14 @@ class DashTestFramework(BitcoinTestFramework):
             return all(node.spork('show') == sporks for node in self.nodes[1:])
         self.wait_until(check_sporks_same, timeout=timeout, sleep=1)
 
-    def wait_for_quorum_connections(self, quorum_hash, expected_connections, mninfos, llmq_type_name="llmq_test", timeout = 60, wait_proc=None):
+    def wait_for_quorum_connections(self, quorum_hash, expected_connections, mninfos, llmq_type_name="llmq_test", timeout = 60, wait_proc=None, expected_member_count=1):
         def check_quorum_connections():
             def ret():
                 if wait_proc is not None:
                     wait_proc()
                 return False
 
-            found_session = False
+            matching_member_count = 0
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus")
                 for qs in s["session"]:
@@ -2013,7 +2013,9 @@ class DashTestFramework(BitcoinTestFramework):
                         continue
                     if qs["status"]["quorumHash"] != quorum_hash:
                         continue
-                    found_session = True
+                    matching_member_count += 1
+                    # -1 means no matching connections entry for this session
+                    connected = -1
                     for qc in s["quorumConnections"]:
                         if "quorumConnections" not in qc:
                             continue
@@ -2023,22 +2025,15 @@ class DashTestFramework(BitcoinTestFramework):
                             continue
                         if len(qc["quorumConnections"]) == 0:
                             continue
-                        cnt = 0
-                        for c in qc["quorumConnections"]:
-                            if c["connected"]:
-                                cnt += 1
-                        if cnt < expected_connections:
-                            return ret()
+                        connected = sum(1 for c in qc["quorumConnections"] if c["connected"])
                         break
-                    else:
-                        # a session with no matching connections - not ok
+                    if connected < expected_connections:
                         return ret()
                     break
-                # a node with no sessions - ok
-            if found_session:
-                return True
-            # no sessions at all - not ok
-            return ret()
+                # a node with no matching session - ok (non-member)
+            if matching_member_count < expected_member_count:
+                return ret()
+            return True
 
         self.wait_until(check_quorum_connections, timeout=timeout, sleep=1)
 
@@ -2204,7 +2199,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Expected quorum_hash:"+str(q))
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
-        self.wait_for_quorum_connections(q, expected_connections, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
+        self.wait_for_quorum_connections(q, expected_connections, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name, expected_member_count=expected_members)
         if spork23_active:
             self.wait_for_masternode_probes(q, mninfos_online, wait_proc=lambda: self.bump_mocktime(1))
 
@@ -2366,7 +2361,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("quorumIndex 0: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_0, 1, expected_members, None, 0, mninfos_online, llmq_type_name)
         self.log.info("quorumIndex 0: Waiting for quorum connections (init)")
-        self.wait_for_quorum_connections(q_0, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1))
+        self.wait_for_quorum_connections(q_0, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1), expected_member_count=expected_members)
         if spork23_active:
             self.wait_for_masternode_probes(q_0, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
 
@@ -2381,7 +2376,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("quorumIndex 1: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_1, 1, expected_members, None, 0, mninfos_online, llmq_type_name)
         self.log.info("quorumIndex 1: Waiting for quorum connections (init)")
-        self.wait_for_quorum_connections(q_1, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1))
+        self.wait_for_quorum_connections(q_1, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1), expected_member_count=expected_members)
         if spork23_active:
             self.wait_for_masternode_probes(q_1, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
 
@@ -2549,40 +2544,38 @@ class DashTestFramework(BitcoinTestFramework):
 
 
 class TestFrameworkQuorumConnections(unittest.TestCase):
-    @staticmethod
-    def dkg_status(quorum_hash, connected):
-        return {
-            "session": [{
-                "llmqType": "llmq_test",
-                "status": {"quorumHash": quorum_hash},
-            }],
-            "quorumConnections": [{
-                "llmqType": "llmq_test",
-                "quorumHash": quorum_hash,
-                "quorumConnections": [{"connected": value} for value in connected],
-            }],
-        }
-
     def test_wait_for_all_members(self):
-        def mninfo(status):
+        quorum_hash = "11" * 32
+
+        def mninfo(connected):
+            if connected is None:
+                status = {"session": [], "quorumConnections": []}
+            else:
+                status = {
+                    "session": [{
+                        "llmqType": "llmq_test",
+                        "status": {"quorumHash": quorum_hash},
+                    }],
+                    "quorumConnections": [{
+                        "llmqType": "llmq_test",
+                        "quorumHash": quorum_hash,
+                        "quorumConnections": [{"connected": value} for value in connected],
+                    }],
+                }
             node = SimpleNamespace(quorum=lambda _command: status)
             return SimpleNamespace(get_node=lambda _framework: node)
 
-        quorum_hash = "11" * 32
-        results = []
-        framework = SimpleNamespace(wait_until=lambda predicate, **kwargs: results.append(predicate()))
-        wait_proc_calls = []
-        mninfos = [
-            mninfo(self.dkg_status(quorum_hash, [True, True])),
-            mninfo(self.dkg_status(quorum_hash, [True, False])),
-        ]
-        DashTestFramework.wait_for_quorum_connections(
-            framework, quorum_hash, 2, mninfos, wait_proc=lambda: wait_proc_calls.append(True))
-        self.assertEqual(results, [False])
-        self.assertEqual(wait_proc_calls, [True])
-
-        mninfos[1] = mninfo(self.dkg_status(quorum_hash, [True, True]))
-        DashTestFramework.wait_for_quorum_connections(
-            framework, quorum_hash, 2, mninfos, wait_proc=lambda: wait_proc_calls.append(True))
-        self.assertEqual(results, [False, True])
-        self.assertEqual(wait_proc_calls, [True])
+        for name, connections, expected_ready, expected_wait_calls in [
+            ("incomplete member", [[True, True], [True, False]], False, 1),
+            ("all members ready", [[True, True], [True, True]], True, 0),
+            ("missing member session", [[True, True], None], False, 1),
+        ]:
+            with self.subTest(name):
+                results = []
+                framework = SimpleNamespace(wait_until=lambda predicate, **kwargs: results.append(predicate()))
+                wait_proc_calls = []
+                DashTestFramework.wait_for_quorum_connections(
+                    framework, quorum_hash, 2, [mninfo(c) for c in connections],
+                    wait_proc=lambda: wait_proc_calls.append(True), expected_member_count=2)
+                self.assertEqual(results, [expected_ready])
+                self.assertEqual(len(wait_proc_calls), expected_wait_calls)
