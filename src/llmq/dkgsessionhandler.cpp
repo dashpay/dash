@@ -29,18 +29,32 @@ void CDKGPendingMessages::PushPendingMessage(NodeId from, std::shared_ptr<CDataS
 {
     LOCK(cs_messages);
 
-    if (messagesPerNode[from] >= maxMessagesPerNode) {
-        // TODO ban?
-        LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- too many messages, peer=%d\n", __func__, from);
-        return;
-    }
-    messagesPerNode[from]++;
-
-    if (!seenMessages.emplace(hash).second) {
+    // Check duplicates before charging the per-node quota so a peer that
+    // resends the same hash cannot exhaust its budget with dupes.
+    if (seenMessages.count(hash) != 0) {
         LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- already seen %s, peer=%d\n", __func__, hash.ToString(), from);
         return;
     }
 
+    const auto node_it = messagesPerNode.find(from);
+    if (node_it != messagesPerNode.end() && node_it->second >= maxMessagesPerNode) {
+        // TODO ban?
+        LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- too many messages, peer=%d\n", __func__, from);
+        return;
+    }
+
+    const bool is_remote = from != -1;
+    if ((is_remote && pendingRemoteMessageCount >= maxPendingRemoteMessages) ||
+        pendingMessages.size() >= maxPendingMessages) {
+        LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- pending queue full, peer=%d\n", __func__, from);
+        return;
+    }
+    messagesPerNode[from]++;
+    if (is_remote) {
+        pendingRemoteMessageCount++;
+    }
+
+    seenMessages.emplace(hash);
     pendingMessages.emplace_back(std::make_pair(from, std::move(pm)));
 }
 
@@ -50,6 +64,9 @@ std::list<CDKGPendingMessages::BinaryMessage> CDKGPendingMessages::PopPendingMes
 
     std::list<BinaryMessage> ret;
     while (!pendingMessages.empty() && ret.size() < maxCount) {
+        if (pendingMessages.front().first != -1) {
+            pendingRemoteMessageCount--;
+        }
         ret.emplace_back(std::move(pendingMessages.front()));
         pendingMessages.pop_front();
     }
@@ -57,18 +74,19 @@ std::list<CDKGPendingMessages::BinaryMessage> CDKGPendingMessages::PopPendingMes
     return ret;
 }
 
-bool CDKGPendingMessages::HasSeen(const uint256& hash) const
-{
-    LOCK(cs_messages);
-    return seenMessages.count(hash) != 0;
-}
-
 void CDKGPendingMessages::Clear()
 {
     LOCK(cs_messages);
     pendingMessages.clear();
+    pendingRemoteMessageCount = 0;
     messagesPerNode.clear();
     seenMessages.clear();
+}
+
+bool CDKGPendingMessages::HasSeen(const uint256& hash) const
+{
+    LOCK(cs_messages);
+    return seenMessages.count(hash) != 0;
 }
 
 void CDKGSessionHandler::ClearPendingMessages()

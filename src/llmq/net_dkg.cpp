@@ -72,46 +72,195 @@ size_t MaxDKGMessageSize(std::string_view msg_type, const Consensus::LLMQParams&
     return cap < HARD_CEILING ? cap : HARD_CEILING;
 }
 
-// Cheap, param-only structural validation of a pushed DKG message, run at intake
-// before retention. Deserializes a COPY of the payload (leaving the caller's bytes
-// intact for the pending queue and its inventory hash) and checks only safe upper
-// bounds derived from quorum params: no member-list lookup and no signature
-// verification, which remain on the DKG worker thread. Deserializing the copy does
-// decompress the BLS points carried in the payload, but that work is bounded by
-// the size cap applied just before this check. Rejects malformed or clearly
-// oversized payloads before retention.
-bool CheckDKGMessageStructure(std::string_view msg_type, const CDataStream& vRecv, const Consensus::LLMQParams& params)
+bool SkipBytes(CDataStream& ds, size_t size)
+{
+    try {
+        ds.ignore(size);
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+std::optional<uint64_t> ReadCompactSizeNoThrow(CDataStream& ds)
+{
+    try {
+        return ReadCompactSize(ds);
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+}
+
+bool SkipCommonDKGFields(CDataStream& ds)
+{
+    constexpr size_t PREFIX = 1 + 32 + 32; // llmqType + quorumHash + proTxHash
+    return SkipBytes(ds, PREFIX);
+}
+
+// BLS encodings have fixed wire sizes, so intake only needs to establish that
+// the bytes are present. Decoding and canonical/scheme validation remain on the
+// DKG worker, where each object is materialized exactly once.
+template <typename BLSObject>
+bool SkipBLSObject(CDataStream& ds)
+{
+    return SkipBytes(ds, BLSObject::SerSize);
+}
+
+bool ReadAndCheckDynBitset(CDataStream& ds, uint64_t max_size, uint64_t& size_ret)
+{
+    const auto size = ReadCompactSizeNoThrow(ds);
+    if (!size.has_value() || size.value() > max_size) {
+        return false;
+    }
+
+    const size_t byte_size = (size.value() + 7) / 8;
+    std::vector<unsigned char> bytes(byte_size);
+    try {
+        ds.read(AsWritableBytes(Span{bytes}));
+    } catch (const std::exception&) {
+        return false;
+    }
+
+    if (!bytes.empty() && bytes.size() * 8 != size.value()) {
+        const size_t rem = bytes.size() * 8 - size.value();
+        const uint8_t mask = ~(uint8_t)(0xff >> rem);
+        if (bytes.back() & mask) {
+            return false;
+        }
+    }
+
+    size_ret = size.value();
+    return true;
+}
+
+bool CheckContributionWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
     const size_t min_size = params.minSize > 0 ? static_cast<size_t>(params.minSize) : 0;
     const size_t threshold = params.threshold > 0 ? static_cast<size_t>(params.threshold) : 0;
-    try {
-        CDataStream s(vRecv); // copy; deserialization does not advance the caller's stream
-        if (msg_type == NetMsgType::QCONTRIB) {
-            CDKGContribution qc;
-            s >> qc;
-            return qc.vvec != nullptr && qc.vvec->size() == threshold &&
-                   qc.contributions != nullptr &&
-                   qc.contributions->blobs.size() >= min_size &&
-                   qc.contributions->blobs.size() <= size;
-        } else if (msg_type == NetMsgType::QCOMPLAINT) {
-            CDKGComplaint qc;
-            s >> qc;
-            return qc.badMembers.size() == qc.complainForMembers.size() &&
-                   qc.badMembers.size() <= size;
-        } else if (msg_type == NetMsgType::QJUSTIFICATION) {
-            CDKGJustification qj;
-            s >> qj;
-            return qj.contributions.size() <= size;
-        } else if (msg_type == NetMsgType::QPCOMMITMENT) {
-            CDKGPrematureCommitment qc;
-            s >> qc;
-            return qc.validMembers.size() <= size;
-        }
-        return false;
-    } catch (const std::exception&) {
+
+    if (!SkipCommonDKGFields(ds)) {
         return false;
     }
+
+    const auto vvec_size = ReadCompactSizeNoThrow(ds);
+    if (!vvec_size.has_value() || vvec_size.value() != threshold) {
+        return false;
+    }
+    for (uint64_t i = 0; i < vvec_size.value(); ++i) {
+        if (!SkipBLSObject<CBLSPublicKey>(ds)) {
+            return false;
+        }
+    }
+
+    if (!SkipBLSObject<CBLSPublicKey>(ds) || !SkipBytes(ds, 32)) {
+        return false;
+    }
+
+    const auto blob_count = ReadCompactSizeNoThrow(ds);
+    if (!blob_count.has_value() || blob_count.value() < min_size || blob_count.value() > size) {
+        return false;
+    }
+    for (uint64_t i = 0; i < blob_count.value(); ++i) {
+        const auto blob_size = ReadCompactSizeNoThrow(ds);
+        if (!blob_size.has_value() || !SkipBytes(ds, blob_size.value())) {
+            return false;
+        }
+    }
+
+    return SkipBLSObject<CBLSSignature>(ds) && ds.empty();
+}
+
+bool CheckComplaintWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    uint64_t bad_members_size{0};
+    uint64_t complain_for_members_size{0};
+    return SkipCommonDKGFields(ds) && ReadAndCheckDynBitset(ds, size, bad_members_size) &&
+           ReadAndCheckDynBitset(ds, size, complain_for_members_size) &&
+           bad_members_size == complain_for_members_size && SkipBLSObject<CBLSSignature>(ds) && ds.empty();
+}
+
+bool CheckJustificationWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    if (!SkipCommonDKGFields(ds)) {
+        return false;
+    }
+
+    const auto contribution_count = ReadCompactSizeNoThrow(ds);
+    if (!contribution_count.has_value() || contribution_count.value() > size) {
+        return false;
+    }
+    for (uint64_t i = 0; i < contribution_count.value(); ++i) {
+        if (!SkipBytes(ds, 4) || !SkipBLSObject<CBLSSecretKey>(ds)) {
+            return false;
+        }
+    }
+
+    return SkipBLSObject<CBLSSignature>(ds) && ds.empty();
+}
+
+bool CheckPrematureCommitmentWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    uint64_t valid_members_size{0};
+    return SkipCommonDKGFields(ds) && ReadAndCheckDynBitset(ds, size, valid_members_size) &&
+           SkipBLSObject<CBLSPublicKey>(ds) && SkipBytes(ds, 32) && SkipBLSObject<CBLSSignature>(ds) &&
+           SkipBLSObject<CBLSSignature>(ds) && ds.empty();
+}
+
+bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload, const Consensus::LLMQParams& params)
+{
+    CDataStream ds(payload);
+    if (msg_type == NetMsgType::QCONTRIB) {
+        return CheckContributionWireStructure(ds, params);
+    } else if (msg_type == NetMsgType::QCOMPLAINT) {
+        return CheckComplaintWireStructure(ds, params);
+    } else if (msg_type == NetMsgType::QJUSTIFICATION) {
+        return CheckJustificationWireStructure(ds, params);
+    } else if (msg_type == NetMsgType::QPCOMMITMENT) {
+        return CheckPrematureCommitmentWireStructure(ds, params);
+    }
+    return false;
+}
+
+// Param-only structural validation of a typed DKG message: checks only safe
+// upper bounds derived from quorum params. Called by the DKG worker immediately
+// after deserializing queued bytes and before PreVerifyMessage, so malformed
+// structures never reach deeper validation.
+template <typename Message>
+bool CheckDKGMessageStructure(const Message& msg, const Consensus::LLMQParams& params);
+
+template <>
+bool CheckDKGMessageStructure<CDKGContribution>(const CDKGContribution& qc, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    const size_t min_size = params.minSize > 0 ? static_cast<size_t>(params.minSize) : 0;
+    const size_t threshold = params.threshold > 0 ? static_cast<size_t>(params.threshold) : 0;
+    return qc.vvec != nullptr && qc.vvec->size() == threshold && qc.contributions != nullptr &&
+           qc.contributions->blobs.size() >= min_size && qc.contributions->blobs.size() <= size;
+}
+
+template <>
+bool CheckDKGMessageStructure<CDKGComplaint>(const CDKGComplaint& qc, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    return qc.badMembers.size() == qc.complainForMembers.size() && qc.badMembers.size() <= size;
+}
+
+template <>
+bool CheckDKGMessageStructure<CDKGJustification>(const CDKGJustification& qj, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    return qj.contributions.size() <= size;
+}
+
+template <>
+bool CheckDKGMessageStructure<CDKGPrematureCommitment>(const CDKGPrematureCommitment& qc, const Consensus::LLMQParams& params)
+{
+    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
+    return qc.validMembers.size() <= size;
 }
 
 // returns a set of NodeIds which sent invalid messages
@@ -258,6 +407,10 @@ void RelayInvToParticipants(const CDKGSession& session, const CConnman& connman,
 template <typename Message>
 void EnqueueOwn(CDKGPendingMessages& pending, const Message& msg)
 {
+    // Own messages skip the wire path but still populate the pending queue so
+    // the DKG worker sees them alongside peer messages. The inventory hash is
+    // computed over the serialized form so it matches what remote peers would
+    // compute for the same message.
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << msg;
     auto pm = std::make_shared<CDataStream>(std::move(ds));
@@ -267,10 +420,31 @@ void EnqueueOwn(CDKGPendingMessages& pending, const Message& msg)
 }
 
 template <typename Message>
-bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, CDKGPendingMessages& pendingMessages,
-                                PeerManagerInternal& peerman, size_t maxCount)
+bool DeserializeAndCheckDKGMessage(CDataStream& ds, const Consensus::LLMQParams& params, std::shared_ptr<Message>& msg)
 {
-    auto msgs = pendingMessages.PopAndDeserializeMessages<Message>(maxCount);
+    msg = std::make_shared<Message>();
+    try {
+        ds >> *msg;
+    } catch (...) {
+        msg.reset();
+        return false;
+    }
+    if (!ds.empty()) {
+        msg.reset();
+        return false;
+    }
+    if (!CheckDKGMessageStructure(*msg, params)) {
+        msg.reset();
+        return false;
+    }
+    return true;
+}
+
+template <typename Message>
+bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, const Consensus::LLMQParams& params,
+                                CDKGPendingMessages& pendingMessages, PeerManagerInternal& peerman, size_t maxCount)
+{
+    auto msgs = pendingMessages.PopPendingMessages(maxCount);
     if (msgs.empty()) {
         return false;
     }
@@ -280,13 +454,14 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
 
     for (const auto& p : msgs) {
         const NodeId& nodeId = p.first;
-        if (!p.second) {
+        std::shared_ptr<Message> msg;
+        if (!DeserializeAndCheckDKGMessage(*p.second, params, msg)) {
             LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, nodeId);
             peerman.PeerMisbehaving(nodeId, 100);
             continue;
         }
         bool ban = false;
-        if (!session.PreVerifyMessage(*p.second, ban)) {
+        if (!session.PreVerifyMessage(*msg, ban)) {
             if (ban) {
                 LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, nodeId);
                 peerman.PeerMisbehaving(nodeId, 100);
@@ -294,7 +469,7 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
             LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, nodeId);
             continue;
         }
-        preverifiedMessages.emplace_back(p);
+        preverifiedMessages.emplace_back(nodeId, std::move(msg));
     }
     if (preverifiedMessages.empty()) {
         return true;
@@ -321,6 +496,7 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
 
     return true;
 }
+
 } // namespace
 
 
@@ -404,10 +580,17 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
 
     Consensus::LLMQType llmqType;
     uint256 quorumHash;
-    vRecv >> llmqType;
-    vRecv >> quorumHash;
-    vRecv.Rewind(sizeof(uint256));
-    vRecv.Rewind(sizeof(uint8_t));
+    try {
+        vRecv >> llmqType;
+        vRecv >> quorumHash;
+    } catch (const std::exception&) {
+        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "malformed DKG message");
+        return;
+    }
+    if (!vRecv.Rewind(sizeof(uint256)) || !vRecv.Rewind(sizeof(uint8_t))) {
+        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "malformed DKG message");
+        return;
+    }
 
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
@@ -458,30 +641,30 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
         m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "oversized DKG message");
         return;
     }
-
-    // Cheap structural pre-validation before retention. Validates a copy so the
-    // original bytes (and their inventory hash) are preserved for the worker.
-    if (!CheckDKGMessageStructure(msg_type, vRecv, llmq_params)) {
+    if (!CheckDKGMessageWireStructure(msg_type, vRecv, llmq_params)) {
         m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "malformed DKG message");
         return;
     }
 
+    // Inventory hash is computed over the raw wire bytes before we consume
+    // them, matching what a peer would compute for the same payload.
+    CHashWriter hw(SER_GETHASH, 0);
+    hw.write(AsWritableBytes(Span{vRecv}));
+    const uint256 hash = hw.GetHash();
+
     int inv_type = 0;
-    if (msg_type == NetMsgType::QCONTRIB)
+    if (msg_type == NetMsgType::QCONTRIB) {
         inv_type = MSG_QUORUM_CONTRIB;
-    else if (msg_type == NetMsgType::QCOMPLAINT)
+    } else if (msg_type == NetMsgType::QCOMPLAINT) {
         inv_type = MSG_QUORUM_COMPLAINT;
-    else if (msg_type == NetMsgType::QJUSTIFICATION)
+    } else if (msg_type == NetMsgType::QJUSTIFICATION) {
         inv_type = MSG_QUORUM_JUSTIFICATION;
-    else if (msg_type == NetMsgType::QPCOMMITMENT)
+    } else if (msg_type == NetMsgType::QPCOMMITMENT) {
         inv_type = MSG_QUORUM_PREMATURE_COMMITMENT;
+    }
     Assume(inv_type != 0); // guarded by the early-return above
 
     auto pm = std::make_shared<CDataStream>(std::move(vRecv));
-    CHashWriter hw(SER_GETHASH, 0);
-    hw.write(AsWritableBytes(Span{*pm}));
-    const uint256 hash = hw.GetHash();
-
     const NodeId from = pfrom.GetId();
 
     // DKG messages are only ever sent in reply to a GETDATA (see NetDKG::ProcessGetData), so one we
@@ -697,6 +880,9 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
 
     handler.WaitForNextPhase(std::nullopt, QuorumPhase::Initialized);
 
+    // Leftovers missed their matching phase and cannot be accepted by this
+    // round. Discard their raw bytes without materializing BLS objects on the
+    // critical path to initializing the next quorum.
     handler.ClearPendingMessages();
     uint256 curQuorumHash = handler.GetCurrentQuorumHash();
 
@@ -742,8 +928,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
         }
     };
     auto fContributeWait = [this, curSession, &handler, &active] {
-        return ProcessPendingMessageBatch<CDKGContribution>(active.connman, *curSession, handler.pendingContributions,
-                                                            *m_peer_manager, 8);
+        return ProcessPendingMessageBatch<CDKGContribution>(active.connman, *curSession, handler.params,
+                                                            handler.pendingContributions, *m_peer_manager, 8);
     };
     handler.HandlePhase(QuorumPhase::Contribute, QuorumPhase::Complain, curQuorumHash, 0.05, fContributeStart,
                         fContributeWait);
@@ -755,8 +941,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
         }
     };
     auto fComplainWait = [this, curSession, &handler, &active] {
-        return ProcessPendingMessageBatch<CDKGComplaint>(active.connman, *curSession, handler.pendingComplaints,
-                                                         *m_peer_manager, 8);
+        return ProcessPendingMessageBatch<CDKGComplaint>(active.connman, *curSession, handler.params,
+                                                         handler.pendingComplaints, *m_peer_manager, 8);
     };
     handler.HandlePhase(QuorumPhase::Complain, QuorumPhase::Justify, curQuorumHash, 0.05, fComplainStart, fComplainWait);
 
@@ -767,8 +953,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
         }
     };
     auto fJustifyWait = [this, curSession, &handler, &active] {
-        return ProcessPendingMessageBatch<CDKGJustification>(active.connman, *curSession, handler.pendingJustifications,
-                                                             *m_peer_manager, 8);
+        return ProcessPendingMessageBatch<CDKGJustification>(active.connman, *curSession, handler.params,
+                                                             handler.pendingJustifications, *m_peer_manager, 8);
     };
     handler.HandlePhase(QuorumPhase::Justify, QuorumPhase::Commit, curQuorumHash, 0.05, fJustifyStart, fJustifyWait);
 
@@ -779,7 +965,7 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
         }
     };
     auto fCommitWait = [this, curSession, &handler, &active] {
-        return ProcessPendingMessageBatch<CDKGPrematureCommitment>(active.connman, *curSession,
+        return ProcessPendingMessageBatch<CDKGPrematureCommitment>(active.connman, *curSession, handler.params,
                                                                    handler.pendingPrematureCommitments, *m_peer_manager,
                                                                    8);
     };

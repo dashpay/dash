@@ -10,12 +10,17 @@ Adversarial P2P tests for DKG message-intake hardening:
     not MNAuth-verified are rejected before retention.
   - oversized DKG payloads are rejected (before deserialization / retention) even
     from a verified peer.
-  - structural pre-validation: malformed DKG payloads (valid quorum prefix, garbage
-    body) are rejected before retention even from a verified peer.
+  - structural pre-validation: truncated, trailing, or parametrically out-of-bounds
+    DKG payloads are rejected before retention even from a verified peer.
+  - BLS objects are not materialized at intake: a structurally plausible payload with
+    an invalid BLS encoding reaches the DKG worker and is rejected there.
+  - late, framing-valid messages are bounded across reconnect-generated NodeIds and
+    discarded without BLS materialization before the next round initializes.
   - a well-formed DKG message that the peer never announced and was never asked for
     is dropped before retention, even from a verified peer.
 
-The node must not crash; the sending peer must be scored (Misbehaving).
+The node must not crash; rejected malformed messages must be scored where the
+matching worker still processes them.
 """
 
 from test_framework.messages import ser_compact_size, ser_uint256
@@ -31,6 +36,8 @@ FAKE_PROTX = "cecf37bf0ec05d2d22cb8227f88074bb882b94cd2081ba318a5a444b1b15b9fd"
 FAKE_PUBKEY = "8e7afdb849e5e2a085b035b62e21c0940c753f2d4501325743894c37162f287bccaffbedd60c36581dabbf127a22e43f"
 
 DKG_PUSH_TYPES = [b"qcontrib", b"qcomplaint", b"qjustify", b"qpcommit"]
+VALID_BLS_PUBKEY = bytes.fromhex(FAKE_PUBKEY)
+INVALID_NONZERO_BLS_PUBKEY = b"\xff" * 48
 
 
 class msg_dkg_raw:
@@ -48,10 +55,12 @@ class msg_dkg_raw:
         return "msg_dkg_raw(type=%s, len=%d)" % (self.msgtype, len(self.payload))
 
 
-def get_p2p_id(node):
+def get_p2p_id(node, uacomment=None):
     def get_id():
         for p in node.getpeerinfo():
             for p2p in node.p2ps:
+                if uacomment is not None and p2p.uacomment != uacomment:
+                    continue
                 if p["subver"] == p2p.strSubVer:
                     return p["id"]
         return None
@@ -75,8 +84,14 @@ class DkgIntakeTest(DashTestFramework):
     def set_test_params(self):
         # -whitelist keeps the adversarial peer connected even after it crosses the
         #   discouragement threshold, so banscore stays observable for the score==100 cases.
-        # -debug=net surfaces the Misbehaving reason strings in debug.log.
-        extra_args = [["-whitelist=127.0.0.1", "-debug=net", "-deprecatedrpc=banscore"]] * 4
+        # -debug=net surfaces the Misbehaving reason strings in debug.log, while
+        # -debug=llmq-dkg exposes worker and queue-boundary behavior.
+        extra_args = [[
+            "-whitelist=127.0.0.1",
+            "-debug=net",
+            "-debug=llmq-dkg",
+            "-deprecatedrpc=banscore",
+        ]] * 4
         self.set_dash_test_params(4, 3, extra_args=extra_args)
 
     def quorum_hash_prefix(self):
@@ -85,14 +100,14 @@ class DkgIntakeTest(DashTestFramework):
         # real in-progress quorum and reach the size/structural checks.
         return bytes([LLMQ_TEST]) + ser_uint256(int(self.quorum_hash, 16))
 
-    def qcontrib_payload(self, blob_count):
+    def qcontrib_payload(self, blob_count, vvec_pubkey=VALID_BLS_PUBKEY, protx_hash=0):
         # CDKGContribution: llmqType, quorumHash, proTxHash, vvec, contributions, sig.
         # LLMQ_TEST uses threshold=2/minSize=2 by default, so blob_count=1 is
         # well-formed enough to deserialize but below the contribution lower bound.
         r = self.quorum_hash_prefix()
-        r += ser_uint256(0)  # proTxHash
-        r += ser_compact_size(2) + b"\x00" * (2 * 48)  # BLSVerificationVector
-        r += b"\x00" * 48  # CBLSIESMultiRecipientBlobs::ephemeralPubKey
+        r += ser_uint256(protx_hash)
+        r += ser_compact_size(2) + vvec_pubkey + VALID_BLS_PUBKEY  # BLSVerificationVector
+        r += VALID_BLS_PUBKEY  # CBLSIESMultiRecipientBlobs::ephemeralPubKey
         r += b"\x00" * 32  # CBLSIESMultiRecipientBlobs::ivSeed
         r += ser_compact_size(blob_count)
         for _ in range(blob_count):
@@ -100,9 +115,9 @@ class DkgIntakeTest(DashTestFramework):
         r += b"\x00" * 96  # sig
         return r
 
-    def add_verified_peer(self, node):
-        peer = node.add_p2p_connection(P2PInterface())
-        peer_id = get_p2p_id(node)
+    def add_verified_peer(self, node, uacomment=None):
+        peer = node.add_p2p_connection(P2PInterface(), uacomment=uacomment)
+        peer_id = get_p2p_id(node, uacomment)
         assert node.mnauth(peer_id, FAKE_PROTX, FAKE_PUBKEY)
         return peer, peer_id
 
@@ -120,6 +135,9 @@ class DkgIntakeTest(DashTestFramework):
         self.test_unverified_sender_rejected(mn_node)
         self.test_oversized_rejected(mn_node)
         self.test_malformed_rejected(mn_node)
+        self.test_trailing_bytes_rejected(mn_node)
+        self.test_malformed_bls_pubkey_rejected_by_worker(mn_node)
+        self.test_late_messages_bounded_across_reconnects(mn_node)
         self.test_under_min_contribution_blobs_rejected(mn_node)
         self.test_unrequested_rejected(mn_node)
 
@@ -161,6 +179,112 @@ class DkgIntakeTest(DashTestFramework):
             peer.send_message(msg_dkg_raw(b"qcontrib", payload))
             peer.sync_with_ping()
         wait_for_banscore(node, peer_id, 100)
+        node.disconnect_p2ps()
+
+    def test_trailing_bytes_rejected(self, node):
+        self.log.info("QCONTRIB with trailing bytes is rejected at intake (Misbehaving 100)")
+        peer, peer_id = self.add_verified_peer(node)
+        wait_for_banscore(node, peer_id, 0)
+        with node.assert_debug_log(["malformed DKG message"]):
+            peer.send_message(msg_dkg_raw(
+                b"qcontrib",
+                self.qcontrib_payload(blob_count=2) + b"\x00",
+            ))
+            peer.sync_with_ping()
+        wait_for_banscore(node, peer_id, 100)
+        node.disconnect_p2ps()
+
+    def _start_fresh_dkg_cycle(self, nodes):
+        """Land on the base block of a fresh DKG cycle (phase 1 / Initialized)."""
+        cycle_length = 24
+        skip_count = cycle_length - (self.nodes[0].getblockcount() % cycle_length)
+        self.generate(self.nodes[0], skip_count, sync_fun=lambda: self.sync_blocks(nodes))
+        self.quorum_hash = self.nodes[0].getbestblockhash()
+        self.wait_for_quorum_phase(self.quorum_hash, 1, self.llmq_size, None, 0, self.mninfo)
+
+    def test_malformed_bls_pubkey_rejected_by_worker(self, node):
+        self.log.info("QCONTRIB BLS decoding is deferred to the DKG worker (Misbehaving 100)")
+        nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
+        # Queue during Initialized; Contribute's matching drain deserializes and scores.
+        self._start_fresh_dkg_cycle(nodes)
+
+        peer, peer_id = self.add_verified_peer(node)
+        wait_for_banscore(node, peer_id, 0)
+        with node.assert_debug_log(
+            ["failed to deserialize message"],
+            unexpected_msgs=["malformed DKG message"],
+            timeout=10,
+        ):
+            peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
+                blob_count=2,
+                vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
+            )))
+            peer.sync_with_ping()
+            wait_for_banscore(node, peer_id, 0)
+            self.move_blocks(nodes, 2)
+        wait_for_banscore(node, peer_id, 100)
+        node.disconnect_p2ps()
+
+    def test_late_messages_bounded_across_reconnects(self, node):
+        self.log.info("Late QCONTRIB retention is bounded across reconnects and cleared without BLS decoding")
+        nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
+        cycle_length = 24
+        self._start_fresh_dkg_cycle(nodes)
+        stage = self.nodes[0].getblockcount() % cycle_length
+        assert stage == 0, "expected DKG cycle base, got stage %d" % stage
+        # phaseBlocks=2: stage 0=Initialized, 2=Contribute, 4=Complain.
+        complain_stage = 4
+        self.move_blocks(nodes, complain_stage - stage)
+        assert self.nodes[0].getblockcount() % cycle_length == complain_stage
+
+        # Each transient connection gets a fresh NodeId. Unique proTxHash bytes
+        # avoid deduplication, so this specifically exercises the queue-wide cap
+        # rather than the per-NodeId quota. Keep the final accepted peer connected
+        # to verify that round-start clearing does not score stale BLS encodings.
+        queue_limit = 4 * self.llmq_size
+        retained_peer = None
+        retained_peer_id = None
+        for nonce in range(1, queue_limit + 1):
+            uacomment = "dkg-late-%d" % nonce
+            peer, peer_id = self.add_verified_peer(node, uacomment)
+            peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
+                blob_count=2,
+                vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
+                protx_hash=nonce,
+            )))
+            peer.sync_with_ping()
+            wait_for_banscore(node, peer_id, 0)
+            if nonce == queue_limit:
+                retained_peer = peer
+                retained_peer_id = peer_id
+            else:
+                peer.peer_disconnect()
+                peer.wait_for_disconnect()
+
+        overflow_peer, overflow_peer_id = self.add_verified_peer(node, "dkg-late-overflow")
+        with node.assert_debug_log(["pending queue full"]):
+            overflow_peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
+                blob_count=2,
+                vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
+                protx_hash=queue_limit + 1,
+            )))
+            overflow_peer.sync_with_ping()
+        wait_for_banscore(node, overflow_peer_id, 0)
+
+        # Crossing the phase boundary must clear a bounded raw queue and finish
+        # initializing the next session without deserializing stale BLS points.
+        remaining = cycle_length - (self.nodes[0].getblockcount() % cycle_length)
+        with node.assert_debug_log(
+            [],
+            unexpected_msgs=["malformed DKG message", "failed to deserialize message"],
+            timeout=60,
+        ):
+            self.move_blocks(nodes, remaining)
+            self.quorum_hash = self.nodes[0].getbestblockhash()
+            self.wait_for_quorum_phase(self.quorum_hash, 1, self.llmq_size, None, 0, self.mninfo)
+        assert retained_peer is not None
+        wait_for_banscore(node, retained_peer_id, 0)
+        wait_for_banscore(node, overflow_peer_id, 0)
         node.disconnect_p2ps()
 
     def test_under_min_contribution_blobs_rejected(self, node):

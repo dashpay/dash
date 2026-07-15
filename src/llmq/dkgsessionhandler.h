@@ -11,8 +11,6 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <optional>
-#include <string_view>
 #include <vector>
 
 class CDataStream;
@@ -47,7 +45,7 @@ enum class QuorumPhase {
  * main handler thread, we push them into a CDKGPendingMessages object and later pop+deserialize them in the DKG phase
  * handler thread.
  *
- * Each message type has it's own instance of this class.
+ * Each message type has its own instance of this class.
  */
 class CDKGPendingMessages
 {
@@ -56,20 +54,31 @@ public:
 
 private:
     const size_t maxMessagesPerNode;
+    const size_t maxPendingRemoteMessages;
+    const size_t maxPendingMessages;
     mutable Mutex cs_messages;
     std::list<BinaryMessage> pendingMessages GUARDED_BY(cs_messages);
+    size_t pendingRemoteMessageCount GUARDED_BY(cs_messages){0};
     std::map<NodeId, size_t> messagesPerNode GUARDED_BY(cs_messages);
     Uint256HashSet seenMessages GUARDED_BY(cs_messages);
 
 public:
     explicit CDKGPendingMessages(size_t _maxMessagesPerNode) :
-        maxMessagesPerNode(_maxMessagesPerNode) {};
+        maxMessagesPerNode(_maxMessagesPerNode),
+        // Let two peers use their full quota while keeping reconnect-generated
+        // NodeIds from growing the queue without bound.
+        maxPendingRemoteMessages(_maxMessagesPerNode * 2),
+        // Reserve one slot for the message produced by this node during the
+        // matching phase.
+        maxPendingMessages(maxPendingRemoteMessages + 1)
+    {
+    }
 
     /**
      * Enqueue a serialized DKG message under @p from with content hash @p hash.
      * Caller is responsible for hashing the payload and (for real peers)
      * routing the erase-request to PeerManager. Drops the message silently on
-     * per-node capacity overflow or duplicate hash.
+     * per-node or queue-wide capacity overflow, or duplicate hash.
      */
     void PushPendingMessage(NodeId from, std::shared_ptr<CDataStream> pm, const uint256& hash)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
@@ -77,31 +86,6 @@ public:
     std::list<BinaryMessage> PopPendingMessages(size_t maxCount) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     bool HasSeen(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     void Clear() EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
-
-    // Might return nullptr messages, which indicates that deserialization failed for some reason
-    template <typename Message>
-    std::vector<std::pair<NodeId, std::shared_ptr<Message>>> PopAndDeserializeMessages(size_t maxCount)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_messages)
-    {
-        auto binaryMessages = PopPendingMessages(maxCount);
-        if (binaryMessages.empty()) {
-            return {};
-        }
-
-        std::vector<std::pair<NodeId, std::shared_ptr<Message>>> ret;
-        ret.reserve(binaryMessages.size());
-        for (const auto& bm : binaryMessages) {
-            auto msg = std::make_shared<Message>();
-            try {
-                *bm.second >> *msg;
-            } catch (...) {
-                msg = nullptr;
-            }
-            ret.emplace_back(std::make_pair(bm.first, std::move(msg)));
-        }
-
-        return ret;
-    }
 };
 
 /**
