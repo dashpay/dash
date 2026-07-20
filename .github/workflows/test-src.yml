@@ -31,8 +31,12 @@ jobs:
     permissions:
       actions: read
       contents: read
+      packages: read
     container:
       image: ${{ inputs.container-path }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
       options: --user root
     steps:
       - name: Checkout code

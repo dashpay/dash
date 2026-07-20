@@ -82,6 +82,7 @@ RUN uv pip install --system --break-system-packages \
     jinja2 \
     lief==0.13.2 \
     mypy==0.981 \
+    PyYAML==6.0.2 \
     pyzmq==24.0.1 \
     vulture==2.6
 

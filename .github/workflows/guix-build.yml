@@ -2,6 +2,7 @@ name: Guix Build
 
 permissions:
   contents: read
+  packages: read
 
 on:
   pull_request_target:
@@ -95,6 +96,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      packages: read
     uses: ./.github/workflows/guix-build-worker.yml
     with:
       source-ref: ${{ github.event.pull_request.head.sha }}
@@ -106,6 +108,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      packages: read
       id-token: write
       attestations: write
     uses: ./.github/workflows/guix-build-worker.yml
