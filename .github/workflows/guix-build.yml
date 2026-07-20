@@ -82,10 +82,13 @@ jobs:
       - name: Select trusted Guix builder
         id: resolve
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_BRANCH: ${{ github.base_ref }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          echo "path=ghcr.io/${REPOSITORY,,}/dashcore-guix-builder:${DEFAULT_BRANCH,,}" >> "${GITHUB_OUTPUT}"
+          # Match build-image's ${GITHUB_REF##*/} basename so slash-containing
+          # base branches (e.g. release/foo) resolve to the published tag.
+          IMAGE_TAG="$(echo "${BASE_BRANCH##*/}" | tr '[:upper:]' '[:lower:]')"
+          echo "path=ghcr.io/${REPOSITORY,,}/dashcore-guix-builder:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
 
   build-pr:
     needs: resolve-pr-image

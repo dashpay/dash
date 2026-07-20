@@ -27,6 +27,16 @@ def job_block(contents, name):
     return match.group("body")
 
 
+def step_block(lines, index):
+    start = index
+    while start > 0 and not lines[start].startswith("      - name:"):
+        start -= 1
+    end = index + 1
+    while end < len(lines) and not lines[end].startswith("      - name:"):
+        end += 1
+    return "\n".join(lines[start:end])
+
+
 def assert_no_write_permissions(contents, context):
     assert not re.search(r"^\s+[a-z-]+: write$", contents, re.MULTILINE), (
         f"{context} must not receive write-capable permissions"
@@ -53,15 +63,17 @@ def main():
                 )
 
             if "uses: actions/cache/save@" in line:
-                save_step = "\n".join(lines[max(0, index - 8):index + 1])
-                assert any(
-                    guard in save_step
-                    for guard in (
-                        "github.event_name == 'push'",
-                        "github.event_name == 'schedule'",
-                        "inputs.trusted",
-                    )
-                ), f"{name}:{index + 1} cache save lacks a positive trusted-run guard"
+                save_step = step_block(lines, index)
+                condition = save_step.split("uses: actions/cache/save@", 1)[0]
+                trusted_event = re.search(
+                    r"github\.event_name\s*==\s*'(?:push|schedule)'", condition
+                )
+                trusted_input = re.search(
+                    r"^\s*if:\s*inputs\.trusted(?:\s*&&|\s*$)", condition, re.MULTILINE
+                )
+                assert trusted_event or trusted_input, (
+                    f"{name}:{index + 1} cache save lacks a positive trusted-run guard"
+                )
 
     build = workflow("build.yml")
     assert_no_write_permissions(build.split("\njobs:", 1)[0], "build.yml defaults")
@@ -73,7 +85,7 @@ def main():
     for name in ("container", "container-slim"):
         block = job_block(build, name)
         assert "permissions: {}" in block
-        assert "github.event.repository.default_branch" in block
+        assert "github.base_ref" in block
 
     container = workflow("build-container.yml")
     assert container.count("if: github.event_name == 'push'") == 3
@@ -101,7 +113,9 @@ def main():
 
     guix_worker = workflow("guix-build-worker.yml")
     assert_no_write_permissions(guix_worker, "Guix worker")
-    assert "allow-unsafe-pr-checkout:" in guix_worker
+    assert "ref: ${{ inputs.source-ref }}" in guix_worker
+    assert "persist-credentials: false" in guix_worker
+    assert "allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}" in guix_worker
     assert "if: inputs.trusted" in guix_worker
 
 

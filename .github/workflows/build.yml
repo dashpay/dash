@@ -123,13 +123,16 @@ jobs:
       - name: Select trusted container
         id: select
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_BRANCH: ${{ github.base_ref }}
           EVENT_NAME: ${{ github.event_name }}
           PUBLISHED_PATH: ${{ needs.container-publish.outputs.path }}
           REPOSITORY: ${{ github.repository }}
         run: |
           if [[ "${EVENT_NAME}" == "pull_request_target" ]]; then
-            echo "path=ghcr.io/${REPOSITORY,,}/dashcore-ci-runner:${DEFAULT_BRANCH,,}" >> "${GITHUB_OUTPUT}"
+            # Match build-container's ${GITHUB_REF##*/} basename so slash-
+            # containing base branches resolve to the published tag.
+            IMAGE_TAG="$(echo "${BASE_BRANCH##*/}" | tr '[:upper:]' '[:lower:]')"
+            echo "path=ghcr.io/${REPOSITORY,,}/dashcore-ci-runner:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           else
             echo "path=${PUBLISHED_PATH}" >> "${GITHUB_OUTPUT}"
           fi
@@ -164,13 +167,16 @@ jobs:
       - name: Select trusted slim container
         id: select
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_BRANCH: ${{ github.base_ref }}
           EVENT_NAME: ${{ github.event_name }}
           PUBLISHED_PATH: ${{ needs.container-slim-publish.outputs.path }}
           REPOSITORY: ${{ github.repository }}
         run: |
           if [[ "${EVENT_NAME}" == "pull_request_target" ]]; then
-            echo "path=ghcr.io/${REPOSITORY,,}/dashcore-ci-slim:${DEFAULT_BRANCH,,}" >> "${GITHUB_OUTPUT}"
+            # Match build-container's ${GITHUB_REF##*/} basename so slash-
+            # containing base branches resolve to the published tag.
+            IMAGE_TAG="$(echo "${BASE_BRANCH##*/}" | tr '[:upper:]' '[:lower:]')"
+            echo "path=ghcr.io/${REPOSITORY,,}/dashcore-ci-slim:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           else
             echo "path=${PUBLISHED_PATH}" >> "${GITHUB_OUTPUT}"
           fi

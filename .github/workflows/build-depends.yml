@@ -69,17 +69,20 @@ jobs:
 
       - name: Compute cache key
         id: setup
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          BASE_IMAGE_DIGEST: ${{ inputs.base-image-digest }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           echo "DEP_OPTS=${DEP_OPTS}" >> "${GITHUB_OUTPUT}"
           echo "HOST=${HOST}" >> "${GITHUB_OUTPUT}"
-          echo "RUNNER_ARCH=$(uname -m)" >> "${GITHUB_OUTPUT}"
+          RUNNER_ARCH="$(uname -m)"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}" >> "${GITHUB_OUTPUT}"
           DEP_HASH="$(echo -n "${BUILD_TARGET}" "${DEP_OPTS}" "${HOST}" | sha256sum | head -c 64)"
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
           DOCKERFILE_HASH="${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}"
           PACKAGES_HASH="${{ hashFiles('depends/packages/*', 'depends/Makefile') }}"
-          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${{ inputs.base-image-digest }}-${{ inputs.runs-on }}-${{ inputs.build-target }}"
+          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${BASE_IMAGE_DIGEST}-${RUNNER_ARCH}-${BUILD_TARGET}"
           CACHE_KEY="${CACHE_KEY_PREFIX}-${DEP_HASH}-${PACKAGES_HASH}"
           echo "cache-key-prefix=${CACHE_KEY_PREFIX}" >> "${GITHUB_OUTPUT}"
           echo "cache-key=${CACHE_KEY}" >> "${GITHUB_OUTPUT}"

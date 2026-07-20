@@ -82,7 +82,6 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="pull_request_target",
-            event={"pull_request": {"labels": [{"name": "blacksmith-ci"}]}},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="self-hosted-amd64",
@@ -119,7 +118,6 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="push",
-            event={},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",
@@ -157,7 +155,6 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="push",
-            event={},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",
@@ -181,7 +178,6 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="push",
-            event={},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",

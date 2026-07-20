@@ -126,14 +126,8 @@ def count_queued_jobs(
     return queued_jobs
 
 
-def load_event(event_path: str) -> Dict:
-    with open(event_path, "r", encoding="utf-8") as fh:
-        return json.load(fh)
-
-
 def select_runners(
     event_name: str,
-    event: Dict,
     threshold: int,
     arm64_threshold: int,
     runner_amd64_var: str,
@@ -150,7 +144,6 @@ def select_runners(
             "use_blacksmith_arm64": "false",
             "backlog_count": "not-measured",
             "decision_reason": "untrusted-pr:github-hosted",
-            "label_override": "false",
         }
 
     backlog_count = "unknown"
@@ -218,7 +211,6 @@ def select_runners(
         "use_blacksmith_arm64": "true" if use_blacksmith_arm64 else "false",
         "backlog_count": backlog_count,
         "decision_reason": ";".join(decision_parts),
-        "label_override": "false",
     }
 
 
@@ -228,8 +220,6 @@ def write_github_output(path: Optional[str], outputs: Dict[str, str]) -> None:
 
     with open(path, "a", encoding="utf-8") as fh:
         for key, value in outputs.items():
-            if key == "label_override":
-                continue
             fh.write("{}={}\n".format(key, value))
 
 
@@ -239,11 +229,6 @@ def write_step_summary(path: Optional[str], outputs: Dict[str, str]) -> None:
 
     with open(path, "a", encoding="utf-8") as fh:
         fh.write("### Runner selection\n")
-        fh.write(
-            "- PR label override: {}\n".format(
-                "yes" if outputs["label_override"] == "true" else "no"
-            )
-        )
         fh.write("- Aggregated queued jobs: {}\n".format(outputs["backlog_count"]))
         fh.write(
             "- Use Blacksmith amd64: {}\n".format(
@@ -274,11 +259,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--event-name",
         default=os.environ.get("GITHUB_EVENT_NAME", ""),
         help="GitHub event name",
-    )
-    parser.add_argument(
-        "--event-path",
-        default=os.environ.get("GITHUB_EVENT_PATH", ""),
-        help="Path to GitHub event payload JSON",
     )
     parser.add_argument(
         "--backlog-threshold",
@@ -327,17 +307,11 @@ def main(argv: Sequence[str]) -> int:
     if not args.event_name:
         print("error: missing event name", file=sys.stderr)
         return 1
-    if not args.event_path:
-        print("error: missing event path", file=sys.stderr)
-        return 1
-
     repos = tuple(args.repos or DEFAULT_REPOS)
-    event = load_event(args.event_path)
     fetch_json = lambda url: request_json(url, args.token)
 
     outputs = select_runners(
         event_name=args.event_name,
-        event=event,
         threshold=args.backlog_threshold,
         arm64_threshold=args.arm64_backlog_threshold,
         runner_amd64_var=args.runner_amd64_var,
