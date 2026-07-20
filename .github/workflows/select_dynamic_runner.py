@@ -141,13 +141,17 @@ def select_runners(
     fetch_json: Callable[[str], Tuple[Dict, Dict[str, str]]],
     repos: Sequence[str] = DEFAULT_REPOS,
 ) -> Dict[str, str]:
-    label_names = [
-        label.get("name", "")
-        for label in event.get("pull_request", {}).get("labels", [])
-    ]
-    label_override = (
-        event_name == "pull_request_target" and "blacksmith-ci" in label_names
-    )
+    if event_name == "pull_request_target":
+        return {
+            "runner_amd64": DEFAULT_RUNNER_AMD64,
+            "runner_arm64": DEFAULT_RUNNER_ARM64,
+            "use_blacksmith": "false",
+            "use_blacksmith_amd64": "false",
+            "use_blacksmith_arm64": "false",
+            "backlog_count": "not-measured",
+            "decision_reason": "untrusted-pr:github-hosted",
+            "label_override": "false",
+        }
 
     backlog_count = "unknown"
     backlog_count_value = None
@@ -161,9 +165,7 @@ def select_runners(
 
     decision_parts = []
 
-    if label_override:
-        decision_parts.append("label:blacksmith-ci")
-    elif measurement_error is not None:
+    if measurement_error is not None:
         decision_parts.append("metric-unavailable")
     else:
         decision_parts.append(
@@ -181,10 +183,10 @@ def select_runners(
             )
         )
 
-    use_blacksmith_amd64 = label_override or (
+    use_blacksmith_amd64 = (
         measurement_error is None and backlog_count_value > threshold
     )
-    use_blacksmith_arm64 = label_override or (
+    use_blacksmith_arm64 = (
         measurement_error is None and backlog_count_value > arm64_threshold
     )
 
@@ -216,7 +218,7 @@ def select_runners(
         "use_blacksmith_arm64": "true" if use_blacksmith_arm64 else "false",
         "backlog_count": backlog_count,
         "decision_reason": ";".join(decision_parts),
-        "label_override": "true" if label_override else "false",
+        "label_override": "false",
     }
 
 

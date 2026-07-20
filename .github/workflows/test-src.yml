@@ -28,6 +28,9 @@ jobs:
   test-src:
     name: Test source
     runs-on: ${{ inputs.runs-on }}
+    permissions:
+      actions: read
+      contents: read
     container:
       image: ${{ inputs.container-path }}
       options: --user root
@@ -35,22 +38,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
-          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
+          persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.bundle-key }}
 
-      - name: Manage releases cache
-        uses: actions/cache@v5
+      - name: Restore releases cache
+        id: releases-cache
+        uses: actions/cache/restore@v5
         if: inputs.build-target == 'linux64'
         with:
-          path: |
-            releases
+          path: releases
           key: releases-${{ hashFiles('ci/test/00_setup_env_native_qt5.sh', 'test/get_previous_releases.py') }}
 
       - name: Run functional tests
@@ -64,6 +67,16 @@ jobs:
           source ./ci/dash/matrix.sh
           ./ci/dash/test_integrationtests.sh ${INTEGRATION_TESTS_ARGS}
         shell: bash
+
+      - name: Save releases cache
+        if: |
+          github.event_name == 'push' &&
+          inputs.build-target == 'linux64' &&
+          steps.releases-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: releases
+          key: releases-${{ hashFiles('ci/test/00_setup_env_native_qt5.sh', 'test/get_previous_releases.py') }}
 
       - name: Bundle test logs
         id: bundle

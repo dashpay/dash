@@ -40,6 +40,9 @@ jobs:
   check-cache:
     name: Check cache
     runs-on: ${{ inputs.runs-on }}
+    permissions:
+      actions: read
+      contents: read
     outputs:
       cache-hit: ${{ steps.cache-check.outputs.cache-hit }}
       cache-key: ${{ steps.setup.outputs.cache-key }}
@@ -51,9 +54,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
           sparse-checkout: |
             ci/dash
             ci/test
@@ -85,7 +88,7 @@ jobs:
 
       - name: Check for cached depends
         id: cache-check
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: depends/built/${{ steps.setup.outputs.HOST }}
           key: ${{ steps.setup.outputs.cache-key }}
@@ -93,7 +96,7 @@ jobs:
 
       - name: Cache SDKs
         id: cache-sdk-check
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         if: inputs.build-target == 'mac'
         with:
           path: depends/SDKs
@@ -108,6 +111,13 @@ jobs:
         run: |
           ./contrib/containers/guix/scripts/setup-sdk
           echo "artifact=depends-sdks-${BUILD_TARGET}" >> "${GITHUB_OUTPUT}"
+
+      - name: Save SDKs cache
+        if: github.event_name == 'push' && steps.prepare-sdks.outputs.artifact != ''
+        uses: actions/cache/save@v5
+        with:
+          path: depends/SDKs
+          key: depends-sdks-${{ hashFiles('depends/hosts/darwin.mk') }}
 
       - name: Upload prepared SDKs
         # This originates in check-cache so both Build depends (when needed)
@@ -126,6 +136,9 @@ jobs:
     needs: [check-cache]
     if: needs.check-cache.outputs.cache-hit != 'true'
     runs-on: ${{ inputs.runs-on }}
+    permissions:
+      actions: read
+      contents: read
     outputs:
       built-artifact: depends-built-${{ inputs.build-target }}
     container:
@@ -135,9 +148,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
 
       - name: Restore depends sources
         uses: actions/cache/restore@v5
@@ -186,7 +199,7 @@ jobs:
         # Cache tokens on untrusted triggers are read-only (GitHub change,
         # June 2026), so only trusted events can save the persistent cache
         # for later read-only restores.
-        if: github.event_name != 'pull_request_target'
+        if: github.event_name == 'push'
         uses: actions/cache/save@v5
         with:
           path: depends/built/${{ needs.check-cache.outputs.host }}

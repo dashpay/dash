@@ -31,7 +31,11 @@ on:
 jobs:
   build-amd64:
     name: Build container (amd64)
+    if: github.event_name == 'push'
     runs-on: ${{ inputs.runs-on-amd64 }}
+    permissions:
+      contents: read
+      packages: write
     outputs:
       tag: ${{ steps.prepare.outputs.tag }}
       repo: ${{ steps.prepare.outputs.repo }}
@@ -40,8 +44,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Prepare variables
@@ -79,15 +82,18 @@ jobs:
 
   build-arm64:
     name: Build container (arm64)
+    if: github.event_name == 'push'
     runs-on: ${{ inputs.runs-on-arm64 }}
+    permissions:
+      contents: read
+      packages: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Prepare variables
@@ -125,14 +131,17 @@ jobs:
 
   create-manifest:
     name: Create multi-arch manifest
+    if: github.event_name == 'push'
     runs-on: ${{ inputs.runs-on-arm64 }}
+    permissions:
+      contents: read
+      packages: write
     needs: [build-amd64, build-arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up Docker Buildx

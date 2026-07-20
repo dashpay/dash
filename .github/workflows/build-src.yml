@@ -47,6 +47,9 @@ jobs:
   build-src:
     name: Build source
     runs-on: ${{ inputs.runs-on }}
+    permissions:
+      actions: read
+      contents: read
     outputs:
       key:  ${{ steps.bundle.outputs.key }}
     container:
@@ -56,10 +59,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
-          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 50
+          persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
 
       - name: Initial setup
         id: setup
