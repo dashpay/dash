@@ -95,7 +95,7 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         self.assertEqual(outputs["runner_arm64"], "blacksmith-arm64")
         self.assertIn("label:blacksmith-ci", outputs["decision_reason"])
 
-    def test_backlog_threshold_selects_blacksmith_amd64_only(self):
+    def test_pull_request_backlog_selects_blacksmith_amd64_only(self):
         repo = "dashpay/dash"
         queued_url = (
             "https://api.github.com/repos/{}/actions/runs?status=queued&per_page=100"
@@ -114,8 +114,8 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         }
 
         outputs = MODULE.select_runners(
-            event_name="push",
-            event={},
+            event_name="pull_request_target",
+            event={"pull_request": {"labels": []}},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",
