@@ -18,8 +18,8 @@ jobs:
     permissions:
       actions: read
       contents: read
-    # Intentionally keep scheduled cache warming on GitHub-hosted ARM runners.
-    # Blacksmith caches are expected to persist long enough without a warmup cron.
+    # Scheduled warmups use the default GitHub-hosted ARM runner; workflow callers
+    # may select any compatible ephemeral runner through inputs.runs-on.
     runs-on: ${{ inputs.runs-on || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout code
