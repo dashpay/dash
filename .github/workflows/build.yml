@@ -21,9 +21,8 @@ concurrency:
 jobs:
   check-skip:
     name: Check skip conditions
-    # Untrusted PRs must stay on ephemeral GitHub-hosted runners. Trusted pushes
-    # may use the configured bootstrap runner.
-    runs-on: ${{ github.event_name == 'pull_request_target' && 'ubuntu-24.04-arm' || vars.RUNNER_CHECK_SKIP || 'ubuntu-24.04-arm' }}
+    # Keep the bootstrap job cheap; RUNNER_CHECK_SKIP can point to a small Blacksmith ARM runner.
+    runs-on: ${{ vars.RUNNER_CHECK_SKIP || 'ubuntu-24.04-arm' }}
     outputs:
       skip: ${{ steps.skip-check.outputs.skip }}
       runner-amd64: ${{ steps.select-runner.outputs.runner_amd64 }}

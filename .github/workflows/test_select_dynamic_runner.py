@@ -76,27 +76,24 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         self.assertEqual(MODULE.count_queued_jobs(fetch_json, [repo]), 1)
 
-    def test_pull_request_target_forces_github_hosted_runners(self):
-        def fetch_json(_url):
-            self.fail("pull request runner selection must not query backlog metrics")
-
+    def test_label_override_selects_blacksmith_even_with_low_backlog(self):
         outputs = MODULE.select_runners(
             event_name="pull_request_target",
+            event={"pull_request": {"labels": [{"name": "blacksmith-ci"}]}},
             threshold=10,
             arm64_threshold=30,
-            runner_amd64_var="self-hosted-amd64",
-            runner_arm64_var="self-hosted-arm64",
-            fetch_json=fetch_json,
+            runner_amd64_var="blacksmith-amd64",
+            runner_arm64_var="blacksmith-arm64",
+            fetch_json=lambda _url: ({"workflow_runs": []}, {}),
             repos=["dashpay/dash"],
         )
 
-        self.assertEqual(outputs["use_blacksmith"], "false")
-        self.assertEqual(outputs["use_blacksmith_amd64"], "false")
-        self.assertEqual(outputs["use_blacksmith_arm64"], "false")
-        self.assertEqual(outputs["runner_amd64"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["runner_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
-        self.assertEqual(outputs["backlog_count"], "not-measured")
-        self.assertEqual(outputs["decision_reason"], "untrusted-pr:github-hosted")
+        self.assertEqual(outputs["use_blacksmith"], "true")
+        self.assertEqual(outputs["use_blacksmith_amd64"], "true")
+        self.assertEqual(outputs["use_blacksmith_arm64"], "true")
+        self.assertEqual(outputs["runner_amd64"], "blacksmith-amd64")
+        self.assertEqual(outputs["runner_arm64"], "blacksmith-arm64")
+        self.assertIn("label:blacksmith-ci", outputs["decision_reason"])
 
     def test_backlog_threshold_selects_blacksmith_amd64_only(self):
         repo = "dashpay/dash"
@@ -118,6 +115,7 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="push",
+            event={},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",
@@ -155,6 +153,7 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="push",
+            event={},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",
@@ -178,6 +177,7 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         outputs = MODULE.select_runners(
             event_name="push",
+            event={},
             threshold=10,
             arm64_threshold=30,
             runner_amd64_var="blacksmith-amd64",
@@ -193,6 +193,23 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         self.assertEqual(outputs["runner_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
         self.assertEqual(outputs["backlog_count"], "unknown")
         self.assertIn("metric-unavailable", outputs["decision_reason"])
+
+    def test_missing_runner_vars_fall_back_per_arch(self):
+        outputs = MODULE.select_runners(
+            event_name="pull_request_target",
+            event={"pull_request": {"labels": [{"name": "blacksmith-ci"}]}},
+            threshold=10,
+            arm64_threshold=30,
+            runner_amd64_var="",
+            runner_arm64_var="blacksmith-arm64",
+            fetch_json=lambda _url: ({"workflow_runs": []}, {}),
+            repos=["dashpay/dash"],
+        )
+
+        self.assertEqual(outputs["runner_amd64"], MODULE.DEFAULT_RUNNER_AMD64)
+        self.assertEqual(outputs["runner_arm64"], "blacksmith-arm64")
+        self.assertIn("amd64-github-fallback", outputs["decision_reason"])
+
 
 if __name__ == "__main__":
     unittest.main()
