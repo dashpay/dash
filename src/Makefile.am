@@ -217,6 +217,7 @@ BITCOIN_CORE_H = \
   dsnotificationinterface.h \
   evo/assetlocktx.h \
   evo/cbtx.h \
+  evo/cbtx_cache.h \
   evo/chainhelper.h \
   evo/creditpool.h \
   evo/deterministicmns.h \

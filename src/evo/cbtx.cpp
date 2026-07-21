@@ -4,6 +4,8 @@
 
 #include <evo/cbtx.h>
 
+#include <evo/cbtx_cache.h>
+
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -49,6 +51,35 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationSta
 using QcHashMap = std::map<Consensus::LLMQType, std::vector<uint256>>;
 using QcIndexedHashMap = std::map<Consensus::LLMQType, std::map<int16_t, uint256>>;
 
+// Process-lifetime caches for CalcCbTxMerkleRootQuorums.
+//
+// The outer whole-result cache is keyed only by the set of active quorum *base*
+// blocks. The inner LRU is keyed only by those base-block hashes. Neither key
+// includes the serialized CFinalCommitment that was actually mined for that
+// base on the active chain. Different valid branches can therefore mine
+// different commitments for the same base list, so these caches must be dropped
+// whenever mined commitment state is undone (see InvalidateCachedQcHashes).
+namespace {
+GlobalMutex g_qc_hashes_cache_mutex;
+std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> g_quorums_cached GUARDED_BY(g_qc_hashes_cache_mutex);
+std::map<Consensus::LLMQType, Uint256LruHashMap<std::pair<uint256, int>>> g_qc_hashes_lru GUARDED_BY(g_qc_hashes_cache_mutex);
+QcHashMap g_qcHashes_cached GUARDED_BY(g_qc_hashes_cache_mutex);
+QcIndexedHashMap g_qcIndexedHashes_cached GUARDED_BY(g_qc_hashes_cache_mutex);
+} // anonymous namespace
+
+void InvalidateCachedQcHashes()
+{
+    LOCK(g_qc_hashes_cache_mutex);
+    g_quorums_cached.clear();
+    g_qcHashes_cached.clear();
+    g_qcIndexedHashes_cached.clear();
+    // Clear per-type LRU contents but keep the map entries so InitQuorumsCache is
+    // not required on every post-invalidation miss.
+    for (auto& [_, cache] : g_qc_hashes_lru) {
+        cache.clear();
+    }
+}
+
 /**
  * Handles the calculation or caching of qcHashes and qcIndexedHashes
  * @param pindexPrev The const CBlockIndex* (ie a block) of a block. Both the Quorum list and quorum rotation activation status will be retrieved based on this block.
@@ -58,37 +89,32 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
         std::optional<std::pair<QcHashMap /*qcHashes*/, QcIndexedHashMap /*qcIndexedHashes*/>> {
     auto quorums = quorum_block_processor.GetMinedAndActiveCommitmentsUntilBlock(pindexPrev);
 
-    static Mutex cs_cache;
-    static std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> quorums_cached GUARDED_BY(cs_cache);
-    static std::map<Consensus::LLMQType, Uint256LruHashMap<std::pair<uint256, int>>> qc_hashes_cached GUARDED_BY(cs_cache);
-    static QcHashMap qcHashes_cached GUARDED_BY(cs_cache);
-    static QcIndexedHashMap qcIndexedHashes_cached GUARDED_BY(cs_cache);
-
-    LOCK(cs_cache);
-    if (quorums == quorums_cached) {
-        return std::make_pair(qcHashes_cached, qcIndexedHashes_cached);
+    LOCK(g_qc_hashes_cache_mutex);
+    if (quorums == g_quorums_cached) {
+        return std::make_pair(g_qcHashes_cached, g_qcIndexedHashes_cached);
     }
 
-    // Quorums set is different, reset cached values
-    quorums_cached.clear();
-    qcHashes_cached.clear();
-    qcIndexedHashes_cached.clear();
-    if (qc_hashes_cached.empty()) {
-        llmq::utils::InitQuorumsCache(qc_hashes_cached, Params().GetConsensus());
+    // Quorums set changed: rebuild whole-result caches. Keep the per-base LRU;
+    // branch-dependent staleness is handled by InvalidateCachedQcHashes().
+    g_quorums_cached.clear();
+    g_qcHashes_cached.clear();
+    g_qcIndexedHashes_cached.clear();
+    if (g_qc_hashes_lru.empty()) {
+        llmq::utils::InitQuorumsCache(g_qc_hashes_lru, Params().GetConsensus());
     }
 
     for (const auto& [llmqType, vecBlockIndexes] : quorums) {
         const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
         assert(llmq_params_opt.has_value());
         bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params_opt.value(), pindexPrev);
-        auto& vec_hashes = qcHashes_cached[llmqType];
+        auto& vec_hashes = g_qcHashes_cached[llmqType];
         vec_hashes.reserve(vecBlockIndexes.size());
-        auto& map_indexed_hashes = qcIndexedHashes_cached[llmqType];
+        auto& map_indexed_hashes = g_qcIndexedHashes_cached[llmqType];
         for (const auto& blockIndex : vecBlockIndexes) {
             uint256 block_hash{blockIndex->GetBlockHash()};
 
             std::pair<uint256, int> qc_hash;
-            if (!qc_hashes_cached[llmqType].get(block_hash, qc_hash)) {
+            if (!g_qc_hashes_lru[llmqType].get(block_hash, qc_hash)) {
                 auto [pqc, dummy_hash] = quorum_block_processor.GetMinedCommitment(llmqType, block_hash);
                 if (dummy_hash == uint256::ZERO) {
                     // this should never happen
@@ -96,7 +122,7 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
                 }
                 qc_hash.first = ::SerializeHash(pqc);
                 qc_hash.second = rotation_enabled ? pqc.quorumIndex : 0;
-                qc_hashes_cached[llmqType].insert(block_hash, qc_hash);
+                g_qc_hashes_lru[llmqType].insert(block_hash, qc_hash);
             }
             if (rotation_enabled) {
                 map_indexed_hashes[qc_hash.second] = qc_hash.first;
@@ -105,8 +131,8 @@ auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev, const llmq:
             }
         }
     }
-    std::swap(quorums_cached, quorums);
-    return std::make_pair(qcHashes_cached, qcIndexedHashes_cached);
+    std::swap(g_quorums_cached, quorums);
+    return std::make_pair(g_qcHashes_cached, g_qcIndexedHashes_cached);
 }
 
 auto CalcHashCountFromQCHashes(const QcHashMap& qcHashes)

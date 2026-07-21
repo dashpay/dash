@@ -4,6 +4,7 @@
 
 #include <llmq/blockprocessor.h>
 
+#include <evo/cbtx_cache.h>
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
@@ -391,12 +392,14 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
         return false;
     }
 
+    bool undone_commitment{false};
     for (auto& [_, qc2] : qcs) {
         auto& qc = qc2; // cannot capture structured binding into lambda
         if (qc.IsNull()) {
             continue;
         }
 
+        undone_commitment = true;
         m_evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
 
         const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
@@ -412,6 +415,12 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
 
         // if a reorg happened, we should allow to mine this commitment later
         AddMineableCommitment(qc);
+    }
+
+    // Drop both CbTx qc-hash cache layers: mined commitments are branch-dependent
+    // even when the active quorum base-block list is unchanged.
+    if (undone_commitment) {
+        InvalidateCachedQcHashes();
     }
 
     m_evoDb.Write(DB_BEST_BLOCK_UPGRADE, pindex->pprev->GetBlockHash());
