@@ -388,6 +388,14 @@ void CCoinJoinServer::CommitFinalTransaction()
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- TRANSMITTING DSTX\n");
 
+    // Push the fully signed transaction directly to every mixing participant first:
+    // the inv-based relay below is subject to delayed trickling, so without this a
+    // participant could process DSCOMPLETE (which is sent directly) and release its
+    // inputs for reuse before ever seeing the transaction that spends them.
+    if (const auto dstx = m_dstxman.GetDSTX(hashTx); dstx) {
+        WITH_LOCK(cs_coinjoin, RelayDSTXToParticipants(dstx));
+    }
+
     CInv inv(MSG_DSTX, hashTx);
     m_peer_manager->PeerRelayInv(inv);
 
@@ -848,6 +856,25 @@ void CCoinJoinServer::RelayFinalTransaction(const CTransaction& txFinal)
             // no such node? maybe this client disconnected or our own connection went down
             RelayStatus(STATUS_REJECTED);
             break;
+        }
+    }
+}
+
+void CCoinJoinServer::RelayDSTXToParticipants(const CCoinJoinBroadcastTx& dstx)
+{
+    AssertLockHeld(cs_coinjoin);
+    // the fully signed mixing tx is pushed to mixing participants only, everyone else
+    // gets it via the regular inv-based relay
+    for (const auto& entry : vecEntries) {
+        bool fOk = connman.ForNode(entry.addr, [&dstx, this](CNode* pnode) {
+            CNetMsgMaker msgMaker(pnode->GetCommonVersion());
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSTX, dstx));
+            return true;
+        });
+        if (!fOk) {
+            // best-effort only: the participant will still get the tx via regular inv relay
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- failed to push DSTX to participant %s\n", __func__,
+                     entry.addr.ToStringAddrPort());
         }
     }
 }
