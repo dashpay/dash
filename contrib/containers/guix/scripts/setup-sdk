@@ -15,6 +15,35 @@ XCODE_RELEASE="${XCODE_RELEASE:-15A240d}"
 XCODE_ARCHIVE="Xcode-${XCODE_VERSION}-${XCODE_RELEASE}-extracted-SDK-with-libcxx-headers"
 XCODE_AR_PATH="${SDK_SOURCES}/${XCODE_ARCHIVE}.tar.gz"
 
+# actions/upload-artifact rejects paths containing characters that are not
+# portable across filesystems (notably ':'). The Xcode SDK ships thousands of
+# Perl man pages under usr/share/man with '::' in the filename
+# (e.g. APR::Base64.3pm). Compilation only needs headers/libs/tbd files; man
+# pages are unused by depends/mac and guix darwin builds. Strip them after
+# extract so CI can hand the prepared SDK tree to downstream jobs as an
+# artifact (and so cache entries stay portable) without packaging changes in
+# the pull_request_target caller workflows (which resolve from the default
+# branch and cannot be fixed from a release-branch PR head alone).
+sanitize_sdk_for_artifacts() {
+    local sdk_root="$1"
+    local man_dir="${sdk_root}/usr/share/man"
+
+    if [ -d "${man_dir}" ]; then
+        echo "Removing SDK man pages incompatible with actions/upload-artifact..."
+        rm -rf "${man_dir}"
+    fi
+
+    # Belt-and-suspenders: drop any remaining files whose names contain the
+    # characters upload-artifact rejects, in case a future SDK adds more.
+    # See: https://github.com/actions/upload-artifact/issues/546
+    if [ -d "${sdk_root}" ]; then
+        find "${sdk_root}" \( -type f -o -type l \) \
+            \( -name '*:*' -o -name '*"*' -o -name '*<*' -o -name '*>*' \
+               -o -name '*|*' -o -name '*\**' -o -name '*\?*' \) \
+            -print -delete 2>/dev/null || true
+    fi
+}
+
 if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
     if [ ! -f "${XCODE_AR_PATH}" ]; then
         echo "Downloading macOS SDK..."
@@ -24,4 +53,9 @@ if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
     echo "Extracting macOS SDK..."
     mkdir -p "${SDK_PATH}"
     tar -C "${SDK_PATH}" -xf "${XCODE_AR_PATH}"
+    sanitize_sdk_for_artifacts "${SDK_PATH}/${XCODE_ARCHIVE}"
+else
+    # Existing tree (e.g. restored from an older cache that still has man
+    # pages): ensure it is safe to re-upload if a later step packages it.
+    sanitize_sdk_for_artifacts "${SDK_PATH}/${XCODE_ARCHIVE}"
 fi
