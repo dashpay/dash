@@ -62,6 +62,9 @@ add_executable(test_bitcoin
   cachemultimap_tests.cpp
   checkdatasig_tests.cpp
   checkqueue_tests.cpp
+  coinjoin_dstxmanager_tests.cpp
+  coinjoin_inouts_tests.cpp
+  coinjoin_queue_tests.cpp
   coins_tests.cpp
   coinstatsindex_tests.cpp
   compilerbug_tests.cpp
