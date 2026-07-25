@@ -20,11 +20,14 @@ add_executable(bench_bitcoin
   bls_dkg.cpp
   bls_pubkey_agg.cpp
   block_assemble.cpp
+  blockfilter_index.cpp
   ccoins_caching.cpp
   chacha20.cpp
   checkblock.cpp
   checkqueue.cpp
+  disconnected_transactions.cpp
   crypto_hash.cpp
+  descriptors.cpp
   duplicate_inputs.cpp
   ecdsa.cpp
   ellswift.cpp
@@ -37,6 +40,7 @@ add_executable(bench_bitcoin
   mempool_eviction.cpp
   mempool_stress.cpp
   merkle_root.cpp
+  net_processing.cpp
   peer_eviction.cpp
   poly1305.cpp
   pool.cpp
@@ -45,10 +49,12 @@ add_executable(bench_bitcoin
   rollingbloom.cpp
   rpc_blockchain.cpp
   rpc_mempool.cpp
+  streams_findbyte.cpp
   strencodings.cpp
   string_cast.cpp
   util_time.cpp
   verify_script.cpp
+  xor.cpp
 )
 set_target_properties(bench_bitcoin PROPERTIES OUTPUT_NAME bench_dash)
 
@@ -67,6 +73,7 @@ if(ENABLE_WALLET)
       coin_selection.cpp
       wallet_balance.cpp
       wallet_create.cpp
+      wallet_create_tx.cpp
       wallet_loading.cpp
   )
   target_link_libraries(bench_bitcoin bitcoin_wallet)

@@ -45,18 +45,14 @@ endif()
 message("")
 message("Configuring secp256k1 subtree...")
 set(SECP256K1_DISABLE_SHARED ON CACHE BOOL "" FORCE)
-set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
+# The ECDH module is required by the wallet's Platform key provider
+# (DashPay contact request encryption, wallet/platformkeys.cpp).
+set(SECP256K1_ENABLE_MODULE_ECDH ON CACHE BOOL "" FORCE)
 set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_EXHAUSTIVE_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-include(GetTargetInterface)
-# -fsanitize and related flags apply to both C++ and C,
-# so we can pass them down to libsecp256k1 as CFLAGS.
-get_target_interface(core_sanitizer_cxx_flags "" sanitize_interface COMPILE_OPTIONS)
-set(SECP256K1_LATE_CFLAGS ${core_sanitizer_cxx_flags} CACHE STRING "" FORCE)
-unset(core_sanitizer_cxx_flags)
 # We want to build libsecp256k1 with the most tested RelWithDebInfo configuration.
 enable_language(C)
 foreach(config IN LISTS CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
@@ -74,16 +70,9 @@ endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 add_subdirectory(secp256k1)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
-
-set(BUILD_BLS_JS_BINDINGS OFF CACHE STRING "" FORCE)
-set(BUILD_BLS_PYTHON_BINDINGS OFF CACHE STRING "" FORCE)
-set(BUILD_BLS_TESTS OFF CACHE STRING "" FORCE)
-set(BUILD_BLS_BENCHMARKS OFF CACHE STRING "" FORCE)
-add_subdirectory(dashbls EXCLUDE_FROM_ALL)
 
 # Stable, backwards-compatible consensus functionality.
-add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
+set(consensus_sources
   arith_uint256.cpp
   bls/bls.cpp
   consensus/merkle.cpp
@@ -100,15 +89,93 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   util/strencodings.cpp
   util/string.cpp
 )
-set_target_properties(bitcoin_consensus PROPERTIES OUTPUT_NAME dashconsensus)
+# Internal-only; the installable library below is the public dashconsensus.
+add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL ${consensus_sources})
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
     bitcoin_crypto
-    Boost::headers
     dashbls
     secp256k1
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
 )
+
+# Dash still ships the public consensus library that upstream dropped in
+# bitcoin#29648, so build and install it here too. It gets its own compilation
+# of the consensus and crypto sources because the public library is built
+# without the optimised SHA-256 backends; see libdashconsensus_la in
+# src/Makefile.am. This has to stay below add_subdirectory(crypto), which is
+# what sets crypto_base_sources and crypto_sph_sources in this scope.
+if(BUILD_CONSENSUS_LIB)
+  add_library(dashconsensus SHARED
+    ${consensus_sources}
+    ${crypto_base_sources}
+    ${crypto_sph_sources}
+  )
+  target_compile_definitions(dashconsensus
+    PRIVATE
+      BUILD_BITCOIN_INTERNAL
+      DISABLE_OPTIMIZED_SHA256
+      SPH_SMALL_FOOTPRINT_CUBEHASH=1
+      SPH_SMALL_FOOTPRINT_JH=1
+  )
+  target_link_libraries(dashconsensus
+    PRIVATE
+      core_interface
+      dashbls
+      secp256k1
+  )
+  # libdashconsensus_la carries no -version-info, so libtool builds it as
+  # 0:0:0 and installs libdashconsensus.so.0.0.0 with an .so.0 soname. Match
+  # that here, otherwise consumers linked against an Autotools install cannot
+  # resolve DT_NEEDED against a CMake one.
+  set_target_properties(dashconsensus PROPERTIES VERSION 0.0.0 SOVERSION 0)
+  if(MINGW)
+    # libtool includes the ABI version in the DLL name, but not its import library.
+    set_target_properties(dashconsensus PROPERTIES RUNTIME_OUTPUT_NAME dashconsensus-0)
+  endif()
+  if(APPLE)
+    # libtool derives the Mach-O versions as (current - age + 1), so 0:0:0
+    # yields 1.0.0 where CMake would otherwise take them from the properties
+    # above and emit 0.0.0. dyld refuses a library whose compatibility version
+    # is below the one recorded in the consumer, so set them explicitly.
+    set_target_properties(dashconsensus PROPERTIES
+      MACHO_COMPATIBILITY_VERSION 1.0.0
+      MACHO_CURRENT_VERSION 1.0.0
+      MACOSX_RPATH OFF
+      INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}"
+    )
+  endif()
+  install(TARGETS dashconsensus
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+  # Automake's include_HEADERS strips the directory, installing the header
+  # flat as <includedir>/bitcoinconsensus.h, which is the layout the
+  # pkg-config file's "Cflags: -I${includedir}" expects. Match it.
+  install(FILES script/bitcoinconsensus.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+  set(prefix ${CMAKE_INSTALL_PREFIX})
+  set(exec_prefix "\${prefix}")
+  if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+    set(libdir "${CMAKE_INSTALL_LIBDIR}")
+  else()
+    set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+  endif()
+  if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+    set(includedir "${CMAKE_INSTALL_INCLUDEDIR}")
+  else()
+    set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+  endif()
+  configure_file(${PROJECT_SOURCE_DIR}/libdashconsensus.pc.in
+    ${PROJECT_BINARY_DIR}/libdashconsensus.pc @ONLY
+  )
+  install(FILES ${PROJECT_BINARY_DIR}/libdashconsensus.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+  )
+endif()
 
 if(WITH_ZMQ)
   add_subdirectory(zmq)
@@ -122,8 +189,14 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   chainparams.cpp
   chainparamsbase.cpp
   coins.cpp
+  common/args.cpp
   common/bloom.cpp
+  common/config.cpp
+  common/init.cpp
+  common/interfaces.cpp
   common/run_command.cpp
+  common/settings.cpp
+  common/system.cpp
   common/url.cpp
   compressor.cpp
   core_read.cpp
@@ -134,8 +207,8 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   evo/providertx_util.cpp
   external_signer.cpp
   governance/common.cpp
-  governance/core_write.cpp
   init/common.cpp
+  kernel/chainparams.cpp
   key.cpp
   key_io.cpp
   llmq/core_write.cpp
@@ -167,11 +240,10 @@ target_link_libraries(bitcoin_common
     core_interface
     bitcoin_consensus
     bitcoin_util
-    leveldb
     univalue
     dashbls
     secp256k1
-    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
 )
@@ -187,13 +259,14 @@ if(ENABLE_WALLET)
       init/bitcoin-wallet.cpp
       wallet/wallettool.cpp
     )
-    add_windows_resources(bitcoin-wallet bitcoin-wallet-res.rc)
+    add_windows_resources(bitcoin-wallet dash-wallet-res.rc)
     target_link_libraries(bitcoin-wallet
       core_interface
       bitcoin_wallet
       bitcoin_common
       bitcoin_util
       univalue
+      dashbls
       Boost::headers
     )
     set_target_properties(bitcoin-wallet PROPERTIES OUTPUT_NAME dash-wallet)
@@ -221,7 +294,6 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   chainlock/signing.cpp
   coinjoin/coinjoin.cpp
   coinjoin/server.cpp
-  coinjoin/walletman.cpp
   chain.cpp
   consensus/tx_verify.cpp
   dbwrapper.cpp
@@ -230,19 +302,21 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   evo/assetlocktx.cpp
   evo/cbtx.cpp
   evo/creditpool.cpp
-  evo/chainhelper.cpp
   evo/deterministicmns.cpp
   evo/dmnstate.cpp
   evo/evodb.cpp
   evo/mnauth.cpp
   evo/mnhftx.cpp
   evo/providertx.cpp
+  evo/providertx_service.cpp
   evo/simplifiedmns.cpp
   evo/smldiff.cpp
+  evo/snapshot.cpp
   evo/specialtx.cpp
   evo/specialtx_filter.cpp
   evo/specialtxman.cpp
   flatfile.cpp
+  governance/collateral.cpp
   governance/governance.cpp
   governance/net_governance.cpp
   governance/object.cpp
@@ -259,11 +333,19 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   index/base.cpp
   index/blockfilterindex.cpp
   index/coinstatsindex.cpp
+  index/govcollateralindex.cpp
   index/spentindex.cpp
   index/timestampindex.cpp
   index/txindex.cpp
   init.cpp
+  kernel/chain.cpp
+  kernel/checks.cpp
   kernel/coinstats.cpp
+  kernel/context.cpp
+  kernel/cs_main.cpp
+  kernel/disconnected_transactions.cpp
+  kernel/mempool_persist.cpp
+  kernel/mempool_removal_reason.cpp
   instantsend/db.cpp
   instantsend/instantsend.cpp
   instantsend/lock.cpp
@@ -281,7 +363,8 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   llmq/net_quorum.cpp
   llmq/net_signing.cpp
   llmq/observer.cpp
-  llmq/options.cpp
+  llmq/options_args.cpp
+  llmq/quorumproofs.cpp
   llmq/quorums.cpp
   llmq/quorumsman.cpp
   llmq/signhash.cpp
@@ -298,23 +381,34 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   netfulfilledman.cpp
   net_processing.cpp
   netgroup.cpp
+  node/blockmanager_args.cpp
   node/blockstorage.cpp
   node/caches.cpp
   node/chainstate.cpp
+  node/chainstatemanager_args.cpp
   node/coin.cpp
+  node/coins_view_args.cpp
   node/connection_types.cpp
   node/context.cpp
+  node/database_args.cpp
   node/eviction.cpp
   node/interface_ui.cpp
   node/interfaces.cpp
+  node/kernel_notifications.cpp
+  node/mempool_args.cpp
+  node/mempool_persist_args.cpp
   node/miner.cpp
   node/minisketchwrapper.cpp
+  node/peerman_args.cpp
   node/psbt.cpp
   node/sync_manager.cpp
   node/transaction.cpp
   node/txreconciliation.cpp
+  node/utxo_snapshot.cpp
+  node/validation_cache_args.cpp
   noui.cpp
   policy/fees.cpp
+  policy/fees_args.cpp
   policy/packages.cpp
   policy/settings.cpp
   pow.cpp
@@ -322,9 +416,9 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   rpc/blockchain.cpp
   rpc/coinjoin.cpp
   rpc/evo.cpp
-  rpc/evo_util.cpp
   rpc/fees.cpp
   rpc/governance.cpp
+  rpc/json_help.cpp
   rpc/masternode.cpp
   rpc/mempool.cpp
   rpc/mining.cpp
@@ -347,6 +441,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   txdb.cpp
   txmempool.cpp
   txorphanage.cpp
+  txrequest.cpp
   validation.cpp
   validationinterface.cpp
   versionbits.cpp
@@ -362,7 +457,7 @@ target_link_libraries(bitcoin_node
     leveldb
     minisketch
     univalue
-    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
     $<TARGET_NAME_IF_EXISTS:libevent::libevent>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:NATPMP::NATPMP>
@@ -378,10 +473,11 @@ if(BUILD_DAEMON)
     bitcoind.cpp
     init/bitcoind.cpp
   )
-  add_windows_resources(bitcoind bitcoind-res.rc)
+  add_windows_resources(bitcoind dashd-res.rc)
   target_link_libraries(bitcoind
     core_interface
     bitcoin_node
+    dashbls
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoind PROPERTIES OUTPUT_NAME dashd)
@@ -396,8 +492,10 @@ if(WITH_MULTIPROCESS)
     core_interface
     bitcoin_node
     bitcoin_ipc
+    dashbls
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
+  set_target_properties(bitcoin-node PROPERTIES OUTPUT_NAME dash-node)
   list(APPEND installable_targets bitcoin-node)
 endif()
 
@@ -416,7 +514,7 @@ target_link_libraries(bitcoin_cli
 # Bitcoin Core RPC client
 if(BUILD_CLI)
   add_executable(bitcoin-cli bitcoin-cli.cpp)
-  add_windows_resources(bitcoin-cli bitcoin-cli-res.rc)
+  add_windows_resources(bitcoin-cli dash-cli-res.rc)
   target_link_libraries(bitcoin-cli
     core_interface
     bitcoin_cli
@@ -431,7 +529,7 @@ endif()
 
 if(BUILD_TX)
   add_executable(bitcoin-tx bitcoin-tx.cpp)
-  add_windows_resources(bitcoin-tx bitcoin-tx-res.rc)
+  add_windows_resources(bitcoin-tx dash-tx-res.rc)
   target_link_libraries(bitcoin-tx
     core_interface
     bitcoin_common
@@ -461,11 +559,8 @@ if(BUILD_GUI)
 endif()
 
 
-if(BUILD_KERNEL_LIB AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/kernel/bitcoinkernel.cpp)
-  add_subdirectory(kernel)
-endif()
-
 if(BUILD_UTIL_CHAINSTATE)
+  add_subdirectory(kernel)
   add_executable(bitcoin-chainstate
     bitcoin-chainstate.cpp
   )
@@ -481,16 +576,10 @@ if(BUILD_UTIL_CHAINSTATE)
   target_link_libraries(bitcoin-chainstate
     PRIVATE
       core_interface
-      bitcoin_common
-      bitcoin_node
-      bitcoin_util
-      Boost::headers
-      dashbls
-      leveldb
-      univalue
-      $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
+      bitcoinkernel
   )
   set_target_properties(bitcoin-chainstate PROPERTIES OUTPUT_NAME dash-chainstate)
+  list(APPEND installable_targets bitcoin-chainstate)
 endif()
 
 

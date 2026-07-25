@@ -89,3 +89,17 @@ target_link_libraries(minisketch
 set_target_properties(minisketch PROPERTIES
   EXPORT_COMPILE_COMMANDS OFF
 )
+
+if(BUILD_TESTS)
+  add_executable(minisketch_test ${PROJECT_SOURCE_DIR}/src/minisketch/src/test.cpp)
+  target_link_libraries(minisketch_test
+    PRIVATE
+      core_interface
+      minisketch_common
+      minisketch
+  )
+  set_target_properties(minisketch_test PROPERTIES
+    EXPORT_COMPILE_COMMANDS OFF
+  )
+  add_test(NAME libminisketch_test COMMAND minisketch_test)
+endif()

@@ -1,24 +1,28 @@
-# Copyright (c) 2024-present The Bitcoin Core developers
+# Copyright (c) 2026 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
-# TODO: libbitcoinkernel is a work in progress consensus engine
-#       library, as more and more modules are decoupled from the
-#       consensus engine, this list will shrink to only those
-#       which are absolutely necessary.
-add_library(bitcoinkernel
+# Match libdashkernel_la_SOURCES in src/Makefile.am. The kernel supplies its
+# own globals and helpers instead of pulling in the full node and RPC layers.
+add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   bitcoinkernel.cpp
-  chain.cpp
-  checks.cpp
-  chainparams.cpp
-  coinstats.cpp
-  context.cpp
-  cs_main.cpp
-  disconnected_transactions.cpp
-  mempool_removal_reason.cpp
   ../arith_uint256.cpp
+  ../base58.cpp
+  ../batchedlogger.cpp
+  ../bech32.cpp
+  ../blockfilter.cpp
+  ../bls/bls.cpp
+  ../bls/bls_worker.cpp
   ../chain.cpp
+  ../chainlock/chainlock.cpp
+  ../chainlock/clsig.cpp
+  ../chainparams.cpp
+  ../chainparamsbase.cpp
   ../coins.cpp
+  ../common/args.cpp
+  ../common/bloom.cpp
+  ../common/config.cpp
+  ../common/settings.cpp
   ../compressor.cpp
   ../consensus/merkle.cpp
   ../consensus/tx_check.cpp
@@ -27,80 +31,129 @@ add_library(bitcoinkernel
   ../dbwrapper.cpp
   ../deploymentinfo.cpp
   ../deploymentstatus.cpp
+  ../evo/assetlocktx.cpp
+  ../evo/cbtx.cpp
+  ../evo/creditpool.cpp
+  ../evo/deterministicmns.cpp
+  ../evo/dmnstate.cpp
+  ../evo/evodb.cpp
+  ../evo/mnhftx.cpp
+  ../evo/netinfo.cpp
+  ../evo/providertx.cpp
+  ../evo/providertx_util.cpp
+  ../evo/simplifiedmns.cpp
+  ../evo/smldiff.cpp
+  ../evo/specialtx.cpp
+  ../evo/specialtx_filter.cpp
+  ../evo/specialtxman.cpp
   ../flatfile.cpp
+  ../gsl/assert.cpp
   ../hash.cpp
+  ../index/addressindex_util.cpp
+  ../instantsend/db.cpp
+  ../instantsend/instantsend.cpp
+  ../instantsend/lock.cpp
+  chain.cpp
+  chainparams.cpp
+  checks.cpp
+  coinstats.cpp
+  context.cpp
+  cs_main.cpp
+  disconnected_transactions.cpp
+  mempool_persist.cpp
+  mempool_removal_reason.cpp
+  ../key.cpp
+  ../key_io.cpp
+  ../llmq/blockprocessor.cpp
+  ../llmq/commitment.cpp
+  ../llmq/context.cpp
+  ../llmq/dkgsessionmgr.cpp
+  ../llmq/quorums.cpp
+  ../llmq/quorumsman.cpp
+  ../llmq/signhash.cpp
+  ../llmq/signing.cpp
+  ../llmq/snapshot.cpp
+  ../llmq/utils.cpp
   ../logging.cpp
+  ../masternode/meta.cpp
+  ../masternode/payments.cpp
+  ../merkleblock.cpp
+  ../messagesigner.cpp
+  ../netaddress.cpp
+  ../netbase.cpp
   ../node/blockstorage.cpp
   ../node/chainstate.cpp
+  ../node/interface_ui.cpp
   ../node/utxo_snapshot.cpp
   ../policy/feerate.cpp
+  ../policy/fees.cpp
   ../policy/packages.cpp
   ../policy/policy.cpp
-  ../policy/rbf.cpp
   ../policy/settings.cpp
-  ../policy/truc_policy.cpp
   ../pow.cpp
   ../primitives/block.cpp
   ../primitives/transaction.cpp
+  ../protocol.cpp
   ../pubkey.cpp
   ../random.cpp
   ../randomenv.cpp
+  ../saltedhasher.cpp
+  ../scheduler.cpp
   ../script/interpreter.cpp
   ../script/script.cpp
   ../script/script_error.cpp
   ../script/sigcache.cpp
-  ../script/solver.cpp
-  ../signet.cpp
+  ../script/standard.cpp
+  ../shutdown.cpp
   ../streams.cpp
+  ../spork.cpp
+  ../support/cleanse.cpp
   ../support/lockedpool.cpp
   ../sync.cpp
+  ../timedata.cpp
   ../txdb.cpp
   ../txmempool.cpp
   ../uint256.cpp
+  ../util/batchpriority.cpp
+  ../util/bytevectorhash.cpp
   ../util/chaintype.cpp
   ../util/check.cpp
-  ../util/feefrac.cpp
+  ../util/exception.cpp
   ../util/fs.cpp
   ../util/fs_helpers.cpp
   ../util/hasher.cpp
+  ../util/message.cpp
   ../util/moneystr.cpp
-  ../util/rbf.cpp
+  ../util/ranges_set.cpp
   ../util/serfloat.cpp
-  ../util/signalinterrupt.cpp
+  ../util/sock.cpp
   ../util/strencodings.cpp
   ../util/string.cpp
   ../util/syserror.cpp
+  ../util/thread.cpp
+  ../util/threadinterrupt.cpp
   ../util/threadnames.cpp
   ../util/time.cpp
   ../util/tokenpipe.cpp
+  ../util/zstd.cpp
   ../validation.cpp
   ../validationinterface.cpp
   ../versionbits.cpp
+  ../warnings.cpp
+  $<TARGET_OBJECTS:bitcoin_clientversion>
 )
+target_compile_definitions(bitcoinkernel PRIVATE BUILD_BITCOIN_INTERNAL)
 target_link_libraries(bitcoinkernel
   PRIVATE
     core_interface
-    bitcoin_clientversion
     bitcoin_crypto
-    leveldb
-    secp256k1
+    $<TARGET_NAME_IF_EXISTS:USDT::headers>
+    $<$<PLATFORM_ID:Windows>:ws2_32>
   PUBLIC
+    $<TARGET_NAME_IF_EXISTS:PkgConfig::libzstd>
     Boost::headers
-)
-
-# libbitcoinkernel requires default symbol visibility, explicitly
-# specify that here so that things still work even when user
-# configures with -DREDUCE_EXPORTS=ON
-#
-# Note this is a quick hack that will be removed as we
-# incrementally define what to export from the library.
-set_target_properties(bitcoinkernel PROPERTIES
-  CXX_VISIBILITY_PRESET default
-)
-
-include(GNUInstallDirs)
-install(TARGETS bitcoinkernel
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    dashbls
+    leveldb
+    univalue
+    secp256k1
 )

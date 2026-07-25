@@ -23,45 +23,52 @@ function(add_maintenance_targets)
     return()
   endif()
 
-  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set(exe_format MACHO)
-  elseif(WIN32)
-    set(exe_format PE)
-  else()
-    set(exe_format ELF)
-  endif()
-
-  # In CMake, the components of the compiler invocation are separated into distinct variables:
-  #  - CMAKE_CXX_COMPILER: the full path to the compiler binary itself (e.g., /usr/bin/clang++).
-  #  - CMAKE_CXX_COMPILER_ARG1: a string containing initial compiler options (e.g., --target=x86_64-apple-darwin -nostdlibinc).
-  # By concatenating these variables, we form the complete command line to be passed to a Python script via the CXX environment variable.
-  string(STRIP "${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1}" cxx_compiler_command)
-  add_custom_target(test-security-check
-    COMMAND ${CMAKE_COMMAND} -E env CXX=${cxx_compiler_command} CXXFLAGS=${CMAKE_CXX_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/devtools/test-security-check.py TestSecurityChecks.test_${exe_format}
-    COMMAND ${CMAKE_COMMAND} -E env CXX=${cxx_compiler_command} CXXFLAGS=${CMAKE_CXX_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/devtools/test-symbol-check.py TestSymbolChecks.test_${exe_format}
-    VERBATIM
-  )
-
-  foreach(target IN ITEMS bitcoind bitcoin-qt bitcoin-cli bitcoin-tx bitcoin-util bitcoin-wallet test_bitcoin bench_bitcoin)
+  foreach(target IN ITEMS bitcoind bitcoin-node bitcoin-gui bitcoin-qt bitcoin-cli bitcoin-tx bitcoin-util bitcoin-wallet bitcoin-chainstate test_bitcoin test_bitcoin-qt bench_bitcoin)
     if(TARGET ${target})
+      list(APPEND executable_targets ${target})
       list(APPEND executables $<TARGET_FILE:${target}>)
     endif()
   endforeach()
 
   add_custom_target(check-symbols
     COMMAND ${CMAKE_COMMAND} -E echo "Running symbol and dynamic library checks..."
-    COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/devtools/symbol-check.py ${executables}
+    COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/guix/symbol-check.py ${executables}
+    VERBATIM
+  )
+
+  add_custom_target(check-stdlib-paths
+    COMMAND ${CMAKE_COMMAND} -E echo "Checking for embedded standard library header paths..."
+    COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/guix/stdlib-path-check.py ${executables}
     VERBATIM
   )
 
   if(ENABLE_HARDENING)
     add_custom_target(check-security
       COMMAND ${CMAKE_COMMAND} -E echo "Checking binary security..."
-      COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/devtools/security-check.py ${executables}
+      COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/guix/security-check.py ${executables}
       VERBATIM
     )
   else()
     add_custom_target(check-security)
+  endif()
+
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    find_program(DSYMUTIL_COMMAND dsymutil)
+    if(DSYMUTIL_COMMAND)
+      execute_process(COMMAND ${DSYMUTIL_COMMAND} --help OUTPUT_VARIABLE dsymutil_help ERROR_QUIET)
+      if(dsymutil_help MATCHES "-flat")
+        set(dsymutil_flat -flat)
+      endif()
+      foreach(target IN LISTS executable_targets)
+        set(dwarf_dir $<TARGET_FILE:${target}>.dSYM/Contents/Resources/DWARF)
+        list(APPEND dsym_commands
+          COMMAND ${CMAKE_COMMAND} -E make_directory ${dwarf_dir}
+          COMMAND ${DSYMUTIL_COMMAND} ${dsymutil_flat} -o ${dwarf_dir}/$<TARGET_FILE_NAME:${target}> $<TARGET_FILE:${target}>
+        )
+      endforeach()
+      add_custom_target(osx_debug ${dsym_commands} VERBATIM)
+      add_dependencies(osx_debug ${executable_targets})
+    endif()
   endif()
 endfunction()
 
@@ -72,7 +79,7 @@ function(add_windows_deploy_target)
     include(GenerateSetupNsi)
     generate_setup_nsi()
     add_custom_command(
-      OUTPUT ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.exe
+      OUTPUT ${PROJECT_BINARY_DIR}/${PACKAGE_TARNAME}-${PACKAGE_VERSION}-win64-setup.exe
       COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/release
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:bitcoin-qt> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:bitcoin-qt>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:bitcoind> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:bitcoind>
@@ -81,10 +88,10 @@ function(add_windows_deploy_target)
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:bitcoin-wallet> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:bitcoin-wallet>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:bitcoin-util> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:bitcoin-util>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:test_bitcoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:test_bitcoin>
-      COMMAND makensis -V2 ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.nsi
+      COMMAND makensis -V2 ${PROJECT_BINARY_DIR}/${PACKAGE_TARNAME}-win64-setup.nsi
       VERBATIM
     )
-    add_custom_target(deploy DEPENDS ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.exe)
+    add_custom_target(deploy DEPENDS ${PROJECT_BINARY_DIR}/${PACKAGE_TARNAME}-${PACKAGE_VERSION}-win64-setup.exe)
   endif()
 endfunction()
 

@@ -14,6 +14,7 @@ add_executable(fuzz
   base_encode_decode.cpp
   bech32.cpp
   bip324.cpp
+  bitset.cpp
   block.cpp
   block_header.cpp
   blockfilter.cpp
@@ -36,6 +37,7 @@ add_executable(fuzz
   decode_tx.cpp
   descriptor_parse.cpp
   deserialize.cpp
+  dkg_message_framing.cpp
   eval_script.cpp
   fee_rate.cpp
   fees.cpp
@@ -66,6 +68,7 @@ add_executable(fuzz
   parse_numbers.cpp
   parse_script.cpp
   parse_univalue.cpp
+  partially_downloaded_block.cpp
   policy_estimator.cpp
   policy_estimator_io.cpp
   poolresource.cpp
@@ -105,16 +108,21 @@ add_executable(fuzz
   tx_out.cpp
   tx_pool.cpp
   txorphan.cpp
+  txrequest.cpp
   utxo_snapshot.cpp
   utxo_total_supply.cpp
   validation_load_mempool.cpp
+  vecdeque.cpp
   versionbits.cpp
 )
 target_link_libraries(fuzz
   core_interface
   test_fuzz
+  test_util
   bitcoin_cli
+  bitcoin_node
   bitcoin_common
+  dashbls
   minisketch
   leveldb
   univalue
@@ -122,6 +130,11 @@ target_link_libraries(fuzz
   Boost::headers
   $<TARGET_NAME_IF_EXISTS:libevent::libevent>
 )
+
+# When the fuzzing engine does not supply main(), fuzz.cpp has to.
+if(NOT FUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION)
+  target_compile_definitions(fuzz PRIVATE PROVIDE_FUZZ_MAIN_FUNCTION)
+endif()
 
 if(ENABLE_WALLET)
   add_subdirectory(${PROJECT_SOURCE_DIR}/src/wallet/test/fuzz wallet)

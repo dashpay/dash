@@ -46,6 +46,7 @@ add_executable(test_bitcoin
   base32_tests.cpp
   base58_tests.cpp
   base64_tests.cpp
+  baseindex_tests.cpp
   bech32_tests.cpp
   bip32_tests.cpp
   bip324_tests.cpp
@@ -62,8 +63,12 @@ add_executable(test_bitcoin
   cachemultimap_tests.cpp
   checkdatasig_tests.cpp
   checkqueue_tests.cpp
+  coinjoin_dstxmanager_tests.cpp
+  coinjoin_inouts_tests.cpp
+  coinjoin_queue_tests.cpp
   coins_tests.cpp
   coinstatsindex_tests.cpp
+  common_url_tests.cpp
   compilerbug_tests.cpp
   compress_tests.cpp
   crypto_tests.cpp
@@ -72,36 +77,53 @@ add_executable(test_bitcoin
   denialofservice_tests.cpp
   descriptor_tests.cpp
   dip0020opcodes_tests.cpp
+  dip14_tests.cpp
+  disconnected_transactions.cpp
   dynamic_activation_thresholds_tests.cpp
   evo_assetlocks_tests.cpp
   evo_cbtx_tests.cpp
+  evo_db_tests.cpp
   evo_deterministicmns_tests.cpp
   evo_islock_tests.cpp
+  evo_mnauth_tests.cpp
   evo_mnhf_tests.cpp
   evo_netinfo_tests.cpp
+  evo_sharedmn_tests.cpp
   evo_simplifiedmns_tests.cpp
+  evo_snapshot_tests.cpp
   evo_trivialvalidation.cpp
   evo_utils_tests.cpp
   flatfile_tests.cpp
   fs_tests.cpp
   getarg_tests.cpp
+  governance_collateral_tests.cpp
+  governance_inv_tests.cpp
   governance_superblock_tests.cpp
   governance_validators_tests.cpp
+  governance_vote_processing_tests.cpp
+  governance_vote_sync_tests.cpp
+  governance_vote_wire_tests.cpp
   hash_tests.cpp
   httpserver_tests.cpp
   i2p_tests.cpp
+  index_migration_tests.cpp
   interfaces_tests.cpp
   key_io_tests.cpp
   key_tests.cpp
   limitedmap_tests.cpp
+  llmq_blockprocessor_tests.cpp
   llmq_chainlock_tests.cpp
   llmq_commitment_tests.cpp
   llmq_dkg_tests.cpp
   llmq_hash_tests.cpp
+  llmq_invalid_type_tests.cpp
   llmq_params_tests.cpp
+  llmq_qgetdata_tests.cpp
   llmq_snapshot_tests.cpp
   llmq_utils_tests.cpp
   logging_tests.cpp
+  masternode_params_tests.cpp
+  masternode_payments_tests.cpp
   mempool_tests.cpp
   merkle_tests.cpp
   merkleblock_tests.cpp
@@ -114,12 +136,14 @@ add_executable(test_bitcoin
   net_tests.cpp
   netbase_tests.cpp
   orphanage_tests.cpp
+  peerman_tests.cpp
   pmt_tests.cpp
   policyestimator_tests.cpp
   pool_tests.cpp
   pow_tests.cpp
   prevector_tests.cpp
   raii_event_tests.cpp
+  quorum_proofs_tests.cpp
   random_tests.cpp
   ratecheck_tests.cpp
   rest_tests.cpp
@@ -142,6 +166,7 @@ add_executable(test_bitcoin
   sigopcount_tests.cpp
   skiplist_tests.cpp
   sock_tests.cpp
+  spork_tests.cpp
   streams_tests.cpp
   subsidy_tests.cpp
   sync_tests.cpp
@@ -149,12 +174,15 @@ add_executable(test_bitcoin
   timedata_tests.cpp
   torcontrol_tests.cpp
   transaction_tests.cpp
+  translation_tests.cpp
   txindex_tests.cpp
   txpackage_tests.cpp
   txreconciliation_tests.cpp
+  txrequest_tests.cpp
   txvalidation_tests.cpp
   txvalidationcache_tests.cpp
   uint256_tests.cpp
+  unordered_lru_cache_tests.cpp
   util_tests.cpp
   util_threadnames_tests.cpp
   validation_block_tests.cpp
@@ -179,33 +207,17 @@ target_link_libraries(test_bitcoin
   secp256k1
   Boost::headers
   $<TARGET_NAME_IF_EXISTS:libevent::libevent>
+  $<TARGET_NAME_IF_EXISTS:PkgConfig::dash_sdk_cxx>
 )
 
 if(ENABLE_WALLET)
   add_subdirectory(${PROJECT_SOURCE_DIR}/src/wallet/test wallet)
 endif()
 
-if(WITH_MULTIPROCESS)
-  add_library(bitcoin_ipc_test STATIC EXCLUDE_FROM_ALL
-    ipc_test.cpp
-  )
-
-  target_capnp_sources(bitcoin_ipc_test ${PROJECT_SOURCE_DIR}
-    ipc_test.capnp
-  )
-
-  target_link_libraries(bitcoin_ipc_test
-    PRIVATE
-      core_interface
-      univalue
-  )
-
-  target_sources(test_bitcoin
-    PRIVATE
-      ipc_tests.cpp
-  )
-  target_link_libraries(test_bitcoin bitcoin_ipc_test)
-endif()
+# NOTE: Upstream also builds an IPC test library here from ipc_test.cpp,
+#       ipc_test.capnp and ipc_tests.cpp. Dash has not backported those sources
+#       (bitcoin#28921), and referencing them makes -DWITH_MULTIPROCESS=ON fail
+#       during generation. Restore this block along with the test sources.
 
 function(add_boost_test source_file)
   if(NOT EXISTS ${source_file})
