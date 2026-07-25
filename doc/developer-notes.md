@@ -215,14 +215,15 @@ int main()
 To run clang-tidy on Ubuntu/Debian, install the dependencies:
 
 ```sh
-apt install clang-tidy bear clang
+apt install clang-tidy clang
 ```
 
-Then, pass clang as compiler to configure, and use bear to produce the `compile_commands.json`:
+Configure with clang as the compiler and ask CMake to generate
+`build/compile_commands.json`:
 
 ```sh
-./autogen.sh && ./configure CC=clang CXX=clang++
-make clean && bear --config src/.bear-tidy-config -- make -j $(nproc)
+cmake -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build -j N # replace N with the number of parallel jobs
 ```
 
 The output is denoised of errors from external dependencies.
@@ -230,13 +231,13 @@ The output is denoised of errors from external dependencies.
 To run clang-tidy on all source files:
 
 ```sh
-( cd ./src/ && run-clang-tidy  -j $(nproc) )
+( cd ./src/ && run-clang-tidy -p ../build )
 ```
 
 To run clang-tidy on the changed source lines:
 
 ```sh
-git diff | ( cd ./src/ && clang-tidy-diff -p2 -j $(nproc) )
+git diff | ( cd ./src/ && clang-tidy-diff -p2 -path ../build )
 ```
 
 Coding Style (Python)
@@ -339,11 +340,11 @@ Recommendations:
 
 ### Generating Documentation
 
-The documentation can be generated with `make docs` and cleaned up with `make
-clean-docs`. The resulting files are located in `doc/doxygen/html`; open
+The documentation can be generated with `cmake --build build --target docs`.
+The resulting files are located in `build/doc/doxygen/html`; open
 `index.html` in that directory to view the homepage.
 
-Before running `make docs`, you'll need to install these dependencies:
+Before configuring and building the `docs` target, you'll need to install these dependencies:
 
 Linux: `sudo apt install doxygen graphviz`
 
@@ -354,7 +355,7 @@ Development tips and tricks
 
 ### Compiling for debugging
 
-Run configure with `--enable-debug` to add additional compiler flags that
+Configure with `-DCMAKE_BUILD_TYPE=Debug` to add additional compiler flags that
 produce better debugging builds.
 
 ### Show sources in debugging
@@ -412,8 +413,8 @@ see [test/functional/](/test/functional) for tests that run in `-regtest` mode.
 ### DEBUG_LOCKORDER
 
 Dash Core is a multi-threaded application, and deadlocks or other
-multi-threading bugs can be very difficult to track down. The `--enable-debug`
-configure option adds `-DDEBUG_LOCKORDER` to the compiler flags. This inserts
+multi-threading bugs can be very difficult to track down. The `-DCMAKE_BUILD_TYPE=Debug`
+configuration option adds `-DDEBUG_LOCKORDER` to the compiler flags. This inserts
 run-time checks to keep track of which locks are held and adds warnings to the
 `debug.log` file if inconsistencies are detected.
 
@@ -423,10 +424,9 @@ Defining `DEBUG_LOCKCONTENTION` adds a "lock" logging category to the logging
 RPC that, when enabled, logs the location and duration of each lock contention
 to the `debug.log` file.
 
-The `--enable-debug` configure option adds `-DDEBUG_LOCKCONTENTION` to the
+The `-DCMAKE_BUILD_TYPE=Debug` configuration option adds `-DDEBUG_LOCKCONTENTION` to the
 compiler flags. You may also enable it manually for a non-debug build by running
-configure with `-DDEBUG_LOCKCONTENTION` added to your CPPFLAGS,
-i.e. `CPPFLAGS="-DDEBUG_LOCKCONTENTION"`, then build and run dashd.
+CMake with `-DAPPEND_CPPFLAGS="-DDEBUG_LOCKCONTENTION"`, then build and run dashd.
 
 You can then use the `-debug=lock` configuration option at dashd startup or
 `dash-cli logging '["lock"]'` at runtime to turn on lock contention logging.
@@ -466,7 +466,7 @@ the undefined behavior or corruption that continuing would cause.
   turn that into a guaranteed outage for every user running the release. Never
   let an `Assume` be the thing that kills a production node. The expression is
   always evaluated, in every build; failures abort only where
-  `-DABORT_ON_FAILED_ASSUME` is defined — `--enable-debug` and `--enable-fuzz`
+  `-DABORT_ON_FAILED_ASSUME` is defined — `CMAKE_BUILD_TYPE=Debug` and `BUILD_FOR_FUZZING=ON`
   builds, i.e. CI's `linux64_multiprocess` and fuzz jobs — and are silent in
   release. That coverage is partial: an invariant you actually care about also
   needs a test, and code downstream must still cope with the violated case.
@@ -511,28 +511,28 @@ which includes known Valgrind warnings in our dependencies that cannot be fixed
 in-tree. Example use:
 
 ```shell
-$ valgrind --suppressions=contrib/valgrind.supp src/test/test_dash
+$ valgrind --suppressions=contrib/valgrind.supp build/src/test/test_dash
 $ valgrind --suppressions=contrib/valgrind.supp --leak-check=full \
-      --show-leak-kinds=all src/test/test_dash --log_level=test_suite
-$ valgrind -v --leak-check=full src/dashd -printtoconsole
-$ ./test/functional/test_runner.py --valgrind
+      --show-leak-kinds=all build/src/test/test_dash --log_level=test_suite
+$ valgrind -v --leak-check=full build/src/dashd -printtoconsole
+$ ./build/test/functional/test_runner.py --valgrind
 ```
 
 ### Compiling for test coverage
 
-LCOV can be used to generate a test coverage report based upon `make check`
+LCOV can be used to generate a test coverage report based upon `ctest`
 execution. LCOV must be installed on your system (e.g. the `lcov` package
 on Debian/Ubuntu).
 
 To enable LCOV report generation during test runs:
 
 ```shell
-./configure --enable-lcov
-make
-make cov
+cmake -B build -DCMAKE_BUILD_TYPE=Coverage
+cmake --build build
+cmake -P build/Coverage.cmake
 
-# A coverage report will now be accessible at `./test_dash.coverage/index.html`,
-# which covers unit tests, and `./total.coverage/index.html`, which covers
+# A coverage report will now be accessible at `./build/test_bitcoin.coverage/index.html`,
+# which covers unit tests, and `./build/total.coverage/index.html`, which covers
 # unit and functional tests.
 ```
 
@@ -585,7 +585,7 @@ See the functional test documentation for how to invoke perf within tests.
 Dash Core can be compiled with various "sanitizers" enabled, which add
 instrumentation for issues regarding things like memory safety, thread race
 conditions, or undefined behavior. This is controlled with the
-`--with-sanitizers` configure flag, which should be a comma separated list of
+`-DSANITIZERS` CMake option, which should be a comma separated list of
 sanitizers to enable. The sanitizer list should correspond to supported
 `-fsanitize=` options in your compiler. These sanitizers have runtime overhead,
 so they are most useful when testing changes or producing debugging builds.
@@ -594,16 +594,16 @@ Some examples:
 
 ```bash
 # Enable both the address sanitizer and the undefined behavior sanitizer
-./configure --with-sanitizers=address,undefined
+cmake -B build -DSANITIZERS=address,undefined
 
 # Enable the thread sanitizer
-./configure --with-sanitizers=thread
+cmake -B build -DSANITIZERS=thread
 ```
 
 If you are compiling with GCC you will typically need to install corresponding
 "san" libraries to actually compile with these flags, e.g. libasan for the
 address sanitizer, libtsan for the thread sanitizer, and libubsan for the
-undefined sanitizer. If you are missing required libraries, the configure script
+undefined sanitizer. If you are missing required libraries, CMake
 will fail with a linker error when testing the sanitizer flags.
 
 The test suite should pass cleanly with the `thread` and `undefined` sanitizers. You
@@ -619,7 +619,7 @@ See the CI config for more examples, and upstream documentation for more informa
 about any additional options.
 
 Not all sanitizer options can be enabled at the same time, e.g. trying to build
-with `--with-sanitizers=address,thread` will fail in the configure script as
+with `-DSANITIZERS=address,thread` will fail during CMake configuration as
 these sanitizers are mutually incompatible. Refer to your compiler manual to
 learn more about these options and which sanitizers are supported by your
 compiler.
@@ -644,7 +644,7 @@ The code is multi-threaded and uses mutexes and the
 Deadlocks due to inconsistent lock ordering (thread 1 locks `cs_main` and then
 `cs_wallet`, while thread 2 locks them in the opposite order: result, deadlock
 as each waits for the other to release its lock) are a problem. Compile with
-`-DDEBUG_LOCKORDER` (or use `--enable-debug`) to get lock order inconsistencies
+`-DAPPEND_CPPFLAGS="-DDEBUG_LOCKORDER"` (or use `-DCMAKE_BUILD_TYPE=Debug`) to get lock order inconsistencies
 reported in the `debug.log` file.
 
 Re-architecting the core code so there are better-defined interfaces

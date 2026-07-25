@@ -10,7 +10,7 @@ This guide describes how to build dashd, command-line utilities, and GUI on Free
 Run the following as root to install the base dependencies for building.
 
 ```bash
-pkg install autoconf automake boost-libs git gmake libevent libtool pkgconf libbacktrace zstd
+pkg install cmake boost-libs git gmake libevent pkgconf libbacktrace zstd
 
 ```
 
@@ -63,13 +63,13 @@ sh/bash: export BDB_PREFIX=[path displayed above]
 #### GUI Dependencies
 ###### Qt5
 
-Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install `qt5`. Skip if you don't intend to use the GUI.
+Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, install `qt5` and pass `-DBUILD_GUI=ON` to CMake. Skip if you don't intend to use the GUI.
 ```bash
 pkg install qt5
 ```
 ###### libqrencode
 
-The GUI can encode addresses in a QR Code. To build in QR support for the GUI, install `libqrencode`. Skip if not using the GUI or don't want QR code functionality.
+The GUI can encode addresses in a QR Code. To build in QR support for the GUI, install `libqrencode`. Pass `-DWITH_QRENCODE=OFF` if you do not want QR code functionality.
 ```bash
 pkg install libqrencode
 ```
@@ -78,7 +78,7 @@ pkg install libqrencode
 #### Notifications
 ###### ZeroMQ
 
-Dash Core can provide notifications via ZeroMQ. If the package is installed, support will be compiled in.
+Dash Core can provide notifications via ZeroMQ. Pass `-DWITH_ZMQ=ON` to CMake to enable support.
 ```bash
 pkg install libzmq4
 ```
@@ -101,31 +101,25 @@ There are many ways to configure Dash Core, here are a few common examples:
 ##### Descriptor Wallet and GUI:
 This explicitly enables the GUI and disables legacy wallet support, assuming `sqlite` and `qt` are installed.
 ```bash
-./autogen.sh
-./configure --without-bdb --with-gui=yes MAKE=gmake
+cmake -B build -DWITH_BDB=OFF -DBUILD_GUI=ON
 ```
 
 ##### Descriptor & Legacy Wallet. No GUI:
 This enables support for both wallet types and disables the GUI, assuming
 `sqlite3` and `db4` are both installed.
 ```bash
-./autogen.sh
-./configure --with-gui=no \
-    BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" \
-    BDB_CFLAGS="-I${BDB_PREFIX}/include" \
-    MAKE=gmake
+cmake -B build -DBUILD_GUI=OFF -DWITH_BDB=ON \
+    -DBerkeleyDB_INCLUDE_DIR:PATH="${BDB_PREFIX}/include"
 ```
 
 ##### No Wallet or GUI
 ``` bash
-./autogen.sh
-./configure --without-wallet --with-gui=no MAKE=gmake
+cmake -B build -DENABLE_WALLET=OFF -DBUILD_GUI=OFF
 ```
 
 ### 2. Compile
-**Important**: Use `gmake` (the non-GNU `make` will exit with an error).
 
 ```bash
-gmake # use "-j N" for N parallel jobs
-gmake check # Run tests if Python 3 is available
+cmake --build build     # use "-j N" for N parallel jobs
+ctest --test-dir build  # Some tests require Python 3
 ```

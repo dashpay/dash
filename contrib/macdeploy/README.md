@@ -3,10 +3,10 @@
 The `macdeployqtplus` script should not be run manually. Instead, after building as usual:
 
 ```bash
-make deploy
+cmake --build build --target deploy
 ```
 
-When complete, it will have produced `Dash-Core.zip`.
+When complete, it will have produced `build/Dash-Core.zip`.
 
 ## SDK Extraction
 

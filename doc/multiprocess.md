@@ -4,7 +4,7 @@ _This document describes usage of the multiprocess feature. For design informati
 
 ## Build Option
 
-On unix systems, the `--enable-multiprocess` build option can be passed to `./configure` to build new `dash-node`, `dash-wallet`, and `dash-gui` executables alongside existing `dashd` and `dash-qt` executables.
+On unix systems, the `-DWITH_MULTIPROCESS=ON` option can be passed to CMake to build `dash-node` alongside `dashd`, and `dash-gui` alongside `dash-qt` when the GUI is enabled.
 
 ## Debugging
 
@@ -17,15 +17,17 @@ The multiprocess feature requires [Cap'n Proto](https://capnproto.org/) and [lib
 ```
 cd <DASH_SOURCE_DIRECTORY>
 make -C depends NO_QT=1 MULTIPROCESS=1
-CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure
-make
-src/dash-node -regtest -printtoconsole -debug=ipc
-DASHD=dash-node test/functional/test_runner.py
+cmake -B build --toolchain depends/x86_64-pc-linux-gnu/toolchain.cmake
+cmake --build build
+build/src/dash-node -regtest -printtoconsole -debug=ipc
+DASHD=dash-node build/test/functional/test_runner.py
 ```
 
-The configure script will pick up settings and library locations from the depends directory, so there is no need to pass `--enable-multiprocess` as a separate flag when using the depends system (it's controlled by the `MULTIPROCESS=1` option).
+The toolchain file supplies settings and library locations from depends, so there
+is no need to pass `-DWITH_MULTIPROCESS=ON` separately when using the depends
+system (it is controlled by the `MULTIPROCESS=1` option).
 
-Alternately, you can install [Cap'n Proto](https://capnproto.org/) and [libmultiprocess](https://github.com/bitcoin-core/libmultiprocess) packages on your system, and just run `./configure --enable-multiprocess` without using the depends system. The configure script will be able to locate the installed packages via [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/). See [Installation](https://github.com/bitcoin-core/libmultiprocess#installation) section of the libmultiprocess readme for install steps. See [build-unix.md](build-unix.md) and [build-osx.md](build-osx.md) for information about installing dependencies in general.
+Alternately, you can install [Cap'n Proto](https://capnproto.org/) and [libmultiprocess](https://github.com/bitcoin-core/libmultiprocess) packages on your system, and just run `cmake -B build -DWITH_MULTIPROCESS=ON` without using the depends system. CMake will locate the installed packages using their CMake package configuration files. See [Installation](https://github.com/bitcoin-core/libmultiprocess#installation) section of the libmultiprocess readme for install steps. See [build-unix.md](build-unix.md) and [build-osx.md](build-osx.md) for information about installing dependencies in general.
 
 ## Usage
 
