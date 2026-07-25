@@ -77,6 +77,15 @@
 /* Define this symbol to build code that uses x86 SHA-NI intrinsics */
 #cmakedefine ENABLE_X86_SHANI 1
 
+/* Define this symbol if the consensus lib has been built */
+#cmakedefine HAVE_CONSENSUS_LIB 1
+
+/* Define if the visibility attribute is supported. */
+#cmakedefine HAVE_DEFAULT_VISIBILITY_ATTRIBUTE 1
+
+/* Define if the dllexport attribute is supported. */
+#cmakedefine HAVE_DLLEXPORT_ATTRIBUTE 1
+
 /* Define to 1 if you have the declaration of `fork', and to 0 if you don't.
    */
 #cmakedefine01 HAVE_DECL_FORK

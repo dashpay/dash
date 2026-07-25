@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
-add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
+set(crypto_base_sources
   aes.cpp
   chacha20.cpp
   chacha20poly1305.cpp
@@ -21,6 +21,7 @@ add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
   siphash.cpp
   ../support/cleanse.cpp
 )
+add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL ${crypto_base_sources})
 
 target_link_libraries(bitcoin_crypto
   PRIVATE
@@ -70,7 +71,7 @@ endif()
 # The sphlib sources sit on the X11 proof-of-work path, so Autotools builds
 # them as their own library with -O3 (SPHLIB_FLAGS in configure.ac). Mirror
 # that here instead of letting them inherit the default optimisation level.
-add_library(bitcoin_crypto_sph STATIC EXCLUDE_FROM_ALL
+set(crypto_sph_sources
   x11/aes.cpp
   x11/blake.c
   x11/bmw.c
@@ -85,6 +86,7 @@ add_library(bitcoin_crypto_sph STATIC EXCLUDE_FROM_ALL
   x11/simd.c
   x11/skein.c
 )
+add_library(bitcoin_crypto_sph STATIC EXCLUDE_FROM_ALL ${crypto_sph_sources})
 target_compile_definitions(bitcoin_crypto_sph
   PRIVATE
     SPH_SMALL_FOOTPRINT_CUBEHASH=1
@@ -144,3 +146,10 @@ if(HAVE_ARM_NEON)
   target_link_libraries(bitcoin_crypto_x11_arm_neon PRIVATE core_interface)
   target_link_libraries(bitcoin_crypto_sph PRIVATE bitcoin_crypto_x11_arm_neon)
 endif()
+
+# The public dashconsensus library compiles these again with its own
+# definitions, so hand the lists up with absolute paths.
+list(TRANSFORM crypto_base_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+list(TRANSFORM crypto_sph_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+set(crypto_base_sources ${crypto_base_sources} PARENT_SCOPE)
+set(crypto_sph_sources ${crypto_sph_sources} PARENT_SCOPE)

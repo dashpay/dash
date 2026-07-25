@@ -91,6 +91,8 @@ add_library(bitcoinqt STATIC EXCLUDE_FROM_ALL
   $<$<PLATFORM_ID:Darwin>:macnotificationhandler.mm>
   $<$<PLATFORM_ID:Darwin>:macos_appnap.h>
   $<$<PLATFORM_ID:Darwin>:macos_appnap.mm>
+  masternodemodel.cpp
+  masternodemodel.h
   modaloverlay.cpp
   modaloverlay.h
   networkstyle.cpp
@@ -183,8 +185,6 @@ if(ENABLE_WALLET)
       editaddressdialog.h
       masternodelist.cpp
       masternodelist.h
-      masternodemodel.cpp
-      masternodemodel.h
       mnemonicverificationdialog.cpp
       mnemonicverificationdialog.h
       openuridialog.cpp
@@ -290,6 +290,7 @@ if(WITH_MULTIPROCESS)
     bitcoin_node
     bitcoin_ipc
   )
+  set_target_properties(bitcoin-gui PROPERTIES OUTPUT_NAME dash-gui)
   import_plugins(bitcoin-gui)
   list(APPEND installable_targets bitcoin-gui)
   if(WIN32)

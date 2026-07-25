@@ -91,7 +91,7 @@ set_target_properties(dashbls PROPERTIES
 unset(dashbls_include_dirs)
 
 # Stable, backwards-compatible consensus functionality.
-add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
+set(consensus_sources
   arith_uint256.cpp
   bls/bls.cpp
   consensus/merkle.cpp
@@ -108,7 +108,8 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   util/strencodings.cpp
   util/string.cpp
 )
-set_target_properties(bitcoin_consensus PROPERTIES OUTPUT_NAME dashconsensus)
+# Internal-only; the installable library below is the public dashconsensus.
+add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL ${consensus_sources})
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
@@ -117,6 +118,51 @@ target_link_libraries(bitcoin_consensus
     dashbls
     secp256k1
 )
+
+# Dash still ships the public consensus library that upstream dropped in
+# bitcoin#29648, so build and install it here too. It gets its own compilation
+# of the consensus and crypto sources because the public library is built
+# without the optimised SHA-256 backends; see libdashconsensus_la in
+# src/Makefile.am.
+if(BUILD_CONSENSUS_LIB)
+  add_library(dashconsensus SHARED
+    ${consensus_sources}
+    ${crypto_base_sources}
+    ${crypto_sph_sources}
+  )
+  target_compile_definitions(dashconsensus
+    PRIVATE
+      BUILD_BITCOIN_INTERNAL
+      DISABLE_OPTIMIZED_SHA256
+      SPH_SMALL_FOOTPRINT_CUBEHASH=1
+      SPH_SMALL_FOOTPRINT_JH=1
+  )
+  target_link_libraries(dashconsensus
+    PRIVATE
+      core_interface
+      Boost::headers
+      dashbls
+      secp256k1
+  )
+  install(TARGETS dashconsensus
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+  install(FILES script/bitcoinconsensus.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/script
+  )
+  set(prefix ${CMAKE_INSTALL_PREFIX})
+  set(exec_prefix "\${prefix}")
+  set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+  set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+  configure_file(${PROJECT_SOURCE_DIR}/libdashconsensus.pc.in
+    ${PROJECT_BINARY_DIR}/libdashconsensus.pc @ONLY
+  )
+  install(FILES ${PROJECT_BINARY_DIR}/libdashconsensus.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+  )
+endif()
 
 if(WITH_ZMQ)
   add_subdirectory(zmq)
@@ -196,7 +242,7 @@ if(ENABLE_WALLET)
       init/bitcoin-wallet.cpp
       wallet/wallettool.cpp
     )
-    add_windows_resources(bitcoin-wallet bitcoin-wallet-res.rc)
+    add_windows_resources(bitcoin-wallet dash-wallet-res.rc)
     target_link_libraries(bitcoin-wallet
       core_interface
       bitcoin_wallet
@@ -387,7 +433,7 @@ if(BUILD_DAEMON)
     bitcoind.cpp
     init/bitcoind.cpp
   )
-  add_windows_resources(bitcoind bitcoind-res.rc)
+  add_windows_resources(bitcoind dashd-res.rc)
   target_link_libraries(bitcoind
     core_interface
     bitcoin_node
@@ -407,6 +453,7 @@ if(WITH_MULTIPROCESS)
     bitcoin_ipc
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
+  set_target_properties(bitcoin-node PROPERTIES OUTPUT_NAME dash-node)
   list(APPEND installable_targets bitcoin-node)
 endif()
 
@@ -425,7 +472,7 @@ target_link_libraries(bitcoin_cli
 # Bitcoin Core RPC client
 if(BUILD_CLI)
   add_executable(bitcoin-cli bitcoin-cli.cpp)
-  add_windows_resources(bitcoin-cli bitcoin-cli-res.rc)
+  add_windows_resources(bitcoin-cli dash-cli-res.rc)
   target_link_libraries(bitcoin-cli
     core_interface
     bitcoin_cli
@@ -440,7 +487,7 @@ endif()
 
 if(BUILD_TX)
   add_executable(bitcoin-tx bitcoin-tx.cpp)
-  add_windows_resources(bitcoin-tx bitcoin-tx-res.rc)
+  add_windows_resources(bitcoin-tx dash-tx-res.rc)
   target_link_libraries(bitcoin-tx
     core_interface
     bitcoin_common
@@ -496,6 +543,7 @@ if(BUILD_UTIL_CHAINSTATE)
       $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoin-chainstate PROPERTIES OUTPUT_NAME dash-chainstate)
+  list(APPEND installable_targets bitcoin-chainstate)
 endif()
 
 
