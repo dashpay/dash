@@ -81,6 +81,23 @@ set(BUILD_BLS_PYTHON_BINDINGS OFF CACHE STRING "" FORCE)
 set(BUILD_BLS_TESTS OFF CACHE STRING "" FORCE)
 set(BUILD_BLS_BENCHMARKS OFF CACHE STRING "" FORCE)
 add_subdirectory(dashbls EXCLUDE_FROM_ALL)
+# The dashbls and relic headers are noisy (mostly -Wdocumentation). Autotools
+# pulls them in with -isystem; do the same here so that they do not drown out
+# our own warnings, or fail the build outright when WERROR is set.
+get_target_property(dashbls_include_dirs dashbls INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(dashbls PROPERTIES
+  INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${dashbls_include_dirs}"
+)
+unset(dashbls_include_dirs)
+# dashbls does not link core_interface, so give it the depends preprocessor
+# definitions directly, as Autotools does through CPPFLAGS. Debug depends builds
+# set _GLIBCXX_DEBUG, which changes the ABI of the std::vector parameters that
+# Dash passes into dashbls.
+target_compile_definitions(dashbls PRIVATE
+  ${DEPENDS_COMPILE_DEFINITIONS}
+  "$<$<CONFIG:RelWithDebInfo>:${DEPENDS_COMPILE_DEFINITIONS_RELWITHDEBINFO}>"
+  "$<$<CONFIG:Debug>:${DEPENDS_COMPILE_DEFINITIONS_DEBUG}>"
+)
 
 # Stable, backwards-compatible consensus functionality.
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
@@ -172,6 +189,7 @@ target_link_libraries(bitcoin_common
     dashbls
     secp256k1
     Boost::headers
+    $<TARGET_NAME_IF_EXISTS:libevent::libevent>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
 )
@@ -460,10 +478,6 @@ if(BUILD_GUI)
   add_subdirectory(qt)
 endif()
 
-
-if(BUILD_KERNEL_LIB AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/kernel/bitcoinkernel.cpp)
-  add_subdirectory(kernel)
-endif()
 
 if(BUILD_UTIL_CHAINSTATE)
   add_executable(bitcoin-chainstate

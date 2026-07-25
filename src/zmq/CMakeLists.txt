@@ -19,6 +19,10 @@ target_link_libraries(bitcoin_zmq
   PRIVATE
     core_interface
     univalue
+    # zmqpublishnotifier.cpp reaches dbwrapper.h through node/blockstorage.h
+    # and bls.h through chainlock/chainlock.h.
+    leveldb
+    dashbls
     $<TARGET_NAME_IF_EXISTS:libzmq>
     $<TARGET_NAME_IF_EXISTS:PkgConfig::libzmq>
 )
