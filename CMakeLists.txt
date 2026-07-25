@@ -480,6 +480,12 @@ else()
 
   # Warnings that are suppressed outright. Keep in sync with NOWARN_CXXFLAGS in
   # configure.ac; without these a WERROR build fails on GCC or Clang.
+  # -Wundef is not part of the Autotools warning set. Keep the diagnostic, but
+  # do not let it fail the build: crypto/x11/sph_types.h tests SPH_* macros
+  # that are deliberately left undefined.
+  try_append_cxx_flags("-Wundef" TARGET warn_interface SKIP_LINK
+    IF_CHECK_PASSED "-Wno-error=undef"
+  )
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # -Wdeprecated-literal-operator causes problems with clang 20.
     # TODO: remove it once we update hana.
@@ -594,12 +600,24 @@ if(WERROR)
   else()
     set(werror_flag "-Werror")
   endif()
-  try_append_cxx_flags(${werror_flag} TARGET core_interface SKIP_LINK RESULT_VAR compiler_supports_werror)
+  try_append_cxx_flags(${werror_flag} TARGET warn_interface SKIP_LINK RESULT_VAR compiler_supports_werror)
   if(NOT compiler_supports_werror)
     message(FATAL_ERROR "WERROR set but ${werror_flag} is not usable.")
   endif()
   unset(werror_flag)
 endif()
+
+# Autotools puts the warning and -Werror flags in CXXFLAGS only; AM_CFLAGS
+# carries neither. Restrict them to C++ here as well, so that the vendored
+# sphlib C sources under crypto/x11 are held to the same standard as they are
+# by the Autotools build.
+get_target_property(warn_interface_flags warn_interface INTERFACE_COMPILE_OPTIONS)
+if(warn_interface_flags)
+  set_target_properties(warn_interface PROPERTIES
+    INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${warn_interface_flags}>"
+  )
+endif()
+unset(warn_interface_flags)
 
 if(ENABLE_STACKTRACES)
   include(CheckIncludeFileCXX)
