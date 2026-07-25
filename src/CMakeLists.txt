@@ -123,7 +123,8 @@ target_link_libraries(bitcoin_consensus
 # bitcoin#29648, so build and install it here too. It gets its own compilation
 # of the consensus and crypto sources because the public library is built
 # without the optimised SHA-256 backends; see libdashconsensus_la in
-# src/Makefile.am.
+# src/Makefile.am. This has to stay below add_subdirectory(crypto), which is
+# what sets crypto_base_sources and crypto_sph_sources in this scope.
 if(BUILD_CONSENSUS_LIB)
   add_library(dashconsensus SHARED
     ${consensus_sources}

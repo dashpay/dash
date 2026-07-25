@@ -8,7 +8,8 @@ function(generate_setup_nsi)
   set(PACKAGE_URL ${PROJECT_HOMEPAGE_URL})
   # These have to match the executables' OUTPUT_NAMEs, since the deploy target
   # stages the files under those names. Keep them in sync with configure.ac.
-  set(PACKAGE_TARNAME "dashcore")
+  # PACKAGE_TARNAME comes from the top-level CMakeLists.txt, which is also where
+  # add_windows_deploy_target() reads it from.
   set(BITCOIN_GUI_NAME "dash-qt")
   set(BITCOIN_DAEMON_NAME "dashd")
   set(BITCOIN_CLI_NAME "dash-cli")
