@@ -188,27 +188,10 @@ if(ENABLE_WALLET)
   add_subdirectory(${PROJECT_SOURCE_DIR}/src/wallet/test wallet)
 endif()
 
-if(WITH_MULTIPROCESS)
-  add_library(bitcoin_ipc_test STATIC EXCLUDE_FROM_ALL
-    ipc_test.cpp
-  )
-
-  target_capnp_sources(bitcoin_ipc_test ${PROJECT_SOURCE_DIR}
-    ipc_test.capnp
-  )
-
-  target_link_libraries(bitcoin_ipc_test
-    PRIVATE
-      core_interface
-      univalue
-  )
-
-  target_sources(test_bitcoin
-    PRIVATE
-      ipc_tests.cpp
-  )
-  target_link_libraries(test_bitcoin bitcoin_ipc_test)
-endif()
+# NOTE: Upstream also builds an IPC test library here from ipc_test.cpp,
+#       ipc_test.capnp and ipc_tests.cpp. Dash has not backported those sources
+#       (bitcoin#28921), and referencing them makes -DWITH_MULTIPROCESS=ON fail
+#       during generation. Restore this block along with the test sources.
 
 function(add_boost_test source_file)
   if(NOT EXISTS ${source_file})
