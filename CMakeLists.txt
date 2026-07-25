@@ -23,6 +23,8 @@ endif()
 # Project / Package metadata
 #=============================
 set(PACKAGE_NAME "Dash Core")
+# AC_INIT's tarname argument; used for the NSIS installer and URI class.
+set(PACKAGE_TARNAME "dashcore")
 set(CLIENT_VERSION_MAJOR 23)
 set(CLIENT_VERSION_MINOR 1)
 set(CLIENT_VERSION_BUILD 5)
