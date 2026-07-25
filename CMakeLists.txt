@@ -479,7 +479,14 @@ else()
   )
 
   # Warnings that are suppressed outright. Keep in sync with NOWARN_CXXFLAGS in
-  # configure.ac; without these a WERROR build fails on GCC.
+  # configure.ac; without these a WERROR build fails on GCC or Clang.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # -Wdeprecated-literal-operator causes problems with clang 20.
+    # TODO: remove it once we update hana.
+    try_append_cxx_flags("-Wdeprecated-literal-operator" TARGET warn_interface SKIP_LINK
+      IF_CHECK_PASSED "-Wno-error=deprecated-literal-operator"
+    )
+  endif()
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # -Warray-bounds is noisy and currently unhappy with the immer implementation.
     try_append_cxx_flags("-Warray-bounds" TARGET warn_interface SKIP_LINK
