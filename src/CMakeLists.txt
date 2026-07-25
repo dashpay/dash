@@ -407,6 +407,7 @@ if(WITH_MULTIPROCESS)
     bitcoin_ipc
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
+  set_target_properties(bitcoin-node PROPERTIES OUTPUT_NAME dash-node)
   list(APPEND installable_targets bitcoin-node)
 endif()
 
@@ -496,6 +497,7 @@ if(BUILD_UTIL_CHAINSTATE)
       $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoin-chainstate PROPERTIES OUTPUT_NAME dash-chainstate)
+  list(APPEND installable_targets bitcoin-chainstate)
 endif()
 
 
