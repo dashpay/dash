@@ -8,7 +8,7 @@
 | *libbitcoinconsensus*    | Shared library build of static *libdash_consensus* library |
 | *libbitcoin_kernel*      | Consensus engine and support library used for validation by *libbitcoin_node* and also exposed as a [shared library](../shared-libraries.md). |
 | *libbitcoinqt*           | GUI functionality used by *dash-qt* and *dash-gui* executables |
-| *libbitcoin_ipc*         | IPC functionality used by *dash-node*, *dash-wallet*, *dash-gui* executables to communicate when [`--enable-multiprocess`](multiprocess.md) is used. |
+| *libbitcoin_ipc*         | IPC functionality used by *dash-node*, *dash-wallet*, *dash-gui* executables to communicate when [`-DWITH_MULTIPROCESS=ON`](../multiprocess.md) is used. |
 | *libbitcoin_node*        | P2P and RPC server functionality used by *dashd* and *dash-qt* executables. |
 | *libbitcoin_util*        | Home for common functionality shared by different executables and libraries. Similar to *libbitcoin_common*, but lower-level (see [Dependencies](#dependencies)). |
 | *libbitcoin_wallet*      | Wallet functionality used by *dashd* and *dash-wallet* executables. |
@@ -21,7 +21,7 @@ Note: libbitcoin_kernel is a subject to be backported & dashified.
 
 - Most libraries are internal libraries and have APIs which are completely unstable! There are few or no restrictions on backwards compatibility or rules about external dependencies. Exceptions are *libdash_consensus* and *libdash_kernel* which have external interfaces documented at [../shared-libraries.md](../shared-libraries.md).
 
-- Generally each library should have a corresponding source directory and namespace. Source code organization is a work in progress, so it is true that some namespaces are applied inconsistently, and if you look at [`libbitcoin_*_SOURCES`](../../src/Makefile.am) lists you can see that many libraries pull in files from outside their source directory. But when working with libraries, it is good to follow a consistent pattern like:
+- Generally each library should have a corresponding source directory and namespace. Source code organization is a work in progress, so it is true that some namespaces are applied inconsistently, and if you look at the source lists in [`src/CMakeLists.txt`](../../src/CMakeLists.txt) you can see that many libraries pull in files from outside their source directory. But when working with libraries, it is good to follow a consistent pattern like:
 
   - *libbitcoin_node* code lives in `src/node/` in the `node::` namespace
   - *libbitcoin_wallet* code lives in `src/wallet/` in the `wallet::` namespace
