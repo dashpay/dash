@@ -123,6 +123,11 @@ target_link_libraries(fuzz
   $<TARGET_NAME_IF_EXISTS:libevent::libevent>
 )
 
+# When the fuzzing engine does not supply main(), fuzz.cpp has to.
+if(NOT FUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION)
+  target_compile_definitions(fuzz PRIVATE PROVIDE_FUZZ_MAIN_FUNCTION)
+endif()
+
 if(ENABLE_WALLET)
   add_subdirectory(${PROJECT_SOURCE_DIR}/src/wallet/test/fuzz wallet)
 endif()

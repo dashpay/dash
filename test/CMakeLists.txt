@@ -22,7 +22,9 @@ function(create_test_config)
   set_configure_variable(BUILD_UTIL BUILD_BITCOIN_UTIL)
   set_configure_variable(BUILD_WALLET_TOOL BUILD_BITCOIN_WALLET)
   set_configure_variable(BUILD_DAEMON BUILD_BITCOIND)
-  set_configure_variable(BUILD_FUZZ_BINARY ENABLE_FUZZ_BINARY)
+  # config.ini.in still uses the Autotools name; without this the placeholder
+  # expands to nothing and ENABLE_FUZZ is reported as true unconditionally.
+  set_configure_variable(BUILD_FUZZ_BINARY ENABLE_FUZZ)
   set_configure_variable(WITH_ZMQ ENABLE_ZMQ)
   set_configure_variable(ENABLE_EXTERNAL_SIGNER ENABLE_EXTERNAL_SIGNER)
   set_configure_variable(WITH_USDT ENABLE_USDT_TRACEPOINTS)
