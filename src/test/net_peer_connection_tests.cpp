@@ -158,4 +158,23 @@ BOOST_AUTO_TEST_CASE(test_addnode_getaddednodeinfo_and_connection_detection)
     connman->ClearTestNodes();
 }
 
+BOOST_AUTO_TEST_CASE(peer_is_connected_tracks_finalize_node)
+{
+    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto peerman = MakePeerManager(*connman, m_node, /*banman=*/nullptr, /*ignore_incoming_txs=*/false);
+    NodeId id{0};
+    std::vector<CNode*> nodes;
+
+    AddPeer(id, nodes, *peerman, *connman, ConnectionType::INBOUND);
+    CNode& node = *nodes.back();
+
+    BOOST_CHECK(peerman->PeerIsConnected(node.GetId()));
+    BOOST_CHECK(!peerman->PeerIsConnected(node.GetId() + 1));
+
+    peerman->FinalizeNode(node);
+    BOOST_CHECK(!peerman->PeerIsConnected(node.GetId()));
+
+    connman->ClearTestNodes();
+}
+
 BOOST_AUTO_TEST_SUITE_END()

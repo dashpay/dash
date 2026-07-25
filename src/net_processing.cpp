@@ -633,6 +633,7 @@ public:
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     bool PeerIsBanned(const NodeId node_id) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
+    bool PeerIsConnected(const NodeId node_id) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool PeerConsumeObjectRequest(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     GetDataResponse PeerConsumeGetDataResponse(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -6716,6 +6717,11 @@ void PeerManagerImpl::PeerMisbehaving(const NodeId pnode, const int howmuch, con
 bool PeerManagerImpl::PeerIsBanned(const NodeId node_id)
 {
     return IsBanned(node_id);
+}
+
+bool PeerManagerImpl::PeerIsConnected(const NodeId node_id)
+{
+    return GetPeerRef(node_id) != nullptr;
 }
 
 void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)

@@ -288,10 +288,23 @@ void NetSigning::WorkThreadSigning()
         constexpr auto CLEANUP_INTERVAL{5s};
         if (cleanupThrottler.TryCleanup(CLEANUP_INTERVAL)) {
             m_sig_manager.Cleanup();
-            // Drop pending recovered sigs queued by banned peers so a flood's backlog does not
-            // persist after the peer is banned (RemoveBannedNodeStates only cleans the sig-shares
-            // subsystem, not m_sig_manager's pending recovered sigs).
-            m_sig_manager.RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
+            // Drop pending recovered sigs queued by peers that are gone, so a flood's backlog does
+            // not persist after the peer is disconnected (RemoveBannedNodeStates only cleans the
+            // sig-shares subsystem, not m_sig_manager's pending recovered sigs).
+            //
+            // Keyed on "no longer connected" rather than "banned" deliberately. Banning is observed
+            // via Peer::m_should_discourage, a one-shot flag that MaybeDiscourageAndDisconnect
+            // clears on the very next SendMessages pass (~100ms) before disconnecting the peer,
+            // after which the Peer is finalized and the flag is unobservable. This sweep only runs
+            // every CLEANUP_INTERVAL, so a banned-peer predicate would almost never see the flag
+            // set and the backlog would survive. Disconnection is instead a durable, terminal state
+            // (node ids are never reused), so it is reliably observed on some later tick. This also
+            // reclaims the queues of peers that simply went away without misbehaving, and mirrors
+            // how CSigSharesManager::Cleanup() already prunes its per-node state.
+            //
+            // Locally reconstructed sigs use NodeId -1, which is never connected; they live in
+            // pendingReconstructedRecoveredSigs, a separate map RemoveNodesIf does not touch.
+            m_sig_manager.RemoveNodesIf([this](NodeId node_id) { return !m_peer_manager->PeerIsConnected(node_id); });
         }
 
         // TODO Wakeup when pending signing is needed?
