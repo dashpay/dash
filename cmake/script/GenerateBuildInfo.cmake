@@ -30,8 +30,11 @@ else()
   set(WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
-set(GIT_TAG)
-set(GIT_COMMIT)
+# NOTE: Unlike upstream, clientversion.cpp only knows about
+#       BUILD_GIT_DESCRIPTION, so this emits the same `git describe` string
+#       that share/genbuild.sh produces. Otherwise every non-release build
+#       reports its version as "vX.Y.Z-unk".
+set(GIT_DESCRIPTION)
 if(NOT "$ENV{BITCOIN_GENBUILD_NO_GIT}" STREQUAL "1")
   find_package(Git QUIET)
   if(Git_FOUND)
@@ -52,59 +55,18 @@ if(NOT "$ENV{BITCOIN_GENBUILD_NO_GIT}" STREQUAL "1")
       )
 
       execute_process(
-        COMMAND ${GIT_EXECUTABLE} describe --abbrev=0
+        COMMAND ${GIT_EXECUTABLE} describe --abbrev=12 --dirty
         WORKING_DIRECTORY ${WORKING_DIR}
-        OUTPUT_VARIABLE MOST_RECENT_TAG
+        OUTPUT_VARIABLE GIT_DESCRIPTION
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
       )
-
-      execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-list -1 ${MOST_RECENT_TAG}
-        WORKING_DIRECTORY ${WORKING_DIR}
-        OUTPUT_VARIABLE MOST_RECENT_TAG_COMMIT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-      )
-
-      execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
-        WORKING_DIRECTORY ${WORKING_DIR}
-        OUTPUT_VARIABLE HEAD_COMMIT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-      )
-
-      execute_process(
-        COMMAND ${GIT_EXECUTABLE} diff-index --quiet HEAD --
-        WORKING_DIRECTORY ${WORKING_DIR}
-        RESULT_VARIABLE IS_DIRTY
-      )
-
-      if(HEAD_COMMIT STREQUAL MOST_RECENT_TAG_COMMIT AND NOT IS_DIRTY)
-        # If latest commit is tagged and not dirty, then use the tag name.
-        set(GIT_TAG ${MOST_RECENT_TAG})
-      else()
-        # Otherwise, generate suffix from git, i.e. string like "0e0a5173fae3-dirty".
-        execute_process(
-          COMMAND ${GIT_EXECUTABLE} rev-parse --short=12 HEAD
-          WORKING_DIRECTORY ${WORKING_DIR}
-          OUTPUT_VARIABLE GIT_COMMIT
-          OUTPUT_STRIP_TRAILING_WHITESPACE
-          ERROR_QUIET
-        )
-        if(IS_DIRTY)
-          string(APPEND GIT_COMMIT "-dirty")
-        endif()
-      endif()
     endif()
   endif()
 endif()
 
-if(GIT_TAG)
-  set(NEWINFO "#define BUILD_GIT_TAG \"${GIT_TAG}\"")
-elseif(GIT_COMMIT)
-  set(NEWINFO "#define BUILD_GIT_COMMIT \"${GIT_COMMIT}\"")
+if(GIT_DESCRIPTION)
+  set(NEWINFO "#define BUILD_GIT_DESCRIPTION \"${GIT_DESCRIPTION}\"")
 else()
   set(NEWINFO "// No build information available")
 endif()
