@@ -24,6 +24,9 @@ function(create_test_config)
   set_configure_variable(BUILD_DAEMON BUILD_BITCOIND)
   # config.ini.in still uses the Autotools name; without this the placeholder
   # expands to nothing and ENABLE_FUZZ is reported as true unconditionally.
+  # Autotools drives that entry from --enable-fuzz (BUILD_FOR_FUZZING here),
+  # but test/fuzz/test_runner.py only uses it to decide whether fuzz targets
+  # were built, so BUILD_FUZZ_BINARY is the more accurate source.
   set_configure_variable(BUILD_FUZZ_BINARY ENABLE_FUZZ)
   set_configure_variable(WITH_ZMQ ENABLE_ZMQ)
   set_configure_variable(ENABLE_EXTERNAL_SIGNER ENABLE_EXTERNAL_SIGNER)
