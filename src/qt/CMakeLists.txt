@@ -291,6 +291,7 @@ if(WITH_MULTIPROCESS)
     bitcoin_ipc
     dashbls
   )
+  set_target_properties(bitcoin-gui PROPERTIES OUTPUT_NAME dash-gui)
   import_plugins(bitcoin-gui)
   list(APPEND installable_targets bitcoin-gui)
   if(WIN32)
