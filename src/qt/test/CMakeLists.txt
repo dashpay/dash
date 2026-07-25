@@ -7,16 +7,23 @@ add_executable(test_bitcoin-qt
   optiontests.cpp
   rpcnestedtests.cpp
   test_main.cpp
+  trafficgraphdatatests.cpp
   uritests.cpp
   util.cpp
   ../../init/bitcoin-qt.cpp
 )
+
+set_target_properties(test_bitcoin-qt PROPERTIES OUTPUT_NAME test_dash-qt)
 
 target_link_libraries(test_bitcoin-qt
   core_interface
   bitcoinqt
   test_util
   bitcoin_node
+  # The Dash-specific headers reachable from these tests include dbwrapper.h,
+  # so the LevelDB headers have to be on the include path.
+  leveldb
+  dashbls
   Boost::headers
   Qt5::Test
 )
