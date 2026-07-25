@@ -91,7 +91,7 @@ set_target_properties(dashbls PROPERTIES
 unset(dashbls_include_dirs)
 
 # Stable, backwards-compatible consensus functionality.
-add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
+set(consensus_sources
   arith_uint256.cpp
   bls/bls.cpp
   consensus/merkle.cpp
@@ -108,7 +108,8 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   util/strencodings.cpp
   util/string.cpp
 )
-set_target_properties(bitcoin_consensus PROPERTIES OUTPUT_NAME dashconsensus)
+# Internal-only; the installable library below is the public dashconsensus.
+add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL ${consensus_sources})
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
@@ -117,6 +118,70 @@ target_link_libraries(bitcoin_consensus
     dashbls
     secp256k1
 )
+
+# Dash still ships the public consensus library that upstream dropped in
+# bitcoin#29648, so build and install it here too. It gets its own compilation
+# of the consensus and crypto sources because the public library is built
+# without the optimised SHA-256 backends; see libdashconsensus_la in
+# src/Makefile.am. This has to stay below add_subdirectory(crypto), which is
+# what sets crypto_base_sources and crypto_sph_sources in this scope.
+if(BUILD_CONSENSUS_LIB)
+  add_library(dashconsensus SHARED
+    ${consensus_sources}
+    ${crypto_base_sources}
+    ${crypto_sph_sources}
+  )
+  target_compile_definitions(dashconsensus
+    PRIVATE
+      BUILD_BITCOIN_INTERNAL
+      DISABLE_OPTIMIZED_SHA256
+      SPH_SMALL_FOOTPRINT_CUBEHASH=1
+      SPH_SMALL_FOOTPRINT_JH=1
+  )
+  target_link_libraries(dashconsensus
+    PRIVATE
+      core_interface
+      Boost::headers
+      dashbls
+      secp256k1
+  )
+  # libdashconsensus_la carries no -version-info, so libtool builds it as
+  # 0:0:0 and installs libdashconsensus.so.0.0.0 with an .so.0 soname. Match
+  # that here, otherwise consumers linked against an Autotools install cannot
+  # resolve DT_NEEDED against a CMake one.
+  set_target_properties(dashconsensus PROPERTIES VERSION 0.0.0 SOVERSION 0)
+  if(APPLE)
+    # libtool derives the Mach-O versions as (current - age + 1), so 0:0:0
+    # yields 1.0.0 where CMake would otherwise take them from the properties
+    # above and emit 0.0.0. dyld refuses a library whose compatibility version
+    # is below the one recorded in the consumer, so set them explicitly.
+    set_target_properties(dashconsensus PROPERTIES
+      MACHO_COMPATIBILITY_VERSION 1.0.0
+      MACHO_CURRENT_VERSION 1.0.0
+    )
+  endif()
+  install(TARGETS dashconsensus
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+  # Automake's include_HEADERS strips the directory, installing the header
+  # flat as <includedir>/bitcoinconsensus.h, which is the layout the
+  # pkg-config file's "Cflags: -I${includedir}" expects. Match it.
+  install(FILES script/bitcoinconsensus.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+  set(prefix ${CMAKE_INSTALL_PREFIX})
+  set(exec_prefix "\${prefix}")
+  set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+  set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+  configure_file(${PROJECT_SOURCE_DIR}/libdashconsensus.pc.in
+    ${PROJECT_BINARY_DIR}/libdashconsensus.pc @ONLY
+  )
+  install(FILES ${PROJECT_BINARY_DIR}/libdashconsensus.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+  )
+endif()
 
 if(WITH_ZMQ)
   add_subdirectory(zmq)

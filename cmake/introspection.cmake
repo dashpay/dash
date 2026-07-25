@@ -163,6 +163,18 @@ check_cxx_source_compiles("
   " HAVE_SYSCTL_ARND
 )
 
+# Needed by script/bitcoinconsensus.h to export the public API symbols.
+check_cxx_source_compiles("
+  int foo(void) __attribute__((visibility(\"default\")));
+  int main(){}
+  " HAVE_DEFAULT_VISIBILITY_ATTRIBUTE
+)
+check_cxx_source_compiles("
+  __declspec(dllexport) int foo(void);
+  int main(){}
+  " HAVE_DLLEXPORT_ATTRIBUTE
+)
+
 if(NOT MSVC)
   include(CheckSourceCompilesAndLinks)
 

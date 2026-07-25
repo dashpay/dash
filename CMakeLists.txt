@@ -136,6 +136,13 @@ option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 
 option(ENABLE_MINER "Enable the in-wallet miner and its RPCs." ON)
 
+# Dash, unlike upstream, still provides the public libdashconsensus API
+# (--with-libs under Autotools, enabled by default).
+option(BUILD_CONSENSUS_LIB "Build the public dashconsensus shared library." ON)
+if(BUILD_CONSENSUS_LIB)
+  set(HAVE_CONSENSUS_LIB ON)
+endif()
+
 # Matches the Autotools `--enable-stacktraces=auto` default: enabled when
 # libbacktrace and its prerequisites are found, otherwise disabled with a
 # warning. See the detection block further down.
@@ -274,6 +281,7 @@ if(BUILD_FOR_FUZZING)
   set(BUILD_TESTS OFF)
   set(BUILD_GUI_TESTS OFF)
   set(BUILD_BENCH OFF)
+  set(BUILD_CONSENSUS_LIB OFF)
   set(BUILD_FUZZ_BINARY ON)
 
   target_compile_definitions(core_interface INTERFACE
@@ -760,6 +768,7 @@ message("  bitcoin-tx .......................... ${BUILD_TX}")
 message("  bitcoin-util ........................ ${BUILD_UTIL}")
 message("  bitcoin-wallet ...................... ${BUILD_WALLET_TOOL}")
 message("  bitcoin-chainstate (experimental) ... ${BUILD_UTIL_CHAINSTATE}")
+message("  libdashconsensus .................... ${BUILD_CONSENSUS_LIB}")
 message("Optional features:")
 message("  wallet support ...................... ${ENABLE_WALLET}")
 if(ENABLE_WALLET)
