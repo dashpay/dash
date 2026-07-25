@@ -26,8 +26,17 @@ Download and install [Git for Windows](https://git-scm.com/download/win). Once i
 Clone the Dash Core repository to a directory. All build scripts and commands will run from this directory.
 ```
 git clone https://github.com/dashpay/dash.git
+cd dash
 ```
 
+
+### 4. vcpkg
+
+The presets below reference `$env{VCPKG_ROOT}`. Set it to the vcpkg instance
+shipped with Visual Studio, or to your own clone, before configuring:
+```
+$env:VCPKG_ROOT = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\vcpkg"
+```
 
 ## Triplets and Presets
 
@@ -46,9 +55,9 @@ cmake --list-presets
 
 CMake will put the resulting object files, libraries, and executables into a dedicated build directory.
 
-In following istructions, the "Debug" configuration can be specified instead of the "Release" one.
+In the following instructions, the "Debug" configuration can be specified instead of the "Release" one.
 
-### 4. Building with Dynamic Linking with GUI
+### 5. Building with Dynamic Linking with GUI
 
 ```
 cmake -B build --preset vs2022 -DBUILD_GUI=ON  # It might take a while if the vcpkg binary cache is unpopulated or invalidated.
@@ -56,7 +65,7 @@ cmake --build build --config Release           # Use "-j N" for N parallel jobs.
 ctest --test-dir build --build-config Release  # Use "-j N" for N parallel tests. Some tests are disabled if Python 3 is not available.
 ```
 
-### 5. Building with Static Linking without GUI
+### 6. Building with Static Linking without GUI
 
 ```
 cmake -B build --preset vs2022-static          # It might take a while if the vcpkg binary cache is unpopulated or invalidated.
@@ -67,7 +76,7 @@ cmake --install build --config Release         # Optional.
 
 ## Performance Notes
 
-### 6. vcpkg Manifest Default Features
+### 7. vcpkg Manifest Default Features
 
 One can skip vcpkg manifest default features to speedup the configuration step.
 For example, the following invocation will skip all features except for "wallet" and "tests" and their dependencies:
@@ -77,6 +86,6 @@ cmake -B build --preset vs2022 -DVCPKG_MANIFEST_NO_DEFAULT_FEATURES=ON -DVCPKG_M
 
 Available features are listed in the [`vcpkg.json`](/vcpkg.json) file.
 
-### 7. Antivirus Software
+### 8. Antivirus Software
 
 To improve the build process performance, one might add the Dash repository directory to the Microsoft Defender Antivirus exclusions.

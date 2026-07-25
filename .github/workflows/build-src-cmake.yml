@@ -32,8 +32,8 @@ on:
 # Builds the tree with CMake on top of the depends prefix produced for the
 # Autotools jobs, which is what makes this a full-stack check: depends emits
 # toolchain.cmake, CMake consumes it, and the unit tests run against the
-# result. Functional tests are deliberately left to the Autotools jobs, so this
-# job does not bundle artifacts.
+# result, followed by a short functional smoke list. The full functional suite
+# stays with the Autotools jobs, so this job does not bundle artifacts.
 jobs:
   build-src-cmake:
     name: Build source (CMake)
