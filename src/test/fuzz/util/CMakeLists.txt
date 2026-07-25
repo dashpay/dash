@@ -3,6 +3,8 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 add_library(test_fuzz STATIC EXCLUDE_FROM_ALL
+  descriptor.cpp
+  mempool.cpp
   net.cpp
   ../fuzz.cpp
   ../util.cpp

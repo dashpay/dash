@@ -309,6 +309,7 @@ $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(fina
             -e 's|@qt_packages@|$(qt_packages_)|' \
             -e 's|@qrencode_packages@|$(qrencode_packages_)|' \
             -e 's|@zmq_packages@|$(zmq_packages_)|' \
+            -e 's|@zstd_packages@|$(zstd_packages_)|' \
             -e 's|@wallet_packages@|$(wallet_packages_)|' \
             -e 's|@bdb_packages@|$(bdb_packages_)|' \
             -e 's|@sqlite_packages@|$(sqlite_packages_)|' \
@@ -317,6 +318,7 @@ $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(fina
             -e 's|@usdt_packages@|$(usdt_packages_)|' \
             -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \
+            -e 's|@platform_gui@|$(PLATFORM_GUI)|' \
             $< > $@
 	touch $@
 

@@ -91,6 +91,8 @@ add_library(bitcoinqt STATIC EXCLUDE_FROM_ALL
   $<$<PLATFORM_ID:Darwin>:macnotificationhandler.mm>
   $<$<PLATFORM_ID:Darwin>:macos_appnap.h>
   $<$<PLATFORM_ID:Darwin>:macos_appnap.mm>
+  masternodemodel.cpp
+  masternodemodel.h
   modaloverlay.cpp
   modaloverlay.h
   networkstyle.cpp
@@ -111,6 +113,8 @@ add_library(bitcoinqt STATIC EXCLUDE_FROM_ALL
   proposalinfo.h
   proposalmodel.cpp
   proposalmodel.h
+  proposalvotedialog.cpp
+  proposalvotedialog.h
   qvalidatedlineedit.cpp
   qvalidatedlineedit.h
   qvaluecombobox.cpp
@@ -181,12 +185,20 @@ if(ENABLE_WALLET)
       descriptiondialog.h
       editaddressdialog.cpp
       editaddressdialog.h
+      masternodedialogs.cpp
+      masternodedialogs.h
       masternodelist.cpp
       masternodelist.h
-      masternodemodel.cpp
-      masternodemodel.h
+      masternodeoperationrunner.cpp
+      masternodeoperationrunner.h
+      masternodewidgets.cpp
+      masternodewidgets.h
+      masternodewizard.cpp
+      masternodewizard.h
       mnemonicverificationdialog.cpp
       mnemonicverificationdialog.h
+      mnsharesession.cpp
+      mnsharesession.h
       openuridialog.cpp
       openuridialog.h
       overviewpage.cpp
@@ -215,6 +227,12 @@ if(ENABLE_WALLET)
       sendcoinsdialog.h
       sendcoinsentry.cpp
       sendcoinsentry.h
+      sharedmncreatedialog.cpp
+      sharedmncreatedialog.h
+      sharedmndialogs.cpp
+      sharedmndialogs.h
+      sharedmnwidgets.cpp
+      sharedmnwidgets.h
       signverifymessagedialog.cpp
       signverifymessagedialog.h
       transactiondesc.cpp
@@ -251,6 +269,10 @@ if(WITH_DBUS)
   target_link_libraries(bitcoinqt PRIVATE Qt5::DBus)
 endif()
 
+if(ENABLE_PLATFORM_GUI)
+  target_link_libraries(bitcoinqt PRIVATE PkgConfig::dash_sdk_cxx)
+endif()
+
 if(qt_lib_type STREQUAL "STATIC_LIBRARY")
   # We want to define static plugins to link ourselves, thus preventing
   # automatic linking against a "sane" set of default static plugins.
@@ -271,6 +293,7 @@ target_link_libraries(bitcoin-qt
   core_interface
   bitcoinqt
   bitcoin_node
+  dashbls
 )
 
 import_plugins(bitcoin-qt)
@@ -291,6 +314,7 @@ if(WITH_MULTIPROCESS)
     bitcoin_ipc
     dashbls
   )
+  set_target_properties(bitcoin-gui PROPERTIES OUTPUT_NAME dash-gui)
   import_plugins(bitcoin-gui)
   list(APPEND installable_targets bitcoin-gui)
   if(WIN32)
