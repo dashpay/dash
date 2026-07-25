@@ -29,17 +29,40 @@
 /* Copyright year */
 #define COPYRIGHT_YEAR @COPYRIGHT_YEAR@
 
+/* Define this symbol to build code that uses ARMv8 AES intrinsics */
+#cmakedefine ENABLE_ARM_AES 1
+
+/* Define this symbol to build code that uses ARM NEON intrinsics */
+#cmakedefine ENABLE_ARM_NEON 1
+
 /* Define this symbol to build code that uses ARMv8 SHA-NI intrinsics */
 #cmakedefine ENABLE_ARM_SHANI 1
 
 /* Define this symbol to build code that uses AVX2 intrinsics */
 #cmakedefine ENABLE_AVX2 1
 
+/* Define this symbol to hook into exception/signal/assert handling to gather
+   stack traces */
+#cmakedefine ENABLE_CRASH_HOOKS 1
+
+/* Define this symbol if the __cxa_throw wrapper used by the crash hooks is
+   available */
+#cmakedefine CRASH_HOOKS_WRAPPED_CXX_ABI 1
+
 /* Define if external signer support is enabled */
 #cmakedefine ENABLE_EXTERNAL_SIGNER 1
 
+/* Define this symbol if in-wallet miner should be enabled */
+#cmakedefine ENABLE_MINER 1
+
 /* Define this symbol to build code that uses SSE4.1 intrinsics */
 #cmakedefine ENABLE_SSE41 1
+
+/* Define this symbol to build code that uses SSSE3 intrinsics */
+#cmakedefine ENABLE_SSSE3 1
+
+/* Define this symbol to gather and print exception stack traces */
+#cmakedefine ENABLE_STACKTRACES 1
 
 /* Define to 1 to enable tracepoints for Userspace, Statically Defined Tracing
    */
@@ -47,6 +70,9 @@
 
 /* Define to 1 to enable wallet functions. */
 #cmakedefine ENABLE_WALLET 1
+
+/* Define this symbol to build code that uses x86 AES-NI intrinsics */
+#cmakedefine ENABLE_X86_AESNI 1
 
 /* Define this symbol to build code that uses x86 SHA-NI intrinsics */
 #cmakedefine ENABLE_X86_SHANI 1
@@ -81,8 +107,8 @@
    sys/random.h */
 #cmakedefine HAVE_GETENTROPY_RAND 1
 
-/* Define this symbol if the Linux getrandom function call is available */
-#cmakedefine HAVE_GETRANDOM 1
+/* Define this symbol if the Linux getrandom system call is available */
+#cmakedefine HAVE_SYS_GETRANDOM 1
 
 /* Define this symbol if you have malloc_info */
 #cmakedefine HAVE_MALLOC_INFO 1

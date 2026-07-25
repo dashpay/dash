@@ -91,8 +91,10 @@ option(BUILD_TESTS "Build test_bitcoin executable." ON)
 option(BUILD_TX "Build bitcoin-tx executable." ${BUILD_TESTS})
 option(BUILD_UTIL "Build bitcoin-util executable." ${BUILD_TESTS})
 
+# NOTE: Dash has not backported libbitcoinkernel yet, so there is no
+#       BUILD_KERNEL_LIB option. bitcoin-chainstate links the regular
+#       libraries instead.
 option(BUILD_UTIL_CHAINSTATE "Build experimental bitcoin-chainstate executable." OFF)
-option(BUILD_KERNEL_LIB "Build experimental bitcoinkernel library." ${BUILD_UTIL_CHAINSTATE})
 
 option(ENABLE_WALLET "Enable wallet." ON)
 option(WITH_SQLITE "Enable SQLite wallet support." ${ENABLE_WALLET})
@@ -129,6 +131,14 @@ option(ENABLE_HARDENING "Attempt to harden the resulting executables." ON)
 option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting executables." OFF)
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
+
+option(ENABLE_MINER "Enable the in-wallet miner and its RPCs." ON)
+
+# Matches the Autotools `--enable-stacktraces=auto` default: enabled when
+# libbacktrace and its prerequisites are found, otherwise disabled with a
+# warning. See the detection block further down.
+option(ENABLE_STACKTRACES "Gather and print exception stack traces. Requires libbacktrace." ON)
+cmake_dependent_option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces." OFF "ENABLE_STACKTRACES" OFF)
 
 option(WITH_NATPMP "Enable NAT-PMP." OFF)
 if(WITH_NATPMP)
@@ -239,7 +249,12 @@ target_link_libraries(core_interface INTERFACE
   $<$<CONFIG:RelWithDebInfo>:core_interface_relwithdebinfo>
   $<$<CONFIG:Debug>:core_interface_debug>
 )
-target_compile_definitions(core_interface INTERFACE HAVE_CONFIG_H)
+target_compile_definitions(core_interface INTERFACE
+  HAVE_CONFIG_H
+  # gsl/pointers.h pulls in <iostream> and defines stream operators unless this
+  # is set. Keep it in sync with CORE_CPPFLAGS in configure.ac.
+  GSL_NO_IOSTREAMS
+)
 
 if(BUILD_FOR_FUZZING)
   message(WARNING "BUILD_FOR_FUZZING=ON will disable all other targets and force BUILD_FUZZ_BINARY=ON.")
@@ -248,7 +263,6 @@ if(BUILD_FOR_FUZZING)
   set(BUILD_TX OFF)
   set(BUILD_UTIL OFF)
   set(BUILD_UTIL_CHAINSTATE OFF)
-  set(BUILD_KERNEL_LIB OFF)
   set(BUILD_WALLET_TOOL OFF)
   set(BUILD_GUI OFF)
   set(ENABLE_EXTERNAL_SIGNER OFF)
@@ -463,6 +477,35 @@ else()
   try_append_cxx_flags("-Wunused-parameter" TARGET warn_interface SKIP_LINK
     IF_CHECK_PASSED "-Wno-unused-parameter"
   )
+
+  # Warnings that are suppressed outright. Keep in sync with NOWARN_CXXFLAGS in
+  # configure.ac; without these a WERROR build fails on GCC.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # -Warray-bounds is noisy and currently unhappy with the immer implementation.
+    try_append_cxx_flags("-Warray-bounds" TARGET warn_interface SKIP_LINK
+      IF_CHECK_PASSED "-Wno-array-bounds"
+    )
+    # -Wstringop-overread and -Wstringop-overflow are broken in GCC.
+    try_append_cxx_flags("-Wstringop-overread" TARGET warn_interface SKIP_LINK
+      IF_CHECK_PASSED "-Wno-stringop-overread"
+    )
+    try_append_cxx_flags("-Wstringop-overflow" TARGET warn_interface SKIP_LINK
+      IF_CHECK_PASSED "-Wno-stringop-overflow"
+    )
+    # -Wattributes causes problems with GCC before 14.
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
+      try_append_cxx_flags("-Wattributes" TARGET warn_interface SKIP_LINK
+        IF_CHECK_PASSED "-Wno-error=attributes"
+      )
+    endif()
+    # -Wcpp is triggered by _FORTIFY_SOURCE=3 on GCC before 12, where level 3
+    # does not exist yet.
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+      try_append_cxx_flags("-Wcpp" TARGET warn_interface SKIP_LINK
+        IF_CHECK_PASSED "-Wno-error=cpp"
+      )
+    endif()
+  endif()
 endif()
 
 configure_file(cmake/script/Coverage.cmake Coverage.cmake COPYONLY)
@@ -551,6 +594,78 @@ if(WERROR)
   unset(werror_flag)
 endif()
 
+if(ENABLE_STACKTRACES)
+  include(CheckIncludeFileCXX)
+  check_include_file_cxx(backtrace.h HAVE_BACKTRACE_H)
+  if(NOT WIN32)
+    check_include_file_cxx(execinfo.h HAVE_EXECINFO_H)
+  endif()
+  find_library(BACKTRACE_LIBRARY NAMES backtrace)
+  if(NOT HAVE_BACKTRACE_H OR NOT BACKTRACE_LIBRARY OR (NOT WIN32 AND NOT HAVE_EXECINFO_H))
+    message(WARNING "libbacktrace was not found, stacktraces will be disabled.")
+    list(APPEND configure_warnings "Stack traces disabled: libbacktrace not found.")
+    set(ENABLE_STACKTRACES OFF)
+    set(ENABLE_CRASH_HOOKS OFF)
+  endif()
+endif()
+
+if(ENABLE_STACKTRACES)
+  add_library(stacktraces_interface INTERFACE)
+  target_link_libraries(core_interface INTERFACE stacktraces_interface)
+  target_link_libraries(stacktraces_interface INTERFACE ${BACKTRACE_LIBRARY})
+  if(WIN32)
+    target_link_libraries(stacktraces_interface INTERFACE dbghelp)
+  else()
+    if(CMAKE_SYSTEM_NAME MATCHES "BSD$")
+      find_library(EXECINFO_LIBRARY NAMES execinfo)
+      if(EXECINFO_LIBRARY)
+        target_link_libraries(stacktraces_interface INTERFACE ${EXECINFO_LIBRARY})
+      endif()
+    endif()
+    # Symbol names are resolved at run time, so they must stay in the dynamic
+    # symbol table.
+    try_append_linker_flag("-Wl,-export-dynamic" TARGET stacktraces_interface
+      RESULT_VAR linker_supports_export_dynamic
+    )
+    if(NOT linker_supports_export_dynamic)
+      try_append_linker_flag("-rdynamic" TARGET stacktraces_interface)
+    endif()
+    unset(linker_supports_export_dynamic)
+    # More modern compilers may emit DWARF 5 binaries by default, which
+    # libbacktrace cannot parse.
+    try_append_cxx_flags("-gdwarf-4" TARGET stacktraces_interface SKIP_LINK)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+      try_append_cxx_flags("-fno-standalone-debug" TARGET stacktraces_interface SKIP_LINK)
+    endif()
+  endif()
+
+  if(ENABLE_CRASH_HOOKS)
+    # Wrap the internal C++ ABI so that stacktraces can be attached to
+    # exceptions. Compilers whose linker lacks --wrap (e.g. ld64) fall back to
+    # the dlsym-based path in stacktraces.cpp.
+    try_append_linker_flag("-Wl,-wrap,__cxa_allocate_exception" VAR wrap_exceptions_flags
+      RESULT_VAR CRASH_HOOKS_WRAPPED_CXX_ABI
+    )
+    if(CRASH_HOOKS_WRAPPED_CXX_ABI)
+      target_link_options(stacktraces_interface INTERFACE
+        "-Wl,-wrap,__cxa_allocate_exception"
+        "-Wl,-wrap,__cxa_free_exception"
+      )
+      if(WIN32)
+        target_link_options(stacktraces_interface INTERFACE
+          "-Wl,-wrap,_assert"
+          "-Wl,-wrap,_wassert"
+        )
+      else()
+        target_link_options(stacktraces_interface INTERFACE
+          "-Wl,-wrap,__assert_fail"
+        )
+      endif()
+    endif()
+    unset(wrap_exceptions_flags)
+  endif()
+endif()
+
 find_package(Python3 3.9 COMPONENTS Interpreter)
 if(Python3_EXECUTABLE)
   set(PYTHON_COMMAND ${Python3_EXECUTABLE})
@@ -618,7 +733,6 @@ message("  bitcoin-tx .......................... ${BUILD_TX}")
 message("  bitcoin-util ........................ ${BUILD_UTIL}")
 message("  bitcoin-wallet ...................... ${BUILD_WALLET_TOOL}")
 message("  bitcoin-chainstate (experimental) ... ${BUILD_UTIL_CHAINSTATE}")
-message("  libbitcoinkernel (experimental) ..... ${BUILD_KERNEL_LIB}")
 message("Optional features:")
 message("  wallet support ...................... ${ENABLE_WALLET}")
 if(ENABLE_WALLET)

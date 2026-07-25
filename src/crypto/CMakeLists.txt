@@ -80,6 +80,52 @@ if(HAVE_ARM_SHANI)
   target_link_libraries(bitcoin_crypto PRIVATE bitcoin_crypto_arm_shani)
 endif()
 
+# X11 hashing backends. The generic implementations in x11/ are always built;
+# these libraries provide the SIMD variants that x11/dispatch.cpp selects at
+# runtime. Keep the definitions in sync with cmake/bitcoin-config.h.in, which
+# is what dispatch.cpp checks when deciding whether a backend exists.
+if(HAVE_SSSE3)
+  add_library(bitcoin_crypto_x11_ssse3 STATIC EXCLUDE_FROM_ALL
+    x11/ssse3/echo.cpp
+  )
+  target_compile_definitions(bitcoin_crypto_x11_ssse3 PUBLIC ENABLE_SSSE3)
+  target_compile_options(bitcoin_crypto_x11_ssse3 PRIVATE ${SSSE3_CXXFLAGS})
+  target_link_libraries(bitcoin_crypto_x11_ssse3 PRIVATE core_interface)
+  target_link_libraries(bitcoin_crypto PRIVATE bitcoin_crypto_x11_ssse3)
+endif()
+
+if(HAVE_X86_AESNI)
+  add_library(bitcoin_crypto_x11_x86_aesni STATIC EXCLUDE_FROM_ALL
+    x11/x86_aesni/echo.cpp
+    x11/x86_aesni/shavite.cpp
+  )
+  target_compile_definitions(bitcoin_crypto_x11_x86_aesni PUBLIC ENABLE_SSE41 ENABLE_X86_AESNI)
+  target_compile_options(bitcoin_crypto_x11_x86_aesni PRIVATE ${X86_AESNI_CXXFLAGS})
+  target_link_libraries(bitcoin_crypto_x11_x86_aesni PRIVATE core_interface)
+  target_link_libraries(bitcoin_crypto PRIVATE bitcoin_crypto_x11_x86_aesni)
+endif()
+
+if(HAVE_ARM_AES)
+  add_library(bitcoin_crypto_x11_arm_aes STATIC EXCLUDE_FROM_ALL
+    x11/arm_crypto/echo.cpp
+    x11/arm_crypto/shavite.cpp
+  )
+  target_compile_definitions(bitcoin_crypto_x11_arm_aes PUBLIC ENABLE_ARM_AES)
+  target_compile_options(bitcoin_crypto_x11_arm_aes PRIVATE ${ARM_AES_CXXFLAGS})
+  target_link_libraries(bitcoin_crypto_x11_arm_aes PRIVATE core_interface)
+  target_link_libraries(bitcoin_crypto PRIVATE bitcoin_crypto_x11_arm_aes)
+endif()
+
+if(HAVE_ARM_NEON)
+  add_library(bitcoin_crypto_x11_arm_neon STATIC EXCLUDE_FROM_ALL
+    x11/arm_neon/echo.cpp
+  )
+  target_compile_definitions(bitcoin_crypto_x11_arm_neon PUBLIC ENABLE_ARM_NEON)
+  target_compile_options(bitcoin_crypto_x11_arm_neon PRIVATE ${ARM_NEON_CXXFLAGS})
+  target_link_libraries(bitcoin_crypto_x11_arm_neon PRIVATE core_interface)
+  target_link_libraries(bitcoin_crypto PRIVATE bitcoin_crypto_x11_arm_neon)
+endif()
+
 add_library(bitcoin_crypto_sph INTERFACE)
 target_compile_definitions(bitcoin_crypto_sph INTERFACE
   SPH_SMALL_FOOTPRINT_CUBEHASH=1
