@@ -103,15 +103,19 @@ check_cxx_source_compiles("
 )
 
 # Check for different ways of gathering OS randomness:
-# - Linux getrandom()
+# - Linux getrandom syscall
+# NOTE: random.cpp issues the syscall directly rather than calling the libc
+#       wrapper, so probe for the syscall and keep the Autotools macro name.
 check_cxx_source_compiles("
-  #include <sys/random.h>
+  #include <unistd.h>
+  #include <sys/syscall.h>
+  #include <linux/random.h>
 
   int main()
   {
-    getrandom(nullptr, 32, 0);
+    syscall(SYS_getrandom, nullptr, 32, 0);
   }
-  " HAVE_GETRANDOM
+  " HAVE_SYS_GETRANDOM
 )
 
 # - BSD getentropy()
@@ -162,6 +166,20 @@ check_cxx_source_compiles("
 if(NOT MSVC)
   include(CheckSourceCompilesAndLinks)
 
+  # Check for SSSE3 intrinsics, used by the X11 hashing backends.
+  set(SSSE3_CXXFLAGS -mssse3)
+  check_cxx_source_compiles_with_flags("${SSSE3_CXXFLAGS}" "
+    #include <tmmintrin.h>
+
+    int main()
+    {
+      __m64 x = _mm_abs_pi32(_m_from_int(0));
+      return 0;
+    }
+    " HAVE_SSSE3
+  )
+  set(ENABLE_SSSE3 ${HAVE_SSSE3})
+
   # Check for SSE4.1 intrinsics.
   set(SSE41_CXXFLAGS -msse4.1)
   check_cxx_source_compiles_with_flags("${SSE41_CXXFLAGS}" "
@@ -207,6 +225,65 @@ if(NOT MSVC)
     " HAVE_X86_SHANI
   )
   set(ENABLE_X86_SHANI ${HAVE_X86_SHANI})
+
+  # Check for x86 AES-NI intrinsics, used by the X11 hashing backends.
+  set(X86_AESNI_CXXFLAGS -msse4.1 -maes)
+  check_cxx_source_compiles_with_flags("${X86_AESNI_CXXFLAGS}" "
+    #include <cstdint>
+    #include <immintrin.h>
+    #include <wmmintrin.h>
+
+    int main()
+    {
+      __m128i x = _mm_setzero_si128();
+      x = _mm_aesenc_si128(x, _mm_setzero_si128());
+      return _mm_extract_epi32(x, 0);
+    }
+    " HAVE_X86_AESNI
+  )
+  set(ENABLE_X86_AESNI ${HAVE_X86_AESNI})
+
+  # Check for ARMv8 AES intrinsics, used by the X11 hashing backends.
+  set(ARM_AES_CXXFLAGS -march=armv8-a+crypto)
+  check_cxx_source_compiles_with_flags("${ARM_AES_CXXFLAGS}" "
+    #include <arm_neon.h>
+
+    int main()
+    {
+      uint8x16_t a, b;
+      vaesmcq_u8(vaeseq_u8(a, b));
+      return 0;
+    }
+    " HAVE_ARM_AES
+  )
+  set(ENABLE_ARM_AES ${HAVE_ARM_AES})
+
+  # Check for ARM NEON intrinsics, used by the X11 hashing backends.
+  # Unlike the checks above, the required flag differs between ARMv8 and ARMv7.
+  # Each attempt needs its own result variable because check_cxx_source_compiles()
+  # is a no-op once the result variable is cached, including when cached as false.
+  set(neon_source "
+    #include <arm_neon.h>
+
+    int main()
+    {
+      float32x4_t f = vdupq_n_f32(0.0);
+      return 0;
+    }
+  ")
+  check_cxx_source_compiles_with_flags("-march=armv8-a" "${neon_source}" HAVE_ARM_NEON_ARMV8)
+  if(HAVE_ARM_NEON_ARMV8)
+    set(ARM_NEON_CXXFLAGS -march=armv8-a)
+    set(HAVE_ARM_NEON TRUE)
+  else()
+    check_cxx_source_compiles_with_flags("-march=armv7-a;-mfpu=neon" "${neon_source}" HAVE_ARM_NEON_ARMV7)
+    if(HAVE_ARM_NEON_ARMV7)
+      set(ARM_NEON_CXXFLAGS -march=armv7-a -mfpu=neon)
+      set(HAVE_ARM_NEON TRUE)
+    endif()
+  endif()
+  unset(neon_source)
+  set(ENABLE_ARM_NEON ${HAVE_ARM_NEON})
 
   # Check for ARMv8 SHA-NI intrinsics.
   set(ARM_SHANI_CXXFLAGS -march=armv8-a+crypto)
