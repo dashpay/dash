@@ -431,7 +431,7 @@ void EnqueueOwn(CDKGPendingMessages& pending, const Message& msg)
     auto pm = std::make_shared<CDataStream>(std::move(ds));
     CHashWriter hw(SER_GETHASH, 0);
     hw.write(AsWritableBytes(Span{*pm}));
-    pending.PushPendingMessage(/*from=*/-1, std::move(pm), hw.GetHash());
+    pending.PushPendingMessage(/*from=*/-1, /*sender_protx=*/uint256(), std::move(pm), hw.GetHash());
 }
 
 // Outcome of the single typed deserialization pass on the DKG worker. Split from
@@ -698,6 +698,8 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
 
     auto pm = std::make_shared<CDataStream>(std::move(vRecv));
     const NodeId from = pfrom.GetId();
+    // Non-null: DKG pushes from non-MNAuth-verified peers were rejected above.
+    const uint256 sender_protx = pfrom.GetVerifiedProRegTxHash();
 
     // DKG messages are only ever sent in reply to a GETDATA (see NetDKG::ProcessGetData), so one we
     // never asked this peer for was pushed at us and must not reach the pending queues, where it
@@ -733,7 +735,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
             break;
         }
         Assume(pending != nullptr);
-        pending->PushPendingMessage(from, std::move(pm), hash);
+        pending->PushPendingMessage(from, sender_protx, std::move(pm), hash);
     });
     if (!dispatched) {
         LogPrintf("NetDKG -- no session handlers for quorumIndex [%d]\n", quorumIndex);

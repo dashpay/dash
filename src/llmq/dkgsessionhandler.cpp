@@ -12,7 +12,7 @@
 namespace llmq {
 CDKGSessionHandler::CDKGSessionHandler(const Consensus::LLMQParams& _params) :
     params{_params},
-    // we allow size*2 messages as we need to make sure we see bad behavior (double messages)
+    // we allow size*2 messages per sender as we need to make sure we see bad behavior (double messages)
     pendingContributions{(size_t)_params.size * 2},
     pendingComplaints{(size_t)_params.size * 2},
     pendingJustifications{(size_t)_params.size * 2},
@@ -25,32 +25,36 @@ CDKGSessionHandler::CDKGSessionHandler(const Consensus::LLMQParams& _params) :
 
 CDKGSessionHandler::~CDKGSessionHandler() = default;
 
-void CDKGPendingMessages::PushPendingMessage(NodeId from, std::shared_ptr<CDataStream> pm, const uint256& hash)
+void CDKGPendingMessages::PushPendingMessage(NodeId from, const uint256& sender_protx,
+                                             std::shared_ptr<CDataStream> pm, const uint256& hash)
 {
     LOCK(cs_messages);
 
-    // Check duplicates before charging the per-node quota so a peer that
+    // Check duplicates before charging the per-sender quota so a peer that
     // resends the same hash cannot exhaust its budget with dupes.
     if (seenMessages.count(hash) != 0) {
         LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- already seen %s, peer=%d\n", __func__, hash.ToString(), from);
         return;
     }
 
-    const auto node_it = messagesPerNode.find(from);
-    if (node_it != messagesPerNode.end() && node_it->second >= maxMessagesPerNode) {
-        // TODO ban?
-        LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- too many messages, peer=%d\n", __func__, from);
-        return;
+    const bool is_remote = from != -1;
+    if (is_remote) {
+        const auto sender_it = messagesPerSender.find(sender_protx);
+        if (sender_it != messagesPerSender.end() && sender_it->second >= maxMessagesPerSender) {
+            // TODO ban?
+            LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- too many messages from %s, peer=%d\n", __func__,
+                     sender_protx.ToString(), from);
+            return;
+        }
     }
 
-    const bool is_remote = from != -1;
     if ((is_remote && pendingRemoteMessageCount >= maxPendingRemoteMessages) ||
         pendingMessages.size() >= maxPendingMessages) {
         LogPrint(BCLog::LLMQ_DKG, "CDKGPendingMessages::%s -- pending queue full, peer=%d\n", __func__, from);
         return;
     }
-    messagesPerNode[from]++;
     if (is_remote) {
+        messagesPerSender[sender_protx]++;
         pendingRemoteMessageCount++;
     }
 
@@ -79,7 +83,7 @@ void CDKGPendingMessages::Clear()
     LOCK(cs_messages);
     pendingMessages.clear();
     pendingRemoteMessageCount = 0;
-    messagesPerNode.clear();
+    messagesPerSender.clear();
     seenMessages.clear();
 }
 

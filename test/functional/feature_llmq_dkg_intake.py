@@ -14,7 +14,9 @@ Adversarial P2P tests for DKG message-intake hardening:
     DKG payloads are rejected before retention even from a verified peer.
   - BLS objects are not materialized at intake: a structurally plausible payload with
     an invalid BLS encoding reaches the DKG worker and is rejected there.
-  - late, framing-valid messages are bounded across reconnect-generated NodeIds and
+  - the per-sender retention quota is keyed by the MNAuth-verified proTxHash, so
+    reconnecting under a fresh NodeId does not refill it.
+  - late, framing-valid messages stay bounded across distinct senders and are
     discarded without BLS materialization before the next round initializes.
   - a well-formed DKG message that the peer never announced and was never asked for
     is dropped before retention, even from a verified peer.
@@ -41,6 +43,12 @@ INVALID_NONZERO_BLS_PUBKEY = b"\xff" * 48
 
 # LLMQ_TEST dkgInterval; phaseBlocks=2, so stage 0=Initialized, 2=Contribute, 4=Complain.
 CYCLE_LENGTH = 24
+
+# Mirrors CDKGPendingMessages in src/llmq/dkgsessionhandler.h: the handler is built
+# with maxMessagesPerSender = params.size * 2, and the queue-wide remote cap is
+# twice that again. Both are per message type.
+MAX_MESSAGES_PER_SENDER_FACTOR = 2
+MAX_PENDING_REMOTE_FACTOR = 4
 
 
 class msg_dkg_raw:
@@ -118,10 +126,10 @@ class DkgIntakeTest(DashTestFramework):
         r += b"\x00" * 96  # sig
         return r
 
-    def add_verified_peer(self, node, uacomment=None):
+    def add_verified_peer(self, node, uacomment=None, protx=FAKE_PROTX):
         peer = node.add_p2p_connection(P2PInterface(), uacomment=uacomment)
         peer_id = get_p2p_id(node, uacomment)
-        assert node.mnauth(peer_id, FAKE_PROTX, FAKE_PUBKEY)
+        assert node.mnauth(peer_id, protx, FAKE_PUBKEY)
         return peer, peer_id
 
     def run_test(self):
@@ -140,7 +148,7 @@ class DkgIntakeTest(DashTestFramework):
         self.test_malformed_rejected(mn_node)
         self.test_trailing_bytes_rejected(mn_node)
         self.test_malformed_bls_pubkey_rejected_by_worker(mn_node)
-        self.test_late_messages_bounded_across_reconnects(mn_node)
+        self.test_late_messages_bounded(mn_node)
         self.test_under_min_contribution_blobs_rejected(mn_node)
         self.test_unrequested_rejected(mn_node)
 
@@ -228,48 +236,62 @@ class DkgIntakeTest(DashTestFramework):
         wait_for_banscore(node, peer_id, 100)
         node.disconnect_p2ps()
 
-    def test_late_messages_bounded_across_reconnects(self, node):
-        self.log.info("Late QCONTRIB retention is bounded across reconnects and cleared without BLS decoding")
+    def _send_late_qcontrib(self, node, peer, nonce):
+        """Send a framing-valid, BLS-invalid QCONTRIB that no on-time worker will drain."""
+        peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
+            blob_count=2,
+            vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
+            # Unique bytes per message so retention is bounded by the quotas rather
+            # than by duplicate-hash suppression.
+            protx_hash=nonce,
+        )))
+        peer.sync_with_ping()
+
+    def test_late_messages_bounded(self, node):
+        self.log.info("Late QCONTRIB retention is bounded per sender and queue-wide, then cleared without BLS decoding")
         nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
         self._start_fresh_dkg_cycle(nodes)
         stage = self.nodes[0].getblockcount() % CYCLE_LENGTH
         assert stage == 0, "expected DKG cycle base, got stage %d" % stage
+        # Park in Complain so nothing drains pendingContributions for the rest of the round.
         complain_stage = 4
         self.move_blocks(nodes, complain_stage - stage)
         assert self.nodes[0].getblockcount() % CYCLE_LENGTH == complain_stage
 
-        # Each transient connection gets a fresh NodeId. Unique proTxHash bytes
-        # avoid deduplication, so this specifically exercises the queue-wide cap
-        # rather than the per-NodeId quota. Keep the final accepted peer connected
-        # to verify that round-start clearing does not score stale BLS encodings.
-        queue_limit = 4 * self.llmq_size
-        retained_peer = None
-        retained_peer_id = None
-        for nonce in range(1, queue_limit + 1):
-            uacomment = "dkg-late-%d" % nonce
-            peer, peer_id = self.add_verified_peer(node, uacomment)
-            peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
-                blob_count=2,
-                vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
-                protx_hash=nonce,
-            )))
-            peer.sync_with_ping()
+        # Part 1: the per-sender quota is keyed by the verified proTxHash, so a peer
+        # that reconnects under a fresh NodeId keeps spending the same budget.
+        sender_quota = MAX_MESSAGES_PER_SENDER_FACTOR * self.llmq_size
+        nonce = 0
+        for i in range(sender_quota):
+            nonce += 1
+            peer, peer_id = self.add_verified_peer(node, "dkg-reconnect-%d" % i)
+            self._send_late_qcontrib(node, peer, nonce)
             wait_for_banscore(node, peer_id, 0)
-            if nonce == queue_limit:
-                retained_peer = peer
-                retained_peer_id = peer_id
-            else:
-                peer.peer_disconnect()
-                peer.wait_for_disconnect()
+            peer.peer_disconnect()
+            peer.wait_for_disconnect()
 
-        overflow_peer, overflow_peer_id = self.add_verified_peer(node, "dkg-late-overflow")
+        nonce += 1
+        quota_peer, quota_peer_id = self.add_verified_peer(node, "dkg-reconnect-over")
+        with node.assert_debug_log(["too many messages from %s" % FAKE_PROTX]):
+            self._send_late_qcontrib(node, quota_peer, nonce)
+        wait_for_banscore(node, quota_peer_id, 0)
+
+        # Part 2: distinct senders each get their own quota, but the queue-wide cap
+        # still bounds total retention. Keep the last accepted peer connected to
+        # verify that round-start clearing does not score stale BLS encodings.
+        queue_limit = MAX_PENDING_REMOTE_FACTOR * self.llmq_size
+        retained_peer_id = None
+        for i in range(queue_limit - sender_quota):
+            nonce += 1
+            peer, peer_id = self.add_verified_peer(node, "dkg-sender-%d" % i, protx="%064x" % (0xd0 + i))
+            self._send_late_qcontrib(node, peer, nonce)
+            wait_for_banscore(node, peer_id, 0)
+            retained_peer_id = peer_id
+
+        nonce += 1
+        overflow_peer, overflow_peer_id = self.add_verified_peer(node, "dkg-sender-over", protx="%064x" % 0xffff)
         with node.assert_debug_log(["pending queue full"]):
-            overflow_peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
-                blob_count=2,
-                vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
-                protx_hash=queue_limit + 1,
-            )))
-            overflow_peer.sync_with_ping()
+            self._send_late_qcontrib(node, overflow_peer, nonce)
         wait_for_banscore(node, overflow_peer_id, 0)
 
         # Crossing the phase boundary must clear a bounded raw queue and finish
@@ -277,13 +299,13 @@ class DkgIntakeTest(DashTestFramework):
         remaining = CYCLE_LENGTH - (self.nodes[0].getblockcount() % CYCLE_LENGTH)
         with node.assert_debug_log(
             [],
-            unexpected_msgs=["malformed DKG message", "failed to deserialize message"],
+            unexpected_msgs=["message failed structure check", "failed to deserialize message"],
             timeout=60,
         ):
             self.move_blocks(nodes, remaining)
             self.quorum_hash = self.nodes[0].getbestblockhash()
             self.wait_for_quorum_phase(self.quorum_hash, 1, self.llmq_size, None, 0, self.mninfo)
-        assert retained_peer is not None
+        assert retained_peer_id is not None
         wait_for_banscore(node, retained_peer_id, 0)
         wait_for_banscore(node, overflow_peer_id, 0)
         node.disconnect_p2ps()

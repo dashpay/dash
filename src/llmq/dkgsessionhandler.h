@@ -7,6 +7,7 @@
 
 #include <net.h> // for NodeId
 #include <sync.h>
+#include <uint256.h>
 
 #include <list>
 #include <map>
@@ -15,7 +16,6 @@
 
 class CDataStream;
 class CBlockIndex;
-class uint256;
 
 namespace Consensus {
 struct LLMQParams;
@@ -53,21 +53,32 @@ public:
     using BinaryMessage = std::pair<NodeId, std::shared_ptr<CDataStream>>;
 
 private:
-    const size_t maxMessagesPerNode;
+    const size_t maxMessagesPerSender;
     const size_t maxPendingRemoteMessages;
     const size_t maxPendingMessages;
     mutable Mutex cs_messages;
     std::list<BinaryMessage> pendingMessages GUARDED_BY(cs_messages);
     size_t pendingRemoteMessageCount GUARDED_BY(cs_messages){0};
-    std::map<NodeId, size_t> messagesPerNode GUARDED_BY(cs_messages);
+    // Keyed by the sender's MNAuth-verified proTxHash, not by NodeId: a peer that
+    // reconnects gets a fresh NodeId but keeps the same proTxHash, so its quota
+    // survives the reconnect instead of being reset.
+    //
+    // Entries deliberately live for the whole round rather than being released on
+    // pop: the quota is cumulative, so that a sender cannot regain retention slots
+    // simply by waiting for the worker to drain the queue. Size is therefore not
+    // bounded by the queue caps but by the number of distinct senders that get a
+    // message accepted in one round, which MNAuth pins to the registered
+    // masternode set (see CMNAuth::ProcessMessage: the proTxHash must resolve in
+    // the deterministic MN list and carry a valid operator-key signature).
+    std::map<uint256, size_t> messagesPerSender GUARDED_BY(cs_messages);
     Uint256HashSet seenMessages GUARDED_BY(cs_messages);
 
 public:
-    explicit CDKGPendingMessages(size_t _maxMessagesPerNode) :
-        maxMessagesPerNode(_maxMessagesPerNode),
-        // Let two peers use their full quota while keeping reconnect-generated
-        // NodeIds from growing the queue without bound.
-        maxPendingRemoteMessages(_maxMessagesPerNode * 2),
+    explicit CDKGPendingMessages(size_t _maxMessagesPerSender) :
+        maxMessagesPerSender(_maxMessagesPerSender),
+        // Belt-and-braces bound on live queue occupancy. The per-sender quota is
+        // the primary limit; this only caps the total across distinct senders.
+        maxPendingRemoteMessages(_maxMessagesPerSender * 2),
         // Reserve one slot for the message produced by this node during the
         // matching phase.
         maxPendingMessages(maxPendingRemoteMessages + 1)
@@ -76,12 +87,15 @@ public:
 
     /**
      * Enqueue a serialized DKG message under @p from with content hash @p hash.
+     * @p sender_protx is the sender's MNAuth-verified proTxHash and keys the
+     * per-sender quota; pass a null hash for messages this node produced itself
+     * (@p from == -1), which are exempt from that quota.
      * Caller is responsible for hashing the payload and (for real peers)
      * routing the erase-request to PeerManager. Drops the message silently on
-     * per-node or queue-wide capacity overflow, or duplicate hash.
+     * per-sender or queue-wide capacity overflow, or duplicate hash.
      */
-    void PushPendingMessage(NodeId from, std::shared_ptr<CDataStream> pm, const uint256& hash)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
+    void PushPendingMessage(NodeId from, const uint256& sender_protx, std::shared_ptr<CDataStream> pm,
+                            const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
 
     std::list<BinaryMessage> PopPendingMessages(size_t maxCount) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
     bool HasSeen(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
