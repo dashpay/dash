@@ -13,6 +13,7 @@
 
 #include <map>
 #include <memory>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -25,7 +26,11 @@ class CMasternodeMetaMan;
 class CSporkManager;
 namespace llmq {
 class ActiveDKGSessionHandler;
+class CDKGComplaint;
+class CDKGContribution;
 class CDKGDebugManager;
+class CDKGJustification;
+class CDKGPrematureCommitment;
 class CDKGSessionManager;
 class CQuorumBlockProcessor;
 class CQuorumManager;
@@ -34,6 +39,38 @@ class QuorumRole;
 } // namespace llmq
 
 namespace llmq {
+
+/**
+ * Framing-only validation of a raw DKG payload, run at intake before retention.
+ * Walks the wire encoding (CompactSize counts, dynamic bitsets, fixed-size BLS
+ * encodings) and checks truncation, trailing bytes, and the upper bounds derived
+ * from quorum params, without materializing any BLS object. Validates a copy, so
+ * @p payload is left untouched for the pending queue and its inventory hash. Typed deserialization
+ * -- and therefore BLS point decompression, canonical checks, and active-scheme
+ * handling -- happens exactly once, later, on the DKG worker thread.
+ *
+ * @warning This walk mirrors the (Un)serialize implementations in
+ *          llmq/dkgmessages.h by hand. Any change to those must be reflected
+ *          here; src/test/fuzz/dkg_message_framing.cpp asserts that this never
+ *          rejects a payload the worker would accept.
+ *
+ * Exposed only so the fuzz target can reach it; production callers go through
+ * NetDKG::ProcessMessage.
+ */
+bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload,
+                                  const Consensus::LLMQParams& params);
+
+/**
+ * Param-only structural validation of a typed DKG message: checks only safe
+ * upper bounds derived from quorum params. Run by the DKG worker immediately
+ * after deserializing queued bytes and before PreVerifyMessage, so malformed
+ * structures never reach deeper validation.
+ */
+bool CheckDKGMessageStructure(const CDKGContribution& qc, const Consensus::LLMQParams& params);
+bool CheckDKGMessageStructure(const CDKGComplaint& qc, const Consensus::LLMQParams& params);
+bool CheckDKGMessageStructure(const CDKGJustification& qj, const Consensus::LLMQParams& params);
+bool CheckDKGMessageStructure(const CDKGPrematureCommitment& qc, const Consensus::LLMQParams& params);
+
 /**
  * NetHandler responsible for DKG networking:
  *  - QCONTRIB / QCOMPLAINT / QJUSTIFICATION / QPCOMMITMENT / QWATCH ProcessMessage

@@ -22,11 +22,15 @@
 #include <net.h>
 #include <netmessagemaker.h>
 #include <protocol.h>
+#include <serialize.h>
 #include <span.h>
+#include <streams.h>
 #include <unordered_lru_cache.h>
 #include <util/std23.h>
 #include <util/thread.h>
 #include <validation.h>
+
+#include <optional>
 
 namespace llmq {
 
@@ -106,31 +110,40 @@ bool SkipBLSObject(CDataStream& ds)
     return SkipBytes(ds, BLSObject::SerSize);
 }
 
-bool ReadAndCheckDynBitset(CDataStream& ds, uint64_t max_size, uint64_t& size_ret)
+// Mirrors DynamicBitSetFormatter::Unser (ReadCompactSize + ReadFixedBitSet),
+// including ReadFixedBitSet's rejection of out-of-range padding bits, without
+// materializing the std::vector<bool>. Returns the bit count on success.
+std::optional<uint64_t> ReadAndCheckDynBitset(CDataStream& ds, uint64_t max_size)
 {
     const auto size = ReadCompactSizeNoThrow(ds);
     if (!size.has_value() || size.value() > max_size) {
-        return false;
+        return std::nullopt;
     }
 
     const size_t byte_size = (size.value() + 7) / 8;
-    std::vector<unsigned char> bytes(byte_size);
-    try {
-        ds.read(AsWritableBytes(Span{bytes}));
-    } catch (const std::exception&) {
-        return false;
+    if (byte_size == 0) {
+        return size;
+    }
+    if (!SkipBytes(ds, byte_size - 1)) {
+        return std::nullopt;
     }
 
-    if (!bytes.empty() && bytes.size() * 8 != size.value()) {
-        const size_t rem = bytes.size() * 8 - size.value();
+    uint8_t last{0};
+    try {
+        ds.read(AsWritableBytes(Span{&last, 1}));
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+
+    if (byte_size * 8 != size.value()) {
+        const size_t rem = byte_size * 8 - size.value();
         const uint8_t mask = ~(uint8_t)(0xff >> rem);
-        if (bytes.back() & mask) {
-            return false;
+        if (last & mask) {
+            return std::nullopt;
         }
     }
 
-    size_ret = size.value();
-    return true;
+    return size;
 }
 
 bool CheckContributionWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
@@ -174,11 +187,16 @@ bool CheckContributionWireStructure(CDataStream& ds, const Consensus::LLMQParams
 bool CheckComplaintWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
-    uint64_t bad_members_size{0};
-    uint64_t complain_for_members_size{0};
-    return SkipCommonDKGFields(ds) && ReadAndCheckDynBitset(ds, size, bad_members_size) &&
-           ReadAndCheckDynBitset(ds, size, complain_for_members_size) &&
-           bad_members_size == complain_for_members_size && SkipBLSObject<CBLSSignature>(ds) && ds.empty();
+    if (!SkipCommonDKGFields(ds)) {
+        return false;
+    }
+    const auto bad_members_size = ReadAndCheckDynBitset(ds, size);
+    if (!bad_members_size.has_value()) {
+        return false;
+    }
+    const auto complain_for_members_size = ReadAndCheckDynBitset(ds, size);
+    return complain_for_members_size.has_value() && bad_members_size.value() == complain_for_members_size.value() &&
+           SkipBLSObject<CBLSSignature>(ds) && ds.empty();
 }
 
 bool CheckJustificationWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
@@ -204,14 +222,20 @@ bool CheckJustificationWireStructure(CDataStream& ds, const Consensus::LLMQParam
 bool CheckPrematureCommitmentWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
-    uint64_t valid_members_size{0};
-    return SkipCommonDKGFields(ds) && ReadAndCheckDynBitset(ds, size, valid_members_size) &&
+    return SkipCommonDKGFields(ds) && ReadAndCheckDynBitset(ds, size).has_value() &&
            SkipBLSObject<CBLSPublicKey>(ds) && SkipBytes(ds, 32) && SkipBLSObject<CBLSSignature>(ds) &&
            SkipBLSObject<CBLSSignature>(ds) && ds.empty();
 }
 
-bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload, const Consensus::LLMQParams& params)
+} // namespace
+
+bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload,
+                                  const Consensus::LLMQParams& params)
 {
+    // Copy so the caller's read position (and the bytes backing its inventory
+    // hash) survive the walk. The copy is a memcpy bounded by the size cap
+    // applied just before this call -- negligible next to the BLS point
+    // decompression that deserializing the payload here would have cost.
     CDataStream ds(payload);
     if (msg_type == NetMsgType::QCONTRIB) {
         return CheckContributionWireStructure(ds, params);
@@ -225,15 +249,7 @@ bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& 
     return false;
 }
 
-// Param-only structural validation of a typed DKG message: checks only safe
-// upper bounds derived from quorum params. Called by the DKG worker immediately
-// after deserializing queued bytes and before PreVerifyMessage, so malformed
-// structures never reach deeper validation.
-template <typename Message>
-bool CheckDKGMessageStructure(const Message& msg, const Consensus::LLMQParams& params);
-
-template <>
-bool CheckDKGMessageStructure<CDKGContribution>(const CDKGContribution& qc, const Consensus::LLMQParams& params)
+bool CheckDKGMessageStructure(const CDKGContribution& qc, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
     const size_t min_size = params.minSize > 0 ? static_cast<size_t>(params.minSize) : 0;
@@ -242,26 +258,25 @@ bool CheckDKGMessageStructure<CDKGContribution>(const CDKGContribution& qc, cons
            qc.contributions->blobs.size() >= min_size && qc.contributions->blobs.size() <= size;
 }
 
-template <>
-bool CheckDKGMessageStructure<CDKGComplaint>(const CDKGComplaint& qc, const Consensus::LLMQParams& params)
+bool CheckDKGMessageStructure(const CDKGComplaint& qc, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
     return qc.badMembers.size() == qc.complainForMembers.size() && qc.badMembers.size() <= size;
 }
 
-template <>
-bool CheckDKGMessageStructure<CDKGJustification>(const CDKGJustification& qj, const Consensus::LLMQParams& params)
+bool CheckDKGMessageStructure(const CDKGJustification& qj, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
     return qj.contributions.size() <= size;
 }
 
-template <>
-bool CheckDKGMessageStructure<CDKGPrematureCommitment>(const CDKGPrematureCommitment& qc, const Consensus::LLMQParams& params)
+bool CheckDKGMessageStructure(const CDKGPrematureCommitment& qc, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
     return qc.validMembers.size() <= size;
 }
+
+namespace {
 
 // returns a set of NodeIds which sent invalid messages
 template <typename Message>
@@ -646,8 +661,9 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
         return;
     }
 
-    // Inventory hash is computed over the raw wire bytes before we consume
-    // them, matching what a peer would compute for the same payload.
+    // Inventory hash is computed over the raw wire bytes, matching what a peer
+    // would compute for the same payload. The framing walk above validated a
+    // copy, so vRecv's read position is untouched.
     CHashWriter hw(SER_GETHASH, 0);
     hw.write(AsWritableBytes(Span{vRecv}));
     const uint256 hash = hw.GetHash();

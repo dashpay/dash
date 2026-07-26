@@ -17,6 +17,13 @@
 #include <vector>
 
 namespace llmq {
+/**
+ * @warning The wire encodings below are walked a second time, by hand, at
+ * network intake: see CheckDKGMessageWireStructure() in llmq/net_dkg.h. That
+ * walk validates framing without materializing BLS objects, so any change to
+ * the (Un)serialize implementations in this file must be mirrored there.
+ * src/test/fuzz/dkg_message_framing.cpp guards the two against divergence.
+ */
 class CDKGContribution
 {
 public:
