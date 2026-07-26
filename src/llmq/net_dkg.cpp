@@ -434,25 +434,36 @@ void EnqueueOwn(CDKGPendingMessages& pending, const Message& msg)
     pending.PushPendingMessage(/*from=*/-1, std::move(pm), hw.GetHash());
 }
 
+// Outcome of the single typed deserialization pass on the DKG worker. Split from
+// a plain bool so the caller can log why a queued payload was dropped: framing
+// passed at intake, so a failure here is either a BLS/canonical/scheme decode
+// error or a param-bound structural violation.
+enum class DKGMessageDecodeResult {
+    Ok,
+    DeserializeFailed,
+    StructureInvalid,
+};
+
 template <typename Message>
-bool DeserializeAndCheckDKGMessage(CDataStream& ds, const Consensus::LLMQParams& params, std::shared_ptr<Message>& msg)
+DKGMessageDecodeResult DeserializeAndCheckDKGMessage(CDataStream& ds, const Consensus::LLMQParams& params,
+                                                     std::shared_ptr<Message>& msg)
 {
     msg = std::make_shared<Message>();
     try {
         ds >> *msg;
     } catch (...) {
         msg.reset();
-        return false;
+        return DKGMessageDecodeResult::DeserializeFailed;
     }
     if (!ds.empty()) {
         msg.reset();
-        return false;
+        return DKGMessageDecodeResult::DeserializeFailed;
     }
     if (!CheckDKGMessageStructure(*msg, params)) {
         msg.reset();
-        return false;
+        return DKGMessageDecodeResult::StructureInvalid;
     }
-    return true;
+    return DKGMessageDecodeResult::Ok;
 }
 
 template <typename Message>
@@ -470,8 +481,13 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, c
     for (const auto& p : msgs) {
         const NodeId& nodeId = p.first;
         std::shared_ptr<Message> msg;
-        if (!DeserializeAndCheckDKGMessage(*p.second, params, msg)) {
-            LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, nodeId);
+        const auto decode_result = DeserializeAndCheckDKGMessage(*p.second, params, msg);
+        if (decode_result != DKGMessageDecodeResult::Ok) {
+            if (decode_result == DKGMessageDecodeResult::StructureInvalid) {
+                LogPrint(BCLog::LLMQ_DKG, "%s -- message failed structure check, peer=%d\n", __func__, nodeId);
+            } else {
+                LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, nodeId);
+            }
             peerman.PeerMisbehaving(nodeId, 100);
             continue;
         }
