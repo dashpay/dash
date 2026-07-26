@@ -39,6 +39,9 @@ DKG_PUSH_TYPES = [b"qcontrib", b"qcomplaint", b"qjustify", b"qpcommit"]
 VALID_BLS_PUBKEY = bytes.fromhex(FAKE_PUBKEY)
 INVALID_NONZERO_BLS_PUBKEY = b"\xff" * 48
 
+# LLMQ_TEST dkgInterval; phaseBlocks=2, so stage 0=Initialized, 2=Contribute, 4=Complain.
+CYCLE_LENGTH = 24
+
 
 class msg_dkg_raw:
     """A DKG push message carrying an arbitrary raw payload (for adversarial intake tests)."""
@@ -196,9 +199,9 @@ class DkgIntakeTest(DashTestFramework):
 
     def _start_fresh_dkg_cycle(self, nodes):
         """Land on the base block of a fresh DKG cycle (phase 1 / Initialized)."""
-        cycle_length = 24
-        skip_count = cycle_length - (self.nodes[0].getblockcount() % cycle_length)
-        self.generate(self.nodes[0], skip_count, sync_fun=lambda: self.sync_blocks(nodes))
+        skip_count = CYCLE_LENGTH - (self.nodes[0].getblockcount() % CYCLE_LENGTH)
+        # move_blocks (not plain generate) so mocktime keeps up with the DKG phase clock.
+        self.move_blocks(nodes, skip_count)
         self.quorum_hash = self.nodes[0].getbestblockhash()
         self.wait_for_quorum_phase(self.quorum_hash, 1, self.llmq_size, None, 0, self.mninfo)
 
@@ -228,14 +231,12 @@ class DkgIntakeTest(DashTestFramework):
     def test_late_messages_bounded_across_reconnects(self, node):
         self.log.info("Late QCONTRIB retention is bounded across reconnects and cleared without BLS decoding")
         nodes = [self.nodes[0]] + [mn.get_node(self) for mn in self.mninfo]
-        cycle_length = 24
         self._start_fresh_dkg_cycle(nodes)
-        stage = self.nodes[0].getblockcount() % cycle_length
+        stage = self.nodes[0].getblockcount() % CYCLE_LENGTH
         assert stage == 0, "expected DKG cycle base, got stage %d" % stage
-        # phaseBlocks=2: stage 0=Initialized, 2=Contribute, 4=Complain.
         complain_stage = 4
         self.move_blocks(nodes, complain_stage - stage)
-        assert self.nodes[0].getblockcount() % cycle_length == complain_stage
+        assert self.nodes[0].getblockcount() % CYCLE_LENGTH == complain_stage
 
         # Each transient connection gets a fresh NodeId. Unique proTxHash bytes
         # avoid deduplication, so this specifically exercises the queue-wide cap
@@ -273,7 +274,7 @@ class DkgIntakeTest(DashTestFramework):
 
         # Crossing the phase boundary must clear a bounded raw queue and finish
         # initializing the next session without deserializing stale BLS points.
-        remaining = cycle_length - (self.nodes[0].getblockcount() % cycle_length)
+        remaining = CYCLE_LENGTH - (self.nodes[0].getblockcount() % CYCLE_LENGTH)
         with node.assert_debug_log(
             [],
             unexpected_msgs=["malformed DKG message", "failed to deserialize message"],
