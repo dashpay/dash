@@ -599,7 +599,10 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
     // attacker-controlled payloads, so they must originate from an MNAuth-verified
     // masternode. qwatch is unauthenticated (any peer can set it via QWATCH) and is
     // only meaningful for pull/observation paths; it must not bypass this gate.
-    if (pfrom.GetVerifiedProRegTxHash().IsNull()) {
+    // Read once and reuse: this identity also keys the per-sender retention quota
+    // below, which must not be able to observe a different value than the gate did.
+    const uint256 sender_protx = pfrom.GetVerifiedProRegTxHash();
+    if (sender_protx.IsNull()) {
         m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10, "DKG message from non-verified peer");
         return;
     }
@@ -698,8 +701,6 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
 
     auto pm = std::make_shared<CDataStream>(std::move(vRecv));
     const NodeId from = pfrom.GetId();
-    // Non-null: DKG pushes from non-MNAuth-verified peers were rejected above.
-    const uint256 sender_protx = pfrom.GetVerifiedProRegTxHash();
 
     // DKG messages are only ever sent in reply to a GETDATA (see NetDKG::ProcessGetData), so one we
     // never asked this peer for was pushed at us and must not reach the pending queues, where it

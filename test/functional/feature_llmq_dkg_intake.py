@@ -299,7 +299,11 @@ class DkgIntakeTest(DashTestFramework):
         remaining = CYCLE_LENGTH - (self.nodes[0].getblockcount() % CYCLE_LENGTH)
         with node.assert_debug_log(
             [],
-            unexpected_msgs=["message failed structure check", "failed to deserialize message"],
+            unexpected_msgs=[
+                "malformed DKG message",
+                "failed to deserialize message",
+                "message failed structure check",
+            ],
             timeout=60,
         ):
             self.move_blocks(nodes, remaining)

@@ -6,11 +6,11 @@
 #define BITCOIN_LLMQ_DKGSESSIONHANDLER_H
 
 #include <net.h> // for NodeId
+#include <saltedhasher.h>
 #include <sync.h>
 #include <uint256.h>
 
 #include <list>
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -70,7 +70,7 @@ private:
     // message accepted in one round, which MNAuth pins to the registered
     // masternode set (see CMNAuth::ProcessMessage: the proTxHash must resolve in
     // the deterministic MN list and carry a valid operator-key signature).
-    std::map<uint256, size_t> messagesPerSender GUARDED_BY(cs_messages);
+    Uint256HashMap<size_t> messagesPerSender GUARDED_BY(cs_messages);
     Uint256HashSet seenMessages GUARDED_BY(cs_messages);
 
 public:

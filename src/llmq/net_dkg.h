@@ -54,7 +54,7 @@ namespace llmq {
  *          here; src/test/fuzz/dkg_message_framing.cpp asserts that this never
  *          rejects a payload the worker would accept.
  *
- * Exposed only so the fuzz target can reach it; production callers go through
+ * Exposed only so tests can reach it; production callers go through
  * NetDKG::ProcessMessage.
  */
 bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload,
