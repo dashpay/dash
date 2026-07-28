@@ -35,9 +35,10 @@ reduce the ability of remote peers to consume excessive memory or CPU, retain
 unbounded work, or send unsolicited governance data.
 
 - Added shared bounded-vector deserialization and applied it to SPORK signatures,
-  bloom filters, filteradd payloads, quorum data, LLMQ signing messages, and
-  CoinJoin entry and final-signature messages. Oversized wire counts are rejected
-  before allocating or decoding their full contents.
+  governance vote signatures, bloom filters, filteradd payloads, quorum data,
+  LLMQ signing messages, and CoinJoin entry and final-signature messages.
+  Oversized wire counts are rejected before allocating or decoding their full
+  contents.
 - Bounded pending recovered-signature and signature-share queues, the number and
   size of unverified signature-share batches, and aggregate batched-signature
   intake.
