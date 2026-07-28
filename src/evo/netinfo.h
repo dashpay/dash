@@ -97,9 +97,6 @@ constexpr std::string_view PurposeToString(const NetInfoPurpose purpose)
     return "";
 }
 
-/** Identical to IsDeprecatedRPCEnabled("service"). For use outside of RPC code */
-bool IsServiceDeprecatedRPCEnabled();
-
 /** Will return true if node is running on mainnet */
 bool IsNodeOnMainnet();
 

@@ -87,24 +87,27 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
         if (fields & Field_platformNodeID) {
             obj.pushKV("platformNodeID", state.platformNodeID.ToString());
         }
-        if (IsServiceDeprecatedRPCEnabled()) {
-            // platformP2PPort/platformHTTPPort are deprecated scalar duplicates of netInfo's
-            // Platform entries. From ExtAddr onwards the scalar fields are unused (always 0), so
-            // when the diff carries an ExtAddr netInfo report the live port from it to stay
-            // consistent with the "addresses" output below.
-            const bool has_ext_netinfo = (fields & Field_netInfo) && state.netInfo->CanStorePlatform();
-            if (fields & Field_platformP2PPort) {
-                obj.pushKV("platformP2PPort",
-                           has_ext_netinfo && state.netInfo->HasEntries(NetInfoPurpose::PLATFORM_P2P)
-                               ? state.netInfo->GetEntries(NetInfoPurpose::PLATFORM_P2P)[0].GetPort()
-                               : state.platformP2PPort);
-            }
-            if (fields & Field_platformHTTPPort) {
-                obj.pushKV("platformHTTPPort",
-                           has_ext_netinfo && state.netInfo->HasEntries(NetInfoPurpose::PLATFORM_HTTPS)
-                               ? state.netInfo->GetEntries(NetInfoPurpose::PLATFORM_HTTPS)[0].GetPort()
-                               : state.platformHTTPPort);
-            }
+        // platformP2PPort/platformHTTPPort are deprecated scalar duplicates of netInfo's
+        // Platform entries. From ExtAddr onwards the scalar fields are unused (always 0), so
+        // when the diff carries an ExtAddr netInfo report the live port from it to stay
+        // consistent with the "addresses" output below.
+        //
+        // NOTE: unlike develop, v23.1.x does not gate these fields behind
+        // -deprecatedrpc=service. That gating was removed in bbcd9d543e6 and only restored
+        // upstream by #7181, which targets the v24 line and is not part of this release.
+        // Gating here would drop the fields entirely for every default node.
+        const bool has_ext_netinfo = (fields & Field_netInfo) && state.netInfo->CanStorePlatform();
+        if (fields & Field_platformP2PPort) {
+            obj.pushKV("platformP2PPort",
+                       has_ext_netinfo && state.netInfo->HasEntries(NetInfoPurpose::PLATFORM_P2P)
+                           ? state.netInfo->GetEntries(NetInfoPurpose::PLATFORM_P2P)[0].GetPort()
+                           : state.platformP2PPort);
+        }
+        if (fields & Field_platformHTTPPort) {
+            obj.pushKV("platformHTTPPort",
+                       has_ext_netinfo && state.netInfo->HasEntries(NetInfoPurpose::PLATFORM_HTTPS)
+                           ? state.netInfo->GetEntries(NetInfoPurpose::PLATFORM_HTTPS)[0].GetPort()
+                           : state.platformHTTPPort);
         }
     }
     {
