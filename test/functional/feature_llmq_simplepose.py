@@ -145,7 +145,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
         # remain in mninfos_online (so DKG still sees them) but often never publish
         # a minable commitment; requiring every listed MN times out under close_mn_port.
         got_commitment = self.wait_for_quorum_commitment(
-            q, mninfos_online, expected_commitments=expected_good_nodes, do_assert=False)
+            q, mninfos_online, min_committing_mns=expected_good_nodes, do_assert=False)
 
         self.log.info("Mining final commitment")
         self.bump_mocktime(1, nodes=nodes)

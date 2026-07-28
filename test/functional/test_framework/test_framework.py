@@ -2085,14 +2085,17 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
 
-    def wait_for_quorum_commitment(self, quorum_hash, mninfos, llmq_type=100, timeout=30, expected_commitments=None, do_assert=True):
-        # Require a count of non-null minable commitments, not "every listed MN".
-        # close_mn_port / probe-fail paths keep deaf MNs in mninfos_online so phase
-        # waits can still see them, but those MNs often never publish a minable
-        # commitment. Matching expected_commitments (or len(mninfos) by default)
-        # keeps this aligned with phase message counts.
-        if expected_commitments is None:
-            expected_commitments = len(mninfos)
+    def wait_for_quorum_commitment(self, quorum_hash, mninfos, llmq_type=100, timeout=30, min_committing_mns=None, do_assert=True):
+        # Wait until at least min_committing_mns of the listed MNs expose a non-null
+        # minable commitment (default: all of them, matching the historical behaviour).
+        #
+        # min_committing_mns counts *masternodes*, not DKG messages. Callers that keep
+        # deaf/probe-fail MNs in mninfos (close_mn_port) pass the number of good
+        # contributors, because those MNs stay visible to DKG phase waits but often never
+        # publish a minable commitment. Do not pass mine_quorum()'s expected_commitments
+        # here: that is a per-MN premature-commitment message count, a different unit.
+        if min_committing_mns is None:
+            min_committing_mns = len(mninfos)
 
         def check_dkg_comitments():
             commitment_count = 0
@@ -2110,7 +2113,7 @@ class DashTestFramework(BitcoinTestFramework):
                         continue
                     commitment_count += 1
                     break
-            return commitment_count >= expected_commitments
+            return commitment_count >= min_committing_mns
 
         return self.wait_until(check_dkg_comitments, timeout=timeout, do_assert=do_assert)
 
@@ -2195,7 +2198,11 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
 
         self.log.info("Waiting final commitment")
-        self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type, expected_commitments=expected_commitments)
+        # NOTE: deliberately not passing expected_commitments here. That parameter counts
+        # premature-commitment *messages* received per MN (phase 5), which is a different
+        # unit from the number of MNs exposing a minable commitment. mine_quorum() has no
+        # deaf/probe-fail MNs, so every listed MN must publish one.
+        self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type)
 
         self.log.info("Mining final commitment")
         self.bump_mocktime(1)
