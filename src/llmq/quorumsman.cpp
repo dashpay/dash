@@ -539,7 +539,6 @@ MessageProcessingResult CQuorumManager::ProcessMessage(CNode& pfrom, CConnman& c
 
         // Check if request has QUORUM_VERIFICATION_VECTOR data
         if (request.GetDataMask() & CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR) {
-
             // Reject the wire count before decoding any BLS G1 element so a bogus
             // count cannot spend arbitrary CPU on doomed decodes. A mismatch — over
             // or under — is a protocol violation worth a full ban.

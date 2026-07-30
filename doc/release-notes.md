@@ -1,8 +1,7 @@
 # Dash Core version v23.1.8
 
-This is a patch release with additional security hardening, networking and
-CoinJoin reliability fixes, and compatibility updates for newer build and CI
-toolchains.
+This is a new patch version release, bringing further hardening of the
+peer-to-peer message handlers along with networking, RPC and build fixes.
 This release is **recommended** for all nodes, and especially for masternodes.
 
 Please report bugs using the issue tracker at GitHub:
@@ -29,69 +28,84 @@ require a reindex.
 
 ## Security and P2P hardening
 
-This release adds bounds and request authorization to several peer-to-peer
-message paths. These changes do not alter consensus or put funds at risk; they
-reduce the ability of remote peers to consume excessive memory or CPU, retain
-unbounded work, or send unsolicited governance data.
+This release continues the hardening of peer-to-peer message handlers against
+denial-of-service from remote peers. These issues do not affect consensus and do
+not put funds at risk, but they could be used to crash or degrade nodes -
+masternodes in particular - so upgrading is recommended.
 
-- Added shared bounded-vector deserialization and applied it to SPORK signatures,
-  governance vote signatures, bloom filters, filteradd payloads, quorum data,
-  LLMQ signing messages, and CoinJoin entry and final-signature messages.
-  Oversized wire counts are rejected before allocating or decoding their full
-  contents.
-- Bounded pending recovered-signature and signature-share queues, the number and
-  size of unverified signature-share batches, and aggregate batched-signature
-  intake.
-- Bounded the ChainLock seen cache.
-- Governance vote-sync requests are throttled per object. Governance object and
-  vote responses are accepted only when the sending peer announced the item or
-  was asked for it through the existing per-peer request tracker.
-- Compact-block relay was hardened against mutated blocks, malformed or empty
-  headers, reconstruction failures, and parallel-download state corruption.
-- Block and block-transaction disk reads no longer hold `cs_main`, reducing lock
-  contention while serving peers.
+- LLMQ / signing: the queues of not-yet-verified recovered signatures and
+  signature shares are now bounded, and the vectors carried by the QSIGSHARE,
+  QSIGSESANN, QSIGSHARESINV, QGETSIGSHARES and QBSIGSHARES messages are bounded
+  before any allocation or decoding takes place. The number of signing share
+  sessions a single peer may announce is also capped, so a peer can no longer
+  grow that per-peer state without limit (dash#7351).
+- LLMQ / DKG: the number of encrypted contribution blobs in a DKG contribution
+  is now checked against the quorum's lower bound as well as its upper bound.
+- LLMQ / quorum data: the verification vector and encrypted contribution
+  vectors in QDATA responses are validated against their expected sizes before
+  any BLS decoding is performed.
+- Transaction relay: an oversized `notfound` message is now penalised rather
+  than silently ignored (dash#7348).
+- ChainLocks: the cache of seen ChainLock signatures is now bounded.
+- Governance: per-object vote sync requests are now throttled per peer, and
+  governance object and vote responses are only accepted from a peer if that
+  peer announced them or they were requested from it, using the net-layer
+  per-peer request tracker. Governance vote signatures are bounded when read
+  from the network and must use one of the two legitimate encodings.
+- CoinJoin: the vectors carried by CoinJoin mixing messages are bounded before
+  allocation, and a non-participant can no longer abort another session's
+  signing phase. An invalid `dstx` message now carries a misbehaviour score
+  instead of being dropped for free (dash#7347).
+- Bloom filters: filterload and filteradd payloads are bounded before
+  allocation.
+- Sporks: spork signatures are bounded during deserialization, and malformed
+  spork messages now attribute misbehaviour to the sending peer.
+- Compact block relay: batched hardening backported from upstream Bitcoin Core
+  (dash#7398), including detection of mutated blocks as a defence-in-depth
+  measure.
 
 ## CoinJoin and wallet
 
-- Fixed CoinJoin client lifetime handling by executing client callbacks while the
-  wallet-manager map remains locked, avoiding dangling client pointers during
-  wallet removal.
+- Fixed CoinJoin client lifetime handling by executing client callbacks while
+  the wallet-manager map remains locked, avoiding dangling client pointers
+  during wallet removal (dash#7259).
 - CoinJoin initialization now follows wallet addition, the configured CoinJoin
   preference remains consistent across UI and command-line paths, and locked
-  wallets are no longer automatically started for mixing.
+  wallets are no longer automatically started for mixing. Re-adding an
+  already-registered wallet no longer reinitializes it or autostarts mixing.
 - Moved mixing state onto the wallet to avoid a wallet-manager lock-order
   deadlock, with regression coverage for new-keypool callbacks and the
   wallet-manager lock-order cycle.
-- CoinJoin wire and semantic limits are separated so protocol payloads are
-  rejected at the appropriate boundary without disrupting other session
-  participants.
 
-## GUI and RPC
+## RPC
 
-- The masternode PoSe score remains visible when banned masternodes are hidden.
+- `protx listdiff` no longer reports an always-zero `platformP2PPort` /
+  `platformHTTPPort` for masternodes registered with extended addresses; the
+  live Platform ports are reported instead.
+
+## GUI
+
+- The PoSe score column is no longer hidden together with banned masternodes in
+  the masternode list.
+- Fixed an abort when scaling widgets whose font was set in pixels rather than
+  points (for example by a stylesheet's `font-size: Npx`); such fonts are now
+  converted to a point size instead of being assumed to have one (dash#7465).
 - The CoinJoin toggle now reflects externally started mixing and remains on the
   Start action when a local start attempt fails.
-- Internal platform-address migration no longer produces spurious `protx
-  listdiff` changes. When deprecated platform port fields are present alongside
-  migrated address data, `platformP2PPort` and `platformHTTPPort` report the
-  corresponding non-zero values instead of stale zeroes.
 
-## Build, CI, and developer tooling
+## Build and CI
 
-- Fixed the depends Freetype build with CMake 4 compatibility requirements.
-- Updated GitHub Actions used by repository workflows to Node 24-compatible
-  releases while preserving the release branch's existing Docker action pins.
-- Updated the circular-dependency checker for Python 3.15, including platforms
-  where process forking is unavailable.
-- Retained the GCC 15/16 compatibility and LevelDB fixes already shipped in
-  v23.1.7.
+- Fixed a CMake compatibility error when building the freetype dependency with
+  newer CMake (dash#7372).
+- Stabilized the `-par` / `-parbls` help text (and the generated man pages) so
+  they no longer embed the core count of the build machine.
+- Updated GitHub Actions pins for the Node 24 runtime.
+- Fixed the circular-dependencies lint script under Python 3.15.
 
 ## Tests
 
-New and expanded unit, fuzz, and functional coverage exercises bounded vector
-serialization, LLMQ queues and message intake, governance request authorization,
-ChainLock cache eviction, CoinJoin boundaries and wallet callbacks, SPORK and
-bloom-filter limits, compact-block reconstruction, and mutated blocks.
+- Governance inventory cache coverage moved from a functional test to unit
+  tests, and governance vote test fixtures are now wire-valid.
 
 # v23.1.8 Change log
 
@@ -104,8 +118,8 @@ Thanks to everyone who directly contributed to this release:
 - Claude Code
 - Konstantin Akimov
 - MarcoFalke
-- pasta
 - PastaClaw
+- PastaPastaPasta
 - UdjinM6
 
 As well as everyone that submitted issues, reviewed pull requests and helped

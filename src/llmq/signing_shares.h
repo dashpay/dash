@@ -163,8 +163,16 @@ public:
     [[nodiscard]] std::string ToInvString() const;
 };
 
-//! Decode a QBSIGSHARES payload while enforcing both the outer batch count and
-//! aggregate inner sig-share count. Throws std::ios_base::failure on overflow.
+//! Decode a QBSIGSHARES payload into its vector of CBatchedSigShares.
+//!
+//! The inner sigShares vector of each batch is bounded by CBatchedSigShares's
+//! SERIALIZE_METHODS via LIMITED_VECTOR, but many individually-valid batches
+//! could still exceed the total sig-share cap, so this bounds the outer batch
+//! count and checks the running total of inner sig shares as it decodes,
+//! stopping before an attacker forces us through the full cross product of the
+//! per-vector limits. A wire count above the cap (outer batch count or running
+//! inner total) throws std::ios_base::failure once detected, leaving the caller
+//! to log, ban, and rethrow uniformly.
 std::vector<CBatchedSigShares> UnserializeBatchedSigShares(CDataStream& vRecv);
 
 /**
@@ -400,8 +408,9 @@ public:
         CSigSharesInv announced;
         CSigSharesInv requested;
         CSigSharesInv knows;
+
+        bool receivedAnnouncement{false};
     };
-    // TODO limit number of sessions per node
     Uint256HashMap<Session> sessions;
 
     std::unordered_map<uint32_t, Session*> sessionByRecvId;
@@ -413,6 +422,10 @@ public:
 
     Session& GetOrCreateSessionFromShare(const CSigShare& sigShare);
     Session& GetOrCreateSessionFromAnn(const CSigSesAnn& ann);
+    [[nodiscard]] bool CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t maxSessions) const;
+    [[nodiscard]] size_t GetSessionCount() const;
+    [[nodiscard]] size_t GetSessionCount(Consensus::LLMQType llmqType) const;
+    [[nodiscard]] size_t GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const;
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
     bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);

@@ -37,6 +37,8 @@ public:
 
     void AddWallet(const std::shared_ptr<CWallet>& wallet) override
     {
+        // Skip (re-)initialization when the wallet was already registered: a
+        // duplicate AddWallet must not reinitialize settings or autostart mixing.
         if (!manager().addWallet(wallet) || !CCoinJoinClientOptions::IsEnabled()) return;
         manager().doForClient(wallet->GetName(), [](CCoinJoinClientManager& mgr) {
             g_wallet_init_interface.InitCoinJoinSettings(mgr);

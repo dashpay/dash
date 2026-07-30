@@ -140,7 +140,10 @@ bool CJWalletManagerImpl::addWallet(const std::shared_ptr<wallet::CWallet>& wall
 
 void CJWalletManagerImpl::flushWallet(const std::string& name)
 {
-    walletman.Flush(name);
+    doForClient(name, [](CCoinJoinClientManager& clientman) {
+        clientman.resetPool();
+        clientman.stopMixing();
+    });
 }
 
 void CJWalletManagerImpl::removeWallet(const std::string& name)

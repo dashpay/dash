@@ -88,11 +88,6 @@ public:
     void DoMaintenance(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     void Remove(const std::string& name) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
-    void Flush(const std::string& name) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
-
-    CCoinJoinClientManager* Get(const std::string& name) const EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
-    bool DoForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     template <typename Callable>
     void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
@@ -108,6 +103,18 @@ public:
     {
         LOCK(cs_wallet_manager_map);
         return ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(pair.second); });
+    };
+
+    //! Execute func under the wallet manager lock for the client identified by name.
+    //! Returns true if the client was found and func was called, false otherwise.
+    template <typename Callable>
+    bool DoForClient(const std::string& name, Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
+    {
+        LOCK(cs_wallet_manager_map);
+        auto it = m_wallet_manager_map.find(name);
+        if (it == m_wallet_manager_map.end()) return false;
+        func(*it->second);
+        return true;
     };
 
 private:

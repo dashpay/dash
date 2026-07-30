@@ -45,6 +45,11 @@ class CSuperblock;
 
 class UniValue;
 
+namespace governance {
+// How long a requested governance inv hash remains in the request cache.
+inline constexpr std::chrono::seconds RELIABLE_PROPAGATION_TIME{60};
+} // namespace governance
+
 using CSuperblock_sptr = std::shared_ptr<CSuperblock>;
 using vote_time_pair_t = std::pair<CGovernanceVote, int64_t>;
 

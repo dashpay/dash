@@ -602,6 +602,8 @@ void OverviewPage::coinJoinStatus(bool fForce)
     }
     ui->labelCoinJoinEnabled->setToolTip(strKeysLeftText);
 
+    // strCoinJoinName/notMixing are already resolved above, before the
+    // blockchain-sync gate, so the toggle label stays correct while syncing.
     bool refreshProgress{false};
     walletModel->withCoinJoin([&](auto& client) {
         if (notMixing && nBestHeight != client.getCachedBlocks()) {
@@ -667,6 +669,7 @@ void OverviewPage::coinJoinStatus(bool fForce)
         }
     }
 
+    // Only reachable when notMixing is false (the branch above returns), so mixing is active here.
     QString strEnabled{tr("Enabled")};
     // Show how many keys left in advanced PS UI mode only
     if(fShowAdvancedCJUI && !strKeysLeftText.isEmpty()) strEnabled += ", " + strKeysLeftText;
@@ -757,6 +760,8 @@ void OverviewPage::toggleCoinJoin(){
         } else if (client.startMixing()) {
             ui->toggleCoinJoin->setText(tr("Stop %1").arg(strCoinJoinName));
         } else {
+            // startMixing() can fail (e.g. locked wallet); keep the label in sync
+            // with the client's authoritative mixing state rather than assuming success.
             ui->toggleCoinJoin->setText(tr("Start %1").arg(strCoinJoinName));
         }
     });

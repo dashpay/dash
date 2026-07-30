@@ -1934,27 +1934,3 @@ void CoinJoinWalletManager::Remove(const std::string& name) {
     LOCK(cs_wallet_manager_map);
     m_wallet_manager_map.erase(name);
 }
-
-void CoinJoinWalletManager::Flush(const std::string& name)
-{
-    DoForClient(name, [](CCoinJoinClientManager& clientman) {
-        clientman.resetPool();
-        clientman.stopMixing();
-    });
-}
-
-bool CoinJoinWalletManager::DoForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func)
-{
-    LOCK(cs_wallet_manager_map);
-    auto it = m_wallet_manager_map.find(name);
-    if (it == m_wallet_manager_map.end()) return false;
-    func(*it->second);
-    return true;
-}
-
-CCoinJoinClientManager* CoinJoinWalletManager::Get(const std::string& name) const
-{
-    LOCK(cs_wallet_manager_map);
-    auto it = m_wallet_manager_map.find(name);
-    return (it != m_wallet_manager_map.end()) ? it->second.get() : nullptr;
-}
