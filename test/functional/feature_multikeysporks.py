@@ -2,7 +2,6 @@
 # Copyright (c) 2018-2023 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-import time
 
 from test_framework.test_framework import BitcoinTestFramework
 
@@ -16,6 +15,13 @@ required signers to 3. We check 1 and 2 signers can't set the spork
 value, any 3 signers can change spork value and other 3 signers
 can change it again.
 '''
+
+
+# Spork IDs from src/spork.h — used only to match ProcessSpork debug lines.
+SPORK_IDS = {
+    'SPORK_2_INSTANTSEND_ENABLED': 10001,
+    'SPORK_19_CHAINLOCKS_ENABLED': 10018,
+}
 
 
 class MultiKeySporkTest(BitcoinTestFramework):
@@ -73,17 +79,58 @@ class MultiKeySporkTest(BitcoinTestFramework):
         # use InstantSend spork for tests
         return info[spork_name]
 
+    def wait_for_two_spork_signers(self, spork_name, value, observer_idxs,
+                                   log_offsets, timeout=10):
+        """Wait until pure observers store two ProcessSpork messages for value.
+
+        Local UpdateSpork does not log; only remote acceptance hits ProcessSpork
+        (LogPrintf). Two store lines on each non-signer prove both sub-threshold
+        signatures have propagated before we assert the value is still inactive.
+        """
+        spork_id = SPORK_IDS[spork_name]
+        # CSporkManager::ProcessSpork formats value with %10d
+        marker = f"id: {spork_id} value: {value:10d}"
+
+        def is_process_spork_store(line):
+            # Store path is LogPrintf; "seen" is the only non-store suffix.
+            return marker in line and " seen" not in line
+
+        def observers_have_two_signers():
+            for idx in observer_idxs:
+                node = self.nodes[idx]
+                offset = log_offsets[idx]
+                with open(node.debug_log_path, encoding="utf-8",
+                          errors="replace") as dl:
+                    dl.seek(offset)
+                    log = dl.read()
+                stores = sum(
+                    1 for line in log.splitlines()
+                    if is_process_spork_store(line)
+                )
+                if stores < 2:
+                    return False
+            return True
+
+        self.wait_until(observers_have_two_signers, timeout=timeout)
+
     def test_spork(self, spork_name, final_value):
         # check test spork default state
         for node in self.nodes:
             assert self.get_test_spork_value(node, spork_name) == 4070908800
 
         self.bump_mocktime(1)
+        # Snapshot logs before signing so in-flight ProcessSpork lines are visible.
+        log_offsets = [
+            node.debug_log_size(encoding="utf-8") for node in self.nodes
+        ]
         # first and second signers set spork value
         self.nodes[0].sporkupdate(spork_name, 1)
         self.nodes[1].sporkupdate(spork_name, 1)
-        # spork change requires at least 3 signers
-        time.sleep(10)
+        # Wait until both signatures are stored on non-signers, then assert the
+        # value is still inactive: nMinSporkKeys=3 requires a third signer.
+        self.wait_for_two_spork_signers(
+            spork_name, 1, observer_idxs=(2, 3, 4), log_offsets=log_offsets
+        )
         for node in self.nodes:
             assert self.get_test_spork_value(node, spork_name) != 1
 
