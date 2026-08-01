@@ -396,10 +396,53 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(node.getrawmempool(), [])
         assert_raises_rpc_error(None, None, node.protx, "info", protx_hash3)
 
+        self.log.info("A reorg across a share update reverts the share table")
+        refund7, refund8 = node.getnewaddress(), node.getnewaddress()
+        owner7, owner8 = node.getnewaddress(), node.getnewaddress()
+        shares4 = [
+            {"amount": 800 * COIN, "refundAddress": refund7, "ownerAddress": owner7},
+            {"amount": 200 * COIN, "refundAddress": refund8, "ownerAddress": owner8},
+        ]
+        protx_hash4, _ = self.register_shared(node, shares4, port_offset=5)
+        registered_height4 = node.protx("info", protx_hash4)["state"]["registeredHeight"]
+
+        fee_addr3 = node.getnewaddress()
+        node.sendtoaddress(fee_addr3, 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        reward7 = node.getnewaddress()
+        node.protx("update_share", protx_hash4, 0, reward7, fee_addr3)
+        self.bump_mocktime(10 * 60 + 1)
+        update_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], reward7)
+        # disconnecting the block must roll the deterministic list state back to the refund
+        # fallback, and reconnecting must replay the update
+        node.invalidateblock(update_block)
+        assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], refund7)
+        node.reconsiderblock(update_block)
+        assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], reward7)
+
+        self.log.info("A reorg across a dissolution restores the masternode and its shares")
+        info_before_dissolve = node.protx("info", protx_hash4)
+        dissolve_txid4 = node.protx("dissolve", protx_hash4, 0, DISSOLVE_FEE)
+        self.bump_mocktime(10 * 60 + 1)
+        dissolve_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert_raises_rpc_error(None, None, node.protx, "info", protx_hash4)
+        node.invalidateblock(dissolve_block)
+        info_restored = node.protx("info", protx_hash4)
+        assert_equal(info_restored["state"]["shares"], info_before_dissolve["state"]["shares"])
+        assert_equal(info_restored["state"]["registeredHeight"], registered_height4)
+        # the disconnected dissolution returns to the mempool: the restored masternode makes it
+        # valid again, so it is not lost by the reorg
+        assert dissolve_txid4 in node.getrawmempool()
+        node.reconsiderblock(dissolve_block)
+        assert_raises_rpc_error(None, None, node.protx, "info", protx_hash4)
+        assert dissolve_txid4 not in node.getrawmempool()
+        assert_equal(node.masternodelist(), {})
+
         self.log.info("Every participant's principal was refunded by the dissolutions")
         # refund1/refund2 were refunded by the first MN's unilateral dissolution, refund3/refund4
         # by the second MN's unanimous dissolution (reward receipts are checked separately above)
-        for addr in (refund1, refund2, refund3, refund4, refund5, refund6):
+        for addr in (refund1, refund2, refund3, refund4, refund5, refund6, refund7, refund8):
             assert_greater_than(node.getreceivedbyaddress(addr, 1), Decimal(0))
 
 
