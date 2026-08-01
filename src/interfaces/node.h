@@ -83,6 +83,7 @@ public:
     virtual MnType getType() const = 0;
     virtual UniValue toJson() const = 0;
     virtual const CKeyID& getKeyIdOwner() const = 0;
+    virtual std::vector<CKeyID> getShareOwnerKeyIds() const = 0;
     virtual const CKeyID& getKeyIdVoting() const = 0;
     virtual const COutPoint& getCollateralOutpoint() const = 0;
     virtual const CScript& getScriptPayout() const = 0;

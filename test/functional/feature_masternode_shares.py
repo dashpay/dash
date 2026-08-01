@@ -180,6 +180,16 @@ class MasternodeSharesTest(DashTestFramework):
         assert "payoutAddress" not in info["state"]
         assert "payouts" not in info["state"]
 
+        self.log.info("Shared masternodes are visible in payee displays and wallet filters")
+        # the payee list mode joins every share's effective reward address (here the refund
+        # fallbacks, as no reward scripts are set yet)
+        assert_equal(list(node.masternodelist("payee").values()), [f"{refund1}, {refund2}"])
+        # the wallet holds the share owner keys and reward scripts, so the masternode is
+        # attributed to it despite the null registrar owner key
+        assert_equal(info["wallet"]["hasOwnerKey"], True)
+        assert_equal(info["wallet"]["ownsPayeeScript"], True)
+        assert protx_hash in node.protx("list", "wallet")
+
         self.log.info("A registration with a tampered or misplaced consent signature is rejected by consensus")
         refund_a, refund_b = node.getnewaddress(), node.getnewaddress()
         owner_a, owner_b = node.getnewaddress(), node.getnewaddress()
@@ -279,6 +289,8 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(info["state"]["shares"][0]["rewardAddress"], reward1)
         payees = self.owner_gbt_payees(node)
         assert_equal([p["payee"] for p in payees], [reward1, refund2])
+        # the payee display follows the reward-script update
+        assert_equal(list(node.masternodelist("payee").values()), [f"{reward1}, {refund2}"])
 
         self.log.info("The coinbase actually pays the share reward script while the MN is active")
         # reward1 only ever receives coinbase owner rewards (dissolution refunds go to refund1/2),
@@ -382,6 +394,12 @@ class MasternodeSharesTest(DashTestFramework):
         # operator-key change semantics match ProUpRegTx: operator fields reset, masternode banned
         assert_greater_than(info["state"]["PoSeBanHeight"], 0)
         assert_equal(self.owner_gbt_payees(node), [])
+
+        # A shared masternode has no payout list to fall back to as an update_service fee source,
+        # so omitting feeSourceAddress must produce a clear error rather than picking a
+        # participant's script (or crashing on an empty payout list)
+        assert_raises_rpc_error(-8, "no default fee source", node.protx, "update_service", protx_hash,
+                                [f"127.0.0.1:{p2p_port(1)}"], new_operator["secret"])
 
         # The revive gate requires all keys to be set, and a shared masternode has a null
         # keyIDOwner: this exercises the shared-specific carve-out, without which a banned shared

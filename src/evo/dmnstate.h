@@ -155,6 +155,10 @@ public:
     }
     /** Whether this is a shared masternode (DIP: decentralized masternode shares) */
     [[nodiscard]] bool IsShared() const { return !shares.empty(); }
+    /** The scripts the owner portion of the block reward is paid to: each share's effective
+     *  reward script for a shared masternode, otherwise the (possibly DIP-0026 multi-party)
+     *  payout list */
+    [[nodiscard]] std::vector<CScript> GetOwnerRewardScripts() const;
     void UpdateConfirmedHash(const uint256& _proTxHash, const uint256& _confirmedHash)
     {
         confirmedHash = _confirmedHash;
