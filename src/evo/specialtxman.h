@@ -28,14 +28,6 @@ class CMNHFManager;
 class TxValidationState;
 struct MNListUpdates;
 
-/** Where a special transaction is being validated. Some checks (currently only ProDisTx) must
- *  defer to RebuildListFromBlock in block context because the referenced masternode may have been
- *  registered earlier in the same block. */
-enum class SpecialTxContext : uint8_t {
-    Mempool,
-    Block,
-};
-
 namespace chainlock {
 class Chainlocks;
 }
@@ -128,17 +120,16 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                      const ChainstateManager& chainman, TxValidationState& state, bool check_sigs);
 bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
-                   const ChainstateManager& chainman, TxValidationState& state, bool check_sigs,
-                   SpecialTxContext context);
+                   const ChainstateManager& chainman, TxValidationState& state, bool check_sigs);
 bool CheckProUpShareTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                        CDeterministicMNManager& dmnman, const ChainstateManager& chainman, TxValidationState& state,
                        bool check_sigs);
 bool CheckProUpSharedRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                            CDeterministicMNManager& dmnman, const ChainstateManager& chainman,
                            TxValidationState& state, bool check_sigs);
-/** Full ProDisTx validation against a given masternode list and spend height. Used by mempool
- *  validation (tip list, tip height + 1) and by RebuildListFromBlock (the evolving list, which
- *  includes masternodes registered earlier in the same block, per the DIP). */
+/** Full ProDisTx validation against a given masternode list and spend height. The masternode must
+ *  already be in the list at the previous block: registering and dissolving a shared masternode in
+ *  the same block is deliberately invalid, which lets block validation reuse the mempool path. */
 bool CheckProDisTxForList(const CTransaction& tx, const CProDisTx& ptx, const CDeterministicMNList& mnList,
                           int nSpendHeight, TxValidationState& state, bool check_sigs);
 

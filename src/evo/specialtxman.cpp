@@ -204,7 +204,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
                                 const ChainstateManager& chainman, const llmq::CQuorumManager& qman,
                                 const CChain* chain,
                                 const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsViewCache& view,
-                                const std::optional<CRangesSet>& indexes, bool check_sigs, SpecialTxContext context,
+                                const std::optional<CRangesSet>& indexes, bool check_sigs,
                                 TxValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
@@ -227,7 +227,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
             return CheckProUpRevTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_DISSOLVE:
-            return CheckProDisTx(tx, pindexPrev, dmnman, chainman, state, check_sigs, context);
+            return CheckProDisTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_SHARE:
             return CheckProUpShareTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR:
@@ -265,7 +265,7 @@ bool CSpecialTxProcessor::CheckSpecialTx(const CTransaction& tx, const CBlockInd
 {
     AssertLockHeld(::cs_main);
     return CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, nullptr, tx, pindexPrev, view, std::nullopt, check_sigs,
-                               SpecialTxContext::Mempool, state);
+                               state);
 }
 
 static void HandleQuorumCommitment(const llmq::CFinalCommitment& qc, const std::vector<CDeterministicMNCPtr>& members,
@@ -626,27 +626,6 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 LogPrintf("%s -- MN %s revoked operator key at height %d: %s\n", __func__,
                           opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
             }
-        } else if (tx.nType == TRANSACTION_PROVIDER_DISSOLVE) {
-            const auto opt_proTx = GetTxPayload<CProDisTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
-            }
-
-            // Authoritative validation: newList at this position equals the previous block's list
-            // plus earlier transactions in this block, so a masternode registered and dissolved
-            // within one block is handled per the DIP.
-            //
-            // The masternode is NOT removed here. Removal is deferred to the collateral-spend
-            // sweep below, exactly as an ordinary collateral spend is handled. This keeps the
-            // effect of a dissolution independent of its position among the block's other provider
-            // transactions: a same-masternode ProUpShareTx / ProUpSharedRegTx placed after the
-            // ProDisTx still applies during this pass (the masternode is still present) and only
-            // then does the sweep remove it, so the block is valid regardless of ordering.
-            if (TxValidationState tx_state;
-                !CheckProDisTxForList(tx, *opt_proTx, newList, nHeight, tx_state, /*check_sigs=*/true)) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
-                                     tx_state.GetDebugMessage());
-            }
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
             const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
             if (!opt_proTx) {
@@ -899,7 +878,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             // consensus failures and "TX_BAD_SPECIAL"
             if (!CheckSpecialTxInner(m_dmnman, m_qsnapman, m_chainman, m_qman, &chainstate.m_chain,
                                      *ptr_tx, pindex->pprev, view, indexes,
-                                     fCheckCbTxMerkleRoots, SpecialTxContext::Block, tx_state)) {
+                                     fCheckCbTxMerkleRoots, tx_state)) {
                 assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS || tx_state.GetResult() == TxValidationResult::TX_BAD_SPECIAL);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Special Transaction check failed (tx hash %s) %s", ptr_tx->GetHash().ToString(), tx_state.GetDebugMessage()));
@@ -1782,7 +1761,7 @@ bool CheckProDisTxForList(const CTransaction& tx, const CProDisTx& ptx, const CD
 
 bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                    CDeterministicMNManager& dmnman, const ChainstateManager& chainman, TxValidationState& state,
-                   bool check_sigs, SpecialTxContext context)
+                   bool check_sigs)
 {
     const auto opt_ptx = GetValidatedPayload<CProDisTx>(tx, pindexPrev, chainman, state);
     if (!opt_ptx) {
@@ -1793,15 +1772,14 @@ bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-prodis-too-early");
     }
 
+    // The masternode must exist at the previous block: registering and dissolving a shared
+    // masternode in the same block is deliberately invalid (as is any same-block
+    // ProUpShareTx/ProUpSharedRegTx for a just-registered masternode). Everything a dissolution
+    // is validated against (refund scripts, amounts, registration height) is immutable after
+    // registration, so this pindexPrev-based check is complete and blocks need no re-validation
+    // against the evolving list.
     const auto mnList = dmnman.GetListForBlock(pindexPrev);
     if (!mnList.GetMN(opt_ptx->proTxHash)) {
-        if (context == SpecialTxContext::Block) {
-            // The masternode may have been registered earlier in the same block, which this
-            // pindexPrev-based list cannot see. RebuildListFromBlock performs the authoritative
-            // check against the evolving list and rejects the block if the masternode is still
-            // unknown at the transaction's position.
-            return true;
-        }
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-hash");
     }
     return CheckProDisTxForList(tx, *opt_ptx, mnList, pindexPrev->nHeight + 1, state, check_sigs);
