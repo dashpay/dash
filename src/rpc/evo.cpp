@@ -539,6 +539,25 @@ static std::string SignAndSendSpecialTx(const JSONRPCRequest& request, CChainsta
         return signResult["hex"].get_str();
     }
 
+    // Submitting a partially signed transaction would only fail later in the mempool with an
+    // opaque script-verification error, so fail here with the actual cause. The typical way to
+    // hit this is running "protx shared_combine" on a wallet other than the one whose coins fund
+    // the transaction: combining changes the payload, which invalidates the fee-input signatures,
+    // and only the funding wallet can re-sign them.
+    if (!signResult["complete"].get_bool()) {
+        std::string sign_errors;
+        if (const UniValue& errors = signResult["errors"]; errors.isArray()) {
+            for (const auto& err : errors.getValues()) {
+                if (!sign_errors.empty()) sign_errors += ", ";
+                sign_errors += err["error"].get_str();
+            }
+        }
+        throw JSONRPCError(RPC_WALLET_ERROR,
+                           strprintf("transaction inputs could not be fully signed by this wallet; run this "
+                                     "command on the wallet that funded the transaction, or finish signing "
+                                     "there with signrawtransactionwithwallet (%s)", sign_errors));
+    }
+
     JSONRPCRequest sendRequest(request);
     sendRequest.params.setArray();
     sendRequest.params.push_back(signResult["hex"].get_str());
@@ -1687,7 +1706,9 @@ static RPCHelpMan protx_update_shared_registrar_prepare()
     return RPCHelpMan{"protx update_shared_registrar_prepare",
         "\nCreates an unsigned ProUpSharedRegTx updating a shared masternode's operator key and/or voting\n"
         "key. Fee inputs from this wallet are added and signed. Every share owner must then sign the\n"
-        "returned transaction with \"protx shared_sign\"; combine the signatures with \"protx shared_combine\".\n"
+        "returned transaction with \"protx shared_sign\"; combine the signatures with \"protx shared_combine\"\n"
+        "on this same wallet (combining invalidates the fee-input signatures, which only this wallet can\n"
+        "re-sign).\n"
         + HELP_REQUIRING_PASSPHRASE,
         {
             {"proTxHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hash of the initial ProRegTx."},
@@ -1760,7 +1781,10 @@ static RPCHelpMan protx_shared_combine()
         "\nCombines share owner signatures produced by \"protx shared_sign\" into a shared masternode\n"
         "transaction. For a shared ProRegTx the completed transaction hex is returned and the funding\n"
         "inputs still have to be signed (e.g. by passing the result around signrawtransactionwithwallet).\n"
-        "For a ProDisTx or ProUpSharedRegTx the transaction can be submitted directly.\n",
+        "For a ProDisTx or ProUpSharedRegTx the transaction can be submitted directly. Submit a\n"
+        "ProUpSharedRegTx from the wallet that ran \"protx update_shared_registrar_prepare\": combining\n"
+        "re-signs its fee inputs, which only that wallet can do (with submit=false the returned hex can\n"
+        "be finished there with signrawtransactionwithwallet).\n",
         {
             {"tx", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The serialized transaction in hex format."},
             {"signatures", RPCArg::Type::ARR, RPCArg::Optional::NO, "Signature entries collected from \"protx shared_sign\".",
