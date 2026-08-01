@@ -81,6 +81,7 @@ public:
         return result;
     }
     const CKeyID& getKeyIdOwner() const override { return m_owner; }
+    std::vector<CKeyID> getShareOwnerKeyIds() const override { return {}; }
     const CKeyID& getKeyIdVoting() const override { return m_voting; }
     const COutPoint& getCollateralOutpoint() const override { return m_collateral; }
     const CScript& getScriptPayout() const override { return m_payout; }

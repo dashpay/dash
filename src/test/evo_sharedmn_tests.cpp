@@ -481,6 +481,15 @@ BOOST_AUTO_TEST_CASE(dmn_state_shares_roundtrip)
     BOOST_CHECK_EQUAL(state2.nEarlyPeriodBlocks, state.nEarlyPeriodBlocks);
     BOOST_CHECK_EQUAL(state2.nEarlyPenalty, state.nEarlyPenalty);
 
+    // The owner reward scripts of a shared masternode are the per-share effective reward scripts
+    {
+        const auto scripts = state.GetOwnerRewardScripts();
+        BOOST_REQUIRE_EQUAL(scripts.size(), state.shares.size());
+        for (size_t i = 0; i < scripts.size(); i++) {
+            BOOST_CHECK(scripts[i] == state.shares[i].RewardScript());
+        }
+    }
+
     // A reward-script change is reported as one logical field carrying the whole table
     CDeterministicMNState changed{state};
     CKey reward_key;
@@ -496,6 +505,8 @@ BOOST_AUTO_TEST_CASE(dmn_state_shares_roundtrip)
     CDeterministicMNState applied{state};
     diff2.ApplyToState(applied);
     BOOST_CHECK(applied.shares == changed.shares);
+    // ... and the owner reward scripts follow the update
+    BOOST_CHECK(applied.GetOwnerRewardScripts()[1] == changed.shares[1].scriptReward);
 }
 
 BOOST_AUTO_TEST_CASE(shared_unique_properties)

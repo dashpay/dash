@@ -232,9 +232,9 @@ static std::string GetRequiredPaymentsString(governance::SuperblockManager& supe
     std::string strPayments = "Unknown";
     if (payee) {
         strPayments.clear();
-        for (const auto& payout : GetOwnerPayouts(*payee->pdmnState)) {
+        for (const auto& script : payee->pdmnState->GetOwnerRewardScripts()) {
             CTxDestination dest;
-            if (!ExtractDestination(payout.scriptPayout, dest)) {
+            if (!ExtractDestination(script, dest)) {
                 NONFATAL_UNREACHABLE();
             }
             if (!strPayments.empty()) strPayments += ", ";
@@ -271,9 +271,9 @@ static std::string GetRequiredPaymentsString(governance::SuperblockManager& supe
 static std::string GetOwnerPayoutsString(const CDeterministicMNState& state)
 {
     std::string str_payees;
-    for (const auto& payout : GetOwnerPayouts(state)) {
+    for (const auto& script : state.GetOwnerRewardScripts()) {
         CTxDestination dest;
-        if (!ExtractDestination(payout.scriptPayout, dest)) {
+        if (!ExtractDestination(script, dest)) {
             NONFATAL_UNREACHABLE();
         }
         if (!str_payees.empty()) str_payees += ", ";

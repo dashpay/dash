@@ -33,6 +33,22 @@ std::string CDeterministicMNState::ToString() const
                      EncodeDestination(PKHash(keyIDVoting)), netInfo->ToString(), payoutAddress, payoutList, operatorPayoutAddress);
 }
 
+std::vector<CScript> CDeterministicMNState::GetOwnerRewardScripts() const
+{
+    std::vector<CScript> ret;
+    if (IsShared()) {
+        ret.reserve(shares.size());
+        for (const auto& share : shares) {
+            ret.emplace_back(share.RewardScript());
+        }
+    } else {
+        for (const auto& payout : GetOwnerPayouts(*this)) {
+            ret.emplace_back(payout.scriptPayout);
+        }
+    }
+    return ret;
+}
+
 UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
 {
     UniValue obj(UniValue::VOBJ);

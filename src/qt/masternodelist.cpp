@@ -320,8 +320,14 @@ void MasternodeList::updateMasternodeList()
         const bool owns_payout{std::any_of(script_payouts.begin(), script_payouts.end(), [&](const auto& script) {
             return walletModel->wallet().isSpendable(script);
         })};
+        // A shared masternode has a null keyIDOwner; its share owner keys take its place
+        const auto share_owner_key_ids{entry->shareOwnerKeyIdsRaw()};
+        const bool owns_share{std::any_of(share_owner_key_ids.begin(), share_owner_key_ids.end(), [&](const auto& key_id) {
+            return walletModel->wallet().isSpendable(PKHash(key_id));
+        })};
         bool fMyMasternode{setOutpts.count(entry->collateralOutpointRaw()) ||
                            walletModel->wallet().isSpendable(PKHash(entry->keyIdOwnerRaw())) ||
+                           owns_share ||
                            walletModel->wallet().isSpendable(PKHash(entry->keyIdVotingRaw())) ||
                            owns_payout ||
                            walletModel->wallet().isSpendable(entry->scriptOperatorPayoutRaw())};
