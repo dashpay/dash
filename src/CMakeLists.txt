@@ -150,8 +150,11 @@ if(BUILD_CONSENSUS_LIB)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
+  # Automake's include_HEADERS strips the directory, installing the header
+  # flat as <includedir>/bitcoinconsensus.h, which is the layout the
+  # pkg-config file's "Cflags: -I${includedir}" expects. Match it.
   install(FILES script/bitcoinconsensus.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/script
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
   set(prefix ${CMAKE_INSTALL_PREFIX})
   set(exec_prefix "\${prefix}")
