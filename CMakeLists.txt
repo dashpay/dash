@@ -285,6 +285,7 @@ if(BUILD_FOR_FUZZING)
 
   target_compile_definitions(core_interface INTERFACE
     ABORT_ON_FAILED_ASSUME
+    BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
   )
 endif()
 
