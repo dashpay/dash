@@ -120,12 +120,16 @@ endfunction()
 set_default_config(RelWithDebInfo)
 
 # Redefine/adjust per-configuration flags.
+# Keep this list in sync with the --enable-debug DEBUG_CPPFLAGS in configure.ac.
+# Dash uses DEBUG_CORE, not upstream's DEBUG, which is what span.h and
+# init/common.cpp check.
 target_compile_definitions(core_interface_debug INTERFACE
-  DEBUG
+  DEBUG_CORE
   DEBUG_LOCKORDER
   DEBUG_LOCKCONTENTION
   RPC_DOC_CHECK
   ABORT_ON_FAILED_ASSUME
+  BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
 )
 # We leave assertions on.
 if(MSVC)
