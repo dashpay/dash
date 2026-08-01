@@ -5,9 +5,10 @@
 """Test decentralized masternode shares (shared collateral, reward split, dissolution)."""
 
 import base64
+import struct
 from decimal import Decimal
 
-from test_framework.messages import COIN, CTxOut, tx_from_hex
+from test_framework.messages import COIN, COutPoint, CTransaction, CTxIn, CTxOut, tx_from_hex
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, p2p_port
 from test_framework.util import (
@@ -17,12 +18,19 @@ from test_framework.util import (
     softfork_active,
 )
 
-V24_ACTIVATION_THRESHOLD = 100
+# Keep the earliest activation height above the ~119 blocks the framework setup mines, so
+# run_test starts with v24 locked in but not yet active and can exercise pre-activation rules
+V24_MIN_ACTIVATION_HEIGHT = 250
 COLLATERAL = 1000 * COIN
 SHARED_COLLATERAL_SCRIPT = "04445348437551"
-EARLY_PERIOD_BLOCKS = 20
+# Must comfortably exceed the blocks mined between the first registration and its early-period
+# dissolution checks (~16 worst case), so the masternode is still inside the early period there
+EARLY_PERIOD_BLOCKS = 30
 EARLY_PENALTY = 50 * COIN
 DISSOLVE_FEE = 100000
+TRANSACTION_PROVIDER_DISSOLVE = 10
+TRANSACTION_PROVIDER_UPDATE_SHARE = 11
+TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR = 12
 
 
 class MasternodeSharesTest(DashTestFramework):
@@ -31,7 +39,7 @@ class MasternodeSharesTest(DashTestFramework):
 
     def set_test_params(self):
         self.set_dash_test_params(1, 0, extra_args=[[
-            f"-vbparams=v24:{self.mocktime}:999999999999:{V24_ACTIVATION_THRESHOLD}:10:8:6:5:0",
+            f"-vbparams=v24:{self.mocktime}:999999999999:{V24_MIN_ACTIVATION_HEIGHT}:10:8:6:5:0",
         ]])
 
     def activate_v24(self):
@@ -77,9 +85,60 @@ class MasternodeSharesTest(DashTestFramework):
     def owner_gbt_payees(self, node):
         return [p for p in node.getblocktemplate()["masternode"] if p["script"] != "6a"]
 
+    def build_lifecycle_tx(self, n_type, payload):
+        """Returns hex of a minimally well-formed special transaction of the given type. The dummy
+        input never resolves, but block connection runs special-transaction validation before input
+        lookups, so the reject reason isolates the special-tx rule under test."""
+        tx = CTransaction()
+        tx.nVersion = 3
+        tx.nType = n_type
+        tx.vExtraPayload = payload
+        tx.vin.append(CTxIn(COutPoint(1, 0)))
+        tx.vout.append(CTxOut(1, CScript(b"\x51")))
+        return tx.serialize().hex()
+
     def run_test(self):
         node = self.nodes[0]
+
+        self.log.info("Shared masternode transactions are rejected before v24 activation")
+        assert not softfork_active(node, "v24")
+        pre_miner = node.getnewaddress()
+        # The wallet path is closed while provider transaction version 3 is unavailable
+        pre_shares = [
+            {"amount": 600 * COIN, "refundAddress": node.getnewaddress(), "ownerAddress": node.getnewaddress()},
+            {"amount": 400 * COIN, "refundAddress": node.getnewaddress(), "ownerAddress": node.getnewaddress()},
+        ]
+        pre_funding = node.createrawtransaction([], {node.getnewaddress(): 1})
+        assert_raises_rpc_error(-8, "provider transaction version 3", node.protx, "register_shared_prepare",
+                                pre_funding, pre_shares, "", node.bls("generate")["public"],
+                                node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS, EARLY_PENALTY)
+
+        # Consensus gate: each lifecycle type carries a trivially-valid payload (version 1, empty or
+        # zeroed fields, 65-byte placeholder signatures, a valid operator key where one is required),
+        # so block connection gets past payload deserialization and fails at the deployment check
+        # with the type's dedicated "too early" reason, not a payload or lookup error
+        prodis_hex = self.build_lifecycle_tx(
+            TRANSACTION_PROVIDER_DISSOLVE,
+            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + bytes([1]) + b"\x00" * 65)
+        upshare_hex = self.build_lifecycle_tx(
+            TRANSACTION_PROVIDER_UPDATE_SHARE,
+            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + b"\x00" + b"\x00" * 32 + b"\x00")
+        upsharedreg_hex = self.build_lifecycle_tx(
+            TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR,
+            struct.pack("<H", 1) + b"\x00" * 32 + bytes.fromhex(node.bls("generate")["public"]) +
+            b"\x01" * 20 + b"\x00" * 32 + bytes([1]) + b"\x00" * 65)
+        for tx_hex, reason in ((prodis_hex, "bad-prodis-too-early"),
+                               (upshare_hex, "bad-proupshare-too-early"),
+                               (upsharedreg_hex, "bad-proupsharedreg-too-early")):
+            assert_raises_rpc_error(-25, reason, self.generateblock, node, pre_miner, [tx_hex],
+                                    sync_fun=self.no_op)
+
         self.activate_v24()
+
+        # The same dissolution now clears the deployment gate and fails at the masternode lookup
+        # instead, proving the pre-activation rejections above came from the gate itself
+        assert_raises_rpc_error(-25, "bad-prodis-hash", self.generateblock, node, pre_miner,
+                                [prodis_hex], sync_fun=self.no_op)
 
         self.log.info("Register a two-participant shared masternode")
         refund1, refund2 = node.getnewaddress(), node.getnewaddress()
@@ -308,6 +367,36 @@ class MasternodeSharesTest(DashTestFramework):
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
         assert_equal(node.protx("info", protx_hash)["state"]["shares"][0]["rewardAddress"], reward1)
+
+        self.log.info("An operator-key change PoSe-bans the shared masternode until a ProUpServTx revives it")
+        node.sendtoaddress(fee_addr, 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        new_operator = node.bls("generate")
+        prepared = node.protx("update_shared_registrar_prepare", protx_hash, new_operator["public"], "", fee_addr)
+        sigs = node.protx("shared_sign", prepared["tx"])
+        node.protx("shared_combine", prepared["tx"], sigs, True)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        info = node.protx("info", protx_hash)
+        assert_equal(info["state"]["pubKeyOperator"], new_operator["public"])
+        # operator-key change semantics match ProUpRegTx: operator fields reset, masternode banned
+        assert_greater_than(info["state"]["PoSeBanHeight"], 0)
+        assert_equal(self.owner_gbt_payees(node), [])
+
+        # The revive gate requires all keys to be set, and a shared masternode has a null
+        # keyIDOwner: this exercises the shared-specific carve-out, without which a banned shared
+        # masternode could never be revived
+        node.sendtoaddress(fee_addr, 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        node.protx("update_service", protx_hash, [f"127.0.0.1:{p2p_port(1)}"], new_operator["secret"], "", fee_addr)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        info = node.protx("info", protx_hash)
+        assert_equal(info["state"]["PoSeBanHeight"], -1)
+        # revived: the reward split resumes from the unchanged share table
+        payees = self.owner_gbt_payees(node)
+        assert_equal([p["payee"] for p in payees], [reward1, refund2])
+
         self.log.info("A zero-penalty unilateral dissolution is invalid during the early period")
         assert_raises_rpc_error(-8, "must pay the penalty", node.protx,
                                 "dissolve", protx_hash, 1, DISSOLVE_FEE, True, False)
