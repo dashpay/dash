@@ -9,11 +9,15 @@
 #include <evo/dmnstate.h>
 #include <evo/providertx.h>
 #include <evo/sharedcollateral.h>
+#include <evo/specialtx.h>
+#include <evo/specialtx_filter.h>
 #include <evo/specialtxman.h>
 
 #include <arith_uint256.h>
 #include <clientversion.h>
+#include <common/bloom.h>
 #include <key.h>
+#include <merkleblock.h>
 #include <messagesigner.h>
 #include <policy/policy.h>
 #include <random.h>
@@ -783,6 +787,167 @@ BOOST_AUTO_TEST_CASE(prodis_validation)
         tx.vout.emplace_back(0, t.Shares()[0].scriptRefund);
         t.Sign(tx, ptx, true);
         t.Check(tx, ptx, IN_EARLY, "bad-prodis-actor-output-zero");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(shared_tx_filter_matching)
+{
+    CKey refund_keys[2], owner_keys[2], reward_key, voting_key, new_voting_key;
+    voting_key.MakeNewKey(true);
+    new_voting_key.MakeNewKey(true);
+
+    CProRegTx proTx;
+    proTx.nVersion = ProTxVersion::ExtAddr;
+    proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
+    proTx.keyIDVoting = voting_key.GetPubKey().GetID();
+    proTx.collateralOutpoint = COutPoint(uint256(), 0);
+    proTx.shares.push_back(NewShare(600 * COIN, refund_keys[0], owner_keys[0]));
+    proTx.shares.push_back(NewShare(400 * COIN, refund_keys[1], owner_keys[1]));
+    proTx.shares[1].scriptReward = NewP2PKHScript(reward_key);
+    proTx.vchJoinSigs = DummyJoinSigs(2);
+
+    CMutableTransaction reg_mtx;
+    reg_mtx.nVersion = 3;
+    reg_mtx.nType = TRANSACTION_PROVIDER_REGISTER;
+    reg_mtx.vin.emplace_back(COutPoint(GetRandHash(), 0));
+    reg_mtx.vout.emplace_back(dmn_types::Regular.collat_amount, sharedcollateral::SharedCollateralScript());
+    SetTxPayload(reg_mtx, proTx);
+    const CTransaction reg_tx(reg_mtx);
+
+    const auto hash_vec = [](const auto& h) { return std::vector<unsigned char>(h.begin(), h.end()); };
+    const auto script_vec = [](const CScript& script) { return std::vector<unsigned char>(script.begin(), script.end()); };
+    // Fresh single-element filter each time so one match cannot bleed into the next check
+    const auto matches = [](const CTransaction& tx, const std::vector<unsigned char>& element) {
+        CBloomFilter filter(20, 0.001, 0, BLOOM_UPDATE_NONE);
+        filter.insert(element);
+        return filter.IsRelevantAndUpdate(tx);
+    };
+
+    // A registration matches on every share's refund script, effective reward script and owner
+    // key id, so a light client sees the formation whichever of its own elements it watches
+    for (size_t i = 0; i < proTx.shares.size(); i++) {
+        BOOST_CHECK(matches(reg_tx, hash_vec(refund_keys[i].GetPubKey().GetID())));
+        BOOST_CHECK(matches(reg_tx, hash_vec(proTx.shares[i].keyIDOwner)));
+    }
+    BOOST_CHECK(matches(reg_tx, hash_vec(reward_key.GetPubKey().GetID())));
+    BOOST_CHECK(!matches(reg_tx, hash_vec(GetRandHash())));
+
+    // The lifecycle transactions are matched by proTxHash. With BLOOM_UPDATE_ALL, matching the
+    // registration inserts its hash, so an owner-key watcher follows the lifecycle automatically.
+    const uint256 protx_hash = reg_tx.GetHash();
+
+    CProDisTx dis;
+    dis.proTxHash = protx_hash;
+    dis.actorIndex = 0;
+    dis.vchSigs = DummyJoinSigs(1);
+    CMutableTransaction dis_mtx;
+    dis_mtx.nVersion = 3;
+    dis_mtx.nType = TRANSACTION_PROVIDER_DISSOLVE;
+    dis_mtx.vin.emplace_back(COutPoint(protx_hash, 0));
+    dis_mtx.vout.emplace_back(400 * COIN, proTx.shares[1].scriptRefund);
+    SetTxPayload(dis_mtx, dis);
+    const CTransaction dis_tx(dis_mtx);
+
+    {
+        CBloomFilter filter(20, 0.001, 0, BLOOM_UPDATE_ALL);
+        filter.insert(hash_vec(proTx.shares[0].keyIDOwner));
+        BOOST_CHECK(!filter.contains(protx_hash));
+        BOOST_CHECK(filter.IsRelevantAndUpdate(reg_tx));
+        BOOST_CHECK(filter.contains(protx_hash));
+        BOOST_CHECK(filter.IsRelevantAndUpdate(dis_tx));
+    }
+    BOOST_CHECK(matches(dis_tx, hash_vec(protx_hash)));
+    // A dissolution's refund payments are ordinary outputs, matched by the base output loop
+    BOOST_CHECK(matches(dis_tx, hash_vec(refund_keys[1].GetPubKey().GetID())));
+    BOOST_CHECK(!matches(dis_tx, hash_vec(GetRandHash())));
+
+    CKey new_reward_key;
+    CProUpShareTx upshare;
+    upshare.proTxHash = protx_hash;
+    upshare.shareIndex = 0;
+    upshare.scriptReward = NewP2PKHScript(new_reward_key);
+    CMutableTransaction upshare_mtx;
+    upshare_mtx.nVersion = 3;
+    upshare_mtx.nType = TRANSACTION_PROVIDER_UPDATE_SHARE;
+    upshare_mtx.vin.emplace_back(COutPoint(GetRandHash(), 0));
+    SetTxPayload(upshare_mtx, upshare);
+    const CTransaction upshare_tx(upshare_mtx);
+
+    BOOST_CHECK(matches(upshare_tx, hash_vec(protx_hash)));
+    BOOST_CHECK(matches(upshare_tx, hash_vec(new_reward_key.GetPubKey().GetID())));
+    BOOST_CHECK(!matches(upshare_tx, hash_vec(GetRandHash())));
+    {
+        // A reward-script match inserts the proTxHash so the watcher keeps following the MN
+        CBloomFilter filter(20, 0.001, 0, BLOOM_UPDATE_ALL);
+        filter.insert(hash_vec(new_reward_key.GetPubKey().GetID()));
+        BOOST_CHECK(!filter.contains(protx_hash));
+        BOOST_CHECK(filter.IsRelevantAndUpdate(upshare_tx));
+        BOOST_CHECK(filter.contains(protx_hash));
+    }
+
+    CProUpSharedRegTx upreg;
+    upreg.proTxHash = protx_hash;
+    upreg.pubKeyOperator.Set(CBLSPublicKey(), /*specificLegacyScheme=*/false);
+    upreg.keyIDVoting = new_voting_key.GetPubKey().GetID();
+    upreg.vchSigs = DummyJoinSigs(2);
+    CMutableTransaction upreg_mtx;
+    upreg_mtx.nVersion = 3;
+    upreg_mtx.nType = TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR;
+    upreg_mtx.vin.emplace_back(COutPoint(GetRandHash(), 0));
+    SetTxPayload(upreg_mtx, upreg);
+    const CTransaction upreg_tx(upreg_mtx);
+
+    BOOST_CHECK(matches(upreg_tx, hash_vec(protx_hash)));
+    BOOST_CHECK(matches(upreg_tx, hash_vec(upreg.keyIDVoting)));
+    BOOST_CHECK(!matches(upreg_tx, hash_vec(GetRandHash())));
+
+    // Compact filters must extract the same fields (see the sync note in specialtx_filter.cpp)
+    const auto extract = [](const CTransaction& tx) {
+        std::vector<std::vector<unsigned char>> ret;
+        ExtractSpecialTxFilterElements(tx, [&](Span<const unsigned char> e) { ret.emplace_back(e.begin(), e.end()); });
+        return ret;
+    };
+    const auto has = [](const std::vector<std::vector<unsigned char>>& elements, const std::vector<unsigned char>& v) {
+        return std::find(elements.begin(), elements.end(), v) != elements.end();
+    };
+
+    {
+        const auto elements = extract(reg_tx);
+        for (size_t i = 0; i < proTx.shares.size(); i++) {
+            BOOST_CHECK(has(elements, script_vec(proTx.shares[i].scriptRefund)));
+            BOOST_CHECK(has(elements, script_vec(proTx.shares[i].RewardScript())));
+            BOOST_CHECK(has(elements, hash_vec(proTx.shares[i].keyIDOwner)));
+        }
+    }
+    {
+        const auto elements = extract(dis_tx);
+        BOOST_CHECK(has(elements, hash_vec(protx_hash)));
+    }
+    {
+        const auto elements = extract(upshare_tx);
+        BOOST_CHECK(has(elements, hash_vec(protx_hash)));
+        BOOST_CHECK(has(elements, script_vec(upshare.scriptReward)));
+    }
+    {
+        const auto elements = extract(upreg_tx);
+        BOOST_CHECK(has(elements, hash_vec(protx_hash)));
+        BOOST_CHECK(has(elements, hash_vec(upreg.keyIDVoting)));
+    }
+
+    // CMerkleBlock gates bloom matching through its special-tx-type allowlist, so cover the whole
+    // path a BIP37 client actually takes: a block containing the full lifecycle must match a
+    // filter that starts from a single share owner key
+    {
+        CBlock block;
+        block.vtx.push_back(MakeTransactionRef(reg_tx));
+        block.vtx.push_back(MakeTransactionRef(dis_tx));
+        block.vtx.push_back(MakeTransactionRef(upshare_tx));
+        block.vtx.push_back(MakeTransactionRef(upreg_tx));
+
+        CBloomFilter filter(20, 0.001, 0, BLOOM_UPDATE_ALL);
+        filter.insert(hash_vec(proTx.shares[0].keyIDOwner));
+        CMerkleBlock merkle_block(block, filter);
+        BOOST_CHECK_EQUAL(merkle_block.vMatchedTxn.size(), block.vtx.size());
     }
 }
 
