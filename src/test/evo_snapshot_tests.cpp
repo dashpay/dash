@@ -215,7 +215,38 @@ void CheckInvalid(evo::CEvoSnapshot snapshot)
     BOOST_CHECK_THROW(snapshot.Validate(), std::ios_base::failure);
 }
 
+//! Restores consensus params mutated through const_cast when the test case
+//! leaves scope, including through a failed BOOST_REQUIRE, so mutated state
+//! cannot leak into cases running later in the same process.
+class [[nodiscard]] ConsensusParamsRestorer
+{
+    Consensus::Params& m_params;
+    const Consensus::Params m_saved;
+
+public:
+    explicit ConsensusParamsRestorer(const Consensus::Params& params) :
+        m_params{const_cast<Consensus::Params&>(params)}, m_saved{params}
+    {
+    }
+    ~ConsensusParamsRestorer() { m_params = m_saved; }
+    Consensus::Params& Get() { return m_params; }
+};
+
 } // namespace
+
+//! Chain fixture whose activation heights are already in force while the chain
+//! is mined, so every historical coinbase is the CbTx that v20-era code paths
+//! (e.g. the quorum hash modifier's chainlock probe) are entitled to assume.
+//! Forcing the heights down through const_cast after mining instead would leave
+//! pre-DIP3 coinbases on a chain claiming v20 was always active, which trips
+//! GetTxPayload's payload-type assertion in debug builds.
+struct SnapshotActivationChainSetup : public TestChainSetup {
+    SnapshotActivationChainSetup() :
+        TestChainSetup{102, CBaseChainParams::REGTEST,
+                       {"-dip3params=2:2", "-testactivationheight=v20@2", "-testactivationheight=mn_rr@2"}}
+    {
+    }
+};
 
 BOOST_AUTO_TEST_SUITE(evo_snapshot_tests)
 
@@ -294,9 +325,9 @@ BOOST_FIXTURE_TEST_CASE(snapshot_identity_seeding_is_retrievable, TestChain100Se
     AbstractEHFManager::Signals signals{{2, base->nHeight}};
     llmq::CQuorumSnapshot quorum_snapshot{{true, false, true}, SnapshotSkipMode::MODE_NO_SKIPPING, {}};
 
-    auto& mutable_consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
-    const int old_dip3_height{mutable_consensus.DIP0003Height};
-    mutable_consensus.DIP0003Height = 1;
+    ConsensusParamsRestorer params_restorer{Params().GetConsensus()};
+    const int old_dip3_height{params_restorer.Get().DIP0003Height};
+    params_restorer.Get().DIP0003Height = 1;
     BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(base).GetCounts().total(), 0U);
     BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(historical_index).GetCounts().total(), 0U);
 
@@ -341,7 +372,7 @@ BOOST_FIXTURE_TEST_CASE(snapshot_identity_seeding_is_retrievable, TestChain100Se
     m_node.dmnman->InvalidateListCacheForBlock(historical_index->GetBlockHash());
     const auto subsequent_list{m_node.dmnman->GetListForBlock(base)};
     const auto subsequent_historical_list{m_node.dmnman->GetListForBlock(historical_index)};
-    mutable_consensus.DIP0003Height = old_dip3_height;
+    params_restorer.Get().DIP0003Height = old_dip3_height;
     BOOST_CHECK(evo::CanonicalMNListHash(stored_list) == evo::CanonicalMNListHash(list));
     BOOST_CHECK(evo::CanonicalMNListHash(stored_historical_list) == evo::CanonicalMNListHash(historical_list));
     BOOST_CHECK(evo::CanonicalMNListHash(subsequent_list) == evo::CanonicalMNListHash(list));
@@ -417,28 +448,26 @@ BOOST_FIXTURE_TEST_CASE(snapshot_seed_rollback_does_not_publish_caches, TestChai
     BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string{"mnhf_s2"}, base->GetBlockHash()), db_signals));
     BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string_view{"llmq_S"}, quorum_hash), db_quorum));
 
-    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
-    const int old_dip3_height{consensus.DIP0003Height};
-    const int old_v20_height{consensus.V20Height};
-    consensus.DIP0003Height = 1;
-    consensus.V20Height = 1;
-    BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(base).GetCounts().total(), 0U);
-    BOOST_CHECK_EQUAL(m_node.chain_helper->credit_pool_manager->GetCreditPool(base).locked, 0);
-    BOOST_CHECK(m_node.chain_helper->ehf_manager->GetSignalsStage(base).empty());
-    consensus.V20Height = old_v20_height;
-    consensus.DIP0003Height = old_dip3_height;
+    {
+        ConsensusParamsRestorer params_restorer{Params().GetConsensus()};
+        params_restorer.Get().DIP0003Height = 1;
+        params_restorer.Get().V20Height = 1;
+        BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(base).GetCounts().total(), 0U);
+        BOOST_CHECK_EQUAL(m_node.chain_helper->credit_pool_manager->GetCreditPool(base).locked, 0);
+        BOOST_CHECK(m_node.chain_helper->ehf_manager->GetSignalsStage(base).empty());
+    }
     BOOST_CHECK(!m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(
         Consensus::LLMQType::LLMQ_TEST, base).has_value());
 }
 
-BOOST_FIXTURE_TEST_CASE(quorum_members_reconstruct_from_seeded_state_only, TestChain100Setup)
+BOOST_FIXTURE_TEST_CASE(quorum_members_reconstruct_from_seeded_state_only, SnapshotActivationChainSetup)
 {
     const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
     BOOST_REQUIRE(tip != nullptr);
-    auto& global_consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
-    auto& consensus{const_cast<Consensus::Params&>(m_node.chainman->GetConsensus())};
-    const auto old_global{global_consensus};
-    const auto old_chain{consensus};
+    ConsensusParamsRestorer global_restorer{Params().GetConsensus()};
+    ConsensusParamsRestorer chain_restorer{m_node.chainman->GetConsensus()};
+    auto& global_consensus{global_restorer.Get()};
+    auto& consensus{chain_restorer.Get()};
     auto plain{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
     auto rotated{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
     plain.dkgInterval = 12;
@@ -446,13 +475,7 @@ BOOST_FIXTURE_TEST_CASE(quorum_members_reconstruct_from_seeded_state_only, TestC
     plain.dkgMiningWindowEnd = 3;
     rotated.dkgInterval = 12;
     consensus.llmqs = {plain, rotated};
-    consensus.DIP0003Height = 1;
-    consensus.V19Height = 1;
-    consensus.V20Height = 1;
     global_consensus.llmqs = consensus.llmqs;
-    global_consensus.DIP0003Height = 1;
-    global_consensus.V19Height = 1;
-    global_consensus.V20Height = 1;
 
     const CBlockIndex* quorum{tip->GetAncestor(96)};
     BOOST_REQUIRE(quorum != nullptr);
@@ -609,8 +632,6 @@ BOOST_FIXTURE_TEST_CASE(quorum_members_reconstruct_from_seeded_state_only, TestC
             plain.type, {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum}, true),
             evo::SnapshotStateMismatchError);
     }
-    consensus = old_chain;
-    global_consensus = old_global;
 }
 
 BOOST_FIXTURE_TEST_CASE(chain_validation_pre_dip3_matrix, TestChain100Setup)
@@ -634,10 +655,8 @@ BOOST_FIXTURE_TEST_CASE(chain_validation_pre_dip3_matrix, TestChain100Setup)
     BOOST_CHECK(!WITH_LOCK(::cs_main,
         return evo::ValidateEvoSnapshotAgainstChain(nonempty, *m_node.chainman, base, error)));
 
-    auto& mutable_consensus{const_cast<Consensus::Params&>(m_node.chainman->GetConsensus())};
-    const int old_dip3_height{mutable_consensus.DIP0003Height};
-    const int old_v19_height{mutable_consensus.V19Height};
-    const auto old_llmqs{mutable_consensus.llmqs};
+    ConsensusParamsRestorer params_restorer{m_node.chainman->GetConsensus()};
+    auto& mutable_consensus{params_restorer.Get()};
     mutable_consensus.DIP0003Height = 1;
     mutable_consensus.V19Height = 1;
     mutable_consensus.llmqs = {evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
@@ -696,20 +715,14 @@ BOOST_FIXTURE_TEST_CASE(chain_validation_pre_dip3_matrix, TestChain100Setup)
     non_ancestor.quorums[0].active_commitments[0].commitment.quorumHash = H(99);
     BOOST_CHECK(!WITH_LOCK(::cs_main,
         return evo::ValidateEvoSnapshotAgainstChain(non_ancestor, *m_node.chainman, base, error)));
-
-    mutable_consensus.llmqs = old_llmqs;
-    mutable_consensus.V19Height = old_v19_height;
-    mutable_consensus.DIP0003Height = old_dip3_height;
 }
 
 BOOST_FIXTURE_TEST_CASE(rotation_bitset_matches_historical_work_list, TestChain100Setup)
 {
     const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
     BOOST_REQUIRE(base != nullptr);
-    auto& consensus{const_cast<Consensus::Params&>(m_node.chainman->GetConsensus())};
-    const auto old_llmqs{consensus.llmqs};
-    const int old_dip3_height{consensus.DIP0003Height};
-    const int old_v19_height{consensus.V19Height};
+    ConsensusParamsRestorer params_restorer{m_node.chainman->GetConsensus()};
+    auto& consensus{params_restorer.Get()};
     auto params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
     params.dkgInterval = 12;
     params.dkgMiningWindowStart = 2;
@@ -822,10 +835,6 @@ BOOST_FIXTURE_TEST_CASE(rotation_bitset_matches_historical_work_list, TestChain1
     bad_modifier.quorum_modifiers[0].modifier.begin()[0] ^= 1;
     BOOST_CHECK(!WITH_LOCK(::cs_main,
         return evo::ValidateEvoSnapshotAgainstChain(bad_modifier, *m_node.chainman, base, error)));
-
-    consensus.llmqs = old_llmqs;
-    consensus.V19Height = old_v19_height;
-    consensus.DIP0003Height = old_dip3_height;
 }
 
 BOOST_AUTO_TEST_CASE(reconstruction_horizon_height_enumeration)
