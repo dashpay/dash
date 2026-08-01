@@ -6,6 +6,10 @@ find_package(Doxygen COMPONENTS dot)
 
 if(DOXYGEN_FOUND)
   set(doxyfile ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+  # Doxyfile.in is shared with Autotools, whose config.status substitutes
+  # @abs_top_builddir@ automatically in every AC_CONFIG_FILES output.
+  # Provide the same name here.
+  set(abs_top_builddir ${PROJECT_BINARY_DIR})
   configure_file(Doxyfile.in ${doxyfile})
 
   # In CMake 3.27, The FindDoxygen module's doxygen_add_docs()
