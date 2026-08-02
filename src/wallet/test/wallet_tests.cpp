@@ -102,6 +102,47 @@ static void AddKey(CWallet& wallet, const CKey& key)
     if (!wallet.AddWalletDescriptor(w_desc, provider, "", false)) assert(false);
 }
 
+BOOST_FIXTURE_TEST_CASE(public_descriptor_outputs_are_watch_only, TestChain100Setup)
+{
+    CWallet wallet(m_node.chain.get(), m_node.coinjoin_loader.get(), "", m_args, CreateDummyWalletDatabase());
+    CExtKey contact_key;
+    const std::array<std::byte, 32> seed{std::byte{1}};
+    contact_key.SetSeed(seed);
+    const CExtPubKey contact_xpub{contact_key.Neuter()};
+
+    FlatSigningProvider provider;
+    std::string error;
+    auto descriptor{Parse("pkh(" + EncodeExtPubKey(contact_xpub) + "/*)", provider, error,
+                          /*require_checksum=*/false)};
+    BOOST_REQUIRE_MESSAGE(descriptor, error);
+
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+        WalletDescriptor wallet_descriptor(std::move(descriptor), /*creation_time=*/0,
+                                           /*range_start=*/0, /*range_end=*/10,
+                                           /*next_index=*/0);
+        BOOST_REQUIRE(wallet.AddWalletDescriptor(wallet_descriptor, provider, "DashPay contact",
+                                                 /*internal=*/false));
+
+        CExtPubKey child;
+        BOOST_REQUIRE(contact_xpub.Derive(child, 0));
+        const CScript contact_script{GetScriptForDestination(PKHash{child.pubkey})};
+        BOOST_CHECK_EQUAL(wallet.IsMine(contact_script), ISMINE_WATCH_ONLY);
+
+        CMutableTransaction payment;
+        payment.vin.emplace_back(g_insecure_rand_ctx.rand256(), 0);
+        payment.vout.emplace_back(COIN, contact_script);
+        wallet.AddToWallet(MakeTransactionRef(payment), TxStateInMempool{});
+
+        CCoinControl coin_control;
+        coin_control.m_include_unsafe_inputs = true;
+        BOOST_CHECK_EQUAL(AvailableCoins(wallet, &coin_control).size(), 0U);
+        coin_control.fAllowWatchOnly = true;
+        BOOST_CHECK_EQUAL(AvailableCoins(wallet, &coin_control).size(), 1U);
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
 {
     // Cap last block file size, and mine new block in a new block file.

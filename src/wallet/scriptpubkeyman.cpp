@@ -2220,7 +2220,16 @@ isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
 {
     LOCK(cs_desc_man);
     if (m_map_script_pub_keys.count(script) > 0) {
-        return ISMINE_SPENDABLE;
+        // A descriptor containing only public keys can solve an input for fee
+        // estimation, but it cannot sign it. This distinction matters for
+        // private-key-enabled descriptor wallets which also track public-only
+        // descriptors (for example, a DashPay contact's receiving chain).
+        // Preserve descriptor watch-only/external-signer wallet semantics;
+        // those wallets deliberately operate without local private keys. The
+        // dangerous case is a public descriptor mixed into a signing wallet.
+        return HavePrivateKeys() || m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)
+                   ? ISMINE_SPENDABLE
+                   : ISMINE_WATCH_ONLY;
     }
     return ISMINE_NO;
 }
