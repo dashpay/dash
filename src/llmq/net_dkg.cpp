@@ -435,6 +435,12 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
             m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10);
             return;
         }
+        // Genesis (and any parentless index) is never a valid quorum base.
+        if (pQuorumBaseBlockIndex->pprev == nullptr) {
+            LogPrintf("NetDKG -- invalid genesis/parentless quorumHash %s\n", quorumHash.ToString());
+            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
+            return;
+        }
         if (!m_chainman.IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
             LogPrintf("NetDKG -- llmqType [%d] quorums aren't active\n", std23::to_underlying(llmqType));
             m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);

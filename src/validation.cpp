@@ -5723,10 +5723,15 @@ bool ChainstateManager::IsSnapshotActive() const
 }
 
 bool ChainstateManager::IsQuorumTypeEnabled(const Consensus::LLMQType llmqType,
-                                            gsl::not_null<const CBlockIndex*> pindexPrev,
+                                            const CBlockIndex* pindexPrev,
                                             std::optional<bool> optDIP0024IsActive,
                                             std::optional<bool> optHaveDIP0024Quorums) const
 {
+    // Null pindexPrev (genesis has no parent) means no prior height for an LLMQ type.
+    if (pindexPrev == nullptr) {
+        return false;
+    }
+
     constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
 
     const bool fDIP0024IsActive{optDIP0024IsActive.value_or(

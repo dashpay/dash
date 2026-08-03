@@ -1091,7 +1091,8 @@ public:
     //! ResizeCoinsCaches() as needed.
     void MaybeRebalanceCaches() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    bool IsQuorumTypeEnabled(const Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexPrev,
+    //! pindexPrev may be nullptr (e.g. genesis has no parent); null returns false.
+    bool IsQuorumTypeEnabled(const Consensus::LLMQType llmqType, const CBlockIndex* pindexPrev,
                              std::optional<bool> optDIP0024IsActive = std::nullopt,
                              std::optional<bool> optHaveDIP0024Quorums = std::nullopt) const;
 

@@ -17,6 +17,7 @@
 #include <streams.h>
 #include <util/check.h>
 #include <util/strencodings.h>
+#include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -190,6 +191,49 @@ BOOST_FIXTURE_TEST_CASE(commitment_check_undersized_bitset_debug_log_test, RegTe
                         "expected clamped 'validMembers[]', got: " + *it);
     BOOST_CHECK_MESSAGE(it->find("v[0]") == std::string::npos,
                         "unexpected v[0] in clamped log line: " + *it);
+}
+
+BOOST_FIXTURE_TEST_CASE(commitment_genesis_quorum_hash_rejected_test, RegTestingSetup)
+{
+    // End-to-end regression: a mined TRANSACTION_QUORUM_COMMITMENT whose
+    // quorumHash names the genesis block. Genesis has pprev == nullptr, and
+    // CFinalCommitment::Verify -> GetAllQuorumMembers used to hand that null to
+    // ChainstateManager::IsQuorumTypeEnabled's gsl::not_null parameter, which
+    // std::terminate()s the node. This drives the real consensus entry point
+    // (CheckLLMQCommitment), so the whole chain of guards is exercised: without
+    // them this test aborts the test binary (SIGABRT) rather than failing.
+    const CBlockIndex* genesis = WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip());
+    BOOST_REQUIRE(genesis != nullptr);
+    BOOST_REQUIRE_EQUAL(genesis->nHeight, 0);
+    BOOST_REQUIRE(genesis->pprev == nullptr);
+
+    CFinalCommitmentTxPayload payload;
+    payload.nVersion = CFinalCommitmentTxPayload::CURRENT_VERSION;
+    // CheckLLMQCommitment requires nHeight == m_base_index->nHeight + 1.
+    payload.nHeight = 1;
+    payload.commitment = CreateValidCommitment(TEST_PARAMS, genesis->GetBlockHash());
+    // Genesis is past regtest's V19Height (1) and TEST_PARAMS does not rotate.
+    payload.commitment.nVersion = CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION;
+    BOOST_REQUIRE(!payload.commitment.IsNull());
+
+    CMutableTransaction mtx;
+    mtx.nVersion = CTransaction::SPECIAL_VERSION;
+    mtx.nType = TRANSACTION_QUORUM_COMMITMENT;
+    SetTxPayload(mtx, payload);
+    const CTransaction tx{mtx};
+
+    const llmq::UtilParameters util_params{*Assert(m_node.dmnman),
+                                           *Assert(m_node.llmq_ctx)->qsnapman,
+                                           *Assert(m_node.chainman),
+                                           genesis};
+
+    TxValidationState state;
+    BOOST_CHECK(!llmq::CheckLLMQCommitment(util_params, tx, state));
+    BOOST_CHECK(state.IsInvalid());
+    // Reached Verify(), where the empty member set makes the validMembers bitset
+    // check reject. Any earlier reject reason would mean the test stopped short
+    // of the vulnerable code path.
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-qc-invalid");
 }
 
 BOOST_AUTO_TEST_CASE(commitment_serialization_test)

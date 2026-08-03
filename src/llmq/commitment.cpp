@@ -54,6 +54,14 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
         LogPrint(BCLog::LLMQ, "CFinalCommitment::%s members[%s] quorumPublicKey[%s] commitmentHash[%s]\n", __func__,
                  ss3.str(), quorumPublicKey.ToString(), commitmentHash.ToString());
     }
+    // GetAllQuorumMembers() legitimately returns an empty set (disabled LLMQ type, out-of-range
+    // quorumIndex, parentless quorum base). A commitment can never be valid without members, and
+    // the single-member branch below indexes members[0] unconditionally, so reject here.
+    if (members.empty()) {
+        LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] no quorum members\n", quorumHash.ToString());
+        return false;
+    }
+
     if (llmq_params.is_single_member()) {
         LogPrintf("pubkey operator: %s\n", members[0]->pdmnState->pubKeyOperator.Get().ToString());
         if (!membersSig.VerifyInsecure(members[0]->pdmnState->pubKeyOperator.Get(), commitmentHash)) {

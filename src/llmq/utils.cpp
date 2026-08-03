@@ -637,7 +637,9 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
     static RecursiveMutex cs_indexed_members;
     static std::map<Consensus::LLMQType, unordered_lru_cache<std::pair<uint256, int>, QuorumMembers, StaticSaltedHasher>> mapIndexedQuorumMembers GUARDED_BY(cs_indexed_members);
 
-    if (!util_params.m_chainman.IsQuorumTypeEnabled(llmqType, util_params.m_base_index->pprev)) {
+    // Genesis has pprev == nullptr and cannot host a quorum; treat as disabled.
+    if (util_params.m_base_index->pprev == nullptr ||
+        !util_params.m_chainman.IsQuorumTypeEnabled(llmqType, util_params.m_base_index->pprev)) {
         return {};
     }
 
