@@ -342,7 +342,9 @@ protected:
                        PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const;
 
 public:
-    int nSessionDenom{0}; // Users must submit a denom matching this
+    // Atomic because the message-handling and scheduler threads write it while those threads and
+    // RPC callers also read it without holding cs_coinjoin.
+    std::atomic<int> nSessionDenom{0};
 
     CCoinJoinBaseSession() = default;
     virtual ~CCoinJoinBaseSession() = default;
