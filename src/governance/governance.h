@@ -177,6 +177,21 @@ protected:
     using txout_m_t = std::map<COutPoint, last_object_rec>;
     using vote_cmm_t = CacheMultiMap<uint256, governance::OrphanVote>;
 
+public:
+    // Bound for orphan-vote amplification. Far below MAX_CACHE_SIZE
+    // so a peer cannot stockpile ~1e6 parent hashes for the
+    // 5-minute MNGOVERNANCESYNC fan-out. Validated-but-orphaned votes still need
+    // a modest window for out-of-order object arrival.
+    static constexpr int MAX_ORPHAN_VOTES = 1000;
+    // Cap scheduler orphan-object requests per 5-minute tick so fan-out stays
+    // O(cap × peers), not O(orphans × peers).
+    static constexpr size_t MAX_ORPHAN_OBJECT_REQUESTS_PER_TICK = 100;
+
+    /** The on-disk format version of governance.dat. Exposed so tests can assert the
+     *  string was bumped alongside a layout change (a stale version would make new
+     *  code misparse an old file instead of discarding it). */
+    static const std::string& GetSerializationVersionString() { return SERIALIZATION_VERSION_STRING; }
+
 protected:
     static constexpr int MAX_CACHE_SIZE = 1000000;
     static const std::string SERIALIZATION_VERSION_STRING;
@@ -205,10 +220,12 @@ public:
     void Serialize(Stream &s) const EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
     {
         LOCK(cs_store);
+        // Intentionally omit cmmapOrphanVotes: orphan votes are transient recovery
+        // state. Persisting them lets an unauthenticated flood survive restart
+        // and re-drive the scheduler fan-out on every boot.
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
             << cmapInvalidVotes
-            << cmmapOrphanVotes
             << mapObjects
             << mapLastMasternodeObject
             << *lastMNListForVotingKeys;
@@ -228,10 +245,11 @@ public:
 
         s   >> mapErasedGovernanceObjects
             >> cmapInvalidVotes
-            >> cmmapOrphanVotes
             >> mapObjects
             >> mapLastMasternodeObject
             >> *lastMNListForVotingKeys;
+        // Fresh orphan map on load; see Serialize note above.
+        cmmapOrphanVotes.Clear();
     }
 
     void Clear()
@@ -363,8 +381,15 @@ public:
     // Used by NetGovernance
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    /** Get hashes of governance objects for which we have orphan votes. Also cleans up expired orphans. */
+    /** Get hashes of governance objects for which we have orphan votes. Also cleans up expired orphans.
+     *  Randomly sampled down to MAX_ORPHAN_OBJECT_REQUESTS_PER_TICK for scheduler fan-out safety. */
     [[nodiscard]] std::vector<uint256> GetOrphanVoteObjectHashes() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    /** The bound actually enforced by the orphan-vote cache. Exposed so tests can assert
+     *  the memory-exhaustion bound is in force, not just that the constant exists. */
+    [[nodiscard]] size_t GetOrphanVoteCacheMaxSize() const EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
+    {
+        return WITH_LOCK(cs_store, return cmmapOrphanVotes.GetMaxSize());
+    }
     std::pair<std::vector<uint256>, std::vector<uint256>> FetchGovernanceObjectVotes(
         size_t peers_per_hash_max, int64_t now, std::map<uint256, std::map<CService, int64_t>>& map_asked_recently) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);

@@ -45,7 +45,9 @@ void NetGovernance::Schedule(CScheduler& scheduler)
         [this]() -> void {
             if (!m_node_sync.IsSynced()) return;
 
-            // Request governance objects for orphan votes
+            // Request governance objects for orphan votes. GetOrphanVoteObjectHashes() is
+            // already capped; also skip peers whose send buffer is full so a burst of
+            // orphans cannot balloon vSendMsg.
             auto vecOrphanHashes = m_gov_manager.GetOrphanVoteObjectHashes();
             if (!vecOrphanHashes.empty()) {
                 LogPrint(BCLog::GOBJECT, "NetGovernance::Schedule -- requesting %d orphan objects\n",
@@ -54,6 +56,7 @@ void NetGovernance::Schedule(CScheduler& scheduler)
                 for (const uint256& nHash : vecOrphanHashes) {
                     for (CNode* pnode : snap.Nodes()) {
                         if (!pnode->CanRelay()) continue;
+                        if (pnode->fPauseSend) continue;
                         CNetMsgMaker msgMaker(pnode->GetCommonVersion());
                         CBloomFilter filter; // Empty filter - we want the object, not votes
                         m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, nHash, filter));

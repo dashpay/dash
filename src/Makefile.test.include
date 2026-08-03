@@ -121,6 +121,7 @@ BITCOIN_TESTS =\
   test/fs_tests.cpp \
   test/getarg_tests.cpp \
   test/governance_inv_tests.cpp \
+  test/governance_orphan_vote_tests.cpp \
   test/governance_superblock_tests.cpp \
   test/governance_validators_tests.cpp \
   test/governance_vote_wire_tests.cpp \

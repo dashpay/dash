@@ -19,14 +19,18 @@
 #include <net.h>
 #include <node/interface_ui.h>
 #include <protocol.h>
+#include <random.h>
 #include <timedata.h>
 #include <util/check.h>
 #include <util/time.h>
 #include <validationinterface.h>
 
+#include <algorithm>
 #include <ranges>
 
-const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
+// Version 17 drops cmmapOrphanVotes from the on-disk format so an unauthenticated
+// orphan flood cannot survive restart.
+const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-17";
 
 namespace {
 constexpr std::chrono::seconds GOVERNANCE_DELETION_DELAY{10min};
@@ -64,7 +68,7 @@ GovernanceStore::GovernanceStore() :
     mapObjects(),
     mapErasedGovernanceObjects(),
     cmapInvalidVotes(MAX_CACHE_SIZE),
-    cmmapOrphanVotes(MAX_CACHE_SIZE),
+    cmmapOrphanVotes(MAX_ORPHAN_VOTES),
     mapLastMasternodeObject(),
     lastMNListForVotingKeys(std::make_shared<CDeterministicMNList>())
 {
@@ -819,10 +823,61 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         return false;
     }
 
+    const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     auto it = mapObjects.find(nHashGovobj);
     if (it == mapObjects.end()) {
+        // Validate before orphan caching so an unauthenticated peer cannot fill
+        // cmmapOrphanVotes with attacker-chosen parent hashes.
+        // Match the cheap structural checks in CGovernanceVote::IsValid, then
+        // require a tip-list masternode and a verifiable signature.
+        const auto max_time{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime() + MAX_TIME_FUTURE_DEVIATION)};
+        if (vote.Time() > max_time) {
+            std::string msg{strprintf("CGovernanceManager::%s -- vote is too far ahead of current time, hash = %s",
+                __func__, nHashVote.ToString())};
+            LogPrint(BCLog::GOBJECT, "%s\n", msg);
+            exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_TEMPORARY_ERROR, 20);
+            return false;
+        }
+        if (vote.GetSignal() <= VOTE_SIGNAL_NONE || vote.GetSignal() >= VOTE_SIGNAL_UNKNOWN ||
+            vote.GetOutcome() <= VOTE_OUTCOME_NONE || vote.GetOutcome() >= VOTE_OUTCOME_UNKNOWN) {
+            std::string msg{strprintf("CGovernanceManager::%s -- invalid vote signal/outcome, hash = %s",
+                __func__, nHashVote.ToString())};
+            LogPrint(BCLog::GOBJECT, "%s\n", msg);
+            exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
+            return false;
+        }
+        auto dmn = tip_mn_list.GetMNByCollateral(vote.GetMasternodeOutpoint());
+        if (!dmn) {
+            std::string msg{strprintf("CGovernanceManager::%s -- Unknown Masternode - %s, governance object hash = %s",
+                __func__, vote.GetMasternodeOutpoint().ToStringShort(), nHashGovobj.ToString())};
+            LogPrint(BCLog::GOBJECT, "%s\n", msg);
+            // Match CGovernanceObject::ProcessVote scoring so repeated injection is banned.
+            exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
+            return false;
+        }
+        // FUNDING votes on proposals may use the voting key; everything else uses
+        // the operator BLS key. Parent type is unknown here, so try both.
+        const bool sig_ok = vote.CheckSignature(dmn->pdmnState->keyIDVoting) ||
+                            vote.CheckSignature(dmn->pdmnState->pubKeyOperator.Get());
+        if (!sig_ok) {
+            std::string msg{strprintf("CGovernanceManager::%s -- Invalid vote signature, MN outpoint = %s, "
+                                      "governance object hash = %s, vote hash = %s",
+                __func__, vote.GetMasternodeOutpoint().ToStringShort(), nHashGovobj.ToString(), nHashVote.ToString())};
+            LogPrint(BCLog::GOBJECT, "%s\n", msg);
+            exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
+            return false;
+        }
+
         std::string msg{strprintf("CGovernanceManager::%s -- Unknown parent object %s, MN outpoint = %s", __func__,
             nHashGovobj.ToString(), vote.GetMasternodeOutpoint().ToStringShort())};
+        // Keep the penalty at zero. Reaching this point means the vote carries a valid
+        // signature from a tip-list masternode, so the only remaining reason we cannot
+        // apply it is that the parent object has not arrived yet - a benign relay race
+        // that happens routinely during governance sync. The peer that forwarded it is
+        // typically an honest relay, and misbehavior scores never decay, so scoring here
+        // would discourage honest peers after DISCOURAGEMENT_THRESHOLD/penalty races.
+        // The flood is bounded by the validation gate above plus MAX_ORPHAN_VOTES, not
+        // by ban scoring.
         exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
         if (cmmapOrphanVotes.Insert(nHashGovobj, governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME})) {
             hashToRequest = nHashGovobj; // Caller should request this object
@@ -839,7 +894,7 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         return false;
     }
 
-    bool fOk = govobj.ProcessVote(m_mn_metaman, fRateChecksEnabled, m_dmnman.GetListAtChainTip(), vote, exception);
+    bool fOk = govobj.ProcessVote(m_mn_metaman, fRateChecksEnabled, tip_mn_list, vote, exception);
     if (fOk) {
         fOk = cmapVoteToObject.Insert(nHashVote, it->second);
     } else if (exception.GetType() == GOVERNANCE_EXCEPTION_PERMANENT_ERROR && exception.GetNodePenalty() == 20) {
@@ -1103,7 +1158,9 @@ std::vector<uint256> CGovernanceManager::GetOrphanVoteObjectHashes()
         }
     }
 
-    // Get hashes of objects we don't have yet
+    // Get hashes of objects we don't have yet, capped so the scheduler fan-out
+    // stays O(MAX_ORPHAN_OBJECT_REQUESTS_PER_TICK × peers) rather than
+    // O(orphans × peers).
     std::vector<uint256> vecHashesFiltered;
     std::vector<uint256> vecHashes;
     cmmapOrphanVotes.GetKeys(vecHashes);
@@ -1111,6 +1168,16 @@ std::vector<uint256> CGovernanceManager::GetOrphanVoteObjectHashes()
         if (mapObjects.find(nHash) == mapObjects.end()) {
             vecHashesFiltered.push_back(nHash);
         }
+    }
+
+    // Sample randomly rather than truncating: GetKeys() returns ascending uint256
+    // order, so a fixed prefix would request the same numerically-lowest hashes
+    // every tick and starve every other orphan until it expires — a parent whose
+    // hash sorts high would never be requested at all. Matches the shuffle used
+    // for the governance object-vote sync in CSyncManager::RequestGovernanceData().
+    if (vecHashesFiltered.size() > MAX_ORPHAN_OBJECT_REQUESTS_PER_TICK) {
+        Shuffle(vecHashesFiltered.begin(), vecHashesFiltered.end(), FastRandomContext());
+        vecHashesFiltered.resize(MAX_ORPHAN_OBJECT_REQUESTS_PER_TICK);
     }
 
     return vecHashesFiltered;

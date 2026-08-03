@@ -406,20 +406,24 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
     ProcessInv(*m_node.peerman, *announcing_peer, vote_inv);
     ProcessInv(*m_node.peerman, *second_announcing_peer, vote_inv);
 
+    // Votes with an unknown masternode outpoint are rejected before orphan caching.
+    // No MNGOVERNANCESYNC courtesy request is issued, and the peer is scored once
+    // fully synced.
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsSynced());
+
     connman.FlushSendBuffer(*announcing_peer);
     ProcessGovernanceVote(net_gov, *announcing_peer, vote);
-    BOOST_CHECK_EQUAL(CountQueuedMessages(*announcing_peer, NetMsgType::MNGOVERNANCESYNC), 1U);
-    AssertMisbehaviorScore(*m_node.peerman, *announcing_peer, 0);
+    BOOST_CHECK_EQUAL(CountQueuedMessages(*announcing_peer, NetMsgType::MNGOVERNANCESYNC), 0U);
+    AssertMisbehaviorScore(*m_node.peerman, *announcing_peer, 20);
 
     connman.FlushSendBuffer(*second_announcing_peer);
     ProcessGovernanceVote(net_gov, *second_announcing_peer, vote);
-    // Second announcer: the gate accepts (it independently announced the vote) and consumes
-    // its per-peer request entry. A rejected vote would return before the gate consumes and
-    // leave the entry intact, so this proves the accept path independently of the (deduped)
-    // orphan-request side effect.
+    // Second announcer: the gate still accepts (it independently announced the vote) and
+    // consumes its per-peer request entry even though ProcessVote then rejects the vote.
     BOOST_CHECK(!WITH_LOCK(::cs_main,
                            return m_node.peerman->PeerConsumeObjectRequest(second_announcing_peer->GetId(), vote_inv)));
-    AssertMisbehaviorScore(*m_node.peerman, *second_announcing_peer, 0);
+    AssertMisbehaviorScore(*m_node.peerman, *second_announcing_peer, 20);
 
     m_node.peerman->FinalizeNode(*announcing_peer);
     m_node.peerman->FinalizeNode(*second_announcing_peer);
@@ -458,14 +462,20 @@ BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
     ProcessGovernanceVote(net_gov, *peer, vote);
     BOOST_CHECK_EQUAL(CountQueuedMessages(*peer, NetMsgType::MNGOVERNANCESYNC), 0U);
 
-    // Back in sync, the retransmit is still authorized: ProcessVote runs and (orphan parent)
-    // requests the missing object. Had the unsynced drop consumed the request, the gate would now
-    // reject the vote as unrequested and send no MNGOVERNANCESYNC.
+    // Back in sync, the retransmit is still authorized: the gate consumes the request and
+    // ProcessVote runs. The vote uses an unknown MN outpoint so it is rejected with a
+    // misbehavior score rather than cached as an orphan. Had the unsynced
+    // drop consumed the request, the gate would now reject the vote as unrequested and leave
+    // the misbehavior score at 0.
     m_node.mn_sync->SwitchToNextAsset();
     BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+    // Advance fully to FINISHED so the penalty path applies (gated on IsSynced()).
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsSynced());
     connman.FlushSendBuffer(*peer);
     ProcessGovernanceVote(net_gov, *peer, vote);
-    BOOST_CHECK_EQUAL(CountQueuedMessages(*peer, NetMsgType::MNGOVERNANCESYNC), 1U);
+    BOOST_CHECK_EQUAL(CountQueuedMessages(*peer, NetMsgType::MNGOVERNANCESYNC), 0U);
+    AssertMisbehaviorScore(*m_node.peerman, *peer, 20);
 
     m_node.peerman->FinalizeNode(*peer);
     chainstate.ResetIbd();
