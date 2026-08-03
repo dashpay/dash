@@ -102,7 +102,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_check_undersized_bitset_debug_log_test, RegTe
 {
     // Catches the OOB-read regression in CheckLLMQCommitment's debug-log loop
     // by capturing log output rather than relying on undefined behaviour to
-    // trip a sanitizer. The wire-format validMembers DYNBITSET can deserialize
+    // trip a sanitizer. The wire-format validMembers bitset can deserialize
     // smaller than llmq_params.size; before the clamp the loop iterated up to
     // llmq_params.size and emitted v[0], v[1], ... reading past the bitset.
     // With the clamp an empty bitset must produce "validMembers[]".

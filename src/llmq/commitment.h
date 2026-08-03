@@ -105,8 +105,8 @@ public:
             );
         }
         READWRITE(
-                DYNBITSET(obj.signers),
-                DYNBITSET(obj.validMembers),
+                LIMITED_BITSET(obj.signers, Consensus::MAX_LLMQ_SIZE),
+                LIMITED_BITSET(obj.validMembers, Consensus::MAX_LLMQ_SIZE),
                 CBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
                 obj.quorumVvecHash,
                 CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.quorumSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),

@@ -585,7 +585,7 @@ public:
 template<typename Formatter, typename T>
 static inline Wrapper<Formatter, T&> Using(T&& t) { return Wrapper<Formatter, T&>(t); }
 
-#define DYNBITSET(obj) Using<DynamicBitSetFormatter>(obj)
+#define LIMITED_BITSET(obj,n) Using<LimitedBitSetFormatter<n>>(obj)
 #define AUTOBITSET(obj) Using<AutoBitSetFormatter>(obj)
 #define VARINT_MODE(obj, mode) Using<VarIntFormatter<mode>>(obj)
 #define VARINT(obj) Using<VarIntFormatter<VarIntMode::DEFAULT>>(obj)
@@ -593,8 +593,16 @@ static inline Wrapper<Formatter, T&> Using(T&& t) { return Wrapper<Formatter, T&
 #define LIMITED_STRING(obj,n) Using<LimitedStringFormatter<n>>(obj)
 #define LIMITED_VECTOR(obj,n) Using<LimitedVectorFormatter<n>>(obj)
 
-/** TODO: describe DynamicBitSet */
-struct DynamicBitSetFormatter
+/**
+ * Stores a bitset whose length is written on the wire as a CompactSize, followed by the packed bits.
+ *
+ * The declared length is bounded by Limit before the bitset is allocated. Without that bound a
+ * five-byte CompactSize can declare MAX_SIZE bits and make ReadFixedBitSet allocate megabytes for a
+ * payload that never arrives, so callers must pass the largest length the field can legitimately
+ * carry.
+ */
+template<size_t Limit>
+struct LimitedBitSetFormatter
 {
     template<typename Stream>
     void Ser(Stream& s, const std::vector<bool>& vec) const
@@ -606,7 +614,11 @@ struct DynamicBitSetFormatter
     template<typename Stream>
     void Unser(Stream& s, std::vector<bool>& vec)
     {
-        ReadFixedBitSet(s, vec, ReadCompactSize(s));
+        const size_t size = ReadCompactSize(s);
+        if (size > Limit) {
+            throw std::ios_base::failure("Bitset length limit exceeded");
+        }
+        ReadFixedBitSet(s, vec, size);
     }
 };
 

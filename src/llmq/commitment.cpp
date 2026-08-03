@@ -235,7 +235,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CTransac
     }
 
     if (LogAcceptDebug(BCLog::LLMQ)) {
-        // Clamp to validMembers.size() because the wire-format DYNBITSET may be smaller than
+        // Clamp to validMembers.size() because the wire-format bitset may be smaller than
         // llmq_params.size for malformed payloads; VerifySizes() below catches the mismatch.
         std::stringstream ss;
         const auto log_size = std::min<size_t>(llmq_params_opt->size, qcTx.commitment.validMembers.size());
@@ -296,7 +296,7 @@ uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHa
     CHashWriter hw(SER_GETHASH, 0);
     hw << llmqType;
     hw << blockHash;
-    hw << DYNBITSET(validMembers);
+    hw << LIMITED_BITSET(validMembers, Consensus::MAX_LLMQ_SIZE);
     hw << pubKey;
     hw << vvecHash;
     return hw.GetHash();
