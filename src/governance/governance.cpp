@@ -344,17 +344,24 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Before trigger block, GetDataAsPlainString = %s, nObjectType = %d\n",
                 Assert(govobj)->GetDataAsPlainString(), std23::to_underlying(govobj->GetObjectType()));
 
+    // Count the attempt against the per-masternode rate buffer before any early
+    // return. Failed AddTrigger paths used to skip this, so a single operator
+    // key could flood mapObjects with unparseable triggers.
+    MasternodeRateUpdate(*govobj);
+
     if (govobj->GetObjectType() == GovernanceObject::TRIGGER && !m_superblocks.AddTrigger(govobj, nCachedBlockHeight)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- undo adding invalid trigger object: hash = %s\n", nHash.ToString());
         govobj->PrepareDeletion(GetTime<std::chrono::seconds>().count());
         return;
     }
 
+    // Only objects we keep may be announced. Scheduling this before the AddTrigger
+    // check would make us re-announce, and serve on GETDATA, a trigger we just
+    // undid and marked for deletion.
+    ScheduleAdditionalRelay(*govobj);
+
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- %s new, received from peer %s\n", strHash, peer_str);
     RelayObject(*govobj);
-
-    // Update the rate buffer
-    MasternodeRateUpdate(*govobj);
 
     m_mn_sync.BumpAssetLastTime("CGovernanceManager::AddGovernanceObject");
 
@@ -704,15 +711,23 @@ void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
         it = mapLastMasternodeObject.insert(txout_m_t::value_type(masternodeOutpoint, last_object_rec(true))).first;
     }
 
-    int64_t nTimestamp = govobj.GetCreationTime();
-    it->second.triggerBuffer.AddTimestamp(nTimestamp);
+    it->second.triggerBuffer.AddTimestamp(govobj.GetCreationTime());
+    it->second.fStatusOK = true;
+}
 
-    if (nTimestamp > GetTime() + count_seconds(MAX_TIME_FUTURE_DEVIATION) - count_seconds(RELIABLE_PROPAGATION_TIME)) {
-        // schedule additional relay for the object
+void CGovernanceManager::ScheduleAdditionalRelay(const CGovernanceObject& govobj)
+{
+    AssertLockHeld(cs_store);
+
+    if (govobj.GetObjectType() != GovernanceObject::TRIGGER) return;
+
+    // An object created this close to the future-deviation limit is still too new for
+    // peers with a lagging clock to accept, so re-announce it once it has aged past
+    // RELIABLE_PROPAGATION_TIME (see CheckPostponedObjects).
+    if (govobj.GetCreationTime() >
+        GetTime() + count_seconds(MAX_TIME_FUTURE_DEVIATION) - count_seconds(RELIABLE_PROPAGATION_TIME)) {
         setAdditionalRelayObjects.insert(govobj.GetHash());
     }
-
-    it->second.fStatusOK = true;
 }
 
 bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus)
