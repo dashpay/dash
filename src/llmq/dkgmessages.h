@@ -6,6 +6,7 @@
 #define BITCOIN_LLMQ_DKGMESSAGES_H
 
 #include <llmq/commitment.h>
+#include <llmq/params.h>
 
 #include <bls/bls_ies.h>
 #include <hash.h>
@@ -52,7 +53,7 @@ public:
         s >> llmqType;
         s >> quorumHash;
         s >> proTxHash;
-        s >> tmp1;
+        s >> LIMITED_VECTOR(tmp1, Consensus::MAX_LLMQ_SIZE);
         s >> tmp2;
         s >> sig;
 
@@ -90,8 +91,8 @@ public:
                 obj.llmqType,
                 obj.quorumHash,
                 obj.proTxHash,
-                DYNBITSET(obj.badMembers),
-                DYNBITSET(obj.complainForMembers),
+                LIMITED_BITSET(obj.badMembers, Consensus::MAX_LLMQ_SIZE),
+                LIMITED_BITSET(obj.complainForMembers, Consensus::MAX_LLMQ_SIZE),
                 obj.sig
                 );
     }
@@ -124,7 +125,8 @@ public:
 public:
     SERIALIZE_METHODS(CDKGJustification, obj)
     {
-        READWRITE(obj.llmqType, obj.quorumHash, obj.proTxHash, obj.contributions, obj.sig);
+        READWRITE(obj.llmqType, obj.quorumHash, obj.proTxHash,
+                  LIMITED_VECTOR(obj.contributions, Consensus::MAX_LLMQ_SIZE), obj.sig);
     }
 
     [[nodiscard]] uint256 GetSignHash() const
@@ -170,7 +172,7 @@ public:
                 obj.llmqType,
                 obj.quorumHash,
                 obj.proTxHash,
-                DYNBITSET(obj.validMembers),
+                LIMITED_BITSET(obj.validMembers, Consensus::MAX_LLMQ_SIZE),
                 obj.quorumPublicKey,
                 obj.quorumVvecHash,
                 obj.quorumSig,

@@ -72,48 +72,6 @@ size_t MaxDKGMessageSize(std::string_view msg_type, const Consensus::LLMQParams&
     return cap < HARD_CEILING ? cap : HARD_CEILING;
 }
 
-// Cheap, param-only structural validation of a pushed DKG message, run at intake
-// before retention. Deserializes a COPY of the payload (leaving the caller's bytes
-// intact for the pending queue and its inventory hash) and checks only safe upper
-// bounds derived from quorum params: no member-list lookup and no signature
-// verification, which remain on the DKG worker thread. Deserializing the copy does
-// decompress the BLS points carried in the payload, but that work is bounded by
-// the size cap applied just before this check. Rejects malformed or clearly
-// oversized payloads before retention.
-bool CheckDKGMessageStructure(std::string_view msg_type, const CDataStream& vRecv, const Consensus::LLMQParams& params)
-{
-    const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
-    const size_t min_size = params.minSize > 0 ? static_cast<size_t>(params.minSize) : 0;
-    const size_t threshold = params.threshold > 0 ? static_cast<size_t>(params.threshold) : 0;
-    try {
-        CDataStream s(vRecv); // copy; deserialization does not advance the caller's stream
-        if (msg_type == NetMsgType::QCONTRIB) {
-            CDKGContribution qc;
-            s >> qc;
-            return qc.vvec != nullptr && qc.vvec->size() == threshold &&
-                   qc.contributions != nullptr &&
-                   qc.contributions->blobs.size() >= min_size &&
-                   qc.contributions->blobs.size() <= size;
-        } else if (msg_type == NetMsgType::QCOMPLAINT) {
-            CDKGComplaint qc;
-            s >> qc;
-            return qc.badMembers.size() == qc.complainForMembers.size() &&
-                   qc.badMembers.size() <= size;
-        } else if (msg_type == NetMsgType::QJUSTIFICATION) {
-            CDKGJustification qj;
-            s >> qj;
-            return qj.contributions.size() <= size;
-        } else if (msg_type == NetMsgType::QPCOMMITMENT) {
-            CDKGPrematureCommitment qc;
-            s >> qc;
-            return qc.validMembers.size() <= size;
-        }
-        return false;
-    } catch (const std::exception&) {
-        return false;
-    }
-}
-
 // returns a set of NodeIds which sent invalid messages
 template <typename Message>
 std::unordered_set<NodeId> BatchVerifyMessageSigs(CDKGSession& session,
@@ -459,13 +417,6 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
         return;
     }
 
-    // Cheap structural pre-validation before retention. Validates a copy so the
-    // original bytes (and their inventory hash) are preserved for the worker.
-    if (!CheckDKGMessageStructure(msg_type, vRecv, llmq_params)) {
-        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "malformed DKG message");
-        return;
-    }
-
     int inv_type = 0;
     if (msg_type == NetMsgType::QCONTRIB)
         inv_type = MSG_QUORUM_CONTRIB;
@@ -492,7 +443,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
     //
     // This check runs last so that every pre-existing rejection above -- and the heavier penalty it
     // carries -- is unchanged. It therefore bounds retention and signature verification, not the
-    // parsing and structural validation above, which an unsolicited sender still gets to trigger.
+    // header validation above, which an unsolicited sender still gets to trigger.
     const CInv inv{static_cast<uint32_t>(inv_type), hash};
     if (WITH_LOCK(::cs_main, return m_peer_manager->PeerConsumeGetDataResponse(from, inv)) ==
         GetDataResponse::UNREQUESTED) {

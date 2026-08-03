@@ -137,6 +137,7 @@ BITCOIN_TESTS =\
   test/limitedmap_tests.cpp \
   test/llmq_blockprocessor_tests.cpp \
   test/llmq_dkg_tests.cpp \
+  test/llmq_dkg_intake_tests.cpp \
   test/llmq_chainlock_tests.cpp \
   test/llmq_commitment_tests.cpp \
   test/llmq_hash_tests.cpp \
