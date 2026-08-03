@@ -25,12 +25,21 @@ The node must not crash; rejected malformed messages must be scored where the
 matching worker still processes them.
 """
 
-from test_framework.messages import ser_compact_size, ser_uint256
+from test_framework.messages import (
+    CInv,
+    hash256,
+    msg_inv,
+    ser_compact_size,
+    ser_uint256,
+    uint256_from_str,
+)
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import wait_until_helper
 
 LLMQ_TEST = 100
+# protocol.h GetInventoryType: MSG_QUORUM_CONTRIB
+MSG_QUORUM_CONTRIB = 23
 
 # A masternode protx/operator-pubkey pair accepted by the regtest-only `mnauth`
 # debug RPC, used to mark a P2P connection as MNAuth-verified without BLS signing.
@@ -86,6 +95,21 @@ def wait_for_banscore(node, peer_id, expected_score):
                 return peer["banscore"]
         return None
     wait_until_helper(lambda: get_score() == expected_score, timeout=10)
+
+
+def send_requested_qcontrib(peer, payload):
+    """Announce, wait for GETDATA, then deliver a QCONTRIB payload.
+
+    DKG objects only travel inv -> getdata -> object. NetDKG::ProcessMessage scores
+    unsolicited pushes before retention, so tests that need the message to reach the
+    pending queue must complete a real request first. Inventory hash matches
+    CHashWriter(SER_GETHASH, 0) over the raw wire bytes.
+    """
+    inv_hash = uint256_from_str(hash256(payload))
+    peer.send_message(msg_inv([CInv(MSG_QUORUM_CONTRIB, inv_hash)]))
+    peer.wait_for_getdata([inv_hash])
+    peer.send_message(msg_dkg_raw(b"qcontrib", payload))
+    peer.sync_with_ping()
 
 
 class DkgIntakeTest(DashTestFramework):
@@ -223,14 +247,13 @@ class DkgIntakeTest(DashTestFramework):
         wait_for_banscore(node, peer_id, 0)
         with node.assert_debug_log(
             ["failed to deserialize message"],
-            unexpected_msgs=["malformed DKG message"],
+            unexpected_msgs=["malformed DKG message", "unrequested DKG message"],
             timeout=10,
         ):
-            peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
+            send_requested_qcontrib(peer, self.qcontrib_payload(
                 blob_count=2,
                 vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
-            )))
-            peer.sync_with_ping()
+            ))
             wait_for_banscore(node, peer_id, 0)
             self.move_blocks(nodes, 2)
         wait_for_banscore(node, peer_id, 100)
@@ -238,14 +261,13 @@ class DkgIntakeTest(DashTestFramework):
 
     def _send_late_qcontrib(self, node, peer, nonce):
         """Send a framing-valid, BLS-invalid QCONTRIB that no on-time worker will drain."""
-        peer.send_message(msg_dkg_raw(b"qcontrib", self.qcontrib_payload(
+        send_requested_qcontrib(peer, self.qcontrib_payload(
             blob_count=2,
             vvec_pubkey=INVALID_NONZERO_BLS_PUBKEY,
             # Unique bytes per message so retention is bounded by the quotas rather
             # than by duplicate-hash suppression.
             protx_hash=nonce,
-        )))
-        peer.sync_with_ping()
+        ))
 
     def test_late_messages_bounded(self, node):
         self.log.info("Late QCONTRIB retention is bounded per sender and queue-wide, then cleared without BLS decoding")
