@@ -6,10 +6,10 @@
 #define BITCOIN_LLMQ_BLOCKPROCESSOR_H
 
 #include <bls/bls.h>
+#include <llmq/cache.h>
 #include <llmq/params.h>
 #include <llmq/utils.h>
 #include <msg_result.h>
-#include <unordered_lru_cache.h>
 
 #include <checkqueue.h>
 #include <protocol.h>
@@ -67,7 +67,7 @@ private:
 
     // Cache the block in which a commitment was mined. Membership in a
     // particular chain is checked on every call so reorgs need no cache flush.
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<uint256>> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
+    mutable PerLlmqTypeCache<uint256> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
 
     // Memoizes GetQcHashes(). The whole-result cache is keyed on the set of active
     // quorum base blocks, the LRU on those base-block hashes; neither key identifies
@@ -77,7 +77,7 @@ private:
     // block index whose CBlockIndex* the outer cache stores.
     mutable Mutex m_qc_hashes_cache_mutex;
     mutable std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::pair<uint256, int>>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
+    mutable PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
     mutable QcHashMap m_qc_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
     mutable QcIndexedHashMap m_qc_indexed_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
 

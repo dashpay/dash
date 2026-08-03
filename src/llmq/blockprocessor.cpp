@@ -83,7 +83,7 @@ CQuorumBlockProcessor::CQuorumBlockProcessor(ChainstateManager& chainman, CDeter
     m_evoDb{evoDb},
     m_qsnapman{qsnapman}
 {
-    utils::InitQuorumsCache(mapMinedCommitmentBlockCache, m_chainman.GetConsensus());
+    mapMinedCommitmentBlockCache.Init(m_chainman.GetConsensus());
     LogPrintf("BLS verification uses %d additional threads\n", bls_threads);
     m_bls_queue.StartWorkerThreads(bls_threads);
 }
@@ -427,7 +427,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
 
     {
         LOCK(minableCommitmentsCs);
-        mapMinedCommitmentBlockCache[qc.llmqType].erase(qc.quorumHash);
+        mapMinedCommitmentBlockCache.erase(qc.llmqType, qc.quorumHash);
         minableCommitmentsByQuorum.erase(cacheKey);
         minableCommitments.erase(::SerializeHash(qc));
     }
@@ -444,11 +444,7 @@ void CQuorumBlockProcessor::DropQcHashesCache()
     m_quorums_cached.clear();
     m_qc_hashes_cached.clear();
     m_qc_indexed_hashes_cached.clear();
-    // Clear per-type LRU contents but keep the map entries so InitQuorumsCache is not
-    // required on every subsequent miss.
-    for (auto& [_, cache] : m_qc_hashes_lru) {
-        cache.clear();
-    }
+    m_qc_hashes_lru.clear();
 }
 
 std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::GetQcHashes(const CBlockIndex* pindexPrev) const
@@ -464,8 +460,8 @@ std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::Get
     m_quorums_cached.clear();
     m_qc_hashes_cached.clear();
     m_qc_indexed_hashes_cached.clear();
-    if (m_qc_hashes_lru.empty()) {
-        utils::InitQuorumsCache(m_qc_hashes_lru, Params().GetConsensus());
+    if (!m_qc_hashes_lru.IsInitialized()) {
+        m_qc_hashes_lru.Init(Params().GetConsensus());
     }
 
     for (const auto& [llmqType, vecBlockIndexes] : quorums) {
@@ -479,7 +475,7 @@ std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::Get
             uint256 block_hash{blockIndex->GetBlockHash()};
 
             std::pair<uint256, int> qc_hash;
-            if (!m_qc_hashes_lru[llmqType].get(block_hash, qc_hash)) {
+            if (!m_qc_hashes_lru.get(llmqType, block_hash, qc_hash)) {
                 auto [pqc, dummy_hash] = GetMinedCommitment(llmqType, block_hash);
                 if (dummy_hash == uint256::ZERO) {
                     // this should never happen
@@ -487,7 +483,7 @@ std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::Get
                 }
                 qc_hash.first = ::SerializeHash(pqc);
                 qc_hash.second = rotation_enabled ? pqc.quorumIndex : 0;
-                m_qc_hashes_lru[llmqType].insert(block_hash, qc_hash);
+                m_qc_hashes_lru.insert(llmqType, block_hash, qc_hash);
             }
             if (rotation_enabled) {
                 map_indexed_hashes[qc_hash.second] = qc_hash.first;
@@ -534,7 +530,7 @@ bool CQuorumBlockProcessor::UndoBlock(const Chainstate& chainstate, const CBlock
         // Only once this commitment's state change is complete; see ProcessCommitment.
         DropQcHashesCache();
 
-        WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache[qc.llmqType].erase(qc.quorumHash));
+        WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.erase(qc.llmqType, qc.quorumHash));
 
         // if a reorg happened, we should allow to mine this commitment later
         AddMineableCommitment(qc);
@@ -639,16 +635,8 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
     uint256 mined_block_hash;
     bool cached;
     {
-        // Defence-in-depth: this map is only pre-seeded by InitQuorumsCache() with the LLMQ types
-        // from the chain's consensus params. operator[] with any other type would insert a
-        // default-constructed, zero-capacity cache and abort in its constructor, so treat an
-        // unregistered type as "no mined commitment" rather than indexing the map.
         LOCK(minableCommitmentsCs);
-        auto it = mapMinedCommitmentBlockCache.find(llmqType);
-        if (it == mapMinedCommitmentBlockCache.end()) {
-            return false;
-        }
-        cached = it->second.get(quorumHash, mined_block_hash);
+        cached = mapMinedCommitmentBlockCache.get(llmqType, quorumHash, mined_block_hash);
     }
     if (!cached) {
         mined_block_hash = GetMinedCommitment(llmqType, quorumHash).second;
@@ -656,11 +644,7 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
         // outside ProcessCommitment's normal cache-invalidation path.
         if (!mined_block_hash.IsNull()) {
             LOCK(minableCommitmentsCs);
-            // The key set is fixed at construction, so this can only miss if the type was
-            // unregistered, which the check above already returned on.
-            if (auto it = mapMinedCommitmentBlockCache.find(llmqType); it != mapMinedCommitmentBlockCache.end()) {
-                it->second.insert(quorumHash, mined_block_hash);
-            }
+            mapMinedCommitmentBlockCache.insert(llmqType, quorumHash, mined_block_hash);
         }
     }
 

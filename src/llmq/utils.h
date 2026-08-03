@@ -81,15 +81,6 @@ Uint256HashSet GetQuorumConnections(const Consensus::LLMQParams& llmqParams, con
 
 Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, const UtilParameters& util_params,
                                      const uint256& forMember, bool onlyOutbound);
-
-template <typename CacheType>
-inline void InitQuorumsCache(CacheType& cache, const Consensus::Params& consensus_params, bool limit_by_connections = true)
-{
-    for (const auto& llmq : consensus_params.llmqs) {
-        cache.emplace(std::piecewise_construct, std::forward_as_tuple(llmq.type),
-                      std::forward_as_tuple(limit_by_connections ? llmq.keepOldConnections : llmq.keepOldKeys));
-    }
-}
 } // namespace utils
 } // namespace llmq
 

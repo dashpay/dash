@@ -6,6 +6,7 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
+#include <llmq/cache.h>
 #include <llmq/options.h>
 #include <llmq/snapshot.h>
 #include <llmq/types.h>
@@ -633,9 +634,9 @@ std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlo
 QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params, bool reset_cache)
 {
     static RecursiveMutex cs_members;
-    static std::map<Consensus::LLMQType, Uint256LruHashMap<QuorumMembers>> mapQuorumMembers GUARDED_BY(cs_members);
+    static PerLlmqTypeCache<QuorumMembers> mapQuorumMembers GUARDED_BY(cs_members);
     static RecursiveMutex cs_indexed_members;
-    static std::map<Consensus::LLMQType, unordered_lru_cache<std::pair<uint256, int>, QuorumMembers, StaticSaltedHasher>> mapIndexedQuorumMembers GUARDED_BY(cs_indexed_members);
+    static PerLlmqTypeCache<QuorumMembers, std::pair<uint256, int>> mapIndexedQuorumMembers GUARDED_BY(cs_indexed_members);
 
     // A parentless base index (genesis) can never host a quorum. IsQuorumTypeEnabled() handles the
     // null, but say so explicitly here: this is reached with an attacker-supplied quorumHash via
@@ -648,12 +649,12 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
     std::vector<CDeterministicMNCPtr> quorumMembers;
     {
         LOCK(cs_members);
-        if (mapQuorumMembers.empty()) {
-            InitQuorumsCache(mapQuorumMembers, util_params.m_chainman.GetConsensus());
+        if (!mapQuorumMembers.IsInitialized()) {
+            mapQuorumMembers.Init(util_params.m_chainman.GetConsensus());
         }
         if (reset_cache) {
-            mapQuorumMembers[llmqType].clear();
-        } else if (mapQuorumMembers[llmqType].get(util_params.m_base_index->GetBlockHash(), quorumMembers)) {
+            mapQuorumMembers.clear(llmqType);
+        } else if (mapQuorumMembers.get(llmqType, util_params.m_base_index->GetBlockHash(), quorumMembers)) {
             return quorumMembers;
         }
     }
@@ -663,8 +664,8 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
     const auto& llmq_params = llmq_params_opt.value();
 
     if (IsQuorumRotationEnabled(llmq_params, util_params.m_base_index)) {
-        if (LOCK(cs_indexed_members); mapIndexedQuorumMembers.empty()) {
-            InitQuorumsCache(mapIndexedQuorumMembers, util_params.m_chainman.GetConsensus());
+        if (LOCK(cs_indexed_members); !mapIndexedQuorumMembers.IsInitialized()) {
+            mapIndexedQuorumMembers.Init(util_params.m_chainman.GetConsensus());
         }
         /*
          * Quorums created with rotation are now created in a different way. All signingActiveQuorumCount are created
@@ -689,11 +690,11 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
          */
         if (reset_cache) {
             LOCK(cs_indexed_members);
-            mapIndexedQuorumMembers[llmqType].clear();
-        } else if (LOCK(cs_indexed_members); mapIndexedQuorumMembers[llmqType].get(
-                       std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
+            mapIndexedQuorumMembers.clear(llmqType);
+        } else if (LOCK(cs_indexed_members); mapIndexedQuorumMembers.get(
+                       llmqType, std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
             LOCK(cs_members);
-            mapQuorumMembers[llmqType].insert(util_params.m_base_index->GetBlockHash(), quorumMembers);
+            mapQuorumMembers.insert(llmqType, util_params.m_base_index->GetBlockHash(), quorumMembers);
             return quorumMembers;
         }
 
@@ -708,8 +709,8 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
 
         LOCK(cs_indexed_members);
         for (const size_t i : util::irange(q.size())) {
-            mapIndexedQuorumMembers[llmqType].emplace(std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i),
-                                                      std::move(q[i]));
+            mapIndexedQuorumMembers.emplace(llmqType, std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i),
+                                            std::move(q[i]));
         }
     } else {
         const CBlockIndex* pWorkBlockIndex = DeploymentActiveAfter(util_params.m_base_index,
@@ -724,7 +725,7 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
     }
 
     LOCK(cs_members);
-    mapQuorumMembers[llmqType].insert(util_params.m_base_index->GetBlockHash(), quorumMembers);
+    mapQuorumMembers.insert(llmqType, util_params.m_base_index->GetBlockHash(), quorumMembers);
     return quorumMembers;
 }
 

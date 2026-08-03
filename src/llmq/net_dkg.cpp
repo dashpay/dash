@@ -420,10 +420,10 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
     int quorumIndex{-1};
     {
         LOCK(cs_indexed_quorums_cache);
-        if (indexed_quorums_cache.empty()) {
-            utils::InitQuorumsCache(indexed_quorums_cache, m_chainman.GetConsensus());
+        if (!indexed_quorums_cache.IsInitialized()) {
+            indexed_quorums_cache.Init(m_chainman.GetConsensus());
         }
-        indexed_quorums_cache[llmqType].get(quorumHash, quorumIndex);
+        indexed_quorums_cache.get(llmqType, quorumHash, quorumIndex);
     }
 
     if (quorumIndex == -1) {
@@ -532,7 +532,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
         return;
     }
 
-    WITH_LOCK(cs_indexed_quorums_cache, indexed_quorums_cache[llmqType].insert(quorumHash, quorumIndex));
+    WITH_LOCK(cs_indexed_quorums_cache, indexed_quorums_cache.insert(llmqType, quorumHash, quorumIndex));
 }
 
 bool NetDKG::AlreadyHave(const CInv& inv)

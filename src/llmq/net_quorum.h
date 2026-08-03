@@ -5,11 +5,11 @@
 #ifndef BITCOIN_LLMQ_NET_QUORUM_H
 #define BITCOIN_LLMQ_NET_QUORUM_H
 
+#include <llmq/cache.h>
 #include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <net_processing.h>
 #include <sync.h>
-#include <unordered_lru_cache.h>
 #include <util/threadinterrupt.h>
 #include <validationinterface.h>
 
@@ -117,7 +117,7 @@ private:
     const bool m_quorums_recovery;
 
     mutable Mutex cs_cleanup;
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<uint256>> cleanupQuorumsCache
+    mutable PerLlmqTypeCache<uint256> cleanupQuorumsCache
         GUARDED_BY(cs_cleanup);
 
     mutable ctpl::thread_pool workerPool;

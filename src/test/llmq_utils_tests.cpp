@@ -308,9 +308,6 @@ BOOST_AUTO_TEST_CASE(deterministic_outbound_connection_edge_cases_test)
 // Note: CalcDeterministicWatchConnections requires CBlockIndex which is complex to mock
 // Testing is deferred to functional tests
 
-// Note: InitQuorumsCache requires specific cache types with LLMQ consensus parameters
-// Testing is deferred to integration tests
-
 BOOST_AUTO_TEST_CASE(deterministic_connection_symmetry_test)
 {
     // Test interesting properties of DeterministicOutboundConnection

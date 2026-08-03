@@ -38,7 +38,7 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CDeterministicMNManager& 
     m_chainman{chainman},
     db{util::MakeDbWrapper({db_params.path / "llmq" / "quorumdb", db_params.memory, db_params.wipe, /*cache_size=*/1 << 20})}
 {
-    utils::InitQuorumsCache(mapQuorumsCache, m_chainman.GetConsensus(), /*limit_by_connections=*/false);
+    mapQuorumsCache.Init(m_chainman.GetConsensus(), /*limit_by_connections=*/false);
     m_cache_interrupt.reset();
     m_cache_thread = std::thread(&util::TraceThread, "q-cache", [this] { CacheWarmingThreadMain(); });
     MigrateOldQuorumDB(_evoDb);
@@ -81,7 +81,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         std::make_unique<CFinalCommitment>(std::move(qc)), pQuorumBaseBlockIndex, minedBlockHash, members);
 
     if (populate_cache && llmq_params_opt->size == 1) {
-        WITH_LOCK(m_cs_maps, mapQuorumsCache[llmqType].insert(quorumHash, quorum));
+        WITH_LOCK(m_cs_maps, mapQuorumsCache.insert(llmqType, quorumHash, quorum));
 
         return quorum;
     }
@@ -105,7 +105,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         QueueQuorumForWarming(quorum);
     }
 
-    WITH_LOCK(m_cs_maps, mapQuorumsCache[llmqType].insert(quorumHash, quorum));
+    WITH_LOCK(m_cs_maps, mapQuorumsCache.insert(llmqType, quorumHash, quorum));
 
     return quorum;
 }
@@ -209,18 +209,17 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
     if (chain == nullptr) {
         LOCK(m_cs_maps);
-        if (scanQuorumsCache.empty()) {
-            for (const auto& llmq : Params().GetConsensus().llmqs) {
-                // NOTE: We store it for each block hash in the DKG mining phase here
-                // and not for a single quorum hash per quorum like we do for other caches.
-                // And we only do this for max_cycles() of the most recent quorums
-                // because signing by old quorums requires the exact quorum hash to be specified
-                // and quorum scanning isn't needed there.
-                scanQuorumsCache.try_emplace(llmq.type, llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart));
-            }
+        if (!scanQuorumsCache.IsInitialized()) {
+            // NOTE: We store it for each block hash in the DKG mining phase here
+            // and not for a single quorum hash per quorum like we do for other caches.
+            // And we only do this for max_cycles() of the most recent quorums
+            // because signing by old quorums requires the exact quorum hash to be specified
+            // and quorum scanning isn't needed there.
+            scanQuorumsCache.Init(Params().GetConsensus(), [](const Consensus::LLMQParams& llmq) {
+                return llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart);
+            });
         }
-        auto& cache = scanQuorumsCache[llmqType];
-        bool fCacheExists = cache.get(pindexStore->GetBlockHash(), vecResultQuorums);
+        bool fCacheExists = scanQuorumsCache.get(llmqType, pindexStore->GetBlockHash(), vecResultQuorums);
         if (fCacheExists) {
             // We have exactly what requested so just return it
             if (vecResultQuorums.size() == nCountRequested) {
@@ -284,9 +283,9 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         // Don't cache more than keepOldConnections elements
         // because signing by old quorums requires the exact quorum hash
         // to be specified and quorum scanning isn't needed there.
-        auto& cache = scanQuorumsCache[llmqType];
         const size_t nCacheEndIndex = std::min(nCountResult, static_cast<size_t>(llmq_params_opt->keepOldConnections));
-        cache.emplace(pindexStore->GetBlockHash(), {vecResultQuorums.begin(), vecResultQuorums.begin() + nCacheEndIndex});
+        scanQuorumsCache.emplace(llmqType, pindexStore->GetBlockHash(),
+                                 {vecResultQuorums.begin(), vecResultQuorums.begin() + nCacheEndIndex});
     }
     // Don't return more than nCountRequested elements
     const size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
@@ -400,13 +399,8 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_nul
 
     CQuorumPtr pQuorum;
     {
-        // Defence-in-depth: mapQuorumsCache only holds the LLMQ types InitQuorumsCache() seeded
-        // from the chain's consensus params. operator[] on any other type would insert a
-        // default-constructed, zero-capacity cache and abort in its constructor, so look up
-        // without inserting and fall through for unknown types.
         LOCK(m_cs_maps);
-        auto it = mapQuorumsCache.find(llmqType);
-        if (it != mapQuorumsCache.end() && it->second.get(quorumHash, pQuorum)) {
+        if (mapQuorumsCache.get(llmqType, quorumHash, pQuorum)) {
             return pQuorum;
         }
     }
@@ -426,7 +420,7 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType,
     }
 
     CQuorumPtr pQuorum;
-    if (LOCK(m_cs_maps); mapQuorumsCache[llmqType].get(quorumHash, pQuorum)) {
+    if (LOCK(m_cs_maps); mapQuorumsCache.get(llmqType, quorumHash, pQuorum)) {
         return pQuorum;
     }
 
@@ -469,11 +463,8 @@ CQuorumManager::DataResponseValidation CQuorumManager::ValidateDataResponse(
 CQuorumPtr CQuorumManager::GetCachedMutableQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     CQuorumPtr pQuorum;
-    // See GetQuorum(): never operator[] this map with a wire-supplied LLMQ type.
     LOCK(m_cs_maps);
-    if (auto it = mapQuorumsCache.find(llmqType); it != mapQuorumsCache.end()) {
-        it->second.get(quorumHash, pQuorum);
-    }
+    mapQuorumsCache.get(llmqType, quorumHash, pQuorum);
     return pQuorum;
 }
 

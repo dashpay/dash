@@ -6,10 +6,10 @@
 #define BITCOIN_LLMQ_NET_DKG_H
 
 #include <consensus/params.h>
+#include <llmq/cache.h>
 #include <net_processing.h>
 #include <sync.h>
 #include <uint256.h>
-#include <unordered_lru_cache.h>
 
 #include <map>
 #include <memory>
@@ -100,7 +100,7 @@ private:
 
     /** Cache: quorum hash → quorum index, populated lazily by ProcessMessage. */
     mutable Mutex cs_indexed_quorums_cache;
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<int>> indexed_quorums_cache GUARDED_BY(cs_indexed_quorums_cache);
+    mutable PerLlmqTypeCache<int> indexed_quorums_cache GUARDED_BY(cs_indexed_quorums_cache);
 
     std::vector<std::thread> m_phase_threads;
 };
