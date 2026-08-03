@@ -35,7 +35,7 @@ bool TypedDeserializeSucceeds(Span<const uint8_t> payload, const Consensus::LLMQ
     Message msg;
     try {
         ds >> msg;
-    } catch (const std::exception&) {
+    } catch (...) {
         return false;
     }
     return ds.empty() && llmq::CheckDKGMessageStructure(msg, params);
