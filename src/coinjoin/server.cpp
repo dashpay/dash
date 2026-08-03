@@ -41,7 +41,6 @@ CCoinJoinServer::CCoinJoinServer(PeerManagerInternal* peer_manager, ChainstateMa
     m_mn_activeman{mn_activeman},
     m_mn_sync{mn_sync},
     m_isman{isman},
-    vecSessionCollaterals{},
     fUnitTest{false}
 {
 }
@@ -86,7 +85,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
         return;
     }
 
-    if (WITH_LOCK(cs_coinjoin, return vecSessionCollaterals.empty())) {
+    if (WITH_LOCK(cs_coinjoin, return m_session_collaterals.empty())) {
         {
             const auto hasQueue = m_queueman.TryHasQueueFromMasternode(m_mn_activeman.GetOutPoint());
             if (!hasQueue.has_value()) return;
@@ -282,8 +281,7 @@ void CCoinJoinServer::SetNull()
 {
     AssertLockHeld(cs_coinjoin);
     // MN side
-    vecSessionCollaterals.clear();
-    setSessionCollateralPrevouts.clear();
+    m_session_collaterals.Clear();
 
     CCoinJoinBaseSession::SetNull();
     m_queueman.SetNull();
@@ -323,7 +321,7 @@ void CCoinJoinServer::CheckPool()
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- entries count %lu\n", entries);
         }
         if (nState == POOL_STATE_ACCEPTING_ENTRIES) {
-            if (static_cast<size_t>(entries) == vecSessionCollaterals.size()) {
+            if (static_cast<size_t>(entries) == m_session_collaterals.size()) {
                 // We have an entry for each collateral
                 action = Action::Finalize;
             } else if (CCoinJoinServer::HasTimedOut() && entries >= CoinJoin::GetMinPoolParticipants()) {
@@ -482,10 +480,10 @@ void CCoinJoinServer::ChargeFees() const
         // and then charge and log them as "didn't sign", or pick offenders from a session the
         // state no longer describes.
         state = nState;
-        nSessionCollaterals = vecSessionCollaterals.size();
+        nSessionCollaterals = m_session_collaterals.size();
 
         if (state == POOL_STATE_ACCEPTING_ENTRIES) {
-            for (const auto& txCollateral : vecSessionCollaterals) {
+            for (const auto& txCollateral : m_session_collaterals.txs()) {
                 bool fFound = std::ranges::any_of(vecEntries, [&txCollateral](const auto& entry) {
                     return *entry.txCollateral == *txCollateral;
                 });
@@ -550,7 +548,7 @@ void CCoinJoinServer::ChargeRandomFees() const
     std::vector<CTransactionRef> session_collaterals;
     {
         LOCK(cs_coinjoin);
-        session_collaterals = vecSessionCollaterals;
+        session_collaterals = m_session_collaterals.txs();
     }
 
     for (const auto& txCollateral : session_collaterals) {
@@ -614,7 +612,7 @@ void CCoinJoinServer::CheckForCompleteQueue()
 
         SetState(POOL_STATE_ACCEPTING_ENTRIES);
         session_denom = nSessionDenom;
-        participants = vecSessionCollaterals.size();
+        participants = m_session_collaterals.size();
     }
 
     CCoinJoinQueue dsq(session_denom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), true);
@@ -677,7 +675,7 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
 {
     AssertLockNotHeld(cs_coinjoin);
 
-    if (size_t(GetEntriesCount()) >= vecSessionCollaterals.size()) {
+    if (WITH_LOCK(cs_coinjoin, return size_t(GetEntriesCountLocked()) >= m_session_collaterals.size())) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
         nMessageIDRet = ERR_ENTRIES_FULL;
         return false;
@@ -692,10 +690,11 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         CTransactionRef txCollateralToConsume;
         {
             LOCK(cs_coinjoin);
-            const auto it = std::ranges::find_if(vecSessionCollaterals, [&entry](const auto& txCollateral) {
+            const auto& txs = m_session_collaterals.txs();
+            const auto it = std::ranges::find_if(txs, [&entry](const auto& txCollateral) {
                 return *entry.txCollateral == *txCollateral;
             });
-            if (it != vecSessionCollaterals.end()) {
+            if (it != txs.end()) {
                 txCollateralToConsume = *it;
             }
         }
@@ -814,15 +813,6 @@ bool CCoinJoinServer::IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& n
     return true;
 }
 
-void CCoinJoinServer::CommitSessionCollateral(const CMutableTransaction& txCollateral)
-{
-    AssertLockHeld(cs_coinjoin);
-    vecSessionCollaterals.push_back(MakeTransactionRef(txCollateral));
-    for (const auto& txin : txCollateral.vin) {
-        setSessionCollateralPrevouts.insert(txin.prevout);
-    }
-}
-
 bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet)
 {
     if (nSessionID != 0) return false;
@@ -838,6 +828,8 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& 
         return false;
     }
 
+    int nDenom{0};
+    size_t nParticipants{0};
     {
         LOCK(cs_coinjoin);
 
@@ -856,21 +848,25 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& 
 
         SetState(POOL_STATE_QUEUE);
 
-        CommitSessionCollateral(dsa.txCollateral);
+        m_session_collaterals.Add(dsa.txCollateral);
+        nDenom = nSessionDenom;
+        nParticipants = m_session_collaterals.size();
     }
 
     if (!fUnitTest) {
         //broadcast that I'm accepting entries, only if it's the first entry through
-        CCoinJoinQueue dsq(nSessionDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(),
-                           GetAdjustedTime(), false);
+        CCoinJoinQueue dsq(nDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), false);
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
         dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peer_manager->PeerRelayDSQ(dsq);
         m_queueman.AddQueue(std::move(dsq));
     }
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
-        nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CoinJoin::GetMaxPoolParticipants());
+    LogPrint(BCLog::COINJOIN, /* Continued */
+             "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  "
+             "participants: %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
+             nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), nParticipants,
+             CoinJoin::GetMaxPoolParticipants());
 
     return true;
 }
@@ -916,25 +912,26 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolM
         return false;
     }
 
-    // Session collaterals are only ever test-accepted, never added to the mempool, so nothing
-    // pins their identity: the same UTXO can be re-signed into arbitrarily many distinct txids.
-    // Match on input prevouts so a resent or replayed dsa cannot be counted as a new participant.
-    for (const auto& txin : dsa.txCollateral.vin) {
-        if (setSessionCollateralPrevouts.contains(txin.prevout)) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- collateral %s spends prevout %s already committed to this session\n",
-                dsa.txCollateral.GetHash().ToString(), txin.prevout.ToStringShort());
-            nMessageIDRet = ERR_ALREADY_HAVE;
-            return false;
-        }
+    // A resent or replayed dsa must not be counted as a new participant; see SessionCollaterals.
+    if (const auto prevout = m_session_collaterals.FindCommittedPrevout(dsa.txCollateral)) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::AddUserToExistingSession -- collateral %s spends prevout %s already committed to "
+                 "this session\n",
+                 dsa.txCollateral.GetHash().ToString(), prevout->ToStringShort());
+        nMessageIDRet = ERR_ALREADY_HAVE;
+        return false;
     }
 
     // count new user as accepted to an existing session
 
     nMessageIDRet = MSG_NOERR;
-    CommitSessionCollateral(dsa.txCollateral);
+    m_session_collaterals.Add(dsa.txCollateral);
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
-        nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CoinJoin::GetMaxPoolParticipants());
+    LogPrint(BCLog::COINJOIN, /* Continued */
+             "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  "
+             "participants: %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
+             nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), m_session_collaterals.size(),
+             CoinJoin::GetMaxPoolParticipants());
 
     return true;
 }
@@ -945,10 +942,10 @@ bool CCoinJoinServer::IsSessionReady() const
     AssertLockHeld(cs_coinjoin);
 
     if (nState == POOL_STATE_QUEUE) {
-        if ((int)vecSessionCollaterals.size() >= CoinJoin::GetMaxPoolParticipants()) {
+        if ((int)m_session_collaterals.size() >= CoinJoin::GetMaxPoolParticipants()) {
             return true;
         }
-        if (CCoinJoinServer::HasTimedOut() && (int)vecSessionCollaterals.size() >= CoinJoin::GetMinPoolParticipants()) {
+        if (CCoinJoinServer::HasTimedOut() && (int)m_session_collaterals.size() >= CoinJoin::GetMinPoolParticipants()) {
             return true;
         }
     }
