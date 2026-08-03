@@ -130,6 +130,10 @@ public:
     virtual void Interrupt() {}
     virtual void Schedule(CScheduler& scheduler) {}
 
+    //! Called when a peer is fully disconnected. Handlers may free any
+    //! per-NodeId state keyed on the ephemeral connection id.
+    virtual void FinalizeNode(NodeId /*nodeid*/) {}
+
     virtual void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) {}
 
     // It returns true, if NetHandler has a responsibility about having this type of inventory and has corresponding data.

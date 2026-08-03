@@ -70,6 +70,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_indexed_quorums_cache);
     bool AlreadyHave(const CInv& inv) override;
     bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
+    void FinalizeNode(NodeId nodeid) override;
     /**
      * Drives one phase-handler thread per ActiveDKGSessionHandler in active mode;
      * no-op in observer mode (no curSession to drive).

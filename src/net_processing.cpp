@@ -1795,6 +1795,13 @@ void PeerManagerImpl::FinalizeNode(const CNode& node) {
         m_addrman.Connected(node.addr);
     }
 
+    // Let protocol handlers free any state keyed on the ephemeral NodeId.
+    // Still under cs_main (LOCK scope is the whole function); handlers must only
+    // take their own locks and must not re-enter PeerManager.
+    for (const auto& handler : m_handlers) {
+        handler->FinalizeNode(nodeid);
+    }
+
     LogPrint(BCLog::NET, "Cleared nodestate for peer=%d\n", nodeid);
 }
 
