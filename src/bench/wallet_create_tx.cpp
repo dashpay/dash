@@ -6,6 +6,7 @@
 #include <chainparams.h>
 #include <wallet/coincontrol.h>
 #include <consensus/merkle.h>
+#include <kernel/chain.h>
 #include <node/context.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
@@ -70,7 +71,7 @@ void generateFakeBlock(const CChainParams& params,
 
     // notify wallet
     const auto& pindex = WITH_LOCK(::cs_main, return context.chainman->ActiveChain().Tip());
-    wallet.blockConnected(block, pindex->nHeight);
+    wallet.blockConnected(kernel::MakeBlockInfo(pindex, &block));
 }
 
 struct PreSelectInputs {
