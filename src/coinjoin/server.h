@@ -52,6 +52,13 @@ private:
 
     bool fUnitTest;
 
+    /// Serializes CheckPool() against itself. CheckPool() runs both on the scheduler thread and
+    /// on the message-handling thread, and its finalize and commit steps have to be single-shot:
+    /// relaying DSFINALTX twice makes every client sign twice, and the duplicate signatures then
+    /// abort the session for all of them. Always acquired with TRY_LOCK and never taken by any
+    /// other code path, so a contended caller skips the round rather than blocking msghand.
+    Mutex cs_check_pool;
+
     /// Add a clients entry to the pool
     bool AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Add signature to a txin
@@ -65,10 +72,10 @@ private:
     void ConsumeCollateral(const CTransactionRef& txref) const;
 
     /// Check for process
-    void CheckPool();
+    void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
-    void CreateFinalTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    void CommitFinalTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CreateFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CommitFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Is this nDenom and txCollateral acceptable?
     bool IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const;
@@ -77,15 +84,18 @@ private:
     bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     bool AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Do we have enough users to take entries?
-    bool IsSessionReady() const;
+    bool IsSessionReady() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Check that all inputs are signed. (Are all inputs signed?)
-    bool IsSignaturesComplete() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    bool IsSignaturesComplete() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Check to make sure a given input matches an input in the pool and its scriptSig is valid
     bool IsInputScriptSigValid(const CTxIn& txin) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
-    // Set the 'state' value, with some logging and capturing when the state changed
-    void SetState(PoolState nStateNew);
+    // Set the 'state' value, with some logging and capturing when the state changed.
+    // Requires cs_coinjoin so that a transition and the session data it describes are always
+    // observed together: code that revalidates nState under the lock must not have it changed
+    // out from under it by a concurrent transition.
+    void SetState(PoolState nStateNew) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Relay mixing Messages
     void RelayFinalTransaction(const CTransaction& txFinal) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
@@ -95,8 +105,8 @@ private:
 
     void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
-    void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    void ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
+    void ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
     void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
@@ -110,14 +120,15 @@ public:
                              const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman);
     ~CCoinJoinServer() override;
 
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
     bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
     bool AlreadyHave(const CInv& inv) override;
     void Schedule(CScheduler& scheduler) override;
 
     bool HasTimedOut() const;
-    void CheckTimeout();
-    void CheckForCompleteQueue();
+    void CheckTimeout() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CheckForCompleteQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     void GetJsonInfo(UniValue& obj) const;
 };
