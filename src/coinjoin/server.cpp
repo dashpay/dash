@@ -675,7 +675,12 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
 {
     AssertLockNotHeld(cs_coinjoin);
 
-    if (WITH_LOCK(cs_coinjoin, return size_t(GetEntriesCountLocked()) >= m_session_collaterals.size())) {
+    // Remember which session we are admitting this entry to. The validation below releases
+    // cs_coinjoin and takes cs_main, so the session can be reset underneath us before we commit.
+    const int session_id{nSessionID};
+
+    // Cheap gate before the cs_main work below; the authoritative check is at commit time.
+    if (WITH_LOCK(cs_coinjoin, return static_cast<size_t>(GetEntriesCountLocked()) >= m_session_collaterals.size())) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
         nMessageIDRet = ERR_ENTRIES_FULL;
         return false;
@@ -711,21 +716,24 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
     }
 
     std::vector<CTxIn> vin;
-    for (const auto& txin : entry.vecTxDSIn) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- txin=%s\n", __func__, txin.ToString());
+    {
         LOCK(cs_coinjoin);
-        for (const auto& inner_entry : vecEntries) {
-            if (std::ranges::any_of(inner_entry.vecTxDSIn,
-                                    [&txin](const auto& txdsin) { return txdsin.prevout == txin.prevout; })) {
-                LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: already have this txin in entries\n", __func__);
-                nMessageIDRet = ERR_ALREADY_HAVE;
-                // Two peers sent the same input? Can't really say who is the malicious one here,
-                // could be that someone is picking someone else's inputs randomly trying to force
-                // collateral consumption. Do not punish.
-                return false;
+        for (const auto& txin : entry.vecTxDSIn) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- txin=%s\n", __func__, txin.ToString());
+            for (const auto& inner_entry : vecEntries) {
+                if (std::ranges::any_of(inner_entry.vecTxDSIn,
+                                        [&txin](const auto& txdsin) { return txdsin.prevout == txin.prevout; })) {
+                    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: already have this txin in entries\n",
+                             __func__);
+                    nMessageIDRet = ERR_ALREADY_HAVE;
+                    // Two peers sent the same input? Can't really say who is the malicious one here,
+                    // could be that someone is picking someone else's inputs randomly trying to force
+                    // collateral consumption. Do not punish.
+                    return false;
+                }
             }
+            vin.emplace_back(txin);
         }
-        vin.emplace_back(txin);
     }
 
     bool fConsumeCollateral{false};
@@ -738,9 +746,32 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         return false;
     }
 
-    WITH_LOCK(cs_coinjoin, vecEntries.push_back(entry));
+    int nEntries{0};
+    {
+        LOCK(cs_coinjoin);
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- adding entry %d of %d required\n", __func__, GetEntriesCount(), CoinJoin::GetMaxPoolParticipants());
+        // IsCollateralValid() and IsValidInOuts() above take cs_main and can block for a long
+        // time behind block validation, so a scheduler-thread timeout can reset the session in
+        // that window. Committing then would leave an entry of a dead session in vecEntries: the
+        // next session inherits it, counts it towards its own participants, and finalizes a
+        // transaction containing an input nobody present is going to sign.
+        if (nSessionID != session_id) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: session %d is gone!\n", __func__, session_id);
+            nMessageIDRet = ERR_SESSION;
+            return false;
+        }
+        if (static_cast<size_t>(GetEntriesCountLocked()) >= m_session_collaterals.size()) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
+            nMessageIDRet = ERR_ENTRIES_FULL;
+            return false;
+        }
+
+        vecEntries.push_back(entry);
+        nEntries = GetEntriesCountLocked();
+    }
+
+    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- adding entry %d of %d required\n", __func__, nEntries,
+             CoinJoin::GetMaxPoolParticipants());
     nMessageIDRet = MSG_ENTRIES_ADDED;
 
     return true;
