@@ -15,6 +15,37 @@ docker run --rm -v $(pwd):/bitcoin -it bitcoin-linter
 After building the container once, you can simply run the last command any time you
 want to lint.
 
+Reproducing the CI lint job
+---------------------------
+
+The image above is not what CI uses: its default entrypoint runs `ci/lint/06_script.sh`,
+which merge-bases against `master` and runs checks (`check-doc.py`, subtree checks) that
+the CI lint job does not, and it has no cppcheck. The CI lint job
+(`.github/workflows/lint.yml`) runs `ci/dash/lint.sh` inside the `ci-slim` image. To
+reproduce it, build that image and run the same script with the same environment from the
+repository or worktree root:
+
+```sh
+docker build -t dash-ci-slim --file ./contrib/containers/ci/ci-slim.Dockerfile ./contrib/containers/ci
+
+# Commit or stash tracked changes first: commit-script-check.sh checks out
+# commits, runs `git reset --hard`, and executes the verification commands of
+# `scripted-diff:` commits in the range, so only run it on commits you trust.
+GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD":"$PWD" -v "$GIT_COMMON_DIR":"$GIT_COMMON_DIR" -w "$PWD" \
+    -e CACHE_DIR="$PWD/ci/scratch/cache" -e BUILD_TARGET=linux64 -e CHECK_DOC=1 \
+    -e PULL_REQUEST=true -e COMMIT_RANGE="$(git merge-base develop HEAD)..HEAD" \
+    dash-ci-slim bash -c 'git config --global --add safe.directory "$PWD" && ./ci/dash/lint.sh'
+```
+
+CI builds `ci-slim` for both `linux/amd64` and `linux/arm64`, so a native build is fine;
+rebuild it whenever `ci-slim.Dockerfile` changes. Unlike CI, the container runs as your
+user instead of root so files it writes stay owned by you, and the second mount is what
+makes it work from a git worktree. `COMMIT_RANGE` uses your local `develop`, so keep that
+branch current with `dashpay/dash`. The cppcheck cache is kept in the git-ignored
+`ci/scratch/cache/` directory to speed up reruns.
+
 
 check-doc.py
 ============
