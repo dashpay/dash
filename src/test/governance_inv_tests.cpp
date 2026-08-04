@@ -29,7 +29,6 @@
 #include <test/util/masternode.h>
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
-#include <test/util/validation.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -43,31 +42,66 @@
 using namespace std::chrono_literals;
 
 namespace {
-struct GovernanceInvSetup : public TestingSetup {
-    GovernanceInvSetup() : TestingSetup{CBaseChainParams::MAIN}
+// Unified governance unit-test fixture. The DIP3 / ProRegTx path is required for
+// signed-trigger rate regressions, and it also satisfies the lighter INV/vote
+// authorization tests (govman + NetGovernance handler + mn_sync).
+//
+// DIP3 activation is pushed to 109 so TestChainSetup's fixed-checkpoint assert
+// still succeeds while the early coinbases are mature.
+struct GovernanceInvSetup : public TestChainSetup {
+    COutPoint mn_outpoint;
+    CBLSSecretKey operator_key;
+
+    GovernanceInvSetup() :
+        TestChainSetup(/*num_blocks=*/107, CBaseChainParams::REGTEST, {"-dip3params=109:500"})
     {
-        // ConfirmInventoryRequest and the NetGovernance object/vote handlers
-        // short-circuit on !IsBlockchainSynced().
-        BOOST_REQUIRE(m_node.mn_sync);
-        m_node.mn_sync->SwitchToNextAsset();
-        BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+        auto& chainman = *Assert(m_node.chainman.get());
+        auto& dmnman = *Assert(m_node.dmnman);
+        const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+
+        // Activate DIP3 (fixture tip is one block before activation height 109).
+        // Enforcement is independent of activation; ProRegTx only needs activation.
+        CreateAndProcessBlock({}, coinbase_pk);
+        BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()), 108);
+
+        auto utxos = BuildSimpleUtxoMap(m_coinbase_txns);
+        CKey owner_key;
+        auto proreg_tx = CreateProRegTx(chainman, utxos, /*port=*/1, GenerateRandomAddress(), coinbaseKey, owner_key,
+                                        operator_key);
+        CreateAndProcessBlock({proreg_tx}, coinbase_pk);
+        dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+
+        mn_outpoint = COutPoint{proreg_tx.GetHash(), 0};
+        const auto dmn = dmnman.GetListAtChainTip().GetMNByCollateral(mn_outpoint);
+        BOOST_REQUIRE(dmn);
+        BOOST_REQUIRE(dmn->pdmnState->pubKeyOperator.Get() == operator_key.GetPublicKey());
 
         BOOST_REQUIRE(m_node.mn_metaman);
         // Note: mn_metaman is left unloaded. Reaching CGovernanceObject::ProcessVote asserts
         // metaman.IsValid(), so a test that delivers a vote whose parent object exists must
         // load it first (see invalid_vote_is_scored_alike_with_and_without_a_parent_object).
-        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.chain_helper->superblocks, *m_node.dmnman, *m_node.mn_sync);
+        BOOST_REQUIRE(m_node.mn_sync);
+        BOOST_REQUIRE(m_node.chain_helper);
+        BOOST_REQUIRE(m_node.chain_helper->superblocks);
+        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman,
+                                                             *m_node.chain_helper->superblocks, *m_node.dmnman,
+                                                             *m_node.mn_sync);
         // Match runtime preconditions: NetGovernance::AlreadyHave claims we
         // already have the inv when governance isn't loaded (e.g.
         // -disablegovernance), so ConfirmInventoryRequest would never run.
         BOOST_REQUIRE(m_node.govman->LoadCache(/*load_cache=*/false));
 
         BOOST_REQUIRE(m_node.netfulfilledman);
-        // Loaded here for the later test that advances GOVERNANCE -> FINISHED;
-        // the sync notifier asserts netfulfilledman.IsValid().
+        // Loaded before advancing sync: SyncFinished asserts netfulfilledman.IsValid().
         BOOST_REQUIRE(m_node.netfulfilledman->LoadCache(/*load_cache=*/false));
         BOOST_REQUIRE(m_node.connman);
         BOOST_REQUIRE(m_node.peerman);
+
+        // Advance BLOCKCHAIN -> GOVERNANCE -> FINISHED. Rate checks are a no-op until
+        // IsSynced(); INV/vote tests also tolerate a fully-synced start state.
+        m_node.mn_sync->SwitchToNextAsset();
+        m_node.mn_sync->SwitchToNextAsset();
+        BOOST_REQUIRE(m_node.mn_sync->IsSynced());
 
         // Intentional unit-test boundary: TestingSetup does not run the
         // init.cpp/AppInit startup path that registers the Dash-specific
@@ -80,17 +114,33 @@ struct GovernanceInvSetup : public TestingSetup {
             m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
             *m_node.netfulfilledman, *m_node.connman));
 
-        // Anchor the clock so the object and vote timestamps the tests build
-        // from GetTime() are deterministic. Nothing advances it.
-        SetMockTime(1'700'000'000s);
+        // Deterministic clock for object/vote timestamps and rate-check windows.
+        SetMockTime(0s);
     }
-    ~GovernanceInvSetup() {
-        // govman holds a reference to chain_helper->superblocks, so it must be reset before chain_helper (matches PrepareShutdown
-        // ordering in init.cpp).
+
+    ~GovernanceInvSetup()
+    {
+        // govman holds a reference to chain_helper->superblocks, so it must be reset
+        // before chain_helper (matches PrepareShutdown ordering in init.cpp).
         m_node.peerman->RemoveHandlers();
         m_node.govman.reset();
     }
 
+    // Malformed trigger JSON: type=TRIGGER so LoadData/IsValidLocally accept it, but
+    // SuperblockManager::AddTrigger fails while constructing CSuperblock (missing
+    // event_block_height / payment fields). That is the failed-trigger path.
+    CGovernanceObject MakeFailedTrigger(int64_t creation_time, int salt) const
+    {
+        const std::string data = strprintf(R"({"type":2,"salt":%d})", salt);
+        CGovernanceObject govobj{uint256{}, /*revision=*/1, creation_time, uint256{}, HexStr(data)};
+        BOOST_REQUIRE_EQUAL(std23::to_underlying(govobj.GetObjectType()),
+                            std23::to_underlying(GovernanceObject::TRIGGER));
+        govobj.SetMasternodeOutpoint(mn_outpoint);
+        const CBLSSignature sig = operator_key.Sign(govobj.GetSignatureHash(), /*specificLegacyScheme=*/false);
+        BOOST_REQUIRE(sig.IsValid());
+        govobj.SetSignature(sig.ToByteVector(/*specificLegacyScheme=*/false));
+        return govobj;
+    }
 };
 
 size_t CountQueuedMessages(const CNode& peer, const std::string& msg_type)
@@ -197,8 +247,7 @@ BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     // NetGovernance::ProcessMessage ignores MNGOVERNANCESYNC until sync is
-    // fully finished; advance from GOVERNANCE to FINISHED.
-    m_node.mn_sync->SwitchToNextAsset();
+    // fully finished; the fixture already advances to FINISHED.
     BOOST_REQUIRE(m_node.mn_sync->IsSynced());
 
     auto peer{MakeGovernanceInvPeer(/*id=*/1)};
@@ -332,10 +381,6 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
-
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
                           *m_node.netfulfilledman, *m_node.connman);
 
@@ -383,16 +428,11 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
     m_node.peerman->FinalizeNode(*announcing_peer);
     m_node.peerman->FinalizeNode(*second_announcing_peer);
     m_node.peerman->FinalizeNode(*unsolicited_peer);
-    chainstate.ResetIbd();
 }
 
 BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
-
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
 
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
                           *m_node.netfulfilledman, *m_node.connman);
@@ -436,7 +476,6 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
     m_node.peerman->FinalizeNode(*announcing_peer);
     m_node.peerman->FinalizeNode(*second_announcing_peer);
     m_node.peerman->FinalizeNode(*unsolicited_peer);
-    chainstate.ResetIbd();
 }
 
 // A message received while not blockchain-synced is dropped, but the per-peer authorization must
@@ -444,10 +483,6 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
-
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
 
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
                           *m_node.netfulfilledman, *m_node.connman);
@@ -479,7 +514,6 @@ BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
     AssertMisbehaviorScore(*m_node.peerman, *peer, 20);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
 }
 
 // A vote whose parent object is unknown must prove masternode authorship before it is cached.
@@ -487,12 +521,7 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
-
     // Penalties are applied only once fully synced.
-    m_node.mn_sync->SwitchToNextAsset();
     BOOST_REQUIRE(m_node.mn_sync->IsSynced());
 
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
@@ -515,7 +544,6 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
     AssertMisbehaviorScore(*m_node.peerman, *peer, 20);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
 }
 
 // The same unauthenticated vote must cost the sender the same whether or not its parent object
@@ -524,11 +552,6 @@ BOOST_AUTO_TEST_CASE(invalid_vote_is_scored_alike_with_and_without_a_parent_obje
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
-
-    m_node.mn_sync->SwitchToNextAsset();
     BOOST_REQUIRE(m_node.mn_sync->IsSynced());
     // The known-object path runs CGovernanceObject::ProcessVote, which asserts metaman.IsValid().
     BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));
@@ -556,90 +579,7 @@ BOOST_AUTO_TEST_CASE(invalid_vote_is_scored_alike_with_and_without_a_parent_obje
 
     m_node.peerman->FinalizeNode(*orphan_peer);
     m_node.peerman->FinalizeNode(*known_parent_peer);
-    chainstate.ResetIbd();
 }
-
-BOOST_AUTO_TEST_SUITE_END()
-
-
-// Fixture for failed-trigger rate-limit regressions: DIP3-active chain, one
-// registered masternode whose operator BLS key we hold, governance wired as in
-// production init, and CMasternodeSync driven to FINISHED (MasternodeRateCheck is
-// a no-op until then).
-//
-// The DIP3 activation height is pushed to 109 so TestChainSetup's fixed-checkpoint
-// assert still succeeds while the early coinbases are mature.
-struct FailedTriggerRateSetup : public TestChainSetup {
-    COutPoint mn_outpoint;
-    CBLSSecretKey operator_key;
-
-    FailedTriggerRateSetup() :
-        TestChainSetup(/*num_blocks=*/107, CBaseChainParams::REGTEST, {"-dip3params=109:500"})
-    {
-        auto& chainman = *Assert(m_node.chainman.get());
-        auto& dmnman = *Assert(m_node.dmnman);
-        const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
-
-        // Activate DIP3 (fixture tip is one block before activation height 109).
-        // Enforcement is independent of activation; ProRegTx only needs activation.
-        CreateAndProcessBlock({}, coinbase_pk);
-        BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()), 108);
-
-        auto utxos = BuildSimpleUtxoMap(m_coinbase_txns);
-        CKey owner_key;
-        auto proreg_tx = CreateProRegTx(chainman, utxos, /*port=*/1, GenerateRandomAddress(), coinbaseKey, owner_key,
-                                        operator_key);
-        CreateAndProcessBlock({proreg_tx}, coinbase_pk);
-        dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
-
-        mn_outpoint = COutPoint{proreg_tx.GetHash(), 0};
-        const auto dmn = dmnman.GetListAtChainTip().GetMNByCollateral(mn_outpoint);
-        BOOST_REQUIRE(dmn);
-        BOOST_REQUIRE(dmn->pdmnState->pubKeyOperator.Get() == operator_key.GetPublicKey());
-
-        BOOST_REQUIRE(m_node.mn_metaman);
-        BOOST_REQUIRE(m_node.mn_sync);
-        BOOST_REQUIRE(m_node.chain_helper);
-        BOOST_REQUIRE(m_node.chain_helper->superblocks);
-        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman,
-                                                             *m_node.chain_helper->superblocks, *m_node.dmnman,
-                                                             *m_node.mn_sync);
-        BOOST_REQUIRE(m_node.govman->LoadCache(/*load_cache=*/false));
-
-        // Advance BLOCKCHAIN -> GOVERNANCE -> FINISHED. SyncFinished requires a
-        // loaded netfulfilledman.
-        BOOST_REQUIRE(m_node.netfulfilledman);
-        BOOST_REQUIRE(m_node.netfulfilledman->LoadCache(/*load_cache=*/false));
-        m_node.mn_sync->SwitchToNextAsset();
-        m_node.mn_sync->SwitchToNextAsset();
-        BOOST_REQUIRE(m_node.mn_sync->IsSynced());
-    }
-
-    ~FailedTriggerRateSetup()
-    {
-        // chain_helper (owner of the SuperblockManager govman clears in its dtor)
-        // must outlive govman -- see PrepareShutdown in init.cpp.
-        m_node.govman.reset();
-    }
-
-    // Malformed trigger JSON: type=TRIGGER so LoadData/IsValidLocally accept it, but
-    // SuperblockManager::AddTrigger fails while constructing CSuperblock (missing
-    // event_block_height / payment fields). That is the failed-trigger path.
-    CGovernanceObject MakeFailedTrigger(int64_t creation_time, int salt) const
-    {
-        const std::string data = strprintf(R"({"type":2,"salt":%d})", salt);
-        CGovernanceObject govobj{uint256{}, /*revision=*/1, creation_time, uint256{}, HexStr(data)};
-        BOOST_REQUIRE_EQUAL(std23::to_underlying(govobj.GetObjectType()),
-                            std23::to_underlying(GovernanceObject::TRIGGER));
-        govobj.SetMasternodeOutpoint(mn_outpoint);
-        const CBLSSignature sig = operator_key.Sign(govobj.GetSignatureHash(), /*specificLegacyScheme=*/false);
-        BOOST_REQUIRE(sig.IsValid());
-        govobj.SetSignature(sig.ToByteVector(/*specificLegacyScheme=*/false));
-        return govobj;
-    }
-};
-
-BOOST_FIXTURE_TEST_SUITE(governance_failed_trigger_rate_tests, FailedTriggerRateSetup)
 
 // Regression: AddGovernanceObjectInternal used to return early on
 // AddTrigger failure without calling MasternodeRateUpdate. Because
@@ -730,5 +670,6 @@ BOOST_AUTO_TEST_CASE(failed_trigger_is_not_scheduled_for_additional_relay)
     BOOST_CHECK(std::ranges::none_of(invs, [&](const CInv& inv) { return inv.hash == hash; }));
     BOOST_CHECK(invs.empty());
 }
+
 
 BOOST_AUTO_TEST_SUITE_END()
