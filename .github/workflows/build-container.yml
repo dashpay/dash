@@ -45,6 +45,25 @@ jobs:
           allow-unsafe-pr-checkout: true
           persist-credentials: false
 
+      # pull_request_target executes the base-branch workflow while the main
+      # checkout is the PR head. Grab the executing copy so the content key
+      # hashes what actually runs (see WORKFLOW_SUM below).
+      - name: Checkout executing workflow file
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            .github/workflows/build-container.yml
+          sparse-checkout-cone-mode: false
+          path: .executing-workflow
+          persist-credentials: false
+
+      # imagetools inspect is used below; ensure buildx is present on all
+      # runner images (stock GHA and custom labels).
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       # Must precede the digest lookups in "Prepare variables", which may need
       # credentials to resolve a private image reference.
       - name: Login to GitHub Container Registry
@@ -59,12 +78,13 @@ jobs:
         env:
           CONTEXT: ${{ inputs.context }}
           DOCKERFILE: ${{ inputs.file }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           # Without pipefail a failing stage mid-pipeline still yields a
           # well-formed hash, which would silently pin us to a wrong image.
           set -o pipefail
           BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(echo "${REPOSITORY}" | tr '[:upper:]' '[:lower:]')
 
           if [ -z "$(find "${CONTEXT}" -type f -print -quit)" ]; then
             echo "::error::Build context '${CONTEXT}' contains no files"
@@ -95,12 +115,18 @@ jobs:
           # differently named Dockerfile cannot quietly lose coverage. Skipping
           # leading flags handles "FROM --platform=x img" and
           # "COPY --chown=u:g --from=img"; taking the first non-flag token after
-          # FROM ignores the "AS stage" alias. Local dockerfile-x includes
-          # (./foo.Dockerfile) and stage names are then dropped, leaving only
-          # things resolvable from a registry.
+          # FROM ignores the "AS stage" alias. "# syntax = frontend" is collected
+          # too: BuildKit fetches that floating frontend on every build.
+          # Local dockerfile-x includes (./foo.Dockerfile) and stage names are
+          # then dropped, leaving only things resolvable from a registry.
           # shellcheck disable=SC2016  # $1/$i are awk fields, not shell vars
           EXTERNAL_REFS=$(find "${CONTEXT}" -type f -print0 | LC_ALL=C sort -z \
                           | xargs -0 awk '
+                              /^#[[:space:]]*syntax[[:space:]]*=/ {
+                                sub(/^#[[:space:]]*syntax[[:space:]]*=[[:space:]]*/, "")
+                                print $1
+                                next
+                              }
                               toupper($1) == "FROM" {
                                 for (i = 2; i <= NF; i++)
                                   if ($i !~ /^--/) { print $i; break }
@@ -115,18 +141,21 @@ jobs:
             exit 1
           fi
           IMAGE_SUM=""
+          ANY_UNRESOLVED=false
           # Here-string, not a pipe: a piped `while` runs in a subshell and
-          # would discard IMAGE_SUM.
+          # would discard IMAGE_SUM / ANY_UNRESOLVED.
           while IFS= read -r REF; do
             [ -n "${REF}" ] || continue
             RAW=$(docker buildx imagetools inspect --raw "${REF}" 2>/dev/null || true)
             if [ -n "${RAW}" ]; then
               REF_DIGEST=$(printf '%s' "${RAW}" | sha256sum | cut -d' ' -f1)
             else
-              # Rate limit or outage. A distinct marker means we rebuild under a
-              # separate tag rather than silently reusing a possibly stale one;
-              # the normal tag is reused again once lookups recover.
+              # Rate limit or outage. Mark the key and force a rebuild for this
+              # run: reusing a prior "unresolved" image can hide base-image
+              # drift that happened between outages. Once lookups recover the
+              # digest-keyed path is used again.
               REF_DIGEST="unresolved"
+              ANY_UNRESOLVED=true
             fi
             echo "  ${REF} -> ${REF_DIGEST}"
             IMAGE_SUM="${IMAGE_SUM}${REF}=${REF_DIGEST}"$'\n'
@@ -151,26 +180,51 @@ jobs:
           # to workflow_call.inputs that reaches the build step -- a build-args
           # or target passthrough, say -- has to be added to this key too, or
           # changing it in build.yml will silently reuse the old image.
+          #
+          # Under pull_request_target the executing workflow is the base-branch
+          # copy (GITHUB_SHA), while the working tree is the PR head. Hash the
+          # version that actually runs so a PR cannot pre-seed a key for build
+          # settings it did not execute.
           WORKFLOW_FILE=".github/workflows/build-container.yml"
-          if [ ! -f "${WORKFLOW_FILE}" ]; then
-            echo "::error::${WORKFLOW_FILE} not found; the key would silently stop covering build settings"
-            exit 1
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]; then
+            EXEC_WF=".executing-workflow/${WORKFLOW_FILE}"
+            if [ ! -f "${EXEC_WF}" ]; then
+              echo "::error::${EXEC_WF} not found; the key would silently stop covering build settings"
+              exit 1
+            fi
+            WORKFLOW_SUM=$(sha256sum "${EXEC_WF}")
+          else
+            if [ ! -f "${WORKFLOW_FILE}" ]; then
+              echo "::error::${WORKFLOW_FILE} not found; the key would silently stop covering build settings"
+              exit 1
+            fi
+            WORKFLOW_SUM=$(sha256sum "${WORKFLOW_FILE}")
           fi
           HASH_TAG=$(printf '%s\n%sdockerfile=%s\n%s\n' \
             "${CONTEXT_SUM}" "${IMAGE_SUM}" "${DF_ABS#"${CTX_ABS}/"}" \
-            "$(sha256sum "${WORKFLOW_FILE}")" | sha256sum | cut -d' ' -f1)
+            "${WORKFLOW_SUM}" | sha256sum | cut -d' ' -f1)
           echo "Content key: ${HASH_TAG}"
           {
             echo "tag=${BRANCH_NAME}"
             echo "repo=${REPO_NAME}"
             echo "hash-tag=${HASH_TAG}"
+            echo "unresolved=${ANY_UNRESOLVED}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Check whether the image was already built
         id: exists
         env:
           REF: ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ steps.prepare.outputs.hash-tag }}
+          UNRESOLVED: ${{ steps.prepare.outputs.unresolved }}
         run: |
+          # If any external digest lookup failed, force a rebuild. A prior
+          # image published under the same "unresolved" marker may predate a
+          # base-image change that we could not observe during the outage.
+          if [ "${UNRESOLVED}" = "true" ]; then
+            echo "External image lookup was unresolved; rebuilding rather than reusing ${REF}"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # The multi-arch manifest is pushed last, so its presence means both
           # arch-specific builds completed. Any failure here falls through to a
           # rebuild, which is correct (just slower).
@@ -298,10 +352,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push multi-arch manifest
+        env:
+          CHECK_REPO: ${{ needs.check.outputs.repo }}
+          IMAGE_NAME: ${{ inputs.name }}
+          CHECK_TAG: ${{ needs.check.outputs.tag }}
+          CHECK_HASH_TAG: ${{ needs.check.outputs.hash-tag }}
         run: |
-          REPO="ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}"
-          TAG="${{ needs.check.outputs.tag }}"
-          HASH_TAG="${{ needs.check.outputs.hash-tag }}"
+          REPO="ghcr.io/${CHECK_REPO}/${IMAGE_NAME}"
+          TAG="${CHECK_TAG}"
+          HASH_TAG="${CHECK_HASH_TAG}"
 
           # Create manifest from arch-specific images
           docker buildx imagetools create -t "${REPO}:${HASH_TAG}" \
