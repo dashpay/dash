@@ -16,17 +16,24 @@ jobs:
   lint:
     name: Run linters
     runs-on: ${{ inputs.runs-on }}
+    permissions:
+      actions: read
+      contents: read
+      packages: read
     container:
       image: ${{ inputs.container-path }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
       options: --user root
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
-          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 50
+          persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
 
       - name: Initial setup
         run: |

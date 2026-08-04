@@ -15,20 +15,23 @@ on:
 jobs:
   cache-sources:
     name: Cache depends sources
-    # Intentionally keep scheduled cache warming on GitHub-hosted ARM runners.
-    # Blacksmith caches are expected to persist long enough without a warmup cron.
+    permissions:
+      actions: read
+      contents: read
+    # Scheduled warmups use the default GitHub-hosted ARM runner; workflow callers
+    # may select any compatible ephemeral runner through inputs.runs-on.
     runs-on: ${{ inputs.runs-on || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          allow-unsafe-pr-checkout: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
 
       - name: Check for cached sources
         id: cache-check
-        uses: actions/cache@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: depends/sources
           key: depends-sources-${{ hashFiles('depends/packages/*') }}
@@ -38,3 +41,12 @@ jobs:
       - name: Download sources
         if: steps.cache-check.outputs.cache-hit != 'true'
         run: make -C depends download
+
+      - name: Save sources cache
+        if: |
+          steps.cache-check.outputs.cache-hit != 'true' &&
+          (github.event_name == 'push' || github.event_name == 'schedule')
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: depends/sources
+          key: depends-sources-${{ hashFiles('depends/packages/*') }}

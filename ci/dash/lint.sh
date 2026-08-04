@@ -11,6 +11,17 @@ set -e
 
 source ./ci/dash/matrix.sh
 
+# YAML-based workflow lints need PyYAML. pull_request_target reuses the trusted
+# base-branch ci-slim image, which may lag Dockerfile changes on the PR head, so
+# install the pinned dependency when the image does not already provide it.
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+    if command -v uv >/dev/null 2>&1; then
+        uv pip install --system --break-system-packages "PyYAML==6.0.2"
+    else
+        python3 -m pip install --user "PyYAML==6.0.2"
+    fi
+fi
+
 # Check commit scripts for PRs
 if [ "$PULL_REQUEST" != "false" ]; then
     test/lint/commit-script-check.sh "$COMMIT_RANGE"

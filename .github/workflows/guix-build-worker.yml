@@ -1,0 +1,134 @@
+name: Guix Build Worker
+
+on:
+  workflow_call:
+    inputs:
+      source-ref:
+        description: "Commit to build"
+        required: true
+        type: string
+      container-path:
+        description: "Trusted Guix builder image"
+        required: true
+        type: string
+      trusted:
+        description: "Whether this run may save caches and attest artifacts"
+        required: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        build_target: [x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, powerpc64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
+
+    timeout-minutes: 480
+    steps:
+      - name: Disable apparmor user namespace restrictions
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Pull trusted Guix builder
+        env:
+          CONTAINER_PATH: ${{ inputs.container-path }}
+        run: docker pull "${CONTAINER_PATH}"
+
+      - name: Remove registry credentials
+        if: always()
+        run: docker logout ghcr.io
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ inputs.source-ref }}
+          path: dash
+          fetch-depth: 0
+          persist-credentials: false
+          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
+
+      - name: Restore depends sources
+        id: depends-sources-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: dash/depends/sources
+          key: depends-sources-${{ hashFiles('dash/depends/packages/*') }}
+          restore-keys: |
+            depends-sources-
+
+      - name: Restore Guix and depends cache
+        id: guix-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ${{ github.workspace }}/.cache
+            ${{ github.workspace }}/dash/depends/built
+            ${{ github.workspace }}/dash/depends/work
+            /gnu/store
+          key: ${{ runner.os }}-guix-${{ matrix.build_target }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-guix-${{ matrix.build_target }}
+            ${{ runner.os }}-guix-
+
+      - name: Create .cache folder if missing
+        if: steps.guix-cache.outputs.cache-hit != 'true'
+        run: mkdir -p .cache
+
+      - name: Run Guix build
+        timeout-minutes: 480
+        env:
+          BUILD_TARGET: ${{ matrix.build_target }}
+          CONTAINER_PATH: ${{ inputs.container-path }}
+        run: |
+          docker run --privileged -d --rm -t \
+            --name guix-daemon \
+            -v "${GITHUB_WORKSPACE}/dash:/src/dash" \
+            -v "${GITHUB_WORKSPACE}/.cache:/home/ubuntu/.cache" \
+            -w /src/dash \
+            "${CONTAINER_PATH}"
+          docker exec guix-daemon bash -c "HOSTS=${BUILD_TARGET} /usr/local/bin/guix-start /src/dash"
+
+      - name: Save depends sources cache
+        if: inputs.trusted && steps.depends-sources-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: dash/depends/sources
+          key: depends-sources-${{ hashFiles('dash/depends/packages/*') }}
+
+      - name: Save Guix and depends cache
+        if: inputs.trusted && steps.guix-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ${{ github.workspace }}/.cache
+            ${{ github.workspace }}/dash/depends/built
+            ${{ github.workspace }}/dash/depends/work
+            /gnu/store
+          key: ${{ runner.os }}-guix-${{ matrix.build_target }}-${{ github.sha }}
+
+      - name: Compute SHA256 checksums
+        continue-on-error: true # It will complain on depending on only some hosts
+        env:
+          BUILD_TARGET: ${{ matrix.build_target }}
+        run: |
+          HOSTS="${BUILD_TARGET}" ./dash/contrib/containers/guix/scripts/guix-check "${GITHUB_WORKSPACE}/dash"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: guix-artifacts-${{ matrix.build_target }}
+          path: |
+            ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/
+
+      - name: Attest build provenance
+        if: inputs.trusted
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/*

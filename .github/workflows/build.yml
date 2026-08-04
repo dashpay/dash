@@ -7,7 +7,7 @@ on:
 permissions:
   actions: read
   contents: read
-  packages: write
+  packages: read
 
 concurrency:
   group: |
@@ -49,7 +49,9 @@ jobs:
 
       - name: Checkout code
         if: ${{ steps.skip-check.outputs.skip == 'false' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Select runners
         id: select-runner
@@ -91,10 +93,13 @@ jobs:
     with:
       runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
-  container:
-    name: Build container
+  container-publish:
+    name: Publish container
     needs: [check-skip]
-    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    if: ${{ github.event_name == 'push' && needs.check-skip.outputs.skip == 'false' }}
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
@@ -103,10 +108,42 @@ jobs:
       runs-on-amd64: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-arm64: ${{ needs.check-skip.outputs['runner-arm64'] }}
 
-  container-slim:
-    name: Build slim container
+  container:
+    name: Select container
+    needs: [check-skip, container-publish]
+    if: |
+      always() && !cancelled() &&
+      needs.check-skip.outputs.skip == 'false' &&
+      (github.event_name == 'pull_request_target' || needs.container-publish.result == 'success')
+    runs-on: ubuntu-24.04-arm
+    permissions: {}
+    outputs:
+      path: ${{ steps.select.outputs.path }}
+    steps:
+      - name: Select trusted container
+        id: select
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISHED_PATH: ${{ needs.container-publish.outputs.path }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ "${EVENT_NAME}" == "pull_request_target" ]]; then
+            # Match build-container's ${GITHUB_REF##*/} basename so slash-
+            # containing base branches resolve to the published tag.
+            IMAGE_TAG="$(echo "${BASE_BRANCH##*/}" | tr '[:upper:]' '[:lower:]')"
+            echo "path=ghcr.io/${REPOSITORY,,}/dashcore-ci-runner:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "path=${PUBLISHED_PATH}" >> "${GITHUB_OUTPUT}"
+          fi
+
+  container-slim-publish:
+    name: Publish slim container
     needs: [check-skip]
-    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    if: ${{ github.event_name == 'push' && needs.check-skip.outputs.skip == 'false' }}
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
@@ -114,6 +151,35 @@ jobs:
       name: dashcore-ci-slim
       runs-on-amd64: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-arm64: ${{ needs.check-skip.outputs['runner-arm64'] }}
+
+  container-slim:
+    name: Select slim container
+    needs: [check-skip, container-slim-publish]
+    if: |
+      always() && !cancelled() &&
+      needs.check-skip.outputs.skip == 'false' &&
+      (github.event_name == 'pull_request_target' || needs.container-slim-publish.result == 'success')
+    runs-on: ubuntu-24.04-arm
+    permissions: {}
+    outputs:
+      path: ${{ steps.select.outputs.path }}
+    steps:
+      - name: Select trusted slim container
+        id: select
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISHED_PATH: ${{ needs.container-slim-publish.outputs.path }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ "${EVENT_NAME}" == "pull_request_target" ]]; then
+            # Match build-container's ${GITHUB_REF##*/} basename so slash-
+            # containing base branches resolve to the published tag.
+            IMAGE_TAG="$(echo "${BASE_BRANCH##*/}" | tr '[:upper:]' '[:lower:]')"
+            echo "path=ghcr.io/${REPOSITORY,,}/dashcore-ci-slim:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "path=${PUBLISHED_PATH}" >> "${GITHUB_OUTPUT}"
+          fi
 
   depends-aarch64-linux:
     name: aarch64-linux-gnu

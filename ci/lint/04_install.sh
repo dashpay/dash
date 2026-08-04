@@ -38,6 +38,7 @@ ${CI_RETRY_EXE} pip3 install codespell==2.2.1
 ${CI_RETRY_EXE} pip3 install flake8==5.0.4
 ${CI_RETRY_EXE} pip3 install lief==0.13.2
 ${CI_RETRY_EXE} pip3 install mypy==0.981
+${CI_RETRY_EXE} pip3 install PyYAML==6.0.2
 ${CI_RETRY_EXE} pip3 install pyzmq==24.0.1
 ${CI_RETRY_EXE} pip3 install vulture==2.6
 
