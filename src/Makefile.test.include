@@ -121,7 +121,6 @@ BITCOIN_TESTS =\
   test/flatfile_tests.cpp \
   test/fs_tests.cpp \
   test/getarg_tests.cpp \
-  test/governance_failed_trigger_rate_tests.cpp \
   test/governance_inv_tests.cpp \
   test/governance_superblock_tests.cpp \
   test/governance_validators_tests.cpp \

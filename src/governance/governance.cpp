@@ -358,7 +358,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
     // Only objects we keep may be announced. Scheduling this before the AddTrigger
     // check would make us re-announce, and serve on GETDATA, a trigger we just
     // undid and marked for deletion.
-    ScheduleAdditionalRelay(*govobj);
+    ScheduleTriggerRelay(*govobj);
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- %s new, received from peer %s\n", strHash, peer_str);
     RelayObject(*govobj);
@@ -715,13 +715,13 @@ void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
     it->second.fStatusOK = true;
 }
 
-void CGovernanceManager::ScheduleAdditionalRelay(const CGovernanceObject& govobj)
+void CGovernanceManager::ScheduleTriggerRelay(const CGovernanceObject& govobj)
 {
     AssertLockHeld(cs_store);
 
     if (govobj.GetObjectType() != GovernanceObject::TRIGGER) return;
 
-    // An object created this close to the future-deviation limit is still too new for
+    // A trigger created this close to the future-deviation limit is still too new for
     // peers with a lagging clock to accept, so re-announce it once it has aged past
     // RELIABLE_PROPAGATION_TIME (see CheckPostponedObjects).
     if (govobj.GetCreationTime() >
