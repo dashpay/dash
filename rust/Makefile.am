@@ -64,13 +64,19 @@ endif # ENABLE_ONLINE_RUST
 include $(top_srcdir)/rust/Makefile.libs.include
 
 EXTRA_DIST = \
+	$(LIBRUSTDEPS_FILES) \
 	$(LIBRUST_CHIRP_FILES)
 
-all-local: $(CARGO_CONFIGURED) cargo-build-chirp cxxbridge-chirp
+all-local: $(CARGO_CONFIGURED) cargo-build-dashrust cxxbridge-chirp
 
-cargo-build: $(CARGO_CONFIGURED) cargo-build-chirp
+cargo-build: $(CARGO_CONFIGURED) cargo-build-dashrust
 
-cargo-clean: cargo-clean-chirp
+cargo-clean: cargo-clean-dashrust
+
+# Aggregate dist hook: per-crate includes define dist-<crate> targets; new
+# crates append here instead of defining their own dist-hook (automake allows
+# only one dist-hook recipe per Makefile).
+dist-hook: dist-chirp
 
 cargo-clean-config:
 	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-online
@@ -78,6 +84,6 @@ cargo-clean-config:
 	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config.toml
 	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
 
-clean-local: cargo-clean-chirp cxxbridge-clean-chirp clean-librustdeps-la cargo-clean-config
+clean-local: cargo-clean-dashrust cxxbridge-clean-chirp cargo-clean-config
 
 .PHONY: cargo-build cargo-clean cargo-clean-config

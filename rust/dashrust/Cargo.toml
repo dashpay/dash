@@ -1,0 +1,16 @@
+[package]
+name = "dashrust"
+version = "0.1.0"
+edition = "2021"
+
+# Umbrella crate: the single staticlib linked into Dash Core binaries.
+# Individual Rust components are rlib dependencies re-exported here, so cargo
+# performs deduplication and LTO across the whole graph and emits one archive
+# with no colliding object names. Optional components are cargo features so
+# the build system can enable them per configure flags.
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+chirp = { path = "../chirp" }

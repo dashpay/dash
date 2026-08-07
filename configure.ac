@@ -160,6 +160,12 @@ AC_ARG_ENABLE([online-rust],
   [enable_online_rust=no])
 AM_CONDITIONAL([ENABLE_ONLINE_RUST], [test "$enable_online_rust" != "no"])
 
+dnl Cargo features enabling optional components of the umbrella crate
+dnl (rust/dashrust). Populated by feature-specific configure flags below;
+dnl empty means only the always-on components are built.
+RUST_CRATE_FEATURES=""
+AC_SUBST(RUST_CRATE_FEATURES)
+
 AC_ARG_ENABLE([wallet],
   [AS_HELP_STRING([--disable-wallet],
   [disable wallet (enabled by default)])],
@@ -2091,6 +2097,7 @@ AM_CONDITIONAL([USE_QRCODE], [test "$use_qr" = "yes"])
 AM_CONDITIONAL([USE_LCOV], [test "$use_lcov" = "yes"])
 AM_CONDITIONAL([USE_LIBEVENT], [test "$use_libevent" = "yes"])
 AM_CONDITIONAL([HARDEN], [test "$use_hardening" = "yes"])
+AM_CONDITIONAL([ENABLE_RUST_FEATURES], [test -n "$RUST_CRATE_FEATURES"])
 AM_CONDITIONAL([ENABLE_SSSE3], [test "$enable_ssse3" = "yes"])
 AM_CONDITIONAL([ENABLE_SSE42], [test "$enable_sse42" = "yes"])
 AM_CONDITIONAL([ENABLE_SSE41], [test "$enable_sse41" = "yes"])

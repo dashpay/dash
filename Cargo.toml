@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "rust/chirp",
+  "rust/dashrust",
 ]
 resolver = "2"
 
