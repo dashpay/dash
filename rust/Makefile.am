@@ -53,12 +53,13 @@ else
 CARGO_BUILD_OPTS += --offline
 CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-offline
 
-$(CARGO_CONFIGURED): $(top_srcdir)/.cargo/config.toml.offline
+$(CARGO_CONFIGURED): $(top_srcdir)/.cargo/config.toml.offline $(top_srcdir)/Cargo.lock
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
 	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
 	$(AM_V_at)cp $< $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(abs_top_builddir)/.cargo/config.toml
+	$(AM_V_at)$(top_srcdir)/contrib/devtools/cargo-vendor-git-sources.sh $(top_srcdir)/Cargo.lock >> $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)touch $@
 endif # ENABLE_ONLINE_RUST
 
