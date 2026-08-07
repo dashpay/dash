@@ -42,22 +42,23 @@ CARGO_BUILD_OPTS += --verbose
 endif # !SILENT_RULES
 
 if ENABLE_ONLINE_RUST
-CARGO_CONFIGURED = $(top_srcdir)/.cargo/.configured-for-online
+CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-online
 
 $(CARGO_CONFIGURED):
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-offline
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config.toml
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-offline
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config.toml
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
 	$(AM_V_at)touch $@
 else
 CARGO_BUILD_OPTS += --offline
-CARGO_CONFIGURED = $(top_srcdir)/.cargo/.configured-for-offline
+CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-offline
 
 $(CARGO_CONFIGURED): $(top_srcdir)/.cargo/config.toml.offline
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-online
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
-	$(AM_V_at)cp $< $(top_srcdir)/.cargo/config.toml
-	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(top_srcdir)/.cargo/config.toml
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
+	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
+	$(AM_V_at)cp $< $(abs_top_builddir)/.cargo/config.toml
+	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)touch $@
 endif # ENABLE_ONLINE_RUST
 
@@ -79,10 +80,10 @@ cargo-clean: cargo-clean-dashrust
 dist-hook: dist-chirp
 
 cargo-clean-config:
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-online
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-offline
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config.toml
-	$(AM_V_at)rm -f $(top_srcdir)/.cargo/config
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-offline
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config.toml
+	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
 
 clean-local: cargo-clean-dashrust cxxbridge-clean-chirp cargo-clean-config
 
