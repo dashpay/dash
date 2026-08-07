@@ -73,93 +73,92 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Python rather than shell (review request): an unexpected failure in
+      # any hashing or discovery stage raises and fails the step closed, with
+      # no pipefail/errexit subtleties.
       - name: Prepare variables
         id: prepare
         env:
           CONTEXT: ${{ inputs.context }}
           DOCKERFILE: ${{ inputs.file }}
           REPOSITORY: ${{ github.repository }}
+        shell: python3 {0}
         run: |
-          # Without pipefail a failing stage mid-pipeline still yields a
-          # well-formed hash, which would silently pin us to a wrong image.
-          set -o pipefail
-          BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          import hashlib, os, re, subprocess, sys
 
-          if [ -z "$(find "${CONTEXT}" -type f -print -quit)" ]; then
-            echo "::error::Build context '${CONTEXT}' contains no files"
-            exit 1
-          fi
+          def die(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          context = os.path.realpath(os.environ["CONTEXT"])
           # Anything the image is built from has to live inside the hashed
           # context, or edits to it would not invalidate the tag.
-          CTX_ABS=$(cd "${CONTEXT}" && pwd -P)
-          DF_ABS="$(cd "$(dirname "${DOCKERFILE}")" && pwd -P)/$(basename "${DOCKERFILE}")"
-          case "${DF_ABS}" in
-            "${CTX_ABS}"/*) ;;
-            *) echo "::error::Dockerfile '${DOCKERFILE}' is outside the hashed context '${CONTEXT}'"
-               exit 1 ;;
-          esac
+          dockerfile = os.path.relpath(os.path.realpath(os.environ["DOCKERFILE"]), context)
+          if dockerfile.startswith(".."):
+              die(f"Dockerfile '{os.environ['DOCKERFILE']}' is outside the hashed context")
+
+          files = sorted(os.path.join(root, name)
+                         for root, _, names in os.walk(context) for name in names)
+          if not files:
+              die(f"Build context '{os.environ['CONTEXT']}' contains no files")
 
           # Hash the whole context, not just the named Dockerfile: ci.Dockerfile
           # pulls in ci-slim.Dockerfile via dockerfile-x, so hashing one file
           # alone would let a sibling change reuse a stale image.
-          CONTEXT_SUM=$(find "${CONTEXT}" -type f -print0 | LC_ALL=C sort -z \
-            | xargs -0 sha256sum)
+          key = hashlib.sha256()
+          for path in files:
+              with open(path, "rb") as fh:
+                  content = hashlib.sha256(fh.read()).hexdigest()
+              key.update(f"{os.path.relpath(path, context)} {content}\n".encode())
 
           # BuildKit re-resolves every external image on a real build, so an
           # upstream push to any of them changes the result. They must be in the
           # key or that push is silently ignored. Discovered by parsing rather
-          # than listed by hand, so a newly added FROM cannot be forgotten.
-          echo "Resolving external image references:"
-          # Scans every file in the context, not a *.Dockerfile glob, so a
-          # differently named Dockerfile cannot quietly lose coverage. Skipping
-          # leading flags handles "FROM --platform=x img" and
-          # "COPY --chown=u:g --from=img"; taking the first non-flag token after
-          # FROM ignores the "AS stage" alias. "# syntax = frontend" is collected
-          # too: BuildKit fetches that floating frontend on every build.
-          # Local dockerfile-x includes (./foo.Dockerfile) and stage names are
-          # then dropped, leaving only things resolvable from a registry.
-          # shellcheck disable=SC2016  # $1/$i are awk fields, not shell vars
-          EXTERNAL_REFS=$(find "${CONTEXT}" -type f -print0 | LC_ALL=C sort -z \
-                          | xargs -0 awk '
-                              /^#[[:space:]]*syntax[[:space:]]*=/ {
-                                sub(/^#[[:space:]]*syntax[[:space:]]*=[[:space:]]*/, "")
-                                print $1
-                                next
-                              }
-                              toupper($1) == "FROM" {
-                                for (i = 2; i <= NF; i++)
-                                  if ($i !~ /^--/) { print $i; break }
-                              }
-                              toupper($1) == "COPY" {
-                                for (i = 2; i <= NF; i++)
-                                  if ($i ~ /^--from=/) { sub(/^--from=/, "", $i); print $i; break }
-                              }' \
-                          | grep -vE '^\.' | grep -E '[./:]' | LC_ALL=C sort -u)
-          if [ -z "${EXTERNAL_REFS}" ]; then
-            echo "::error::Found no external image references; the parser is broken and drift in base images would go undetected"
-            exit 1
-          fi
-          IMAGE_SUM=""
-          ANY_UNRESOLVED=false
-          # Here-string, not a pipe: a piped `while` runs in a subshell and
-          # would discard IMAGE_SUM / ANY_UNRESOLVED.
-          while IFS= read -r REF; do
-            [ -n "${REF}" ] || continue
-            RAW=$(docker buildx imagetools inspect --raw "${REF}" 2>/dev/null || true)
-            if [ -n "${RAW}" ]; then
-              REF_DIGEST=$(printf '%s' "${RAW}" | sha256sum | cut -d' ' -f1)
-            else
-              # Rate limit or outage. Mark the key and force a rebuild for this
-              # run: reusing a prior "unresolved" image can hide base-image
-              # drift that happened between outages. Once lookups recover the
-              # digest-keyed path is used again.
-              REF_DIGEST="unresolved"
-              ANY_UNRESOLVED=true
-            fi
-            echo "  ${REF} -> ${REF_DIGEST}"
-            IMAGE_SUM="${IMAGE_SUM}${REF}=${REF_DIGEST}"$'\n'
-          done <<< "${EXTERNAL_REFS}"
+          # than listed by hand, so a newly added FROM cannot be forgotten;
+          # "# syntax = frontend" counts too, BuildKit fetches that floating
+          # frontend on every build. Build stages, scratch, numeric stage
+          # indexes and local dockerfile-x includes (./foo.Dockerfile) are not
+          # registry images; everything else is, including bare names such as
+          # "FROM alpine".
+          refs, stages = set(), set()
+          for path in files:
+              with open(path, encoding="utf-8", errors="replace") as fh:
+                  for line in fh:
+                      tokens = line.split()
+                      syntax = re.match(r"#\s*syntax\s*=\s*(\S+)", line.strip())
+                      if syntax:
+                          refs.add(syntax.group(1))
+                      elif tokens and tokens[0].upper() == "FROM":
+                          words = [t for t in tokens[1:] if not t.startswith("--")]
+                          if words:
+                              refs.add(words[0])
+                          if len(words) >= 3 and words[1].upper() == "AS":
+                              stages.add(words[2])
+                      elif tokens and tokens[0].upper() == "COPY":
+                          refs.update(t[len("--from="):] for t in tokens[1:]
+                                      if t.startswith("--from="))
+          refs = {r for r in refs - stages
+                  if not r.startswith((".", "/")) and r != "scratch" and not r.isdigit()}
+          if not refs:
+              die("Found no external image references; the parser is broken "
+                  "and drift in base images would go undetected")
+
+          print("Resolving external image references:")
+          unresolved = False
+          for ref in sorted(refs):
+              result = subprocess.run(
+                  ["docker", "buildx", "imagetools", "inspect", "--raw", ref],
+                  capture_output=True)
+              if result.returncode == 0 and result.stdout:
+                  digest = hashlib.sha256(result.stdout).hexdigest()
+              else:
+                  # Rate limit or outage. Mark the key and force a rebuild for
+                  # this run: reusing a prior "unresolved" image can hide
+                  # base-image drift that happened between outages. Once
+                  # lookups recover the digest-keyed path is used again.
+                  digest, unresolved = "unresolved", True
+              print(f"  {ref} -> {digest}")
+              key.update(f"{ref}={digest}\n".encode())
 
           # Note that unpinned apt packages and git refs that move under a fixed
           # name (IWYU's clang_NN branch, dash_hash's tag) are deliberately not
@@ -172,7 +171,8 @@ jobs:
           # images share this context, so hashing only the directory gives them
           # the same key, and repointing one image's file: input would otherwise
           # silently reuse the image built from the old one.
-          #
+          key.update(f"dockerfile={dockerfile}\n".encode())
+
           # This workflow is hashed as well: build-args, target and platforms
           # all change the image without touching a Dockerfile, and they live
           # in the build step below rather than in the context. Note this covers
@@ -184,64 +184,60 @@ jobs:
           # Under pull_request_target the executing workflow is the base-branch
           # copy (GITHUB_SHA), while the working tree is the PR head. Hash the
           # version that actually runs so a PR cannot pre-seed a key for build
-          # settings it did not execute.
-          WORKFLOW_FILE=".github/workflows/build-container.yml"
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]; then
-            EXEC_WF=".executing-workflow/${WORKFLOW_FILE}"
-            if [ ! -f "${EXEC_WF}" ]; then
-              echo "::error::${EXEC_WF} not found; the key would silently stop covering build settings"
-              exit 1
-            fi
-            WORKFLOW_SUM=$(sha256sum "${EXEC_WF}")
-          else
-            if [ ! -f "${WORKFLOW_FILE}" ]; then
-              echo "::error::${WORKFLOW_FILE} not found; the key would silently stop covering build settings"
-              exit 1
-            fi
-            WORKFLOW_SUM=$(sha256sum "${WORKFLOW_FILE}")
-          fi
-          HASH_TAG=$(printf '%s\n%sdockerfile=%s\n%s\n' \
-            "${CONTEXT_SUM}" "${IMAGE_SUM}" "${DF_ABS#"${CTX_ABS}/"}" \
-            "${WORKFLOW_SUM}" | sha256sum | cut -d' ' -f1)
-          echo "Content key: ${HASH_TAG}"
-          {
-            echo "tag=${BRANCH_NAME}"
-            echo "repo=${REPO_NAME}"
-            echo "hash-tag=${HASH_TAG}"
-            echo "unresolved=${ANY_UNRESOLVED}"
-          } >> "$GITHUB_OUTPUT"
+          # settings it did not execute. Only the file's digest goes into the
+          # key, never its path, so a PR run and the post-merge push run of
+          # identical workflow bytes share one key and reuse one image.
+          workflow = ".github/workflows/build-container.yml"
+          if os.environ.get("GITHUB_EVENT_NAME") == "pull_request_target":
+              workflow = os.path.join(".executing-workflow", workflow)
+          try:
+              with open(workflow, "rb") as fh:
+                  key.update(hashlib.sha256(fh.read()).hexdigest().encode())
+          except OSError:
+              die(f"{workflow} not found; the key would silently stop covering build settings")
+
+          hash_tag = key.hexdigest()
+          print(f"Content key: {hash_tag}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"tag={os.environ['GITHUB_REF'].rsplit('/', 1)[-1].lower()}\n")
+              out.write(f"repo={os.environ['REPOSITORY'].lower()}\n")
+              out.write(f"hash-tag={hash_tag}\n")
+              out.write(f"unresolved={str(unresolved).lower()}\n")
 
       - name: Check whether the image was already built
         id: exists
         env:
           REF: ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ steps.prepare.outputs.hash-tag }}
           UNRESOLVED: ${{ steps.prepare.outputs.unresolved }}
+        shell: python3 {0}
         run: |
-          # If any external digest lookup failed, force a rebuild. A prior
-          # image published under the same "unresolved" marker may predate a
-          # base-image change that we could not observe during the outage.
-          if [ "${UNRESOLVED}" = "true" ]; then
-            echo "External image lookup was unresolved; rebuilding rather than reusing ${REF}"
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # The multi-arch manifest is pushed last, so its presence means both
-          # arch-specific builds completed. Any failure here falls through to a
-          # rebuild, which is correct (just slower).
-          RAW=$(docker buildx imagetools inspect --raw "${REF}" 2>/dev/null || true)
-          COMPLETE=$(jq -r '
-            [(.manifests // [])[]
-              | select(.platform.os == "linux")
-              | .platform.architecture] as $arch
-            | (($arch | index("amd64")) != null) and (($arch | index("arm64")) != null)
-          ' <<<"${RAW}" 2>/dev/null || true)
-          if [ "${COMPLETE}" = "true" ]; then
-            echo "Reusing existing image ${REF}"
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No complete multi-arch image at ${REF}, building"
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          import json, os, subprocess
+
+          ref = os.environ["REF"]
+          exists = False
+          if os.environ["UNRESOLVED"] == "true":
+              # If any external digest lookup failed, force a rebuild. A prior
+              # image published under the same "unresolved" marker may predate
+              # a base-image change we could not observe during the outage.
+              print(f"External image lookup was unresolved; rebuilding rather than reusing {ref}")
+          else:
+              # The multi-arch manifest is pushed last, so its presence means
+              # both arch-specific builds completed. Any failure here falls
+              # through to a rebuild, which is correct (just slower).
+              result = subprocess.run(
+                  ["docker", "buildx", "imagetools", "inspect", "--raw", ref],
+                  capture_output=True)
+              try:
+                  platforms = {(m["platform"]["os"], m["platform"]["architecture"])
+                               for m in json.loads(result.stdout)["manifests"]}
+                  exists = {("linux", "amd64"), ("linux", "arm64")} <= platforms
+              except Exception:
+                  exists = False
+              print(f"Reusing existing image {ref}" if exists
+                    else f"No complete multi-arch image at {ref}, building")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"exists={str(exists).lower()}\n")
 
   build-amd64:
     name: Build container (amd64)
