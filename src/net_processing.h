@@ -82,11 +82,7 @@ class PeerManagerInternal
 public:
     virtual void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") = 0;
     virtual bool PeerIsBanned(const NodeId node_id) = 0;
-    /** Whether we still have a Peer for this node id, i.e. the peer is connected and has not been
-     *  finalized yet. Unlike PeerIsBanned(), this is a durable state rather than a one-shot flag:
-     *  it stays false for good once the peer is gone, so periodic sweeps can rely on observing it.
-     *  Node ids are never reused (CConnman::GetNewNodeId only increments), so a false result can
-     *  never later become true for the same id. */
+    /** Whether the peer exists and has not been finalized. */
     virtual bool PeerIsConnected(const NodeId node_id) = 0;
     /** Complete this peer's pending announcement of the inv, so it is not requested from them
      *  again. Announcements of the same inv by other peers are unaffected: an invalid or unusable

@@ -338,8 +338,13 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
     peerLogic->InitializeNode(*nodes[0], NODE_NETWORK);
     nodes[0]->fSuccessfullyConnected = true;
     connman->AddTestNode(*nodes[0]);
+    BOOST_CHECK(peerLogic->PeerIsConnected(nodes[0]->GetId()));
     peerLogic->UnitTestMisbehaving(nodes[0]->GetId(), DISCOURAGEMENT_THRESHOLD); // Should be discouraged
+    BOOST_CHECK(WITH_LOCK(::cs_main, return peerLogic->PeerIsBanned(nodes[0]->GetId())));
+    BOOST_CHECK(peerLogic->PeerIsConnected(nodes[0]->GetId()));
     BOOST_CHECK(peerLogic->SendMessages(nodes[0]));
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !peerLogic->PeerIsBanned(nodes[0]->GetId())));
+    BOOST_CHECK(peerLogic->PeerIsConnected(nodes[0]->GetId()));
     BOOST_CHECK(banman->IsDiscouraged(addr[0]));
     BOOST_CHECK(nodes[0]->fDisconnect);
     BOOST_CHECK(!banman->IsDiscouraged(other_addr)); // Different address, not discouraged
@@ -399,6 +404,7 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
 
     for (CNode* node : nodes) {
         peerLogic->FinalizeNode(*node);
+        BOOST_CHECK(!peerLogic->PeerIsConnected(node->GetId()));
     }
     connman->ClearTestNodes();
 }
@@ -437,74 +443,6 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     BOOST_CHECK(!banman->IsDiscouraged(addr));
 
     peerLogic->FinalizeNode(dummyNode);
-}
-
-// NetSigning's periodic sweep drops the pending (not-yet-verified) recovered sigs of peers that are
-// gone, so a flood's backlog does not outlive the peer. It runs on a 5s tick, so the state it keys
-// on must still be observable whenever that tick happens to land.
-//
-// This is a regression test for keying that sweep on PeerIsBanned(): banning is observed via
-// Peer::m_should_discourage, a one-shot flag cleared by MaybeDiscourageAndDisconnect on the very
-// next SendMessages pass, so the predicate was true only inside a ~100ms window and the 5s sweep
-// essentially never saw it. PeerIsConnected() is terminal instead, so the sweep cannot miss it.
-BOOST_AUTO_TEST_CASE(peer_gone_recovered_sig_cleanup_predicate)
-{
-    LOCK(NetEventsInterface::g_msgproc_mutex);
-
-    auto banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
-    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
-    auto peerLogic = MakePeerManager(*connman, m_node, banman.get(), /*ignore_incoming_txs=*/false);
-
-    banman->ClearBanned();
-    CAddress addr{ip(0xa0b0c001), NODE_NONE};
-    // Owned by connman; ClearTestNodes() deletes it.
-    CNode* dummyNode{new CNode{/*id=*/0,
-                               /*sock=*/nullptr,
-                               addr,
-                               /*nKeyedNetGroupIn=*/0,
-                               /*nLocalHostNonceIn=*/0,
-                               CAddress(),
-                               /*addrNameIn=*/"",
-                               ConnectionType::INBOUND,
-                               /*inbound_onion=*/false}};
-    const NodeId node_id{dummyNode->GetId()};
-    dummyNode->SetCommonVersion(PROTOCOL_VERSION);
-    peerLogic->InitializeNode(*dummyNode, NODE_NETWORK);
-    dummyNode->fSuccessfullyConnected = true;
-    connman->AddTestNode(*dummyNode);
-
-    // The predicates NetSigning::WorkThreadSigning hands to CSigningManager::RemoveNodesIf. The
-    // "banned" one is what this test is a regression against; both run against the real PeerManager.
-    const auto drops_when_banned = [&] {
-        return WITH_LOCK(::cs_main, return peerLogic->PeerIsBanned(node_id));
-    };
-    const auto drops_when_gone = [&] { return !peerLogic->PeerIsConnected(node_id); };
-
-    // A connected, well-behaved peer's backlog must be left alone by both.
-    BOOST_CHECK(!drops_when_banned());
-    BOOST_CHECK(!drops_when_gone());
-
-    // Misbehave to the discouragement threshold. m_should_discourage is now set, so a sweep landing
-    // in this narrow window would see the peer as banned -- but the peer is still connected.
-    peerLogic->UnitTestMisbehaving(node_id, DISCOURAGEMENT_THRESHOLD);
-    BOOST_CHECK(drops_when_banned());
-    BOOST_CHECK(!drops_when_gone());
-
-    // One SendMessages pass (~100ms in production, long before the 5s sweep tick) consumes the
-    // one-shot flag and marks the peer for disconnection. This is the bug: the banned-keyed
-    // predicate has already gone false again while the peer's pending sigs are still queued.
-    BOOST_CHECK(peerLogic->SendMessages(dummyNode));
-    BOOST_CHECK(dummyNode->fDisconnect);
-    BOOST_CHECK(!drops_when_banned());
-
-    // Once the peer is finalized the Peer is gone for good, so the connection-keyed predicate is
-    // true on this and every later tick, whenever the sweep happens to run.
-    peerLogic->FinalizeNode(*dummyNode);
-    BOOST_CHECK(!drops_when_banned()); // still false -- the flag is now unobservable
-    BOOST_CHECK(drops_when_gone());
-    BOOST_CHECK(drops_when_gone()); // terminal: node ids are never reused
-
-    connman->ClearTestNodes();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

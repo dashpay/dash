@@ -217,8 +217,7 @@ public:
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CBLSPublicKey, StaticSaltedHasher>& ret_pubkeys)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
-    // Drop the pending (not-yet-verified) recovered sigs of any node matching the predicate, e.g.
-    // banned peers. Without this, a flooded peer's backlog would persist even after it is banned.
+    // Drop pending (not-yet-verified) recovered sigs for matching node ids.
     void RemoveNodesIf(const std::function<bool(NodeId)>& predicate) EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
     [[nodiscard]] std::vector<CRecoveredSigsListener*> GetListeners() const EXCLUSIVE_LOCKS_REQUIRED(!cs_listeners);
     // Returns true if recovered sigs should be send to listeners
