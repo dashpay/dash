@@ -26,11 +26,16 @@ class CNode;
 class CTxMemPool;
 
 class UniValue;
+namespace coinjoin_inouts_tests {
+class TestableCoinJoinServer;
+}
 
 /** Used to keep track of current status of mixing pool
  */
 class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
 {
+    friend class coinjoin_inouts_tests::TestableCoinJoinServer;
+
 private:
     CoinJoinQueueManager m_queueman;
 
@@ -88,11 +93,12 @@ private:
 
     bool fUnitTest;
 
-    /// Serializes CheckPool() against itself. CheckPool() runs both on the scheduler thread and
-    /// on the message-handling thread, and its finalize and commit steps have to be single-shot:
-    /// relaying DSFINALTX twice makes every client sign twice, and the duplicate signatures then
-    /// abort the session for all of them. Always acquired with TRY_LOCK and never taken by any
-    /// other code path, so a contended caller skips the round rather than blocking msghand.
+    /// Serializes CheckPool() against itself and against CheckTimeout(). CheckPool() runs both on
+    /// the scheduler thread and on the message-handling thread, and its finalize and commit steps
+    /// have to be single-shot: relaying DSFINALTX twice makes every client sign twice, and the
+    /// duplicate signatures then abort the session for all of them. CheckTimeout() uses the same
+    /// guard so it cannot reset a session during finalization or commit. Production paths always
+    /// acquire it with TRY_LOCK, so a contended caller skips the round rather than blocking msghand.
     Mutex cs_check_pool;
 
     /// Add a clients entry to the pool
@@ -100,8 +106,8 @@ private:
     /// Add signature to a txin
     bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
-    /// Charge fees to bad actors (Charge clients a fee if they're abusive)
-    void ChargeFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    /// Choose one bad actor whose collateral should be consumed, if any.
+    CTransactionRef SelectCollateralToCharge() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
     void ChargeRandomFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved
@@ -110,7 +116,7 @@ private:
     /// Check for process
     void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
-    void CreateFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CreateFinalTransaction(int session_id, bool charge_fees) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void CommitFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Is this nDenom and txCollateral acceptable?
@@ -161,7 +167,7 @@ public:
     void Schedule(CScheduler& scheduler) override;
 
     bool HasTimedOut() const;
-    void CheckTimeout() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CheckTimeout() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
     void CheckForCompleteQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     void GetJsonInfo(UniValue& obj) const;
