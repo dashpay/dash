@@ -26,7 +26,9 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <latch>
 #include <memory>
+#include <thread>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(coinjoin_inouts_tests, TestingSetup)
@@ -171,9 +173,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
     }
 }
 
-// Test-only subclass exposing the minimal seams needed to observe how
-// ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// Test-only subclass exposing the minimal seams needed to exercise server lifecycle behavior
+// without standing up a full DKG-backed signing session. The helpers only establish preconditions
+// and invoke the production paths; the behavior under test is not reproduced here.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
@@ -187,6 +189,21 @@ public:
         entry.addr = addr;
         LOCK(cs_coinjoin);
         vecEntries.push_back(std::move(entry));
+    }
+
+    void SeedTimedOutSession()
+    {
+        LOCK(cs_coinjoin);
+        nSessionID = 1;
+        nState = POOL_STATE_ACCEPTING_ENTRIES;
+        nTimeLastSuccessfulStep = GetTime() - COINJOIN_QUEUE_TIMEOUT;
+    }
+
+    void HoldPoolCheck(std::latch& locked, std::latch& release)
+    {
+        LOCK(cs_check_pool);
+        locked.count_down();
+        release.wait();
     }
 };
 
@@ -285,6 +302,30 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
                       std::ios_base::failure);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+    server.SeedTimedOutSession();
+
+    std::latch locked{1};
+    std::latch release{1};
+    std::thread pool_check{[&] { server.HoldPoolCheck(locked, release); }};
+    locked.wait();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+
+    release.count_down();
+    pool_check.join();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
