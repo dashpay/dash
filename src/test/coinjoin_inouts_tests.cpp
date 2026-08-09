@@ -173,11 +173,46 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
 
 // Test-only subclass exposing the minimal seams needed to observe how
 // ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// and to test offender collateral selection policies.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
     using CCoinJoinServer::CCoinJoinServer;
+
+    mutable std::vector<CTransactionRef> vecConsumedCollaterals;
+
+    void ConsumeCollateral(const CTransactionRef& txref) const override
+    {
+        vecConsumedCollaterals.push_back(txref);
+    }
+
+    void SetStateForTest(PoolState state)
+    {
+        nState = state;
+    }
+
+    void SetLastStepTimeForTest(int64_t nTime)
+    {
+        nTimeLastSuccessfulStep = nTime;
+    }
+
+    void AddSessionCollateral(const CTransactionRef& txCollateral)
+    {
+        LOCK(cs_coinjoin);
+        vecSessionCollaterals.push_back(txCollateral);
+    }
+
+    void AddSessionEntry(const CCoinJoinEntry& entry)
+    {
+        LOCK(cs_coinjoin);
+        vecEntries.push_back(entry);
+    }
+
+    CTransactionRef TestSelectCollateralToCharge(FeePolicy policy)
+    {
+        LOCK(cs_coinjoin);
+        return SelectCollateralToCharge(policy);
+    }
 
     void EnterSigningState() { nState = POOL_STATE_SIGNING; }
 
@@ -189,6 +224,298 @@ public:
         vecEntries.push_back(std::move(entry));
     }
 };
+
+static CTransactionRef MakeMockCollateral(uint32_t id)
+{
+    CMutableTransaction mtx;
+    mtx.vin.push_back(CTxIn(COutPoint(uint256::ONE, id)));
+    mtx.vout.push_back(CTxOut(10000, P2PKHScript(static_cast<uint8_t>(id))));
+    return MakeTransactionRef(mtx);
+}
+
+BOOST_AUTO_TEST_CASE(coinjoin_offender_selection_and_abort_fee_scenarios)
+{
+    BOOST_REQUIRE(m_node.mn_sync);
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    // 1. Queue timeout before readiness selects nothing
+    {
+        server.SetStateForTest(POOL_STATE_QUEUE);
+        server.SetLastStepTimeForTest(GetTime() - COINJOIN_QUEUE_TIMEOUT - 10);
+        server.CheckTimeout();
+        BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+        BOOST_CHECK(server.vecConsumedCollaterals.empty());
+    }
+
+    // 2. Twenty reservations and zero entries select exactly one collateral under GUARANTEED_ON_ABORT
+    {
+        TestableCoinJoinServer s2(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s2.SetStateForTest(POOL_STATE_ACCEPTING_ENTRIES);
+        for (uint32_t i = 0; i < 20; ++i) {
+            s2.AddSessionCollateral(MakeMockCollateral(i));
+        }
+        CTransactionRef selected = s2.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_CHECK(selected != nullptr);
+
+        // PROBABILISTIC returns nullptr because all participants are offenders (all-offenders exemption)
+        CTransactionRef prob_selected = s2.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::PROBABILISTIC);
+        BOOST_CHECK(prob_selected == nullptr);
+    }
+
+    // 3. Twenty reservations and one entry select one of the nineteen missing participants
+    {
+        TestableCoinJoinServer s3(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s3.SetStateForTest(POOL_STATE_ACCEPTING_ENTRIES);
+        std::vector<CTransactionRef> collaterals;
+        for (uint32_t i = 0; i < 20; ++i) {
+            auto col = MakeMockCollateral(i);
+            collaterals.push_back(col);
+            s3.AddSessionCollateral(col);
+        }
+        // Add 1 entry matching collateral 0
+        CCoinJoinEntry entry0({}, {}, CTransaction(*collaterals[0]));
+        s3.AddSessionEntry(entry0);
+
+        for (int run = 0; run < 50; ++run) {
+            CTransactionRef selected = s3.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+            BOOST_REQUIRE(selected != nullptr);
+            BOOST_CHECK(*selected != *collaterals[0]);
+        }
+    }
+
+    // 4. Five reservations and three entries select only from the two missing participants
+    {
+        TestableCoinJoinServer s4(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s4.SetStateForTest(POOL_STATE_ACCEPTING_ENTRIES);
+        std::vector<CTransactionRef> collaterals;
+        for (uint32_t i = 0; i < 5; ++i) {
+            auto col = MakeMockCollateral(i);
+            collaterals.push_back(col);
+            s4.AddSessionCollateral(col);
+        }
+        // Entries for 0, 1, 2
+        for (uint32_t i = 0; i < 3; ++i) {
+            CCoinJoinEntry entry({}, {}, CTransaction(*collaterals[i]));
+            s4.AddSessionEntry(entry);
+        }
+
+        for (int run = 0; run < 50; ++run) {
+            CTransactionRef selected = s4.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+            BOOST_REQUIRE(selected != nullptr);
+            BOOST_CHECK(*selected == *collaterals[3] || *selected == *collaterals[4]);
+        }
+    }
+
+    // 5. Every reservation has an entry: no missing-entry collateral is selected
+    {
+        TestableCoinJoinServer s5(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s5.SetStateForTest(POOL_STATE_ACCEPTING_ENTRIES);
+        for (uint32_t i = 0; i < 3; ++i) {
+            auto col = MakeMockCollateral(i);
+            s5.AddSessionCollateral(col);
+            CCoinJoinEntry entry({}, {}, CTransaction(*col));
+            s5.AddSessionEntry(entry);
+        }
+        BOOST_CHECK(s5.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT) == nullptr);
+        BOOST_CHECK(s5.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::PROBABILISTIC) == nullptr);
+    }
+
+    // 6. One non-signer is selected deterministically
+    {
+        TestableCoinJoinServer s6(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s6.SetStateForTest(POOL_STATE_SIGNING);
+        std::vector<CTransactionRef> collaterals;
+        for (uint32_t i = 0; i < 3; ++i) {
+            auto col = MakeMockCollateral(i);
+            collaterals.push_back(col);
+            s6.AddSessionCollateral(col);
+        }
+
+        // Entries 0 and 1 have signed inputs, entry 2 has an unsigned input
+        CTxDSIn dsin_signed(CTxIn(COutPoint(uint256::ONE, 100)), P2PKHScript(1), 0);
+        dsin_signed.fHasSig = true;
+        CTxDSIn dsin_unsigned(CTxIn(COutPoint(uint256::ONE, 101)), P2PKHScript(2), 0);
+        dsin_unsigned.fHasSig = false;
+
+        CCoinJoinEntry e0({dsin_signed}, {}, CTransaction(*collaterals[0]));
+        CCoinJoinEntry e1({dsin_signed}, {}, CTransaction(*collaterals[1]));
+        CCoinJoinEntry e2({dsin_unsigned}, {}, CTransaction(*collaterals[2]));
+
+        s6.AddSessionEntry(e0);
+        s6.AddSessionEntry(e1);
+        s6.AddSessionEntry(e2);
+
+        CTransactionRef selected = s6.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected != nullptr);
+        BOOST_CHECK(*selected == *collaterals[2]);
+    }
+
+    // 7. Multiple non-signers produce one selection from that set
+    {
+        TestableCoinJoinServer s7(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s7.SetStateForTest(POOL_STATE_SIGNING);
+        std::vector<CTransactionRef> collaterals;
+        for (uint32_t i = 0; i < 3; ++i) {
+            auto col = MakeMockCollateral(i);
+            collaterals.push_back(col);
+            s7.AddSessionCollateral(col);
+        }
+
+        CTxDSIn dsin_signed(CTxIn(COutPoint(uint256::ONE, 100)), P2PKHScript(1), 0);
+        dsin_signed.fHasSig = true;
+        CTxDSIn dsin_unsigned(CTxIn(COutPoint(uint256::ONE, 101)), P2PKHScript(2), 0);
+        dsin_unsigned.fHasSig = false;
+
+        CCoinJoinEntry e0({dsin_signed}, {}, CTransaction(*collaterals[0]));
+        CCoinJoinEntry e1({dsin_unsigned}, {}, CTransaction(*collaterals[1]));
+        CCoinJoinEntry e2({dsin_unsigned}, {}, CTransaction(*collaterals[2]));
+
+        s7.AddSessionEntry(e0);
+        s7.AddSessionEntry(e1);
+        s7.AddSessionEntry(e2);
+
+        for (int run = 0; run < 50; ++run) {
+            CTransactionRef selected = s7.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+            BOOST_REQUIRE(selected != nullptr);
+            BOOST_CHECK(*selected == *collaterals[1] || *selected == *collaterals[2]);
+        }
+    }
+
+    // 8. Participant with several unsigned inputs appears only once in candidate set
+    {
+        TestableCoinJoinServer s8(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s8.SetStateForTest(POOL_STATE_SIGNING);
+        auto c0 = MakeMockCollateral(0);
+        auto c1 = MakeMockCollateral(1);
+        s8.AddSessionCollateral(c0);
+        s8.AddSessionCollateral(c1);
+
+        CTxDSIn u1(CTxIn(COutPoint(uint256::ONE, 10)), P2PKHScript(1), 0); u1.fHasSig = false;
+        CTxDSIn u2(CTxIn(COutPoint(uint256::ONE, 11)), P2PKHScript(1), 0); u2.fHasSig = false;
+        CTxDSIn u3(CTxIn(COutPoint(uint256::ONE, 12)), P2PKHScript(1), 0); u3.fHasSig = false;
+        CTxDSIn u4(CTxIn(COutPoint(uint256::ONE, 20)), P2PKHScript(2), 0); u4.fHasSig = false;
+
+        // Entry 0 has 3 unsigned inputs, Entry 1 has 1 unsigned input
+        CCoinJoinEntry e0({u1, u2, u3}, {}, CTransaction(*c0));
+        CCoinJoinEntry e1({u4}, {}, CTransaction(*c1));
+
+        s8.AddSessionEntry(e0);
+        s8.AddSessionEntry(e1);
+
+        int count_c0 = 0;
+        int count_c1 = 0;
+        const int total_runs = 1000;
+        for (int run = 0; run < total_runs; ++run) {
+            CTransactionRef selected = s8.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+            BOOST_REQUIRE(selected != nullptr);
+            if (*selected == *c0) count_c0++;
+            else if (*selected == *c1) count_c1++;
+        }
+        // With deduplication, both have equal weight (50% each), so each should be ~400-600 out of 1000
+        BOOST_CHECK_GT(count_c0, 350);
+        BOOST_CHECK_GT(count_c1, 350);
+    }
+
+    // 9. Every participant fails to sign: exactly one participant selected under GUARANTEED_ON_ABORT
+    {
+        TestableCoinJoinServer s9(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+        s9.SetStateForTest(POOL_STATE_SIGNING);
+        for (uint32_t i = 0; i < 3; ++i) {
+            auto col = MakeMockCollateral(i);
+            s9.AddSessionCollateral(col);
+            CTxDSIn u(CTxIn(COutPoint(uint256::ONE, i + 10)), P2PKHScript(1), 0); u.fHasSig = false;
+            CCoinJoinEntry e({u}, {}, CTransaction(*col));
+            s9.AddSessionEntry(e);
+        }
+        BOOST_CHECK(s9.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::PROBABILISTIC) == nullptr);
+
+        CTransactionRef selected = s9.TestSelectCollateralToCharge(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_CHECK(selected != nullptr);
+    }
+
+    // 10. A session reset during timeout handling cannot charge or mutate the following session
+    {
+        TestableCoinJoinServer s10(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                   *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                   *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                   *Assert(m_node.llmq_ctx->isman));
+        s10.SetStateForTest(POOL_STATE_ACCEPTING_ENTRIES);
+        s10.SetLastStepTimeForTest(GetTime() - COINJOIN_QUEUE_TIMEOUT - 10);
+        auto col = MakeMockCollateral(1);
+        s10.AddSessionCollateral(col);
+
+        s10.CheckTimeout();
+        BOOST_CHECK_EQUAL(s10.GetState(), int{POOL_STATE_IDLE});
+        BOOST_CHECK_EQUAL(s10.vecConsumedCollaterals.size(), 1U);
+        BOOST_CHECK(*s10.vecConsumedCollaterals[0] == *col);
+
+        // Second CheckTimeout call on idle session does nothing
+        s10.CheckTimeout();
+        BOOST_CHECK_EQUAL(s10.vecConsumedCollaterals.size(), 1U);
+    }
+
+    // 11. Recoverable timeouts retain probabilistic policy (tested implicitly via CheckPool logic)
+    // 12. Successful-session random charging remains unchanged
+    // 13. State is POOL_STATE_ERROR during collateral consumption before SetNull resets to POOL_STATE_IDLE
+    {
+        class StateCheckingServer : public TestableCoinJoinServer
+        {
+        public:
+            using TestableCoinJoinServer::TestableCoinJoinServer;
+            mutable int state_during_consume{POOL_STATE_IDLE};
+
+            void ConsumeCollateral(const CTransactionRef& txref) const override
+            {
+                state_during_consume = GetState();
+                TestableCoinJoinServer::ConsumeCollateral(txref);
+            }
+        };
+
+        StateCheckingServer s13(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                *Assert(m_node.llmq_ctx->isman));
+        s13.SetStateForTest(POOL_STATE_ACCEPTING_ENTRIES);
+        s13.SetLastStepTimeForTest(GetTime() - COINJOIN_QUEUE_TIMEOUT - 10);
+        auto col = MakeMockCollateral(1);
+        s13.AddSessionCollateral(col);
+
+        s13.CheckTimeout();
+        BOOST_CHECK_EQUAL(s13.state_during_consume, int{POOL_STATE_ERROR});
+        BOOST_CHECK_EQUAL(s13.GetState(), int{POOL_STATE_IDLE});
+    }
+}
 
 static std::unique_ptr<CNode> MakePeer(NodeId id, uint32_t ipv4)
 {

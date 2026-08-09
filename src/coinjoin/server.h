@@ -43,6 +43,13 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
 
+public:
+    enum class FeePolicy {
+        PROBABILISTIC,
+        GUARANTEED_ON_ABORT,
+    };
+
+protected:
     // Mixing uses collateral transactions to trust parties entering the pool
     // to behave honestly. If they don't it takes their money.
     std::vector<CTransactionRef> vecSessionCollaterals;
@@ -52,13 +59,6 @@ private:
 
     bool fUnitTest;
 
-public:
-    enum class FeePolicy {
-        PROBABILISTIC,
-        GUARANTEED_ON_ABORT,
-    };
-
-protected:
     /// Select a collateral to charge based on offender discovery and fee policy
     CTransactionRef SelectCollateralToCharge(FeePolicy policy) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 

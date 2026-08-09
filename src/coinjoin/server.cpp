@@ -465,17 +465,14 @@ CTransactionRef CCoinJoinServer::SelectCollateralToCharge(FeePolicy policy) cons
     CTransactionRef selectedCollateral = vecOffendersCollaterals[0];
 
     if (policy == FeePolicy::PROBABILISTIC) {
-        LogPrint(BCLog::COINJOIN,
-                 "CCoinJoinServer::SelectCollateralToCharge -- selected non-submitting participant for probabilistic penalty. state=%s, participants=%d, offenders=%d, txid=%s\n",
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SelectCollateralToCharge -- selected non-submitting participant for probabilistic penalty. state=%s, participants=%d, offenders=%d, txid=%s\n",
                  GetStateString(), vecSessionCollaterals.size(), vecOffendersCollaterals.size(), selectedCollateral->GetHash().ToString());
     } else if (policy == FeePolicy::GUARANTEED_ON_ABORT) {
         if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) {
-            LogPrint(BCLog::COINJOIN,
-                     "CCoinJoinServer::SelectCollateralToCharge -- all participants missing or uncooperative, selected participant for failed-session fee. state=%s, participants=%d, offenders=%d, txid=%s\n",
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SelectCollateralToCharge -- all participants missing or uncooperative, selected participant for failed-session fee. state=%s, participants=%d, offenders=%d, txid=%s\n",
                      GetStateString(), vecSessionCollaterals.size(), vecOffendersCollaterals.size(), selectedCollateral->GetHash().ToString());
         } else {
-            LogPrint(BCLog::COINJOIN,
-                     "CCoinJoinServer::SelectCollateralToCharge -- selected participant for failed-session fee. state=%s, participants=%d, offenders=%d, txid=%s\n",
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SelectCollateralToCharge -- selected participant for failed-session fee. state=%s, participants=%d, offenders=%d, txid=%s\n",
                      GetStateString(), vecSessionCollaterals.size(), vecOffendersCollaterals.size(), selectedCollateral->GetHash().ToString());
         }
     }
@@ -547,12 +544,27 @@ void CCoinJoinServer::CheckTimeout()
 {
     m_queueman.CheckQueue();
 
-    // Too early to do anything
-    if (!CCoinJoinServer::HasTimedOut()) return;
+    CTransactionRef txCollateralToConsume;
+    {
+        LOCK(cs_coinjoin);
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckTimeout -- %s timed out -- resetting\n",
-        (nState == POOL_STATE_SIGNING) ? "Signing" : "Session");
-    ChargeFees();
+        // Too early to do anything
+        if (!CCoinJoinServer::HasTimedOut()) return;
+
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckTimeout -- %s timed out -- resetting\n",
+            (nState == POOL_STATE_SIGNING) ? "Signing" : "Session");
+
+        if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
+            txCollateralToConsume = SelectCollateralToCharge(FeePolicy::GUARANTEED_ON_ABORT);
+        }
+
+        SetState(POOL_STATE_ERROR);
+    }
+
+    if (txCollateralToConsume) {
+        ConsumeCollateral(txCollateralToConsume);
+    }
+
     WITH_LOCK(cs_coinjoin, SetNull());
 }
 
@@ -988,8 +1000,7 @@ void CCoinJoinServer::RelayCompletedTransaction(PoolMessage nMessageID)
 void CCoinJoinServer::SetState(PoolState nStateNew)
 {
     if (nStateNew == POOL_STATE_ERROR) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SetState -- Can't set state to ERROR as a Masternode. \n");
-        return;
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SetState -- ERROR\n");
     }
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SetState -- nState: %d, nStateNew: %d\n", nState, nStateNew);
