@@ -8,6 +8,7 @@ add_library(test_util STATIC EXCLUDE_FROM_ALL
   index.cpp
   json.cpp
   logging.cpp
+  masternode.cpp
   mining.cpp
   net.cpp
   script.cpp
