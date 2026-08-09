@@ -181,6 +181,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   chainparamsbase.cpp
   coins.cpp
   common/bloom.cpp
+  common/init.cpp
   common/run_command.cpp
   common/url.cpp
   compressor.cpp
@@ -322,7 +323,11 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   index/timestampindex.cpp
   index/txindex.cpp
   init.cpp
+  kernel/chain.cpp
+  kernel/checks.cpp
   kernel/coinstats.cpp
+  kernel/context.cpp
+  kernel/mempool_persist.cpp
   instantsend/db.cpp
   instantsend/instantsend.cpp
   instantsend/lock.cpp
@@ -366,14 +371,18 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/eviction.cpp
   node/interface_ui.cpp
   node/interfaces.cpp
+  node/mempool_args.cpp
+  node/mempool_persist_args.cpp
   node/miner.cpp
   node/minisketchwrapper.cpp
   node/psbt.cpp
   node/sync_manager.cpp
   node/transaction.cpp
   node/txreconciliation.cpp
+  node/utxo_snapshot.cpp
   noui.cpp
   policy/fees.cpp
+  policy/fees_args.cpp
   policy/packages.cpp
   policy/settings.cpp
   pow.cpp
@@ -406,6 +415,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   txdb.cpp
   txmempool.cpp
   txorphanage.cpp
+  txrequest.cpp
   validation.cpp
   validationinterface.cpp
   versionbits.cpp
