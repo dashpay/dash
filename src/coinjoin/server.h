@@ -52,17 +52,27 @@ private:
 
     bool fUnitTest;
 
+public:
+    enum class FeePolicy {
+        PROBABILISTIC,
+        GUARANTEED_ON_ABORT,
+    };
+
+protected:
+    /// Select a collateral to charge based on offender discovery and fee policy
+    CTransactionRef SelectCollateralToCharge(FeePolicy policy) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+
     /// Add a clients entry to the pool
     bool AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Add signature to a txin
     bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Charge fees to bad actors (Charge clients a fee if they're abusive)
-    void ChargeFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ChargeFees(FeePolicy policy = FeePolicy::PROBABILISTIC) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Rarely charge fees to pay miners
     void ChargeRandomFees() const;
     /// Consume collateral in cases when peer misbehaved
-    void ConsumeCollateral(const CTransactionRef& txref) const;
+    virtual void ConsumeCollateral(const CTransactionRef& txref) const;
 
     /// Check for process
     void CheckPool();

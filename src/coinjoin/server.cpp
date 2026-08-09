@@ -309,7 +309,7 @@ void CCoinJoinServer::CheckPool()
     if (nState == POOL_STATE_ACCEPTING_ENTRIES && CCoinJoinServer::HasTimedOut() &&
         GetEntriesCount() >= CoinJoin::GetMinPoolParticipants()) {
         // Punish misbehaving participants
-        ChargeFees();
+        ChargeFees(FeePolicy::PROBABILISTIC);
         // Try to complete this session ignoring the misbehaving ones
         CreateFinalTransaction();
         return;
@@ -416,17 +416,13 @@ void CCoinJoinServer::CommitFinalTransaction()
 // transaction for the client to be able to enter the pool. This transaction is kept by the Masternode
 // until the transaction is either complete or fails.
 //
-void CCoinJoinServer::ChargeFees() const
+CTransactionRef CCoinJoinServer::SelectCollateralToCharge(FeePolicy policy) const
 {
-    AssertLockNotHeld(cs_coinjoin);
-
-    //we don't need to charge collateral for every offence.
-    if (GetRand<int>(/*nMax=*/100) > 33) return;
+    AssertLockHeld(cs_coinjoin);
 
     std::vector<CTransactionRef> vecOffendersCollaterals;
 
     if (nState == POOL_STATE_ACCEPTING_ENTRIES) {
-        LOCK(cs_coinjoin);
         for (const auto& txCollateral : vecSessionCollaterals) {
             bool fFound = std::ranges::any_of(vecEntries, [&txCollateral](const auto& entry) {
                 return *entry.txCollateral == *txCollateral;
@@ -434,45 +430,71 @@ void CCoinJoinServer::ChargeFees() const
 
             // This queue entry didn't send us the promised transaction
             if (!fFound) {
-                LogPrint(BCLog::COINJOIN, /* Continued */
-                         "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't send transaction), found "
-                         "offence\n");
                 vecOffendersCollaterals.push_back(txCollateral);
             }
         }
-    }
-
-    if (nState == POOL_STATE_SIGNING) {
+    } else if (nState == POOL_STATE_SIGNING) {
         // who didn't sign?
-        LOCK(cs_coinjoin);
         for (const auto& entry : vecEntries) {
-            for (const auto& txdsin : entry.vecTxDSIn) {
-                if (!txdsin.fHasSig) {
-                    LogPrint(BCLog::COINJOIN, /* Continued */
-                             "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't sign), found offence\n");
-                    vecOffendersCollaterals.push_back(entry.txCollateral);
-                }
+            bool fHasUnsignedInput = std::ranges::any_of(entry.vecTxDSIn, [](const auto& txdsin) {
+                return !txdsin.fHasSig;
+            });
+            if (fHasUnsignedInput) {
+                vecOffendersCollaterals.push_back(entry.txCollateral);
             }
         }
     }
 
     // no offences found
-    if (vecOffendersCollaterals.empty()) return;
+    if (vecOffendersCollaterals.empty()) return nullptr;
 
-    //mostly offending? Charge sometimes
-    if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size() - 1 && GetRand<int>(/*nMax=*/100) > 33) return;
+    if (policy == FeePolicy::PROBABILISTIC) {
+        // we don't need to charge collateral for every offence.
+        if (GetRand<int>(/*nMax=*/100) > 33) return nullptr;
 
-    //everyone is an offender? That's not right
-    if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) return;
+        // mostly offending? Charge sometimes
+        if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size() - 1 && GetRand<int>(/*nMax=*/100) > 33) return nullptr;
 
-    //charge one of the offenders randomly
+        // everyone is an offender? That's not right
+        if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) return nullptr;
+    }
+
+    // charge one of the offenders randomly
     Shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), FastRandomContext());
 
-    if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
-        LogPrint(BCLog::COINJOIN, /* Continued */
-                 "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s",
-                 (nState == POOL_STATE_SIGNING) ? "sign" : "send", vecOffendersCollaterals[0]->ToString());
-        ConsumeCollateral(vecOffendersCollaterals[0]);
+    CTransactionRef selectedCollateral = vecOffendersCollaterals[0];
+
+    if (policy == FeePolicy::PROBABILISTIC) {
+        LogPrint(BCLog::COINJOIN,
+                 "CCoinJoinServer::SelectCollateralToCharge -- selected non-submitting participant for probabilistic penalty. state=%s, participants=%d, offenders=%d, txid=%s\n",
+                 GetStateString(), vecSessionCollaterals.size(), vecOffendersCollaterals.size(), selectedCollateral->GetHash().ToString());
+    } else if (policy == FeePolicy::GUARANTEED_ON_ABORT) {
+        if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) {
+            LogPrint(BCLog::COINJOIN,
+                     "CCoinJoinServer::SelectCollateralToCharge -- all participants missing or uncooperative, selected participant for failed-session fee. state=%s, participants=%d, offenders=%d, txid=%s\n",
+                     GetStateString(), vecSessionCollaterals.size(), vecOffendersCollaterals.size(), selectedCollateral->GetHash().ToString());
+        } else {
+            LogPrint(BCLog::COINJOIN,
+                     "CCoinJoinServer::SelectCollateralToCharge -- selected participant for failed-session fee. state=%s, participants=%d, offenders=%d, txid=%s\n",
+                     GetStateString(), vecSessionCollaterals.size(), vecOffendersCollaterals.size(), selectedCollateral->GetHash().ToString());
+        }
+    }
+
+    return selectedCollateral;
+}
+
+void CCoinJoinServer::ChargeFees(FeePolicy policy) const
+{
+    AssertLockNotHeld(cs_coinjoin);
+
+    CTransactionRef txCollateralToConsume;
+    {
+        LOCK(cs_coinjoin);
+        txCollateralToConsume = SelectCollateralToCharge(policy);
+    }
+
+    if (txCollateralToConsume) {
+        ConsumeCollateral(txCollateralToConsume);
     }
 }
 
