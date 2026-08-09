@@ -2,3 +2,9 @@
 leak:libQt5Widgets
 leak:QDBusConnectionPrivate
 leak:QLayoutPrivate
+# Qt's process-global DBus manager retains these allocations at shutdown.
+leak:QDBusConnectionManager
+# Berkeley DB 4.8 retains DB_PRIVATE lock objects after reopened environments
+# are torn down, and memory-pool file metadata after mock databases are closed.
+leak:__lock_open
+leak:__memp_fopen

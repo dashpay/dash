@@ -25,6 +25,31 @@ from typing import Callable, Optional
 
 logger = logging.getLogger("TestFramework.utils")
 
+
+def split_lsan_suppression_summary(stderr):
+    separator = '-' * 53
+    header = f'{separator}\nSuppressions used:\n  count      bytes template\n'
+    if stderr.startswith(header):
+        application_stderr, summary = '', stderr[len(header):]
+    else:
+        marker = f'\n{header}'
+        if marker not in stderr:
+            return stderr, None
+        application_stderr, summary = stderr.rsplit(marker, 1)
+    footer = f'\n{separator}'
+    footer_index = summary.rfind(footer)
+    if footer_index == -1 or summary[footer_index + len(footer):] not in ('', '\n', '\n\n'):
+        return stderr, None
+
+    suppressions = []
+    for row in summary[:footer_index].splitlines():
+        match = re.fullmatch(r'\s*(\d+)\s+(\d+)\s+(\S+)', row)
+        if match is None:
+            return stderr, None
+        suppressions.append((match[3], int(match[1]), int(match[2])))
+    return application_stderr, suppressions
+
+
 # Assert functions
 ##################
 

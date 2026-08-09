@@ -231,12 +231,14 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.nodes[3].assert_start_raises_init_error(
             ["-dustprotectionthreshold=-1"],
             "Error: Invalid value for -dustprotectionthreshold: must be >= 0",
+            expected_lsan_suppressions=[('__lock_open', 1, 160)],
         )
 
         # Above maximum (1000000)
         self.nodes[3].assert_start_raises_init_error(
             ["-dustprotectionthreshold=1000001"],
             "Error: Invalid value for -dustprotectionthreshold: exceeds maximum (1000000)",
+            expected_lsan_suppressions=[('__lock_open', 1, 160)],
         )
 
         # Restart node3 normally for clean state

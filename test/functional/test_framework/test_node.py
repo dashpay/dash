@@ -17,6 +17,7 @@ import re
 import subprocess
 import tempfile
 import time
+import unittest
 import urllib.parse
 import shlex
 import collections
@@ -37,6 +38,7 @@ from .util import (
     get_auth_cookie,
     get_rpc_proxy,
     rpc_url,
+    split_lsan_suppression_summary,
     wait_until_helper,
     p2p_port,
     get_chain_folder,
@@ -53,6 +55,38 @@ class ErrorMatch(Enum):
     FULL_TEXT = 1
     FULL_REGEX = 2
     PARTIAL_REGEX = 3
+
+
+class TestFrameworkTestNode(unittest.TestCase):
+    def test_split_lsan_suppression_summary(self):
+        separator = '-' * 53
+        summary = (
+            f'\n{separator}\nSuppressions used:\n  count      bytes template\n'
+            '      1        160 __lock_open\n'
+            '     28       1939 __memp_fopen\n'
+            f'{separator}\n\n'
+        )
+        application_stderr = 'Error: expected failure\nunexpected application output'
+
+        self.assertEqual(
+            split_lsan_suppression_summary(application_stderr + summary),
+            (application_stderr, [('__lock_open', 1, 160), ('__memp_fopen', 28, 1939)]),
+        )
+        self.assertEqual(
+            split_lsan_suppression_summary(summary[1:]),
+            ('', [('__lock_open', 1, 160), ('__memp_fopen', 28, 1939)]),
+        )
+        self.assertEqual(
+            split_lsan_suppression_summary(summary[1:].strip()),
+            ('', [('__lock_open', 1, 160), ('__memp_fopen', 28, 1939)]),
+        )
+        self.assertEqual(
+            split_lsan_suppression_summary(application_stderr),
+            (application_stderr, None),
+        )
+
+        malformed = (application_stderr + summary).replace('      1        160', 'invalid')
+        self.assertEqual(split_lsan_suppression_summary(malformed), (malformed, None))
 
 
 class TestNode():
@@ -627,11 +661,15 @@ class TestNode():
             report_cmd = "perf report -i {}".format(output_path)
             self.log.info("See perf output by running '{}'".format(report_cmd))
 
-    def assert_start_raises_init_error(self, extra_args=None, expected_msg=None, match=ErrorMatch.FULL_TEXT, *args, **kwargs):
+    def assert_start_raises_init_error(
+            self, extra_args=None, expected_msg=None, match=ErrorMatch.FULL_TEXT, *args,
+            expected_lsan_suppressions=None, **kwargs):
         """Attempt to start the node and expect it to raise an error.
 
         extra_args: extra arguments to pass through to dashd
         expected_msg: regex that stderr should match when dashd fails
+        expected_lsan_suppressions: optional list of (template, count, bytes)
+            entries permitted in a trailing LeakSanitizer suppression summary
 
         Will throw if dashd starts without an error.
         Will throw if an expected_msg is provided and it does not match dashd's stdout."""
@@ -649,6 +687,12 @@ class TestNode():
                 if expected_msg is not None:
                     log_stderr.seek(0)
                     stderr = log_stderr.read().decode('utf-8').strip()
+                    if expected_lsan_suppressions is not None:
+                        stderr, lsan_suppressions = split_lsan_suppression_summary(stderr)
+                        if lsan_suppressions is not None and lsan_suppressions != expected_lsan_suppressions:
+                            self._raise_assertion_error(
+                                'Expected LSan suppressions {} do not match stderr suppressions {}'.format(
+                                    expected_lsan_suppressions, lsan_suppressions))
                     if match == ErrorMatch.PARTIAL_REGEX:
                         if re.search(expected_msg, stderr, flags=re.MULTILINE) is None:
                             self._raise_assertion_error(

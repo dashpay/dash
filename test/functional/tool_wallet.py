@@ -15,6 +15,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     sha256sum_file,
+    split_lsan_suppression_summary,
 )
 
 class ToolWalletTest(BitcoinTestFramework):
@@ -37,17 +38,23 @@ class ToolWalletTest(BitcoinTestFramework):
 
         return subprocess.Popen([self.options.bitcoinwallet] + default_args + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
+    def strip_expected_lsan_summary(self, stderr):
+        stderr, lsan_suppressions = split_lsan_suppression_summary(stderr)
+        if lsan_suppressions not in (None, [('__lock_open', 1, 160)]):
+            raise AssertionError('Unexpected LSan suppressions {}'.format(lsan_suppressions))
+        return stderr
+
     def assert_raises_tool_error(self, error, *args):
         p = self.dash_wallet_process(*args)
         stdout, stderr = p.communicate()
         assert_equal(p.poll(), 1)
         assert_equal(stdout, '')
-        assert_equal(stderr.strip(), error)
+        assert_equal(self.strip_expected_lsan_summary(stderr).strip(), error)
 
     def assert_tool_output(self, output, *args):
         p = self.dash_wallet_process(*args)
         stdout, stderr = p.communicate()
-        assert_equal(stderr, '')
+        assert_equal(self.strip_expected_lsan_summary(stderr), '')
         assert_equal(stdout, output)
         assert_equal(p.poll(), 0)
 

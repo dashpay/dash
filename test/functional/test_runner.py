@@ -85,6 +85,7 @@ TEST_FRAMEWORK_MODULES = [
     "crypto.ripemd160",
     "script",
     "segwit_addr",
+    "test_node",
 ]
 
 EXTENDED_SCRIPTS = [
