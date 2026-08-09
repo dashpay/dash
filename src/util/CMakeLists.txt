@@ -10,6 +10,8 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   edge.cpp
   error.cpp
   fees.cpp
+  fs.cpp
+  fs_helpers.cpp
   getuniquepath.cpp
   hasher.cpp
   message.cpp
@@ -34,7 +36,6 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ../bls/bls_worker.cpp
   ../coinjoin/common.cpp
   ../coinjoin/options.cpp
-  ../fs.cpp
   ../interfaces/echo.cpp
   ../interfaces/handler.cpp
   ../interfaces/init.cpp
