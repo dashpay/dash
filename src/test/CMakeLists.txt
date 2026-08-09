@@ -80,6 +80,7 @@ add_executable(test_bitcoin
   evo_cbtx_tests.cpp
   evo_deterministicmns_tests.cpp
   evo_islock_tests.cpp
+  evo_mnauth_tests.cpp
   evo_mnhf_tests.cpp
   evo_netinfo_tests.cpp
   evo_simplifiedmns_tests.cpp
