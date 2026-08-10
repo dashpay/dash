@@ -198,6 +198,40 @@ public:
         nSessionID = 1;
         nState = POOL_STATE_ACCEPTING_ENTRIES;
         nTimeLastSuccessfulStep = GetTime() - COINJOIN_QUEUE_TIMEOUT;
+        for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_session_collaterals.Add(collateral);
+        }
+    }
+
+    void SeedTimedOutActionableSession(PoolState state, bool has_missing_entry = false)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+
+        nSessionID = 1;
+        nState = state;
+        nTimeLastSuccessfulStep = GetTime() -
+                                  (state == POOL_STATE_SIGNING ? COINJOIN_SIGNING_TIMEOUT : COINJOIN_QUEUE_TIMEOUT);
+
+        for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_session_collaterals.Add(collateral);
+
+            if (state == POOL_STATE_QUEUE) continue;
+
+            CTxDSIn txdsin{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0};
+            txdsin.fHasSig = state == POOL_STATE_SIGNING;
+            vecEntries.emplace_back(std::vector<CTxDSIn>{txdsin}, std::vector<CTxOut>{}, CTransaction{collateral});
+        }
+
+        if (has_missing_entry) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(CoinJoin::GetMinPoolParticipants())});
+            m_session_collaterals.Add(collateral);
+        }
     }
 
     void HoldPoolCheck(std::latch& locked, std::latch& release)
@@ -334,6 +368,28 @@ BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
 
     server.CheckTimeout();
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_actionable_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    for (const auto state : {POOL_STATE_QUEUE, POOL_STATE_ACCEPTING_ENTRIES, POOL_STATE_SIGNING}) {
+        BOOST_TEST_CONTEXT("state=" << state)
+        {
+            server.SeedTimedOutActionableSession(state);
+            server.CheckTimeout();
+            BOOST_CHECK_EQUAL(server.GetState(), int{state});
+        }
+    }
+
+    server.SeedTimedOutActionableSession(POOL_STATE_ACCEPTING_ENTRIES, /*has_missing_entry=*/true);
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
 }
 
 BOOST_AUTO_TEST_CASE(server_validation_uses_session_denom_snapshot)
