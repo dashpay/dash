@@ -405,6 +405,8 @@ void CCoinJoinServer::CommitFinalTransaction(int session_id)
     AssertLockNotHeld(cs_coinjoin);
 
     CTransactionRef finalTransaction;
+    std::vector<CService> participants;
+    std::vector<CTransactionRef> collaterals;
     {
         LOCK(cs_coinjoin);
         // Committing a session that is already gone would push a cleared finalMutableTransaction
@@ -415,6 +417,9 @@ void CCoinJoinServer::CommitFinalTransaction(int session_id)
             return;
         }
         finalTransaction = MakeTransactionRef(finalMutableTransaction);
+        participants.reserve(vecEntries.size());
+        std::ranges::transform(vecEntries, std::back_inserter(participants), [](const auto& entry) { return entry.addr; });
+        collaterals = m_session_collaterals.txs();
     }
     uint256 hashTx = finalTransaction->GetHash();
 
@@ -428,9 +433,9 @@ void CCoinJoinServer::CommitFinalTransaction(int session_id)
         if (!lockMain || !ATMPIfSaneFee(m_chainman, finalTransaction)) {
             LogPrint(BCLog::COINJOIN, /* Continued */
                      "CCoinJoinServer::CommitFinalTransaction -- ATMPIfSaneFee() error: Transaction not valid\n");
-            WITH_LOCK(cs_coinjoin, SetNull());
             // not much we can do in this case, just notify clients
-            RelayCompletedTransaction(ERR_INVALID_TX);
+            RelayCompletedTransaction(session_id, participants, ERR_INVALID_TX);
+            ResetSigningSessionIfCurrent(session_id);
             return;
         }
     }
@@ -451,14 +456,14 @@ void CCoinJoinServer::CommitFinalTransaction(int session_id)
     m_peer_manager->PeerRelayInv(inv);
 
     // Tell the clients it was successful
-    RelayCompletedTransaction(MSG_SUCCESS);
+    RelayCompletedTransaction(session_id, participants, MSG_SUCCESS);
 
     // Randomly charge clients
-    ChargeRandomFees();
+    ChargeRandomFees(collaterals);
 
     // Reset
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- COMPLETED -- RESETTING\n");
-    WITH_LOCK(cs_coinjoin, SetNull());
+    ResetSigningSessionIfCurrent(session_id);
 }
 
 //
@@ -548,17 +553,11 @@ CTransactionRef CCoinJoinServer::SelectCollateralToCharge() const
     stop these kinds of attacks 1 in 10 successful transactions are charged. This
     adds up to a cost of 0.001DRK per transaction on average.
 */
-void CCoinJoinServer::ChargeRandomFees() const
+void CCoinJoinServer::ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const
 {
     AssertLockNotHeld(cs_coinjoin);
 
-    std::vector<CTransactionRef> session_collaterals;
-    {
-        LOCK(cs_coinjoin);
-        session_collaterals = m_session_collaterals.txs();
-    }
-
-    for (const auto& txCollateral : session_collaterals) {
+    for (const auto& txCollateral : collaterals) {
         if (GetRand<int>(/*nMax=*/100) > 10) return;
         LogPrint(BCLog::COINJOIN, /* Continued */
                  "CCoinJoinServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString());
@@ -1098,26 +1097,34 @@ void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nM
     }
 }
 
-void CCoinJoinServer::RelayCompletedTransaction(PoolMessage nMessageID)
+void CCoinJoinServer::RelayCompletedTransaction(int session_id, const std::vector<CService>& participants,
+                                                PoolMessage nMessageID)
 {
     AssertLockNotHeld(cs_coinjoin);
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- nSessionID: %d  nSessionDenom: %d (%s)\n",
-        __func__, nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- nSessionID: %d\n", __func__, session_id);
 
-    // final mixing tx with empty signatures should be relayed to mixing participants only
-    LOCK(cs_coinjoin);
-    for (const auto& entry : vecEntries) {
-        bool fOk = connman.ForNode(entry.addr, [&nMessageID, this](CNode* pnode) {
+    for (const auto& addr : participants) {
+        const bool fOk = connman.ForNode(addr, [&nMessageID, session_id, this](CNode* pnode) {
             CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSCOMPLETE, nSessionID.load(), nMessageID));
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSCOMPLETE, session_id, nMessageID));
             return true;
         });
         if (!fOk) {
-            // no such node? maybe client disconnected or our own connection went down
-            RelayStatus(STATUS_REJECTED);
-            break;
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- participant disconnected before completion\n", __func__);
         }
     }
+}
+
+void CCoinJoinServer::ResetSigningSessionIfCurrent(int session_id)
+{
+    AssertLockNotHeld(cs_coinjoin);
+    LOCK(cs_coinjoin);
+    if (nSessionID != session_id || nState != POOL_STATE_SIGNING) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::%s -- signing session %d is no longer current, not resetting\n", __func__, session_id);
+        return;
+    }
+    SetNull();
 }
 
 void CCoinJoinServer::SetState(PoolState nStateNew)

@@ -192,6 +192,27 @@ public:
         vecEntries.push_back(std::move(entry));
     }
 
+    void SeedCompletionSession(int session_id, const CService& addr, PoolState state = POOL_STATE_SIGNING)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+        nSessionID = session_id;
+        nState = state;
+
+        if (state == POOL_STATE_SIGNING) {
+            CCoinJoinEntry entry;
+            entry.addr = addr;
+            vecEntries.push_back(std::move(entry));
+        }
+    }
+
+    void RelayCompletion(int session_id, const CService& addr)
+    {
+        RelayCompletedTransaction(session_id, {addr}, MSG_SUCCESS);
+    }
+
+    void ResetForSession(int session_id) { ResetSigningSessionIfCurrent(session_id); }
+
     void SeedTimedOutSession()
     {
         LOCK(cs_coinjoin);
@@ -344,6 +365,31 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
                       std::ios_base::failure);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(server_completion_does_not_reset_an_unreachable_or_replacement_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    auto participant = MakePeer(/*id=*/7, /*ipv4=*/0x0a000001);
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr);
+
+    // The participant is deliberately absent from connman. Failing to deliver DSCOMPLETE must not
+    // reset live session data; only CommitFinalTransaction owns the completion reset.
+    server.RelayCompletion(/*session_id=*/1, participant->addr);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+
+    // A delayed tail operation from session 1 must never clear a replacement queue, even if the
+    // random wire session ID happens to be reused.
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr, POOL_STATE_QUEUE);
+    server.ResetForSession(/*session_id=*/1);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 0);
 }
 
 BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
