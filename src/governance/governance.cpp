@@ -65,7 +65,7 @@ GovernanceStore::GovernanceStore() :
     cs_store(),
     mapObjects(),
     mapErasedGovernanceObjects(),
-    cmmapOrphanVotes(MAX_CACHE_SIZE),
+    cmmapOrphanVotes(MAX_ORPHAN_VOTES),
     mapLastMasternodeObject(),
     lastMNListForVotingKeys(std::make_shared<CDeterministicMNList>())
 {
@@ -407,6 +407,11 @@ void CGovernanceManager::CheckAndRemove()
     }
 
     ScopedLockBool guard(cs_store, fRateChecksEnabled, false);
+
+    // Drop orphan votes whose parent never arrived. Votes for an object that did arrive are
+    // consumed by CheckOrphanVotes() at that point, so anything still here is either waiting or
+    // dead; this is the only thing that removes the latter.
+    ExpireOrphanVotes();
 
     // Clean up any expired or invalid triggers
     m_superblocks.Clean(nCachedBlockHeight);
@@ -827,9 +832,12 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         // No penalty: the vote is signed by a masternode, it just arrived before its parent object,
         // which routinely happens during governance sync. Misbehaviour scores never decay.
         exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
-        if (cmmapOrphanVotes.Insert(nHashGovobj, governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME})) {
-            hashToRequest = nHashGovobj; // Caller should request this object
-        }
+        cmmapOrphanVotes.Insert(nHashGovobj, governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME});
+        // Ask for the parent whether or not the vote itself was new to us. A vote we already hold,
+        // relayed by a second peer, is fresh evidence that this peer has the parent -- and it is the
+        // only evidence we will get, since a peer relays a given vote once. Suppressing the request
+        // on a duplicate would strand the parent whenever the first peer we asked fails to deliver.
+        hashToRequest = nHashGovobj;
         LogPrint(BCLog::GOBJECT, "%s\n", msg);
         return false;
     }
@@ -1005,6 +1013,7 @@ void GovernanceStore::Clear()
     mapObjects.clear();
     mapErasedGovernanceObjects.clear();
     cmmapOrphanVotes.Clear();
+    cmmapOrphanVotes.SetMaxSize(MAX_ORPHAN_VOTES);
     mapLastMasternodeObject.clear();
     lastMNListForVotingKeys = std::make_shared<CDeterministicMNList>();
 }
@@ -1114,13 +1123,11 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex)
     m_superblocks.ExecuteBestSuperblock(m_dmnman.GetListAtChainTip(), pindex->nHeight);
 }
 
-std::vector<uint256> CGovernanceManager::GetOrphanVoteObjectHashes()
+void CGovernanceManager::ExpireOrphanVotes()
 {
-    LOCK(cs_store);
+    AssertLockHeld(cs_store);
 
     const auto now{Now<NodeSeconds>()};
-
-    // Clean up expired orphan votes
     const vote_cmm_t::list_t& items = cmmapOrphanVotes.GetItemList();
     for (auto it = items.begin(); it != items.end();) {
         auto prevIt = it;
@@ -1129,18 +1136,11 @@ std::vector<uint256> CGovernanceManager::GetOrphanVoteObjectHashes()
             cmmapOrphanVotes.Erase(prevIt->key, prevIt->value);
         }
     }
+}
 
-    // Get hashes of objects we don't have yet
-    std::vector<uint256> vecHashesFiltered;
-    std::vector<uint256> vecHashes;
-    cmmapOrphanVotes.GetKeys(vecHashes);
-    for (const uint256& nHash : vecHashes) {
-        if (mapObjects.find(nHash) == mapObjects.end()) {
-            vecHashesFiltered.push_back(nHash);
-        }
-    }
-
-    return vecHashesFiltered;
+size_t CGovernanceManager::GetOrphanVoteCount() const
+{
+    return WITH_LOCK(cs_store, return cmmapOrphanVotes.GetSize());
 }
 
 void CGovernanceManager::RemoveInvalidVotes()

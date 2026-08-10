@@ -501,7 +501,7 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
     connman.FlushSendBuffer(*peer);
     ProcessGovernanceVote(net_gov, *peer, vote);
 
-    BOOST_CHECK(m_node.govman->GetOrphanVoteObjectHashes().empty());
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
     BOOST_CHECK_EQUAL(CountQueuedMessages(*peer, NetMsgType::MNGOVERNANCESYNC), 0U);
     AssertMisbehaviorScore(*m_node.peerman, *peer, 20);
 
