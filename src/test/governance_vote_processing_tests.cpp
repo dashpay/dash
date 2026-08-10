@@ -6,6 +6,7 @@
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
 #include <governance/governance.h>
+#include <governance/net_governance.h>
 #include <governance/object.h>
 #include <governance/vote.h>
 #include <index/txindex.h>
@@ -15,6 +16,7 @@
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <messagesigner.h>
+#include <net_processing.h>
 #include <netfulfilledman.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
@@ -28,6 +30,7 @@
 
 #include <test/util/index.h>
 #include <test/util/masternode.h>
+#include <test/util/net.h>
 #include <test/util/setup_common.h>
 
 #include <boost/test/unit_test.hpp>
@@ -241,7 +244,7 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
     // The caller uses this to ask the sending peer for the missing object.
     BOOST_CHECK_EQUAL(hash_to_request, parent_hash);
-    BOOST_CHECK(govman.GetOrphanVoteObjectHashes() == std::vector<uint256>{parent_hash});
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 1U);
 
     const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
     CGovernanceObject proposal{MakeProposal(collateral_hash)};
@@ -254,7 +257,7 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_REQUIRE(stored != nullptr);
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
     BOOST_CHECK_EQUAL(govman.GetCurrentVotes(parent_hash, mn_collateral).size(), 1U);
-    BOOST_CHECK(govman.GetOrphanVoteObjectHashes().empty());
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 0U);
     // Known gap, pinned here so a fix has to update this test: CheckOrphanVotes() applies the
     // vote to the object but never indexes it in cmapVoteToObject, so the vote inv it relays
     // during the replay cannot be served to a peer that requests it.
@@ -467,6 +470,158 @@ BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
     saved >> version >> erased_objects >> saved_invalid_votes;
     BOOST_CHECK_EQUAL(version, "CGovernanceManager-Version-16");
     BOOST_CHECK_EQUAL(saved_invalid_votes.GetSize(), 0U);
+}
+
+// The orphan cache is filled from the network by any peer, keyed by a parent hash we cannot verify
+// until the parent arrives, so its size must be bounded by us and not by the sender.
+BOOST_AUTO_TEST_CASE(orphan_vote_cache_is_bounded)
+{
+    constexpr size_t OVERSHOOT = 50;
+
+    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + OVERSHOOT; ++i) {
+        // Distinct parent hash per vote, so each would occupy its own cache key.
+        CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+        SignWithVotingKey(vote, mn_voting_key);
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
+    }
+
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(),
+                      static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
+}
+
+// A peer relays a given vote once, so a second peer sending a vote we already hold is the only
+// evidence we will ever get that it has the parent. It has to become a fallback candidate: the peer
+// asked first may go away or never answer, and there is no periodic sweep to fall back on.
+BOOST_AUTO_TEST_CASE(orphan_vote_relayed_by_a_second_peer_adds_it_as_a_fallback)
+{
+    auto& govman = *m_node.govman;
+
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+    SignWithVotingKey(vote, mn_voting_key);
+
+    CGovernanceException exception1;
+    uint256 hash_to_request1;
+    BOOST_CHECK(!govman.ProcessVote(vote, exception1, hash_to_request1));
+    BOOST_CHECK_EQUAL(hash_to_request1, parent_hash);
+
+    // Same vote, second time. The orphan cache rejects the duplicate, but the parent hash to
+    // request must not be suppressed along with it.
+    CGovernanceException exception2;
+    uint256 hash_to_request2;
+    BOOST_CHECK(!govman.ProcessVote(vote, exception2, hash_to_request2));
+    BOOST_CHECK_EQUAL(hash_to_request2, parent_hash);
+
+    // The duplicate must still not be double-counted as orphan state.
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 1U);
+}
+
+// Drive the same duplicate-relay case through NetGovernance: every peer that supplies the orphan
+// vote must become a candidate for fetching its parent, while an unrelated peer must not.
+BOOST_AUTO_TEST_CASE(orphan_vote_relayers_seed_parent_request_candidates)
+{
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+    SignWithVotingKey(vote, mn_voting_key);
+    BOOST_REQUIRE(vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+
+    NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
+                          *m_node.netfulfilledman, *m_node.connman);
+    auto first_relayer{MakeTestPeer(/*id=*/1)};
+    auto second_relayer{MakeTestPeer(/*id=*/2)};
+    auto unrelated_peer{MakeTestPeer(/*id=*/3)};
+    m_node.peerman->InitializeNode(*first_relayer, NODE_NETWORK);
+    m_node.peerman->InitializeNode(*second_relayer, NODE_NETWORK);
+    m_node.peerman->InitializeNode(*unrelated_peer, NODE_NETWORK);
+
+    const CInv vote_inv{MSG_GOVERNANCE_OBJECT_VOTE, vote.GetHash()};
+    auto relay_vote = [&](CNode& peer) EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+        AnnounceInv(*m_node.peerman, peer, vote_inv);
+        CDataStream vote_stream{SER_NETWORK, PROTOCOL_VERSION};
+        vote_stream << vote;
+        net_gov.ProcessMessage(peer, NetMsgType::MNGOVERNANCEOBJECTVOTE, vote_stream);
+    };
+
+    relay_vote(*first_relayer);
+    relay_vote(*second_relayer);
+
+    const CInv parent_inv{MSG_GOVERNANCE_OBJECT, parent_hash};
+    BOOST_CHECK(WITH_LOCK(::cs_main, return m_node.peerman->PeerConsumeObjectRequest(
+                                              first_relayer->GetId(), parent_inv)));
+    BOOST_CHECK(WITH_LOCK(::cs_main, return m_node.peerman->PeerConsumeObjectRequest(
+                                              second_relayer->GetId(), parent_inv)));
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return m_node.peerman->PeerConsumeObjectRequest(
+                                               unrelated_peer->GetId(), parent_inv)));
+
+    m_node.peerman->FinalizeNode(*first_relayer);
+    m_node.peerman->FinalizeNode(*second_relayer);
+    m_node.peerman->FinalizeNode(*unrelated_peer);
+}
+
+// CacheMultiMap serializes its own capacity, so loading a governance.dat written before
+// MAX_ORPHAN_VOTES existed would restore the old 1'000'000 and silently un-bound the cache for the
+// rest of the run -- leaving the bound in force on fresh nodes only, which is where it is least
+// needed. The on-disk format is unchanged, so this has to be reasserted on load rather than avoided
+// by a version bump.
+BOOST_AUTO_TEST_CASE(orphan_vote_bound_survives_loading_an_old_cache_file)
+{
+    // Stand in for a pre-existing governance.dat: the same field order GovernanceStore writes, with
+    // the orphan map carrying the historical capacity and an entry stored under it. The two maps
+    // whose value types are internal to GovernanceStore are written empty, which serializes as a
+    // count of zero without naming those types.
+    CDataStream ss{SER_DISK, CLIENT_VERSION};
+    CacheMultiMap<uint256, governance::OrphanVote> legacy_orphans{1'000'000};
+    legacy_orphans.Insert(uint256S("61"),
+                          governance::OrphanVote{MakeVote(uint256S("61"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES), NodeSeconds{9999s}});
+    ss << std::string{"CGovernanceManager-Version-16"} << std::map<uint256, int64_t>{}
+       << CacheMap<uint256, CGovernanceVote>{1'000'000} << legacy_orphans
+       << std::map<uint256, uint8_t>{} << std::map<COutPoint, uint8_t>{} << CDeterministicMNList{};
+
+    BOOST_REQUIRE_NO_THROW(ss >> *m_node.govman);
+
+    // The file's orphan state is not retained.
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
+
+    // And the bound is ours, not the file's. Without the reassert this holds 1'000'000 and keeps
+    // every one of the votes below.
+    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + 25; ++i) {
+        CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+        SignWithVotingKey(vote, mn_voting_key);
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
+    }
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(),
+                      static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
+}
+
+// A load failure after the legacy orphan field must not leave its disk-supplied capacity behind.
+BOOST_AUTO_TEST_CASE(orphan_vote_bound_survives_a_failed_old_cache_load)
+{
+    CDataStream ss{SER_DISK, CLIENT_VERSION};
+    CacheMultiMap<uint256, governance::OrphanVote> legacy_orphans{1'000'000};
+    legacy_orphans.Insert(uint256S("71"),
+                          governance::OrphanVote{MakeVote(uint256S("71"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES),
+                                                 NodeSeconds{9999s}});
+    // Stop after the legacy orphan field so the following map read throws.
+    ss << std::string{"CGovernanceManager-Version-16"} << std::map<uint256, int64_t>{}
+       << CacheMap<uint256, CGovernanceVote>{1'000'000} << legacy_orphans;
+
+    BOOST_CHECK_THROW(ss >> *m_node.govman, std::ios_base::failure);
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
+
+    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + 25; ++i) {
+        CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+        SignWithVotingKey(vote, mn_voting_key);
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
+    }
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

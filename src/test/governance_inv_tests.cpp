@@ -2,8 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <clientversion.h>
 #include <common/bloom.h>
 #include <evo/chainhelper.h>
+#include <evo/deterministicmns.h>
 #include <governance/governance.h>
 #include <governance/net_governance.h>
 #include <governance/object.h>
@@ -501,7 +503,7 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
     connman.FlushSendBuffer(*peer);
     ProcessGovernanceVote(net_gov, *peer, vote);
 
-    BOOST_CHECK(m_node.govman->GetOrphanVoteObjectHashes().empty());
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
     BOOST_CHECK_EQUAL(CountQueuedMessages(*peer, NetMsgType::MNGOVERNANCESYNC), 0U);
     AssertMisbehaviorScore(*m_node.peerman, *peer, 20);
 
