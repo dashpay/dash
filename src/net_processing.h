@@ -111,7 +111,19 @@ public:
     virtual void PeerRelayTransaction(const uint256& txid) = 0;
     virtual void PeerRelayDSQ(const CCoinJoinQueue& queue) = 0;
     virtual void PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) = 0;
-    virtual void PeerAskPeersForTransaction(const uint256& txid) = 0;
+    /** Ask a few peers for an object we want but have not been offered, by registering a synthetic
+     *  announcement with the request tracker. The tracker then owns the fetch: GETDATA scheduling,
+     *  per-peer in-flight limits, expiry, and fallback to the next candidate.
+     *
+     *  Candidates are explicit_peer, if set, plus peers whose known-inventory filter already contains
+     *  the hash. That filter is only consulted for peers that enabled transaction relay, so for an
+     *  object type carried outside transaction relay -- and for any object nobody has announced to
+     *  us -- explicit_peer may be the only candidate. Pass it whenever a specific peer demonstrably
+     *  has the object without having announced it, such as one that sent a vote naming this parent.
+     *  The request tracker chooses among the candidates; explicit_peer does not imply request order.
+     *
+     *  Requires ::cs_main is NOT held. */
+    virtual void PeerAskPeersForObject(const CInv& inv, NodeId explicit_peer = -1) = 0;
     virtual size_t PeerGetRequestedObjectCount(NodeId nodeid) const = 0;
     virtual void PeerPostProcessMessage(MessageProcessingResult&& ret) = 0;
 };

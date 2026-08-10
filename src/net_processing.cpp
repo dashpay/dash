@@ -85,6 +85,10 @@ using node::fReindex;
 /** Maximum number of in-flight object requests from a peer. It is not a hard limit, but the
  *  threshold at which point the OVERLOADED_PEER_OBJECT_DELAY kicks in. */
 static constexpr int32_t MAX_PEER_OBJECT_REQUEST_IN_FLIGHT = 100;
+/** How many peers to ask for an object we want but were never offered (see AskPeersForObject).
+ *  Small on purpose: the request tracker retries and falls back to the next candidate on expiry, so
+ *  this is the width of the initial attempt, not the number of chances to obtain the object. */
+static constexpr size_t MAX_PEERS_TO_ASK_FOR_OBJECT = 4;
 /** Maximum number of announced objects from a peer.
  *  Unlike Bitcoin, this is not reduced to 5000: governance vote sync legitimately announces up to
  *  MAX_INV_SZ objects from a single peer (see CGovernanceManager). */
@@ -644,15 +648,16 @@ public:
     void PeerRelayDSQ(const CCoinJoinQueue& queue) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayRecoveredSig(const llmq::CRecoveredSig& sig, bool proactive_relay) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void PeerAskPeersForTransaction(const uint256& txid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    void PeerAskPeersForObject(const CInv& inv, NodeId explicit_peer) override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !cs_main);
     size_t PeerGetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, ::cs_main);
     void PeerPostProcessMessage(MessageProcessingResult&& ret) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
 private:
     void _RelayTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
 
-    /** Ask peers that have a transaction in their inventory to relay it to us. */
-    void AskPeersForTransaction(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    /** Ask peers that have the object in their inventory to relay it to us, plus explicit_peer. */
+    void AskPeersForObject(const CInv& inv, NodeId explicit_peer) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !cs_main);
 
     /** Relay inventories to peers that find it relevant */
     void RelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -2390,43 +2395,65 @@ void PeerManagerImpl::SendPings()
     for(auto& it : m_peer_map) it.second->m_ping_queued = true;
 }
 
-void PeerManagerImpl::AskPeersForTransaction(const uint256& txid)
+void PeerManagerImpl::AskPeersForObject(const CInv& inv, NodeId explicit_peer)
 {
-    std::vector<PeerRef> peersToAsk;
-    peersToAsk.reserve(4);
-
+    std::vector<PeerRef> candidates;
     {
         READ_LOCK(m_peer_mutex);
+        candidates.reserve(m_peer_map.size());
+
+        // A peer that holds the object without having announced it is not in any inventory filter,
+        // so it can only be reached by being named explicitly. Candidate selection order remains
+        // the request tracker's responsibility.
+        if (explicit_peer != -1) {
+            if (auto it = m_peer_map.find(explicit_peer); it != m_peer_map.end()) {
+                candidates.emplace_back(it->second);
+            }
+        }
+
         // TODO consider prioritizing MNs again, once that flag is moved into Peer
         for (const auto& [_, peer] : m_peer_map) {
-            if (peersToAsk.size() >= 4) {
-                break;
-            }
-            if (IsInvInFilter(*peer, txid)) {
-                peersToAsk.emplace_back(peer);
+            if (peer->m_id != explicit_peer && IsInvInFilter(*peer, inv.hash)) {
+                candidates.emplace_back(peer);
             }
         }
     }
-    {
-        LOCK(cs_main);
-        const auto current_time{GetTime<std::chrono::microseconds>()};
-        // Register a fresh, preferred (undelayed) MSG_TX announcement from each peer we intend to
-        // ask, so the transaction is requested ASAP. We deliberately do not forget existing
-        // announcements for this txid: any live candidate/request from another peer must survive as
-        // a fallback, and there is nothing to "unstick" -- the tracker deletes a txid's COMPLETED
-        // announcements automatically once no live one remains, so a completed entry only lingers
-        // while some peer is still being tried. If a peer here already has an announcement,
-        // ReceivedInv is a no-op and the existing one (in flight or queued) keeps its place.
-        for (PeerRef& peer : peersToAsk) {
-            // The peer may have been disconnected (and its tracker state wiped by DisconnectedPeer)
-            // after we collected it above but before we took cs_main. Registering an announcement
-            // for a gone peer would leave a candidate that is never requested and could block the
-            // live fallback peers, so skip it.
-            if (State(peer->m_id) == nullptr) continue;
-            LogPrintf("PeerManagerImpl::%s -- txid=%s: asking other peer %d for correct TX\n", __func__,
-                      txid.ToString(), peer->m_id);
 
-            m_object_request.ReceivedInv(peer->m_id, CInv(MSG_TX, txid), /*preferred=*/true, current_time);
+    LOCK(cs_main);
+
+    const auto current_time{GetTime<std::chrono::microseconds>()};
+    size_t asked_count{0};
+
+    // Register a fresh, preferred announcement from each peer we intend to ask, so the object is
+    // requested ASAP. We deliberately do not forget existing announcements for this hash: any live
+    // candidate/request from another peer must survive as a fallback. If a peer here already has an
+    // announcement, ReceivedInv is a no-op and the existing one keeps its place.
+    auto try_ask_peer = [&](const PeerRef& peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
+        // The peer may have disconnected after the candidate snapshot. Recheck under cs_main so we
+        // cannot register an announcement after FinalizeNode has already cleaned up this peer.
+        if (State(peer->m_id) == nullptr) return false;
+        // Obey the same per-peer accounting AddObjectAnnouncement applies to announcements the peer
+        // sent us. A synthetic announcement is still an entry the peer's behaviour can cause us to
+        // create -- a peer that keeps naming objects we do not have would otherwise grow its tracker
+        // footprint without limit.
+        if (m_object_request.Count(peer->m_id) >= MAX_PEER_OBJECT_ANNOUNCEMENTS) return false;
+        const bool overloaded = m_object_request.CountInFlight(peer->m_id) >= MAX_PEER_OBJECT_REQUEST_IN_FLIGHT;
+        LogPrint(BCLog::NET, "PeerManagerImpl::%s -- %s: asking peer %d\n", __func__, inv.ToString(),
+                 peer->m_id);
+
+        // Preferred and otherwise undelayed: unlike a peer-initiated announcement, we asked for this
+        // one and want it as soon as the peer's in-flight budget allows.
+        m_object_request.ReceivedInv(peer->m_id, inv, /*preferred=*/true,
+                                     current_time + (overloaded ? OVERLOADED_PEER_OBJECT_DELAY : 0us));
+        return true;
+    };
+
+    for (const auto& peer : candidates) {
+        if (asked_count >= MAX_PEERS_TO_ASK_FOR_OBJECT) {
+            break;
+        }
+        if (try_ask_peer(peer)) {
+            ++asked_count;
         }
     }
 }
@@ -6797,9 +6824,9 @@ void PeerManagerImpl::PeerRelayTransaction(const uint256& txid)
     RelayTransaction(txid);
 }
 
-void PeerManagerImpl::PeerAskPeersForTransaction(const uint256& txid)
+void PeerManagerImpl::PeerAskPeersForObject(const CInv& inv, NodeId explicit_peer)
 {
-    AskPeersForTransaction(txid);
+    AskPeersForObject(inv, explicit_peer);
 }
 
 size_t PeerManagerImpl::PeerGetRequestedObjectCount(NodeId nodeid) const
