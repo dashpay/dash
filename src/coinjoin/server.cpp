@@ -708,13 +708,25 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
 
     // Remember which session we are admitting this entry to. The validation below releases
     // cs_coinjoin and takes cs_main, so the session can be reset underneath us before we commit.
-    const int session_id{nSessionID};
+    int session_id{0};
+    int session_denom{0};
+    {
+        LOCK(cs_coinjoin);
+        session_id = nSessionID;
+        session_denom = nSessionDenom;
 
-    // Cheap gate before the cs_main work below; the authoritative check is at commit time.
-    if (WITH_LOCK(cs_coinjoin, return static_cast<size_t>(GetEntriesCountLocked()) >= m_session_collaterals.size())) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
-        nMessageIDRet = ERR_ENTRIES_FULL;
-        return false;
+        if (nState != POOL_STATE_ACCEPTING_ENTRIES) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: session is not accepting entries!\n", __func__);
+            nMessageIDRet = ERR_SESSION;
+            return false;
+        }
+
+        // Cheap gate before the cs_main work below; the authoritative check is at commit time.
+        if (static_cast<size_t>(GetEntriesCountLocked()) >= m_session_collaterals.size()) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
+            nMessageIDRet = ERR_ENTRIES_FULL;
+            return false;
+        }
     }
 
     if (entry.vecTxDSIn.size() > COINJOIN_ENTRY_MAX_SIZE || entry.vecTxOut.size() > COINJOIN_ENTRY_MAX_SIZE) {
@@ -768,8 +780,8 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
     }
 
     bool fConsumeCollateral{false};
-    if (!IsValidInOuts(m_chainman.ActiveChainstate(), m_isman, mempool, vin, entry.vecTxOut, nMessageIDRet,
-                       &fConsumeCollateral)) {
+    if (!IsValidInOuts(m_chainman.ActiveChainstate(), m_isman, mempool, vin, entry.vecTxOut, session_denom,
+                       nMessageIDRet, &fConsumeCollateral)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR! IsValidInOuts() failed: %s\n", __func__, CoinJoin::GetMessageByID(nMessageIDRet).translated);
         if (fConsumeCollateral) {
             ConsumeCollateral(entry.txCollateral);

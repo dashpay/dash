@@ -20,6 +20,7 @@
 #include <uint256.h>
 #include <util/check.h>
 #include <util/time.h>
+#include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -205,6 +206,13 @@ public:
         locked.count_down();
         release.wait();
     }
+
+    bool ValidateInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, int session_denom,
+                        PoolMessage& message, bool& consume_collateral)
+    {
+        return IsValidInOuts(m_chainman.ActiveChainstate(), m_isman, mempool, vin, vout, session_denom, message,
+                             &consume_collateral);
+    }
 };
 
 static std::unique_ptr<CNode> MakePeer(NodeId id, uint32_t ipv4)
@@ -326,6 +334,28 @@ BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
 
     server.CheckTimeout();
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_validation_uses_session_denom_snapshot)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    const int session_denom{CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination())};
+    const std::vector<CTxIn> vin{CTxIn{COutPoint{uint256::ONE, 0}}};
+    const std::vector<CTxOut> vout{CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}};
+    PoolMessage message{MSG_NOERR};
+    bool consume_collateral{false};
+
+    // The live session denomination is zero, as it is after a concurrent SetNull(). Validation
+    // must use the denomination captured before the reset instead of treating this as a punishable
+    // denomination mismatch. The deliberately absent input makes validation stop with ERR_MISSING_TX.
+    BOOST_CHECK(!server.ValidateInOuts(vin, vout, session_denom, message, consume_collateral));
+    BOOST_CHECK_EQUAL(message, ERR_MISSING_TX);
+    BOOST_CHECK(!consume_collateral);
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
