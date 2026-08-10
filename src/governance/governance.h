@@ -175,6 +175,13 @@ protected:
     using txout_m_t = std::map<COutPoint, last_object_rec>;
     using vote_cmm_t = CacheMultiMap<uint256, governance::OrphanVote>;
 
+public:
+    /** Bound for the orphan-vote cache, which is filled from the network by any peer with a parent
+     *  object we do not have. Orphans are short-lived recovery state for votes that outran their
+     *  object during relay, so this only has to cover objects genuinely in flight, not the whole
+     *  governance set. MAX_CACHE_SIZE would allow ~750 MB of peer-supplied data here. */
+    static constexpr int MAX_ORPHAN_VOTES = 1000;
+
 protected:
     static constexpr int MAX_CACHE_SIZE = 1000000;
     static const std::string SERIALIZATION_VERSION_STRING;
@@ -222,8 +229,14 @@ public:
             return;
         }
 
+        // The historical format stores CacheMultiMap's capacity with its entries. Consume that
+        // field to preserve the format, but keep both the stale orphan votes and their disk-supplied
+        // capacity out of the live cache. Orphans are a ten-minute recovery window invalidated by
+        // the restart; the live capacity is fixed at construction.
+        vote_cmm_t discarded_orphan_votes;
+
         s   >> mapErasedGovernanceObjects
-            >> cmmapOrphanVotes
+            >> discarded_orphan_votes
             >> mapObjects
             >> mapLastMasternodeObject
             >> *lastMNListForVotingKeys;
@@ -358,8 +371,8 @@ public:
     // Used by NetGovernance
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    /** Get hashes of governance objects for which we have orphan votes. Also cleans up expired orphans. */
-    [[nodiscard]] std::vector<uint256> GetOrphanVoteObjectHashes() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
+    /** Number of orphan votes currently held, so the MAX_ORPHAN_VOTES bound can be asserted. */
+    [[nodiscard]] size_t GetOrphanVoteCount() const EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::pair<std::vector<uint256>, std::vector<uint256>> FetchGovernanceObjectVotes(
         size_t peers_per_hash_max, int64_t now, std::map<uint256, std::map<CService, int64_t>>& map_asked_recently) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -414,6 +427,10 @@ private:
 
     void CheckOrphanVotes(CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store, !cs_relay);
+
+    /** Drop orphan votes whose parent object never arrived within GOVERNANCE_ORPHAN_EXPIRATION_TIME. */
+    void ExpireOrphanVotes()
+        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     void RebuildIndexes()
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
