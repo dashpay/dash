@@ -109,7 +109,7 @@ private:
     /// Choose one bad actor whose collateral should be consumed, if any.
     CTransactionRef SelectCollateralToCharge() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
-    void ChargeRandomFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved
     void ConsumeCollateral(const CTransactionRef& txref) const;
 
@@ -141,7 +141,9 @@ private:
     void RelayFinalTransaction(const CTransaction& txFinal) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID) const;
     void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
-    void RelayCompletedTransaction(PoolMessage nMessageID) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void RelayCompletedTransaction(int session_id, const std::vector<CService>& participants, PoolMessage nMessageID)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ResetSigningSessionIfCurrent(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
