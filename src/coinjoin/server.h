@@ -32,6 +32,12 @@ class UniValue;
  */
 class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
 {
+public:
+    enum class FeePolicy : uint8_t {
+        PROBABILISTIC,
+        GUARANTEED_ON_ABORT,
+    };
+
 private:
     CoinJoinQueueManager m_queueman;
 
@@ -138,7 +144,7 @@ private:
     bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Choose one bad actor whose collateral should be consumed, if any.
-    CTransactionRef SelectCollateralToCharge() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    CTransactionRef SelectCollateralToCharge(FeePolicy policy) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
     void ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved. Takes cs_main, which this class never
