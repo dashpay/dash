@@ -37,9 +37,13 @@ $(package)_target_x86_64-unknown-freebsd:=x86_64-unknown-freebsd
 $(package)_sha256_hash_x86_64-unknown-freebsd:=3616afb808cd030e65e66c51f6f0fb6a6fc52d877d0d70bb681b0c35238adbe8
 
 # Linux (ARMv7)
+$(package)_targets += armv7-unknown-linux-musleabi
 $(package)_targets += armv7-unknown-linux-musleabihf
+$(package)_target_arm-unknown-linux-gnueabi:=armv7-unknown-linux-musleabi
 $(package)_target_arm-unknown-linux-gnueabihf:=armv7-unknown-linux-musleabihf
+$(package)_target_armv7-unknown-linux-gnueabi:=armv7-unknown-linux-musleabi
 $(package)_target_armv7-unknown-linux-gnueabihf:=armv7-unknown-linux-musleabihf
+$(package)_sha256_hash_armv7-unknown-linux-musleabi:=3bf1b0015dc3b0f5f6f5622588431855c658d5c47093f24e4077f6893229ab30
 $(package)_sha256_hash_armv7-unknown-linux-musleabihf:=fc5c4ca757599caab8e93000becb9d57587088d32dab5c4f3b253f00ec3a2fd6
 
 # Linux (ARMv8)

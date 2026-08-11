@@ -22,6 +22,7 @@ CROSS_TARGETS = [
     "x86_64-unknown-freebsd",
     # Linux
     "aarch64-unknown-linux-musl",
+    "armv7-unknown-linux-musleabi",
     "armv7-unknown-linux-musleabihf",
     "i686-unknown-linux-musl",
     "powerpc64-unknown-linux-gnu",
