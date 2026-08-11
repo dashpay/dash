@@ -32,8 +32,7 @@ endif
 cargo-clean-config:
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-offline
-	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config.toml
-	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
+	$(AM_V_at)rm -f $(CARGO_BUILD_CONFIG)
 	$(AM_V_at)rm -f $(RUST_NATIVE_LINKER) $(RUST_TARGET_LINKER)
 
 clean-local: cargo-clean-dashrust cxxbridge-clean-chirp cargo-clean-config

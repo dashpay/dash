@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 CARGO_BUILD_OPTS = --locked --target $(RUST_TARGET)
+CARGO_BUILD_CONFIG = $(abs_top_builddir)/.cargo/dash-build.toml
 CARGO_ENV = \
   MACOSX_DEPLOYMENT_TARGET="$(RUST_MACOS_DEPLOYMENT_TARGET)" \
   CARGO_INCREMENTAL="$(CARGO_INCREMENTAL)" \
@@ -58,20 +59,17 @@ CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-online
 
 $(CARGO_CONFIGURED): $(RUST_NATIVE_LINKER) $(RUST_TARGET_LINKER)
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-offline
-	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config.toml
-	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
+	$(AM_V_at)rm -f $(CARGO_BUILD_CONFIG)
 	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
 	$(AM_V_at)touch $@
 else
-CARGO_BUILD_OPTS += --offline
-CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-offline
+CARGO_BUILD_OPTS += --offline --config "$(CARGO_BUILD_CONFIG)"
+CARGO_CONFIGURED = $(CARGO_BUILD_CONFIG)
 
 $(CARGO_CONFIGURED): $(RUST_NATIVE_LINKER) $(RUST_TARGET_LINKER) $(top_srcdir)/.cargo/config.toml.offline $(top_srcdir)/Cargo.lock
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
-	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
 	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
-	$(AM_V_at)cp $(top_srcdir)/.cargo/config.toml.offline $(abs_top_builddir)/.cargo/config.toml
-	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(abs_top_builddir)/.cargo/config.toml
-	$(AM_V_at)$(top_srcdir)/contrib/devtools/cargo-vendor-git-sources.sh $(top_srcdir)/Cargo.lock >> $(abs_top_builddir)/.cargo/config.toml
-	$(AM_V_at)touch $@
+	$(AM_V_at)cp $(top_srcdir)/.cargo/config.toml.offline $(CARGO_BUILD_CONFIG)
+	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(CARGO_BUILD_CONFIG)
+	$(AM_V_at)$(top_srcdir)/contrib/devtools/cargo-vendor-git-sources.sh $(top_srcdir)/Cargo.lock >> $(CARGO_BUILD_CONFIG)
 endif # ENABLE_ONLINE_RUST
