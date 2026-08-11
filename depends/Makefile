@@ -188,7 +188,7 @@ native_packages += $($(host_arch)_$(host_os)_native_packages) $($(host_os)_nativ
 ifeq ($(RUST),1)
 packages += $(rust_packages)
 native_packages += $(rust_native_packages)
-rust_download_target = download-rust-std
+rust_download_targets = download-rust-std vendor-crates
 endif
 
 native_cargo_packages = $(filter native_cxxbridge,$(native_packages))
@@ -359,7 +359,7 @@ download-rust-std:
 	@mkdir -p $(SOURCES_PATH)
 	@mkdir -p $(SOURCES_PATH)/download-stamps
 	@$(foreach target,$(rust_stdlib_targets),$(call download_rust_std_target,$(target)) && ) true
-download: download-osx download-linux download-win $(rust_download_target)
+download: download-osx download-linux download-win $(rust_download_targets)
 
 $(foreach package,$(all_packages),$(eval $(call ext_add_stages,$(package))))
 

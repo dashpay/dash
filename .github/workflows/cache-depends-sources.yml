@@ -31,10 +31,10 @@ jobs:
         uses: actions/cache@v5
         with:
           path: depends/sources
-          key: depends-sources-${{ hashFiles('depends/packages/*') }}
+          key: depends-sources-${{ hashFiles('depends/packages/*', 'depends/patches/native_cxxbridge/Cargo.lock', 'Cargo.lock') }}
           restore-keys: depends-sources-
           lookup-only: true
 
       - name: Download sources
         if: steps.cache-check.outputs.cache-hit != 'true'
-        run: make -C depends download
+        run: make -C depends RUST=1 download
