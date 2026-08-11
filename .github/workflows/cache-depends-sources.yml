@@ -35,6 +35,17 @@ jobs:
           restore-keys: depends-sources-
           lookup-only: true
 
+      - name: Cache Rust vendor sources
+        id: rust-vendor-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            depends/sources/native_cxxbridge-*-vendored.tar.gz
+            depends/sources/vendored-crates-*.tar.gz
+          key: depends-rust-vendor-sources-${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/packages/native_cxxbridge.mk', 'depends/packages/native_rust.mk', 'depends/patches/native_cxxbridge/Cargo.lock', 'Cargo.lock') }}
+
       - name: Download sources
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: |
+          steps.cache-check.outputs.cache-hit != 'true' ||
+          steps.rust-vendor-cache.outputs.cache-hit != 'true'
         run: make -C depends RUST=1 download

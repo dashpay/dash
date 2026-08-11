@@ -97,6 +97,15 @@ jobs:
           exit 1
         shell: bash
 
+      - name: Restore Rust vendor sources
+        if: inputs.build-target == 'linux64_rust'
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            depends/sources/native_cxxbridge-*-vendored.tar.gz
+            depends/sources/vendored-crates-*.tar.gz
+          key: depends-rust-vendor-sources-${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/packages/native_cxxbridge.mk', 'depends/packages/native_rust.mk', 'depends/patches/native_cxxbridge/Cargo.lock', 'Cargo.lock') }}
+
       - name: Restore depends cache
         id: depends-cache
         uses: actions/cache/restore@v5
