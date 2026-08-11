@@ -66,6 +66,7 @@ add_executable(fuzz
   parse_numbers.cpp
   parse_script.cpp
   parse_univalue.cpp
+  partially_downloaded_block.cpp
   policy_estimator.cpp
   policy_estimator_io.cpp
   poolresource.cpp
@@ -105,6 +106,7 @@ add_executable(fuzz
   tx_out.cpp
   tx_pool.cpp
   txorphan.cpp
+  txrequest.cpp
   utxo_snapshot.cpp
   utxo_total_supply.cpp
   validation_load_mempool.cpp

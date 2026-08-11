@@ -78,6 +78,7 @@ add_executable(test_bitcoin
   dynamic_activation_thresholds_tests.cpp
   evo_assetlocks_tests.cpp
   evo_cbtx_tests.cpp
+  evo_db_tests.cpp
   evo_deterministicmns_tests.cpp
   evo_islock_tests.cpp
   evo_mnauth_tests.cpp
@@ -89,8 +90,12 @@ add_executable(test_bitcoin
   flatfile_tests.cpp
   fs_tests.cpp
   getarg_tests.cpp
+  governance_inv_tests.cpp
   governance_superblock_tests.cpp
   governance_validators_tests.cpp
+  governance_vote_processing_tests.cpp
+  governance_vote_sync_tests.cpp
+  governance_vote_wire_tests.cpp
   hash_tests.cpp
   httpserver_tests.cpp
   i2p_tests.cpp
@@ -98,14 +103,17 @@ add_executable(test_bitcoin
   key_io_tests.cpp
   key_tests.cpp
   limitedmap_tests.cpp
+  llmq_blockprocessor_tests.cpp
   llmq_chainlock_tests.cpp
   llmq_commitment_tests.cpp
   llmq_dkg_tests.cpp
   llmq_hash_tests.cpp
+  llmq_invalid_type_tests.cpp
   llmq_params_tests.cpp
   llmq_snapshot_tests.cpp
   llmq_utils_tests.cpp
   logging_tests.cpp
+  masternode_payments_tests.cpp
   mempool_tests.cpp
   merkle_tests.cpp
   merkleblock_tests.cpp
@@ -146,6 +154,7 @@ add_executable(test_bitcoin
   sigopcount_tests.cpp
   skiplist_tests.cpp
   sock_tests.cpp
+  spork_tests.cpp
   streams_tests.cpp
   subsidy_tests.cpp
   sync_tests.cpp
@@ -153,12 +162,15 @@ add_executable(test_bitcoin
   timedata_tests.cpp
   torcontrol_tests.cpp
   transaction_tests.cpp
+  translation_tests.cpp
   txindex_tests.cpp
   txpackage_tests.cpp
   txreconciliation_tests.cpp
+  txrequest_tests.cpp
   txvalidation_tests.cpp
   txvalidationcache_tests.cpp
   uint256_tests.cpp
+  unordered_lru_cache_tests.cpp
   util_tests.cpp
   util_threadnames_tests.cpp
   validation_block_tests.cpp
