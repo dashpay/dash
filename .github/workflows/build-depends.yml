@@ -141,7 +141,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: depends/sources
-          key: depends-sources-${{ hashFiles('depends/packages/*') }}
+          key: depends-sources-${{ hashFiles('depends/packages/*', 'depends/patches/native_cxxbridge/Cargo.lock', 'Cargo.lock') }}
           restore-keys: depends-sources-
 
       - name: Restore SDKs cache
