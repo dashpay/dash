@@ -1819,6 +1819,9 @@ if test "$enable_rust" = "yes"; then
 
   AC_MSG_CHECKING([for Rust target])
   rust_target_libc=gnu
+  case $host in
+    *-linux-musl*) rust_target_libc=musl ;;
+  esac
   if test -n "$depends_prefix" && test "$RUSTC" = "$depends_prefix/native/bin/rustc"; then
     rust_target_libc=musl
   fi
