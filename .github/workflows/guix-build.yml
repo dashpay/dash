@@ -98,9 +98,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: dash/depends/sources
-          key: depends-sources-v2-${{ hashFiles('dash/depends/packages/*', 'dash/depends/patches/native_cxxbridge/Cargo.lock', 'dash/Cargo.lock') }}
+          key: depends-sources-${{ hashFiles('dash/depends/packages/*') }}
           restore-keys: |
-            depends-sources-v2-
+            depends-sources-
 
       - name: Cache Guix and depends
         id: guix-cache-restore
