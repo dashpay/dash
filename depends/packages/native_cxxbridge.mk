@@ -13,8 +13,7 @@ $(package)_download_file:=$($(package)_version).tar.gz
 $(package)_sha256_hash:=e8c54f11e12b00f80a7da8cc2eac55db5c4688cb2bc483f5e923261fa3a285bf
 $(package)_build_subdir:=bridge/cmd
 $(package)_dependencies:=native_rust
-$(package)_patches:=Cargo.lock cargo-config.toml
-$(package)_extra_recipe_files:=$(PATCHES_PATH)/native_rust/fix-elf-interpreter.sh
+$(package)_patches:=Cargo.lock cargo-config.toml ../native_rust/fix-elf-interpreter.sh
 $(package)_vendored_file_name:=native_cxxbridge-$($(package)_version)-vendored.tar.gz
 $(package)_cargo_manifest:=bridge/cmd/Cargo.toml
 
@@ -29,7 +28,7 @@ endef
 define $(package)_stage_cmds
   $($(package)_cargo) install --locked --path=. --bin=cxxbridge --root=$($(package)_staging_prefix_dir) && \
   mkdir -p $($(package)_staging_prefix_dir)/lib && \
-  bash $(BASEDIR)/patches/native_rust/fix-elf-interpreter.sh \
+  bash $($(package)_patch_dir)/fix-elf-interpreter.sh \
     $($(package)_staging_prefix_dir)/lib \
     $($(package)_staging_prefix_dir)/bin/cxxbridge
 endef

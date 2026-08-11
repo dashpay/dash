@@ -9,7 +9,7 @@
 package:=native_rust
 $(package)_version:=1.92.0
 $(package)_download_path:=https://static.rust-lang.org/dist
-$(package)_extra_recipe_files:=$(PATCHES_PATH)/native_rust/fix-elf-interpreter.sh
+$(package)_patches:=fix-elf-interpreter.sh
 
 # FreeBSD (x86_64)
 $(package)_file_name_x86_64_freebsd:=rust-$($(package)_version)-x86_64-unknown-freebsd.tar.gz
@@ -51,7 +51,7 @@ define $(package)_stage_cmds
   cp rustc/bin/rustdoc $($(package)_staging_dir)/$(host_prefix)/native/bin/ && \
   cp -r rustc/lib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/ && \
   cp -r rust-std-*/lib/rustlib/* $($(package)_staging_dir)/$(host_prefix)/native/lib/rustlib/ && \
-  bash $(BASEDIR)/patches/native_rust/fix-elf-interpreter.sh \
+  bash $($(package)_patch_dir)/fix-elf-interpreter.sh \
     $($(package)_staging_dir)/$(host_prefix)/native/lib \
     $($(package)_staging_dir)/$(host_prefix)/native/bin/cargo \
     $($(package)_staging_dir)/$(host_prefix)/native/bin/rustc \
