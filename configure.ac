@@ -1739,6 +1739,7 @@ if test "$use_zmq" = "yes"; then
 fi
 
 AC_DEFUN([RS_SET_TRIPLE], [
+  rs_triple_libc=$3
   case $2 in
     aarch64-*-linux-android*)
                           $1="aarch64-linux-android" ;;
@@ -1750,12 +1751,14 @@ AC_DEFUN([RS_SET_TRIPLE], [
                           $1="x86_64-linux-android" ;;
     x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
     aarch64-*-linux*|arm64-*-linux*)
-                          $1="aarch64-unknown-linux-$3" ;;
-    arm*-*-linux*)        $1="armv7-unknown-linux-$3eabihf" ;;
+                          $1="aarch64-unknown-linux-${rs_triple_libc}" ;;
+    arm*-*-linux-*eabihf) $1="armv7-unknown-linux-${rs_triple_libc}eabihf" ;;
+    arm*-*-linux-*eabi)   $1="armv7-unknown-linux-${rs_triple_libc}eabi" ;;
+    arm*-*-linux*)        $1="armv7-unknown-linux-${rs_triple_libc}eabihf" ;;
     powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
-    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-$3" ;;
-    riscv64-*-linux*)     $1="riscv64gc-unknown-linux-$3" ;;
-    x86_64-*-linux*)      $1="x86_64-unknown-linux-$3" ;;
+    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-${rs_triple_libc}" ;;
+    riscv64-*-linux*)     $1="riscv64gc-unknown-linux-${rs_triple_libc}" ;;
+    x86_64-*-linux*)      $1="x86_64-unknown-linux-${rs_triple_libc}" ;;
     x86_64-*-darwin*)     $1="x86_64-apple-darwin" ;;
     aarch64-*-darwin*|arm64-*-darwin*)
                           $1="aarch64-apple-darwin" ;;
