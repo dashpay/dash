@@ -134,6 +134,7 @@ AC_PATH_PROG([CARGO], [cargo])
 AC_PATH_PROG([CXXBRIDGE], [cxxbridge])
 AC_PATH_PROG([RUSTC], [rustc])
 CXXBRIDGE_REQUIRED_VERSION="1.0.198"
+RUSTC_REQUIRED_VERSION="1.92.0"
 
 AC_ARG_VAR([CARGO_INCREMENTAL], [Enable incremental compilation for Rust])
 if test "${CARGO_INCREMENTAL+set}" != "set"; then
@@ -1779,6 +1780,13 @@ if test "$enable_rust" = "yes"; then
     AC_MSG_ERROR([cxxbridge $CXXBRIDGE_REQUIRED_VERSION is required by --enable-rust])
   fi
   AC_MSG_RESULT([yes])
+  AC_MSG_CHECKING([for rustc $RUSTC_REQUIRED_VERSION])
+  rustc_version=`$RUSTC --version 2>/dev/null | cut -d ' ' -f 2`
+  if test "$rustc_version" != "$RUSTC_REQUIRED_VERSION"; then
+    AC_MSG_RESULT([no ($rustc_version)])
+    AC_MSG_ERROR([rustc $RUSTC_REQUIRED_VERSION is required by --enable-rust])
+  fi
+  AC_MSG_RESULT([yes])
   if test "$enable_online_rust" = "no"; then
     if test -z "$RUST_VENDORED_SOURCES"; then
       AC_MSG_ERROR([--enable-rust requires RUST_VENDORED_SOURCES for offline builds or --enable-online-rust])
@@ -1811,7 +1819,7 @@ if test "$enable_rust" = "yes"; then
 
   AC_MSG_CHECKING([for Rust target])
   rust_target_libc=gnu
-  if test -n "$depends_prefix"; then
+  if test -n "$depends_prefix" && test "$RUSTC" = "$depends_prefix/native/bin/rustc"; then
     rust_target_libc=musl
   fi
   RS_SET_TRIPLE([RUST_TARGET], [$host], [$rust_target_libc])

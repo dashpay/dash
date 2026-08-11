@@ -187,4 +187,6 @@ fi
 if test -x "${depends_prefix}/native/bin/cxxbridge"; then
   CXXBRIDGE="${depends_prefix}/native/bin/cxxbridge"
 fi
-RUST_VENDORED_SOURCES="${depends_prefix}/vendored-sources"
+if test -z "$RUST_VENDORED_SOURCES"; then
+  RUST_VENDORED_SOURCES="${depends_prefix}/vendored-sources"
+fi
