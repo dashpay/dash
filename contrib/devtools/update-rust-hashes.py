@@ -48,6 +48,7 @@ NATIVE_TARGETS = [
     ("x86_64-apple-darwin", "x86_64_darwin"),
 ]
 
+
 def get_rust_version(makefile_path: Path) -> str:
     content = makefile_path.read_text()
     match = re.search(r"\$\(package\)_version:=(.+)", content)
@@ -73,18 +74,25 @@ def update_hash_in_file(makefile_path: Path, pattern: str, new_hash: str) -> Non
     makefile_path.write_text(new_content)
 
 
-def update_rust_hash(makefile_path: Path, rust_version: str, rust_target: str, makefile_id: str) -> None:
+def update_version_in_file(path: Path, pattern: str, version: str) -> None:
+    content = path.read_text()
+    regex = re.compile(pattern, re.MULTILINE)
+    new_content, replacements = regex.subn(
+        lambda match: f"{match.group(1)}{version}{match.group(2) if match.lastindex == 2 else ''}", content
+    )
+    if replacements != 1:
+        raise RuntimeError(f"Expected one version pin in {path}, found {replacements}")
+    path.write_text(new_content)
+
+
+def compute_rust_hash(rust_version: str, rust_target: str) -> str:
     url = f"https://static.rust-lang.org/dist/rust-{rust_version}-{rust_target}.tar.gz"
-    hash_value = compute_sha256(url)
-    update_hash_in_file(makefile_path, f"sha256_hash_{makefile_id}", hash_value)
-    print(f"  Updated sha256_hash_{makefile_id}")
+    return compute_sha256(url)
 
 
-def update_stdlib_hash(makefile_path: Path, rust_version: str, rust_target: str) -> None:
+def compute_stdlib_hash(rust_version: str, rust_target: str) -> str:
     url = f"https://static.rust-lang.org/dist/rust-std-{rust_version}-{rust_target}.tar.gz"
-    hash_value = compute_sha256(url)
-    update_hash_in_file(makefile_path, f"sha256_hash_{rust_target}", hash_value)
-    print(f"  Updated sha256_hash_{rust_target}")
+    return compute_sha256(url)
 
 
 def main() -> int:
@@ -93,26 +101,39 @@ def main() -> int:
     native_rust_path = native_rust_path.resolve()
     rust_stdlib_path = script_dir / "../../depends/packages/rust_stdlib.mk"
     rust_stdlib_path = rust_stdlib_path.resolve()
+    toolchain_path = (script_dir / "../../rust-toolchain.toml").resolve()
+    configure_path = (script_dir / "../../configure.ac").resolve()
 
-    if not native_rust_path.exists():
-        print(f"Error: {native_rust_path} not found", file=sys.stderr)
-        return 1
-
-    if not rust_stdlib_path.exists():
-        print(f"Error: {rust_stdlib_path} not found", file=sys.stderr)
-        return 1
+    for path in (native_rust_path, rust_stdlib_path, toolchain_path, configure_path):
+        if not path.exists():
+            print(f"Error: {path} not found", file=sys.stderr)
+            return 1
 
     rust_version = get_rust_version(native_rust_path)
 
     print(f"Rust version: {rust_version}\n")
-    print("Updating native compiler hashes:")
+    print("Downloading native compiler hashes:")
 
+    native_hashes = {}
     for rust_target, makefile_id in NATIVE_TARGETS:
-        update_rust_hash(native_rust_path, rust_version, rust_target, makefile_id)
+        native_hashes[makefile_id] = compute_rust_hash(rust_version, rust_target)
+        print(f"  Downloaded sha256_hash_{makefile_id}")
 
-    print("\nUpdating stdlib hashes:")
+    print("\nDownloading stdlib hashes:")
+    stdlib_hashes = {}
     for rust_target in CROSS_TARGETS:
-        update_stdlib_hash(rust_stdlib_path, rust_version, rust_target)
+        stdlib_hashes[rust_target] = compute_stdlib_hash(rust_version, rust_target)
+        print(f"  Downloaded sha256_hash_{rust_target}")
+
+    for makefile_id, hash_value in native_hashes.items():
+        update_hash_in_file(native_rust_path, f"sha256_hash_{makefile_id}", hash_value)
+    for rust_target, hash_value in stdlib_hashes.items():
+        update_hash_in_file(rust_stdlib_path, f"sha256_hash_{rust_target}", hash_value)
+
+    update_version_in_file(rust_stdlib_path, r"^(\$\(package\)_version:=).*$", rust_version)
+    update_version_in_file(toolchain_path, r'^(channel = ")[^"]*(")$', rust_version)
+    update_version_in_file(configure_path, r'^(RUSTC_REQUIRED_VERSION=")[^"]*(")$', rust_version)
+    print("\nSynchronized rust_stdlib.mk, rust-toolchain.toml, and configure.ac")
 
     print("\nDone!")
     return 0

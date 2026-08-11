@@ -3,8 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-# To update the Rust stdlib, change the version below and then run the script
-# ./contrib/devtools/update-rust-hashes.py
+# This version is synchronized from native_rust.mk by update-rust-hashes.py.
 
 package:=rust_stdlib
 $(package)_version:=1.92.0
