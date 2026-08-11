@@ -29,6 +29,11 @@ on:
         required: false
         type: string
         default: ""
+      rust-vendor-artifact:
+        description: "Artifact holding freshly generated Rust vendor archives"
+        required: false
+        type: string
+        default: ""
       sdk-artifact:
         description: "Artifact holding prepared SDKs, used if the cache restore misses"
         required: false
@@ -98,6 +103,7 @@ jobs:
         shell: bash
 
       - name: Restore Rust vendor sources
+        id: rust-vendor-cache
         if: inputs.build-target == 'linux64_rust'
         uses: actions/cache/restore@v5
         with:
@@ -105,6 +111,20 @@ jobs:
             depends/sources/native_cxxbridge-*-vendored.tar.gz
             depends/sources/vendored-crates-*.tar.gz
           key: depends-rust-vendor-sources-${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/packages/native_cxxbridge.mk', 'depends/packages/native_rust.mk', 'depends/patches/native_cxxbridge/Cargo.lock', 'Cargo.lock') }}
+
+      - name: Download Rust vendor sources
+        if: inputs.build-target == 'linux64_rust' && steps.rust-vendor-cache.outputs.cache-hit != 'true' && inputs.rust-vendor-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.rust-vendor-artifact }}
+          path: depends/sources
+
+      - name: Check Rust vendor sources are present
+        if: inputs.build-target == 'linux64_rust' && steps.rust-vendor-cache.outputs.cache-hit != 'true' && inputs.rust-vendor-artifact == ''
+        run: |
+          echo "::error::Rust vendor source cache missed and no same-run artifact was provided"
+          exit 1
+        shell: bash
 
       - name: Restore depends cache
         id: depends-cache

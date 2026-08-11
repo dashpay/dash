@@ -10,6 +10,8 @@
 LIBRUST_CHIRP_CRATE_DIR = $(top_srcdir)/rust/chirp
 LIBRUST_CHIRP_GEN_DIR = $(abs_top_builddir)/rust/chirp/gen
 LIBRUST_CHIRP_GEN_SRCDIR = $(abs_top_srcdir)/rust/chirp/gen
+LIBRUST_CHIRP_GEN_STAMP = $(LIBRUST_CHIRP_GEN_DIR)/.cxxbridge-@CXXBRIDGE_REQUIRED_VERSION@
+LIBRUST_CHIRP_GEN_SRCSTAMP = $(LIBRUST_CHIRP_GEN_SRCDIR)/.cxxbridge-@CXXBRIDGE_REQUIRED_VERSION@
 LIBRUST_CHIRP_MANIFEST = $(LIBRUST_CHIRP_CRATE_DIR)/Cargo.toml
 
 LIBRUST_CHIRP_SRCS = \
@@ -37,27 +39,34 @@ LIBRUST_CHIRP_FILES = \
 
 $(LIBRUST_CHIRP_SRCS): ;
 
-$(LIBRUST_CHIRP_CPP): $(LIBRUST_CHIRP_SRCS)
+$(LIBRUST_CHIRP_GEN_STAMP): $(CXXBRIDGE)
+	$(AM_V_at)$(MKDIR_P) $(@D)
+	$(AM_V_at)rm -f $(@D)/.cxxbridge-*
+	$(AM_V_at)touch $@
+
+$(LIBRUST_CHIRP_CPP): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp -nt $< && \
+	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp -nt $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test "$(LIBRUST_CHIRP_GEN_SRCDIR)" != "$(LIBRUST_CHIRP_GEN_DIR)"; then \
 	  cp $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp $@; \
 	else \
 	  $(CXXBRIDGE) $< -o $@; \
 	fi
 
-$(LIBRUST_CHIRP_H): $(LIBRUST_CHIRP_SRCS)
+$(LIBRUST_CHIRP_H): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h -nt $< && \
+	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h -nt $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test "$(LIBRUST_CHIRP_GEN_SRCDIR)" != "$(LIBRUST_CHIRP_GEN_DIR)"; then \
 	  cp $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h $@; \
 	else \
 	  $(CXXBRIDGE) $< --header -o $@; \
 	fi
 
-$(LIBCXXBRIDGE_H): $(CXXBRIDGE)
+$(LIBCXXBRIDGE_H): $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_GEN)$(CXXBRIDGE) --header -o $@
 
@@ -71,5 +80,6 @@ dist-chirp: cxxbridge-chirp
 	$(MKDIR_P) $(distdir)/chirp/gen/include/rust/chirp
 	cp $(LIBRUST_CHIRP_CPP) $(distdir)/chirp/gen/src/
 	cp $(LIBRUST_CHIRP_H) $(distdir)/chirp/gen/include/rust/chirp/
+	cp $(LIBRUST_CHIRP_GEN_STAMP) $(distdir)/chirp/gen/
 
 .PHONY: cxxbridge-chirp cxxbridge-clean-chirp dist-chirp
