@@ -94,6 +94,10 @@ $(package)_targets += x86_64-pc-windows-gnu
 $(package)_target_x86_64-w64-mingw32:=x86_64-pc-windows-gnu
 $(package)_sha256_hash_x86_64-pc-windows-gnu:=6256f3497e3b14b6650511e84fdfb51fc632db1908ae5a173dffcdc96c80b7ce
 
+ifeq ($($(package)_target),)
+$(error Unsupported Rust standard library target: $(canonical_host))
+endif
+
 $(package)_file_name=rust-std-$($(package)_version)-$($(package)_target).tar.gz
 $(package)_sha256_hash=$($(package)_sha256_hash_$($(package)_target))
 
