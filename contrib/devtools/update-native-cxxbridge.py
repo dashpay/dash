@@ -4,13 +4,16 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+import hashlib
 import re
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
+import urllib.request
 from pathlib import Path
+
 
 def get_cxx_version(makefile_path: Path) -> str:
     content = makefile_path.read_text()
@@ -18,6 +21,42 @@ def get_cxx_version(makefile_path: Path) -> str:
     if not match:
         raise RuntimeError("Could not find cxx version in makefile")
     return match.group(1).strip()
+
+
+def download_and_hash(url: str, dest: Path) -> str:
+    hasher = hashlib.sha256()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False) as output:
+            temporary_path = Path(output.name)
+            with urllib.request.urlopen(url) as response:
+                while chunk := response.read(8192):
+                    hasher.update(chunk)
+                    output.write(chunk)
+        temporary_path.replace(dest)
+    except BaseException:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
+    return hasher.hexdigest()
+
+
+def write_stamp(stamps_dir: Path, version: str, sha256: str, file_name: str) -> None:
+    stamps_dir.mkdir(parents=True, exist_ok=True)
+    stamp_path = stamps_dir / f".stamp_fetched-native_cxxbridge-{version}-{sha256}.hash"
+    stamp_path.write_text(f"{sha256}  {file_name}\n")
+
+
+def update_value_in_file(path: Path, pattern: str, value: str) -> None:
+    content = path.read_text()
+    regex = re.compile(pattern, re.MULTILINE)
+    new_content, replacements = regex.subn(
+        lambda match: f"{match.group(1)}{value}{match.group(2) if match.lastindex == 2 else ''}", content
+    )
+    if replacements != 1:
+        raise RuntimeError(f"Expected one matching value in {path}, found {replacements}")
+    path.write_text(new_content)
 
 
 def main() -> int:
@@ -33,11 +72,13 @@ def main() -> int:
     version = get_cxx_version(makefile_path)
     print(f"cxx version: {version}")
 
-    tarball_path = repo_root / f"depends/sources/native_cxxbridge-{version}.tar.gz"
-    if not tarball_path.exists():
-        print(f"Error: {tarball_path} not found", file=sys.stderr)
-        print("Run 'make -C depends RUST=1 native_cxxbridge_fetched' first", file=sys.stderr)
-        return 1
+    sources_dir = repo_root / "depends/sources"
+    file_name = f"native_cxxbridge-{version}.tar.gz"
+    tarball_path = sources_dir / file_name
+    url = f"https://github.com/dtolnay/cxx/archive/refs/tags/{version}.tar.gz"
+    print(f"Downloading {url}")
+    hash_value = download_and_hash(url, tarball_path)
+    print(f"sha256: {hash_value}")
 
     toolchain_path = repo_root / "rust-toolchain.toml"
     if not toolchain_path.exists():
@@ -87,6 +128,17 @@ def main() -> int:
         cargo_lock_dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(cargo_lock_src, cargo_lock_dst)
         print(f"Copied Cargo.lock to {cargo_lock_dst}")
+
+    update_value_in_file(makefile_path, r"^(\$\(package\)_sha256_hash:=).*$", hash_value)
+    configure_path = repo_root / "configure.ac"
+    update_value_in_file(configure_path, r'^(CXXBRIDGE_REQUIRED_VERSION=")[^"]*(")$', version)
+    write_stamp(sources_dir / "download-stamps", version, hash_value, file_name)
+
+    print("Updating the workspace cxx crates")
+    result = subprocess.run(["cargo", "update", "-p", "cxx", "--precise", version], cwd=repo_root)
+    if result.returncode != 0:
+        print("Error: workspace cargo update failed", file=sys.stderr)
+        return 1
 
     print("\nDone!")
     return 0
