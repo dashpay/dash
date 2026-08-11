@@ -36,7 +36,7 @@ def main() -> int:
     tarball_path = repo_root / f"depends/sources/native_cxxbridge-{version}.tar.gz"
     if not tarball_path.exists():
         print(f"Error: {tarball_path} not found", file=sys.stderr)
-        print("Run 'make -C depends download-one PKG=native_cxxbridge' first", file=sys.stderr)
+        print("Run 'make -C depends RUST=1 native_cxxbridge_fetched' first", file=sys.stderr)
         return 1
 
     toolchain_path = repo_root / "rust-toolchain.toml"
