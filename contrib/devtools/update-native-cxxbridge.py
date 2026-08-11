@@ -125,6 +125,12 @@ def main() -> int:
             print(f"Error: {cargo_lock_src} not found after cargo check", file=sys.stderr)
             return 1
 
+        print("Updating the workspace cxx crates")
+        result = subprocess.run(["cargo", "update", "-p", "cxx", "--precise", version], cwd=repo_root)
+        if result.returncode != 0:
+            print("Error: workspace cargo update failed", file=sys.stderr)
+            return 1
+
         cargo_lock_dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(cargo_lock_src, cargo_lock_dst)
         print(f"Copied Cargo.lock to {cargo_lock_dst}")
@@ -133,12 +139,6 @@ def main() -> int:
     configure_path = repo_root / "configure.ac"
     update_value_in_file(configure_path, r'^(CXXBRIDGE_REQUIRED_VERSION=")[^"]*(")$', version)
     write_stamp(sources_dir / "download-stamps", version, hash_value, file_name)
-
-    print("Updating the workspace cxx crates")
-    result = subprocess.run(["cargo", "update", "-p", "cxx", "--precise", version], cwd=repo_root)
-    if result.returncode != 0:
-        print("Error: workspace cargo update failed", file=sys.stderr)
-        return 1
 
     print("\nDone!")
     return 0
