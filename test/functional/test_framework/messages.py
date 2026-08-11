@@ -1464,10 +1464,10 @@ class CGovernanceObject:
         self.nRevision = 0
         self.nTime = 0
         self.nCollateralHash = 0
-        self.vchData = []
+        self.vchData = b""
         self.nObjectType = 0
         self.masternodeOutpoint = COutPoint()
-        self.vchSig = []
+        self.vchSig = b""
 
     def deserialize(self, f):
         self.nHashParent = deser_uint256(f)
@@ -1485,15 +1485,15 @@ class CGovernanceObject:
 
     def serialize(self):
         r = b""
-        r += ser_uint256(self.nParentHash)
+        r += ser_uint256(self.nHashParent)
         r += struct.pack("<i", self.nRevision)
         r += struct.pack("<q", self.nTime)
-        r += deser_uint256(self.nCollateralHash)
-        r += deser_compact_size(len(self.vchData))
+        r += ser_uint256(self.nCollateralHash)
+        r += ser_compact_size(len(self.vchData))
         r += self.vchData
         r += struct.pack("<i", self.nObjectType)
         r += self.masternodeOutpoint.serialize()
-        r += deser_compact_size(len(self.vchSig))
+        r += ser_compact_size(len(self.vchSig))
         r += self.vchSig
         return r
 
@@ -1507,7 +1507,7 @@ class CGovernanceVote:
         self.nVoteOutcome = 0
         self.nVoteSignal = 0
         self.nTime = 0
-        self.vchSig = []
+        self.vchSig = b""
 
     def deserialize(self, f):
         self.masternodeOutpoint.deserialize(f)
@@ -2406,6 +2406,73 @@ class msg_clsig:
 
     def __repr__(self):
         return "msg_clsig(height=%d, blockHash=%064x)" % (self.height, self.blockHash)
+
+
+class msg_govobj:
+    __slots__ = ("obj",)
+    msgtype = b"govobj"
+
+    def __init__(self, obj=None):
+        self.obj = obj if obj is not None else CGovernanceObject()
+
+    def deserialize(self, f):
+        self.obj.deserialize(f)
+
+    def serialize(self):
+        return self.obj.serialize()
+
+    def __repr__(self):
+        return "msg_govobj(nHashParent=%064x, nObjectType=%d)" % (self.obj.nHashParent, self.obj.nObjectType)
+
+
+class msg_govobjvote:
+    __slots__ = ("vote",)
+    msgtype = b"govobjvote"
+
+    def __init__(self, vote=None):
+        self.vote = vote if vote is not None else CGovernanceVote()
+
+    def deserialize(self, f):
+        self.vote.deserialize(f)
+
+    def serialize(self):
+        return self.vote.serialize()
+
+    def __repr__(self):
+        return "msg_govobjvote(nParentHash=%064x, nVoteSignal=%d, nVoteOutcome=%d)" % \
+               (self.vote.nParentHash, self.vote.nVoteSignal, self.vote.nVoteOutcome)
+
+
+class msg_govsync:
+    """MNGOVERNANCESYNC: a governance object hash plus a bloom filter, kept as raw fields."""
+    __slots__ = ("nHash", "vData", "nHashFuncs", "nTweak", "nFlags")
+    msgtype = b"govsync"
+
+    def __init__(self, nHash=0, vData=b"", nHashFuncs=0, nTweak=0, nFlags=0):
+        self.nHash = nHash
+        self.vData = vData
+        self.nHashFuncs = nHashFuncs
+        self.nTweak = nTweak
+        self.nFlags = nFlags
+
+    def deserialize(self, f):
+        self.nHash = deser_uint256(f)
+        self.vData = deser_string(f)
+        self.nHashFuncs = struct.unpack("<I", f.read(4))[0]
+        self.nTweak = struct.unpack("<I", f.read(4))[0]
+        self.nFlags = struct.unpack("<B", f.read(1))[0]
+
+    def serialize(self):
+        r = b""
+        r += ser_uint256(self.nHash)
+        r += ser_string(self.vData)
+        r += struct.pack("<I", self.nHashFuncs)
+        r += struct.pack("<I", self.nTweak)
+        r += struct.pack("<B", self.nFlags)
+        return r
+
+    def __repr__(self):
+        return "msg_govsync(nHash=%064x, nHashFuncs=%d)" % (self.nHash, self.nHashFuncs)
 
 
 class msg_isdlock:

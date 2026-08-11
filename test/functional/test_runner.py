@@ -131,6 +131,7 @@ BASE_SCRIPTS = [
     'feature_masternode_params.py', # NOTE: needs dash_hash to pass
     'feature_governance.py --descriptors',
     'feature_governance_cl.py --descriptors',
+    'p2p_governance_orphan_vote.py',
     'rpc_verifyislock.py',
     'feature_notifications.py',
     # vv Tests less than 60s vv
