@@ -265,32 +265,39 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return AmountExceedsBalance;
     }
 
-    CAmount nFeeRequired = 0;
-    int nChangePosRet = -1;
+    try {
+        CAmount nFeeRequired = 0;
+        int nChangePosRet = -1;
 
-    auto& newTx = transaction.getWtx();
-    const auto& res = m_wallet->createTransaction(vecSend, coinControl, !wallet().privateKeysDisabled() /* sign */, nChangePosRet, nFeeRequired);
-    newTx = res ? *res : nullptr;
-    transaction.setTransactionFee(nFeeRequired);
-    if (fSubtractFeeFromAmount && newTx)
-        transaction.reassignAmounts(nChangePosRet);
+        auto& newTx = transaction.getWtx();
+        const auto& res = m_wallet->createTransaction(vecSend, coinControl, !wallet().privateKeysDisabled() /* sign */, nChangePosRet, nFeeRequired);
+        newTx = res ? *res : nullptr;
+        transaction.setTransactionFee(nFeeRequired);
+        if (fSubtractFeeFromAmount && newTx)
+            transaction.reassignAmounts(nChangePosRet);
 
-    if(!newTx)
-    {
-        if(!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance)
+        if(!newTx)
         {
-            return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            if(!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance)
+            {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
+            Q_EMIT message(tr("Send Coins"), QString::fromStdString(util::ErrorString(res).translated),
+                         CClientUIInterface::MSG_ERROR);
+            return TransactionCreationFailed;
         }
-        Q_EMIT message(tr("Send Coins"), QString::fromStdString(util::ErrorString(res).translated),
-                     CClientUIInterface::MSG_ERROR);
-        return TransactionCreationFailed;
-    }
 
-    // Reject absurdly high fee. (This can never happen because the
-    // wallet never creates transactions with fee greater than
-    // m_default_max_tx_fee. This merely a belt-and-suspenders check).
-    if (nFeeRequired > m_wallet->getDefaultMaxTxFee()) {
-        return AbsurdFee;
+        // Reject absurdly high fee. (This can never happen because the
+        // wallet never creates transactions with fee greater than
+        // m_default_max_tx_fee. This merely a belt-and-suspenders check).
+        if (nFeeRequired > m_wallet->getDefaultMaxTxFee()) {
+            return AbsurdFee;
+        }
+    } catch (const std::runtime_error& err) {
+        // Something unexpected happened, instruct user to report this bug.
+        Q_EMIT message(tr("Send Coins"), QString::fromStdString(err.what()),
+                       CClientUIInterface::MSG_ERROR);
+        return TransactionCreationFailed;
     }
 
     // Return warning if duplicate addresses detected, but allow transaction to proceed

@@ -21,6 +21,8 @@
 #include <test/util/setup_common.h>
 #include <util/system.h>
 #include <validation.h>
+#include <wallet/coincontrol.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <qt/overviewpage.h>
 #include <qt/receivecoinsdialog.h>
@@ -44,7 +46,7 @@
 
 using wallet::AddWallet;
 using wallet::CWallet;
-using wallet::CreateMockWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::RemoveWallet;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 using wallet::WalletContext;
@@ -100,6 +102,42 @@ QModelIndex FindTx(const QAbstractItemModel& model, const uint256& txid)
     return {};
 }
 
+// Verify the 'useAvailableBalance' functionality. With and without manually selected coins.
+// Case 1: No coin control selected coins.
+// 'useAvailableBalance' should fill the amount edit box with the total available balance
+// Case 2: With coin control selected coins.
+// 'useAvailableBalance' should fill the amount edit box with the sum of the selected coins values.
+void VerifyUseAvailableBalance(SendCoinsDialog& sendCoinsDialog, const WalletModel& walletModel)
+{
+    // Verify first entry amount and "useAvailableBalance" button
+    QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
+    QVERIFY(entries->count() == 1); // only one entry
+    SendCoinsEntry* send_entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
+    QVERIFY(send_entry->getValue().amount == 0);
+    // Now click "useAvailableBalance", check updated balance (the entire wallet balance should be set)
+    Q_EMIT send_entry->useAvailableBalance(send_entry);
+    QVERIFY(send_entry->getValue().amount == walletModel.wallet().getBalance());
+
+    // Now manually select two coins and click on "useAvailableBalance". Then check updated balance
+    // (only the sum of the selected coins should be set).
+    int COINS_TO_SELECT = 2;
+    auto coins = walletModel.wallet().listCoins();
+    CAmount sum_selected_coins = 0;
+    int selected = 0;
+    QVERIFY(coins.size() == 1); // context check, coins received only on one destination
+    for (const auto& [outpoint, tx_out] : coins.begin()->second) {
+        sendCoinsDialog.getCoinControl()->Select(outpoint);
+        sum_selected_coins += tx_out.txout.nValue;
+        if (++selected == COINS_TO_SELECT) break;
+    }
+    QVERIFY(selected == COINS_TO_SELECT);
+
+    // Now that we have 2 coins selected, "useAvailableBalance" should update the balance label only with
+    // the sum of them.
+    Q_EMIT send_entry->useAvailableBalance(send_entry);
+    QVERIFY(send_entry->getValue().amount == sum_selected_coins);
+}
+
 //! Simple qt wallet tests.
 //
 // Test widgets can be debugged interactively calling show() on them and
@@ -122,7 +160,7 @@ void TestGUI(interfaces::Node& node)
     }
     node.setContext(&test.m_node);
     WalletContext& context = *node.walletLoader().context();
-    const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), node.context()->coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase());
+    const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), node.context()->coinjoin_loader.get(), "", gArgs, CreateMockableWalletDatabase());
     AddWallet(context, wallet);
     wallet->LoadWallet();
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -171,6 +209,9 @@ void TestGUI(interfaces::Node& node)
         QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false /*, BitcoinUnits::SeparatorStyle::ALWAYS*/);
         QCOMPARE(balanceText, balanceComparison);
     }
+
+    // Check 'UseAvailableBalance' functionality
+    VerifyUseAvailableBalance(sendCoinsDialog, walletModel);
 
     // Send two transactions, and verify they are added to transaction list.
     TransactionTableModel* transactionTableModel = walletModel.getTransactionTableModel();

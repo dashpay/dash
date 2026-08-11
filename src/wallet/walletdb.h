@@ -58,7 +58,8 @@ enum class DBErrors
     EXTERNAL_SIGNER_SUPPORT_REQUIRED,
     LOAD_FAIL,
     NEED_REWRITE,
-    NEED_RESCAN
+    NEED_RESCAN,
+    UNKNOWN_DESCRIPTOR
 };
 
 namespace DBKeys {
@@ -281,13 +282,6 @@ using KeyFilterFn = std::function<bool(const std::string&)>;
 
 //! Unserialize a given Key-Value pair and load it into the wallet
 bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, std::string& strType, std::string& strErr, const KeyFilterFn& filter_fn = nullptr);
-
-/** Return object for accessing dummy database with no read/write capabilities. */
-std::unique_ptr<WalletDatabase> CreateDummyWalletDatabase();
-
-/** Return object for accessing temporary in-memory database. */
-std::unique_ptr<WalletDatabase> CreateMockWalletDatabase(DatabaseOptions& options);
-std::unique_ptr<WalletDatabase> CreateMockWalletDatabase();
 } // namespace wallet
 
 #endif // BITCOIN_WALLET_WALLETDB_H

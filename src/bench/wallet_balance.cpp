@@ -7,29 +7,24 @@
 #include <node/context.h>
 #include <test/util/mining.h>
 #include <test/util/setup_common.h>
-#include <test/util/wallet.h>
 #include <validationinterface.h>
 #include <wallet/receive.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 
 #include <optional>
 
-using wallet::CreateMockWalletDatabase;
-using wallet::CWallet;
-using wallet::DBErrors;
-using wallet::WALLET_FLAG_DESCRIPTORS;
-
+namespace wallet {
 static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const bool add_mine, const uint32_t epoch_iters)
 {
     const auto test_setup = MakeNoLogFileContext<const TestingSetup>();
     const auto& ADDRESS_WATCHONLY = ADDRESS_B58T_UNSPENDABLE;
 
-    CWallet wallet{test_setup->m_node.chain.get(), test_setup->m_node.coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase()};
+    CWallet wallet{test_setup->m_node.chain.get(), test_setup->m_node.coinjoin_loader.get(), "", gArgs, CreateMockableWalletDatabase()};
     {
         LOCK(wallet.cs_wallet);
         wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
         wallet.SetupDescriptorScriptPubKeyMans("", "");
-        if (wallet.LoadWallet() != DBErrors::LOAD_OK) assert(false);
     }
     auto handler = test_setup->m_node.chain->handleNotifications({&wallet, [](CWallet*) {}});
 
@@ -59,3 +54,4 @@ BENCHMARK(WalletBalanceDirty, benchmark::PriorityLevel::HIGH);
 BENCHMARK(WalletBalanceClean, benchmark::PriorityLevel::HIGH);
 BENCHMARK(WalletBalanceMine, benchmark::PriorityLevel::HIGH);
 BENCHMARK(WalletBalanceWatch, benchmark::PriorityLevel::HIGH);
+} // namespace wallet

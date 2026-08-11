@@ -148,7 +148,7 @@ enum class OuterType {
     NONE, // Only set on first recursion
 };
 /** Evaluate a descriptor given as a string, or as a {"desc":...,"range":...} object, with default range of 1000. */
-std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider);
+std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider, const bool expand_priv = false);
 
 struct RPCArgOptions {
     std::string oneline_description{};   //!< Should be empty unless it is supposed to override the auto-generated summary line

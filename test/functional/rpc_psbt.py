@@ -34,7 +34,10 @@ from test_framework.util import (
     find_output,
     random_bytes,
 )
-from test_framework.wallet_util import bytes_to_wif
+from test_framework.wallet_util import (
+    bytes_to_wif,
+    get_generate_key
+)
 
 import json
 import os
@@ -56,7 +59,9 @@ class PSBTTest(BitcoinTestFramework):
 
         # If inputs are specified, do not automatically add more:
         utxo1 = self.nodes[0].listunspent()[0]
-        assert_raises_rpc_error(-4, "Insufficient funds", self.nodes[0].walletcreatefundedpsbt, [{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():900})
+        assert_raises_rpc_error(-4, "The preselected coins total amount does not cover the transaction target. "
+                                    "Please allow other inputs to be automatically selected or include more coins manually",
+                                self.nodes[0].walletcreatefundedpsbt, [{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():900})
         psbtx1 = self.nodes[0].walletcreatefundedpsbt([{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():900}, 0, {"add_inputs": True})['psbt']
         assert_equal(len(self.nodes[0].decodepsbt(psbtx1)['tx']['vin']), 2)
 
@@ -506,7 +511,7 @@ class PSBTTest(BitcoinTestFramework):
         ext_utxo = self.nodes[0].listunspent(addresses=[addr])[0]
 
         # An external input without solving data should result in an error
-        assert_raises_rpc_error(-4, "Insufficient funds", wallet.walletcreatefundedpsbt, [ext_utxo], {self.nodes[0].getnewaddress(): 15})
+        assert_raises_rpc_error(-4, "Not solvable pre-selected input COutPoint(%s, %s)" % (ext_utxo["txid"], ext_utxo["vout"]), wallet.walletcreatefundedpsbt, [ext_utxo], {self.nodes[0].getnewaddress(): 15})
 
         # But funding should work when the solving data is provided
         psbt = wallet.walletcreatefundedpsbt([ext_utxo], {self.nodes[0].getnewaddress(): 15}, 0, {"add_inputs": True, "solving_data": {"pubkeys": [addr_info['pubkey']], "scripts": [addr_info["embedded"]["scriptPubKey"]]}})
@@ -637,6 +642,48 @@ class PSBTTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "PSBTs not compatible (different transactions)", self.nodes[0].combinepsbt, [psbt1, psbt2])
         assert_equal(self.nodes[0].combinepsbt([psbt1, psbt1]), psbt1)
 
+        self.log.info("Test descriptorprocesspsbt updates and signs a psbt with descriptors")
+
+        self.generate(self.nodes[2], 1)
+
+        # Disable the wallet for node 2 since `descriptorprocesspsbt` does not use the wallet
+        self.restart_node(2, extra_args=["-disablewallet"])
+        self.connect_nodes(0, 2)
+        self.connect_nodes(1, 2)
+
+        key_info = get_generate_key()
+        key = key_info.privkey
+        address = key_info.p2pkh_addr
+
+        descriptor = descsum_create(f"pkh({key})")
+
+        txid = self.nodes[0].sendtoaddress(address, 1)
+        self.sync_all()
+        vout = find_output(self.nodes[0], txid, 1)
+
+        psbt = self.nodes[2].createpsbt([{"txid": txid, "vout": vout}], {self.nodes[0].getnewaddress(): 0.99999})
+        decoded = self.nodes[2].decodepsbt(psbt)
+        test_psbt_input_keys(decoded['inputs'][0], [])
+
+        # Test that even if the wrong descriptor is given, `non_witness_utxo`
+        # is still added to the psbt
+        alt_descriptor = descsum_create(f"pkh({get_generate_key().privkey})")
+        alt_psbt = self.nodes[2].descriptorprocesspsbt(psbt=psbt, descriptors=[alt_descriptor], sighashtype="ALL")["psbt"]
+        decoded = self.nodes[2].decodepsbt(alt_psbt)
+        test_psbt_input_keys(decoded['inputs'][0], ['non_witness_utxo'])
+
+        # Test that the psbt is not finalized and does have bip32_derivs when specified
+        psbt = self.nodes[2].descriptorprocesspsbt(psbt=psbt, descriptors=[descriptor], sighashtype="ALL", bip32derivs=True, finalize=False)["psbt"]
+        decoded = self.nodes[2].decodepsbt(psbt)
+        test_psbt_input_keys(decoded['inputs'][0], ['non_witness_utxo', 'partial_signatures', 'bip32_derivs'])
+
+        psbt = self.nodes[2].descriptorprocesspsbt(psbt=psbt, descriptors=[descriptor], sighashtype="ALL", bip32derivs=False, finalize=True)["psbt"]
+        decoded = self.nodes[2].decodepsbt(psbt)
+        test_psbt_input_keys(decoded['inputs'][0], ['non_witness_utxo', 'final_scriptSig'])
+
+        # Broadcast transaction
+        rawtx = self.nodes[2].finalizepsbt(psbt)["hex"]
+        self.nodes[2].sendrawtransaction(rawtx)
 
 if __name__ == '__main__':
     PSBTTest().main()
