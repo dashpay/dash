@@ -126,7 +126,9 @@
 #include <coinjoin/options.h>
 #endif // ENABLE_WALLET
 
+#ifdef ENABLE_RUST
 #include <rust/chirp/lib.h>
+#endif
 
 #include <algorithm>
 #include <condition_variable>
@@ -1478,7 +1480,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         return false;
     }
 
-    LogPrintf("%s\n", std::string(chirp::chirp()));
+#ifdef ENABLE_RUST
+    LogPrintf("Rust bridge: %s\n", std::string(chirp::chirp()));
+#endif
 
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
 

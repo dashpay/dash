@@ -12,8 +12,7 @@ import re
 
 from subprocess import check_output, CalledProcessError
 
-EXCLUDED_DIRS = ["rust/",
-                 "src/crc32c/",
+EXCLUDED_DIRS = ["src/crc32c/",
                  "src/secp256k1/"]
 
 

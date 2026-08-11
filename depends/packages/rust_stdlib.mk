@@ -14,7 +14,22 @@ $(package)_target=$(or \
   $($(package)_target_$(canonical_host)),\
   $($(package)_target_$(subst -pc-,-unknown-,$(canonical_host))),\
   $($(package)_target_$(subst -unknown-,-pc-,$(canonical_host))),\
-  $($(package)_target_$(subst -linux-,-unknown-linux-,$(canonical_host))))
+  $($(package)_target_$(subst -linux-,-unknown-linux-,$(canonical_host))),\
+  $(if $(findstring -apple-darwin,$(canonical_host)),$(host_arch)-apple-darwin))
+
+# Android
+$(package)_targets += aarch64-linux-android
+$(package)_targets += armv7-linux-androideabi
+$(package)_targets += i686-linux-android
+$(package)_targets += x86_64-linux-android
+$(package)_target_aarch64-unknown-linux-android:=aarch64-linux-android
+$(package)_target_armv7a-unknown-linux-android:=armv7-linux-androideabi
+$(package)_target_i686-pc-linux-android:=i686-linux-android
+$(package)_target_x86_64-pc-linux-android:=x86_64-linux-android
+$(package)_sha256_hash_aarch64-linux-android:=f6689cf5b71056e887261ec84ae1f499eeb42c67e5ae73e7c0e06065b6648c44
+$(package)_sha256_hash_armv7-linux-androideabi:=18f6e6903c5f4361efe8c8a1ea546303e4473e8b9cd1b11fcf4e5b170468d464
+$(package)_sha256_hash_i686-linux-android:=d994d70493ad68ced22a5269e41b9fa6f83af9f3adabade154860058bc2e18c0
+$(package)_sha256_hash_x86_64-linux-android:=b9074f6961baff09334afaff745fb16dbf9f05cdf856b17309d8e6232a281c40
 
 # FreeBSD (x86_64)
 $(package)_targets += x86_64-unknown-freebsd

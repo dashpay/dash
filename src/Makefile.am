@@ -24,7 +24,10 @@ AM_CPPFLAGS = $(DEBUG_CPPFLAGS) $(HARDENED_CPPFLAGS) $(CORE_CPPFLAGS)
 AM_LIBTOOLFLAGS = --preserve-dup-deps
 PTHREAD_FLAGS = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 EXTRA_LIBRARIES =
-BUILT_SOURCES = $(LIBRUSTDEPS_H)
+BUILT_SOURCES =
+if ENABLE_RUST
+BUILT_SOURCES += $(LIBRUSTDEPS_H)
+endif
 
 lib_LTLIBRARIES =
 noinst_LTLIBRARIES =
@@ -52,7 +55,9 @@ endif # ENABLE_STACKTRACES
 BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
 BITCOIN_INCLUDES+=-isystem$(srcdir)/dashbls/include -isystem$(srcdir)/dashbls/depends/relic/include -isystem$(srcdir)/dashbls/depends/minialloc/include
 BITCOIN_INCLUDES+=-isystem$(srcdir)/immer
+if ENABLE_RUST
 BITCOIN_INCLUDES+=$(LIBRUSTDEPS_INCLUDES)
+endif
 
 LIBBITCOIN_NODE=libbitcoin_node.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
@@ -121,7 +126,11 @@ $(LIBDASHBLS):
 $(LIBSECP256K1): $(wildcard secp256k1/src/*.h) $(wildcard secp256k1/src/*.c) $(wildcard secp256k1/include/*)
 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
 
+if ENABLE_RUST
 LIBCXXBRIDGE=libcxxbridge.la
+RUST_COMPONENT_LIBS=$(LIBCXXBRIDGE) $(LIBRUSTDEPS)
+RUST_SYSTEM_LIBS=$(RUST_LIBS)
+endif
 
 # Make is not made aware of per-object dependencies to avoid limiting building parallelization
 # But to build the less dependent modules first, we manually select their order here:
@@ -136,7 +145,9 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_WALLET_TOOL) \
   $(LIBBITCOIN_ZMQ)
 
+if ENABLE_RUST
 noinst_LTLIBRARIES += $(LIBCXXBRIDGE)
+endif
 
 if BUILD_BITCOIND
   bin_PROGRAMS += dashd
@@ -1101,10 +1112,9 @@ bitcoin_bin_ldadd = \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1) \
-  $(LIBCXXBRIDGE) \
-  $(LIBRUSTDEPS)
+  $(RUST_COMPONENT_LIBS)
 
-bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS) $(RUST_LIBS)
+bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS) $(RUST_SYSTEM_LIBS)
 
 dashd_SOURCES = $(bitcoin_daemon_sources) init/bitcoind.cpp
 dashd_CPPFLAGS = $(bitcoin_bin_cppflags)
@@ -1133,10 +1143,8 @@ dash_cli_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
-  $(LIBBITCOIN_CRYPTO) \
-  $(LIBCXXBRIDGE) \
-  $(LIBRUSTDEPS)
-dash_cli_LDADD += $(BACKTRACE_LIBS) $(EVENT_LIBS) $(GMP_LIBS) $(RUST_LIBS)
+  $(LIBBITCOIN_CRYPTO)
+dash_cli_LDADD += $(BACKTRACE_LIBS) $(EVENT_LIBS) $(GMP_LIBS)
 #
 
 # dash-tx binary #
@@ -1156,11 +1164,9 @@ dash_tx_LDADD = \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBDASHBLS) \
-  $(LIBSECP256K1) \
-  $(LIBCXXBRIDGE) \
-  $(LIBRUSTDEPS)
+  $(LIBSECP256K1)
 
-dash_tx_LDADD += $(BACKTRACE_LIBS) $(GMP_LIBS) $(RUST_LIBS)
+dash_tx_LDADD += $(BACKTRACE_LIBS) $(GMP_LIBS)
 #
 
 # dash-wallet binary #
@@ -1179,14 +1185,11 @@ dash_wallet_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBDASHBLS) \
   $(LIBSECP256K1) \
-  $(LIBCXXBRIDGE) \
-  $(LIBRUSTDEPS) \
   $(BACKTRACE_LIBS) \
   $(BOOST_LIBS) \
   $(BDB_LIBS) \
   $(SQLITE_LIBS) \
-  $(GMP_LIBS) \
-  $(RUST_LIBS)
+  $(GMP_LIBS)
 
 if TARGET_WINDOWS
 dash_wallet_SOURCES += dash-wallet-res.rc
@@ -1210,11 +1213,9 @@ dash_util_LDADD = \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1) \
-  $(LIBCXXBRIDGE) \
-  $(LIBRUSTDEPS) \
   $(BACKTRACE_LIBS)
 
-dash_util_LDADD += $(BOOST_LIBS) $(RUST_LIBS)
+dash_util_LDADD += $(BOOST_LIBS)
 
 # dash-chainstate binary #
 dash_chainstate_SOURCES = bitcoin-chainstate.cpp
@@ -1418,7 +1419,7 @@ include_HEADERS = script/bitcoinconsensus.h
 libdashconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoin_crypto_base_la_SOURCES) $(crypto_libbitcoin_crypto_sph_la_SOURCES) $(libbitcoin_consensus_a_SOURCES)
 
 libdashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-libdashconsensus_la_LIBADD = $(LIBDASHBLS) $(LIBSECP256K1) $(LIBCXXBRIDGE) $(LIBRUSTDEPS) $(GMP_LIBS) $(RUST_LIBS)
+libdashconsensus_la_LIBADD = $(LIBDASHBLS) $(LIBSECP256K1) $(GMP_LIBS)
 libdashconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL -DDISABLE_OPTIMIZED_SHA256
 libdashconsensus_la_CPPFLAGS += -isystem$(srcdir)/dashbls/include -isystem$(srcdir)/dashbls/depends/relic/include -isystem$(srcdir)/dashbls/depends/minialloc/include
 libdashconsensus_la_CPPFLAGS += -isystem$(srcdir)/immer
@@ -1428,12 +1429,14 @@ endif
 #
 
 # CXX bridge library #
+if ENABLE_RUST
 libcxxbridge_la_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
 libcxxbridge_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS) -static
 libcxxbridge_la_LDFLAGS = $(AM_LDFLAGS) -static
 nodist_libcxxbridge_la_SOURCES = $(LIBRUSTDEPS_CPP)
 
 $(libcxxbridge_la_OBJECTS): $(LIBRUSTDEPS_H)
+endif
 #
 
 CTAES_DIST =  crypto/ctaes/bench.c

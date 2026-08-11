@@ -8,10 +8,15 @@ print-%: FORCE
 	@echo '$*'='$($*)'
 
 ACLOCAL_AMFLAGS = -I build-aux/m4
-SUBDIRS = rust src
+SUBDIRS =
+if ENABLE_RUST
+SUBDIRS += rust
+endif
+SUBDIRS += src
 if ENABLE_MAN
 SUBDIRS += doc/man
 endif
+DIST_SUBDIRS = rust src doc/man
 .PHONY: deploy FORCE
 .INTERMEDIATE: $(COVERAGE_INFO)
 

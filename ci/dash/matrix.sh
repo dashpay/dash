@@ -20,6 +20,8 @@ if [ "$BUILD_TARGET" = "aarch64-linux" ]; then
   source ./ci/test/00_setup_env_aarch64.sh
 elif [ "$BUILD_TARGET" = "linux64" ]; then
   source ./ci/test/00_setup_env_native_qt5.sh
+elif [ "$BUILD_TARGET" = "linux64_rust" ]; then
+  source ./ci/test/00_setup_env_native_rust.sh
 elif [ "$BUILD_TARGET" = "linux64_asan" ]; then
   source ./ci/test/00_setup_env_native_asan.sh
 elif [ "$BUILD_TARGET" = "linux64_fuzz" ]; then

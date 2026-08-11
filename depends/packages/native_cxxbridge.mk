@@ -6,16 +6,16 @@
 # ./contrib/devtools/update-native-cxxbridge.py
 
 package:=native_cxxbridge
-$(package)_version:=1.0.192
+$(package)_version:=1.0.198
 $(package)_download_path:=https://github.com/dtolnay/cxx/archive/refs/tags
 $(package)_file_name:=native_cxxbridge-$($(package)_version).tar.gz
 $(package)_download_file:=$($(package)_version).tar.gz
-$(package)_sha256_hash:=d242dbfb6deb362c5a95fcb69aeb5f25228de75af3cced94c9f6c8e11019d30e
-$(package)_build_subdir:=gen/cmd
+$(package)_sha256_hash:=e8c54f11e12b00f80a7da8cc2eac55db5c4688cb2bc483f5e923261fa3a285bf
+$(package)_build_subdir:=bridge/cmd
 $(package)_dependencies:=native_rust
 $(package)_patches:=Cargo.lock cargo-config.toml
 $(package)_vendored_file_name:=native_cxxbridge-$($(package)_version)-vendored.tar.gz
-$(package)_cargo_manifest:=gen/cmd/Cargo.toml
+$(package)_cargo_manifest:=bridge/cmd/Cargo.toml
 
 define $(package)_preprocess_cmds
   cp $($(package)_patch_dir)/Cargo.lock .

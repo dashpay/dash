@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export LC_ALL=C
 
 # Copyright (c) 2026 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
@@ -72,6 +73,8 @@ for binary in "$@"; do
     fi
 done
 
-echo "Verifying first binary:"
-patchelf --print-interpreter "$1"
-patchelf --print-rpath "$1"
+if [ -n "$1" ]; then
+    echo "Verifying first binary:"
+    patchelf --print-interpreter "$1"
+    patchelf --print-rpath "$1"
+fi

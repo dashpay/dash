@@ -141,6 +141,17 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
+  depends-linux64_rust:
+    name: x86_64-pc-linux-gnu_rust
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: ${{ vars.SKIP_LINUX64_RUST == '' }}
+    with:
+      build-target: linux64_rust
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
   depends-linux64_multiprocess:
     name: linux64_multiprocess
     uses: ./.github/workflows/build-depends.yml
@@ -220,6 +231,20 @@ jobs:
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  src-linux64_rust:
+    name: linux64_rust-build
+    uses: ./.github/workflows/build-src.yml
+    needs: [check-skip, container, depends-linux64_rust]
+    if: ${{ vars.SKIP_LINUX64_RUST == '' }}
+    with:
+      build-target: linux64_rust
+      container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.depends-linux64_rust.outputs.key }}
+      depends-host: ${{ needs.depends-linux64_rust.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64_rust.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64_rust.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_asan:

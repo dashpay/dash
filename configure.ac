@@ -128,20 +128,11 @@ AC_PATH_TOOL([DSYMUTIL], [dsymutil])
 AC_PATH_PROG([DOXYGEN], [doxygen])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test -n "$DOXYGEN"])
 
-dnl Check/return PATH for Rust dependencies
-AC_DEFUN(
-  RS_REQUIRE_PROG,
-  [
-    AC_PATH_PROG($1, $2, $2_notfound)
-    if test x${$1} = x$2_notfound
-    then
-      AC_MSG_ERROR("Required program $2 was not found")
-    fi
-  ]
-)
-RS_REQUIRE_PROG([CARGO], cargo)
-RS_REQUIRE_PROG([CXXBRIDGE], cxxbridge)
-RS_REQUIRE_PROG([RUSTC], rustc)
+dnl Rust toolchain detection. These programs are required only when a
+dnl Rust-dependent component is explicitly enabled.
+AC_PATH_PROG([CARGO], [cargo])
+AC_PATH_PROG([CXXBRIDGE], [cxxbridge])
+AC_PATH_PROG([RUSTC], [rustc])
 
 AC_ARG_VAR([CARGO_INCREMENTAL], [Enable incremental compilation for Rust])
 if test "${CARGO_INCREMENTAL+set}" != "set"; then
@@ -152,6 +143,12 @@ AC_ARG_VAR([RUSTFLAGS], [Flags for Rust compiler])
 if test "${RUSTFLAGS+set}" != "set"; then
   RUSTFLAGS="-C embed-bitcode=yes -C relocation-model=pic"
 fi
+
+AC_ARG_ENABLE([rust],
+  [AS_HELP_STRING([--enable-rust],
+    [build the Rust/C++ bridge smoke component (default is no)])],
+  [enable_rust=$enableval],
+  [enable_rust=no])
 
 AC_ARG_ENABLE([online-rust],
   [AS_HELP_STRING([--enable-online-rust],
@@ -1736,27 +1733,16 @@ if test "$use_zmq" = "yes"; then
   esac
 fi
 
-RUST_LIBS=""
-case $host in
-  *mingw*)
-    RUST_LIBS="$RUST_LIBS -luserenv -lntdll"
-    ;;
-  *)
-    RUST_LIBS="$RUST_LIBS -ldl"
-    ;;
-esac
-
-RUST_MACOS_DEPLOYMENT_TARGET=""
-case $host in
-  *darwin*)
-    AC_MSG_CHECKING([for target macOS version])
-    RUST_MACOS_DEPLOYMENT_TARGET="${OSX_MIN_VERSION:-$(sw_vers -productVersion)}"
-    AC_MSG_RESULT([$RUST_MACOS_DEPLOYMENT_TARGET])
-    ;;
-esac
-
 AC_DEFUN([RS_SET_TRIPLE], [
   case $2 in
+    aarch64-*-linux-android*)
+                          $1="aarch64-linux-android" ;;
+    arm*-*-linux-android*)
+                          $1="armv7-linux-androideabi" ;;
+    i?86-*-linux-android*)
+                          $1="i686-linux-android" ;;
+    x86_64-*-linux-android*)
+                          $1="x86_64-linux-android" ;;
     x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
     aarch64-*-linux*|arm64-*-linux*)
                           $1="aarch64-unknown-linux-$3" ;;
@@ -1773,68 +1759,98 @@ AC_DEFUN([RS_SET_TRIPLE], [
   esac
 ])
 
-AC_MSG_CHECKING([for Rust target])
-RS_SET_TRIPLE([RUST_TARGET], [$host], [musl])
-if test "$RUST_TARGET" = ""; then
-  AC_MSG_RESULT([unknown])
-  AC_MSG_ERROR([Unsupported target for Rust: $host])
-fi
-AC_MSG_RESULT([$RUST_TARGET])
-
+RUST_LIBS=""
+RUST_MACOS_DEPLOYMENT_TARGET=""
 RUST_OSX_SDK=""
-case $host in
-  *darwin*)
-    AC_MSG_CHECKING([for Xcode SDK])
-    if test -z "$OSX_SDK"; then
-      if test "$cross_compiling" = "yes"; then
+RUST_TARGET=""
+RUST_NATIVE=""
+
+if test "$enable_rust" = "yes"; then
+  if test -z "$CARGO" || test -z "$RUSTC" || test -z "$CXXBRIDGE"; then
+    AC_MSG_ERROR([cargo, rustc and cxxbridge are required by --enable-rust])
+  fi
+  AC_DEFINE([ENABLE_RUST], [1], [Define this symbol to enable Rust components])
+
+  case $host in
+    *mingw*)
+      RUST_LIBS="$RUST_LIBS -luserenv -lntdll"
+      ;;
+    *linux*)
+      RUST_LIBS="$RUST_LIBS -ldl"
+      ;;
+  esac
+
+  case $host in
+    *darwin*)
+      AC_MSG_CHECKING([for target macOS version])
+      if test -z "$OSX_MIN_VERSION" && test "$cross_compiling" = "yes"; then
+        AC_MSG_ERROR([Cross-compilation requires OSX_MIN_VERSION to be set, cannot continue!])
+      fi
+      RUST_MACOS_DEPLOYMENT_TARGET="${OSX_MIN_VERSION:-$(sw_vers -productVersion)}"
+      AC_MSG_RESULT([$RUST_MACOS_DEPLOYMENT_TARGET])
+      ;;
+  esac
+
+  AC_MSG_CHECKING([for Rust target])
+  RS_SET_TRIPLE([RUST_TARGET], [$host], [musl])
+  if test "$RUST_TARGET" = ""; then
+    AC_MSG_RESULT([unknown])
+    AC_MSG_ERROR([Unsupported target for Rust: $host])
+  fi
+  AC_MSG_RESULT([$RUST_TARGET])
+
+  case $host in
+    *darwin*)
+      AC_MSG_CHECKING([for Xcode SDK])
+      if test -z "$OSX_SDK" && test "$cross_compiling" = "yes"; then
         AC_MSG_ERROR([Cross-compilation requires OSX_SDK to be set to path of Xcode SDK, cannot continue!])
       fi
+      RUST_OSX_SDK="${OSX_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
+      AC_MSG_RESULT([$RUST_OSX_SDK])
+      ;;
+  esac
+
+  AC_MSG_CHECKING([for Rust host])
+  RS_SET_TRIPLE([RUST_NATIVE], [$build], [gnu])
+  if test "$RUST_NATIVE" = ""; then
+    if test "$cross_compiling" = "yes"; then
+      AC_MSG_RESULT([unknown])
+      AC_MSG_ERROR([Unsupported host for Rust: $build])
     fi
-    RUST_OSX_SDK="${OSX_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
-    AC_MSG_RESULT([$RUST_OSX_SDK])
-   ;;
-esac
-
-AC_MSG_CHECKING([for Rust host])
-RS_SET_TRIPLE([RUST_NATIVE], [$build], [gnu])
-if test "$RUST_NATIVE" = ""; then
-  if test "$cross_compiling" = "yes"; then
-    AC_MSG_RESULT([unknown])
-    AC_MSG_ERROR([Unsupported host for Rust: $build])
+    RUST_NATIVE="$RUST_TARGET"
   fi
-  RUST_NATIVE="$RUST_TARGET"
-fi
-AC_MSG_RESULT([$RUST_NATIVE])
+  AC_MSG_RESULT([$RUST_NATIVE])
 
-AC_MSG_CHECKING([for host archiver])
-if test -z "$NATIVE_AR"; then
-  if test "$cross_compiling" = "yes"; then
-    AC_MSG_ERROR([Cross-compilation requires NATIVE_AR to be set to host archiver, cannot continue!])
+  AC_MSG_CHECKING([for host archiver])
+  if test -z "$NATIVE_AR"; then
+    if test "$cross_compiling" = "yes"; then
+      AC_MSG_ERROR([Cross-compilation requires NATIVE_AR to be set to host archiver, cannot continue!])
+    fi
+    NATIVE_AR="$AR"
   fi
-  NATIVE_AR="$AR"
-fi
-AC_MSG_RESULT([$NATIVE_AR])
+  AC_MSG_RESULT([$NATIVE_AR])
 
-AC_MSG_CHECKING([for host C compiler])
-if test -z "$NATIVE_CC"; then
-  if test "$cross_compiling" = "yes"; then
-    AC_MSG_ERROR([Cross-compilation requires NATIVE_CC to be set to host C compiler, cannot continue!])
+  AC_MSG_CHECKING([for host C compiler])
+  if test -z "$NATIVE_CC"; then
+    if test "$cross_compiling" = "yes"; then
+      AC_MSG_ERROR([Cross-compilation requires NATIVE_CC to be set to host C compiler, cannot continue!])
+    fi
+    NATIVE_CC="$CC"
   fi
-  NATIVE_CC="$CC"
-fi
-AC_MSG_RESULT([$NATIVE_CC])
+  AC_MSG_RESULT([$NATIVE_CC])
 
-AC_MSG_CHECKING([for host C++ compiler])
-if test -z "$NATIVE_CXX"; then
-  if test "$cross_compiling" = "yes"; then
-    AC_MSG_ERROR([Cross-compilation requires NATIVE_CXX to be set to host C++ compiler, cannot continue!])
+  AC_MSG_CHECKING([for host C++ compiler])
+  if test -z "$NATIVE_CXX"; then
+    if test "$cross_compiling" = "yes"; then
+      AC_MSG_ERROR([Cross-compilation requires NATIVE_CXX to be set to host C++ compiler, cannot continue!])
+    fi
+    NATIVE_CXX="$CXX"
   fi
-  NATIVE_CXX="$CXX"
-fi
-AC_MSG_RESULT([$NATIVE_CXX])
+  AC_MSG_RESULT([$NATIVE_CXX])
 
-if test -n "$depends_prefix"; then
-  RUSTUP_TOOLCHAIN=""
+  if test -n "$depends_prefix"; then
+    RUSTUP_TOOLCHAIN=""
+  fi
 fi
 AC_SUBST(RUSTUP_TOOLCHAIN)
 
@@ -2097,6 +2113,7 @@ AM_CONDITIONAL([USE_QRCODE], [test "$use_qr" = "yes"])
 AM_CONDITIONAL([USE_LCOV], [test "$use_lcov" = "yes"])
 AM_CONDITIONAL([USE_LIBEVENT], [test "$use_libevent" = "yes"])
 AM_CONDITIONAL([HARDEN], [test "$use_hardening" = "yes"])
+AM_CONDITIONAL([ENABLE_RUST], [test "$enable_rust" = "yes"])
 AM_CONDITIONAL([ENABLE_RUST_FEATURES], [test -n "$RUST_CRATE_FEATURES"])
 AM_CONDITIONAL([ENABLE_SSSE3], [test "$enable_ssse3" = "yes"])
 AM_CONDITIONAL([ENABLE_SSE42], [test "$enable_sse42" = "yes"])

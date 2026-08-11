@@ -44,6 +44,7 @@ NO_UPNP ?=
 NO_USDT ?=
 NO_NATPMP ?=
 MULTIPROCESS ?=
+RUST ?=
 LTO ?=
 NO_HARDEN ?=
 FALLBACK_DOWNLOAD_PATH ?= http://dash-depends-sources.s3-website-us-west-2.amazonaws.com
@@ -182,7 +183,13 @@ usdt_packages_$(NO_USDT) = $(usdt_$(host_os)_packages)
 
 packages += $($(host_arch)_$(host_os)_packages) $($(host_os)_packages) $(boost_packages_) $(libevent_packages_) $(qt_packages_) $(wallet_packages_) $(upnp_packages_) $(natpmp_packages_) $(usdt_packages_)
 native_packages += $($(host_arch)_$(host_os)_native_packages) $($(host_os)_native_packages)
-native_packages += native_rust $(native_cargo_packages)
+ifeq ($(RUST),1)
+packages += $(rust_packages)
+native_packages += $(rust_native_packages)
+rust_download_target = download-rust-std
+endif
+
+native_cargo_packages = $(filter native_cxxbridge,$(native_packages))
 
 ifneq ($(zmq_packages_),)
 packages += $(zmq_packages)
@@ -294,6 +301,7 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
             -e 's|@no_usdt@|$(NO_USDT)|' \
             -e 's|@no_natpmp@|$(NO_NATPMP)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \
+            -e 's|@rust@|$(RUST)|' \
             -e 's|@lto@|$(LTO)|' \
             -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@debug@|$(DEBUG)|' \
@@ -330,7 +338,11 @@ clean-all: clean
 clean:
 	@rm -rf $(WORK_PATH) $(BASE_CACHE) $(BUILD) *.log
 
+ifeq ($(RUST),1)
 install: check-packages $(host_prefix)/share/config.site $(host_prefix)/$(CRATE_REGISTRY)
+else
+install: check-packages $(host_prefix)/share/config.site
+endif
 
 
 download-one: check-sources $(all_sources)
@@ -345,7 +357,7 @@ download-rust-std:
 	@mkdir -p $(SOURCES_PATH)
 	@mkdir -p $(SOURCES_PATH)/download-stamps
 	@$(foreach target,$(rust_stdlib_targets),$(call download_rust_std_target,$(target)) && ) true
-download: download-osx download-linux download-win download-rust-std
+download: download-osx download-linux download-win $(rust_download_target)
 
 $(foreach package,$(all_packages),$(eval $(call ext_add_stages,$(package))))
 

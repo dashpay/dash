@@ -86,9 +86,6 @@ case "$HOST" in
         ;;
 esac
 
-# Rust build scripts need LD_LIBRARY_PATH to find libgcc_s.so.1 at runtime
-export LD_LIBRARY_PATH="${LIBRARY_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
 # Set environment variables to point the CROSS toolchain to the right
 # includes/libs for $HOST
 case "$HOST" in
@@ -195,9 +192,6 @@ case "$HOST" in
         ;;
 esac
 
-# Make $HOST-specific native binaries from depends available in $PATH
-export PATH="${BASEPREFIX}/${HOST}/native/bin:${PATH}"
-
 ###########################
 # Source Tarball Building #
 ###########################
@@ -253,11 +247,6 @@ esac
 # EXE FLAGS
 case "$HOST" in
     *linux*)  HOST_LDFLAGS+=" -static-libstdc++ -static-libgcc" ;;
-esac
-
-case "$HOST" in
-    *darwin*)  export NATIVE_AR="llvm-ar" NATIVE_CC="clang" NATIVE_CXX="clang++" ;;
-    *)         export NATIVE_AR="ar" NATIVE_CC="gcc" NATIVE_CXX="g++" ;;
 esac
 
 mkdir -p "$DISTSRC"

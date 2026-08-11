@@ -15,23 +15,35 @@ CARGO_ENV = \
 
 # 'cargo' needs uppercase
 RUST_NATIVE_ENV_UPPER = $(shell echo '$(RUST_NATIVE)' | tr 'a-z-' 'A-Z_')
+RUST_NATIVE_LINKER = $(abs_top_builddir)/.cargo/native-linker
 CARGO_ENV += \
   AR="$(NATIVE_AR)" \
   CC="$(NATIVE_CC)" \
   CXX="$(NATIVE_CXX)" \
-  CARGO_TARGET_$(RUST_NATIVE_ENV_UPPER)_LINKER="$(NATIVE_CC)"
+  CARGO_TARGET_$(RUST_NATIVE_ENV_UPPER)_LINKER="$(RUST_NATIVE_LINKER)"
 
 # 'cc' needs preserved case
 RUST_TARGET_ENV_LOWER = $(shell echo '$(RUST_TARGET)' | tr '-' '_')
 # 'cargo' needs uppercase
 RUST_TARGET_ENV_UPPER = $(shell echo '$(RUST_TARGET_ENV_LOWER)' | tr 'a-z' 'A-Z')
+RUST_TARGET_LINKER = $(abs_top_builddir)/.cargo/target-linker
 CARGO_ENV += \
   AR_$(RUST_TARGET_ENV_LOWER)="$(AR)" \
   CC_$(RUST_TARGET_ENV_LOWER)="$(CC)" \
   CFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CFLAGS)" \
   CXX_$(RUST_TARGET_ENV_LOWER)="$(CXX)" \
   CXXFLAGS_$(RUST_TARGET_ENV_LOWER)="$(CXXFLAGS)" \
-  CARGO_TARGET_$(RUST_TARGET_ENV_UPPER)_LINKER="$(CC)"
+  CARGO_TARGET_$(RUST_TARGET_ENV_UPPER)_LINKER="$(RUST_TARGET_LINKER)"
+
+$(RUST_NATIVE_LINKER): Makefile
+	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
+	$(AM_V_at)printf '%s\n' '#!/bin/sh' 'exec $(NATIVE_CC) "$$@"' > $@
+	$(AM_V_at)chmod +x $@
+
+$(RUST_TARGET_LINKER): Makefile
+	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
+	$(AM_V_at)printf '%s\n' '#!/bin/sh' 'exec $(CC) "$$@"' > $@
+	$(AM_V_at)chmod +x $@
 
 if !ENABLE_DEBUG
 CARGO_BUILD_OPTS += --release
@@ -44,20 +56,21 @@ endif # !SILENT_RULES
 if ENABLE_ONLINE_RUST
 CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-online
 
-$(CARGO_CONFIGURED):
+$(CARGO_CONFIGURED): $(RUST_NATIVE_LINKER) $(RUST_TARGET_LINKER)
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-offline
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
+	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
 	$(AM_V_at)touch $@
 else
 CARGO_BUILD_OPTS += --offline
 CARGO_CONFIGURED = $(abs_top_builddir)/.cargo/.configured-for-offline
 
-$(CARGO_CONFIGURED): $(top_srcdir)/.cargo/config.toml.offline $(top_srcdir)/Cargo.lock
+$(CARGO_CONFIGURED): $(RUST_NATIVE_LINKER) $(RUST_TARGET_LINKER) $(top_srcdir)/.cargo/config.toml.offline $(top_srcdir)/Cargo.lock
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
 	$(AM_V_at)$(MKDIR_P) $(abs_top_builddir)/.cargo
-	$(AM_V_at)cp $< $(abs_top_builddir)/.cargo/config.toml
+	$(AM_V_at)cp $(top_srcdir)/.cargo/config.toml.offline $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >> $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)$(top_srcdir)/contrib/devtools/cargo-vendor-git-sources.sh $(top_srcdir)/Cargo.lock >> $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)touch $@
@@ -69,22 +82,31 @@ EXTRA_DIST = \
 	$(LIBRUSTDEPS_FILES) \
 	$(LIBRUST_CHIRP_FILES)
 
+if ENABLE_RUST
 all-local: $(CARGO_CONFIGURED) cargo-build-dashrust cxxbridge-chirp
 
 cargo-build: $(CARGO_CONFIGURED) cargo-build-dashrust
+else
+all-local:
+
+cargo-build:
+endif
 
 cargo-clean: cargo-clean-dashrust
 
 # Aggregate dist hook: per-crate includes define dist-<crate> targets; new
 # crates append here instead of defining their own dist-hook (automake allows
 # only one dist-hook recipe per Makefile).
+if ENABLE_RUST
 dist-hook: dist-chirp
+endif
 
 cargo-clean-config:
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-online
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/.configured-for-offline
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config.toml
 	$(AM_V_at)rm -f $(abs_top_builddir)/.cargo/config
+	$(AM_V_at)rm -f $(RUST_NATIVE_LINKER) $(RUST_TARGET_LINKER)
 
 clean-local: cargo-clean-dashrust cxxbridge-clean-chirp cargo-clean-config
 
