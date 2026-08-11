@@ -1787,6 +1787,10 @@ if test "$enable_rust" = "yes"; then
     AC_MSG_ERROR([rustc $RUSTC_REQUIRED_VERSION is required by --enable-rust])
   fi
   AC_MSG_RESULT([yes])
+  rust_uses_depends=no
+  if test -n "$depends_prefix" && test "$RUSTC" = "$depends_prefix/native/bin/rustc"; then
+    rust_uses_depends=yes
+  fi
   if test "$enable_online_rust" = "no"; then
     if test -z "$RUST_VENDORED_SOURCES"; then
       AC_MSG_ERROR([--enable-rust requires RUST_VENDORED_SOURCES for offline builds or --enable-online-rust])
@@ -1822,7 +1826,7 @@ if test "$enable_rust" = "yes"; then
   case $host in
     *-linux-musl*) rust_target_libc=musl ;;
   esac
-  if test -n "$depends_prefix" && test "$RUSTC" = "$depends_prefix/native/bin/rustc"; then
+  if test "$rust_uses_depends" = "yes"; then
     rust_target_libc=musl
   fi
   RS_SET_TRIPLE([RUST_TARGET], [$host], [$rust_target_libc])
@@ -1852,7 +1856,13 @@ if test "$enable_rust" = "yes"; then
   esac
 
   AC_MSG_CHECKING([for Rust host])
-  RS_SET_TRIPLE([RUST_NATIVE], [$build], [gnu])
+  rust_native_libc=gnu
+  if test "$rust_uses_depends" = "no"; then
+    case $build in
+      *-linux-musl*) rust_native_libc=musl ;;
+    esac
+  fi
+  RS_SET_TRIPLE([RUST_NATIVE], [$build], [$rust_native_libc])
   if test "$RUST_NATIVE" = ""; then
     if test "$cross_compiling" = "yes"; then
       AC_MSG_RESULT([unknown])
@@ -1889,7 +1899,7 @@ if test "$enable_rust" = "yes"; then
   fi
   AC_MSG_RESULT([$NATIVE_CXX])
 
-  if test -n "$depends_prefix" && test "$RUSTC" = "$depends_prefix/native/bin/rustc"; then
+  if test "$rust_uses_depends" = "yes"; then
     RUSTUP_TOOLCHAIN=""
   fi
 fi
