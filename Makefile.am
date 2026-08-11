@@ -73,7 +73,8 @@ OSX_PACKAGING = $(OSX_DEPLOY_SCRIPT) $(OSX_INSTALLER_ICONS) \
 CARGO_FILES = \
   $(top_srcdir)/.cargo/config.toml.offline \
   $(top_srcdir)/Cargo.lock \
-  $(top_srcdir)/Cargo.toml
+  $(top_srcdir)/Cargo.toml \
+  $(top_srcdir)/contrib/devtools/cargo-vendor-git-sources.sh
 
 COVERAGE_INFO = $(COV_TOOL_WRAPPER) baseline.info \
   test_dash_filtered.info total_coverage.info \
