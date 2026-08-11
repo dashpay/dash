@@ -1750,7 +1750,7 @@ AC_DEFUN([RS_SET_TRIPLE], [
     x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
     aarch64-*-linux*|arm64-*-linux*)
                           $1="aarch64-unknown-linux-$3" ;;
-    arm-*-linux*)         $1="armv7-unknown-linux-$3eabihf" ;;
+    arm*-*-linux*)        $1="armv7-unknown-linux-$3eabihf" ;;
     powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
     powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-$3" ;;
     riscv64-*-linux*)     $1="riscv64gc-unknown-linux-$3" ;;
