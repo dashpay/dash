@@ -65,6 +65,7 @@ CRATE_REGISTRY := vendored-sources
 CRATE_LOCK = $(BASEDIR)/../Cargo.lock
 CRATE_LOCK_HASH = $(shell $(build_SHA256SUM) $(CRATE_LOCK) | cut -c-$(HASH_LENGTH))
 CRATE_ARCHIVE = $(SOURCES_PATH)/vendored-crates-$(CRATE_LOCK_HASH).tar.gz
+CRATE_REGISTRY_STAMP = $(host_prefix)/.$(CRATE_REGISTRY).stamp
 
 ifneq ($(DEBUG),)
 release_type=debug
@@ -220,13 +221,15 @@ $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
 
 # Vendors Rust crate dependencies for offline builds
 # Uses pre-built archive if available, otherwise runs 'cargo vendor'
-$(host_prefix)/$(CRATE_REGISTRY): $(host_prefix)/.stamp_$(final_build_id) $(CRATE_LOCK)
+$(CRATE_REGISTRY_STAMP): $(host_prefix)/.stamp_$(final_build_id) $(CRATE_LOCK)
+	@rm -rf $(host_prefix)/$(CRATE_REGISTRY)
 	@if test -f $(CRATE_ARCHIVE); \
 	then echo Extracting pre-vendored crates from $(CRATE_ARCHIVE)...; \
-		$(build_TAR) --no-same-owner -xf $(CRATE_ARCHIVE) -C $(@D); \
+		$(build_TAR) --no-same-owner -xf $(CRATE_ARCHIVE) -C $(host_prefix); \
 	else echo Vendoring crates...; \
-		$(@D)/native/bin/cargo vendor --locked --manifest-path $(BASEDIR)/../Cargo.toml $@; \
+		$(host_prefix)/native/bin/cargo vendor --locked --manifest-path $(BASEDIR)/../Cargo.toml $(host_prefix)/$(CRATE_REGISTRY); \
 	fi
+	@test -d $(host_prefix)/$(CRATE_REGISTRY)
 	@touch $@
 
 # Vendors crates for cargo packages
@@ -341,7 +344,7 @@ clean:
 	@rm -rf $(WORK_PATH) $(BASE_CACHE) $(BUILD) *.log
 
 ifeq ($(RUST),1)
-install: check-packages $(host_prefix)/share/config.site $(host_prefix)/$(CRATE_REGISTRY)
+install: check-packages $(host_prefix)/share/config.site $(CRATE_REGISTRY_STAMP)
 else
 install: check-packages $(host_prefix)/share/config.site
 endif
