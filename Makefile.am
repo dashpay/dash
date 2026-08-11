@@ -74,6 +74,7 @@ CARGO_FILES = \
   $(top_srcdir)/.cargo/config.toml.offline \
   $(top_srcdir)/Cargo.lock \
   $(top_srcdir)/Cargo.toml \
+  $(top_srcdir)/rust-toolchain.toml \
   $(top_srcdir)/contrib/devtools/cargo-vendor-git-sources.sh
 
 COVERAGE_INFO = $(COV_TOOL_WRAPPER) baseline.info \

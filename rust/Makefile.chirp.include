@@ -9,7 +9,7 @@
 
 LIBRUST_CHIRP_CRATE_DIR = $(top_srcdir)/rust/chirp
 LIBRUST_CHIRP_GEN_DIR = $(abs_top_builddir)/rust/chirp/gen
-LIBRUST_CHIRP_GEN_SRCDIR = $(top_srcdir)/rust/chirp/gen
+LIBRUST_CHIRP_GEN_SRCDIR = $(abs_top_srcdir)/rust/chirp/gen
 LIBRUST_CHIRP_MANIFEST = $(LIBRUST_CHIRP_CRATE_DIR)/Cargo.toml
 
 LIBRUST_CHIRP_SRCS = \
@@ -23,6 +23,9 @@ LIBRUST_CHIRP_CPP = \
 
 LIBRUST_CHIRP_H = \
 	$(LIBRUST_CHIRP_GEN_DIR)/include/rust/chirp/lib.h
+
+LIBCXXBRIDGE_H = \
+	$(LIBRUST_CHIRP_GEN_DIR)/include/rust/cxx.h
 
 LIBRUST_CHIRP_INCLUDES = \
 	-I$(LIBRUST_CHIRP_GEN_DIR)/include
@@ -52,10 +55,14 @@ $(LIBRUST_CHIRP_H): $(LIBRUST_CHIRP_SRCS)
 	  $(CXXBRIDGE) $< --header -o $@; \
 	fi
 
+$(LIBCXXBRIDGE_H): $(CXXBRIDGE)
+	$(AM_V_at)$(MKDIR_P) $(@D)
+	$(AM_V_GEN)$(CXXBRIDGE) --header -o $@
+
 cxxbridge-clean-chirp:
 	$(AM_V_at)rm -rf $(LIBRUST_CHIRP_GEN_DIR)
 
-cxxbridge-chirp: $(LIBRUST_CHIRP_CPP) $(LIBRUST_CHIRP_H)
+cxxbridge-chirp: $(LIBRUST_CHIRP_CPP) $(LIBRUST_CHIRP_H) $(LIBCXXBRIDGE_H)
 
 dist-chirp: cxxbridge-chirp
 	$(MKDIR_P) $(distdir)/chirp/gen/src

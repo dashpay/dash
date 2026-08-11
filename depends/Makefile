@@ -350,11 +350,11 @@ endif
 download-one: check-sources $(all_sources)
 
 download-osx:
-	@$(MAKE) -s HOST=x86_64-apple-darwin download-one
+	@$(MAKE) -s RUST=$(RUST) HOST=x86_64-apple-darwin download-one
 download-linux:
-	@$(MAKE) -s HOST=x86_64-unknown-linux-gnu download-one
+	@$(MAKE) -s RUST=$(RUST) HOST=x86_64-unknown-linux-gnu download-one
 download-win:
-	@$(MAKE) -s HOST=x86_64-w64-mingw32 download-one
+	@$(MAKE) -s RUST=$(RUST) HOST=x86_64-w64-mingw32 download-one
 download-rust-std:
 	@mkdir -p $(SOURCES_PATH)
 	@mkdir -p $(SOURCES_PATH)/download-stamps

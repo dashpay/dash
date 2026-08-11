@@ -133,6 +133,7 @@ dnl Rust-dependent component is explicitly enabled.
 AC_PATH_PROG([CARGO], [cargo])
 AC_PATH_PROG([CXXBRIDGE], [cxxbridge])
 AC_PATH_PROG([RUSTC], [rustc])
+CXXBRIDGE_REQUIRED_VERSION="1.0.198"
 
 AC_ARG_VAR([CARGO_INCREMENTAL], [Enable incremental compilation for Rust])
 if test "${CARGO_INCREMENTAL+set}" != "set"; then
@@ -1771,6 +1772,13 @@ if test "$enable_rust" = "yes"; then
   if test -z "$CARGO" || test -z "$RUSTC" || test -z "$CXXBRIDGE"; then
     AC_MSG_ERROR([cargo, rustc and cxxbridge are required by --enable-rust])
   fi
+  AC_MSG_CHECKING([for cxxbridge $CXXBRIDGE_REQUIRED_VERSION])
+  cxxbridge_version=`$CXXBRIDGE --version 2>/dev/null`
+  if test "$cxxbridge_version" != "cxxbridge $CXXBRIDGE_REQUIRED_VERSION"; then
+    AC_MSG_RESULT([no ($cxxbridge_version)])
+    AC_MSG_ERROR([cxxbridge $CXXBRIDGE_REQUIRED_VERSION is required by --enable-rust])
+  fi
+  AC_MSG_RESULT([yes])
   if test "$enable_online_rust" = "no"; then
     if test -z "$RUST_VENDORED_SOURCES"; then
       AC_MSG_ERROR([--enable-rust requires RUST_VENDORED_SOURCES for offline builds or --enable-online-rust])

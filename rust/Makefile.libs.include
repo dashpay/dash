@@ -24,6 +24,7 @@ LIBRUSTDEPS_CPP = \
 	$(LIBRUST_CHIRP_CPP)
 
 LIBRUSTDEPS_H = \
+	$(LIBCXXBRIDGE_H) \
 	$(LIBRUST_CHIRP_H)
 
 # Umbrella staticlib #
