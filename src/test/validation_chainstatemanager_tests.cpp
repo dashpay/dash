@@ -6,6 +6,7 @@
 #include <consensus/validation.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <evo/snapshot.h>
 #include <llmq/context.h>
 #include <llmq/options.h>
 #include <node/chainstate.h>
@@ -1122,20 +1123,31 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_records_only_required_background_work_mn_hashes, SnapshotTestSetup)
 {
     auto [validation_chainstate, _] = this->SetupSnapshot();
-    const uint256 required_block{GetRandHash()};
-    const uint256 unrelated_block{GetRandHash()};
-    const uint256 required_hash{GetRandHash()};
+    const CBlockIndex* required_block;
+    const CBlockIndex* unrelated_block;
+    {
+        LOCK(::cs_main);
+        required_block = validation_chainstate->m_chain[1];
+        unrelated_block = validation_chainstate->m_chain[2];
+    }
+    BOOST_REQUIRE(required_block);
+    BOOST_REQUIRE(unrelated_block);
+    const CDeterministicMNList required_list{
+        required_block->GetBlockHash(), required_block->nHeight, 0};
+    const CDeterministicMNList unrelated_list{
+        unrelated_block->GetBlockHash(), unrelated_block->nHeight, 0};
+    const uint256 required_hash{evo::CanonicalMNListHash(required_list)};
 
     auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL);
-    m_node.evodb->WriteRequiredWorkMNListHashes({required_block});
-    validation_chainstate->SetRequiredBackgroundMNListHashes({required_block});
-    validation_chainstate->RecordBackgroundMNListHash(required_block, required_hash);
-    validation_chainstate->RecordBackgroundMNListHash(unrelated_block, GetRandHash());
+    m_node.evodb->WriteRequiredWorkMNListHashes({required_block->GetBlockHash()});
+    validation_chainstate->SetRequiredBackgroundMNListHashes({required_block->GetBlockHash()});
+    validation_chainstate->RecordBackgroundMNListHash(required_block, required_list);
+    validation_chainstate->RecordBackgroundMNListHash(unrelated_block, unrelated_list);
 
     uint256 captured_hash;
-    BOOST_REQUIRE(m_node.evodb->ReadBackgroundWorkMNListHash(required_block, captured_hash));
+    BOOST_REQUIRE(m_node.evodb->ReadBackgroundWorkMNListHash(required_block->GetBlockHash(), captured_hash));
     BOOST_CHECK_EQUAL(captured_hash, required_hash);
-    BOOST_CHECK(!m_node.evodb->ReadBackgroundWorkMNListHash(unrelated_block, captured_hash));
+    BOOST_CHECK(!m_node.evodb->ReadBackgroundWorkMNListHash(unrelated_block->GetBlockHash(), captured_hash));
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename, SnapshotTestSetup)

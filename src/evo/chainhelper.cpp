@@ -69,7 +69,12 @@ int32_t CChainstateHelper::GetBestChainLockHeight() const { return m_chainlocks.
 
 uint256 CChainstateHelper::GetDeterministicMNListHash(const CBlockIndex* pindex) const
 {
-    return evo::CanonicalMNListHash(m_dmnman.GetListForBlock(Assert(pindex)));
+    const CBlockIndex* index{Assert(pindex)};
+    CDeterministicMNList list{m_dmnman.GetListForBlock(index)};
+    if (list.GetBlockHash().IsNull()) {
+        list = CDeterministicMNList{index->GetBlockHash(), index->nHeight, 0};
+    }
+    return evo::CanonicalMNListHash(list);
 }
 
 /** Passthrough functions to CCreditPoolManager */

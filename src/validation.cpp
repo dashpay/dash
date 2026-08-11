@@ -55,16 +55,12 @@
 
 #include <chainlock/chainlock.h>
 #include <evo/chainhelper.h>
-#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
-#include <evo/mnhftx.h>
-#include <evo/snapshot.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <masternode/payments.h>
-#include <llmq/blockprocessor.h>
-#include <llmq/snapshot.h>
 #include <stats/client.h>
 #include <util/std23.h>
 
@@ -2781,31 +2777,6 @@ void Chainstate::ForceFlushStateToDisk()
     if (!this->FlushStateToDisk(state, FlushStateMode::ALWAYS)) {
         LogPrintf("%s: failed to flush state (%s)\n", __func__, state.ToString());
     }
-}
-
-void Chainstate::RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list)
-{
-    if (EvoDbIdentity() != ::EvoDbIdentity::NORMAL) return;
-
-    const auto base_blockhash = m_chainman.SnapshotBlockhash();
-    if (!base_blockhash) return;
-
-    if (!m_required_background_mn_list_hashes) {
-        std::vector<uint256> required_work_blocks;
-        m_evoDb.ReadRequiredWorkMNListHashes(required_work_blocks);
-        m_required_background_mn_list_hashes.emplace(required_work_blocks.begin(), required_work_blocks.end());
-    }
-
-    const uint256 block_hash{pindex->GetBlockHash()};
-    const bool is_base_block{*base_blockhash == block_hash};
-    const bool is_required_work_block{m_required_background_mn_list_hashes->contains(block_hash)};
-    if (!is_base_block && !is_required_work_block) return;
-
-    // Hash only the snapshot base and the bounded set of historical work
-    // blocks needed for deferred evo validation, not every background block.
-    const uint256 mn_list_hash{evo::CanonicalMNListHash(mn_list)};
-    if (is_base_block) m_evoDb.WriteBackgroundMNListHash(block_hash, mn_list_hash);
-    if (is_required_work_block) m_evoDb.WriteBackgroundWorkMNListHash(block_hash, mn_list_hash);
 }
 
 void Chainstate::SetRequiredBackgroundMNListHashes(const std::vector<uint256>& block_hashes)
