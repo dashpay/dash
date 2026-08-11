@@ -52,6 +52,11 @@ $(package)_targets += powerpc64le-unknown-linux-musl
 $(package)_target_powerpc64le-unknown-linux-gnu:=powerpc64le-unknown-linux-musl
 $(package)_sha256_hash_powerpc64le-unknown-linux-musl:=696958d87842d877640140ddbbaa74d044374874dee9516e227a395b70bfb8d4
 
+# Linux (PowerPC 64-bit big-endian)
+$(package)_targets += powerpc64-unknown-linux-gnu
+$(package)_target_powerpc64-unknown-linux-gnu:=powerpc64-unknown-linux-gnu
+$(package)_sha256_hash_powerpc64-unknown-linux-gnu:=c47938c152f1b237c901090d69522ce1ccfa69a859ed10d634fe3083108c3017
+
 # Linux (RISCV64GC)
 $(package)_targets += riscv64gc-unknown-linux-musl
 $(package)_target_riscv64-unknown-linux-gnu:=riscv64gc-unknown-linux-musl

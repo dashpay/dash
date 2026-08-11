@@ -62,7 +62,9 @@ HOST_ID_SALT ?= salt
 BUILD_ID_SALT ?= salt
 
 CRATE_REGISTRY := vendored-sources
-CRATE_ARCHIVE = $(SOURCES_PATH)/vendored-crates.tar.gz
+CRATE_LOCK = $(BASEDIR)/../Cargo.lock
+CRATE_LOCK_HASH = $(shell $(build_SHA256SUM) $(CRATE_LOCK) | cut -c-$(HASH_LENGTH))
+CRATE_ARCHIVE = $(SOURCES_PATH)/vendored-crates-$(CRATE_LOCK_HASH).tar.gz
 
 ifneq ($(DEBUG),)
 release_type=debug
@@ -213,15 +215,15 @@ $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
 	mkdir -p $(@D)
 	echo copying packages: $^
 	echo to: $(@D)
-	cd $(@D); $(foreach package,$^, $(build_TAR) -P --no-same-owner -xf $($(package)_cached); )
+	cd $(@D); $(foreach package,$^, $(build_TAR) --no-same-owner -xf $($(package)_cached); )
 	touch $@
 
 # Vendors Rust crate dependencies for offline builds
 # Uses pre-built archive if available, otherwise runs 'cargo vendor'
-$(host_prefix)/$(CRATE_REGISTRY): $(host_prefix)/.stamp_$(final_build_id)
+$(host_prefix)/$(CRATE_REGISTRY): $(host_prefix)/.stamp_$(final_build_id) $(CRATE_LOCK)
 	@if test -f $(CRATE_ARCHIVE); \
 	then echo Extracting pre-vendored crates from $(CRATE_ARCHIVE)...; \
-		$(build_TAR) -P --no-same-owner -xf $(CRATE_ARCHIVE) -C $(@D); \
+		$(build_TAR) --no-same-owner -xf $(CRATE_ARCHIVE) -C $(@D); \
 	else echo Vendoring crates...; \
 		$(@D)/native/bin/cargo vendor --locked --manifest-path $(BASEDIR)/../Cargo.toml $@; \
 	fi
@@ -231,10 +233,10 @@ $(host_prefix)/$(CRATE_REGISTRY): $(host_prefix)/.stamp_$(final_build_id)
 vendor-dep-crates: $(foreach package,$(native_cargo_packages),vendor-$(package)-crates)
 
 # Vendors project-wide cargo packages
-vendor-all-crates: $(native_rust_cached)
+vendor-all-crates: $(native_rust_cached) $(CRATE_LOCK)
 	@rm -rf $(WORK_PATH)/vendor-main
 	@mkdir -p $(WORK_PATH)/vendor-main
-	@$(build_TAR) -P --no-same-owner -xf $(native_rust_cached) -C $(WORK_PATH)/vendor-main
+	@$(build_TAR) --no-same-owner -xf $(native_rust_cached) -C $(WORK_PATH)/vendor-main
 	@echo "Vendoring main project crates..."
 	@$(WORK_PATH)/vendor-main/native/bin/cargo vendor --locked --manifest-path $(BASEDIR)/../Cargo.toml $(WORK_PATH)/vendor-main/$(CRATE_REGISTRY)
 	@cd $(WORK_PATH)/vendor-main; find $(CRATE_REGISTRY) | sort | $(build_TAR) --no-recursion -czf $(CRATE_ARCHIVE) -T -

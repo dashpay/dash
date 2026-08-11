@@ -6,6 +6,10 @@
 #include <common/run_command.h>
 #include <univalue.h>
 
+#ifdef ENABLE_RUST
+#include <rust/chirp/lib.h>
+#endif // ENABLE_RUST
+
 #ifdef ENABLE_EXTERNAL_SIGNER
 #include <util/subprocess.hpp>
 #endif // ENABLE_EXTERNAL_SIGNER
@@ -20,6 +24,15 @@ BOOST_AUTO_TEST_CASE(dummy)
 {
     BOOST_CHECK(true);
 }
+
+#ifdef ENABLE_RUST
+BOOST_AUTO_TEST_CASE(rust_bridge)
+{
+    const std::string result{chirp::chirp()};
+    BOOST_CHECK(result.starts_with("chirp 0.1.0 built with rustc "));
+    BOOST_CHECK(result.ends_with(" reports \"cheep cheep\""));
+}
+#endif // ENABLE_RUST
 
 #ifdef ENABLE_EXTERNAL_SIGNER
 

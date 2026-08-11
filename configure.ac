@@ -1747,7 +1747,7 @@ AC_DEFUN([RS_SET_TRIPLE], [
     aarch64-*-linux*|arm64-*-linux*)
                           $1="aarch64-unknown-linux-$3" ;;
     arm-*-linux*)         $1="armv7-unknown-linux-$3eabihf" ;;
-    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-$3" ;;
+    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
     powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-$3" ;;
     riscv64-*-linux*)     $1="riscv64gc-unknown-linux-$3" ;;
     x86_64-*-linux*)      $1="x86_64-unknown-linux-$3" ;;
@@ -1792,12 +1792,24 @@ if test "$enable_rust" = "yes"; then
   esac
 
   AC_MSG_CHECKING([for Rust target])
-  RS_SET_TRIPLE([RUST_TARGET], [$host], [musl])
+  rust_target_libc=gnu
+  if test -n "$depends_prefix"; then
+    rust_target_libc=musl
+  fi
+  RS_SET_TRIPLE([RUST_TARGET], [$host], [$rust_target_libc])
   if test "$RUST_TARGET" = ""; then
     AC_MSG_RESULT([unknown])
     AC_MSG_ERROR([Unsupported target for Rust: $host])
   fi
   AC_MSG_RESULT([$RUST_TARGET])
+
+  AC_MSG_CHECKING([for Rust target standard library])
+  rust_target_libdir=`$RUSTC --print target-libdir --target "$RUST_TARGET" 2>/dev/null`
+  if test -z "$rust_target_libdir" || test ! -d "$rust_target_libdir"; then
+    AC_MSG_RESULT([not found])
+    AC_MSG_ERROR([Rust standard library for $RUST_TARGET is not installed])
+  fi
+  AC_MSG_RESULT([$rust_target_libdir])
 
   case $host in
     *darwin*)

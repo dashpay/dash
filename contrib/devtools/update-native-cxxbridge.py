@@ -54,7 +54,10 @@ def main() -> int:
         # Extract tarball
         print(f"Extracting {tarball_path}")
         with tarfile.open(tarball_path, "r:gz") as tar:
-            tar.extractall(tmp_path, filter="data")
+            # getattr keeps this compatible with the older tarfile type stubs
+            # used by the Python 3.10 lint environment. Supported Python 3.10
+            # releases include the security filter at runtime.
+            getattr(tar, "extractall")(tmp_path, filter="data")
 
         cxx_dir = tmp_path / f"cxx-{version}"
         if not cxx_dir.exists():

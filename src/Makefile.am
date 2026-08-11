@@ -8,6 +8,7 @@
 print-%: FORCE
 	@echo '$*'='$($*)'
 
+include $(top_srcdir)/rust/Makefile.common.include
 include $(top_srcdir)/rust/Makefile.libs.include
 
 DIST_SUBDIRS = secp256k1
@@ -27,6 +28,9 @@ EXTRA_LIBRARIES =
 BUILT_SOURCES =
 if ENABLE_RUST
 BUILT_SOURCES += $(LIBRUSTDEPS_H)
+
+libbitcoin_node_a-init.$(OBJEXT) \
+test/test_dash-system_tests.$(OBJEXT): $(LIBRUSTDEPS_H)
 endif
 
 lib_LTLIBRARIES =
