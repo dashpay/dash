@@ -14,6 +14,7 @@ $(package)_sha256_hash:=e8c54f11e12b00f80a7da8cc2eac55db5c4688cb2bc483f5e923261f
 $(package)_build_subdir:=bridge/cmd
 $(package)_dependencies:=native_rust
 $(package)_patches:=Cargo.lock cargo-config.toml
+$(package)_extra_recipe_files:=$(PATCHES_PATH)/native_rust/fix-elf-interpreter.sh
 $(package)_vendored_file_name:=native_cxxbridge-$($(package)_version)-vendored.tar.gz
 $(package)_cargo_manifest:=bridge/cmd/Cargo.toml
 

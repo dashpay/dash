@@ -9,6 +9,7 @@
 package:=native_rust
 $(package)_version:=1.92.0
 $(package)_download_path:=https://static.rust-lang.org/dist
+$(package)_extra_recipe_files:=$(PATCHES_PATH)/native_rust/fix-elf-interpreter.sh
 
 # FreeBSD (x86_64)
 $(package)_file_name_x86_64_freebsd:=rust-$($(package)_version)-x86_64-unknown-freebsd.tar.gz
