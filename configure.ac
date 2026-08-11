@@ -144,6 +144,8 @@ if test "${RUSTFLAGS+set}" != "set"; then
   RUSTFLAGS="-C embed-bitcode=yes -C relocation-model=pic"
 fi
 
+AC_ARG_VAR([RUST_VENDORED_SOURCES], [Directory containing vendored Rust crate sources for offline builds])
+
 AC_ARG_ENABLE([rust],
   [AS_HELP_STRING([--enable-rust],
     [build the Rust/C++ bridge smoke component (default is no)])],
@@ -1768,6 +1770,14 @@ RUST_NATIVE=""
 if test "$enable_rust" = "yes"; then
   if test -z "$CARGO" || test -z "$RUSTC" || test -z "$CXXBRIDGE"; then
     AC_MSG_ERROR([cargo, rustc and cxxbridge are required by --enable-rust])
+  fi
+  if test "$enable_online_rust" = "no"; then
+    if test -z "$RUST_VENDORED_SOURCES"; then
+      AC_MSG_ERROR([--enable-rust requires RUST_VENDORED_SOURCES for offline builds or --enable-online-rust])
+    fi
+    if test ! -d "$RUST_VENDORED_SOURCES"; then
+      AC_MSG_ERROR([Rust vendored sources directory does not exist: $RUST_VENDORED_SOURCES])
+    fi
   fi
   AC_DEFINE([ENABLE_RUST], [1], [Define this symbol to enable Rust components])
 
