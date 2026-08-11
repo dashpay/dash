@@ -58,6 +58,9 @@ from test_framework.messages import (
     msg_getheaders2,
     msg_getmnlistd,
     msg_getqrinfo,
+    msg_govobj,
+    msg_govobjvote,
+    msg_govsync,
     msg_headers,
     msg_headers2,
     msg_inv,
@@ -162,9 +165,9 @@ MESSAGEMAP = {
     b"getmnlistd": msg_getmnlistd,
     b"getqrinfo": msg_getqrinfo,
     b"getsporks": None,
-    b"govobj": None,
-    b"govobjvote": None,
-    b"govsync": None,
+    b"govobj": msg_govobj,
+    b"govobjvote": msg_govobjvote,
+    b"govsync": msg_govsync,
     b"headers2": msg_headers2,
     b"isdlock": msg_isdlock,
     b"mnauth": None,
@@ -619,6 +622,9 @@ class P2PInterface(P2PConnection):
 
     def on_mnlistdiff(self, message): pass
     def on_clsig(self, message): pass
+    def on_govobj(self, message): pass
+    def on_govobjvote(self, message): pass
+    def on_govsync(self, message): pass
     def on_islock(self, message): pass
     def on_isdlock(self, message): pass
 
