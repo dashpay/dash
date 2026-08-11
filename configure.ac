@@ -1886,7 +1886,7 @@ if test "$enable_rust" = "yes"; then
   fi
   AC_MSG_RESULT([$NATIVE_CXX])
 
-  if test -n "$depends_prefix"; then
+  if test -n "$depends_prefix" && test "$RUSTC" = "$depends_prefix/native/bin/rustc"; then
     RUSTUP_TOOLCHAIN=""
   fi
 fi
