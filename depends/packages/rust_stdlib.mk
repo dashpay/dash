@@ -47,6 +47,12 @@ $(package)_targets += aarch64-unknown-linux-musl
 $(package)_target_aarch64-unknown-linux-gnu:=aarch64-unknown-linux-musl
 $(package)_sha256_hash_aarch64-unknown-linux-musl:=715fbcfd8712c723947a020d0371c8a1a21f7531f2b696aeaed50ac23ba675c9
 
+# Linux (x86 32-bit)
+$(package)_targets += i686-unknown-linux-musl
+$(package)_target_i686-pc-linux-gnu:=i686-unknown-linux-musl
+$(package)_target_i686-unknown-linux-gnu:=i686-unknown-linux-musl
+$(package)_sha256_hash_i686-unknown-linux-musl:=3d6ccb700a17533eea10c7541896c92817783045c5537af37228142da7668fb3
+
 # Linux (PowerPC 64-bit little-endian)
 $(package)_targets += powerpc64le-unknown-linux-musl
 $(package)_target_powerpc64le-unknown-linux-gnu:=powerpc64le-unknown-linux-musl

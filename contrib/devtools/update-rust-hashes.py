@@ -23,6 +23,7 @@ CROSS_TARGETS = [
     # Linux
     "aarch64-unknown-linux-musl",
     "armv7-unknown-linux-musleabihf",
+    "i686-unknown-linux-musl",
     "powerpc64-unknown-linux-gnu",
     "powerpc64le-unknown-linux-musl",
     "riscv64gc-unknown-linux-musl",

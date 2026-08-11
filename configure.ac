@@ -1758,6 +1758,7 @@ AC_DEFUN([RS_SET_TRIPLE], [
     powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
     powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-${rs_triple_libc}" ;;
     riscv64-*-linux*)     $1="riscv64gc-unknown-linux-${rs_triple_libc}" ;;
+    i?86-*-linux*)        $1="i686-unknown-linux-${rs_triple_libc}" ;;
     x86_64-*-linux*)      $1="x86_64-unknown-linux-${rs_triple_libc}" ;;
     x86_64-*-darwin*)     $1="x86_64-apple-darwin" ;;
     aarch64-*-darwin*|arm64-*-darwin*)
