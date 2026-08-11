@@ -135,6 +135,7 @@ AC_PATH_PROG([CXXBRIDGE], [cxxbridge])
 AC_PATH_PROG([RUSTC], [rustc])
 CXXBRIDGE_REQUIRED_VERSION="1.0.198"
 RUSTC_REQUIRED_VERSION="1.92.0"
+CARGO_REQUIRED_VERSION="$RUSTC_REQUIRED_VERSION"
 AC_SUBST([CXXBRIDGE_REQUIRED_VERSION])
 
 AC_ARG_VAR([CARGO_INCREMENTAL], [Enable incremental compilation for Rust])
@@ -1783,6 +1784,13 @@ if test "$enable_rust" = "yes"; then
   if test "$cxxbridge_version" != "cxxbridge $CXXBRIDGE_REQUIRED_VERSION"; then
     AC_MSG_RESULT([no ($cxxbridge_version)])
     AC_MSG_ERROR([cxxbridge $CXXBRIDGE_REQUIRED_VERSION is required by --enable-rust])
+  fi
+  AC_MSG_RESULT([yes])
+  AC_MSG_CHECKING([for cargo $CARGO_REQUIRED_VERSION])
+  cargo_version=`$CARGO --version 2>/dev/null | cut -d ' ' -f 2`
+  if test "$cargo_version" != "$CARGO_REQUIRED_VERSION"; then
+    AC_MSG_RESULT([no ($cargo_version)])
+    AC_MSG_ERROR([cargo $CARGO_REQUIRED_VERSION is required by --enable-rust])
   fi
   AC_MSG_RESULT([yes])
   AC_MSG_CHECKING([for rustc $RUSTC_REQUIRED_VERSION])
