@@ -1755,7 +1755,7 @@ AC_DEFUN([RS_SET_TRIPLE], [
     arm*-*-linux-*eabihf) $1="armv7-unknown-linux-${rs_triple_libc}eabihf" ;;
     arm*-*-linux-*eabi)   $1="armv7-unknown-linux-${rs_triple_libc}eabi" ;;
     arm*-*-linux*)        $1="armv7-unknown-linux-${rs_triple_libc}eabihf" ;;
-    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-gnu" ;;
+    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-${rs_triple_libc}" ;;
     powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-${rs_triple_libc}" ;;
     riscv64-*-linux*)     $1="riscv64gc-unknown-linux-${rs_triple_libc}" ;;
     i?86-*-linux*)        $1="i686-unknown-linux-${rs_triple_libc}" ;;
@@ -1832,7 +1832,10 @@ if test "$enable_rust" = "yes"; then
     *-linux-musl*) rust_target_libc=musl ;;
   esac
   if test "$rust_uses_depends" = "yes"; then
-    rust_target_libc=musl
+    case $host in
+      powerpc64-*-linux*) rust_target_libc=gnu ;;
+      *) rust_target_libc=musl ;;
+    esac
   fi
   RS_SET_TRIPLE([RUST_TARGET], [$host], [$rust_target_libc])
   if test "$RUST_TARGET" = ""; then
