@@ -47,6 +47,7 @@ $(LIBRUST_CHIRP_GEN_STAMP): $(CXXBRIDGE)
 $(LIBRUST_CHIRP_CPP): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp && \
+	  test -f $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp -nt $< && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp -nt $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test "$(LIBRUST_CHIRP_GEN_SRCDIR)" != "$(LIBRUST_CHIRP_GEN_DIR)"; then \
@@ -58,6 +59,7 @@ $(LIBRUST_CHIRP_CPP): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 $(LIBRUST_CHIRP_H): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h && \
+	  test -f $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h -nt $< && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h -nt $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test "$(LIBRUST_CHIRP_GEN_SRCDIR)" != "$(LIBRUST_CHIRP_GEN_DIR)"; then \
