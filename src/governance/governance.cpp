@@ -1020,7 +1020,6 @@ void GovernanceStore::Clear()
     mapObjects.clear();
     mapErasedGovernanceObjects.clear();
     cmmapOrphanVotes.Clear();
-    cmmapOrphanVotes.SetMaxSize(MAX_ORPHAN_VOTES);
     mapLastMasternodeObject.clear();
     lastMNListForVotingKeys = std::make_shared<CDeterministicMNList>();
 }

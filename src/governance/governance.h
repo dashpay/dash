@@ -238,7 +238,7 @@ public:
         // The historical format stores CacheMultiMap's capacity with its entries. Consume that
         // field to preserve the format, but keep both the stale orphan votes and their disk-supplied
         // capacity out of the live cache. Orphans are a ten-minute recovery window invalidated by
-        // the restart; the live capacity is node policy established by Clear().
+        // the restart; the live capacity is fixed at construction.
         vote_cmm_t discarded_orphan_votes;
 
         s   >> mapErasedGovernanceObjects

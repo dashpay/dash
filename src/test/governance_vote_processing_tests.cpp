@@ -216,6 +216,22 @@ struct TestGovernanceStore : GovernanceStore {
         return mapObjects.size();
     }
 };
+
+//! The legacy on-disk GovernanceStore layout, as written by every release so far. stop_after_orphans
+//! truncates the stream after the orphan field, so the read of the field after it throws mid-load.
+CDataStream MakeLegacyStore(const CacheMap<uint256, CGovernanceVote>& invalid_votes,
+                            const CacheMultiMap<uint256, governance::OrphanVote>& orphan_votes,
+                            const std::map<uint256, std::shared_ptr<CGovernanceObject>>& objects,
+                            bool stop_after_orphans = false)
+{
+    CDataStream ss{SER_DISK, CLIENT_VERSION};
+    ss << std::string{"CGovernanceManager-Version-16"} << std::map<uint256, int64_t>{} << invalid_votes
+       << orphan_votes;
+    if (!stop_after_orphans) {
+        ss << objects << std::map<COutPoint, TestGovernanceStore::last_object_rec>{} << CDeterministicMNList{};
+    }
+    return ss;
+}
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(governance_vote_processing_tests, GovernanceVoteSetup)
@@ -449,14 +465,8 @@ BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
     legacy_invalid_votes.Insert(forged.GetHash(), forged);
     const auto proposal = std::make_shared<CGovernanceObject>(MakeProposal(uint256::ONE));
 
-    CDataStream stream{SER_DISK, CLIENT_VERSION};
-    stream << std::string{"CGovernanceManager-Version-16"}
-           << std::map<uint256, int64_t>{}
-           << legacy_invalid_votes
-           << CacheMultiMap<uint256, governance::OrphanVote>{3}
-           << std::map<uint256, std::shared_ptr<CGovernanceObject>>{{proposal->GetHash(), proposal}}
-           << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
-           << CDeterministicMNList{};
+    CDataStream stream{MakeLegacyStore(legacy_invalid_votes, CacheMultiMap<uint256, governance::OrphanVote>{3},
+                                       {{proposal->GetHash(), proposal}})};
 
     TestGovernanceStore store;
     store.Unserialize(stream);
@@ -562,66 +572,26 @@ BOOST_AUTO_TEST_CASE(orphan_vote_relayers_seed_parent_request_candidates)
     m_node.peerman->FinalizeNode(*unrelated_peer);
 }
 
-// CacheMultiMap serializes its own capacity, so loading a governance.dat written before
-// MAX_ORPHAN_VOTES existed would restore the old 1'000'000 and silently un-bound the cache for the
-// rest of the run -- leaving the bound in force on fresh nodes only, which is where it is least
-// needed. The on-disk format is unchanged, so this has to be reasserted on load rather than avoided
-// by a version bump.
-BOOST_AUTO_TEST_CASE(orphan_vote_bound_survives_loading_an_old_cache_file)
+// The legacy format stores the orphan cache -- entries and CacheMultiMap's own capacity, 1'000'000
+// in every release that wrote one -- with the store. Unserialize must drop both, whether the load
+// completes or throws mid-stream: orphans are a ten-minute recovery window invalidated by the
+// restart, and a stream that fed the live cache would let the file's capacity override
+// MAX_ORPHAN_VOTES.
+BOOST_AUTO_TEST_CASE(legacy_orphan_votes_are_discarded_on_load)
 {
-    // Stand in for a pre-existing governance.dat: the same field order GovernanceStore writes, with
-    // the orphan map carrying the historical capacity and an entry stored under it. The two maps
-    // whose value types are internal to GovernanceStore are written empty, which serializes as a
-    // count of zero without naming those types.
-    CDataStream ss{SER_DISK, CLIENT_VERSION};
     CacheMultiMap<uint256, governance::OrphanVote> legacy_orphans{1'000'000};
     legacy_orphans.Insert(uint256S("61"),
-                          governance::OrphanVote{MakeVote(uint256S("61"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES), NodeSeconds{9999s}});
-    ss << std::string{"CGovernanceManager-Version-16"} << std::map<uint256, int64_t>{}
-       << CacheMap<uint256, CGovernanceVote>{1'000'000} << legacy_orphans
-       << std::map<uint256, uint8_t>{} << std::map<COutPoint, uint8_t>{} << CDeterministicMNList{};
-
-    BOOST_REQUIRE_NO_THROW(ss >> *m_node.govman);
-
-    // The file's orphan state is not retained.
-    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
-
-    // And the bound is ours, not the file's. Without the reassert this holds 1'000'000 and keeps
-    // every one of the votes below.
-    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + 25; ++i) {
-        CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
-        SignWithVotingKey(vote, mn_voting_key);
-        CGovernanceException exception;
-        uint256 hash_to_request;
-        BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
-    }
-    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(),
-                      static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
-}
-
-// A load failure after the legacy orphan field must not leave its disk-supplied capacity behind.
-BOOST_AUTO_TEST_CASE(orphan_vote_bound_survives_a_failed_old_cache_load)
-{
-    CDataStream ss{SER_DISK, CLIENT_VERSION};
-    CacheMultiMap<uint256, governance::OrphanVote> legacy_orphans{1'000'000};
-    legacy_orphans.Insert(uint256S("71"),
-                          governance::OrphanVote{MakeVote(uint256S("71"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES),
+                          governance::OrphanVote{MakeVote(uint256S("61"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES),
                                                  NodeSeconds{9999s}});
-    // Stop after the legacy orphan field so the following map read throws.
-    ss << std::string{"CGovernanceManager-Version-16"} << std::map<uint256, int64_t>{}
-       << CacheMap<uint256, CGovernanceVote>{1'000'000} << legacy_orphans;
 
-    BOOST_CHECK_THROW(ss >> *m_node.govman, std::ios_base::failure);
+    CDataStream loaded{MakeLegacyStore(CacheMap<uint256, CGovernanceVote>{1'000'000}, legacy_orphans, {})};
+    BOOST_REQUIRE_NO_THROW(loaded >> *m_node.govman);
     BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
 
-    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + 25; ++i) {
-        CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
-        SignWithVotingKey(vote, mn_voting_key);
-        CGovernanceException exception;
-        uint256 hash_to_request;
-        BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
-    }
-    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
+    CDataStream truncated{MakeLegacyStore(CacheMap<uint256, CGovernanceVote>{1'000'000}, legacy_orphans, {},
+                                          /*stop_after_orphans=*/true)};
+    BOOST_CHECK_THROW(truncated >> *m_node.govman, std::ios_base::failure);
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
