@@ -11,22 +11,11 @@ import sys
 import urllib.request
 from pathlib import Path
 
-# Corresponds to 'hosts/*.mk'
+# Rust standard libraries provisioned in rust_stdlib.mk. Confined to the
+# hosts we validate (the Guix release set); see rust_stdlib.mk.
 CROSS_TARGETS = [
-    # Android
-    "aarch64-linux-android",
-    "armv7-linux-androideabi",
-    "i686-linux-android",
-    "x86_64-linux-android",
-    # FreeBSD
-    "x86_64-unknown-freebsd",
     # Linux
     "aarch64-unknown-linux-musl",
-    "armv7-unknown-linux-musleabi",
-    "armv7-unknown-linux-musleabihf",
-    "i686-unknown-linux-musl",
-    "powerpc64-unknown-linux-gnu",
-    "powerpc64le-unknown-linux-musl",
     "riscv64gc-unknown-linux-musl",
     "x86_64-unknown-linux-musl",
     # Windows
@@ -36,10 +25,8 @@ CROSS_TARGETS = [
     "x86_64-apple-darwin",
 ]
 
-# Corresponds to 'builders/*.mk'
+# Native compilers provisioned in native_rust.mk (build hosts for depends)
 NATIVE_TARGETS = [
-    # FreeBSD
-    ("x86_64-unknown-freebsd", "x86_64_freebsd"),
     # Linux
     ("aarch64-unknown-linux-gnu", "aarch64_linux"),
     ("x86_64-unknown-linux-gnu", "x86_64_linux"),

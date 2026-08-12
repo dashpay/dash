@@ -11,10 +11,6 @@ $(package)_version:=1.92.0
 $(package)_download_path:=https://static.rust-lang.org/dist
 $(package)_patches:=fix-elf-interpreter.sh
 
-# FreeBSD (x86_64)
-$(package)_file_name_x86_64_freebsd:=rust-$($(package)_version)-x86_64-unknown-freebsd.tar.gz
-$(package)_sha256_hash_x86_64_freebsd:=f32b7d8d5ad5c186fa496dd0b7202899f89e93870940e41c37e576f324494189
-
 # Linux (ARMv8)
 $(package)_file_name_aarch64_linux:=rust-$($(package)_version)-aarch64-unknown-linux-gnu.tar.gz
 $(package)_sha256_hash_aarch64_linux:=c812028423c3d7dd7ba99f66101e9e1aa3f66eab44a1285f41c363825d49dca4

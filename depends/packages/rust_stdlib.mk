@@ -16,55 +16,14 @@ $(package)_target=$(or \
   $($(package)_target_$(subst -linux-,-unknown-linux-,$(canonical_host))),\
   $(if $(findstring -apple-darwin,$(canonical_host)),$(host_arch)-apple-darwin))
 
-# Android
-$(package)_targets += aarch64-linux-android
-$(package)_targets += armv7-linux-androideabi
-$(package)_targets += i686-linux-android
-$(package)_targets += x86_64-linux-android
-$(package)_target_aarch64-unknown-linux-android:=aarch64-linux-android
-$(package)_target_armv7a-unknown-linux-android:=armv7-linux-androideabi
-$(package)_target_i686-pc-linux-android:=i686-linux-android
-$(package)_target_x86_64-pc-linux-android:=x86_64-linux-android
-$(package)_sha256_hash_aarch64-linux-android:=f6689cf5b71056e887261ec84ae1f499eeb42c67e5ae73e7c0e06065b6648c44
-$(package)_sha256_hash_armv7-linux-androideabi:=18f6e6903c5f4361efe8c8a1ea546303e4473e8b9cd1b11fcf4e5b170468d464
-$(package)_sha256_hash_i686-linux-android:=d994d70493ad68ced22a5269e41b9fa6f83af9f3adabade154860058bc2e18c0
-$(package)_sha256_hash_x86_64-linux-android:=b9074f6961baff09334afaff745fb16dbf9f05cdf856b17309d8e6232a281c40
-
-# FreeBSD (x86_64)
-$(package)_targets += x86_64-unknown-freebsd
-$(package)_target_x86_64-unknown-freebsd:=x86_64-unknown-freebsd
-$(package)_sha256_hash_x86_64-unknown-freebsd:=3616afb808cd030e65e66c51f6f0fb6a6fc52d877d0d70bb681b0c35238adbe8
-
-# Linux (ARMv7)
-$(package)_targets += armv7-unknown-linux-musleabi
-$(package)_targets += armv7-unknown-linux-musleabihf
-$(package)_target_arm-unknown-linux-gnueabi:=armv7-unknown-linux-musleabi
-$(package)_target_arm-unknown-linux-gnueabihf:=armv7-unknown-linux-musleabihf
-$(package)_target_armv7-unknown-linux-gnueabi:=armv7-unknown-linux-musleabi
-$(package)_target_armv7-unknown-linux-gnueabihf:=armv7-unknown-linux-musleabihf
-$(package)_sha256_hash_armv7-unknown-linux-musleabi:=3bf1b0015dc3b0f5f6f5622588431855c658d5c47093f24e4077f6893229ab30
-$(package)_sha256_hash_armv7-unknown-linux-musleabihf:=fc5c4ca757599caab8e93000becb9d57587088d32dab5c4f3b253f00ec3a2fd6
+# Rust support is deliberately confined to the hosts we actually validate
+# (the Guix release set plus native development hosts). RUST=1 on any other
+# host fails explicitly below rather than fetching a stdlib we never test.
 
 # Linux (ARMv8)
 $(package)_targets += aarch64-unknown-linux-musl
 $(package)_target_aarch64-unknown-linux-gnu:=aarch64-unknown-linux-musl
 $(package)_sha256_hash_aarch64-unknown-linux-musl:=715fbcfd8712c723947a020d0371c8a1a21f7531f2b696aeaed50ac23ba675c9
-
-# Linux (x86 32-bit)
-$(package)_targets += i686-unknown-linux-musl
-$(package)_target_i686-pc-linux-gnu:=i686-unknown-linux-musl
-$(package)_target_i686-unknown-linux-gnu:=i686-unknown-linux-musl
-$(package)_sha256_hash_i686-unknown-linux-musl:=3d6ccb700a17533eea10c7541896c92817783045c5537af37228142da7668fb3
-
-# Linux (PowerPC 64-bit little-endian)
-$(package)_targets += powerpc64le-unknown-linux-musl
-$(package)_target_powerpc64le-unknown-linux-gnu:=powerpc64le-unknown-linux-musl
-$(package)_sha256_hash_powerpc64le-unknown-linux-musl:=696958d87842d877640140ddbbaa74d044374874dee9516e227a395b70bfb8d4
-
-# Linux (PowerPC 64-bit big-endian)
-$(package)_targets += powerpc64-unknown-linux-gnu
-$(package)_target_powerpc64-unknown-linux-gnu:=powerpc64-unknown-linux-gnu
-$(package)_sha256_hash_powerpc64-unknown-linux-gnu:=c47938c152f1b237c901090d69522ce1ccfa69a859ed10d634fe3083108c3017
 
 # Linux (RISCV64GC)
 $(package)_targets += riscv64gc-unknown-linux-musl

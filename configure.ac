@@ -1739,27 +1739,18 @@ if test "$use_zmq" = "yes"; then
   esac
 fi
 
+dnl Rust support is deliberately confined to the hosts we validate (the Guix
+dnl release set plus native development hosts). Any other host resolves to an
+dnl empty triple, so --enable-rust fails explicitly rather than emitting
+dnl binaries for a target we never build or test.
 AC_DEFUN([RS_SET_TRIPLE], [
   rs_triple_libc=$3
   case $2 in
-    aarch64-*-linux-android*)
-                          $1="aarch64-linux-android" ;;
-    arm*-*-linux-android*)
-                          $1="armv7-linux-androideabi" ;;
-    i?86-*-linux-android*)
-                          $1="i686-linux-android" ;;
-    x86_64-*-linux-android*)
-                          $1="x86_64-linux-android" ;;
-    x86_64-*-freebsd*)    $1="x86_64-unknown-freebsd" ;;
+    *-linux-android*)     dnl unsupported; must stay above the generic linux arms
+                          $1="" ;;
     aarch64-*-linux*|arm64-*-linux*)
                           $1="aarch64-unknown-linux-${rs_triple_libc}" ;;
-    arm*-*-linux-*eabihf) $1="armv7-unknown-linux-${rs_triple_libc}eabihf" ;;
-    arm*-*-linux-*eabi)   $1="armv7-unknown-linux-${rs_triple_libc}eabi" ;;
-    arm*-*-linux*)        $1="armv7-unknown-linux-${rs_triple_libc}eabihf" ;;
-    powerpc64-*-linux*)   $1="powerpc64-unknown-linux-${rs_triple_libc}" ;;
-    powerpc64le-*-linux*) $1="powerpc64le-unknown-linux-${rs_triple_libc}" ;;
     riscv64-*-linux*)     $1="riscv64gc-unknown-linux-${rs_triple_libc}" ;;
-    i?86-*-linux*)        $1="i686-unknown-linux-${rs_triple_libc}" ;;
     x86_64-*-linux*)      $1="x86_64-unknown-linux-${rs_triple_libc}" ;;
     x86_64-*-darwin*)     $1="x86_64-apple-darwin" ;;
     aarch64-*-darwin*|arm64-*-darwin*)
@@ -1840,10 +1831,7 @@ if test "$enable_rust" = "yes"; then
     *-linux-musl*) rust_target_libc=musl ;;
   esac
   if test "$rust_uses_depends" = "yes"; then
-    case $host in
-      powerpc64-*-linux*) rust_target_libc=gnu ;;
-      *) rust_target_libc=musl ;;
-    esac
+    rust_target_libc=musl
   fi
   RS_SET_TRIPLE([RUST_TARGET], [$host], [$rust_target_libc])
   if test "$RUST_TARGET" = ""; then
