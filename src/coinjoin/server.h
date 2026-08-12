@@ -35,6 +35,7 @@ class TestableCoinJoinServer;
 class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
 {
     friend class coinjoin_inouts_tests::TestableCoinJoinServer;
+
 public:
     enum class FeePolicy : uint8_t {
         PROBABILISTIC,
@@ -42,6 +43,19 @@ public:
     };
 
 private:
+    class InFlightMessageGuard
+    {
+        CCoinJoinServer& m_server;
+        const int m_session_id;
+
+    public:
+        InFlightMessageGuard(CCoinJoinServer& server, int session_id);
+        ~InFlightMessageGuard();
+
+        InFlightMessageGuard(const InFlightMessageGuard&) = delete;
+        InFlightMessageGuard& operator=(const InFlightMessageGuard&) = delete;
+    };
+
     CoinJoinQueueManager m_queueman;
 
     ChainstateManager& m_chainman;
@@ -95,6 +109,14 @@ private:
         std::unordered_set<COutPoint, SaltedOutpointHasher> m_prevouts;
     };
     SessionCollaterals m_session_collaterals GUARDED_BY(cs_coinjoin);
+    std::optional<int> m_inflight_session GUARDED_BY(cs_coinjoin);
+    /// Prevouts of collaterals selected for a penalty whose mempool submission has not settled.
+    /// Selection happens under cs_coinjoin but the submission must not, and the reset that follows
+    /// selection reopens admission in between: without this reservation the still-unspent
+    /// collateral could be committed to a replacement session that the pending charge then breaks.
+    /// Deliberately not cleared by SetNull() - a pending charge outlives the session it was
+    /// incurred in - and erased once the submission settles and the mempool takes over.
+    std::unordered_set<COutPoint, SaltedOutpointHasher> m_pending_charges GUARDED_BY(cs_coinjoin);
 
     bool fUnitTest;
 
@@ -111,12 +133,22 @@ private:
     /// Add signature to a txin
     bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
+    int MarkMessageInFlight() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    void ClearMessageInFlight(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+
     /// Choose one bad actor whose collateral should be consumed, if any.
     CTransactionRef SelectCollateralToCharge(FeePolicy policy) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
     void ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved
-    void ConsumeCollateral(const CTransactionRef& txref) const;
+    virtual void ConsumeCollateral(const CTransactionRef& txref) const;
+    /// Reserve a selected collateral's prevouts so admission rejects them until the charge settles.
+    void MarkPendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Does txCollateral spend a prevout reserved for a not-yet-settled penalty?
+    bool IsCollateralPendingCharge(const CMutableTransaction& txCollateral) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Consume a collateral previously reserved with MarkPendingCharge() and release the reservation.
+    void ConsumePendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Check for process
     void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
