@@ -2,9 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <governance/governance.h>
 #include <governance/net_governance.h>
 #include <governance/object.h>
@@ -44,8 +47,10 @@ using namespace std::chrono_literals;
 
 namespace {
 // TestChainSetup only accepts checkpointed chain lengths, so 107 blocks plus
-// -dip3params=109:500 is the shortest chain a ProRegTx can be mined on. Same setup as
-// TestChainDIP3Setup in evo_deterministicmns_tests.cpp.
+// -dip3params=109:110 is the shortest chain a ProRegTx can be mined on (same activation as
+// TestChainDIP3Setup in evo_deterministicmns_tests.cpp). Enforcement follows right after the
+// registration: governance only revalidates votes against key changes once DIP3 is enforced, and
+// only then may a ProUpRegTx give the voting key a value of its own.
 constexpr int DIP3_ACTIVATION_HEIGHT{109};
 
 void SignWithVotingKey(CGovernanceVote& vote, const CKey& key)
@@ -77,7 +82,7 @@ struct GovernanceVoteSetup : public TestChainSetup {
     std::string proposal_payment_address;
 
     GovernanceVoteSetup() :
-        TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, CBaseChainParams::REGTEST, {"-dip3params=109:500"})
+        TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, CBaseChainParams::REGTEST, {"-dip3params=109:110"})
     {
         // A failed BOOST_REQUIRE below throws, and a throwing constructor means no destructor runs.
         // Tear the globals down by hand so one broken invariant here doesn't leave a live tx index
@@ -166,6 +171,34 @@ struct GovernanceVoteSetup : public TestChainSetup {
         for (int i = 0; i < num_blocks; ++i) {
             MineBlock({});
         }
+    }
+
+    //! Replaces the masternode's operator and voting keys with a ProUpRegTx, signed by the owner
+    //! key (which CreateProRegTx made the same as the original voting key).
+    void UpdateRegistrar(const CKey& owner_key, const CBLSPublicKey& operator_pubkey, const CKeyID& voting_key_id)
+    {
+        CProUpRegTx payload;
+        payload.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        payload.proTxHash = mn_collateral.hash;
+        payload.pubKeyOperator.Set(operator_pubkey, bls::bls_legacy_scheme.load());
+        payload.keyIDVoting = voting_key_id;
+        payload.scriptPayout = payout_script();
+
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+        const auto spent = FundTransaction(*m_node.chainman, tx, utxos, payout_script(), 1 * COIN);
+        payload.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        BOOST_REQUIRE(CHashSigner::SignHash(::SerializeHash(payload), owner_key, payload.vchSig));
+        SetTxPayload(tx, payload);
+        SignTransaction(tx, spent, coinbaseKey);
+        MineBlock({tx});
+    }
+
+    //! Governance follows the chain through UpdatedBlockTip(), which MineBlock() does not call.
+    void NotifyGovernanceOfTip()
+    {
+        m_node.govman->UpdatedBlockTip(WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
     }
 
     //! The proposal both the orphan vote and the fee tx below commit to. The object hash
@@ -487,22 +520,72 @@ BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
 }
 
 // The orphan cache is filled from the network by any peer, keyed by a parent hash we cannot verify
-// until the parent arrives, so its size must be bounded by us and not by the sender.
-BOOST_AUTO_TEST_CASE(orphan_vote_cache_is_bounded)
+// until the parent arrives, so its size must be bounded by us and not by the sender -- and bounded
+// per voting key, or one masternode could keep flushing everyone else's orphans out of the shared
+// cache. Past its share, a key's votes are dropped and stop seeding parent requests.
+BOOST_AUTO_TEST_CASE(orphan_votes_per_masternode_are_bounded)
 {
-    constexpr size_t OVERSHOOT = 50;
+    constexpr size_t OVERSHOOT = 25;
 
-    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + OVERSHOOT; ++i) {
+    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES_PER_MN + OVERSHOOT; ++i) {
         // Distinct parent hash per vote, so each would occupy its own cache key.
         CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
         SignWithVotingKey(vote, mn_voting_key);
         CGovernanceException exception;
         uint256 hash_to_request;
         BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
+        if (i < CGovernanceManager::MAX_ORPHAN_VOTES_PER_MN) {
+            BOOST_CHECK_EQUAL(hash_to_request, vote.GetParentHash());
+        } else {
+            BOOST_CHECK(hash_to_request.IsNull());
+        }
     }
 
-    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(),
-                      static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), CGovernanceManager::MAX_ORPHAN_VOTES_PER_MN);
+}
+
+// A key change invalidates only the cached orphans signed with the replaced key. Orphans signed
+// with the masternode's other key still validate and must stay cached to replay when their parent
+// arrives.
+BOOST_AUTO_TEST_CASE(orphan_votes_are_revalidated_after_a_key_change)
+{
+    auto& govman = *m_node.govman;
+    const CKey owner_key{mn_voting_key};
+    // Record the masternode list that later key changes are diffed against. Governance only does
+    // that once DIP3 is enforced, which starts with the next block.
+    MineBlocks(1);
+    NotifyGovernanceOfTip();
+
+    const auto cache_orphan = [&](CGovernanceVote vote, const auto& sign) {
+        sign(vote);
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(hash_to_request, vote.GetParentHash());
+    };
+    const auto sign_with_voting_key = [&](CGovernanceVote& vote) { SignWithVotingKey(vote, mn_voting_key); };
+    const auto sign_with_operator_key = [&](CGovernanceVote& vote) { SignWithOperatorKey(vote, mn_operator_key); };
+    cache_orphan(MakeVote(uint256S("81"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES), sign_with_voting_key);
+    cache_orphan(MakeVote(uint256S("82"), VOTE_SIGNAL_VALID, VOTE_OUTCOME_YES), sign_with_operator_key);
+    BOOST_REQUIRE_EQUAL(govman.GetOrphanVoteCount(), 2U);
+
+    // Operator key rotation: the operator-signed orphan goes, the voting-key-signed one stays.
+    CBLSSecretKey new_operator_key;
+    new_operator_key.MakeNewKey();
+    UpdateRegistrar(owner_key, new_operator_key.GetPublicKey(), mn_voting_key.GetPubKey().GetID());
+    NotifyGovernanceOfTip();
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 1U);
+
+    // An orphan signed by the new operator key is cached alongside it and survives a voting key
+    // rotation, which removes the voting-key-signed orphan.
+    mn_operator_key = new_operator_key;
+    cache_orphan(MakeVote(uint256S("83"), VOTE_SIGNAL_VALID, VOTE_OUTCOME_YES), sign_with_operator_key);
+    BOOST_REQUIRE_EQUAL(govman.GetOrphanVoteCount(), 2U);
+    CKey new_voting_key;
+    new_voting_key.MakeNewKey(true);
+    UpdateRegistrar(owner_key, new_operator_key.GetPublicKey(), new_voting_key.GetPubKey().GetID());
+    NotifyGovernanceOfTip();
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 1U);
 }
 
 // A peer relays a given vote once, so a second peer sending a vote we already hold is the only

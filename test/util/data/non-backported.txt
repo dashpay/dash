@@ -91,6 +91,7 @@ src/test/llmq*.cpp
 src/test/quorum_proofs_tests.cpp
 src/test/masternode_params_tests.cpp
 src/test/masternode_payments_tests.cpp
+src/test/orphan_vote_cache_tests.cpp
 src/test/spork_tests.cpp
 src/test/unordered_lru_cache_tests.cpp
 src/test/util/llmq_tests.h
