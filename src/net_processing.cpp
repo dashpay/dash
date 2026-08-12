@@ -669,8 +669,11 @@ private:
     void RelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
     /** Register with m_object_request that an inv has been received from a peer, computing the
-     *  request delay from the peer's preferredness and in-flight load. */
-    void AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
+     *  request delay from the peer's preferredness and in-flight load. force_preferred is for
+     *  announcements we synthesize because we want the object (see AskPeersForObject). Returns
+     *  whether the announcement passed the per-peer accounting. */
+    bool AddObjectAnnouncement(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
+                               bool force_preferred = false)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** Delete all announcements of a transaction across all peers, under both inv types it may
@@ -1604,20 +1607,23 @@ bool IsGetDataOnlyObject(int invType)
     }
 }
 
-void PeerManagerImpl::AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
+bool PeerManagerImpl::AddObjectAnnouncement(NodeId nodeid, const CInv& inv, std::chrono::microseconds current_time,
+                                            bool force_preferred)
 {
     AssertLockHeld(cs_main);
 
-    const CNodeState* state = State(node.GetId());
-    if (state == nullptr) return;
+    // nullptr if the peer disconnected; AskPeersForObject snapshots candidates outside cs_main.
+    const CNodeState* state = State(nodeid);
+    if (state == nullptr) return false;
 
-    if (m_object_request.Count(node.GetId()) >= MAX_PEER_OBJECT_ANNOUNCEMENTS) {
+    if (m_object_request.Count(nodeid) >= MAX_PEER_OBJECT_ANNOUNCEMENTS) {
         // Too many queued announcements from this peer
-        return;
+        return false;
     }
 
     // Decide the TxRequestTracker parameters for this announcement:
-    // - "preferred": if fPreferredDownload is set (= outbound, or PF_NOBAN permission)
+    // - "preferred": if fPreferredDownload is set (= outbound, or PF_NOBAN permission), or if the
+    //   caller forces it (an announcement we synthesized because we want the object)
     // - "reqtime": current time plus delays for:
     //   - NONPREF_PEER_TX_DELAY for MSG_TX announcements from non-preferred connections. Other
     //     object types -- including MSG_DSTX (used for the orphan-parent fetch, which wants the
@@ -1625,13 +1631,14 @@ void PeerManagerImpl::AddObjectAnnouncement(const CNode& node, const CInv& inv, 
     //     neither is anything in masternode mode. This matches the pre-txrequest Dash behavior.
     //   - OVERLOADED_PEER_OBJECT_DELAY for announcements from peers which have at least
     //     MAX_PEER_OBJECT_REQUEST_IN_FLIGHT requests in flight.
-    const bool preferred = state->fPreferredDownload;
+    const bool preferred = force_preferred || state->fPreferredDownload;
     auto delay{0us};
     if (inv.IsMsgTx() && !preferred && m_nodeman == nullptr) delay += NONPREF_PEER_TX_DELAY;
-    const bool overloaded = m_object_request.CountInFlight(node.GetId()) >= MAX_PEER_OBJECT_REQUEST_IN_FLIGHT;
+    const bool overloaded = m_object_request.CountInFlight(nodeid) >= MAX_PEER_OBJECT_REQUEST_IN_FLIGHT;
     if (overloaded) delay += OVERLOADED_PEER_OBJECT_DELAY;
 
-    m_object_request.ReceivedInv(node.GetId(), inv, preferred, current_time + delay);
+    m_object_request.ReceivedInv(nodeid, inv, preferred, current_time + delay);
+    return true;
 }
 
 void PeerManagerImpl::ForgetTx(const uint256& txid)
@@ -2397,6 +2404,9 @@ void PeerManagerImpl::SendPings()
 
 void PeerManagerImpl::AskPeersForObject(const CInv& inv, NodeId explicit_peer)
 {
+    // Every matching peer is collected, not just the first few: admission below needs cs_main,
+    // which cannot be taken under m_peer_mutex, so candidates that turn out to be disconnected or
+    // over their announcement cap are only discovered afterwards and must not consume the budget.
     std::vector<PeerRef> candidates;
     {
         READ_LOCK(m_peer_mutex);
@@ -2424,35 +2434,16 @@ void PeerManagerImpl::AskPeersForObject(const CInv& inv, NodeId explicit_peer)
     const auto current_time{GetTime<std::chrono::microseconds>()};
     size_t asked_count{0};
 
-    // Register a fresh, preferred announcement from each peer we intend to ask, so the object is
-    // requested ASAP. We deliberately do not forget existing announcements for this hash: any live
-    // candidate/request from another peer must survive as a fallback. If a peer here already has an
-    // announcement, ReceivedInv is a no-op and the existing one keeps its place.
-    auto try_ask_peer = [&](const PeerRef& peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
-        // The peer may have disconnected after the candidate snapshot. Recheck under cs_main so we
-        // cannot register an announcement after FinalizeNode has already cleaned up this peer.
-        if (State(peer->m_id) == nullptr) return false;
-        // Obey the same per-peer accounting AddObjectAnnouncement applies to announcements the peer
-        // sent us. A synthetic announcement is still an entry the peer's behaviour can cause us to
-        // create -- a peer that keeps naming objects we do not have would otherwise grow its tracker
-        // footprint without limit.
-        if (m_object_request.Count(peer->m_id) >= MAX_PEER_OBJECT_ANNOUNCEMENTS) return false;
-        const bool overloaded = m_object_request.CountInFlight(peer->m_id) >= MAX_PEER_OBJECT_REQUEST_IN_FLIGHT;
-        LogPrint(BCLog::NET, "PeerManagerImpl::%s -- %s: asking peer %d\n", __func__, inv.ToString(),
-                 peer->m_id);
-
-        // Preferred and otherwise undelayed: unlike a peer-initiated announcement, we asked for this
-        // one and want it as soon as the peer's in-flight budget allows.
-        m_object_request.ReceivedInv(peer->m_id, inv, /*preferred=*/true,
-                                     current_time + (overloaded ? OVERLOADED_PEER_OBJECT_DELAY : 0us));
-        return true;
-    };
-
+    // Synthesize an announcement from each peer we ask, forced preferred (we want this one ASAP)
+    // but through the same per-peer accounting as peer-sent announcements. Existing announcements
+    // for this hash are deliberately left alone: they must survive as fallbacks.
     for (const auto& peer : candidates) {
         if (asked_count >= MAX_PEERS_TO_ASK_FOR_OBJECT) {
             break;
         }
-        if (try_ask_peer(peer)) {
+        if (AddObjectAnnouncement(peer->m_id, inv, current_time, /*force_preferred=*/true)) {
+            LogPrint(BCLog::NET, "PeerManagerImpl::%s -- %s: asking peer %d\n", __func__, inv.ToString(),
+                     peer->m_id);
             ++asked_count;
         }
     }
@@ -4462,7 +4453,7 @@ void PeerManagerImpl::ProcessMessage(
                     }
                     bool allowWhileInIBD = allowWhileInIBDObjs.count(inv.type);
                     if (allowWhileInIBD || !m_chainman.ActiveChainstate().IsInitialBlockDownload()) {
-                        AddObjectAnnouncement(pfrom, inv, current_time);
+                        AddObjectAnnouncement(pfrom.GetId(), inv, current_time);
                     }
                 }
             }
@@ -4867,7 +4858,7 @@ void PeerManagerImpl::ProcessMessage(
                     // parent fetched twice, as the tracker keys announcements on the full inv.
                     CInv _inv(MSG_DSTX, parent_txid);
                     AddKnownInv(*peer, _inv.hash);
-                    if (!AlreadyHave(_inv)) AddObjectAnnouncement(pfrom, _inv, current_time);
+                    if (!AlreadyHave(_inv)) AddObjectAnnouncement(pfrom.GetId(), _inv, current_time);
                 }
 
                 if (m_orphanage.AddTx(ptx, pfrom.GetId())) {
