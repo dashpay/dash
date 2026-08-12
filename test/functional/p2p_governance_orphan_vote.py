@@ -65,6 +65,10 @@ class GovernanceOrphanVoteTest(DashTestFramework):
         for height in range(first_new_height, n0.getblockcount() + 1):
             n1.submitblock(n0.getblock(n0.getblockhash(height), 0))
         assert_equal(n1.getblockcount(), n0.getblockcount())
+        # As with the submit above: node1 validates the collateral through its txindex when the
+        # object arrives, and a txindex miss is a hard reject with no retry. Drain the queue so
+        # serving the object cannot race the index.
+        n1.syncwithvalidationinterfacequeue()
         assert_raises_rpc_error(-8, "Unknown governance object", n1.gobject, "get", proposal_hash)
 
         self.log.info("Capture the raw signed object and vote from node0")
