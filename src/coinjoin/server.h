@@ -110,6 +110,10 @@ private:
     };
     SessionCollaterals m_session_collaterals GUARDED_BY(cs_coinjoin);
     std::optional<int> m_inflight_session GUARDED_BY(cs_coinjoin);
+    /// Set once this coordinator has told the session's participants to abort (a session-wide
+    /// STATUS_REJECTED). Honest clients obey it and stop cooperating, so the guaranteed timeout
+    /// charge that follows must not treat them as offenders.
+    bool m_relayed_abort GUARDED_BY(cs_coinjoin){false};
     /// Prevouts of collaterals selected for a penalty whose mempool submission has not settled.
     /// Selection happens under cs_coinjoin but the submission must not, and the reset that follows
     /// selection reopens admission in between: without this reservation the still-unspent
@@ -131,7 +135,7 @@ private:
     /// Add a clients entry to the pool
     bool AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Add signature to a txin
-    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    virtual bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     int MarkMessageInFlight() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void ClearMessageInFlight(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
