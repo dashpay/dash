@@ -10,6 +10,7 @@
 #include <coinjoin/common.h>
 #include <coinjoin/options.h>
 #include <coinjoin/server.h>
+#include <consensus/amount.h>
 #include <evo/chainhelper.h>
 #include <llmq/context.h>
 #include <masternode/sync.h>
@@ -19,6 +20,7 @@
 #include <script/script.h>
 #include <streams.h>
 #include <test/util/setup_common.h>
+#include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/time.h>
@@ -202,6 +204,14 @@ public:
         nState = POOL_STATE_ACCEPTING_ENTRIES;
         nTimeLastSuccessfulStep = GetTime();
     }
+
+    void SetFinalTransactionForTest(const CMutableTransaction& tx)
+    {
+        LOCK(cs_coinjoin);
+        finalMutableTransaction = tx;
+    }
+
+    void CheckPoolForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool) { CheckPool(); }
 
     void SeedParticipant(const CService& addr) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
     {
@@ -695,6 +705,44 @@ BOOST_AUTO_TEST_CASE(server_completion_does_not_reset_an_unreachable_or_replacem
     // The signing session it was issued for is still reset.
     server.SeedCompletionSession(/*session_id=*/1, participant->addr);
     server.ResetForSession(/*session_id=*/1);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_defers_and_commits_fully_signed_session)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // A fully signed session whose committing CheckPool() round was skipped: the final signature
+    // arrived while the scheduler held cs_check_pool, so its DSSIGNFINALTX could not commit, and
+    // the scheduler's own sample predated the signature. CheckTimeout() then runs past the
+    // deadline and must not treat the session as failed.
+    const auto collateral = MakeCollateral(0);
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collateral);
+    server.SeedEntry(MakeEntry(collateral, /*unsigned_inputs=*/0));
+
+    CMutableTransaction final_tx;
+    final_tx.vin.emplace_back(COutPoint{uint256::ONE, 100});
+    server.SetFinalTransactionForTest(final_tx);
+    const uint256 final_hash{MakeTransactionRef(final_tx)->GetHash()};
+
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+
+    // Nobody misbehaved, so nobody may be charged and nothing may be reset: the timed-out but
+    // fully signed session defers to the next CheckPool() round.
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+
+    // That round commits it. The commit attempt is observable through the mempool prioritisation
+    // CommitFinalTransaction() applies before submitting; the submission itself fails in this
+    // fixture (the inputs do not exist), which resets the pool.
+    server.CheckPoolForTest();
+    CAmount delta{0};
+    WITH_LOCK(m_node.mempool->cs, m_node.mempool->ApplyDelta(final_hash, delta));
+    BOOST_CHECK_EQUAL(delta, COIN / 10);
+    BOOST_CHECK(server.consumed_collaterals.empty());
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
 }
 

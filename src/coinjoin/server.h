@@ -171,6 +171,9 @@ protected:
 
     bool CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVersion, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
+    /// Check for process
+    void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
+
 private:
     std::optional<int> m_inflight_session GUARDED_BY(cs_coinjoin);
     /// Prevouts of collaterals selected for a penalty whose mempool submission has not settled.
@@ -213,8 +216,6 @@ private:
     /// Is txref one of the collaterals accepted into the current session?
     bool HasSessionCollateral(const CTransactionRef& txref) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
-    /// Check for process
-    void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
     void CommitFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
