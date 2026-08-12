@@ -418,17 +418,15 @@ void CSigningManager::VerifyAndProcessRecoveredSig(NodeId from, std::shared_ptr<
     ++pendingRecoveredSigsCount;
 }
 
-void CSigningManager::RemoveNodesIf(const std::function<bool(NodeId)>& predicate)
+void CSigningManager::RemoveNode(NodeId node_id)
 {
     LOCK(cs_pending);
-    for (auto it = pendingRecoveredSigs.begin(); it != pendingRecoveredSigs.end();) {
-        if (predicate(it->first)) {
-            pendingRecoveredSigsCount -= it->second.size();
-            it = pendingRecoveredSigs.erase(it);
-        } else {
-            ++it;
-        }
+    auto it = pendingRecoveredSigs.find(node_id);
+    if (it == pendingRecoveredSigs.end()) {
+        return;
     }
+    pendingRecoveredSigsCount -= it->second.size();
+    pendingRecoveredSigs.erase(it);
 }
 
 bool CSigningManager::CollectPendingRecoveredSigsToVerify(

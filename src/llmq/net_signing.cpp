@@ -54,7 +54,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
                                                                                       recoveredSig->GetHash()}));
 
         if (!Params().GetLLMQ(recoveredSig->getLlmqType()).has_value()) {
-            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
+            BanNode(pfrom.GetId(), /*mark_shares_banned=*/false);
             return;
         }
 
@@ -264,7 +264,7 @@ bool NetSigning::ProcessPendingRecoveredSigs()
     for (const auto& [nodeId, v] : recSigsByNode) {
         if (batchVerifier.badSources.count(nodeId)) {
             LogPrint(BCLog::LLMQ, "NetSigning::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
-            m_peer_manager->PeerMisbehaving(nodeId, 100);
+            BanNode(nodeId, /*mark_shares_banned=*/false);
             continue;
         }
 
@@ -288,10 +288,6 @@ void NetSigning::WorkThreadSigning()
         constexpr auto CLEANUP_INTERVAL{5s};
         if (cleanupThrottler.TryCleanup(CLEANUP_INTERVAL)) {
             m_sig_manager.Cleanup();
-            // Drop pending recovered sigs queued by banned peers so a flood's backlog does not
-            // persist after the peer is banned (RemoveBannedNodeStates only cleans the sig-shares
-            // subsystem, not m_sig_manager's pending recovered sigs).
-            m_sig_manager.RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
         }
 
         // TODO Wakeup when pending signing is needed?
@@ -308,12 +304,17 @@ void NetSigning::RemoveBannedNodeStates()
     m_shares_manager->RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
 }
 
-void NetSigning::BanNode(NodeId nodeId)
+void NetSigning::BanNode(NodeId nodeId, bool mark_shares_banned)
 {
     if (nodeId == -1) return;
 
     m_peer_manager->PeerMisbehaving(nodeId, 100);
-    if (m_shares_manager) {
+    // Drop any not-yet-verified recovered sigs still queued for this peer so a flood's backlog
+    // does not keep burning the single recsig worker after we have already decided to ban. A
+    // QSIGREC processed concurrently with a ban issued from a worker thread can still re-queue
+    // entries; FinalizeNode() purges those once the peer is gone for good.
+    m_sig_manager.RemoveNode(nodeId);
+    if (mark_shares_banned && m_shares_manager) {
         m_shares_manager->MarkAsBanned(nodeId);
     }
 }

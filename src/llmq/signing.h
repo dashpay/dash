@@ -14,7 +14,6 @@
 #include <sync.h>
 #include <unordered_lru_cache.h>
 
-#include <functional>
 #include <memory>
 #include <string_view>
 #include <unordered_map>
@@ -217,9 +216,10 @@ public:
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CBLSPublicKey, StaticSaltedHasher>& ret_pubkeys)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
-    // Drop the pending (not-yet-verified) recovered sigs of any node matching the predicate, e.g.
-    // banned peers. Without this, a flooded peer's backlog would persist even after it is banned.
-    void RemoveNodesIf(const std::function<bool(NodeId)>& predicate) EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
+    // Drop pending (not-yet-verified) recovered sigs queued by this peer (called eagerly by
+    // NetSigning::BanNode and finally by PeerManagerImpl::FinalizeNode once a discouraged peer
+    // is gone). Does not touch pendingReconstructedRecoveredSigs (local, node id -1).
+    void RemoveNode(NodeId node_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);
     [[nodiscard]] std::vector<CRecoveredSigsListener*> GetListeners() const EXCLUSIVE_LOCKS_REQUIRED(!cs_listeners);
     // Returns true if recovered sigs should be send to listeners
     [[nodiscard]] bool ProcessRecoveredSig(const std::shared_ptr<const CRecoveredSig>& recoveredSig)
