@@ -65,7 +65,7 @@ GovernanceStore::GovernanceStore() :
     cs_store(),
     mapObjects(),
     mapErasedGovernanceObjects(),
-    cmmapOrphanVotes(MAX_ORPHAN_VOTES),
+    m_orphan_votes(MAX_ORPHAN_VOTES, MAX_ORPHAN_VOTES_PER_MN),
     mapLastMasternodeObject(),
     lastMNListForVotingKeys(std::make_shared<CDeterministicMNList>())
 {
@@ -281,7 +281,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
 
     uint256 nHash = govobj.GetHash();
     std::vector<governance::OrphanVote> orphan_votes;
-    cmmapOrphanVotes.GetAll(nHash, orphan_votes);
+    m_orphan_votes.GetAll(nHash, orphan_votes);
 
     ScopedLockBool guard(cs_store, fRateChecksEnabled, false);
 
@@ -298,7 +298,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
             fRemove = true;
         }
         if (fRemove) {
-            cmmapOrphanVotes.Erase(nHash, orphan_vote);
+            m_orphan_votes.Erase(nHash, orphan_vote);
         }
     }
 }
@@ -846,12 +846,24 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
             exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
             return false;
         }
+        const auto insert_result = m_orphan_votes.Insert(
+            nHashGovobj, governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME});
+        if (insert_result == governance::OrphanVoteCache::InsertResult::MN_LIMIT) {
+            // This masternode already fills its share of the cache with votes for parents that
+            // never arrived; drop the vote and stop letting the key seed parent requests. Still no
+            // penalty: the sending peer may merely be relaying, and misbehaviour scores never decay.
+            std::string msg{strprintf("CGovernanceManager::%s -- Masternode %s is over its orphan-vote share, "
+                                      "dropping vote for unknown parent object %s",
+                __func__, vote.GetMasternodeOutpoint().ToStringShort(), nHashGovobj.ToString())};
+            exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
+            LogPrint(BCLog::GOBJECT, "%s\n", msg);
+            return false;
+        }
         std::string msg{strprintf("CGovernanceManager::%s -- Unknown parent object %s, MN outpoint = %s", __func__,
             nHashGovobj.ToString(), vote.GetMasternodeOutpoint().ToStringShort())};
         // No penalty: the vote is signed by a masternode, it just arrived before its parent object,
         // which routinely happens during governance sync. Misbehaviour scores never decay.
         exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
-        cmmapOrphanVotes.Insert(nHashGovobj, governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME});
         // Ask for the parent whether or not the vote itself was new to us. A vote we already hold,
         // relayed by a second peer, is fresh evidence that this peer has the parent -- and it is the
         // only evidence we will get, since a peer relays a given vote once. Suppressing the request
@@ -1031,7 +1043,7 @@ void GovernanceStore::Clear()
     LOCK(cs_store);
     mapObjects.clear();
     mapErasedGovernanceObjects.clear();
-    cmmapOrphanVotes.Clear();
+    m_orphan_votes.Clear();
     mapLastMasternodeObject.clear();
     lastMNListForVotingKeys = std::make_shared<CDeterministicMNList>();
 }
@@ -1146,19 +1158,19 @@ void CGovernanceManager::ExpireOrphanVotes()
     AssertLockHeld(cs_store);
 
     const auto now{Now<NodeSeconds>()};
-    const vote_cmm_t::list_t& items = cmmapOrphanVotes.GetItemList();
+    const auto& items = m_orphan_votes.GetItemList();
     for (auto it = items.begin(); it != items.end();) {
         auto prevIt = it;
         ++it;
         if (prevIt->value.expiration < now) {
-            cmmapOrphanVotes.Erase(prevIt->key, prevIt->value);
+            m_orphan_votes.Erase(prevIt->key, prevIt->value);
         }
     }
 }
 
 size_t CGovernanceManager::GetOrphanVoteCount() const
 {
-    return WITH_LOCK(cs_store, return cmmapOrphanVotes.GetSize());
+    return WITH_LOCK(cs_store, return m_orphan_votes.GetSize());
 }
 
 void CGovernanceManager::RemoveInvalidVotes()
@@ -1200,7 +1212,6 @@ void CGovernanceManager::RemoveInvalidVotes()
             }
             for (const auto& voteHash : removed) {
                 cmapVoteToObject.Erase(voteHash);
-                cmmapOrphanVotes.Erase(voteHash);
             }
         }
     }
