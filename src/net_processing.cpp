@@ -619,7 +619,6 @@ public:
                         const std::chrono::microseconds time_received, const std::atomic<bool>& interruptMsgProc) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex, !m_most_recent_block_mutex, g_msgproc_mutex);
     void UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds) override;
-    bool IsBanned(NodeId pnode) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
     size_t GetRequestedObjectCount(NodeId nodeid) const override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** Implements external handlers logic */
@@ -632,7 +631,7 @@ public:
 
     /** Implement PeerManagerInternal */
     void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    bool PeerIsBanned(const NodeId node_id) override EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_peer_mutex);
+    bool PeerIsDisconnectedOrDiscouraged(const NodeId node_id) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool PeerConsumeObjectRequest(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     GetDataResponse PeerConsumeGetDataResponse(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -1897,16 +1896,13 @@ void PeerManagerImpl::Misbehaving(Peer& peer, int howmuch, const std::string& me
              peer.m_id, score_before, score_now, warning, message_prefixed);
 }
 
-bool PeerManagerImpl::IsBanned(NodeId pnode)
+bool PeerManagerImpl::PeerIsDisconnectedOrDiscouraged(const NodeId node_id)
 {
-    PeerRef peer = GetPeerRef(pnode);
-    if (peer == nullptr)
-        return false;
+    PeerRef peer = GetPeerRef(node_id);
+    if (peer == nullptr) return true;
+
     LOCK(peer->m_misbehavior_mutex);
-    if (peer->m_should_discourage) {
-        return true;
-    }
-    return false;
+    return peer->m_should_discourage;
 }
 
 bool PeerManagerImpl::MaybePunishNodeForBlock(NodeId nodeid, const BlockValidationState& state,
@@ -6711,11 +6707,6 @@ void PeerManagerImpl::PeerMisbehaving(const NodeId pnode, const int howmuch, con
 {
     PeerRef peer = GetPeerRef(pnode);
     if (peer) Misbehaving(*peer, howmuch, message);
-}
-
-bool PeerManagerImpl::PeerIsBanned(const NodeId node_id)
-{
-    return IsBanned(node_id);
 }
 
 void PeerManagerImpl::PeerEraseObjectRequest(const NodeId nodeid, const CInv& inv)
