@@ -11,9 +11,7 @@ bounds, so an unbounded value would force an enormous amount of work while the m
 processing mutex is held. The handler must reject any filter that is not within the
 standard size constraints (vData <= 36000 bytes, nHashFuncs <= 50), matching filterload.
 """
-import struct
-
-from test_framework.messages import msg_generic, ser_compact_size, ser_string, ser_uint256
+from test_framework.messages import msg_generic, msg_govsync, ser_compact_size, ser_uint256
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import force_finish_mnsync
@@ -23,29 +21,6 @@ MAX_HASH_FUNCS = 50
 # serialize.h MAX_SIZE: the largest count ReadCompactSize() accepts, so a declared
 # vData length of this value reaches the vData cap, not the compact-size guard.
 MAX_SIZE = 0x02000000
-
-
-class msg_govsync:
-    """MNGOVERNANCESYNC: a governance-object hash followed by a CBloomFilter."""
-    msgtype = b"govsync"
-
-    def __init__(self, nprop=0, data=b"", n_hash_funcs=0, n_tweak=0, n_flags=0):
-        self.nprop = nprop
-        self.data = data
-        self.n_hash_funcs = n_hash_funcs
-        self.n_tweak = n_tweak
-        self.n_flags = n_flags
-
-    def serialize(self):
-        r = ser_uint256(self.nprop)
-        r += ser_string(self.data)  # CBloomFilter.vData
-        r += struct.pack("<I", self.n_hash_funcs)
-        r += struct.pack("<I", self.n_tweak)
-        r += struct.pack("<B", self.n_flags)
-        return r
-
-    def __repr__(self):
-        return f"msg_govsync(n_hash_funcs={self.n_hash_funcs})"
 
 
 class GovsyncBloomCapTest(BitcoinTestFramework):
@@ -58,14 +33,14 @@ class GovsyncBloomCapTest(BitcoinTestFramework):
 
         self.log.info("A govsync request with a well-formed bloom filter is accepted (no false positive)")
         good_peer = node.add_p2p_connection(P2PInterface())
-        good_peer.send_message(msg_govsync(n_hash_funcs=MAX_HASH_FUNCS))
+        good_peer.send_message(msg_govsync(nHashFuncs=MAX_HASH_FUNCS))
         good_peer.sync_with_ping()
         assert good_peer.is_connected
         node.disconnect_p2ps()
 
         self.log.info("A govsync request with an out-of-bounds bloom filter (nHashFuncs > 50) is rejected and the peer disconnected")
         bad_peer = node.add_p2p_connection(P2PInterface())
-        bad_peer.send_message(msg_govsync(n_hash_funcs=0xFFFFFFFF))
+        bad_peer.send_message(msg_govsync(nHashFuncs=0xFFFFFFFF))
         bad_peer.wait_for_disconnect()
 
         self.log.info("A govsync request declaring an oversized filter vData length with the bytes omitted is rejected before allocation")
