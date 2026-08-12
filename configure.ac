@@ -1820,7 +1820,24 @@ if test "$enable_rust" = "yes"; then
       if test -z "$OSX_MIN_VERSION" && test "$cross_compiling" = "yes"; then
         AC_MSG_ERROR([Cross-compilation requires OSX_MIN_VERSION to be set, cannot continue!])
       fi
-      RUST_MACOS_DEPLOYMENT_TARGET="${OSX_MIN_VERSION:-$(sw_vers -productVersion)}"
+      if test -n "$OSX_MIN_VERSION"; then
+        RUST_MACOS_DEPLOYMENT_TARGET="$OSX_MIN_VERSION"
+      elif test -n "$MACOSX_DEPLOYMENT_TARGET"; then
+        RUST_MACOS_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET"
+      else
+        dnl Match the C/C++ compiler's effective deployment target so Rust
+        dnl objects never claim a different minimum macOS version than the
+        dnl C++ objects they are linked with.
+        rust_macos_min_raw=`echo __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ | $CXX $CXXFLAGS -E -xc++ - 2>/dev/null | tail -n 1`
+        case $rust_macos_min_raw in
+          [[0-9]][[0-9]]*)
+            RUST_MACOS_DEPLOYMENT_TARGET="`expr $rust_macos_min_raw / 10000`.`expr $rust_macos_min_raw % 10000 / 100`"
+            ;;
+          *)
+            RUST_MACOS_DEPLOYMENT_TARGET=`sw_vers -productVersion`
+            ;;
+        esac
+      fi
       AC_MSG_RESULT([$RUST_MACOS_DEPLOYMENT_TARGET])
       ;;
   esac
