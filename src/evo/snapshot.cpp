@@ -292,8 +292,12 @@ void CEvoSnapshot::Validate(bool require_canonical_order) const
                 entry.snapshot.mnSkipListMode < SnapshotSkipMode::MODE_NO_SKIPPING ||
                 entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_ALL_SKIPPED ||
                 entry.snapshot.activeQuorumMembers.size() > EVO_SNAPSHOT_MAX_MNS ||
-                entry.snapshot.mnSkipList.size() > static_cast<size_t>(params.size) ||
-                std::ranges::any_of(entry.snapshot.mnSkipList, [](int index) { return index < 0; })) {
+                entry.snapshot.mnSkipList.size() > EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES ||
+                // Only the first entry is an absolute index; later entries are
+                // deltas that legitimately go negative once the build wraps the
+                // combined MN list. Semantic validity is established by quorum
+                // reconstruction against chain state, not here.
+                (!entry.snapshot.mnSkipList.empty() && entry.snapshot.mnSkipList.front() < 0)) {
                 throw std::ios_base::failure("invalid evo quorum rotation snapshot");
             }
             required_work_hashes.insert(entry.work_block_hash);

@@ -64,6 +64,11 @@ static constexpr size_t EVO_SNAPSHOT_MAX_PAYOUT_SHARES{8};
 // This comfortably covers protocol-valid scripts and network information.
 static constexpr size_t EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS{10'000};
 static constexpr size_t EVO_SNAPSHOT_MAX_MODIFIERS{4'096};
+// A cycle's skip list accumulates across every quorum index and the build can
+// wrap the combined MN list more than once, so a single quorum's size does not
+// bound its legitimate length. This is a decode ceiling on claimed sizes only,
+// far above any state the aggregate rotation build reaches on real chains.
+static constexpr size_t EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES{1'000'000};
 static_assert(std::ranges::all_of(Consensus::available_llmqs, [](const auto& params) {
     return !params.useRotation || params.keepOldConnections <= 2 * params.signingActiveQuorumCount;
 }), "rotated LLMQ retention exceeds the two serialized cycles");
@@ -457,8 +462,10 @@ CQuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams
     // is checked by ValidateEvoSnapshotAgainstChain.
     const size_t bit_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_MNS, "rotation bitset")};
     ReadFixedBitSet(s, entry.snapshot.activeQuorumMembers, bit_count);
-    const size_t skip_count{ReadBoundedCompactSize(s, params.size, "rotation skip list")};
-    entry.snapshot.mnSkipList.reserve(skip_count);
+    const size_t skip_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES, "rotation skip list")};
+    // Clamp the upfront allocation: a hostile claimed count must pay with its
+    // own serialized bytes, not with a proportional reserve.
+    entry.snapshot.mnSkipList.reserve(std::min<size_t>(skip_count, params.size));
     for (size_t i{0}; i < skip_count; ++i) {
         int value;
         s >> value;

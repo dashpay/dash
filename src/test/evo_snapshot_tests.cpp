@@ -1026,6 +1026,18 @@ BOOST_FIXTURE_TEST_CASE(context_free_validation_matrix, BasicTestingSetup)
     mutate_rotation([](auto& e) { e.snapshot.mnSkipListMode = static_cast<SnapshotSkipMode>(9); });
     mutate_rotation([](auto& e) { e.snapshot.activeQuorumMembers.resize(evo::EVO_SNAPSHOT_MAX_MNS + 1); });
     mutate_rotation([](auto& e) { e.snapshot.mnSkipList = {-1}; });
+
+    // A cycle's skip list accumulates across every quorum index, so lengths
+    // beyond a single quorum's size and negative wraparound deltas after the
+    // first (absolute) entry are legitimate.
+    auto aggregate_skips{SyntheticSnapshot()};
+    auto& rotation_entry{aggregate_skips.quorums[1].rotation_snapshots[0]};
+    const auto& rotation_params{evo::SnapshotLLMQParams(aggregate_skips.quorums[1].llmq_type)};
+    rotation_entry.snapshot.mnSkipListMode = SnapshotSkipMode::MODE_SKIPPING_ENTRIES;
+    rotation_entry.snapshot.mnSkipList.assign(static_cast<size_t>(rotation_params.size) + 2, 1);
+    rotation_entry.snapshot.mnSkipList.front() = 3;
+    rotation_entry.snapshot.mnSkipList.back() = -2;
+    BOOST_CHECK_NO_THROW(aggregate_skips.Validate());
 }
 
 BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTestingSetup)
