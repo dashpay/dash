@@ -188,9 +188,20 @@ public:
     using CCoinJoinServer::CreateFinalTransaction;
 
     // A live session always carries a non-zero id, and AddEntry rejects entries that don't
-    // belong to one, so seed an id along with the state.
-    void EnterSigningState() { nSessionID = 1; nState = POOL_STATE_SIGNING; }
-    void EnterAcceptingEntriesState() { nSessionID = 1; nState = POOL_STATE_ACCEPTING_ENTRIES; }
+    // belong to one, so seed an id along with the state. Entering a state also starts its
+    // timeout, as SetState() does, so the session is not seeded as already timed out.
+    void EnterSigningState()
+    {
+        nSessionID = 1;
+        nState = POOL_STATE_SIGNING;
+        nTimeLastSuccessfulStep = GetTime();
+    }
+    void EnterAcceptingEntriesState()
+    {
+        nSessionID = 1;
+        nState = POOL_STATE_ACCEPTING_ENTRIES;
+        nTimeLastSuccessfulStep = GetTime();
+    }
 
     void SeedParticipant(const CService& addr) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
     {
@@ -291,7 +302,118 @@ public:
         locked.count_down();
         release.wait();
     }
+
+    void ResetForTest(PoolState state) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+        nState = state;
+        nSessionID = 1;
+        nTimeLastSuccessfulStep = GetTime();
+    }
+
+    void SetTimedOutForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        nTimeLastSuccessfulStep = GetTime() -
+                                  ((nState == POOL_STATE_SIGNING) ? COINJOIN_SIGNING_TIMEOUT : COINJOIN_QUEUE_TIMEOUT);
+    }
+
+    void AddCollateralForTest(const CTransactionRef& collateral) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        m_session_collaterals.Add(CMutableTransaction{*collateral});
+    }
+
+    CTransactionRef SelectForTest(FeePolicy policy) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return SelectCollateralToCharge(policy);
+    }
+
+    void ChargeRandomFeesForTest() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        ChargeRandomFees(WITH_LOCK(cs_coinjoin, return m_session_collaterals.txs()));
+    }
+
+    //! Offer a collateral to CreateNewSession() the way a DSACCEPT would. fUnitTest skips the
+    //! mempool-backed collateral validity check and the dsq relay, isolating admission logic.
+    bool TryAdmit(const CTransactionRef& collateral, PoolMessage& message) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        fUnitTest = true;
+        const CCoinJoinAccept dsa{CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination()),
+                                  CMutableTransaction{*collateral}};
+        return CreateNewSession(dsa, PROTOCOL_VERSION, message);
+    }
+
+    int MarkMessageInFlightForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return MarkMessageInFlight();
+    }
+
+    void ClearMessageInFlightForTest(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        ClearMessageInFlight(session_id);
+    }
 };
+
+//! Records the collaterals the server charges instead of submitting them to the mempool. Every
+//! test drives the server from its own thread only, so the record needs no synchronization.
+class ChargeRecordingServer : public TestableCoinJoinServer
+{
+public:
+    using TestableCoinJoinServer::TestableCoinJoinServer;
+
+    mutable std::vector<CTransactionRef> consumed_collaterals;
+
+    void ConsumeCollateral(const CTransactionRef& txref) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        consumed_collaterals.push_back(txref);
+    }
+
+    void ResetForTest(PoolState state) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        TestableCoinJoinServer::ResetForTest(state);
+        consumed_collaterals.clear();
+    }
+};
+
+//! A server, and the masternode manager it borrows, wired to the test node.
+template <typename Server = ChargeRecordingServer>
+struct ServerHarness {
+    CActiveMasternodeManager mn_activeman;
+    Server server;
+
+    explicit ServerHarness(node::NodeContext& node) :
+        mn_activeman{*Assert(node.connman), *Assert(node.dmnman), MakeSecretKey()},
+        server{node.peerman.get(), *Assert(node.chainman), *Assert(node.connman), *Assert(node.dmnman),
+               *Assert(node.dstxman), *Assert(node.mn_metaman), *Assert(node.mempool), mn_activeman,
+               *Assert(node.mn_sync), *Assert(node.isman)}
+    {
+    }
+};
+
+static CTransactionRef MakeCollateral(uint32_t id)
+{
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint{uint256::ONE, id});
+    tx.vout.emplace_back(CoinJoin::GetCollateralAmount(), P2PKHScript(static_cast<uint8_t>(id)));
+    return MakeTransactionRef(tx);
+}
+
+//! An entry for collateral. unsigned_inputs == 0 gives one signed input (a participant that has
+//! signed, or merely submitted); unsigned_inputs == n > 0 gives n inputs that are still unsigned.
+static CCoinJoinEntry MakeEntry(const CTransactionRef& collateral, size_t unsigned_inputs = 0)
+{
+    std::vector<CTxDSIn> inputs;
+    for (size_t i = 0; i < std::max<size_t>(unsigned_inputs, 1); ++i) {
+        CTxDSIn input{CTxIn{COutPoint{uint256::ONE, static_cast<uint32_t>(100 + i)}}, P2PKHScript(1), 0};
+        input.fHasSig = unsigned_inputs == 0;
+        inputs.push_back(input);
+    }
+    return CCoinJoinEntry{inputs, {}, CTransaction{*collateral}};
+}
 
 static std::unique_ptr<CNode> MakePeer(NodeId id, uint32_t ipv4)
 {
@@ -624,6 +746,310 @@ BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_actionable_session)
     server.SeedTimedOutActionableSession(POOL_STATE_ACCEPTING_ENTRIES, /*has_missing_entry=*/true);
     server.CheckTimeout();
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+}
+
+BOOST_AUTO_TEST_CASE(server_queue_timeout_charges_nobody)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // Nobody was asked to submit anything before the queue became ready, so a queue that never
+    // did has no identifiable offender.
+    server.ResetForTest(POOL_STATE_QUEUE);
+    server.AddCollateralForTest(MakeCollateral(0));
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_abort_charges_one_collateral_when_every_reservation_failed)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // All 20 reservations failed to submit. The probabilistic policy exempts a session in which
+    // everyone offended; the abort policy still selects exactly one of them.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (uint32_t i = 0; i < 20; ++i) {
+        server.AddCollateralForTest(MakeCollateral(i));
+    }
+    BOOST_CHECK(server.SelectForTest(CCoinJoinServer::FeePolicy::PROBABILISTIC) == nullptr);
+    BOOST_CHECK(server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT) != nullptr);
+
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_abort_selects_only_missing_submitters)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    std::vector<CTransactionRef> collaterals;
+    for (uint32_t i = 0; i < 20; ++i) {
+        collaterals.push_back(MakeCollateral(i));
+    }
+
+    // With one submission, only one of the other 19 reservations can be selected.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (const auto& collateral : collaterals) server.AddCollateralForTest(collateral);
+    server.SeedEntry(MakeEntry(collaterals[0]));
+    for (int i = 0; i < 64; ++i) {
+        const auto selected = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected);
+        BOOST_CHECK(*selected != *collaterals[0]);
+    }
+
+    // Three of five submitted, so only the two missing reservations are eligible.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (size_t i = 0; i < 5; ++i) server.AddCollateralForTest(collaterals[i]);
+    for (size_t i = 0; i < 3; ++i) server.SeedEntry(MakeEntry(collaterals[i]));
+    for (int i = 0; i < 64; ++i) {
+        const auto selected = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected);
+        BOOST_CHECK(*selected == *collaterals[3] || *selected == *collaterals[4]);
+    }
+
+    // If every reservation submitted, there is no missing-entry collateral to select.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (size_t i = 0; i < 5; ++i) {
+        server.AddCollateralForTest(collaterals[i]);
+        server.SeedEntry(MakeEntry(collaterals[i]));
+    }
+    BOOST_CHECK(server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT) == nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(server_abort_selects_each_non_signer_once)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    std::vector<CTransactionRef> collaterals;
+    for (uint32_t i = 0; i < 3; ++i) {
+        collaterals.push_back(MakeCollateral(i));
+    }
+
+    // A lone non-signer is selected deterministically.
+    server.ResetForTest(POOL_STATE_SIGNING);
+    for (size_t i = 0; i < 3; ++i) {
+        server.AddCollateralForTest(collaterals[i]);
+        server.SeedEntry(MakeEntry(collaterals[i], i == 2 ? 1 : 0));
+    }
+    const auto lone_non_signer = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+    BOOST_REQUIRE(lone_non_signer);
+    BOOST_CHECK(*lone_non_signer == *collaterals[2]);
+
+    // Multiple non-signers select one member of that set; the number of unsigned inputs gives a
+    // participant no extra weight.
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collaterals[0]);
+    server.SeedEntry(MakeEntry(collaterals[0], /*unsigned_inputs=*/8));
+    server.AddCollateralForTest(collaterals[1]);
+    server.SeedEntry(MakeEntry(collaterals[1], /*unsigned_inputs=*/1));
+    size_t selected_first{0};
+    size_t selected_second{0};
+    for (int i = 0; i < 256; ++i) {
+        const auto selected = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected);
+        if (*selected == *collaterals[0]) ++selected_first;
+        if (*selected == *collaterals[1]) ++selected_second;
+    }
+    BOOST_CHECK_GT(selected_first, 64U);
+    BOOST_CHECK_GT(selected_second, 64U);
+
+    // When every participant fails to sign, the abort still charges exactly one.
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_recoverable_timeout_keeps_probabilistic_policy)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // Three of five submitted: enough to finalize without the stragglers, which keeps the
+    // historical charge-sometimes policy rather than the abort guarantee.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (uint32_t i = 0; i < 5; ++i) {
+        const auto collateral{MakeCollateral(i)};
+        server.AddCollateralForTest(collateral);
+        if (i < 3) server.SeedEntry(MakeEntry(collateral));
+    }
+    bool selected{false};
+    bool skipped{false};
+    for (int i = 0; i < 256; ++i) {
+        if (server.SelectForTest(CCoinJoinServer::FeePolicy::PROBABILISTIC)) {
+            selected = true;
+        } else {
+            skipped = true;
+        }
+    }
+    BOOST_CHECK(selected);
+    BOOST_CHECK(skipped);
+}
+
+BOOST_AUTO_TEST_CASE(server_successful_session_random_charge_stays_probabilistic)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    server.ResetForTest(POOL_STATE_SIGNING);
+    for (uint32_t i = 0; i < 5; ++i) {
+        server.AddCollateralForTest(MakeCollateral(i));
+    }
+    bool charged{false};
+    bool skipped{false};
+    for (int i = 0; i < 256; ++i) {
+        server.consumed_collaterals.clear();
+        server.ChargeRandomFeesForTest();
+        charged |= !server.consumed_collaterals.empty();
+        skipped |= server.consumed_collaterals.empty();
+    }
+    BOOST_CHECK(charged);
+    BOOST_CHECK(skipped);
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_reset_precedes_collateral_consumption)
+{
+    class SessionReplacingServer : public ChargeRecordingServer
+    {
+    public:
+        using ChargeRecordingServer::ChargeRecordingServer;
+        mutable PoolState state_during_consume{POOL_STATE_ERROR};
+
+        void ConsumeCollateral(const CTransactionRef& txref) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+        {
+            state_during_consume = static_cast<PoolState>(GetState());
+            auto* self = const_cast<SessionReplacingServer*>(this);
+            self->TestableCoinJoinServer::ResetForTest(POOL_STATE_QUEUE);
+            ChargeRecordingServer::ConsumeCollateral(txref);
+        }
+    };
+
+    ServerHarness<SessionReplacingServer> harness{m_node};
+    auto& server{harness.server};
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    server.AddCollateralForTest(MakeCollateral(0));
+    server.SetTimedOutForTest();
+
+    server.CheckTimeout();
+
+    // The collateral is consumed only after the reset, outside cs_coinjoin, and a session opened
+    // in the meantime is left alone.
+    BOOST_CHECK(server.state_during_consume == POOL_STATE_IDLE);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+}
+
+BOOST_AUTO_TEST_CASE(server_pending_charge_blocks_readmission_until_consumed)
+{
+    // The timeout reset reopens admission before the penalty spend reaches the mempool. In that
+    // window the selected collateral is still unspent and would pass every other admission check;
+    // committing it to a replacement session would strand that session on a reservation whose
+    // funds are already promised to the penalty.
+    class ReadmissionRacingServer : public ChargeRecordingServer
+    {
+    public:
+        using ChargeRecordingServer::ChargeRecordingServer;
+        mutable int readmitted_during_consume{-1};
+        mutable PoolMessage readmission_message{MSG_NOERR};
+
+        void ConsumeCollateral(const CTransactionRef& txref) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+        {
+            auto* self = const_cast<ReadmissionRacingServer*>(this);
+            PoolMessage message{MSG_NOERR};
+            readmitted_during_consume = self->TryAdmit(txref, message) ? 1 : 0;
+            readmission_message = message;
+            ChargeRecordingServer::ConsumeCollateral(txref);
+        }
+    };
+
+    ServerHarness<ReadmissionRacingServer> harness{m_node};
+    auto& server{harness.server};
+    const auto collateral = MakeCollateral(0);
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    server.AddCollateralForTest(collateral);
+    server.SetTimedOutForTest();
+
+    server.CheckTimeout();
+
+    // The pool was already reset when the consume ran, yet the pending charge kept the collateral
+    // out of a replacement session.
+    BOOST_REQUIRE_EQUAL(server.readmitted_during_consume, 0);
+    BOOST_CHECK_EQUAL(server.readmission_message, ERR_INVALID_COLLATERAL);
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+
+    // Once the charge has settled the reservation is released and admission works again; in
+    // production the mempool, which now contains the penalty spend, takes over rejecting it.
+    PoolMessage message{MSG_NOERR};
+    BOOST_CHECK(server.TryAdmit(collateral, message));
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_waits_for_in_flight_messages)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    const auto collateral = MakeCollateral(0);
+
+    for (const PoolState state : {POOL_STATE_ACCEPTING_ENTRIES, POOL_STATE_SIGNING}) {
+        BOOST_TEST_CONTEXT("state=" << state)
+        {
+            server.ResetForTest(state);
+            server.AddCollateralForTest(collateral);
+            if (state == POOL_STATE_SIGNING) {
+                server.SeedEntry(MakeEntry(collateral, /*unsigned_inputs=*/1));
+            }
+
+            const int session_id = server.MarkMessageInFlightForTest();
+            server.SetTimedOutForTest();
+            server.CheckTimeout();
+
+            BOOST_CHECK_EQUAL(server.GetState(), int{state});
+            BOOST_CHECK(server.consumed_collaterals.empty());
+
+            server.ClearMessageInFlightForTest(session_id);
+            server.CheckTimeout();
+
+            BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+            BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_finalization_waits_for_in_flight_entry)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // Enough entries to finalize without the straggler, but the straggler's entry is still being
+    // validated: it must neither be charged as missing nor be left out of the final transaction.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (int i = 0; i <= CoinJoin::GetMinPoolParticipants(); ++i) {
+        const auto collateral{MakeCollateral(static_cast<uint32_t>(i))};
+        server.AddCollateralForTest(collateral);
+        if (i < CoinJoin::GetMinPoolParticipants()) {
+            auto entry{MakeEntry(collateral)};
+            entry.vecTxDSIn[0].prevout.n = static_cast<uint32_t>(200 + i);
+            server.SeedEntry(std::move(entry));
+        }
+    }
+    server.SetTimedOutForTest();
+
+    const int session_id = server.MarkMessageInFlightForTest();
+    server.CreateFinalTransaction(session_id, /*charge_fees=*/true);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+    BOOST_CHECK(server.consumed_collaterals.empty());
+
+    // Once the entry has been handled, the session finalizes without it. (None of the seeded
+    // participants is connected, so relaying the final transaction then resets the pool.)
+    server.ClearMessageInFlightForTest(session_id);
+    server.CreateFinalTransaction(session_id, /*charge_fees=*/true);
+    BOOST_CHECK(server.GetState() != int{POOL_STATE_ACCEPTING_ENTRIES});
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)

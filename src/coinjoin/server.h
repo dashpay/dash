@@ -39,6 +39,21 @@ public:
     };
 
 private:
+    //! Marks a DSVIN or DSSIGNFINALTX that passed its timeout cutoff as in flight for as long as it
+    //! is being processed, and clears the mark on every exit path.
+    class InFlightMessageGuard
+    {
+        CCoinJoinServer& m_server;
+        const int m_session_id;
+
+    public:
+        InFlightMessageGuard(CCoinJoinServer& server, int session_id);
+        ~InFlightMessageGuard();
+
+        InFlightMessageGuard(const InFlightMessageGuard&) = delete;
+        InFlightMessageGuard& operator=(const InFlightMessageGuard&) = delete;
+    };
+
     CoinJoinQueueManager m_queueman;
 
     ChainstateManager& m_chainman;
@@ -137,19 +152,45 @@ protected:
     /// Reset the pool, but only while session_id is still the signing session being completed
     void ResetSigningSessionIfCurrent(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
-private:
+    /// Skips the mempool-backed collateral check and the dsq relay on admission
     bool fUnitTest;
 
-    /// Add signature to a txin
-    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Mark the current session as having a message in flight that crossed its timeout cutoff in
+    /// time; CheckTimeout() and the charging finalize path defer until it is cleared.
+    int MarkMessageInFlight() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    void ClearMessageInFlight(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
-    /// Choose one bad actor whose collateral should be consumed, if any.
+    /// Choose one bad actor whose collateral should be consumed, if any. PROBABILISTIC keeps the
+    /// historical charge-sometimes policy; GUARANTEED_ON_ABORT always picks one offender.
     CTransactionRef SelectCollateralToCharge(FeePolicy policy) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
     void ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved. Takes cs_main, which this class never
     /// takes under cs_coinjoin.
-    void ConsumeCollateral(const CTransactionRef& txref) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    virtual void ConsumeCollateral(const CTransactionRef& txref) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+
+    bool CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVersion, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+
+private:
+    std::optional<int> m_inflight_session GUARDED_BY(cs_coinjoin);
+    /// Prevouts of collaterals selected for a penalty whose mempool submission has not settled.
+    /// Selection happens under cs_coinjoin but the submission must not, and the reset that follows
+    /// selection reopens admission in between: without this reservation the still-unspent
+    /// collateral could be committed to a replacement session that the pending charge then breaks.
+    /// Deliberately not cleared by SetNull() - a pending charge outlives the session it was
+    /// incurred in - and erased once the submission settles and the mempool takes over.
+    std::unordered_set<COutPoint, SaltedOutpointHasher> m_pending_charges GUARDED_BY(cs_coinjoin);
+
+    /// Add signature to a txin
+    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+
+    /// Reserve a selected collateral's prevouts so admission rejects them until the charge settles.
+    void MarkPendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Does txCollateral spend a prevout reserved for a not-yet-settled penalty?
+    bool IsCollateralPendingCharge(const CMutableTransaction& txCollateral) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Consume a collateral previously reserved with MarkPendingCharge() and release the reservation.
+    void ConsumePendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral, but only while session_id is still the live session holding it
     void ConsumeCollateralIfCurrentSession(int session_id, const CTransactionRef& txref) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
@@ -179,7 +220,6 @@ private:
 
     /// Is this nDenom and txCollateral acceptable?
     bool IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const;
-    bool CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVersion, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     bool AddUserToExistingSession(const CCoinJoinAccept& dsa, int nPeerVersion, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Do we have enough users to take entries?
     bool IsSessionReady() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
