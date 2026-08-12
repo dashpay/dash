@@ -5570,19 +5570,6 @@ static bool DeleteCoinsDBFromDisk(const fs::path db_path, bool is_snapshot)
     return destroyed && !fs::exists(db_path);
 }
 
-bool DeleteSnapshotChainstateFromDisk()
-{
-    AssertLockHeld(::cs_main);
-
-    auto snapshot_datadir = node::FindSnapshotChainstateDir();
-    if (!snapshot_datadir) {
-        return true;
-    }
-    LogPrintf("[snapshot] discarding persisted snapshot chainstate at %s\n",
-              fs::PathToString(*snapshot_datadir));
-    return DeleteCoinsDBFromDisk(*snapshot_datadir, /*is_snapshot=*/true);
-}
-
 bool ChainstateManager::ActivateSnapshot(
         AutoFile& coins_file,
         const SnapshotMetadata& metadata,

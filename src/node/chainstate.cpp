@@ -37,6 +37,35 @@
 #include <vector>
 
 namespace node {
+static bool RemoveSnapshotChainstateArtifacts(const fs::path& data_dir, bilingual_str& error)
+{
+    // Explicit reindexing discards both coins databases and EvoDB, so remove
+    // every snapshot lifecycle directory in the same stroke. A directory must
+    // not outlive the markers that describe it: a chainstate_snapshot dir whose
+    // EvoDB markers were just wiped can no longer be revived by
+    // ActivateExistingSnapshot(), and a reindex is also the user's request to
+    // discard the _INVALID forensics directory and any interrupted-swap
+    // remnant, neither of which the (skipped) recovery pass will see.
+    const fs::path normal{data_dir / "chainstate"};
+    fs::path snapshot{normal};
+    snapshot += SNAPSHOT_CHAINSTATE_SUFFIX;
+    fs::path invalid{snapshot};
+    invalid += SNAPSHOT_INVALID_SUFFIX;
+    fs::path to_delete{normal};
+    to_delete += SNAPSHOT_TODELETE_SUFFIX;
+    for (const auto& path : {snapshot, invalid, to_delete}) {
+        if (!fs::exists(path)) continue;
+        try {
+            RemoveAllDurably(path);
+        } catch (const fs::filesystem_error& e) {
+            error = strprintf(_("Failed to remove snapshot chainstate artifact %s for reindex: %s"),
+                              fs::PathToString(path), e.what());
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bilingual_str& error)
 {
     const fs::path normal{data_dir / "chainstate"};
@@ -326,6 +355,13 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
 
     LOCK(cs_main);
 
+    if (options.reindex || options.reindex_chainstate) {
+        bilingual_str cleanup_error;
+        if (!RemoveSnapshotChainstateArtifacts(options.data_dir, cleanup_error)) {
+            return {ChainstateLoadStatus::FAILURE, cleanup_error};
+        }
+    }
+
     evodb.reset();
     // TODO: pass DbWrapperParams as options instead multiple params
     evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{
@@ -343,15 +379,6 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
 
     // Load the fully validated chainstate.
     chainman.InitializeChainstate(options.mempool, *evodb, chain_helper);
-
-    // Wiping the shared EvoDB above erased the SNAPSHOT best-block marker that
-    // ActivateExistingSnapshot() requires, so a persisted snapshot chainstate can
-    // no longer be revived. Discard it here rather than letting startup fail with
-    // advice ("reindex") the user has just followed, which would never recover.
-    if ((options.reindex || options.reindex_chainstate) && !DeleteSnapshotChainstateFromDisk()) {
-        return {ChainstateLoadStatus::FAILURE,
-                _("Failed to remove the snapshot chainstate directory. Remove it manually before restarting.")};
-    }
 
     // Load a chain created from a UTXO snapshot, if any exist.
     bilingual_str snapshot_error;

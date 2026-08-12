@@ -1294,16 +1294,6 @@ MnRewardEra GetMnRewardEraAfter(const CBlockIndex* pindexPrev, const ChainstateM
  */
 const AssumeutxoData* ExpectedAssumeutxo(const int height, const CChainParams& params);
 
-/**
- * Remove a persisted snapshot chainstate's on-disk artifacts: its coins database
- * and the base-blockhash file identifying it. Only valid while no snapshot
- * Chainstate object exists, i.e. at startup before DetectSnapshotChainstate().
- *
- * @returns false only if a snapshot chainstate was found but could not be fully
- *          removed; true when there was nothing to remove.
- */
-bool DeleteSnapshotChainstateFromDisk() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
 /** Identifies blocks that overwrote an existing coinbase output in the UTXO set (see BIP30) */
 bool IsBIP30Repeat(const CBlockIndex& block_index);
 
