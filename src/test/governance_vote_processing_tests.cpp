@@ -483,22 +483,28 @@ BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
 }
 
 // The orphan cache is filled from the network by any peer, keyed by a parent hash we cannot verify
-// until the parent arrives, so its size must be bounded by us and not by the sender.
-BOOST_AUTO_TEST_CASE(orphan_vote_cache_is_bounded)
+// until the parent arrives, so its size must be bounded by us and not by the sender -- and bounded
+// per voting key, or one masternode could keep flushing everyone else's orphans out of the shared
+// cache. Past its share, a key's votes are dropped and stop seeding parent requests.
+BOOST_AUTO_TEST_CASE(orphan_votes_per_masternode_are_bounded)
 {
-    constexpr size_t OVERSHOOT = 50;
+    constexpr size_t OVERSHOOT = 25;
 
-    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES + OVERSHOOT; ++i) {
+    for (size_t i = 0; i < CGovernanceManager::MAX_ORPHAN_VOTES_PER_MN + OVERSHOOT; ++i) {
         // Distinct parent hash per vote, so each would occupy its own cache key.
         CGovernanceVote vote{MakeVote(uint256S(strprintf("%x", i + 1)), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
         SignWithVotingKey(vote, mn_voting_key);
         CGovernanceException exception;
         uint256 hash_to_request;
         BOOST_CHECK(!m_node.govman->ProcessVote(vote, exception, hash_to_request));
+        if (i < CGovernanceManager::MAX_ORPHAN_VOTES_PER_MN) {
+            BOOST_CHECK_EQUAL(hash_to_request, vote.GetParentHash());
+        } else {
+            BOOST_CHECK(hash_to_request.IsNull());
+        }
     }
 
-    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(),
-                      static_cast<size_t>(CGovernanceManager::MAX_ORPHAN_VOTES));
+    BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), CGovernanceManager::MAX_ORPHAN_VOTES_PER_MN);
 }
 
 // A peer relays a given vote once, so a second peer sending a vote we already hold is the only

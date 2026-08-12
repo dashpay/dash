@@ -57,6 +57,109 @@ inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
 {
     return lhs.vote < rhs.vote;
 }
+
+/** Bounded holding area for votes whose parent object has not arrived yet. Entries are
+ *  peer-supplied and evicted oldest-first, so two bounds are enforced together: a global one that
+ *  caps memory, and a per-masternode one so that a single voting key cannot mint votes naming
+ *  invented parents and flush everyone else's orphans on demand. */
+class OrphanVoteCache
+{
+public:
+    using cache_t = CacheMultiMap<uint256, OrphanVote>;
+
+    enum class InsertResult {
+        OK,
+        DUPLICATE, //!< this (parent, vote) pair is already cached
+        MN_LIMIT,  //!< the vote's masternode already holds its full share of the cache
+    };
+
+    OrphanVoteCache(size_t max_total, size_t max_per_mn) :
+        m_max_total{max_total},
+        m_max_per_mn{max_per_mn},
+        // Eviction happens here, before the inner map is ever full, so its own self-pruning
+        // (which would bypass the per-masternode accounting) can never trigger.
+        m_cache{static_cast<cache_t::size_type>(max_total + 1)}
+    {
+    }
+
+    InsertResult Insert(const uint256& parent_hash, const OrphanVote& orphan_vote)
+    {
+        // A pair we already hold is reported as a duplicate even when its masternode is over its
+        // share: it costs no capacity, and the caller treats a repeat relay as fresh evidence that
+        // the sending peer has the missing parent.
+        if (m_cache.HasEntry(parent_hash, orphan_vote)) {
+            return InsertResult::DUPLICATE;
+        }
+        const COutPoint outpoint{orphan_vote.vote.GetMasternodeOutpoint()};
+        if (const auto it{m_counts.find(outpoint)}; it != m_counts.end() && it->second >= m_max_per_mn) {
+            return InsertResult::MN_LIMIT;
+        }
+        if (!m_cache.Insert(parent_hash, orphan_vote)) {
+            return InsertResult::DUPLICATE;
+        }
+        ++m_counts[outpoint];
+        if (m_cache.GetSize() > m_max_total) {
+            // Insert prepends, so the back is the oldest entry cache-wide and never the one just
+            // added. Copied, not referenced: Erase destroys the node.
+            const auto oldest{m_cache.GetItemList().back()};
+            Erase(oldest.key, oldest.value);
+        }
+        return InsertResult::OK;
+    }
+
+    void Erase(const uint256& parent_hash, const OrphanVote& orphan_vote)
+    {
+        // Callers may pass a reference into the cache's own item list (e.g. the expiry sweep),
+        // which the erase below invalidates; take what we need first.
+        const COutPoint outpoint{orphan_vote.vote.GetMasternodeOutpoint()};
+        const auto size_before{m_cache.GetSize()};
+        m_cache.Erase(parent_hash, orphan_vote);
+        if (m_cache.GetSize() == size_before) return;
+        if (const auto it{m_counts.find(outpoint)}; it != m_counts.end() && --it->second == 0) {
+            m_counts.erase(it);
+        }
+    }
+
+    //! Drop every cached vote from one masternode, e.g. because its keys changed and the votes
+    //! can no longer validate on replay. Returns how many were dropped.
+    size_t EraseAllForMasternode(const COutPoint& outpoint)
+    {
+        if (m_counts.find(outpoint) == m_counts.end()) return 0;
+        // Collect first: Erase destroys the nodes being iterated.
+        std::vector<std::pair<uint256, OrphanVote>> expelled;
+        for (const auto& item : m_cache.GetItemList()) {
+            if (item.value.vote.GetMasternodeOutpoint() == outpoint) {
+                expelled.emplace_back(item.key, item.value);
+            }
+        }
+        for (const auto& [parent_hash, orphan_vote] : expelled) {
+            Erase(parent_hash, orphan_vote);
+        }
+        return expelled.size();
+    }
+
+    bool GetAll(const uint256& parent_hash, std::vector<OrphanVote>& votes)
+    {
+        return m_cache.GetAll(parent_hash, votes);
+    }
+
+    void Clear()
+    {
+        m_cache.Clear();
+        m_counts.clear();
+    }
+
+    size_t GetSize() const { return m_cache.GetSize(); }
+    const cache_t::list_t& GetItemList() const { return m_cache.GetItemList(); }
+    //! The inner map, for writing the legacy on-disk field.
+    const cache_t& Store() const { return m_cache; }
+
+private:
+    const size_t m_max_total;
+    const size_t m_max_per_mn;
+    cache_t m_cache;
+    std::map<COutPoint, size_t> m_counts;
+};
 } // namespace governance
 
 static constexpr int RATE_BUFFER_SIZE = 5;
@@ -177,11 +280,15 @@ protected:
     using vote_cmm_t = CacheMultiMap<uint256, governance::OrphanVote>;
 
 public:
-    /** Bound for the orphan-vote cache, which is filled from the network by any peer with a parent
-     *  object we do not have. Orphans are short-lived recovery state for votes that outran their
-     *  object during relay, so this only has to cover objects genuinely in flight, not the whole
-     *  governance set. MAX_CACHE_SIZE would allow ~750 MB of peer-supplied data here. */
-    static constexpr int MAX_ORPHAN_VOTES = 1000;
+    /** Bounds for the orphan-vote cache, which is filled from the network by any peer with a
+     *  parent object we do not have. The per-masternode bound is the security control: eviction
+     *  is oldest-first, and every entry costs its sender a registered masternode voting key, so
+     *  one key can occupy at most its share instead of flushing the whole cache; the value is
+     *  far above the number of in-flight objects one masternode can plausibly have voted on.
+     *  The global bound caps memory: at roughly 400 bytes per entry this allows ~40 MB, and
+     *  filling it takes 200 distinct masternode keys. */
+    static constexpr size_t MAX_ORPHAN_VOTES = 100'000;
+    static constexpr size_t MAX_ORPHAN_VOTES_PER_MN = 500;
 
 protected:
     static constexpr int MAX_CACHE_SIZE = 1000000;
@@ -197,7 +304,7 @@ protected:
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
     std::map<uint256, int64_t> mapErasedGovernanceObjects GUARDED_BY(cs_store);
-    vote_cmm_t cmmapOrphanVotes GUARDED_BY(cs_store);
+    governance::OrphanVoteCache m_orphan_votes GUARDED_BY(cs_store);
     txout_m_t mapLastMasternodeObject GUARDED_BY(cs_store);
     // used to check for changed voting keys
     std::shared_ptr<CDeterministicMNList> lastMNListForVotingKeys GUARDED_BY(cs_store);
@@ -215,7 +322,7 @@ public:
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
             << empty_invalid_votes
-            << cmmapOrphanVotes
+            << m_orphan_votes.Store()
             << mapObjects
             << mapLastMasternodeObject
             << *lastMNListForVotingKeys;

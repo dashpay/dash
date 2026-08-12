@@ -110,6 +110,15 @@ public:
         return (mapIndex.find(key) != mapIndex.end());
     }
 
+    bool HasEntry(const K& key, const V& value) const
+    {
+        map_cit mit = mapIndex.find(key);
+        if (mit == mapIndex.end()) {
+            return false;
+        }
+        return mit->second.count(value) > 0;
+    }
+
     bool Get(const K& key, V& value) const
     {
         map_cit it = mapIndex.find(key);
