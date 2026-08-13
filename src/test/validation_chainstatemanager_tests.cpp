@@ -6,6 +6,7 @@
 #include <consensus/validation.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <interfaces/node.h>
 #include <llmq/context.h>
 #include <llmq/options.h>
 #include <node/chainstate.h>
@@ -939,6 +940,9 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     BOOST_CHECK_EQUAL(snapshot_chainstate_dir, gArgs.GetDataDirNet() / "chainstate_snapshot");
 
     BOOST_CHECK(chainman.IsSnapshotActive());
+    auto node{interfaces::MakeNode(m_node)};
+    BOOST_CHECK(node->evo().getMasternodeOperatorKeyHistory().status ==
+                interfaces::MasternodeOperatorKeyHistoryStatus::HISTORY_UNAVAILABLE);
     const uint256 snapshot_tip_hash = WITH_LOCK(chainman.GetMutex(),
         return chainman.ActiveTip()->GetBlockHash());
 
@@ -948,6 +952,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
 
     WITH_LOCK(::cs_main, BOOST_CHECK(chainman.IsSnapshotValidated()));
     BOOST_CHECK(chainman.IsSnapshotActive());
+    BOOST_CHECK(node->evo().getMasternodeOperatorKeyHistory().status ==
+                interfaces::MasternodeOperatorKeyHistoryStatus::SUCCESS);
 
     // Cache should have been rebalanced and reallocated to the "only" remaining
     // chainstate.

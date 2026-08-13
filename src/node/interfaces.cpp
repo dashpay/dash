@@ -330,7 +330,7 @@ public:
             bool history_available{true};
             {
                 LOCK(::cs_main);
-                if (node::fReindex || node::fImporting || chainman().IsSnapshotActive() ||
+                if (node::fReindex || node::fImporting || chainman().IsSnapshotActiveAndUnvalidated() ||
                     chainman().ActiveChainstate().IsInitialBlockDownload()) {
                     return UnavailableHistory();
                 }
@@ -390,7 +390,8 @@ public:
             TipState tip_state{TipState::UNAVAILABLE};
             {
                 LOCK(::cs_main);
-                if (!ShutdownRequested() && !node::fReindex && !node::fImporting && !chainman().IsSnapshotActive() &&
+                if (!ShutdownRequested() && !node::fReindex && !node::fImporting &&
+                    !chainman().IsSnapshotActiveAndUnvalidated() &&
                     !chainman().ActiveChainstate().IsInitialBlockDownload()) {
                     const CBlockIndex* current_tip{chainman().ActiveChain().Tip()};
                     if (current_tip != chainman().m_best_header || !current_tip ||
