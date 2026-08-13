@@ -99,6 +99,9 @@ public:
             Range range;
             s >> range;
             const bool wrapped_max{range.end == 0};
+            if (wrapped_max && range.begin == 0) {
+                throw std::ios_base::failure("unrepresentable full-domain CRangesSet range");
+            }
             if (!wrapped_max && range.begin >= range.end) {
                 throw std::ios_base::failure("invalid empty CRangesSet range");
             }
