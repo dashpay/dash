@@ -339,6 +339,8 @@ public:
         assert(nHeight >= 0);
         return nHeight;
     }
+    /** Snapshot hashing also covers the pre-DIP3 default list (height -1). */
+    [[nodiscard]] int GetHeightForSnapshotCodec() const noexcept { return nHeight; }
     void SetHeight(int _height)
     {
         assert(_height >= 0);
@@ -421,6 +423,11 @@ public:
      * Calculating for old block may require up to {DISK_SNAPSHOT_PERIOD} object copy & destroy.
      */
     void ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNListDiff& diff)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
+
+    /** Apply a snapshot-local historical diff without dereferencing block data. */
+    void ApplyDiffForSnapshot(const uint256& block_hash, int height, uint32_t total_registered_count,
+                              const CDeterministicMNListDiff& diff)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
     void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
