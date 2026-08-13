@@ -4,6 +4,7 @@
 
 #include <test/util/masternode.h>
 #include <test/util/setup_common.h>
+#include <test/util/validation.h>
 
 #include <chainparams.h>
 #include <clientversion.h>
@@ -1771,6 +1772,13 @@ BOOST_AUTO_TEST_CASE(operator_key_history_is_complete_and_fail_closed)
         FlagGuard guard{node::fReindex};
         check_unavailable();
     }
+
+    TestChainState& chainstate = *static_cast<TestChainState*>(&setup.chainman.ActiveChainstate());
+    SetMockTime(GetTime() + nMaxTipAge + 1);
+    chainstate.ResetIbd();
+    check_unavailable();
+    chainstate.JumpOutOfIbd();
+    SetMockTime(setup.Tip()->GetBlockTime() + 1);
     require_history({&registered_key});
 
     SetMockTime(GetTime() + nMaxTipAge + 1);
