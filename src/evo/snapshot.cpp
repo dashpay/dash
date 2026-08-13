@@ -227,9 +227,13 @@ void CEvoSnapshot::Validate(bool require_canonical_order) const
         }
         const size_t active_count{static_cast<size_t>(params.signingActiveQuorumCount)};
         const size_t total_count{SnapshotCommitmentCount(params, data.rotation_enabled)};
-        if (data.active_commitments.size() != active_count ||
-            data.safety_commitments.size() != total_count - active_count ||
-            data.rotation_snapshots.size() != (data.rotation_enabled ? EVO_SNAPSHOT_ROTATION_CYCLES : 0)) {
+        // Parameter-derived counts are maxima, not exact requirements: a young
+        // chain carries however much quorum history exists. The chain-aware
+        // validation and the completion-time CbTx quorum merkle root establish
+        // that nothing available was withheld.
+        if (data.active_commitments.size() > active_count ||
+            data.safety_commitments.size() > total_count - active_count ||
+            data.rotation_snapshots.size() > (data.rotation_enabled ? EVO_SNAPSHOT_ROTATION_CYCLES : size_t{0})) {
             throw std::ios_base::failure("invalid params-derived evo per-type quorum counts");
         }
         std::set<uint256> quorum_hashes;
