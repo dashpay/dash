@@ -16,6 +16,20 @@
 #include "legacy.hpp"
 
 namespace bls {
+namespace {
+
+void SecureWipePrivateKey(bn_st* keydata) noexcept
+{
+#if ALLOC == DYNAMIC
+    if (keydata->dp != nullptr && keydata->alloc > 0) {
+        Util::SecureWipe(keydata->dp, keydata->alloc * sizeof(dig_t));
+    }
+#elif ALLOC == AUTO
+    Util::SecureWipe(keydata->dp, sizeof(keydata->dp));
+#endif
+}
+
+} // namespace
 
 const size_t PrivateKey::PRIVATE_KEY_SIZE;
 
@@ -119,6 +133,7 @@ PrivateKey::~PrivateKey()
 void PrivateKey::DeallocateKeyData()
 {
     if(keydata != nullptr) {
+        SecureWipePrivateKey(keydata);
         Util::SecFree(keydata);
         keydata = nullptr;
     }
@@ -133,9 +148,13 @@ void PrivateKey::InvalidateCaches()
 
 PrivateKey& PrivateKey::operator=(const PrivateKey& other)
 {
+    if (this == &other) {
+        return *this;
+    }
     CheckKeyData();
     other.CheckKeyData();
     InvalidateCaches();
+    SecureWipePrivateKey(keydata);
     bn_copy(keydata, other.keydata);
     return *this;
 }
