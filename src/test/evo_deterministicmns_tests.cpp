@@ -16,10 +16,12 @@
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
+#include <interfaces/node.h>
 #include <llmq/context.h>
-#include <node/mempool_args.h>
 #include <messagesigner.h>
 #include <netbase.h>
+#include <node/blockstorage.h>
+#include <node/mempool_args.h>
 #include <node/miner.h>
 #include <policy/policy.h>
 #include <pow.h>
@@ -35,6 +37,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
+#include <atomic>
 #include <map>
 #include <optional>
 #include <vector>
@@ -1677,6 +1681,181 @@ struct TestMNChainSetup : public TestChainSetup {
     SimpleUTXOMap utxos;
     const CScript coinbase_pk;
 };
+
+BOOST_AUTO_TEST_CASE(operator_key_history_is_complete_and_fail_closed)
+{
+    const std::chrono::seconds previous_mock_time{GetMockTime()};
+    struct MockTimeGuard {
+        std::chrono::seconds previous;
+        ~MockTimeGuard() { SetMockTime(previous); }
+    } mock_time_guard{previous_mock_time};
+
+    TestMNChainSetup setup(DIP3_ACTIVATION_HEIGHT - 2, {"-dip3params=109:500"});
+    setup.ProcessBlock(); // The next block may contain DIP3 transactions.
+
+    CKey owner_key;
+    CBLSSecretKey registered_key;
+    auto registration{CreateProRegTx(setup.chainman, setup.utxos, 19999, GenerateRandomAddress(), setup.coinbaseKey,
+                                     owner_key, registered_key)};
+    const uint256 pro_tx_hash{registration.GetHash()};
+    setup.ProcessBlock({registration});
+    const CBlockIndex* registration_block{setup.Tip()};
+
+    auto node{interfaces::MakeNode(setup.m_node)};
+    auto canonical = [](const CBLSSecretKey& key) {
+        return key.GetPublicKey().ToByteVector(/*specificLegacyScheme=*/false);
+    };
+    auto contains = [](const interfaces::MasternodeOperatorKeyHistory& history, const std::vector<unsigned char>& key) {
+        return std::ranges::find(history.public_keys, key) != history.public_keys.end();
+    };
+    auto require_history = [&](const std::vector<const CBLSSecretKey*>& expected,
+                               const std::vector<const CBLSSecretKey*>& excluded = {}) {
+        const auto history{node->evo().getMasternodeOperatorKeyHistory()};
+        BOOST_REQUIRE(history.status == interfaces::MasternodeOperatorKeyHistoryStatus::SUCCESS);
+        BOOST_CHECK(history.tip_hash == setup.Tip()->GetBlockHash());
+        BOOST_CHECK_EQUAL(history.tip_height, setup.Tip()->nHeight);
+        BOOST_CHECK_EQUAL(history.public_keys.size(), expected.size());
+        for (const CBLSSecretKey* key : expected)
+            BOOST_CHECK(contains(history, canonical(*key)));
+        for (const CBLSSecretKey* key : excluded)
+            BOOST_CHECK(!contains(history, canonical(*key)));
+    };
+
+    // A legacy wire key is exposed in canonical basic serialization.
+    require_history({&registered_key});
+    uint32_t registration_status{0};
+    {
+        LOCK(::cs_main);
+        registration_status = registration_block->nStatus;
+        const_cast<CBlockIndex*>(registration_block)->nStatus &= ~BLOCK_HAVE_DATA;
+    }
+    require_history({&registered_key}); // Exact-tip cache hit does not reread historical blocks.
+    {
+        LOCK(::cs_main);
+        const_cast<CBlockIndex*>(registration_block)->nStatus = registration_status;
+    }
+
+    CBlock pending_block{setup.CreateBlock({}, setup.coinbase_pk, setup.chainman.ActiveChainstate())};
+    BlockValidationState header_state;
+    BOOST_REQUIRE(setup.chainman.ProcessNewBlockHeaders({pending_block.GetBlockHeader()}, header_state));
+    {
+        const auto unavailable{node->evo().getMasternodeOperatorKeyHistory()};
+        BOOST_CHECK(unavailable.status == interfaces::MasternodeOperatorKeyHistoryStatus::HISTORY_UNAVAILABLE);
+        BOOST_CHECK(unavailable.public_keys.empty());
+    }
+    BOOST_REQUIRE(setup.chainman.ProcessNewBlock(std::make_shared<const CBlock>(pending_block),
+                                                 /*force_processing=*/true, /*new_block=*/nullptr));
+    setup.dmnman.UpdatedBlockTip(setup.Tip());
+    require_history({&registered_key});
+
+    struct FlagGuard {
+        std::atomic_bool& flag;
+        const bool previous;
+        explicit FlagGuard(std::atomic_bool& flag_in) :
+            flag{flag_in},
+            previous{flag.exchange(true)}
+        {
+        }
+        ~FlagGuard() { flag = previous; }
+    };
+    auto check_unavailable = [&] {
+        const auto unavailable{node->evo().getMasternodeOperatorKeyHistory()};
+        BOOST_CHECK(unavailable.status == interfaces::MasternodeOperatorKeyHistoryStatus::HISTORY_UNAVAILABLE);
+        BOOST_CHECK(unavailable.public_keys.empty());
+    };
+    {
+        FlagGuard guard{node::fImporting};
+        check_unavailable();
+    }
+    {
+        FlagGuard guard{node::fReindex};
+        check_unavailable();
+    }
+    require_history({&registered_key});
+
+    SetMockTime(GetTime() + nMaxTipAge + 1);
+    check_unavailable();
+    SetMockTime(setup.Tip()->GetBlockTime() + 1);
+    require_history({&registered_key});
+
+    {
+        LOCK(::cs_main);
+        const_cast<CBlockIndex*>(registration_block)->nStatus &= ~BLOCK_HAVE_DATA;
+    }
+    node->setContext(&setup.m_node);
+    check_unavailable(); // Rebinding even the same context invalidates cached block-index identity.
+    {
+        LOCK(::cs_main);
+        const_cast<CBlockIndex*>(registration_block)->nStatus = registration_status;
+    }
+    require_history({&registered_key});
+
+    CBLSSecretKey rotated_key_1, rotated_key_2;
+    rotated_key_1.MakeNewKey();
+    rotated_key_2.MakeNewKey();
+    auto rotate_1{CreateProUpRegTx(setup.chainman, setup.utxos, pro_tx_hash, owner_key, rotated_key_1.GetPublicKey(),
+                                   owner_key.GetPubKey().GetID(), GenerateRandomAddress(), setup.coinbaseKey,
+                                   ProTxVersion::LegacyBLS)};
+    auto rotate_2{CreateProUpRegTx(setup.chainman, setup.utxos, pro_tx_hash, owner_key, rotated_key_2.GetPublicKey(),
+                                   owner_key.GetPubKey().GetID(), GenerateRandomAddress(), setup.coinbaseKey,
+                                   ProTxVersion::LegacyBLS)};
+    setup.ProcessBlock({rotate_1, rotate_2});
+
+    // Both intra-block keys must survive even though the end-of-block deterministic-MN diff only
+    // describes the final state.
+    require_history({&registered_key, &rotated_key_1, &rotated_key_2});
+
+    CBLSSecretKey revoked_key;
+    revoked_key.MakeNewKey();
+    auto rotate_before_revoke{CreateProUpRegTx(setup.chainman, setup.utxos, pro_tx_hash, owner_key,
+                                               revoked_key.GetPublicKey(), owner_key.GetPubKey().GetID(),
+                                               GenerateRandomAddress(), setup.coinbaseKey, ProTxVersion::LegacyBLS)};
+    // Per-transaction validation uses pindexPrev, so the revocation is signed by the key current at
+    // the start of the block. The registrar update immediately before it must still enter history.
+    auto revoke{CreateProUpRevTx(setup.chainman, setup.utxos, pro_tx_hash, rotated_key_2, setup.coinbaseKey)};
+    setup.ProcessBlock({rotate_before_revoke, revoke});
+    require_history({&registered_key, &rotated_key_1, &rotated_key_2, &revoked_key});
+
+    const SimpleUTXOMap fork_utxos{setup.utxos};
+    CBLSSecretKey abandoned_fork_key;
+    abandoned_fork_key.MakeNewKey();
+    auto abandoned_rotation{CreateProUpRegTx(setup.chainman, setup.utxos, pro_tx_hash, owner_key,
+                                             abandoned_fork_key.GetPublicKey(), owner_key.GetPubKey().GetID(),
+                                             GenerateRandomAddress(), setup.coinbaseKey, ProTxVersion::LegacyBLS)};
+    setup.ProcessBlock({abandoned_rotation});
+    const CBlockIndex* abandoned_block{setup.Tip()};
+    setup.ProcessBlock();
+
+    uint32_t saved_status{0};
+    {
+        LOCK(::cs_main);
+        saved_status = abandoned_block->nStatus;
+        const_cast<CBlockIndex*>(abandoned_block)->nStatus &= ~BLOCK_HAVE_DATA;
+    }
+    const auto unavailable{node->evo().getMasternodeOperatorKeyHistory()};
+    BOOST_CHECK(unavailable.status == interfaces::MasternodeOperatorKeyHistoryStatus::HISTORY_UNAVAILABLE);
+    BOOST_CHECK(unavailable.public_keys.empty());
+    {
+        LOCK(::cs_main);
+        const_cast<CBlockIndex*>(abandoned_block)->nStatus = saved_status;
+    }
+    require_history({&registered_key, &rotated_key_1, &rotated_key_2, &revoked_key, &abandoned_fork_key});
+
+    BlockValidationState invalidate_state;
+    BOOST_REQUIRE(
+        setup.chainman.ActiveChainstate().InvalidateBlock(invalidate_state, const_cast<CBlockIndex*>(abandoned_block)));
+    setup.dmnman.UpdatedBlockTip(setup.Tip());
+    setup.utxos = fork_utxos;
+
+    CBLSSecretKey replacement_fork_key;
+    replacement_fork_key.MakeNewKey();
+    auto replacement_rotation{CreateProUpRegTx(setup.chainman, setup.utxos, pro_tx_hash, owner_key,
+                                               replacement_fork_key.GetPublicKey(), owner_key.GetPubKey().GetID(),
+                                               GenerateRandomAddress(), setup.coinbaseKey, ProTxVersion::LegacyBLS)};
+    setup.ProcessBlock({replacement_rotation});
+    require_history({&registered_key, &rotated_key_1, &rotated_key_2, &revoked_key, &replacement_fork_key},
+                    {&abandoned_fork_key});
+}
 
 struct TestChainV24SignalBeforeV19Setup : public TestMNChainSetup {
     TestChainV24SignalBeforeV19Setup() :

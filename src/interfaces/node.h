@@ -6,6 +6,7 @@
 #define BITCOIN_INTERFACES_NODE_H
 
 #include <consensus/amount.h>          // For CAmount
+#include <interfaces/masternode_operator.h>
 #include <net.h>                       // For NodeId
 #include <net_types.h>                 // For banmap_t
 #include <netaddress.h>                // For Network
@@ -129,6 +130,12 @@ class EVO
 public:
     virtual ~EVO() {}
     virtual std::pair<MnListPtr, const CBlockIndex*> getListAtChainTip() = 0;
+    /**
+     * Return every operator key assigned on the active chain, or HISTORY_UNAVAILABLE without
+     * partial results. This may perform a long-running block-data scan and must not run while
+     * holding cs_main.
+     */
+    virtual MasternodeOperatorKeyHistory getMasternodeOperatorKeyHistory() = 0;
     virtual void setContext(node::NodeContext* context) {}
 };
 

@@ -11,10 +11,13 @@
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <coinjoin/common.h>
+#include <consensus/merkle.h>
 #include <deploymentstatus.h>
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <external_signer.h>
 #include <governance/governance.h>
@@ -23,16 +26,18 @@
 #include <governance/vote.h>
 #include <index/blockfilterindex.h>
 #include <init.h>
+#include <instantsend/instantsend.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
-#include <instantsend/instantsend.h>
+#include <kernel/chain.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
+#include <logging.h>
 #include <mapport.h>
 #include <masternode/sync.h>
 #include <net.h>
@@ -40,7 +45,6 @@
 #include <netaddress.h>
 #include <netbase.h>
 #include <node/blockstorage.h>
-#include <kernel/chain.h>
 #include <node/coin.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
@@ -55,12 +59,14 @@
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <shutdown.h>
+#include <streams.h>
 #include <support/allocators/secure.h>
 #include <sync.h>
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/system.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -80,9 +86,12 @@
 #include <boost/signals2/signal.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <set>
+#include <tuple>
 #include <utility>
 #include <variant>
 
@@ -94,6 +103,8 @@ using interfaces::GOV;
 using interfaces::Handler;
 using interfaces::LLMQ;
 using interfaces::MakeHandler;
+using interfaces::MasternodeOperatorKeyHistory;
+using interfaces::MasternodeOperatorKeyHistoryStatus;
 using interfaces::MnEntry;
 using interfaces::MnEntryCPtr;
 using interfaces::MnList;
@@ -208,8 +219,84 @@ private:
 class EVOImpl : public EVO
 {
 private:
+    using OperatorKeySet = std::set<std::vector<unsigned char>>;
+
+    struct BlockLocation {
+        const CBlockIndex* index;
+        FlatFilePos position;
+    };
+
     ChainstateManager& chainman() { return *Assert(m_context->chainman); }
     NodeContext& context() { return *Assert(m_context); }
+
+    static bool AddOperatorKey(const CBLSLazyPublicKey& lazy_public_key, OperatorKeySet& keys)
+    {
+        const CBLSPublicKey& public_key{lazy_public_key.Get()};
+        if (!public_key.IsValid()) return false;
+
+        std::vector<unsigned char> canonical{public_key.ToByteVector(/*specificLegacyScheme=*/false)};
+        CBLSPublicKey decoded;
+        decoded.SetBytes(canonical, /*specificLegacyScheme=*/false);
+        if (!decoded.IsValid() || decoded != public_key) return false;
+
+        keys.emplace(std::move(canonical));
+        return true;
+    }
+
+    static bool ScanOperatorKeys(std::vector<BlockLocation>& blocks, OperatorKeySet& keys, size_t& transaction_count)
+    {
+        AssertLockNotHeld(::cs_main);
+        std::sort(blocks.begin(), blocks.end(), [](const BlockLocation& lhs, const BlockLocation& rhs) {
+            return std::tie(lhs.position.nFile, lhs.position.nPos) < std::tie(rhs.position.nFile, rhs.position.nPos);
+        });
+
+        size_t processed_blocks{0};
+        try {
+            for (size_t first{0}; first < blocks.size();) {
+                const int file_number{blocks[first].position.nFile};
+                size_t last{first + 1};
+                while (last < blocks.size() && blocks[last].position.nFile == file_number)
+                    ++last;
+
+                CAutoFile file{OpenBlockFile(FlatFilePos{file_number, 0}, /*fReadOnly=*/true), SER_DISK, CLIENT_VERSION};
+                if (file.IsNull()) return false;
+
+                for (size_t i{first}; i < last; ++i) {
+                    if (ShutdownRequested() || std::fseek(file.Get(), blocks[i].position.nPos, SEEK_SET) != 0) {
+                        return false;
+                    }
+
+                    CBlock block;
+                    file >> block;
+                    if (block.GetHash() != blocks[i].index->GetBlockHash()) return false;
+
+                    bool mutated{false};
+                    if (BlockMerkleRoot(block, &mutated) != block.hashMerkleRoot || mutated) return false;
+
+                    transaction_count += block.vtx.size();
+                    for (const CTransactionRef& tx : block.vtx) {
+                        if (tx->nType == TRANSACTION_PROVIDER_REGISTER) {
+                            const auto payload{GetTxPayload<CProRegTx>(*tx)};
+                            if (!payload || !AddOperatorKey(payload->pubKeyOperator, keys)) return false;
+                        } else if (tx->nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+                            const auto payload{GetTxPayload<CProUpRegTx>(*tx)};
+                            if (!payload || !AddOperatorKey(payload->pubKeyOperator, keys)) return false;
+                        }
+                    }
+                    if (++processed_blocks % 100000 == 0) {
+                        LogPrint(BCLog::BENCHMARK, "Masternode operator-key history scan progress: %u/%u blocks\n",
+                                 static_cast<unsigned int>(processed_blocks), static_cast<unsigned int>(blocks.size()));
+                    }
+                }
+                first = last;
+            }
+        } catch (const std::exception&) {
+            return false;
+        }
+        return true;
+    }
+
+    static MasternodeOperatorKeyHistory UnavailableHistory() { return {}; }
 
 public:
     std::pair<MnListPtr, const CBlockIndex*> getListAtChainTip() override
@@ -224,13 +311,140 @@ public:
         }
         return {nullptr, nullptr};
     }
-    void setContext(NodeContext* context) override
+
+    MasternodeOperatorKeyHistory getMasternodeOperatorKeyHistory() override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_operator_key_history_mutex)
     {
+        AssertLockNotHeld(::cs_main);
+        LOCK(m_operator_key_history_mutex);
+        if (ShutdownRequested()) return UnavailableHistory();
+
+        const int activation_height{chainman().GetConsensus().DIP0003Height};
+        const CBlockIndex* working_tip{m_operator_key_history_tip};
+        OperatorKeySet working_keys{m_operator_key_history};
+
+        while (!ShutdownRequested()) {
+            std::vector<BlockLocation> blocks;
+            const CBlockIndex* captured_tip{nullptr};
+            int start_height{activation_height};
+            bool history_available{true};
+            {
+                LOCK(::cs_main);
+                if (node::fReindex || node::fImporting || chainman().IsSnapshotActive() ||
+                    chainman().ActiveChainstate().IsInitialBlockDownload()) {
+                    return UnavailableHistory();
+                }
+
+                const CChain& active_chain{chainman().ActiveChain()};
+                captured_tip = active_chain.Tip();
+                if (!captured_tip || captured_tip != chainman().m_best_header ||
+                    captured_tip->GetBlockTime() < GetTime() - nMaxTipAge) {
+                    return UnavailableHistory();
+                }
+
+                if (working_tip && !active_chain.Contains(working_tip)) {
+                    working_tip = nullptr;
+                    working_keys.clear();
+                }
+                if (working_tip) start_height = std::max(activation_height, working_tip->nHeight + 1);
+
+                if (start_height <= captured_tip->nHeight) {
+                    blocks.reserve(captured_tip->nHeight - start_height + 1);
+                    for (int height{start_height}; height <= captured_tip->nHeight; ++height) {
+                        const CBlockIndex* index{active_chain[height]};
+                        if (!index || !(index->nStatus & BLOCK_HAVE_DATA)) {
+                            history_available = false;
+                            break;
+                        }
+                        const FlatFilePos position{index->GetBlockPos()};
+                        if (position.IsNull()) {
+                            history_available = false;
+                            break;
+                        }
+                        blocks.push_back({index, position});
+                    }
+                }
+            }
+            if (!history_available) return UnavailableHistory();
+
+            const int64_t scan_start{GetTimeMicros()};
+            size_t transaction_count{0};
+            if (!ScanOperatorKeys(blocks, working_keys, transaction_count)) {
+                LogPrint(BCLog::BENCHMARK, /* Continued */
+                         "Masternode operator-key history scan failed after %.2fms (%u blocks, %u transactions)\n",
+                         (GetTimeMicros() - scan_start) * 0.001, static_cast<unsigned int>(blocks.size()),
+                         static_cast<unsigned int>(transaction_count));
+                return UnavailableHistory();
+            }
+            LogPrint(BCLog::BENCHMARK, /* Continued */
+                     "Masternode operator-key history scan completed in %.2fms (%u blocks, %u transactions, %u keys)\n",
+                     (GetTimeMicros() - scan_start) * 0.001, static_cast<unsigned int>(blocks.size()),
+                     static_cast<unsigned int>(transaction_count), static_cast<unsigned int>(working_keys.size()));
+
+            enum class TipState {
+                EXACT,
+                EXTENSION,
+                FORK,
+                UNAVAILABLE
+            };
+            TipState tip_state{TipState::UNAVAILABLE};
+            {
+                LOCK(::cs_main);
+                if (!ShutdownRequested() && !node::fReindex && !node::fImporting && !chainman().IsSnapshotActive() &&
+                    !chainman().ActiveChainstate().IsInitialBlockDownload()) {
+                    const CBlockIndex* current_tip{chainman().ActiveChain().Tip()};
+                    if (current_tip != chainman().m_best_header || !current_tip ||
+                        current_tip->GetBlockTime() < GetTime() - nMaxTipAge) {
+                        return UnavailableHistory();
+                    }
+                    if (current_tip == captured_tip) {
+                        tip_state = TipState::EXACT;
+                    } else if (current_tip && current_tip->nHeight > captured_tip->nHeight &&
+                               current_tip->GetAncestor(captured_tip->nHeight) == captured_tip) {
+                        tip_state = TipState::EXTENSION;
+                    } else if (current_tip) {
+                        tip_state = TipState::FORK;
+                    }
+                }
+            }
+
+            if (tip_state == TipState::EXACT) {
+                m_operator_key_history_tip = captured_tip;
+                m_operator_key_history = working_keys;
+                std::vector<std::vector<unsigned char>> public_keys{working_keys.begin(), working_keys.end()};
+                return {
+                    MasternodeOperatorKeyHistoryStatus::SUCCESS,
+                    std::move(public_keys),
+                    captured_tip->GetBlockHash(),
+                    captured_tip->nHeight,
+                };
+            }
+            if (tip_state == TipState::UNAVAILABLE) return UnavailableHistory();
+
+            if (tip_state == TipState::EXTENSION) {
+                working_tip = captured_tip;
+            } else {
+                working_tip = nullptr;
+                working_keys.clear();
+            }
+        }
+        return UnavailableHistory();
+    }
+
+    void setContext(NodeContext* context) override EXCLUSIVE_LOCKS_REQUIRED(!m_operator_key_history_mutex)
+    {
+        AssertLockNotHeld(::cs_main);
+        LOCK(m_operator_key_history_mutex);
+        m_operator_key_history_tip = nullptr;
+        m_operator_key_history.clear();
         m_context = context;
     }
 
 private:
     NodeContext* m_context{nullptr};
+    Mutex m_operator_key_history_mutex;
+    const CBlockIndex* m_operator_key_history_tip GUARDED_BY(m_operator_key_history_mutex){nullptr};
+    OperatorKeySet m_operator_key_history GUARDED_BY(m_operator_key_history_mutex);
 };
 
 class GOVImpl : public GOV
