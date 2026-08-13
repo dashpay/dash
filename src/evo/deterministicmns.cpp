@@ -686,6 +686,18 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaM
 
 CDeterministicMNManager::~CDeterministicMNManager() = default;
 
+bool CDeterministicMNManager::SeedListForBlock(const CDeterministicMNList& list)
+{
+    return m_evoDb.WriteDerived(std::make_pair(DB_LIST_SNAPSHOT, list.GetBlockHash()), list);
+}
+
+void CDeterministicMNManager::InvalidateListCacheForBlock(const uint256& block_hash)
+{
+    LOCK(cs);
+    mnListsCache.erase(block_hash);
+    mnListDiffsCache.erase(block_hash);
+}
+
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex,
                                            BlockValidationState& state, const CDeterministicMNList& newList,
                                            MNListUpdates& updatesRet)
@@ -851,6 +863,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
             break;
         }
+        if (m_list_snapshot_miss_hook) m_list_snapshot_miss_hook(pindex);
 
         // no snapshot found yet, check diffs
         auto itDiffs = mnListDiffsCache.find(pindex->GetBlockHash());
