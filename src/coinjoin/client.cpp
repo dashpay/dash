@@ -475,7 +475,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
     // Make sure all inputs/outputs are valid
     PoolMessage nMessageID{MSG_NOERR};
     if (!IsValidInOuts(active_chainstate, m_isman, mempool, finalMutableTransaction.vin, finalMutableTransaction.vout,
-                       nMessageID, nullptr)) {
+                       nSessionDenom.load(), nMessageID, nullptr)) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- ERROR! IsValidInOuts() failed: %s\n", __func__, CoinJoin::GetMessageByID(nMessageID).translated);
         UnlockCoins();
         keyHolderStorage.ReturnAll();
@@ -1229,8 +1229,9 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTime();
         WalletCJLogPrint(m_wallet, /* Continued */
-                         "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
-                         dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+                         "CCoinJoinClientSession::JoinExistingQueue -- pending connection, masternode=%s, "
+                         "nSessionDenom=%d (%s)\n",
+                         dmn->proTxHash.ToString(), nSessionDenom.load(), CoinJoin::DenominationToString(nSessionDenom));
         strAutoDenomResult = _("Trying to connect…");
         return true;
     }
@@ -1310,9 +1311,11 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         pendingDsaRequest = CPendingDsaRequest(dmn->proTxHash, CCoinJoinAccept(nSessionDenom, txMyCollateral));
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTime();
-        WalletCJLogPrint( /* Continued */
-            m_wallet, "CCoinJoinClientSession::StartNewQueue -- pending connection, masternode=%s, nSessionDenom=%d (%s)\n",
-            dmn->proTxHash.ToString(), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+        WalletCJLogPrint(/* Continued */
+                         m_wallet,
+                         "CCoinJoinClientSession::StartNewQueue -- pending connection, masternode=%s, nSessionDenom=%d "
+                         "(%s)\n",
+                         dmn->proTxHash.ToString(), nSessionDenom.load(), CoinJoin::DenominationToString(nSessionDenom));
         strAutoDenomResult = _("Trying to connect…");
         return true;
     }
@@ -1424,7 +1427,7 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
         return a.second > b.second || (a.second == b.second && a.first < b.first);
     });
 
-    WalletCJLogPrint(m_wallet, "vecInputsByRounds for denom %d\n", nSessionDenom);
+    WalletCJLogPrint(m_wallet, "vecInputsByRounds for denom %d\n", nSessionDenom.load());
     for (const auto& pair : vecInputsByRounds) {
         WalletCJLogPrint(m_wallet, "vecInputsByRounds: rounds: %d, inputs: %d\n", pair.first, pair.second);
     }
@@ -2001,4 +2004,3 @@ UniValue CCoinJoinClientManager::getJsonInfo() const
     obj.pushKV("sessions", arrSessions);
     return obj;
 }
-

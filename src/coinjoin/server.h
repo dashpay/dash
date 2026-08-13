@@ -12,6 +12,7 @@
 #include <protocol.h>
 #include <util/hasher.h>
 
+#include <optional>
 #include <unordered_set>
 
 class CActiveMasternodeManager;
@@ -25,12 +26,36 @@ class CNode;
 class CTxMemPool;
 
 class UniValue;
+namespace coinjoin_inouts_tests {
+class TestableCoinJoinServer;
+}
 
 /** Used to keep track of current status of mixing pool
  */
 class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
 {
+    friend class coinjoin_inouts_tests::TestableCoinJoinServer;
+
+public:
+    enum class FeePolicy : uint8_t {
+        PROBABILISTIC,
+        GUARANTEED_ON_ABORT,
+    };
+
 private:
+    class InFlightMessageGuard
+    {
+        CCoinJoinServer& m_server;
+        const int m_session_id;
+
+    public:
+        InFlightMessageGuard(CCoinJoinServer& server, int session_id);
+        ~InFlightMessageGuard();
+
+        InFlightMessageGuard(const InFlightMessageGuard&) = delete;
+        InFlightMessageGuard& operator=(const InFlightMessageGuard&) = delete;
+    };
+
     CoinJoinQueueManager m_queueman;
 
     ChainstateManager& m_chainman;
@@ -43,60 +68,128 @@ private:
     const CMasternodeSync& m_mn_sync;
     const llmq::CInstantSendManager& m_isman;
 
-    // Mixing uses collateral transactions to trust parties entering the pool
-    // to behave honestly. If they don't it takes their money.
-    std::vector<CTransactionRef> vecSessionCollaterals;
-    // Input prevouts of every transaction in vecSessionCollaterals, so a dsa whose collateral
-    // reuses one of them can be rejected without rescanning them all.
-    std::unordered_set<COutPoint, SaltedOutpointHasher> setSessionCollateralPrevouts GUARDED_BY(cs_coinjoin);
+    /// The collateral transactions of every peer admitted to the current session.
+    ///
+    /// Mixing uses collateral transactions to trust parties entering the pool to behave
+    /// honestly. If they don't it takes their money.
+    ///
+    /// Session collaterals are only ever test-accepted, never added to the mempool, so nothing
+    /// pins their identity: the same UTXO can be re-signed into arbitrarily many distinct txids.
+    /// Matching on input prevouts is what makes a resent or replayed dsa recognisable as the
+    /// same participant.
+    class SessionCollaterals
+    {
+    public:
+        void Add(const CMutableTransaction& txCollateral)
+        {
+            m_txs.push_back(MakeTransactionRef(txCollateral));
+            for (const auto& txin : txCollateral.vin) {
+                m_prevouts.insert(txin.prevout);
+            }
+        }
+        void Clear()
+        {
+            m_txs.clear();
+            m_prevouts.clear();
+        }
+        //! The first input of txCollateral that an already admitted collateral also spends, if any.
+        std::optional<COutPoint> FindCommittedPrevout(const CMutableTransaction& txCollateral) const
+        {
+            for (const auto& txin : txCollateral.vin) {
+                if (m_prevouts.contains(txin.prevout)) return txin.prevout;
+            }
+            return std::nullopt;
+        }
+        const std::vector<CTransactionRef>& txs() const { return m_txs; }
+        size_t size() const { return m_txs.size(); }
+        bool empty() const { return m_txs.empty(); }
+
+    private:
+        std::vector<CTransactionRef> m_txs;
+        std::unordered_set<COutPoint, SaltedOutpointHasher> m_prevouts;
+    };
+    SessionCollaterals m_session_collaterals GUARDED_BY(cs_coinjoin);
+    std::optional<int> m_inflight_session GUARDED_BY(cs_coinjoin);
+    /// Set once this coordinator has told the session's participants to abort (a session-wide
+    /// STATUS_REJECTED). Honest clients obey it and stop cooperating, so the guaranteed timeout
+    /// charge that follows must not treat them as offenders.
+    bool m_relayed_abort GUARDED_BY(cs_coinjoin){false};
+    /// Prevouts of collaterals selected for a penalty whose mempool submission has not settled.
+    /// Selection happens under cs_coinjoin but the submission must not, and the reset that follows
+    /// selection reopens admission in between: without this reservation the still-unspent
+    /// collateral could be committed to a replacement session that the pending charge then breaks.
+    /// Deliberately not cleared by SetNull() - a pending charge outlives the session it was
+    /// incurred in - and erased once the submission settles and the mempool takes over.
+    std::unordered_set<COutPoint, SaltedOutpointHasher> m_pending_charges GUARDED_BY(cs_coinjoin);
 
     bool fUnitTest;
+
+    /// Serializes CheckPool() against itself and against CheckTimeout(). CheckPool() runs both on
+    /// the scheduler thread and on the message-handling thread, and its finalize and commit steps
+    /// have to be single-shot: relaying DSFINALTX twice makes every client sign twice, and the
+    /// duplicate signatures then abort the session for all of them. CheckTimeout() uses the same
+    /// guard so it cannot reset a session during finalization or commit. Production paths always
+    /// acquire it with TRY_LOCK, so a contended caller skips the round rather than blocking msghand.
+    Mutex cs_check_pool;
 
     /// Add a clients entry to the pool
     bool AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Add signature to a txin
-    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    virtual bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
-    /// Charge fees to bad actors (Charge clients a fee if they're abusive)
-    void ChargeFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    int MarkMessageInFlight() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    void ClearMessageInFlight(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+
+    /// Choose one bad actor whose collateral should be consumed, if any.
+    CTransactionRef SelectCollateralToCharge(FeePolicy policy) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
-    void ChargeRandomFees() const;
+    void ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved
-    void ConsumeCollateral(const CTransactionRef& txref) const;
+    virtual void ConsumeCollateral(const CTransactionRef& txref) const;
+    /// Reserve a selected collateral's prevouts so admission rejects them until the charge settles.
+    void MarkPendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Does txCollateral spend a prevout reserved for a not-yet-settled penalty?
+    bool IsCollateralPendingCharge(const CMutableTransaction& txCollateral) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Consume a collateral previously reserved with MarkPendingCharge() and release the reservation.
+    void ConsumePendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Check for process
-    void CheckPool();
+    void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
-    void CreateFinalTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    void CommitFinalTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CreateFinalTransaction(int session_id, bool charge_fees) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void CommitFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Is this nDenom and txCollateral acceptable?
     bool IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const;
-    /// Record an accepted collateral and index its input prevouts
-    void CommitSessionCollateral(const CMutableTransaction& txCollateral) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     bool AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Do we have enough users to take entries?
-    bool IsSessionReady() const;
+    bool IsSessionReady() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Check that all inputs are signed. (Are all inputs signed?)
-    bool IsSignaturesComplete() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    bool IsSignaturesComplete() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Check to make sure a given input matches an input in the pool and its scriptSig is valid
     bool IsInputScriptSigValid(const CTxIn& txin) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
-    // Set the 'state' value, with some logging and capturing when the state changed
-    void SetState(PoolState nStateNew);
+    // Set the 'state' value, with some logging and capturing when the state changed.
+    // Requires cs_coinjoin so that a transition and the session data it describes are always
+    // observed together: code that revalidates nState under the lock must not have it changed
+    // out from under it by a concurrent transition.
+    void SetState(PoolState nStateNew) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Relay mixing Messages
     void RelayFinalTransaction(const CTransaction& txFinal) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID) const;
     void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
-    void RelayCompletedTransaction(PoolMessage nMessageID) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void RelayCompletedTransaction(int session_id, const std::vector<CService>& participants, PoolMessage nMessageID)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ResetSigningSessionIfCurrent(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
-    void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    void ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
+    void ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
     void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
@@ -110,14 +203,15 @@ public:
                              const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman);
     ~CCoinJoinServer() override;
 
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
     bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
     bool AlreadyHave(const CInv& inv) override;
     void Schedule(CScheduler& scheduler) override;
 
     bool HasTimedOut() const;
-    void CheckTimeout();
-    void CheckForCompleteQueue();
+    void CheckTimeout() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
+    void CheckForCompleteQueue() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     void GetJsonInfo(UniValue& obj) const;
 };
