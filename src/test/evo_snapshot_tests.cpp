@@ -425,6 +425,18 @@ BOOST_FIXTURE_TEST_CASE(context_free_validation_matrix, BasicTestingSetup)
     snapshot.quorums[1].rotation_snapshots.pop_back();
     CheckInvalid(snapshot);
 
+    // Parameter-derived history counts are ceilings. Young chains and newly
+    // activated quorum types legitimately carry fewer commitments and cycles;
+    // chain-aware validation and the base CbTx establish completeness later.
+    snapshot = SyntheticSnapshot();
+    snapshot.quorums.clear();
+    snapshot.historical_mn_list_diffs.clear();
+    snapshot.quorum_modifiers.clear();
+    evo::CQuorumSnapshotData partial;
+    partial.llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    snapshot.quorums.emplace_back(std::move(partial));
+    BOOST_CHECK_NO_THROW(snapshot.Validate());
+
     const auto mutate_commitment = [](auto mutation) {
         auto value{SyntheticSnapshot()};
         mutation(value.quorums[0].active_commitments[0]);
