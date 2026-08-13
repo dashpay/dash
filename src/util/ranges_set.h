@@ -9,7 +9,10 @@
 #include <saltedhasher.h>
 #include <serialize.h>
 
+#include <ios>
+#include <limits>
 #include <set>
+#include <utility>
 
 /**
  * The CRangesSet is a datastructure that keeps efficiently numbers as set of
@@ -47,6 +50,8 @@ class CRangesSet
     std::set<Range> ranges;
 
 public:
+    static constexpr uint64_t DEFAULT_MAX_RANGES{MAX_SIZE};
+
     /**
      * this function adds `value` to the datastructure.
      * it returns true if `add` succeed
@@ -75,9 +80,48 @@ public:
      */
     [[nodiscard]] bool IsEmpty() const noexcept;
 
-    SERIALIZE_METHODS(CRangesSet, obj)
+    template <typename Stream>
+    void Serialize(Stream& s) const
     {
-        READWRITE(obj.ranges);
+        // Preserve the established canonical set encoding.
+        s << ranges;
+    }
+
+    template <typename Stream>
+    void UnserializeBounded(Stream& s, uint64_t max_ranges)
+    {
+        std::set<Range> decoded;
+        const uint64_t count{ReadCompactSize(s)};
+        if (count > max_ranges) throw std::ios_base::failure("oversized CRangesSet range count");
+        uint64_t previous_end{0};
+        bool have_previous{false};
+        for (uint64_t i{0}; i < count; ++i) {
+            Range range;
+            s >> range;
+            const bool wrapped_max{range.end == 0};
+            if (!wrapped_max && range.begin >= range.end) {
+                throw std::ios_base::failure("invalid empty CRangesSet range");
+            }
+            // Equality is adjacent and must have been merged; less-than is
+            // overlapping or unordered. Both are noncanonical and could make
+            // Size() underflow.
+            if (have_previous && (previous_end == 0 || range.begin <= previous_end)) {
+                throw std::ios_base::failure("noncanonical CRangesSet ranges");
+            }
+            if (wrapped_max && i + 1 != count) {
+                throw std::ios_base::failure("wrapped CRangesSet range must be last");
+            }
+            previous_end = range.end;
+            have_previous = true;
+            decoded.emplace(range);
+        }
+        ranges = std::move(decoded);
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        UnserializeBounded(s, DEFAULT_MAX_RANGES);
     }
 };
 
