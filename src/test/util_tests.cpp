@@ -1408,7 +1408,8 @@ BOOST_AUTO_TEST_CASE(test_CRanges_deserialize_validation)
         return stream;
     };
 
-    for (auto malformed : {encoded({{4, 4}}),              // empty
+    for (auto malformed : {encoded({{0, 0}}),              // full uint64_t domain (unrepresentable size)
+                           encoded({{4, 4}}),              // empty
                            encoded({{4, 8}, {7, 10}}),      // overlapping
                            encoded({{4, 8}, {8, 10}}),      // adjacent (must be merged)
                            encoded({{12, 14}, {4, 8}})}) {  // unordered
