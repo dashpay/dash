@@ -23,6 +23,7 @@
 #include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <kernel/coinstats.h>
+#include <llmq/context.h>
 #include <logging/timer.h>
 #include <node/blockstorage.h>
 #include <net.h>
@@ -55,6 +56,7 @@
 #include <evo/cbtx.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot.h>
 #include <evo/specialtx.h>
 #include <instantsend/instantsend.h>
 
@@ -3030,6 +3032,8 @@ static RPCHelpMan dumptxoutset()
                     {RPCResult::Type::NUM, "base_height", "the height of the base of the snapshot"},
                     {RPCResult::Type::STR, "path", "the absolute path that the snapshot was written to"},
                     {RPCResult::Type::STR_HEX, "txoutset_hash", "the hash of the UTXO set contents"},
+                    {RPCResult::Type::STR_HEX, "evo_hash", "the hash of the canonical Dash evo section"},
+                    {RPCResult::Type::NUM, "evo_mn_count", "the number of deterministic masternodes in the evo section"},
                     {RPCResult::Type::NUM, "nchaintx", "the number of transactions in the chain up to and including the base block"},
                 }
         },
@@ -3080,6 +3084,8 @@ UniValue CreateUTXOSnapshot(
     std::unique_ptr<CCoinsViewCursor> pcursor;
     std::optional<CCoinsStats> maybe_stats;
     const CBlockIndex* tip;
+    evo::CEvoSnapshot evo_snapshot;
+    std::string evo_error;
 
     {
         // We need to lock cs_main to ensure that the coinsdb isn't written to
@@ -3105,6 +3111,16 @@ UniValue CreateUTXOSnapshot(
 
         pcursor = chainstate.CoinsDB().Cursor();
         tip = CHECK_NONFATAL(chainstate.m_blockman.LookupBlockIndex(maybe_stats->hashBlock));
+
+        // Retain evo state from the same cs_main-pinned chain point as the
+        // LevelDB cursor. The cursor remains a stable snapshot after unlock.
+        if (!evo::BuildEvoSnapshot(Params(), *node.chainman, *Assert(node.dmnman),
+                                   *Assert(node.llmq_ctx)->quorum_block_processor,
+                                   *node.llmq_ctx->qsnapman,
+                                   *chainstate.ChainHelper().credit_pool_manager,
+                                   *chainstate.ChainHelper().ehf_manager, tip, evo_snapshot, evo_error)) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to build evo snapshot: " + evo_error);
+        }
     }
 
     LOG_TIME_SECONDS(strprintf("writing UTXO snapshot at height %s (%s) to file %s (via %s)",
@@ -3130,6 +3146,14 @@ UniValue CreateUTXOSnapshot(
         pcursor->Next();
     }
 
+    // On-disk layout (with no length prefix around the coins) is exactly:
+    // [SnapshotMetadata][metadata.m_coins_count x (COutPoint,Coin)]
+    // [uint64 EVO_SNAPSHOT_MARKER][CEvoSnapshot]. CEvoSnapshot carries its
+    // own format version immediately after the marker.
+    afile << evo::EVO_SNAPSHOT_MARKER;
+    OverrideStream<AutoFile> evo_file{&afile, SER_DISK, CLIENT_VERSION};
+    evo_file << evo_snapshot;
+
     afile.fclose();
 
     UniValue result(UniValue::VOBJ);
@@ -3138,6 +3162,8 @@ UniValue CreateUTXOSnapshot(
     result.pushKV("base_height", tip->nHeight);
     result.pushKV("path", path.utf8string());
     result.pushKV("txoutset_hash", maybe_stats->hashSerialized.ToString());
+    result.pushKV("evo_hash", evo::GetEvoSnapshotHash(evo_snapshot).ToString());
+    result.pushKV("evo_mn_count", evo_snapshot.mn_list.GetCounts().total());
     // Cast required because univalue doesn't have serialization specified for
     // `unsigned int`, nChainTx's type.
     result.pushKV("nchaintx", uint64_t{tip->nChainTx});

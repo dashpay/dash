@@ -10,10 +10,13 @@
 #include <evo/snapshot.h>
 
 #include <chain.h>
+#include <node/blockstorage.h>
 #include <chainparams.h>
 #include <deploymentstatus.h>
+#include <evo/cbtx.h>
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
+#include <evo/deterministicmns.h>
 #include <evo/mnhftx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/options.h>
@@ -418,6 +421,76 @@ bool ValidateEvoSnapshotAgainstChain(const CEvoSnapshot& snapshot, const Chainst
         if (bit >= VERSIONBITS_NUM_BITS || height < 0 || height > base_index->nHeight) {
             return fail("invalid evo MNHF signal bit/height");
         }
+    }
+    return true;
+}
+
+bool VerifyEvoSnapshotBaseBlock(const CEvoSnapshot& snapshot, const CBlock& base_block, std::string& error)
+{
+    if (base_block.vtx.empty()) {
+        error = "empty base block";
+        return false;
+    }
+    const auto cbtx{GetTxPayload<CCbTx>(*base_block.vtx[0])};
+    if (!cbtx) {
+        error = "missing base block CbTx payload";
+        return false;
+    }
+    return VerifyEvoSnapshotCbTx(snapshot, *cbtx, error);
+}
+
+bool SeedEvoSnapshotState(const CEvoSnapshot& snapshot, CDeterministicMNManager& dmnman,
+                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
+                          CCreditPoolManager& cpoolman, CMNHFManager& mnhfman,
+                          node::BlockManager& blockman, const CBlockIndex* snapshot_start_block)
+{
+    std::map<uint256, CDeterministicMNList> historical_lists;
+    std::string reconstruction_error;
+    if (!ReconstructHistoricalMNLists(snapshot, historical_lists, reconstruction_error)) {
+        LogPrintf("[snapshot] failed to reconstruct historical deterministic MN lists: %s\n",
+                  reconstruction_error);
+        return false;
+    }
+    for (const auto& [_, historical_list] : historical_lists) {
+        if (!dmnman.SeedListForBlock(historical_list)) {
+            LogPrintf("[snapshot] failed to seed historical deterministic MN list\n");
+            return false;
+        }
+    }
+    for (const auto& modifier : snapshot.quorum_modifiers) {
+        if (!qsnapman.SeedQuorumModifier(modifier.llmq_type, modifier.work_block_hash,
+                                          modifier.modifier)) {
+            LogPrintf("[snapshot] failed to seed quorum score modifier\n");
+            return false;
+        }
+    }
+    for (const auto& quorum_data : snapshot.quorums) {
+        const auto seed_commitments = [&](const auto& commitments) {
+            LOCK(::cs_main);
+            for (const auto& entry : commitments) {
+                if (!qblockman.SeedMinedCommitment(quorum_data.llmq_type, entry.quorum_base_block_hash,
+                                                  entry.commitment, entry.mined_block_hash)) return false;
+            }
+            return true;
+        };
+        if (!seed_commitments(quorum_data.active_commitments) ||
+            !seed_commitments(quorum_data.safety_commitments)) {
+            LogPrintf("[snapshot] failed to seed mined quorum commitment\n");
+            return false;
+        }
+        for (const auto& rotation : quorum_data.rotation_snapshots) {
+            const CBlockIndex* cycle_index{WITH_LOCK(::cs_main, return blockman.LookupBlockIndex(rotation.cycle_base_block_hash);)};
+            assert(cycle_index != nullptr);
+            if (!qsnapman.SeedSnapshotForBlock(quorum_data.llmq_type, cycle_index, rotation.snapshot)) {
+                LogPrintf("[snapshot] failed to seed quorum rotation snapshot\n");
+                return false;
+            }
+        }
+    }
+    if (!cpoolman.SeedSnapshot(snapshot_start_block, snapshot.credit_pool) ||
+        !mnhfman.SeedSignals(snapshot_start_block, snapshot.mnhf_signals)) {
+        LogPrintf("[snapshot] failed to seed credit-pool/MNHF state\n");
+        return false;
     }
     return true;
 }

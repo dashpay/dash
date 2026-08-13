@@ -33,6 +33,7 @@
 class CBlockIndex;
 class CChainParams;
 class ChainstateManager;
+class CBlock;
 class CCbTx;
 class CCreditPoolManager;
 class CMNHFManager;
@@ -41,6 +42,10 @@ namespace llmq {
 class CQuorumBlockProcessor;
 class CQuorumSnapshotManager;
 } // namespace llmq
+
+namespace node {
+class BlockManager;
+} // namespace node
 
 namespace evo {
 
@@ -675,6 +680,15 @@ bool ValidateEvoSnapshotAgainstChain(const CEvoSnapshot& snapshot, const Chainst
 
 /** Pure CbTx checks over already-built snapshot content. */
 bool VerifyEvoSnapshotCbTx(const CEvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);
+
+/** VerifyEvoSnapshotCbTx over the base block's coinbase payload. */
+bool VerifyEvoSnapshotBaseBlock(const CEvoSnapshot& snapshot, const CBlock& base_block, std::string& error);
+
+/** Seed EvoDB with the decoded snapshot's reconstructed state. */
+bool SeedEvoSnapshotState(const CEvoSnapshot& snapshot, CDeterministicMNManager& dmnman,
+                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
+                          CCreditPoolManager& cpoolman, CMNHFManager& mnhfman,
+                          node::BlockManager& blockman, const CBlockIndex* snapshot_start_block);
 
 } // namespace evo
 
