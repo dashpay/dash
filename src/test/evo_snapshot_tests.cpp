@@ -218,7 +218,38 @@ void CheckInvalid(evo::CEvoSnapshot snapshot)
     BOOST_CHECK_THROW(snapshot.Validate(), std::ios_base::failure);
 }
 
+//! Restores consensus params mutated through const_cast when the test case
+//! leaves scope, including through a failed BOOST_REQUIRE, so mutated state
+//! cannot leak into cases running later in the same process.
+class [[nodiscard]] ConsensusParamsRestorer
+{
+    Consensus::Params& m_params;
+    const Consensus::Params m_saved;
+
+public:
+    explicit ConsensusParamsRestorer(const Consensus::Params& params) :
+        m_params{const_cast<Consensus::Params&>(params)}, m_saved{params}
+    {
+    }
+    ~ConsensusParamsRestorer() { m_params = m_saved; }
+    Consensus::Params& Get() { return m_params; }
+};
+
 } // namespace
+
+//! Chain fixture whose activation heights are already in force while the chain
+//! is mined, so every historical coinbase is the CbTx that v20-era code paths
+//! (e.g. the quorum hash modifier's chainlock probe) are entitled to assume.
+//! Forcing the heights down through const_cast after mining instead would leave
+//! pre-DIP3 coinbases on a chain claiming v20 was always active, which trips
+//! GetTxPayload's payload-type assertion in debug builds.
+struct SnapshotActivationChainSetup : public TestChainSetup {
+    SnapshotActivationChainSetup() :
+        TestChainSetup{102, CBaseChainParams::REGTEST,
+                       {"-dip3params=2:2", "-testactivationheight=v20@2", "-testactivationheight=mn_rr@2"}}
+    {
+    }
+};
 
 BOOST_AUTO_TEST_SUITE(evo_snapshot_tests)
 
@@ -265,6 +296,598 @@ BOOST_FIXTURE_TEST_CASE(populated_roundtrip_and_representation_independence, Bas
         BOOST_CHECK(by_owner->proTxHash == original->proTxHash);
         BOOST_CHECK(by_service->proTxHash == original->proTxHash);
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(snapshot_identity_seeding_is_retrievable, TestChain100Setup)
+{
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    const auto list{MNList(base->GetBlockHash(), base->nHeight, false)};
+    const CBlockIndex* historical_index{base->GetAncestor(50)};
+    const auto historical_list{MNList(historical_index->GetBlockHash(), historical_index->nHeight, true)};
+    const auto indexed_commitment = [&](Consensus::LLMQType type, int quorum_height, int mined_height,
+                                        bool rotated, int16_t quorum_index = 0) {
+        auto entry{Commitment(type, 1, 2, rotated, quorum_index)};
+        entry.quorum_base_block_hash = base->GetAncestor(quorum_height)->GetBlockHash();
+        entry.commitment.quorumHash = entry.quorum_base_block_hash;
+        entry.mined_block_hash = base->GetAncestor(mined_height)->GetBlockHash();
+        return entry;
+    };
+    const std::vector nonrotated{
+        indexed_commitment(Consensus::LLMQType::LLMQ_TEST, 48, 58, false),
+        indexed_commitment(Consensus::LLMQType::LLMQ_TEST, 72, 82, false),
+    };
+    const std::vector rotated{
+        indexed_commitment(Consensus::LLMQType::LLMQ_TEST_DIP0024, 72, 84, true, 0),
+        indexed_commitment(Consensus::LLMQType::LLMQ_TEST_DIP0024, 73, 85, true, 1),
+    };
+    CCreditPool pool;
+    pool.locked = 123;
+    pool.currentLimit = 45;
+    pool.latelyUnlocked = 6;
+    AbstractEHFManager::Signals signals{{2, base->nHeight}};
+    llmq::CQuorumSnapshot quorum_snapshot{{true, false, true}, SnapshotSkipMode::MODE_NO_SKIPPING, {}};
+
+    ConsensusParamsRestorer params_restorer{Params().GetConsensus()};
+    const int old_dip3_height{params_restorer.Get().DIP0003Height};
+    params_restorer.Get().DIP0003Height = 1;
+    BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(base).GetCounts().total(), 0U);
+    BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(historical_index).GetCounts().total(), 0U);
+
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        BOOST_REQUIRE(m_node.dmnman->SeedListForBlock(list));
+        BOOST_REQUIRE(m_node.dmnman->SeedListForBlock(historical_list));
+        {
+            LOCK(::cs_main);
+            for (const auto& entry : nonrotated) {
+                BOOST_REQUIRE(m_node.llmq_ctx->quorum_block_processor->SeedMinedCommitment(
+                    entry.commitment.llmqType, entry.quorum_base_block_hash,
+                    entry.commitment, entry.mined_block_hash));
+            }
+            for (const auto& entry : rotated) {
+                BOOST_REQUIRE(m_node.llmq_ctx->quorum_block_processor->SeedMinedCommitment(
+                    entry.commitment.llmqType, entry.quorum_base_block_hash,
+                    entry.commitment, entry.mined_block_hash));
+            }
+        }
+        BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedSnapshotForBlock(
+            Consensus::LLMQType::LLMQ_TEST, base, quorum_snapshot));
+        BOOST_REQUIRE(m_node.chain_helper->credit_pool_manager->SeedSnapshot(base, pool));
+        BOOST_REQUIRE(m_node.chain_helper->ehf_manager->SeedSignals(base, signals));
+        tx->Commit();
+    }
+    BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+    {
+        LOCK(::cs_main);
+        m_node.dmnman->InvalidateListCacheForBlock(base->GetBlockHash());
+        m_node.dmnman->InvalidateListCacheForBlock(historical_index->GetBlockHash());
+    }
+
+    CDeterministicMNList stored_list;
+    CDeterministicMNList stored_historical_list;
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        stored_list = m_node.dmnman->GetListForBlock(base);
+        stored_historical_list = m_node.dmnman->GetListForBlock(historical_index);
+    }
+    m_node.dmnman->InvalidateListCacheForBlock(base->GetBlockHash());
+    m_node.dmnman->InvalidateListCacheForBlock(historical_index->GetBlockHash());
+    const auto subsequent_list{m_node.dmnman->GetListForBlock(base)};
+    const auto subsequent_historical_list{m_node.dmnman->GetListForBlock(historical_index)};
+    params_restorer.Get().DIP0003Height = old_dip3_height;
+    BOOST_CHECK(evo::CanonicalMNListHash(stored_list) == evo::CanonicalMNListHash(list));
+    BOOST_CHECK(evo::CanonicalMNListHash(stored_historical_list) == evo::CanonicalMNListHash(historical_list));
+    BOOST_CHECK(evo::CanonicalMNListHash(subsequent_list) == evo::CanonicalMNListHash(list));
+    BOOST_CHECK(evo::CanonicalMNListHash(subsequent_historical_list) == evo::CanonicalMNListHash(historical_list));
+    const auto [stored_commitment, stored_mined_hash]{
+        m_node.llmq_ctx->quorum_block_processor->GetMinedCommitment(
+            nonrotated.back().commitment.llmqType, nonrotated.back().quorum_base_block_hash)};
+    BOOST_CHECK_EQUAL(stored_mined_hash, nonrotated.back().mined_block_hash);
+    BOOST_CHECK_EQUAL(SerializeHash(stored_commitment), SerializeHash(nonrotated.back().commitment));
+    {
+        LOCK(::cs_main);
+        const auto plain{m_node.llmq_ctx->quorum_block_processor->GetMinedCommitmentsUntilBlock(
+            Consensus::LLMQType::LLMQ_TEST, base, 2)};
+        BOOST_REQUIRE_EQUAL(plain.size(), 2U);
+        BOOST_CHECK_EQUAL(plain[0]->nHeight, 72);
+        BOOST_CHECK_EQUAL(plain[1]->nHeight, 48);
+        const auto indexed{m_node.llmq_ctx->quorum_block_processor->GetLastMinedCommitmentsPerQuorumIndexUntilBlock(
+            Consensus::LLMQType::LLMQ_TEST_DIP0024, base, 0)};
+        BOOST_REQUIRE_EQUAL(indexed.size(), 2U);
+        BOOST_CHECK_EQUAL(indexed[0]->nHeight, 72);
+        BOOST_CHECK_EQUAL(indexed[1]->nHeight, 73);
+
+        CBlock first_post_base_block;
+        uint256 quorum_root;
+        BlockValidationState state;
+        BOOST_CHECK_MESSAGE(CalcCbTxMerkleRootQuorums(first_post_base_block, base,
+                                *m_node.llmq_ctx->quorum_block_processor, quorum_root, state),
+                            state.ToString());
+    }
+    const auto stored_snapshot{m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(
+        Consensus::LLMQType::LLMQ_TEST, base)};
+    BOOST_REQUIRE(stored_snapshot.has_value());
+    BOOST_CHECK(stored_snapshot->activeQuorumMembers == quorum_snapshot.activeQuorumMembers);
+
+    CCreditPool stored_pool;
+    AbstractEHFManager::Signals stored_signals;
+    BOOST_REQUIRE(m_node.evodb->Read(std::make_pair(std::string{"cpm_S"}, base->GetBlockHash()), stored_pool));
+    BOOST_REQUIRE(m_node.evodb->Read(std::make_pair(std::string{"mnhf_s2"}, base->GetBlockHash()), stored_signals));
+    BOOST_CHECK_EQUAL(stored_pool.locked, pool.locked);
+    BOOST_CHECK(stored_signals == signals);
+}
+
+BOOST_FIXTURE_TEST_CASE(snapshot_seed_rollback_does_not_publish_caches, TestChain100Setup)
+{
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    const auto seeded_list{MNList(base->GetBlockHash(), base->nHeight, false)};
+    CCreditPool seeded_pool;
+    seeded_pool.locked = 123;
+    AbstractEHFManager::Signals seeded_signals{{2, base->nHeight}};
+    const llmq::CQuorumSnapshot seeded_quorum{{true, false, true}, SnapshotSkipMode::MODE_NO_SKIPPING, {}};
+
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        BOOST_REQUIRE(m_node.dmnman->SeedListForBlock(seeded_list));
+        BOOST_REQUIRE(m_node.chain_helper->credit_pool_manager->SeedSnapshot(base, seeded_pool));
+        BOOST_REQUIRE(m_node.chain_helper->ehf_manager->SeedSignals(base, seeded_signals));
+        BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedSnapshotForBlock(
+            Consensus::LLMQType::LLMQ_TEST, base, seeded_quorum));
+        BOOST_CHECK(!WITH_LOCK(::cs_main, return m_node.llmq_ctx->quorum_block_processor->SeedMinedCommitment(
+            Consensus::LLMQType::LLMQ_TEST, H(200),
+            Commitment(Consensus::LLMQType::LLMQ_TEST, 1, 2, false).commitment, H(201))));
+        // Destruction without Commit() rolls the complete scoped transaction back.
+    }
+
+    CDeterministicMNList db_list;
+    CCreditPool db_pool;
+    AbstractEHFManager::Signals db_signals;
+    const auto quorum_hash{SerializeHash(std::make_pair(Consensus::LLMQType::LLMQ_TEST, base->GetBlockHash()))};
+    llmq::CQuorumSnapshot db_quorum;
+    BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string{"dmn_S3"}, base->GetBlockHash()), db_list));
+    BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string{"cpm_S"}, base->GetBlockHash()), db_pool));
+    BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string{"mnhf_s2"}, base->GetBlockHash()), db_signals));
+    BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string_view{"llmq_S"}, quorum_hash), db_quorum));
+
+    {
+        ConsensusParamsRestorer params_restorer{Params().GetConsensus()};
+        params_restorer.Get().DIP0003Height = 1;
+        params_restorer.Get().V20Height = 1;
+        BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(base).GetCounts().total(), 0U);
+        BOOST_CHECK_EQUAL(m_node.chain_helper->credit_pool_manager->GetCreditPool(base).locked, 0);
+        BOOST_CHECK(m_node.chain_helper->ehf_manager->GetSignalsStage(base).empty());
+    }
+    BOOST_CHECK(!m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(
+        Consensus::LLMQType::LLMQ_TEST, base).has_value());
+}
+
+BOOST_FIXTURE_TEST_CASE(quorum_members_reconstruct_from_seeded_state_only, SnapshotActivationChainSetup)
+{
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(tip != nullptr);
+    ConsensusParamsRestorer global_restorer{Params().GetConsensus()};
+    ConsensusParamsRestorer chain_restorer{m_node.chainman->GetConsensus()};
+    auto& global_consensus{global_restorer.Get()};
+    auto& consensus{chain_restorer.Get()};
+    auto plain{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+    auto rotated{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
+    plain.dkgInterval = 12;
+    plain.dkgMiningWindowStart = 1;
+    plain.dkgMiningWindowEnd = 3;
+    rotated.dkgInterval = 12;
+    consensus.llmqs = {plain, rotated};
+    global_consensus.llmqs = consensus.llmqs;
+
+    const CBlockIndex* quorum{tip->GetAncestor(96)};
+    BOOST_REQUIRE(quorum != nullptr);
+    std::map<const CBlockIndex*, CDeterministicMNList> lists;
+    const auto make_list = [&](const CBlockIndex* work) {
+        CDeterministicMNList list{work->GetBlockHash(), work->nHeight, 100};
+        for (uint8_t i{0}; i < 12; ++i) {
+            list.AddMN(MN(20 + i, 20 + i, MnType::Regular, ProTxVersion::LegacyBLS, 20 + i), false);
+        }
+        return list;
+    };
+    const CBlockIndex* plain_work{quorum->GetAncestor(88)};
+    lists.emplace(plain_work, make_list(plain_work));
+    std::vector<const CBlockIndex*> rotated_cycles;
+    for (const int height : {96, 84, 72, 60}) {
+        const CBlockIndex* cycle{tip->GetAncestor(height)};
+        const CBlockIndex* work{tip->GetAncestor(height - llmq::WORK_DIFF_DEPTH)};
+        rotated_cycles.emplace_back(cycle);
+        lists.try_emplace(work, make_list(work));
+    }
+    for (const auto& [work, list] : lists) m_node.dmnman->SetListForBlockForTesting(list);
+    BOOST_REQUIRE(m_node.chainman->IsQuorumTypeEnabled(plain.type, quorum->pprev));
+    BOOST_REQUIRE(m_node.chainman->IsQuorumTypeEnabled(rotated.type, quorum->pprev));
+    BOOST_REQUIRE_EQUAL(m_node.dmnman->GetListForBlock(plain_work).GetCounts().enabled(), 12U);
+    const llmq::CQuorumSnapshot empty_snapshot{std::vector<bool>(12, false),
+                                               SnapshotSkipMode::MODE_NO_SKIPPING, {}};
+    for (size_t i{1}; i < rotated_cycles.size(); ++i) {
+        m_node.llmq_ctx->qsnapman->StoreSnapshotForBlock(rotated.type, rotated_cycles[i], empty_snapshot);
+    }
+
+    // Derive the oracle through a separate manager, cache, and EvoDB. The
+    // manager under test is seeded only after these expected sets exist.
+    CEvoDB expected_db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evo_snapshot_oracle",
+                                             .memory = true, .wipe = true}};
+    CMasternodeMetaMan expected_meta;
+    CDeterministicMNManager expected_dmnman{expected_db, expected_meta};
+    llmq::CQuorumSnapshotManager expected_qsnapman{expected_db};
+    {
+        auto tx{expected_db.BeginTransaction(EvoDbIdentity::NORMAL)};
+        for (const auto& [_, list] : lists) BOOST_REQUIRE(expected_dmnman.SeedListForBlock(list));
+        for (size_t i{1}; i < rotated_cycles.size(); ++i) {
+            expected_qsnapman.StoreSnapshotForBlock(rotated.type, rotated_cycles[i], empty_snapshot);
+        }
+        tx->Commit();
+    }
+    const auto plain_expected{llmq::utils::GetAllQuorumMembers(
+        plain.type, {expected_dmnman, expected_qsnapman, *m_node.chainman, quorum}, true)};
+    const auto rotated_expected{llmq::utils::GetAllQuorumMembers(
+        rotated.type, {expected_dmnman, expected_qsnapman, *m_node.chainman, quorum}, true)};
+    BOOST_REQUIRE(!plain_expected.empty());
+    BOOST_REQUIRE(!rotated_expected.empty());
+
+    CBLSSecretKey quorum_key;
+    quorum_key.MakeNewKey();
+    llmq::CFinalCommitment seeded_commitment{plain, quorum->GetBlockHash()};
+    seeded_commitment.nVersion = llmq::CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION;
+    seeded_commitment.quorumPublicKey = quorum_key.GetPublicKey();
+    seeded_commitment.quorumVvecHash = H(201);
+    const CBlockIndex* mined_index{tip->GetAncestor(98)};
+
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        for (const auto& [work, list] : lists) BOOST_REQUIRE(m_node.dmnman->SeedListForBlock(list));
+        BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedQuorumModifier(
+            plain.type, plain_work->GetBlockHash(),
+            llmq::utils::GetQuorumHashModifier(plain, consensus, quorum)));
+        for (const auto* cycle : rotated_cycles) {
+            const CBlockIndex* work{cycle->GetAncestor(cycle->nHeight - llmq::WORK_DIFF_DEPTH)};
+            BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedQuorumModifier(
+                rotated.type, work->GetBlockHash(),
+                llmq::utils::GetQuorumHashModifier(rotated, consensus, cycle)));
+        }
+        for (size_t i{1}; i < rotated_cycles.size(); ++i) {
+            BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedSnapshotForBlock(
+                rotated.type, rotated_cycles[i], empty_snapshot));
+        }
+        BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.llmq_ctx->quorum_block_processor->SeedMinedCommitment(
+            plain.type, quorum->GetBlockHash(), seeded_commitment, mined_index->GetBlockHash());));
+        tx->Commit();
+    }
+
+    std::map<CBlockIndex*, uint32_t> saved_status;
+    {
+        LOCK(::cs_main);
+        for (const auto& [work, _] : lists) {
+            auto* mutable_work{const_cast<CBlockIndex*>(work)};
+            saved_status.emplace(mutable_work, mutable_work->nStatus);
+            mutable_work->nStatus &= ~BLOCK_HAVE_DATA;
+            m_node.dmnman->InvalidateListCacheForBlock(work->GetBlockHash());
+        }
+        for (size_t i{1}; i < rotated_cycles.size(); ++i) {
+            m_node.llmq_ctx->qsnapman->InvalidateSnapshotCacheForBlock(rotated.type,
+                                                                       rotated_cycles[i]->GetBlockHash());
+        }
+    }
+    std::vector<CDeterministicMNCPtr> plain_seeded;
+    std::vector<CDeterministicMNCPtr> rotated_seeded;
+    std::vector<llmq::CQuorumCPtr> scanned;
+    llmq::VerifyRecSigStatus recovered_sig_status{llmq::VerifyRecSigStatus::NoQuorum};
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        plain_seeded = llmq::utils::GetAllQuorumMembers(
+            plain.type, {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum}, true);
+        rotated_seeded = llmq::utils::GetAllQuorumMembers(
+            rotated.type, {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum}, true);
+        scanned = m_node.llmq_ctx->qman->ScanQuorums(plain.type, tip, 1);
+        const uint256 id{H(202)};
+        const uint256 msg_hash{H(203)};
+        const llmq::SignHash sign_hash{plain.type, quorum->GetBlockHash(), id, msg_hash};
+        recovered_sig_status = llmq::VerifyRecoveredSig(
+            plain.type, *m_node.llmq_ctx->qman, tip, id, msg_hash,
+            quorum_key.Sign(sign_hash.Get(), /*specificLegacyScheme=*/false));
+    }
+    const auto hashes = [](const auto& members) {
+        std::vector<uint256> result;
+        for (const auto& member : members) result.emplace_back(member->proTxHash);
+        return result;
+    };
+    BOOST_CHECK(hashes(plain_seeded) == hashes(plain_expected));
+    BOOST_CHECK(hashes(rotated_seeded) == hashes(rotated_expected));
+    BOOST_REQUIRE_EQUAL(scanned.size(), 1U);
+    BOOST_CHECK(hashes(scanned[0]->members) == hashes(plain_expected));
+    BOOST_CHECK(recovered_sig_status == llmq::VerifyRecSigStatus::Valid);
+
+    // Prove reconstruction fails closed instead of falling through to the
+    // ordinary diff chain when one required seeded full list is absent.
+    size_t forbidden_fallbacks{0};
+    m_node.dmnman->SetListSnapshotMissHookForTesting([&](const CBlockIndex* index) {
+        ++forbidden_fallbacks;
+        throw std::logic_error(strprintf("forbidden NORMAL MN-list fallback at height %d", index->nHeight));
+    });
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        m_node.evodb->Erase(std::make_pair(std::string{"dmn_S3"}, plain_work->GetBlockHash()));
+        m_node.dmnman->InvalidateListCacheForBlock(plain_work->GetBlockHash());
+        BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(
+            plain.type, {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum}, true),
+            std::logic_error);
+    }
+    m_node.dmnman->SetListSnapshotMissHookForTesting({});
+    BOOST_CHECK_EQUAL(forbidden_fallbacks, 1U);
+
+    {
+        LOCK(::cs_main);
+        for (const auto& [work, status] : saved_status) work->nStatus = status;
+    }
+    {
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        const auto modifier_key{std::make_tuple(std::string_view{"llmq_M3"}, plain.type,
+                                                plain_work->GetBlockHash())};
+        m_node.evodb->Erase(modifier_key);
+        m_node.evodb->Write(modifier_key, H(254));
+        BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(
+            plain.type, {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum}, true),
+            evo::SnapshotStateMismatchError);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(chain_validation_pre_dip3_matrix, TestChain100Setup)
+{
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    evo::CEvoSnapshot snapshot;
+    snapshot.base_block_hash = base->GetBlockHash();
+    snapshot.mn_list = CDeterministicMNList{base->GetBlockHash(), base->nHeight, 0};
+    std::string error;
+    BOOST_CHECK(WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error)));
+
+    auto wrong_base{snapshot};
+    wrong_base.base_block_hash = H(99);
+    BOOST_CHECK(!WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(wrong_base, *m_node.chainman, base, error)));
+
+    auto nonempty{snapshot};
+    nonempty.credit_pool.locked = 1;
+    BOOST_CHECK(!WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(nonempty, *m_node.chainman, base, error)));
+
+    ConsensusParamsRestorer params_restorer{m_node.chainman->GetConsensus()};
+    auto& mutable_consensus{params_restorer.Get()};
+    mutable_consensus.DIP0003Height = 1;
+    mutable_consensus.V19Height = 1;
+    mutable_consensus.llmqs = {evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+
+    evo::CEvoSnapshot active{snapshot};
+    evo::CQuorumSnapshotData quorum_data;
+    quorum_data.llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    const auto& params{mutable_consensus.llmqs.front()};
+    const auto make_commitment = [&](int quorum_height, int mined_height) {
+        evo::CMinedQuorumCommitment entry;
+        const CBlockIndex* quorum{base->GetAncestor(quorum_height)};
+        entry.quorum_base_block_hash = quorum->GetBlockHash();
+        entry.work_block_hash = entry.quorum_base_block_hash;
+        entry.mined_block_hash = base->GetAncestor(mined_height)->GetBlockHash();
+        entry.commitment.nVersion = llmq::CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION;
+        entry.commitment.llmqType = params.type;
+        entry.commitment.quorumHash = entry.quorum_base_block_hash;
+        entry.commitment.signers.resize(params.size);
+        entry.commitment.validMembers.resize(params.size);
+        return entry;
+    };
+    quorum_data.active_commitments = {make_commitment(72, 82), make_commitment(48, 58)};
+    quorum_data.safety_commitments = {make_commitment(24, 34)};
+    std::sort(quorum_data.active_commitments.begin(), quorum_data.active_commitments.end(),
+              [](const auto& a, const auto& b) {
+                  return std::tie(a.quorum_base_block_hash, a.mined_block_hash) <
+                         std::tie(b.quorum_base_block_hash, b.mined_block_hash);
+              });
+    active.quorums = {quorum_data};
+    CDeterministicMNList previous{active.mn_list};
+    uint256 previous_hash{active.base_block_hash};
+    for (const int height : {72, 48, 24}) {
+        const CBlockIndex* work{base->GetAncestor(height)};
+        CDeterministicMNList list{work->GetBlockHash(), height, 0};
+        active.historical_mn_list_diffs.push_back({previous_hash, work->GetBlockHash(), height, 0,
+                                                   evo::CanonicalMNListHash(list), previous.BuildDiff(list)});
+        active.quorum_modifiers.push_back({params.type, work->GetBlockHash(),
+            llmq::utils::GetQuorumHashModifier(params, mutable_consensus, work)});
+        previous_hash = work->GetBlockHash();
+        previous = std::move(list);
+    }
+    std::sort(active.quorum_modifiers.begin(), active.quorum_modifiers.end(), [](const auto& a, const auto& b) {
+        return std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash);
+    });
+    const bool active_valid{WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(active, *m_node.chainman, base, error))};
+    BOOST_CHECK_MESSAGE(active_valid, error);
+
+    auto wrong_counts{active};
+    wrong_counts.quorums[0].safety_commitments.clear();
+    BOOST_CHECK(!WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(wrong_counts, *m_node.chainman, base, error)));
+
+    auto non_ancestor{active};
+    non_ancestor.quorums[0].active_commitments[0].quorum_base_block_hash = H(99);
+    non_ancestor.quorums[0].active_commitments[0].commitment.quorumHash = H(99);
+    BOOST_CHECK(!WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(non_ancestor, *m_node.chainman, base, error)));
+
+    // A young chain carries fewer commitments than the parameter horizon. A
+    // coherent snapshot with a single active commitment, its historical diff,
+    // and its modifier must pass both validation layers: parameter counts are
+    // maxima, and completeness is established by the completion-time CbTx
+    // quorum merkle root, not by per-type count equality.
+    evo::CEvoSnapshot partial{snapshot};
+    evo::CQuorumSnapshotData partial_data;
+    partial_data.llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    partial_data.active_commitments = {make_commitment(72, 82)};
+    partial.quorums = {partial_data};
+    {
+        const CBlockIndex* work{base->GetAncestor(72)};
+        CDeterministicMNList list{work->GetBlockHash(), 72, 0};
+        partial.historical_mn_list_diffs.push_back({partial.base_block_hash, work->GetBlockHash(), 72, 0,
+                                                    evo::CanonicalMNListHash(list), partial.mn_list.BuildDiff(list)});
+        partial.quorum_modifiers.push_back({params.type, work->GetBlockHash(),
+            llmq::utils::GetQuorumHashModifier(params, mutable_consensus, work)});
+    }
+    BOOST_CHECK_NO_THROW(partial.Validate());
+    const bool partial_valid{WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(partial, *m_node.chainman, base, error))};
+    BOOST_CHECK_MESSAGE(partial_valid, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(builder_emits_available_history_on_young_chains, SnapshotActivationChainSetup)
+{
+    // No masternodes exist and no DKGs have run on this fixture chain, so every
+    // enabled LLMQ type has zero mined commitments and zero rotation cycles.
+    // dumptxoutset-grade building must succeed on such a chain and emit the
+    // history that exists rather than failing the parameter-derived horizon.
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    evo::CEvoSnapshot snapshot;
+    std::string error;
+    const bool built{WITH_LOCK(::cs_main,
+        return evo::BuildEvoSnapshot(Params(), *m_node.chainman, *m_node.dmnman,
+                                     *m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qsnapman,
+                                     *m_node.chain_helper->credit_pool_manager, *m_node.chain_helper->ehf_manager,
+                                     base, snapshot, error))};
+    BOOST_REQUIRE_MESSAGE(built, error);
+    for (const auto& data : snapshot.quorums) {
+        BOOST_CHECK(data.active_commitments.empty());
+        BOOST_CHECK(data.safety_commitments.empty());
+        BOOST_CHECK(data.rotation_snapshots.empty());
+    }
+    BOOST_CHECK_NO_THROW(snapshot.Validate());
+    const bool valid{WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error))};
+    BOOST_CHECK_MESSAGE(valid, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(rotation_bitset_matches_historical_work_list, TestChain100Setup)
+{
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    ConsensusParamsRestorer params_restorer{m_node.chainman->GetConsensus()};
+    auto& consensus{params_restorer.Get()};
+    auto params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
+    params.dkgInterval = 12;
+    params.dkgMiningWindowStart = 2;
+    params.dkgMiningWindowEnd = 6;
+    consensus.llmqs = {params};
+    consensus.DIP0003Height = 1;
+    consensus.V19Height = 1;
+
+    evo::CEvoSnapshot snapshot;
+    snapshot.base_block_hash = base->GetBlockHash();
+    snapshot.mn_list = CDeterministicMNList{base->GetBlockHash(), base->nHeight, 0};
+    evo::CQuorumSnapshotData data;
+    data.llmq_type = params.type;
+    data.rotation_enabled = true;
+    const auto commitment = [&](int quorum_height, int mined_height, int16_t quorum_index) {
+        evo::CMinedQuorumCommitment entry;
+        const CBlockIndex* quorum{base->GetAncestor(quorum_height)};
+        const CBlockIndex* cycle{quorum->GetAncestor(quorum->nHeight - quorum->nHeight % params.dkgInterval)};
+        entry.quorum_base_block_hash = quorum->GetBlockHash();
+        entry.work_block_hash = cycle->GetAncestor(cycle->nHeight - llmq::WORK_DIFF_DEPTH)->GetBlockHash();
+        entry.mined_block_hash = base->GetAncestor(mined_height)->GetBlockHash();
+        entry.commitment.nVersion = llmq::CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION;
+        entry.commitment.llmqType = params.type;
+        entry.commitment.quorumHash = entry.quorum_base_block_hash;
+        entry.commitment.quorumIndex = quorum_index;
+        entry.commitment.signers.resize(params.size);
+        entry.commitment.validMembers.resize(params.size);
+        return entry;
+    };
+    data.active_commitments = {commitment(84, 86, 0), commitment(85, 87, 1)};
+    data.safety_commitments = {commitment(72, 74, 0), commitment(73, 75, 1)};
+
+    std::map<uint256, const CBlockIndex*> required_work;
+    for (const auto& required : evo::EvoSnapshotReconstructionHeights(base->nHeight, {params})) {
+        const int cycle_height{required.quorum_height};
+        const int work_height{required.work_height};
+        const CBlockIndex* cycle{base->GetAncestor(cycle_height)};
+        const CBlockIndex* work{base->GetAncestor(work_height)};
+        BOOST_REQUIRE(cycle != nullptr);
+        BOOST_REQUIRE(work != nullptr);
+        const size_t population{static_cast<size_t>(params.size + 3)};
+        data.rotation_snapshots.push_back({cycle->GetBlockHash(), work->GetBlockHash(),
+            llmq::CQuorumSnapshot{std::vector<bool>(population, true), SnapshotSkipMode::MODE_NO_SKIPPING, {}}});
+        required_work.emplace(work->GetBlockHash(), work);
+    }
+    for (const auto* commitments : {&data.active_commitments, &data.safety_commitments}) {
+        for (const auto& entry : *commitments) {
+            const CBlockIndex* work{WITH_LOCK(::cs_main,
+                return m_node.chainman->m_blockman.LookupBlockIndex(entry.work_block_hash);)};
+            BOOST_REQUIRE(work != nullptr);
+            required_work.emplace(entry.work_block_hash, work);
+        }
+    }
+    const auto commitment_less = [](const auto& a, const auto& b) {
+        return std::tie(a.quorum_base_block_hash, a.mined_block_hash) <
+               std::tie(b.quorum_base_block_hash, b.mined_block_hash);
+    };
+    std::sort(data.active_commitments.begin(), data.active_commitments.end(), commitment_less);
+    std::sort(data.safety_commitments.begin(), data.safety_commitments.end(), commitment_less);
+    std::sort(data.rotation_snapshots.begin(), data.rotation_snapshots.end(), [](const auto& a, const auto& b) {
+        return std::tie(a.cycle_base_block_hash, a.work_block_hash) <
+               std::tie(b.cycle_base_block_hash, b.work_block_hash);
+    });
+    snapshot.quorums = {std::move(data)};
+
+    std::vector<const CBlockIndex*> ordered_work;
+    for (const auto& [_, work] : required_work) ordered_work.emplace_back(work);
+    std::sort(ordered_work.begin(), ordered_work.end(), [](const auto* a, const auto* b) { return a->nHeight > b->nHeight; });
+    CDeterministicMNList previous{snapshot.mn_list};
+    uint256 previous_hash{snapshot.base_block_hash};
+    for (const auto* work : ordered_work) {
+        CDeterministicMNList work_list{work->GetBlockHash(), work->nHeight, 100};
+        for (uint8_t i{0}; i < params.size + 3; ++i) {
+            work_list.AddMN(MN(20 + i, 20 + i, MnType::Regular, ProTxVersion::LegacyBLS, 20 + i), false);
+        }
+        snapshot.historical_mn_list_diffs.push_back(
+            {previous_hash, work->GetBlockHash(), work->nHeight, work_list.GetTotalRegisteredCount(),
+             evo::CanonicalMNListHash(work_list), previous.BuildDiff(work_list)});
+        previous_hash = work->GetBlockHash();
+        previous = std::move(work_list);
+    }
+    std::map<uint256, const CBlockIndex*> modifier_cycles;
+    for (const auto* commitments : {&snapshot.quorums[0].active_commitments, &snapshot.quorums[0].safety_commitments}) {
+        for (const auto& entry : *commitments) {
+            const CBlockIndex* quorum_index{WITH_LOCK(::cs_main,
+                return m_node.chainman->m_blockman.LookupBlockIndex(entry.quorum_base_block_hash);)};
+            const CBlockIndex* cycle{quorum_index->GetAncestor(
+                quorum_index->nHeight - quorum_index->nHeight % params.dkgInterval)};
+            modifier_cycles.emplace(entry.work_block_hash, cycle);
+        }
+    }
+    for (const auto& entry : snapshot.quorums[0].rotation_snapshots) {
+        modifier_cycles.emplace(entry.work_block_hash, WITH_LOCK(::cs_main,
+            return m_node.chainman->m_blockman.LookupBlockIndex(entry.cycle_base_block_hash);));
+    }
+    for (const auto& [work_hash, cycle] : modifier_cycles) {
+        snapshot.quorum_modifiers.push_back({params.type, work_hash,
+            llmq::utils::GetQuorumHashModifier(params, consensus, cycle)});
+    }
+
+    std::string error;
+    const bool valid{WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error))};
+    BOOST_CHECK_MESSAGE(valid, error);
+    auto short_bitset{snapshot};
+    short_bitset.quorums[0].rotation_snapshots[0].snapshot.activeQuorumMembers.pop_back();
+    BOOST_CHECK(!WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(short_bitset, *m_node.chainman, base, error)));
+    auto bad_modifier{snapshot};
+    bad_modifier.quorum_modifiers[0].modifier.begin()[0] ^= 1;
+    BOOST_CHECK(!WITH_LOCK(::cs_main,
+        return evo::ValidateEvoSnapshotAgainstChain(bad_modifier, *m_node.chainman, base, error)));
 }
 
 BOOST_AUTO_TEST_CASE(reconstruction_horizon_height_enumeration)

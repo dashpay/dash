@@ -9,6 +9,7 @@
 #include <crypto/common.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
+#include <evo/snapshot_types.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <llmq/snapshot.h>
@@ -29,7 +30,17 @@
 #include <tuple>
 #include <vector>
 
+class CBlockIndex;
+class CChainParams;
+class ChainstateManager;
 class CCbTx;
+class CCreditPoolManager;
+class CMNHFManager;
+
+namespace llmq {
+class CQuorumBlockProcessor;
+class CQuorumSnapshotManager;
+} // namespace llmq
 
 namespace evo {
 
@@ -486,7 +497,7 @@ CQuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams
     s >> entry.cycle_base_block_hash >> entry.work_block_hash >> entry.snapshot.mnSkipListMode;
     // BuildQuorumSnapshot sizes this bitset to the complete work-block MN list,
     // not to the quorum size. The exact historical-list size is chain-aware and
-    // is checked by the chain-aware validation layered on later in the series.
+    // is checked by ValidateEvoSnapshotAgainstChain.
     const size_t bit_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_MNS, "rotation bitset")};
     ReadFixedBitSet(s, entry.snapshot.activeQuorumMembers, bit_count);
     const size_t skip_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES, "rotation skip list")};
@@ -635,6 +646,12 @@ void CEvoSnapshot::Unserialize(Stream& s)
 /** Single SHA256 of the canonical SER_DISK/CLIENT_VERSION encoding. */
 uint256 GetEvoSnapshotHash(const CEvoSnapshot& snapshot);
 
+bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& chainman,
+                      CDeterministicMNManager& dmnman,
+                      const llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
+                      CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const CBlockIndex* base_index,
+                      CEvoSnapshot& snapshot, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 struct CQuorumReconstructionHeight {
     Consensus::LLMQType llmq_type;
     bool rotation;
@@ -650,6 +667,11 @@ std::vector<CQuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
 bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
                                   std::map<uint256, CDeterministicMNList>& lists, std::string& error,
                                   size_t max_records = EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS);
+
+/** Validate all snapshot invariants requiring the block index or deployments. */
+bool ValidateEvoSnapshotAgainstChain(const CEvoSnapshot& snapshot, const ChainstateManager& chainman,
+                                     const CBlockIndex* base_index, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 /** Pure CbTx checks over already-built snapshot content. */
 bool VerifyEvoSnapshotCbTx(const CEvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);

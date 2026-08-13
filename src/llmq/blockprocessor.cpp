@@ -685,6 +685,33 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
     return ret;
 }
 
+bool CQuorumBlockProcessor::SeedMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorum_hash,
+                                                const CFinalCommitment& commitment,
+                                                const uint256& mined_block_hash)
+{
+    AssertLockHeld(::cs_main);
+    const auto llmq_params = Params().GetLLMQ(llmqType);
+    const CBlockIndex* mined_index = m_chainman.m_blockman.LookupBlockIndex(mined_block_hash);
+    const CBlockIndex* quorum_base_index = m_chainman.m_blockman.LookupBlockIndex(quorum_hash);
+    if (!llmq_params || mined_index == nullptr || quorum_base_index == nullptr) return false;
+    if (!m_evoDb.WriteDerived(
+            std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorum_hash)),
+            std::make_pair(commitment, mined_block_hash))) {
+        return false;
+    }
+
+    // Replay ProcessCommitment's iteration index exactly. These entries drive
+    // the first post-snapshot CbTx quorum-merkle-root calculation.
+    if (IsQuorumRotationEnabled(*llmq_params, quorum_base_index)) {
+        m_evoDb.Write(BuildInversedHeightKeyIndexed(llmqType, mined_index->nHeight,
+                                                    int(commitment.quorumIndex)),
+                      quorum_base_index->nHeight);
+    } else {
+        m_evoDb.Write(BuildInversedHeightKey(llmqType, mined_index->nHeight), quorum_base_index->nHeight);
+    }
+    return true;
+}
+
 // The returned quorums are in reversed order, so the most recent one is at index 0
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const
 {

@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <functional>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -424,7 +425,6 @@ public:
      */
     void ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNListDiff& diff)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
-
     /** Apply a snapshot-local historical diff without dereferencing block data. */
     void ApplyDiffForSnapshot(const uint256& block_hash, int height, uint32_t total_registered_count,
                               const CDeterministicMNListDiff& diff)
@@ -773,6 +773,7 @@ private:
 
     Uint256HashMap<CDeterministicMNList> mnListsCache GUARDED_BY(cs);
     Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache GUARDED_BY(cs);
+    std::function<void(const CBlockIndex*)> m_list_snapshot_miss_hook GUARDED_BY(cs);
     const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
     const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
 
@@ -795,6 +796,21 @@ public:
         return GetListForBlockInternal(pindex);
     };
     CDeterministicMNList GetListAtChainTip() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Seed a canonical full-list snapshot in the current EvoDB transaction. */
+    bool SeedListForBlock(const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Invalidate cached list data so the next lookup reloads it from EvoDB. */
+    void InvalidateListCacheForBlock(const uint256& block_hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Test-only guard invoked after a full-list cache/EvoDB miss, before
+     * ordinary diff-chain reconstruction can access earlier NORMAL state. */
+    void SetListSnapshotMissHookForTesting(std::function<void(const CBlockIndex*)> hook)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        m_list_snapshot_miss_hook = std::move(hook);
+    }
 
     void SetListForBlockForTesting(const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
