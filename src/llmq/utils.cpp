@@ -760,11 +760,18 @@ static QuorumMembers GetAllQuorumMembersInternal(Consensus::LLMQType llmqType, c
 
 QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params, bool reset_cache)
 {
-    // A SnapshotStateMismatchError from a seeded-modifier disagreement
-    // propagates to the caller. Production code does not seed modifiers yet;
-    // the load-time integration later in the series routes this into the
-    // controlled invalid-snapshot path.
-    return GetAllQuorumMembersInternal(llmqType, util_params, reset_cache);
+    try {
+        return GetAllQuorumMembersInternal(llmqType, util_params, reset_cache);
+    } catch (const evo::SnapshotStateMismatchError& e) {
+        // Outside block connection there is no EvoDB transaction to unwind, so
+        // P2P, RPC, DKG, and quorum-manager callers can immediately enter the
+        // controlled invalid-snapshot path. During block connect/disconnect,
+        // defer to the Chainstate boundary after its transaction rolls back.
+        if (const_cast<ChainstateManager&>(util_params.m_chainman).HandleSnapshotStateMismatch(e.what())) {
+            return {};
+        }
+        throw;
+    }
 }
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)

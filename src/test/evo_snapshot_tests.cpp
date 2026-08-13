@@ -5,8 +5,11 @@
 #include <test/util/setup_common.h>
 
 #include <clientversion.h>
+#include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
+#include <consensus/validation.h>
+#include <deploymentstatus.h>
 #include <evo/cbtx.h>
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
@@ -14,8 +17,11 @@
 #include <evo/mnhftx.h>
 #include <evo/netinfo.h>
 #include <evo/snapshot.h>
+#include <evo/specialtx.h>
+#include <evo/specialtxman.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
+#include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -23,6 +29,7 @@
 #include <llmq/utils.h>
 #include <masternode/meta.h>
 #include <node/context.h>
+#include <primitives/transaction.h>
 #include <streams.h>
 #include <validation.h>
 #include <versionbits.h>
@@ -668,6 +675,85 @@ BOOST_FIXTURE_TEST_CASE(quorum_members_reconstruct_from_seeded_state_only, Snaps
             plain.type, {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum}, true),
             evo::SnapshotStateMismatchError);
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(special_tx_checks_pass_snapshot_mismatch_through, SnapshotActivationChainSetup)
+{
+    // A seeded-modifier mismatch is local snapshot state, not a fault in the
+    // commitment being checked. It must reach the chainstate boundary that
+    // rejects the snapshot instead of being turned into a consensus-invalid tx.
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(tip != nullptr);
+    ConsensusParamsRestorer global_restorer{Params().GetConsensus()};
+    ConsensusParamsRestorer chain_restorer{m_node.chainman->GetConsensus()};
+    auto plain{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+    plain.dkgInterval = 12;
+    chain_restorer.Get().llmqs = {plain};
+    global_restorer.Get().llmqs = {plain};
+
+    const CBlockIndex* quorum{tip->GetAncestor(96)};
+    const CBlockIndex* work{quorum->GetAncestor(96 - llmq::WORK_DIFF_DEPTH)};
+    {
+        LOCK(::cs_main);
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL)};
+        BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedQuorumModifier(plain.type, work->GetBlockHash(), H(254)));
+        tx->Commit();
+    }
+    BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(plain.type,
+                                                       {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, quorum},
+                                                       /*reset_cache=*/true),
+                      evo::SnapshotStateMismatchError);
+
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    llmq::CFinalCommitmentTxPayload payload;
+    payload.nVersion = llmq::CFinalCommitmentTxPayload::CURRENT_VERSION;
+    payload.nHeight = tip->nHeight + 1;
+    payload.commitment = llmq::CFinalCommitment{plain, quorum->GetBlockHash()};
+    auto& qc{payload.commitment};
+    qc.nVersion = llmq::CFinalCommitment::GetVersion(llmq::IsQuorumRotationEnabled(plain, quorum),
+                                                     DeploymentActiveAfter(quorum, chain_restorer.Get(),
+                                                                           Consensus::DEPLOYMENT_V19));
+    qc.signers.assign(plain.size, true);
+    qc.validMembers.assign(plain.size, true);
+    qc.quorumPublicKey = key.GetPublicKey();
+    qc.quorumVvecHash = H(201);
+    qc.quorumSig = key.Sign(H(202), /*specificLegacyScheme=*/false);
+    qc.membersSig = key.Sign(H(203), /*specificLegacyScheme=*/false);
+    CMutableTransaction mtx;
+    mtx.nVersion = 3;
+    mtx.nType = TRANSACTION_QUORUM_COMMITMENT;
+    SetTxPayload(mtx, payload);
+    const CTransaction tx{mtx};
+
+    LOCK(::cs_main);
+    Chainstate& chainstate{m_node.chainman->ActiveChainstate()};
+    CCoinsViewCache view{&chainstate.CoinsTip()};
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vin[0].prevout.SetNull();
+    coinbase.vout.resize(1);
+    CBlock block;
+    block.vtx = {MakeTransactionRef(coinbase), MakeTransactionRef(tx)};
+    CBlockIndex index{block};
+    index.pprev = const_cast<CBlockIndex*>(tip);
+    index.nHeight = tip->nHeight + 1;
+    BlockValidationState block_state;
+    MNListUpdates updates;
+    BOOST_CHECK_THROW(m_node.chain_helper->special_tx->ProcessSpecialTxsInBlock(chainstate, chainstate.m_chain, block,
+                                                                                &index, /*is_v24_active=*/false, view,
+                                                                                /*blockSubsidy=*/0, /*fJustCheck=*/true,
+                                                                                /*fCheckCbTxMerkleRoots=*/false,
+                                                                                block_state, updates),
+                      evo::SnapshotStateMismatchError);
+    BOOST_CHECK(block_state.IsValid());
+
+    // Outside block connection there is no snapshot boundary to reach, so the
+    // mempool path still rejects the transaction rather than throwing.
+    TxValidationState tx_state;
+    BOOST_CHECK(!m_node.chain_helper->special_tx->CheckSpecialTx(tx, tip, /*is_v24_active=*/false, view,
+                                                                 /*check_sigs=*/true, tx_state));
+    BOOST_CHECK_EQUAL(tx_state.GetRejectReason(), "failed-check-special-tx");
 }
 
 BOOST_FIXTURE_TEST_CASE(rotation_snapshot_bitset_uses_seeded_modifier, SnapshotActivationChainSetup)

@@ -267,6 +267,13 @@ bool CSpecialTxProcessor::CheckSpecialTxInner(const CChain* chain, const CTransa
             return chain ? CheckAssetUnlockTx(m_blockman, m_qman, *chain, tx, pindexPrev, indexes, is_v24_active, state) :
                            CheckAssetUnlockTx(m_blockman, m_qman, tx, pindexPrev, indexes, is_v24_active, state);
         }
+    } catch (const evo::SnapshotStateMismatchError&) {
+        // During block connection the local snapshot state is wrong, not the
+        // block: let the chainstate boundary reject the snapshot after the
+        // EvoDB transaction unwinds. Mempool and mining callers have no such
+        // boundary and keep rejecting the transaction.
+        if (chain != nullptr) throw;
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-check-special-tx");
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-check-special-tx");
@@ -996,6 +1003,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
+    } catch (const evo::SnapshotStateMismatchError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-procspectxsinblock");
@@ -1064,6 +1073,8 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
+    } catch (const evo::SnapshotStateMismatchError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-checkcreditpooldiff");

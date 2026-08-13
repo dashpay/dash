@@ -85,4 +85,17 @@ BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain
     BOOST_CHECK(!CAutoFile(OpenBlockFile(new_pos, true), SER_DISK, CLIENT_VERSION).IsNull());
 }
 
+BOOST_FIXTURE_TEST_CASE(prune_lock_update_and_delete, TestingSetup)
+{
+    LOCK(::cs_main);
+    auto& chainman{*Assert(m_node.chainman)};
+    auto& blockman{chainman.m_blockman};
+
+    blockman.UpdatePruneLock("test_lock", node::PruneLockInfo{.height_first = 100});
+    blockman.UpdatePruneLock("test_lock", node::PruneLockInfo{.height_first = 200});
+    BOOST_CHECK(blockman.DeletePruneLock("test_lock"));
+    BOOST_CHECK(!blockman.DeletePruneLock("test_lock"));
+    BOOST_CHECK(!blockman.DeletePruneLock("nonexistent"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
