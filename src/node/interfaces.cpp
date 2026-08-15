@@ -270,6 +270,25 @@ public:
     {
         return evo::provider::Revoke(context(), wallet, request);
     }
+    bool isMasternodeOperatorKeyInUse(const CBLSPublicKey& public_key) override
+    {
+        if (!m_context || !m_context->chainman || !m_context->dmnman) return false;
+        const CBlockIndex* tip{WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip())};
+        if (!tip) return false;
+        CDeterministicMNList mn_list;
+        try {
+            mn_list = m_context->dmnman->GetListForBlock(tip);
+        } catch (const BlockDataUnavailableError& e) {
+            // Expected while a snapshot's background chainstate is still
+            // catching up; this predicate fails open by design. Any other
+            // exception means local EvoDB/list corruption and must not be
+            // hidden, so it deliberately stays unhandled.
+            LogPrintf("%s -- masternode list unavailable: %s\n", __func__, e.what());
+            return false;
+        }
+        if (mn_list.GetBlockHash().IsNull()) return false;
+        return mn_list.HasOperatorKeyUnderAnyScheme(public_key, /*self=*/uint256());
+    }
     void setContext(NodeContext* context) override
     {
         m_context = context;
