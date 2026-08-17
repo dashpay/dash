@@ -371,6 +371,10 @@ static CMutableTransaction BuildProDisTx(const CDeterministicMN& dmn, uint16_t a
     if (fee <= 0) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "fee must be positive");
     }
+    if (fee > CProDisTx::MAX_FEE) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER,
+                           strprintf("fee exceeds the consensus ceiling of %d duffs", CProDisTx::MAX_FEE));
+    }
     const CAmount actor_output = shares[actorIndex].amount - penalty - fee;
     if (actor_output < 0) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "penalty and fee exceed the actor's share");
@@ -1553,7 +1557,7 @@ static RPCHelpMan protx_dissolve()
         {
             {"proTxHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hash of the initial ProRegTx."},
             {"actorIndex", RPCArg::Type::NUM, RPCArg::Optional::NO, "Index into the share table of the dissolving participant."},
-            {"fee", RPCArg::Type::NUM, RPCArg::Default{100000}, "Transaction fee in duffs, paid from the actor's share."},
+            {"fee", RPCArg::Type::NUM, RPCArg::Default{100000}, "Transaction fee in duffs, paid from the actor's share. At most 1000000 duffs (consensus ceiling)."},
             {"submit", RPCArg::Type::BOOL, RPCArg::Default{true}, "Submit the transaction to the network."},
             {"payPenalty", RPCArg::Type::BOOL, RPCArg::DefaultHint{"determined by the current height"}, "Pay the early-period penalty. Pass true to build a standby valid at any height, false for one valid only after the early period ends."},
         },
@@ -2650,7 +2654,7 @@ static RPCHelpMan protx_dissolve_prepare()
         {
             {"proTxHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hash of the initial ProRegTx."},
             {"actorIndex", RPCArg::Type::NUM, RPCArg::Optional::NO, "Index into the share table of the participant paying the transaction fee."},
-            {"fee", RPCArg::Type::NUM, RPCArg::Default{100000}, "Transaction fee in duffs, paid from the actor's share."},
+            {"fee", RPCArg::Type::NUM, RPCArg::Default{100000}, "Transaction fee in duffs, paid from the actor's share. At most 1000000 duffs (consensus ceiling)."},
         },
         RPCResult{RPCResult::Type::OBJ, "", "",
         {

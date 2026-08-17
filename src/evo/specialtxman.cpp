@@ -1738,6 +1738,22 @@ bool CheckProDisTxForList(const CTransaction& tx, const CProDisTx& ptx, const CD
     if (bonus_total < required_penalty) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-penalty-sum");
     }
+    // Everything not paid to the outputs is fee, which by value conservation comes from the
+    // actor's share. The fee ceiling (both modes) and the unilateral bonus ceiling close the two
+    // paths by which a stolen share owner key could drain the actor's principal beyond the
+    // consented penalty; both ceilings are height-independent, so validity stays monotone. A
+    // unanimous dissolution carries every owner's signature over the exact outputs, so bonuses
+    // beyond the configured penalty are consented and remain valid.
+    CAmount out_total{0};
+    for (const auto& out : tx.vout) {
+        out_total += out.nValue;
+    }
+    if (non_actor_total + shares[ptx.actorIndex].amount - out_total > CProDisTx::MAX_FEE) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-fee");
+    }
+    if (!unanimous && bonus_total > mnState.nEarlyPenalty) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-prodis-bonus");
+    }
 
     if (check_sigs) {
         const uint256 sign_hash{ptx.MakeSignHash(tx, static_cast<uint8_t>(ptx.vchSigs.size()))};
