@@ -1455,6 +1455,7 @@ static RPCHelpMan protx_shared_sign()
         + HELP_REQUIRING_PASSPHRASE,
         {
             {"tx", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The serialized transaction in hex format."},
+            {"allowTimeLocks", RPCArg::Type::BOOL, RPCArg::Default{false}, "Sign a dissolution carrying a lock time or non-final input sequence. The signed digest commits to these fields, so a lock a co-signer failed to notice delays when the dissolution can confirm."},
         },
         RPCResult{RPCResult::Type::ARR, "", "",
         {
@@ -1507,6 +1508,19 @@ static RPCHelpMan protx_shared_sign()
         const auto dmn = dmnman.GetListAtChainTip().GetMN(opt_ptx->proTxHash);
         if (!dmn || !dmn->pdmnState->IsShared()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "shared masternode not found");
+        }
+        // Consensus permits time-locked dissolutions and the digest commits to the lock fields, so
+        // a lock the signer failed to notice would be silently baked into their signature
+        const bool allow_time_locks{request.params[1].isNull() ? false
+                                                               : ParseBoolV(request.params[1], "allowTimeLocks")};
+        bool has_time_lock{tx.nLockTime != 0};
+        for (const auto& txin : tx.vin) {
+            has_time_lock |= txin.nSequence != CTxIn::SEQUENCE_FINAL;
+        }
+        if (has_time_lock && !allow_time_locks) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               "dissolution carries a lock time or non-final input sequence, which delays when "
+                               "it can confirm; pass allowTimeLocks=true to sign it anyway");
         }
         shares = dmn->pdmnState->shares;
         sign_hash = opt_ptx->MakeSignHash(CTransaction(tx), static_cast<uint8_t>(shares.size()));

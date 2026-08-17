@@ -332,6 +332,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "protx dissolve", 5, "payPenalty" },
     { "protx dissolve_prepare", 2, "actorIndex" },
     { "protx dissolve_prepare", 3, "fee" },
+    { "protx shared_sign", 2, "allowTimeLocks" },
     { "protx update_share", 2, "shareIndex" },
     { "protx update_share", 5, "submit" },
     { "protx update_registrar", 4, "payoutAddress", true },

@@ -48,7 +48,9 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
 - `protx register_shared_prepare` builds an unsigned shared registration from a
   caller-supplied funding transaction.
 - `protx shared_sign` signs a shared registration, dissolution or shared
-  registrar update with every share owner key the wallet holds.
+  registrar update with every share owner key the wallet holds. It refuses a
+  dissolution carrying a lock time or non-final sequence unless
+  `allowTimeLocks` is set.
 - `protx shared_combine` combines collected signatures and optionally submits.
 - `protx dissolve` creates, signs and submits a unilateral ProDisTx (or, with
   `submit=false`, returns hex suitable for offline standby storage).
