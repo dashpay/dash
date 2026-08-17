@@ -415,6 +415,10 @@ class MasternodeSharesTest(DashTestFramework):
         payees = self.owner_gbt_payees(node)
         assert_equal([p["payee"] for p in payees], [reward1, refund2])
 
+        self.log.info("The dissolution fee is capped")
+        assert_raises_rpc_error(-8, "fee exceeds the consensus ceiling", node.protx,
+                                "dissolve", protx_hash, 1, 1000001, False)
+
         self.log.info("A zero-penalty unilateral dissolution is invalid during the early period")
         assert_raises_rpc_error(-8, "must pay the penalty", node.protx,
                                 "dissolve", protx_hash, 1, DISSOLVE_FEE, True, False)

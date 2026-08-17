@@ -446,6 +446,9 @@ class CProDisTx
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_DISSOLVE;
     static constexpr uint16_t CURRENT_VERSION = 1;
+    //! Consensus ceiling on the transaction fee. Together with the unilateral bonus ceiling
+    //! (earlyPenalty) it bounds what a stolen share owner key can drain from the actor's share.
+    static constexpr CAmount MAX_FEE{1000000};
 
     uint16_t nVersion{CURRENT_VERSION};
     uint256 proTxHash;

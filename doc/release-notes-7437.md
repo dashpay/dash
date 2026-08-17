@@ -23,7 +23,10 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
     signature (unilateral, penalized during the configured early period) or one
     per share (unanimous, penalty-free). Validity is monotone: a ProDisTx that
     is valid at some height is valid at every later height, which makes offline
-    "standby dissolutions" safe.
+    "standby dissolutions" safe. The transaction fee is capped at 1000000 duffs
+    and a unilateral dissolution may not pay bonuses beyond the configured
+    early penalty, bounding what a stolen share owner key can drain from its
+    own share.
   - **ProUpShareTx (type 11)** lets one share owner update their reward script.
   - **ProUpSharedRegTx (type 12)** updates the operator key and/or voting key
     with a signature from every share owner. A plain ProUpRegTx is invalid for

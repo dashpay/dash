@@ -681,11 +681,44 @@ BOOST_AUTO_TEST_CASE(prodis_validation)
         const auto tx = t.BuildTx(0, 0, true, ptx);
         t.Check(tx, ptx, IN_EARLY, std::nullopt);
     }
-    // Overpaying the penalty is always valid
+    // Unilateral bonuses above the configured earlyPenalty breach the overpayment ceiling; the
+    // ceiling blocks a stolen key from dumping the actor's share onto the other participants
     {
         CProDisTx ptx;
         const auto tx = t.BuildTx(2, ProDisTestSetup::PENALTY + 12345, false, ptx);
+        t.Check(tx, ptx, IN_EARLY, "bad-prodis-bonus");
+        t.Check(tx, ptx, AFTER_EARLY, "bad-prodis-bonus");
+    }
+    // After the boundary the required penalty is zero, so keeping the full earlyPenalty payment
+    // is an overpayment exactly at the ceiling: valid (this is the early-period standby shape)
+    {
+        CProDisTx ptx;
+        const auto tx = t.BuildTx(2, ProDisTestSetup::PENALTY, false, ptx);
+        t.Check(tx, ptx, AFTER_EARLY, std::nullopt);
+    }
+    // Unanimous dissolutions may distribute bonuses beyond the ceiling: every owner signed the
+    // exact outputs
+    {
+        CProDisTx ptx;
+        const auto tx = t.BuildTx(0, ProDisTestSetup::PENALTY + 12345, true, ptx);
         t.Check(tx, ptx, IN_EARLY, std::nullopt);
+    }
+    // Fee above the consensus ceiling
+    {
+        CProDisTx ptx;
+        auto tx = t.BuildTx(0, 0, true, ptx);
+        tx.vout.back().nValue -= CProDisTx::MAX_FEE; // fee becomes FEE + MAX_FEE
+        t.Sign(tx, ptx, true);
+        t.Check(tx, ptx, IN_EARLY, "bad-prodis-fee");
+    }
+    // The theft shape the fee ceiling exists for: omit the actor output so the actor's entire
+    // share becomes fee, capturable by whoever mines the block
+    {
+        CProDisTx ptx;
+        auto tx = t.BuildTx(2, 0, false, ptx);
+        tx.vout.pop_back(); // drop the actor output; its whole share would become fee
+        t.Sign(tx, ptx, false);
+        t.Check(tx, ptx, AFTER_EARLY, "bad-prodis-fee");
     }
     // Unknown masternode / not-shared handled by callers; unknown hash here
     {
