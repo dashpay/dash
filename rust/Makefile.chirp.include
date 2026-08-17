@@ -39,6 +39,13 @@ LIBRUST_CHIRP_FILES = \
 
 $(LIBRUST_CHIRP_SRCS): ;
 
+# Pre-generated bridge sources shipped in a source distribution are used when
+# they are strictly newer than lib.rs (an edited lib.rs must force
+# regeneration) and at least as new as the distributed stamp. The stamp
+# comparison must accept equal timestamps: ustar archives store mtimes at
+# one-second precision, so the stamp and the artifacts it vouches for often
+# extract with identical times.
+
 $(LIBRUST_CHIRP_GEN_STAMP): $(CXXBRIDGE)
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_at)rm -f $(@D)/.cxxbridge-*
@@ -49,7 +56,7 @@ $(LIBRUST_CHIRP_CPP): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp && \
 	  test -f $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp -nt $< && \
-	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp -nt $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
+	  ! test $(LIBRUST_CHIRP_GEN_SRCSTAMP) -nt $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp && \
 	  test "$(LIBRUST_CHIRP_GEN_SRCDIR)" != "$(LIBRUST_CHIRP_GEN_DIR)"; then \
 	  cp $(LIBRUST_CHIRP_GEN_SRCDIR)/src/lib.cpp $@; \
 	else \
@@ -61,7 +68,7 @@ $(LIBRUST_CHIRP_H): $(LIBRUST_CHIRP_SRCS) $(LIBRUST_CHIRP_GEN_STAMP)
 	$(AM_V_GEN)if test -f $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h && \
 	  test -f $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
 	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h -nt $< && \
-	  test $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h -nt $(LIBRUST_CHIRP_GEN_SRCSTAMP) && \
+	  ! test $(LIBRUST_CHIRP_GEN_SRCSTAMP) -nt $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h && \
 	  test "$(LIBRUST_CHIRP_GEN_SRCDIR)" != "$(LIBRUST_CHIRP_GEN_DIR)"; then \
 	  cp $(LIBRUST_CHIRP_GEN_SRCDIR)/include/rust/chirp/lib.h $@; \
 	else \
