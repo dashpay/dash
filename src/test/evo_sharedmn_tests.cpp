@@ -209,6 +209,20 @@ BOOST_AUTO_TEST_CASE(share_list_validation)
     }
 }
 
+// The 65-byte signature size must hold statelessly, like every other signature-bearing payload
+// in this DIP: contextual verification is skipped for assumed-valid blocks
+BOOST_AUTO_TEST_CASE(proupshare_sig_size)
+{
+    CProUpShareTx ptx;
+    TxValidationState state;
+    BOOST_CHECK(!ptx.IsTriviallyValid(state));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-proupshare-sig-size");
+    ptx.vchSig.assign(CPubKey::COMPACT_SIGNATURE_SIZE - 1, 0);
+    BOOST_CHECK(!ptx.IsTriviallyValid(state));
+    ptx.vchSig.assign(CPubKey::COMPACT_SIGNATURE_SIZE, 0);
+    BOOST_CHECK(ptx.IsTriviallyValid(state));
+}
+
 BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
 {
     CKey refund_keys[8], owner_keys[8], voting_key, collateral_key;
