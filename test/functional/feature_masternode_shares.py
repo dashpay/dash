@@ -134,12 +134,51 @@ class MasternodeSharesTest(DashTestFramework):
             assert_raises_rpc_error(-25, reason, self.generateblock, node, pre_miner, [tx_hex],
                                     sync_fun=self.no_op)
 
+        self.log.info("A template output is consensus-valid to mine before activation")
+        pre_tmpl_raw = node.createrawtransaction([], {node.getnewaddress(): 1})
+        pre_tmpl_funded = node.fundrawtransaction(pre_tmpl_raw)["hex"]
+        pre_tmpl_tx = tx_from_hex(pre_tmpl_funded)
+        pre_tmpl_tx.vout[0].scriptPubKey = CScript(bytes.fromhex(SHARED_COLLATERAL_SCRIPT))
+        pre_tmpl_value = pre_tmpl_tx.vout[0].nValue
+        pre_tmpl_signed = node.signrawtransactionwithwallet(pre_tmpl_tx.serialize().hex())
+        assert_equal(pre_tmpl_signed["complete"], True)
+        pre_tmpl_txid = node.decoderawtransaction(pre_tmpl_signed["hex"])["txid"]
+        self.generateblock(node, pre_miner, [pre_tmpl_signed["hex"]], sync_fun=self.no_op)
+
         self.activate_v24()
 
         # The same dissolution now clears the deployment gate and fails at the masternode lookup
         # instead, proving the pre-activation rejections above came from the gate itself
         assert_raises_rpc_error(-25, "bad-prodis-hash", self.generateblock, node, pre_miner,
                                 [prodis_hex], sync_fun=self.no_op)
+
+        self.log.info("A template output mined before activation is permanently unspendable after it")
+        # No masternode owns this outpoint, so no ProDisTx can ever exist for it; the covenant
+        # spend rule rejects every other spender, freezing the deliberately created output forever
+        freeze_spend = CTransaction()
+        freeze_spend.vin.append(CTxIn(COutPoint(int(pre_tmpl_txid, 16), 0)))
+        freeze_spend.vout.append(CTxOut(pre_tmpl_value - 100000, CScript(b"\x51")))
+        assert_raises_rpc_error(-25, "bad-shared-collateral-spend", self.generateblock, node, pre_miner,
+                                [freeze_spend.serialize().hex()], sync_fun=self.no_op)
+
+        self.log.info("A near-miss script is unrestricted by the covenant")
+        # One tag byte off the template ('DSHD'): creation and an empty-scriptSig spend both
+        # connect fine post-activation, proving the covenant matches the exact script only
+        near_miss_script = CScript(bytes.fromhex("04445348447551"))
+        near_raw = node.createrawtransaction([], {node.getnewaddress(): 1})
+        near_funded = node.fundrawtransaction(near_raw)["hex"]
+        near_tx = tx_from_hex(near_funded)
+        near_tx.vout[0].scriptPubKey = near_miss_script
+        near_value = near_tx.vout[0].nValue
+        near_signed = node.signrawtransactionwithwallet(near_tx.serialize().hex())
+        assert_equal(near_signed["complete"], True)
+        near_txid = node.decoderawtransaction(near_signed["hex"])["txid"]
+        self.generateblock(node, pre_miner, [near_signed["hex"]], sync_fun=self.no_op)
+        near_spend = CTransaction()
+        near_spend.vin.append(CTxIn(COutPoint(int(near_txid, 16), 0)))
+        near_spend.vout.append(CTxOut(near_value - 100000, CScript(b"\x51")))
+        near_block = self.generateblock(node, pre_miner, [near_spend.serialize().hex()], sync_fun=self.no_op)
+        assert_equal(len(node.getblock(near_block["hash"])["tx"]), 2)
 
         self.log.info("Register a two-participant shared masternode")
         refund1, refund2 = node.getnewaddress(), node.getnewaddress()

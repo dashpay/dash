@@ -209,6 +209,70 @@ BOOST_AUTO_TEST_CASE(share_list_validation)
     }
 }
 
+// Shared-registration shapes rejected in stateless payload validation (DIP Test Cases 2). Every
+// case fails before the later key/netInfo checks, so the payloads only need the fields under test.
+BOOST_AUTO_TEST_CASE(shared_proregtx_shape_validation)
+{
+    const auto check = [](CProRegTx& proTx, const std::string& expected) {
+        TxValidationState state;
+        BOOST_CHECK(!proTx.IsTriviallyValid(state));
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), expected);
+    };
+    const auto base = []() {
+        CProRegTx proTx;
+        proTx.nVersion = ProTxVersion::ExtAddr;
+        proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
+        CKey r1, r2, o1, o2;
+        proTx.shares = {NewShare(600 * COIN, r1, o1), NewShare(400 * COIN, r2, o2)};
+        proTx.vchJoinSigs = DummyJoinSigs(2);
+        return proTx;
+    };
+
+    {
+        auto proTx = base();
+        proTx.nType = MnType::Evo;
+        check(proTx, "bad-protx-shares-evo");
+    }
+    {
+        auto proTx = base();
+        proTx.collateralOutpoint.hash = GetRandHash();
+        check(proTx, "bad-protx-shares-external");
+    }
+    {
+        auto proTx = base();
+        CKey owner;
+        owner.MakeNewKey(true);
+        proTx.keyIDOwner = owner.GetPubKey().GetID();
+        check(proTx, "bad-protx-shares-owner-key");
+    }
+    {
+        auto proTx = base();
+        CKey payee;
+        proTx.payouts.push_back({NewP2PKHScript(payee), MasternodePayoutShare::MAX_REWARD});
+        check(proTx, "bad-protx-shares-payouts");
+    }
+    // A non-shared payload must serialize zeroed shared fields
+    {
+        auto proTx = base();
+        proTx.shares.clear();
+        check(proTx, "bad-protx-shares-empty-fields"); // joinSigs still present
+    }
+    {
+        auto proTx = base();
+        proTx.shares.clear();
+        proTx.vchJoinSigs.clear();
+        proTx.nEarlyPenalty = 1;
+        check(proTx, "bad-protx-shares-empty-fields");
+    }
+    {
+        auto proTx = base();
+        proTx.shares.clear();
+        proTx.vchJoinSigs.clear();
+        proTx.nEarlyPeriodBlocks = 1;
+        check(proTx, "bad-protx-shares-empty-fields");
+    }
+}
+
 // The 65-byte signature size must hold statelessly, like every other signature-bearing payload
 // in this DIP: contextual verification is skipped for assumed-valid blocks
 BOOST_AUTO_TEST_CASE(proupshare_sig_size)
@@ -441,6 +505,23 @@ BOOST_AUTO_TEST_CASE(shared_reg_consent_hash)
         CMutableTransaction mtx2{mtx};
         mtx2.nLockTime += 1;
         BOOST_CHECK(proTx.MakeSharedRegConsentHash(CTransaction(mtx2)) != base);
+    }
+    {
+        CProRegTx mutated{proTx};
+        mutated.nMode = 1;
+        BOOST_CHECK(mutated.MakeSharedRegConsentHash(CTransaction(mtx)) != base);
+    }
+    {
+        CProRegTx mutated{proTx};
+        mutated.nType = MnType::Evo;
+        BOOST_CHECK(mutated.MakeSharedRegConsentHash(CTransaction(mtx)) != base);
+    }
+    {
+        CProRegTx mutated{proTx};
+        CBLSSecretKey sk;
+        sk.MakeNewKey();
+        mutated.pubKeyOperator.Set(sk.GetPublicKey(), false);
+        BOOST_CHECK(mutated.MakeSharedRegConsentHash(CTransaction(mtx)) != base);
     }
 }
 
