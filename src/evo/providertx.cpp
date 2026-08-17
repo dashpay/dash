@@ -571,6 +571,9 @@ bool CProUpShareTx::IsTriviallyValid(TxValidationState& state) const
     if (nVersion == 0 || nVersion > CURRENT_VERSION) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-proupshare-version");
     }
+    if (vchSig.size() != CPubKey::COMPACT_SIGNATURE_SIZE) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-sig-size");
+    }
     if (!scriptReward.empty()) {
         if (sharedcollateral::IsSharedCollateralScript(scriptReward)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-template");

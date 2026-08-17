@@ -122,7 +122,8 @@ class MasternodeSharesTest(DashTestFramework):
             struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + bytes([1]) + b"\x00" * 65)
         upshare_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARE,
-            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + b"\x00" + b"\x00" * 32 + b"\x00")
+            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + b"\x00" + b"\x00" * 32 +
+            bytes([65]) + b"\x00" * 65)
         upsharedreg_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR,
             struct.pack("<H", 1) + b"\x00" * 32 + bytes.fromhex(node.bls("generate")["public"]) +
