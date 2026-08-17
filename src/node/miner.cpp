@@ -395,6 +395,19 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
             }
         }
 
+        // The shared-collateral covenant applies to every transaction, not only special ones: a
+        // normal transaction creating or spending a template output can sit in the mempool across
+        // v24 activation on a node accepting nonstandard transactions, and would poison every
+        // template through the same TestBlockValidity path described above.
+        if (DeploymentActiveAfter(m_chainstate.m_chain.Tip(), m_chainstate.m_chainman,
+                                  Consensus::DEPLOYMENT_V24)) {
+            TxValidationState tx_state;
+            if (!CheckSharedCollateralSpends(it->GetTx(), m_chainstate.CoinsTip(), tx_state) ||
+                !CheckSharedCollateralTemplateOutputs(it->GetTx(), tx_state)) {
+                return false;
+            }
+        }
+
         const auto& txid = it->GetTx().GetHash();
         if (!m_isman.IsInstantSendEnabled() || m_isman.IsLocked(txid)) {
             continue;
