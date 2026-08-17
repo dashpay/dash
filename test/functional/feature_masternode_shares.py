@@ -468,6 +468,13 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.log.info("A unanimous dissolution is penalty-free")
         prepared = node.protx("dissolve_prepare", protx_hash2, 0, DISSOLVE_FEE)
+        # The digest commits lock fields, so shared_sign refuses a time-locked dissolution unless
+        # the signer explicitly opts in
+        locked_tx = tx_from_hex(prepared["tx"])
+        locked_tx.nLockTime = 100
+        assert_raises_rpc_error(-8, "pass allowTimeLocks=true", node.protx, "shared_sign",
+                                locked_tx.serialize().hex())
+        assert_equal(len(node.protx("shared_sign", locked_tx.serialize().hex(), True)), 2)
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_equal(len(sigs), 2)
         dissolve_txid2 = node.protx("shared_combine", prepared["tx"], sigs, True)
