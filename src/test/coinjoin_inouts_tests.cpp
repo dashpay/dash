@@ -20,13 +20,16 @@
 #include <uint256.h>
 #include <util/check.h>
 #include <util/time.h>
+#include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <latch>
 #include <memory>
+#include <thread>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(coinjoin_inouts_tests, TestingSetup)
@@ -171,9 +174,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
     }
 }
 
-// Test-only subclass exposing the minimal seams needed to observe how
-// ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// Test-only subclass exposing the minimal seams needed to exercise server lifecycle behavior
+// without standing up a full DKG-backed signing session. The helpers only establish preconditions
+// and invoke the production paths; the behavior under test is not reproduced here.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
@@ -187,6 +190,83 @@ public:
         entry.addr = addr;
         LOCK(cs_coinjoin);
         vecEntries.push_back(std::move(entry));
+    }
+
+    void SeedCompletionSession(int session_id, const CService& addr, PoolState state = POOL_STATE_SIGNING)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+        nSessionID = session_id;
+        nState = state;
+
+        if (state == POOL_STATE_SIGNING) {
+            CCoinJoinEntry entry;
+            entry.addr = addr;
+            vecEntries.push_back(std::move(entry));
+        }
+    }
+
+    void RelayCompletion(int session_id, const CService& addr)
+    {
+        RelayCompletedTransaction(session_id, {addr}, MSG_SUCCESS);
+    }
+
+    void ResetForSession(int session_id) { ResetSigningSessionIfCurrent(session_id); }
+
+    void SeedTimedOutSession()
+    {
+        LOCK(cs_coinjoin);
+        nSessionID = 1;
+        nState = POOL_STATE_ACCEPTING_ENTRIES;
+        nTimeLastSuccessfulStep = GetTime() - COINJOIN_QUEUE_TIMEOUT;
+        for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_session_collaterals.Add(collateral);
+        }
+    }
+
+    void SeedTimedOutActionableSession(PoolState state, bool has_missing_entry = false)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+
+        nSessionID = 1;
+        nState = state;
+        nTimeLastSuccessfulStep = GetTime() -
+                                  (state == POOL_STATE_SIGNING ? COINJOIN_SIGNING_TIMEOUT : COINJOIN_QUEUE_TIMEOUT);
+
+        for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_session_collaterals.Add(collateral);
+
+            if (state == POOL_STATE_QUEUE) continue;
+
+            CTxDSIn txdsin{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0};
+            txdsin.fHasSig = state == POOL_STATE_SIGNING;
+            vecEntries.emplace_back(std::vector<CTxDSIn>{txdsin}, std::vector<CTxOut>{}, CTransaction{collateral});
+        }
+
+        if (has_missing_entry) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(CoinJoin::GetMinPoolParticipants())});
+            m_session_collaterals.Add(collateral);
+        }
+    }
+
+    void HoldPoolCheck(std::latch& locked, std::latch& release)
+    {
+        LOCK(cs_check_pool);
+        locked.count_down();
+        release.wait();
+    }
+
+    bool ValidateInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, int session_denom,
+                        PoolMessage& message, bool& consume_collateral)
+    {
+        return IsValidInOuts(m_chainman.ActiveChainstate(), m_isman, mempool, vin, vout, session_denom, message,
+                             &consume_collateral);
     }
 };
 
@@ -285,6 +365,99 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
                       std::ios_base::failure);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(server_completion_does_not_reset_an_unreachable_or_replacement_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    auto participant = MakePeer(/*id=*/7, /*ipv4=*/0x0a000001);
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr);
+
+    // The participant is deliberately absent from connman. Failing to deliver DSCOMPLETE must not
+    // reset live session data; only CommitFinalTransaction owns the completion reset.
+    server.RelayCompletion(/*session_id=*/1, participant->addr);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+
+    // A delayed tail operation from session 1 must never clear a replacement queue, even if the
+    // random wire session ID happens to be reused.
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr, POOL_STATE_QUEUE);
+    server.ResetForSession(/*session_id=*/1);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 0);
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+    server.SeedTimedOutSession();
+
+    std::latch locked{1};
+    std::latch release{1};
+    std::thread pool_check{[&] { server.HoldPoolCheck(locked, release); }};
+    locked.wait();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+
+    release.count_down();
+    pool_check.join();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_actionable_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    for (const auto state : {POOL_STATE_QUEUE, POOL_STATE_ACCEPTING_ENTRIES, POOL_STATE_SIGNING}) {
+        BOOST_TEST_CONTEXT("state=" << state)
+        {
+            server.SeedTimedOutActionableSession(state);
+            server.CheckTimeout();
+            BOOST_CHECK_EQUAL(server.GetState(), int{state});
+        }
+    }
+
+    server.SeedTimedOutActionableSession(POOL_STATE_ACCEPTING_ENTRIES, /*has_missing_entry=*/true);
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+}
+
+BOOST_AUTO_TEST_CASE(server_validation_uses_session_denom_snapshot)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.llmq_ctx->isman));
+
+    const int session_denom{CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination())};
+    const std::vector<CTxIn> vin{CTxIn{COutPoint{uint256::ONE, 0}}};
+    const std::vector<CTxOut> vout{CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}};
+    PoolMessage message{MSG_NOERR};
+    bool consume_collateral{false};
+
+    // The live session denomination is zero, as it is after a concurrent SetNull(). Validation
+    // must use the denomination captured before the reset instead of treating this as a punishable
+    // denomination mismatch. The deliberately absent input makes validation stop with ERR_MISSING_TX.
+    BOOST_CHECK(!server.ValidateInOuts(vin, vout, session_denom, message, consume_collateral));
+    BOOST_CHECK_EQUAL(message, ERR_MISSING_TX);
+    BOOST_CHECK(!consume_collateral);
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)

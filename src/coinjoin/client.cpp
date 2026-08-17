@@ -475,7 +475,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
     // Make sure all inputs/outputs are valid
     PoolMessage nMessageID{MSG_NOERR};
     if (!IsValidInOuts(active_chainstate, m_isman, mempool, finalMutableTransaction.vin, finalMutableTransaction.vout,
-                       nMessageID, nullptr)) {
+                       nSessionDenom.load(), nMessageID, nullptr)) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- ERROR! IsValidInOuts() failed: %s\n", __func__, CoinJoin::GetMessageByID(nMessageID).translated);
         UnlockCoins();
         keyHolderStorage.ReturnAll();
@@ -2004,4 +2004,3 @@ UniValue CCoinJoinClientManager::getJsonInfo() const
     obj.pushKV("sessions", arrSessions);
     return obj;
 }
-

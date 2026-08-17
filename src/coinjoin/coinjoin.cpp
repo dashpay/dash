@@ -206,8 +206,8 @@ std::string CCoinJoinBaseSession::GetStateString() const
 
 bool CCoinJoinBaseSession::IsValidInOuts(Chainstate& active_chainstate, const llmq::CInstantSendManager& isman,
                                          const CTxMemPool& mempool, const std::vector<CTxIn>& vin,
-                                         const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet,
-                                         bool* fConsumeCollateralRet) const
+                                         const std::vector<CTxOut>& vout, int session_denom,
+                                         PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet)
 {
     std::set<CScript> setScripPubKeys;
     nMessageIDRet = MSG_NOERR;
@@ -221,9 +221,10 @@ bool CCoinJoinBaseSession::IsValidInOuts(Chainstate& active_chainstate, const ll
     }
 
     auto checkTxOut = [&](const CTxOut& txout) {
-        if (int nDenom = CoinJoin::AmountToDenomination(txout.nValue); nDenom != nSessionDenom) {
+        if (int nDenom = CoinJoin::AmountToDenomination(txout.nValue); nDenom != session_denom) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::IsValidInOuts -- ERROR: incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
-                    nDenom, CoinJoin::DenominationToString(nDenom), nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+                    nDenom, CoinJoin::DenominationToString(nDenom), session_denom,
+                    CoinJoin::DenominationToString(session_denom));
             nMessageIDRet = ERR_DENOM;
             if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
             return false;

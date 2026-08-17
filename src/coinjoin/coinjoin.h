@@ -337,9 +337,10 @@ protected:
 
     virtual void SetNull() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
-    bool IsValidInOuts(Chainstate& active_chainstate, const llmq::CInstantSendManager& isman,
-                       const CTxMemPool& mempool, const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout,
-                       PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const;
+    static bool IsValidInOuts(Chainstate& active_chainstate, const llmq::CInstantSendManager& isman,
+                              const CTxMemPool& mempool, const std::vector<CTxIn>& vin,
+                              const std::vector<CTxOut>& vout, int session_denom, PoolMessage& nMessageIDRet,
+                              bool* fConsumeCollateralRet);
 
 public:
     // Atomic because the message-handling and scheduler threads write it while those threads and
