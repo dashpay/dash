@@ -28,7 +28,7 @@
 #include <wallet/crypter.h>
 #include <wallet/coinselection.h>
 #include <external_signer.h>
-#include <wallet/masternode_operator.h>
+#include <wallet/masternode_operator_types.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/transaction.h>
 #include <wallet/walletdb.h>

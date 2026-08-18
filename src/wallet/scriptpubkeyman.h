@@ -17,7 +17,7 @@
 #include <wallet/crypter.h>
 #include <wallet/hdchain.h>
 #include <wallet/ismine.h>
-#include <wallet/masternode_operator.h>
+#include <wallet/masternode_operator_types.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
 

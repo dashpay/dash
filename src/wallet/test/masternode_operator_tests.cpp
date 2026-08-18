@@ -17,7 +17,7 @@
 #include <validation.h>
 #include <wallet/bip39.h>
 #include <wallet/hdchain.h>
-#include <wallet/masternode_operator.h>
+#include <wallet/masternode_operator_types.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/test/wallet_test_fixture.h>
 #include <wallet/wallet.h>
