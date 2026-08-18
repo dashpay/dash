@@ -283,6 +283,7 @@ BITCOIN_CORE_H = \
   interfaces/handler.h \
   interfaces/init.h \
   interfaces/ipc.h \
+  interfaces/masternode_operator.h \
   interfaces/node.h \
   interfaces/providertx.h \
   interfaces/wallet.h \
@@ -491,6 +492,7 @@ BITCOIN_CORE_H = \
   wallet/hdchain.h \
   wallet/ismine.h \
   wallet/load.h \
+  wallet/masternode_operator_types.h \
   wallet/platformkeys.h \
   wallet/platformtypes.h \
   wallet/receive.h \
@@ -730,6 +732,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/hdchain.cpp \
   wallet/interfaces.cpp \
   wallet/load.cpp \
+  wallet/masternode_operator.cpp \
   wallet/platformkeys.cpp \
   wallet/receive.cpp \
   wallet/rpc/addresses.cpp \

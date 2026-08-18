@@ -8,6 +8,7 @@
 #include <consensus/amount.h>          // For CAmount
 #include <governance/common.h>
 #include <interfaces/chain.h>          // For ChainClient
+#include <interfaces/masternode_operator.h>
 #include <pubkey.h>                    // For CKeyID and CScriptID (definitions needed in CTxDestination instantiation)
 #include <script/standard.h>           // For CTxDestination
 #include <support/allocators/secure.h> // For SecureString
@@ -29,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+class CBLSPublicKey;
 class CFeeRate;
 class CGovernanceVote;
 class CKey;
@@ -163,6 +165,22 @@ public:
     //! descriptor update and result publication are one wallet-locked action.
     virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) = 0;
+
+    //! Whether this wallet is a descriptor wallet with exactly one
+    //! mnemonic-backed operator-key source. Legacy wallets are not supported.
+    virtual bool hasMasternodeOperatorKeySource() = 0;
+    //! Derive and permanently consume the lowest operator-key index at or
+    //! above the key counter that is not in use. The key counter is
+    //! persisted before the secret is returned and never rolled back.
+    //! is_in_use may be empty; when set it is queried without wallet locks
+    //! held so the caller can supply interfaces::Node's EVO predicate, and
+    //! issuance scans gap-limit style past every index it reports in use.
+    virtual MasternodeOperatorKeyResult getNewMasternodeOperatorKey(
+        const std::function<bool(const CBLSPublicKey&)>& is_in_use) = 0;
+    //! Re-derive a previously consumed operator key (an index below the
+    //! key counter) by its basic-scheme public key. Read-only; keys never
+    //! exposed are not addressable.
+    virtual MasternodeOperatorKeyResult getMasternodeOperatorKey(const std::vector<unsigned char>& public_key) = 0;
 
     //! Return whether wallet has private key.
     virtual bool isSpendable(const CScript& script) = 0;
