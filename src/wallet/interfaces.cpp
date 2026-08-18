@@ -4,6 +4,7 @@
 
 #include <interfaces/wallet.h>
 
+#include <bls/bls.h>
 #include <chain.h>
 #include <coinjoin/client.h>
 #include <consensus/amount.h>
@@ -238,6 +239,23 @@ public:
     bool signSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std::vector<unsigned char>& vchSig) override
     {
         return m_wallet->SignSpecialTxPayload(hash, keyid, vchSig);
+    }
+    bool hasMasternodeOperatorKeySource() override { return m_wallet->HasMasternodeOperatorKeySource(); }
+    interfaces::MasternodeOperatorKeyResult getNewMasternodeOperatorKey(
+        const std::function<bool(const CBLSPublicKey&)>& is_in_use) override
+    {
+        return m_wallet->GetNewMasternodeOperatorKey(is_in_use);
+    }
+    interfaces::MasternodeOperatorKeyResult getMasternodeOperatorKey(const std::vector<unsigned char>& public_key) override
+    {
+        CBLSPublicKey parsed;
+        parsed.SetBytes(public_key, /*specificLegacyScheme=*/false);
+        if (!parsed.IsValid() || parsed.ToByteVector(/*specificLegacyScheme=*/false) != public_key) {
+            interfaces::MasternodeOperatorKeyResult result;
+            result.status = interfaces::MasternodeOperatorKeyStatus::INVALID_KEY;
+            return result;
+        }
+        return m_wallet->GetMasternodeOperatorKey(parsed);
     }
     bool isSpendable(const CScript& script) override
     {

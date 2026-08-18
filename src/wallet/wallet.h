@@ -28,6 +28,7 @@
 #include <wallet/crypter.h>
 #include <wallet/coinselection.h>
 #include <external_signer.h>
+#include <wallet/masternode_operator_types.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/transaction.h>
 #include <wallet/walletdb.h>
@@ -49,6 +50,7 @@
 
 #include <boost/signals2/signal.hpp>
 
+class CBLSPublicKey;
 class CKey;
 class CScript;
 class CTxDSIn;
@@ -425,6 +427,35 @@ private:
 
     //! Whether the CoinJoin client is mixing with this wallet
     std::atomic<bool> m_mixing{false};
+
+    /** Operator-key consumption watermark: indexes below next_index are
+     *  permanently consumed. Advisory; ignored unless its source id matches
+     *  the active seed. */
+    std::optional<MasternodeOperatorWatermark> m_mn_operator_watermark GUARDED_BY(cs_wallet);
+    /** Advisory lookahead of derived operator public keys at and above the
+     *  watermark, used to opportunistically recognize provider transactions
+     *  during sync - including while the wallet is locked. */
+    std::optional<MasternodeOperatorLookahead> m_mn_operator_lookahead GUARDED_BY(cs_wallet);
+
+    /** The ScriptPubKeyMan holding this wallet's single genuine mnemonic
+     *  source, or nullptr when operator-key derivation is unsupported. Also
+     *  returns the source identifier when source_id is provided. */
+    ScriptPubKeyMan* GetMasternodeOperatorKeySource(std::vector<unsigned char>* source_id = nullptr) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** The watermark for the given seed source; 0 when absent or belonging to
+     *  a different seed. */
+    uint32_t GetMasternodeOperatorNextIndex(const std::vector<unsigned char>& source_id) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Durably raise the watermark to next_index (never lowers it). The write
+     *  happens before the in-memory value moves, so a failure leaves memory
+     *  and disk agreeing. */
+    bool RaiseMasternodeOperatorWatermark(const std::vector<unsigned char>& source_id, uint32_t next_index,
+                                          WalletBatch& batch) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Advance the watermark past a lookahead key assigned by a provider
+     *  transaction seen on the transaction-sync path. Best-effort recognition:
+     *  a missing or stale lookahead simply means no match. */
+    void MaybeAdvanceMasternodeOperatorWatermark(const CTransaction& tx, WalletBatch& batch)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /** Height of last block processed is used by wallet to know depth of transactions
      * without relying on Chain interface beyond asynchronous updates. For safety, we
@@ -1002,6 +1033,31 @@ public:
     bool WriteGovernanceObject(const Governance::Object& obj) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     /** Returns a vector containing pointers to the governance objects in m_gobjects */
     std::vector<const Governance::Object*> GetGovernanceObjects() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+
+    /** Load the operator-key watermark/lookahead records. Return false for
+     *  unusable records, which are advisory and must not fail the wallet load. */
+    bool LoadMasternodeOperatorWatermark(const MasternodeOperatorWatermark& watermark)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool LoadMasternodeOperatorLookahead(const MasternodeOperatorLookahead& lookahead)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Whether deterministic operator-key operations are supported. */
+    bool HasMasternodeOperatorKeySource() const;
+    /** Derive and persist the recognition lookahead covering the gap limit
+     *  above the watermark, so the transaction-sync path can match provider
+     *  transactions without the seed. No-op when already current; requires
+     *  the seed (fails on locked or unsupported wallets). */
+    MasternodeOperatorKeyStatus TopUpMasternodeOperatorLookahead() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Derive and permanently consume the lowest operator-key index at or
+     *  above the watermark that is not in use. The watermark is persisted
+     *  before the secret is returned and never rolled back. is_in_use may be
+     *  empty; when set it is consulted without cs_wallet held so the caller
+     *  can query node chainstate, and issuance skips past every index it
+     *  reports in use (gap-limit scan). */
+    interfaces::MasternodeOperatorKeyResult GetNewMasternodeOperatorKey(
+        const std::function<bool(const CBLSPublicKey&)>& is_in_use) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet);
+    /** Re-derive a previously consumed operator key (an index below the
+     *  watermark) by its public key. Read-only. */
+    interfaces::MasternodeOperatorKeyResult GetMasternodeOperatorKey(const CBLSPublicKey& public_key);
 
     /**
      * Blocks until the wallet state is up-to-date to /at least/ the current

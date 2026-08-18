@@ -1410,6 +1410,11 @@ void CWallet::RecursiveUpdateTxState(const uint256& tx_hash, const TryUpdatingSt
 
 void CWallet::SyncTransaction(const CTransactionRef& ptx, const SyncTxState& state, WalletBatch& batch, bool update_tx, bool rescanning_old_block)
 {
+    // Runs for every synced transaction, not only "ours": a provider
+    // transaction assigning one of our derivable operator keys is how a
+    // restored wallet learns about consumed operator-key indexes.
+    MaybeAdvanceMasternodeOperatorWatermark(*ptx, batch);
+
     if (!AddToWalletIfInvolvingMe(ptx, state, batch, update_tx, rescanning_old_block))
         return; // Not one of ours
 
@@ -3161,6 +3166,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     const bool fFirstRun = walletInstance->m_spk_managers.empty() &&
                      !walletInstance->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) &&
                      !walletInstance->IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET);
+    bool restored_from_user_mnemonic{false};
     if (fFirstRun)
     {
         walletInstance->SetMinVersion(FEATURE_LATEST);
@@ -3209,6 +3215,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
                     mnemonic = args.GetArg("-mnemonic", "");
                     mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
+                    restored_from_user_mnemonic = !mnemonic.empty();
                     LOCK(walletInstance->cs_wallet);
                     if (auto spk_man = walletInstance->GetLegacyScriptPubKeyMan()) {
                         spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase);
@@ -3228,6 +3235,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
                 mnemonic_passphrase.reserve(256);
                 mnemonic = args.GetArg("-mnemonic", "");
                 mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
+                restored_from_user_mnemonic |= !mnemonic.empty();
                 args.ForceRemoveArg("mnemonic");
                 args.ForceRemoveArg("mnemonicpassphrase");
                 walletInstance->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
@@ -3402,6 +3410,15 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
     // Try to top up keypool. No-op if the wallet is locked.
     walletInstance->TopUpKeyPool();
+
+    // A user-supplied mnemonic is a restore: provider transactions assigning
+    // its derived operator keys may already exist in history, so build the
+    // recognition lookahead before AttachChain can rescan. Recognition is
+    // best-effort by design; a freshly generated seed cannot appear in
+    // history, so no lookahead is needed until the feature is first used.
+    if (restored_from_user_mnemonic) {
+        WITH_LOCK(walletInstance->cs_wallet, walletInstance->TopUpMasternodeOperatorLookahead());
+    }
 
     NotifyWalletLoading(context, walletInstance);
 

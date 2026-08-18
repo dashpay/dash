@@ -1721,6 +1721,43 @@ BOOST_AUTO_TEST_CASE(v19_activation_legacy)
     FuncV19Activation(setup);
 }
 
+BOOST_AUTO_TEST_CASE(operator_key_in_use_follows_current_list)
+{
+    TestMNChainSetup setup(DIP3_ACTIVATION_HEIGHT - 2, {"-dip3params=109:500"});
+    setup.ProcessBlock(); // The next block may contain DIP3 transactions.
+
+    auto node{interfaces::MakeNode(setup.m_node)};
+    auto in_use = [&](const CBLSSecretKey& key) { return node->evo().isMasternodeOperatorKeyInUse(key.GetPublicKey()); };
+
+    BOOST_CHECK(!node->evo().isMasternodeOperatorKeyInUse(CBLSPublicKey{}));
+
+    CKey owner_key;
+    CBLSSecretKey registered_key;
+    auto tx_reg{CreateProRegTx(setup.chainman, setup.utxos, 19999, GenerateRandomAddress(), setup.coinbaseKey,
+                               owner_key, registered_key)};
+    BOOST_CHECK(!in_use(registered_key));
+    setup.ProcessBlock({tx_reg});
+    BOOST_CHECK(in_use(registered_key));
+
+    // Rotating the operator key makes the old key immediately reusable: the
+    // predicate answers for the current list, not for historical assignments.
+    CBLSSecretKey rotated_key;
+    rotated_key.MakeNewKey();
+    auto tx_upreg{CreateProUpRegTx(setup.chainman, setup.utxos, tx_reg.GetHash(), owner_key,
+                                   rotated_key.GetPublicKey(), owner_key.GetPubKey().GetID(), GenerateRandomAddress(),
+                                   setup.coinbaseKey)};
+    setup.ProcessBlock({tx_upreg});
+    BOOST_CHECK(!in_use(registered_key));
+    BOOST_CHECK(in_use(rotated_key));
+
+    // Revocation clears the operator key in the list while the masternode entry remains.
+    auto tx_revoke{CreateProUpRevTx(setup.chainman, setup.utxos, tx_reg.GetHash(), rotated_key, setup.coinbaseKey)};
+    setup.ProcessBlock({tx_revoke});
+    BOOST_REQUIRE(setup.dmnman.GetListAtChainTip().HasMN(tx_reg.GetHash()));
+    BOOST_CHECK(!in_use(registered_key));
+    BOOST_CHECK(!in_use(rotated_key));
+}
+
 // The invariant this whole change rests on: a stored operator key never advertises a scheme its own
 // state version contradicts, so the live list and the same list reloaded from disk agree — including
 // mnUniquePropertyMap, which IsEqual() compares directly.
