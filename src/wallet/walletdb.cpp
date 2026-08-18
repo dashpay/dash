@@ -51,6 +51,8 @@ const std::string KEYMETA{"keymeta"};
 const std::string KEY{"key"};
 const std::string LOCKED_UTXO{"lockedutxo"};
 const std::string MASTER_KEY{"mkey"};
+const std::string MASTERNODE_OPERATOR_LOOKAHEAD{"mnoplook"};
+const std::string MASTERNODE_OPERATOR_NEXT{"mnopnext"};
 const std::string MINVERSION{"minversion"};
 const std::string NAME{"name"};
 const std::string OLD_KEY{"wkey"};
@@ -240,6 +242,26 @@ bool WalletBatch::ReadCoinJoinPendingObs(std::map<COutPoint, int64_t>& pending_o
 bool WalletBatch::WriteCoinJoinPendingObs(const std::map<COutPoint, int64_t>& pending_obs)
 {
     return WriteIC(DBKeys::COINJOIN_PENDING_OBS, pending_obs);
+}
+
+bool WalletBatch::WriteMasternodeOperatorWatermark(const MasternodeOperatorWatermark& watermark)
+{
+    return WriteIC(DBKeys::MASTERNODE_OPERATOR_NEXT, watermark);
+}
+
+bool WalletBatch::ReadMasternodeOperatorWatermark(MasternodeOperatorWatermark& watermark)
+{
+    return m_batch->Read(DBKeys::MASTERNODE_OPERATOR_NEXT, watermark);
+}
+
+bool WalletBatch::WriteMasternodeOperatorLookahead(const MasternodeOperatorLookahead& lookahead)
+{
+    return WriteIC(DBKeys::MASTERNODE_OPERATOR_LOOKAHEAD, lookahead);
+}
+
+bool WalletBatch::ReadMasternodeOperatorLookahead(MasternodeOperatorLookahead& lookahead)
+{
+    return m_batch->Read(DBKeys::MASTERNODE_OPERATOR_LOOKAHEAD, lookahead);
 }
 
 bool WalletBatch::WriteGovernanceObject(const Governance::Object& obj)
@@ -794,6 +816,29 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 wss.crypted_mnemonics.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), std::make_pair(mnemonic, mnemonic_passphrase)));
             }
 
+        } else if (strType == DBKeys::MASTERNODE_OPERATOR_NEXT) {
+            // These records are advisory: they hold no secret and are rebuilt
+            // or ignored based on the active seed, so a malformed record is
+            // dropped from memory rather than failing the load.
+            try {
+                MasternodeOperatorWatermark watermark;
+                ssValue >> watermark;
+                if (!pwallet->LoadMasternodeOperatorWatermark(watermark)) {
+                    pwallet->WalletLogPrintf("Ignoring unusable masternode operator watermark record\n");
+                }
+            } catch (const std::exception&) {
+                pwallet->WalletLogPrintf("Ignoring malformed masternode operator watermark record\n");
+            }
+        } else if (strType == DBKeys::MASTERNODE_OPERATOR_LOOKAHEAD) {
+            try {
+                MasternodeOperatorLookahead lookahead;
+                ssValue >> lookahead;
+                if (!pwallet->LoadMasternodeOperatorLookahead(lookahead)) {
+                    pwallet->WalletLogPrintf("Ignoring unusable masternode operator lookahead record\n");
+                }
+            } catch (const std::exception&) {
+                pwallet->WalletLogPrintf("Ignoring malformed masternode operator lookahead record\n");
+            }
         } else if (strType == DBKeys::LOCKED_UTXO) {
             uint256 hash;
             uint32_t n;

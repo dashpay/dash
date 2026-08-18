@@ -17,6 +17,7 @@
 #include <wallet/crypter.h>
 #include <wallet/hdchain.h>
 #include <wallet/ismine.h>
+#include <wallet/masternode_operator.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
 
@@ -25,7 +26,15 @@
 #include <functional>
 #include <optional>
 
+class CBLSSecretKey;
+
 namespace wallet {
+enum class MasternodeOperatorKeySourceStatus {
+    NONE,
+    AVAILABLE,
+    AMBIGUOUS,
+};
+
 // Wallet storage things that ScriptPubKeyMans need in order to be able to store things to the wallet database.
 // It provides access to things that are part of the entire wallet and not specific to a ScriptPubKeyMan such as
 // wallet flags, wallet version, encryption keys, encryption status, and the database itself. This allows a
@@ -234,6 +243,24 @@ public:
     /** Sign a message with the given script */
     virtual SigningResult SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const { return SigningResult::SIGNING_FAILED; };
     virtual bool SignSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std::vector<unsigned char>& vchSig) const { return false; }
+    /** Return an unlock-free identifier for this manager's supported operator-key
+     *  source. Managers backed by the same mnemonic return the same identifier. */
+    virtual MasternodeOperatorKeySourceStatus GetMasternodeOperatorKeySource(std::vector<unsigned char>& identifier) const
+    {
+        return MasternodeOperatorKeySourceStatus::NONE;
+    }
+    /** Derive the DashSync-compatible operator children [begin, end) from a single
+     *  seed expansion, invoking the callback per child without exposing root
+     *  material. A callback returning false stops the walk early. */
+    virtual MasternodeOperatorKeyStatus DeriveMasternodeOperatorKeys(
+        uint32_t coin_type, uint32_t begin, uint32_t end,
+        const std::function<bool(uint32_t index, const CBLSSecretKey& secret)>& callback) const
+    {
+        return MasternodeOperatorKeyStatus::NOT_SUPPORTED;
+    }
+    /** Derive a single operator child. */
+    MasternodeOperatorKeyStatus DeriveMasternodeOperatorKey(uint32_t coin_type, uint32_t index,
+                                                            CBLSSecretKey& secret) const;
     /** Adds script and derivation path information to a PSBT, and optionally signs it. */
     virtual TransactionError FillPSBT(PartiallySignedTransaction& psbt, const PrecomputedTransactionData& txdata, int sighash_type = 1 /* SIGHASH_ALL */, bool sign = true, bool bip32derivs = false, int* n_signed = nullptr, bool finalize = true) const { return TransactionError::INVALID_PSBT; }
 
@@ -643,6 +670,10 @@ public:
     bool SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors) const override;
     SigningResult SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const override;
     bool SignSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std::vector<unsigned char>& vchSig) const override;
+    MasternodeOperatorKeySourceStatus GetMasternodeOperatorKeySource(std::vector<unsigned char>& identifier) const override;
+    MasternodeOperatorKeyStatus DeriveMasternodeOperatorKeys(
+        uint32_t coin_type, uint32_t begin, uint32_t end,
+        const std::function<bool(uint32_t index, const CBLSSecretKey& secret)>& callback) const override;
     TransactionError FillPSBT(PartiallySignedTransaction& psbt, const PrecomputedTransactionData& txdata, int sighash_type = 1 /* SIGHASH_ALL */, bool sign = true, bool bip32derivs = false, int* n_signed = nullptr, bool finalize = true) const override;
 
     uint256 GetID() const override;

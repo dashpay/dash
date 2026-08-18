@@ -3,12 +3,14 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <key_io.h>
+#include <bls/bls.h>
 #include <chainparams.h>
 #include <logging.h>
 #include <messagesigner.h>
 #include <script/descriptor.h>
 #include <script/sign.h>
 #include <shutdown.h>
+#include <support/cleanse.h>
 #include <util/bip32.h>
 #include <util/strencodings.h>
 #include <util/system.h>
@@ -36,6 +38,35 @@ util::Result<CTxDestination> LegacyScriptPubKeyMan::GetNewDestination()
 typedef std::vector<unsigned char> valtype;
 
 namespace {
+MasternodeOperatorKeyStatus DeriveMasternodeOperatorChildren(
+    const SecureVector& seed, uint32_t coin_type, uint32_t begin, uint32_t end,
+    const std::function<bool(uint32_t index, const CBLSSecretKey& secret)>& callback)
+{
+    if (seed.empty() || begin >= end || end > MASTERNODE_OPERATOR_MAX_INDEX) {
+        return MasternodeOperatorKeyStatus::INVALID_KEY;
+    }
+
+    try {
+        // Expand the seed and derive the four hardened account levels once for
+        // the whole walk; each index then only costs one leaf-child derivation.
+        bls::ExtendedPrivateKey account{bls::ExtendedPrivateKey::FromSeed(bls::Bytes{seed.data(), seed.size()})};
+        const auto path{MasternodeOperatorDerivationPath(coin_type, begin)};
+        for (size_t level{0}; level + 1 < path.size(); ++level) {
+            account = account.PrivateChild(path[level], /*fLegacy=*/true);
+        }
+        for (uint32_t index{begin}; index < end; ++index) {
+            SecureVector secret_bytes(CBLSSecretKey::SerSize);
+            account.PrivateChild(index, /*fLegacy=*/true).GetPrivateKey().Serialize(secret_bytes.data());
+            const CBLSSecretKey secret{Span<const unsigned char>{secret_bytes.data(), secret_bytes.size()}};
+            if (!secret.IsValid()) return MasternodeOperatorKeyStatus::DERIVATION_ERROR;
+            if (!callback(index, secret)) break;
+        }
+    } catch (const std::exception& e) {
+        LogPrintf("%s: BLS derivation failed: %s\n", __func__, e.what());
+        return MasternodeOperatorKeyStatus::DERIVATION_ERROR;
+    }
+    return MasternodeOperatorKeyStatus::SUCCESS;
+}
 
 /**
  * This is an enum that tracks the execution context of a script, similar to
@@ -766,6 +797,20 @@ bool LegacyScriptPubKeyMan::SignSpecialTxPayload(const uint256& hash, const CKey
     }
 
     return CHashSigner::SignHash(hash, key, vchSig);
+}
+
+MasternodeOperatorKeyStatus ScriptPubKeyMan::DeriveMasternodeOperatorKey(uint32_t coin_type, uint32_t index,
+                                                                         CBLSSecretKey& secret) const
+{
+    secret.Reset();
+    if (index >= MASTERNODE_OPERATOR_MAX_INDEX) return MasternodeOperatorKeyStatus::INVALID_KEY;
+    const auto status{DeriveMasternodeOperatorKeys(coin_type, index, index + 1,
+                                                   [&secret](uint32_t, const CBLSSecretKey& derived) {
+                                                       secret = derived;
+                                                       return false;
+                                                   })};
+    if (status != MasternodeOperatorKeyStatus::SUCCESS) return status;
+    return secret.IsValid() ? MasternodeOperatorKeyStatus::SUCCESS : MasternodeOperatorKeyStatus::DERIVATION_ERROR;
 }
 
 TransactionError LegacyScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
@@ -2714,6 +2759,58 @@ bool DescriptorScriptPubKeyMan::SignSpecialTxPayload(const uint256& hash, const 
     }
 
     return CHashSigner::SignHash(hash, key, vchSig);
+}
+
+MasternodeOperatorKeySourceStatus DescriptorScriptPubKeyMan::GetMasternodeOperatorKeySource(
+    std::vector<unsigned char>& identifier) const
+{
+    LOCK(cs_desc_man);
+
+    std::vector<CKeyID> seed_ids;
+    for (const auto& [id, mnemonic] : m_mnemonics) {
+        if (!mnemonic.first.empty()) seed_ids.push_back(id);
+    }
+    for (const auto& [id, mnemonic] : m_crypted_mnemonics) {
+        if (!mnemonic.first.empty()) seed_ids.push_back(id);
+    }
+    if (seed_ids.empty()) return MasternodeOperatorKeySourceStatus::NONE;
+    if (seed_ids.size() != 1) return MasternodeOperatorKeySourceStatus::AMBIGUOUS;
+
+    identifier.assign(1, 1);
+    identifier.insert(identifier.end(), seed_ids.front().begin(), seed_ids.front().end());
+    return MasternodeOperatorKeySourceStatus::AVAILABLE;
+}
+
+MasternodeOperatorKeyStatus DescriptorScriptPubKeyMan::DeriveMasternodeOperatorKeys(
+    uint32_t coin_type, uint32_t begin, uint32_t end,
+    const std::function<bool(uint32_t index, const CBLSSecretKey& secret)>& callback) const
+{
+    std::vector<unsigned char> identifier;
+    if (GetMasternodeOperatorKeySource(identifier) != MasternodeOperatorKeySourceStatus::AVAILABLE) {
+        return MasternodeOperatorKeyStatus::NOT_SUPPORTED;
+    }
+
+    SecureString mnemonic;
+    SecureString passphrase;
+    if (!GetMnemonicString(mnemonic, passphrase) || mnemonic.empty() || !CMnemonic::Check(mnemonic)) {
+        return m_storage.IsLocked(false) ? MasternodeOperatorKeyStatus::WALLET_LOCKED
+                                         : MasternodeOperatorKeyStatus::DERIVATION_ERROR;
+    }
+
+    SecureVector seed;
+    CMnemonic::ToSeed(mnemonic, passphrase, seed);
+    CExtKey master;
+    master.SetSeed(MakeByteSpan(seed));
+    const bool master_valid{master.key.IsValid()};
+    const CKeyID master_id{master_valid ? master.key.GetPubKey().GetID() : CKeyID{}};
+    memory_cleanse(master.chaincode.data(), master.chaincode.size());
+    if (identifier.size() != 1 + uint160::size()) return MasternodeOperatorKeyStatus::DERIVATION_ERROR;
+    uint160 source_id;
+    std::copy(identifier.begin() + 1, identifier.end(), source_id.begin());
+    if (!master_valid || master_id != CKeyID{source_id}) {
+        return MasternodeOperatorKeyStatus::DERIVATION_ERROR;
+    }
+    return DeriveMasternodeOperatorChildren(seed, coin_type, begin, end, callback);
 }
 
 TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const

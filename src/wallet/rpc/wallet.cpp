@@ -412,6 +412,23 @@ static RPCHelpMan upgradetohd()
             }
         }
 
+        // A user-supplied mnemonic is a restore: provider transactions using
+        // its derived operator keys may already exist in history. Build the
+        // recognition lookahead while the freshly installed seed is still
+        // accessible - an encrypted wallet is relocked below - so a rescan
+        // that follows can match them. A generated mnemonic is new entropy
+        // that cannot appear in history.
+        if (!generate_mnemonic) {
+            const auto lookahead_status{pwallet->TopUpMasternodeOperatorLookahead()};
+            // NOT_SUPPORTED is the norm here: legacy wallets have no
+            // operator-key source.
+            if (lookahead_status != MasternodeOperatorKeyStatus::SUCCESS &&
+                lookahead_status != MasternodeOperatorKeyStatus::NOT_SUPPORTED) {
+                pwallet->WalletLogPrintf("upgradetohd: failed to build operator-key lookahead (status %d)\n",
+                                         static_cast<int>(lookahead_status));
+            }
+        }
+
         if (pwallet->IsCrypted()) {
             // Relock encrypted wallet
             pwallet->Lock();

@@ -281,6 +281,7 @@ BITCOIN_CORE_H = \
   interfaces/handler.h \
   interfaces/init.h \
   interfaces/ipc.h \
+  interfaces/masternode_operator.h \
   interfaces/node.h \
   interfaces/providertx.h \
   interfaces/wallet.h \
@@ -478,6 +479,7 @@ BITCOIN_CORE_H = \
   wallet/hdchain.h \
   wallet/ismine.h \
   wallet/load.h \
+  wallet/masternode_operator.h \
   wallet/receive.h \
   wallet/rpc/util.h \
   wallet/rpc/wallet.h \
