@@ -1054,7 +1054,7 @@ public:
      *  can query node chainstate, and issuance skips past every index it
      *  reports in use (gap-limit scan). */
     interfaces::MasternodeOperatorKeyResult GetNewMasternodeOperatorKey(
-        const std::function<bool(const CBLSPublicKey&)>& is_in_use);
+        const std::function<bool(const CBLSPublicKey&)>& is_in_use) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet);
     /** Re-derive a previously consumed operator key (an index below the
      *  watermark) by its public key. Read-only. */
     interfaces::MasternodeOperatorKeyResult GetMasternodeOperatorKey(const CBLSPublicKey& public_key);

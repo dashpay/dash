@@ -186,6 +186,7 @@ void CWallet::MaybeAdvanceMasternodeOperatorWatermark(const CTransaction& tx, Wa
 interfaces::MasternodeOperatorKeyResult CWallet::GetNewMasternodeOperatorKey(
     const std::function<bool(const CBLSPublicKey&)>& is_in_use)
 {
+    AssertLockNotHeld(cs_wallet);
     interfaces::MasternodeOperatorKeyResult result;
     const uint32_t coin_type{MasternodeOperatorCoinType()};
 
