@@ -181,8 +181,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
-    using CCoinJoinServer::CCoinJoinServer;
     using CCoinJoinServer::AddEntry;
+    using CCoinJoinServer::CCoinJoinServer;
+    using CCoinJoinServer::CreateFinalTransaction;
 
     // A live session always carries a non-zero id, and AddEntry rejects entries that don't
     // belong to one, so seed an id along with the state.
@@ -425,6 +426,44 @@ BOOST_AUTO_TEST_CASE(server_addentry_rejects_entries_once_the_session_finalized)
     BOOST_CHECK(!server.AddEntry(entry, msg));
     BOOST_CHECK_EQUAL(msg, ERR_SESSION);
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 0);
+}
+
+BOOST_AUTO_TEST_CASE(server_finalization_rechecks_live_side_coverage)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+
+    const auto make_entry = [](CoinJoin::MixShape shape, uint32_t tag) {
+        const size_t input_count{shape == CoinJoin::MixShape::PROMOTION ? size_t{CoinJoin::PROMOTION_RATIO} : 1};
+        const size_t output_count{shape == CoinJoin::MixShape::DEMOTION ? size_t{CoinJoin::PROMOTION_RATIO} : 1};
+        std::vector<CTxDSIn> inputs;
+        std::vector<CTxOut> outputs;
+        for (size_t i{0}; i < input_count; ++i) {
+            inputs.emplace_back(CTxIn{COutPoint{uint256::ONE, tag + static_cast<uint32_t>(i)}}, P2PKHScript(), 0);
+        }
+        for (size_t i{0}; i < output_count; ++i) {
+            outputs.emplace_back(CoinJoin::GetSmallestDenomination(), P2PKHScript(static_cast<uint8_t>(tag + i)));
+        }
+        return CCoinJoinEntry{inputs, outputs, CTransaction{CMutableTransaction{}}};
+    };
+
+    server.SeedEntry(make_entry(CoinJoin::MixShape::DEMOTION, 0));
+    server.SeedEntry(make_entry(CoinJoin::MixShape::DEMOTION, 10));
+    server.SeedEntry(make_entry(CoinJoin::MixShape::DEMOTION, 20));
+    server.SeedEntry(make_entry(CoinJoin::MixShape::PROMOTION, 30));
+    server.EnterAcceptingEntriesState();
+
+    // A timeout snapshot could have observed only the three demotions as covered (0/3), then
+    // this first promotion could commit while ChargeFees() ran. Finalization must use the live
+    // 1/3 side counts and refuse to build the uncovered transaction, staying out of
+    // POOL_STATE_SIGNING; the still-timed-out session is then reset by the scheduler's
+    // regular CheckTimeout() pass instead of leaking a lone promoter on-chain.
+    server.CreateFinalTransaction(/*session_id=*/1);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 4);
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)

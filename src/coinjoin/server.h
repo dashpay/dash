@@ -76,6 +76,8 @@ protected:
     bool AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Record an accepted collateral and index its input prevouts
     void CommitSessionCollateral(const CMutableTransaction& txCollateral) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    /// Build and relay the final transaction if the live session is still eligible
+    void CreateFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
 private:
     bool fUnitTest;
@@ -114,8 +116,6 @@ private:
     /// Check for process
     void CheckPool();
 
-    /// Build and relay the final transaction, unless session_id is no longer the live session
-    void CreateFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void CommitFinalTransaction() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Is this nDenom and txCollateral acceptable?
