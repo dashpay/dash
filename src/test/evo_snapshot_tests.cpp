@@ -772,6 +772,7 @@ BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
     const auto snapshot{SyntheticSnapshot()};
     CCbTx cbtx;
     cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
+    cbtx.nHeight = snapshot.mn_list.GetHeightForSnapshotCodec();
     cbtx.merkleRootMNList = snapshot.mn_list.to_sml()->CalcMerkleRoot();
     std::vector<uint256> quorum_hashes;
     for (const auto& data : snapshot.quorums) {
@@ -791,6 +792,10 @@ BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
     cbtx.merkleRootQuorums = ComputeMerkleRoot(quorum_hashes);
     cbtx.creditPoolBalance++;
     BOOST_CHECK(!evo::VerifyEvoSnapshotCbTx(snapshot, cbtx, error));
+    cbtx.creditPoolBalance = snapshot.credit_pool.locked;
+    cbtx.nHeight++;
+    BOOST_CHECK(!evo::VerifyEvoSnapshotCbTx(snapshot, cbtx, error));
+    BOOST_CHECK(error.find("coinbase height") != std::string::npos);
 }
 
 BOOST_FIXTURE_TEST_CASE(rejects_unknown_wire_version, BasicTestingSetup)
