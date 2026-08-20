@@ -83,7 +83,14 @@ void ValidateCommitments(const CQuorumSnapshotData& data, const std::vector<CMin
             entry.commitment.nVersion == llmq::CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION};
         const bool indexed{entry.commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION ||
                            entry.commitment.nVersion == llmq::CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION};
-        if (!entry.commitment.VerifySizes(params)) throw std::ios_base::failure("invalid evo quorum commitment sizes");
+        // The effective quorum size is runtime-configurable, so this layer
+        // enforces only internal consistency and the format ceiling; the
+        // chain-aware validation checks exact sizes against effective params.
+        if (entry.commitment.signers.size() != entry.commitment.validMembers.size() ||
+            entry.commitment.signers.empty() ||
+            entry.commitment.signers.size() > EVO_SNAPSHOT_MAX_QUORUM_SIZE) {
+            throw std::ios_base::failure("invalid evo quorum commitment sizes");
+        }
         if (!known_version) throw std::ios_base::failure("unknown evo quorum commitment version");
         if (entry.quorum_base_block_hash.IsNull() || entry.work_block_hash.IsNull() || entry.mined_block_hash.IsNull()) {
             throw std::ios_base::failure("null evo quorum commitment block hash");

@@ -59,6 +59,12 @@ static constexpr size_t EVO_SNAPSHOT_MAX_MODIFIERS{4'096};
 // bound its legitimate length. This is a decode ceiling on claimed sizes only,
 // far above any state the aggregate rotation build reaches on real chains.
 static constexpr size_t EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES{1'000'000};
+// Commitment bitsets are sized by the effective chain parameters, which
+// -llmqtestparams/-llmqdevnetparams may override at runtime. This context-free
+// layer only enforces an allocation ceiling (far above the largest defined
+// quorum, size 400) plus internal consistency; exact sizing against the
+// effective parameters belongs to the chain-aware validation.
+static constexpr size_t EVO_SNAPSHOT_MAX_QUORUM_SIZE{10'000};
 static_assert(std::ranges::all_of(Consensus::available_llmqs, [](const auto& params) {
     return !params.useRotation || params.keepOldConnections <= 2 * params.signingActiveQuorumCount;
 }), "rotated LLMQ retention exceeds the two serialized cycles");
@@ -71,6 +77,13 @@ size_t ReadBoundedCompactSize(Stream& s, size_t limit, const char* field)
     return static_cast<size_t>(size);
 }
 
+/**
+ * The static table is intentional for this context-free layer: the runtime
+ * overrides (-llmqtestparams, -llmqdevnetparams) mutate only size/threshold
+ * fields on the CChainParams copy, so the count, rotation, and interval fields
+ * consumed here are reliable. Nothing here may depend on LLMQParams::size;
+ * size checks are format-level bounds with exact sizing done chain-aware.
+ */
 inline const Consensus::LLMQParams& SnapshotLLMQParams(Consensus::LLMQType type)
 {
     const auto it{std::ranges::find_if(Consensus::available_llmqs,
@@ -337,7 +350,7 @@ struct CMinedQuorumCommitment {
 };
 
 template <typename Stream>
-CMinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s, const Consensus::LLMQParams& params)
+CMinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
 {
     CMinedQuorumCommitment entry;
     auto& commitment{entry.commitment};
@@ -345,14 +358,18 @@ CMinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s, const Consensus::LLM
     const bool indexed{commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION ||
                        commitment.nVersion == llmq::CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION};
     if (indexed) s >> commitment.quorumIndex;
-    const size_t signers_size{ReadBoundedCompactSize(s, params.size, "commitment signers")};
-    if (signers_size != static_cast<size_t>(params.size)) {
-        throw std::ios_base::failure("invalid evo snapshot commitment signers size");
+    // The consensus/P2P serializer remains unchanged; this snapshot-local path
+    // bounds both claimed bitset sizes before allocation. The effective quorum
+    // size is runtime-configurable, so only internal consistency is enforced
+    // here; exact sizing is established by the chain-aware validation.
+    const size_t signers_size{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_QUORUM_SIZE, "commitment signers")};
+    if (signers_size == 0) {
+        throw std::ios_base::failure("empty evo snapshot commitment signers");
     }
     ReadFixedBitSet(s, commitment.signers, signers_size);
-    const size_t valid_members_size{ReadBoundedCompactSize(s, params.size, "commitment valid members")};
-    if (valid_members_size != static_cast<size_t>(params.size)) {
-        throw std::ios_base::failure("invalid evo snapshot commitment valid-members size");
+    const size_t valid_members_size{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_QUORUM_SIZE, "commitment valid members")};
+    if (valid_members_size != signers_size) {
+        throw std::ios_base::failure("inconsistent evo snapshot commitment bitset sizes");
     }
     ReadFixedBitSet(s, commitment.validMembers, valid_members_size);
     const bool legacy{commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION ||
@@ -360,11 +377,6 @@ CMinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s, const Consensus::LLM
     s >> CBLSPublicKeyVersionWrapper(commitment.quorumPublicKey, legacy) >> commitment.quorumVvecHash >>
         CBLSSignatureVersionWrapper(commitment.quorumSig, legacy) >>
         CBLSSignatureVersionWrapper(commitment.membersSig, legacy);
-    // The consensus/P2P serializer remains unchanged; this snapshot-local path
-    // bounds both bitsets before allocation and verifies the decoded object.
-    if (!entry.commitment.VerifySizes(params)) {
-        throw std::ios_base::failure("invalid evo snapshot commitment bitset size");
-    }
     s >> entry.mined_block_hash;
     return entry;
 }
@@ -492,12 +504,12 @@ void CQuorumSnapshotData::Unserialize(Stream& s)
     const size_t active_count{ReadBoundedCompactSize(s, expected_active, "active commitments")};
     active_commitments.reserve(active_count);
     for (size_t i{0}; i < active_count; ++i) {
-        active_commitments.emplace_back(ReadMinedQuorumCommitment(s, params));
+        active_commitments.emplace_back(ReadMinedQuorumCommitment(s));
     }
     const size_t safety_count{ReadBoundedCompactSize(s, total_count - expected_active, "safety commitments")};
     safety_commitments.reserve(safety_count);
     for (size_t i{0}; i < safety_count; ++i) {
-        safety_commitments.emplace_back(ReadMinedQuorumCommitment(s, params));
+        safety_commitments.emplace_back(ReadMinedQuorumCommitment(s));
     }
     const size_t snapshot_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_ROTATION_CYCLES, "rotation snapshots")};
     rotation_snapshots.reserve(snapshot_count);
