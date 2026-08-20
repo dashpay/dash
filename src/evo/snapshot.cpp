@@ -7,6 +7,7 @@
 #include <clientversion.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
+#include <crypto/common.h>
 #include <crypto/sha256.h>
 #include <evo/cbtx.h>
 #include <evo/mnhftx.h>
@@ -115,18 +116,36 @@ void ValidateCommitments(const CQuorumSnapshotData& data, const std::vector<CMin
     }
 }
 
+// Sorting keeps the run detection adversary-proof: a hash-keyed counter could
+// itself be driven into collision buckets by the same crafted prefixes.
+void ValidateHashPrefixRuns(std::vector<uint64_t>& prefixes)
+{
+    std::sort(prefixes.begin(), prefixes.end());
+    size_t run{0};
+    for (size_t i{0}; i < prefixes.size(); ++i) {
+        run = (i != 0 && prefixes[i] == prefixes[i - 1]) ? run + 1 : 1;
+        if (run > EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN) {
+            throw std::ios_base::failure("canonical MN-list hash-prefix run exceeds collision bound");
+        }
+    }
+}
+
 void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
 {
     const size_t count{list.GetCounts().total()};
     if (count > EVO_SNAPSHOT_MAX_MNS) throw std::ios_base::failure("oversized canonical MN list");
     uint64_t max_internal_id{0};
+    std::vector<uint64_t> prefixes;
+    prefixes.reserve(count);
     list.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
         max_internal_id = std::max(max_internal_id, dmn.GetInternalId());
+        prefixes.push_back(ReadLE64(dmn.proTxHash.begin()));
         if (dmn.pdmnState->payouts.size() > EVO_SNAPSHOT_MAX_PAYOUT_SHARES ||
             dmn.pdmnState->netInfo->Validate() != NetInfoStatus::Success) {
             throw std::ios_base::failure("invalid canonical MN nested collection");
         }
     });
+    ValidateHashPrefixRuns(prefixes);
     if (count != 0 && max_internal_id >= list.GetTotalRegisteredCount()) {
         throw std::ios_base::failure("canonical MN-list internalId exceeds registration counter");
     }
@@ -178,6 +197,18 @@ bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
                 entry.height < 0 || entry.height >= previous_height || entry.canonical_list_hash.IsNull()) {
                 throw std::ios_base::failure("broken historical MN-list diff chain");
             }
+            // Bound the collision groups the additions would create before the
+            // HAMT performs the inserts; the post-apply invariant check would
+            // run only after the quadratic work it exists to prevent.
+            std::vector<uint64_t> merged_prefixes;
+            merged_prefixes.reserve(current.GetCounts().total() + entry.diff.addedMNs.size());
+            current.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
+                merged_prefixes.push_back(ReadLE64(dmn.proTxHash.begin()));
+            });
+            for (const auto& dmn : entry.diff.addedMNs) {
+                merged_prefixes.push_back(ReadLE64(dmn->proTxHash.begin()));
+            }
+            ValidateHashPrefixRuns(merged_prefixes);
             current.ApplyDiffForSnapshot(entry.block_hash, entry.height, entry.total_registered_count, entry.diff);
             ValidateCanonicalMNInvariants(current);
             if (CanonicalMNListHash(current) != entry.canonical_list_hash) {

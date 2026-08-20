@@ -727,6 +727,46 @@ BOOST_FIXTURE_TEST_CASE(unserialize_replaces_previous_contents, BasicTestingSetu
     BOOST_CHECK_EQUAL_COLLECTIONS(minimal_bytes.begin(), minimal_bytes.end(), reencoded.begin(), reencoded.end());
 }
 
+BOOST_FIXTURE_TEST_CASE(hash_prefix_collision_runs_are_bounded, BasicTestingSetup)
+{
+    // Every MN() proTxHash shares CollidingH's 64-bit prefix, so run length
+    // equals list size here.
+    const auto write_list = [](size_t count) {
+        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        stream << H(42) << 42 << uint32_t{200};
+        WriteCompactSize(stream, count);
+        for (size_t i{0}; i < count; ++i) {
+            stream << *MN(i + 1, static_cast<uint8_t>(i + 1), MnType::Regular, ProTxVersion::LegacyBLS,
+                          static_cast<uint8_t>(i + 1));
+        }
+        return stream;
+    };
+    auto at_bound{write_list(evo::EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN)};
+    BOOST_CHECK_NO_THROW(evo::UnserializeCanonicalMNList(at_bound));
+    auto over_bound{write_list(evo::EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN + 1)};
+    BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(over_bound), std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("collision bound") != std::string::npos;
+    });
+
+    // A diff addition that would grow an at-bound collision group is rejected
+    // before the HAMT performs the inserts.
+    evo::CEvoSnapshot snapshot;
+    snapshot.base_block_hash = H(42);
+    snapshot.mn_list = CDeterministicMNList{H(42), 500, 200};
+    for (size_t i{0}; i < evo::EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN; ++i) {
+        snapshot.mn_list.AddMN(MN(i + 1, static_cast<uint8_t>(i + 1), MnType::Regular, ProTxVersion::LegacyBLS,
+                                  static_cast<uint8_t>(i + 1)),
+                               /*fBumpTotalCount=*/false);
+    }
+    CDeterministicMNListDiff diff;
+    diff.addedMNs.push_back(MN(30, 30, MnType::Regular, ProTxVersion::LegacyBLS, 30));
+    snapshot.historical_mn_list_diffs.push_back({H(42), H(43), 499, 200, H(1), std::move(diff)});
+    std::map<uint256, CDeterministicMNList> lists;
+    std::string reconstruction_error;
+    BOOST_CHECK(!evo::ReconstructHistoricalMNLists(snapshot, lists, reconstruction_error));
+    BOOST_CHECK(reconstruction_error.find("collision bound") != std::string::npos);
+}
+
 BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
 {
     const auto snapshot{SyntheticSnapshot()};
