@@ -47,6 +47,8 @@ src/platform/drive/*.cpp
 src/platform/drive/*.h
 src/qt/masternodelist.*
 src/qt/masternodemodel.*
+src/qt/platform/*.cpp
+src/qt/platform/*.h
 src/qt/mnemonicverificationdialog.*
 src/qt/networkwidget.*
 src/qt/test/providertransactiontests.cpp
