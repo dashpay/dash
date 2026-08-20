@@ -767,6 +767,24 @@ BOOST_FIXTURE_TEST_CASE(hash_prefix_collision_runs_are_bounded, BasicTestingSetu
     BOOST_CHECK(reconstruction_error.find("collision bound") != std::string::npos);
 }
 
+BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, BasicTestingSetup)
+{
+    evo::CQuorumSnapshotData data;
+    data.llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    data.active_commitments = {Commitment(data.llmq_type, 11, 51, false)};
+    CDataStream once{SER_DISK, CLIENT_VERSION};
+    once << data;
+    CDataStream twice{SER_DISK, CLIENT_VERSION};
+    twice << data;
+
+    evo::CQuorumSnapshotData reused;
+    once >> reused;
+    twice >> reused;
+    BOOST_CHECK_EQUAL(reused.active_commitments.size(), 1U);
+    BOOST_CHECK_EQUAL(reused.safety_commitments.size(), 0U);
+    BOOST_CHECK_EQUAL(reused.rotation_snapshots.size(), 0U);
+}
+
 BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
 {
     const auto snapshot{SyntheticSnapshot()};

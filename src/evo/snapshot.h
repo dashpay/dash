@@ -515,6 +515,12 @@ template <typename Stream>
 void CQuorumSnapshotData::Unserialize(Stream& s)
 {
     s >> llmq_type >> rotation_enabled;
+    // Same replacement semantics as CEvoSnapshot::Unserialize: decoding into a
+    // reused object must not retain (or exceed the count bounds through)
+    // previously held entries.
+    active_commitments.clear();
+    safety_commitments.clear();
+    rotation_snapshots.clear();
     const auto& params{SnapshotLLMQParams(llmq_type)};
     const size_t total_count{SnapshotCommitmentCount(params, rotation_enabled)};
     const size_t expected_active{static_cast<size_t>(params.signingActiveQuorumCount)};
