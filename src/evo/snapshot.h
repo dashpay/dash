@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <ios>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -565,10 +566,18 @@ void CEvoSnapshot::Unserialize(Stream& s)
     s >> credit_pool.locked >> credit_pool.currentLimit >> credit_pool.latelyUnlocked;
     credit_pool.indexes.UnserializeBounded(s, EVO_SNAPSHOT_MAX_RANGES);
     const size_t signal_count{ReadBoundedCompactSize(s, Consensus::MAX_VERSION_BITS_DEPLOYMENTS, "MNHF signals")};
+    // The signal map normalizes iteration order, so wire order is observable
+    // only here: require the strictly ascending bit order the serializer
+    // emits, which also rejects duplicate bits.
+    std::optional<uint8_t> previous_bit;
     for (size_t i{0}; i < signal_count; ++i) {
         std::pair<uint8_t, int> signal;
         s >> signal;
-        if (!mnhf_signals.emplace(signal).second) throw std::ios_base::failure("duplicate MNHF signal bit");
+        if (previous_bit && *previous_bit >= signal.first) {
+            throw std::ios_base::failure("noncanonical MNHF signal order");
+        }
+        previous_bit = signal.first;
+        mnhf_signals.emplace(signal);
     }
     Validate(/*require_canonical_order=*/true);
 }

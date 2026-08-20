@@ -29,6 +29,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
@@ -610,6 +611,34 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     oversized_domain.write(Span{snapshot_bytes}.subspan(domain_offset + serialized_addr_size));
     BOOST_CHECK_EXCEPTION(oversized_domain >> decoded, std::ios_base::failure,
                           [](const auto& e) { return std::string{e.what()}.find("String length limit exceeded") != std::string::npos; });
+}
+
+BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
+{
+    const auto bytes{SerializeSnapshot(SyntheticSnapshot())};
+    // The MNHF signal section is the encoding's tail: a count followed by
+    // (bit, height) pairs. SyntheticSnapshot carries (2, 12) and (9, 30).
+    const size_t tail_size{1 + 2 * (sizeof(uint8_t) + sizeof(int32_t))};
+    const auto with_signals = [&](const std::vector<std::pair<uint8_t, int>>& signals) {
+        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        stream.write(Span{bytes}.first(bytes.size() - tail_size));
+        WriteCompactSize(stream, signals.size());
+        for (const auto& signal : signals) stream << signal;
+        return stream;
+    };
+    const auto expect_noncanonical = [](CDataStream stream) {
+        evo::CEvoSnapshot decoded;
+        BOOST_CHECK_EXCEPTION(stream >> decoded, std::ios_base::failure, [](const auto& e) {
+            return std::string{e.what()}.find("noncanonical MNHF signal order") != std::string::npos;
+        });
+    };
+    auto canonical{with_signals({{2, 12}, {9, 30}})};
+    evo::CEvoSnapshot decoded;
+    BOOST_CHECK_NO_THROW(canonical >> decoded);
+    BOOST_CHECK(canonical.empty());
+    BOOST_CHECK_EQUAL(decoded.mnhf_signals.size(), 2U);
+    expect_noncanonical(with_signals({{9, 30}, {2, 12}}));
+    expect_noncanonical(with_signals({{2, 12}, {2, 30}}));
 }
 
 BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
