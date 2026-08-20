@@ -228,8 +228,10 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
                              const CQuorumBlockProcessor& qblockman, const CGetQuorumRotationInfo& request,
                              bool use_legacy_construction, CQuorumRotationInfo& response, std::string& errorRet)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-uint256 GetLastBaseBlockHash(Span<const CBlockIndex*> baseBlockIndexes, const CBlockIndex* blockIndex,
-                             bool use_legacy_construction);
+//! Highest base block at or below blockIndex, or the genesis hash if there is none.
+//! baseBlockIndexes must already be sorted by height: the list is sized by the requesting
+//! peer, so sorting it here (once per constructed diff) would be attacker-controlled work.
+uint256 GetLastBaseBlockHash(Span<const CBlockIndex* const> baseBlockIndexes, const CBlockIndex* blockIndex);
 
 class CQuorumSnapshotManager
 {
