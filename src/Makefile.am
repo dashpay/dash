@@ -62,6 +62,9 @@ LIBSECP256K1=secp256k1/libsecp256k1.la
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
+if ENABLE_PLATFORM_GUI
+LIBDASH_PLATFORM=libdash_platform.a
+endif
 if BUILD_BITCOIN_LIBS
 LIBBITCOINCONSENSUS=libdashconsensus.la
 endif
@@ -127,7 +130,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_IPC) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_WALLET_TOOL) \
-  $(LIBBITCOIN_ZMQ)
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBDASH_PLATFORM)
 
 if BUILD_BITCOIND
   bin_PROGRAMS += dashd
@@ -688,6 +692,40 @@ libbitcoin_zmq_a_SOURCES = \
   zmq/zmqpublishnotifier.cpp \
   zmq/zmqrpc.cpp \
   zmq/zmqutil.cpp
+endif
+#
+
+# platform (Dash Platform client, linked into dash-qt and test_dash only) #
+if ENABLE_PLATFORM_GUI
+libdash_platform_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(MBEDTLS_CFLAGS) $(PLATFORM_CXX_CFLAGS)
+libdash_platform_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libdash_platform_a_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS)
+libdash_platform_a_SOURCES = \
+  platform/client.h \
+  platform/dpp/document.cpp \
+  platform/dpp/document.h \
+  platform/dpp/identity.cpp \
+  platform/dpp/identity.h \
+  platform/dpp/statetransitions.cpp \
+  platform/drive/queries.cpp \
+  platform/drive/queries.h \
+  platform/params.cpp \
+  platform/params.h \
+  platform/statetransitions.h \
+  platform/transport/cbor.h \
+  platform/transport/client.cpp \
+  platform/transport/endpoint_retry.h \
+  platform/transport/freshness.h \
+  platform/transport/grpcweb.cpp \
+  platform/transport/grpcweb.h \
+  platform/transport/protobuf.cpp \
+  platform/transport/protobuf.h \
+  platform/transport/tls.cpp \
+  platform/transport/tls.h \
+  platform/types.h \
+  platform/walletrecords.cpp \
+  platform/walletrecords.h
+
 endif
 #
 

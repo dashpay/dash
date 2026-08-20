@@ -44,6 +44,7 @@ NO_UPNP ?=
 NO_USDT ?=
 NO_NATPMP ?=
 MULTIPROCESS ?=
+PLATFORM_GUI ?=
 LTO ?=
 NO_HARDEN ?=
 FALLBACK_DOWNLOAD_PATH ?= http://dash-depends-sources.s3-website-us-west-2.amazonaws.com
@@ -175,6 +176,7 @@ natpmp_packages_$(NO_NATPMP) = $(natpmp_packages)
 
 zmq_packages_$(NO_ZMQ) = $(zmq_packages)
 multiprocess_packages_$(MULTIPROCESS) = $(multiprocess_packages)
+platform_packages_$(PLATFORM_GUI) = $(platform_packages)
 usdt_packages_$(NO_USDT) = $(usdt_$(host_os)_packages)
 
 packages += $($(host_arch)_$(host_os)_packages) $($(host_os)_packages) $(boost_packages_) $(libevent_packages_) $(qt_packages_) $(wallet_packages_) $(upnp_packages_) $(natpmp_packages_) $(usdt_packages_)
@@ -189,6 +191,14 @@ packages += $(multiprocess_packages)
 native_packages += $(multiprocess_native_packages)
 endif
 
+ifeq ($(platform_packages_),)
+packages += $(platform_packages)
+native_packages += $(platform_native_packages)
+rust_download_targets = download-rust-std
+endif
+
+cargo_packages = $(filter platform_cxx,$(packages))
+
 all_packages = $(packages) $(native_packages)
 
 meta_depends = Makefile config.guess config.sub funcs.mk builders/default.mk hosts/default.mk hosts/$(host_os).mk builders/$(build_os).mk
@@ -202,8 +212,12 @@ $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
 	mkdir -p $(@D)
 	echo copying packages: $^
 	echo to: $(@D)
-	cd $(@D); $(foreach package,$^, $(build_TAR) xf $($(package)_cached); )
+	cd $(@D); $(foreach package,$^, $(build_TAR) --no-same-owner -xf $($(package)_cached); )
 	touch $@
+
+# Vendors crate dependencies for cargo-built packages
+vendor-dep-crates: $(foreach package,$(cargo_packages),vendor-$(package)-crates)
+.PHONY: vendor-dep-crates
 
 # $PATH is not preserved between ./configure and make by convention. Its
 # modification and overriding at ./configure time is (as I understand it)
@@ -257,6 +271,7 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
             -e 's|@no_usdt@|$(NO_USDT)|' \
             -e 's|@no_natpmp@|$(NO_NATPMP)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \
+            -e 's|@platform_gui@|$(PLATFORM_GUI)|' \
             -e 's|@lto@|$(LTO)|' \
             -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@debug@|$(DEBUG)|' \
@@ -299,15 +314,19 @@ install: check-packages $(host_prefix)/share/config.site
 download-one: check-sources $(all_sources)
 
 download-osx:
-	@$(MAKE) -s HOST=x86_64-apple-darwin download-one
+	@$(MAKE) -s PLATFORM_GUI=$(PLATFORM_GUI) HOST=x86_64-apple-darwin download-one
 download-linux:
-	@$(MAKE) -s HOST=x86_64-unknown-linux-gnu download-one
+	@$(MAKE) -s PLATFORM_GUI=$(PLATFORM_GUI) HOST=x86_64-unknown-linux-gnu download-one
 download-win:
-	@$(MAKE) -s HOST=x86_64-w64-mingw32 download-one
-download: download-osx download-linux download-win
+	@$(MAKE) -s PLATFORM_GUI=$(PLATFORM_GUI) HOST=x86_64-w64-mingw32 download-one
+download-rust-std:
+	@mkdir -p $(SOURCES_PATH)
+	@mkdir -p $(SOURCES_PATH)/download-stamps
+	@$(foreach target,$(rust_stdlib_targets),$(call download_rust_std_target,$(target)) && ) true
+download: download-osx download-linux download-win $(rust_download_targets)
 
 $(foreach package,$(all_packages),$(eval $(call ext_add_stages,$(package))))
 
-.PHONY: install cached clean clean-all download-one download-osx download-linux download-win download check-packages check-sources
+.PHONY: install cached clean clean-all download-one download-osx download-linux download-win download download-rust-std check-packages check-sources
 .PHONY: FORCE
 $(V).SILENT:

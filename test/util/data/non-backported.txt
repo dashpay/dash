@@ -39,6 +39,12 @@ src/qt/descriptiondialog.*
 src/qt/donutchart.*
 src/qt/guiutil_font.*
 src/qt/informationwidget.*
+src/platform/*.cpp
+src/platform/*.h
+src/platform/dpp/*.cpp
+src/platform/dpp/*.h
+src/platform/drive/*.cpp
+src/platform/drive/*.h
 src/qt/masternodelist.*
 src/qt/masternodemodel.*
 src/qt/mnemonicverificationdialog.*
@@ -73,6 +79,7 @@ src/test/llmq*.cpp
 src/test/masternode_payments_tests.cpp
 src/test/spork_tests.cpp
 src/test/unordered_lru_cache_tests.cpp
+src/test/platform_dpp_tests.cpp
 src/test/util/llmq_tests.h
 src/test/util/masternode.*
 src/test/governance*.cpp
