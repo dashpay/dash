@@ -173,6 +173,7 @@ export TZ="UTC"
 # Build the depends tree, overriding variables that assume multilib gcc
 make -C depends --jobs="$JOBS" HOST="$HOST" \
                                    ${V:+V=1} \
+                                   ${PLATFORM_GUI:+PLATFORM_GUI=1} \
                                    ${SOURCES_PATH+SOURCES_PATH="$SOURCES_PATH"} \
                                    ${BASE_CACHE+BASE_CACHE="$BASE_CACHE"} \
                                    ${SDK_PATH+SDK_PATH="$SDK_PATH"} \
