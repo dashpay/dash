@@ -12,6 +12,17 @@ on:
   schedule:
     # Run weekly at 3 AM UTC on Sunday on the default branch
     - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      hosts:
+        description: 'Host triplet to build (single host)'
+        required: false
+        default: 'x86_64-linux-gnu'
+      platform_gui:
+        description: 'Build with PLATFORM_GUI=1 (Platform GUI + vendored Rust crates)'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-image:
@@ -19,7 +30,8 @@ jobs:
     if: |
       (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || vars.RUN_GUIX_ON_ALL_PUSH == 'true')) ||
       contains(github.event.pull_request.labels.*.name, 'guix-build') ||
-      github.event_name == 'schedule'
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
     outputs:
       image-tag: ${{ steps.prepare.outputs.image-tag }}
       repo-name: ${{ steps.prepare.outputs.repo-name }}
@@ -77,7 +89,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        build_target: [x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, powerpc64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
+        build_target: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.hosts)) || fromJSON('["x86_64-linux-gnu", "aarch64-linux-gnu", "riscv64-linux-gnu", "powerpc64-linux-gnu", "x86_64-w64-mingw32", "x86_64-apple-darwin", "arm64-apple-darwin"]') }}
 
     timeout-minutes: 480
     steps:
@@ -98,7 +110,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: dash/depends/sources
-          key: depends-sources-${{ hashFiles('dash/depends/packages/*') }}
+          key: depends-sources-${{ hashFiles('dash/depends/packages/*', 'dash/depends/patches/platform_cxx/cargo-config.toml') }}
           restore-keys: |
             depends-sources-
 
@@ -129,7 +141,7 @@ jobs:
             -v ${{ github.workspace }}/.cache:/home/ubuntu/.cache \
             -w /src/dash \
             ghcr.io/${{ needs.build-image.outputs.repo-name }}/dashcore-guix-builder:${{ needs.build-image.outputs.image-tag }} && \
-          docker exec guix-daemon bash -c 'HOSTS=${{ matrix.build_target }} /usr/local/bin/guix-start /src/dash'
+          docker exec guix-daemon bash -c 'HOSTS=${{ matrix.build_target }} PLATFORM_GUI=${{ inputs.platform_gui && '1' || '' }} /usr/local/bin/guix-start /src/dash'
 
       - name: Ensure build passes
         run: |

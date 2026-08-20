@@ -1,0 +1,30 @@
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendored"
+
+[source."git+https://github.com/dashpay/agora-blsful?rev=0c34a7a488a0bd1c9a9a2196e793b303ad35c900"]
+git = "https://github.com/dashpay/agora-blsful"
+rev = "0c34a7a488a0bd1c9a9a2196e793b303ad35c900"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/grovedb?rev=a2791bbdca756d6a6113024aec48f09f7a33faa9"]
+git = "https://github.com/dashpay/grovedb"
+rev = "a2791bbdca756d6a6113024aec48f09f7a33faa9"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/rs-tenderdash-abci?tag=v1.5.1"]
+git = "https://github.com/dashpay/rs-tenderdash-abci"
+tag = "v1.5.1"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/rust-dashcore?rev=173ffac0fdc0c73dda0626cf385bbcfcf2437aeb"]
+git = "https://github.com/dashpay/rust-dashcore"
+rev = "173ffac0fdc0c73dda0626cf385bbcfcf2437aeb"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/vsss-rs?branch=main"]
+git = "https://github.com/dashpay/vsss-rs"
+branch = "main"
+replace-with = "vendored-sources"

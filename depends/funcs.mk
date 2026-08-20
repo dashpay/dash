@@ -197,6 +197,22 @@ $(1)_cmake += -DCMAKE_C_COMPILER_TARGET=$(host)
 $(1)_cmake += -DCMAKE_CXX_COMPILER_TARGET=$(host)
 endif
 endif
+
+$(1)_cargo=env CC="$$($(1)_cc)" \
+               CXX="$$($(1)_cxx)" \
+               AR="$$($(1)_ar)" \
+               CFLAGS="$$($(1)_cppflags) $$($(1)_cflags)" \
+               CXXFLAGS="$$($(1)_cppflags) $$($(1)_cxxflags)" \
+               LDFLAGS="$$($(1)_ldflags)" \
+               RUSTFLAGS="-C linker=$$(firstword $($(1)_cc))" \
+               LD_LIBRARY_PATH="$$($($(1)_type)_prefix)/lib"
+ifeq ($(host_os),darwin)
+$(1)_cargo += MACOSX_DEPLOYMENT_TARGET="$(OSX_MIN_VERSION)"
+ifneq ($(host),$(build))
+$(1)_cargo += SDKROOT="$(OSX_SDK)"
+endif
+endif
+$(1)_cargo += cargo
 endef
 
 define int_add_cmds
@@ -269,6 +285,39 @@ $(foreach stage,$(stages),
           .PHONY: $(1)_$(stage))
 endef
 
+# Template for vendoring a package's Rust crate dependencies
+# Packages opt-in by defining $(package)_vendored_file_name and $(package)_cargo_manifest
+define int_vendor_crates
+ifneq ($($(1)_vendored_file_name),)
+$(1)_vendored_archive = $(SOURCES_PATH)/$($(1)_vendored_file_name)
+
+vendor-$(1)-crates: $(native_rust_cached) $($(1)_fetched)
+	@rm -rf $(WORK_PATH)/vendor-$(1)
+	@mkdir -p $(WORK_PATH)/vendor-$(1)
+	@$(build_TAR) --no-same-owner -xf $(native_rust_cached) -C $(WORK_PATH)/vendor-$(1)
+	@echo "Vendoring $(1) crates..."
+	@mkdir -p $(WORK_PATH)/vendor-$(1)/src
+	@cd $(WORK_PATH)/vendor-$(1)/src && $(build_TAR) --no-same-owner --strip-components=1 -xf $(SOURCES_PATH)/$($(1)_file_name)
+	@if test -f $(PATCHES_PATH)/$(1)/Cargo.lock; then \
+          cp $(PATCHES_PATH)/$(1)/Cargo.lock $(WORK_PATH)/vendor-$(1)/src/$($(1)_cargo_lock_path); \
+        fi
+	@$(WORK_PATH)/vendor-$(1)/native/bin/cargo vendor --locked --manifest-path $(WORK_PATH)/vendor-$(1)/src/$($(1)_cargo_manifest) $(WORK_PATH)/vendor-$(1)/src/vendored
+	@cd $(WORK_PATH)/vendor-$(1)/src; find vendored | sort | $(build_TAR) --no-recursion -czf $$($(1)_vendored_archive) -T -
+	@rm -rf $(WORK_PATH)/vendor-$(1)
+	@echo "Created $$($(1)_vendored_archive)"
+.PHONY: vendor-$(1)-crates
+endif
+endef
+
+define download_rust_std_target
+([ -f "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" ] && \
+  echo "Already have rust-std-$(rust_stdlib_version)-$(1).tar.gz" || \
+  (echo "Downloading rust-std-$(rust_stdlib_version)-$(1).tar.gz..." && \
+    $(build_DOWNLOAD) "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" "$(rust_stdlib_download_path)/rust-std-$(rust_stdlib_version)-$(1).tar.gz")) && \
+echo "$(rust_stdlib_sha256_hash_$(1))  $(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" | $(build_SHA256SUM) -c - && \
+echo "$(rust_stdlib_sha256_hash_$(1))  rust-std-$(rust_stdlib_version)-$(1).tar.gz" > "$(SOURCES_PATH)/download-stamps/.stamp_fetched-rust_stdlib-$(rust_stdlib_version)-$(rust_stdlib_sha256_hash_$(1)).hash"
+endef
+
 # These functions create the build targets for each package. They must be
 # broken down into small steps so that each part is done for all packages
 # before moving on to the next step. Otherwise, a package's info
@@ -286,6 +335,18 @@ $(foreach package,$(all_packages),$(eval $(call int_vars,$(package))))
 $(foreach native_package,$(native_packages),$(eval include packages/$(native_package).mk))
 $(foreach package,$(packages),$(eval include packages/$(package).mk))
 
+# Extend preprocess_cmds for cargo packages to extract vendored crates
+define int_cargo_preprocess_ext
+$(1)_preprocess_cmds += && \
+  if test -f $(SOURCES_PATH)/$($(1)_vendored_file_name); then \
+    echo "Extracting vendored crates for $(1)..." && \
+    $(build_TAR) --no-same-owner -xf $(SOURCES_PATH)/$($(1)_vendored_file_name) && \
+    mkdir -p .cargo && \
+    cp $(PATCHES_PATH)/$(1)/cargo-config.toml .cargo/config.toml; \
+  fi
+endef
+$(foreach cargo_package,$(cargo_packages),$(eval $(call int_cargo_preprocess_ext,$(cargo_package))))
+
 #compute a hash of all files that comprise this package's build recipe
 $(foreach package,$(all_packages),$(eval $(call int_get_build_recipe_hash,$(package))))
 
@@ -297,3 +358,6 @@ $(foreach package,$(all_packages),$(eval $(call int_config_attach_build_config,$
 
 #create build targets
 $(foreach package,$(all_packages),$(eval $(call int_add_cmds,$(package))))
+
+#create vendor targets for cargo packages
+$(foreach cargo_package,$(cargo_packages),$(eval $(call int_vendor_crates,$(cargo_package))))

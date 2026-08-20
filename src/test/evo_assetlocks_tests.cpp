@@ -397,6 +397,39 @@ BOOST_FIXTURE_TEST_CASE(evo_assetlock_v2, TestChain100Setup)
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(evo_assetlock_version_selection, TestChain100Setup)
+{
+    // The wallet selects the payload version for new asset locks via
+    // GetMaxVersion from the deployment state of the next block: v1 while
+    // v24 is inactive (v2 is consensus-rejected there), v2 once active.
+    BOOST_CHECK_EQUAL(CAssetLockPayload::GetMaxVersion(/*is_v24_active=*/false), CAssetLockPayload::INITIAL_VERSION);
+    BOOST_CHECK_EQUAL(CAssetLockPayload::GetMaxVersion(/*is_v24_active=*/true), CAssetLockPayload::CURRENT_VERSION);
+
+    LOCK(cs_main);
+    FillableSigningProvider keystore;
+    CCoinsView coinsDummy;
+    CCoinsViewCache coins(&coinsDummy);
+
+    CKey key;
+    key.MakeNewKey(true);
+
+    CMutableTransaction tx = CreateAssetLockTx(keystore, coins, key);
+    const std::vector<CTxOut> creditOutputs = GetTxPayload<CAssetLockPayload>(CTransaction(tx))->getCreditOutputs();
+    TxValidationState tx_state;
+
+    // A transaction built just before activation (selected version 1) must
+    // stay valid on both sides of the boundary, so it cannot be invalidated
+    // by activating v24 while it waits for confirmation.
+    SetTxPayload(tx, CAssetLockPayload(creditOutputs, CAssetLockPayload::GetMaxVersion(/*is_v24_active=*/false)));
+    BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, /*is_v24_active=*/false));
+    BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, /*is_v24_active=*/true));
+
+    // A transaction built once v24 applies to the next block (selected
+    // version 2) is valid from activation onward.
+    SetTxPayload(tx, CAssetLockPayload(creditOutputs, CAssetLockPayload::GetMaxVersion(/*is_v24_active=*/true)));
+    BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, /*is_v24_active=*/true));
+}
+
 BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
 {
     LOCK(cs_main);
