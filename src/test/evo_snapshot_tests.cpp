@@ -785,6 +785,20 @@ BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, Basi
     BOOST_CHECK_EQUAL(reused.rotation_snapshots.size(), 0U);
 }
 
+BOOST_FIXTURE_TEST_CASE(reconstruction_record_budget_is_cumulative, BasicTestingSetup)
+{
+    const auto snapshot{SyntheticSnapshot()};
+    std::map<uint256, CDeterministicMNList> lists;
+    std::string error;
+    BOOST_REQUIRE(evo::ReconstructHistoricalMNLists(snapshot, lists, error));
+    // Every historical entry here carries the same 3-MN list with no
+    // additions, so the cumulative charge is exactly 3 records per entry.
+    const size_t total_records{3 * snapshot.historical_mn_list_diffs.size()};
+    BOOST_CHECK(evo::ReconstructHistoricalMNLists(snapshot, lists, error, total_records));
+    BOOST_CHECK(!evo::ReconstructHistoricalMNLists(snapshot, lists, error, total_records - 1));
+    BOOST_CHECK(error.find("record budget") != std::string::npos);
+}
+
 BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
 {
     const auto snapshot{SyntheticSnapshot()};

@@ -183,19 +183,29 @@ uint256 CanonicalMNListHash(const CDeterministicMNList& list)
 }
 
 bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
-                                  std::map<uint256, CDeterministicMNList>& lists, std::string& error)
+                                  std::map<uint256, CDeterministicMNList>& lists, std::string& error,
+                                  size_t max_records)
 {
     lists.clear();
     error.clear();
     CDeterministicMNList current{snapshot.mn_list};
     uint256 previous_hash{snapshot.base_block_hash};
     int previous_height{current.GetHeightForSnapshotCodec()};
+    size_t records_processed{0};
     try {
         const auto history{Sorted(snapshot.historical_mn_list_diffs)};
         for (const auto& entry : history) {
             if (entry.previous_block_hash != previous_hash || entry.block_hash.IsNull() ||
                 entry.height < 0 || entry.height >= previous_height || entry.canonical_list_hash.IsNull()) {
                 throw std::ios_base::failure("broken historical MN-list diff chain");
+            }
+            // Each entry traverses, sorts, and canonically hashes the whole
+            // reconstructed list, so the per-diff operation budget alone lets
+            // zero-operation entries multiply a maximum-size list across the
+            // history horizon. Charge the cumulative record count up front.
+            records_processed += current.GetCounts().total() + entry.diff.addedMNs.size();
+            if (records_processed > max_records) {
+                throw std::ios_base::failure("historical MN-list reconstruction record budget exceeded");
             }
             // Bound the collision groups the additions would create before the
             // HAMT performs the inserts; the post-apply invariant check would
