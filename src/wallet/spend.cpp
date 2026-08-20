@@ -803,7 +803,19 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
             }
         }
 
-        opt_assetLockPayload.emplace(creditOutputs, CAssetLockPayload::CURRENT_VERSION);
+        // Version 2 payloads are consensus-invalid until the v24 hard fork
+        // applies to the next block, and version 1 payloads only admit P2PKH
+        // credit outputs.
+        const bool is_v24_active{wallet.chain().isV24Active()};
+        if (!is_v24_active) {
+            for (const CTxOut& out : creditOutputs) {
+                if (!out.scriptPubKey.IsPayToPublicKeyHash()) {
+                    return util::Error{_("Paying this Platform address requires an asset lock transaction of "
+                                         "version 2, which is only valid after v24 activation")};
+                }
+            }
+        }
+        opt_assetLockPayload.emplace(creditOutputs, CAssetLockPayload::GetMaxVersion(is_v24_active));
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << *opt_assetLockPayload;
         nExtraPayloadSize = ss.size();

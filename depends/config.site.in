@@ -50,6 +50,17 @@ if test -z "$enable_multiprocess" && test -n "@multiprocess@"; then
   enable_multiprocess=yes
 fi
 
+if test -z "$enable_platform_gui" && test -n "@platform_gui@"; then
+  enable_platform_gui=yes
+fi
+
+if test -z "$PLATFORM_CXX_CFLAGS" && test -f "${depends_prefix}/include/dash/platform/ffi.h"; then
+  PLATFORM_CXX_CFLAGS="-I${depends_prefix}/include"
+fi
+if test -z "$PLATFORM_CXX_LIBS" && test -f "${depends_prefix}/lib/libdash_platform_cxx.a"; then
+  PLATFORM_CXX_LIBS="${depends_prefix}/lib/libdash_platform_cxx.a"
+fi
+
 if test -z "$with_miniupnpc" && test -n "@no_upnp@"; then
   with_miniupnpc=no
 fi

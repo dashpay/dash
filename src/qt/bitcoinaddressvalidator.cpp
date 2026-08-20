@@ -22,6 +22,33 @@ BitcoinAddressEntryValidator::BitcoinAddressEntryValidator(QObject *parent, bool
 {
 }
 
+DashPayRecipientEntryValidator::DashPayRecipientEntryValidator(QObject* parent, bool allow_uri) :
+    QValidator(parent),
+    m_address_validator(nullptr, allow_uri)
+{
+}
+
+QValidator::State DashPayRecipientEntryValidator::validate(QString& input, int& pos) const
+{
+    const State address_state = m_address_validator.validate(input, pos);
+    if (address_state != Invalid) return address_state;
+
+    // DPNS labels accept ASCII letters, digits, and interior hyphens. Keep
+    // incomplete labels editable, but reject impossible candidates early.
+    if (input.size() > 63 || input.startsWith('-')) return Invalid;
+    for (const QChar ch : input) {
+        const ushort c = ch.unicode();
+        if (!((c >= '0' && c <= '9') ||
+              (c >= 'a' && c <= 'z') ||
+              (c >= 'A' && c <= 'Z') || c == '-')) {
+            return Invalid;
+        }
+    }
+
+    if (input.size() < 3 || input.endsWith('-')) return Intermediate;
+    return Acceptable;
+}
+
 QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &pos) const
 {
     Q_UNUSED(pos);

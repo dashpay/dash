@@ -114,6 +114,21 @@ QT_MOC_CPP = \
   qt/moc_walletmodel.cpp \
   qt/moc_walletview.cpp
 
+if ENABLE_PLATFORM_GUI
+QT_MOC_CPP += \
+  qt/platform/moc_contactflow.cpp \
+  qt/platform/moc_contactpickerdialog.cpp \
+  qt/platform/moc_contactsmodel.cpp \
+  qt/platform/moc_contactspage.cpp \
+  qt/platform/moc_createusernamewizard.cpp \
+  qt/platform/moc_identityflow.cpp \
+  qt/platform/moc_platformpage.cpp \
+  qt/platform/moc_platformrecovery.cpp \
+  qt/platform/moc_platformservice.cpp \
+  qt/platform/moc_profiledialog.cpp \
+  qt/platform/moc_usernamesearchdialog.cpp
+endif
+
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
   qt/macnotificationhandler.mm \
@@ -206,6 +221,21 @@ BITCOIN_QT_H = \
   qt/walletmodeltransaction.h \
   qt/walletview.h \
   qt/winshutdownmonitor.h
+
+if ENABLE_PLATFORM_GUI
+BITCOIN_QT_H += \
+  qt/platform/contactflow.h \
+  qt/platform/contactpickerdialog.h \
+  qt/platform/contactsmodel.h \
+  qt/platform/contactspage.h \
+  qt/platform/createusernamewizard.h \
+  qt/platform/identityflow.h \
+  qt/platform/platformpage.h \
+  qt/platform/platformrecovery.h \
+  qt/platform/platformservice.h \
+  qt/platform/profiledialog.h \
+  qt/platform/usernamesearchdialog.h
+endif
 
 QT_RES_ICONS = \
   qt/res/icons/address-book.png \
@@ -331,12 +361,28 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodeltransaction.cpp \
   qt/walletview.cpp
 
+BITCOIN_QT_PLATFORM_CPP = \
+  qt/platform/contactflow.cpp \
+  qt/platform/contactpickerdialog.cpp \
+  qt/platform/contactsmodel.cpp \
+  qt/platform/contactspage.cpp \
+  qt/platform/createusernamewizard.cpp \
+  qt/platform/identityflow.cpp \
+  qt/platform/platformpage.cpp \
+  qt/platform/platformrecovery.cpp \
+  qt/platform/platformservice.cpp \
+  qt/platform/profiledialog.cpp \
+  qt/platform/usernamesearchdialog.cpp
+
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS
 BITCOIN_QT_CPP += $(BITCOIN_QT_WINDOWS_CPP)
 endif
 if ENABLE_WALLET
 BITCOIN_QT_CPP += $(BITCOIN_QT_WALLET_CPP)
+if ENABLE_PLATFORM_GUI
+BITCOIN_QT_CPP += $(BITCOIN_QT_PLATFORM_CPP)
+endif # ENABLE_PLATFORM_GUI
 endif # ENABLE_WALLET
 
 QT_RES_IMAGES = \
@@ -461,6 +507,9 @@ endif
 if ENABLE_ZMQ
 bitcoin_qt_ldadd += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
+if ENABLE_PLATFORM_GUI
+bitcoin_qt_ldadd += $(LIBDASH_PLATFORM) $(PLATFORM_CXX_LIBS) $(MBEDTLS_LIBS)
+endif
 bitcoin_qt_ldadd += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBDASHBLS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
   $(BACKTRACE_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(LIBSECP256K1) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(GMP_LIBS)
@@ -492,7 +541,7 @@ $(srcdir)/qt/dashstrings.cpp: FORCE
 
 # The resulted dash_en.xlf source file should follow Transifex requirements.
 # See: https://docs.transifex.com/formats/xliff#how-to-distinguish-between-a-source-file-and-a-translation-file
-translate: $(srcdir)/qt/dashstrings.cpp $(QT_FORMS_UI) $(QT_FORMS_UI) $(BITCOIN_QT_BASE_CPP) qt/bitcoin.cpp $(BITCOIN_QT_WINDOWS_CPP) $(BITCOIN_QT_WALLET_CPP) $(BITCOIN_QT_H) $(BITCOIN_MM)
+translate: $(srcdir)/qt/dashstrings.cpp $(QT_FORMS_UI) $(QT_FORMS_UI) $(BITCOIN_QT_BASE_CPP) qt/bitcoin.cpp $(BITCOIN_QT_WINDOWS_CPP) $(BITCOIN_QT_WALLET_CPP) $(BITCOIN_QT_PLATFORM_CPP) $(BITCOIN_QT_H) $(BITCOIN_MM)
 	@test -n $(LUPDATE) || echo "lupdate is required for updating translations"
 	$(AM_V_GEN) QT_SELECT=$(QT_SELECT) $(LUPDATE) -no-obsolete -I $(srcdir) -locations relative $^ -ts $(srcdir)/qt/locale/dash_en.ts
 	@test -n $(LCONVERT) || echo "lconvert is required for updating translations"
@@ -528,6 +577,7 @@ ui_%.h: %.ui
 	$(AM_V_GEN) QT_SELECT=$(QT_SELECT) $(MOC) $(DEFAULT_INCLUDES) $(QT_INCLUDES_UNSUPPRESSED) $(MOC_DEFS) $< > $@
 
 moc_%.cpp: %.h
+	@$(MKDIR_P) $(@D)
 	$(AM_V_GEN) QT_SELECT=$(QT_SELECT) $(MOC) $(DEFAULT_INCLUDES) $(QT_INCLUDES_UNSUPPRESSED) $(MOC_DEFS) $< > $@
 
 %.qm: %.ts

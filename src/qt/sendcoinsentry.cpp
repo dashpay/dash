@@ -12,12 +12,20 @@
 
 #include <qt/addressbookpage.h>
 #include <qt/addresstablemodel.h>
+#include <qt/bitcoinaddressvalidator.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/walletmodel.h>
+#ifdef ENABLE_PLATFORM_GUI
+#include <qt/platform/contactpickerdialog.h>
+#include <qt/platform/platformservice.h>
+#endif
 
+#include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QRegularExpression>
+#include <QTimer>
 
 SendCoinsEntry::SendCoinsEntry(QWidget* parent) :
     QWidget(parent),
@@ -31,6 +39,13 @@ SendCoinsEntry::SendCoinsEntry(QWidget* parent) :
 
     // normal dash address field
     GUIUtil::setupAddressWidget(ui->payTo, this, true);
+#ifdef ENABLE_PLATFORM_GUI
+    // Address-only entry validation silently drops DPNS characters that are
+    // excluded from Base58 (notably 0, I, O, and lowercase l). Accept username
+    // candidates while typing; the unchanged check validator and validate()
+    // still require a proof-resolved Dash address before a payment can be sent.
+    ui->payTo->setValidator(new DashPayRecipientEntryValidator(this, true));
+#endif
 
     GUIUtil::setFont({ui->payToLabel,
                      ui->labellLabel,
@@ -44,7 +59,60 @@ SendCoinsEntry::SendCoinsEntry(QWidget* parent) :
     connect(ui->checkboxSubtractFeeFromAmount, &QCheckBox::toggled, this, &SendCoinsEntry::subtractFeeFromAmountChanged);
     connect(ui->deleteButton, &QPushButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->useAvailableBalanceButton, &QPushButton::clicked, this, &SendCoinsEntry::useAvailableBalanceClicked);
+#ifdef ENABLE_PLATFORM_GUI
+    m_username_debounce = new QTimer(this);
+    m_username_debounce->setSingleShot(true);
+    m_username_debounce->setInterval(500);
+    connect(m_username_debounce, &QTimer::timeout, this, [this] {
+        if (m_platform_service && !m_pending_username.isEmpty()) {
+            showUsernameStatus(tr("Looking up DashPay username \"%1\"…").arg(m_pending_username),
+                               UsernameStatus::Progress);
+            m_platform_service->resolvePaymentAddress(m_pending_username);
+        }
+    });
+#endif
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void SendCoinsEntry::showUsernameStatus(const QString& text, UsernameStatus status)
+{
+    // Username lookup state lives inside the recipient field as a trailing
+    // icon (with the message as its tooltip) so the form never reflows.
+    if (m_username_status_action) {
+        ui->payTo->removeAction(m_username_status_action);
+        delete m_username_status_action;
+        m_username_status_action = nullptr;
+    }
+    if (text.isEmpty()) return;
+
+    QIcon icon;
+    switch (status) {
+    case UsernameStatus::Progress:
+        icon = GUIUtil::getIcon("transaction0", GUIUtil::ThemedColor::ORANGE);
+        break;
+    case UsernameStatus::Verified:
+        icon = GUIUtil::getIcon("synced", GUIUtil::ThemedColor::GREEN);
+        break;
+    case UsernameStatus::Failed:
+        icon = GUIUtil::getIcon("warning", GUIUtil::ThemedColor::RED);
+        // Match the field's existing invalid-input treatment.
+        ui->payTo->setValid(false);
+        break;
+    }
+    m_username_status_action = ui->payTo->addAction(icon, QLineEdit::TrailingPosition);
+    m_username_status_action->setToolTip(text);
+}
+
+void SendCoinsEntry::on_contactsButton_clicked()
+{
+    if (!m_platform_service) return;
+    ContactPickerDialog dlg(*m_platform_service, this);
+    if (dlg.exec() && !dlg.selectedUsername().isEmpty()) {
+        ui->payTo->setText(dlg.selectedUsername());
+        ui->payAmount->setFocus();
+    }
+}
+#endif
 
 SendCoinsEntry::~SendCoinsEntry()
 {
@@ -72,6 +140,11 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
+#ifdef ENABLE_PLATFORM_GUI
+    m_username_debounce->stop();
+    m_pending_username.clear();
+    showUsernameStatus({}, UsernameStatus::Progress);
+#endif
     SendCoinsRecipient rcp;
     if (GUIUtil::parseBitcoinURI(address, &rcp)) {
         ui->payTo->blockSignals(true);
@@ -79,8 +152,50 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
         ui->payTo->blockSignals(false);
     } else {
         updateLabel(address);
+#ifdef ENABLE_PLATFORM_GUI
+        static const QRegularExpression username_re{"^[A-Za-z0-9][A-Za-z0-9-]{1,61}[A-Za-z0-9]$"};
+        if (m_platform_service && (!model || !model->validateAddress(address)) &&
+            username_re.match(address).hasMatch()) {
+            m_pending_username = address;
+            showUsernameStatus(tr("Looks like a DashPay username — checking…"), UsernameStatus::Progress);
+            m_username_debounce->start();
+        }
+#endif
     }
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void SendCoinsEntry::setPlatformService(PlatformService* service)
+{
+    if (m_platform_service) disconnect(m_platform_service, nullptr, this, nullptr);
+    m_platform_service = service;
+    ui->contactsButton->setVisible(service != nullptr);
+    if (!service) return;
+    ui->payTo->setToolTip(tr("The Dash address or DashPay username to send the payment to"));
+    ui->payTo->setPlaceholderText(tr("Enter a Dash address or DashPay username"));
+    connect(service, &PlatformService::paymentAddressResolved, this,
+            [this](const QString& username, const QString& address, const QString& error) {
+        if (username != m_pending_username || ui->payTo->text() != username) return;
+        m_pending_username.clear();
+        if (!error.isEmpty()) {
+            showUsernameStatus(tr("Cannot pay \"%1\": %2").arg(username, error), UsernameStatus::Failed);
+            return;
+        }
+        ui->payTo->blockSignals(true);
+        ui->payTo->setText(address);
+        ui->payTo->blockSignals(false);
+        // Mirror the address-book label the service wrote for this
+        // destination so sends and receives from this contact carry the
+        // identical label in transaction history. A label the user already
+        // typed takes precedence (sendCoins stores whatever is here).
+        if (ui->addAsLabel->text().isEmpty() && model) {
+            ui->addAsLabel->setText(model->getAddressTableModel()->labelForAddress(address));
+        }
+        showUsernameStatus(tr("Verified — paying DashPay contact \"%1\"").arg(username),
+                           UsernameStatus::Verified);
+    });
+}
+#endif
 
 void SendCoinsEntry::setModel(WalletModel *_model)
 {
@@ -242,6 +357,15 @@ void SendCoinsEntry::setButtonIcons()
     GUIUtil::setIcon(ui->addressBookButton, "address-book");
     GUIUtil::setIcon(ui->pasteButton, "editpaste");
     GUIUtil::setIcon(ui->deleteButton, "remove", GUIUtil::ThemedColor::RED);
+#ifdef ENABLE_PLATFORM_GUI
+    // No dedicated glyph exists for DashPay contacts; "@" matches how
+    // usernames are communicated to the user.
+    QFont at_font{ui->contactsButton->font()};
+    at_font.setBold(true);
+    at_font.setPointSize(at_font.pointSize() + 2);
+    ui->contactsButton->setFont(at_font);
+    ui->contactsButton->setText(QStringLiteral("@"));
+#endif
 }
 
 bool SendCoinsEntry::updateLabel(const QString &address)

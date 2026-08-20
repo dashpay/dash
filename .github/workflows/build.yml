@@ -165,6 +165,18 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
+  depends-linux64_platform_gui:
+    name: x86_64-pc-linux-gnu_platform_gui
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: ${{ vars.SKIP_LINUX64_PLATFORM_GUI == '' }}
+    with:
+      build-target: linux64_platform_gui
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      rust-vendor-artifact: ${{ needs.cache-sources.outputs.rust-vendor-artifact }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
   depends-mac:
     name: x86_64-apple-darwin
     uses: ./.github/workflows/build-depends.yml
@@ -277,6 +289,20 @@ jobs:
       depends-artifact: ${{ needs.depends-linux64_nowallet.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
+  src-linux64_platform_gui:
+    name: linux64_platform_gui-build
+    uses: ./.github/workflows/build-src.yml
+    needs: [check-skip, container, depends-linux64_platform_gui]
+    if: ${{ vars.SKIP_LINUX64_PLATFORM_GUI == '' }}
+    with:
+      build-target: linux64_platform_gui
+      container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.depends-linux64_platform_gui.outputs.key }}
+      depends-host: ${{ needs.depends-linux64_platform_gui.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64_platform_gui.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64_platform_gui.outputs.built-artifact }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
   src-linux64_sqlite:
     name: linux64_sqlite-build
     uses: ./.github/workflows/build-src.yml
@@ -369,6 +395,17 @@ jobs:
     with:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
+      container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  test-linux64_platform_gui:
+    name: linux64_platform_gui-test
+    uses: ./.github/workflows/test-src.yml
+    needs: [check-skip, container-slim, src-linux64_platform_gui, lint]
+    if: ${{ vars.SKIP_LINUX64_PLATFORM_GUI == '' }}
+    with:
+      bundle-key: ${{ needs.src-linux64_platform_gui.outputs.key }}
+      build-target: linux64_platform_gui
       container-path: ${{ needs.container-slim.outputs.path }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 

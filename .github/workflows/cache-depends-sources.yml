@@ -8,6 +8,10 @@ on:
         required: false
         type: string
         default: ubuntu-24.04-arm
+    outputs:
+      rust-vendor-artifact:
+        description: "Artifact holding freshly generated Rust vendor archives"
+        value: ${{ jobs.cache-sources.outputs.rust-vendor-artifact }}
   schedule:
     # Run daily at 6 AM UTC on the default branch to keep cache warm
     - cron: '0 6 * * *'
@@ -18,6 +22,8 @@ jobs:
     # Intentionally keep scheduled cache warming on GitHub-hosted ARM runners.
     # Blacksmith caches are expected to persist long enough without a warmup cron.
     runs-on: ${{ inputs.runs-on || 'ubuntu-24.04-arm' }}
+    outputs:
+      rust-vendor-artifact: ${{ steps.vendor-artifact.outputs.name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -35,6 +41,36 @@ jobs:
           restore-keys: depends-sources-
           lookup-only: true
 
+      - name: Cache Rust vendor sources
+        id: rust-vendor-cache
+        uses: actions/cache@v5
+        with:
+          path: depends/sources/platform-cxx-*-vendored.tar.gz
+          key: depends-rust-vendor-sources-${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/packages/native_rust.mk', 'depends/packages/platform_cxx.mk', 'depends/patches/platform_cxx/cargo-config.toml') }}
+
       - name: Download sources
-        if: steps.cache-check.outputs.cache-hit != 'true'
-        run: make -C depends download
+        if: |
+          steps.cache-check.outputs.cache-hit != 'true' ||
+          steps.rust-vendor-cache.outputs.cache-hit != 'true'
+        run: |
+          make -C depends PLATFORM_GUI=1 download
+          make -C depends PLATFORM_GUI=1 vendor-platform_cxx-crates
+          # The cache producer normally runs on ARM, while the platform_gui
+          # consumer runs on x86_64. Native Rust is selected from the build
+          # architecture, so fetch the x86_64 compiler archive explicitly too.
+          make -C depends BUILD=x86_64-pc-linux-gnu PLATFORM_GUI=1 download-one
+
+      - name: Select Rust vendor artifact
+        id: vendor-artifact
+        if: github.event_name != 'schedule' && steps.rust-vendor-cache.outputs.cache-hit != 'true'
+        run: echo "name=depends-rust-vendor-sources-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Rust vendor sources
+        if: steps.vendor-artifact.outputs.name != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.vendor-artifact.outputs.name }}
+          path: depends/sources/platform-cxx-*-vendored.tar.gz
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
