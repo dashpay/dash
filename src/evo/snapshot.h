@@ -73,6 +73,14 @@ static constexpr size_t EVO_SNAPSHOT_MAX_QUORUM_SIZE{10'000};
 // shared prefix has probability ~3e-10, so a run of 8 is unreachable outside
 // crafted input. Enforced on the base list and every reconstructed list.
 static constexpr size_t EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN{8};
+// Every historical entry costs a full traversal, sort, and canonical hash of
+// the reconstructed list, so a few hundred bytes of zero-operation diffs could
+// otherwise drag a maximum-size list across the whole table-wide history
+// horizon (~19M record visits). The horizon that sums every table entry is
+// unreachable on a real chain: no network enables more than a fraction of the
+// LLMQ table at once, so even a ceiling-sized list on a fully loaded mainnet
+// configuration stays well below half of this cumulative record budget.
+static constexpr size_t EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS{8'000'000};
 static_assert(std::ranges::all_of(Consensus::available_llmqs, [](const auto& params) {
     return !params.useRotation || params.keepOldConnections <= 2 * params.signingActiveQuorumCount;
 }), "rotated LLMQ retention exceeds the two serialized cycles");
@@ -640,7 +648,8 @@ std::vector<CQuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
 
 /** Apply the complete diff chain and return lists keyed by target block hash. */
 bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
-                                  std::map<uint256, CDeterministicMNList>& lists, std::string& error);
+                                  std::map<uint256, CDeterministicMNList>& lists, std::string& error,
+                                  size_t max_records = EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS);
 
 /** Pure CbTx checks over already-built snapshot content. */
 bool VerifyEvoSnapshotCbTx(const CEvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);
