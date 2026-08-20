@@ -62,6 +62,10 @@ FUZZ_SUITE_LD_COMMON = \
  $(GMP_LIBS) \
  $(BACKTRACE_LIBS)
 
+if ENABLE_PLATFORM_GUI
+FUZZ_SUITE_LD_COMMON += $(LIBDASH_PLATFORM) $(PLATFORM_CXX_LIBS) $(MBEDTLS_LIBS)
+endif
+
 if USE_UPNP
 FUZZ_SUITE_LD_COMMON += $(MINIUPNPC_LIBS)
 endif
@@ -220,6 +224,18 @@ BITCOIN_TESTS =\
   test/versionbits_tests.cpp \
   test/xoroshiro128plusplus_tests.cpp
 
+if ENABLE_PLATFORM_GUI
+BITCOIN_TESTS += \
+  test/platform_client_tests.cpp \
+  test/platform_dpp_tests.cpp \
+  test/platform_drive_tests.cpp
+JSON_TEST_FILES += \
+  test/data/platform/dpp_identity_vectors.json \
+  test/data/platform/dpp_st_vectors.json \
+  test/data/platform/drive_query_vectors.json \
+  test/data/platform/quorum_sig_vectors.json
+endif
+
 if ENABLE_WALLET
 BITCOIN_TESTS += \
   wallet/test/bip39_tests.cpp \
@@ -272,6 +288,9 @@ test_test_dash_LDADD = $(LIBTEST_UTIL)
 if ENABLE_WALLET
 test_test_dash_LDADD += $(LIBBITCOIN_WALLET)
 test_test_dash_CPPFLAGS += $(BDB_CPPFLAGS)
+endif
+if ENABLE_PLATFORM_GUI
+test_test_dash_LDADD += $(LIBDASH_PLATFORM) $(PLATFORM_CXX_LIBS) $(MBEDTLS_LIBS)
 endif
 test_test_dash_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
   $(LIBDASHBLS) $(LIBLEVELDB) $(LIBMEMENV) $(BACKTRACE_LIBS) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
@@ -399,6 +418,10 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/utxo_total_supply.cpp \
  test/fuzz/validation_load_mempool.cpp \
  test/fuzz/versionbits.cpp
+
+if ENABLE_PLATFORM_GUI
+test_fuzz_fuzz_SOURCES += test/fuzz/platform_bridge.cpp
+endif
 endif # ENABLE_FUZZ_BINARY
 
 nodist_test_test_dash_SOURCES = $(GENERATED_TEST_FILES)
