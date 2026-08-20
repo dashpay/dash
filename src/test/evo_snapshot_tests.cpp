@@ -705,6 +705,28 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
     expect_noncanonical(with_signals({{2, 12}, {2, 30}}));
 }
 
+BOOST_FIXTURE_TEST_CASE(unserialize_replaces_previous_contents, BasicTestingSetup)
+{
+    const auto populated_bytes{SerializeSnapshot(SyntheticSnapshot())};
+    evo::CEvoSnapshot minimal;
+    minimal.base_block_hash = H(42);
+    minimal.mn_list = CDeterministicMNList{H(42), 500, 0};
+    const auto minimal_bytes{SerializeSnapshot(minimal)};
+
+    evo::CEvoSnapshot decoded;
+    CDataStream populated{populated_bytes};
+    populated >> decoded;
+    BOOST_REQUIRE(!decoded.mnhf_signals.empty());
+    CDataStream empty{minimal_bytes};
+    empty >> decoded;
+    BOOST_CHECK(decoded.quorums.empty());
+    BOOST_CHECK(decoded.historical_mn_list_diffs.empty());
+    BOOST_CHECK(decoded.quorum_modifiers.empty());
+    BOOST_CHECK(decoded.mnhf_signals.empty());
+    const auto reencoded{SerializeSnapshot(decoded)};
+    BOOST_CHECK_EQUAL_COLLECTIONS(minimal_bytes.begin(), minimal_bytes.end(), reencoded.begin(), reencoded.end());
+}
+
 BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
 {
     const auto snapshot{SyntheticSnapshot()};

@@ -550,6 +550,13 @@ void CEvoSnapshot::Unserialize(Stream& s)
     s >> version;
     if (version != EVO_SNAPSHOT_VERSION) throw std::ios_base::failure("unsupported evo snapshot version");
     s >> base_block_hash;
+    // Decoding must replace any previous contents: the collections below are
+    // appended to (and the signal map merged into), so a reused object would
+    // otherwise accumulate state that the consumed bytes never contained.
+    quorums.clear();
+    historical_mn_list_diffs.clear();
+    quorum_modifiers.clear();
+    mnhf_signals.clear();
     mn_list = UnserializeCanonicalMNList(s);
     const size_t quorum_count{ReadBoundedCompactSize(s, Consensus::available_llmqs.size(), "quorum-type count")};
     quorums.reserve(quorum_count);
