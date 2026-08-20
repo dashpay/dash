@@ -354,6 +354,10 @@ bool VerifyEvoSnapshotCbTx(const CEvoSnapshot& snapshot, const CCbTx& cbtx, std:
         error = e.what();
         return false;
     }
+    if (cbtx.nHeight != snapshot.mn_list.GetHeightForSnapshotCodec()) {
+        error = "evo snapshot coinbase height mismatch";
+        return false;
+    }
     bool mutated{false};
     const uint256 mn_root{snapshot.mn_list.to_sml()->CalcMerkleRoot(&mutated)};
     if (mutated || mn_root != cbtx.merkleRootMNList) {
