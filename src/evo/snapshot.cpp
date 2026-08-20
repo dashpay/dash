@@ -210,6 +210,19 @@ void CEvoSnapshot::Validate(bool require_canonical_order) const
         mnhf_signals.size() > Consensus::MAX_VERSION_BITS_DEPLOYMENTS) {
         throw std::ios_base::failure("oversized evo snapshot collection");
     }
+    // ConstructCreditPool guarantees 0 <= currentLimit <= locked in every
+    // deployment branch, and all three amounts are money-range window sums.
+    if (!MoneyRange(credit_pool.locked) || !MoneyRange(credit_pool.currentLimit) ||
+        !MoneyRange(credit_pool.latelyUnlocked) || credit_pool.currentLimit > credit_pool.locked) {
+        throw std::ios_base::failure("invalid evo snapshot credit pool amounts");
+    }
+    // Consensus admits MNHF signals only for bits below VERSIONBITS_NUM_BITS
+    // and records the mined height, which cannot exceed the base height.
+    for (const auto& [bit, height] : mnhf_signals) {
+        if (bit >= VERSIONBITS_NUM_BITS || height < 0 || height > mn_list.GetHeightForSnapshotCodec()) {
+            throw std::ios_base::failure("invalid evo snapshot MNHF signal");
+        }
+    }
     if (require_canonical_order && (!IsStrictlySorted(quorums) || !IsStrictlySorted(historical_mn_list_diffs) ||
                                     !IsStrictlySorted(quorum_modifiers))) {
         throw std::ios_base::failure("noncanonical evo snapshot top-level order");

@@ -5,6 +5,7 @@
 #include <test/util/setup_common.h>
 
 #include <clientversion.h>
+#include <consensus/amount.h>
 #include <consensus/merkle.h>
 #include <evo/cbtx.h>
 #include <evo/chainhelper.h>
@@ -24,6 +25,7 @@
 #include <node/context.h>
 #include <streams.h>
 #include <validation.h>
+#include <versionbits.h>
 
 #include <algorithm>
 #include <map>
@@ -437,6 +439,25 @@ BOOST_FIXTURE_TEST_CASE(context_free_validation_matrix, BasicTestingSetup)
     partial.llmq_type = Consensus::LLMQType::LLMQ_TEST;
     snapshot.quorums.emplace_back(std::move(partial));
     BOOST_CHECK_NO_THROW(snapshot.Validate());
+
+    snapshot = SyntheticSnapshot();
+    snapshot.credit_pool.locked = -1;
+    CheckInvalid(snapshot);
+    snapshot = SyntheticSnapshot();
+    snapshot.credit_pool.currentLimit = snapshot.credit_pool.locked + 1;
+    CheckInvalid(snapshot);
+    snapshot = SyntheticSnapshot();
+    snapshot.credit_pool.latelyUnlocked = MAX_MONEY + 1;
+    CheckInvalid(snapshot);
+    snapshot = SyntheticSnapshot();
+    snapshot.mnhf_signals.emplace(VERSIONBITS_NUM_BITS, 10);
+    CheckInvalid(snapshot);
+    snapshot = SyntheticSnapshot();
+    snapshot.mnhf_signals.emplace(11, -1);
+    CheckInvalid(snapshot);
+    snapshot = SyntheticSnapshot();
+    snapshot.mnhf_signals.emplace(11, snapshot.mn_list.GetHeightForSnapshotCodec() + 1);
+    CheckInvalid(snapshot);
 
     const auto mutate_commitment = [](auto mutation) {
         auto value{SyntheticSnapshot()};
