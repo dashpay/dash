@@ -443,6 +443,11 @@ BOOST_FIXTURE_TEST_CASE(context_free_validation_matrix, BasicTestingSetup)
         mutation(value.quorums[0].active_commitments[0]);
         CheckInvalid(std::move(value));
     };
+    mutate_commitment([](auto& e) { e.commitment.validMembers.resize(e.commitment.signers.size() + 1); });
+    mutate_commitment([](auto& e) {
+        e.commitment.signers.clear();
+        e.commitment.validMembers.clear();
+    });
     mutate_commitment([](auto& e) { e.quorum_base_block_hash.SetNull(); });
     mutate_commitment([](auto& e) { e.mined_block_hash.SetNull(); });
     mutate_commitment([](auto& e) { e.commitment.llmqType = Consensus::LLMQType::LLMQ_TEST_PLATFORM; });
@@ -528,10 +533,27 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     WriteCompactSize(commitment_bits, 1);
     commitment_bits << oversized_commitment;
     evo::CQuorumSnapshotData oversized_data;
-    BOOST_CHECK_THROW(commitment_bits >> oversized_data, std::ios_base::failure);
-    // The bitset payload and mined-block hash remain unread: rejection occurs
-    // from the claimed count, before allocation or accepting the element.
+    BOOST_CHECK_EXCEPTION(commitment_bits >> oversized_data, std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("inconsistent evo snapshot commitment bitset sizes") != std::string::npos;
+    });
+    // The valid-members bitset payload, BLS material, and mined-block hash
+    // remain unread: rejection occurs at the mismatched claimed size.
     BOOST_CHECK_GT(commitment_bits.size(), uint256::size());
+
+    const auto commitment_prefix = [](CDataStream& s) {
+        s << Consensus::LLMQType::LLMQ_TEST << false;
+        WriteCompactSize(s, 1);
+        s << H(1) << H(2) << uint16_t{llmq::CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION}
+          << Consensus::LLMQType::LLMQ_TEST << H(1);
+    };
+    CDataStream over_ceiling{SER_DISK, CLIENT_VERSION};
+    commitment_prefix(over_ceiling);
+    WriteCompactSize(over_ceiling, evo::EVO_SNAPSHOT_MAX_QUORUM_SIZE + 1);
+    BOOST_CHECK_THROW(decode_quorum(over_ceiling), std::ios_base::failure);
+    CDataStream empty_bits{SER_DISK, CLIENT_VERSION};
+    commitment_prefix(empty_bits);
+    WriteCompactSize(empty_bits, 0);
+    BOOST_CHECK_THROW(decode_quorum(empty_bits), std::ios_base::failure);
 
     auto oversized_payout_mn{std::const_pointer_cast<CDeterministicMN>(
         MN(8, 8, MnType::Regular, ProTxVersion::ExtAddr, 8))};
@@ -611,6 +633,27 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     oversized_domain.write(Span{snapshot_bytes}.subspan(domain_offset + serialized_addr_size));
     BOOST_CHECK_EXCEPTION(oversized_domain >> decoded, std::ios_base::failure,
                           [](const auto& e) { return std::string{e.what()}.find("String length limit exceeded") != std::string::npos; });
+}
+
+BOOST_FIXTURE_TEST_CASE(commitment_sizes_are_format_bounded_not_param_exact, BasicTestingSetup)
+{
+    // -llmqtestparams and -llmqdevnetparams change the effective quorum size at
+    // runtime, so commitments whose bitsets differ from the static default must
+    // pass this layer; exact sizing is established by chain-aware validation.
+    auto snapshot{SyntheticSnapshot()};
+    const auto& params{evo::SnapshotLLMQParams(snapshot.quorums[0].llmq_type)};
+    for (auto& entry : snapshot.quorums[0].active_commitments) {
+        entry.commitment.signers.assign(params.size + 5, false);
+        entry.commitment.validMembers.assign(params.size + 5, true);
+    }
+    BOOST_CHECK_NO_THROW(snapshot.Validate(/*require_canonical_order=*/true));
+    const auto bytes{SerializeSnapshot(snapshot)};
+    CDataStream input{bytes};
+    evo::CEvoSnapshot decoded;
+    BOOST_CHECK_NO_THROW(input >> decoded);
+    BOOST_CHECK(input.empty());
+    const auto reencoded{SerializeSnapshot(decoded)};
+    BOOST_CHECK_EQUAL_COLLECTIONS(bytes.begin(), bytes.end(), reencoded.begin(), reencoded.end());
 }
 
 BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
