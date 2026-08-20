@@ -6,6 +6,7 @@
 #define BITCOIN_EVO_SNAPSHOT_H
 
 #include <consensus/params.h>
+#include <crypto/common.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
@@ -65,6 +66,13 @@ static constexpr size_t EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES{1'000'000};
 // quorum, size 400) plus internal consistency; exact sizing against the
 // effective parameters belongs to the chain-aware validation.
 static constexpr size_t EVO_SNAPSHOT_MAX_QUORUM_SIZE{10'000};
+// CDeterministicMNList's HAMT hashes proTxHash by its first 8 bytes, so a
+// snapshot supplying many distinct hashes that share one 64-bit prefix would
+// make every insertion copy the whole collision node (quadratic decode work).
+// Real proTxHashes are uniform txids: among 100,000 of them even a single
+// shared prefix has probability ~3e-10, so a run of 8 is unreachable outside
+// crafted input. Enforced on the base list and every reconstructed list.
+static constexpr size_t EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN{8};
 static_assert(std::ranges::all_of(Consensus::available_llmqs, [](const auto& params) {
     return !params.useRotation || params.keepOldConnections <= 2 * params.signingActiveQuorumCount;
 }), "rotated LLMQ retention exceeds the two serialized cycles");
@@ -217,6 +225,7 @@ CDeterministicMNList UnserializeCanonicalMNList(Stream& s)
     uint256 previous;
     bool have_previous{false};
     uint64_t max_internal_id{0};
+    size_t prefix_run{0};
     for (size_t i{0}; i < count; ++i) {
         SnapshotBoundedInput bounded{s, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
         auto dmn{std::make_shared<CDeterministicMN>(deserialize, bounded)};
@@ -228,6 +237,14 @@ CDeterministicMNList UnserializeCanonicalMNList(Stream& s)
         }
         if (have_previous && !(previous < dmn->proTxHash)) {
             throw std::ios_base::failure("noncanonical canonical MN-list order");
+        }
+        // Entries arrive sorted by the full hash, so equal 64-bit prefixes are
+        // adjacent. Reject collision runs before AddMN performs the inserts.
+        prefix_run = (have_previous && ReadLE64(previous.begin()) == ReadLE64(dmn->proTxHash.begin()))
+                         ? prefix_run + 1
+                         : 1;
+        if (prefix_run > EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN) {
+            throw std::ios_base::failure("canonical MN-list hash-prefix run exceeds collision bound");
         }
         previous = dmn->proTxHash;
         have_previous = true;
