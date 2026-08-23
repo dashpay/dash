@@ -43,6 +43,11 @@ public:
 };
 
 namespace utils {
+/** Normal consensus modifier calculation; snapshot overrides are internal to reconstruction. */
+uint256 GetQuorumHashModifier(const Consensus::LLMQParams& llmq_params,
+                              const Consensus::Params& consensus_params,
+                              gsl::not_null<const CBlockIndex*> cycle_quorum_base_index);
+
 struct BlsCheck {
     CBLSSignature m_sig;
     std::vector<CBLSPublicKey> m_pubkeys;

@@ -182,6 +182,10 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         return {ChainstateLoadStatus::FAILURE, _("Error loading block database")};
     }
 
+    // Detection happens before LoadBlockIndex. Once the base is resolvable,
+    // keep its full block available for Dash's completion-time CbTx check.
+    chainman.ProtectSnapshotBaseFromPruning();
+
     if (!chainman.BlockIndex().empty() &&
             !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashGenesisBlock)) {
         // If the loaded chain has a wrong genesis, bail out immediately

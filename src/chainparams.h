@@ -34,6 +34,10 @@ struct AssumeutxoHash : public BaseHash<uint256> {
     explicit AssumeutxoHash(const uint256& hash) : BaseHash(hash) {}
 };
 
+struct EvoSnapshotHash : public BaseHash<uint256> {
+    explicit EvoSnapshotHash(const uint256& hash) : BaseHash(hash) {}
+};
+
 /**
  * Holds configuration for use during UTXO snapshot load and validation. The contents
  * here are security critical, since they dictate which UTXO snapshots are recognized
@@ -42,6 +46,9 @@ struct AssumeutxoHash : public BaseHash<uint256> {
 struct AssumeutxoData {
     //! The expected hash of the deserialized UTXO set.
     const AssumeutxoHash hash_serialized;
+
+    //! The expected single-SHA256 hash of the canonical Dash evo section.
+    const EvoSnapshotHash evo_hash;
 
     //! Used to populate the nChainTx value, which is used during BlockManager::LoadBlockIndex().
     //!

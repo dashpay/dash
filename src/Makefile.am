@@ -235,6 +235,8 @@ BITCOIN_CORE_H = \
   evo/providertx_service.h \
   evo/simplifiedmns.h \
   evo/smldiff.h \
+  evo/snapshot_types.h \
+  evo/snapshot.h \
   evo/specialtx.h \
   evo/specialtx_filter.h \
   evo/specialtxman.h \
@@ -542,6 +544,8 @@ libbitcoin_node_a_SOURCES = \
   evo/evodb.cpp \
   evo/mnauth.cpp \
   evo/mnhftx.cpp \
+  evo/snapshot.cpp \
+  evo/snapshot_chain.cpp \
   evo/providertx.cpp \
   evo/providertx_service.cpp \
   evo/simplifiedmns.cpp \
@@ -1280,6 +1284,8 @@ libdashkernel_la_SOURCES = \
   evo/providertx_util.cpp \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
+  evo/snapshot.cpp \
+  evo/snapshot_chain.cpp \
   evo/specialtx.cpp \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \

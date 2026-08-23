@@ -383,6 +383,12 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
     }
 }
 
+bool CMNHFManager::SeedSignals(const CBlockIndex* pindex, const Signals& signals)
+{
+    assert(pindex != nullptr);
+    return m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, pindex->GetBlockHash()), signals);
+}
+
 void CMNHFManager::AddSignal(const CBlockIndex* const pindex, int bit)
 {
     auto signals = GetForBlock(pindex->pprev);

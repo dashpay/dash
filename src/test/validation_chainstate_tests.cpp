@@ -7,6 +7,7 @@
 #include <consensus/validation.h>
 #include <evo/evodb.h>
 #include <evo/deterministicmns.h>
+#include <evo/snapshot.h>
 #include <index/txindex.h>
 #include <node/interface_ui.h>
 #include <random.h>
@@ -215,13 +216,16 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
     BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this, NoMalleation, /*reset_chainstate=*/true));
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return chainman.IsSnapshotActive()));
 
-    // The background chainstate was reset to genesis before activation, so
-    // the base MN list was not derivable and no lifecycle marker may have
-    // been captured: deriving one would fabricate an empty list and poison
-    // the shared list cache for the background chainstate's later
-    // re-validation of the base region.
-    uint256 stale_hash;
-    BOOST_CHECK(!m_node.evodb->ReadSnapshotBaseMNListHash(stale_hash));
+    // M4 snapshots carry a canonical evo section even before DIP3. Its
+    // block-bound empty list supplies the lifecycle marker without consulting
+    // or poisoning the background chainstate's shared list cache.
+    const CBlockIndex* snapshot_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[110])};
+    BOOST_REQUIRE(snapshot_base);
+    const CDeterministicMNList expected_list{
+        snapshot_base->GetBlockHash(), snapshot_base->nHeight, 0};
+    uint256 snapshot_hash;
+    BOOST_REQUIRE(m_node.evodb->ReadSnapshotBaseMNListHash(snapshot_hash));
+    BOOST_CHECK_EQUAL(snapshot_hash, evo::CanonicalMNListHash(expected_list));
     mineBlocks(V19_HEIGHT - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
     BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
