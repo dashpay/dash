@@ -1164,7 +1164,10 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
             // currently backs, so that MN ceases to exist. Drop any mempool update that
             // still targets its proTxHash; such an update can never be mined afterwards.
             // removeProTxSpentCollateralConflicts only covers collateral *spends*, not reuse.
-            if (auto dmn = m_dmnman.GetListAtChainTip().GetMNByCollateral(proTx.collateralOutpoint)) {
+            // The MN's own ProRegTx replaces nothing: during a reorg the tip list still holds
+            // the disconnected chain's MN list when the new branch re-mines the registration.
+            if (auto dmn = m_dmnman.GetListAtChainTip().GetMNByCollateral(proTx.collateralOutpoint);
+                dmn && dmn->proTxHash != tx_hash) {
                 removeProTxReferences(dmn->proTxHash);
             }
         } else {
@@ -1586,6 +1589,16 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         return false;
     };
 
+    // A pending ProRegTx claiming a live MN's collateral replaces (deletes) that MN when
+    // mined, so an update targeting the MN could never be mined afterwards. The MN's own
+    // ProRegTx (same hash, e.g. resubmitted while a reorg is being processed) replaces
+    // nothing and is not a conflict.
+    auto collateralReusedInMempool = [&](const CDeterministicMN& dmn) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+        AssertLockHeld(cs);
+        auto it = mapProTxCollaterals.find(dmn.collateralOutpoint);
+        return it != mapProTxCollaterals.end() && it->second != dmn.proTxHash;
+    };
+
     const uint256 tx_hash{tx.GetHash()};
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
         const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
@@ -1628,10 +1641,12 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             // A replacement ProRegTx deletes the live MN backed by this collateral. Any
             // in-mempool update that still targets that MN's proTxHash would then fail
             // BuildNewListFromBlock with bad-protx-hash if both were mined in one block.
-            if (auto dmn = m_dmnman.GetListAtChainTip().GetMNByCollateral(proTx.collateralOutpoint)) {
-                if (mapProTxRefs.find(dmn->proTxHash) != mapProTxRefs.end()) {
-                    return true;
-                }
+            // Exempt the MN's own registration: while a reorg is being processed the tip
+            // list can still contain the MN whose ProRegTx is being resubmitted, and
+            // re-registering the same MN replaces nothing.
+            if (auto dmn = m_dmnman.GetListAtChainTip().GetMNByCollateral(proTx.collateralOutpoint);
+                dmn && dmn->proTxHash != tx_hash && mapProTxRefs.count(dmn->proTxHash)) {
+                return true;
             }
         }
         return false;
@@ -1653,11 +1668,8 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
                 return true;
             }
         }
-        // Conflict with a replacement ProRegTx that reuses this MN's external collateral.
-        if (auto dmn = m_dmnman.GetListAtChainTip().GetMN(opt_proTx->proTxHash)) {
-            if (mapProTxCollaterals.count(dmn->collateralOutpoint)) {
-                return true;
-            }
+        if (auto dmn = m_dmnman.GetListAtChainTip().GetMN(opt_proTx->proTxHash); dmn && collateralReusedInMempool(*dmn)) {
+            return true;
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
@@ -1673,8 +1685,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Masternode is not in the list, proTxHash: %s\n", __func__, proTx.proTxHash.ToString());
             return true; // i.e. failed to find validated ProTx == conflict
         }
-        // Conflict with a replacement ProRegTx that reuses this MN's external collateral.
-        if (mapProTxCollaterals.count(dmn->collateralOutpoint)) {
+        if (collateralReusedInMempool(*dmn)) {
             return true;
         }
         // only allow one operator key change in the mempool
@@ -1699,8 +1710,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             LogPrint(BCLog::MEMPOOL, "%s: ERROR: Masternode is not in the list, proTxHash: %s\n", __func__, proTx.proTxHash.ToString());
             return true; // i.e. failed to find validated ProTx == conflict
         }
-        // Conflict with a replacement ProRegTx that reuses this MN's external collateral.
-        if (mapProTxCollaterals.count(dmn->collateralOutpoint)) {
+        if (collateralReusedInMempool(*dmn)) {
             return true;
         }
         // only allow one operator key change in the mempool
