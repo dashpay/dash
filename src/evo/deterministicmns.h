@@ -24,7 +24,9 @@
 #include <algorithm>
 #include <atomic>
 #include <limits>
+#include <list>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -752,7 +754,34 @@ class CDeterministicMNManager
     static constexpr int DISK_SNAPSHOTS = llmq_max_blocks() / DISK_SNAPSHOT_PERIOD + 1;
     static constexpr int LIST_DIFFS_CACHE_SIZE = DISK_SNAPSHOT_PERIOD * DISK_SNAPSHOTS;
 
+public:
+    // Hard caps on the in-memory caches. CleanupCache() alone is not enough: it only
+    // runs once a new block has arrived, so between blocks an unauthenticated peer
+    // spamming getmnlistd for historical blocks could append entries without bound
+    // (a full mainnet list is several MB). List admission uses two tiers:
+    //   - Recent tier (mnListsCache): tip-recent heights only, lowest-height-first
+    //     eviction, cap MAX_CACHE_LISTS. Attacker stale traffic never enters here.
+    //   - Stale tier (mnStaleListsCache): LRU, cap MAX_STALE_CACHE_LISTS. Keeps a
+    //     bounded working set of historical mini-snapshots so repeated stale
+    //     getmnlistd requests do not re-read a multi-MB disk snapshot on every call.
+    // Lists are rebuilt by applying up to DISK_SNAPSHOT_PERIOD - 1 diffs from the
+    // previous on-disk snapshot, so block validation / invalidation spanning a
+    // snapshot boundary can legitimately keep up to two snapshot periods of lists
+    // (per-block lists plus mini-snapshots) resident. Size the recent cap to hold
+    // that whole window so bounding admission never slows the (dis)connect hot path;
+    // it is well above honest steady-state usage (tip + live quorum bases +
+    // mini-snapshots within LIST_DIFFS_CACHE_SIZE of the tip).
+    static constexpr size_t MAX_CACHE_LISTS = static_cast<size_t>(DISK_SNAPSHOT_PERIOD) * 2;
+    // One 576-block snapshot interval of mini-snapshots (18) plus margin.
+    static constexpr size_t MAX_STALE_CACHE_LISTS = 32;
+    // Diffs are small; allow a full recency window plus a margin for one rebuild walk.
+    static constexpr size_t MAX_CACHE_DIFFS = static_cast<size_t>(LIST_DIFFS_CACHE_SIZE) + 64;
+
 private:
+    struct StaleListEntry {
+        CDeterministicMNList list;
+        std::list<uint256>::iterator lru_it{};
+    };
     Mutex cs;
     Mutex cs_cleanup;
     // We have performed CleanupCache() on this height.
@@ -766,6 +795,8 @@ private:
 
     Uint256HashMap<CDeterministicMNList> mnListsCache GUARDED_BY(cs);
     Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache GUARDED_BY(cs);
+    std::list<uint256> mnStaleListsLru GUARDED_BY(cs);
+    Uint256HashMap<StaleListEntry> mnStaleListsCache GUARDED_BY(cs);
     const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
     const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
 
@@ -793,6 +824,23 @@ public:
     {
         LOCK(cs);
         mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+    }
+
+    // In-memory list/diff cache sizes (for tests and diagnostics).
+    size_t GetListCacheSize() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return mnListsCache.size();
+    }
+    size_t GetListDiffsCacheSize() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return mnListDiffsCache.size();
+    }
+    size_t GetStaleListCacheSize() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return mnStaleListsCache.size();
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
@@ -834,6 +882,15 @@ public:
 private:
     void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    // Retain only tip-recent heights (same window CleanupCache uses for "too old").
+    [[nodiscard]] bool ShouldRetainCacheHeight(int height) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void CacheMNList(const uint256& block_hash, const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void CacheMNListDiff(const uint256& block_hash, CDeterministicMNListDiff diff) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void CacheStaleMNList(const uint256& block_hash, const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    [[nodiscard]] std::optional<CDeterministicMNList> GetStaleList(const uint256& block_hash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void EraseStaleList(const uint256& block_hash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void EnforceListsCacheLimit() EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void EnforceDiffsCacheLimit() EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Helper methods for RecalculateAndRepairDiffs
     static std::vector<const CBlockIndex*> CollectSnapshotBlocks(const CBlockIndex* start_index,
