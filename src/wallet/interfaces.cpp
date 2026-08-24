@@ -385,6 +385,18 @@ public:
         std::unique_ptr<WalletBatch> batch = std::make_unique<WalletBatch>(m_wallet->GetDatabase());
         return m_wallet->UnlockCoin(output, batch.get());
     }
+    bool lockCoinByUser(const COutPoint& output, bool write_to_db) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        std::unique_ptr<WalletBatch> batch = write_to_db ? std::make_unique<WalletBatch>(m_wallet->GetDatabase()) : nullptr;
+        return m_wallet->LockCoinByUser(output, batch.get());
+    }
+    bool unlockCoinByUser(const COutPoint& output) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        WalletBatch batch{m_wallet->GetDatabase()};
+        return m_wallet->UnlockCoinByUser(output, &batch);
+    }
     bool isLockedCoin(const COutPoint& output) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -400,7 +412,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         WalletBatch batch(m_wallet->GetDatabase());
         for (const auto& output : outputs) {
-            if (!m_wallet->LockCoin(output, &batch)) return false;
+            if (!m_wallet->LockCoinByUser(output, &batch)) return false;
         }
         return true;
     }
@@ -409,7 +421,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         WalletBatch batch(m_wallet->GetDatabase());
         for (const auto& output : outputs) {
-            if (!m_wallet->UnlockCoin(output, &batch)) return false;
+            if (!m_wallet->UnlockCoinByUser(output, &batch)) return false;
         }
         return true;
     }

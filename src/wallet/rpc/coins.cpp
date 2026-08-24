@@ -412,9 +412,9 @@ RPCHelpMan lockunspent()
     // Atomically set (un)locked status for the outputs.
     for (const COutPoint& outpt : outputs) {
         if (fUnlock) {
-            if (!pwallet->UnlockCoin(outpt, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Unlocking coin failed");
+            if (!pwallet->UnlockCoinByUser(outpt, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Unlocking coin failed");
         } else {
-            if (!pwallet->LockCoin(outpt, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Locking coin failed");
+            if (!pwallet->LockCoinByUser(outpt, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Locking coin failed");
         }
     }
 

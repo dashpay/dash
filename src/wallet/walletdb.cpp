@@ -49,6 +49,7 @@ const std::string HDCHAIN{"hdchain"};
 const std::string HDPUBKEY{"hdpubkey"};
 const std::string KEYMETA{"keymeta"};
 const std::string KEY{"key"};
+const std::string AUTOLOCK_OPTOUT{"autolockoptout"};
 const std::string LOCKED_UTXO{"lockedutxo"};
 const std::string MASTER_KEY{"mkey"};
 const std::string MINVERSION{"minversion"};
@@ -346,6 +347,17 @@ bool WalletBatch::WriteLockedUTXO(const COutPoint& output)
 bool WalletBatch::EraseLockedUTXO(const COutPoint& output)
 {
     return EraseIC(std::make_pair(DBKeys::LOCKED_UTXO, std::make_pair(output.hash, output.n)));
+}
+
+bool WalletBatch::WriteAutoLockOptOut(const COutPoint& output, bool was_collateral)
+{
+    return WriteIC(std::make_pair(DBKeys::AUTOLOCK_OPTOUT, std::make_pair(output.hash, output.n)),
+                   uint8_t{was_collateral});
+}
+
+bool WalletBatch::EraseAutoLockOptOut(const COutPoint& output)
+{
+    return EraseIC(std::make_pair(DBKeys::AUTOLOCK_OPTOUT, std::make_pair(output.hash, output.n)));
 }
 
 class CWalletScanState {
@@ -810,6 +822,18 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 wss.crypted_mnemonics.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), std::make_pair(mnemonic, mnemonic_passphrase)));
             }
 
+        } else if (strType == DBKeys::AUTOLOCK_OPTOUT) {
+            uint256 hash;
+            uint32_t n;
+            ssKey >> hash;
+            ssKey >> n;
+            // A value that cannot be read is treated as a collateral the user unlocked, the
+            // reading that leaves their decision standing.
+            uint8_t was_collateral{1};
+            try {
+                ssValue >> was_collateral;
+            } catch (const std::ios_base::failure&) {}
+            pwallet->LoadAutoLockOptOut(COutPoint(hash, n), was_collateral != 0);
         } else if (strType == DBKeys::LOCKED_UTXO) {
             uint256 hash;
             uint32_t n;

@@ -243,7 +243,7 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_tests, CTransactionBuilderT
     const COutPoint outpointInMempool = tallyItem.outpoints[3];
 
     // A denominated coin the user locked themselves, e.g. via `lockunspent`
-    WITH_LOCK(wallet->cs_wallet, wallet->LockCoin(outpointUserLocked));
+    WITH_LOCK(wallet->cs_wallet, wallet->LockCoinByUser(outpointUserLocked));
 
     BOOST_CHECK(m_node.cj_walletman->doForClient("", [&](CCoinJoinClientManager& cj_man) {
         // A user-created lock is never adopted as a pending observation: it has no
@@ -334,7 +334,7 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_tests, CTransactionBuilderT
         BOOST_CHECK_EQUAL(cj_man.GetPendingObservationCount(), 1);
 
         // A manual unlock (e.g. via lockunspent) purges the pending entry
-        WITH_LOCK(wallet->cs_wallet, wallet->UnlockCoin(outpointInMempool));
+        WITH_LOCK(wallet->cs_wallet, wallet->UnlockCoinByUser(outpointInMempool));
         cj_man.CheckPendingObservations(*m_node.mempool);
         BOOST_CHECK(!cj_man.IsPendingObservation(outpointInMempool));
         BOOST_CHECK_EQUAL(cj_man.GetPendingObservationCount(), 0);

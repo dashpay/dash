@@ -9,6 +9,7 @@
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <key.h>
+#include <messagesigner.h>
 #include <script/interpreter.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
@@ -92,6 +93,54 @@ void SignTransaction(CMutableTransaction& tx, const SimpleUTXOMap& coins, const 
 
     std::map<int, bilingual_str> input_errors;
     Assert(::SignTransaction(tx, &keystore, coins, SIGHASH_ALL, input_errors));
+}
+
+CMutableTransaction CreateSpendTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos,
+                                  const CScript& script_payout, CAmount amount, const CKey& coinbase_key)
+{
+    CMutableTransaction tx;
+    const auto spent = FundTransaction(chainman, tx, utxos, script_payout, amount);
+    SignTransaction(tx, spent, coinbase_key);
+    return tx;
+}
+
+COutPoint GetCollateralOutpoint(const CMutableTransaction& tx)
+{
+    for (size_t i = 0; i < tx.vout.size(); ++i) {
+        if (tx.vout[i].nValue == dmn_types::Regular.collat_amount) {
+            return COutPoint(tx.GetHash(), i);
+        }
+    }
+    return COutPoint();
+}
+
+CMutableTransaction CreateProRegTxExternalCollateral(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,
+                                                     const COutPoint& collateral_outpoint, const CScript& script_payout,
+                                                     const CKey& owner_key, const CBLSSecretKey& operator_key,
+                                                     const CKey& collateral_key, const CKey& coinbase_key)
+{
+    CProRegTx pro_tx;
+    pro_tx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    pro_tx.netInfo = NetInfoInterface::MakeNetInfo(pro_tx.nVersion);
+    Assert(pro_tx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)) == NetInfoStatus::Success);
+    pro_tx.collateralOutpoint = collateral_outpoint;
+    pro_tx.keyIDOwner = owner_key.GetPubKey().GetID();
+    pro_tx.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_tx.keyIDVoting = owner_key.GetPubKey().GetID();
+    pro_tx.scriptPayout = script_payout;
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_REGISTER;
+    // The collateral is external, referenced through collateralOutpoint, so this transaction
+    // only has to fund a fee.
+    const auto spent = FundTransaction(chainman, tx, utxos, script_payout, /*amount=*/1 * COIN);
+    pro_tx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+    CMessageSigner::SignMessage(pro_tx.MakeSignString(), pro_tx.vchSig, collateral_key);
+    SetTxPayload(tx, pro_tx);
+    SignTransaction(tx, spent, coinbase_key);
+
+    return tx;
 }
 
 CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,

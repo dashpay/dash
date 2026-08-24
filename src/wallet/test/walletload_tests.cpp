@@ -50,5 +50,36 @@ BOOST_FIXTURE_TEST_CASE(wallet_load_unknown_descriptor, TestingSetup)
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(wallet_load_autolock_optout, TestingSetup)
+{
+    CMutableTransaction mtx;
+    mtx.vin.emplace_back(COutPoint{uint256::ONE, 0});
+    mtx.vout.emplace_back(1000, CScript());
+    const CTransactionRef tx{MakeTransactionRef(mtx)};
+    const COutPoint known{tx->GetHash(), 0};
+    const COutPoint unknown{uint256::ONE, 3};
+
+    std::unique_ptr<WalletDatabase> database = CreateMockWalletDatabase();
+    {
+        WalletBatch batch(*database, false);
+        BOOST_CHECK(batch.WriteTx(CWalletTx{tx, TxStateInactive{}}));
+        BOOST_CHECK(batch.WriteAutoLockOptOut(known, /*was_collateral=*/true));
+        BOOST_CHECK(batch.WriteAutoLockOptOut(unknown, /*was_collateral=*/true));
+    }
+
+    const std::shared_ptr<CWallet> wallet(new CWallet(m_node.chain.get(), /*coinjoin_loader=*/nullptr, "", m_args, std::move(database)));
+    BOOST_CHECK_EQUAL(wallet->LoadWallet(), DBErrors::LOAD_OK);
+
+    LOCK(wallet->cs_wallet);
+    // A deliberate unlock outlives the reload that reapplies the automatic locks.
+    BOOST_CHECK(wallet->IsAutoLockOptOut(known));
+    // A record whose output the wallet no longer knows about is dropped instead.
+    BOOST_CHECK(!wallet->IsAutoLockOptOut(unknown));
+
+    WalletBatch batch(wallet->GetDatabase());
+    BOOST_CHECK(wallet->LockCoinByUser(known, &batch));
+    BOOST_CHECK(!wallet->IsAutoLockOptOut(known));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 } // namespace wallet

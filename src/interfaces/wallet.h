@@ -224,6 +224,14 @@ public:
     //! Unlock the provided coins in a single batch.
     virtual bool unlockCoins(const std::vector<COutPoint>& outputs) = 0;
 
+    //! Lock a coin because the user asked for it, handing it back to the automatic
+    //! masternode-collateral and dust locks. Use lockCoin() for anything else.
+    virtual bool lockCoinByUser(const COutPoint& output, bool write_to_db) = 0;
+
+    //! Unlock a coin because the user asked for it, opting it out of those automatic
+    //! locks. Use unlockCoin() to release an internal or transient hold.
+    virtual bool unlockCoinByUser(const COutPoint& output) = 0;
+
     //! Set dust protection threshold (does not lock anything by itself).
     virtual void setDustProtectionThreshold(CAmount threshold) = 0;
 

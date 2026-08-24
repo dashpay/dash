@@ -1501,9 +1501,30 @@ void CWallet::blockConnected(const interfaces::BlockInfo& block)
         transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK);
     }
 
+    // A registration in this block can turn an outpoint the user unlocked while it was an
+    // ordinary coin into a masternode collateral. Only those records need re-checking, so
+    // this stays proportional to how many outputs the user unlocked rather than to the
+    // wallet size.
+    ReclaimRegisteredCollaterals(batch);
+
     // reset cache to make sure no longer immature coins are included
     fAnonymizableTallyCached = false;
     fAnonymizableTallyCachedNonDenom = false;
+}
+
+void CWallet::ReclaimRegisteredCollaterals(WalletBatch& batch)
+{
+    AssertLockHeld(cs_wallet);
+    std::set<COutPoint> candidates;
+    for (const auto& [output, was_collateral] : m_autolock_optout) {
+        // An outpoint a live wallet transaction spends cannot be registered, and asking
+        // the chain about it on every block for the rest of the wallet's life would be
+        // pure waste. The record outlives the spend, so abandoning or conflicting that
+        // transaction brings the decision back into play.
+        if (!was_collateral && !IsSpent(output)) candidates.insert(output);
+    }
+    if (candidates.empty()) return;
+    LockProTxCoins(candidates, &batch);
 }
 
 void CWallet::blockDisconnected(const interfaces::BlockInfo& block)
@@ -2455,6 +2476,22 @@ DBErrors CWallet::LoadWallet()
         assert(m_internal_spk_managers == nullptr);
     }
 
+    // Drop opt-outs for outputs the wallet no longer knows about, so that a record cannot
+    // outlive the output it refers to (ZapSelectTx() removes transactions). Only after a
+    // clean load: a partial one may simply not have read the transaction yet.
+    if (nLoadWalletRet == DBErrors::LOAD_OK && !m_autolock_optout.empty()) {
+        WalletBatch batch(GetDatabase());
+        for (auto it = m_autolock_optout.begin(); it != m_autolock_optout.end();) {
+            const auto wtx_it{mapWallet.find(it->first.hash)};
+            const bool known{wtx_it != mapWallet.end() && it->first.n < wtx_it->second.tx->vout.size()};
+            if (!known && batch.EraseAutoLockOptOut(it->first)) {
+                it = m_autolock_optout.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     if (HaveChain()) {
         const std::optional<int> tip_height = chain().getHeight();
         if (tip_height) {
@@ -2782,13 +2819,94 @@ bool CWallet::UnlockCoin(const COutPoint& output, WalletBatch* batch)
     return true;
 }
 
+void CWallet::LoadAutoLockOptOut(const COutPoint& output, bool was_collateral)
+{
+    AssertLockHeld(cs_wallet);
+    m_autolock_optout.emplace(output, was_collateral);
+}
+
+bool CWallet::IsAutoLockOptOut(const COutPoint& output) const
+{
+    AssertLockHeld(cs_wallet);
+    return m_autolock_optout.count(output) > 0;
+}
+
+bool CWallet::IsProTxCollateral(const COutPoint& output) const
+{
+    AssertLockHeld(cs_wallet);
+    return !ListProTxCoins({output}).empty();
+}
+
+bool CWallet::PersistAutoLockOptOut(const COutPoint& output, bool optout, WalletBatch& batch)
+{
+    AssertLockHeld(cs_wallet);
+    if (!optout) return batch.EraseAutoLockOptOut(output);
+    return batch.WriteAutoLockOptOut(output, m_autolock_optout.at(output));
+}
+
+// The opt-out is updated only once the lock change itself has stuck, so that a call which
+// fails leaves nothing durable behind, and rolled back in memory when its own write fails,
+// so that what this process believes always matches what a reload would find.
+bool CWallet::LockCoinByUser(const COutPoint& output, WalletBatch* batch)
+{
+    AssertLockHeld(cs_wallet);
+    if (!LockCoin(output, batch)) return false;
+    // A lock the caller keeps in memory only must not clear the opt-out durably: the lock
+    // is gone after a reload while the decision it was taken against would not be, and the
+    // automatic protection would take the output back.
+    if (batch == nullptr) return true;
+    if (const auto it{m_autolock_optout.find(output)}; it != m_autolock_optout.end()) {
+        const bool was_collateral{it->second};
+        m_autolock_optout.erase(it);
+        if (!PersistAutoLockOptOut(output, /*optout=*/false, *batch)) {
+            m_autolock_optout.emplace(output, was_collateral);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool CWallet::UnlockCoinByUser(const COutPoint& output, WalletBatch* batch)
+{
+    AssertLockHeld(cs_wallet);
+    if (batch == nullptr) {
+        // Unlocking is always persistent, and both records have to move together, so a
+        // caller that brought no batch gets one covering the pair rather than just the
+        // opt-out.
+        WalletBatch temp_batch(GetDatabase());
+        return UnlockCoinByUser(output, &temp_batch);
+    }
+    if (!UnlockCoin(output, batch)) return false;
+    // Recorded whether or not an automatic protection currently targets `output`: one may
+    // start to (a ProRegTx registers it as collateral, the dust threshold is raised) long
+    // after the user made the decision.
+    if (m_autolock_optout.emplace(output, IsProTxCollateral(output)).second &&
+        !PersistAutoLockOptOut(output, /*optout=*/true, *batch)) {
+        m_autolock_optout.erase(output);
+        return false;
+    }
+    return true;
+}
+
 bool CWallet::UnlockAllCoins()
 {
     AssertLockHeld(cs_wallet);
     bool success = true;
     WalletBatch batch(GetDatabase());
-    for (auto it = setLockedCoins.begin(); it != setLockedCoins.end(); ++it) {
-        success &= batch.EraseLockedUTXO(*it);
+    for (const auto& output : setLockedCoins) {
+        if (!batch.EraseLockedUTXO(output)) {
+            // The lock record is still on disk, so recording an opt-out for it would leave
+            // a reload finding the coin locked and the automatic protection told to skip it.
+            success = false;
+            continue;
+        }
+        // Unlocking everything is a deliberate unlock of each output in turn, so the
+        // automatic protections must not take them back on the next load either.
+        if (m_autolock_optout.emplace(output, IsProTxCollateral(output)).second &&
+            !batch.WriteAutoLockOptOut(output, m_autolock_optout.at(output))) {
+            m_autolock_optout.erase(output);
+            success = false;
+        }
     }
     setLockedCoins.clear();
     return success;
@@ -2827,8 +2945,31 @@ std::vector<COutPoint> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos)
 void CWallet::LockProTxCoins(const std::set<COutPoint>& utxos, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
+    // The lock and the opt-out have to be persisted together, so a caller that brought no
+    // batch gets one covering both rather than leaving the lock in memory alone.
+    std::optional<WalletBatch> temp_batch;
+    if (batch == nullptr) {
+        temp_batch.emplace(GetDatabase());
+        batch = &*temp_batch;
+    }
     for (const auto& utxo : ListProTxCoins(utxos)) {
-        LockCoin(utxo, batch);
+        if (const auto it{m_autolock_optout.find(utxo)}; it != m_autolock_optout.end()) {
+            // The user unlocked a coin that has since been registered as a collateral, so
+            // their decision was about something else: the collateral has to be protected
+            // however the registration reached us.
+            if (it->second) continue;
+            // If the record cannot be dropped it stays in memory too, so the two agree and
+            // the next block retries. Locking below protects the collateral either way.
+            if (PersistAutoLockOptOut(utxo, /*optout=*/false, *batch)) {
+                m_autolock_optout.erase(it);
+            } else {
+                WalletLogPrintf("Failed to drop the automatic-lock opt-out for masternode collateral %s\n",
+                                utxo.ToStringShort());
+            }
+        }
+        if (!LockCoin(utxo, batch)) {
+            WalletLogPrintf("Failed to persist the lock for masternode collateral %s\n", utxo.ToStringShort());
+        }
     }
 }
 
@@ -2837,6 +2978,7 @@ bool CWallet::IsDustProtectionTarget(const CWalletTx& wtx, unsigned int output_i
     AssertLockHeld(cs_wallet);
 
     if (m_dust_protection_threshold <= 0) return false;
+    if (IsAutoLockOptOut(COutPoint(wtx.GetHash(), output_index))) return false;
 
     const CTransactionRef& tx = wtx.tx;
     if (tx->IsCoinBase() || tx->nType != TRANSACTION_NORMAL) return false;

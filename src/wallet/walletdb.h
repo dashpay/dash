@@ -81,6 +81,7 @@ extern const std::string HDCHAIN;
 extern const std::string HDPUBKEY;
 extern const std::string KEY;
 extern const std::string KEYMETA;
+extern const std::string AUTOLOCK_OPTOUT;
 extern const std::string LOCKED_UTXO;
 extern const std::string MASTER_KEY;
 extern const std::string MINVERSION;
@@ -246,6 +247,9 @@ public:
 
     bool WriteLockedUTXO(const COutPoint& output);
     bool EraseLockedUTXO(const COutPoint& output);
+
+    bool WriteAutoLockOptOut(const COutPoint& output, bool was_collateral);
+    bool EraseAutoLockOptOut(const COutPoint& output);
 
     bool WriteAddressPreviouslySpent(const CTxDestination& dest, bool previously_spent);
     bool WriteAddressReceiveRequest(const CTxDestination& dest, const std::string& id, const std::string& receive_request);

@@ -27,6 +27,16 @@ void SignTransaction(CMutableTransaction& tx, const SimpleUTXOMap& coins, const 
 CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,
                                    const CScript& script_payout, const CKey& coinbase_key, CKey& owner_key_ret,
                                    CBLSSecretKey& operator_key_ret);
+//! Spend `amount` to `script_payout`, e.g. to create a collateral output.
+CMutableTransaction CreateSpendTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos,
+                                  const CScript& script_payout, CAmount amount, const CKey& coinbase_key);
+//! The first output of `tx` holding a regular masternode collateral, or a null outpoint.
+COutPoint GetCollateralOutpoint(const CMutableTransaction& tx);
+//! ProRegTx that references a pre-existing collateral output instead of funding one inline.
+CMutableTransaction CreateProRegTxExternalCollateral(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,
+                                                     const COutPoint& collateral_outpoint, const CScript& script_payout,
+                                                     const CKey& owner_key, const CBLSSecretKey& operator_key,
+                                                     const CKey& collateral_key, const CKey& coinbase_key);
 CScript GenerateRandomAddress();
 
 #endif // BITCOIN_TEST_UTIL_MASTERNODE_H

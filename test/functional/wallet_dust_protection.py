@@ -13,6 +13,7 @@ from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
+    find_vout_for_address,
 )
 
 # 1 DASH = 100_000_000 duffs
@@ -48,6 +49,8 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.test_above_threshold_not_locked()
         self.test_disabled_threshold()
         self.test_existing_utxos_locked_on_restart()
+        self.test_deliberate_unlock_survives_restart()
+        self.test_deliberate_unlock_precedes_protection()
         self.test_multi_wallet()
         self.test_invalid_args()
 
@@ -175,6 +178,75 @@ class WalletDustProtectionTest(BitcoinTestFramework):
 
         # Cleanup
         node3.lockunspent(True, locked)
+
+    def test_deliberate_unlock_survives_restart(self):
+        """A UTXO the user unlocked deliberately must stay unlocked across restarts."""
+        self.log.info("Test: deliberate unlock survives restart")
+        node1 = self.nodes[1]  # dust protection at 10000 duffs
+
+        addr = node1.getnewaddress()
+        txid = self.nodes[0].sendtoaddress(addr, 9000 * DUFFS)
+        self.generate(self.nodes[0], 1)
+
+        outpoint = {"txid": txid, "vout": find_vout_for_address(node1, txid, addr)}
+        assert outpoint in node1.listlockunspent()
+
+        # Unlocking is the documented way to spend a protected output.
+        node1.lockunspent(True, [outpoint])
+        assert outpoint not in node1.listlockunspent()
+
+        # The automatic protection is reapplied on every load, so a deliberate unlock
+        # has to outlive that or the output could never be spent.
+        self.restart_node(1, self.extra_args[1])
+        # node1 sits in the middle of the node0 <- node1 <- node2 <- node3 chain.
+        self.connect_nodes(1, 0)
+        self.connect_nodes(2, 1)
+        assert outpoint not in node1.listlockunspent()
+
+        # A memory-only lock (the `lockunspent` default) does not take the decision back:
+        # the lock itself is gone after the restart, so the output must still be unlocked.
+        node1.lockunspent(False, [outpoint])
+        self.restart_node(1, self.extra_args[1])
+        # node1 sits in the middle of the node0 <- node1 <- node2 <- node3 chain.
+        self.connect_nodes(1, 0)
+        self.connect_nodes(2, 1)
+        assert outpoint not in node1.listlockunspent()
+
+        # Locking it persistently does hand the output back to the automatic protection.
+        node1.lockunspent(False, [outpoint], True)
+        self.restart_node(1, self.extra_args[1])
+        self.connect_nodes(1, 0)
+        self.connect_nodes(2, 1)
+        assert outpoint in node1.listlockunspent()
+
+        # `lockunspent true` with no outputs unlocks everything, and is just as deliberate.
+        node1.lockunspent(True)
+        assert_equal(node1.listlockunspent(), [])
+        self.restart_node(1, self.extra_args[1])
+        self.connect_nodes(1, 0)
+        self.connect_nodes(2, 1)
+        assert_equal(node1.listlockunspent(), [])
+
+    def test_deliberate_unlock_precedes_protection(self):
+        """Unlocking before dust protection is enabled must still opt the output out."""
+        self.log.info("Test: deliberate unlock precedes protection")
+        node3 = self.nodes[3]  # no dust protection
+
+        addr = node3.getnewaddress()
+        txid = self.nodes[0].sendtoaddress(addr, 7000 * DUFFS)
+        self.generate(self.nodes[0], 1)
+        outpoint = {"txid": txid, "vout": find_vout_for_address(node3, txid, addr)}
+
+        # Nothing locks it yet, so lock and unlock it by hand.
+        assert outpoint not in node3.listlockunspent()
+        node3.lockunspent(False, [outpoint], True)
+        node3.lockunspent(True, [outpoint])
+        assert outpoint not in node3.listlockunspent()
+
+        # Enabling dust protection afterwards must not take the unlock back.
+        self.restart_node(3, ["-dustrelayfee=0", "-dustprotectionthreshold=10000"])
+        self.connect_nodes(3, 2)
+        assert outpoint not in node3.listlockunspent()
 
     def test_multi_wallet(self):
         """Dust protection should work across multiple wallets on the same node."""

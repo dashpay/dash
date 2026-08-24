@@ -2,6 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
+#include <evo/dmn_types.h>
+#include <bls/bls.h>
 #include <wallet/wallet.h>
 
 #include <future>
@@ -56,14 +60,17 @@ class FailBatch : public DatabaseBatch
 {
 private:
     bool m_pass{true};
+    bool m_pass_erase{true};
+    bool m_pass_write{true};
     bool ReadKey(CDataStream&&, CDataStream&) override { return m_pass; }
-    bool WriteKey(CDataStream&&, CDataStream&&, bool) override { return m_pass; }
-    bool EraseKey(CDataStream&&) override { return m_pass; }
+    bool WriteKey(CDataStream&&, CDataStream&&, bool) override { return m_pass && m_pass_write; }
+    bool EraseKey(CDataStream&&) override { return m_pass && m_pass_erase; }
     bool HasKey(CDataStream&&) override { return m_pass; }
-    bool ErasePrefix(Span<const std::byte>) override { return m_pass; }
+    bool ErasePrefix(Span<const std::byte>) override { return m_pass && m_pass_erase; }
 
 public:
-    explicit FailBatch(bool pass) : m_pass(pass) {}
+    FailBatch(bool pass, bool pass_erase, bool pass_write) :
+        m_pass(pass), m_pass_erase(pass_erase), m_pass_write(pass_write) {}
     void Flush() override {}
     void Close() override {}
 
@@ -83,7 +90,9 @@ public:
 class FailDatabase : public WalletDatabase
 {
 public:
-    bool m_pass{true}; // false when this db should fail
+    bool m_pass{true};       // false when this db should fail
+    bool m_pass_erase{true}; // false when only erases should fail
+    bool m_pass_write{true}; // false when only writes should fail
 
     void Open() override {}
     void AddRef() override {}
@@ -97,7 +106,7 @@ public:
     void ReloadDbEnv() override {}
     std::string Filename() override { return "faildb"; }
     std::string Format() override { return "faildb"; }
-    std::unique_ptr<DatabaseBatch> MakeBatch(bool = true) override { return std::make_unique<FailBatch>(m_pass); }
+    std::unique_ptr<DatabaseBatch> MakeBatch(bool = true) override { return std::make_unique<FailBatch>(m_pass, m_pass_erase, m_pass_write); }
 };
 } // namespace
 
@@ -115,6 +124,130 @@ BOOST_AUTO_TEST_CASE(interface_coin_lock_ownership)
     BOOST_CHECK(wallet_interface->unlockCoin(outpoint));
     BOOST_CHECK(wallet_interface->acquireCoinLock(outpoint, /*write_to_db=*/false) == interfaces::CoinLockResult::ACQUIRED);
     BOOST_CHECK(wallet_interface->unlockCoin(outpoint));
+}
+
+BOOST_AUTO_TEST_CASE(unlock_coin_by_user_failed_persist)
+{
+    auto database{std::make_unique<FailDatabase>()};
+    auto* database_ptr{database.get()};
+    auto wallet{std::make_shared<CWallet>(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args,
+                                          std::move(database))};
+    BOOST_REQUIRE(wallet->LoadWallet() == DBErrors::LOAD_OK);
+    const COutPoint outpoint{uint256::ONE, 0};
+
+    LOCK(wallet->cs_wallet);
+    {
+        WalletBatch batch{wallet->GetDatabase()};
+        BOOST_REQUIRE(wallet->LockCoin(outpoint, &batch));
+    }
+
+    // An unlock that failed to persist must not leave a durable opt-out behind: the coin
+    // is still locked on disk, so a reload would find the two records contradicting.
+    // Only erases fail, so writing the opt-out would succeed if it were attempted first.
+    database_ptr->m_pass_erase = false;
+    WalletBatch batch{wallet->GetDatabase()};
+    BOOST_CHECK(!wallet->UnlockCoinByUser(outpoint, &batch));
+    BOOST_CHECK(!wallet->IsAutoLockOptOut(outpoint));
+}
+
+BOOST_AUTO_TEST_CASE(unlock_all_coins_failed_persist)
+{
+    auto database{std::make_unique<FailDatabase>()};
+    auto* database_ptr{database.get()};
+    auto wallet{std::make_shared<CWallet>(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args,
+                                          std::move(database))};
+    BOOST_REQUIRE(wallet->LoadWallet() == DBErrors::LOAD_OK);
+    const COutPoint outpoint{uint256::ONE, 0};
+
+    LOCK(wallet->cs_wallet);
+    BOOST_REQUIRE(wallet->LockCoin(outpoint));
+
+    // The lock record is erased but the opt-out write fails, so the rollback has to run:
+    // an opt-out left in memory alone would be gone after a reload.
+    database_ptr->m_pass_write = false;
+    BOOST_CHECK(!wallet->UnlockAllCoins());
+    BOOST_CHECK(!wallet->IsAutoLockOptOut(outpoint));
+}
+
+BOOST_AUTO_TEST_CASE(collateral_reclaim_locks_despite_failed_erase)
+{
+    auto database{std::make_unique<FailDatabase>()};
+    auto* database_ptr{database.get()};
+    auto wallet{std::make_shared<CWallet>(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args,
+                                          std::move(database))};
+    BOOST_REQUIRE(wallet->LoadWallet() == DBErrors::LOAD_OK);
+
+    CProRegTx payload;
+    payload.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    payload.netInfo = NetInfoInterface::MakeNetInfo(payload.nVersion);
+    payload.collateralOutpoint.n = 0;
+
+    CMutableTransaction mtx;
+    mtx.nVersion = 3;
+    mtx.nType = TRANSACTION_PROVIDER_REGISTER;
+    mtx.vin.emplace_back(COutPoint{uint256::ONE, 0});
+    CKey collateral_key;
+    collateral_key.MakeNewKey(true);
+    mtx.vout.emplace_back(dmn_types::Regular.collat_amount,
+                          GetScriptForDestination(PKHash(collateral_key.GetPubKey())));
+    SetTxPayload(mtx, payload);
+    const CTransactionRef pro_reg_tx{MakeTransactionRef(mtx)};
+    const COutPoint collateral{pro_reg_tx->GetHash(), 0};
+
+    LOCK(wallet->cs_wallet);
+    BOOST_REQUIRE(wallet->AddToWallet(pro_reg_tx, TxStateInMempool{}));
+    wallet->LoadAutoLockOptOut(collateral, /*was_collateral=*/false);
+
+    // The opt-out record cannot be dropped, but the collateral is live: it has to end up
+    // locked anyway, and the record has to stay in memory so it still matches disk.
+    database_ptr->m_pass_erase = false;
+    wallet->LockProTxCoins({collateral});
+    BOOST_CHECK(wallet->IsLockedCoin(collateral));
+    BOOST_CHECK(wallet->IsAutoLockOptOut(collateral));
+}
+
+BOOST_AUTO_TEST_CASE(unlock_coin_by_user_without_batch_erases_lock)
+{
+    auto database{std::make_unique<FailDatabase>()};
+    auto* database_ptr{database.get()};
+    auto wallet{std::make_shared<CWallet>(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args,
+                                          std::move(database))};
+    BOOST_REQUIRE(wallet->LoadWallet() == DBErrors::LOAD_OK);
+    const COutPoint outpoint{uint256::ONE, 0};
+
+    LOCK(wallet->cs_wallet);
+    {
+        WalletBatch batch{wallet->GetDatabase()};
+        BOOST_REQUIRE(wallet->LockCoinByUser(outpoint, &batch));
+    }
+
+    // Unlocking without a batch must still take the persisted lock with it, so a failing
+    // erase has to fail the call rather than leave a durable lock beside a durable opt-out.
+    database_ptr->m_pass_erase = false;
+    BOOST_CHECK(!wallet->UnlockCoinByUser(outpoint, /*batch=*/nullptr));
+    BOOST_CHECK(!wallet->IsAutoLockOptOut(outpoint));
+}
+
+BOOST_AUTO_TEST_CASE(unlock_all_coins_failed_erase)
+{
+    auto database{std::make_unique<FailDatabase>()};
+    auto* database_ptr{database.get()};
+    auto wallet{std::make_shared<CWallet>(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args,
+                                          std::move(database))};
+    BOOST_REQUIRE(wallet->LoadWallet() == DBErrors::LOAD_OK);
+    const COutPoint outpoint{uint256::ONE, 0};
+
+    LOCK(wallet->cs_wallet);
+    {
+        WalletBatch batch{wallet->GetDatabase()};
+        BOOST_REQUIRE(wallet->LockCoin(outpoint, &batch));
+    }
+
+    // The lock record survives the failed erase, so no opt-out may be recorded alongside
+    // it: writes still succeed here, so the opt-out would land if it were attempted.
+    database_ptr->m_pass_erase = false;
+    BOOST_CHECK(!wallet->UnlockAllCoins());
+    BOOST_CHECK(!wallet->IsAutoLockOptOut(outpoint));
 }
 
 BOOST_AUTO_TEST_CASE(interface_coin_lock_failed_persist)

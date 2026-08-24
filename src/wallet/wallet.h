@@ -337,6 +337,18 @@ private:
     TxSpends mapTxSpends GUARDED_BY(cs_wallet);
     void AddToSpends(const COutPoint& outpoint, const uint256& wtxid, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void AddToSpends(const CWalletTx& wtx, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Outpoints the user unlocked deliberately, and which the automatic
+     *  masternode-collateral and dust locks therefore leave alone until the user locks
+     *  them again. Persisted, because the automatic locks are reapplied on every load. */
+    /** Maps each opted-out outpoint to whether it already was a masternode collateral when
+     *  the user unlocked it. An outpoint that only became one afterwards is taken back by
+     *  the automatic protection: the decision was made about an ordinary coin. */
+    std::map<COutPoint, bool> m_autolock_optout GUARDED_BY(cs_wallet);
+    bool PersistAutoLockOptOut(const COutPoint& output, bool optout, WalletBatch& batch) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool IsProTxCollateral(const COutPoint& output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Take back the automatic protection on outpoints the user unlocked while they were
+     *  ordinary coins and that have since been registered as masternode collaterals. */
+    void ReclaimRegisteredCollaterals(WalletBatch& batch) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     std::set<COutPoint> setWalletUTXO;
     /** Add new UTXOs to the wallet UTXO set
@@ -659,6 +671,18 @@ public:
     bool IsLockedCoin(const COutPoint& output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool LockCoin(const COutPoint& output, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool UnlockCoin(const COutPoint& output, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Lock/unlock `output` because the user asked for it, rather than as part of an
+     *  automatic protection or an internal transient hold.
+     *
+     *  Unlocking this way also opts `output` out of the automatic masternode-collateral
+     *  and dust locks, which are otherwise reapplied on every wallet load and would put
+     *  the lock back on. Locking it again clears the opt-out and hands the outpoint back
+     *  to the automatic protections. */
+    bool LockCoinByUser(const COutPoint& output, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool UnlockCoinByUser(const COutPoint& output, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void LoadAutoLockOptOut(const COutPoint& output, bool was_collateral) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Has the user unlocked `output` deliberately, opting it out of the automatic locks? */
+    bool IsAutoLockOptOut(const COutPoint& output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool UnlockAllCoins() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     const std::set<COutPoint>& ListLockedCoins() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     std::vector<COutPoint> ListProTxCoins() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);

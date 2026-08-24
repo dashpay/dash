@@ -491,7 +491,7 @@ void TransactionView::unlockDust()
 
     // Create the outpoint and unlock
     COutPoint outpoint(hash, outputIdx);
-    model->wallet().unlockCoin(outpoint);
+    model->wallet().unlockCoinByUser(outpoint);
 
     // Refresh the transaction view to update the display
     model->getTransactionTableModel()->refreshWallet(true);
