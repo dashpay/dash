@@ -137,7 +137,11 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
 
 void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const CCreditPool &pool)
 {
-    if (height % DISK_SNAPSHOT_PERIOD == 0) {
+    // The disk snapshot is an optimization; skip it outside a block-scoped EvoDB transaction
+    // (e.g. a pool constructed on a cold cache during mempool acceptance or template creation),
+    // where the write would never be committed and would trip the clean-transaction assertion
+    // at the next root commit. A skipped snapshot is reconstructed from an earlier one.
+    if (height % DISK_SNAPSHOT_PERIOD == 0 && evoDb.HasActiveTransaction()) {
         if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
             // A mismatch is local EvoDB corruption, not a statement about the
             // block. Abort here: some callers (miner, RPC) never pass through a
