@@ -115,6 +115,16 @@ public:
 
     std::unique_ptr<CEvoDBScopedCommitter> BeginTransaction(EvoDbIdentity identity = EvoDbIdentity::NORMAL) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+    /** Whether a block-scoped transaction is open. Writes performed outside one are never
+     *  committed and trip the clean-transaction assertion at the next root commit, so callers
+     *  reachable from transaction-less contexts (mempool acceptance, mining, RPC) must skip
+     *  optional persistence when this is false. */
+    bool HasActiveTransaction() const EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return active_transaction.has_value();
+    }
+
     CurTransaction& GetCurTransaction() EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
         AssertLockHeld(cs); // lock must be held from outside as long as the DB transaction is used
