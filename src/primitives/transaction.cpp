@@ -9,6 +9,7 @@
 #include <hash.h>
 #include <script/script.h>
 #include <serialize.h>
+#include <streams.h>
 #include <tinyformat.h>
 #include <uint256.h>
 #include <util/strencodings.h>
@@ -70,8 +71,26 @@ std::string CTxOut::ToString() const
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0) {}
 CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload) {}
 
+namespace {
+/** The txid of a version 2+ asset unlock excludes the quorum signing info - the fields Platform
+ *  changes when it re-signs an expired withdrawal - so every re-signed instance of one withdrawal
+ *  shares one txid and spends of its outputs stay valid across re-signs. The payload is the last
+ *  field serialized (see CTransaction::Serialize), so the signing info occupies the trailing bytes
+ *  of the stream. The full-serialization hash remains available as CTransaction::GetInstanceHash()
+ *  and is committed to by the coinbase transaction. */
+template <typename TxType>
+uint256 ComputeStableUnlockHash(const TxType& tx)
+{
+    CDataStream ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << tx;
+    std::fill(ss.end() - ASSET_UNLOCK_QUORUM_INFO_SIZE, ss.end(), std::byte{0});
+    return Hash(ss);
+}
+} // anonymous namespace
+
 uint256 CMutableTransaction::GetHash() const
 {
+    if (IsAssetUnlockWithStableTxid(*this)) return ComputeStableUnlockHash(*this);
     return SerializeHash(*this);
 }
 
@@ -93,13 +112,19 @@ std::string CMutableTransaction::ToString() const
     return str;
 }
 
-uint256 CTransaction::ComputeHash() const
+uint256 CTransaction::ComputeInstanceHash() const
 {
     return SerializeHash(*this);
 }
 
-CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), hash{ComputeHash()} {}
-CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), hash{ComputeHash()} {}
+uint256 CTransaction::ComputeHash() const
+{
+    if (IsAssetUnlockWithStableTxid(*this)) return ComputeStableUnlockHash(*this);
+    return m_instance_hash;
+}
+
+CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), m_instance_hash{ComputeInstanceHash()}, hash{ComputeHash()} {}
+CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), m_instance_hash{ComputeInstanceHash()}, hash{ComputeHash()} {}
 
 CAmount CTransaction::GetValueOut() const
 {
