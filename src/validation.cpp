@@ -54,8 +54,10 @@
 #include <warnings.h>
 
 #include <chainlock/chainlock.h>
+#include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/chainhelper.h>
+#include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
@@ -725,6 +727,12 @@ private:
     // only tests that are fast should be done here (to avoid CPU DoS).
     bool PreChecks(ATMPArgs& args, Workspace& ws) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
 
+    // If ptx is a version 2 asset unlock whose txid is already in the mempool, handle it as a
+    // re-signed instance of that withdrawal: validate it and, when fresher, swap it into the
+    // existing entry in place. Returns std::nullopt when the normal acceptance path should run.
+    std::optional<MempoolAcceptResult> TryAssetUnlockRefresh(const CTransactionRef& ptx, const ATMPArgs& args)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
+
     // Enforce package mempool ancestor/descendant limits (distinct from individual
     // ancestor/descendant limits done in PreChecks).
     bool PackageMempoolChecks(const std::vector<CTransactionRef>& txns,
@@ -874,6 +882,19 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     m_view.SetBackend(m_viewmempool);
 
     const CCoinsViewCache& coins_cache = m_active_chainstate.CoinsTip();
+
+    // Asset unlocks have no inputs, so the missing-inputs check below cannot detect that this
+    // withdrawal was already mined - and a coin check is not reliable either, since the outputs
+    // may have been spent in the very block that mined it. The credit pool's mined-index set is
+    // authoritative. Version 2 unlocks are never expiry-evicted, so an already-mined instance
+    // admitted here would linger indefinitely. GetCreditPool reads from an LRU cache; the first
+    // call after startup may reconstruct the pool from the nearest disk snapshot.
+    if (const auto opt_unlock = tx.IsPlatformTransfer() ? GetTxPayload<CAssetUnlockPayload>(tx) : std::nullopt;
+        opt_unlock && m_chain_helper.credit_pool_manager->GetCreditPool(m_active_chainstate.m_chain.Tip())
+                          .indexes.Contains(opt_unlock->getIndex())) {
+        return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-known");
+    }
+
     // do all inputs exist?
     for (const CTxIn& txin : tx.vin) {
         if (!coins_cache.HaveCoinInCache(txin.prevout)) {
@@ -1221,11 +1242,61 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
     return all_submitted;
 }
 
+std::optional<MempoolAcceptResult> MemPoolAccept::TryAssetUnlockRefresh(const CTransactionRef& ptx, const ATMPArgs& args)
+{
+    AssertLockHeld(cs_main);
+    AssertLockHeld(m_pool.cs);
+
+    if (!IsAssetUnlockWithStableTxid(*ptx)) return std::nullopt;
+    const auto held_it = m_pool.GetIter(ptx->GetHash());
+    if (!held_it) return std::nullopt;
+    const CTransactionRef held = (*held_it)->GetSharedTx();
+
+    TxValidationState state;
+    if (held->GetInstanceHash() == ptx->GetInstanceHash()) {
+        state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-in-mempool");
+        return MempoolAcceptResult::Failure(state);
+    }
+
+    const auto held_payload = GetTxPayload<CAssetUnlockPayload>(*held);
+    const auto new_payload = GetTxPayload<CAssetUnlockPayload>(*ptx);
+    // Reject cheaply, before any signature work, unless this is a plausibly minable fresher
+    // instance: its requestedHeight must strictly exceed the held instance's and place the tip
+    // inside the withdrawal's validity window. This bounds how much quorum-signature verification
+    // a peer can force by resubmitting instances that share the mempool entry's txid.
+    const int tip_height = m_active_chainstate.m_chain.Height();
+    if (!Assume(held_payload) || !new_payload ||
+        new_payload->getRequestedHeight() <= held_payload->getRequestedHeight() ||
+        static_cast<int64_t>(new_payload->getRequestedHeight()) > tip_height ||
+        new_payload->getHeightToExpiry() <= tip_height) {
+        state.Invalid(TxValidationResult::TX_CONFLICT, "assetunlock-stale-instance");
+        return MempoolAcceptResult::Failure(state);
+    }
+
+    // Full consensus validation of the fresh instance: payload, quorum recency, height window
+    // and quorum signature. Everything the txid covers is identical to the held instance and
+    // was validated when it was admitted.
+    if (!m_chain_helper.special_tx->CheckSpecialTx(*ptx, m_active_chainstate.m_chain.Tip(),
+                                                   m_active_chainstate.CoinsTip(), /*check_sigs=*/true, state)) {
+        return MempoolAcceptResult::Failure(state);
+    }
+
+    const int64_t vsize = (*held_it)->GetTxSize();
+    const CAmount fee = (*held_it)->GetFee();
+    if (!args.m_test_accept) {
+        m_pool.ReplaceAssetUnlockInstance(ptx);
+        GetMainSignals().TransactionAddedToMempool(ptx, args.m_accept_time, m_pool.GetAndIncrementSequence());
+    }
+    return MempoolAcceptResult::Success(vsize, fee);
+}
+
 MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs& args)
 {
     auto start = Now<SteadyMilliseconds>();
     AssertLockHeld(cs_main);
     LOCK(m_pool.cs); // mempool "read lock" (held through GetMainSignals().TransactionAddedToMempool())
+
+    if (auto refresh_result = TryAssetUnlockRefresh(ptx, args)) return *refresh_result;
 
     Workspace ws(ptx);
 

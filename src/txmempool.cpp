@@ -684,8 +684,15 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
             newit->isKeyChangeProTx = true;
         }
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
-        auto assetUnlockTx = *Assert(GetTxPayload<CAssetUnlockPayload>(tx));
-        mapAssetUnlockExpiry.insert({tx_hash, assetUnlockTx.getHeightToExpiry()});
+        if (IsAssetUnlockWithStableTxid(tx)) {
+            // Re-signed instances of one withdrawal share the txid. The withdrawal is kept while
+            // expired, awaiting a fresher instance, instead of being expiry-evicted (which would
+            // take its descendants with it); relay identifies instances by instance hash.
+            m_asset_unlock_instances.emplace(tx.GetInstanceHash(), tx_hash);
+        } else {
+            auto assetUnlockTx = *Assert(GetTxPayload<CAssetUnlockPayload>(tx));
+            mapAssetUnlockExpiry.insert({tx_hash, assetUnlockTx.getHeightToExpiry()});
+        }
     } else if (tx.nType == TRANSACTION_MNHF_SIGNAL) {
         PrioritiseTransaction(tx_hash, 0.1 * COIN);
     }
@@ -779,8 +786,37 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
         auto proTx = *Assert(GetTxPayload<CProUpRevTx>(tx));
         eraseProTxRef(proTx.proTxHash, tx_hash);
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
-        mapAssetUnlockExpiry.erase(tx_hash);
+        if (IsAssetUnlockWithStableTxid(tx)) {
+            m_asset_unlock_instances.erase(tx.GetInstanceHash());
+        } else {
+            mapAssetUnlockExpiry.erase(tx_hash);
+        }
     }
+}
+
+CTransactionRef CTxMemPool::GetAssetUnlockByInstanceHash(const uint256& instance_hash) const
+{
+    LOCK(cs);
+    auto it = m_asset_unlock_instances.find(instance_hash);
+    if (it == m_asset_unlock_instances.end()) return nullptr;
+    return get(it->second);
+}
+
+void CTxMemPool::ReplaceAssetUnlockInstance(const CTransactionRef& tx)
+{
+    AssertLockHeld(cs);
+    auto it = mapTx.find(tx->GetHash());
+    assert(it != mapTx.end());
+    const uint256 old_instance_hash{it->GetTx().GetInstanceHash()};
+    // Sharing a txid implies everything but the quorum signing info is identical, so all cached
+    // entry values (size, fee, ancestry) and multi-index keys remain valid; modify() cannot fail.
+    Assume(it->GetTx().GetTotalSize() == tx->GetTotalSize());
+    const bool modified{mapTx.modify(it, [&tx](CTxMemPoolEntry& e) { e.ReplaceAssetUnlockTx(tx); })};
+    assert(modified);
+    vTxHashes[it->vTxHashesIdx].first = tx->GetInstanceHash();
+    m_asset_unlock_instances.erase(old_instance_hash);
+    m_asset_unlock_instances.emplace(tx->GetInstanceHash(), tx->GetHash());
+    nTransactionsUpdated++;
 }
 
 // Calculates descendants of entry that are not already in setDescendants, and adds to
@@ -1137,6 +1173,7 @@ void CTxMemPool::_clear()
     mapProTxAddresses.clear();
     mapProTxPubKeyIDs.clear();
     mapProTxPlatformNodeIDs.clear();
+    m_asset_unlock_instances.clear();
     totalTxSize = 0;
     m_total_fee = 0;
     cachedInnerUsage = 0;
@@ -1166,6 +1203,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     CAmount check_total_fee{0};
     uint64_t innerUsage = 0;
     uint64_t prev_ancestor_count{0};
+    size_t check_asset_unlock_instances{0};
 
     CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(&active_coins_tip));
 
@@ -1175,6 +1213,12 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
         innerUsage += it->DynamicMemoryUsage();
         const CTransaction& tx = it->GetTx();
         innerUsage += memusage::DynamicUsage(it->GetMemPoolParentsConst()) + memusage::DynamicUsage(it->GetMemPoolChildrenConst());
+        if (IsAssetUnlockWithStableTxid(tx)) {
+            ++check_asset_unlock_instances;
+            auto instance_it = m_asset_unlock_instances.find(tx.GetInstanceHash());
+            assert(instance_it != m_asset_unlock_instances.end());
+            assert(instance_it->second == tx.GetHash());
+        }
         CTxMemPoolEntry::Parents setParentCheck;
         for (const CTxIn &txin : tx.vin) {
             // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
@@ -1257,6 +1301,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     assert(totalTxSize == checkTotal);
     assert(m_total_fee == check_total_fee);
     assert(innerUsage == cachedInnerUsage);
+    assert(check_asset_unlock_instances == m_asset_unlock_instances.size());
 }
 
 bool CTxMemPool::CompareDepthAndScore(const uint256& hasha, const uint256& hashb)
