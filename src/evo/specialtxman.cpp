@@ -241,9 +241,11 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
                            CheckMNHFTx(chainman, qman, tx, pindexPrev, state);
         case TRANSACTION_ASSET_LOCK:
             return CheckAssetLockTx(tx, state, DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24));
-        case TRANSACTION_ASSET_UNLOCK:
-            return chain ? CheckAssetUnlockTx(chainman.m_blockman, qman, *chain, tx, pindexPrev, indexes, state) :
-                           CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, state);
+        case TRANSACTION_ASSET_UNLOCK: {
+            const bool is_v24_active{DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
+            return chain ? CheckAssetUnlockTx(chainman.m_blockman, qman, *chain, tx, pindexPrev, indexes, is_v24_active, state) :
+                           CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, is_v24_active, state);
+        }
         }
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
