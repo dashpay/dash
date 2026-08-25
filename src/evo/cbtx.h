@@ -34,6 +34,7 @@ public:
         MERKLE_ROOT_MNLIST = 1,
         MERKLE_ROOT_QUORUMS = 2,
         CLSIG_AND_BALANCE = 3,
+        MERKLE_ROOT_ASSETUNLOCKS = 4,
         UNKNOWN,
     };
 
@@ -45,6 +46,10 @@ public:
     uint32_t bestCLHeightDiff{0};
     CBLSSignature bestCLSignature;
     CAmount creditPoolBalance{0};
+    /** Merkle root over the instance hashes of the block's version 2+ asset unlock transactions
+     *  (block order; null when there are none). Their txids exclude the quorum signing info, so
+     *  the block's merkle root does not commit to it; this root restores that commitment. */
+    uint256 merkleRootAssetUnlocks;
 
     SERIALIZE_METHODS(CCbTx, obj)
     {
@@ -56,6 +61,9 @@ public:
                 READWRITE(COMPACTSIZE(obj.bestCLHeightDiff));
                 READWRITE(obj.bestCLSignature);
                 READWRITE(obj.creditPoolBalance);
+                if (obj.nVersion >= Version::MERKLE_ROOT_ASSETUNLOCKS) {
+                    READWRITE(obj.merkleRootAssetUnlocks);
+                }
             }
         }
 
@@ -68,11 +76,12 @@ public:
 };
 template<> struct is_serializable_enum<CCbTx::Version> : std::true_type {};
 
-bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationState& state);
+bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_active, TxValidationState& state);
 
 bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev,
                                const llmq::CQuorumBlockProcessor& quorum_block_processor, uint256& merkleRootRet,
                                BlockValidationState& state);
+uint256 CalcCbTxMerkleRootAssetUnlocks(const CBlock& block);
 
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 

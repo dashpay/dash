@@ -8,6 +8,7 @@
 #include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <evo/assetlocktx.h>
+#include <evo/cbtx.h>
 #include <evo/creditpool.h>
 #include <evo/specialtx.h>
 #include <llmq/context.h>
@@ -601,6 +602,37 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlocktx-too-many-outs");
     }
 
+}
+
+BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
+{
+    auto make_unlock = [](uint8_t version, uint64_t index, uint32_t requested_height) {
+        CMutableTransaction mtx;
+        mtx.nVersion = 3;
+        mtx.nType = TRANSACTION_ASSET_UNLOCK;
+        SetTxPayload(mtx, CAssetUnlockPayload{version, index, /*fee=*/2000, requested_height,
+                                              uint256::ONE, CBLSSignature{}});
+        return MakeTransactionRef(mtx);
+    };
+
+    // Only version 2 unlocks are committed to; a block without them commits to null
+    CBlock block;
+    block.vtx.push_back(make_unlock(1, 1, 500));
+    BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block).IsNull());
+
+    const auto unlock_a = make_unlock(2, 1, 500);
+    block.vtx.push_back(unlock_a);
+    const uint256 root_one{CalcCbTxMerkleRootAssetUnlocks(block)};
+    BOOST_CHECK(root_one == unlock_a->GetInstanceHash());
+
+    block.vtx.push_back(make_unlock(2, 2, 500));
+    const uint256 root_two{CalcCbTxMerkleRootAssetUnlocks(block)};
+    BOOST_CHECK(root_two != root_one);
+
+    // A different re-signed instance keeps the txid but changes the committed root
+    block.vtx.back() = make_unlock(2, 2, 700);
+    BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
+    BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_two);
 }
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_package_atomicity, TestChain100Setup)

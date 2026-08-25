@@ -143,6 +143,9 @@ UniValue CCbTx::ToJson() const
             ret.pushKV("bestCLHeightDiff", bestCLHeightDiff);
             ret.pushKV("bestCLSignature", bestCLSignature.ToString());
             ret.pushKV("creditPoolBalance", ValueFromAmount(creditPoolBalance));
+            if (nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS) {
+                ret.pushKV("merkleRootAssetUnlocks", merkleRootAssetUnlocks.ToString());
+            }
         }
     }
     return ret;
