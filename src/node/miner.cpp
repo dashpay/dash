@@ -199,6 +199,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     const bool fDIP0003Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)};
     const bool fDIP0008Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0008)};
     const bool fV20Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)};
+    const bool fV24Active_context{DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
 
     // Limit size to between 1K and MaxBlockSize()-1K for sanity:
     m_options.nBlockMaxSize = std::max<unsigned int>(1000, std::min<unsigned int>(MaxBlockSize(fDIP0001Active_context) - 1000, m_options.nBlockMaxSize));
@@ -268,7 +269,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         CCbTx cbTx;
 
-        if (fV20Active_context) {
+        if (fV24Active_context) {
+            cbTx.nVersion = CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS;
+        } else if (fV20Active_context) {
             cbTx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
         } else if (fDIP0008Active_context) {
             cbTx.nVersion = CCbTx::Version::MERKLE_ROOT_QUORUMS;
@@ -304,6 +307,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 }
 
                 cbTx.creditPoolBalance = creditPoolDiff->GetTotalLocked();
+
+                if (fV24Active_context) {
+                    cbTx.merkleRootAssetUnlocks = CalcCbTxMerkleRootAssetUnlocks(*pblock);
+                }
             }
         }
 

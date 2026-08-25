@@ -21,7 +21,7 @@
 
 using node::ReadBlockFromDisk;
 
-bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationState& state)
+bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_active, TxValidationState& state)
 {
     if (cbTx.nVersion == CCbTx::Version::INVALID || cbTx.nVersion >= CCbTx::Version::UNKNOWN) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
@@ -39,6 +39,11 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationSta
 
         const bool isV20{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)};
         if ((isV20 && cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) || (!isV20 && cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
+        }
+
+        if ((is_v24_active && cbTx.nVersion < CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS) ||
+            (!is_v24_active && cbTx.nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
     }
@@ -147,11 +152,27 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     return true;
 }
 
+uint256 CalcCbTxMerkleRootAssetUnlocks(const CBlock& block)
+{
+    // Instance hashes cover the quorum signing info that the txids of these transactions - and
+    // therefore the block's merkle root - exclude. Two instances of one withdrawal share a txid,
+    // so duplicate leaves imply a duplicate transaction, which the block merkle-root check
+    // (CheckMerkleRoot, run before this) already rejects; no mutated check is needed here.
+    std::vector<uint256> instance_hashes;
+    for (const auto& tx : block.vtx) {
+        // The miner calls this while the coinbase slot is still an empty placeholder
+        if (tx && IsAssetUnlockWithStableTxid(*tx)) {
+            instance_hashes.push_back(tx->GetInstanceHash());
+        }
+    }
+    return ComputeMerkleRoot(std::move(instance_hashes));
+}
+
 std::string CCbTx::ToString() const
 {
-    return strprintf("CCbTx(nVersion=%d, nHeight=%d, merkleRootMNList=%s, merkleRootQuorums=%s, bestCLHeightDiff=%d, bestCLSig=%s, creditPoolBalance=%d.%08d)",
+    return strprintf("CCbTx(nVersion=%d, nHeight=%d, merkleRootMNList=%s, merkleRootQuorums=%s, bestCLHeightDiff=%d, bestCLSig=%s, creditPoolBalance=%d.%08d, merkleRootAssetUnlocks=%s)",
         static_cast<uint16_t>(nVersion), nHeight, merkleRootMNList.ToString(), merkleRootQuorums.ToString(), bestCLHeightDiff, bestCLSignature.ToString(),
-        creditPoolBalance / COIN, creditPoolBalance % COIN);
+        creditPoolBalance / COIN, creditPoolBalance % COIN, merkleRootAssetUnlocks.ToString());
 }
 
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)

@@ -54,6 +54,7 @@
 #include <warnings.h>
 
 #include <chainlock/chainlock.h>
+#include <evo/cbtx.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
@@ -4040,6 +4041,21 @@ static bool CheckMerkleRoot(const CBlock& block, BlockValidationState& state)
             /*result=*/BlockValidationResult::BLOCK_MUTATED,
             /*reject_reason=*/"bad-txns-duplicate",
             /*debug_message=*/"duplicate transaction");
+    }
+
+    // Version 2 asset unlock txids exclude the quorum signing info, so the merkle root above does
+    // not commit to it; the coinbase commits to their instance hashes instead. A mismatch is a
+    // mutation, not block invalidity: a middleman can alter signing-info bytes without breaking
+    // the merkle root, and treating that as invalid would let it poison an honest block's hash.
+    if (!block.vtx.empty() && block.vtx[0]->nType == TRANSACTION_COINBASE) {
+        if (const auto opt_cbTx = GetTxPayload<CCbTx>(*block.vtx[0], /*assert_type=*/false);
+            opt_cbTx && opt_cbTx->nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS &&
+            opt_cbTx->merkleRootAssetUnlocks != CalcCbTxMerkleRootAssetUnlocks(block)) {
+            return state.Invalid(
+                /*result=*/BlockValidationResult::BLOCK_MUTATED,
+                /*reject_reason=*/"bad-cbtx-assetunlockmerkleroot",
+                /*debug_message=*/"asset unlock instance merkle root mismatch");
+        }
     }
 
     block.m_checked_merkle_root = true;

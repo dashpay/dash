@@ -504,7 +504,7 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
         minerPolicyEstimator->processTransaction(entry, validFeeEstimate);
     }
 
-    vTxHashes.emplace_back(entry.GetTx().GetHash(), newit);
+    vTxHashes.emplace_back(entry.GetTx().GetInstanceHash(), newit);
     newit->vTxHashesIdx = vTxHashes.size() - 1;
 
     // Invalid ProTxes should never get this far because transactions should be

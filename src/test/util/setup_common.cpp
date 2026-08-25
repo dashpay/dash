@@ -592,6 +592,9 @@ CBlock TestChainSetup::CreateBlock(
         if (!CalcCbTxMerkleRootQuorums(block, chainstate.m_chain.Tip(), *m_node.llmq_ctx->quorum_block_processor, cbTx->merkleRootQuorums, state)) {
             Assert(false);
         }
+        if (cbTx->nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS) {
+            cbTx->merkleRootAssetUnlocks = CalcCbTxMerkleRootAssetUnlocks(block);
+        }
         CMutableTransaction tmpTx{*block.vtx[0]};
         SetTxPayload(tmpTx, *cbTx);
         block.vtx[0] = MakeTransactionRef(tmpTx);
