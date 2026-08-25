@@ -542,16 +542,27 @@ bool CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
         if (db.GetRecoveredSigById(llmqType, recoveredSig->getId(), otherRecoveredSig)) {
             auto otherSignHash = otherRecoveredSig.buildSignHash();
             if (signHash.Get() != otherSignHash.Get()) {
-                // this should really not happen, as each masternode is participating in only one vote,
-                // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
-                LogPrintf("CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
-                          signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString(), otherSignHash.ToString());
+                if (llmqType == Params().GetConsensus().llmqTypePlatform) {
+                    // Platform re-signs expired withdrawals under the same request id with a new
+                    // message hash; the latest recovered sig supersedes the previous one. The
+                    // truncate and the write below are separate batches; a crash in between only
+                    // loses a sig that Platform will produce again on the next re-sign.
+                    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- replacing recoveredSig for platform signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
+                             signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString(), otherSignHash.ToString());
+                    db.TruncateRecoveredSig(llmqType, recoveredSig->getId());
+                } else {
+                    // this should really not happen, as each masternode is participating in only one vote,
+                    // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
+                    LogPrintf("CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
+                              signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString(), otherSignHash.ToString());
+                    return false;
+                }
             } else {
                 // Looks like we're trying to process a recSig that is already known. This might happen if the same
                 // recSig comes in through regular QRECSIG messages and at the same time through some other message
                 // which allowed to reconstruct a recSig (e.g. ISLOCK). In this case, just bail out.
+                return false;
             }
-            return false;
         } else {
             // This case is very unlikely. It can only happen when cleanup caused this specific recSig to vanish
             // between the HasRecoveredSigForId and GetRecoveredSigById call. If that happens, treat it as if we

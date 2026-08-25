@@ -221,6 +221,7 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
         MNHFTxPayload::GetJsonHelp(/*key=*/"mnhfTx", /*optional=*/true),
         CAssetLockPayload::GetJsonHelp(/*key=*/"assetLockTx", /*optional=*/true),
         CAssetUnlockPayload::GetJsonHelp(/*key=*/"assetUnlockTx", /*optional=*/true),
+        {RPCResult::Type::STR_HEX, "instanceHash", /*optional=*/true, "Full-serialization hash distinguishing this re-signed instance of the withdrawal; the txid is shared by all instances. Only present for version 2 Asset Unlock special TXs"},
     };
 }
 

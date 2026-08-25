@@ -324,6 +324,9 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
         if (const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx)) {
             entry.pushKV("assetUnlockTx", opt_assetUnlockTx->ToJson());
         }
+        if (IsAssetUnlockWithStableTxid(tx)) {
+            entry.pushKV("instanceHash", tx.GetInstanceHash().ToString());
+        }
     }
 
     if (have_undo) {
