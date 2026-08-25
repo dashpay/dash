@@ -175,7 +175,8 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const CCha
 template <typename VerifySig>
 static bool CheckAssetUnlockTxImpl(const BlockManager& blockman, VerifySig&& verify_sig, const CTransaction& tx,
                                    gsl::not_null<const CBlockIndex*> pindexPrev,
-                                   const std::optional<CRangesSet>& indexes, TxValidationState& state)
+                                   const std::optional<CRangesSet>& indexes, bool is_v24_active,
+                                   TxValidationState& state)
 {
     // Some checks depends from blockchain status also, such as `known indexes` and `withdrawal limits`
     // They are omitted here and done by CCreditPool
@@ -200,6 +201,9 @@ static bool CheckAssetUnlockTxImpl(const BlockManager& blockman, VerifySig&& ver
     if (assetUnlockTx.getVersion() == 0 || assetUnlockTx.getVersion() > CAssetUnlockPayload::CURRENT_VERSION) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-version");
     }
+    if (!is_v24_active && assetUnlockTx.getVersion() > CAssetUnlockPayload::INITIAL_VERSION) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-version-2");
+    }
 
     if (indexes != std::nullopt && indexes->Contains(assetUnlockTx.getIndex())) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-duplicated-index");
@@ -214,30 +218,32 @@ static bool CheckAssetUnlockTxImpl(const BlockManager& blockman, VerifySig&& ver
     const CAssetUnlockPayload payload_copy{assetUnlockTx.getVersion(), assetUnlockTx.getIndex(), assetUnlockTx.getFee(), assetUnlockTx.getRequestedHeight(), assetUnlockTx.getQuorumHash(), CBLSSignature{}};
     SetTxPayload(tx_copy, payload_copy);
 
-    uint256 msgHash = tx_copy.GetHash();
+    // The signed message must commit to requestedHeight and quorumHash even though the version 2
+    // txid excludes them, so hash the full serialization rather than using GetHash().
+    uint256 msgHash = ::SerializeHash(tx_copy);
 
     return verify_sig(assetUnlockTx, msgHash, pindexPrev, state);
 }
 
 bool CheckAssetUnlockTx(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx,
                         gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes,
-                        TxValidationState& state)
+                        bool is_v24_active, TxValidationState& state)
 {
     return CheckAssetUnlockTxImpl(blockman, [&](const CAssetUnlockPayload& payload, const uint256& msg_hash,
                                                 const CBlockIndex* pindex, TxValidationState& tx_state) {
         return payload.VerifySig(qman, msg_hash, pindex, tx_state);
-    }, tx, pindexPrev, indexes, state);
+    }, tx, pindexPrev, indexes, is_v24_active, state);
 }
 
 bool CheckAssetUnlockTx(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CChain& chain,
                         const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                        const std::optional<CRangesSet>& indexes, TxValidationState& state)
+                        const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state)
 {
     AssertLockHeld(::cs_main);
     return CheckAssetUnlockTxImpl(blockman, [&](const CAssetUnlockPayload& payload, const uint256& msg_hash,
                                                 const CBlockIndex* pindex, TxValidationState& tx_state) NO_THREAD_SAFETY_ANALYSIS {
         return payload.VerifySig(qman, chain, msg_hash, pindex, tx_state);
-    }, tx, pindexPrev, indexes, state);
+    }, tx, pindexPrev, indexes, is_v24_active, state);
 }
 
 bool GetAssetUnlockFee(const CTransaction& tx, CAmount& txfee, TxValidationState& state)

@@ -36,6 +36,17 @@ enum {
     TRANSACTION_ASSET_UNLOCK = 9,
 };
 
+/** Size of the trailing payload fields holding the quorum signing info (requestedHeight,
+ *  quorumHash, quorumSig) - the only fields Platform changes when it re-signs an expired
+ *  withdrawal. */
+static constexpr size_t ASSET_UNLOCK_QUORUM_INFO_SIZE{4 + 32 + 96};
+/** Serialized size of the asset unlock (credit withdrawal) special transaction payload:
+ *  version (1) + index (8) + fee (4) + the quorum signing info. */
+static constexpr size_t ASSET_UNLOCK_PAYLOAD_SIZE{1 + 8 + 4 + ASSET_UNLOCK_QUORUM_INFO_SIZE};
+/** First asset unlock payload version whose transaction hash excludes the quorum signing info,
+ *  so that every re-signed instance of one withdrawal shares one txid. */
+static constexpr uint8_t ASSET_UNLOCK_STABLE_TXID_VERSION{2};
+
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -237,9 +248,13 @@ public:
     const std::vector<uint8_t> vExtraPayload; // only available for special transaction types
 
 private:
+    /** Memory only. The full-serialization hash; equal to `hash` for all transactions except
+     *  version 2+ asset unlocks, where it identifies one signed instance of the withdrawal. */
+    const uint256 m_instance_hash;
     /** Memory only. */
     const uint256 hash;
 
+    uint256 ComputeInstanceHash() const;
     uint256 ComputeHash() const;
 
 public:
@@ -268,6 +283,12 @@ public:
     }
 
     const uint256& GetHash() const LIFETIMEBOUND { return hash; }
+
+    /** The full-serialization hash. For version 2+ asset unlocks GetHash() excludes the quorum
+     *  signing info, so this hash distinguishes the re-signed instances of one withdrawal; it is
+     *  used for their relay and for the coinbase asset unlock commitment. Equal to GetHash() for
+     *  all other transactions. */
+    const uint256& GetInstanceHash() const LIFETIMEBOUND { return m_instance_hash; }
 
     // Return sum of txouts.
     CAmount GetValueOut() const;
@@ -350,6 +371,17 @@ struct CMutableTransaction
 
     std::string ToString() const;
 };
+
+/** Whether this (mutable or immutable) transaction is an asset unlock whose hash is computed with
+ *  the quorum signing info zeroed (payload version 2 or higher). Judged from the raw payload bytes
+ *  because hashing happens before payload validation. */
+template <typename TxType>
+inline bool IsAssetUnlockWithStableTxid(const TxType& tx)
+{
+    return tx.nVersion >= CTransaction::SPECIAL_VERSION && tx.nType == TRANSACTION_ASSET_UNLOCK &&
+           tx.vExtraPayload.size() == ASSET_UNLOCK_PAYLOAD_SIZE &&
+           tx.vExtraPayload[0] >= ASSET_UNLOCK_STABLE_TXID_VERSION;
+}
 
 typedef std::shared_ptr<const CTransaction> CTransactionRef;
 template <typename Tx> static inline CTransactionRef MakeTransactionRef(Tx&& txIn) { return std::make_shared<const CTransaction>(std::forward<Tx>(txIn)); }
