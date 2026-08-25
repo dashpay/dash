@@ -498,6 +498,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
     // This map with signals is used only to find duplicates
     auto signals = m_chain_helper.ehf_manager->GetSignalsStage(pindexPrev);
+    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
 
     // mapModifiedTx will store sorted packages after they are modified
     // because some of their txs are already in the block
@@ -633,6 +634,20 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 }
             }
             if (tx.IsSpecialTxVersion() && (tx.nType == TRANSACTION_ASSET_LOCK || tx.nType == TRANSACTION_ASSET_UNLOCK)) {
+                // Version 2 asset unlocks are not expiry-evicted: an expired instance stays in
+                // the mempool awaiting a re-signed replacement. Skip instances that are not
+                // currently minable (expired height window or stale quorum) instead of
+                // producing an invalid template.
+                if (IsAssetUnlockWithStableTxid(tx)) {
+                    TxValidationState state;
+                    if (!m_chain_helper.special_tx->CheckSpecialTx(tx, m_chainstate.m_chain.Tip(), is_v24_active,
+                                                                   m_chainstate.CoinsTip(), /*check_sigs=*/true, state)) {
+                        LogPrintf("%s: package tx %s skipped, asset unlock instance not currently minable: %s\n", __func__,
+                                  tx.GetHash().ToString(), state.ToString());
+                        validPackage = false;
+                        break;
+                    }
+                }
                 creditPoolTransactions.emplace_back(entry->GetSharedTx());
             }
         }

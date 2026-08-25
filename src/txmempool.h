@@ -417,7 +417,10 @@ private:
     std::map<uint256, uint256> mapProTxBlsPubKeyHashes;
     std::map<uint160, uint256> mapProTxPlatformNodeIDs;
     std::map<COutPoint, uint256> mapProTxCollaterals;
-    std::map<uint256, int /* expiry height */> mapAssetUnlockExpiry; // tx hash -> height
+    std::map<uint256, int /* expiry height */> mapAssetUnlockExpiry; // tx hash -> height (version 1 only)
+    /** Instance hash (see CTransaction::GetInstanceHash) -> txid of version 2+ asset unlocks.
+     *  Relay identifies the re-signed instances of one withdrawal by instance hash. */
+    std::map<uint256, uint256> m_asset_unlock_instances GUARDED_BY(cs);
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -688,6 +691,12 @@ public:
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
 
+    /** Get the transaction holding this version 2 asset unlock instance hash, if any. */
+    CTransactionRef GetAssetUnlockByInstanceHash(const uint256& instance_hash) const;
+    /** Replace the held instance of a pending withdrawal with a fresher re-signed instance
+     *  sharing its txid. The caller has fully validated the new instance. */
+    void ReplaceAssetUnlockInstance(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+
     bool existsProviderTxConflict(const CTransaction &tx) const;
 
     /**
@@ -788,7 +797,7 @@ private:
     /**
      * addUnchecked extension for Dash-specific transactions (ProTx).
      */
-    void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx);
+    void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Before calling removeUnchecked for a given transaction,
      *  UpdateForRemoveFromMempool must be called on the entire (dependent) set
@@ -799,7 +808,7 @@ private:
      *  removal.
      */
     void removeUnchecked(txiter entry, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeUncheckedProTx(const CTransaction& tx);
+    void removeUncheckedProTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
     /** visited marks a CTxMemPoolEntry as having been traversed
