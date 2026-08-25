@@ -11,7 +11,7 @@
  */
 
 
-static const int PROTOCOL_VERSION = 70241;
+static const int PROTOCOL_VERSION = 70242;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
@@ -71,6 +71,10 @@ static const int PLATFORMBAN_V2_SHORT_ID_VERSION = 70240;
 //! dsa messages gained a version-gated flags field and only peers at or above this version
 //! may join rebalance-capable mixing sessions
 static const int COINJOIN_REBALANCE_VERSION = 70241;
+
+//! MSG_ASSET_UNLOCK inventory type added: version 2 asset unlocks are announced by instance hash
+//! so that re-signed instances of one withdrawal (sharing its txid) propagate
+static const int ASSET_UNLOCK_INV_VERSION = 70242;
 
 // Make sure that none of the values above collide with `ADDRV2_FORMAT`.
 
