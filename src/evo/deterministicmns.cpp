@@ -376,13 +376,34 @@ void CDeterministicMNList::ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, c
 
     for (const auto& id : diff.removedMns) {
         auto dmn = GetMNByInternalId(id);
+        if (!dmn) throw std::runtime_error(strprintf("%s: can't find a removed masternode, id=%d", __func__, id));
+        RemoveMN(dmn->proTxHash);
+    }
+    for (const auto& dmn : diff.addedMNs) AddMN(dmn);
+    for (const auto& p : diff.updatedMNs) {
+        auto dmn = GetMNByInternalId(p.first);
+        if (!dmn) throw std::runtime_error(strprintf("%s: can't find an updated masternode, id=%d", __func__, p.first));
+        UpdateMN(*dmn, p.second);
+    }
+}
+
+void CDeterministicMNList::ApplyDiffForSnapshot(const uint256& block_hash, int height,
+                                                uint32_t total_registered_count,
+                                                const CDeterministicMNListDiff& diff)
+{
+    if (height < 0) throw std::runtime_error("negative historical MN-list height");
+    blockHash = block_hash;
+    nHeight = height;
+
+    for (const auto& id : diff.removedMns) {
+        auto dmn = GetMNByInternalId(id);
         if (!dmn) {
             throw std::runtime_error(strprintf("%s: can't find a removed masternode, id=%d", __func__, id));
         }
         RemoveMN(dmn->proTxHash);
     }
     for (const auto& dmn : diff.addedMNs) {
-        AddMN(dmn);
+        AddMN(dmn, /*fBumpTotalCount=*/false);
     }
     for (const auto& p : diff.updatedMNs) {
         auto dmn = GetMNByInternalId(p.first);
@@ -391,6 +412,7 @@ void CDeterministicMNList::ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, c
         }
         UpdateMN(*dmn, p.second);
     }
+    nTotalRegisteredCount = total_registered_count;
 }
 
 void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount)
@@ -622,6 +644,18 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaM
 
 CDeterministicMNManager::~CDeterministicMNManager() = default;
 
+bool CDeterministicMNManager::SeedListForBlock(const CDeterministicMNList& list)
+{
+    return m_evoDb.WriteDerived(std::make_pair(DB_LIST_SNAPSHOT, list.GetBlockHash()), list);
+}
+
+void CDeterministicMNManager::InvalidateListCacheForBlock(const uint256& block_hash)
+{
+    LOCK(cs);
+    mnListsCache.erase(block_hash);
+    mnListDiffsCache.erase(block_hash);
+}
+
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex,
                                            BlockValidationState& state, const CDeterministicMNList& newList,
                                            std::optional<MNListUpdates>& updatesRet)
@@ -789,6 +823,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
             break;
         }
+        if (m_list_snapshot_miss_hook) m_list_snapshot_miss_hook(pindex);
 
         // no snapshot found yet, check diffs
         auto itDiffs = mnListDiffsCache.find(pindex->GetBlockHash());

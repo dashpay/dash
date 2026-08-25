@@ -136,6 +136,8 @@ public:
     void AddSignal(const CBlockIndex* const pindex, int bit) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     bool ForceSignalDBUpdate() EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    /** Seed the signals at a block in the current EvoDB transaction. */
+    bool SeedSignals(const CBlockIndex* pindex, const Signals& signals) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
 private:
     void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
