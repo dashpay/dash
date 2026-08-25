@@ -225,7 +225,7 @@ bool CSpecialTxProcessor::CheckSpecialTxInner(const CChain* chain, const CTransa
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-invalid");
             }
             if (const auto opt_cbTx = GetTxPayload<CCbTx>(tx)) {
-                return CheckCbTx(*opt_cbTx, pindexPrev, state);
+                return CheckCbTx(*opt_cbTx, pindexPrev, is_v24_active, state);
             } else {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
             }
@@ -712,7 +712,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
             if (opt_cbTx = GetTxPayload<CCbTx>(*tx); opt_cbTx) {
                 TxValidationState tx_state;
-                if (!CheckCbTx(*opt_cbTx, pindex->pprev, tx_state)) {
+                if (!CheckCbTx(*opt_cbTx, pindex->pprev, is_v24_active, tx_state)) {
                     assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS ||
                            tx_state.GetResult() == TxValidationResult::TX_BAD_SPECIAL);
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),

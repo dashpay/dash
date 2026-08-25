@@ -38,6 +38,7 @@ EXPECTED_DASH_CIRCULAR_DEPENDENCIES = (
     "consensus/tx_verify -> evo/assetlocktx -> llmq/commitment -> validation -> consensus/tx_verify",
     "consensus/tx_verify -> evo/assetlocktx -> llmq/commitment -> validation -> txmempool -> consensus/tx_verify",
     "evo/assetlocktx -> llmq/commitment -> validation -> txmempool -> evo/assetlocktx",
+    "evo/cbtx -> llmq/blockprocessor -> validation -> evo/cbtx",
     "evo/chainhelper -> evo/creditpool -> validation -> evo/chainhelper",
     "evo/creditpool -> validation -> evo/specialtxman -> evo/creditpool",
     "evo/deterministicmns -> node/blockstorage -> validation -> evo/deterministicmns",
