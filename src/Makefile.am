@@ -547,11 +547,11 @@ libbitcoin_node_a_SOURCES = \
   evo/evodb.cpp \
   evo/mnauth.cpp \
   evo/mnhftx.cpp \
-  evo/snapshot.cpp \
   evo/providertx.cpp \
   evo/providertx_service.cpp \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
+  evo/snapshot.cpp \
   evo/specialtx.cpp \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \
@@ -1288,7 +1288,6 @@ libdashkernel_la_SOURCES = \
   evo/providertx_util.cpp \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
-  evo/snapshot.cpp \
   evo/specialtx.cpp \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \
