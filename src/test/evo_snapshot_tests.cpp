@@ -782,6 +782,32 @@ BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, Basi
     BOOST_CHECK_EQUAL(reused.rotation_snapshots.size(), 0U);
 }
 
+BOOST_FIXTURE_TEST_CASE(validation_enforces_the_decode_operation_budget, BasicTestingSetup)
+{
+    auto snapshot{SyntheticSnapshot()};
+    const size_t budget{evo::EvoSnapshotMaxHistoricalMNOperations()};
+    size_t operations{evo::EvoSnapshotHistoricalMNOperations(snapshot.historical_mn_list_diffs)};
+    BOOST_REQUIRE(operations < budget);
+    BOOST_CHECK_NO_THROW(snapshot.Validate());
+
+    // Removals are the cheapest chargeable operation and are bounded per diff
+    // by EVO_SNAPSHOT_MAX_MNS, so spread them over entries until the
+    // cumulative ceiling is passed by exactly one. Ids start above anything
+    // BuildDiff() produced so every insertion counts.
+    uint64_t next_id{1'000'000};
+    for (auto& entry : snapshot.historical_mn_list_diffs) {
+        while (operations <= budget && entry.diff.removedMns.size() < evo::EVO_SNAPSHOT_MAX_MNS) {
+            entry.diff.removedMns.emplace(next_id++);
+            ++operations;
+        }
+        if (operations > budget) break;
+    }
+    BOOST_REQUIRE_EQUAL(operations, budget + 1);
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("operation budget") != std::string::npos;
+    });
+}
+
 BOOST_FIXTURE_TEST_CASE(reconstruction_record_budget_is_cumulative, BasicTestingSetup)
 {
     const auto snapshot{SyntheticSnapshot()};
