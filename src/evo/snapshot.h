@@ -362,22 +362,22 @@ CDeterministicMNListDiff UnserializeCanonicalMNListDiff(Stream& s)
     return UnserializeCanonicalMNListDiff(s, remaining_operations);
 }
 
-struct CMinedQuorumCommitment {
+struct MinedQuorumCommitment {
     uint256 quorum_base_block_hash;
     uint256 work_block_hash;
     llmq::CFinalCommitment commitment;
     uint256 mined_block_hash;
 
-    SERIALIZE_METHODS(CMinedQuorumCommitment, obj)
+    SERIALIZE_METHODS(MinedQuorumCommitment, obj)
     {
         READWRITE(obj.quorum_base_block_hash, obj.work_block_hash, obj.commitment, obj.mined_block_hash);
     }
 };
 
 template <typename Stream>
-CMinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
+MinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
 {
-    CMinedQuorumCommitment entry;
+    MinedQuorumCommitment entry;
     auto& commitment{entry.commitment};
     s >> entry.quorum_base_block_hash >> entry.work_block_hash >> commitment.nVersion >> commitment.llmqType >> commitment.quorumHash;
     const bool indexed{commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION ||
@@ -406,13 +406,13 @@ CMinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
     return entry;
 }
 
-struct CQuorumSnapshotEntry {
+struct QuorumSnapshotEntry {
     uint256 cycle_base_block_hash;
     uint256 work_block_hash;
     llmq::CQuorumSnapshot snapshot;
 };
 
-struct CHistoricalMNListDiff {
+struct HistoricalMNListDiff {
     uint256 previous_block_hash;
     uint256 block_hash;
     int height{-1};
@@ -421,38 +421,35 @@ struct CHistoricalMNListDiff {
     CDeterministicMNListDiff diff;
 };
 
-struct CQuorumModifier {
+struct QuorumModifier {
     Consensus::LLMQType llmq_type{Consensus::LLMQType::LLMQ_NONE};
     uint256 work_block_hash;
     uint256 modifier;
 
-    SERIALIZE_METHODS(CQuorumModifier, obj)
-    {
-        READWRITE(obj.llmq_type, obj.work_block_hash, obj.modifier);
-    }
+    SERIALIZE_METHODS(QuorumModifier, obj) { READWRITE(obj.llmq_type, obj.work_block_hash, obj.modifier); }
 };
 
-struct CQuorumSnapshotData {
+struct QuorumSnapshotData {
     Consensus::LLMQType llmq_type{Consensus::LLMQType::LLMQ_NONE};
     bool rotation_enabled{false};
-    std::vector<CMinedQuorumCommitment> active_commitments;
-    std::vector<CMinedQuorumCommitment> safety_commitments;
-    std::vector<CQuorumSnapshotEntry> rotation_snapshots;
+    std::vector<MinedQuorumCommitment> active_commitments;
+    std::vector<MinedQuorumCommitment> safety_commitments;
+    std::vector<QuorumSnapshotEntry> rotation_snapshots;
 
     template <typename Stream> void Serialize(Stream& s) const;
     template <typename Stream> void Unserialize(Stream& s);
 };
 
 /** Canonical Dash-derived state attached to an assumeutxo snapshot. */
-class CEvoSnapshot
+class EvoSnapshot
 {
 public:
     uint16_t version{EVO_SNAPSHOT_VERSION};
     uint256 base_block_hash;
     CDeterministicMNList mn_list;
-    std::vector<CQuorumSnapshotData> quorums;
-    std::vector<CHistoricalMNListDiff> historical_mn_list_diffs;
-    std::vector<CQuorumModifier> quorum_modifiers;
+    std::vector<QuorumSnapshotData> quorums;
+    std::vector<HistoricalMNListDiff> historical_mn_list_diffs;
+    std::vector<QuorumModifier> quorum_modifiers;
     CCreditPool credit_pool;
     AbstractEHFManager::Signals mnhf_signals;
 
@@ -471,7 +468,7 @@ void WriteSnapshotVector(Stream& s, const std::vector<T>& values, WriteOne&& wri
 }
 
 template <typename Stream>
-void WriteRotationSnapshot(Stream& s, const CQuorumSnapshotEntry& entry)
+void WriteRotationSnapshot(Stream& s, const QuorumSnapshotEntry& entry)
 {
     s << entry.cycle_base_block_hash << entry.work_block_hash << entry.snapshot.mnSkipListMode;
     WriteCompactSize(s, entry.snapshot.activeQuorumMembers.size());
@@ -480,9 +477,9 @@ void WriteRotationSnapshot(Stream& s, const CQuorumSnapshotEntry& entry)
 }
 
 template <typename Stream>
-CQuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams& params)
+QuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams& params)
 {
-    CQuorumSnapshotEntry entry;
+    QuorumSnapshotEntry entry;
     s >> entry.cycle_base_block_hash >> entry.work_block_hash >> entry.snapshot.mnSkipListMode;
     // BuildQuorumSnapshot sizes this bitset to the complete work-block MN list,
     // not to the quorum size. The exact historical-list size is chain-aware and
@@ -502,7 +499,7 @@ CQuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams
 }
 
 template <typename Stream>
-void CQuorumSnapshotData::Serialize(Stream& s) const
+void QuorumSnapshotData::Serialize(Stream& s) const
 {
     auto active{active_commitments};
     auto safety{safety_commitments};
@@ -520,10 +517,10 @@ void CQuorumSnapshotData::Serialize(Stream& s) const
 }
 
 template <typename Stream>
-void CQuorumSnapshotData::Unserialize(Stream& s)
+void QuorumSnapshotData::Unserialize(Stream& s)
 {
     s >> llmq_type >> rotation_enabled;
-    // Same replacement semantics as CEvoSnapshot::Unserialize: decoding into a
+    // Same replacement semantics as EvoSnapshot::Unserialize: decoding into a
     // reused object must not retain (or exceed the count bounds through)
     // previously held entries.
     active_commitments.clear();
@@ -548,7 +545,7 @@ void CQuorumSnapshotData::Unserialize(Stream& s)
 }
 
 template <typename Stream>
-void CEvoSnapshot::Serialize(Stream& s) const
+void EvoSnapshot::Serialize(Stream& s) const
 {
     auto sorted_quorums{quorums};
     auto sorted_history{historical_mn_list_diffs};
@@ -576,7 +573,7 @@ void CEvoSnapshot::Serialize(Stream& s) const
 }
 
 template <typename Stream>
-void CEvoSnapshot::Unserialize(Stream& s)
+void EvoSnapshot::Unserialize(Stream& s)
 {
     s >> version;
     if (version != EVO_SNAPSHOT_VERSION) throw std::ios_base::failure("unsupported evo snapshot version");
@@ -592,7 +589,7 @@ void CEvoSnapshot::Unserialize(Stream& s)
     const size_t quorum_count{ReadBoundedCompactSize(s, Consensus::available_llmqs.size(), "quorum-type count")};
     quorums.reserve(quorum_count);
     for (size_t i{0}; i < quorum_count; ++i) {
-        CQuorumSnapshotData data;
+        QuorumSnapshotData data;
         s >> data;
         quorums.emplace_back(std::move(data));
     }
@@ -601,7 +598,7 @@ void CEvoSnapshot::Unserialize(Stream& s)
     historical_mn_list_diffs.reserve(history_count);
     size_t remaining_history_operations{EvoSnapshotMaxHistoricalMNOperations()};
     for (size_t i{0}; i < history_count; ++i) {
-        CHistoricalMNListDiff entry;
+        HistoricalMNListDiff entry;
         s >> entry.previous_block_hash >> entry.block_hash >> entry.height >> entry.total_registered_count >> entry.canonical_list_hash;
         entry.diff = UnserializeCanonicalMNListDiff(s, remaining_history_operations);
         historical_mn_list_diffs.emplace_back(std::move(entry));
@@ -609,7 +606,7 @@ void CEvoSnapshot::Unserialize(Stream& s)
     const size_t modifier_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_MODIFIERS, "quorum modifier count")};
     quorum_modifiers.reserve(modifier_count);
     for (size_t i{0}; i < modifier_count; ++i) {
-        CQuorumModifier modifier;
+        QuorumModifier modifier;
         s >> modifier;
         quorum_modifiers.emplace_back(std::move(modifier));
     }
@@ -633,9 +630,9 @@ void CEvoSnapshot::Unserialize(Stream& s)
 }
 
 /** Single SHA256 of the canonical SER_DISK/CLIENT_VERSION encoding. */
-uint256 GetEvoSnapshotHash(const CEvoSnapshot& snapshot);
+uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot);
 
-struct CQuorumReconstructionHeight {
+struct QuorumReconstructionHeight {
     Consensus::LLMQType llmq_type;
     bool rotation;
     int quorum_height;
@@ -643,16 +640,15 @@ struct CQuorumReconstructionHeight {
 };
 
 /** Pure conservative reconstruction horizon for the supplied enabled types. */
-std::vector<CQuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
+std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
     int base_height, const std::vector<Consensus::LLMQParams>& enabled_llmqs);
 
 /** Apply the complete diff chain and return lists keyed by target block hash. */
-bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
-                                  std::map<uint256, CDeterministicMNList>& lists, std::string& error,
-                                  size_t max_records = EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS);
+bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256, CDeterministicMNList>& lists,
+                                  std::string& error, size_t max_records = EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS);
 
 /** Pure CbTx checks over already-built snapshot content. */
-bool VerifyEvoSnapshotCbTx(const CEvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);
+bool VerifyEvoSnapshotCbTx(const EvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);
 
 } // namespace evo
 

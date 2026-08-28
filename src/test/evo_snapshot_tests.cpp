@@ -107,8 +107,8 @@ CDeterministicMNList MNList(const uint256& block_hash, int height, bool reverse)
     return list;
 }
 
-evo::CMinedQuorumCommitment Commitment(Consensus::LLMQType type, uint8_t quorum, uint8_t mined, bool rotated,
-                                       int16_t index = 0)
+evo::MinedQuorumCommitment Commitment(Consensus::LLMQType type, uint8_t quorum, uint8_t mined, bool rotated,
+                                      int16_t index = 0)
 {
     llmq::CFinalCommitment commitment;
     commitment.nVersion = rotated ? llmq::CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION
@@ -122,9 +122,9 @@ evo::CMinedQuorumCommitment Commitment(Consensus::LLMQType type, uint8_t quorum,
     return {H(quorum), H(quorum + 120), std::move(commitment), H(mined)};
 }
 
-evo::CEvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
+evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
 {
-    evo::CEvoSnapshot snapshot;
+    evo::EvoSnapshot snapshot;
     snapshot.base_block_hash = H(42);
     snapshot.mn_list = MNList(snapshot.base_block_hash, 500, reverse_representation);
     snapshot.credit_pool.locked = 123456;
@@ -146,12 +146,12 @@ evo::CEvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
         snapshot.mnhf_signals.emplace(9, 30);
     }
 
-    evo::CQuorumSnapshotData plain;
+    evo::QuorumSnapshotData plain;
     plain.llmq_type = Consensus::LLMQType::LLMQ_TEST;
     plain.active_commitments = {Commitment(plain.llmq_type, 11, 51, false), Commitment(plain.llmq_type, 12, 52, false)};
     plain.safety_commitments = {Commitment(plain.llmq_type, 10, 50, false)};
 
-    evo::CQuorumSnapshotData rotated;
+    evo::QuorumSnapshotData rotated;
     rotated.llmq_type = Consensus::LLMQType::LLMQ_TEST_DIP0024;
     rotated.rotation_enabled = true;
     rotated.active_commitments = {Commitment(rotated.llmq_type, 31, 71, true, 0),
@@ -206,17 +206,14 @@ evo::CEvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
     return snapshot;
 }
 
-CDataStream SerializeSnapshot(const evo::CEvoSnapshot& snapshot)
+CDataStream SerializeSnapshot(const evo::EvoSnapshot& snapshot)
 {
     CDataStream stream{SER_DISK, CLIENT_VERSION};
     stream << snapshot;
     return stream;
 }
 
-void CheckInvalid(evo::CEvoSnapshot snapshot)
-{
-    BOOST_CHECK_THROW(snapshot.Validate(), std::ios_base::failure);
-}
+void CheckInvalid(evo::EvoSnapshot snapshot) { BOOST_CHECK_THROW(snapshot.Validate(), std::ios_base::failure); }
 
 } // namespace
 
@@ -233,7 +230,7 @@ BOOST_FIXTURE_TEST_CASE(populated_roundtrip_and_representation_independence, Bas
     BOOST_CHECK(GetEvoSnapshotHash(forward) == GetEvoSnapshotHash(reverse));
 
     CDataStream input{forward_bytes};
-    evo::CEvoSnapshot decoded;
+    evo::EvoSnapshot decoded;
     input >> decoded;
     BOOST_CHECK(input.empty());
     const auto decoded_bytes{SerializeSnapshot(decoded)};
@@ -294,7 +291,7 @@ BOOST_AUTO_TEST_CASE(reconstruction_horizon_height_enumeration)
 BOOST_AUTO_TEST_CASE(rotation_bitset_larger_than_quorum_roundtrips)
 {
     const auto& params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
-    evo::CQuorumSnapshotEntry entry;
+    evo::QuorumSnapshotEntry entry;
     entry.cycle_base_block_hash = H(1);
     entry.work_block_hash = H(2);
     entry.snapshot.activeQuorumMembers.resize(params.size + 3);
@@ -435,7 +432,7 @@ BOOST_FIXTURE_TEST_CASE(context_free_validation_matrix, BasicTestingSetup)
     snapshot.quorums.clear();
     snapshot.historical_mn_list_diffs.clear();
     snapshot.quorum_modifiers.clear();
-    evo::CQuorumSnapshotData partial;
+    evo::QuorumSnapshotData partial;
     partial.llmq_type = Consensus::LLMQType::LLMQ_TEST;
     snapshot.quorums.emplace_back(std::move(partial));
     BOOST_CHECK_NO_THROW(snapshot.Validate());
@@ -515,7 +512,7 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     BOOST_CHECK(mn_stream.empty());
 
     const auto decode_quorum = [](CDataStream stream) {
-        evo::CQuorumSnapshotData data;
+        evo::QuorumSnapshotData data;
         stream >> data;
     };
     const auto& plain_params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
@@ -553,7 +550,7 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     commitment_bits << Consensus::LLMQType::LLMQ_TEST << false;
     WriteCompactSize(commitment_bits, 1);
     commitment_bits << oversized_commitment;
-    evo::CQuorumSnapshotData oversized_data;
+    evo::QuorumSnapshotData oversized_data;
     BOOST_CHECK_EXCEPTION(commitment_bits >> oversized_data, std::ios_base::failure, [](const auto& e) {
         return std::string{e.what()}.find("inconsistent evo snapshot commitment bitset sizes") != std::string::npos;
     });
@@ -606,7 +603,7 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     CDataStream quorum_types{SER_DISK, CLIENT_VERSION};
     snapshot_prefix(quorum_types);
     WriteCompactSize(quorum_types, Consensus::available_llmqs.size() + 1);
-    evo::CEvoSnapshot decoded;
+    evo::EvoSnapshot decoded;
     BOOST_CHECK_THROW(quorum_types >> decoded, std::ios_base::failure);
 
     CDataStream history{SER_DISK, CLIENT_VERSION};
@@ -670,7 +667,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_sizes_are_format_bounded_not_param_exact, Bas
     BOOST_CHECK_NO_THROW(snapshot.Validate(/*require_canonical_order=*/true));
     const auto bytes{SerializeSnapshot(snapshot)};
     CDataStream input{bytes};
-    evo::CEvoSnapshot decoded;
+    evo::EvoSnapshot decoded;
     BOOST_CHECK_NO_THROW(input >> decoded);
     BOOST_CHECK(input.empty());
     const auto reencoded{SerializeSnapshot(decoded)};
@@ -691,13 +688,13 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
         return stream;
     };
     const auto expect_noncanonical = [](CDataStream stream) {
-        evo::CEvoSnapshot decoded;
+        evo::EvoSnapshot decoded;
         BOOST_CHECK_EXCEPTION(stream >> decoded, std::ios_base::failure, [](const auto& e) {
             return std::string{e.what()}.find("noncanonical MNHF signal order") != std::string::npos;
         });
     };
     auto canonical{with_signals({{2, 12}, {9, 30}})};
-    evo::CEvoSnapshot decoded;
+    evo::EvoSnapshot decoded;
     BOOST_CHECK_NO_THROW(canonical >> decoded);
     BOOST_CHECK(canonical.empty());
     BOOST_CHECK_EQUAL(decoded.mnhf_signals.size(), 2U);
@@ -708,12 +705,12 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
 BOOST_FIXTURE_TEST_CASE(unserialize_replaces_previous_contents, BasicTestingSetup)
 {
     const auto populated_bytes{SerializeSnapshot(SyntheticSnapshot())};
-    evo::CEvoSnapshot minimal;
+    evo::EvoSnapshot minimal;
     minimal.base_block_hash = H(42);
     minimal.mn_list = CDeterministicMNList{H(42), 500, 0};
     const auto minimal_bytes{SerializeSnapshot(minimal)};
 
-    evo::CEvoSnapshot decoded;
+    evo::EvoSnapshot decoded;
     CDataStream populated{populated_bytes};
     populated >> decoded;
     BOOST_REQUIRE(!decoded.mnhf_signals.empty());
@@ -750,7 +747,7 @@ BOOST_FIXTURE_TEST_CASE(hash_prefix_collision_runs_are_bounded, BasicTestingSetu
 
     // A diff addition that would grow an at-bound collision group is rejected
     // before the HAMT performs the inserts.
-    evo::CEvoSnapshot snapshot;
+    evo::EvoSnapshot snapshot;
     snapshot.base_block_hash = H(42);
     snapshot.mn_list = CDeterministicMNList{H(42), 500, 200};
     for (size_t i{0}; i < evo::EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN; ++i) {
@@ -769,7 +766,7 @@ BOOST_FIXTURE_TEST_CASE(hash_prefix_collision_runs_are_bounded, BasicTestingSetu
 
 BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, BasicTestingSetup)
 {
-    evo::CQuorumSnapshotData data;
+    evo::QuorumSnapshotData data;
     data.llmq_type = Consensus::LLMQType::LLMQ_TEST;
     data.active_commitments = {Commitment(data.llmq_type, 11, 51, false)};
     CDataStream once{SER_DISK, CLIENT_VERSION};
@@ -777,7 +774,7 @@ BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, Basi
     CDataStream twice{SER_DISK, CLIENT_VERSION};
     twice << data;
 
-    evo::CQuorumSnapshotData reused;
+    evo::QuorumSnapshotData reused;
     once >> reused;
     twice >> reused;
     BOOST_CHECK_EQUAL(reused.active_commitments.size(), 1U);
@@ -834,7 +831,7 @@ BOOST_FIXTURE_TEST_CASE(rejects_unknown_wire_version, BasicTestingSetup)
 {
     auto bytes{SerializeSnapshot(SyntheticSnapshot())};
     bytes.data()[0] = std::byte{4};
-    evo::CEvoSnapshot decoded;
+    evo::EvoSnapshot decoded;
     BOOST_CHECK_THROW(bytes >> decoded, std::ios_base::failure);
 }
 

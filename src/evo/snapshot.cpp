@@ -33,14 +33,14 @@ template <typename T>
 std::vector<T> Sorted(std::vector<T> values)
 {
     std::sort(values.begin(), values.end(), [](const T& a, const T& b) {
-        if constexpr (std::is_same_v<T, CMinedQuorumCommitment>) {
+        if constexpr (std::is_same_v<T, MinedQuorumCommitment>) {
             return std::tie(a.quorum_base_block_hash, a.mined_block_hash) <
                    std::tie(b.quorum_base_block_hash, b.mined_block_hash);
-        } else if constexpr (std::is_same_v<T, CQuorumSnapshotEntry>) {
+        } else if constexpr (std::is_same_v<T, QuorumSnapshotEntry>) {
             return a.cycle_base_block_hash < b.cycle_base_block_hash;
-        } else if constexpr (std::is_same_v<T, CHistoricalMNListDiff>) {
+        } else if constexpr (std::is_same_v<T, HistoricalMNListDiff>) {
             return std::tie(a.height, a.block_hash) > std::tie(b.height, b.block_hash);
-        } else if constexpr (std::is_same_v<T, CQuorumModifier>) {
+        } else if constexpr (std::is_same_v<T, QuorumModifier>) {
             return std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash);
         } else {
             return a.llmq_type < b.llmq_type;
@@ -53,14 +53,14 @@ template <typename T>
 bool IsStrictlySorted(const std::vector<T>& values)
 {
     return std::adjacent_find(values.begin(), values.end(), [](const T& a, const T& b) {
-               if constexpr (std::is_same_v<T, CMinedQuorumCommitment>) {
+               if constexpr (std::is_same_v<T, MinedQuorumCommitment>) {
                    return std::tie(a.quorum_base_block_hash, a.mined_block_hash) >=
                           std::tie(b.quorum_base_block_hash, b.mined_block_hash);
-               } else if constexpr (std::is_same_v<T, CQuorumSnapshotEntry>) {
+               } else if constexpr (std::is_same_v<T, QuorumSnapshotEntry>) {
                    return !(a.cycle_base_block_hash < b.cycle_base_block_hash);
-               } else if constexpr (std::is_same_v<T, CHistoricalMNListDiff>) {
+               } else if constexpr (std::is_same_v<T, HistoricalMNListDiff>) {
                    return !(std::tie(a.height, a.block_hash) > std::tie(b.height, b.block_hash));
-               } else if constexpr (std::is_same_v<T, CQuorumModifier>) {
+               } else if constexpr (std::is_same_v<T, QuorumModifier>) {
                    return !(std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash));
                } else {
                    return a.llmq_type >= b.llmq_type;
@@ -68,7 +68,7 @@ bool IsStrictlySorted(const std::vector<T>& values)
            }) == values.end();
 }
 
-void ValidateCommitments(const CQuorumSnapshotData& data, const std::vector<CMinedQuorumCommitment>& commitments,
+void ValidateCommitments(const QuorumSnapshotData& data, const std::vector<MinedQuorumCommitment>& commitments,
                          std::set<uint256>& quorum_hashes, bool require_canonical_order)
 {
     if (require_canonical_order && !IsStrictlySorted(commitments)) {
@@ -153,11 +153,11 @@ void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
 
 } // namespace
 
-std::vector<CQuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
+std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
     int base_height, const std::vector<Consensus::LLMQParams>& enabled_llmqs)
 {
     if (base_height < 0) throw std::invalid_argument("invalid reconstruction base height");
-    std::vector<CQuorumReconstructionHeight> heights;
+    std::vector<QuorumReconstructionHeight> heights;
     for (const auto& params : enabled_llmqs) {
         if (params.dkgInterval <= 0 || params.signingActiveQuorumCount <= 0) {
             throw std::invalid_argument("invalid reconstruction LLMQ parameters");
@@ -182,9 +182,8 @@ uint256 CanonicalMNListHash(const CDeterministicMNList& list)
     return writer.GetHash();
 }
 
-bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
-                                  std::map<uint256, CDeterministicMNList>& lists, std::string& error,
-                                  size_t max_records)
+bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256, CDeterministicMNList>& lists,
+                                  std::string& error, size_t max_records)
 {
     lists.clear();
     error.clear();
@@ -238,7 +237,7 @@ bool ReconstructHistoricalMNLists(const CEvoSnapshot& snapshot,
     return true;
 }
 
-void CEvoSnapshot::Validate(bool require_canonical_order) const
+void EvoSnapshot::Validate(bool require_canonical_order) const
 {
     if (version != EVO_SNAPSHOT_VERSION) throw std::ios_base::failure("unsupported evo snapshot version");
     if (base_block_hash.IsNull() || mn_list.GetBlockHash() != base_block_hash) {
@@ -345,7 +344,7 @@ void CEvoSnapshot::Validate(bool require_canonical_order) const
     }
 }
 
-uint256 GetEvoSnapshotHash(const CEvoSnapshot& snapshot)
+uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot)
 {
     snapshot.Validate();
     CDataStream stream{SER_DISK, CLIENT_VERSION};
@@ -355,7 +354,7 @@ uint256 GetEvoSnapshotHash(const CEvoSnapshot& snapshot)
     return hash;
 }
 
-bool VerifyEvoSnapshotCbTx(const CEvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error)
+bool VerifyEvoSnapshotCbTx(const EvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error)
 {
     error.clear();
     try {
