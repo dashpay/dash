@@ -769,15 +769,22 @@ BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, Basi
     evo::QuorumSnapshotData data;
     data.llmq_type = Consensus::LLMQType::LLMQ_TEST;
     data.active_commitments = {Commitment(data.llmq_type, 11, 51, false)};
-    CDataStream once{SER_DISK, CLIENT_VERSION};
-    once << data;
-    CDataStream twice{SER_DISK, CLIENT_VERSION};
-    twice << data;
+    CDataStream encoded{SER_DISK, CLIENT_VERSION};
+    encoded << data;
 
+    // Every vector the decoder clears starts non-empty and the payload leaves
+    // two of them empty, so dropping any single clear() leaves stale entries.
     evo::QuorumSnapshotData reused;
-    once >> reused;
-    twice >> reused;
+    reused.llmq_type = Consensus::LLMQType::LLMQ_TEST;
+    reused.active_commitments = {Commitment(reused.llmq_type, 21, 61, false)};
+    reused.safety_commitments = {Commitment(reused.llmq_type, 22, 62, false)};
+    reused.rotation_snapshots = {
+        {H(23), H(63), llmq::CQuorumSnapshot{{true, false}, SnapshotSkipMode::MODE_NO_SKIPPING, {}}}};
+
+    encoded >> reused;
     BOOST_CHECK_EQUAL(reused.active_commitments.size(), 1U);
+    BOOST_CHECK(reused.active_commitments.at(0).quorum_base_block_hash ==
+                data.active_commitments.at(0).quorum_base_block_hash);
     BOOST_CHECK_EQUAL(reused.safety_commitments.size(), 0U);
     BOOST_CHECK_EQUAL(reused.rotation_snapshots.size(), 0U);
 }
