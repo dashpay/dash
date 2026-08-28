@@ -23,55 +23,14 @@
 #include <map>
 #include <set>
 #include <stdexcept>
-#include <tuple>
-#include <type_traits>
 
 namespace evo {
 namespace {
 
-template <typename T>
-std::vector<T> Sorted(std::vector<T> values)
-{
-    std::sort(values.begin(), values.end(), [](const T& a, const T& b) {
-        if constexpr (std::is_same_v<T, MinedQuorumCommitment>) {
-            return std::tie(a.quorum_base_block_hash, a.mined_block_hash) <
-                   std::tie(b.quorum_base_block_hash, b.mined_block_hash);
-        } else if constexpr (std::is_same_v<T, QuorumSnapshotEntry>) {
-            return a.cycle_base_block_hash < b.cycle_base_block_hash;
-        } else if constexpr (std::is_same_v<T, HistoricalMNListDiff>) {
-            return std::tie(a.height, a.block_hash) > std::tie(b.height, b.block_hash);
-        } else if constexpr (std::is_same_v<T, QuorumModifier>) {
-            return std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash);
-        } else {
-            return a.llmq_type < b.llmq_type;
-        }
-    });
-    return values;
-}
-
-template <typename T>
-bool IsStrictlySorted(const std::vector<T>& values)
-{
-    return std::adjacent_find(values.begin(), values.end(), [](const T& a, const T& b) {
-               if constexpr (std::is_same_v<T, MinedQuorumCommitment>) {
-                   return std::tie(a.quorum_base_block_hash, a.mined_block_hash) >=
-                          std::tie(b.quorum_base_block_hash, b.mined_block_hash);
-               } else if constexpr (std::is_same_v<T, QuorumSnapshotEntry>) {
-                   return !(a.cycle_base_block_hash < b.cycle_base_block_hash);
-               } else if constexpr (std::is_same_v<T, HistoricalMNListDiff>) {
-                   return !(std::tie(a.height, a.block_hash) > std::tie(b.height, b.block_hash));
-               } else if constexpr (std::is_same_v<T, QuorumModifier>) {
-                   return !(std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash));
-               } else {
-                   return a.llmq_type >= b.llmq_type;
-               }
-           }) == values.end();
-}
-
 void ValidateCommitments(const QuorumSnapshotData& data, const std::vector<MinedQuorumCommitment>& commitments,
                          std::set<uint256>& quorum_hashes, bool require_canonical_order)
 {
-    if (require_canonical_order && !IsStrictlySorted(commitments)) {
+    if (require_canonical_order && !IsCanonicallySorted(commitments)) {
         throw std::ios_base::failure("noncanonical evo quorum commitments");
     }
     std::set<int16_t> quorum_indexes;
@@ -192,7 +151,7 @@ bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256,
     int previous_height{current.GetHeightForSnapshotCodec()};
     size_t records_processed{0};
     try {
-        const auto history{Sorted(snapshot.historical_mn_list_diffs)};
+        const auto history{SortedCanonically(snapshot.historical_mn_list_diffs)};
         for (const auto& entry : history) {
             if (entry.previous_block_hash != previous_hash || entry.block_hash.IsNull() ||
                 entry.height < 0 || entry.height >= previous_height || entry.canonical_list_hash.IsNull()) {
@@ -263,8 +222,8 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
             throw std::ios_base::failure("invalid evo snapshot MNHF signal");
         }
     }
-    if (require_canonical_order && (!IsStrictlySorted(quorums) || !IsStrictlySorted(historical_mn_list_diffs) ||
-                                    !IsStrictlySorted(quorum_modifiers))) {
+    if (require_canonical_order && (!IsCanonicallySorted(quorums) || !IsCanonicallySorted(historical_mn_list_diffs) ||
+                                    !IsCanonicallySorted(quorum_modifiers))) {
         throw std::ios_base::failure("noncanonical evo snapshot top-level order");
     }
 
@@ -305,7 +264,7 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
                 required_modifiers.emplace(data.llmq_type, entry.work_block_hash);
             }
         }
-        if (require_canonical_order && !IsStrictlySorted(data.rotation_snapshots)) {
+        if (require_canonical_order && !IsCanonicallySorted(data.rotation_snapshots)) {
             throw std::ios_base::failure("noncanonical evo quorum rotation snapshots");
         }
         std::set<uint256> cycle_hashes;
