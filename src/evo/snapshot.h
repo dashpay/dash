@@ -460,6 +460,52 @@ public:
     void Validate(bool require_canonical_order = false) const;
 };
 
+/**
+ * Canonical wire order, one overload per snapshot collection element. The
+ * serializer, the decode-time order check, and the object-level order check
+ * all derive from these, so a type without an overload is a compile error
+ * rather than a silently accepted order.
+ */
+inline bool IsCanonicallyBefore(const MinedQuorumCommitment& a, const MinedQuorumCommitment& b)
+{
+    return std::tie(a.quorum_base_block_hash, a.mined_block_hash) < std::tie(b.quorum_base_block_hash, b.mined_block_hash);
+}
+
+inline bool IsCanonicallyBefore(const QuorumSnapshotEntry& a, const QuorumSnapshotEntry& b)
+{
+    return a.cycle_base_block_hash < b.cycle_base_block_hash;
+}
+
+/** Historical diffs descend by height: the chain is replayed newest first. */
+inline bool IsCanonicallyBefore(const HistoricalMNListDiff& a, const HistoricalMNListDiff& b)
+{
+    return std::tie(a.height, a.block_hash) > std::tie(b.height, b.block_hash);
+}
+
+inline bool IsCanonicallyBefore(const QuorumModifier& a, const QuorumModifier& b)
+{
+    return std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash);
+}
+
+inline bool IsCanonicallyBefore(const QuorumSnapshotData& a, const QuorumSnapshotData& b)
+{
+    return a.llmq_type < b.llmq_type;
+}
+
+template <typename T>
+std::vector<T> SortedCanonically(std::vector<T> values)
+{
+    std::sort(values.begin(), values.end(), [](const T& a, const T& b) { return IsCanonicallyBefore(a, b); });
+    return values;
+}
+
+template <typename T>
+bool IsCanonicallySorted(const std::vector<T>& values)
+{
+    return std::adjacent_find(values.begin(), values.end(),
+                              [](const T& a, const T& b) { return !IsCanonicallyBefore(a, b); }) == values.end();
+}
+
 template <typename Stream, typename T, typename WriteOne>
 void WriteSnapshotVector(Stream& s, const std::vector<T>& values, WriteOne&& write_one)
 {
@@ -501,17 +547,9 @@ QuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams&
 template <typename Stream>
 void QuorumSnapshotData::Serialize(Stream& s) const
 {
-    auto active{active_commitments};
-    auto safety{safety_commitments};
-    auto snapshots{rotation_snapshots};
-    const auto commitment_less = [](const auto& a, const auto& b) {
-        return std::tie(a.quorum_base_block_hash, a.mined_block_hash) <
-               std::tie(b.quorum_base_block_hash, b.mined_block_hash);
-    };
-    std::sort(active.begin(), active.end(), commitment_less);
-    std::sort(safety.begin(), safety.end(), commitment_less);
-    std::sort(snapshots.begin(), snapshots.end(),
-              [](const auto& a, const auto& b) { return a.cycle_base_block_hash < b.cycle_base_block_hash; });
+    const auto active{SortedCanonically(active_commitments)};
+    const auto safety{SortedCanonically(safety_commitments)};
+    const auto snapshots{SortedCanonically(rotation_snapshots)};
     s << llmq_type << rotation_enabled << active << safety;
     WriteSnapshotVector(s, snapshots, [&](const auto& entry) { WriteRotationSnapshot(s, entry); });
 }
@@ -547,17 +585,9 @@ void QuorumSnapshotData::Unserialize(Stream& s)
 template <typename Stream>
 void EvoSnapshot::Serialize(Stream& s) const
 {
-    auto sorted_quorums{quorums};
-    auto sorted_history{historical_mn_list_diffs};
-    auto sorted_modifiers{quorum_modifiers};
-    std::sort(sorted_quorums.begin(), sorted_quorums.end(),
-              [](const auto& a, const auto& b) { return a.llmq_type < b.llmq_type; });
-    std::sort(sorted_history.begin(), sorted_history.end(), [](const auto& a, const auto& b) {
-        return std::tie(a.height, a.block_hash) > std::tie(b.height, b.block_hash);
-    });
-    std::sort(sorted_modifiers.begin(), sorted_modifiers.end(), [](const auto& a, const auto& b) {
-        return std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash);
-    });
+    const auto sorted_quorums{SortedCanonically(quorums)};
+    const auto sorted_history{SortedCanonically(historical_mn_list_diffs)};
+    const auto sorted_modifiers{SortedCanonically(quorum_modifiers)};
     s << version << base_block_hash;
     SerializeCanonicalMNList(s, mn_list);
     s << sorted_quorums;
