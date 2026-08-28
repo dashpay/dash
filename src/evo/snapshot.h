@@ -421,6 +421,21 @@ struct HistoricalMNListDiff {
     CDeterministicMNListDiff diff;
 };
 
+/**
+ * Cumulative add/update/remove operations a diff chain costs the decoder.
+ * UnserializeCanonicalMNListDiff() charges these same amounts incrementally
+ * against EvoSnapshotMaxHistoricalMNOperations() while streaming, so a chain
+ * above that ceiling cannot be decoded back from its own canonical bytes.
+ */
+inline size_t EvoSnapshotHistoricalMNOperations(const std::vector<HistoricalMNListDiff>& history)
+{
+    size_t operations{0};
+    for (const auto& entry : history) {
+        operations += entry.diff.addedMNs.size() + entry.diff.updatedMNs.size() + entry.diff.removedMns.size();
+    }
+    return operations;
+}
+
 struct QuorumModifier {
     Consensus::LLMQType llmq_type{Consensus::LLMQType::LLMQ_NONE};
     uint256 work_block_hash;

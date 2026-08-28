@@ -149,8 +149,8 @@ bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256,
     CDeterministicMNList current{snapshot.mn_list};
     uint256 previous_hash{snapshot.base_block_hash};
     int previous_height{current.GetHeightForSnapshotCodec()};
-    size_t records_processed{0};
     try {
+        size_t records_processed{0};
         const auto history{SortedCanonically(snapshot.historical_mn_list_diffs)};
         for (const auto& entry : history) {
             if (entry.previous_block_hash != previous_hash || entry.block_hash.IsNull() ||
@@ -208,6 +208,12 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
         quorum_modifiers.size() > EVO_SNAPSHOT_MAX_MODIFIERS ||
         mnhf_signals.size() > Consensus::MAX_VERSION_BITS_DEPLOYMENTS) {
         throw std::ios_base::failure("oversized evo snapshot collection");
+    }
+    // Unserialize() charges the same amounts against the cumulative decode
+    // budget while streaming, so without this a snapshot could validate - and
+    // therefore be hashed and dumped - yet fail to decode from its own bytes.
+    if (EvoSnapshotHistoricalMNOperations(historical_mn_list_diffs) > EvoSnapshotMaxHistoricalMNOperations()) {
+        throw std::ios_base::failure("historical MN-diff operation budget exceeded");
     }
     // ConstructCreditPool guarantees 0 <= currentLimit <= locked in every
     // deployment branch, and all three amounts are money-range window sums.
