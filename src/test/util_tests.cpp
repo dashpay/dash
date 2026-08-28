@@ -1459,8 +1459,10 @@ BOOST_AUTO_TEST_CASE(test_CRanges_deserialize_validation)
     BOOST_CHECK(!removed_interior_decoded.Contains(max - 1));
     BOOST_CHECK(removed_interior_decoded.Contains(max));
 
-    auto invalid_wrapped{encoded({{5, 0}, {10, 12}})};
-    BOOST_CHECK_THROW(invalid_wrapped >> decoded, std::ios_base::failure);
+    // end == 0 means "runs through UINT64_MAX", which is representable and
+    // valid (see the max_value round-trips above) but only as the final range.
+    auto wrapped_not_last{encoded({{5, 0}, {10, 12}})};
+    BOOST_CHECK_THROW(wrapped_not_last >> decoded, std::ios_base::failure);
 
     auto invalid_reverse{encoded({{5, 4}})};
     BOOST_CHECK_THROW(invalid_reverse >> decoded, std::ios_base::failure);
