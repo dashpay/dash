@@ -8,6 +8,7 @@ permissions:
   actions: read
   contents: read
   packages: write
+  pull-requests: read
 
 concurrency:
   group: |
@@ -25,6 +26,7 @@ jobs:
     runs-on: ${{ vars.RUNNER_CHECK_SKIP || 'ubuntu-24.04-arm' }}
     outputs:
       skip: ${{ steps.skip-check.outputs.skip }}
+      run-build-tests: ${{ steps.classify-changes.outputs.run-build-tests }}
       runner-amd64: ${{ steps.select-runner.outputs.runner_amd64 }}
       runner-arm64: ${{ steps.select-runner.outputs.runner_arm64 }}
       use-blacksmith: ${{ steps.select-runner.outputs.use_blacksmith }}
@@ -39,17 +41,107 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "push" && "${{ vars.SKIP_ON_PUSH }}" != "" ]]; then
             echo "Skipping build on push due to SKIP_ON_PUSH environment variable"
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == "pull_request_target" && "${{ vars.SKIP_ON_PR }}" != "" ]]; then
             echo "Skipping build on pull request due to SKIP_ON_PR environment variable"
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout code
         if: ${{ steps.skip-check.outputs.skip == 'false' }}
         uses: actions/checkout@v6
+
+      - name: Collect changed paths
+        id: changed-paths
+        if: ${{ steps.skip-check.outputs.skip == 'false' }}
+        uses: actions/github-script@v8
+        env:
+          CHANGED_PATHS_FILE: ${{ runner.temp }}/changed-paths.json
+        with:
+          script: |
+            const fs = require('fs');
+            let complete = true;
+            let files = [];
+
+            try {
+              if (context.eventName === 'pull_request_target') {
+                files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  per_page: 100,
+                });
+                if (files.length >= 3000) {
+                  complete = false;
+                  core.warning('Pull request file list reached the GitHub API limit');
+                }
+              } else if (context.eventName === 'push') {
+                const after = context.payload.after;
+                if (context.ref.startsWith('refs/tags/')) {
+                  complete = false;
+                } else {
+                  // Comparing with the last successful run preserves coverage when a
+                  // later push cancels an in-flight run before its build matrix finishes.
+                  const previousRuns = await github.rest.actions.listWorkflowRuns({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    workflow_id: 'build.yml',
+                    branch: context.ref.replace('refs/heads/', ''),
+                    event: 'push',
+                    status: 'success',
+                    per_page: 1,
+                  });
+                  const previousSha = previousRuns.data.workflow_runs[0]?.head_sha;
+                  if (!previousSha) {
+                    complete = false;
+                  } else {
+                    const comparison = await github.rest.repos.compareCommitsWithBasehead({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      basehead: `${previousSha}...${after}`,
+                    });
+                    files = comparison.data.files || [];
+                    if (files.length >= 300) {
+                      complete = false;
+                      core.warning('Push file list reached the GitHub API limit');
+                    }
+                  }
+                }
+              } else {
+                complete = false;
+              }
+            } catch (error) {
+              complete = false;
+              core.warning(`Unable to collect a complete changed path list: ${error.message}`);
+            }
+
+            const paths = [...new Set(files.flatMap(file =>
+              [file.filename, file.previous_filename].filter(Boolean)
+            ))].sort();
+            fs.writeFileSync(process.env.CHANGED_PATHS_FILE, JSON.stringify(paths));
+            core.setOutput('complete', complete.toString());
+            core.setOutput('removed-or-renamed', files.some(file =>
+              file.status === 'removed' || file.status === 'renamed'
+            ).toString());
+
+      - name: Classify changed paths
+        id: classify-changes
+        if: ${{ steps.skip-check.outputs.skip == 'false' }}
+        env:
+          CHANGED_PATHS_COMPLETE: ${{ steps.changed-paths.outputs.complete }}
+          CHANGED_PATHS_FILE: ${{ runner.temp }}/changed-paths.json
+          CHANGED_PATHS_REMOVED_OR_RENAMED: ${{ steps.changed-paths.outputs.removed-or-renamed }}
+        run: |
+          if ! python3 .github/workflows/classify_ci_changes.py \
+            --complete "$CHANGED_PATHS_COMPLETE" \
+            --removed-or-renamed "$CHANGED_PATHS_REMOVED_OR_RENAMED" \
+            "$CHANGED_PATHS_FILE"; then
+            echo "Path classification failed; running the full build and test matrix"
+            echo "run-build-tests=true" >> "$GITHUB_OUTPUT"
+            echo "decision-reason=path classification failed" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Select runners
         id: select-runner
@@ -65,7 +157,9 @@ jobs:
 
       - name: Get base image digest
         id: base-image
-        if: ${{ steps.skip-check.outputs.skip == 'false' }}
+        if: |
+          steps.skip-check.outputs.skip == 'false' &&
+          steps.classify-changes.outputs.run-build-tests == 'true'
         run: |
           # Fetch the canonical manifest digest for ubuntu:noble so the
           # depends cache key changes when Canonical pushes base image
@@ -86,7 +180,9 @@ jobs:
   cache-sources:
     name: Cache depends sources
     needs: [check-skip]
-    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    if: |
+      needs.check-skip.outputs.skip == 'false' &&
+      needs.check-skip.outputs.run-build-tests == 'true'
     uses: ./.github/workflows/cache-depends-sources.yml
     with:
       runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
@@ -94,7 +190,9 @@ jobs:
   container:
     name: Build container
     needs: [check-skip]
-    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    if: |
+      needs.check-skip.outputs.skip == 'false' &&
+      needs.check-skip.outputs.run-build-tests == 'true'
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
