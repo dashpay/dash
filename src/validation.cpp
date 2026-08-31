@@ -369,7 +369,10 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
                 tx.nType != TRANSACTION_MNHF_SIGNAL &&
                 tx.nType != TRANSACTION_ASSET_LOCK &&
-                tx.nType != TRANSACTION_ASSET_UNLOCK) {
+                tx.nType != TRANSACTION_ASSET_UNLOCK &&
+                tx.nType != TRANSACTION_PROVIDER_DISSOLVE &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_SHARE &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
@@ -912,6 +915,18 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // The mempool holds txs for the next block, so pass height+1 to CheckTxInputs
     if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, ws.m_base_fees)) {
         return false; // state filled in by CheckTxInputs
+    }
+
+    // Shared-collateral covenant rules apply to every transaction, including normal transactions
+    // that never reach CheckSpecialTx below
+    if (DeploymentActiveAfter(m_active_chainstate.m_chain.Tip(), m_active_chainstate.m_chainman,
+                              Consensus::DEPLOYMENT_V24)) {
+        if (!CheckSharedCollateralSpends(tx, m_view, state)) {
+            return false; // state filled in by CheckSharedCollateralSpends
+        }
+        if (!CheckSharedCollateralTemplateOutputs(tx, state)) {
+            return false; // state filled in by CheckSharedCollateralTemplateOutputs
+        }
     }
 
     if (m_pool.m_require_standard && !AreInputsStandard(tx, m_view)) {
@@ -2394,6 +2409,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<SecondsDouble>(time_process_special),
              Ticks<MillisecondsDouble>(time_process_special) / num_blocks_total);
 
+    const bool fV24Active_context{DeploymentActiveAt(*pindex, m_chainman, Consensus::DEPLOYMENT_V24)};
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
@@ -2409,6 +2425,19 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
                 LogPrintf("ERROR: %s: Consensus::CheckTxInputs: %s, %s\n", __func__, tx.GetHash().ToString(), state.ToString());
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
+            }
+            // The spend side of the shared-collateral covenant runs here (not in
+            // ProcessSpecialTxsInBlock) because this view already contains outputs created by
+            // earlier transactions in this block. The creation side runs in
+            // ProcessSpecialTxsInBlock, which also covers the coinbase.
+            if (fV24Active_context) {
+                TxValidationState shared_state;
+                if (!CheckSharedCollateralSpends(tx, view, shared_state)) {
+                    LogPrintf("ERROR: %s: CheckSharedCollateralSpends: %s, %s\n", __func__, tx.GetHash().ToString(),
+                              shared_state.ToString());
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, shared_state.GetRejectReason(),
+                                         shared_state.GetDebugMessage());
+                }
             }
             nFees += txfee;
             if (!MoneyRange(nFees)) {

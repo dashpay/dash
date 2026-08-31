@@ -15,3 +15,12 @@ uint256 CalcTxInputsHash(const CTransaction& tx)
     }
     return hw.GetHash();
 }
+
+uint256 CalcTxOutputsHash(const CTransaction& tx)
+{
+    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    for (const auto& out : tx.vout) {
+        hw << out;
+    }
+    return hw.GetHash();
+}

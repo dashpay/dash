@@ -135,10 +135,16 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
             const auto owner_payouts = GetOwnerPayouts(*opt_proTx);
             const bool found_payout = std::any_of(owner_payouts.begin(), owner_payouts.end(),
                                                   [&](const auto& payout) { return CheckScript(payout.scriptPayout); });
+            const bool found_share = std::any_of(opt_proTx->shares.begin(), opt_proTx->shares.end(),
+                                                 [&](const auto& share) {
+                                                     return CheckScript(share.scriptRefund) ||
+                                                            CheckScript(share.RewardScript()) ||
+                                                            contains(share.keyIDOwner);
+                                                 });
             if(contains(opt_proTx->collateralOutpoint) ||
                     contains(opt_proTx->keyIDOwner) ||
                     contains(opt_proTx->keyIDVoting) ||
-                    found_payout) {
+                    found_payout || found_share) {
                 if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
                     insert(tx.GetHash());
                 return true;
@@ -179,6 +185,38 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
         if (const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) {
             if(contains(opt_proTx->proTxHash))
                 return true;
+        }
+        return false;
+    }
+    case(TRANSACTION_PROVIDER_DISSOLVE): {
+        // the refund payments are literal transaction outputs, matched by the generic output loop
+        if (const auto opt_proTx = GetTxPayload<CProDisTx>(tx)) {
+            if(contains(opt_proTx->proTxHash))
+                return true;
+        }
+        return false;
+    }
+    case(TRANSACTION_PROVIDER_UPDATE_SHARE): {
+        if (const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx)) {
+            if(contains(opt_proTx->proTxHash))
+                return true;
+            if(CheckScript(opt_proTx->scriptReward)) {
+                if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
+                    insert(opt_proTx->proTxHash);
+                return true;
+            }
+        }
+        return false;
+    }
+    case(TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR): {
+        if (const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx)) {
+            if(contains(opt_proTx->proTxHash))
+                return true;
+            if(contains(opt_proTx->keyIDVoting)) {
+                if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
+                    insert(opt_proTx->proTxHash);
+                return true;
+            }
         }
         return false;
     }

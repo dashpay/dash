@@ -43,6 +43,8 @@ const std::map<std::string, RPCResult> RPCRESULT_MAP{{
     RESULT_MAP_ENTRY("collateralHash", RPCResult::Type::STR_HEX, "Collateral transaction hash"),
     RESULT_MAP_ENTRY("collateralIndex", RPCResult::Type::NUM, "Collateral transaction output index"),
     RESULT_MAP_ENTRY("consecutivePayments", RPCResult::Type::NUM, "Consecutive payments masternode has received in payment cycle"),
+    RESULT_MAP_ENTRY("earlyPenalty", RPCResult::Type::NUM, "Penalty in duffs for unilateral dissolution during the early period"),
+    RESULT_MAP_ENTRY("earlyPeriodBlocks", RPCResult::Type::NUM, "Length in blocks of the early period during which unilateral dissolution is penalized"),
     RESULT_MAP_ENTRY("height", RPCResult::Type::NUM, "Block height"),
     RESULT_MAP_ENTRY("inputsHash", RPCResult::Type::STR_HEX, "Hash of all the outpoints of the transaction inputs"),
     RESULT_MAP_ENTRY("lastPaidHeight", RPCResult::Type::NUM, "Height masternode was last paid"),
@@ -79,6 +81,19 @@ const std::map<std::string, RPCResult> RPCRESULT_MAP{{
     RESULT_MAP_ENTRY("registeredHeight", RPCResult::Type::NUM, "Height masternode was registered"),
     RESULT_MAP_ENTRY("revocationReason", RPCResult::Type::NUM, "Reason for ProUpRegTx revocation"),
     RESULT_MAP_ENTRY("service", RPCResult::Type::STR, "IP address and port of the masternode (DEPRECATED, returned only if config option -deprecatedrpc=service is passed)"),
+    {"shares",
+        {RPCResult::Type::ARR, "shares", "Collateral shares of a shared masternode",
+    {
+        {RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::NUM, "amount", "Collateral contribution in duffs"},
+            {RPCResult::Type::STR, "refundAddress", "Dash address the principal is refunded to at dissolution"},
+            {RPCResult::Type::STR_HEX, "refundScript", "Refund scriptPubKey"},
+            {RPCResult::Type::STR, "rewardAddress", "Dash address this share's owner rewards are paid to"},
+            {RPCResult::Type::STR_HEX, "rewardScript", "Reward scriptPubKey"},
+            {RPCResult::Type::STR, "ownerAddress", "Dash address of the share owner key"},
+        }},
+    }}},
     RESULT_MAP_ENTRY("type", RPCResult::Type::NUM, "Masternode type"),
     RESULT_MAP_ENTRY("type_str", RPCResult::Type::STR, "Masternode type (human-readable string)"),
     RESULT_MAP_ENTRY("version", RPCResult::Type::NUM, "Special transaction version"),
@@ -179,6 +194,9 @@ RPCResult CDeterministicMNState::GetJsonHelp(const std::string& key, bool option
         GetRpcResult("platformHTTPPort", /*optional=*/true),
         GetRpcResult("payoutAddress", /*optional=*/true),
         GetRpcResult("payouts", /*optional=*/true),
+        GetRpcResult("shares", /*optional=*/true),
+        GetRpcResult("earlyPeriodBlocks", /*optional=*/true),
+        GetRpcResult("earlyPenalty", /*optional=*/true),
         GetRpcResult("pubKeyOperator"),
         GetRpcResult("operatorPayoutAddress", /*optional=*/true),
     }};
@@ -203,6 +221,9 @@ RPCResult CDeterministicMNStateDiff::GetJsonHelp(const std::string& key, bool op
         GetRpcResult("votingAddress", /*optional=*/true),
         GetRpcResult("payoutAddress", /*optional=*/true),
         GetRpcResult("payouts", /*optional=*/true),
+        GetRpcResult("shares", /*optional=*/true),
+        GetRpcResult("earlyPeriodBlocks", /*optional=*/true),
+        GetRpcResult("earlyPenalty", /*optional=*/true),
         GetRpcResult("operatorPayoutAddress", /*optional=*/true),
         GetRpcResult("pubKeyOperator", /*optional=*/true),
         GetRpcResult("platformNodeID", /*optional=*/true),
@@ -226,6 +247,9 @@ RPCResult CProRegTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("votingAddress"),
         GetRpcResult("payoutAddress", /*optional=*/true),
         GetRpcResult("payouts", /*optional=*/true),
+        GetRpcResult("shares", /*optional=*/true),
+        GetRpcResult("earlyPeriodBlocks", /*optional=*/true),
+        GetRpcResult("earlyPenalty", /*optional=*/true),
         GetRpcResult("pubKeyOperator"),
         GetRpcResult("operatorReward"),
         GetRpcResult("platformNodeID", /*optional=*/true),
@@ -257,6 +281,42 @@ RPCResult CProUpRevTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("proTxHash"),
         {RPCResult::Type::NUM, "reason", "Reason for masternode service revocation"},
         GetRpcResult("inputsHash", /*optional=*/true),
+    }};
+}
+
+RPCResult CProDisTx::GetJsonHelp(const std::string& key, bool optional)
+{
+    return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The shared masternode dissolution special transaction",
+    {
+        GetRpcResult("version"),
+        GetRpcResult("proTxHash"),
+        {RPCResult::Type::NUM, "actorIndex", "Index into the share table of the participant paying the penalty (if any) and the fee"},
+        {RPCResult::Type::NUM, "sigCount", "Number of signatures: 1 = unilateral, one per share = unanimous"},
+    }};
+}
+
+RPCResult CProUpShareTx::GetJsonHelp(const std::string& key, bool optional)
+{
+    return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The shared masternode share update special transaction",
+    {
+        GetRpcResult("version"),
+        GetRpcResult("proTxHash"),
+        {RPCResult::Type::NUM, "shareIndex", "Index into the share table of the share being updated"},
+        {RPCResult::Type::STR, "rewardAddress", /*optional=*/true, "New Dash address for this share's owner rewards; omitted when reverting to the refund script"},
+        GetRpcResult("inputsHash"),
+    }};
+}
+
+RPCResult CProUpSharedRegTx::GetJsonHelp(const std::string& key, bool optional)
+{
+    return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The shared masternode registrar update special transaction",
+    {
+        GetRpcResult("version"),
+        GetRpcResult("proTxHash"),
+        GetRpcResult("votingAddress"),
+        GetRpcResult("pubKeyOperator"),
+        GetRpcResult("inputsHash"),
+        {RPCResult::Type::NUM, "sigCount", "Number of signatures; must equal the share count"},
     }};
 }
 
@@ -324,6 +384,7 @@ RPCResult CSimplifiedMNListEntry::GetJsonHelp(const std::string& key, bool optio
         GetRpcResult("platformNodeID", /*optional=*/true),
         GetRpcResult("payoutAddress", /*optional=*/true),
         GetRpcResult("payouts", /*optional=*/true),
+        GetRpcResult("shares", /*optional=*/true),
         GetRpcResult("operatorPayoutAddress", /*optional=*/true),
     }};
 }

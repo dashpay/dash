@@ -16,8 +16,10 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = EncodeDestination(dest);
     }
-    const auto owner_payouts = GetOwnerPayouts(*this);
-    const std::string payoutList = PayoutListToString(owner_payouts);
+    const std::string payoutList = IsShared()
+                                       ? strprintf("shares(%s), earlyPeriodBlocks=%d, earlyPenalty=%d",
+                                                   ShareListToString(shares), nEarlyPeriodBlocks, nEarlyPenalty)
+                                       : PayoutListToString(GetOwnerPayouts(*this));
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
     }
@@ -29,6 +31,22 @@ std::string CDeterministicMNState::ToString() const
                      nVersion, nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight,
                      nRevocationReason, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(),
                      EncodeDestination(PKHash(keyIDVoting)), netInfo->ToString(), payoutAddress, payoutList, operatorPayoutAddress);
+}
+
+std::vector<CScript> CDeterministicMNState::GetOwnerRewardScripts() const
+{
+    std::vector<CScript> ret;
+    if (IsShared()) {
+        ret.reserve(shares.size());
+        for (const auto& share : shares) {
+            ret.emplace_back(share.RewardScript());
+        }
+    } else {
+        for (const auto& payout : GetOwnerPayouts(*this)) {
+            ret.emplace_back(payout.scriptPayout);
+        }
+    }
+    return ret;
 }
 
 UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
@@ -77,6 +95,15 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
     }
     if (fields & Field_payouts) {
         obj.pushKV("payouts", PayoutListToJson(state.payouts));
+    }
+    if (fields & Field_shares) {
+        obj.pushKV("shares", ShareListToJson(state.shares));
+    }
+    if (fields & Field_nEarlyPeriodBlocks) {
+        obj.pushKV("earlyPeriodBlocks", static_cast<int64_t>(state.nEarlyPeriodBlocks));
+    }
+    if (fields & Field_nEarlyPenalty) {
+        obj.pushKV("earlyPenalty", state.nEarlyPenalty);
     }
     if (fields & Field_scriptOperatorPayout) {
         CTxDestination dest;

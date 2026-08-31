@@ -18,6 +18,7 @@
 #include <threadsafety.h>
 
 class CBlockIndex;
+class CDeterministicMNList;
 class CDeterministicMNManager;
 class UniValue;
 class ChainstateManager;
@@ -89,6 +90,9 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson(bool extended = false) const;
 };
+
+CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& from, const CDeterministicMNList& to,
+                                          bool extended);
 
 bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const ChainstateManager& chainman,
                                const llmq::CQuorumBlockProcessor& qblockman, const llmq::CQuorumManager& qman,

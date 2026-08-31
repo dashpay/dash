@@ -46,7 +46,7 @@ CSimplifiedMNListEntry CDeterministicMN::to_sml_entry() const
     const CDeterministicMNState& state{*pdmnState};
     return CSimplifiedMNListEntry(proTxHash, state.confirmedHash, state.netInfo, state.pubKeyOperator,
                                   state.keyIDVoting, !state.IsBanned(), state.platformHTTPPort, state.platformNodeID,
-                                  state.scriptPayout, GetOwnerPayouts(state),
+                                  state.scriptPayout, GetOwnerPayouts(state), state.shares,
                                   state.scriptOperatorPayout, state.nVersion, nType);
 }
 
@@ -432,7 +432,19 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
                 strprintf("%s: Can't add a masternode %s with invalid address", __func__, dmn->proTxHash.ToString()));
         }
     }
-    if (!AddUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
+    if (dmn->pdmnState->IsShared()) {
+        // A shared masternode has a null keyIDOwner; each share owner key takes its place. Share
+        // owner keys deliberately land in the same uniqueness namespace as keyIDOwner
+        // (GetUniquePropertyHash is an untagged SerializeHash of the value), which is what makes
+        // owner-key reuse between shared and non-shared masternodes impossible in both directions.
+        for (const auto& share : dmn->pdmnState->shares) {
+            if (!AddUniqueProperty(*dmn, share.keyIDOwner)) {
+                mnUniquePropertyMap = mnUniquePropertyMapSaved;
+                throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate share ownerKeyID=%s", __func__,
+                        dmn->proTxHash.ToString(), EncodeDestination(PKHash(share.keyIDOwner)))));
+            }
+        }
+    } else if (!AddUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate keyIDOwner=%s", __func__,
                 dmn->proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));
@@ -589,7 +601,16 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
                                                dmn->proTxHash.ToString()));
         }
     }
-    if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
+    if (dmn->pdmnState->IsShared()) {
+        // Shared masternodes have a null keyIDOwner; the share owner keys were registered instead
+        for (const auto& share : dmn->pdmnState->shares) {
+            if (!DeleteUniqueProperty(*dmn, share.keyIDOwner)) {
+                mnUniquePropertyMap = mnUniquePropertyMapSaved;
+                throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a share ownerKeyID=%s", __func__,
+                        proTxHash.ToString(), EncodeDestination(PKHash(share.keyIDOwner)))));
+            }
+        }
+    } else if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a keyIDOwner=%s", __func__,
                 proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));

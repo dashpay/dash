@@ -5,8 +5,12 @@
 #include <test/util/setup_common.h>
 
 #include <bls/bls.h>
+#include <evo/deterministicmns.h>
+#include <evo/dmnstate.h>
 #include <evo/simplifiedmns.h>
+#include <evo/smldiff.h>
 #include <netbase.h>
+#include <script/standard.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -70,5 +74,54 @@ BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
     //printf("merkleRoot=\"%s\",\n", calculatedMerkleRoot.c_str());
 
     BOOST_CHECK(expectedMerkleRoot == calculatedMerkleRoot);
+}
+
+BOOST_AUTO_TEST_CASE(simplifiedmns_extended_diff_share_reward)
+{
+    bls::bls_legacy_scheme.store(false);
+
+    auto make_keyid = [](uint8_t i) {
+        CKeyID ret;
+        ret.SetHex(strprintf("%040x", i));
+        return ret;
+    };
+    auto make_p2pkh = [&](uint8_t i) { return GetScriptForDestination(PKHash(make_keyid(i))); };
+
+    auto state = std::make_shared<CDeterministicMNState>();
+    state->nVersion = ProTxVersion::ExtAddr;
+    state->confirmedHash.SetHex(strprintf("%064x", 1));
+    state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+    BOOST_CHECK_EQUAL(state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
+    std::vector<unsigned char> vecBytes{1};
+    vecBytes.resize(CBLSSecretKey::SerSize);
+    state->pubKeyOperator.Set(CBLSSecretKey(vecBytes).GetPublicKey(), bls::bls_legacy_scheme.load());
+    state->keyIDVoting = make_keyid(2);
+    state->shares = CollateralShares{CCollateralShare(600 * COIN, make_p2pkh(3), CScript(), make_keyid(4)),
+                                     CCollateralShare(400 * COIN, make_p2pkh(5), CScript(), make_keyid(6))};
+
+    auto dmn = std::make_shared<CDeterministicMN>(/*_internalId=*/1, MnType::Regular);
+    dmn->proTxHash.SetHex(strprintf("%064x", 7));
+    dmn->collateralOutpoint = COutPoint(uint256::ONE, 0);
+    dmn->pdmnState = state;
+
+    CDeterministicMNList from(uint256::ONE, /*_height=*/1, /*_totalRegisteredCount=*/1);
+    from.AddMN(dmn);
+
+    // Same list except one share's reward script changed, as a ProUpShareTx would do
+    auto newState = std::make_shared<CDeterministicMNState>(*state);
+    newState->shares[1].scriptReward = make_p2pkh(8);
+    CDeterministicMNList to(from);
+    to.UpdateMN(dmn->proTxHash, newState);
+
+    // The consensus SML leaf must not be affected by share data
+    BOOST_CHECK(from.GetMN(dmn->proTxHash)->to_sml_entry().CalcHash() ==
+                to.GetMN(dmn->proTxHash)->to_sml_entry().CalcHash());
+
+    // A non-extended diff sees no change, but an extended diff must carry the updated entry
+    BOOST_CHECK(BuildSimplifiedDiff(from, to, /*extended=*/false).mnList.empty());
+    const auto extDiff = BuildSimplifiedDiff(from, to, /*extended=*/true);
+    BOOST_REQUIRE_EQUAL(extDiff.mnList.size(), 1U);
+    BOOST_CHECK(extDiff.mnList[0].proRegTxHash == dmn->proTxHash);
+    BOOST_CHECK(extDiff.mnList[0].shares == newState->shares);
 }
 BOOST_AUTO_TEST_SUITE_END()

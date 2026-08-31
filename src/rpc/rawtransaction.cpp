@@ -221,6 +221,9 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
         MNHFTxPayload::GetJsonHelp(/*key=*/"mnhfTx", /*optional=*/true),
         CAssetLockPayload::GetJsonHelp(/*key=*/"assetLockTx", /*optional=*/true),
         CAssetUnlockPayload::GetJsonHelp(/*key=*/"assetUnlockTx", /*optional=*/true),
+        CProDisTx::GetJsonHelp(/*key=*/"proDisTx", /*optional=*/true),
+        CProUpShareTx::GetJsonHelp(/*key=*/"proUpShareTx", /*optional=*/true),
+        CProUpSharedRegTx::GetJsonHelp(/*key=*/"proUpSharedRegTx", /*optional=*/true),
     };
 }
 

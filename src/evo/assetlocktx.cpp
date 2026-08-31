@@ -191,6 +191,11 @@ static bool CheckAssetUnlockTxImpl(const BlockManager& blockman, VerifySig&& ver
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-too-many-outs");
     }
 
+    // A withdrawal paying the shared-collateral template is rejected by the generic template
+    // creation rule (CheckSharedCollateralTemplateOutputs), which is gated on v24. It is
+    // deliberately NOT re-checked here: this function has no v24 activation status available, and
+    // an unconditional rejection would diverge from pre-activation consensus and split the chain.
+
     const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
     if (!opt_assetUnlockTx) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-payload");

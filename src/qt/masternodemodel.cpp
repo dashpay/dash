@@ -48,7 +48,6 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
     m_type{dmn->getType()},
     m_collateral_address{collateral_address},
     m_collateral_outpoint{QString::fromStdString(dmn->getCollateralOutpoint().ToStringShort())},
-    m_owner_address{QString::fromStdString(EncodeDestination(PKHash(dmn->getKeyIdOwner())))},
     m_protx_hash{QString::fromStdString(dmn->getProTxHash().ToString())},
     m_type_description{QString::fromStdString(std::string(GetMnType(dmn->getType()).description))},
     m_voting_address{QString::fromStdString(EncodeDestination(PKHash(dmn->getKeyIdVoting())))},
@@ -60,6 +59,16 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
         const auto addr_key{primary_service.GetKey()};
         m_service_key = QByteArray(reinterpret_cast<const char*>(addr_key.data()), addr_key.size());
     }
+
+    // A shared masternode has a null keyIDOwner; its share owner keys take its place
+    QStringList owner_addresses;
+    if (const CKeyID& key_id_owner{dmn->getKeyIdOwner()}; !key_id_owner.IsNull()) {
+        owner_addresses << QString::fromStdString(EncodeDestination(PKHash(key_id_owner)));
+    }
+    for (const auto& key_id : dmn->getShareOwnerKeyIds()) {
+        owner_addresses << QString::fromStdString(EncodeDestination(PKHash(key_id)));
+    }
+    m_owner_address = owner_addresses.isEmpty() ? QObject::tr("UNKNOWN") : owner_addresses.join(", ");
 
     QStringList payout_addresses;
     for (const auto& script_payout : dmn->getScriptPayouts()) {
