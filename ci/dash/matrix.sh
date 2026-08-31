@@ -22,6 +22,8 @@ elif [ "$BUILD_TARGET" = "linux64" ]; then
   source ./ci/test/00_setup_env_native_qt5.sh
 elif [ "$BUILD_TARGET" = "linux64_asan" ]; then
   source ./ci/test/00_setup_env_native_asan.sh
+elif [ "$BUILD_TARGET" = "linux64_msan" ]; then
+  source ./ci/test/00_setup_env_native_msan.sh
 elif [ "$BUILD_TARGET" = "linux64_fuzz" ]; then
   source ./ci/test/00_setup_env_native_fuzz.sh
 elif [ "$BUILD_TARGET" = "linux64_multiprocess" ]; then
