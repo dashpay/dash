@@ -8,15 +8,20 @@ export LC_ALL=C
 LIBDIR="$1"
 shift
 
+in_guix_env() {
+    case "$(command -v ls)" in
+        /gnu/store/*) return 0 ;;
+    esac
+    return 1
+}
+
 if ! command -v patchelf >/dev/null 2>&1; then
     # Inside a Guix environment the prebuilt binaries cannot run without
     # having their interpreter patched, so a missing patchelf is fatal there.
-    case "$(command -v ls)" in
-        /gnu/store/*)
-            echo "ERROR: patchelf is required inside the Guix environment but was not found" >&2
-            exit 1
-            ;;
-    esac
+    if in_guix_env; then
+        echo "ERROR: patchelf is required inside the Guix environment but was not found" >&2
+        exit 1
+    fi
     echo "patchelf not found, skipping ELF fix"
     exit 0
 fi
@@ -68,6 +73,14 @@ for libname in libgcc_s.so.1 libz.so.1; do
         echo "Copying $libname from: $LIB_REAL"
         cp "$LIB_REAL" "$LIBDIR/$libname"
     else
+        # Outside Guix the loader can still resolve these from the default
+        # system search paths; inside Guix there are none, so a toolchain
+        # missing one of these libraries is nonfunctional and must not be
+        # staged and cached.
+        if in_guix_env; then
+            echo "ERROR: $libname is required inside the Guix environment but was not found" >&2
+            exit 1
+        fi
         echo "WARNING: Could not find $libname to copy"
     fi
 done
