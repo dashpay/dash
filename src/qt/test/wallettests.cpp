@@ -18,9 +18,13 @@
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
 #include <key_io.h>
+#include <outputtype.h>
+#include <psbt.h>
 #include <test/util/setup_common.h>
+#include <util/strencodings.h>
 #include <util/system.h>
 #include <validation.h>
+#include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
 #include <qt/overviewpage.h>
 #include <qt/receivecoinsdialog.h>
@@ -34,8 +38,11 @@
 #include <QAction>
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QDialogButtonBox>
+#include <QLabel>
 #include <QListView>
+#include <QObject>
 #include <QPushButton>
 #include <QTableView>
 #include <QTextEdit>
@@ -47,21 +54,22 @@ using wallet::CWallet;
 using wallet::CreateMockWalletDatabase;
 using wallet::RemoveWallet;
 using wallet::WALLET_FLAG_DESCRIPTORS;
+using wallet::WALLET_FLAG_DISABLE_PRIVATE_KEYS;
 using wallet::WalletContext;
 using wallet::WalletDescriptor;
 using wallet::WalletRescanReserver;
 
 namespace
 {
-//! Press "Yes" or "Cancel" buttons in modal send confirmation dialog.
-void ConfirmSend(QString* text = nullptr, bool cancel = false)
+//! Press "Yes", "Save", or "Cancel" buttons in modal send confirmation dialog.
+void ConfirmSend(QString* text = nullptr, QMessageBox::StandardButton confirm_type = QMessageBox::Yes)
 {
-    QTimer::singleShot(0, [text, cancel]() {
+    QTimer::singleShot(0, [text, confirm_type]() {
         for (QWidget* widget : QApplication::topLevelWidgets()) {
             if (widget->inherits("SendConfirmationDialog")) {
                 SendConfirmationDialog* dialog = qobject_cast<SendConfirmationDialog*>(widget);
                 if (text) *text = dialog->text();
-                QAbstractButton* button = dialog->button(cancel ? QMessageBox::Cancel : QMessageBox::Yes);
+                QAbstractButton* button = dialog->button(confirm_type);
                 button->setEnabled(true);
                 button->click();
             }
@@ -70,7 +78,8 @@ void ConfirmSend(QString* text = nullptr, bool cancel = false)
 }
 
 //! Send coins to address and return txid.
-uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDestination& address, CAmount amount)
+uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDestination& address, CAmount amount,
+                  QMessageBox::StandardButton confirm_type = QMessageBox::Yes)
 {
     QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
     SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
@@ -80,7 +89,7 @@ uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDe
     boost::signals2::scoped_connection c(wallet.NotifyTransactionChanged.connect([&txid](const uint256& hash, ChangeType status) {
         if (status == CT_NEW) txid = hash;
     }));
-    ConfirmSend();
+    ConfirmSend(/*text=*/nullptr, confirm_type);
     bool invoked = QMetaObject::invokeMethod(&sendCoinsDialog, "sendButtonClicked", Q_ARG(bool, false));
     assert(invoked);
     return txid;
@@ -98,6 +107,71 @@ QModelIndex FindTx(const QAbstractItemModel& model, const uint256& txid)
         }
     }
     return {};
+}
+
+// Verify the 'useAvailableBalance' functionality. With and without manually selected coins.
+// Case 1: No coin control selected coins.
+// 'useAvailableBalance' should fill the amount edit box with the total available balance
+// Case 2: With coin control selected coins.
+// 'useAvailableBalance' should fill the amount edit box with the sum of the selected coins values.
+void VerifyUseAvailableBalance(SendCoinsDialog& sendCoinsDialog, const WalletModel& walletModel)
+{
+    // Verify first entry amount and "useAvailableBalance" button
+    QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
+    QVERIFY(entries->count() == 1); // only one entry
+    SendCoinsEntry* send_entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
+    QVERIFY(send_entry->getValue().amount == 0);
+    // Now click "useAvailableBalance", check updated balance (the entire wallet balance should be set)
+    Q_EMIT send_entry->useAvailableBalance(send_entry);
+    QVERIFY(send_entry->getValue().amount == walletModel.wallet().getBalance());
+
+    // Now manually select two coins and click on "useAvailableBalance". Then check updated balance
+    // (only the sum of the selected coins should be set).
+    int COINS_TO_SELECT = 2;
+    auto coins = walletModel.wallet().listCoins();
+    CAmount sum_selected_coins = 0;
+    int selected = 0;
+    QVERIFY(coins.size() == 1); // context check, coins received only on one destination
+    for (const auto& [outpoint, tx_out] : coins.begin()->second) {
+        sendCoinsDialog.getCoinControl()->Select(outpoint);
+        sum_selected_coins += tx_out.txout.nValue;
+        if (++selected == COINS_TO_SELECT) break;
+    }
+    QVERIFY(selected == COINS_TO_SELECT);
+
+    // Now that we have 2 coins selected, "useAvailableBalance" should update the balance label only with
+    // the sum of them.
+    Q_EMIT send_entry->useAvailableBalance(send_entry);
+    QVERIFY(send_entry->getValue().amount == sum_selected_coins);
+}
+
+void SyncUpWallet(const std::shared_ptr<CWallet>& wallet, interfaces::Node& node)
+{
+    WalletRescanReserver reserver(*wallet);
+    reserver.reserve();
+    CWallet::ScanResult result = wallet->ScanForWalletTransactions(Params().GetConsensus().hashGenesisBlock, /*start_height=*/0, /*max_height=*/{}, reserver, /*fUpdate=*/true, /*save_progress=*/false);
+    QCOMPARE(result.status, CWallet::ScanResult::SUCCESS);
+    QCOMPARE(result.last_scanned_block, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
+    QVERIFY(result.last_failed_block.IsNull());
+}
+
+std::shared_ptr<CWallet> SetupLegacyWatchOnlyWallet(interfaces::Node& node, TestChain100Setup& test)
+{
+    // Dash wallets require the CoinJoin loader; pass the test node loader through.
+    std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), node.context()->coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase());
+    wallet->LoadWallet();
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
+        wallet->SetupLegacyScriptPubKeyMan();
+        // Add watched key
+        CPubKey pubKey = test.coinbaseKey.GetPubKey();
+        bool import_keys = wallet->ImportPubKeys({pubKey.GetID()}, {{pubKey.GetID(), pubKey}}, /*key_origins=*/{}, /*add_keypool=*/false, /*internal=*/false, /*timestamp=*/1);
+        assert(import_keys);
+        wallet->SetLastBlockProcessed(105, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
+    }
+    SyncUpWallet(wallet, node);
+    return wallet;
 }
 
 //! Simple qt wallet tests.
@@ -141,14 +215,7 @@ void TestGUI(interfaces::Node& node)
         wallet->SetAddressBook(dest, "", "receive");
         wallet->SetLastBlockProcessed(105, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
     }
-    {
-        WalletRescanReserver reserver(*wallet);
-        reserver.reserve();
-        CWallet::ScanResult result = wallet->ScanForWalletTransactions(Params().GetConsensus().hashGenesisBlock, /*start_height=*/0, /*max_height=*/{}, reserver, /*fUpdate=*/true, /*save_progress=*/false);
-        QCOMPARE(result.status, CWallet::ScanResult::SUCCESS);
-        QCOMPARE(result.last_scanned_block, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
-        QVERIFY(result.last_failed_block.IsNull());
-    }
+    SyncUpWallet(wallet, node);
     wallet->SetBroadcastTransactions(true);
 
     // Create widgets for sending coins and listing transactions.
@@ -171,6 +238,9 @@ void TestGUI(interfaces::Node& node)
         QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false /*, BitcoinUnits::SeparatorStyle::ALWAYS*/);
         QCOMPARE(balanceText, balanceComparison);
     }
+
+    // Check 'UseAvailableBalance' functionality
+    VerifyUseAvailableBalance(sendCoinsDialog, walletModel);
 
     // Send two transactions, and verify they are added to transaction list.
     TransactionTableModel* transactionTableModel = walletModel.getTransactionTableModel();
@@ -302,6 +372,79 @@ void TestGUI(interfaces::Node& node)
     QCOMPARE(walletModel.wallet().getAddressReceiveRequests().size(), size_t{0});
 }
 
+//! Verify PSBT creation on a legacy watch-only wallet (Create Unsigned path).
+//
+// Dash does not use WalletModel::getAvailableBalance with a cached-balance path
+// (bitcoin-core/gui#598 / bitcoin#26687). Watch-only coins are spendable for
+// selection through wallet().getAvailableBalance / AvailableCoins when
+// fAllowWatchOnly is set in updateCoinControlState / useAvailableBalance.
+// This test covers the user-visible watch-only PSBT flow that remains relevant
+// in Dash: private-keys-disabled legacy wallet, watch-only balance display, and
+// "Create Unsigned" producing a clipboard PSBT.
+void TestGUIWatchOnly(interfaces::Node& node)
+{
+    TestChain100Setup test;
+    for (int i = 0; i < 5; ++i) {
+        test.CreateAndProcessBlock({}, GetScriptForRawPubKey(test.coinbaseKey.GetPubKey()));
+    }
+    node.setContext(&test.m_node);
+    WalletContext& context = *node.walletLoader().context();
+
+    const std::shared_ptr<CWallet> wallet = SetupLegacyWatchOnlyWallet(node, test);
+    AddWallet(context, wallet);
+
+    SendCoinsDialog sendCoinsDialog;
+    OptionsModel optionsModel(node);
+    bilingual_str error;
+    QVERIFY(optionsModel.Init(error));
+    ClientModel clientModel(node, &optionsModel);
+    WalletModel walletModel(interfaces::MakeWallet(context, wallet), clientModel);
+    sendCoinsDialog.setModel(&walletModel);
+
+    // Update cached balance and check the send dialog shows the watch-only balance.
+    walletModel.pollBalanceChanged();
+    {
+        QLabel* balanceLabel = sendCoinsDialog.findChild<QLabel*>("labelBalance");
+        BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
+        CAmount watch_only_balance = walletModel.wallet().getBalances().watch_only_balance;
+        QVERIFY(watch_only_balance > 0);
+        QString balanceComparison = BitcoinUnits::formatWithUnit(unit, watch_only_balance, false);
+        QCOMPARE(balanceLabel->text(), balanceComparison);
+    }
+
+    // Set change address so createTransaction can complete without a keypool change key.
+    sendCoinsDialog.getCoinControl()->destChange = GetDestinationForKey(test.coinbaseKey.GetPubKey(), OutputType::LEGACY);
+
+    // Dismiss the "PSBT has been copied" dialog that presentPSBT opens after Save.
+    QTimer timer;
+    timer.setInterval(500);
+    QObject::connect(&timer, &QTimer::timeout, [&]() {
+        for (QWidget* widget : QApplication::topLevelWidgets()) {
+            if (widget->inherits("QMessageBox")) {
+                QMessageBox* dialog = qobject_cast<QMessageBox*>(widget);
+                QAbstractButton* button = dialog->button(QMessageBox::Discard);
+                if (!button) continue;
+                button->setEnabled(true);
+                button->click();
+                timer.stop();
+                break;
+            }
+        }
+    });
+    timer.start(500);
+
+    // Create unsigned PSBT and verify it was copied to the clipboard.
+    SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 5 * COIN, QMessageBox::Save);
+    const std::string& psbt_string = QApplication::clipboard()->text().toStdString();
+    QVERIFY(!psbt_string.empty());
+
+    PartiallySignedTransaction psbt;
+    std::string err;
+    QVERIFY(DecodeBase64PSBT(psbt, psbt_string, err));
+
+    RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt);
+}
+
 } // namespace
 
 void WalletTests::walletTests()
@@ -318,4 +461,5 @@ void WalletTests::walletTests()
     }
 #endif
     TestGUI(m_node);
+    TestGUIWatchOnly(m_node);
 }
