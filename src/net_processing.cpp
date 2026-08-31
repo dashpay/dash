@@ -1790,6 +1790,17 @@ void PeerManagerImpl::FinalizeNode(const CNode& node) {
     }
     } // cs_main
 
+    if (m_llmq_ctx && misbehavior >= DISCOURAGEMENT_THRESHOLD) {
+        // Drop the not-yet-verified pending recovered sigs of a peer that crossed the
+        // discouragement threshold. NetSigning::BanNode purges eagerly (and always scores exactly
+        // DISCOURAGEMENT_THRESHOLD), but a QSIGREC processed concurrently with a ban issued from a
+        // verification worker thread can re-queue entries behind the purge. This runs strictly
+        // after the peer's last ProcessMessages call and node ids are never reused, so it is
+        // final. Peers that disconnect without misbehaving keep their queue and drain as before:
+        // their pending sigs may be the only copy we ever receive.
+        m_llmq_ctx->sigman->RemoveNode(nodeid);
+    }
+
     if (node.fSuccessfullyConnected && misbehavior == 0 && !node.IsBlockOnlyConn() && !node.IsInboundConn()) {
         // Only change visible addrman state for full outbound peers.  We don't
         // call Connected() for feeler connections since they don't have
