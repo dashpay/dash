@@ -100,6 +100,15 @@ QModelIndex FindTx(const QAbstractItemModel& model, const uint256& txid)
     return {};
 }
 
+void CompareBalance(WalletModel& walletModel, CAmount expected_balance, QLabel* balance_label_to_check, bool use_privacy_formatting)
+{
+    BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
+    QString balanceComparison = use_privacy_formatting
+        ? BitcoinUnits::floorHtmlWithPrivacy(unit, expected_balance, BitcoinUnits::SeparatorStyle::ALWAYS, false)
+        : BitcoinUnits::formatWithUnit(unit, expected_balance, false/*, BitcoinUnits::SeparatorStyle::ALWAYS*/);
+    QCOMPARE(balance_label_to_check->text().trimmed(), balanceComparison);
+}
+
 //! Simple qt wallet tests.
 //
 // Test widgets can be debugged interactively calling show() on them and
@@ -162,15 +171,10 @@ void TestGUI(interfaces::Node& node)
     sendCoinsDialog.setModel(&walletModel);
     transactionView.setModel(&walletModel);
 
-    {
-        // Check balance in send dialog
-        QLabel* balanceLabel = sendCoinsDialog.findChild<QLabel*>("labelBalance");
-        QString balanceText = balanceLabel->text();
-        BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
-        CAmount balance = walletModel.wallet().getBalance();
-        QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false /*, BitcoinUnits::SeparatorStyle::ALWAYS*/);
-        QCOMPARE(balanceText, balanceComparison);
-    }
+    // Update walletModel cached balance which will trigger an update for the 'labelBalance' QLabel.
+    walletModel.pollBalanceChanged();
+    // Check balance in send dialog
+    CompareBalance(walletModel, walletModel.wallet().getBalance(), sendCoinsDialog.findChild<QLabel*>("labelBalance"), false);
 
     // Send two transactions, and verify they are added to transaction list.
     TransactionTableModel* transactionTableModel = walletModel.getTransactionTableModel();
@@ -187,12 +191,8 @@ void TestGUI(interfaces::Node& node)
     OverviewPage overviewPage;
     overviewPage.setClientModel(&clientModel);
     overviewPage.setWalletModel(&walletModel);
-    QLabel* balanceLabel = overviewPage.findChild<QLabel*>("labelBalance");
-    QString balanceText = balanceLabel->text().trimmed();
-    BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
-    CAmount balance = walletModel.wallet().getBalance();
-    QString balanceComparison = BitcoinUnits::floorHtmlWithPrivacy(unit, balance, BitcoinUnits::SeparatorStyle::ALWAYS, false);
-    QCOMPARE(balanceText, balanceComparison);
+    walletModel.pollBalanceChanged(); // Manual balance polling update
+    CompareBalance(walletModel, walletModel.wallet().getBalance(), overviewPage.findChild<QLabel*>("labelBalance"), true);
 
     // Check that each autobackup failure state selects its specific tooltip on the CoinJoin status label
     {
@@ -238,6 +238,7 @@ void TestGUI(interfaces::Node& node)
     QPushButton* requestPaymentButton = receiveCoinsDialog.findChild<QPushButton*>("receiveButton");
     requestPaymentButton->click();
     QString address;
+    BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
     for (QWidget* widget : QApplication::topLevelWidgets()) {
         if (widget->inherits("ReceiveRequestDialog")) {
             ReceiveRequestDialog* receiveRequestDialog = qobject_cast<ReceiveRequestDialog*>(widget);

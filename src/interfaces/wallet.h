@@ -422,6 +422,10 @@ public:
     using CanGetAddressesChangedFn = std::function<void()>;
     virtual std::unique_ptr<Handler> handleCanGetAddressesChanged(CanGetAddressesChangedFn fn) = 0;
 
+    //! Register handler for locked coins changed messages.
+    using LockedCoinsChangedFn = std::function<void()>;
+    virtual std::unique_ptr<Handler> handleLockedCoinsChanged(LockedCoinsChangedFn fn) = 0;
+
     //! Get governance objects stored in the wallet.
     virtual std::vector<Governance::Object> getGovernanceObjects() = 0;
 
@@ -502,20 +506,26 @@ struct WalletBalances
     CAmount balance = 0;
     CAmount unconfirmed_balance = 0;
     CAmount immature_balance = 0;
+    CAmount locked_balance = 0; //!< Subset of balance locked via LockCoin
     CAmount anonymized_balance = 0;
     bool have_watch_only = false;
     CAmount watch_only_balance = 0;
     CAmount unconfirmed_watch_only_balance = 0;
     CAmount immature_watch_only_balance = 0;
+    CAmount locked_watch_only_balance = 0; //!< Subset of watch_only_balance locked via LockCoin
     CAmount denominated_untrusted_pending = 0;
     CAmount denominated_trusted = 0;
 
     bool balanceChanged(const WalletBalances& prev) const
     {
         return balance != prev.balance || unconfirmed_balance != prev.unconfirmed_balance ||  anonymized_balance != prev.anonymized_balance ||
-               immature_balance != prev.immature_balance || watch_only_balance != prev.watch_only_balance ||
+               immature_balance != prev.immature_balance || locked_balance != prev.locked_balance ||
+               watch_only_balance != prev.watch_only_balance ||
                unconfirmed_watch_only_balance != prev.unconfirmed_watch_only_balance ||
-               immature_watch_only_balance != prev.immature_watch_only_balance;
+               immature_watch_only_balance != prev.immature_watch_only_balance ||
+               locked_watch_only_balance != prev.locked_watch_only_balance ||
+               denominated_untrusted_pending != prev.denominated_untrusted_pending ||
+               denominated_trusted != prev.denominated_trusted;
     }
 };
 

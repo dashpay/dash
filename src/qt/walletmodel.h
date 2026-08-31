@@ -163,6 +163,13 @@ public:
 
     uint256 getLastBlockProcessed() const;
 
+    // Retrieve the cached wallet balance
+    interfaces::WalletBalances getCachedBalance() const;
+
+    // If coin control has selected outputs, searches the total amount inside the wallet.
+    // Otherwise, uses the wallet's cached available balance.
+    CAmount getAvailableBalance(const wallet::CCoinControl* control);
+
 private:
     std::unique_ptr<interfaces::Wallet> m_wallet;
     std::unique_ptr<interfaces::Handler> m_handler_unload;
@@ -174,6 +181,7 @@ private:
     std::unique_ptr<interfaces::Handler> m_handler_show_progress;
     std::unique_ptr<interfaces::Handler> m_handler_watch_only_changed;
     std::unique_ptr<interfaces::Handler> m_handler_can_get_addrs_changed;
+    std::unique_ptr<interfaces::Handler> m_handler_locked_coins_changed;
     ClientModel* m_client_model;
     interfaces::Node& m_node;
 
@@ -242,6 +250,8 @@ public Q_SLOTS:
     void updateStatus();
     /* New transaction, or transaction changed status */
     void updateTransaction();
+    /* Set of locked coins changed */
+    void updateLockedCoins();
     /* Lock existing dust outputs (called on startup and settings change) */
     void lockExistingDustOutputs();
     /* IS-Lock received */

@@ -63,6 +63,9 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
         connect(optionsModel, &OptionsModel::dustProtectionChanged, this, &WalletModel::lockExistingDustOutputs);
         // Lock existing dust on startup if dust protection is enabled
         lockExistingDustOutputs();
+        // CoinJoin balances are calculated only while CoinJoin is enabled,
+        // so the cached balance must be recalculated when it is toggled
+        connect(optionsModel, &OptionsModel::showCoinJoinChanged, this, [this] { fForceCheckBalanceChanged = true; });
     }
 }
 
@@ -73,6 +76,10 @@ WalletModel::~WalletModel()
 
 void WalletModel::startPollBalance()
 {
+    // Update the cached balance right away, so every view can make use of it,
+    // so them don't need to waste resources recalculating it.
+    pollBalanceChanged();
+
     // This timer will be fired repeatedly to update the balance
     // Since the QTimer::timeout is a private signal, it cannot be used
     // in the GUIUtil::ExceptionSafeConnect directly.
@@ -137,15 +144,26 @@ void WalletModel::pollBalanceChanged()
 
 void WalletModel::checkBalanceChanged(const interfaces::WalletBalances& new_balances)
 {
-    if(new_balances.balanceChanged(m_cached_balances)) {
+    if (new_balances.balanceChanged(m_cached_balances)) {
         m_cached_balances = new_balances;
         Q_EMIT balanceChanged(new_balances);
     }
 }
 
+interfaces::WalletBalances WalletModel::getCachedBalance() const
+{
+    return m_cached_balances;
+}
+
 void WalletModel::updateTransaction()
 {
     // Balance and number of transactions might have changed
+    fForceCheckBalanceChanged = true;
+}
+
+void WalletModel::updateLockedCoins()
+{
+    // Locked share of the balance changed
     fForceCheckBalanceChanged = true;
 }
 
@@ -258,7 +276,9 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         }
     }
 
-    CAmount nBalance = m_wallet->getAvailableBalance(coinControl);
+    // If no coin was manually selected, use the cached balance
+    // Future: can merge this call with 'createTransaction'.
+    CAmount nBalance = getAvailableBalance(&coinControl);
 
     if(total > nBalance)
     {
@@ -513,6 +533,12 @@ static void NotifyCanGetAddressesChanged(WalletModel* walletmodel)
     assert(invoked);
 }
 
+static void NotifyLockedCoinsChanged(WalletModel* walletmodel)
+{
+    bool invoked = QMetaObject::invokeMethod(walletmodel, "updateLockedCoins", Qt::QueuedConnection);
+    assert(invoked);
+}
+
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
@@ -525,6 +551,7 @@ void WalletModel::subscribeToCoreSignals()
     m_handler_show_progress = m_wallet->handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2));
     m_handler_watch_only_changed = m_wallet->handleWatchOnlyChanged(std::bind(NotifyWatchonlyChanged, this, std::placeholders::_1));
     m_handler_can_get_addrs_changed = m_wallet->handleCanGetAddressesChanged(std::bind(NotifyCanGetAddressesChanged, this));
+    m_handler_locked_coins_changed = m_wallet->handleLockedCoinsChanged(std::bind(NotifyLockedCoinsChanged, this));
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
@@ -539,6 +566,7 @@ void WalletModel::unsubscribeFromCoreSignals()
     m_handler_show_progress->disconnect();
     m_handler_watch_only_changed->disconnect();
     m_handler_can_get_addrs_changed->disconnect();
+    m_handler_locked_coins_changed->disconnect();
 }
 
 // WalletModel::UnlockContext implementation
@@ -632,4 +660,25 @@ bool WalletModel::isMultiwallet() const
 uint256 WalletModel::getLastBlockProcessed() const
 {
     return m_client_model ? m_client_model->getBestBlockHash() : uint256{};
+}
+
+CAmount WalletModel::getAvailableBalance(const CCoinControl* control)
+{
+    // No selected coins, return the cached balance
+    if (!control || !control->HasSelected()) {
+        const interfaces::WalletBalances& balances = getCachedBalance();
+        if (control && control->IsUsingCoinJoin()) {
+            return balances.anonymized_balance;
+        }
+        // Coin selection cannot spend locked coins, so keep the locked share out
+        CAmount available_balance = balances.balance - balances.locked_balance;
+        // if wallet private keys are disabled, this is a watch-only wallet
+        // so, let's include the watch-only balance.
+        if (balances.have_watch_only && m_wallet->privateKeysDisabled()) {
+            available_balance += balances.watch_only_balance - balances.locked_watch_only_balance;
+        }
+        return available_balance;
+    }
+    // Fetch balance from the wallet, taking into account the selected coins
+    return wallet().getAvailableBalance(*control);
 }

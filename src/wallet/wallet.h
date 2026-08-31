@@ -996,6 +996,9 @@ public:
     /** Keypool has new keys */
     boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
 
+    /** Set of coins locked via LockCoin changed */
+    boost::signals2::signal<void ()> NotifyLockedCoinsChanged;
+
     /** IS-lock received */
     boost::signals2::signal<void ()> NotifyISLockReceived;
 

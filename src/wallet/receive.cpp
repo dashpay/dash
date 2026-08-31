@@ -327,6 +327,21 @@ Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse,
                 }
             }
         }
+
+        // Coins locked via LockCoin() are counted in the trusted balances
+        // above but cannot be selected for spending; total them separately so
+        // callers can tell the spendable share
+        for (const COutPoint& outpoint : wallet.ListLockedCoins()) {
+            const CWalletTx* wtx = wallet.GetWalletTx(outpoint.hash);
+            if (wtx == nullptr || outpoint.n >= wtx->tx->vout.size()) continue;
+            if (wallet.IsTxImmatureCoinBase(*wtx) || wallet.IsSpent(outpoint)) continue;
+            if (!CachedTxIsTrusted(wallet, *wtx, trusted_parents)) continue;
+            if (wallet.GetTxDepthInMainChain(*wtx) < min_depth && !(fAddLocked && wallet.IsTxLockedByInstantSend(*wtx))) continue;
+            const CTxOut& txout{wtx->tx->vout[outpoint.n]};
+            if (avoid_reuse && wallet.IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE) && wallet.IsSpentKey(txout.scriptPubKey)) continue;
+            ret.m_mine_trusted_locked += OutputGetCredit(wallet, txout, ISMINE_SPENDABLE);
+            ret.m_watchonly_trusted_locked += OutputGetCredit(wallet, txout, ISMINE_WATCH_ONLY);
+        }
     }
     return ret;
 }

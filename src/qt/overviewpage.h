@@ -54,7 +54,6 @@ private:
     Ui::OverviewPage *ui;
     ClientModel* clientModel{nullptr};
     WalletModel* walletModel{nullptr};
-    interfaces::WalletBalances m_balances;
     bool m_privacy{false};
     BitcoinUnit m_display_bitcoin_unit;
     bool fShowAdvancedCJUI;

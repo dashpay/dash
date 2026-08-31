@@ -176,11 +176,9 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
-        interfaces::WalletBalances balances = _model->wallet().getBalances();
-        setBalance(balances);
         connect(_model, &WalletModel::balanceChanged, this, &SendCoinsDialog::setBalance);
-        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::updateDisplayUnit);
-        updateDisplayUnit();
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::refreshBalance);
+        refreshBalance();
 
         // Coin Control
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
@@ -822,9 +820,9 @@ void SendCoinsDialog::setBalance(const interfaces::WalletBalances& balances)
     }
 }
 
-void SendCoinsDialog::updateDisplayUnit()
+void SendCoinsDialog::refreshBalance()
 {
-    setBalance(model->wallet().getBalances());
+    setBalance(model->getCachedBalance());
     coinControlUpdateLabels();
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateSmartFeeLabel();
@@ -896,7 +894,7 @@ void SendCoinsDialog::useAvailableBalance(SendCoinsEntry* entry)
     m_coin_control->fAllowWatchOnly = model->wallet().privateKeysDisabled() && !model->wallet().hasExternalSigner();
 
     // Calculate available amount to send.
-    CAmount amount = model->wallet().getAvailableBalance(*m_coin_control);
+    CAmount amount = model->getAvailableBalance(m_coin_control.get());
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry* e = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if (e && !e->isHidden() && e != entry) {

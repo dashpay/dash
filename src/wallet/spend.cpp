@@ -219,26 +219,18 @@ CoinsResult AvailableCoins(const CWallet& wallet,
             // Filter by spendable outputs only
             if (!spendable && only_spendable) continue;
 
-            // When parsing a scriptPubKey, Solver returns the parsed pubkeys or hashes (depending on the script)
-            // We don't need those here, so we are leaving them in return_values_unused
-            std::vector<std::vector<uint8_t>> return_values_unused;
-            TxoutType type;
+            // Obtain script type
+            std::vector<std::vector<uint8_t>> script_solutions;
+            TxoutType type = Solver(output.scriptPubKey, script_solutions);
 
-            // If the Output is P2SH and spendable, we want to know if it is
+            // If the output is P2SH and solvable, we want to know if it is
             // a P2SH (legacy). We can determine this from the redeemScript.
-            // If the Output is not spendable, it will be classified as a P2SH (legacy),
+            // If the output is not solvable, it will be classified as a P2SH (legacy),
             // since we have no way of knowing otherwise without the redeemScript
-            if (output.scriptPubKey.IsPayToScriptHash() && solvable) {
-                CScript redeemScript;
-                CTxDestination destination;
-                if (!ExtractDestination(output.scriptPubKey, destination))
-                    continue;
-                const CScriptID& hash = CScriptID(std::get<ScriptHash>(destination));
-                if (!provider->GetCScript(hash, redeemScript))
-                    continue;
-                type = Solver(redeemScript, return_values_unused);
-            } else {
-                type = Solver(output.scriptPubKey, return_values_unused);
+            if (type == TxoutType::SCRIPTHASH && solvable) {
+                CScript script;
+                if (!provider->GetCScript(CScriptID(uint160(script_solutions[0])), script)) continue;
+                type = Solver(script, script_solutions);
             }
 
             COutput coin(outpoint, output, nDepth, input_bytes, spendable, solvable, safeTx, wtx.GetTxTime(), tx_from_me, feerate);

@@ -163,8 +163,6 @@ OverviewPage::OverviewPage(QWidget* parent) :
 
     GUIUtil::updateFonts();
 
-    m_balances.balance = -1;
-
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
     // Note: minimum height of listTransactions will be set later in updateAdvancedCJUI() to reflect actual settings
@@ -202,8 +200,9 @@ void OverviewPage::setPrivacy(bool privacy)
 {
     m_privacy = privacy;
     clientModel->getOptionsModel()->setOption(OptionsModel::OptionID::MaskValues, privacy);
-    if (m_balances.balance != -1) {
-        setBalance(m_balances);
+    const auto& balances = walletModel->getCachedBalance();
+    if (balances.balance != -1) {
+        setBalance(balances);
         coinJoinStatus(true);
     }
 
@@ -226,7 +225,6 @@ OverviewPage::~OverviewPage()
 void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
 {
     BitcoinUnit unit = walletModel->getOptionsModel()->getDisplayUnit();
-    m_balances = balances;
     if (walletModel->wallet().isLegacy()) {
         if (walletModel->wallet().privateKeysDisabled()) {
             ui->labelBalance->setText(BitcoinUnits::floorHtmlWithPrivacy(unit, balances.watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
@@ -312,12 +310,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
         // update the display unit, to not use the default ("DASH")
         updateDisplayUnit();
         // Keep up to date with wallet
-        interfaces::Wallet& wallet = model->wallet();
-        interfaces::WalletBalances balances = wallet.getBalances();
-        setBalance(balances);
+        setBalance(model->getCachedBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
 
-        updateWatchOnlyLabels((wallet.haveWatchOnly() && !model->wallet().privateKeysDisabled()) || gArgs.GetBoolArg("-debug-ui", false));
+        interfaces::Wallet& wallet = model->wallet();
+        updateWatchOnlyLabels((wallet.haveWatchOnly() && !wallet.privateKeysDisabled()) || gArgs.GetBoolArg("-debug-ui", false));
         connect(model, &WalletModel::notifyWatchonlyChanged, [this](bool showWatchOnly) {
             updateWatchOnlyLabels(showWatchOnly && !walletModel->wallet().privateKeysDisabled());
         });
@@ -348,11 +345,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
 
 void OverviewPage::updateDisplayUnit()
 {
-    if(walletModel && walletModel->getOptionsModel())
-    {
+    if (walletModel && walletModel->getOptionsModel()) {
         m_display_bitcoin_unit = walletModel->getOptionsModel()->getDisplayUnit();
-        if (m_balances.balance != -1) {
-            setBalance(m_balances);
+        const auto& balances = walletModel->getCachedBalance();
+        if (balances.balance != -1) {
+            setBalance(balances);
         }
 
         // Update txdelegate->unit with the current unit
@@ -404,7 +401,8 @@ void OverviewPage::updateCoinJoinProgress()
     QString strAmountAndRounds;
     QString strCoinJoinAmount = BitcoinUnits::formatHtmlWithUnit(m_display_bitcoin_unit, clientModel->coinJoinOptions().getAmount() * COIN, false, BitcoinUnits::SeparatorStyle::ALWAYS);
 
-    if(m_balances.balance == 0)
+    const auto& balances = walletModel->getCachedBalance();
+    if(balances.balance == 0)
     {
         ui->coinJoinProgress->setValue(0);
         ui->coinJoinProgress->setToolTip(tr("No inputs detected"));
@@ -420,7 +418,7 @@ void OverviewPage::updateCoinJoinProgress()
 
     CAmount nAnonymizableBalance = walletModel->wallet().getAnonymizableBalance(false, false);
 
-    CAmount nMaxToAnonymize = nAnonymizableBalance + m_balances.anonymized_balance;
+    CAmount nMaxToAnonymize = nAnonymizableBalance + balances.anonymized_balance;
 
     // If it's more than the anon threshold, limit to that.
     if (nMaxToAnonymize > clientModel->coinJoinOptions().getAmount() * COIN) nMaxToAnonymize = clientModel->coinJoinOptions().getAmount() * COIN;
@@ -451,7 +449,6 @@ void OverviewPage::updateCoinJoinProgress()
 
     if (!fShowAdvancedCJUI) return;
 
-    const interfaces::WalletBalances balances = walletModel->wallet().getBalances();
     CAmount nDenominatedConfirmedBalance = balances.denominated_trusted;
     CAmount nDenominatedUnconfirmedBalance = balances.denominated_untrusted_pending;
     CAmount nNormalizedAnonymizedBalance;
@@ -477,7 +474,7 @@ void OverviewPage::updateCoinJoinProgress()
     anonNormPart = anonNormPart > 1 ? 1 : anonNormPart;
     anonNormPart *= 100;
 
-    anonFullPart = (float)m_balances.anonymized_balance / nMaxToAnonymize;
+    anonFullPart = (float)balances.anonymized_balance / nMaxToAnonymize;
     anonFullPart = anonFullPart > 1 ? 1 : anonFullPart;
     anonFullPart *= 100;
 
@@ -692,7 +689,7 @@ void OverviewPage::coinJoinStatus(bool fForce)
     setWidgetsVisible(true);
 }
 
-void OverviewPage::toggleCoinJoin(){
+void OverviewPage::toggleCoinJoin() {
     QSettings settings;
     // Popup some information on first mixing
     QString hasMixed = settings.value("hasMixed").toString();
@@ -707,9 +704,10 @@ void OverviewPage::toggleCoinJoin(){
     bool mixing{false};
     walletModel->withCoinJoin([&](auto& client) { mixing = client.isMixing(); });
     if (!mixing) {
+        const auto& balances = walletModel->getCachedBalance();
         auto& options = walletModel->node().coinJoinOptions();
         const CAmount nMinAmount = options.getSmallestDenomination() + options.getMaxCollateralAmount();
-        if(m_balances.balance < nMinAmount) {
+        if(balances.balance < nMinAmount) {
             QString strMinAmount(BitcoinUnits::formatWithUnit(m_display_bitcoin_unit, nMinAmount));
             QMessageBox::warning(this, strCoinJoinName,
                 tr("%1 requires at least %2 to use.").arg(strCoinJoinName).arg(strMinAmount),

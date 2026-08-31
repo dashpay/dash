@@ -616,12 +616,14 @@ public:
         result.balance = bal.m_mine_trusted;
         result.unconfirmed_balance = bal.m_mine_untrusted_pending;
         result.immature_balance = bal.m_mine_immature;
+        result.locked_balance = bal.m_mine_trusted_locked;
         result.anonymized_balance = bal.m_anonymized;
         result.have_watch_only = haveWatchOnly();
         if (result.have_watch_only) {
             result.watch_only_balance = bal.m_watchonly_trusted;
             result.unconfirmed_watch_only_balance = bal.m_watchonly_untrusted_pending;
             result.immature_watch_only_balance = bal.m_watchonly_immature;
+            result.locked_watch_only_balance = bal.m_watchonly_trusted_locked;
         }
         result.denominated_untrusted_pending = bal.m_denominated_untrusted_pending;
         result.denominated_trusted = bal.m_denominated_trusted;
@@ -815,6 +817,10 @@ public:
     std::unique_ptr<Handler> handleCanGetAddressesChanged(CanGetAddressesChangedFn fn) override
     {
         return MakeHandler(m_wallet->NotifyCanGetAddressesChanged.connect(fn));
+    }
+    std::unique_ptr<Handler> handleLockedCoinsChanged(LockedCoinsChangedFn fn) override
+    {
+        return MakeHandler(m_wallet->NotifyLockedCoinsChanged.connect(fn));
     }
     std::vector<Governance::Object> getGovernanceObjects() override
     {
