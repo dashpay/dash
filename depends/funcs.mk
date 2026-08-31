@@ -320,12 +320,17 @@ $($(1)_preprocessed): $$($(1)_vendored_archive)
 endif
 endef
 
+# A cached archive is trusted only if it matches the pinned hash; anything
+# else (including a partial file from an interrupted download) is re-fetched.
+# Like fetch_file_inner, download to a temp path and only move a verified
+# archive into the source cache so a bad download can never wedge it.
 define download_rust_std_target
-([ -f "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" ] && \
-  echo "Already have rust-std-$(rust_stdlib_version)-$(1).tar.gz" || \
+((echo "$(rust_stdlib_sha256_hash_$(1))  $(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" | $(build_SHA256SUM) -c - >/dev/null 2>&1 && \
+  echo "Already have rust-std-$(rust_stdlib_version)-$(1).tar.gz") || \
   (echo "Downloading rust-std-$(rust_stdlib_version)-$(1).tar.gz..." && \
-    $(build_DOWNLOAD) "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" "$(rust_stdlib_download_path)/rust-std-$(rust_stdlib_version)-$(1).tar.gz")) && \
-echo "$(rust_stdlib_sha256_hash_$(1))  $(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" | $(build_SHA256SUM) -c - && \
+    $(build_DOWNLOAD) "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz.temp" "$(rust_stdlib_download_path)/rust-std-$(rust_stdlib_version)-$(1).tar.gz" && \
+    echo "$(rust_stdlib_sha256_hash_$(1))  $(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz.temp" | $(build_SHA256SUM) -c - && \
+    mv "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz.temp" "$(SOURCES_PATH)/rust-std-$(rust_stdlib_version)-$(1).tar.gz")) && \
 echo "$(rust_stdlib_sha256_hash_$(1))  rust-std-$(rust_stdlib_version)-$(1).tar.gz" > "$(SOURCES_PATH)/download-stamps/.stamp_fetched-rust_stdlib-$(rust_stdlib_version)-$(rust_stdlib_sha256_hash_$(1)).hash"
 endef
 
