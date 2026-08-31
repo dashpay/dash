@@ -373,9 +373,21 @@ void CCoinJoinServer::CreateFinalTransaction(int session_id)
     LOCK(cs_coinjoin);
 
     // The decision to finalize came from a snapshot taken before this lock, so make sure it
-    // still describes the live session - it may have timed out and been replaced in between.
+    // still describes an eligible live session. An entry can finish validation and commit while
+    // the timeout path charges fees, changing a covered side from empty to a lone participant.
+    // Check the live entries under the same lock used to build the transaction so that entry
+    // admission cannot invalidate the decision before the state moves to signing.
     if (!IsCurrentSession(session_id)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- session changed, not finalizing\n");
+        return;
+    }
+    const auto sides = GetMixSideCountsLocked();
+    if (vecEntries.size() < static_cast<size_t>(CoinJoin::GetMinPoolParticipants()) || !sides.IsCovered()) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- session no longer eligible, entries=%d, sides=%d/%d\n",
+                 vecEntries.size(), sides.inputs, sides.outputs);
+        // Deliberately no timer refresh: on the timeout path the session stays timed out and
+        // the scheduler's next CheckTimeout() resets it. The missing side already had the full
+        // entry window, so waiting another one would only keep everyone else's coins locked.
         return;
     }
 
