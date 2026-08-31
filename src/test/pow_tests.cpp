@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <pow.h>
@@ -63,6 +64,57 @@ BOOST_AUTO_TEST_CASE(get_next_work)
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x207fffffU); // Block #123457 has 0x207fffff
     blockHeader.nTime = 1408743289; // Block #123457 (3h)
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x207fffffU); // Block #123457 has 0x207fffff
+}
+
+/* Test PermittedDifficultyTransition, the (non-consensus) anti-DoS heuristic
+ * used by headers sync. It enforces a +/-4x bound on the per-pair difficulty
+ * only below nPowKGWHeight (Bitcoin-style retargeting); from nPowKGWHeight
+ * onwards (KGW/DGW) it has no useful bound and always returns true, and it
+ * also always returns true on networks that allow min-difficulty blocks. */
+BOOST_AUTO_TEST_CASE(permitted_difficulty_transition)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const Consensus::Params& params = chainParams->GetConsensus();
+
+    // The 4x check is only reached on a chain without min-difficulty blocks,
+    // and only below nPowKGWHeight; pick a height in that range.
+    BOOST_REQUIRE(!params.fPowAllowMinDifficultyBlocks);
+    const int64_t height{params.nPowKGWHeight / 2};
+
+    // Base difficulty with a small mantissa so that the +/-4x boundary targets
+    // are exactly representable in the compact nBits format; the >4x rejection
+    // cases need only fall clearly outside the window.
+    const uint32_t base_nbits{0x1a010000U};
+    arith_uint256 base_target;
+    base_target.SetCompact(base_nbits);
+
+    arith_uint256 t;
+    t = base_target; t *= 4;                const uint32_t easier_4x{t.GetCompact()};
+    t = base_target; t *= 5;                const uint32_t easier_5x{t.GetCompact()};
+    t = base_target; t /= arith_uint256(4); const uint32_t harder_4x{t.GetCompact()};
+    t = base_target; t /= arith_uint256(5); const uint32_t harder_5x{t.GetCompact()};
+
+    // No change, and exactly +/-4x, are permitted.
+    BOOST_CHECK(PermittedDifficultyTransition(params, height, base_nbits, base_nbits));
+    BOOST_CHECK(PermittedDifficultyTransition(params, height, base_nbits, easier_4x));
+    BOOST_CHECK(PermittedDifficultyTransition(params, height, base_nbits, harder_4x));
+
+    // More than 4x easier or harder is rejected (exercises both return-false paths).
+    BOOST_CHECK(!PermittedDifficultyTransition(params, height, base_nbits, easier_5x));
+    BOOST_CHECK(!PermittedDifficultyTransition(params, height, base_nbits, harder_5x));
+
+    // From nPowKGWHeight onwards the bound is not enforced: an arbitrarily
+    // large difficulty jump is permitted.
+    BOOST_CHECK(PermittedDifficultyTransition(params, params.nPowKGWHeight, base_nbits, easier_5x));
+    BOOST_CHECK(PermittedDifficultyTransition(params, params.nPowKGWHeight, base_nbits, harder_5x));
+
+    // Networks that allow min-difficulty blocks (testnet/devnet) skip the
+    // check entirely, even below nPowKGWHeight.
+    for (const auto& chain : {CBaseChainParams::TESTNET, CBaseChainParams::DEVNET}) {
+        const auto cp = CreateChainParams(*m_node.args, chain);
+        BOOST_REQUIRE(cp->GetConsensus().fPowAllowMinDifficultyBlocks);
+        BOOST_CHECK(PermittedDifficultyTransition(cp->GetConsensus(), /*height=*/1, base_nbits, easier_5x));
+    }
 }
 
 /* Test the constraint on the upper bound for next work */
