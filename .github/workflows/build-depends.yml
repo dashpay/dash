@@ -15,6 +15,11 @@ on:
         description: "Short hash of the CI base image manifest for cache busting"
         required: true
         type: string
+      rust-vendor-artifact:
+        description: "Artifact holding freshly generated Rust vendor archives"
+        required: false
+        type: string
+        default: ""
       runs-on:
         description: "Runner label to use (e.g., ubuntu-24.04 or ubuntu-24.04-arm)"
         required: true
@@ -143,6 +148,28 @@ jobs:
           path: depends/sources
           key: depends-sources-${{ hashFiles('depends/packages/*') }}
           restore-keys: depends-sources-
+
+      - name: Restore Rust vendor sources
+        id: rust-vendor-cache
+        if: inputs.build-target == 'linux64_platform_gui'
+        uses: actions/cache/restore@v5
+        with:
+          path: depends/sources/platform-cxx-*-vendored.tar.gz
+          key: depends-rust-vendor-sources-${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/packages/native_rust.mk', 'depends/packages/platform_cxx.mk', 'depends/patches/platform_cxx/cargo-config.toml') }}
+
+      - name: Download Rust vendor sources
+        if: inputs.build-target == 'linux64_platform_gui' && steps.rust-vendor-cache.outputs.cache-hit != 'true' && inputs.rust-vendor-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.rust-vendor-artifact }}
+          path: depends/sources
+
+      - name: Check Rust vendor sources are present
+        if: inputs.build-target == 'linux64_platform_gui' && steps.rust-vendor-cache.outputs.cache-hit != 'true' && inputs.rust-vendor-artifact == ''
+        run: |
+          echo "::error::Rust vendor source cache missed and no same-run artifact was provided"
+          exit 1
+        shell: bash
 
       - name: Restore SDKs cache
         id: sdk-cache
