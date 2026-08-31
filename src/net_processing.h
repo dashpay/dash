@@ -84,7 +84,8 @@ class PeerManagerInternal
 {
 public:
     virtual void PeerMisbehaving(const NodeId pnode, const int howmuch, const std::string& message = "") = 0;
-    virtual bool PeerIsBanned(const NodeId node_id) = 0;
+    /** Whether the peer is no longer connected or has crossed the discouragement threshold. */
+    virtual bool PeerIsDisconnectedOrDiscouraged(const NodeId node_id) = 0;
     /** Complete this peer's pending announcement of the inv, so it is not requested from them
      *  again. Announcements of the same inv by other peers are unaffected: an invalid or unusable
      *  object must not stop us from fetching it from honest peers.
@@ -223,8 +224,6 @@ public:
 
     /** This function is used for testing the stale tip eviction logic, see denialofservice_tests.cpp */
     virtual void UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds) = 0;
-
-    virtual bool IsBanned(NodeId pnode) = 0;
 
     virtual size_t GetRequestedObjectCount(NodeId nodeid) const = 0;
 
