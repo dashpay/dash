@@ -8,6 +8,8 @@ permissions:
 
 on:
   push:
+    branches-ignore:
+      - t3code/test-self-hosted-ci-runner
   pull_request_target:
   pull_request_review:
     types: [submitted]

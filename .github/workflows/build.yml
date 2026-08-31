@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches-ignore:
+      - t3code/test-self-hosted-ci-runner
   pull_request_target:
 
 permissions:

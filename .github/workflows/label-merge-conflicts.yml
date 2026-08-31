@@ -2,6 +2,8 @@ name: "Label Merge Conflicts"
 on:
   # So that PRs touching the same files as the push are updated
   push:
+    branches-ignore:
+      - t3code/test-self-hosted-ci-runner
   # So that the `dirtyLabel` is removed if conflicts are resolve
   # We recommend `pull_request_target` so that github secrets are available.
   # In `pull_request` we wouldn't be able to change labels of fork PRs

@@ -1,0 +1,151 @@
+name: Self-hosted Linux benchmark
+
+on:
+  push:
+    branches:
+      - t3code/test-self-hosted-ci-runner
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: self-hosted-linux-benchmark
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.build-target }}
+    # Platform applies rust-ci to its shared Rust runners. Adding the default
+    # Linux and X64 labels excludes the macOS ARM64 runners in that pool.
+    runs-on: [self-hosted, Linux, X64, rust-ci]
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      # There is currently one Linux runner. Keep the queue explicit so a
+      # Platform job can be scheduled between benchmark jobs if necessary.
+      max-parallel: 1
+      matrix:
+        include:
+          - build-target: linux64
+            depends-target: linux64
+          - build-target: linux64_asan
+            depends-target: linux64
+          - build-target: linux64_tsan
+            depends-target: linux64_multiprocess
+    container:
+      image: ghcr.io/dashpay/dash/dashcore-ci-runner:latest
+      options: --user root --cap-add SYS_PTRACE
+    env:
+      CACHE_DIR: /cache
+      BASE_OUTDIR: /output
+      CI_FAILFAST_TEST_LEAVE_DANGLING: 1
+      INTEGRATION_TESTS_ARGS: --extended --exclude feature_pruning,feature_dbcrash
+    steps:
+      - name: Record runner details
+        run: |
+          uname -a
+          lscpu
+          free -h
+          df -h .
+          echo "nproc=$(nproc)"
+          echo "runner=${{ runner.name }}"
+          echo "runner_os=${{ runner.os }}"
+          echo "runner_arch=${{ runner.arch }}"
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          clean: true
+          persist-credentials: false
+          fetch-depth: 50
+
+      - name: Restore depends sources
+        uses: actions/cache@v5
+        with:
+          path: depends/sources
+          key: depends-sources-${{ hashFiles('depends/packages/*') }}
+          restore-keys: depends-sources-
+
+      - name: Download depends sources
+        run: make -C depends download
+
+      - name: Restore depends build
+        uses: actions/cache@v5
+        with:
+          path: depends/built
+          key: >-
+            self-hosted-depends-${{ runner.os }}-${{ runner.arch }}-${{
+              matrix.depends-target }}-${{
+              hashFiles('contrib/containers/ci/ci.Dockerfile',
+                        'depends/Makefile',
+                        'depends/funcs.mk',
+                        'depends/config.site.in',
+                        'depends/builders/**',
+                        'depends/hosts/**',
+                        'depends/packages/**',
+                        'depends/patches/**') }}
+
+      - name: Build depends
+        shell: bash
+        run: |
+          STARTED_AT=$(date +%s)
+          export BUILD_TARGET="${{ matrix.depends-target }}"
+          source ./ci/dash/matrix.sh
+          # shellcheck disable=SC2086,SC2090
+          env ${DEP_OPTS} make -j"$(nproc)" -C depends HOST="${HOST}"
+          ELAPSED=$(( $(date +%s) - STARTED_AT ))
+          echo "### ${{ matrix.build-target }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Depends: ${ELAPSED}s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore compiler cache
+        uses: actions/cache@v5
+        with:
+          path: /cache/ccache
+          key: >-
+            self-hosted-ccache-${{ runner.os }}-${{ runner.arch }}-${{
+              matrix.build-target }}-${{ github.sha }}
+          restore-keys: >-
+            self-hosted-ccache-${{ runner.os }}-${{ runner.arch }}-${{
+              matrix.build-target }}-
+
+      - name: Build source
+        shell: bash
+        run: |
+          STARTED_AT=$(date +%s)
+          mkdir -p "${CACHE_DIR}" "${BASE_OUTDIR}"
+          export BUILD_TARGET="${{ matrix.build-target }}"
+          ./ci/dash/build_src.sh
+          ELAPSED=$(( $(date +%s) - STARTED_AT ))
+          echo "- Source build: ${ELAPSED}s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          STARTED_AT=$(date +%s)
+          export BUILD_TARGET="${{ matrix.build-target }}"
+          ./ci/dash/test_unittests.sh
+          ELAPSED=$(( $(date +%s) - STARTED_AT ))
+          echo "- Unit tests: ${ELAPSED}s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run functional tests
+        shell: bash
+        run: |
+          STARTED_AT=$(date +%s)
+          export BUILD_TARGET="${{ matrix.build-target }}"
+          # shellcheck disable=SC2086
+          ./ci/dash/test_integrationtests.sh ${INTEGRATION_TESTS_ARGS}
+          ELAPSED=$(( $(date +%s) - STARTED_AT ))
+          echo "- Functional tests: ${ELAPSED}s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: self-hosted-${{ matrix.build-target }}-logs
+          path: |
+            testlogs
+            build-ci/dashcore-${{ matrix.build-target }}/config.log
+          if-no-files-found: ignore
+          retention-days: 7
