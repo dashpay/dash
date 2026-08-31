@@ -812,6 +812,9 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const ui
                     LogPrintf("%s -- already voted for id=%s and msgHash=%s. Signing for different " /* Continued */
                               "msgHash=%s\n",
                               __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
+                    // Drop any recovered sig for the previous message so the new signing session
+                    // is not short-circuited by the by-id lookups in the share pipeline
+                    sigman.TruncateRecoveredSig(llmqType, id);
                     hasVoted = false;
                 } else {
                     LogPrintf("%s -- already voted for id=%s and msgHash=%s. Not voting on " /* Continued */

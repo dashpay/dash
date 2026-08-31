@@ -75,8 +75,13 @@ public:
 class CAssetUnlockPayload
 {
 public:
-    static constexpr uint8_t CURRENT_VERSION = 1;
+    static constexpr uint8_t INITIAL_VERSION = 1;
+    /** Serialized identically to version 1, but the transaction hash excludes the quorum signing
+     *  info (requestedHeight, quorumHash, quorumSig) so every re-signed instance of one withdrawal
+     *  shares one txid; see IsAssetUnlockWithStableTxid(). Gated on DEPLOYMENT_V24. */
+    static constexpr uint8_t CURRENT_VERSION = 2;
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_ASSET_UNLOCK;
+    static_assert(CURRENT_VERSION >= ASSET_UNLOCK_STABLE_TXID_VERSION);
 
     static constexpr size_t MAXIMUM_WITHDRAWALS = 32;
 
@@ -163,10 +168,10 @@ public:
 };
 
 bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state, bool is_v24_active);
-bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, TxValidationState& state);
+bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state);
 bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CChain& chain,
                         const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                        const std::optional<CRangesSet>& indexes, TxValidationState& state)
+                        const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 bool GetAssetUnlockFee(const CTransaction& tx, CAmount& txfee, TxValidationState& state);
 

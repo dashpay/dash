@@ -524,6 +524,7 @@ enum GetDataMsg : uint32_t {
     MSG_ISDLOCK = 31,
     MSG_DSQ = 32,
     MSG_PLATFORM_BAN = 33,                            // Platform service ban (DIP-0031)
+    MSG_ASSET_UNLOCK = 34,                            //!< Version 2 asset unlock announced by instance hash; getdata is answered with a `tx` message
 };
 
 /** inv message data */
@@ -546,13 +547,14 @@ public:
     bool IsMsgTx()        const { return type == MSG_TX; }
     bool IsMsgBlk() const { return type == MSG_BLOCK; }
     bool IsMsgDstx()       const { return type == MSG_DSTX; }
+    bool IsMsgAssetUnlock() const { return type == MSG_ASSET_UNLOCK; }
     bool IsMsgFilteredBlk() const { return type == MSG_FILTERED_BLOCK; }
     bool IsMsgCmpctBlk() const { return type == MSG_CMPCT_BLOCK; }
 
     // Combined-message helper methods
     bool IsGenTxMsg() const
     {
-        return type == MSG_TX || type == MSG_DSTX;
+        return type == MSG_TX || type == MSG_DSTX || type == MSG_ASSET_UNLOCK;
     }
     bool IsGenBlkMsg() const
     {

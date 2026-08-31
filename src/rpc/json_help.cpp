@@ -140,6 +140,7 @@ RPCResult CCbTx::GetJsonHelp(const std::string& key, bool optional)
         {RPCResult::Type::NUM, "bestCLHeightDiff", /*optional=*/true, "Blocks between the current block and the last known block with a ChainLock"},
         {RPCResult::Type::STR_HEX, "bestCLSignature", /*optional=*/true, "Best ChainLock signature known by the miner"},
         {RPCResult::Type::NUM, "creditPoolBalance", /*optional=*/true, "Balance in the Platform credit pool"},
+        {RPCResult::Type::STR_HEX, "merkleRootAssetUnlocks", /*optional=*/true, "Merkle root of the instance hashes of the block's version 2 asset unlock transactions"},
     }};
 }
 

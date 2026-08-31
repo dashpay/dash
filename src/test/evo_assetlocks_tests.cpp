@@ -8,6 +8,7 @@
 #include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <evo/assetlocktx.h>
+#include <evo/cbtx.h>
 #include <evo/creditpool.h>
 #include <evo/specialtx.h>
 #include <llmq/context.h>
@@ -429,7 +430,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
 
     const CBlockIndex *block_index = m_node.chainman->ActiveChain().Tip();
-    BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(tx), block_index, std::nullopt, tx_state));
+    BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(tx), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
     BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-quorum-hash");
 
     {
@@ -447,7 +448,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         std::string reason;
         BOOST_CHECK(IsStandardTx(CTransaction(tx), reason));
 
-        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txNonemptyInput), block_index, std::nullopt, tx_state));
+        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txNonemptyInput), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlocktx-have-input");
     }
 
@@ -462,7 +463,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         // Wrong type "Asset Lock TX" instead "Asset Unlock TX"
         CMutableTransaction txWrongType(tx);
         txWrongType.nType = TRANSACTION_ASSET_LOCK;
-        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongType), block_index, std::nullopt, tx_state));
+        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongType), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlocktx-type");
 
         // Check version of tx and payload
@@ -476,14 +477,99 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
                 unlockPayload->getQuorumSig()};
             CMutableTransaction txWrongVersion(tx);
             SetTxPayload(txWrongVersion, unlockPayload_tmp);
-            if (payload_version != 1) {
-                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, tx_state));
+            if (payload_version == 0 || payload_version > CAssetUnlockPayload::CURRENT_VERSION) {
+                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
                 BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlocktx-version");
+            } else if (payload_version == 2) {
+                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, /*is_v24_active=*/false, tx_state));
+                BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlocktx-version-2");
+                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
+                BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-quorum-hash");
             } else {
-                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, tx_state));
+                // Version 1 must not hit the version-2 gate regardless of v24 state
+                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, /*is_v24_active=*/false, tx_state));
+                BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-quorum-hash");
+                BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txWrongVersion), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
                 BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-quorum-hash");
             }
         }
+    }
+
+    {
+        // The txid of a version 2 payload is invariant across the quorum signing info - the fields
+        // Platform changes on re-sign - and nothing else; the instance hash still covers them
+        const auto unlockPayload = GetTxPayload<CAssetUnlockPayload>(tx);
+        BOOST_CHECK(unlockPayload.has_value());
+
+        auto make_unlock_tx = [&](uint8_t version, uint64_t index, uint32_t fee, uint32_t requested_height,
+                                  const uint256& quorum_hash) {
+            CMutableTransaction tx_tmp(tx);
+            SetTxPayload(tx_tmp, CAssetUnlockPayload{version, index, fee, requested_height, quorum_hash,
+                                                     unlockPayload->getQuorumSig()});
+            return CTransaction(tx_tmp);
+        };
+
+        // Version 1 hashes the full serialization
+        const CTransaction tx_v1{make_unlock_tx(1, 0x11, 2000, 500, uint256::ONE)};
+        BOOST_CHECK(!IsAssetUnlockWithStableTxid(tx_v1));
+        BOOST_CHECK(tx_v1.GetHash() == tx_v1.GetInstanceHash());
+        BOOST_CHECK(tx_v1.GetHash() == ::SerializeHash(tx_v1));
+
+        const CTransaction tx_v2{make_unlock_tx(2, 0x11, 2000, 500, uint256::ONE)};
+        BOOST_CHECK(IsAssetUnlockWithStableTxid(tx_v2));
+        BOOST_CHECK(tx_v2.vExtraPayload.size() == ASSET_UNLOCK_PAYLOAD_SIZE);
+        BOOST_CHECK(tx_v2.GetHash() != tx_v2.GetInstanceHash());
+        BOOST_CHECK(tx_v2.GetInstanceHash() == ::SerializeHash(tx_v2));
+
+        // Re-signing changes requestedHeight and quorumHash but not the txid; the instance
+        // hash tells the two instances apart
+        const CTransaction tx_v2_resigned{make_unlock_tx(2, 0x11, 2000, 700, uint256::TWO)};
+        BOOST_CHECK(tx_v2_resigned.GetHash() == tx_v2.GetHash());
+        BOOST_CHECK(tx_v2_resigned.GetInstanceHash() != tx_v2.GetInstanceHash());
+        // A different withdrawal (index or fee) has a different txid
+        BOOST_CHECK(make_unlock_tx(2, 0x12, 2000, 500, uint256::ONE).GetHash() != tx_v2.GetHash());
+        BOOST_CHECK(make_unlock_tx(2, 0x11, 3000, 500, uint256::ONE).GetHash() != tx_v2.GetHash());
+
+        // CMutableTransaction applies the same rule
+        BOOST_CHECK(CMutableTransaction(tx_v2).GetHash() == tx_v2.GetHash());
+
+        // The txid equals the full-serialization hash with the quorum signing info zeroed
+        CMutableTransaction tx_zeroed(tx_v2);
+        SetTxPayload(tx_zeroed, CAssetUnlockPayload{2, 0x11, 2000, /*requestedHeight=*/0,
+                                                    /*quorumHash=*/uint256(), CBLSSignature{}});
+        BOOST_CHECK(::SerializeHash(tx_zeroed) == tx_v2.GetHash());
+
+        // The signed message zeroes only quorumSig: it commits to the signing info even though
+        // the txid does not, and must never be computed with GetHash()
+        auto msg_hash = [](const CTransaction& t) {
+            const auto p = GetTxPayload<CAssetUnlockPayload>(t);
+            CMutableTransaction copy(t);
+            SetTxPayload(copy, CAssetUnlockPayload{p->getVersion(), p->getIndex(), p->getFee(),
+                                                   p->getRequestedHeight(), p->getQuorumHash(), CBLSSignature{}});
+            return ::SerializeHash(copy);
+        };
+        BOOST_CHECK(msg_hash(tx_v2) != msg_hash(tx_v2_resigned));
+        BOOST_CHECK(msg_hash(tx_v2) != tx_v2.GetHash());
+    }
+
+    {
+        // DIP-0027 worked examples for the version 2 txid (dip-0027/dip-0027-txid-calc.py)
+        auto dip_example_tx = [](uint64_t index) {
+            CMutableTransaction tx_dip;
+            tx_dip.nVersion = 3;
+            tx_dip.nType = TRANSACTION_ASSET_UNLOCK;
+            uint160 pubkey_hash;
+            std::fill(pubkey_hash.begin(), pubkey_hash.end(), 0x11);
+            const CScript script{GetScriptForDestination(PKHash{pubkey_hash})};
+            tx_dip.vout.emplace_back(100000000, script);
+            SetTxPayload(tx_dip, CAssetUnlockPayload{2, index, /*fee=*/70000, /*requestedHeight=*/500,
+                                                     uint256::ONE, CBLSSignature{}});
+            return CTransaction(tx_dip);
+        };
+        BOOST_CHECK_EQUAL(dip_example_tx(101).GetHash().ToString(),
+                          "3c4db73c8356407a5d7c78df5045bd280f2dc4fd644b06c4bfbdead3d5ae41cf");
+        BOOST_CHECK_EQUAL(dip_example_tx(123456789).GetHash().ToString(),
+                          "a67e1107ae6e04b813bc8e81348266f5206d1ca93d305dc4323940e18cdbaf34");
     }
 
     {
@@ -496,15 +582,15 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
             out.scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
         }
 
-        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, std::nullopt, tx_state));
+        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-quorum-hash");
 
         // Basic checks for CRangesSet
         CRangesSet indexes;
-        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, indexes, tx_state));
+        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, indexes, /*is_v24_active=*/true, tx_state));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-quorum-hash");
         BOOST_CHECK(indexes.Add(0x001122334455667788L));
-        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, indexes, tx_state));
+        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, indexes, /*is_v24_active=*/true, tx_state));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlock-duplicated-index");
 
 
@@ -512,10 +598,41 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         txManyOutputs.vout.resize(outputsLimit + 1);
         txManyOutputs.vout.back().nValue = CENT;
         txManyOutputs.vout.back().scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
-        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, std::nullopt, tx_state));
+        BOOST_CHECK(!CheckAssetUnlockTx(blockman, qman, CTransaction(txManyOutputs), block_index, std::nullopt, /*is_v24_active=*/true, tx_state));
         BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetunlocktx-too-many-outs");
     }
 
+}
+
+BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
+{
+    auto make_unlock = [](uint8_t version, uint64_t index, uint32_t requested_height) {
+        CMutableTransaction mtx;
+        mtx.nVersion = 3;
+        mtx.nType = TRANSACTION_ASSET_UNLOCK;
+        SetTxPayload(mtx, CAssetUnlockPayload{version, index, /*fee=*/2000, requested_height,
+                                              uint256::ONE, CBLSSignature{}});
+        return MakeTransactionRef(mtx);
+    };
+
+    // Only version 2 unlocks are committed to; a block without them commits to null
+    CBlock block;
+    block.vtx.push_back(make_unlock(1, 1, 500));
+    BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block).IsNull());
+
+    const auto unlock_a = make_unlock(2, 1, 500);
+    block.vtx.push_back(unlock_a);
+    const uint256 root_one{CalcCbTxMerkleRootAssetUnlocks(block)};
+    BOOST_CHECK(root_one == unlock_a->GetInstanceHash());
+
+    block.vtx.push_back(make_unlock(2, 2, 500));
+    const uint256 root_two{CalcCbTxMerkleRootAssetUnlocks(block)};
+    BOOST_CHECK(root_two != root_one);
+
+    // A different re-signed instance keeps the txid but changes the committed root
+    block.vtx.back() = make_unlock(2, 2, 700);
+    BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
+    BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_two);
 }
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_package_atomicity, TestChain100Setup)

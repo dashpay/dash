@@ -199,6 +199,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     const bool fDIP0003Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)};
     const bool fDIP0008Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0008)};
     const bool fV20Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)};
+    const bool fV24Active_context{DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
 
     // Limit size to between 1K and MaxBlockSize()-1K for sanity:
     m_options.nBlockMaxSize = std::max<unsigned int>(1000, std::min<unsigned int>(MaxBlockSize(fDIP0001Active_context) - 1000, m_options.nBlockMaxSize));
@@ -268,7 +269,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         CCbTx cbTx;
 
-        if (fV20Active_context) {
+        if (fV24Active_context) {
+            cbTx.nVersion = CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS;
+        } else if (fV20Active_context) {
             cbTx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
         } else if (fDIP0008Active_context) {
             cbTx.nVersion = CCbTx::Version::MERKLE_ROOT_QUORUMS;
@@ -304,6 +307,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 }
 
                 cbTx.creditPoolBalance = creditPoolDiff->GetTotalLocked();
+
+                if (fV24Active_context) {
+                    cbTx.merkleRootAssetUnlocks = CalcCbTxMerkleRootAssetUnlocks(*pblock);
+                }
             }
         }
 
@@ -622,6 +629,20 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 }
             }
             if (tx.IsSpecialTxVersion() && (tx.nType == TRANSACTION_ASSET_LOCK || tx.nType == TRANSACTION_ASSET_UNLOCK)) {
+                // Version 2 asset unlocks are not expiry-evicted: an expired instance stays in
+                // the mempool awaiting a re-signed replacement. Skip instances that are not
+                // currently minable (expired height window or stale quorum) instead of
+                // producing an invalid template.
+                if (IsAssetUnlockWithStableTxid(tx)) {
+                    TxValidationState state;
+                    if (!m_chain_helper.special_tx->CheckSpecialTx(tx, m_chainstate.m_chain.Tip(),
+                                                                   m_chainstate.CoinsTip(), /*check_sigs=*/true, state)) {
+                        LogPrintf("%s: package tx %s skipped, asset unlock instance not currently minable: %s\n", __func__,
+                                  tx.GetHash().ToString(), state.ToString());
+                        validPackage = false;
+                        break;
+                    }
+                }
                 creditPoolTransactions.emplace_back(entry->GetSharedTx());
             }
         }

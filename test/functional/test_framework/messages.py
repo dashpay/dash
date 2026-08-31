@@ -61,6 +61,7 @@ MSG_FILTERED_BLOCK = 3
 MSG_GOVERNANCE_OBJECT = 17
 MSG_GOVERNANCE_OBJECT_VOTE = 18
 MSG_CMPCT_BLOCK = 20
+MSG_ASSET_UNLOCK = 34
 MSG_TYPE_MASK = 0xffffffff >> 2
 
 FILTER_TYPE_BASIC = 0
@@ -408,6 +409,7 @@ class CInv:
         MSG_GOVERNANCE_OBJECT: "Governance Object",
         MSG_GOVERNANCE_OBJECT_VOTE: "Governance Vote",
         MSG_CMPCT_BLOCK: "CompactBlock",
+        MSG_ASSET_UNLOCK: "Asset Unlock",
     }
 
     def __init__(self, t=0, h=0):

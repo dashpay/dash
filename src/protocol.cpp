@@ -300,6 +300,9 @@ const char* CInv::GetCommandInternal() const
         case MSG_ISDLOCK:                       return NetMsgType::ISDLOCK;
         case MSG_DSQ:                           return NetMsgType::DSQUEUE;
         case MSG_PLATFORM_BAN:                  return NetMsgType::PLATFORMBAN;
+        // Version 2 asset unlocks are announced by instance hash but carried in plain `tx`
+        // messages; this also puts them in the blocks-only violation list, like MSG_TX
+        case MSG_ASSET_UNLOCK:                  return NetMsgType::TX;
         default:
             return nullptr;
     }

@@ -669,9 +669,13 @@ private:
     void AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    /** Delete all announcements of a transaction across all peers, under both inv types it may
+    /** Delete all announcements of a transaction across all peers, under the inv types it may
      *  have been announced with (MSG_TX and MSG_DSTX). */
     void ForgetTx(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    /** As above, additionally forgetting the MSG_ASSET_UNLOCK announcement (by instance hash)
+     *  used for version 2 asset unlocks. */
+    void ForgetTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** Helper to process result of external handlers of message */
     void PostProcessMessage(MessageProcessingResult&& ret, NodeId node) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -1638,6 +1642,14 @@ void PeerManagerImpl::ForgetTx(const uint256& txid)
     m_object_request.ForgetTxHash(CInv(MSG_DSTX, txid));
 }
 
+void PeerManagerImpl::ForgetTx(const CTransaction& tx)
+{
+    ForgetTx(tx.GetHash());
+    if (IsAssetUnlockWithStableTxid(tx)) {
+        m_object_request.ForgetTxHash(CInv(MSG_ASSET_UNLOCK, tx.GetInstanceHash()));
+    }
+}
+
 size_t PeerManagerImpl::GetRequestedObjectCount(NodeId nodeid) const
 {
     AssertLockHeld(cs_main);
@@ -1871,7 +1883,7 @@ void PeerManagerImpl::AddToCompactExtraTransactions(const CTransactionRef& tx)
         return;
     if (!vExtraTxnForCompact.size())
         vExtraTxnForCompact.resize(max_extra_txn);
-    vExtraTxnForCompact[vExtraTxnForCompactIt] = std::make_pair(tx->GetHash(), tx);
+    vExtraTxnForCompact[vExtraTxnForCompactIt] = std::make_pair(tx->GetInstanceHash(), tx);
     vExtraTxnForCompactIt = (vExtraTxnForCompactIt + 1) % max_extra_txn;
 }
 
@@ -2122,7 +2134,7 @@ void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock
         }
         for (const auto& ptx : pblock->vtx) {
             // Confirmed transactions no longer need to be requested.
-            ForgetTx(ptx->GetHash());
+            ForgetTx(*ptx);
         }
     }
 
@@ -2132,6 +2144,11 @@ void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock
         LOCK(m_recent_confirmed_transactions_mutex);
         for (const auto& ptx : pblock->vtx) {
             m_recent_confirmed_transactions.insert(ptx->GetHash());
+            // Version 2 asset unlocks are announced and deduplicated by instance hash; record the
+            // mined instance so AlreadyHave() stops re-requesting it once it leaves the mempool.
+            if (IsAssetUnlockWithStableTxid(*ptx)) {
+                m_recent_confirmed_transactions.insert(ptx->GetInstanceHash());
+            }
         }
     }
 
@@ -2293,6 +2310,7 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
     {
     case MSG_TX:
     case MSG_DSTX:
+    case MSG_ASSET_UNLOCK:
         {
             if (m_chainman.ActiveChain().Tip()->GetBlockHash() != hashRecentRejectsChainTip)
             {
@@ -2302,6 +2320,19 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
                 // txs a second chance.
                 hashRecentRejectsChainTip = m_chainman.ActiveChain().Tip()->GetBlockHash();
                 m_recent_rejects.reset();
+            }
+
+            if (inv.IsMsgAssetUnlock()) {
+                // inv.hash is the instance hash of a version 2 asset unlock. Rejects and mined
+                // instances are tracked by instance hash, so a rejected or already-mined stale
+                // instance never blocks a fresher re-signed instance of the same withdrawal
+                // (which shares its txid) yet is not endlessly re-requested either.
+                if (WITH_LOCK(m_recent_confirmed_transactions_mutex,
+                              return m_recent_confirmed_transactions.contains(inv.hash))) {
+                    return true;
+                }
+                return m_recent_rejects.contains(inv.hash) ||
+                       m_mempool.GetAssetUnlockByInstanceHash(inv.hash) != nullptr;
             }
 
             if (m_orphanage.HaveTx(inv.hash)) return true;
@@ -2825,6 +2856,12 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
 CTransactionRef PeerManagerImpl::FindTxForGetData(const CNode* peer, const uint256& txid, const std::chrono::seconds mempool_req, const std::chrono::seconds now)
 {
     auto txinfo = m_mempool.info(txid);
+    if (!txinfo.tx) {
+        // A MSG_ASSET_UNLOCK getdata identifies a version 2 asset unlock by its instance hash
+        if (const auto unlock_tx = m_mempool.GetAssetUnlockByInstanceHash(txid)) {
+            txinfo = m_mempool.info(unlock_tx->GetHash());
+        }
+    }
     if (txinfo.tx) {
         // If a TX could have been INVed in reply to a MEMPOOL request,
         // or is older than UNCONDITIONAL_RELAY_DELAY, permit the request
@@ -3534,6 +3571,18 @@ static bool CanAnnounceDstxTo(const CCoinJoinBroadcastTx& dstx, int peer_version
     return (dstx.tx->vin.size() == dstx.tx->vout.size() &&
             dstx.tx->vin.size() <= CoinJoin::GetMaxPoolInputOutputCount()) ||
            peer_version >= COINJOIN_REBALANCE_VERSION;
+}
+
+//! The inventory type and hash to announce a mempool transaction with to a peer at the given
+//! negotiated protocol version. Version 2 asset unlocks are announced by instance hash (MSG_ASSET_UNLOCK)
+//! so a re-signed instance of a withdrawal the peer already has (sharing its txid) is still announced;
+//! a getdata for it is served as a plain `tx`. Older peers get MSG_TX and never learn of refreshes.
+static std::pair<int, uint256> GetTxAnnouncement(const CTransaction& tx, int peer_version)
+{
+    if (IsAssetUnlockWithStableTxid(tx) && peer_version >= ASSET_UNLOCK_INV_VERSION) {
+        return {MSG_ASSET_UNLOCK, tx.GetInstanceHash()};
+    }
+    return {MSG_TX, tx.GetHash()};
 }
 
 // do_return signals the caller to stop further processing of the DSTX.
@@ -4772,9 +4821,15 @@ void PeerManagerImpl::ProcessMessage(
         const CTransaction& tx = *ptx;
 
         const uint256& txid = ptx->GetHash();
-        AddKnownInv(*peer, txid);
+        // Version 2 asset unlocks are announced, requested and deduplicated by instance hash so
+        // that a re-signed instance of a withdrawal already in the mempool (sharing its txid)
+        // still propagates.
+        const bool is_stable_unlock{IsAssetUnlockWithStableTxid(tx)};
+        if (is_stable_unlock) nInvType = MSG_ASSET_UNLOCK;
+        const uint256& relay_hash{is_stable_unlock ? tx.GetInstanceHash() : txid};
+        AddKnownInv(*peer, relay_hash);
 
-        CInv inv(nInvType, tx.GetHash());
+        CInv inv(nInvType, relay_hash);
         {
             LOCK(cs_main);
             // A MSG_TX request may be answered with a DSTX message and vice versa (a getdata for
@@ -4782,6 +4837,9 @@ void PeerManagerImpl::ProcessMessage(
             // type the request was tracked under.
             m_object_request.ReceivedResponse(pfrom.GetId(), CInv(MSG_TX, txid));
             m_object_request.ReceivedResponse(pfrom.GetId(), CInv(MSG_DSTX, txid));
+            if (is_stable_unlock) {
+                m_object_request.ReceivedResponse(pfrom.GetId(), CInv(MSG_ASSET_UNLOCK, relay_hash));
+            }
         }
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
@@ -4825,7 +4883,7 @@ void PeerManagerImpl::ProcessMessage(
                 m_dstxman.AddDSTX(dstx);
             }
 
-            ForgetTx(tx.GetHash());
+            ForgetTx(tx);
             _RelayTransaction(tx.GetHash());
             m_orphanage.AddChildrenToWorkSet(tx, peer->m_id);
 
@@ -4892,8 +4950,8 @@ void PeerManagerImpl::ProcessMessage(
                 m_isman.TransactionIsRemoved(ptx);
             }
         } else {
-            m_recent_rejects.insert(tx.GetHash());
-            ForgetTx(tx.GetHash());
+            m_recent_rejects.insert(relay_hash);
+            ForgetTx(tx);
             if (RecursiveDynamicUsage(*ptx) < 100000) {
                 AddToCompactExtraTransactions(ptx);
             }
@@ -6492,7 +6550,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                     tx_relay->m_tx_inventory_to_send.erase(hash);
                     if (tx_relay->m_bloom_filter && !tx_relay->m_bloom_filter->IsRelevantAndUpdate(*txinfo.tx)) continue;
 
-                    int nInvType = MSG_TX;
+                    auto [nInvType, announce_hash] = GetTxAnnouncement(*txinfo.tx, pto->GetCommonVersion());
                     // A DSTX this peer would reject as malformed is announced as a plain
                     // transaction instead of being dropped: the peer still gets the transaction
                     // (ProcessGetData serves a NetMsgType::TX for it), just without the mixing
@@ -6500,8 +6558,8 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                     if (const auto dstx = m_dstxman.GetDSTX(hash); dstx && CanAnnounceDstxTo(dstx, pto->GetCommonVersion())) {
                         nInvType = MSG_DSTX;
                     }
-                    tx_relay->m_tx_inventory_known_filter.insert(hash);
-                    queueAndMaybePushInv(CInv(nInvType, hash));
+                    tx_relay->m_tx_inventory_known_filter.insert(announce_hash);
+                    queueAndMaybePushInv(CInv(nInvType, announce_hash));
 
                     const auto islock = m_isman.GetInstantSendLockByTxid(hash);
                     if (islock == nullptr) continue;
@@ -6550,17 +6608,17 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                     uint256 hash = *it;
                     // Remove it from the to-be-sent set
                     tx_relay->m_tx_inventory_to_send.erase(it);
-                    // Check if not in the filter already
-                    if (tx_relay->m_tx_inventory_known_filter.contains(hash)) {
-                        continue;
-                    }
                     // Not in the mempool anymore? don't bother sending it.
                     auto txinfo = m_mempool.info(hash);
                     if (!txinfo.tx) {
                         continue;
                     }
+                    auto [nInvType, announce_hash] = GetTxAnnouncement(*txinfo.tx, pto->GetCommonVersion());
+                    // Check if not in the filter already
+                    if (tx_relay->m_tx_inventory_known_filter.contains(announce_hash)) {
+                        continue;
+                    }
                     if (tx_relay->m_bloom_filter && !tx_relay->m_bloom_filter->IsRelevantAndUpdate(*txinfo.tx)) continue;
-                    int nInvType = MSG_TX;
                     // See the mempool-request path above: a DSTX this peer would reject as
                     // malformed is downgraded to a plain transaction announcement rather than
                     // withheld, so pre-rebalance peers still receive it.
@@ -6568,7 +6626,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                         nInvType = MSG_DSTX;
                     }
                     // Send
-                    State(pto->GetId())->m_recently_announced_invs.insert(hash);
+                    State(pto->GetId())->m_recently_announced_invs.insert(announce_hash);
                     nRelayedTransactions++;
                     {
                         // Expire old relay messages
@@ -6578,13 +6636,13 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                             g_relay_expiration.pop_front();
                         }
 
-                        auto ret = mapRelay.emplace(hash, std::move(txinfo.tx));
+                        auto ret = mapRelay.emplace(announce_hash, std::move(txinfo.tx));
                         if (ret.second) {
                             g_relay_expiration.emplace_back(current_time + RELAY_TX_CACHE_TIME, ret.first);
                         }
                     }
-                    tx_relay->m_tx_inventory_known_filter.insert(hash);
-                    queueAndMaybePushInv(CInv(nInvType, hash));
+                    tx_relay->m_tx_inventory_known_filter.insert(announce_hash);
+                    queueAndMaybePushInv(CInv(nInvType, announce_hash));
                 }
             }
         }

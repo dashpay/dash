@@ -30,6 +30,7 @@
 #include <pubkey.h>
 #include <random.h>
 #include <sync.h>
+#include <util/check.h>
 #include <util/epochguard.h>
 #include <util/hasher.h>
 
@@ -110,7 +111,7 @@ private:
     struct ExplicitCopyTag {
         explicit ExplicitCopyTag() = default;
     };
-    const CTransactionRef tx;
+    CTransactionRef tx; //!< Only replaced by ReplaceAssetUnlockTx(), which preserves the txid
     mutable Parents m_parents;
     mutable Children m_children;
     const CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
@@ -150,6 +151,13 @@ public:
     static constexpr ExplicitCopyTag ExplicitCopy{};
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
+    /** Swap in a re-signed instance of a version 2 asset unlock sharing this entry's txid. The
+     *  instances differ only in the quorum signing info, so all cached values remain valid. */
+    void ReplaceAssetUnlockTx(CTransactionRef new_tx)
+    {
+        Assume(new_tx->GetHash() == tx->GetHash());
+        tx = std::move(new_tx);
+    }
     const CAmount& GetFee() const { return nFee; }
     size_t GetTxSize() const;
     std::chrono::seconds GetTime() const { return std::chrono::seconds{nTime}; }
@@ -528,7 +536,7 @@ public:
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
-    std::vector<std::pair<uint256, txiter> > vTxHashes GUARDED_BY(cs); //!< All tx hashes/entries in mapTx, in random order
+    std::vector<std::pair<uint256, txiter> > vTxHashes GUARDED_BY(cs); //!< All tx instance hashes (see CTransaction::GetInstanceHash)/entries in mapTx, in random order
 
     typedef std::set<txiter, CompareIteratorByHash> setEntries;
 
@@ -549,7 +557,10 @@ private:
     std::map<uint256, uint256> mapProTxBlsPubKeyHashes;
     std::map<uint160, uint256> mapProTxPlatformNodeIDs;
     std::map<COutPoint, uint256> mapProTxCollaterals;
-    std::map<uint256, int /* expiry height */> mapAssetUnlockExpiry; // tx hash -> height
+    std::map<uint256, int /* expiry height */> mapAssetUnlockExpiry; // tx hash -> height (version 1 only)
+    /** Instance hash (see CTransaction::GetInstanceHash) -> txid of version 2+ asset unlocks.
+     *  Relay identifies the re-signed instances of one withdrawal by instance hash. */
+    std::map<uint256, uint256> m_asset_unlock_instances GUARDED_BY(cs);
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -819,6 +830,12 @@ public:
     CTransactionRef get(const uint256& hash) const;
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
+
+    /** Get the transaction holding this version 2 asset unlock instance hash, if any. */
+    CTransactionRef GetAssetUnlockByInstanceHash(const uint256& instance_hash) const;
+    /** Replace the held instance of a pending withdrawal with a fresher re-signed instance
+     *  sharing its txid. The caller has fully validated the new instance. */
+    void ReplaceAssetUnlockInstance(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     bool existsProviderTxConflict(const CTransaction &tx) const;
 

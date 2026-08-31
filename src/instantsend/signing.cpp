@@ -189,6 +189,12 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
 
     auto mempoolTx = m_mempool.get(outpoint.hash);
     if (mempoolTx) {
+        if (IsAssetUnlockWithStableTxid(*mempoolTx)) {
+            // An unmined version 2 asset unlock was quorum-signed, so the withdrawal is
+            // irreversible on Platform and will be re-signed until mined under this same txid.
+            // Spends of its outputs may therefore be locked before it is mined.
+            return outpoint.n < mempoolTx->vout.size();
+        }
         if (printDebug) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: parent mempool TX %s is not locked\n", __func__,
                      txHash.ToString(), outpoint.hash.ToString());

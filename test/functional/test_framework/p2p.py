@@ -102,9 +102,9 @@ logger = logging.getLogger("TestFramework.p2p")
 # The minimum P2P version that this test framework supports
 MIN_P2P_VERSION_SUPPORTED = 60001
 # The P2P version that this test framework implements and sends in its `version` message
-# Version 70241 introduced CoinJoin rebalance (promotion/demotion) sessions and a
-# version-gated flags field in the dsa message
-P2P_VERSION = 70241
+# Version 70242 introduced the MSG_ASSET_UNLOCK inventory type; 70241 introduced CoinJoin
+# rebalance (promotion/demotion) sessions and a version-gated flags field in the dsa message
+P2P_VERSION = 70242
 # The services that this test framework offers in its `version` message
 P2P_SERVICES = NODE_NETWORK | NODE_HEADERS_COMPRESSED
 # The P2P user agent string that this test framework sends in its `version` message

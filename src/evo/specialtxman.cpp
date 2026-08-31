@@ -229,7 +229,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-invalid");
             }
             if (const auto opt_cbTx = GetTxPayload<CCbTx>(tx)) {
-                return CheckCbTx(*opt_cbTx, pindexPrev, state);
+                return CheckCbTx(*opt_cbTx, pindexPrev, DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24), state);
             } else {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
             }
@@ -241,9 +241,11 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
                            CheckMNHFTx(chainman, qman, tx, pindexPrev, state);
         case TRANSACTION_ASSET_LOCK:
             return CheckAssetLockTx(tx, state, DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24));
-        case TRANSACTION_ASSET_UNLOCK:
-            return chain ? CheckAssetUnlockTx(chainman.m_blockman, qman, *chain, tx, pindexPrev, indexes, state) :
-                           CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, state);
+        case TRANSACTION_ASSET_UNLOCK: {
+            const bool is_v24_active{DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
+            return chain ? CheckAssetUnlockTx(chainman.m_blockman, qman, *chain, tx, pindexPrev, indexes, is_v24_active, state) :
+                           CheckAssetUnlockTx(chainman.m_blockman, qman, tx, pindexPrev, indexes, is_v24_active, state);
+        }
         }
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
@@ -714,7 +716,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
             if (opt_cbTx = GetTxPayload<CCbTx>(*tx); opt_cbTx) {
                 TxValidationState tx_state;
-                if (!CheckCbTx(*opt_cbTx, pindex->pprev, tx_state)) {
+                if (!CheckCbTx(*opt_cbTx, pindex->pprev,
+                               DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24), tx_state)) {
                     assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS ||
                            tx_state.GetResult() == TxValidationResult::TX_BAD_SPECIAL);
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
