@@ -1521,6 +1521,34 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
                                                MakeTransactionRef(tx_reg_replace)};
         testPool.removeForBlock(connected, tip_height() + 1);
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+        // ProUpReg and ProUpRev for the replaced MN conflict with a pending replacement too.
+        CKey votingKey;
+        votingKey.MakeNewKey(true);
+        CBLSSecretKey operatorKey3;
+        operatorKey3.MakeNewKey();
+        auto tx_up_reg = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey3.GetPublicKey(),
+                                          votingKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+        auto tx_up_rev = CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey);
+
+        testPool.addUnchecked(entry.FromTx(tx_reg_replace));
+        BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_up_reg)));
+        BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_up_rev)));
+        testPool.removeRecursive(CTransaction(tx_reg_replace), MemPoolRemovalReason::MANUAL);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+        // The MN's own ProRegTx is not a replacement. While a reorg is being processed the
+        // tip list can still contain the MN whose registration is being resubmitted; if
+        // either direction were treated as a conflict, the resubmitted registration (or its
+        // updates) would be dropped even though the pair is mineable together.
+        testPool.addUnchecked(entry.FromTx(tx_up_serv));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_reg)));
+        testPool.removeRecursive(CTransaction(tx_up_serv), MemPoolRemovalReason::MANUAL);
+
+        testPool.addUnchecked(entry.FromTx(tx_reg));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_up_serv)));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_up_reg)));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_up_rev)));
     }
 }
 
