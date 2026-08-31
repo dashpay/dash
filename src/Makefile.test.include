@@ -223,6 +223,7 @@ BITCOIN_TESTS =\
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
+  wallet/test/backup_tests.cpp \
   wallet/test/bip39_tests.cpp \
   wallet/test/coinjoin_tests.cpp \
   wallet/test/platformkeys_tests.cpp \

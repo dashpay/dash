@@ -54,6 +54,7 @@
 #include <univalue.h>
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <ranges>
 
@@ -69,6 +70,9 @@ static isminetype InputIsMine(const CWallet& wallet, const CTxIn& txin) EXCLUSIV
     }
     return ISMINE_NO;
 }
+
+int CWallet::nWalletBackups = DEFAULT_N_WALLET_BACKUPS;
+int CWallet::nMaxWalletBackups = DEFAULT_MAX_BACKUPS;
 
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
@@ -3648,13 +3652,87 @@ void CWallet::postInitProcess()
     WITH_LOCK(cs_wallet, chain().requestMempoolTransactions(*this));
 }
 
-void CWallet::InitAutoBackup()
+std::vector<fs::path> GetBackupsToDelete(const std::multimap<std::chrono::system_clock::time_point, fs::path>& backups,
+                                         int nWalletBackups, int maxBackups)
 {
-    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
+    if (maxBackups <= 0) return {};
+
+    // CWallet::nWalletBackups doubles as an error status and can be negative, so
+    // treat anything below zero as an empty count window rather than wrapping the cast.
+    const size_t keep_by_count{nWalletBackups > 0 ? static_cast<size_t>(nWalletBackups) : 0};
+    if (backups.size() <= keep_by_count) return {};
+
+    // Newest first, so age ascends with the index.
+    const std::vector<std::pair<std::chrono::system_clock::time_point, fs::path>> sorted_backups(backups.rbegin(),
+                                                                                                backups.rend());
+    const auto newest = sorted_backups[0].first;
+
+    // Always keep the newest backup, which anchors the age ranges, plus the count window.
+    std::set<size_t> indices_to_keep;
+    for (size_t i = 0; i < std::max<size_t>(keep_by_count, 1); ++i) {
+        indices_to_keep.insert(i);
+    }
+
+    // Of the rest, keep the oldest backup in each exponential age range in days: [1,2),
+    // [2,4), [4,8), ... std::bit_width() maps an age onto the 1-based index of its range,
+    // and since age ascends with the index, the last entry seen in a range is its oldest.
+    std::map<int, size_t> oldest_per_range;
+    for (size_t i = keep_by_count; i < sorted_backups.size(); ++i) {
+        const auto age_days{std::chrono::duration_cast<std::chrono::days>(newest - sorted_backups[i].first).count()};
+        if (age_days < 1) continue;
+        oldest_per_range[std::bit_width(static_cast<uint64_t>(age_days))] = i;
+    }
+    for (const auto& [range, index] : oldest_per_range) {
+        if (indices_to_keep.size() >= static_cast<size_t>(maxBackups)) break;
+        indices_to_keep.insert(index);
+    }
+
+    std::vector<fs::path> paths_to_delete;
+    for (size_t i = 0; i < sorted_backups.size(); ++i) {
+        if (!indices_to_keep.count(i)) paths_to_delete.push_back(sorted_backups[i].second);
+    }
+    return paths_to_delete;
+}
+
+std::optional<std::chrono::system_clock::time_point> ParseBackupFileTime(const fs::path& backup_file)
+{
+    const std::string ext{fs::PathToString(backup_file.extension())};
+    // Expect ".YYYY-MM-DD-HH-MM" as produced by AutoBackupWallet()
+    if (ext.size() != 17 || ext[0] != '.' || ext[5] != '-' || ext[8] != '-' || ext[11] != '-' || ext[14] != '-') {
+        return std::nullopt;
+    }
+    const auto to_int = [&ext](size_t pos, size_t len) -> std::optional<int> {
+        int value{0};
+        for (size_t i = pos; i < pos + len; ++i) {
+            if (!IsDigit(ext[i])) return std::nullopt;
+            value = value * 10 + (ext[i] - '0');
+        }
+        return value;
+    };
+    const auto year{to_int(1, 4)}, month{to_int(6, 2)}, day{to_int(9, 2)}, hour{to_int(12, 2)}, minute{to_int(15, 2)};
+    if (!year || !month || !day || !hour || !minute) return std::nullopt;
+    if (*hour > 23 || *minute > 59) return std::nullopt;
+    const std::chrono::year_month_day ymd{std::chrono::year{*year}, std::chrono::month{static_cast<unsigned>(*month)},
+                                          std::chrono::day{static_cast<unsigned>(*day)}};
+    if (!ymd.ok()) return std::nullopt;
+    return std::chrono::sys_days{ymd} + std::chrono::hours{*hour} + std::chrono::minutes{*minute};
+}
+
+void CWallet::InitAutoBackup(const ArgsManager& args)
+{
+    if (args.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return;
 
-    nWalletBackups = gArgs.GetIntArg("-createwalletbackups", 10);
-    nWalletBackups = std::max(0, std::min(10, nWalletBackups));
+    nWalletBackups = args.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
+    nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
+
+    nMaxWalletBackups = args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_BACKUPS);
+    nMaxWalletBackups = std::max(0, nMaxWalletBackups);
+
+    // Enforce nWalletBackups <= nMaxWalletBackups
+    if (nWalletBackups > nMaxWalletBackups) {
+        nWalletBackups = nMaxWalletBackups;
+    }
 }
 
 bool CWallet::BackupWallet(const std::string& strDest) const
@@ -3771,35 +3849,30 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error
         }
     }
 
-    // Keep only the last 10 backups, including the new one of course
-    std::multimap<fs::file_time_type, fs::path> folder_set;
-    // Build map of backup files for current(!) wallet sorted by last write time
-    fs::path currentFile;
+    // Apply the retention policy to the backups of this wallet, keyed by the timestamp
+    // embedded in each filename rather than the filesystem mtime, which isn't preserved
+    // by all filesystems, cloud-sync tools or cross-device copies. Files that don't carry
+    // a timestamp we wrote ourselves are left alone entirely.
+    std::multimap<std::chrono::system_clock::time_point, fs::path> folder_set;
     for (const auto& entry : fs::directory_iterator(backupsDir)) {
         // Only check regular files
-        if (entry.is_regular_file()) {
-            currentFile = entry.path().filename();
-            // Only add the backups for the current wallet, e.g. wallet.dat.*
-            if (fs::PathToString(entry.path().stem()) == strWalletName) {
-                folder_set.insert(decltype(folder_set)::value_type(fs::last_write_time(entry.path()), entry));
-            }
+        if (!entry.is_regular_file()) continue;
+        // Only add the backups for the current wallet, e.g. wallet.dat.*
+        if (fs::PathToString(entry.path().stem()) != strWalletName) continue;
+        if (const auto backup_time{ParseBackupFileTime(entry.path())}) {
+            folder_set.insert({*backup_time, entry.path()});
         }
     }
 
-    // Loop backward through backup files and keep the N newest ones (1 <= N <= 10)
-    int counter{0};
-    for (const auto& [entry_time, entry] : folder_set | std::views::reverse) {
-        counter++;
-        if (counter > nWalletBackups) {
-            // More than nWalletBackups backups: delete oldest one(s)
-            try {
-                fs::remove(entry);
-                WalletLogPrintf("Old backup deleted: %s\n", fs::PathToString(entry));
-            } catch(fs::filesystem_error &error) {
-                warnings.push_back(strprintf(_("Failed to delete backup, error: %s"), fsbridge::get_filesystem_error_message(error)));
-                WalletLogPrintf("%s\n", Join(warnings, Untranslated("\n")).original);
-                return false;
-            }
+    std::vector<fs::path> backupsToDelete = GetBackupsToDelete(folder_set, nWalletBackups, nMaxWalletBackups);
+    for (const auto& path : backupsToDelete) {
+        try {
+            fs::remove(path);
+            WalletLogPrintf("Old backup deleted: %s\n", fs::PathToString(path));
+        } catch(fs::filesystem_error &error) {
+            warnings.push_back(strprintf(_("Failed to delete backup, error: %s"), fsbridge::get_filesystem_error_message(error)));
+            WalletLogPrintf("%s\n", Join(warnings, Untranslated("\n")).original);
+            return false;
         }
     }
 
@@ -4164,7 +4237,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
                 if(nWalletBackups == -2) {
                     TopUpKeyPool();
                     WalletLogPrintf("Keypool replenished, re-initializing automatic backups.\n");
-                    nWalletBackups = m_args.GetIntArg("-createwalletbackups", 10);
+                    InitAutoBackup(m_args);
                 }
                 return true;
             }

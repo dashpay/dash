@@ -524,15 +524,16 @@ void OverviewPage::coinJoinStatus(bool fForce)
     if (fForce) nCachedNumBlocks = std::numeric_limits<int>::max();
 
     // Disable any PS UI for masternode or when autobackup is disabled or failed for whatever reason
-    if (clientModel->node().isMasternode() || nWalletBackups <= 0) {
+    const int backup_status{walletModel->wallet().getWalletBackupStatus()};
+    if (clientModel->node().isMasternode() || backup_status <= 0) {
         DisableCoinJoinCompletely();
-        if (nWalletBackups == 0) {
+        if (backup_status == 0) {
             ui->labelCoinJoinEnabled->setToolTip(tr("Automatic backups are disabled, no mixing available!"));
-        } else if (nWalletBackups == -1) {
+        } else if (backup_status == -1) {
             ui->labelCoinJoinEnabled->setToolTip(tr("ERROR! Failed to create automatic backup") + ", " +
                                                  tr("see debug.log for details.") + "<br><br>" +
                                                  tr("Mixing is disabled, please close your wallet and fix the issue!"));
-        } else if (nWalletBackups == -2) {
+        } else if (backup_status == -2) {
             ui->labelCoinJoinEnabled->setToolTip(tr("WARNING! Failed to replenish keypool, please unlock your wallet to do so."));
         }
         return;
@@ -628,7 +629,7 @@ void OverviewPage::coinJoinStatus(bool fForce)
 
     // Warn user that wallet is running out of keys
     // NOTE: we do NOT warn user and do NOT create autobackups if mixing is not running
-    if (walletModel->wallet().isLegacy() && nWalletBackups > 0 && walletModel->getKeysLeftSinceAutoBackup() < COINJOIN_KEYS_THRESHOLD_WARNING) {
+    if (walletModel->wallet().isLegacy() && walletModel->wallet().getWalletBackupStatus() > 0 && walletModel->getKeysLeftSinceAutoBackup() < COINJOIN_KEYS_THRESHOLD_WARNING) {
         QSettings settings;
         if(settings.value("fLowKeysWarning").toBool()) {
             QString strWarn =   tr("Very low number of keys left since last automatic backup!") + "<br><br>" +
@@ -671,13 +672,6 @@ void OverviewPage::coinJoinStatus(bool fForce)
     // Show how many keys left in advanced PS UI mode only
     if(fShowAdvancedCJUI && !strKeysLeftText.isEmpty()) strEnabled += ", " + strKeysLeftText;
     ui->labelCoinJoinEnabled->setText(strEnabled);
-
-    if (walletModel->wallet().isLegacy() && nWalletBackups == -1) {
-        // Automatic backup failed, nothing else we can do until user fixes the issue manually.
-        // Stop mixing right away; the guard above sets the matching tooltip on the next timer tick.
-        DisableCoinJoinCompletely();
-        return;
-    }
 
     // check coinjoin status and unlock if needed
     if (nBestHeight != nCachedNumBlocks) {
@@ -781,7 +775,7 @@ void OverviewPage::DisableCoinJoinCompletely()
 
     ui->toggleCoinJoin->setText("(" + tr("Disabled") + ")");
     ui->frameCoinJoin->setEnabled(false);
-    if (nWalletBackups <= 0) {
+    if (walletModel && walletModel->wallet().getWalletBackupStatus() <= 0) {
         ui->labelCoinJoinEnabled->setText("<span style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR) + "'>(" + tr("Disabled") + ")</span>");
     }
     walletModel->withCoinJoin([](auto& client) { client.stopMixing(); });

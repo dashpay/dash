@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <optional>
@@ -84,6 +85,31 @@ std::unique_ptr<interfaces::Handler> HandleLoadWallet(WalletContext& context, Lo
 void NotifyWalletLoading(WalletContext& context, const std::shared_ptr<CWallet>& wallet);
 void NotifyWalletLoaded(WalletContext& context, const std::shared_ptr<CWallet>& wallet);
 std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error);
+
+//! Wallet backup configuration defaults
+static constexpr int DEFAULT_MAX_BACKUPS = 30;
+static constexpr int DEFAULT_N_WALLET_BACKUPS = 10;
+static constexpr int MAX_N_WALLET_BACKUPS = 20;
+
+/**
+ * Pick which backups to delete: keeps the newest nWalletBackups by count, plus the oldest
+ * backup in each exponential age range in days relative to the newest backup ([1,2),
+ * [2,4), [4,8), ...), for at most maxBackups files in total. Beyond the count window
+ * retention goes purely by age, so same-day backups don't each get a range of their own.
+ * maxBackups <= 0 deletes nothing, and a non-positive nWalletBackups leaves retention
+ * entirely to the age ranges. Callers must keep nWalletBackups <= maxBackups for the
+ * total to hold; InitAutoBackup() enforces that.
+ */
+std::vector<fs::path> GetBackupsToDelete(const std::multimap<std::chrono::system_clock::time_point, fs::path>& backups,
+                                         int nWalletBackups, int maxBackups = DEFAULT_MAX_BACKUPS);
+
+/**
+ * Read back the UTC timestamp AutoBackupWallet() embeds in backup filenames (e.g.
+ * "wallet.dat.2026-08-02-14-30"), or std::nullopt if the name isn't in that format —
+ * which is also how retention tells its own files apart from anything else a user may
+ * have put in the backups directory.
+ */
+std::optional<std::chrono::system_clock::time_point> ParseBackupFileTime(const fs::path& backup_file);
 
 //! -paytxfee default
 constexpr CAmount DEFAULT_PAY_TX_FEE = 0;
@@ -572,6 +598,10 @@ public:
     std::set<COutPoint> setLockedCoins GUARDED_BY(cs_wallet);
 
     int64_t nKeysLeftSinceAutoBackup;
+    //! Automatic backup settings, deliberately process-wide rather than per-wallet:
+    //! a backup failure on one wallet disables mixing for all of them.
+    static int nWalletBackups;
+    static int nMaxWalletBackups;
 
     /** Registered interfaces::Chain::Notifications handler. */
     std::unique_ptr<interfaces::Handler> m_chain_notifications_handler;
@@ -1035,7 +1065,7 @@ public:
     void postInitProcess();
 
     /* AutoBackup functionality */
-    static void InitAutoBackup();
+    static void InitAutoBackup(const ArgsManager& args);
     bool AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error_string, std::vector<bilingual_str>& warnings);
 
     bool BackupWallet(const std::string& strDest) const;

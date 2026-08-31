@@ -106,7 +106,15 @@ This means that a single backup is enough to recover the coins at any time. It i
 
 Non-HD wallets must be backed up every 1000 keys used since the previous backup, or even more often to maintain the metadata.
 
-### 1.6 Restoring the Wallet From a Backup
+### 1.6 Automatic Backups
+
+For legacy wallets, Dash Core automatically creates a backup in the `backups` directory inside the data directory on every startup and whenever the keypool is replenished. Each file is named after the wallet with the backup time appended, e.g. `wallet.dat.2026-08-02-14-30`.
+
+Older backups are pruned as new ones are made. The most recent `-createwalletbackups` backups (default: 10, max: 20) are always kept. Beyond those, one backup is kept from each widening age range — 1-2 days old, 2-4 days, 4-8 days, and so on — up to `-maxwalletbackups` files in total (default: 30). This preserves restore points going back months while keeping the size of the `backups` directory predictable. Because the ranges are measured in days, several backups made within the same day do not each get their own range: only the most recent `-createwalletbackups` of them are kept.
+
+Setting either option to `0` disables automatic backups, in which case existing backups are left untouched. Renaming a backup also excludes it from pruning, which is a simple way to keep one indefinitely.
+
+### 1.7 Restoring the Wallet From a Backup
 
 To restore a wallet, the `restorewallet` RPC or the `Restore Wallet` GUI menu item (`File` -> `Restore Wallet…`) must be used.
 
