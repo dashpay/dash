@@ -3346,6 +3346,105 @@ BOOST_AUTO_TEST_CASE(field_bit_migration_validation)
     BOOST_CHECK_EQUAL(usedBits.size(), 19);
 }
 
+// Unauthenticated getmnlistd can force arbitrary historical MN lists
+// into mnListsCache. Between CleanupCache runs the map was append-only, so N
+// distinct heights produced N retained full lists. Bound retention at insert.
+BOOST_AUTO_TEST_CASE(mn_lists_cache_bounded)
+{
+    TestChainDIP3Setup setup;
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+
+    dmnman.UpdatedBlockTip(tip_index());
+    dmnman.DoMaintenance();
+
+    // Mine past the recency window and diff cap without running cleanup — mirrors
+    // the attacker window between blocks when getmnlistd populates the cache.
+    constexpr size_t recency_window = CDeterministicMNManager::MAX_CACHE_DIFFS - 64;
+    constexpr size_t n_blocks = recency_window + (40 * 32);
+    for (size_t i = 0; i < n_blocks; ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(tip_index());
+    }
+
+    // Record the expected list for a spread of historical heights, and for every
+    // height in the lowest 64 of the range. Eviction is lowest-height-first in
+    // the recent tier; stale heights land in the LRU stale tier instead.
+    const CBlockIndex* tip = tip_index();
+    BOOST_REQUIRE(tip != nullptr);
+    const int lowest_height = tip->nHeight - static_cast<int>(n_blocks) + 1;
+    std::vector<std::pair<const CBlockIndex*, CDeterministicMNList>> expected;
+    for (int h = tip->nHeight; h >= 0 && h > tip->nHeight - static_cast<int>(n_blocks); h -= 37) {
+        const CBlockIndex* pindex = tip->GetAncestor(h);
+        BOOST_REQUIRE(pindex != nullptr);
+        expected.emplace_back(pindex, dmnman.GetListForBlock(pindex));
+    }
+    for (int h = lowest_height; h < lowest_height + 64; ++h) {
+        BOOST_REQUIRE(h >= 0);
+        const CBlockIndex* pindex = tip->GetAncestor(h);
+        BOOST_REQUIRE(pindex != nullptr);
+        expected.emplace_back(pindex, dmnman.GetListForBlock(pindex));
+    }
+    BOOST_REQUIRE(expected.size() > 64);
+
+    // Exercise GetListForBlock over every distinct historical height — the
+    // getmnlistd / BuildSimplifiedMNListDiff path an unauthenticated peer drives.
+    for (int h = tip->nHeight; h >= 0 && h > tip->nHeight - static_cast<int>(n_blocks); --h) {
+        const CBlockIndex* pindex = tip->GetAncestor(h);
+        BOOST_REQUIRE(pindex != nullptr);
+        (void)dmnman.GetListForBlock(pindex);
+    }
+
+    const size_t list_cache_size = dmnman.GetListCacheSize();
+    const size_t diff_cache_size = dmnman.GetListDiffsCacheSize();
+    const size_t stale_cache_size = dmnman.GetStaleListCacheSize();
+    BOOST_TEST_MESSAGE("mnListsCache size after sweep: " << list_cache_size);
+    BOOST_TEST_MESSAGE("mnListDiffsCache size after sweep: " << diff_cache_size);
+    BOOST_TEST_MESSAGE("mnStaleListsCache size after sweep: " << stale_cache_size);
+
+    BOOST_CHECK_MESSAGE(list_cache_size <= CDeterministicMNManager::MAX_CACHE_LISTS,
+                        strprintf("mnListsCache size %zu exceeds hard cap %zu", list_cache_size,
+                                  CDeterministicMNManager::MAX_CACHE_LISTS));
+    BOOST_CHECK_LE(diff_cache_size, CDeterministicMNManager::MAX_CACHE_DIFFS);
+    // n_blocks ProcessBlock admissions exceed MAX_CACHE_DIFFS; the cap must have trimmed.
+    BOOST_CHECK_MESSAGE(diff_cache_size >= CDeterministicMNManager::MAX_CACHE_DIFFS - 64,
+                        strprintf("mnListDiffsCache size %zu never approached cap %zu", diff_cache_size,
+                                  CDeterministicMNManager::MAX_CACHE_DIFFS));
+
+    // Stale heights from the sweep must have been routed to the LRU stale tier.
+    BOOST_CHECK_GT(stale_cache_size, 0U);
+    BOOST_CHECK_LE(stale_cache_size, CDeterministicMNManager::MAX_STALE_CACHE_LISTS);
+
+    // Repeat access to one stale interval must be cache-served, not a full re-walk.
+    const int stale_target_height = tip->nHeight - static_cast<int>(recency_window) - 100;
+    BOOST_REQUIRE(stale_target_height >= 0);
+    const CBlockIndex* stale_pindex = tip->GetAncestor(stale_target_height);
+    BOOST_REQUIRE(stale_pindex != nullptr);
+    const auto stale_first = dmnman.GetListForBlock(stale_pindex);
+    const size_t stale_size_after_first = dmnman.GetStaleListCacheSize();
+    const CBlockIndex* stale_neighbor = tip->GetAncestor(stale_target_height + 16);
+    BOOST_REQUIRE(stale_neighbor != nullptr);
+    const auto stale_neighbor_result = dmnman.GetListForBlock(stale_neighbor);
+    const auto stale_second = dmnman.GetListForBlock(stale_pindex);
+    BOOST_CHECK(stale_first == stale_second);
+    BOOST_CHECK(stale_neighbor_result == dmnman.GetListForBlock(stale_neighbor));
+    BOOST_CHECK_LE(dmnman.GetStaleListCacheSize(), stale_size_after_first + 1);
+
+    // The cache is pure memoisation: bounding it must not change any result.
+    for (const auto& [pindex, want] : expected) {
+        const auto got = dmnman.GetListForBlock(pindex);
+        BOOST_CHECK_MESSAGE(got == want,
+                            strprintf("GetListForBlock(%d) differs after cache eviction", pindex->nHeight));
+    }
+
+    // Cleanup must still drop everything outside the recency window, and must not
+    // resurrect unbounded growth.
+    dmnman.DoMaintenance();
+    BOOST_CHECK_LE(dmnman.GetListCacheSize(), CDeterministicMNManager::MAX_CACHE_LISTS);
+}
+
 BOOST_AUTO_TEST_CASE(migration_logic_validation)
 {
     // Test the database migration logic for nVersion-first format conversion.

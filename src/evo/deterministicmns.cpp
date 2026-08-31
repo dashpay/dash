@@ -24,6 +24,7 @@
 
 #include <univalue.h>
 
+#include <algorithm>
 #include <functional>
 #include <optional>
 #include <memory>
@@ -662,7 +663,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
                 AbortNode(msg);
                 return state.Error(msg);
             }
-            mnListsCache.emplace(newList.GetBlockHash(), newList);
+            CacheMNList(newList.GetBlockHash(), newList);
             LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. nHeight=%d, mapCurMNs.allMNsCount=%d\n",
                 __func__, nHeight, newList.GetCounts().total());
         }
@@ -685,8 +686,8 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
         }
 
         diff.nHeight = pindex->nHeight;
-        mnListDiffsCache.emplace(pindex->GetBlockHash(), diff);
-        mnListsCache.emplace(newList.GetBlockHash(), newList);
+        CacheMNListDiff(pindex->GetBlockHash(), diff);
+        CacheMNList(newList.GetBlockHash(), newList);
     } catch (const std::exception& e) {
         LogPrintf("CDeterministicMNManager::%s -- internal error: %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-dmn-block");
@@ -741,6 +742,7 @@ bool CDeterministicMNManager::UndoBlock(gsl::not_null<const CBlockIndex*> pindex
 
         mnListsCache.erase(blockHash);
         mnListDiffsCache.erase(blockHash);
+        EraseStaleList(blockHash);
     }
     if (diff.HasChanges()) {
         CDeterministicMNList curList{prevList};
@@ -765,6 +767,129 @@ void CDeterministicMNManager::UpdatedBlockTip(gsl::not_null<const CBlockIndex*> 
     tipIndex = pindex;
 }
 
+bool CDeterministicMNManager::ShouldRetainCacheHeight(int height)
+{
+    AssertLockHeld(cs);
+    // Before tip is known, retain freely (early startup / first connect).
+    if (!tipIndex) return true;
+    // Same recency window CleanupCache uses for the "too old" drop predicate.
+    return height + LIST_DIFFS_CACHE_SIZE >= tipIndex->nHeight;
+}
+
+void CDeterministicMNManager::EnforceListsCacheLimit()
+{
+    AssertLockHeld(cs);
+    if (mnListsCache.size() <= MAX_CACHE_LISTS) {
+        return;
+    }
+    // Evict the lowest-height entries, but never the tip snapshot. Single pass:
+    // partition the candidate iterators so the excess-many lowest heights come
+    // first, then erase exactly those.
+    std::vector<decltype(mnListsCache)::iterator> candidates;
+    candidates.reserve(mnListsCache.size());
+    for (auto it = mnListsCache.begin(); it != mnListsCache.end(); ++it) {
+        if (tipIndex != nullptr && it->first == tipIndex->GetBlockHash()) {
+            continue;
+        }
+        candidates.emplace_back(it);
+    }
+    const size_t excess = std::min(mnListsCache.size() - MAX_CACHE_LISTS, candidates.size());
+    if (excess == 0) {
+        return;
+    }
+    std::nth_element(candidates.begin(), candidates.begin() + (excess - 1), candidates.end(),
+                     [](const auto& a, const auto& b) { return a->second.GetHeight() < b->second.GetHeight(); });
+    for (size_t i = 0; i < excess; ++i) {
+        mnListsCache.erase(candidates[i]);
+    }
+}
+
+void CDeterministicMNManager::EnforceDiffsCacheLimit()
+{
+    AssertLockHeld(cs);
+    if (mnListDiffsCache.size() <= MAX_CACHE_DIFFS) {
+        return;
+    }
+    const size_t excess = mnListDiffsCache.size() - MAX_CACHE_DIFFS;
+    std::vector<decltype(mnListDiffsCache)::iterator> candidates;
+    candidates.reserve(mnListDiffsCache.size());
+    for (auto it = mnListDiffsCache.begin(); it != mnListDiffsCache.end(); ++it) {
+        candidates.emplace_back(it);
+    }
+    std::nth_element(candidates.begin(), candidates.begin() + (excess - 1), candidates.end(),
+                     [](const auto& a, const auto& b) { return a->second.nHeight < b->second.nHeight; });
+    for (size_t i = 0; i < excess; ++i) {
+        mnListDiffsCache.erase(candidates[i]);
+    }
+}
+
+void CDeterministicMNManager::CacheMNList(const uint256& block_hash, const CDeterministicMNList& list)
+{
+    AssertLockHeld(cs);
+    if (!ShouldRetainCacheHeight(list.GetHeight())) {
+        CacheStaleMNList(block_hash, list);
+        return;
+    }
+    // Prefer emplace over assign: CDeterministicMNList::operator= locks m_cached_sml_mutex
+    // and must not run while cs is held (lock-order checker).
+    const auto [_, inserted] = mnListsCache.emplace(block_hash, list);
+    if (inserted) {
+        EnforceListsCacheLimit();
+    }
+}
+
+void CDeterministicMNManager::CacheStaleMNList(const uint256& block_hash, const CDeterministicMNList& list)
+{
+    AssertLockHeld(cs);
+    if (auto it = mnStaleListsCache.find(block_hash); it != mnStaleListsCache.end()) {
+        mnStaleListsLru.splice(mnStaleListsLru.begin(), mnStaleListsLru, it->second.lru_it);
+        return;
+    }
+    mnStaleListsLru.push_front(block_hash);
+    mnStaleListsCache.emplace(block_hash, StaleListEntry{list, mnStaleListsLru.begin()});
+    while (mnStaleListsCache.size() > MAX_STALE_CACHE_LISTS) {
+        const uint256& evict_hash = mnStaleListsLru.back();
+        if (auto evict_it = mnStaleListsCache.find(evict_hash); evict_it != mnStaleListsCache.end()) {
+            mnStaleListsCache.erase(evict_it);
+        }
+        mnStaleListsLru.pop_back();
+    }
+}
+
+std::optional<CDeterministicMNList> CDeterministicMNManager::GetStaleList(const uint256& block_hash)
+{
+    AssertLockHeld(cs);
+    const auto it = mnStaleListsCache.find(block_hash);
+    if (it == mnStaleListsCache.end()) {
+        return std::nullopt;
+    }
+    mnStaleListsLru.splice(mnStaleListsLru.begin(), mnStaleListsLru, it->second.lru_it);
+    return it->second.list;
+}
+
+void CDeterministicMNManager::EraseStaleList(const uint256& block_hash)
+{
+    AssertLockHeld(cs);
+    const auto it = mnStaleListsCache.find(block_hash);
+    if (it == mnStaleListsCache.end()) {
+        return;
+    }
+    mnStaleListsLru.erase(it->second.lru_it);
+    mnStaleListsCache.erase(it);
+}
+
+void CDeterministicMNManager::CacheMNListDiff(const uint256& block_hash, CDeterministicMNListDiff diff)
+{
+    AssertLockHeld(cs);
+    if (!ShouldRetainCacheHeight(diff.nHeight)) {
+        return;
+    }
+    const auto [_, inserted] = mnListDiffsCache.emplace(block_hash, std::move(diff));
+    if (inserted) {
+        EnforceDiffsCacheLimit();
+    }
+}
+
 CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex)
 {
     CDeterministicMNList snapshot;
@@ -785,8 +910,14 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             break;
         }
 
+        if (auto stale = GetStaleList(pindex->GetBlockHash())) {
+            snapshot = std::move(*stale);
+            break;
+        }
+
         if (m_evoDb.Read(std::make_pair(DB_LIST_SNAPSHOT, pindex->GetBlockHash()), snapshot)) {
-            mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
+            // Use the list; only retain it in the cache if it is tip-recent.
+            CacheMNList(pindex->GetBlockHash(), snapshot);
             break;
         }
 
@@ -813,6 +944,10 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
                 // the current DIP3 activation height (e.g. the functional-test
                 // cached chain) bootstraps an empty list here and rebuilds via
                 // ProcessBlock from that point on.
+                // This throw is the one exception exit a peer can reach, and it
+                // skips the post-walk cap enforcement below — re-bound the diffs
+                // this walk admitted before unwinding.
+                EnforceDiffsCacheLimit();
                 throw BlockDataUnavailableError(strprintf(
                     "CDeterministicMNManager::%s -- masternode list diff for block %s %s",
                     __func__, pindex->GetBlockHash().ToString(), BLOCK_DATA_UNAVAILABLE_SUFFIX));
@@ -820,13 +955,17 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             // no snapshot and no diff on disk means that it's the initial snapshot
             m_initial_snapshot_index = pindex;
             snapshot = CDeterministicMNList(pindex->GetBlockHash(), pindex->nHeight, 0);
-            mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
+            CacheMNList(pindex->GetBlockHash(), snapshot);
             LogPrintf("CDeterministicMNManager::%s -- initial snapshot. blockHash=%s nHeight=%d\n",
                     __func__, snapshot.GetBlockHash().ToString(), snapshot.GetHeight());
             break;
         }
 
         diff.nHeight = pindex->nHeight;
+        // Cache for this rebuild pass even if older than the retention window, so that
+        // the apply loop below can resolve every walked hash via mnListDiffsCache. The
+        // hard bound is enforced once after the apply loop, so eviction can never drop
+        // a diff this walk still needs.
         mnListDiffsCache.emplace(pindex->GetBlockHash(), std::move(diff));
         listDiffIndexes.emplace_front(pindex);
         pindex = pindex->pprev;
@@ -850,14 +989,14 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             // There is also separate in-memory caching for the current tip and active quorums,
             // but this mini-snapshot cache specifically speeds up repeated requests
             // for nearby historical blocks.
-            mnListsCache.emplace(snapshot.GetBlockHash(), snapshot);
+            CacheMNList(snapshot.GetBlockHash(), snapshot);
         }
     }
 
     if (tipIndex) {
         // always keep a snapshot for the tip
         if (const auto snapshot_hash = snapshot.GetBlockHash(); snapshot_hash == tipIndex->GetBlockHash()) {
-            mnListsCache.emplace(snapshot_hash, snapshot);
+            CacheMNList(snapshot_hash, snapshot);
         } else {
             // keep snapshots for yet alive quorums
             if (std::ranges::any_of(Params().GetConsensus().llmqs, [&snapshot, this](
@@ -867,10 +1006,14 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
                            (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >=
                             tipIndex->nHeight);
                 })) {
-                mnListsCache.emplace(snapshot_hash, snapshot);
+                CacheMNList(snapshot_hash, snapshot);
             }
         }
     }
+
+    // The rebuild walk above admits every diff it reads unconditionally, so that the
+    // apply loop can resolve them. Enforce the hard bound now that the walk is done.
+    EnforceDiffsCacheLimit();
 
     assert(snapshot.GetHeight() != -1);
     return snapshot;
@@ -1466,6 +1609,7 @@ void CDeterministicMNManager::WriteRepairedDiffs(
     for (const auto& [block_hash, diff] : recalculated_diffs) {
         mnListDiffsCache.erase(block_hash);
         mnListsCache.erase(block_hash);
+        EraseStaleList(block_hash);
     }
 
     LogPrintf("CDeterministicMNManager::%s -- Successfully repaired %d diffs (caches cleared)\n", __func__,
