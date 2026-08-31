@@ -29,7 +29,7 @@ bool TransactionRecord::showTransaction()
     return true;
 }
 
-static std::optional<TransactionRecord::Type> MasternodeRecordType(const CTransaction& tx)
+static std::optional<TransactionRecord::Type> SpecialTransactionRecordType(const CTransaction& tx)
 {
     if (!tx.IsSpecialTxVersion()) return std::nullopt;
 
@@ -40,6 +40,8 @@ static std::optional<TransactionRecord::Type> MasternodeRecordType(const CTransa
     case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
     case TRANSACTION_PROVIDER_UPDATE_REVOKE:
         return TransactionRecord::MasternodeUpdate;
+    case TRANSACTION_ASSET_LOCK:
+        return TransactionRecord::AssetLock;
     default:
         return std::nullopt;
     }
@@ -59,8 +61,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
     uint256 hash = wtx.tx->GetHash();
     std::map<std::string, std::string> mapValue = wtx.value_map;
 
-    if (const auto mn_type = MasternodeRecordType(*wtx.tx)) {
-        TransactionRecord record(hash, nTime, *mn_type, /*_strAddress=*/"", std::min<CAmount>(nNet, 0),
+    if (const auto special_type = SpecialTransactionRecordType(*wtx.tx)) {
+        TransactionRecord record(hash, nTime, *special_type, /*_strAddress=*/"", std::min<CAmount>(nNet, 0),
                                  std::max<CAmount>(nNet, 0));
         record.involvesWatchAddress = std::any_of(wtx.txin_is_mine.begin(), wtx.txin_is_mine.end(),
                                                   [](const isminetype mine) { return mine & ISMINE_WATCH_ONLY; }) ||

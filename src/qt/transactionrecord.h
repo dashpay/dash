@@ -94,6 +94,8 @@ public:
         MasternodeRegistration,
         /// ProUpServTx, ProUpRegTx, or ProUpRevTx for an existing masternode
         MasternodeUpdate,
+        /// AssetLockTx that moves funds from Core into Platform
+        AssetLock,
     };
 
     /** Number of confirmation recommended for accepting a transaction */

@@ -37,7 +37,7 @@ public:
     static constexpr quint32 ALL_TYPES = 0xFFFFFFFF;
     /** Type filter bit field (all types except excluded) */
     static constexpr quint32 COMMON_TYPES = ALL_TYPES & ~EXCLUDED_TYPES;
-    static_assert(TransactionRecord::MasternodeUpdate < 32,
+    static_assert(TransactionRecord::AssetLock < 32,
                   "TransactionRecord::Type no longer fits in the quint32 type filter");
 
     static constexpr quint32 TYPE(int type) { return TransactionTypeToBit(type); }

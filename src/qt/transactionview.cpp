@@ -98,6 +98,7 @@ TransactionView::TransactionView(QWidget* parent) :
     typeWidget->addItem(tr("Masternode"), TransactionFilterProxy::TYPE(TransactionRecord::MasternodeRegistration) |
                                               TransactionFilterProxy::TYPE(TransactionRecord::MasternodeUpdate));
     typeWidget->addItem(tr("Platform Transfer"), TransactionFilterProxy::TYPE(TransactionRecord::PlatformTransfer));
+    typeWidget->addItem(tr("Asset Lock"), TransactionFilterProxy::TYPE(TransactionRecord::AssetLock));
     typeWidget->addItem(tr("Data Transaction"), TransactionFilterProxy::TYPE(TransactionRecord::DataTransaction));
     typeWidget->addItem(tr("Dust Receive"), TransactionFilterProxy::TYPE(TransactionRecord::DustReceive));
     typeWidget->addItem(tr("Other"), TransactionFilterProxy::TYPE(TransactionRecord::Other));

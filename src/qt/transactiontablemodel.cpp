@@ -441,6 +441,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Masternode Registration");
     case TransactionRecord::MasternodeUpdate:
         return tr("Masternode Update");
+    case TransactionRecord::AssetLock:
+        return tr("Asset Lock");
 
     case TransactionRecord::CoinJoinMixing:
         return tr("%1 Mixing").arg(QString::fromStdString(gCoinJoinName));
@@ -498,6 +500,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::DataTransaction:
     case TransactionRecord::MasternodeRegistration:
     case TransactionRecord::MasternodeUpdate:
+    case TransactionRecord::AssetLock:
     case TransactionRecord::Other:
         break; // use fail-over here
     } // no default case, so the compiler can warn about missing cases
@@ -529,6 +532,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::DataTransaction:
     case TransactionRecord::MasternodeRegistration:
     case TransactionRecord::MasternodeUpdate:
+    case TransactionRecord::AssetLock:
         return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BAREADDRESS);
     case TransactionRecord::SendToOther:
     case TransactionRecord::RecvFromOther:
@@ -564,6 +568,7 @@ QVariant TransactionTableModel::amountColor(const TransactionRecord *rec) const
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
     case TransactionRecord::DataTransaction:
+    case TransactionRecord::AssetLock:
     case TransactionRecord::Other:
         return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::RED);
     case TransactionRecord::SendToSelf:
@@ -636,6 +641,10 @@ QString TransactionTableModel::formatTooltip(const TransactionRecord *rec) const
     case TransactionRecord::MasternodeUpdate:
         tooltip += QString("\n") + tr("Updates an existing masternode registration. The amount is this wallet's net "
                                       "balance change, normally only the network fee.");
+        break;
+    case TransactionRecord::AssetLock:
+        tooltip += QString("\n") + tr("Locks funds for use on Dash Platform. The amount is this wallet's net balance "
+                                      "change, including the network fee.");
         break;
     default:
         break;

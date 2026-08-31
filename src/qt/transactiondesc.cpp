@@ -120,6 +120,9 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     case TransactionRecord::MasternodeUpdate:
         strHTML += "<b>" + tr("Type") + ":</b> " + tr("Masternode Update") + "<br>";
         break;
+    case TransactionRecord::AssetLock:
+        strHTML += "<b>" + tr("Type") + ":</b> " + tr("Asset Lock") + "<br>";
+        break;
     default:
         break;
     }
