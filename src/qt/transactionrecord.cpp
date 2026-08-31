@@ -61,7 +61,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
     uint256 hash = wtx.tx->GetHash();
     std::map<std::string, std::string> mapValue = wtx.value_map;
 
-    if (const auto special_type = SpecialTransactionRecordType(*wtx.tx)) {
+    // Check if any inputs belong to this wallet (for special transaction handling and dust detection)
+    const bool isFromMe{std::any_of(wtx.txin_is_mine.cbegin(), wtx.txin_is_mine.cend(),
+                                    [](const isminetype mine) { return mine; })};
+    const auto special_type{SpecialTransactionRecordType(*wtx.tx)};
+    const bool is_asset_lock{special_type == TransactionRecord::AssetLock};
+
+    if (special_type && (!is_asset_lock || isFromMe)) {
         TransactionRecord record(hash, nTime, *special_type, /*_strAddress=*/"", std::min<CAmount>(nNet, 0),
                                  std::max<CAmount>(nNet, 0));
         record.involvesWatchAddress = std::any_of(wtx.txin_is_mine.begin(), wtx.txin_is_mine.end(),
@@ -73,15 +79,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
     }
 
     auto& coinJoinOptions = node.coinJoinOptions();
-
-    // Check if any inputs belong to this wallet (for dust detection)
-    bool isFromMe = false;
-    for (const isminetype mine : wtx.txin_is_mine) {
-        if (mine) {
-            isFromMe = true;
-            break;
-        }
-    }
 
     if (nNet > 0 || wtx.is_coinbase || wtx.is_platform_transfer)
     {
@@ -135,7 +132,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
 
                 parts.append(sub);
             }
-            else if (!wtx.is_coinbase && IsDataScript(txout.scriptPubKey))
+            else if (!wtx.is_coinbase && !is_asset_lock && IsDataScript(txout.scriptPubKey))
             {
                 TransactionRecord sub(hash, nTime);
                 sub.credit = txout.nValue;

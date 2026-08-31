@@ -67,13 +67,15 @@ CTransactionRef MakeSpecialTransaction(uint16_t type, const COutPoint& input, CA
     return MakeTransactionRef(std::move(tx));
 }
 
-CTransactionRef MakeAssetLockTransaction(const COutPoint& input, CAmount amount, const CScript& credit_script)
+CTransactionRef MakeAssetLockTransaction(const COutPoint& input, CAmount amount, const CScript& credit_script,
+                                         std::optional<CTxOut> core_output = std::nullopt)
 {
     CMutableTransaction tx;
     tx.nVersion = CTransaction::SPECIAL_VERSION;
     tx.nType = TRANSACTION_ASSET_LOCK;
     tx.vin.emplace_back(input);
     tx.vout.emplace_back(amount, CScript{} << OP_RETURN << std::vector<unsigned char>{});
+    if (core_output) tx.vout.emplace_back(std::move(*core_output));
     SetTxPayload(tx, CAssetLockPayload{{CTxOut{amount, credit_script}}, CAssetLockPayload::INITIAL_VERSION});
     return MakeTransactionRef(std::move(tx));
 }
@@ -276,6 +278,9 @@ void ProviderTransactionTests::providerTransactionHistory()
     const CAmount asset_lock_fee{5000};
     const CTransactionRef asset_lock{MakeAssetLockTransaction(make_owned_input(4),
                                                               input_amount(4) - asset_lock_fee, external_script)};
+    const CAmount received_core_amount{COIN};
+    const CTransactionRef received_from_asset_lock{MakeAssetLockTransaction(
+        COutPoint{uint256::TWO, 7}, 2 * COIN, external_script, CTxOut{received_core_amount, own_script})};
 
     std::vector<ExpectedRecord> expected{
         {registration->GetHash(), TransactionRecord::MasternodeRegistration, -registration_fee,
@@ -292,7 +297,8 @@ void ProviderTransactionTests::providerTransactionHistory()
          QString{"Locks funds for use on Dash Platform"}},
     };
 
-    for (const CTransactionRef& tx : {registration, update_service, update_registrar, update_revoke, asset_lock}) {
+    for (const CTransactionRef& tx :
+         {registration, update_service, update_registrar, update_revoke, asset_lock, received_from_asset_lock}) {
         QVERIFY(wallet->AddToWallet(tx, TxStateInactive{}) != nullptr);
     }
 
@@ -307,6 +313,18 @@ void ProviderTransactionTests::providerTransactionHistory()
 
         // Transactions loaded before the model is constructed exercise the wallet-restart path.
         CheckProviderRecords(*model, expected);
+
+        const std::vector<int> asset_lock_rows{FindTransactionRows(*model, asset_lock->GetHash())};
+        QCOMPARE(asset_lock_rows.size(), size_t{1});
+        const QModelIndex asset_lock_index{model->index(asset_lock_rows.front(), 0)};
+        QVERIFY(!asset_lock_index.data(TransactionTableModel::LongDescriptionRole).toString().contains("Output index"));
+
+        const std::vector<int> received_rows{FindTransactionRows(*model, received_from_asset_lock->GetHash())};
+        QCOMPARE(received_rows.size(), size_t{1});
+        const QModelIndex received_index{model->index(received_rows.front(), 0)};
+        QCOMPARE(received_index.data(TransactionTableModel::TypeRole).toInt(),
+                 static_cast<int>(TransactionRecord::RecvWithAddress));
+        QCOMPARE(received_index.data(TransactionTableModel::AmountRole).toLongLong(), received_core_amount);
 
         // Add an externally funded registration after model construction to exercise live wallet
         // notification. Its owned output is the wallet's positive net change and still yields one
