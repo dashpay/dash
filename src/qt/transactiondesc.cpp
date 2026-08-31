@@ -105,8 +105,9 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     CAmount nCredit = wtx.credit;
     CAmount nDebit = wtx.debit;
     CAmount nNet = nCredit - nDebit;
-    const bool is_masternode_transaction{rec->type == TransactionRecord::MasternodeRegistration ||
-                                         rec->type == TransactionRecord::MasternodeUpdate};
+    const bool is_transaction_level_record{rec->type == TransactionRecord::MasternodeRegistration ||
+                                           rec->type == TransactionRecord::MasternodeUpdate ||
+                                           rec->type == TransactionRecord::AssetLock};
 
     strHTML += "<b>" + tr("Status") + ":</b> " + FormatTxStatus(status, inMempool);
     strHTML += "<br>";
@@ -120,6 +121,9 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     case TransactionRecord::MasternodeUpdate:
         strHTML += "<b>" + tr("Type") + ":</b> " + tr("Masternode Update") + "<br>";
         break;
+    case TransactionRecord::AssetLock:
+        strHTML += "<b>" + tr("Type") + ":</b> " + tr("Asset Lock") + "<br>";
+        break;
     default:
         break;
     }
@@ -127,14 +131,14 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     //
     // From
     //
-    if (!is_masternode_transaction && wtx.is_coinbase) {
+    if (!is_transaction_level_record && wtx.is_coinbase) {
         strHTML += "<b>" + tr("Source") + ":</b> " + tr("Generated") + "<br>";
-    } else if (!is_masternode_transaction && wtx.is_platform_transfer) {
+    } else if (!is_transaction_level_record && wtx.is_platform_transfer) {
         strHTML += "<b>" + tr("Source") + ":</b> " + tr("Platform Transfer") + "<br>";
-    } else if (!is_masternode_transaction && wtx.value_map.count("from") && !wtx.value_map["from"].empty()) {
+    } else if (!is_transaction_level_record && wtx.value_map.count("from") && !wtx.value_map["from"].empty()) {
         // Online transaction
         strHTML += "<b>" + tr("From") + ":</b> " + GUIUtil::HtmlEscape(wtx.value_map["from"]) + "<br>";
-    } else if (!is_masternode_transaction) {
+    } else if (!is_transaction_level_record) {
         // Offline transaction
         if (nNet > 0)
         {
@@ -162,7 +166,7 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     //
     // To
     //
-    if (!is_masternode_transaction && wtx.value_map.count("to") && !wtx.value_map["to"].empty()) {
+    if (!is_transaction_level_record && wtx.value_map.count("to") && !wtx.value_map["to"].empty()) {
         // Online transaction
         std::string strAddress = wtx.value_map["to"];
         strHTML += "<b>" + tr("To") + ":</b> ";
@@ -177,7 +181,7 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     //
     // Amount
     //
-    if (!is_masternode_transaction && wtx.is_coinbase && nCredit == 0) {
+    if (!is_transaction_level_record && wtx.is_coinbase && nCredit == 0) {
         //
         // Coinbase
         //
@@ -190,12 +194,12 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         else
             strHTML += "(" + tr("not accepted") + ")";
         strHTML += "<br>";
-    } else if (!is_masternode_transaction && nNet > 0) {
+    } else if (!is_transaction_level_record && nNet > 0) {
         //
         // Credit
         //
         strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + "<br>";
-    } else if (!is_masternode_transaction) {
+    } else if (!is_transaction_level_record) {
         isminetype fAllFromMe = ISMINE_SPENDABLE;
         for (const isminetype mine : wtx.txin_is_mine)
         {
@@ -293,7 +297,7 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         strHTML += "<br><b>" + tr("Comment") + ":</b><br>" + GUIUtil::HtmlEscape(wtx.value_map["comment"], true) + "<br>";
 
     strHTML += "<b>" + tr("Transaction ID") + ":</b> " + rec->getTxHash() + "<br>";
-    if (!is_masternode_transaction) {
+    if (!is_transaction_level_record) {
         strHTML += "<b>" + tr("Output index") + ":</b> " + QString::number(rec->getOutputIndex()) + "<br>";
     }
     strHTML += "<b>" + tr("Transaction total size") + ":</b> " + QString::number(wtx.tx->GetTotalSize()) + " bytes<br>";

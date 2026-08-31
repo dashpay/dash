@@ -4,6 +4,8 @@
 
 #include <qt/test/providertransactiontests.h>
 
+#include <evo/assetlocktx.h>
+#include <evo/specialtx.h>
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
 #include <key.h>
@@ -22,6 +24,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -61,6 +64,19 @@ CTransactionRef MakeSpecialTransaction(uint16_t type, const COutPoint& input, CA
     tx.nType = type;
     tx.vin.emplace_back(input);
     tx.vout.emplace_back(output_amount, output_script);
+    return MakeTransactionRef(std::move(tx));
+}
+
+CTransactionRef MakeAssetLockTransaction(const COutPoint& input, CAmount amount, const CScript& credit_script,
+                                         std::optional<CTxOut> core_output = std::nullopt)
+{
+    CMutableTransaction tx;
+    tx.nVersion = CTransaction::SPECIAL_VERSION;
+    tx.nType = TRANSACTION_ASSET_LOCK;
+    tx.vin.emplace_back(input);
+    tx.vout.emplace_back(amount, CScript{} << OP_RETURN << std::vector<unsigned char>{});
+    if (core_output) tx.vout.emplace_back(std::move(*core_output));
+    SetTxPayload(tx, CAssetLockPayload{{CTxOut{amount, credit_script}}, CAssetLockPayload::INITIAL_VERSION});
     return MakeTransactionRef(std::move(tx));
 }
 
@@ -171,6 +187,8 @@ void ProviderTransactionTests::transactionTypeSettingPersistence_data()
     QTest::newRow("masternode") << (TransactionFilterProxy::TYPE(TransactionRecord::MasternodeRegistration) |
                                     TransactionFilterProxy::TYPE(TransactionRecord::MasternodeUpdate))
                                 << QString{"Masternode"};
+    QTest::newRow("asset-lock") << TransactionFilterProxy::TYPE(TransactionRecord::AssetLock)
+                                << QString{"Asset Lock"};
     QTest::newRow("data") << TransactionFilterProxy::TYPE(TransactionRecord::DataTransaction)
                           << QString{"Data Transaction"};
     QTest::newRow("dust") << TransactionFilterProxy::TYPE(TransactionRecord::DustReceive)
@@ -257,8 +275,12 @@ void ProviderTransactionTests::providerTransactionHistory()
                                                                   external_script)};
     const CTransactionRef update_revoke{MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_REVOKE, make_owned_input(3),
                                                                input_amount(3) - revoke_fee, own_script)};
-    const CTransactionRef other_special_tx{
-        MakeSpecialTransaction(TRANSACTION_ASSET_LOCK, make_owned_input(4), input_amount(4) - 5000, own_script)};
+    const CAmount asset_lock_fee{5000};
+    const CTransactionRef asset_lock{MakeAssetLockTransaction(make_owned_input(4),
+                                                              input_amount(4) - asset_lock_fee, external_script)};
+    const CAmount received_core_amount{COIN};
+    const CTransactionRef received_from_asset_lock{MakeAssetLockTransaction(
+        COutPoint{uint256::TWO, 7}, 2 * COIN, external_script, CTxOut{received_core_amount, own_script})};
 
     std::vector<ExpectedRecord> expected{
         {registration->GetHash(), TransactionRecord::MasternodeRegistration, -registration_fee,
@@ -271,9 +293,12 @@ void ProviderTransactionTests::providerTransactionHistory()
          QString{"Masternode Update"}, QString{"Updates an existing masternode"}},
         {update_revoke->GetHash(), TransactionRecord::MasternodeUpdate, -revoke_fee, QString{"Masternode Update"},
          QString{"Updates an existing masternode"}},
+        {asset_lock->GetHash(), TransactionRecord::AssetLock, -input_amount(4), QString{"Asset Lock"},
+         QString{"Locks funds for use on Dash Platform"}},
     };
 
-    for (const CTransactionRef& tx : {registration, update_service, update_registrar, update_revoke, other_special_tx}) {
+    for (const CTransactionRef& tx :
+         {registration, update_service, update_registrar, update_revoke, asset_lock, received_from_asset_lock}) {
         QVERIFY(wallet->AddToWallet(tx, TxStateInactive{}) != nullptr);
     }
 
@@ -289,12 +314,17 @@ void ProviderTransactionTests::providerTransactionHistory()
         // Transactions loaded before the model is constructed exercise the wallet-restart path.
         CheckProviderRecords(*model, expected);
 
-        const std::vector<int> other_rows{FindTransactionRows(*model, other_special_tx->GetHash())};
-        QCOMPARE(other_rows.size(), size_t{1});
-        QCOMPARE(model->index(other_rows.front(), 0).data(TransactionTableModel::TypeRole).toInt(),
-                 static_cast<int>(TransactionRecord::SendToSelf));
-        QCOMPARE(model->index(other_rows.front(), TransactionTableModel::Type).data(Qt::DisplayRole).toString(),
-                 QString{"Payment to yourself"});
+        const std::vector<int> asset_lock_rows{FindTransactionRows(*model, asset_lock->GetHash())};
+        QCOMPARE(asset_lock_rows.size(), size_t{1});
+        const QModelIndex asset_lock_index{model->index(asset_lock_rows.front(), 0)};
+        QVERIFY(!asset_lock_index.data(TransactionTableModel::LongDescriptionRole).toString().contains("Output index"));
+
+        const std::vector<int> received_rows{FindTransactionRows(*model, received_from_asset_lock->GetHash())};
+        QCOMPARE(received_rows.size(), size_t{1});
+        const QModelIndex received_index{model->index(received_rows.front(), 0)};
+        QCOMPARE(received_index.data(TransactionTableModel::TypeRole).toInt(),
+                 static_cast<int>(TransactionRecord::RecvWithAddress));
+        QCOMPARE(received_index.data(TransactionTableModel::AmountRole).toLongLong(), received_core_amount);
 
         // Add an externally funded registration after model construction to exercise live wallet
         // notification. Its owned output is the wallet's positive net change and still yields one
@@ -311,10 +341,17 @@ void ProviderTransactionTests::providerTransactionHistory()
 
         const quint32 masternode_filter{TransactionFilterProxy::TYPE(TransactionRecord::MasternodeRegistration) |
                                         TransactionFilterProxy::TYPE(TransactionRecord::MasternodeUpdate)};
+        const int masternode_count{static_cast<int>(std::count_if(expected.cbegin(), expected.cend(),
+                                                                 [](const ExpectedRecord& record) {
+                                                                     return record.type == TransactionRecord::MasternodeRegistration ||
+                                                                            record.type == TransactionRecord::MasternodeUpdate;
+                                                                 }))};
         TransactionFilterProxy filter;
         filter.setSourceModel(model);
         filter.setTypeFilter(masternode_filter);
-        QCOMPARE(filter.rowCount(), static_cast<int>(expected.size()));
+        QCOMPARE(filter.rowCount(), masternode_count);
+        filter.setTypeFilter(TransactionFilterProxy::TYPE(TransactionRecord::AssetLock));
+        QCOMPARE(filter.rowCount(), 1);
 
 #if defined(Q_OS_MACOS)
         if (QApplication::platformName() == "minimal") {
@@ -332,6 +369,8 @@ void ProviderTransactionTests::providerTransactionHistory()
             QVERIFY(type_widget != nullptr);
             const int masternode_row{type_widget->findText("Masternode")};
             QCOMPARE(type_widget->itemData(masternode_row).toUInt(), masternode_filter);
+            QCOMPARE(type_widget->itemData(type_widget->findText("Asset Lock")).toUInt(),
+                     TransactionFilterProxy::TYPE(TransactionRecord::AssetLock));
 
             QListView* const type_list{qobject_cast<QListView*>(type_widget->view())};
             QVERIFY(type_list != nullptr);
@@ -353,7 +392,7 @@ void ProviderTransactionTests::providerTransactionHistory()
             QCOMPARE(QSettings{}.value("transactionTypeFilter").toUInt(), masternode_filter);
             QTableView* const table{transaction_view.findChild<QTableView*>("transactionView")};
             QVERIFY(table != nullptr);
-            QCOMPARE(table->model()->rowCount(), static_cast<int>(expected.size()));
+            QCOMPARE(table->model()->rowCount(), masternode_count);
 
             struct RestoreCase {
                 quint32 saved_filter;
@@ -364,6 +403,9 @@ void ProviderTransactionTests::providerTransactionHistory()
                 {TransactionFilterProxy::TYPE(TransactionRecord::DataTransaction),
                  TransactionFilterProxy::TYPE(TransactionRecord::DataTransaction),
                  QString{"Data Transaction"}},
+                {TransactionFilterProxy::TYPE(TransactionRecord::AssetLock),
+                 TransactionFilterProxy::TYPE(TransactionRecord::AssetLock),
+                 QString{"Asset Lock"}},
                 {TransactionFilterProxy::TYPE(TransactionRecord::DustReceive),
                  TransactionFilterProxy::TYPE(TransactionRecord::DustReceive),
                  QString{"Dust Receive"}},
