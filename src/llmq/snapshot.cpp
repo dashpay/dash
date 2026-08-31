@@ -60,6 +60,18 @@ std::optional<llmq::CycleData> ConstructCycle(llmq::CQuorumSnapshotManager& qsna
     }
     return ret;
 }
+
+//! Add a base block, keeping the by-height ordering GetLastBaseBlockHash() depends on.
+//! Inserting in place is O(n) pointer moves; re-sorting after every append would be
+//! O(n log n) block-index dereferences on a list whose size the requesting peer chooses.
+void InsertBaseBlockSorted(std::vector<const CBlockIndex*>& baseBlockIndexes, const CBlockIndex* blockIndex)
+{
+    const auto pos{std::upper_bound(baseBlockIndexes.begin(), baseBlockIndexes.end(), blockIndex,
+                                    [](const CBlockIndex* a, const CBlockIndex* b) {
+                                        return a->nHeight < b->nHeight;
+                                    })};
+    baseBlockIndexes.insert(pos, blockIndex);
+}
 } // anonymous namespace
 
 namespace llmq {
@@ -147,8 +159,7 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
     if (use_legacy_construction) {
         // Build MN list Diff always with highest baseblock
         if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
-                                       GetLastBaseBlockHash(baseBlockIndexes, cycle_base_opt->m_work_index,
-                                                            use_legacy_construction),
+                                       GetLastBaseBlockHash(baseBlockIndexes, cycle_base_opt->m_work_index),
                                        cycle_base_opt->m_work_index->GetBlockHash(), response.mnListDiffH, errorRet)) {
             return false;
         }
@@ -167,8 +178,7 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
         }
         if (use_legacy_construction) {
             if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
-                                           GetLastBaseBlockHash(baseBlockIndexes, cycle_opt->m_work_index,
-                                                                use_legacy_construction),
+                                           GetLastBaseBlockHash(baseBlockIndexes, cycle_opt->m_work_index),
                                            cycle_opt->m_work_index->GetBlockHash(), cycle_opt->m_diff, errorRet)) {
                 return false;
             }
@@ -204,13 +214,12 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
         response.quorumSnapshotList.push_back(cycle_opt->m_snap);
         CSimplifiedMNListDiff mnhneeded;
         if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
-                                       GetLastBaseBlockHash(baseBlockIndexes, cycle_opt->m_work_index,
-                                                            use_legacy_construction),
+                                       GetLastBaseBlockHash(baseBlockIndexes, cycle_opt->m_work_index),
                                        cycle_opt->m_work_index->GetBlockHash(), mnhneeded, errorRet)) {
             return false;
         }
         if (!use_legacy_construction) {
-            baseBlockIndexes.push_back(cycle_opt->m_work_index);
+            InsertBaseBlockSorted(baseBlockIndexes, cycle_opt->m_work_index);
         }
         response.mnListDiffList.push_back(mnhneeded);
     }
@@ -219,24 +228,22 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
         for (size_t n = target_cycles.size(); n > 0; --n) {
             auto* cycle{target_cycles[n - 1]};
             if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
-                                           GetLastBaseBlockHash(baseBlockIndexes, cycle->m_work_index,
-                                                                use_legacy_construction),
+                                           GetLastBaseBlockHash(baseBlockIndexes, cycle->m_work_index),
                                            cycle->m_work_index->GetBlockHash(), cycle->m_diff, errorRet)) {
                 return false;
             }
-            baseBlockIndexes.push_back(cycle->m_work_index);
+            InsertBaseBlockSorted(baseBlockIndexes, cycle->m_work_index);
         }
 
         if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
-                                       GetLastBaseBlockHash(baseBlockIndexes, cycle_base_opt->m_work_index,
-                                                            use_legacy_construction),
+                                       GetLastBaseBlockHash(baseBlockIndexes, cycle_base_opt->m_work_index),
                                        cycle_base_opt->m_work_index->GetBlockHash(), response.mnListDiffH, errorRet)) {
             return false;
         }
-        baseBlockIndexes.push_back(cycle_base_opt->m_work_index);
+        InsertBaseBlockSorted(baseBlockIndexes, cycle_base_opt->m_work_index);
 
         if (!BuildSimplifiedMNListDiff(dmnman, chainman, qblockman, qman,
-                                       GetLastBaseBlockHash(baseBlockIndexes, tipBlockIndex, use_legacy_construction),
+                                       GetLastBaseBlockHash(baseBlockIndexes, tipBlockIndex),
                                        tipBlockIndex->GetBlockHash(), response.mnListDiffTip, errorRet)) {
             return false;
         }
@@ -244,13 +251,8 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
     return true;
 }
 
-uint256 GetLastBaseBlockHash(Span<const CBlockIndex*> baseBlockIndexes, const CBlockIndex* blockIndex,
-                             bool use_legacy_construction)
+uint256 GetLastBaseBlockHash(Span<const CBlockIndex* const> baseBlockIndexes, const CBlockIndex* blockIndex)
 {
-    if (!use_legacy_construction) {
-        std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(),
-                  [](const CBlockIndex* a, const CBlockIndex* b) { return a->nHeight < b->nHeight; });
-    }
     // default to genesis block
     uint256 hash{Params().GenesisBlock().GetHash()};
     for (const auto baseBlock : baseBlockIndexes) {

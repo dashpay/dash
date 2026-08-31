@@ -6,6 +6,7 @@
 #include <test/util/setup_common.h>
 
 #include <chain.h>
+#include <chainparams.h>
 #include <streams.h>
 #include <univalue.h>
 
@@ -191,17 +192,7 @@ BOOST_AUTO_TEST_CASE(get_last_base_block_hash_repeated_base_blocks_test)
         blocks[i].phashBlock = &hashes[i];
     }
 
-    // Non-legacy: sorts internally, so unsorted input with duplicates is fine.
-    std::vector<const CBlockIndex*> unsorted_repeated_base_blocks{
-        &blocks[2],
-        &blocks[0],
-        &blocks[1],
-        &blocks[1],
-    };
-    BOOST_CHECK(GetLastBaseBlockHash(unsorted_repeated_base_blocks, &blocks[3], false) == hashes[2]);
-    BOOST_CHECK(GetLastBaseBlockHash(unsorted_repeated_base_blocks, &blocks[1], false) == hashes[1]);
-
-    // Legacy: relies on caller-supplied sort and tolerates duplicates as a no-op.
+    // GetLastBaseBlockHash() requires sorted input and tolerates duplicates as a no-op.
     // BuildQuorumRotationInfo deliberately does NOT deduplicate in the legacy path so
     // the wire response to older peers stays bit-for-bit identical; these checks
     // demonstrate that the duplicate is harmless to GetLastBaseBlockHash's output.
@@ -216,13 +207,17 @@ BOOST_AUTO_TEST_CASE(get_last_base_block_hash_repeated_base_blocks_test)
         &blocks[1],
         &blocks[2],
     };
-    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3], true) == hashes[2]);
-    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1], true) == hashes[1]);
-    // Legacy no-op proof: duplicate vs unique input produces the same hash.
-    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3], true) ==
-                GetLastBaseBlockHash(sorted_unique_base_blocks, &blocks[3], true));
-    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1], true) ==
-                GetLastBaseBlockHash(sorted_unique_base_blocks, &blocks[1], true));
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3]) == hashes[2]);
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1]) == hashes[1]);
+    // Duplicate vs unique input produces the same hash.
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[3]) ==
+                GetLastBaseBlockHash(sorted_unique_base_blocks, &blocks[3]));
+    BOOST_CHECK(GetLastBaseBlockHash(sorted_repeated_base_blocks, &blocks[1]) ==
+                GetLastBaseBlockHash(sorted_unique_base_blocks, &blocks[1]));
+
+    // No base at or below the target falls back to the genesis hash.
+    std::vector<const CBlockIndex*> above_target{&blocks[2], &blocks[3]};
+    BOOST_CHECK(GetLastBaseBlockHash(above_target, &blocks[0]) == Params().GenesisBlock().GetHash());
 }
 
 BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_serialization_test)
@@ -243,6 +238,34 @@ BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_serialization_test)
     emptyInfo.extraShare = false;
 
     BOOST_CHECK(TestSerializationRoundtrip(emptyInfo));
+}
+
+BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_base_block_hashes_limit_test)
+{
+    const auto serialize_with_count{[](size_t count) {
+        CGetQuorumRotationInfo info;
+        info.blockRequestHash = GetTestBlockHash(100);
+        info.baseBlockHashes.assign(count, GetTestBlockHash(1));
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << info;
+        return ss;
+    }};
+
+    // A request at the limit still round-trips.
+    {
+        CDataStream ss{serialize_with_count(MAX_BASE_BLOCK_HASHES)};
+        CGetQuorumRotationInfo parsed;
+        BOOST_CHECK_NO_THROW(ss >> parsed);
+        BOOST_CHECK_EQUAL(parsed.baseBlockHashes.size(), MAX_BASE_BLOCK_HASHES);
+    }
+
+    // One past it is rejected before any element is decoded, so an unauthenticated peer
+    // cannot make the server hold a list sized by MAX_PROTOCOL_MESSAGE_LENGTH.
+    {
+        CDataStream ss{serialize_with_count(MAX_BASE_BLOCK_HASHES + 1)};
+        CGetQuorumRotationInfo parsed;
+        BOOST_CHECK_THROW(ss >> parsed, std::ios_base::failure);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(quorum_rotation_info_serialization_test)

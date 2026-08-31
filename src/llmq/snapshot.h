@@ -89,6 +89,18 @@ public:
     [[nodiscard]] UniValue ToJson() const;
 };
 
+/** Upper bound on the diff bases a peer may attach to a GETQUORUMROTATIONINFO request.
+ *
+ * A response only ever references a bounded set of work indexes: BuildQuorumRotationInfo
+ * itself appends at most 3 * signingActiveQuorumCount snapshot bases (96 for llmq_60_75)
+ * plus the target cycles and the tip, so even a client that echoes back everything it has
+ * ever learned stays in the low hundreds. Without a limit the wire format allows
+ * MAX_PROTOCOL_MESSAGE_LENGTH / sizeof(uint256) = 98304 entries, which an unauthenticated
+ * peer can use to make the server walk that list once per constructed diff while holding
+ * cs_main. The limit is deliberately generous relative to real usage; it only has to keep
+ * the list small enough that traversing it is free. */
+static constexpr size_t MAX_BASE_BLOCK_HASHES{4096};
+
 class CGetQuorumRotationInfo
 {
 public:
@@ -98,7 +110,7 @@ public:
 
     SERIALIZE_METHODS(CGetQuorumRotationInfo, obj)
     {
-        READWRITE(obj.baseBlockHashes, obj.blockRequestHash, obj.extraShare);
+        READWRITE(LIMITED_VECTOR(obj.baseBlockHashes, MAX_BASE_BLOCK_HASHES), obj.blockRequestHash, obj.extraShare);
     }
 };
 
@@ -216,8 +228,10 @@ bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotMan
                              const CQuorumBlockProcessor& qblockman, const CGetQuorumRotationInfo& request,
                              bool use_legacy_construction, CQuorumRotationInfo& response, std::string& errorRet)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-uint256 GetLastBaseBlockHash(Span<const CBlockIndex*> baseBlockIndexes, const CBlockIndex* blockIndex,
-                             bool use_legacy_construction);
+//! Highest base block at or below blockIndex, or the genesis hash if there is none.
+//! baseBlockIndexes must already be sorted by height: the list is sized by the requesting
+//! peer, so sorting it here (once per constructed diff) would be attacker-controlled work.
+uint256 GetLastBaseBlockHash(Span<const CBlockIndex* const> baseBlockIndexes, const CBlockIndex* blockIndex);
 
 class CQuorumSnapshotManager
 {

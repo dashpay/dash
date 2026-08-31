@@ -238,6 +238,16 @@ class LLMQQuorumRotationTest(DashTestFramework):
         rpc_qr_info_repeated_base = self.nodes[0].quorum("rotationinfo", best_block_hash, False,
                                                           [hmc_base_blockhash, hmc_base_blockhash])
         assert_equal(rpc_qr_info_repeated_base, rpc_qr_info)
+        # Base blocks are ordered by height server-side, so the request order must not matter.
+        early_base_blockhash = self.nodes[0].getblockhash(1)
+        rpc_qr_info_two_bases = self.nodes[0].quorum("rotationinfo", best_block_hash, False,
+                                                     [hmc_base_blockhash, early_base_blockhash])
+        assert_equal(rpc_qr_info_two_bases,
+                     self.nodes[0].quorum("rotationinfo", best_block_hash, False,
+                                          [early_base_blockhash, hmc_base_blockhash]))
+        # ...and the extra base is not inert: it displaces the genesis fallback below H-3C.
+        assert_equal(rpc_qr_info["mnListDiffAtHMinus3C"]["baseBlockHash"], genesis_blockhash)
+        assert_equal(rpc_qr_info_two_bases["mnListDiffAtHMinus3C"]["baseBlockHash"], early_base_blockhash)
         assert_equal(rpc_qr_info["mnListDiffTip"]["blockHash"], best_block_hash)
         assert_equal(rpc_qr_info["mnListDiffTip"]["baseBlockHash"], rpc_qr_info["mnListDiffH"]["blockHash"])
         assert_equal(rpc_qr_info["mnListDiffH"]["baseBlockHash"], rpc_qr_info["mnListDiffAtHMinusC"]["blockHash"])
