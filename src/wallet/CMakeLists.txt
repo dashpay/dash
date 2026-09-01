@@ -20,6 +20,7 @@ add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
   hdchain.cpp
   interfaces.cpp
   load.cpp
+  platformkeys.cpp
   receive.cpp
   rpc/addresses.cpp
   rpc/backup.cpp
@@ -42,6 +43,7 @@ target_link_libraries(bitcoin_wallet
     core_interface
     bitcoin_common
     leveldb
+    secp256k1
     dashbls
     univalue
     Boost::headers
