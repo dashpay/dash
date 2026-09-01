@@ -633,12 +633,17 @@ unset(warn_interface_flags)
 
 if(ENABLE_STACKTRACES)
   include(CheckIncludeFileCXX)
-  check_include_file_cxx(backtrace.h HAVE_BACKTRACE_H)
   if(NOT WIN32)
     check_include_file_cxx(execinfo.h HAVE_EXECINFO_H)
   endif()
+  # backtrace.h ships with libbacktrace, which for release builds lives only in
+  # the depends prefix. check_include_file_cxx() compiles with just
+  # CMAKE_REQUIRED_INCLUDES, which no longer sees that prefix, so probe with
+  # find_path(): it honours CMAKE_FIND_ROOT_PATH the same way the find_library()
+  # below already does.
+  find_path(BACKTRACE_INCLUDE_DIR NAMES backtrace.h)
   find_library(BACKTRACE_LIBRARY NAMES backtrace)
-  if(NOT HAVE_BACKTRACE_H OR NOT BACKTRACE_LIBRARY OR (NOT WIN32 AND NOT HAVE_EXECINFO_H))
+  if(NOT BACKTRACE_INCLUDE_DIR OR NOT BACKTRACE_LIBRARY OR (NOT WIN32 AND NOT HAVE_EXECINFO_H))
     message(WARNING "libbacktrace was not found, stacktraces will be disabled.")
     list(APPEND configure_warnings "Stack traces disabled: libbacktrace not found.")
     set(ENABLE_STACKTRACES OFF)
@@ -650,6 +655,7 @@ if(ENABLE_STACKTRACES)
   add_library(stacktraces_interface INTERFACE)
   target_link_libraries(core_interface INTERFACE stacktraces_interface)
   target_link_libraries(stacktraces_interface INTERFACE ${BACKTRACE_LIBRARY})
+  target_include_directories(stacktraces_interface SYSTEM INTERFACE ${BACKTRACE_INCLUDE_DIR})
   if(WIN32)
     target_link_libraries(stacktraces_interface INTERFACE dbghelp)
   else()
@@ -668,9 +674,10 @@ if(ENABLE_STACKTRACES)
       try_append_linker_flag("-rdynamic" TARGET stacktraces_interface)
     endif()
     unset(linker_supports_export_dynamic)
-    # More modern compilers may emit DWARF 5 binaries by default, which
-    # libbacktrace cannot parse.
-    try_append_cxx_flags("-gdwarf-4" TARGET stacktraces_interface SKIP_LINK)
+    # No DWARF version pin here: the libbacktrace pinned in depends understands
+    # DWARF 5, so the compiler's default debug format is used as-is. A -gdwarf-4
+    # pin used to live here and, being a -g-family flag, also forced debug
+    # level 2 onto every target that links core_interface.
     if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
       try_append_cxx_flags("-fno-standalone-debug" TARGET stacktraces_interface SKIP_LINK)
     endif()
@@ -785,6 +792,8 @@ message("  ZeroMQ .............................. ${WITH_ZMQ}")
 message("  USDT tracing ........................ ${WITH_USDT}")
 message("  QR code (GUI) ....................... ${WITH_QRENCODE}")
 message("  DBus (GUI, Linux only) .............. ${WITH_DBUS}")
+message("  stack traces ........................ ${ENABLE_STACKTRACES}")
+message("  crash hooks ......................... ${ENABLE_CRASH_HOOKS}")
 message("Tests:")
 message("  test_bitcoin ........................ ${BUILD_TESTS}")
 message("  test_bitcoin-qt ..................... ${BUILD_GUI_TESTS}")

@@ -147,6 +147,21 @@ if(BUILD_CONSENSUS_LIB)
       dashbls
       secp256k1
   )
+  # libdashconsensus_la carries no -version-info, so libtool builds it as
+  # 0:0:0 and installs libdashconsensus.so.0.0.0 with an .so.0 soname. Match
+  # that here, otherwise consumers linked against an Autotools install cannot
+  # resolve DT_NEEDED against a CMake one.
+  set_target_properties(dashconsensus PROPERTIES VERSION 0.0.0 SOVERSION 0)
+  if(APPLE)
+    # libtool derives the Mach-O versions as (current - age + 1), so 0:0:0
+    # yields 1.0.0 where CMake would otherwise take them from the properties
+    # above and emit 0.0.0. dyld refuses a library whose compatibility version
+    # is below the one recorded in the consumer, so set them explicitly.
+    set_target_properties(dashconsensus PROPERTIES
+      MACHO_COMPATIBILITY_VERSION 1.0.0
+      MACHO_CURRENT_VERSION 1.0.0
+    )
+  endif()
   install(TARGETS dashconsensus
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
