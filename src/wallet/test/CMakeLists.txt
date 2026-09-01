@@ -14,6 +14,7 @@ target_sources(test_bitcoin
     coinselector_tests.cpp
     init_tests.cpp
     ismine_tests.cpp
+    platformkeys_tests.cpp
     psbt_wallet_tests.cpp
     rpc_util_tests.cpp
     scriptpubkeyman_tests.cpp
@@ -22,6 +23,7 @@ target_sources(test_bitcoin
     wallet_tests.cpp
     wallet_transaction_tests.cpp
     walletdb_tests.cpp
+    walletload_tests.cpp
 )
 if(USE_BDB)
   target_sources(test_bitcoin
