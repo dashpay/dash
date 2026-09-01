@@ -34,6 +34,9 @@ if(ENABLE_WALLET)
   target_sources(test_bitcoin-qt
     PRIVATE
       addressbooktests.cpp
+      masternodemaintenancetests.cpp
+      masternodewidgettests.cpp
+      providertransactiontests.cpp
       wallettests.cpp
       ../../wallet/test/wallet_test_fixture.cpp
   )
