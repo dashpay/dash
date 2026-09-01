@@ -106,6 +106,25 @@ function(remove_cxx_flag_from_all_configs flag)
   endforeach()
 endfunction()
 
+function(append_flag_to_config lang config flag)
+  string(TOUPPER "${config}" config_uppercase)
+  set(flags_var CMAKE_${lang}_FLAGS_${config_uppercase})
+  set(flags "${${flags_var}}")
+  separate_arguments(flags)
+  # Appending unconditionally would re-append on every reconfigure, because the
+  # value read back here is the one this function forced into the cache last time.
+  if(NOT "${flag}" IN_LIST flags)
+    list(APPEND flags "${flag}")
+  endif()
+  list(JOIN flags " " new_flags)
+  set(${flags_var} "${new_flags}" PARENT_SCOPE)
+  set(${flags_var} "${new_flags}"
+    CACHE STRING
+    "Flags used by the ${lang} compiler during ${config_uppercase} builds."
+    FORCE
+  )
+endfunction()
+
 function(replace_cxx_flag_in_config config old_flag new_flag)
   string(TOUPPER "${config}" config_uppercase)
   string(REGEX REPLACE "(^| )${old_flag}( |$)" "\\1${new_flag}\\2" new_flags "${CMAKE_CXX_FLAGS_${config_uppercase}}")
@@ -140,6 +159,39 @@ else()
   # Adjust flags used by the CXX compiler during RELEASE builds.
   # Prefer -O2 optimization level. (-O3 is CMake's default for Release for many compilers.)
   replace_cxx_flag_in_config(Release -O3 -O2)
+
+  # Autotools always keeps at least -g1 on non-debug builds so libbacktrace can
+  # still symbolize a crash, with -fno-omit-frame-pointer to keep the result
+  # usable under optimization; see the non-debug branch in configure.ac, which
+  # sets both DEBUG_CFLAGS and DEBUG_CXXFLAGS. These belong on the configuration
+  # rather than on stacktraces_interface: flags carried on a target are appended
+  # after the per-configuration ones, so a debug level set there would clamp
+  # every configuration to it. RelWithDebInfo already carries -g and only needs
+  # the frame pointer.
+  include(CheckCCompilerFlag)
+  try_append_cxx_flags("-g1" RESULT_VAR cxx_supports_g1)
+  check_c_compiler_flag("-g1" C_SUPPORTS_G1)
+  foreach(config IN ITEMS Release MinSizeRel)
+    if(cxx_supports_g1)
+      append_flag_to_config(CXX ${config} -g1)
+    endif()
+    if(C_SUPPORTS_G1)
+      append_flag_to_config(C ${config} -g1)
+    endif()
+  endforeach()
+  unset(cxx_supports_g1)
+
+  try_append_cxx_flags("-fno-omit-frame-pointer" RESULT_VAR cxx_supports_no_omit_fp)
+  check_c_compiler_flag("-fno-omit-frame-pointer" C_SUPPORTS_NO_OMIT_FP)
+  foreach(config IN ITEMS Release RelWithDebInfo MinSizeRel)
+    if(cxx_supports_no_omit_fp)
+      append_flag_to_config(CXX ${config} -fno-omit-frame-pointer)
+    endif()
+    if(C_SUPPORTS_NO_OMIT_FP)
+      append_flag_to_config(C ${config} -fno-omit-frame-pointer)
+    endif()
+  endforeach()
+  unset(cxx_supports_no_omit_fp)
 
   are_flags_overridden(CMAKE_CXX_FLAGS_DEBUG cxx_flags_debug_overridden)
   if(NOT cxx_flags_debug_overridden)
