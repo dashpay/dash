@@ -36,6 +36,7 @@ add_executable(fuzz
   decode_tx.cpp
   descriptor_parse.cpp
   deserialize.cpp
+  dkg_message_framing.cpp
   eval_script.cpp
   fee_rate.cpp
   fees.cpp
@@ -117,6 +118,7 @@ target_link_libraries(fuzz
   test_fuzz
   bitcoin_cli
   bitcoin_common
+  dashbls
   minisketch
   leveldb
   univalue

@@ -183,8 +183,16 @@ if(ENABLE_WALLET)
       descriptiondialog.h
       editaddressdialog.cpp
       editaddressdialog.h
+      masternodedialogs.cpp
+      masternodedialogs.h
       masternodelist.cpp
       masternodelist.h
+      masternodeoperationrunner.cpp
+      masternodeoperationrunner.h
+      masternodewidgets.cpp
+      masternodewidgets.h
+      masternodewizard.cpp
+      masternodewizard.h
       mnemonicverificationdialog.cpp
       mnemonicverificationdialog.h
       openuridialog.cpp
@@ -271,6 +279,7 @@ target_link_libraries(bitcoin-qt
   core_interface
   bitcoinqt
   bitcoin_node
+  dashbls
 )
 
 import_plugins(bitcoin-qt)

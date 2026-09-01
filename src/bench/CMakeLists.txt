@@ -20,11 +20,13 @@ add_executable(bench_bitcoin
   bls_dkg.cpp
   bls_pubkey_agg.cpp
   block_assemble.cpp
+  blockfilter_index.cpp
   ccoins_caching.cpp
   chacha20.cpp
   checkblock.cpp
   checkqueue.cpp
   crypto_hash.cpp
+  descriptors.cpp
   duplicate_inputs.cpp
   ecdsa.cpp
   ellswift.cpp
