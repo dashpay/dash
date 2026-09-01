@@ -45,7 +45,9 @@ endif()
 message("")
 message("Configuring secp256k1 subtree...")
 set(SECP256K1_DISABLE_SHARED ON CACHE BOOL "" FORCE)
-set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
+# The ECDH module is required by the wallet's Platform key provider
+# (DashPay contact request encryption, wallet/platformkeys.cpp).
+set(SECP256K1_ENABLE_MODULE_ECDH ON CACHE BOOL "" FORCE)
 set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
@@ -193,7 +195,6 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   evo/providertx_util.cpp
   external_signer.cpp
   governance/common.cpp
-  governance/core_write.cpp
   init/common.cpp
   key.cpp
   key_io.cpp
@@ -297,6 +298,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   evo/mnauth.cpp
   evo/mnhftx.cpp
   evo/providertx.cpp
+  evo/providertx_service.cpp
   evo/simplifiedmns.cpp
   evo/smldiff.cpp
   evo/specialtx.cpp
@@ -365,6 +367,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/blockstorage.cpp
   node/caches.cpp
   node/chainstate.cpp
+  node/chainstatemanager_args.cpp
   node/coin.cpp
   node/connection_types.cpp
   node/context.cpp
@@ -380,6 +383,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/transaction.cpp
   node/txreconciliation.cpp
   node/utxo_snapshot.cpp
+  node/validation_cache_args.cpp
   noui.cpp
   policy/fees.cpp
   policy/fees_args.cpp
@@ -390,9 +394,9 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   rpc/blockchain.cpp
   rpc/coinjoin.cpp
   rpc/evo.cpp
-  rpc/evo_util.cpp
   rpc/fees.cpp
   rpc/governance.cpp
+  rpc/json_help.cpp
   rpc/masternode.cpp
   rpc/mempool.cpp
   rpc/mining.cpp
@@ -451,6 +455,7 @@ if(BUILD_DAEMON)
   target_link_libraries(bitcoind
     core_interface
     bitcoin_node
+    dashbls
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoind PROPERTIES OUTPUT_NAME dashd)
@@ -465,6 +470,7 @@ if(WITH_MULTIPROCESS)
     core_interface
     bitcoin_node
     bitcoin_ipc
+    dashbls
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoin-node PROPERTIES OUTPUT_NAME dash-node)

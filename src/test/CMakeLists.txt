@@ -75,6 +75,7 @@ add_executable(test_bitcoin
   denialofservice_tests.cpp
   descriptor_tests.cpp
   dip0020opcodes_tests.cpp
+  dip14_tests.cpp
   dynamic_activation_thresholds_tests.cpp
   evo_assetlocks_tests.cpp
   evo_cbtx_tests.cpp
@@ -110,6 +111,7 @@ add_executable(test_bitcoin
   llmq_hash_tests.cpp
   llmq_invalid_type_tests.cpp
   llmq_params_tests.cpp
+  llmq_qgetdata_tests.cpp
   llmq_snapshot_tests.cpp
   llmq_utils_tests.cpp
   logging_tests.cpp
