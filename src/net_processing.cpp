@@ -1739,8 +1739,8 @@ void PeerManagerImpl::ReattemptInitialBroadcast(CScheduler& scheduler)
 void PeerManagerImpl::FinalizeNode(const CNode& node) {
     NodeId nodeid = node.GetId();
     int misbehavior{0};
-    LOCK(cs_main);
     {
+    LOCK(cs_main);
     {
         // We remove the PeerRef from g_peer_map here, but we don't always
         // destruct the Peer. Sometimes another thread is still holding a
