@@ -12,4 +12,4 @@ android_CXXFLAGS=-std=$(CXX_STANDARD)
 android_AR=$(ANDROID_TOOLCHAIN_BIN)/llvm-ar
 android_RANLIB=$(ANDROID_TOOLCHAIN_BIN)/llvm-ranlib
 
-android_cmake_system=Android
+android_cmake_system_name=Android
