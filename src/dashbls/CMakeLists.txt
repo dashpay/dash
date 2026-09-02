@@ -123,18 +123,18 @@ add_subdirectory(src)
 
 # Write include paths for rust binding
 if(EMSCRIPTEN)
-  file(APPEND "${CMAKE_CURRENT_LIST_DIR}/build/include_paths.txt" "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}/c++/v1/;")
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/include_paths.txt" "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}/c++/v1/;")
 endif()
 
-file(APPEND "${CMAKE_CURRENT_LIST_DIR}/build/include_paths.txt" "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES};")
+file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/include_paths.txt" "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES};")
 
 if(GMP_INCLUDES)
-  file(APPEND "${CMAKE_CURRENT_LIST_DIR}/build/include_paths.txt" "${GMP_INCLUDES};")
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/include_paths.txt" "${GMP_INCLUDES};")
 endif()
 
 # Write gmp library path for rust binding
 if(GMP_LIBRARIES)
-  file(APPEND "${CMAKE_CURRENT_LIST_DIR}/build/gmp_libraries.txt" "${GMP_LIBRARIES}")
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/gmp_libraries.txt" "${GMP_LIBRARIES}")
 endif()
 
 if(EMSCRIPTEN)
