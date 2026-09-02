@@ -32,11 +32,15 @@ cd dash
 
 ### 4. vcpkg
 
-The presets below reference `$env{VCPKG_ROOT}`. Set it to the vcpkg instance
-shipped with Visual Studio, or to your own clone, before configuring:
+The presets below reference `$env{VCPKG_ROOT}`. If you already have a vcpkg
+clone, point the variable at it. Otherwise use the instance shipped with Visual
+Studio: "Developer PowerShell for VS 2022" exposes the installation directory as
+`$env:VSINSTALLDIR`, so this works for any edition and install location:
 ```
-$env:VCPKG_ROOT = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\vcpkg"
+if (-not $env:VCPKG_ROOT) { $env:VCPKG_ROOT = Join-Path $env:VSINSTALLDIR "VC\vcpkg" }
+Test-Path (Join-Path $env:VCPKG_ROOT "scripts\buildsystems\vcpkg.cmake")
 ```
+The second command must print `True` before configuring.
 
 ## Triplets and Presets
 
