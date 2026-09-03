@@ -17,3 +17,4 @@ export RUN_FUZZ_TESTS=true
 export GOAL="install"
 export BITCOIN_CONFIG="--enable-zmq --enable-fuzz --with-sanitizers=fuzzer,address,undefined,float-divide-by-zero,integer \
 CC='clang-19 -ftrivial-auto-var-init=pattern' CXX='clang++-19 -ftrivial-auto-var-init=pattern'"
+export LLVM_SYMBOLIZER_PATH="/usr/bin/llvm-symbolizer-17"

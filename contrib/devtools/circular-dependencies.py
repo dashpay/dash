@@ -6,7 +6,7 @@
 import sys
 import re
 import multiprocessing
-from typing import Dict, List, Set
+from multiprocess import Pool # type: ignore[import]
 
 MAPPING = {
     'core_read.cpp': 'core_io.cpp',
@@ -38,13 +38,13 @@ def module_name(path):
     return None
 
 files = dict()
-deps: Dict[str, Set[str]] = dict()
+deps: dict[str, Set[str]] = dict()
 
 # Defined at module level (reading the global `deps`) so it pickles by reference
 # for multiprocessing.Pool; forked workers inherit the populated `deps`.
 def handle_module2(module):
     # Build the transitive closure of dependencies of module
-    closure: Dict[str, List[str]] = dict()
+    closure: dict[str, list[str]] = dict()
     for dep in deps[module]:
         closure[dep] = []
     while True:

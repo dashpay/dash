@@ -13,7 +13,7 @@ import dns.resolver
 import collections
 import json
 import multiprocessing
-from typing import List, Dict, Union
+from typing import Union
 
 NSEEDS=512
 
@@ -76,28 +76,28 @@ def parseip(ip_in: str) -> Union[dict, None]:
         "sortkey": sortkey
     }
 
-def filtermulticollateralhash(mns : List[Dict]) -> List[Dict]:
+def filtermulticollateralhash(mns : list[dict]) -> list[dict]:
     '''Filter out MNs sharing the same collateral hash'''
     hist = collections.defaultdict(list)
     for mn in mns:
         hist[mn['collateralHash']].append(mn)
     return [mn for mn in mns if len(hist[mn['collateralHash']]) == 1]
 
-def filtermulticollateraladdress(mns : List[Dict]) -> List[Dict]:
+def filtermulticollateraladdress(mns : list[dict]) -> list[dict]:
     '''Filter out MNs sharing the same collateral address'''
     hist = collections.defaultdict(list)
     for mn in mns:
         hist[mn['collateralAddress']].append(mn)
     return [mn for mn in mns if len(hist[mn['collateralAddress']]) == 1]
 
-def filtermultipayoutaddress(mns : List[Dict]) -> List[Dict]:
+def filtermultipayoutaddress(mns : list[dict]) -> list[dict]:
     '''Filter out MNs sharing the same payout address'''
     hist = collections.defaultdict(list)
     for mn in mns:
         hist[mn['state']['payoutAddress']].append(mn)
     return [mn for mn in mns if len(hist[mn['state']['payoutAddress']]) == 1]
 
-def resolveasn(resolver, ip : Dict) -> Union[int, None]:
+def resolveasn(resolver, ip : dict) -> Union[int, None]:
     """ Look up the asn for an `ip` address by querying cymru.com
     on network `net` (e.g. ipv4 or ipv6).
 
@@ -124,7 +124,7 @@ def resolveasn(resolver, ip : Dict) -> Union[int, None]:
         return None
 
 # Based on Greg Maxwell's seed_filter.py
-def filterbyasn(ips: List[Dict], max_per_asn: Dict, max_per_net: int) -> List[Dict]:
+def filterbyasn(ips: list[dict], max_per_asn: dict, max_per_net: int) -> list[dict]:
     """ Prunes `ips` by
     (a) trimming ips to have at most `max_per_net` ips from each net (e.g. ipv4, ipv6); and
     (b) trimming ips to have at most `max_per_asn` ips from each asn in each net.
@@ -144,8 +144,8 @@ def filterbyasn(ips: List[Dict], max_per_asn: Dict, max_per_net: int) -> List[Di
 
     # Filter IPv46 by ASN, and limit to max_per_net per network
     result = []
-    net_count: Dict[str, int] = collections.defaultdict(int)
-    asn_count: Dict[int, int] = collections.defaultdict(int)
+    net_count: dict[str, int] = collections.defaultdict(int)
+    asn_count: dict[int, int] = collections.defaultdict(int)
 
     for i, ip in enumerate(ips_ipv46):
         if i % 10 == 0:
@@ -169,9 +169,9 @@ def filterbyasn(ips: List[Dict], max_per_asn: Dict, max_per_net: int) -> List[Di
     result.extend(ips_onion[0:max_per_net])
     return result
 
-def ip_stats(ips: List[Dict]) -> str:
+def ip_stats(ips: list[dict]) -> str:
     """ Format and return pretty string from `ips`. """
-    hist: Dict[str, int] = collections.defaultdict(int)
+    hist: dict[str, int] = collections.defaultdict(int)
     for ip in ips:
         if ip is not None:
             hist[ip['net']] += 1

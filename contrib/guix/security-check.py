@@ -13,7 +13,6 @@ Example usage:
 '''
 import re
 import sys
-from typing import List
 
 import lief
 
@@ -277,7 +276,7 @@ if __name__ == '__main__':
         arch = binary.abstract.header.architecture
         binary.concrete
 
-        failed: List[str] = []
+        failed: list[str] = []
         for (name, func) in CHECKS[etype][arch]:
             if not func(binary):
                 failed.append(name)

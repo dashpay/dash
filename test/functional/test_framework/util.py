@@ -21,7 +21,8 @@ import urllib.parse
 
 from . import coverage
 from .authproxy import AuthServiceProxy, JSONRPCException
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 logger = logging.getLogger("TestFramework.utils")
 
@@ -310,10 +311,6 @@ def sha256sum_file(filename):
             d = f.read(4096)
     return h.digest()
 
-# TODO: Remove and use random.randbytes(n) directly
-def random_bytes(n):
-    """Return a random bytes object of length n."""
-    return random.randbytes(n)
 
 # RPC/P2P connection constants and functions
 ############################################
