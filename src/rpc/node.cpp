@@ -35,6 +35,7 @@
 
 #include <masternode/sync.h>
 #include <spork.h>
+#include <util/time.h>
 
 #include <stdint.h>
 #ifdef HAVE_MALLOC_INFO
@@ -267,9 +268,11 @@ static RPCHelpMan setmocktime()
 
     RPCTypeCheck(request.params, {UniValue::VNUM});
     const int64_t time{request.params[0].getInt<int64_t>()};
-    if (time < 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Mocktime cannot be negative: %s.", time));
+    constexpr int64_t max_time{Ticks<std::chrono::seconds>(std::chrono::nanoseconds::max())};
+    if (time < 0 || time > max_time) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Mocktime must be in the range [0, %s], not %s.", max_time, time));
     }
+
     SetMockTime(time);
     if (auto* node_context = GetContext<NodeContext>(request.context)) {
         for (const auto& chain_client : node_context->chain_clients) {
