@@ -59,7 +59,8 @@ enum class DBErrors
     LOAD_FAIL,
     NEED_REWRITE,
     NEED_RESCAN,
-    UNKNOWN_DESCRIPTOR
+    UNKNOWN_DESCRIPTOR,
+    UNEXPECTED_LEGACY_ENTRY
 };
 
 namespace DBKeys {

@@ -10,6 +10,7 @@
 #include <script/standard.h>
 
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,7 +21,7 @@ enum class OutputType {
 
 extern const std::array<OutputType, 1> OUTPUT_TYPES;
 
-[[nodiscard]] bool ParseOutputType(const std::string& str, OutputType& output_type);
+std::optional<OutputType> ParseOutputType(const std::string& str);
 const std::string& FormatOutputType(OutputType type);
 
 /**

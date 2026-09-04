@@ -368,6 +368,8 @@ public:
     std::map<std::pair<uint256, CKeyID>, std::pair<std::vector<unsigned char>, std::vector<unsigned char>>> crypted_mnemonics;
     bool tx_corrupt{false};
     bool descriptor_unknown{false};
+    bool unexpected_legacy_entry{false};
+
     CWalletScanState() = default;
 };
 
@@ -383,6 +385,11 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         // If we have a filter, check if this matches the filter
         if (filter_fn && !filter_fn(strType)) {
             return true;
+        }
+        // Legacy entries in descriptor wallets are not allowed, abort immediately
+        if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && DBKeys::LEGACY_TYPES.count(strType) > 0) {
+            wss.unexpected_legacy_entry = true;
+            return false;
         }
         if (strType == DBKeys::NAME) {
             std::string strAddress;
@@ -918,6 +925,12 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
             std::string strType, strErr;
             if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr))
             {
+                if (wss.unexpected_legacy_entry) {
+                    strErr = strprintf("Error: Unexpected legacy entry found in descriptor wallet %s. ", pwallet->GetName());
+                    strErr += "The wallet might have been tampered with or created with malicious intent.";
+                    pwallet->WalletLogPrintf("%s\n", strErr);
+                    return DBErrors::UNEXPECTED_LEGACY_ENTRY;
+                }
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
                 if (IsKeyType(strType) || strType == DBKeys::DEFAULTKEY) {

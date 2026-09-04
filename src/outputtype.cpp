@@ -13,6 +13,7 @@
 #include <util/vector.h>
 
 #include <assert.h>
+#include <optional>
 #include <string>
 
 static const std::string OUTPUT_TYPE_STRING_LEGACY = "legacy";
@@ -20,13 +21,14 @@ static const std::string OUTPUT_TYPE_STRING_UNKNOWN = "unknown";
 
 const std::array<OutputType, 1> OUTPUT_TYPES = {OutputType::LEGACY};
 
-bool ParseOutputType(const std::string& type, OutputType& output_type)
+std::optional<OutputType> ParseOutputType(const std::string& type)
 {
     if (type == OUTPUT_TYPE_STRING_LEGACY) {
-        output_type = OutputType::LEGACY;
-        return true;
+        return OutputType::LEGACY;
+    } else if (type == OUTPUT_TYPE_STRING_UNKNOWN) {
+        return OutputType::UNKNOWN;
     }
-    return false;
+    return std::nullopt;
 }
 
 const std::string& FormatOutputType(OutputType type)

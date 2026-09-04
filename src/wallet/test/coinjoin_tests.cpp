@@ -264,7 +264,7 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_tests, CTransactionBuilderT
             LOCK(wallet->cs_wallet);
             bool fFoundPending{false};
             bool fFoundFree{false};
-            for (const auto& out : AvailableCoinsListUnspent(*wallet).all()) {
+            for (const auto& out : AvailableCoinsListUnspent(*wallet).All()) {
                 fFoundPending |= out.outpoint == outpointPending;
                 fFoundFree |= out.outpoint == outpointTimeout;
             }

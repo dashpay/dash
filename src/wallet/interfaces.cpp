@@ -23,6 +23,7 @@
 #include <util/translation.h>
 #include <util/ui_change_type.h>
 #include <validation.h>
+#include <wallet/coincontrol.h>
 #include <wallet/coinjoin.h>
 #include <wallet/context.h>
 #include <wallet/fees.h>
@@ -468,20 +469,31 @@ public:
 
         CCoinControl coin_control;
         coin_control.destChange = fund_destination;
-        coin_control.fRequireAllInputs = false;
-        for (const auto& output : AvailableCoinsListUnspent(*m_wallet).all()) {
+        // Spend only from fund_destination
+        coin_control.m_allow_other_inputs = false;
+        std::vector<COutput> address_coins;
+        for (const auto& output : AvailableCoinsListUnspent(*m_wallet).All()) {
             CTxDestination destination;
             if (ExtractDestination(output.txout.scriptPubKey, destination) && destination == fund_destination) {
-                coin_control.Select(output.outpoint);
+                address_coins.push_back(output);
             }
         }
-        if (!coin_control.HasSelected()) {
+        if (address_coins.empty()) {
             return util::Error{
                 strprintf(Untranslated("No funds at specified address %s"), EncodeDestination(fund_destination))};
         }
 
-        auto result{CreateTransaction(*m_wallet, recipients, RANDOM_CHANGE_POSITION, coin_control,
-                                      /*sign=*/true, tx.vExtraPayload.size())};
+        // Every selected coin is force-spent, so select as few as possible: largest
+        // first, adding another one only while they don't cover amount plus fees
+        std::sort(address_coins.begin(), address_coins.end(),
+                  [](const COutput& a, const COutput& b) { return a.txout.nValue > b.txout.nValue; });
+        util::Result<CreatedTransactionResult> result{util::Error{}};
+        for (const COutput& coin : address_coins) {
+            coin_control.Select(coin.outpoint);
+            result = CreateTransaction(*m_wallet, recipients, RANDOM_CHANGE_POSITION, coin_control,
+                                       /*sign=*/true, tx.vExtraPayload.size());
+            if (result) break;
+        }
         if (!result) return util::Error{util::ErrorString(result)};
 
         tx.vin = result->tx->vin;
@@ -654,9 +666,25 @@ public:
     {
         if (coin_control.IsUsingCoinJoin()) {
             return GetBalanceAnonymized(*m_wallet, coin_control);
-        } else {
-            return GetAvailableBalance(*m_wallet, &coin_control);
         }
+        LOCK(m_wallet->cs_wallet);
+        CAmount total_amount = 0;
+        // Fetch selected coins total amount
+        if (coin_control.HasSelected()) {
+            FastRandomContext rng{};
+            CoinSelectionParams params(rng);
+            // Note: for now, swallow any error.
+            if (auto res = FetchSelectedInputs(*m_wallet, coin_control, params)) {
+                total_amount += res->total_amount;
+            }
+        }
+
+        // And fetch the wallet available coins
+        if (coin_control.m_allow_other_inputs) {
+            total_amount += AvailableCoins(*m_wallet, &coin_control).total_amount;
+        }
+
+        return total_amount;
     }
     wallet::isminetype txinIsMine(const CTxIn& txin) override
     {

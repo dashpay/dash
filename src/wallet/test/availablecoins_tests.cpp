@@ -74,8 +74,8 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, AvailableCoinsTestingSetup)
         LOCK(wallet->cs_wallet);
         available_coins = AvailableCoins(*wallet);
     }
-    BOOST_CHECK_EQUAL(available_coins.size(), 1U);
-    BOOST_CHECK_EQUAL(available_coins.other.size(), 1U);
+    BOOST_CHECK_EQUAL(available_coins.Size(), 1U);
+    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::UNKNOWN].size(), 1U);
 
     // We will create a self transfer for each of the OutputTypes and
     // verify it is put in the correct bucket after running GetAvailablecoins
@@ -95,7 +95,7 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, AvailableCoinsTestingSetup)
         LOCK(wallet->cs_wallet);
         available_coins = AvailableCoins(*wallet);
     }
-    BOOST_CHECK_EQUAL(available_coins.legacy.size(), 2U);
+    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::LEGACY].size(), 2U);
 }
 
 BOOST_FIXTURE_TEST_CASE(UnconfirmableOutputsAreNotWalletFunds, AvailableCoinsTestingSetup)
@@ -165,7 +165,7 @@ BOOST_FIXTURE_TEST_CASE(AbandonedSpendReleasesItsInputs, AvailableCoinsTestingSe
     LOCK(wallet->cs_wallet);
 
     const CoinsResult before{AvailableCoins(*wallet)};
-    BOOST_CHECK(before.size() > 0);
+    BOOST_CHECK(before.Size() > 0);
 
     CCoinControl coin_control;
     auto created{CreateTransaction(*wallet, {CRecipient{{GetScriptForRawPubKey(coinbaseKey.GetPubKey())}, 1 * COIN,
@@ -181,13 +181,13 @@ BOOST_FIXTURE_TEST_CASE(AbandonedSpendReleasesItsInputs, AvailableCoinsTestingSe
 
     // The transaction is only in the wallet: never broadcast, never mined.
     BOOST_CHECK(wallet->AddToWallet(tx, TxStateInactive{}));
-    BOOST_CHECK(AvailableCoins(*wallet).size() < before.size());
+    BOOST_CHECK(AvailableCoins(*wallet).Size() < before.Size());
     BOOST_CHECK(wallet->CountInputsWithAmount(input_amount) < inputs_before);
 
     // Abandoning it makes the coins it spent available again, without a reload.
     BOOST_CHECK(wallet->AbandonTransaction(tx->GetHash()));
     const CoinsResult after{AvailableCoins(*wallet)};
-    BOOST_CHECK_EQUAL(after.size(), before.size());
+    BOOST_CHECK_EQUAL(after.Size(), before.Size());
     BOOST_CHECK_EQUAL(after.total_amount, before.total_amount);
     BOOST_CHECK_EQUAL(wallet->CountInputsWithAmount(input_amount), inputs_before);
 

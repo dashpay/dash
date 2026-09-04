@@ -327,7 +327,7 @@ BOOST_FIXTURE_TEST_CASE(friendship_own_chain_is_spendable, FriendshipWalletSetup
 
     CCoinControl coin_control;
     coin_control.m_include_unsafe_inputs = true;
-    BOOST_CHECK_EQUAL(AvailableCoins(*m_wallet, &coin_control).size(), 1U);
+    BOOST_CHECK_EQUAL(AvailableCoins(*m_wallet, &coin_control).Size(), 1U);
 }
 
 //! The contact's receiving chain must never become ours. If it did, payments to
@@ -677,7 +677,7 @@ BOOST_FIXTURE_TEST_CASE(recovery_import_after_restore_is_spendable, SeededWallet
 
     CCoinControl coin_control;
     coin_control.m_include_unsafe_inputs = true;
-    BOOST_CHECK_EQUAL(AvailableCoins(*m_wallet_b, &coin_control).size(), 1U);
+    BOOST_CHECK_EQUAL(AvailableCoins(*m_wallet_b, &coin_control).Size(), 1U);
 }
 
 //! Recovery re-runs re-import friendships it already imported; that must
