@@ -50,42 +50,6 @@ bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
     return true;
 }
 
-CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee,
-                                 int64_t time, unsigned int entry_height,
-                                 bool spends_coinbase, int64_t sigops_count, LockPoints lp)
-    : tx{tx},
-      nFee{fee},
-      nTxSize(tx->GetTotalSize()),
-      nUsageSize{RecursiveDynamicUsage(tx)},
-      nTime{time},
-      entryHeight{entry_height},
-      spendsCoinbase{spends_coinbase},
-      sigOpCount{sigops_count},
-      m_modified_fee{nFee},
-      lockPoints{lp},
-      nSizeWithDescendants{GetTxSize()},
-      nModFeesWithDescendants{nFee},
-      nSizeWithAncestors{GetTxSize()},
-      nModFeesWithAncestors{nFee},
-      nSigOpCountWithAncestors{sigOpCount} {}
-
-void CTxMemPoolEntry::UpdateModifiedFee(CAmount newFeeDelta)
-{
-    nModFeesWithDescendants = SaturatingAdd(nModFeesWithDescendants, newFeeDelta);
-    nModFeesWithAncestors = SaturatingAdd(nModFeesWithAncestors, newFeeDelta);
-    m_modified_fee = SaturatingAdd(m_modified_fee, newFeeDelta);
-}
-
-void CTxMemPoolEntry::UpdateLockPoints(const LockPoints& lp)
-{
-    lockPoints = lp;
-}
-
-size_t CTxMemPoolEntry::GetTxSize() const
-{
-    return GetVirtualTransactionSize(nTxSize, sigOpCount, ::nBytesPerSigOp);
-}
-
 void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
                                       const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove)
 {

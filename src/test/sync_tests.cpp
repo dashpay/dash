@@ -131,12 +131,12 @@ BOOST_AUTO_TEST_CASE(inconsistent_lock_order_detected)
 #ifdef DEBUG_LOCKORDER
 BOOST_AUTO_TEST_CASE(double_lock_mutex)
 {
-    TestDoubleLock<Mutex>(true /* should throw */);
+    TestDoubleLock<Mutex>(/*should_throw=*/true);
 }
 
 BOOST_AUTO_TEST_CASE(double_lock_recursive_mutex)
 {
-    TestDoubleLock<RecursiveMutex>(false /* should not throw */);
+    TestDoubleLock<RecursiveMutex>(/*should_throw=*/false);
 }
 #endif /* DEBUG_LOCKORDER */
 

@@ -15,6 +15,7 @@
 #include <hash.h>
 #include <index/blockfilterindex.h>
 #include <index/txindex.h>
+#include <kernel/mempool_entry.h>
 #include <merkleblock.h>
 #include <net_types.h>
 #include <netbase.h>
@@ -328,7 +329,7 @@ struct Peer {
         std::atomic<std::chrono::seconds> m_last_mempool_req{0s};
         /** The next time after which we will send an `inv` message containing
          *  transaction announcements to this peer. */
-        std::chrono::microseconds m_next_inv_send_time GUARDED_BY(NetEventsInterface::g_msgproc_mutex){0};
+        std::chrono::microseconds m_next_inv_send_time GUARDED_BY(m_tx_inventory_mutex){0};
     };
 
     /**
@@ -1213,6 +1214,13 @@ static void PushInv(Peer& peer, const CInv& inv)
     }
 
     LOCK(inv_relay->m_tx_inventory_mutex);
+    // Only queue transactions for announcement once the version handshake
+    // is completed. The time of arrival for these transactions is
+    // otherwise at risk of leaking to a spy, if the spy is able to
+    // distinguish transactions received during the handshake from the rest
+    // in the announcement.
+    if (inv_relay->m_next_inv_send_time == 0s) return;
+
     if (inv_relay->m_tx_inventory_known_filter.contains(inv.hash)) {
         LogPrint(BCLog::NET, "%s -- skipping known inv: %s peer=%d\n", __func__, inv.ToString(), peer.m_id);
         return;
@@ -4144,6 +4152,20 @@ void PeerManagerImpl::ProcessMessage(
                 // our minimum supported version.
                 m_txreconciliation->ForgetPeer(pfrom.GetId());
             }
+        }
+
+        if (auto tx_relay = peer->GetTxRelay()) {
+            // `TxRelay::m_tx_inventory_to_send` must be empty before the
+            // version handshake is completed as
+            // `TxRelay::m_next_inv_send_time` is first initialised in
+            // `SendMessages` after the verack is received. Any transactions
+            // received during the version handshake would otherwise
+            // immediately be advertised without random delay, potentially
+            // leaking the time of arrival to a spy.
+            Assume(WITH_LOCK(
+                tx_relay->m_tx_inventory_mutex,
+                return tx_relay->m_tx_inventory_to_send.empty() &&
+                       tx_relay->m_next_inv_send_time == 0s));
         }
 
         pfrom.fSuccessfullyConnected = true;

@@ -115,6 +115,7 @@ iwyu_tool.py \
   "src/rpc/signmessage.cpp" \
   "src/test/fuzz/string.cpp" \
   "src/test/fuzz/txorphan.cpp" \
+  "src/test/fuzz/util/" \
   "src/util/bip32.cpp" \
   "src/util/bytevectorhash.cpp" \
   "src/util/check.cpp" \

@@ -76,7 +76,7 @@ void AppTests::appTests()
     m_app.parameterSetup();
     GUIUtil::loadFonts();
     GUIUtil::setApplicationFont();
-    QVERIFY(m_app.createOptionsModel(true /* reset settings */));
+    QVERIFY(m_app.createOptionsModel(/*resetSettings=*/true));
     QScopedPointer<const NetworkStyle> style(
         NetworkStyle::instantiate(Params().NetworkIDString()));
     m_app.createWindow(style.data());

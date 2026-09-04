@@ -10,6 +10,7 @@
 #include <chainparams.h>
 #include <core_io.h>
 #include <instantsend/instantsend.h>
+#include <kernel/mempool_entry.h>
 #include <node/mempool_persist_args.h>
 #include <policy/settings.h>
 #include <primitives/transaction.h>

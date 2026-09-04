@@ -4,6 +4,7 @@
 
 #include <bench/bench.h>
 #include <chainparamsbase.h>
+#include <kernel/mempool_entry.h>
 #include <rpc/mempool.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>

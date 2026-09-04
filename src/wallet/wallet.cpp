@@ -204,14 +204,14 @@ std::unique_ptr<interfaces::Handler> HandleLoadWallet(WalletContext& context, Lo
 {
     LOCK(context.wallets_mutex);
     auto it = context.wallet_load_fns.emplace(context.wallet_load_fns.end(), std::move(load_wallet));
-    return interfaces::MakeHandler([&context, it] { LOCK(context.wallets_mutex); context.wallet_load_fns.erase(it); });
+    return interfaces::MakeCleanupHandler([&context, it] { LOCK(context.wallets_mutex); context.wallet_load_fns.erase(it); });
 }
 
 std::unique_ptr<interfaces::Handler> HandleLoadWalletLoading(WalletContext& context, LoadWalletFn load_wallet)
 {
     LOCK(context.wallets_mutex);
     auto it = context.wallet_loading_fns.emplace(context.wallet_loading_fns.end(), std::move(load_wallet));
-    return interfaces::MakeHandler([&context, it] { LOCK(context.wallets_mutex); context.wallet_loading_fns.erase(it); });
+    return interfaces::MakeCleanupHandler([&context, it] { LOCK(context.wallets_mutex); context.wallet_loading_fns.erase(it); });
 }
 
 void NotifyWalletLoading(WalletContext& context, const std::shared_ptr<CWallet>& wallet)
@@ -2653,7 +2653,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
 util::Result<CTxDestination> CWallet::GetNewDestination(const std::string label)
 {
     LOCK(cs_wallet);
-    auto spk_man = GetScriptPubKeyMan(false /* internal */);
+    auto spk_man = GetScriptPubKeyMan(/*internal=*/false);
     if (!spk_man) {
         return util::Error{_("Error: No addresses available.")};
     }
