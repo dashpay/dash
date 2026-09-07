@@ -8,7 +8,7 @@ import base64
 import struct
 from decimal import Decimal
 
-from test_framework.messages import COIN, COutPoint, CTransaction, CTxIn, CTxOut, tx_from_hex
+from test_framework.messages import COIN, CBlock, COutPoint, CTransaction, CTxIn, CTxOut, from_hex, tx_from_hex
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, p2p_port
 from test_framework.util import (
@@ -38,9 +38,9 @@ class MasternodeSharesTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        self.set_dash_test_params(1, 0, extra_args=[[
+        self.set_dash_test_params(2, 0, extra_args=[[
             f"-vbparams=v24:{self.mocktime}:999999999999:{V24_MIN_ACTIVATION_HEIGHT}:10:8:6:5:0",
-        ]])
+        ]] * 2)
 
     def activate_v24(self):
         while not softfork_active(self.nodes[0], "v24"):
@@ -97,8 +97,49 @@ class MasternodeSharesTest(DashTestFramework):
         tx.vout.append(CTxOut(1, CScript(b"\x51")))
         return tx.serialize().hex()
 
+    def test_pending_registrar_update(self, node, protx_hash):
+        self.log.info("An operator rotation preserves pending share-owner-authorized updates")
+        pending_fee, mined_fee, share_fee = [node.getnewaddress() for _ in range(3)]
+        node.sendmany("", {pending_fee: 1, mined_fee: 1, share_fee: 1})
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+
+        pending_operator, mined_operator = [node.bls("generate")["public"] for _ in range(2)]
+        transactions = []
+        for operator, fee in ((pending_operator, pending_fee), (mined_operator, mined_fee)):
+            prepared = node.protx("update_shared_registrar_prepare", protx_hash, operator, "", fee)
+            sigs = node.protx("shared_sign", prepared["tx"])
+            transactions.append(node.protx("shared_combine", prepared["tx"], sigs))
+
+        self.connect_nodes(0, 1)
+        self.sync_all()
+        self.disconnect_nodes(0, 1)
+        pending_txid = node.sendrawtransaction(transactions[0])
+        reward = node.getnewaddress()
+        share_txid = node.protx("update_share", protx_hash, 0, reward, share_fee)
+        # Simulate another miner confirming a different rotation, using independent fee inputs.
+        # The pending registrar update is signed by the immutable share owners and remains valid.
+        other = self.nodes[1]
+        mined_txid = other.sendrawtransaction(transactions[1])
+        self.bump_mocktime(10 * 60 + 1)
+        mined_block = self.generate(other, 1, sync_fun=self.no_op)[0]
+        assert mined_txid in other.getblock(mined_block)["tx"]
+        self.connect_nodes(0, 1)
+        self.sync_blocks()
+        assert_equal(node.protx("info", protx_hash)["state"]["pubKeyOperator"], mined_operator)
+        assert_equal(set(node.getrawmempool()), {pending_txid, share_txid})
+
+        self.bump_mocktime(10 * 60 + 1)
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert {pending_txid, share_txid}.issubset(node.getblock(block_hash)["tx"])
+        state = node.protx("info", protx_hash)["state"]
+        assert_equal(state["pubKeyOperator"], pending_operator)
+        assert_equal(state["shares"][0]["rewardAddress"], reward)
+
     def run_test(self):
         node = self.nodes[0]
+        # Keep the second miner isolated during the invalid-block and local-reorg checks.
+        self.disconnect_nodes(0, 1)
 
         self.log.info("Shared masternode transactions are rejected before v24 activation")
         assert not softfork_active(node, "v24")
@@ -146,6 +187,10 @@ class MasternodeSharesTest(DashTestFramework):
         self.generateblock(node, pre_miner, [pre_tmpl_signed["hex"]], sync_fun=self.no_op)
 
         self.activate_v24()
+
+        self.log.info("A coinbase cannot create a shared collateral template output")
+        assert_raises_rpc_error(-1, "bad-shared-collateral-create", self.generateblock, node,
+                                f"raw({SHARED_COLLATERAL_SCRIPT})", [], sync_fun=self.no_op)
 
         # The same dissolution now clears the deployment gate and fails at the masternode lookup
         # instead, proving the pre-activation rejections above came from the gate itself
@@ -206,6 +251,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         raw = node.getrawtransaction(protx_hash, 1)
         assert_equal(raw["proRegTx"]["version"], 3)
+        assert "ownerAddress" not in raw["proRegTx"]
         assert_equal([s["refundAddress"] for s in raw["proRegTx"]["shares"]], [refund1, refund2])
         assert_equal([s["amount"] for s in raw["proRegTx"]["shares"]], [600 * COIN, 400 * COIN])
         # empty reward script falls back to the refund script
@@ -216,6 +262,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         info = node.protx("info", protx_hash)
         assert_equal(info["state"]["version"], 3)
+        assert "ownerAddress" not in info["state"]
         assert_equal([s["ownerAddress"] for s in info["state"]["shares"]], [owner1, owner2])
         assert "payoutAddress" not in info["state"]
         assert "payouts" not in info["state"]
@@ -224,6 +271,13 @@ class MasternodeSharesTest(DashTestFramework):
         # the payee list mode joins every share's effective reward address (here the refund
         # fallbacks, as no reward scripts are set yet)
         assert_equal(list(node.masternodelist("payee").values()), [f"{refund1}, {refund2}"])
+        owners = f"{owner1}, {owner2}"
+        assert_equal(list(node.masternodelist("owneraddress").values()), [owners])
+        for mode in ("json", "recent"):
+            entries = node.masternodelist(mode)
+            assert_equal([entry["owneraddress"] for entry in entries.values()], [owners])
+            for owner in (owner1, owner2):
+                assert_equal(node.masternodelist(mode, owner), entries)
         # the wallet holds the share owner keys and reward scripts, so the masternode is
         # attributed to it despite the null registrar owner key
         assert_equal(info["wallet"]["hasOwnerKey"], True)
@@ -349,6 +403,16 @@ class MasternodeSharesTest(DashTestFramework):
         self.log.info("A plain ProUpRegTx cannot update a shared masternode")
         assert_raises_rpc_error(-8, "masternode is shared", node.protx,
                                 "update_registrar", protx_hash, "", "", fee_addr)
+        # Bypass the wallet guard with a well-formed ordinary registrar payload. Consensus
+        # rejects the shared target before checking its dummy funding input or signature.
+        payout_script = bytes.fromhex(node.getaddressinfo(fee_addr)["scriptPubKey"])
+        ordinary_registrar = self.build_lifecycle_tx(
+            3, struct.pack("<H", 3) + bytes.fromhex(protx_hash)[::-1] + struct.pack("<H", 0) +
+            bytes.fromhex(info["state"]["pubKeyOperator"]) + b"\x01" * 20 +
+            bytes([1, len(payout_script)]) + payout_script + struct.pack("<H", 10000) +
+            b"\x00" * 32 + b"\x00")
+        assert_raises_rpc_error(-25, "bad-protx-shared-mn", self.generateblock, node, miner_addr,
+                                [ordinary_registrar], sync_fun=self.no_op)
 
         self.log.info("A unanimous registrar update changes the voting key")
         node.sendtoaddress(fee_addr, 1)
@@ -539,18 +603,34 @@ class MasternodeSharesTest(DashTestFramework):
         fee_addr2 = node.getnewaddress()
         node.sendtoaddress(fee_addr2, 1)
         self.generate(node, 1, sync_fun=self.no_op)
-        # Both transactions coexist in the mempool (no false provider conflict). The dissolution
-        # pays a high feerate so the assembler tends to order it first — the ordering that used to
-        # abort BuildNewListFromBlock.
+        # Both transactions coexist in the mempool (no false provider conflict).
         dissolve_txid = node.protx("dissolve", protx_hash3, 0, 500000)
         update_txid = node.protx("update_share", protx_hash3, 1, node.getnewaddress(), fee_addr2)
         mempool = node.getrawmempool()
         assert dissolve_txid in mempool
         assert update_txid in mempool
-        # Mining must not abort and must eventually confirm the dissolution (whether the pair lands
-        # in one block or the update mines first and the dissolution follows).
+        dissolve_tx = tx_from_hex(node.getrawtransaction(dissolve_txid))
+        update_tx = tx_from_hex(node.getrawtransaction(update_txid))
         self.bump_mocktime(10 * 60 + 1)
-        self.generate(node, 2, sync_fun=self.no_op)
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert {dissolve_txid, update_txid}.issubset(node.getblock(block_hash)["tx"])
+        block = from_hex(CBlock(), node.getblock(block_hash, 0))
+        # Keep quorum commitments and any fee-funding ancestors ahead of the lifecycle pair.
+        other_txs = [tx for tx in block.vtx
+                     if tx.nType not in (TRANSACTION_PROVIDER_DISSOLVE, TRANSACTION_PROVIDER_UPDATE_SHARE)]
+        assert_equal(len(block.vtx) - len(other_txs), 2)
+        node.invalidateblock(block_hash)
+        for txs in ([dissolve_tx, update_tx], [update_tx, dissolve_tx]):
+            block.vtx = other_txs + txs
+            block.nTime += 1
+            block.hashMerkleRoot = block.calc_merkle_root()
+            block.solve()
+            assert_equal(node.submitblock(block.serialize().hex()), None)
+            assert_equal(node.getbestblockhash(), block.hash)
+            assert_raises_rpc_error(None, None, node.protx, "info", protx_hash3)
+            if txs[0] == dissolve_tx:
+                node.invalidateblock(block.hash)
+                assert_equal(node.protx("info", protx_hash3)["state"]["shares"][1]["rewardAddress"], refund6)
         assert_equal(node.getrawmempool(), [])
         assert_raises_rpc_error(None, None, node.protx, "info", protx_hash3)
 
@@ -578,6 +658,13 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], refund7)
         node.reconsiderblock(update_block)
         assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], reward7)
+
+        self.test_pending_registrar_update(node, protx_hash4)
+
+        self.log.info("Shared state survives a node restart")
+        state_before_restart = node.protx("info", protx_hash4)["state"]
+        self.restart_node(0)
+        assert_equal(node.protx("info", protx_hash4)["state"], state_before_restart)
 
         self.log.info("A reorg across a dissolution restores the masternode and its shares")
         info_before_dissolve = node.protx("info", protx_hash4)

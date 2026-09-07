@@ -673,7 +673,6 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
         mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
         mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx_hash);
         auto dmn = Assert(m_dmnman.GetListAtChainTip().GetMN(proTx.proTxHash));
-        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
         if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
             newit->isKeyChangeProTx = true;
         }
@@ -989,11 +988,11 @@ void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const ui
         if (txit == mapTx.end()) {
             continue;
         }
-        // ProDisTx and ProUpShareTx are authorized by share owner keys, not the operator key, so
-        // an operator-key change (or revocation) must not evict them. They carry the default
-        // zero validForProTxKey and would otherwise always be treated as stale here.
+        // Shared lifecycle transactions are authorized by immutable share owner keys, so an
+        // operator-key change (or revocation) does not invalidate their signatures.
         const uint16_t refType{txit->GetTx().nType};
-        if (refType == TRANSACTION_PROVIDER_DISSOLVE || refType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        if (refType == TRANSACTION_PROVIDER_DISSOLVE || refType == TRANSACTION_PROVIDER_UPDATE_SHARE ||
+            refType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
             continue;
         }
         if (txit->validForProTxKey != newKeyHash) {

@@ -163,7 +163,9 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     obj.pushKV("PoSeRevivedHeight", nPoSeRevivedHeight);
     obj.pushKV("PoSeBanHeight", nPoSeBanHeight);
     obj.pushKV("revocationReason", nRevocationReason);
-    obj.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    if (!IsShared()) {
+        obj.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    }
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (nType == MnType::Evo) {
         obj.pushKV("platformNodeID", platformNodeID.ToString());
@@ -201,7 +203,9 @@ UniValue CProRegTx::ToJson() const
         ret.pushKV("service", GetDeprecatedServiceField(*this));
     }
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
-    ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    if (!IsShared()) {
+        ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    }
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (IsShared()) {
         ret.pushKV("shares", ShareListToJson(shares));

@@ -57,3 +57,19 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
 - `protx dissolve_prepare` builds an unsigned unanimous ProDisTx.
 - `protx update_share` updates one share's reward address.
 - `protx update_shared_registrar_prepare` builds an unsigned ProUpSharedRegTx.
+
+Updated RPCs
+------------
+
+- `masternodelist` and `masternode list` report comma-separated share owner
+  addresses in `owneraddress` for shared masternodes. The `json` and `recent`
+  modes can be filtered by any share owner address. Shared registrations and
+  masternode state omit the singular `ownerAddress` field in `protx` and decoded
+  transaction output; each participant's owner address is in `shares`. (#7437)
+
+GUI changes
+-----------
+
+- The owned-masternode filter includes shared masternodes when the wallet holds
+  a participant's refund destination, including when rewards go to a different
+  wallet. (#7437)

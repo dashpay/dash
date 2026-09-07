@@ -119,13 +119,6 @@ namespace node {
 // All members of the classes in this namespace are intentionally public, as the
 // classes themselves are private.
 namespace {
-std::vector<CScript> GetOwnerPayoutScripts(const CDeterministicMNState& state)
-{
-    // Shared-aware: for a shared masternode this is each share's reward script, so the GUI
-    // recognizes masternodes a wallet participates in
-    return state.GetOwnerRewardScripts();
-}
-
 class MnEntryImpl : public MnEntry
 {
 private:
@@ -137,7 +130,7 @@ public:
     MnEntryImpl(const CDeterministicMNCPtr& dmn) :
         MnEntry{dmn},
         m_dmn{Assert(dmn)},
-        m_script_payouts{GetOwnerPayoutScripts(*m_dmn->pdmnState)},
+        m_script_payouts{m_dmn->pdmnState->GetOwnerRewardScripts()},
         m_script_payout{m_script_payouts.empty() ? CScript() : m_script_payouts.front()}
     {
     }
@@ -181,6 +174,15 @@ public:
         return ret;
     }
     const CKeyID& getKeyIdVoting() const override { return m_dmn->pdmnState->keyIDVoting; }
+    std::vector<CScript> getShareRefundScripts() const override
+    {
+        std::vector<CScript> ret;
+        ret.reserve(m_dmn->pdmnState->shares.size());
+        for (const auto& share : m_dmn->pdmnState->shares) {
+            ret.push_back(share.scriptRefund);
+        }
+        return ret;
+    }
     const COutPoint& getCollateralOutpoint() const override { return m_dmn->collateralOutpoint; }
     const CScript& getScriptPayout() const override { return m_script_payout; }
     std::vector<CScript> getScriptPayouts() const override { return m_script_payouts; }

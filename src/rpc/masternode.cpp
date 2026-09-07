@@ -534,6 +534,18 @@ static RPCHelpMan masternode_help()
     };
 }
 
+static std::string GetOwnerAddressesString(const CDeterministicMNState& state)
+{
+    if (!state.IsShared()) return EncodeDestination(PKHash(state.keyIDOwner));
+
+    std::string owners;
+    for (const auto& share : state.shares) {
+        if (!owners.empty()) owners += ", ";
+        owners += EncodeDestination(PKHash(share.keyIDOwner));
+    }
+    return owners;
+}
+
 static RPCHelpMan masternodelist_helper(bool is_composite)
 {
     // We need both composite and non-composite options because we support
@@ -551,7 +563,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
         "  json           - Print info in JSON format (can be additionally filtered, partial match)\n"
         "  lastpaidblock  - Print the last block height a node was paid on the network\n"
         "  lastpaidtime   - Print the last time a node was paid on the network\n"
-        "  owneraddress   - Print the masternode owner Dash address\n"
+        "  owneraddress   - Print the masternode owner Dash address (comma-separated share owners for shared masternodes)\n"
         "  payee          - Print the masternode payout Dash address (can be additionally filtered,\n"
         "                   partial match)\n"
         "  pubKeyOperator - Print the masternode operator public key\n"
@@ -584,7 +596,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
                     GetRpcResult("consecutivePayments"),
                     {RPCResult::Type::NUM, "lastpaidtime", "Timestamp of block the masternode was last paid"},
                     GetRpcResult("lastPaidHeight", /*optional=*/false, /*override_name=*/"lastpaidblock"),
-                    GetRpcResult("ownerAddress", /*optional=*/false, /*override_name=*/"owneraddress"),
+                    {RPCResult::Type::STR, "owneraddress", "Owner Dash address, or comma-separated share owner addresses for shared masternodes"},
                     GetRpcResult("votingAddress", /*optional=*/false, /*override_name=*/"votingaddress"),
                     GetRpcResult("collateralAddress", /*optional=*/false, /*override_name=*/"collateraladdress"),
                     GetRpcResult("pubKeyOperator", /*optional=*/false, /*override_name=*/"pubkeyoperator"),
@@ -596,7 +608,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             RPCResult{"for mode = payee", RPCResult::Type::OBJ_DYN, "", "json object with masternode outpoint as keys",
                 {{RPCResult::Type::STR, "<outpoint>", "Dash address used for masternode reward payments"}}},
             RPCResult{"for mode = owneraddress", RPCResult::Type::OBJ_DYN, "", "json object with masternode outpoint as keys",
-                {{RPCResult::Type::STR, "<outpoint>", "Dash address used for payee updates and proposal voting"}}},
+                {{RPCResult::Type::STR, "<outpoint>", "Owner Dash address, or comma-separated share owner addresses for shared masternodes"}}},
             RPCResult{"for mode = pubkeyoperator", RPCResult::Type::OBJ_DYN, "", "json object with masternode outpoint as keys",
                 {{RPCResult::Type::STR, "<outpoint>", "BLS public key used for operator signing"}}},
             RPCResult{"for mode = status", RPCResult::Type::OBJ_DYN, "", "json object with masternode outpoint as keys",
@@ -671,6 +683,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
         }
 
         const std::string payeeStr = GetOwnerPayoutsString(*dmn.pdmnState);
+        const std::string ownerStr = GetOwnerAddressesString(*dmn.pdmnState);
 
         std::string strAddress{};
         if (strMode == "addr" || strMode == "full" || strMode == "info" || strMode == "json" || strMode == "recent" ||
@@ -717,7 +730,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
                                     dmn.pdmnState->nPoSePenalty,
                                     dmnToLastPaidTime(dmn),
                                     dmn.pdmnState->nLastPaidHeight,
-                                    EncodeDestination(PKHash(dmn.pdmnState->keyIDOwner)),
+                                    ownerStr,
                                     EncodeDestination(PKHash(dmn.pdmnState->keyIDVoting)),
                                     collateralAddressStr,
                                     dmn.pdmnState->pubKeyOperator.ToString());
@@ -744,7 +757,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             objMN.pushKV("consecutivePayments", dmn.pdmnState->nConsecutivePayments);
             objMN.pushKV("lastpaidtime", dmnToLastPaidTime(dmn));
             objMN.pushKV("lastpaidblock", dmn.pdmnState->nLastPaidHeight);
-            objMN.pushKV("owneraddress", EncodeDestination(PKHash(dmn.pdmnState->keyIDOwner)));
+            objMN.pushKV("owneraddress", ownerStr);
             objMN.pushKV("votingaddress", EncodeDestination(PKHash(dmn.pdmnState->keyIDVoting)));
             objMN.pushKV("collateraladdress", collateralAddressStr);
             objMN.pushKV("pubkeyoperator", dmn.pdmnState->pubKeyOperator.ToString());
@@ -762,7 +775,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             obj.pushKV(strOutpoint, payeeStr);
         } else if (strMode == "owneraddress") {
             if (!strFilter.empty() && strOutpoint.find(strFilter) == std::string::npos) return;
-            obj.pushKV(strOutpoint, EncodeDestination(PKHash(dmn.pdmnState->keyIDOwner)));
+            obj.pushKV(strOutpoint, ownerStr);
         } else if (strMode == "pubkeyoperator") {
             if (!strFilter.empty() && strOutpoint.find(strFilter) == std::string::npos) return;
             obj.pushKV(strOutpoint, dmn.pdmnState->pubKeyOperator.ToString());
