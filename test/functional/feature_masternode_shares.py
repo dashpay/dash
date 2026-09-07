@@ -8,6 +8,7 @@ import base64
 import struct
 from decimal import Decimal
 
+from test_framework.descriptors import descsum_create
 from test_framework.messages import COIN, CBlock, COutPoint, CTransaction, CTxIn, CTxOut, from_hex, tx_from_hex
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, p2p_port
@@ -17,6 +18,7 @@ from test_framework.util import (
     assert_raises_rpc_error,
     softfork_active,
 )
+from test_framework.wallet_util import get_generate_key
 
 # Keep the earliest activation height above the ~119 blocks the framework setup mines, so
 # run_test starts with v24 locked in but not yet active and can exercise pre-activation rules
@@ -135,6 +137,151 @@ class MasternodeSharesTest(DashTestFramework):
         state = node.protx("info", protx_hash)["state"]
         assert_equal(state["pubKeyOperator"], pending_operator)
         assert_equal(state["shares"][0]["rewardAddress"], reward)
+
+    def test_separate_participant_wallets(self):
+        self.log.info("Eight separate wallets fund and authorize a shared masternode")
+        node = self.nodes[0]
+        miner = node.get_wallet_rpc(self.default_wallet_name)
+        wallets, shares, funding_addresses, change_addresses = [], [], [], []
+        common_reward = miner.getnewaddress()
+        for i, amount in enumerate([100] * 7 + [300]):
+            name = f"participant_{i}"
+            node.createwallet(name, load_on_startup=True)
+            wallet = node.get_wallet_rpc(name)
+            wallets.append(wallet)
+            refund = wallet.getnewaddress()
+            if i == 7:
+                keys = [get_generate_key() for _ in range(2)]
+                if self.options.descriptors:
+                    descriptor = descsum_create(f"sh(multi(2,{keys[0].privkey},{keys[1].privkey}))")
+                    result, = wallet.importdescriptors([{"desc": descriptor, "timestamp": "now"}])
+                    assert_equal(result["success"], True)
+                    refund, = wallet.deriveaddresses(wallet.getdescriptorinfo(descriptor)["descriptor"])
+                else:
+                    for key in keys:
+                        wallet.importprivkey(key.privkey)
+                    refund = wallet.addmultisigaddress(2, [key.pubkey for key in keys])["address"]
+            shares.append({"amount": amount * COIN, "refundAddress": refund,
+                           "ownerAddress": wallet.getnewaddress(), "rewardAddress": common_reward})
+            funding_addresses.append(wallet.getnewaddress())
+            change_addresses.append(wallet.getnewaddress())
+
+        funding_txid = miner.sendmany("", {address: Decimal(share["amount"]) / COIN + 1
+                                          for address, share in zip(funding_addresses, shares)})
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        inputs = []
+        for wallet, address in zip(wallets, funding_addresses):
+            coin, = wallet.listunspent(1, 9999999, [address])
+            assert_equal(coin["txid"], funding_txid)
+            inputs.append({"txid": coin["txid"], "vout": coin["vout"]})
+        funding = miner.createrawtransaction(inputs, {address: Decimal("0.99995")
+                                                      for address in change_addresses})
+        operator = node.bls("generate")
+        prepared = miner.protx("register_shared_prepare", funding, shares,
+                               f"127.0.0.1:{p2p_port(6)}", operator["public"], miner.getnewaddress(),
+                               "12.50", 100, 10 * COIN)
+        signatures = []
+        for i, wallet in enumerate(wallets):
+            sig, = wallet.protx("shared_sign", prepared["tx"])
+            assert_equal(sig["shareIndex"], i)
+            signatures.append(sig)
+        assert_raises_rpc_error(-5, "none of the share owner keys", miner.protx,
+                                "shared_sign", prepared["tx"])
+        assert_raises_rpc_error(-8, "requires a signature from every share", miner.protx,
+                                "shared_combine", prepared["tx"], signatures[:-1])
+        combined = miner.protx("shared_combine", prepared["tx"], signatures)
+        for i, wallet in enumerate(wallets):
+            signed = wallet.signrawtransactionwithwallet(combined)
+            assert_equal(signed["complete"], i == len(wallets) - 1)
+            combined = signed["hex"]
+        protx_hash = node.sendrawtransaction(combined)
+        self.bump_mocktime(10 * 60 + 1)
+        registration_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        for wallet in wallets:
+            assert protx_hash in wallet.protx("list", "wallet")
+            assert_equal(wallet.protx("info", protx_hash)["wallet"]["hasOwnerKey"], True)
+
+        self.log.info("Share updates require the registration in a prior block")
+        update = wallets[0].protx("update_share", protx_hash, 0, common_reward, change_addresses[0], False)
+        node.invalidateblock(registration_block)
+        assert_raises_rpc_error(-25, "bad-proupshare-hash", self.generateblock, node,
+                                miner.getnewaddress(), [combined, update], sync_fun=self.no_op)
+        node.reconsiderblock(registration_block)
+
+        self.log.info("Duplicate share reward scripts coexist with a separate operator payout")
+        operator_reward = miner.getnewaddress()
+        fee_source = miner.getnewaddress()
+        miner.sendtoaddress(fee_source, 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        miner.protx("update_service", protx_hash, f"127.0.0.1:{p2p_port(6)}",
+                    operator["secret"], operator_reward, fee_source)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        self.generate(node, 10, sync_fun=self.no_op)
+        expected_payees = node.getblocktemplate()["masternode"]
+        assert_equal(sum(payee["payee"] == common_reward for payee in expected_payees), 8)
+        assert_equal(sum(payee["payee"] == operator_reward for payee in expected_payees), 1)
+        owner_amounts = [payee["amount"] for payee in expected_payees if payee["payee"] == common_reward]
+        owner_total = sum(owner_amounts)
+        assert_equal(owner_amounts, [owner_total // 10] * 7 + [owner_total - 7 * (owner_total // 10)])
+        operator_amount, = [payee["amount"] for payee in expected_payees if payee["payee"] == operator_reward]
+        assert_equal(operator_amount, (owner_total + operator_amount) // 8)
+        block = node.getblock(self.generate(node, 1, sync_fun=self.no_op)[0], 2)
+        outputs = block["tx"][0]["vout"]
+        for address in (common_reward, operator_reward):
+            script = miner.getaddressinfo(address)["scriptPubKey"]
+            assert_equal(sum(out["value"] for out in outputs if out["scriptPubKey"]["hex"] == script),
+                         sum(Decimal(payee["amount"]) / COIN for payee in expected_payees if payee["payee"] == address))
+
+        self.log.info("Unanimous registrar signing works across wallets; the funder finalizes inputs")
+        voting = miner.getnewaddress()
+        prepared_update = wallets[0].protx("update_shared_registrar_prepare", protx_hash,
+                                           "", voting, change_addresses[0])
+        signatures = [wallet.protx("shared_sign", prepared_update["tx"])[0] for wallet in wallets]
+        assert_raises_rpc_error(-4, "transaction inputs could not be fully signed", wallets[1].protx,
+                                "shared_combine", prepared_update["tx"], signatures, True)
+
+        self.log.info("Conflicting voting-key and share reward updates are consensus-invalid in both block orders")
+        registrar = wallets[0].protx("shared_combine", prepared_update["tx"], signatures)
+        reward_update = wallets[1].protx("update_share", protx_hash, 1, voting, change_addresses[1], False)
+        for transactions, reason in (([registrar, reward_update], "bad-proupshare-payee-reuse"),
+                                     ([reward_update, registrar], "bad-proupsharedreg-payee-reuse")):
+            assert_raises_rpc_error(-25, reason, self.generateblock, node,
+                                    miner.getnewaddress(), transactions, sync_fun=self.no_op)
+        wallets[0].protx("shared_combine", prepared_update["tx"], signatures, True)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        assert_equal(miner.protx("info", protx_hash)["state"]["votingAddress"], voting)
+
+        self.log.info("A pre-signed unanimous dissolution survives reindex and pays spendable refunds")
+        prepared_dissolve = miner.protx("dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
+        signatures = [wallet.protx("shared_sign", prepared_dissolve["tx"])[0] for wallet in wallets]
+        dissolution = miner.protx("shared_combine", prepared_dissolve["tx"], signatures)
+        state = miner.protx("info", protx_hash)["state"]
+        tip = node.getbestblockhash()
+        self.restart_node(0, extra_args=node.extra_args + ["-reindex=1"])
+        self.wait_until(lambda: node.getbestblockhash() == tip)
+        miner = node.get_wallet_rpc(self.default_wallet_name)
+        wallets = [node.get_wallet_rpc(f"participant_{i}") for i in range(8)]
+        assert_equal(miner.protx("info", protx_hash)["state"], state)
+        node.sendrawtransaction(dissolution)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        refund_spends = set()
+        for i, (wallet, share) in enumerate(zip(wallets, shares)):
+            expected = Decimal(share["amount"] - (DISSOLVE_FEE if i == 7 else 0)) / COIN
+            assert_equal(wallet.getreceivedbyaddress(share["refundAddress"]), expected)
+            coin, = wallet.listunspent(1, 9999999, [share["refundAddress"]])
+            spend = wallet.createrawtransaction([{"txid": coin["txid"], "vout": coin["vout"]}],
+                                               {miner.getnewaddress(): expected - Decimal("0.001")})
+            signed = wallet.signrawtransactionwithwallet(spend)
+            assert_equal(signed["complete"], True)
+            refund_spends.add(node.sendrawtransaction(signed["hex"]))
+        self.bump_mocktime(10 * 60 + 1)
+        refund_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert refund_spends.issubset(node.getblock(refund_block)["tx"])
+        assert_raises_rpc_error(None, None, miner.protx, "info", protx_hash)
 
     def run_test(self):
         node = self.nodes[0]
@@ -689,6 +836,8 @@ class MasternodeSharesTest(DashTestFramework):
         # by the second MN's unanimous dissolution (reward receipts are checked separately above)
         for addr in (refund1, refund2, refund3, refund4, refund5, refund6, refund7, refund8):
             assert_greater_than(node.getreceivedbyaddress(addr, 1), Decimal(0))
+
+        self.test_separate_participant_wallets()
 
 
 if __name__ == '__main__':
