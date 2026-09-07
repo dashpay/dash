@@ -600,6 +600,12 @@ void CTxMemPool::removeSpentIndex(const uint256 txhash)
     }
 }
 
+/** The amount the credit pool charges for an asset unlock: its outputs plus its fee. */
+static CAmount GetAssetUnlockAmount(const CTransaction& tx, const CAssetUnlockPayload& payload)
+{
+    return tx.GetValueOut() + payload.getFee();
+}
+
 void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx)
 {
     AssertLockHeld(cs);
@@ -649,13 +655,15 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
             newit->isKeyChangeProTx = true;
         }
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
+        const auto assetUnlockTx = *Assert(GetTxPayload<CAssetUnlockPayload>(tx));
+        m_asset_unlock_indexes.emplace(assetUnlockTx.getIndex(), tx_hash);
+        m_pending_asset_unlock_amount += GetAssetUnlockAmount(tx, assetUnlockTx);
         if (IsAssetUnlockWithStableTxid(tx)) {
             // Re-signed instances of one withdrawal share the txid. The withdrawal is kept while
             // expired, awaiting a fresher instance, instead of being expiry-evicted (which would
             // take its descendants with it); relay identifies instances by instance hash.
             m_asset_unlock_instances.emplace(tx.GetInstanceHash(), tx_hash);
         } else {
-            auto assetUnlockTx = *Assert(GetTxPayload<CAssetUnlockPayload>(tx));
             mapAssetUnlockExpiry.insert({tx_hash, assetUnlockTx.getHeightToExpiry()});
         }
     } else if (tx.nType == TRANSACTION_MNHF_SIGNAL) {
@@ -752,10 +760,42 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
         auto proTx = *Assert(GetTxPayload<CProUpRevTx>(tx));
         eraseProTxRef(proTx.proTxHash, tx_hash);
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
+        const auto assetUnlockTx = *Assert(GetTxPayload<CAssetUnlockPayload>(tx));
+        auto [begin, end] = m_asset_unlock_indexes.equal_range(assetUnlockTx.getIndex());
+        if (auto it = std::find_if(begin, end, [&](const auto& e) { return e.second == tx_hash; }); it != end) {
+            m_asset_unlock_indexes.erase(it);
+        }
+        m_pending_asset_unlock_amount -= GetAssetUnlockAmount(tx, assetUnlockTx);
+        Assume(m_pending_asset_unlock_amount >= 0);
         if (IsAssetUnlockWithStableTxid(tx)) {
             m_asset_unlock_instances.erase(tx.GetInstanceHash());
         } else {
             mapAssetUnlockExpiry.erase(tx_hash);
+        }
+    }
+}
+
+std::vector<uint256> CTxMemPool::GetAssetUnlockTxidsByIndex(uint64_t index) const
+{
+    AssertLockHeld(cs);
+    std::vector<uint256> txids;
+    auto [it, end] = m_asset_unlock_indexes.equal_range(index);
+    for (; it != end; ++it) {
+        txids.push_back(it->second);
+    }
+    return txids;
+}
+
+void CTxMemPool::removeAssetUnlockConflicts(const CTransaction& tx)
+{
+    AssertLockHeld(cs);
+    if (tx.nType != TRANSACTION_ASSET_UNLOCK) return;
+    const auto opt_payload = GetTxPayload<CAssetUnlockPayload>(tx);
+    if (!opt_payload) return;
+    for (const uint256& txid : GetAssetUnlockTxidsByIndex(opt_payload->getIndex())) {
+        if (txid == tx.GetHash()) continue;
+        if (auto it = mapTx.find(txid); it != mapTx.end()) {
+            removeRecursive(it->GetTx(), MemPoolRemovalReason::CONFLICT);
         }
     }
 }
@@ -1106,6 +1146,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         }
         removeConflicts(*tx);
         removeProTxConflicts(*tx);
+        removeAssetUnlockConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
     lastRollingFeeUpdate = GetTime();
@@ -1140,6 +1181,8 @@ void CTxMemPool::_clear()
     mapProTxPubKeyIDs.clear();
     mapProTxPlatformNodeIDs.clear();
     m_asset_unlock_instances.clear();
+    m_asset_unlock_indexes.clear();
+    m_pending_asset_unlock_amount = 0;
     totalTxSize = 0;
     m_total_fee = 0;
     cachedInnerUsage = 0;
@@ -1170,6 +1213,8 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     uint64_t innerUsage = 0;
     uint64_t prev_ancestor_count{0};
     size_t check_asset_unlock_instances{0};
+    size_t check_asset_unlock_indexes{0};
+    CAmount check_pending_asset_unlock_amount{0};
 
     CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(&active_coins_tip));
 
@@ -1184,6 +1229,13 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
             auto instance_it = m_asset_unlock_instances.find(tx.GetInstanceHash());
             assert(instance_it != m_asset_unlock_instances.end());
             assert(instance_it->second == tx.GetHash());
+        }
+        if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
+            const auto payload = *Assert(GetTxPayload<CAssetUnlockPayload>(tx));
+            ++check_asset_unlock_indexes;
+            check_pending_asset_unlock_amount += GetAssetUnlockAmount(tx, payload);
+            const auto txids = GetAssetUnlockTxidsByIndex(payload.getIndex());
+            assert(std::find(txids.begin(), txids.end(), tx.GetHash()) != txids.end());
         }
         CTxMemPoolEntry::Parents setParentCheck;
         for (const CTxIn &txin : tx.vin) {
@@ -1268,6 +1320,8 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     assert(m_total_fee == check_total_fee);
     assert(innerUsage == cachedInnerUsage);
     assert(check_asset_unlock_instances == m_asset_unlock_instances.size());
+    assert(check_asset_unlock_indexes == m_asset_unlock_indexes.size());
+    assert(check_pending_asset_unlock_amount == m_pending_asset_unlock_amount);
 }
 
 bool CTxMemPool::CompareDepthAndScore(const uint256& hasha, const uint256& hashb)
