@@ -16,6 +16,8 @@
 #include <script/script.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
+#include <test/util/txmempool.h>
+#include <txmempool.h>
 #include <util/ranges_set.h>
 #include <validation.h>
 
@@ -126,13 +128,14 @@ static CMutableTransaction CreateAssetUnlockTx(FillableSigningProvider& keystore
     return tx;
 }
 
-static CTransactionRef CreateCreditPoolUnlockTx(uint64_t index, CAmount amount)
+static CTransactionRef CreateCreditPoolUnlockTx(uint64_t index, CAmount amount, uint8_t version = 1, uint32_t fee = 0,
+                                                uint32_t requested_height = 0)
 {
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_ASSET_UNLOCK;
     tx.vout.emplace_back(amount, CScript{});
-    SetTxPayload(tx, CAssetUnlockPayload{1, index, 0, 0, {}, {}});
+    SetTxPayload(tx, CAssetUnlockPayload{version, index, fee, requested_height, {}, {}});
     return MakeTransactionRef(std::move(tx));
 }
 
@@ -633,6 +636,53 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
     block.vtx.back() = make_unlock(2, 2, 700);
     BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
     BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_two);
+}
+
+BOOST_FIXTURE_TEST_CASE(mempool_pending_asset_unlock_amount, TestChain100Setup)
+{
+    CTxMemPool& pool = *Assert(m_node.mempool);
+    TestMemPoolEntryHelper entry;
+    LOCK2(cs_main, pool.cs);
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 0);
+
+    // The pending amount is what the credit pool charges: outputs plus fee, for any version
+    const auto unlock_v1 = CreateCreditPoolUnlockTx(1, 5 * COIN, 1, 1000, 90);
+    const auto unlock_v2 = CreateCreditPoolUnlockTx(2, 7 * COIN, 2, 2000, 90);
+    pool.addUnchecked(entry.Fee(1000).FromTx(unlock_v1));
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 5 * COIN + 1000);
+    pool.addUnchecked(entry.Fee(2000).FromTx(unlock_v2));
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 12 * COIN + 3000);
+    BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(1) == std::vector<uint256>{unlock_v1->GetHash()});
+    BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(2) == std::vector<uint256>{unlock_v2->GetHash()});
+    BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(3).empty());
+
+    // A re-signed instance shares the txid and amount, so a refresh leaves the total unchanged
+    const auto unlock_v2_resigned = CreateCreditPoolUnlockTx(2, 7 * COIN, 2, 2000, 95);
+    BOOST_CHECK(unlock_v2_resigned->GetHash() == unlock_v2->GetHash());
+    pool.ReplaceAssetUnlockInstance(unlock_v2_resigned);
+    BOOST_CHECK(unlock_v2_resigned->GetInstanceHash() != unlock_v2->GetInstanceHash());
+    BOOST_CHECK(pool.get(unlock_v2->GetHash())->GetInstanceHash() == unlock_v2_resigned->GetInstanceHash());
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 12 * COIN + 3000);
+    BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(2) == std::vector<uint256>{unlock_v2->GetHash()});
+
+    // Two instances of one withdrawal signed under different versions both claim the index
+    const auto unlock_v1_dup = CreateCreditPoolUnlockTx(2, 7 * COIN, 1, 2000, 90);
+    BOOST_CHECK(unlock_v1_dup->GetHash() != unlock_v2->GetHash());
+    pool.addUnchecked(entry.Fee(2000).FromTx(unlock_v1_dup));
+    BOOST_CHECK_EQUAL(pool.GetAssetUnlockTxidsByIndex(2).size(), 2U);
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 19 * COIN + 5000);
+
+    // Mining one instance of a withdrawal evicts every other claimant of its index
+    pool.removeAssetUnlockConflicts(*unlock_v1_dup);
+    BOOST_CHECK(!pool.exists(unlock_v2->GetHash()));
+    BOOST_CHECK(pool.exists(unlock_v1_dup->GetHash()));
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 12 * COIN + 3000);
+
+    pool.removeRecursive(*unlock_v1, MemPoolRemovalReason::BLOCK);
+    pool.removeRecursive(*unlock_v1_dup, MemPoolRemovalReason::BLOCK);
+    BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 0);
+    BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(1).empty());
+    BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(2).empty());
 }
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_package_atomicity, TestChain100Setup)
