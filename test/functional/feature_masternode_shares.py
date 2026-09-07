@@ -5,10 +5,12 @@
 """Test decentralized masternode shares (shared collateral, reward split, dissolution)."""
 
 import base64
+from copy import deepcopy
 import struct
 from decimal import Decimal
 
 from test_framework.descriptors import descsum_create
+from test_framework.key import ORDER
 from test_framework.messages import COIN, CBlock, COutPoint, CTransaction, CTxIn, CTxOut, from_hex, tx_from_hex
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, p2p_port
@@ -99,12 +101,166 @@ class MasternodeSharesTest(DashTestFramework):
         tx.vout.append(CTxOut(1, CScript(b"\x51")))
         return tx.serialize().hex()
 
+    def assert_rejected_transaction(self, node, tx, reason, *, mempool_reason=None):
+        """Bypass wallet construction and mempool policy with an independently submitted block."""
+        tip = node.getbestblockhash()
+        mempool = set(node.getrawmempool())
+        result, = node.testmempoolaccept([tx.serialize().hex()])
+        assert_equal(result["allowed"], False)
+        assert_equal(result["reject-reason"], mempool_reason or reason)
+        address = node.get_wallet_rpc(self.default_wallet_name).getnewaddress()
+        block = from_hex(CBlock(), node.generateblock(address, [], False, invalid_call=False)["hex"])
+        block.vtx.append(tx)
+        block.hashMerkleRoot = block.calc_merkle_root()
+        block.solve()
+        assert_equal(node.submitblock(block.serialize().hex()), reason)
+        assert_equal(node.getbestblockhash(), tip)
+        assert_equal(set(node.getrawmempool()), mempool)
+
+    def test_invalid_dissolutions(self, node, miner, wallets, protx_hash, shares):
+        self.log.info("Every actor's dissolution protects all refund destinations and principal amounts")
+        state = miner.protx("info", protx_hash)["state"]
+        penalty = 10 * COIN
+        assert_greater_than(state["registeredHeight"] + 100, node.getblockcount() + 1)
+        attacker_script = CScript(bytes.fromhex(miner.getaddressinfo(miner.getnewaddress())["scriptPubKey"]))
+        for actor, wallet in enumerate(wallets):
+            self.log.info("Checking invalid dissolutions by participant %d", actor)
+            good = tx_from_hex(wallet.protx("dissolve", protx_hash, actor, DISSOLVE_FEE, False))
+            assert_equal(node.testmempoolaccept([good.serialize().hex()])[0]["allowed"], True)
+            non_actors = [share for i, share in enumerate(shares) if i != actor]
+            total = sum(share["amount"] for share in non_actors)
+            bonuses = [penalty * share["amount"] // total for share in non_actors[:-1]]
+            bonuses.append(penalty - sum(bonuses))
+            assert_equal([out.nValue for out in good.vout[:-1]],
+                         [share["amount"] + bonus for share, bonus in zip(non_actors, bonuses)])
+            assert_equal(good.vout[-1].nValue, shares[actor]["amount"] - penalty - DISSOLVE_FEE)
+
+            for index, share in enumerate(non_actors):
+                bad = deepcopy(good)
+                stolen = bad.vout[index].nValue - share["amount"] + 1
+                bad.vout[index].nValue -= stolen
+                bad.vout[-1].nValue += stolen
+                self.assert_rejected_transaction(node, bad, "bad-prodis-penalty-floor")
+            for index in range(len(shares)):
+                bad = deepcopy(good)
+                bad.vout[index].scriptPubKey = attacker_script
+                self.assert_rejected_transaction(node, bad, "bad-prodis-payee")
+
+            bad = deepcopy(good)
+            bad.vout[-1].nValue -= 1000000 - DISSOLVE_FEE + 1
+            self.assert_rejected_transaction(node, bad, "bad-prodis-fee")
+            bad = deepcopy(good)
+            bad.vout.pop()
+            self.assert_rejected_transaction(node, bad, "bad-prodis-fee")
+            bad = deepcopy(good)
+            bad.vout[0].nValue += 1
+            bad.vout[-1].nValue -= 1
+            self.assert_rejected_transaction(node, bad, "bad-prodis-bonus")
+
+            # All individual floors still hold, but their sum omits the rounding remainder.
+            bad = deepcopy(good)
+            remainder = bonuses[-1] - penalty * non_actors[-1]["amount"] // total
+            assert_greater_than(remainder, 0)
+            bad.vout[-2].nValue -= remainder
+            bad.vout[-1].nValue += remainder
+            self.assert_rejected_transaction(node, bad, "bad-prodis-penalty-sum")
+
+        self.log.info("Even fully signed unanimous transactions cannot override the refund covenant")
+        prepared = miner.protx("dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
+
+        def sign_unanimous(tx):
+            raw = tx.serialize().hex()
+            sigs = [wallet.protx("shared_sign", raw)[0] for wallet in wallets]
+            return tx_from_hex(miner.protx("shared_combine", raw, sigs))
+
+        unsigned = tx_from_hex(prepared["tx"])
+        unanimous = sign_unanimous(unsigned)
+        assert_equal(node.testmempoolaccept([unanimous.serialize().hex()])[0]["allowed"], True)
+        # These outputs satisfy both modes even during the early period. Dropping
+        # signatures must fail authorization, rather than only the penalty checks.
+        penalty_unsigned = tx_from_hex(wallets[7].protx("dissolve", protx_hash, 7, DISSOLVE_FEE, False))
+        penalty_unsigned.vExtraPayload = penalty_unsigned.vExtraPayload[:36] + b"\x00"
+        penalty_unanimous = sign_unanimous(penalty_unsigned)
+        assert_equal(node.testmempoolaccept([penalty_unanimous.serialize().hex()])[0]["allowed"], True)
+        bad = deepcopy(penalty_unanimous)
+        bad.vExtraPayload = bad.vExtraPayload[:36] + b"\x01" + bad.vExtraPayload[-65:]
+        self.assert_rejected_transaction(node, bad, "bad-prodis-sig")
+        for index in range(len(shares)):
+            bad = deepcopy(unsigned)
+            bad.vout[index].scriptPubKey = attacker_script
+            self.assert_rejected_transaction(node, sign_unanimous(bad), "bad-prodis-payee")
+        for index in range(len(shares) - 1):
+            bad = deepcopy(unsigned)
+            bad.vout[index].nValue -= 1
+            bad.vout[-1].nValue += 1
+            self.assert_rejected_transaction(node, sign_unanimous(bad), "bad-prodis-penalty-floor")
+
+        self.log.info("Dissolution shape, signer ordering, canonical signatures and signed fields are enforced")
+        bad = deepcopy(unanimous)
+        bad.vout[0], bad.vout[1] = bad.vout[1], bad.vout[0]
+        self.assert_rejected_transaction(node, bad, "bad-prodis-payee")
+        bad = deepcopy(unanimous)
+        bad.vout[-1].nValue -= 10000
+        bad.vout.append(CTxOut(10000, attacker_script))
+        self.assert_rejected_transaction(node, bad, "bad-prodis-payee-count")
+        bad = deepcopy(unanimous)
+        bad.vout[-1].nValue = 0
+        self.assert_rejected_transaction(node, bad, "bad-prodis-actor-output-zero", mempool_reason="dust")
+        bad = deepcopy(unanimous)
+        bad.vin[0].scriptSig = CScript(b"\x51")
+        self.assert_rejected_transaction(node, bad, "bad-prodis-input")
+        bad = deepcopy(unanimous)
+        bad.vin[0].prevout.n += 1
+        self.assert_rejected_transaction(node, bad, "bad-prodis-input", mempool_reason="missing-inputs")
+        bad = deepcopy(unanimous)
+        bad.vin.append(CTxIn(COutPoint(1, 0)))
+        self.assert_rejected_transaction(node, bad, "bad-prodis-input", mempool_reason="missing-inputs")
+
+        # ProDisTx has a 36-byte version/hash/actor prefix, then a uint8 count and
+        # fixed-width compact signatures. Mutate the wire payload, bypassing RPC guards.
+        prefix = unanimous.vExtraPayload[:36]
+        signatures = [unanimous.vExtraPayload[37 + i * 65:37 + (i + 1) * 65] for i in range(len(shares))]
+        for sigs, reason in (([], "bad-prodis-sig-count"),
+                             (signatures[:2], "bad-prodis-sig-count"),
+                             ([signatures[-1]], "bad-prodis-penalty-floor"),
+                             ([signatures[1], signatures[0]] + signatures[2:], "bad-prodis-sig"),
+                             ([signatures[0]] * len(shares), "bad-prodis-sig")):
+            bad = deepcopy(unanimous)
+            bad.vExtraPayload = prefix + bytes([len(sigs)]) + b"".join(sigs)
+            self.assert_rejected_transaction(node, bad, reason)
+        for sig in (bytes([signatures[0][0] + 8]) + signatures[0][1:],
+                    bytes([27 + ((signatures[0][0] - 27) ^ 1)]) + signatures[0][1:33] +
+                    (ORDER - int.from_bytes(signatures[0][33:], "big")).to_bytes(32, "big")):
+            bad = deepcopy(unanimous)
+            bad.vExtraPayload = prefix + bytes([len(shares)]) + sig + b"".join(signatures[1:])
+            self.assert_rejected_transaction(node, bad, "bad-prodis-sig")
+        for field in ("locktime", "sequence", "fee"):
+            bad = deepcopy(unanimous)
+            if field == "locktime":
+                bad.nLockTime = 1
+            elif field == "sequence":
+                bad.vin[0].nSequence -= 1
+            else:
+                bad.vout[-1].nValue -= 1
+            self.assert_rejected_transaction(node, bad, "bad-prodis-sig")
+        bad = deepcopy(unanimous)
+        bad.vExtraPayload = prefix[:34] + struct.pack("<H", len(shares)) + unanimous.vExtraPayload[36:]
+        self.assert_rejected_transaction(node, bad, "bad-prodis-actor")
+        bad = deepcopy(unanimous)
+        bad.vExtraPayload = bad.vExtraPayload[:-1]
+        self.assert_rejected_transaction(node, bad, "bad-protx-payload")
+        assert_equal(miner.protx("info", protx_hash)["state"], state)
+        collateral = unanimous.vin[0].prevout
+        assert node.gettxout(f"{collateral.hash:064x}", collateral.n) is not None
+
     def test_pending_registrar_update(self, node, protx_hash):
         self.log.info("An operator rotation preserves pending share-owner-authorized updates")
         pending_fee, mined_fee, share_fee = [node.getnewaddress() for _ in range(3)]
-        node.sendmany("", {pending_fee: 1, mined_fee: 1, share_fee: 1})
+        funding_txid = node.sendmany("", {pending_fee: 1, mined_fee: 1, share_fee: 1})
+        node.syncwithvalidationinterfacequeue()
         self.bump_mocktime(10 * 60 + 1)
-        self.generate(node, 1, sync_fun=self.no_op)
+        funding_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert funding_txid in node.getblock(funding_block)["tx"]
 
         pending_operator, mined_operator = [node.bls("generate")["public"] for _ in range(2)]
         transactions = []
@@ -195,6 +351,24 @@ class MasternodeSharesTest(DashTestFramework):
             signed = wallet.signrawtransactionwithwallet(combined)
             assert_equal(signed["complete"], i == len(wallets) - 1)
             combined = signed["hex"]
+        self.log.info("Consent signatures prevent a coordinator from redirecting refunds or funding change")
+        for target in ("refund", "change", "locktime", "sequence"):
+            bad = tx_from_hex(combined)
+            if target == "refund":
+                original = bytes.fromhex(wallets[0].getaddressinfo(shares[0]["refundAddress"])["scriptPubKey"])
+                replacement = bytes.fromhex(miner.getaddressinfo(miner.getnewaddress())["scriptPubKey"])
+                assert_equal(bad.vExtraPayload.count(original), 1)
+                bad.vExtraPayload = bad.vExtraPayload.replace(original, replacement)
+            elif target == "change":
+                bad.vout[0].scriptPubKey = CScript(bytes.fromhex(miner.getaddressinfo(miner.getnewaddress())["scriptPubKey"]))
+            elif target == "locktime":
+                bad.nLockTime += 1
+            else:
+                bad.vin[0].nSequence -= 1
+            raw = bad.serialize().hex()
+            for wallet in wallets:
+                raw = wallet.signrawtransactionwithwallet(raw)["hex"]
+            self.assert_rejected_transaction(node, tx_from_hex(raw), "bad-protx-shares-sig")
         protx_hash = node.sendrawtransaction(combined)
         self.bump_mocktime(10 * 60 + 1)
         registration_block = self.generate(node, 1, sync_fun=self.no_op)[0]
@@ -202,12 +376,39 @@ class MasternodeSharesTest(DashTestFramework):
             assert protx_hash in wallet.protx("list", "wallet")
             assert_equal(wallet.protx("info", protx_hash)["wallet"]["hasOwnerKey"], True)
 
-        self.log.info("Share updates require the registration in a prior block")
+        self.log.info("All shared lifecycle transactions require registration in a prior block")
         update = wallets[0].protx("update_share", protx_hash, 0, common_reward, change_addresses[0], False)
+        prepared_registrar = wallets[0].protx("update_shared_registrar_prepare", protx_hash,
+                                             "", "", change_addresses[0])
+        sigs = [wallet.protx("shared_sign", prepared_registrar["tx"])[0] for wallet in wallets]
+        registrar = wallets[0].protx("shared_combine", prepared_registrar["tx"], sigs)
+        dissolve = wallets[0].protx("dissolve", protx_hash, 0, DISSOLVE_FEE, False)
         node.invalidateblock(registration_block)
-        assert_raises_rpc_error(-25, "bad-proupshare-hash", self.generateblock, node,
-                                miner.getnewaddress(), [combined, update], sync_fun=self.no_op)
+        for lifecycle, reason in ((update, "bad-proupshare-hash"),
+                                  (registrar, "bad-proupsharedreg-hash"), (dissolve, "bad-prodis-hash")):
+            assert_raises_rpc_error(-25, reason, self.generateblock, node,
+                                    miner.getnewaddress(), [combined, lifecycle], sync_fun=self.no_op)
         node.reconsiderblock(registration_block)
+
+        self.log.info("Share and registrar updates reject unauthorized signers and malformed payloads")
+        assert_equal(node.testmempoolaccept([update])[0]["allowed"], True)
+        assert_equal(node.testmempoolaccept([registrar])[0]["allowed"], True)
+        for index, reason in ((1, "bad-proupshare-sig"), (len(shares), "bad-proupshare-index")):
+            bad = tx_from_hex(update)
+            bad.vExtraPayload = bad.vExtraPayload[:34] + struct.pack("<H", index) + bad.vExtraPayload[36:]
+            self.assert_rejected_transaction(node, bad, reason)
+        bad = tx_from_hex(update)
+        bad.vExtraPayload = bad.vExtraPayload[:-65] + b"\x00" * 65
+        self.assert_rejected_transaction(node, bad, "bad-proupshare-sig")
+        for count in (0, 1, len(shares) - 1):
+            bad = tx_from_hex(registrar)
+            prefix = bad.vExtraPayload[:-(1 + 65 * len(shares))]
+            sigs_raw = bad.vExtraPayload[-65 * len(shares):]
+            bad.vExtraPayload = prefix + bytes([count]) + sigs_raw[:65 * count]
+            self.assert_rejected_transaction(node, bad, "bad-proupsharedreg-sig-count")
+        bad = tx_from_hex(registrar)
+        bad.vExtraPayload = bad.vExtraPayload[:-65 * len(shares)] + bad.vExtraPayload[-65:] * len(shares)
+        self.assert_rejected_transaction(node, bad, "bad-proupsharedreg-sig")
 
         self.log.info("Duplicate share reward scripts coexist with a separate operator payout")
         operator_reward = miner.getnewaddress()
@@ -253,6 +454,8 @@ class MasternodeSharesTest(DashTestFramework):
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
         assert_equal(miner.protx("info", protx_hash)["state"]["votingAddress"], voting)
+
+        self.test_invalid_dissolutions(node, miner, wallets, protx_hash, shares)
 
         self.log.info("A pre-signed unanimous dissolution survives reindex and pays spendable refunds")
         prepared_dissolve = miner.protx("dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
