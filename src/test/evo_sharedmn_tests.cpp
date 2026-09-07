@@ -652,9 +652,9 @@ struct ProDisTestSetup {
         proTx.nVersion = ProTxVersion::ExtAddr;
         proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
         proTx.keyIDVoting = voting_key.GetPubKey().GetID();
-        proTx.shares.push_back(NewShareFor(500 * COIN, refund_keys[0], owner_keys[0]));
-        proTx.shares.push_back(NewShareFor(300 * COIN, refund_keys[1], owner_keys[1]));
-        proTx.shares.push_back(NewShareFor(200 * COIN, refund_keys[2], owner_keys[2]));
+        proTx.shares.push_back(NewShare(500 * COIN, refund_keys[0], owner_keys[0]));
+        proTx.shares.push_back(NewShare(300 * COIN, refund_keys[1], owner_keys[1]));
+        proTx.shares.push_back(NewShare(200 * COIN, refund_keys[2], owner_keys[2]));
         proTx.nEarlyPeriodBlocks = EARLY_PERIOD;
         proTx.nEarlyPenalty = PENALTY;
 
@@ -665,11 +665,6 @@ struct ProDisTestSetup {
         state->nRegisteredHeight = REGISTERED_HEIGHT;
         dmn->pdmnState = state;
         list.AddMN(dmn);
-    }
-
-    static CCollateralShare NewShareFor(CAmount amount, CKey& refund_key, CKey& owner_key)
-    {
-        return NewShare(amount, refund_key, owner_key);
     }
 
     const CollateralShares& Shares() const { return dmn->pdmnState->shares; }

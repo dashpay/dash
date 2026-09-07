@@ -16,10 +16,8 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = EncodeDestination(dest);
     }
-    const std::string payoutList = IsShared()
-                                       ? strprintf("shares(%s), earlyPeriodBlocks=%d, earlyPenalty=%d",
-                                                   ShareListToString(shares), nEarlyPeriodBlocks, nEarlyPenalty)
-                                       : PayoutListToString(GetOwnerPayouts(*this));
+    const std::string payoutList = IsShared() ? PayoutListToString(shares, nEarlyPeriodBlocks, nEarlyPenalty)
+                                            : PayoutListToString(GetOwnerPayouts(*this));
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = EncodeDestination(dest);
     }

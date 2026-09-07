@@ -131,7 +131,8 @@ template<class T>
 /** Whether no share refund or effective reward script pays the voting key's P2PKH destination,
  *  the registration-time separation rule that voting-key and reward-script updates must preserve */
 [[nodiscard]] bool IsShareListVotingKeySafe(const CollateralShares& shares, const CKeyID& keyIDVoting);
-[[nodiscard]] std::string ShareListToString(const CollateralShares& shares);
+[[nodiscard]] std::string PayoutListToString(const CollateralShares& shares, uint32_t early_period_blocks,
+                                            CAmount early_penalty);
 [[nodiscard]] UniValue ShareListToJson(const CollateralShares& shares);
 /** Split an amount across shares proportionally to their collateral amounts: sequential floor,
  *  remainder to the last entry. The result always sums to total exactly. */

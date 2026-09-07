@@ -50,7 +50,7 @@ UniValue PayoutListToJson(const MasternodePayoutShares& payouts)
     return ret;
 }
 
-std::string ShareListToString(const CollateralShares& shares)
+std::string PayoutListToString(const CollateralShares& shares, uint32_t early_period_blocks, CAmount early_penalty)
 {
     std::string ret;
     for (const auto& share : shares) {
@@ -60,7 +60,7 @@ std::string ShareListToString(const CollateralShares& shares)
         if (!ret.empty()) ret += ",";
         ret += strprintf("%s:%d", refund_str, share.amount);
     }
-    return ret;
+    return strprintf("shares(%s), earlyPeriodBlocks=%d, earlyPenalty=%d", ret, early_period_blocks, early_penalty);
 }
 
 UniValue ShareListToJson(const CollateralShares& shares)

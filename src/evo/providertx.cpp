@@ -408,9 +408,8 @@ std::string CProRegTx::MakeSignString() const
 
 std::string CProRegTx::ToString() const
 {
-    const std::string payee = IsShared() ? strprintf("shares(%s), earlyPeriodBlocks=%d, earlyPenalty=%d",
-                                                     ShareListToString(shares), nEarlyPeriodBlocks, nEarlyPenalty)
-                                         : PayoutListToString(GetOwnerPayouts(*this));
+    const std::string payee = IsShared() ? PayoutListToString(shares, nEarlyPeriodBlocks, nEarlyPenalty)
+                                       : PayoutListToString(GetOwnerPayouts(*this));
 
     return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, netInfo=%s, nOperatorReward=%f, "
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s%s)\n",
