@@ -223,21 +223,12 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
 }
 
 namespace {
-template <typename T>
-    requires std::same_as<T, CTxIn> || std::same_as<T, COutPoint>
-Uint256HashSet GetIdsFromLockable(const std::vector<T>& vec)
+Uint256HashSet GetIdsFromLockable(const std::vector<COutPoint>& outpoints)
 {
     Uint256HashSet ret{};
-    if (vec.empty()) return ret;
-    ret.reserve(vec.size());
-    for (const auto& in : vec) {
-        if constexpr (std::is_same_v<T, COutPoint>) {
-            ret.emplace(instantsend::GenInputLockRequestId(in));
-        } else if constexpr (std::is_same_v<T, CTxIn>) {
-            ret.emplace(instantsend::GenInputLockRequestId(in.prevout));
-        } else {
-            assert(false);
-        }
+    ret.reserve(outpoints.size());
+    for (const auto& outpoint : outpoints) {
+        ret.emplace(instantsend::GenInputLockRequestId(outpoint));
     }
     return ret;
 }
@@ -377,6 +368,17 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     uint256 hashBlock{};
     auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, Params().GetConsensus(), hashBlock);
     const bool found_transaction{tx != nullptr};
+    if (found_transaction && islock->inputs != instantsend::GetLockInputs(*tx)) {
+        // A lock must pin exactly the transaction's lock inputs. For an asset unlock that is
+        // the withdrawal's synthetic outpoint; anything else would poison conflict tracking of
+        // unrelated coins. (Ordinary transactions can only fail this with a lock whose txid
+        // does not match its inputs, which the signing quorum never produces.) A lock for a
+        // transaction we do not have yet is parked and comes back through here once the
+        // transaction arrives; until then its inputs are trusted like any quorum-signed lock's.
+        LogPrintf("NetInstantSend::%s -- txid=%s, islock=%s: lock inputs do not match the transaction, peer=%d\n",
+                  __func__, islock->txid.ToString(), hash.ToString(), from);
+        return;
+    }
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
     const auto minedHeight = GetBlockHeight(m_is_manager, m_chainman.ActiveChainstate(), hashBlock);
     if (found_transaction) {
@@ -443,7 +445,7 @@ void NetInstantSend::WorkThreadMain()
 
 void NetInstantSend::TransactionAddedToMempool(const CTransactionRef& tx, int64_t, uint64_t mempool_sequence)
 {
-    if (!m_is_manager.IsInstantSendEnabled() || !m_mn_sync.IsBlockchainSynced() || tx->vin.empty()) {
+    if (!m_is_manager.IsInstantSendEnabled() || !m_mn_sync.IsBlockchainSynced() || !instantsend::HasLockInputs(*tx)) {
         return;
     }
 
@@ -464,7 +466,7 @@ void NetInstantSend::ClearConflicting(const Uint256HashMap<CTransactionRef>& to_
     for (const auto& [_, tx] : to_delete) {
         m_is_manager.RemoveNonLockedTx(tx->GetHash(), false);
         if (m_signer) {
-            m_signer->ClearInputsFromQueue(GetIdsFromLockable(tx->vin));
+            m_signer->ClearInputsFromQueue(GetIdsFromLockable(instantsend::GetLockInputs(*tx)));
         }
     }
 }
@@ -491,6 +493,11 @@ void NetInstantSend::RemoveMempoolConflictsForLock(const uint256& hash, const in
 
         for (const auto& p : toDelete) {
             m_mempool.removeRecursive(*p.second, MemPoolRemovalReason::CONFLICT);
+        }
+        // Asset unlocks have no inputs, so mapNextTx cannot reveal another instance of the
+        // locked withdrawal; the mempool tracks them by index instead.
+        if (const auto locked_tx = m_mempool.get(islock.txid)) {
+            m_mempool.removeAssetUnlockConflicts(*locked_tx);
         }
     }
     ClearConflicting(toDelete);
@@ -536,13 +543,15 @@ void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock,
     if (m_mn_sync.IsBlockchainSynced()) {
         const bool has_chainlock = m_chainlocks.HasChainLock(pindex->nHeight, pindex->GetBlockHash());
         for (const auto& tx : pblock->vtx) {
-            if (tx->IsCoinBase() || tx->vin.empty()) {
-                // coinbase and TXs with no inputs can't be locked
+            if (!instantsend::HasLockInputs(*tx)) {
                 continue;
             }
 
             if (!m_is_manager.IsLocked(tx->GetHash()) && !has_chainlock) {
-                if (m_signer) {
+                // A mined asset unlock is not locked retroactively: its lock exists to make
+                // pending withdrawals spendable, and ChainLocks do not wait for it. It is still
+                // tracked so a lock binding its withdrawal index to another txid is detected.
+                if (m_signer && !tx->vin.empty()) {
                     m_signer->ProcessTx(*tx, true, Params().GetConsensus());
                 }
                 // TX is not locked, so make sure it is tracked
@@ -552,6 +561,9 @@ void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock,
                 m_is_manager.RemoveNonLockedTx(tx->GetHash(), true);
             }
         }
+        // The new tip may have moved a pending withdrawal into its height window or freed
+        // enough of the credit pool limit for every pending withdrawal to fit
+        m_is_manager.RetryUnminedAssetUnlocks();
     }
     m_is_manager.WriteBlockISLocks(pblock, pindex);
 }

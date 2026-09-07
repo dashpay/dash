@@ -103,8 +103,6 @@ std::string CAssetLockPayload::ToString() const
  * Asset Unlock Transaction (withdrawals)
  */
 
-const std::string ASSETUNLOCK_REQUESTID_PREFIX = "plwdtx";
-
 template <typename ScanQuorums, typename GetQuorum>
 static bool VerifyAssetUnlockSig(const CAssetUnlockPayload& payload, ScanQuorums&& scan_quorums,
                                  GetQuorum&& get_quorum, const uint256& msgHash,
@@ -141,7 +139,7 @@ static bool VerifyAssetUnlockSig(const CAssetUnlockPayload& payload, ScanQuorums
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-quorum-internal-error");
     }
 
-    const uint256 requestId = ::SerializeHash(std::make_pair(ASSETUNLOCK_REQUESTID_PREFIX, payload.getIndex()));
+    const uint256 requestId = ::SerializeHash(std::make_pair(ASSET_UNLOCK_REQUESTID_PREFIX, payload.getIndex()));
 
     if (const llmq::SignHash signHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
         payload.getQuorumSig().VerifyInsecure(quorum->qc->quorumPublicKey, signHash.Get())) {
