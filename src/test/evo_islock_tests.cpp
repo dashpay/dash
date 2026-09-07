@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/consensus.h>
+#include <evo/assetlocktx.h>
+#include <evo/specialtx.h>
 #include <hash.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
@@ -350,6 +352,85 @@ BOOST_AUTO_TEST_CASE(trivially_valid_input_cap)
     oversized.txid = uint256::ONE;
     oversized.inputs.assign(instantsend::InstantSendLock::MAX_INPUTS + 1, COutPoint(uint256::ONE, 0));
     BOOST_CHECK(!oversized.TriviallyValid());
+}
+
+BOOST_AUTO_TEST_CASE(lock_inputs_of_asset_unlock)
+{
+    // An asset unlock has no inputs; its lock pins the synthetic outpoint {DIP-27 request id, 0}
+    const auto make_unlock = [](uint8_t version, uint64_t index, uint32_t requested_height) {
+        CMutableTransaction mtx;
+        mtx.nVersion = 3;
+        mtx.nType = TRANSACTION_ASSET_UNLOCK;
+        mtx.vout.emplace_back(COIN, CScript{});
+        SetTxPayload(mtx, CAssetUnlockPayload{version, index, /*fee=*/2000, requested_height, uint256::ONE,
+                                              CBLSSignature{}});
+        return CTransaction{mtx};
+    };
+    const uint64_t index{0x0011223344556677ULL};
+    const uint256 request_id{::SerializeHash(std::make_pair(std::string{"plwdtx"}, index))};
+
+    const CTransaction unlock{make_unlock(2, index, 500)};
+    BOOST_CHECK(instantsend::HasLockInputs(unlock));
+    const auto inputs = instantsend::GetLockInputs(unlock);
+    BOOST_REQUIRE_EQUAL(inputs.size(), 1U);
+    BOOST_CHECK(inputs[0] == COutPoint(request_id, 0));
+
+    // Every instance of one withdrawal maps to the same outpoint: re-signs (same txid), and
+    // version 1 instances (different txid) - so any two claimants of the index conflict
+    BOOST_CHECK(instantsend::GetLockInputs(make_unlock(2, index, 700)) == inputs);
+    const CTransaction unlock_v1{make_unlock(1, index, 500)};
+    BOOST_CHECK(unlock_v1.GetHash() != unlock.GetHash());
+    BOOST_CHECK(instantsend::GetLockInputs(unlock_v1) == inputs);
+    // A different withdrawal maps elsewhere
+    BOOST_CHECK(instantsend::GetLockInputs(make_unlock(2, index + 1, 500)) != inputs);
+
+    // Ordinary transactions pin their prevouts; input-less non-unlock transactions pin nothing
+    CMutableTransaction spend;
+    spend.vin.emplace_back(COutPoint(uint256::TWO, 3));
+    spend.vin.emplace_back(COutPoint(uint256::ONE, 1));
+    BOOST_CHECK(instantsend::HasLockInputs(CTransaction{spend}));
+    BOOST_CHECK((instantsend::GetLockInputs(CTransaction{spend}) ==
+                 std::vector<COutPoint>{COutPoint(uint256::TWO, 3), COutPoint(uint256::ONE, 1)}));
+    CMutableTransaction commitment;
+    commitment.nVersion = 3;
+    commitment.nType = TRANSACTION_QUORUM_COMMITMENT;
+    BOOST_CHECK(!instantsend::HasLockInputs(CTransaction{commitment}));
+    BOOST_CHECK(instantsend::GetLockInputs(CTransaction{commitment}).empty());
+    CMutableTransaction coinbase;
+    coinbase.vin.emplace_back(COutPoint{});
+    BOOST_CHECK(!instantsend::HasLockInputs(CTransaction{coinbase}));
+}
+
+BOOST_FIXTURE_TEST_CASE(nonlocked_asset_unlock_refresh_is_retried, TestChain100Setup)
+{
+    // A re-signed instance of a tracked version 2 asset unlock shares its txid; the retry queue
+    // must hand out the fresh instance, not the stale one first tracked
+    auto& isman = *m_node.isman;
+    const auto make_unlock = [](uint32_t requested_height) {
+        CMutableTransaction mtx;
+        mtx.nVersion = 3;
+        mtx.nType = TRANSACTION_ASSET_UNLOCK;
+        mtx.vout.emplace_back(COIN, CScript{});
+        SetTxPayload(mtx, CAssetUnlockPayload{2, /*index=*/7, /*fee=*/2000, requested_height, uint256::ONE,
+                                              CBLSSignature{}});
+        return MakeTransactionRef(mtx);
+    };
+    const auto unlock = make_unlock(500);
+    const auto unlock_resigned = make_unlock(700);
+    BOOST_REQUIRE(unlock->GetHash() == unlock_resigned->GetHash());
+    BOOST_REQUIRE(unlock->GetInstanceHash() != unlock_resigned->GetInstanceHash());
+
+    isman.AddNonLockedTx(unlock, nullptr);
+    isman.AddNonLockedTx(unlock_resigned, nullptr);
+    isman.RetryUnminedAssetUnlocks();
+    const auto retry = isman.PrepareTxToRetry();
+    BOOST_REQUIRE_EQUAL(retry.size(), 1U);
+    BOOST_CHECK(retry[0]->GetInstanceHash() == unlock_resigned->GetInstanceHash());
+
+    // A stale instance arriving after the fresh one is likewise recorded: the mempool (not this
+    // tracker) decides which instance is held, and the tracker mirrors the last admitted one
+    isman.RemoveNonLockedTx(unlock->GetHash(), false);
+    BOOST_CHECK(isman.PrepareTxToRetry().empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

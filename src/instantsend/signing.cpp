@@ -7,6 +7,11 @@
 #include <chain.h>
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
+#include <evo/assetlocktx.h>
+#include <evo/chainhelper.h>
+#include <evo/creditpool.h>
+#include <evo/specialtx.h>
+#include <evo/specialtxman.h>
 #include <index/txindex.h>
 #include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
@@ -113,10 +118,10 @@ void InstantSendSigner::HandleNewInputLockRecoveredSig(const llmq::CRecoveredSig
     }
 
     if (LogAcceptDebug(BCLog::INSTANTSEND)) {
-        for (const auto& in : tx->vin) {
-            if (GenInputLockRequestId(in.prevout) == recoveredSig.getId()) {
+        for (const auto& outpoint : GetLockInputs(*tx)) {
+            if (GenInputLockRequestId(outpoint) == recoveredSig.getId()) {
                 LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: got recovered sig for input %s\n", __func__,
-                         txid.ToString(), in.prevout.ToStringShort());
+                         txid.ToString(), outpoint.ToStringShort());
                 break;
             }
         }
@@ -167,6 +172,9 @@ void InstantSendSigner::ProcessPendingRetryLockTxs(const std::vector<CTransactio
 
 bool InstantSendSigner::CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params) const
 {
+    if (tx.IsPlatformTransfer()) {
+        return CheckCanLockAssetUnlock(tx, printDebug);
+    }
     if (tx.vin.empty()) {
         // can't lock TXs without inputs (e.g. quorum commitments)
         return false;
@@ -175,6 +183,51 @@ bool InstantSendSigner::CheckCanLock(const CTransaction& tx, bool printDebug, co
     return std::ranges::all_of(tx.vin, [&](const auto& in) {
         return CheckCanLock(in.prevout, printDebug, tx.GetHash(), params);
     });
+}
+
+bool InstantSendSigner::CheckCanLockAssetUnlock(const CTransaction& tx, bool printDebug) const
+{
+    const auto log_refusal = [&](std::string_view reason) {
+        if (printDebug) {
+            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: asset unlock not lockable: %s\n", __func__,
+                     tx.GetHash().ToString(), reason);
+        }
+        return false;
+    };
+    // Version 1 instances change txid when Platform re-signs them, so a lock on one would not
+    // survive a re-sign; only stable-txid instances are locked
+    if (!IsAssetUnlockWithStableTxid(tx)) return log_refusal("version 1");
+    const auto opt_payload = GetTxPayload<CAssetUnlockPayload>(tx);
+    if (!opt_payload) return log_refusal("bad payload");
+
+    LOCK2(::cs_main, m_mempool.cs);
+    if (!m_mempool.exists(tx.GetHash())) return log_refusal("not in mempool");
+    // A withdrawal signed as version 1 before v24 activation may be re-signed as version 2 after
+    // it; both instances then claim the index under different txids. Locking the version 2
+    // instance while the version 1 one is minable risks the lock losing to a ChainLock.
+    if (m_mempool.GetAssetUnlockTxidsByIndex(opt_payload->getIndex()).size() != 1) {
+        return log_refusal("another instance of this withdrawal index is in the mempool");
+    }
+
+    Chainstate& chainstate = m_chainman.ActiveChainstate();
+    const CBlockIndex* tip = chainstate.m_chain.Tip();
+    // Minable in the next block: inside its height window and signed by a recent quorum
+    TxValidationState state;
+    const bool is_v24_active{DeploymentActiveAfter(tip, m_chainman, Consensus::DEPLOYMENT_V24)};
+    if (!chainstate.ChainHelper().special_tx->CheckSpecialTx(tx, tip, is_v24_active, chainstate.CoinsTip(),
+                                                             /*check_sigs=*/true, state)) {
+        return log_refusal(state.ToString());
+    }
+    // Fits the withdrawal limit alongside every other pending withdrawal: the limit is enforced
+    // only when a block is connected, so an over-limit unlock is otherwise indistinguishable from
+    // a minable one in the mempool. Platform pools withdrawals under the same daily limit, so
+    // the pending total exceeding it means something is wrong and nothing is locked until the
+    // window clears rather than guessing which withdrawals miners will pick.
+    const CCreditPool pool = chainstate.ChainHelper().GetCreditPool(tip);
+    if (const CAmount pending{m_mempool.GetPendingAssetUnlockAmount()}; pending > pool.currentLimit) {
+        return log_refusal(strprintf("pending withdrawals %d exceed the credit pool limit %d", pending, pool.currentLimit));
+    }
+    return true;
 }
 
 bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash,
@@ -313,19 +366,20 @@ void InstantSendSigner::ProcessTx(const CTransaction& tx, bool fRetroactive, con
 bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroactive, Consensus::LLMQType llmqType,
                                           const Consensus::Params& params)
 {
+    const std::vector<COutPoint> inputs{GetLockInputs(tx)};
     std::vector<uint256> ids;
-    ids.reserve(tx.vin.size());
+    ids.reserve(inputs.size());
 
     size_t alreadyVotedCount = 0;
-    for (const auto& in : tx.vin) {
-        auto id = GenInputLockRequestId(in.prevout);
+    for (const auto& outpoint : inputs) {
+        auto id = GenInputLockRequestId(outpoint);
         ids.emplace_back(id);
 
         uint256 otherTxHash;
         if (m_sigman.GetVoteForId(params.llmqTypeDIP0024InstantSend, id, otherTxHash)) {
             if (otherTxHash != tx.GetHash()) {
                 LogPrintf("%s -- txid=%s: input %s is conflicting with previous vote for tx %s\n", __func__,
-                          tx.GetHash().ToString(), in.prevout.ToStringShort(), otherTxHash.ToString());
+                          tx.GetHash().ToString(), outpoint.ToStringShort(), otherTxHash.ToString());
                 return false;
             }
             alreadyVotedCount++;
@@ -345,17 +399,17 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
     }
 
     LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: trying to vote on %d inputs\n", __func__, tx.GetHash().ToString(),
-             tx.vin.size());
+             inputs.size());
 
-    for (const auto i : util::irange(tx.vin.size())) {
-        const auto& in = tx.vin[i];
+    for (const auto i : util::irange(inputs.size())) {
+        const auto& outpoint = inputs[i];
         auto& id = ids[i];
         WITH_LOCK(cs_input_requests, inputRequestIds.emplace(id));
         LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: trying to vote on input %s with id %s. fRetroactive=%d\n",
-                 __func__, tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), fRetroactive);
+                 __func__, tx.GetHash().ToString(), outpoint.ToStringShort(), id.ToString(), fRetroactive);
         if (m_shareman.AsyncSignIfMember(llmqType, id, tx.GetHash(), {}, fRetroactive)) {
             LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: voted on input %s with id %s\n", __func__,
-                     tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString());
+                     tx.GetHash().ToString(), outpoint.ToStringShort(), id.ToString());
         }
     }
 
@@ -366,8 +420,12 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
 {
     const auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
 
-    for (const auto& in : tx.vin) {
-        auto id = GenInputLockRequestId(in.prevout);
+    InstantSendLock islock;
+    islock.txid = tx.GetHash();
+    islock.inputs = GetLockInputs(tx);
+
+    for (const auto& outpoint : islock.inputs) {
+        auto id = GenInputLockRequestId(outpoint);
         if (!m_sigman.HasRecoveredSig(llmqType, id, tx.GetHash())) {
             return;
         }
@@ -375,12 +433,6 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
 
     LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: got all recovered sigs, creating InstantSendLock\n", __func__,
              tx.GetHash().ToString());
-
-    InstantSendLock islock;
-    islock.txid = tx.GetHash();
-    for (const auto& in : tx.vin) {
-        islock.inputs.emplace_back(in.prevout);
-    }
 
     auto id = islock.GetRequestId();
 

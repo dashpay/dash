@@ -8,6 +8,7 @@
 
 #include <attributes.h>
 #include <consensus/amount.h>
+#include <crypto/common.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <uint256.h>
@@ -20,6 +21,7 @@
 #include <numeric>
 #include <string>
 #include <utility>
+#include <string_view>
 #include <vector>
 
 /** Transaction types */
@@ -46,6 +48,9 @@ static constexpr size_t ASSET_UNLOCK_PAYLOAD_SIZE{1 + 8 + 4 + ASSET_UNLOCK_QUORU
 /** First asset unlock payload version whose transaction hash excludes the quorum signing info,
  *  so that every re-signed instance of one withdrawal shares one txid. */
 static constexpr uint8_t ASSET_UNLOCK_STABLE_TXID_VERSION{2};
+/** DIP-27 signing request id prefix; the request id SHA256d(prefix ‖ index) identifies a
+ *  withdrawal across every instance and version of its asset unlock transaction. */
+static constexpr std::string_view ASSET_UNLOCK_REQUESTID_PREFIX{"plwdtx"};
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -372,15 +377,29 @@ struct CMutableTransaction
     std::string ToString() const;
 };
 
-/** Whether this (mutable or immutable) transaction is an asset unlock whose hash is computed with
- *  the quorum signing info zeroed (payload version 2 or higher). Judged from the raw payload bytes
- *  because hashing happens before payload validation. */
+/** Whether this (mutable or immutable) transaction is an asset unlock carrying a well-formed
+ *  payload. Judged from the raw payload bytes because hashing happens before payload validation. */
+template <typename TxType>
+inline bool IsAssetUnlockPayload(const TxType& tx)
+{
+    return tx.nVersion >= CTransaction::SPECIAL_VERSION && tx.nType == TRANSACTION_ASSET_UNLOCK &&
+           tx.vExtraPayload.size() == ASSET_UNLOCK_PAYLOAD_SIZE;
+}
+
+/** Whether this asset unlock's hash is computed with the quorum signing info zeroed (payload
+ *  version 2 or higher). */
 template <typename TxType>
 inline bool IsAssetUnlockWithStableTxid(const TxType& tx)
 {
-    return tx.nVersion >= CTransaction::SPECIAL_VERSION && tx.nType == TRANSACTION_ASSET_UNLOCK &&
-           tx.vExtraPayload.size() == ASSET_UNLOCK_PAYLOAD_SIZE &&
-           tx.vExtraPayload[0] >= ASSET_UNLOCK_STABLE_TXID_VERSION;
+    return IsAssetUnlockPayload(tx) && tx.vExtraPayload[0] >= ASSET_UNLOCK_STABLE_TXID_VERSION;
+}
+
+/** The withdrawal index of an asset unlock for which IsAssetUnlockPayload() holds; the payload
+ *  layout is version (1) | index (8) | ... */
+template <typename TxType>
+inline uint64_t GetAssetUnlockIndex(const TxType& tx)
+{
+    return ReadLE64(tx.vExtraPayload.data() + 1);
 }
 
 typedef std::shared_ptr<const CTransaction> CTransactionRef;

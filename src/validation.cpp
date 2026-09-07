@@ -63,6 +63,7 @@
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
+#include <instantsend/lock.h>
 #include <masternode/payments.h>
 #include <stats/client.h>
 #include <util/std23.h>
@@ -861,6 +862,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (m_chain_helper.IsInstantSendWaitingForTx(hash)) {
         m_pool.removeConflicts(tx);
         m_pool.removeProTxConflicts(tx);
+        m_pool.removeAssetUnlockConflicts(tx);
     } else {
         // Check for conflicts with in-memory transactions
         for (const CTxIn &txin : tx.vin)
@@ -2598,8 +2600,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         // Require other nodes to comply, send them some data in case they are missing it.
         const bool has_chainlock = m_chain_helper->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
         for (const auto& tx : block.vtx) {
-            // skip txes that have no inputs
-            if (tx->vin.empty()) continue;
+            if (!instantsend::HasLockInputs(*tx)) continue;
             while (auto conflictLockOpt = m_chain_helper->ConflictingISLockIfAny(*tx)) {
                 auto [conflict_islock_hash, conflict_txid] = conflictLockOpt.value();
                 if (has_chainlock) {

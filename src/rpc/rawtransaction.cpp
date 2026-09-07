@@ -731,6 +731,7 @@ static RPCHelpMan getassetunlockstatuses()
                              {
                                 {RPCResult::Type::NUM, "index", "The Asset Unlock index"},
                                 {RPCResult::Type::STR, "status", "Status of the Asset Unlock index: {chainlocked|mined|mempooled|unknown}"},
+                                {RPCResult::Type::BOOL, "instantlock", /*optional=*/true, "Whether the mempooled Asset Unlock transaction is InstantSend-locked (only for status mempooled)"},
                              }},
                     }
             },
@@ -744,6 +745,7 @@ static RPCHelpMan getassetunlockstatuses()
     const CTxMemPool& mempool = EnsureMemPool(node);
     CHECK_NONFATAL(node.chainlocks);
     const ChainstateManager& chainman = EnsureChainman(node);
+    const llmq::CInstantSendManager& isman = EnsureInstantSendManager(node);
     auto& chain_helper = chainman.ActiveChainstate().ChainHelper();
     UniValue result_arr(UniValue::VARR);
     const UniValue str_indexes = request.params[0].get_array();
@@ -813,29 +815,18 @@ static RPCHelpMan getassetunlockstatuses()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid index");
         }
         obj.pushKV("index", index);
-        auto status_to_push = [&]() -> std::string {
-            if (poolCL.has_value() && poolCL->indexes.Contains(index)) {
-                return "chainlocked";
-            }
-            if (poolOnTip.has_value() && poolOnTip->indexes.Contains(index)) {
-                return "mined";
-            }
-            bool is_mempooled = [&]() {
-                LOCK(mempool.cs);
-                return std::any_of(mempool.mapTx.begin(), mempool.mapTx.end(), [index](const CTxMemPoolEntry &e) {
-                    if (e.GetTx().nType == CAssetUnlockPayload::SPECIALTX_TYPE) {
-                        if (auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(e.GetTx())) {
-                            return index == opt_assetUnlockTx->getIndex();
-                        } else {
-                            throw JSONRPCError(RPC_TRANSACTION_ERROR, "bad-assetunlocktx-payload");
-                        }
-                    }
-                    return false;
-                });
-            }();
-            return is_mempooled && !nSpecificCoreHeight.has_value() ? "mempooled" : "unknown";
-        };
-        obj.pushKV("status", status_to_push());
+        if (poolCL.has_value() && poolCL->indexes.Contains(index)) {
+            obj.pushKV("status", "chainlocked");
+        } else if (poolOnTip.has_value() && poolOnTip->indexes.Contains(index)) {
+            obj.pushKV("status", "mined");
+        } else if (const auto mempooled = WITH_LOCK(mempool.cs, return mempool.GetAssetUnlockTxidsByIndex(index));
+                   !mempooled.empty() && !nSpecificCoreHeight.has_value()) {
+            obj.pushKV("status", "mempooled");
+            obj.pushKV("instantlock", std::any_of(mempooled.begin(), mempooled.end(),
+                                                  [&](const uint256& txid) { return isman.IsLocked(txid); }));
+        } else {
+            obj.pushKV("status", "unknown");
+        }
         result_arr.push_back(obj);
     }
 
