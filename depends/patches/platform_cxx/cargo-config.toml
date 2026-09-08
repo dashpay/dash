@@ -1,17 +1,39 @@
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source.vendored-sources]
-directory = "vendored"
+[source."git+https://github.com/QuantumExplorer/rust-rocksdb.git?rev=52772eea7bcd214d1d07d80aa538b1d24e5015b7"]
+git = "https://github.com/QuantumExplorer/rust-rocksdb.git"
+rev = "52772eea7bcd214d1d07d80aa538b1d24e5015b7"
+replace-with = "vendored-sources"
 
 [source."git+https://github.com/dashpay/agora-blsful?rev=0c34a7a488a0bd1c9a9a2196e793b303ad35c900"]
 git = "https://github.com/dashpay/agora-blsful"
 rev = "0c34a7a488a0bd1c9a9a2196e793b303ad35c900"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/dashpay/grovedb?rev=a2791bbdca756d6a6113024aec48f09f7a33faa9"]
+[source."git+https://github.com/dashpay/bls-signatures?rev=0842b17583888e8f46c252a4ee84cdfd58e0546f"]
+git = "https://github.com/dashpay/bls-signatures"
+rev = "0842b17583888e8f46c252a4ee84cdfd58e0546f"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/grovedb?rev=6fc7e1e82de27a56c3428c0d5dd15b5f6a0ea23e"]
 git = "https://github.com/dashpay/grovedb"
-rev = "a2791bbdca756d6a6113024aec48f09f7a33faa9"
+rev = "6fc7e1e82de27a56c3428c0d5dd15b5f6a0ea23e"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/jsonschema-rs?branch=configure_regexp"]
+git = "https://github.com/dashpay/jsonschema-rs"
+branch = "configure_regexp"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/orchard.git?tag=dashified-0.14.1"]
+git = "https://github.com/dashpay/orchard.git"
+tag = "dashified-0.14.1"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/rs-bip37-bloom-filter?branch=develop"]
+git = "https://github.com/dashpay/rs-bip37-bloom-filter"
+branch = "develop"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/dashpay/rs-tenderdash-abci?tag=v1.5.1"]
@@ -19,12 +41,30 @@ git = "https://github.com/dashpay/rs-tenderdash-abci"
 tag = "v1.5.1"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/dashpay/rust-dashcore?rev=173ffac0fdc0c73dda0626cf385bbcfcf2437aeb"]
+[source."git+https://github.com/dashpay/rust-dashcore?rev=93260bf39bac5d9d09e89bfb45e9ea3ff7fdcbcd"]
 git = "https://github.com/dashpay/rust-dashcore"
-rev = "173ffac0fdc0c73dda0626cf385bbcfcf2437aeb"
+rev = "93260bf39bac5d9d09e89bfb45e9ea3ff7fdcbcd"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/serde-wasm-bindgen?branch=fix/uint8array-to-bytes"]
+git = "https://github.com/dashpay/serde-wasm-bindgen"
+branch = "fix/uint8array-to-bytes"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/dashpay/vsss-rs?branch=main"]
 git = "https://github.com/dashpay/vsss-rs"
 branch = "main"
 replace-with = "vendored-sources"
+
+[source."git+https://github.com/dashpay/zcash_note_encryption?rev=9f7e93d"]
+git = "https://github.com/dashpay/zcash_note_encryption"
+rev = "9f7e93d"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/gvz/zmq.rs?rev=b0787de310befaedd1f762e3b9bc711612d8137f"]
+git = "https://github.com/gvz/zmq.rs"
+rev = "b0787de310befaedd1f762e3b9bc711612d8137f"
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendored"
