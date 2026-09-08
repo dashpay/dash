@@ -159,6 +159,8 @@ if(BUILD_CONSENSUS_LIB)
     set_target_properties(dashconsensus PROPERTIES
       MACHO_COMPATIBILITY_VERSION 1.0.0
       MACHO_CURRENT_VERSION 1.0.0
+      MACOSX_RPATH OFF
+      INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}"
     )
   endif()
   install(TARGETS dashconsensus
