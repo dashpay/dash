@@ -140,9 +140,6 @@ option(ENABLE_MINER "Enable the in-wallet miner and its RPCs." ON)
 # Dash, unlike upstream, still provides the public libdashconsensus API
 # (--with-libs under Autotools, enabled by default).
 option(BUILD_CONSENSUS_LIB "Build the public dashconsensus shared library." ON)
-if(BUILD_CONSENSUS_LIB)
-  set(HAVE_CONSENSUS_LIB ON)
-endif()
 
 # Matches the Autotools `--enable-stacktraces=auto` default: enabled when
 # libbacktrace and its prerequisites are found, otherwise disabled with a
@@ -291,6 +288,9 @@ if(BUILD_FOR_FUZZING)
     BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
   )
 endif()
+
+# Derive this after BUILD_FOR_FUZZING has applied its target overrides.
+set(HAVE_CONSENSUS_LIB ${BUILD_CONSENSUS_LIB})
 
 include(ProcessConfigurations)
 
