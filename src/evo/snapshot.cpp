@@ -89,8 +89,21 @@ void ValidateHashPrefixRuns(std::vector<uint64_t>& prefixes)
     }
 }
 
+template <typename T>
+void ValidateMNEncoding(const T& obj)
+{
+    // Use the decoder's actual accounting, including version-dependent fields
+    // and OverrideStream wrappers, rather than maintaining a second size formula.
+    CDataStream encoded{SER_DISK, CLIENT_VERSION};
+    encoded << obj;
+    SnapshotBoundedInput bounded{encoded, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
+    const T decoded{deserialize, bounded};
+    bounded.CheckCanonicalEncoding(decoded);
+}
+
 void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
 {
+    if (list.GetHeightForSnapshotCodec() < 0) throw std::ios_base::failure("negative canonical MN-list height");
     const size_t count{list.GetCounts().total()};
     if (count > EVO_SNAPSHOT_MAX_MNS) throw std::ios_base::failure("oversized canonical MN list");
     uint64_t max_internal_id{0};
@@ -151,7 +164,7 @@ bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256,
     int previous_height{current.GetHeightForSnapshotCodec()};
     try {
         size_t records_processed{0};
-        const auto history{SortedCanonically(snapshot.historical_mn_list_diffs)};
+        const auto history{CanonicallySortedCopy(snapshot.historical_mn_list_diffs)};
         for (const auto& entry : history) {
             if (entry.previous_block_hash != previous_hash || entry.block_hash.IsNull() ||
                 entry.height < 0 || entry.height >= previous_height || entry.canonical_list_hash.IsNull()) {
@@ -177,8 +190,15 @@ bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256,
                 merged_prefixes.push_back(ReadLE64(dmn->proTxHash.begin()));
             }
             ValidateHashPrefixRuns(merged_prefixes);
+            for (const auto& dmn : entry.diff.addedMNs) ValidateMNEncoding(*dmn);
+            for (const auto& [_, state_diff] : entry.diff.updatedMNs) ValidateMNEncoding(state_diff);
             current.ApplyDiffForSnapshot(entry.block_hash, entry.height, entry.total_registered_count, entry.diff);
             ValidateCanonicalMNInvariants(current);
+            // Unchanged MNs retain their checked encoding. A state update may
+            // combine individually bounded fields into an oversized full MN.
+            for (const auto& [internal_id, _] : entry.diff.updatedMNs) {
+                ValidateMNEncoding(*Assert(current.GetMNByInternalId(internal_id)));
+            }
             if (CanonicalMNListHash(current) != entry.canonical_list_hash) {
                 throw std::ios_base::failure("historical MN-list diff hash mismatch");
             }
@@ -203,6 +223,7 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
         throw std::ios_base::failure("evo snapshot base block mismatch");
     }
     ValidateCanonicalMNInvariants(mn_list);
+    mn_list.ForEachMN(/*onlyValid=*/false, [](const auto& dmn) { ValidateMNEncoding(dmn); });
     if (quorums.size() > Consensus::available_llmqs.size() ||
         historical_mn_list_diffs.size() > EvoSnapshotMaxHistoricalMNLists() ||
         quorum_modifiers.size() > EVO_SNAPSHOT_MAX_MODIFIERS ||
@@ -220,6 +241,9 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
     if (!MoneyRange(credit_pool.locked) || !MoneyRange(credit_pool.currentLimit) ||
         !MoneyRange(credit_pool.latelyUnlocked) || credit_pool.currentLimit > credit_pool.locked) {
         throw std::ios_base::failure("invalid evo snapshot credit pool amounts");
+    }
+    if (credit_pool.indexes.RangeCount() > EVO_SNAPSHOT_MAX_RANGES) {
+        throw std::ios_base::failure("oversized CRangesSet range count");
     }
     // Consensus admits MNHF signals only for bits below VERSIONBITS_NUM_BITS
     // and records the mined height, which cannot exceed the base height.

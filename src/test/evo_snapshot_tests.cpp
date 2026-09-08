@@ -674,6 +674,197 @@ BOOST_FIXTURE_TEST_CASE(commitment_sizes_are_format_bounded_not_param_exact, Bas
     BOOST_CHECK_EQUAL_COLLECTIONS(bytes.begin(), bytes.end(), reencoded.begin(), reencoded.end());
 }
 
+BOOST_FIXTURE_TEST_CASE(canonical_sort_preserves_input, BasicTestingSetup)
+{
+    const auto snapshot{SyntheticSnapshot(/*reverse_representation=*/true)};
+    const auto original{SerializeSnapshot(snapshot)};
+    const auto first_type{snapshot.quorums.front().llmq_type};
+    const auto sorted{evo::CanonicallySortedCopy(snapshot.quorums)};
+    BOOST_CHECK(evo::IsCanonicallySorted(sorted));
+    BOOST_CHECK(!evo::IsCanonicallySorted(snapshot.quorums));
+    BOOST_CHECK(snapshot.quorums.front().llmq_type == first_type);
+    const auto after{SerializeSnapshot(snapshot)};
+    BOOST_CHECK_EQUAL_COLLECTIONS(original.begin(), original.end(), after.begin(), after.end());
+}
+
+BOOST_FIXTURE_TEST_CASE(rotation_flag_wire_encoding_is_canonical, BasicTestingSetup)
+{
+    for (const uint8_t flag : {0, 1, 2, 255}) {
+        CDataStream input{SER_DISK, CLIENT_VERSION};
+        input << Consensus::LLMQType::LLMQ_TEST_DIP0024 << flag;
+        for (int i{0}; i < 3; ++i) WriteCompactSize(input, 0);
+        evo::QuorumSnapshotData decoded;
+        if (flag <= 1) {
+            BOOST_CHECK_NO_THROW(input >> decoded);
+            BOOST_CHECK_EQUAL(decoded.rotation_enabled, flag != 0);
+        } else {
+            BOOST_CHECK_EXCEPTION(input >> decoded, std::ios_base::failure, [](const auto& e) {
+                return std::string{e.what()}.find("noncanonical evo quorum rotation flag") != std::string::npos;
+            });
+        }
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup)
+{
+    const auto mn{MN(5, 1, MnType::Evo, ProTxVersion::ExtAddr, 5)};
+    auto net_info{mn->pdmnState->netInfo};
+    CDataStream canonical_info{SER_DISK, CLIENT_VERSION};
+    canonical_info << NetInfoSerWrapper(net_info, /*is_extended=*/true);
+    auto info_input{canonical_info};
+    uint8_t version;
+    info_input >> version;
+    const auto count{ReadCompactSize(info_input)};
+    std::vector<std::pair<NetInfoPurpose, NetInfoList>> entries(count);
+    for (auto& entry : entries) info_input >> entry;
+    BOOST_REQUIRE(entries.size() > 1);
+    BOOST_REQUIRE(info_input.empty());
+
+    const auto is_noncanonical = [](const auto& e) {
+        return std::string{e.what()}.find("noncanonical MN object encoding") != std::string::npos;
+    };
+    for (const bool duplicate : {false, true}) {
+        auto changed_entries{entries};
+        if (duplicate) {
+            changed_entries.insert(changed_entries.begin(), entries.front());
+        } else {
+            std::reverse(changed_entries.begin(), changed_entries.end());
+        }
+        CDataStream changed_info{SER_DISK, CLIENT_VERSION};
+        changed_info << version << changed_entries;
+        const auto replace_info = [&](const auto& obj) {
+            CDataStream encoded{SER_DISK, CLIENT_VERSION};
+            encoded << obj;
+            const auto pos{std::search(encoded.begin(), encoded.end(), canonical_info.begin(), canonical_info.end())};
+            BOOST_REQUIRE(pos != encoded.end());
+            const size_t offset{static_cast<size_t>(pos - encoded.begin())};
+            CDataStream changed{SER_DISK, CLIENT_VERSION};
+            changed.write(Span{encoded}.first(offset));
+            changed.write(Span{changed_info});
+            changed.write(Span{encoded}.subspan(offset + canonical_info.size()));
+            return changed;
+        };
+        const auto changed_mn{replace_info(*mn)};
+        auto ordinary_input{changed_mn};
+        const CDeterministicMN ordinary{deserialize, ordinary_input};
+        BOOST_CHECK(ordinary.pdmnState->netInfo->Validate() == NetInfoStatus::Success);
+
+        CDataStream base{SER_DISK, CLIENT_VERSION};
+        base << H(42) << 42 << uint32_t{10};
+        WriteCompactSize(base, 1);
+        base.write(Span{changed_mn});
+        BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(base), std::ios_base::failure, is_noncanonical);
+
+        CDataStream addition{SER_DISK, CLIENT_VERSION};
+        WriteCompactSize(addition, 1);
+        addition.write(Span{changed_mn});
+        WriteCompactSize(addition, 0);
+        WriteCompactSize(addition, 0);
+        BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(addition), std::ios_base::failure, is_noncanonical);
+
+        const auto old_mn{MN(5, 1, MnType::Evo, ProTxVersion::ExtAddr, 6)};
+        const CDeterministicMNStateDiff state_diff{*old_mn->pdmnState, *mn->pdmnState};
+        const auto changed_diff{replace_info(state_diff)};
+        CDataStream update{SER_DISK, CLIENT_VERSION};
+        WriteCompactSize(update, 0);
+        WriteCompactSize(update, 1);
+        WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(update, 5);
+        update.write(Span{changed_diff});
+        WriteCompactSize(update, 0);
+        BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(update), std::ios_base::failure, is_noncanonical);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(validation_matches_height_and_range_decode_bounds, BasicTestingSetup)
+{
+    evo::EvoSnapshot snapshot;
+    snapshot.base_block_hash = H(42);
+    snapshot.mn_list.SetBlockHash(snapshot.base_block_hash);
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("negative canonical MN-list height") != std::string::npos;
+    });
+    BOOST_CHECK_THROW(GetEvoSnapshotHash(snapshot), std::ios_base::failure);
+    snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 0, 0};
+    for (size_t i{0}; i < evo::EVO_SNAPSHOT_MAX_RANGES; ++i) {
+        BOOST_REQUIRE(snapshot.credit_pool.indexes.Add(2 * i));
+    }
+    BOOST_CHECK_EQUAL(snapshot.credit_pool.indexes.RangeCount(), evo::EVO_SNAPSHOT_MAX_RANGES);
+    BOOST_CHECK_NO_THROW(snapshot.Validate());
+    auto bytes{SerializeSnapshot(snapshot)};
+    evo::EvoSnapshot decoded;
+    BOOST_CHECK_NO_THROW(bytes >> decoded);
+    BOOST_REQUIRE(snapshot.credit_pool.indexes.Add(2 * evo::EVO_SNAPSHOT_MAX_RANGES));
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("oversized CRangesSet range count") != std::string::npos;
+    });
+    BOOST_CHECK_THROW(GetEvoSnapshotHash(snapshot), std::ios_base::failure);
+
+    CDataStream continuous{SER_DISK, CLIENT_VERSION};
+    WriteCompactSize(continuous, 1);
+    continuous << uint64_t{0} << uint64_t{evo::EVO_SNAPSHOT_MAX_RANGES + 1};
+    continuous >> snapshot.credit_pool.indexes;
+    BOOST_CHECK_EQUAL(snapshot.credit_pool.indexes.RangeCount(), 1U);
+    BOOST_CHECK_GT(snapshot.credit_pool.indexes.Size(), evo::EVO_SNAPSHOT_MAX_RANGES);
+    BOOST_CHECK_NO_THROW(snapshot.Validate());
+}
+
+BOOST_FIXTURE_TEST_CASE(validation_enforces_nested_mn_decode_budget, BasicTestingSetup)
+{
+    const auto is_budget_error = [](const auto& e) {
+        return std::string{e.what()}.find("CompactSize budget exceeded") != std::string::npos;
+    };
+    auto mn{std::const_pointer_cast<CDeterministicMN>(MN(2, 3, MnType::Regular, ProTxVersion::LegacyBLS, 3))};
+    auto state{std::make_shared<CDeterministicMNState>(*mn->pdmnState)};
+    // Legacy net info has no CompactSizes; the two scripts share the budget.
+    state->scriptPayout.assign(evo::EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS / 2, OP_TRUE);
+    state->scriptOperatorPayout = state->scriptPayout;
+    mn->pdmnState = state;
+    evo::EvoSnapshot snapshot;
+    snapshot.base_block_hash = H(42);
+    snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 42, 10};
+    snapshot.mn_list.AddMN(mn, /*fBumpTotalCount=*/false);
+    BOOST_CHECK_NO_THROW(snapshot.Validate());
+    auto bytes{SerializeSnapshot(snapshot)};
+    evo::EvoSnapshot decoded;
+    BOOST_CHECK_NO_THROW(bytes >> decoded);
+
+    state = std::make_shared<CDeterministicMNState>(*state);
+    state->scriptOperatorPayout.push_back(OP_TRUE);
+    snapshot.mn_list.UpdateMN(mn->proTxHash, state);
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, is_budget_error);
+    BOOST_CHECK_THROW(GetEvoSnapshotHash(snapshot), std::ios_base::failure);
+    bytes = SerializeSnapshot(snapshot);
+    BOOST_CHECK_EXCEPTION(bytes >> decoded, std::ios_base::failure, is_budget_error);
+
+    snapshot = SyntheticSnapshot();
+    mn->pdmnState = state;
+    snapshot.historical_mn_list_diffs.front().diff.addedMNs.push_back(mn);
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, is_budget_error);
+
+    // A diff can carry a legacy payout field even when the resulting extended
+    // MN's full encoding omits that field. Check the diff's own budget as well.
+    snapshot = SyntheticSnapshot();
+    const auto extended{MN(5, 1, MnType::Evo, ProTxVersion::ExtAddr, 5)};
+    CDeterministicMNState changed{*extended->pdmnState};
+    changed.scriptPayout.assign(evo::EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS + 1, OP_TRUE);
+    snapshot.historical_mn_list_diffs.front().diff.updatedMNs.emplace(
+        5, CDeterministicMNStateDiff{*extended->pdmnState, changed});
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, is_budget_error);
+
+    // Both the base MN and diff fit separately, but the update combines two
+    // scripts whose total exceeds the full-MN budget.
+    snapshot = SyntheticSnapshot();
+    const auto base_mn{snapshot.mn_list.GetMNByInternalId(2)};
+    auto base_state{std::make_shared<CDeterministicMNState>(*base_mn->pdmnState)};
+    base_state->scriptPayout.assign(evo::EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS / 2, OP_TRUE);
+    snapshot.mn_list.UpdateMN(base_mn->proTxHash, base_state);
+    CDeterministicMNState combined{*base_state};
+    combined.scriptOperatorPayout.assign(evo::EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS / 2 + 1, OP_TRUE);
+    snapshot.historical_mn_list_diffs.front().diff.updatedMNs.emplace(
+        2, CDeterministicMNStateDiff{*base_state, combined});
+    BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, is_budget_error);
+}
+
 BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
 {
     const auto bytes{SerializeSnapshot(SyntheticSnapshot())};

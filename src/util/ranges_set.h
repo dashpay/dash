@@ -75,6 +75,9 @@ public:
      */
     [[nodiscard]] size_t Size() const noexcept;
 
+    /** Number of stored intervals, independent of how many values they cover. */
+    [[nodiscard]] size_t RangeCount() const noexcept { return ranges.size(); }
+
     /**
      * IsEmpty() returns true if there's no any elements added
      */

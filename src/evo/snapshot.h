@@ -14,6 +14,7 @@
 #include <llmq/snapshot.h>
 #include <versionbits.h>
 
+#include <hash.h>
 #include <serialize.h>
 #include <uint256.h>
 #include <util/check.h>
@@ -154,12 +155,12 @@ template <typename Stream>
 class SnapshotBoundedInput
 {
 private:
-    Stream& m_stream;
+    CHashVerifier<Stream> m_stream;
     uint64_t m_compact_budget;
 
 public:
     SnapshotBoundedInput(Stream& stream, uint64_t compact_budget) :
-        m_stream{stream}, m_compact_budget{compact_budget} {}
+        m_stream{&stream}, m_compact_budget{compact_budget} {}
 
     int GetType() const { return m_stream.GetType(); }
     int GetVersion() const { return m_stream.GetVersion(); }
@@ -172,6 +173,18 @@ public:
         if (size > m_compact_budget) throw std::ios_base::failure("canonical MN nested CompactSize budget exceeded");
         m_compact_budget -= size;
         return size;
+    }
+
+    // Reused serializers can normalize nested maps or other encodings. Hash
+    // the consumed bytes so canonicality can be checked without buffering them.
+    template <typename T>
+    void CheckCanonicalEncoding(const T& obj)
+    {
+        CHashWriter canonical{GetType(), GetVersion()};
+        canonical << obj;
+        if (m_stream.GetHash() != canonical.GetHash()) {
+            throw std::ios_base::failure("noncanonical MN object encoding");
+        }
     }
 
     template <typename T>
@@ -237,6 +250,7 @@ CDeterministicMNList UnserializeCanonicalMNList(Stream& s)
     for (size_t i{0}; i < count; ++i) {
         SnapshotBoundedInput bounded{s, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
         auto dmn{std::make_shared<CDeterministicMN>(deserialize, bounded)};
+        bounded.CheckCanonicalEncoding(*dmn);
         if (dmn->pdmnState->payouts.size() > EVO_SNAPSHOT_MAX_PAYOUT_SHARES) {
             throw std::ios_base::failure("oversized canonical MN payout list");
         }
@@ -312,6 +326,7 @@ CDeterministicMNListDiff UnserializeCanonicalMNListDiff(Stream& s, size_t& remai
     for (size_t i{0}; i < added_count; ++i) {
         SnapshotBoundedInput bounded{s, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
         auto dmn{std::make_shared<CDeterministicMN>(deserialize, bounded)};
+        bounded.CheckCanonicalEncoding(*dmn);
         if ((have_previous && previous_id >= dmn->GetInternalId()) ||
             dmn->pdmnState->payouts.size() > EVO_SNAPSHOT_MAX_PAYOUT_SHARES ||
             dmn->pdmnState->netInfo->Validate() != NetInfoStatus::Success) {
@@ -333,7 +348,9 @@ CDeterministicMNListDiff UnserializeCanonicalMNListDiff(Stream& s, size_t& remai
             throw std::ios_base::failure("noncanonical canonical MN-diff update order");
         }
         SnapshotBoundedInput bounded{s, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
-        diff.updatedMNs.emplace(internal_id, CDeterministicMNStateDiff(deserialize, bounded));
+        CDeterministicMNStateDiff state_diff{deserialize, bounded};
+        bounded.CheckCanonicalEncoding(state_diff);
+        diff.updatedMNs.emplace(internal_id, std::move(state_diff));
         previous_id = internal_id;
         have_previous = true;
     }
@@ -508,7 +525,7 @@ inline bool IsCanonicallyBefore(const QuorumSnapshotData& a, const QuorumSnapsho
 }
 
 template <typename T>
-std::vector<T> SortedCanonically(std::vector<T> values)
+std::vector<T> CanonicallySortedCopy(std::vector<T> values)
 {
     std::sort(values.begin(), values.end(), [](const T& a, const T& b) { return IsCanonicallyBefore(a, b); });
     return values;
@@ -562,9 +579,9 @@ QuorumSnapshotEntry ReadRotationSnapshot(Stream& s, const Consensus::LLMQParams&
 template <typename Stream>
 void QuorumSnapshotData::Serialize(Stream& s) const
 {
-    const auto active{SortedCanonically(active_commitments)};
-    const auto safety{SortedCanonically(safety_commitments)};
-    const auto snapshots{SortedCanonically(rotation_snapshots)};
+    const auto active{CanonicallySortedCopy(active_commitments)};
+    const auto safety{CanonicallySortedCopy(safety_commitments)};
+    const auto snapshots{CanonicallySortedCopy(rotation_snapshots)};
     s << llmq_type << rotation_enabled << active << safety;
     WriteSnapshotVector(s, snapshots, [&](const auto& entry) { WriteRotationSnapshot(s, entry); });
 }
@@ -572,7 +589,10 @@ void QuorumSnapshotData::Serialize(Stream& s) const
 template <typename Stream>
 void QuorumSnapshotData::Unserialize(Stream& s)
 {
-    s >> llmq_type >> rotation_enabled;
+    uint8_t rotation_flag;
+    s >> llmq_type >> rotation_flag;
+    if (rotation_flag > 1) throw std::ios_base::failure("noncanonical evo quorum rotation flag");
+    rotation_enabled = rotation_flag != 0;
     // Same replacement semantics as EvoSnapshot::Unserialize: decoding into a
     // reused object must not retain (or exceed the count bounds through)
     // previously held entries.
@@ -600,9 +620,9 @@ void QuorumSnapshotData::Unserialize(Stream& s)
 template <typename Stream>
 void EvoSnapshot::Serialize(Stream& s) const
 {
-    const auto sorted_quorums{SortedCanonically(quorums)};
-    const auto sorted_history{SortedCanonically(historical_mn_list_diffs)};
-    const auto sorted_modifiers{SortedCanonically(quorum_modifiers)};
+    const auto sorted_quorums{CanonicallySortedCopy(quorums)};
+    const auto sorted_history{CanonicallySortedCopy(historical_mn_list_diffs)};
+    const auto sorted_modifiers{CanonicallySortedCopy(quorum_modifiers)};
     s << version << base_block_hash;
     SerializeCanonicalMNList(s, mn_list);
     s << sorted_quorums;
