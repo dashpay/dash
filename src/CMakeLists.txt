@@ -199,7 +199,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   common/bloom.cpp
   common/init.cpp
   common/run_command.cpp
-  common/url.cpp
+  $<$<TARGET_EXISTS:libevent::libevent>:common/url.cpp>
   compressor.cpp
   core_read.cpp
   core_write.cpp
