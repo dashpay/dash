@@ -5,6 +5,8 @@
 #ifndef BITCOIN_TEST_UTIL_WALLET_H
 #define BITCOIN_TEST_UTIL_WALLET_H
 
+#include <script/standard.h>
+
 #include <string>
 
 namespace wallet {
@@ -20,8 +22,10 @@ extern const std::string ADDRESS_BCRT1_UNSPENDABLE;
 
 /** Import the address to the wallet */
 void importaddress(wallet::CWallet& wallet, const std::string& address);
-/** Returns a new address from the wallet */
+/** Returns a new encoded destination from the wallet */
 std::string getnewaddress(wallet::CWallet& w);
+/** Returns a new destination from the wallet. Dash only supports OutputType::LEGACY. */
+CTxDestination getNewDestination(wallet::CWallet& w);
 
 
 #endif // BITCOIN_TEST_UTIL_WALLET_H

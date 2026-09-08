@@ -25,7 +25,12 @@ const std::string ADDRESS_BCRT1_UNSPENDABLE = "bcrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqq
 #ifdef ENABLE_WALLET
 std::string getnewaddress(CWallet& w)
 {
-    return EncodeDestination(*Assert(w.GetNewDestination("")));
+    return EncodeDestination(getNewDestination(w));
+}
+
+CTxDestination getNewDestination(CWallet& w)
+{
+    return *Assert(w.GetNewDestination(""));
 }
 
 // void importaddress(CWallet& wallet, const std::string& address)

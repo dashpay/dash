@@ -722,7 +722,7 @@ BOOST_FIXTURE_TEST_CASE(ListCoinsTest, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 1U);
 
     // Check initial balance from one mature coinbase transaction.
-    BOOST_CHECK_EQUAL(500 * COIN, GetAvailableBalance(*wallet));
+    BOOST_CHECK_EQUAL(500 * COIN, WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).total_amount));
 
     // Add a transaction creating a change address, and confirm ListCoins still
     // returns the coin associated with the change address underneath the
@@ -1304,6 +1304,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     // First run the tests with only one input containing 100k duffs
     {
         coinControl = CCoinControl();
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         coinControl.Select(GetCoins({{100000, false}})[0]);
 
         // Start with fallback feerate
@@ -1344,6 +1346,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     // Now use 4 different inputs with a total of 100k duff
     {
         coinControl = CCoinControl();
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         auto setCoins = GetCoins({{1000, false}, {5000, false}, {10000, false}, {84000, false}});
         for (auto coin : setCoins) {
             coinControl.Select(coin);
@@ -1388,6 +1392,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     // Last use 10 equal inputs with a total of 100k duff
     {
         coinControl = CCoinControl();
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         auto setCoins = GetCoins({{10000, false}, {10000, false}, {10000, false}, {10000, false}, {10000, false},
                                   {10000, false}, {10000, false}, {10000, false}, {10000, false}, {10000, false}});
 
@@ -1481,6 +1487,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
     {
         coinControl = CCoinControl();
         coinControl.m_feerate = CFeeRate(fallbackFee);
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         coinControl.Select(GetCoins({{100000, false}})[0]);
 
         BOOST_CHECK(CreateTransaction({{25000, false}, {25000, false}, {25000, false}}, {}, 0, true, ChangeTest::ChangeExpected));
@@ -1527,6 +1535,8 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
 
         coinControl = CCoinControl();
         coinControl.m_feerate = CFeeRate(fallbackFee);
+        // Spend the selected coins only, do not let the wallet add any of its own
+        coinControl.m_allow_other_inputs = false;
         coinControl.Select(GetCoins({{100 * COIN, false}})[0]);
 
         BOOST_CHECK(CreateTransaction({{-5000, false}}, strAmountNotNegative, false));
@@ -1557,7 +1567,7 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
 BOOST_FIXTURE_TEST_CASE(select_coins_grouped_by_addresses, ListCoinsTestingSetup)
 {
     // Check initial balance from one mature coinbase transaction.
-    BOOST_CHECK_EQUAL(GetAvailableBalance(*wallet), 500 * COIN);
+    BOOST_CHECK_EQUAL(WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).total_amount), 500 * COIN);
 
     {
         std::vector<CompactTallyItem> vecTally = wallet->SelectCoinsGroupedByAddresses(/*fSkipDenominated=*/false,
@@ -1580,7 +1590,7 @@ BOOST_FIXTURE_TEST_CASE(select_coins_grouped_by_addresses, ListCoinsTestingSetup
     BOOST_CHECK(ret2);
     const auto& txr2 = ret2->tx;
     wallet->CommitTransaction(txr1, {}, {});
-    BOOST_CHECK_EQUAL(GetAvailableBalance(*wallet), 0);
+    BOOST_CHECK_EQUAL(WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).total_amount), 0);
     CreateAndProcessBlock({CMutableTransaction(*txr2)}, GetScriptForRawPubKey({}));
     struct ChainInfo {
         const CBlockIndex* tip;
@@ -1617,7 +1627,7 @@ BOOST_FIXTURE_TEST_CASE(select_coins_grouped_by_addresses, ListCoinsTestingSetup
     BOOST_CHECK_EQUAL(vecTally.at(0).outpoints.size(), 1);
     BOOST_CHECK_EQUAL(vecTally.at(1).outpoints.size(), 1);
     BOOST_CHECK_EQUAL(vecTally.at(0).nAmount + vecTally.at(1).nAmount, (500 + 499) * COIN);
-    BOOST_CHECK_EQUAL(GetAvailableBalance(*wallet), (500 + 499) * COIN);
+    BOOST_CHECK_EQUAL(WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).total_amount), (500 + 499) * COIN);
 }
 
 
