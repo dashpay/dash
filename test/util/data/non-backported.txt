@@ -47,6 +47,8 @@ src/qt/masternodemodel.*
 src/qt/masternodeoperationrunner.*
 src/qt/masternodewidgets.*
 src/qt/masternodewizard.*
+src/qt/platform/*.cpp
+src/qt/platform/*.h
 src/qt/mnemonicverificationdialog.*
 src/qt/networkwidget.*
 src/qt/test/providertransactiontests.cpp

@@ -1081,6 +1081,16 @@ https://explore.transifex.com/dash/dash/</string>
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="showPlatformTab">
+         <property name="toolTip">
+          <string>Show additional tab for DashPay usernames, profiles and contacts on Dash Platform.</string>
+         </property>
+         <property name="text">
+          <string>Show DashPay Tab</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="showGovernanceTab">
          <property name="toolTip">
           <string>Show additional tab listing governance proposals.</string>
