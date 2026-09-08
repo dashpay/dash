@@ -288,10 +288,11 @@ void NetSigning::WorkThreadSigning()
         constexpr auto CLEANUP_INTERVAL{5s};
         if (cleanupThrottler.TryCleanup(CLEANUP_INTERVAL)) {
             m_sig_manager.Cleanup();
-            // Drop pending recovered sigs queued by banned peers so a flood's backlog does not
-            // persist after the peer is banned (RemoveBannedNodeStates only cleans the sig-shares
-            // subsystem, not m_sig_manager's pending recovered sigs).
-            m_sig_manager.RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
+            // Drop pending recovered sigs from disconnected or discouraged peers so their backlog
+            // does not outlive the connection that created it.
+            m_sig_manager.RemoveNodesIf([this](NodeId node_id) {
+                return m_peer_manager->PeerIsDisconnectedOrDiscouraged(node_id);
+            });
         }
 
         // TODO Wakeup when pending signing is needed?
@@ -301,11 +302,12 @@ void NetSigning::WorkThreadSigning()
     }
 }
 
-void NetSigning::RemoveBannedNodeStates()
+void NetSigning::RemoveDisconnectedOrDiscouragedNodeStates()
 {
     assert(m_shares_manager != nullptr);
-    // Called regularly to cleanup local node states for banned nodes
-    m_shares_manager->RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
+    m_shares_manager->RemoveNodesIf([this](NodeId node_id) {
+        return m_peer_manager->PeerIsDisconnectedOrDiscouraged(node_id);
+    });
 }
 
 void NetSigning::BanNode(NodeId nodeId)
@@ -323,7 +325,7 @@ void NetSigning::WorkThreadCleaning()
     assert(m_shares_manager);
 
     while (!workInterrupt) {
-        RemoveBannedNodeStates();
+        RemoveDisconnectedOrDiscouragedNodeStates();
 
         m_shares_manager->SendMessages();
         m_shares_manager->Cleanup();

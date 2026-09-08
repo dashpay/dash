@@ -71,7 +71,7 @@ private:
         std::unordered_map<NodeId, std::vector<CSigShare>>&& sigSharesByNodes,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>&& quorums);
 
-    void RemoveBannedNodeStates();
+    void RemoveDisconnectedOrDiscouragedNodeStates();
     void BanNode(NodeId nodeid);
 
 private:
