@@ -486,7 +486,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotT
     CScript script_pub_key = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
     CBlock fork_block = CreateBlock(/*txns=*/{}, script_pub_key, *background_chainstate);
     BOOST_REQUIRE_EQUAL(fork_block.hashPrevBlock, WITH_LOCK(::cs_main, return background_chainstate->m_chain.Tip()->GetBlockHash()));
-    BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<const CBlock>(fork_block), /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<const CBlock>(fork_block), /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/nullptr));
 
     CBlockIndex* fork_index{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(fork_block.GetHash()))};
     BOOST_REQUIRE(fork_index);

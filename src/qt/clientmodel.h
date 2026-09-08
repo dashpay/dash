@@ -41,6 +41,7 @@ enum class BlockSource {
 };
 
 enum class SyncType {
+    HEADER_PRESYNC,
     HEADER_SYNC,
     BLOCK_SYNC
 };

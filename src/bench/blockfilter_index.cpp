@@ -54,7 +54,7 @@ public:
                 ++block.nNonce;
             }
 
-            if (!m_testing_setup->m_node.chainman->ProcessNewBlock(std::make_shared<const CBlock>(block), true, nullptr)) {
+            if (!m_testing_setup->m_node.chainman->ProcessNewBlock(std::make_shared<const CBlock>(block), true, true, nullptr)) {
                 throw std::runtime_error("failed to create block filter benchmark chain");
             }
         }

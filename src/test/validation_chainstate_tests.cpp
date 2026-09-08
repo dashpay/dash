@@ -149,7 +149,7 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
         bool checked = CheckBlock(*pblockone, state, chainparams.GetConsensus());
         BOOST_CHECK(checked);
         bool accepted = chainman.AcceptBlock(
-            pblockone, state, &pindex, true, nullptr, &newblock);
+            pblockone, state, &pindex, true, nullptr, &newblock, true);
         BOOST_CHECK(accepted);
     }
 
@@ -242,7 +242,7 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
         CBlockIndex* pindex = nullptr;
         bool newblock = false;
         BOOST_REQUIRE(CheckBlock(*pblock, state, Params().GetConsensus()));
-        BOOST_REQUIRE(m_node.chainman->AcceptBlock(pblock, state, &pindex, true, nullptr, &newblock));
+        BOOST_REQUIRE(m_node.chainman->AcceptBlock(pblock, state, &pindex, true, nullptr, &newblock, true));
     }
     BOOST_REQUIRE(background_cs.ActivateBestChain(state, pblock));
 

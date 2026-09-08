@@ -798,7 +798,7 @@ BOOST_AUTO_TEST_CASE(v19_boundary_validation_failure_restores_bls_scheme)
 
     CBlock connect_block = setup.CreateBlock({bad_tx}, coinbase_pk, chainman.ActiveChainstate());
     const int height_before_invalid_block{WITH_LOCK(::cs_main, return chainman.ActiveChain().Height())};
-    (void)chainman.ProcessNewBlock(std::make_shared<const CBlock>(connect_block), /*force_processing=*/true, /*new_block=*/nullptr);
+    (void)chainman.ProcessNewBlock(std::make_shared<const CBlock>(connect_block), /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/nullptr);
     BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()), height_before_invalid_block);
     BOOST_CHECK(bls::bls_legacy_scheme.load());
 }

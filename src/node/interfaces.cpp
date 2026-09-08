@@ -1156,8 +1156,8 @@ public:
     std::unique_ptr<Handler> handleNotifyHeaderTip(NotifyHeaderTipFn fn) override
     {
         return MakeHandler(
-            ::uiInterface.NotifyHeaderTip_connect([fn](SynchronizationState sync_state, int64_t height, int64_t timestamp) {
-                fn(sync_state, BlockTip{(int)height, timestamp, uint256{}});
+            ::uiInterface.NotifyHeaderTip_connect([fn](SynchronizationState sync_state, int64_t height, int64_t timestamp, bool presync) {
+                fn(sync_state, BlockTip{(int)height, timestamp, uint256{}}, presync);
             }));
     }
     std::unique_ptr<Handler> handleNotifyInstantSendChanged(NotifyInstantSendChangedFn fn) override

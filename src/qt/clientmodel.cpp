@@ -314,8 +314,8 @@ void ClientModel::subscribeToCoreSignals()
             TipChanged(sync_state, tip, verification_progress, SyncType::BLOCK_SYNC);
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyHeaderTip(
-        [this](SynchronizationState sync_state, interfaces::BlockTip tip) {
-            TipChanged(sync_state, tip, /*verification_progress=*/0.0, SyncType::HEADER_SYNC);
+        [this](SynchronizationState sync_state, interfaces::BlockTip tip, bool presync) {
+            TipChanged(sync_state, tip, /*verification_progress=*/0.0, presync ? SyncType::HEADER_PRESYNC : SyncType::HEADER_SYNC);
         }));
     m_event_handlers.emplace_back(m_node.handleNotifyAdditionalDataSyncProgressChanged(
         [this](double nSyncProgress) {
