@@ -72,7 +72,7 @@ ctest --test-dir build --build-config Release  # Use "-j N" for N parallel tests
 ### 6. Building with Static Linking without GUI
 
 ```
-cmake -B build --preset vs2022-static          # It might take a while if the vcpkg binary cache is unpopulated or invalidated.
+cmake -B build --preset vs2022-static -DBUILD_GUI=OFF  # It might take a while if the vcpkg binary cache is unpopulated or invalidated.
 cmake --build build --config Release           # Use "-j N" for N parallel jobs.
 ctest --test-dir build --build-config Release  # Use "-j N" for N parallel tests. Some tests are disabled if Python 3 is not available.
 cmake --install build --config Release         # Optional.
