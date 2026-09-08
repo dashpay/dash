@@ -19,7 +19,7 @@ fi
 export BOOST_TEST_RANDOM="${BOOST_TEST_RANDOM:-1}"
 export LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib"
 export BOOST_TEST_LOG_LEVEL=test_suite
-# The Qt tests need a display; the offscreen platform stands in for one.
+# The Qt tests need a display; the minimal platform stands in for one.
 export QT_QPA_PLATFORM=minimal
 
 ctest --test-dir "${BASE_ROOT_DIR}/build-cmake" "${MAKEJOBS}" --output-on-failure
