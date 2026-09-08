@@ -1,0 +1,52 @@
+{
+  "platform_repo_tag": "v4.0.0",
+  "protocol_version": 12,
+  "identity": {
+    "serialized_hex": "00777777777777777777777777777777777777777777777777777777777777777703000000000000000021034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa0001000100020000002102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f270002000201030100a2a1b4ac6fef22ea2a1a68e8123644b357875f6b412c18109281c146e7b271bc000021035ab4689e400a4a160cf01cd44730845a54768df8547dcdf073d964f109f18c3001fd0000018bcfe5687bfd000000012a05f20003",
+    "id": "7777777777777777777777777777777777777777777777777777777777777777",
+    "balance": 5000000000,
+    "revision": 3,
+    "public_keys": [
+      {
+        "id": 0,
+        "purpose": 0,
+        "security_level": 0,
+        "key_type": 0,
+        "read_only": false,
+        "data": "034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+        "disabled_at": null
+      },
+      {
+        "id": 1,
+        "purpose": 0,
+        "security_level": 2,
+        "key_type": 0,
+        "read_only": false,
+        "data": "02466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
+        "disabled_at": null
+      },
+      {
+        "id": 2,
+        "purpose": 1,
+        "security_level": 3,
+        "key_type": 0,
+        "read_only": false,
+        "data": "035ab4689e400a4a160cf01cd44730845a54768df8547dcdf073d964f109f18c30",
+        "disabled_at": 1700000000123
+      }
+    ],
+    "bounded_key_contract_id": "a2a1b4ac6fef22ea2a1a68e8123644b357875f6b412c18109281c146e7b271bc"
+  },
+  "identity_public_key": {
+    "serialized_hex": "000100020000002102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f2700",
+    "fields": {
+      "id": 1,
+      "purpose": 0,
+      "security_level": 2,
+      "key_type": 0,
+      "read_only": false,
+      "data": "02466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
+      "disabled_at": null
+    }
+  }
+}
