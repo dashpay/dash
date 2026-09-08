@@ -32,7 +32,7 @@ set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")
 set(COPYRIGHT_YEAR "2026")
 
-# During the enabling of the CXX and CXXOBJ languages, we modify
+# After enabling the C, CXX and OBJCXX languages, we modify
 # CMake's compiler/linker invocation strings by appending the content
 # of the user-defined `APPEND_*` variables, which allows overriding
 # any flag. We also ensure that the APPEND_* flags are considered
@@ -43,6 +43,7 @@ set(COPYRIGHT_YEAR "2026")
 # for the current toolchain, or by a toolchain file." We do our best
 # to set it before the `project()` command.
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+  CMAKE_C_COMPILE_OBJECT
   CMAKE_CXX_COMPILE_OBJECT
   CMAKE_OBJCXX_COMPILE_OBJECT
   CMAKE_CXX_LINK_EXECUTABLE
@@ -231,6 +232,7 @@ set(APPEND_CXXFLAGS "" CACHE STRING "(Objective) C++ compiler flags that are app
 set(APPEND_LDFLAGS "" CACHE STRING "Linker flags that are appended to the command line after all other flags added by the build system. This variable is intended for debugging and special builds.")
 # Appending to this low-level rule variables is the only way to
 # guarantee that the flags appear at the end of the command line.
+string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
 string(APPEND CMAKE_CXX_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CXXFLAGS}")
 string(APPEND CMAKE_CXX_CREATE_SHARED_LIBRARY " ${APPEND_LDFLAGS}")
 string(APPEND CMAKE_CXX_LINK_EXECUTABLE " ${APPEND_LDFLAGS}")
