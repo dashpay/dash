@@ -863,6 +863,7 @@ std::optional<CDeterministicMNList> CDeterministicMNManager::GetStaleList(const 
     if (it == mnStaleListsCache.end()) {
         return std::nullopt;
     }
+    ++m_stale_list_cache_hits;
     mnStaleListsLru.splice(mnStaleListsLru.begin(), mnStaleListsLru, it->second.lru_it);
     return it->second.list;
 }
@@ -911,7 +912,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
         }
 
         if (auto stale = GetStaleList(pindex->GetBlockHash())) {
-            snapshot = std::move(*stale);
+            snapshot = *stale;
             break;
         }
 

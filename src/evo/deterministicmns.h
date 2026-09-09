@@ -797,6 +797,7 @@ private:
     Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache GUARDED_BY(cs);
     std::list<uint256> mnStaleListsLru GUARDED_BY(cs);
     Uint256HashMap<StaleListEntry> mnStaleListsCache GUARDED_BY(cs);
+    uint64_t m_stale_list_cache_hits GUARDED_BY(cs){0};
     const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
     const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
 
@@ -826,7 +827,7 @@ public:
         mnListsCache.insert_or_assign(list.GetBlockHash(), list);
     }
 
-    // In-memory list/diff cache sizes (for tests and diagnostics).
+    // In-memory list/diff cache statistics (for tests and diagnostics).
     size_t GetListCacheSize() EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         LOCK(cs);
@@ -841,6 +842,11 @@ public:
     {
         LOCK(cs);
         return mnStaleListsCache.size();
+    }
+    uint64_t GetStaleListCacheHits() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return m_stale_list_cache_hits;
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n

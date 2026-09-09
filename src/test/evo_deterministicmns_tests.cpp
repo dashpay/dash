@@ -3315,9 +3315,12 @@ BOOST_AUTO_TEST_CASE(mn_lists_cache_bounded)
     const CBlockIndex* stale_neighbor = tip->GetAncestor(stale_target_height + 16);
     BOOST_REQUIRE(stale_neighbor != nullptr);
     const auto stale_neighbor_result = dmnman.GetListForBlock(stale_neighbor);
+    const auto stale_hits_before_repeat = dmnman.GetStaleListCacheHits();
     const auto stale_second = dmnman.GetListForBlock(stale_pindex);
+    BOOST_CHECK_EQUAL(dmnman.GetStaleListCacheHits(), stale_hits_before_repeat + 1);
     BOOST_CHECK(stale_first == stale_second);
     BOOST_CHECK(stale_neighbor_result == dmnman.GetListForBlock(stale_neighbor));
+    BOOST_CHECK_EQUAL(dmnman.GetStaleListCacheHits(), stale_hits_before_repeat + 2);
     BOOST_CHECK_LE(dmnman.GetStaleListCacheSize(), stale_size_after_first + 1);
 
     // The cache is pure memoisation: bounding it must not change any result.
