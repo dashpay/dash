@@ -30,11 +30,6 @@ $(package)_sha256_hash_x86_64_darwin:=fc6868991e61e9262272effbb8956b23428430f5f4
 $(package)_file_name=$($(package)_file_name_$(build_arch)_$(build_os))
 $(package)_sha256_hash=$($(package)_sha256_hash_$(build_arch)_$(build_os))
 
-define $(package)_set_vars
-$(package)_stage_opts=--disable-ldconfig
-$(package)_stage_build_opts=--without=rust-docs-json-preview,rust-docs
-endef
-
 define $(package)_fetch_cmds
 $(call fetch_file,$(package),$($(package)_download_path),$($(package)_file_name),$($(package)_file_name),$($(package)_sha256_hash))
 endef
