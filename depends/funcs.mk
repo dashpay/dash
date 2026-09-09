@@ -309,7 +309,8 @@ $$($(1)_vendored_archive): | $(native_rust_cached) $($(1)_fetched)
           cp $(PATCHES_PATH)/$(1)/Cargo.lock $(WORK_PATH)/vendor-$(1)/src/$($(1)_cargo_lock_path); \
         fi
 	@$(WORK_PATH)/vendor-$(1)/native/bin/cargo vendor --locked --manifest-path $(WORK_PATH)/vendor-$(1)/src/$($(1)_cargo_manifest) $(WORK_PATH)/vendor-$(1)/src/vendored
-	@cd $(WORK_PATH)/vendor-$(1)/src; find vendored | sort | $(build_TAR) --no-recursion -czf $$($(1)_vendored_archive) -T -
+	@cd $(WORK_PATH)/vendor-$(1)/src; find vendored | sort | $(build_TAR) --no-recursion -czf $$($(1)_vendored_archive).temp -T -
+	@mv $$($(1)_vendored_archive).temp $$($(1)_vendored_archive)
 	@rm -rf $(WORK_PATH)/vendor-$(1)
 	@echo "Created $$($(1)_vendored_archive)"
 
