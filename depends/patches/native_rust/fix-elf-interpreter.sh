@@ -67,6 +67,14 @@ for libname in libgcc_s.so.1 libz.so.1; do
         done
     fi
 
+    # Method 3: the Guix profile. contrib/guix/libexec/build.sh narrows
+    # LIBRARY_PATH to the gcc-toolchain outputs, so libraries provisioned by
+    # contrib/guix/manifest.scm (zlib) are only reachable through the
+    # profile union that guix shell exposes as GUIX_ENVIRONMENT.
+    if [ -z "$LIB_SRC" ] && [ -n "$GUIX_ENVIRONMENT" ] && [ -f "$GUIX_ENVIRONMENT/lib/$libname" ]; then
+        LIB_SRC="$GUIX_ENVIRONMENT/lib/$libname"
+    fi
+
     if [ -n "$LIB_SRC" ]; then
         # Resolve symlinks and copy the actual file
         LIB_REAL=$(readlink -f "$LIB_SRC")
