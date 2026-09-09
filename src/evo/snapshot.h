@@ -251,10 +251,11 @@ CDeterministicMNList UnserializeCanonicalMNList(Stream& s)
         SnapshotBoundedInput bounded{s, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
         auto dmn{std::make_shared<CDeterministicMN>(deserialize, bounded)};
         bounded.CheckCanonicalEncoding(*dmn);
+        if (!dmn->HasInternalId()) throw std::ios_base::failure("invalid canonical MN internalId");
         if (dmn->pdmnState->payouts.size() > EVO_SNAPSHOT_MAX_PAYOUT_SHARES) {
             throw std::ios_base::failure("oversized canonical MN payout list");
         }
-        if (dmn->pdmnState->netInfo->Validate() != NetInfoStatus::Success) {
+        if (!dmn->pdmnState->netInfo->IsEmpty() && dmn->pdmnState->netInfo->Validate() != NetInfoStatus::Success) {
             throw std::ios_base::failure("invalid canonical MN network info");
         }
         if (have_previous && !(previous < dmn->proTxHash)) {
@@ -327,9 +328,10 @@ CDeterministicMNListDiff UnserializeCanonicalMNListDiff(Stream& s, size_t& remai
         SnapshotBoundedInput bounded{s, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
         auto dmn{std::make_shared<CDeterministicMN>(deserialize, bounded)};
         bounded.CheckCanonicalEncoding(*dmn);
+        if (!dmn->HasInternalId()) throw std::ios_base::failure("invalid canonical MN internalId");
         if ((have_previous && previous_id >= dmn->GetInternalId()) ||
             dmn->pdmnState->payouts.size() > EVO_SNAPSHOT_MAX_PAYOUT_SHARES ||
-            dmn->pdmnState->netInfo->Validate() != NetInfoStatus::Success) {
+            (!dmn->pdmnState->netInfo->IsEmpty() && dmn->pdmnState->netInfo->Validate() != NetInfoStatus::Success)) {
             throw std::ios_base::failure("noncanonical canonical MN-diff addition");
         }
         previous_id = dmn->GetInternalId();
@@ -416,10 +418,20 @@ MinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
     ReadFixedBitSet(s, commitment.validMembers, valid_members_size);
     const bool legacy{commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION ||
                       commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION};
-    s >> CBLSPublicKeyVersionWrapper(commitment.quorumPublicKey, legacy) >> commitment.quorumVvecHash >>
+    CHashVerifier<Stream> bls_input{&s};
+    bls_input >> CBLSPublicKeyVersionWrapper(commitment.quorumPublicKey, legacy) >> commitment.quorumVvecHash >>
         CBLSSignatureVersionWrapper(commitment.quorumSig, legacy) >>
         CBLSSignatureVersionWrapper(commitment.membersSig, legacy);
     s >> entry.mined_block_hash;
+    // BLS decoding may normalize an opposite-scheme encoding to an invalid
+    // object. Snapshot input must match the requested scheme's canonical bytes.
+    CHashWriter canonical{s.GetType(), s.GetVersion()};
+    canonical << CBLSPublicKeyVersionWrapper(commitment.quorumPublicKey, legacy) << commitment.quorumVvecHash
+              << CBLSSignatureVersionWrapper(commitment.quorumSig, legacy)
+              << CBLSSignatureVersionWrapper(commitment.membersSig, legacy);
+    if (bls_input.GetHash() != canonical.GetHash()) {
+        throw std::ios_base::failure("noncanonical evo snapshot commitment encoding");
+    }
     return entry;
 }
 
@@ -632,7 +644,7 @@ void EvoSnapshot::Serialize(Stream& s) const
         SerializeCanonicalMNListDiff(s, entry.diff);
     }
     s << sorted_modifiers;
-    s << credit_pool;
+    s << credit_pool.locked << credit_pool.currentLimit << credit_pool.latelyUnlocked << credit_pool.indexes;
     WriteCompactSize(s, mnhf_signals.size());
     for (const auto& signal : mnhf_signals) s << signal;
 }

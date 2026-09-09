@@ -113,7 +113,7 @@ void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
         max_internal_id = std::max(max_internal_id, dmn.GetInternalId());
         prefixes.push_back(ReadLE64(dmn.proTxHash.begin()));
         if (dmn.pdmnState->payouts.size() > EVO_SNAPSHOT_MAX_PAYOUT_SHARES ||
-            dmn.pdmnState->netInfo->Validate() != NetInfoStatus::Success) {
+            (!dmn.pdmnState->netInfo->IsEmpty() && dmn.pdmnState->netInfo->Validate() != NetInfoStatus::Success)) {
             throw std::ios_base::failure("invalid canonical MN nested collection");
         }
     });

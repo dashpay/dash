@@ -87,6 +87,7 @@ public:
         }
     }
 
+    [[nodiscard]] bool HasInternalId() const { return internalId != std::numeric_limits<uint64_t>::max(); }
     [[nodiscard]] uint64_t GetInternalId() const;
 
     [[nodiscard]] CSimplifiedMNListEntry to_sml_entry() const;

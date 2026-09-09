@@ -28,6 +28,7 @@
 #include <versionbits.h>
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -363,6 +364,121 @@ BOOST_FIXTURE_TEST_CASE(diff_chain_roundtrip_and_canonical_determinism, BasicTes
     target.ApplyDiffForSnapshot(H(11), 99, target.GetTotalRegisteredCount(), CDeterministicMNListDiff{});
     BOOST_CHECK(evo::CanonicalMNListHash(reconstructed) == evo::CanonicalMNListHash(target));
     BOOST_CHECK(canonical.empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(inactive_mn_roundtrip, BasicTestingSetup)
+{
+    for (const int version : {ProTxVersion::LegacyBLS, ProTxVersion::ExtAddr}) {
+        auto inactive{std::make_shared<CDeterministicMN>(*MN(2, 3, MnType::Regular, version, 3))};
+        auto state{std::make_shared<CDeterministicMNState>(*inactive->pdmnState)};
+        state->netInfo = NetInfoInterface::MakeNetInfo(version);
+        state->BanIfNotBanned(100);
+        inactive->pdmnState = state;
+        BOOST_REQUIRE(state->netInfo->IsEmpty());
+
+        evo::EvoSnapshot snapshot;
+        snapshot.base_block_hash = H(42);
+        snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 500, 10};
+        snapshot.mn_list.AddMN(inactive, /*fBumpTotalCount=*/false);
+        BOOST_CHECK_NO_THROW(snapshot.Validate());
+        auto bytes{SerializeSnapshot(snapshot)};
+        evo::EvoSnapshot decoded;
+        BOOST_REQUIRE_NO_THROW(bytes >> decoded);
+        BOOST_CHECK(bytes.empty());
+        BOOST_CHECK(GetEvoSnapshotHash(snapshot) == GetEvoSnapshotHash(decoded));
+
+        // Cover both historical additions and updates to empty network info.
+        for (const bool addition : {false, true}) {
+            CDeterministicMNList base{H(41), 501, 10};
+            if (!addition) base.AddMN(MN(2, 3, MnType::Regular, version, 3), /*fBumpTotalCount=*/false);
+            const auto diff{base.BuildDiff(snapshot.mn_list)};
+            CDataStream encoded{SER_DISK, CLIENT_VERSION};
+            evo::SerializeCanonicalMNListDiff(encoded, diff);
+            const auto decoded_diff{evo::UnserializeCanonicalMNListDiff(encoded)};
+            evo::EvoSnapshot historical;
+            historical.base_block_hash = base.GetBlockHash();
+            historical.mn_list = base;
+            historical.historical_mn_list_diffs = {{base.GetBlockHash(), snapshot.base_block_hash, 500, 10,
+                                                    evo::CanonicalMNListHash(snapshot.mn_list), decoded_diff}};
+            std::map<uint256, CDeterministicMNList> lists;
+            std::string error;
+            BOOST_REQUIRE_MESSAGE(evo::ReconstructHistoricalMNLists(historical, lists, error), error);
+            BOOST_REQUIRE_EQUAL(lists.size(), 1U);
+            BOOST_CHECK(evo::CanonicalMNListHash(lists.begin()->second) == evo::CanonicalMNListHash(snapshot.mn_list));
+        }
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(unset_mn_id_is_rejected, BasicTestingSetup)
+{
+    const auto mn{MN(2, 3, MnType::Regular, ProTxVersion::LegacyBLS, 3)};
+    CDataStream malformed{SER_DISK, CLIENT_VERSION};
+    malformed << mn->proTxHash;
+    WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(malformed, std::numeric_limits<uint64_t>::max());
+    malformed << mn->collateralOutpoint << mn->nOperatorReward << mn->pdmnState << mn->nType;
+    const auto invalid_id = [](const auto& e) {
+        return std::string{e.what()}.find("invalid canonical MN internalId") != std::string::npos;
+    };
+    CDataStream base{SER_DISK, CLIENT_VERSION};
+    base << H(42) << 500 << uint32_t{10};
+    WriteCompactSize(base, 1);
+    base.write(Span{malformed});
+    BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(base), std::ios_base::failure, invalid_id);
+
+    CDataStream addition{SER_DISK, CLIENT_VERSION};
+    WriteCompactSize(addition, 1);
+    addition.write(Span{malformed});
+    WriteCompactSize(addition, 0);
+    WriteCompactSize(addition, 0);
+    BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(addition), std::ios_base::failure, invalid_id);
+}
+
+BOOST_FIXTURE_TEST_CASE(commitment_bls_wire_encoding_is_canonical, BasicTestingSetup)
+{
+    CBLSSecretKey key;
+    BOOST_REQUIRE(key.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", false));
+    for (const bool legacy : {false, true}) {
+        for (const bool indexed : {false, true}) {
+            auto entry{Commitment(Consensus::LLMQType::LLMQ_TEST, 11, 51, indexed)};
+            if (legacy) {
+                entry.commitment.nVersion = indexed ? llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION
+                                                    : llmq::CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION;
+            }
+            entry.commitment.quorumPublicKey = key.GetPublicKey();
+            entry.commitment.quorumSig = key.Sign(H(1), legacy);
+            entry.commitment.membersSig = key.Sign(H(2), legacy);
+            const auto encode = [&](int opposite_field) {
+                auto& qc{entry.commitment};
+                CDataStream bytes{SER_DISK, CLIENT_VERSION};
+                bytes << entry.quorum_base_block_hash << entry.work_block_hash << qc.nVersion << qc.llmqType
+                      << qc.quorumHash;
+                if (indexed) bytes << qc.quorumIndex;
+                bytes << DYNBITSET(qc.signers) << DYNBITSET(qc.validMembers)
+                      << CBLSPublicKeyVersionWrapper(qc.quorumPublicKey, opposite_field == 0 ? !legacy : legacy)
+                      << qc.quorumVvecHash
+                      << CBLSSignatureVersionWrapper(qc.quorumSig, opposite_field == 1 ? !legacy : legacy)
+                      << CBLSSignatureVersionWrapper(qc.membersSig, opposite_field == 2 ? !legacy : legacy)
+                      << entry.mined_block_hash;
+                return bytes;
+            };
+            auto canonical{encode(-1)};
+            BOOST_CHECK_NO_THROW(evo::ReadMinedQuorumCommitment(canonical));
+            BOOST_CHECK(canonical.empty());
+            if (legacy) continue;
+            for (int field{0}; field < 3; ++field) {
+                auto bytes{encode(field)};
+                auto ordinary_input{bytes};
+                evo::MinedQuorumCommitment ordinary;
+                BOOST_REQUIRE_NO_THROW(ordinary_input >> ordinary);
+                CDataStream normalized{SER_DISK, CLIENT_VERSION};
+                normalized << ordinary;
+                BOOST_REQUIRE(bytes.str() != normalized.str());
+                BOOST_CHECK_EXCEPTION(evo::ReadMinedQuorumCommitment(bytes), std::ios_base::failure, [](const auto& e) {
+                    return std::string{e.what()}.find("noncanonical evo snapshot commitment encoding") != std::string::npos;
+                });
+            }
+        }
+    }
 }
 
 BOOST_FIXTURE_TEST_CASE(historical_diff_decode_has_cumulative_operation_budget, BasicTestingSetup)
