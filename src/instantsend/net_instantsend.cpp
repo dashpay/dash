@@ -414,7 +414,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
         m_peer_manager->PeerRelayInvFiltered(inv, *tx);
     } else {
         m_peer_manager->PeerRelayInvFiltered(inv, islock->txid);
-        m_peer_manager->PeerAskPeersForTransaction(islock->txid);
+        m_peer_manager->PeerAskPeersForObject(CInv{MSG_TX, islock->txid});
     }
 }
 
