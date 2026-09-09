@@ -5,7 +5,11 @@
 #ifndef BITCOIN_CHAINLOCK_CLSIG_H
 #define BITCOIN_CHAINLOCK_CLSIG_H
 
+#include <chainlock/chainlock.h>
+
 #include <cstdint>
+#include <map>
+#include <optional>
 
 class CChain;
 class CBlockIndex;
@@ -21,7 +25,29 @@ enum class VerifyRecSigStatus : uint8_t;
 } // namespace llmq
 
 namespace chainlock {
-struct ChainLockSig;
+struct CoinbaseChainLock {
+    ChainLockSig clsig;
+    const CBlockIndex* carrier{nullptr};
+};
+
+/** Reads historical signatures from a fixed, validated chain view.
+ * Cache lifetime is one request; missing block data throws instead of implying
+ * that a certificate does not exist. Disk reads do not hold cs_main.
+ */
+class CoinbaseChainLockReader
+{
+    const CChain& m_chain;
+    std::map<int, std::optional<CoinbaseChainLock>> m_cache;
+
+public:
+    explicit CoinbaseChainLockReader(const CChain& chain) :
+        m_chain(chain)
+    {
+    }
+    std::optional<CoinbaseChainLock> Read(int carrier_height);
+    /** First certificate at or above minimum_height, limited by maximum_height. */
+    std::optional<CoinbaseChainLock> Find(int minimum_height, int maximum_height);
+};
 
 //! Generate clsig request ID with block height
 uint256 GenSigRequestId(const int32_t nHeight);

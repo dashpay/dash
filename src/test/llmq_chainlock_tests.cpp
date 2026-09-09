@@ -18,13 +18,20 @@
 #include <version.h>
 
 #include <chainlock/chainlock.h>
+#include <chainlock/clsig.h>
 #include <chainlock/handler.h>
+#include <consensus/merkle.h>
+#include <evo/cbtx.h>
+#include <evo/specialtx.h>
 #include <llmq/context.h>
 #include <msg_result.h>
+#include <node/blockstorage.h>
+#include <pow.h>
 #include <protocol.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <deque>
 #include <memory>
 #include <vector>
 
@@ -38,6 +45,93 @@ constexpr size_t RECENT_CHAINLOCKS_TO_RETAIN{2};
 } // namespace
 
 BOOST_AUTO_TEST_SUITE(llmq_chainlock_tests)
+
+BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
+{
+    const int activation = Params().GetConsensus().V20Height;
+    const auto signature = CreateRandomBLSSignature();
+    std::deque<uint256> hashes;
+    std::deque<CBlockIndex> indexes;
+    CChain chain;
+    for (int height = 0; height <= activation + 128; ++height) {
+        CCbTx payload;
+        payload.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
+        payload.nHeight = height;
+        if (height >= activation + 3) {
+            const int certified = height < activation + 67    ? activation + 1
+                                  : height < activation + 100 ? activation + 65
+                                                              : activation + 99;
+            payload.bestCLSignature = signature;
+            payload.bestCLHeightDiff = height - certified - 1;
+        }
+        CMutableTransaction coinbase;
+        coinbase.nVersion = 3;
+        coinbase.nType = TRANSACTION_COINBASE;
+        coinbase.vin.resize(1);
+        coinbase.vin[0].scriptSig = CScript() << height << OP_0;
+        coinbase.vout.emplace_back(0, CScript() << OP_TRUE);
+        SetTxPayload(coinbase, payload);
+        CBlock block;
+        block.nVersion = 1;
+        block.hashPrevBlock = height ? hashes.back() : uint256{};
+        block.nBits = Params().GenesisBlock().nBits;
+        block.nTime = Params().GenesisBlock().nTime + height;
+        block.vtx = {MakeTransactionRef(coinbase)};
+        block.hashMerkleRoot = BlockMerkleRoot(block);
+        while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
+            ++block.nNonce;
+        hashes.push_back(block.GetHash());
+        indexes.emplace_back(block);
+        auto& index = indexes.back();
+        index.phashBlock = &hashes.back();
+        index.nHeight = height;
+        index.pprev = height ? &indexes[height - 1] : nullptr;
+        index.BuildSkip();
+        const auto pos = m_node.chainman->m_blockman.SaveBlockToDisk(block, height, nullptr);
+        BOOST_REQUIRE(!pos.IsNull());
+        {
+            LOCK(cs_main);
+            index.nFile = pos.nFile;
+            index.nDataPos = pos.nPos;
+            index.nStatus = BLOCK_HAVE_DATA;
+        }
+        chain.SetTip(index);
+    }
+    chainlock::CoinbaseChainLockReader reader(chain);
+    BOOST_CHECK(!reader.Read(activation + 2));
+    BOOST_CHECK(!reader.Find(-1, activation + 128));
+    BOOST_CHECK(!reader.Find(activation + 128, activation + 128));
+    for (int minimum = activation; minimum <= activation + 100; ++minimum) {
+        const int expected = minimum <= activation + 1    ? activation + 1
+                             : minimum <= activation + 65 ? activation + 65
+                                                          : activation + 99;
+        const auto entry = reader.Find(minimum, activation + 128);
+        if (minimum > activation + 99) {
+            BOOST_CHECK(!entry);
+            continue;
+        }
+        BOOST_REQUIRE(entry);
+        BOOST_CHECK_EQUAL(entry->clsig.getHeight(), expected);
+        BOOST_CHECK(entry->clsig.getBlockHash() == chain[expected]->GetBlockHash());
+        BOOST_CHECK(entry->clsig.getSig() == signature);
+        const int carrier = expected == activation + 1    ? activation + 3
+                            : expected == activation + 65 ? activation + 67
+                                                          : activation + 100;
+        BOOST_CHECK_EQUAL(entry->carrier->nHeight, carrier);
+        BOOST_CHECK(!reader.Find(minimum, expected - 1));
+    }
+    // A new request on a shorter chain must not reuse the old request's cache.
+    CChain shorter;
+    shorter.SetTip(*chain[activation + 66]);
+    chainlock::CoinbaseChainLockReader after_disconnect(shorter);
+    BOOST_CHECK(!after_disconnect.Find(activation + 65, activation + 65));
+    BOOST_REQUIRE(after_disconnect.Find(activation + 1, activation + 1));
+
+    // Unavailable block data is an error, distinct from an absent certificate.
+    WITH_LOCK(cs_main, indexes[activation + 3].nStatus &= ~BLOCK_HAVE_DATA);
+    chainlock::CoinbaseChainLockReader unavailable(chain);
+    BOOST_CHECK_THROW(unavailable.Read(activation + 3), std::runtime_error);
+}
 
 BOOST_AUTO_TEST_CASE(chainlock_construction_test)
 {
