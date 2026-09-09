@@ -298,7 +298,7 @@ define int_vendor_crates
 ifneq ($($(1)_vendored_file_name),)
 $(1)_vendored_archive = $(SOURCES_PATH)/$($(1)_vendored_file_name)
 
-$$($(1)_vendored_archive): $(native_rust_cached) $($(1)_fetched)
+$$($(1)_vendored_archive): | $(native_rust_cached) $($(1)_fetched)
 	@rm -rf $(WORK_PATH)/vendor-$(1)
 	@mkdir -p $(WORK_PATH)/vendor-$(1)
 	@$(build_TAR) --no-same-owner -xf $(native_rust_cached) -C $(WORK_PATH)/vendor-$(1)
@@ -316,6 +316,7 @@ $$($(1)_vendored_archive): $(native_rust_cached) $($(1)_fetched)
 vendor-$(1)-crates: $$($(1)_vendored_archive)
 .PHONY: vendor-$(1)-crates
 
+.SECONDARY: $$($(1)_vendored_archive)
 $($(1)_preprocessed): $$($(1)_vendored_archive)
 endif
 endef
