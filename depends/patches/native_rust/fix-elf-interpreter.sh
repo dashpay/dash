@@ -9,7 +9,7 @@ LIBDIR="$1"
 shift
 
 in_guix_env() {
-    case "$(command -v ls)" in
+    case "$(readlink -f "$(command -v ls)")" in
         /gnu/store/*) return 0 ;;
     esac
     return 1
