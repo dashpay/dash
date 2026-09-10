@@ -265,6 +265,8 @@ void ProviderTransactionTests::providerTransactionHistory()
     const CAmount service_fee{2000};
     const CAmount registrar_fee{3000};
     const CAmount revoke_fee{4000};
+    const CAmount share_fee{6000};
+    const CAmount shared_registrar_fee{7000};
 
     const CTransactionRef registration{MakeSpecialTransaction(TRANSACTION_PROVIDER_REGISTER, make_owned_input(0),
                                                               input_amount(0) - registration_fee, own_script)};
@@ -281,6 +283,11 @@ void ProviderTransactionTests::providerTransactionHistory()
     const CAmount received_core_amount{COIN};
     const CTransactionRef received_from_asset_lock{MakeAssetLockTransaction(
         COutPoint{uint256::TWO, 7}, 2 * COIN, external_script, CTxOut{received_core_amount, own_script})};
+    const CTransactionRef update_share{MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_SHARE, make_owned_input(5),
+                                                              input_amount(5) - share_fee, own_script)};
+    const CTransactionRef update_shared_registrar{
+        MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR, make_owned_input(6),
+                               input_amount(6) - shared_registrar_fee, own_script)};
 
     std::vector<ExpectedRecord> expected{
         {registration->GetHash(), TransactionRecord::MasternodeRegistration, -registration_fee,
@@ -295,10 +302,14 @@ void ProviderTransactionTests::providerTransactionHistory()
          QString{"Updates an existing masternode"}},
         {asset_lock->GetHash(), TransactionRecord::AssetLock, -input_amount(4), QString{"Asset Lock"},
          QString{"Locks funds for use on Dash Platform"}},
+        {update_share->GetHash(), TransactionRecord::MasternodeUpdate, -share_fee, QString{"Masternode Update"},
+         QString{"Updates an existing masternode"}},
+        {update_shared_registrar->GetHash(), TransactionRecord::MasternodeUpdate, -shared_registrar_fee,
+         QString{"Masternode Update"}, QString{"Updates an existing masternode"}},
     };
 
-    for (const CTransactionRef& tx :
-         {registration, update_service, update_registrar, update_revoke, asset_lock, received_from_asset_lock}) {
+    for (const CTransactionRef& tx : {registration, update_service, update_registrar, update_revoke, asset_lock,
+                                    received_from_asset_lock, update_share, update_shared_registrar}) {
         QVERIFY(wallet->AddToWallet(tx, TxStateInactive{}) != nullptr);
     }
 
