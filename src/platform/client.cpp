@@ -285,7 +285,7 @@ public:
             });
         });
     }
-    void getContactRequests(const Identifier& identity, bool to_me, uint64_t /*since_ms*/,
+    void getContactRequests(const Identifier& identity, bool to_me, uint64_t since_ms,
                             Callback<std::vector<ContactRequest>> cb) override
     {
         Enqueue([=, this] {
@@ -297,7 +297,7 @@ public:
                 for (const platform_ffi::FfiContactRequest& ffi : res.requests) {
                     ContactRequest request;
                     if (!ContactRequestFromFfi(ffi, request)) throw std::runtime_error("bridge returned a malformed contact request");
-                    requests.push_back(std::move(request));
+                    if (request.created_at >= since_ms) requests.push_back(std::move(request));
                 }
                 out.value = std::move(requests);
             });
