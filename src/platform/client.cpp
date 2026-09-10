@@ -131,12 +131,8 @@ public:
     SdkClient(Params params, uint8_t platform_llmq_type)
         : m_params(std::move(params)), m_llmq_type(platform_llmq_type), m_sdk(platform_ffi::new_platform_client())
     {
-        try {
-            m_sdk->set_context(m_params.network_id, m_llmq_type, m_params.tenderdash_chain_id,
-                               m_params.protocol_version_floor, /*platform_activation_height=*/0);
-        } catch (const std::exception& e) {
-            LogPrintf("Platform client: unable to set SDK context: %s\n", e.what());
-        }
+        m_sdk->set_context(m_params.network_id, m_llmq_type, m_params.tenderdash_chain_id,
+                           m_params.protocol_version_floor, /*platform_activation_height=*/0);
         m_worker = std::thread([this] { Run(); });
     }
     ~SdkClient() override { shutdown(); }
@@ -420,7 +416,12 @@ private:
 
 std::unique_ptr<PlatformClient> MakeSdkPlatformClient(const Params& params, uint8_t platform_llmq_type)
 {
-    return std::make_unique<SdkClient>(params, platform_llmq_type);
+    try {
+        return std::make_unique<SdkClient>(params, platform_llmq_type);
+    } catch (const std::exception& e) {
+        LogPrintf("Platform client: unable to initialize SDK context: %s\n", e.what());
+        return nullptr;
+    }
 }
 
 } // namespace platform
