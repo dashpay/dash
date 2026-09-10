@@ -673,7 +673,7 @@ void PlatformService::updateNodeContext()
 
     // Evonode DAPI endpoints from the deterministic masternode list.
     std::vector<platform::Endpoint> endpoints;
-    const auto [mn_list, tip] = node.evo().getListAtChainTip();
+    const auto mn_list{node.evo().getListAtChainTip().first};
     if (mn_list) {
         mn_list->forEachMN(/*only_valid=*/true, [&endpoints](const auto& dmn) {
             const auto services{dmn->getPlatformHTTPSAddrs()};
