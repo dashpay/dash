@@ -188,6 +188,12 @@ BOOST_AUTO_TEST_CASE(warm_proof_cache_preserves_context_checks)
     BOOST_CHECK_THROW(changed.Verify(proof.anchor), std::exception);
     BOOST_CHECK(proof.Verify(proof.anchor) == target);
 }
+BOOST_AUTO_TEST_CASE(v20_checkpoint_height_is_supported)
+{
+    auto proof = llmq::QuorumProofChain::Decode(ParseHex(TESTNET_PROOF));
+    proof.anchor.height = 905100;
+    BOOST_CHECK_NO_THROW(proof.Verify(proof.anchor));
+}
 BOOST_AUTO_TEST_CASE(concurrent_proof_cache_requests)
 {
     std::vector<std::future<bool>> requests;

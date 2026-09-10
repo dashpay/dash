@@ -55,30 +55,23 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Find(int minimum_heigh
 {
     if (minimum_height < 0 || minimum_height > maximum_height || minimum_height >= m_chain.Height())
         return std::nullopt;
-    int low = std::max(minimum_height + 1, Params().GetConsensus().V20Height);
-    if (low > m_chain.Height()) return std::nullopt;
-    int high = low;
-    int64_t step = 1;
-    // Valid coinbases never move backwards in certified height. Exponential
-    // search finds a nearby carrier quickly, even after a long signing gap.
-    while (true) {
-        const auto entry = Read(high);
-        if (entry && entry->clsig.getHeight() >= minimum_height) break;
-        if (high == m_chain.Height()) return std::nullopt;
-        low = high + 1;
-        high = int(std::min<int64_t>(m_chain.Height(), int64_t(high) + step));
-        step *= 2;
+    const int first_carrier = std::max(minimum_height + 1, Params().GetConsensus().V20Height);
+    const int tip_height = m_chain.Height();
+    if (first_carrier > tip_height) return std::nullopt;
+
+    // Empty carriers are possible, so the predicate used by a binary search is
+    // not monotonic. Scan the bounded carrier range instead; Read() keeps the
+    // request-local disk-read budget and cache. Valid certificates are ordered
+    // by signed height, so a certificate above the requested maximum ends the
+    // search.
+    for (int carrier_height = first_carrier;; ++carrier_height) {
+        const auto entry = Read(carrier_height);
+        if (entry) {
+            if (entry->clsig.getHeight() > maximum_height) return std::nullopt;
+            if (entry->clsig.getHeight() >= minimum_height) return entry;
+        }
+        if (carrier_height == tip_height) break;
     }
-    while (low < high) {
-        const int middle = low + (high - low) / 2;
-        const auto entry = Read(middle);
-        if (entry && entry->clsig.getHeight() >= minimum_height)
-            high = middle;
-        else
-            low = middle + 1;
-    }
-    auto entry = Read(low);
-    if (entry && entry->clsig.getHeight() <= maximum_height) return entry;
     return std::nullopt;
 }
 

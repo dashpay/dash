@@ -57,10 +57,15 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
         CCbTx payload;
         payload.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
         payload.nHeight = height;
-        if (height >= activation + 3) {
-            const int certified = height < activation + 67    ? activation + 1
-                                  : height < activation + 100 ? activation + 65
-                                                              : activation + 99;
+        if (height == activation + 20 || height == activation + 80 || height == activation + 110) {
+            int certified;
+            if (height == activation + 20) {
+                certified = activation + 1;
+            } else if (height == activation + 80) {
+                certified = activation + 65;
+            } else {
+                certified = activation + 99;
+            }
             payload.bestCLSignature = signature;
             payload.bestCLHeightDiff = height - certified - 1;
         }
@@ -114,9 +119,9 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
         BOOST_CHECK_EQUAL(entry->clsig.getHeight(), expected);
         BOOST_CHECK(entry->clsig.getBlockHash() == chain[expected]->GetBlockHash());
         BOOST_CHECK(entry->clsig.getSig() == signature);
-        const int carrier = expected == activation + 1    ? activation + 3
-                            : expected == activation + 65 ? activation + 67
-                                                          : activation + 100;
+        const int carrier = expected == activation + 1    ? activation + 20
+                            : expected == activation + 65 ? activation + 80
+                                                          : activation + 110;
         BOOST_CHECK_EQUAL(entry->carrier->nHeight, carrier);
         BOOST_CHECK(!reader.Find(minimum, expected - 1));
     }

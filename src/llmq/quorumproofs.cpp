@@ -305,8 +305,9 @@ QuorumProofChain QuorumProofChain::Decode(const std::vector<unsigned char>& byte
 
 ProofState QuorumProofChain::Verify(const ProofState& trusted) const
 {
-    Require(anchor == trusted && anchor.height > (anchor.network == 0 ? 1987776U : 905100U) && anchor.height <= INT32_MAX &&
-            !anchor.blockHash.IsNull() && !anchor.quorumRoot.IsNull(), "untrusted snapshot");
+    Require(anchor == trusted && anchor.height >= (anchor.network == 0 ? 1987776U : 905100U) &&
+                anchor.height <= INT32_MAX && !anchor.blockHash.IsNull() && !anchor.quorumRoot.IsNull(),
+            "untrusted snapshot");
     // The application fixes the network and initial roots; the relay cannot choose them.
     Require(anchor.network <= 1, "unsupported proof network");
     const auto kind = anchor.network == 0 ? Consensus::LLMQType::LLMQ_400_60 : Consensus::LLMQType::LLMQ_50_60;
