@@ -20,6 +20,7 @@
 #include <qt/platform/usernamesearchdialog.h>
 #include <qt/walletmodel.h>
 #include <util/strencodings.h>
+#include <util/system.h>
 
 #include <QEvent>
 #include <QGridLayout>
@@ -262,8 +263,10 @@ void PlatformPage::setClientModel(ClientModel* client_model)
 void PlatformPage::maybeCreateService()
 {
     if (m_service || !walletModel || !clientModel) return;
-    const auto params{platform::GetParams(Params().NetworkIDString())};
+    auto params{platform::GetParams(Params().NetworkIDString())};
     if (!params) return;
+    const std::string chain_id{gArgs.GetArg("-platformchainid", "")};
+    if (!chain_id.empty()) params->tenderdash_chain_id = chain_id;
 
     // DashPay is descriptor-wallet-only. Without a service the wizard, the
     // recovery probe and the contact flows are all unreachable, so a legacy
