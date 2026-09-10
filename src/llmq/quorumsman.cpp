@@ -355,7 +355,8 @@ std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQTyp
             if (!vecResultCommitments.empty()) {
                 nScanCommitments -= vecResultCommitments.size();
                 // bail out if it's below genesis block
-                const CBlockIndex* pLastIndex = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(vecResultCommitments.back().quorumHash));
+                const auto [_, minedBlockHash] = quorumBlockProcessor.GetMinedCommitment(llmqType, vecResultCommitments.back().quorumHash);
+                const CBlockIndex* pLastIndex = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(minedBlockHash));
                 if (!pLastIndex || pLastIndex->pprev == nullptr) return {};
                 pIndexScanCommitments = pLastIndex->pprev;
             }
