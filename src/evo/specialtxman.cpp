@@ -1554,18 +1554,16 @@ bool CheckProUpShareTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*>
     }
 
     // The new reward script is subject to the same payee-reuse restrictions as at registration
-    if (!opt_ptx->scriptReward.empty()) {
-        CTxDestination dest;
-        if (!ExtractDestination(opt_ptx->scriptReward, dest)) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-dest");
-        }
-        if (dest == CTxDestination(PKHash(mnState.keyIDVoting))) {
+    CTxDestination dest;
+    if (!ExtractDestination(opt_ptx->scriptReward, dest)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-dest");
+    }
+    if (dest == CTxDestination(PKHash(mnState.keyIDVoting))) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-reuse");
+    }
+    for (const auto& share : mnState.shares) {
+        if (dest == CTxDestination(PKHash(share.keyIDOwner))) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-reuse");
-        }
-        for (const auto& share : mnState.shares) {
-            if (dest == CTxDestination(PKHash(share.keyIDOwner))) {
-                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-reuse");
-            }
         }
     }
 

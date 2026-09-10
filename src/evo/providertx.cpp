@@ -574,13 +574,14 @@ bool CProUpShareTx::IsTriviallyValid(TxValidationState& state) const
     if (vchSig.size() != CPubKey::COMPACT_SIGNATURE_SIZE) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-sig-size");
     }
-    if (!scriptReward.empty()) {
-        if (sharedcollateral::IsSharedCollateralScript(scriptReward)) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-template");
-        }
-        if (!IsValidPayoutScript(scriptReward)) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee");
-        }
+    if (scriptReward.empty()) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-empty");
+    }
+    if (sharedcollateral::IsSharedCollateralScript(scriptReward)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-template");
+    }
+    if (!IsValidPayoutScript(scriptReward)) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee");
     }
     return true;
 }
@@ -588,9 +589,7 @@ bool CProUpShareTx::IsTriviallyValid(TxValidationState& state) const
 std::string CProUpShareTx::ToString() const
 {
     CTxDestination dest;
-    const std::string reward = scriptReward.empty()
-        ? "refund"
-        : (ExtractDestination(scriptReward, dest) ? EncodeDestination(dest) : HexStr(scriptReward));
+    const std::string reward = ExtractDestination(scriptReward, dest) ? EncodeDestination(dest) : HexStr(scriptReward);
     return strprintf("CProUpShareTx(nVersion=%d, proTxHash=%s, shareIndex=%d, rewardAddress=%s)",
         nVersion, proTxHash.ToString(), shareIndex, reward);
 }

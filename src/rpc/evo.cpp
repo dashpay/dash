@@ -1664,7 +1664,7 @@ static RPCHelpMan protx_update_share()
         {
             {"proTxHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hash of the initial ProRegTx."},
             {"shareIndex", RPCArg::Type::NUM, RPCArg::Optional::NO, "Index into the share table of the share to update."},
-            {"rewardAddress", RPCArg::Type::STR, RPCArg::Optional::NO, "The new reward address, or an empty string to pay rewards to the refund script again."},
+            {"rewardAddress", RPCArg::Type::STR, RPCArg::Optional::NO, "The new reward address. To reset rewards, provide the share's refund address."},
             {"feeSourceAddress", RPCArg::Type::STR, RPCArg::Optional::NO, "Wallet address to pay the transaction fee from."},
             {"submit", RPCArg::Type::BOOL, RPCArg::Default{true}, "Submit the transaction to the network."},
         },
@@ -1702,13 +1702,11 @@ static RPCHelpMan protx_update_share()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "shareIndex out of range");
     }
 
-    if (!request.params[2].get_str().empty()) {
-        CTxDestination rewardDest = DecodeDestination(request.params[2].get_str());
-        if (!IsValidDestination(rewardDest)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid reward address: %s", request.params[2].get_str()));
-        }
-        ptx.scriptReward = GetScriptForDestination(rewardDest);
+    CTxDestination rewardDest = DecodeDestination(request.params[2].get_str());
+    if (!IsValidDestination(rewardDest)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid reward address: %s", request.params[2].get_str()));
     }
+    ptx.scriptReward = GetScriptForDestination(rewardDest);
 
     CTxDestination feeSourceDest = DecodeDestination(request.params[3].get_str());
     if (!IsValidDestination(feeSourceDest)) {

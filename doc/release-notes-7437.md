@@ -55,7 +55,7 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
 - `protx dissolve` creates, signs and submits a unilateral ProDisTx (or, with
   `submit=false`, returns hex suitable for offline standby storage).
 - `protx dissolve_prepare` builds an unsigned unanimous ProDisTx.
-- `protx update_share` updates one share's reward address.
+- `protx update_share` updates one share's reward address. To restore rewards to the immutable refund address, pass that address explicitly; empty reward scripts are not valid in update transactions.
 - `protx update_shared_registrar_prepare` builds an unsigned ProUpSharedRegTx.
 
 Updated RPCs

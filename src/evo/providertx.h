@@ -499,7 +499,7 @@ public:
     uint16_t nVersion{CURRENT_VERSION};
     uint256 proTxHash;
     uint16_t shareIndex{0};
-    CScript scriptReward; //!< empty means "use the refund script"
+    CScript scriptReward; //!< explicit reward script; use the refund script to reset rewards
     uint256 inputsHash;   // replay protection
     std::vector<unsigned char> vchSig;
 

@@ -278,6 +278,8 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_shape_validation)
 BOOST_AUTO_TEST_CASE(proupshare_sig_size)
 {
     CProUpShareTx ptx;
+    CKey reward_key;
+    ptx.scriptReward = NewP2PKHScript(reward_key);
     TxValidationState state;
     BOOST_CHECK(!ptx.IsTriviallyValid(state));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-proupshare-sig-size");
@@ -285,6 +287,9 @@ BOOST_AUTO_TEST_CASE(proupshare_sig_size)
     BOOST_CHECK(!ptx.IsTriviallyValid(state));
     ptx.vchSig.assign(CPubKey::COMPACT_SIGNATURE_SIZE, 0);
     BOOST_CHECK(ptx.IsTriviallyValid(state));
+    ptx.scriptReward.clear();
+    BOOST_CHECK(!ptx.IsTriviallyValid(state));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-proupshare-payee-empty");
 }
 
 BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
