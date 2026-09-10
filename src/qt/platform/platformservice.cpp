@@ -18,6 +18,7 @@
 #include <qt/platform/platformrecovery.h>
 #include <qt/walletmodel.h>
 #include <util/strencodings.h>
+#include <util/system.h>
 #include <wallet/platformtypes.h>
 
 #include <univalue.h>
@@ -53,6 +54,8 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
 {
     if (auto params{platform::GetParams(Params().NetworkIDString())}) {
         m_params = *params;
+        const std::string chain_id{gArgs.GetArg("-platformchainid", "")};
+        if (!chain_id.empty()) m_params.tenderdash_chain_id = chain_id;
     }
 
     m_identity_flow = std::make_unique<IdentityFlow>(*this, this);
@@ -474,7 +477,8 @@ void PlatformService::resolvePaymentAddress(const QString& username)
                 Q_EMIT self->paymentAddressResolved(username, {}, tr("could not derive contact payment address"));
                 return;
             }
-            self->writeRecord(cursor_key, platform::EncodePaymentCursor(index + 1));
+            self->m_payment_reservations.insert(QString::fromStdString(EncodeDestination(destination)),
+                                                   {QString::fromStdString(cursor_key), index});
             // Label the derived destination so transaction history shows the
             // contact's username instead of a bare address.
             self->m_wallet_model.wallet().setAddressBook(
@@ -482,6 +486,21 @@ void PlatformService::resolvePaymentAddress(const QString& username)
             Q_EMIT self->paymentAddressResolved(username, QString::fromStdString(EncodeDestination(destination)), {});
         });
     });
+}
+
+void PlatformService::commitPaymentAddress(const QString& address)
+{
+    const auto it{m_payment_reservations.find(address)};
+    if (it == m_payment_reservations.end()) return;
+    const auto [cursor_key, index]{it.value()};
+    const uint32_t current{platform::DecodePaymentCursor(readRecord(cursor_key.toStdString()))};
+    if (current == index) writeRecord(cursor_key.toStdString(), platform::EncodePaymentCursor(index + 1));
+    m_payment_reservations.erase(it);
+}
+
+void PlatformService::cancelPaymentAddress(const QString& address)
+{
+    m_payment_reservations.remove(address);
 }
 
 bool PlatformService::updateProfile(const QString& display_name, const QString& public_message,

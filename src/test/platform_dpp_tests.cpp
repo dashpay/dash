@@ -256,7 +256,7 @@ BOOST_AUTO_TEST_CASE(identity_create)
     }
 
     // Signer failure surfaces as an error, not a malformed transition.
-    const auto failed{st::BuildIdentityCreate(Sdk(), 
+    const auto failed{st::BuildIdentityCreate(Sdk(),
         {st::ChainAssetLockProof{}}, new_keys,
         [](const uint256&, std::vector<uint8_t>&) { return false; })};
     BOOST_CHECK(!failed.ok());

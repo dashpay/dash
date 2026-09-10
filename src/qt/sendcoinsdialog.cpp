@@ -652,8 +652,24 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
         // failed, or more signatures are needed.
         if (broadcast) {
             // now send the prepared transaction
-            model->sendCoins(*m_current_transaction, m_coin_control->IsUsingCoinJoin());
-            Q_EMIT coinsSent(m_current_transaction->getWtx()->GetHash());
+            const auto send_result{model->sendCoins(*m_current_transaction, m_coin_control->IsUsingCoinJoin())};
+#ifdef ENABLE_PLATFORM_GUI
+            if (m_platform_service) {
+                for (const auto& recipient : m_current_transaction->getRecipients()) {
+                    if (send_result.status == WalletModel::OK) {
+                        m_platform_service->commitPaymentAddress(recipient.address);
+                    } else {
+                        m_platform_service->cancelPaymentAddress(recipient.address);
+                    }
+                }
+            }
+#endif
+            if (send_result.status != WalletModel::OK) {
+                processSendCoinsReturn(send_result, send_result.reasonCommitFailed);
+                send_failure = true;
+            } else {
+                Q_EMIT coinsSent(m_current_transaction->getWtx()->GetHash());
+            }
         }
     }
     if (!send_failure) {

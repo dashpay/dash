@@ -107,7 +107,7 @@ public:
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const wallet::CCoinControl& coinControl);
 
     // Send coins to a list of recipients
-    void sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);
+    SendCoinsReturn sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);
 
     // Wallet encryption
     bool setWalletEncrypted(const SecureString& passphrase);

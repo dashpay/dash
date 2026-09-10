@@ -71,6 +71,7 @@ private:
     void rebuildPayCursors();
     void startRescan();
     void finish(bool recovered, const std::string& outcome);
+    void retryLater();
 
     PlatformService& m_service;
     bool m_attempted{false};

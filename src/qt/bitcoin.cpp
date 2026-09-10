@@ -498,6 +498,9 @@ static void SetupUIArgs(ArgsManager& argsman)
     argsman.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", GUIUtil::defaultUIPlatform()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-debug-ui", "Updates the UI's stylesheets in realtime with changes made to the css files in -custom-css-dir and forces some widgets to show up which are usually only visible under certain circumstances. (default: 0)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-windowtitle=<name>", _("Sets a window title which is appended to \"Dash Core - \"").translated, ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+#ifdef ENABLE_PLATFORM_GUI
+    argsman.AddArg("-platformchainid=<id>", "Override the Tenderdash chain id used by the DashPay Platform client (GUI only).", ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+#endif
 }
 
 int GuiMain(int argc, char* argv[])

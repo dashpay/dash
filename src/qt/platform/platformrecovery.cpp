@@ -87,6 +87,7 @@ void PlatformRecovery::probeIndex(uint32_t index, uint32_t consecutive_absent)
     // MASTER key (key 0) of identity `index`, whose hash Platform indexes.
     const auto pubkey{m_service.walletModel().wallet().getPlatformPubKey(wallet::IdentityAuthKey{index, 0})};
     if (!pubkey) {
+        retryLater();
         finish(false, "identity scan aborted: key derivation failed (wallet re-locked?)");
         return;
     }
@@ -105,6 +106,7 @@ void PlatformRecovery::probeIndex(uint32_t index, uint32_t consecutive_absent)
                               index, res.error);
                     self->restoreIdentity();
                 } else {
+                    self->retryLater();
                     self->finish(false, strprintf("identity scan incomplete (unanswered query at index %u: %s)",
                                                   index, res.error));
                 }
@@ -162,6 +164,7 @@ void PlatformRecovery::restoreIdentity()
                 // Without a proven name answer the record cannot be
                 // synthesized truthfully; leave everything for a retry on
                 // the next start.
+                self->retryLater();
                 self->finish(false, "name lookup failed: " + res.error);
                 return;
             }
@@ -181,6 +184,7 @@ void PlatformRecovery::restoreIdentity()
                 record.contested = platform::st::IsContestedLabel(it->normalized_label);
             }
             if (!self->m_service.writeRecord("identity/0", platform::SerializeIdentityRecord(record))) {
+                self->retryLater();
                 self->finish(false, "wallet DB write failed");
                 return;
             }
@@ -352,6 +356,16 @@ void PlatformRecovery::startRescan()
     m_rescan_thread->start();
     finish(true, strprintf("identity and %u contact(s) restored; rescan started",
                            static_cast<unsigned>(m_restored.size())));
+}
+
+void PlatformRecovery::retryLater()
+{
+    m_attempted = false;
+    m_found_index.reset();
+    m_identity_id = {};
+    m_extra_identities = 0;
+    m_established.clear();
+    m_restored.clear();
 }
 
 void PlatformRecovery::finish(bool recovered, const std::string& outcome)

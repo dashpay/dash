@@ -80,16 +80,23 @@ void IdentityFlow::reload()
     Q_EMIT stateChanged();
 }
 
-void IdentityFlow::setState(State state)
+bool IdentityFlow::setState(State state)
 {
-    if (m_record.state == state) return;
+    if (m_record.state == state) return true;
+    const State previous{m_record.state};
     m_record.state = state;
     m_record.last_error.clear();
     m_retries = 0;
-    save();
+    if (!save()) {
+        m_record.state = previous;
+        m_record.last_error = "could not persist identity flow state";
+        Q_EMIT failed(tr("state"), tr("could not save the identity registration state to the wallet"));
+        return false;
+    }
     LogPrintf("Platform identity flow: state=%d name=%s\n", static_cast<int>(state),
               m_record.normalized_label);
     Q_EMIT stateChanged();
+    return true;
 }
 
 void IdentityFlow::fail(const QString& step, const QString& error, bool retryable)
@@ -378,7 +385,7 @@ void IdentityFlow::broadcastIdentityCreate()
 
     // Record the (deterministic) identity id before broadcasting.
     m_record.identity_id = platform::st::IdentityIdFromOutpoint(burn_outpoint);
-    setState(State::IDENTITY_BROADCAST);
+    if (!setState(State::IDENTITY_BROADCAST)) return;
 
     m_step_in_flight = true;
     QPointer<IdentityFlow> self{this};
@@ -456,7 +463,7 @@ void IdentityFlow::broadcastPreorder()
                 self->fail(tr("preorder"), QString::fromStdString(built.error), /*retryable=*/true);
                 return;
             }
-            self->setState(State::PREORDER_BROADCAST);
+            if (!self->setState(State::PREORDER_BROADCAST)) return;
             self->m_step_in_flight = true;
             QPointer<IdentityFlow> inner{self};
             self->m_service.client().broadcastStateTransition(built.value->bytes, [inner](platform::Result<platform::BroadcastResult> res) {

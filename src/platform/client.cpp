@@ -353,7 +353,7 @@ public:
     }
 
 private:
-    void NamesResult(const platform_ffi::FfiVerifiedDpnsNames& res, Result<std::vector<DpnsName>>& out)
+    static void NamesResult(const platform_ffi::FfiVerifiedDpnsNames& res, Result<std::vector<DpnsName>>& out)
     {
         out.metadata = MetaFromFfi(res.meta);
         std::vector<DpnsName> names;
@@ -365,7 +365,7 @@ private:
         }
         out.value = std::move(names);
     }
-    void IdentityResult(const platform_ffi::FfiVerifiedIdentity& res, Result<std::optional<Identity>>& out)
+    static void IdentityResult(const platform_ffi::FfiVerifiedIdentity& res, Result<std::optional<Identity>>& out)
     {
         out.metadata = MetaFromFfi(res.meta);
         if (!res.present) {
@@ -376,7 +376,7 @@ private:
         if (!IdentityFromFfi(res.identity, identity)) throw std::runtime_error("bridge returned a malformed identity");
         out.value = std::move(identity);
     }
-    void NonceResult(const platform_ffi::FfiVerifiedU64& res, Result<uint64_t>& out)
+    static void NonceResult(const platform_ffi::FfiVerifiedU64& res, Result<uint64_t>& out)
     {
         out.metadata = MetaFromFfi(res.meta);
         out.value = res.present ? res.value : 0; // proven absent = never used

@@ -84,7 +84,7 @@ Q_SIGNALS:
     void failed(const QString& step, const QString& error);
 
 private:
-    void setState(State state);
+    bool setState(State state);
     void fail(const QString& step, const QString& error, bool retryable);
     bool load();
     //! Persists the current record. Returns false if the wallet DB write

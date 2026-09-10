@@ -893,7 +893,7 @@ case $host in
            export PKG_CONFIG_PATH="$($BREW --prefix qt@5 2>/dev/null)/lib/pkgconfig:$PKG_CONFIG_PATH"
          fi
 
-         
+
         gmp_prefix=$($BREW --prefix gmp 2>/dev/null)
         if test "$gmp_prefix" != ""; then
           if test "$suppress_external_warnings" != "no"; then

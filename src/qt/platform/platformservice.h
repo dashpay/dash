@@ -14,6 +14,7 @@
 
 #include <QObject>
 #include <QSet>
+#include <QHash>
 #include <QString>
 #include <QTimer>
 
@@ -62,6 +63,9 @@ public:
     //! Resolve an established contact username to the next DIP-15 payment
     //! address. Emits paymentAddressResolved().
     void resolvePaymentAddress(const QString& username);
+    //! Commit or discard a resolved contact payment address after the send result is known.
+    void commitPaymentAddress(const QString& address);
+    void cancelPaymentAddress(const QString& address);
 
     //! Broadcast a DashPay profile create/update.
     bool updateProfile(const QString& display_name, const QString& public_message, const QString& avatar_url,
@@ -156,6 +160,7 @@ private:
     std::vector<platform::ContactRequest> m_incoming_contacts;
     std::vector<platform::ContactRequest> m_outgoing_contacts;
     QSet<QString> m_contact_metadata_pending;
+    QHash<QString, QPair<QString, uint32_t>> m_payment_reservations;
     SigningOperation m_signing_operation{SigningOperation::NONE};
     QString m_signing_identity;
     std::unique_ptr<WalletModel::UnlockContext> m_signing_unlock;
