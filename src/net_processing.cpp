@@ -2126,6 +2126,8 @@ void PeerManagerImpl::StartScheduledTasks(CScheduler& scheduler)
  */
 void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
+    PostProcessMessage(m_clhandler.ProcessCoinbaseChainLock(*pblock, pindex, *m_llmq_ctx.qman), /*node=*/-1);
+
     // Orphans included in or conflicted by the block can never be accepted, so drop them before
     // reconsidering the ones the block may have just made acceptable.
     m_orphanage.EraseForBlock(*pblock);

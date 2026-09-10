@@ -79,6 +79,10 @@ public:
     void UpdateTxFirstSeenMap(const Uint256HashSet& tx, const int64_t& time) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     size_t SeenChainLockCacheSizeForTesting() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+    [[nodiscard]] MessageProcessingResult ProcessCoinbaseChainLock(const CBlock& block, const CBlockIndex* pindex,
+                                                                   const llmq::CQuorumManager& qman)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
     [[nodiscard]] MessageProcessingResult ProcessNewChainLock(NodeId from, const chainlock::ChainLockSig& clsig,
                                                               const llmq::CQuorumManager& qman,
 

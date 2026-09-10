@@ -9,6 +9,9 @@
 #include <chainlock/clsig.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <deploymentstatus.h>
+#include <evo/cbtx.h>
+#include <evo/specialtx.h>
 #include <instantsend/instantsend.h>
 #include <llmq/quorumsman.h>
 #include <masternode/sync.h>
@@ -96,6 +99,35 @@ void ChainlockHandler::UpdateTxFirstSeenMap(const Uint256HashSet& tx, const int6
     for (const auto& txid : tx) {
         txFirstSeenTime.emplace(txid, time);
     }
+}
+
+MessageProcessingResult ChainlockHandler::ProcessCoinbaseChainLock(const CBlock& block, const CBlockIndex* pindex,
+                                                                   const llmq::CQuorumManager& qman)
+{
+    if (!m_mn_sync.IsBlockchainSynced() || !m_chainlocks.IsEnabled() || pindex == nullptr ||
+        !DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20) || block.vtx.empty()) {
+        return {};
+    }
+
+    const auto cbtx = GetTxPayload<CCbTx>(*block.vtx.front(), /*assert_type=*/false);
+    if (!cbtx || cbtx->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || !cbtx->bestCLSignature.IsValid()) {
+        return {};
+    }
+
+    // The offset is relative to the containing block's parent. Check it before converting to a signed height.
+    if (pindex->nHeight <= 0 || cbtx->bestCLHeightDiff >= static_cast<uint32_t>(pindex->nHeight)) {
+        return {};
+    }
+    const int32_t height = pindex->nHeight - static_cast<int32_t>(cbtx->bestCLHeightDiff) - 1;
+    if (height <= m_chainlocks.GetBestChainLockHeight()) {
+        return {};
+    }
+    const auto* ancestor = pindex->GetAncestor(height);
+    if (ancestor == nullptr) {
+        return {};
+    }
+    const ChainLockSig clsig{height, ancestor->GetBlockHash(), cbtx->bestCLSignature};
+    return ProcessNewChainLock(/*from=*/-1, clsig, qman, ::SerializeHash(clsig));
 }
 
 MessageProcessingResult ChainlockHandler::ProcessNewChainLock(const NodeId from, const chainlock::ChainLockSig& clsig,

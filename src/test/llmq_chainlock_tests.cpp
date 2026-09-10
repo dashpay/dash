@@ -6,8 +6,11 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 
+#include <evo/cbtx.h>
+#include <evo/specialtx.h>
 #include <hash.h>
 #include <masternode/meta.h>
+#include <masternode/sync.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>
@@ -261,6 +264,92 @@ namespace {
 //! Regtest spork key matching Params().SporkAddress(), as used by the functional tests.
 constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
 } // namespace
+
+BOOST_FIXTURE_TEST_CASE(coinbase_chainlock_processing, RegTestingSetup)
+{
+    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0).has_value());
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+
+    std::vector<CBlockIndex> indexes(501);
+    std::vector<uint256> hashes(indexes.size());
+    for (size_t i = 0; i < indexes.size(); ++i) {
+        hashes[i] = GetTestBlockHash(i);
+        indexes[i].nHeight = i;
+        indexes[i].phashBlock = &hashes[i];
+        if (i > 0) indexes[i].pprev = &indexes[i - 1];
+        indexes[i].BuildSkip();
+    }
+
+    CCbTx cbtx;
+    cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
+    cbtx.bestCLSignature = CreateRandomBLSSignature();
+    CMutableTransaction tx;
+    tx.nVersion = CTransaction::SPECIAL_VERSION;
+    tx.nType = TRANSACTION_COINBASE;
+    tx.vin.resize(1);
+    CBlock block;
+    const auto set_payload = [&] {
+        SetTxPayload(tx, cbtx);
+        block.vtx = {MakeTransactionRef(tx)};
+    };
+    const auto process = [&](const CBlockIndex* index) {
+        const auto result = m_node.clhandler->ProcessCoinbaseChainLock(block, index, *m_node.llmq_ctx->qman);
+        BOOST_CHECK(!result.m_error);
+        BOOST_CHECK(result.m_inventory.empty());
+        // A structurally valid signature still requires quorum verification.
+        BOOST_CHECK(m_node.chainlocks->GetBestChainLock().IsNull());
+    };
+
+    // ProcessNewChainLock records the derived signature before verification. No quorum exists in this fixture.
+    for (const uint32_t offset : {0U, 5U, 499U}) {
+        cbtx.bestCLHeightDiff = offset;
+        set_payload();
+        process(&indexes.back());
+        const int32_t height = 499 - offset;
+        const ChainLockSig expected{height, hashes[height], cbtx.bestCLSignature};
+        BOOST_CHECK(m_node.clhandler->AlreadyHave(CInv{MSG_CLSIG, ::SerializeHash(expected)}));
+    }
+    const auto seen = m_node.clhandler->SeenChainLockCacheSizeForTesting();
+    BOOST_CHECK_EQUAL(seen, 3U);
+
+    for (const uint32_t offset :
+         {500U, 501U, uint32_t{std::numeric_limits<int32_t>::max()}, std::numeric_limits<uint32_t>::max()}) {
+        cbtx.bestCLHeightDiff = offset;
+        set_payload();
+        process(&indexes.back());
+    }
+    cbtx.bestCLHeightDiff = 1;
+    set_payload();
+    process(nullptr);
+    process(&indexes.front());
+    process(&indexes[431]); // Before v20 activation on regtest.
+
+    m_node.mn_sync->Reset(/*fForce=*/true);
+    process(&indexes.back());
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 4070908800).has_value());
+    process(&indexes.back());
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0).has_value());
+
+    cbtx.bestCLSignature = {};
+    set_payload();
+    process(&indexes.back());
+    cbtx.nVersion = CCbTx::Version::MERKLE_ROOT_QUORUMS;
+    set_payload();
+    process(&indexes.back());
+    tx.vExtraPayload = {0xff};
+    block.vtx = {MakeTransactionRef(tx)};
+    process(&indexes.back());
+    tx.nType = TRANSACTION_NORMAL;
+    block.vtx = {MakeTransactionRef(tx)};
+    process(&indexes.back());
+    block.vtx.clear();
+    process(&indexes.back());
+    BOOST_CHECK_EQUAL(m_node.clhandler->SeenChainLockCacheSizeForTesting(), seen);
+}
 
 // A CLSIG is only ever sent in reply to a GETDATA, so one that the peer neither announced nor was
 // asked for must be dropped before ProcessNewChainLock -- which would otherwise remember its hash
