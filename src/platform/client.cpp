@@ -164,10 +164,9 @@ public:
             uris.push_back("https://" + endpoint.service.ToStringAddrPort());
         }
         try {
-            if (uris.empty()) {
-                LogPrint(BCLog::QT, "Platform client: no evonode endpoints yet\n");
-                return;
-            }
+            if (uris.empty()) LogPrint(BCLog::QT, "Platform client: no evonode endpoints yet\n");
+            // Replace the SDK set even when it is empty, so endpoints removed
+            // from the deterministic masternode list cannot remain usable.
             m_sdk->set_endpoints(std::move(uris));
         } catch (const std::exception& e) {
             LogPrintf("Platform client: unable to update endpoints: %s\n", e.what());
