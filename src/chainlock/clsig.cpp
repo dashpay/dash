@@ -65,7 +65,7 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Find(int minimum_heigh
     // by signed height, so a certificate above the requested maximum ends the
     // search.
     for (int carrier_height = first_carrier;; ++carrier_height) {
-        const auto entry = Read(carrier_height);
+        auto entry = Read(carrier_height);
         if (entry) {
             if (entry->clsig.getHeight() > maximum_height) return std::nullopt;
             if (entry->clsig.getHeight() >= minimum_height) return entry;
