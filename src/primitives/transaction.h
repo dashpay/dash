@@ -253,13 +253,9 @@ public:
     const std::vector<uint8_t> vExtraPayload; // only available for special transaction types
 
 private:
-    /** Memory only. The full-serialization hash; equal to `hash` for all transactions except
-     *  version 2+ asset unlocks, where it identifies one signed instance of the withdrawal. */
-    const uint256 m_instance_hash;
     /** Memory only. */
     const uint256 hash;
 
-    uint256 ComputeInstanceHash() const;
     uint256 ComputeHash() const;
 
 public:
@@ -291,9 +287,10 @@ public:
 
     /** The full-serialization hash. For version 2+ asset unlocks GetHash() excludes the quorum
      *  signing info, so this hash distinguishes the re-signed instances of one withdrawal; it is
-     *  used for their relay and for the coinbase asset unlock commitment. Equal to GetHash() for
-     *  all other transactions. */
-    const uint256& GetInstanceHash() const LIFETIMEBOUND { return m_instance_hash; }
+     *  used for their relay and for the coinbase asset unlock commitment. Computed on demand for
+     *  those transactions and equal to GetHash() for all others, so it adds no per-transaction
+     *  memory (which the mempool accounts for). */
+    uint256 GetInstanceHash() const;
 
     // Return sum of txouts.
     CAmount GetValueOut() const;

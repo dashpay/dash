@@ -4877,7 +4877,7 @@ void PeerManagerImpl::ProcessMessage(
         // still propagates.
         const bool is_stable_unlock{IsAssetUnlockWithStableTxid(tx)};
         if (is_stable_unlock) nInvType = MSG_ASSET_UNLOCK;
-        const uint256& relay_hash{is_stable_unlock ? tx.GetInstanceHash() : txid};
+        const uint256 relay_hash{is_stable_unlock ? tx.GetInstanceHash() : txid};
         AddKnownInv(*peer, relay_hash);
 
         CInv inv(nInvType, relay_hash);
