@@ -118,6 +118,11 @@ bool ParseBoolV(const UniValue& v, const std::string &strName);
  * @returns a CAmount if the various checks pass.
  */
 CAmount AmountFromValue(const UniValue& value, int decimals = 8);
+/**
+ * Parse a json number or string, denoting BTC/kvB, into a CFeeRate (sat/kvB).
+ * Reject negative values or rates larger than 1BTC/kvB.
+ */
+CFeeRate ParseFeeRate(const UniValue& json);
 
 using RPCArgList = std::vector<std::pair<std::string, UniValue>>;
 std::string HelpExampleCli(const std::string& methodname, const std::string& args);
