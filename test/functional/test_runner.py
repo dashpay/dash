@@ -100,6 +100,7 @@ BASE_SCRIPTS = [
     # Longest test should go first, to favor running tests in parallel
     'feature_llmq_data_recovery.py',
     # vv Tests less than 5m vv
+    'wallet_coinjoin_mixing.py',
     'feature_fee_estimation.py',
     'feature_block.py', # NOTE: needs dash_hash to pass
     # vv Tests less than 2m vv
