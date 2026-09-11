@@ -687,6 +687,38 @@ BOOST_FIXTURE_TEST_CASE(mempool_pending_asset_unlock_amount, TestChain100Setup)
     BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(2).empty());
 }
 
+BOOST_FIXTURE_TEST_CASE(mempool_single_claimant_per_withdrawal_index, TestChain100Setup)
+{
+    // Admission holds at most one instance of a withdrawal index: a staler claimant under a
+    // different txid is rejected before its quorum signature is checked, a fresher one replaces
+    // the held instance. Neither carries a valid signature; the held one is inserted directly.
+    CTxMemPool& pool = *Assert(m_node.mempool);
+    TestMemPoolEntryHelper entry;
+    const CScript standard_script{GetScriptForDestination(PKHash(coinbaseKey.GetPubKey()))};
+    const auto make_unlock = [&](uint8_t version, uint32_t requested_height) {
+        CMutableTransaction mtx{*CreateCreditPoolUnlockTx(4, 5 * COIN, version, 1000, requested_height)};
+        mtx.vout[0].scriptPubKey = standard_script;
+        return MakeTransactionRef(std::move(mtx));
+    };
+    const auto held = make_unlock(1, 90);
+    {
+        LOCK2(cs_main, pool.cs);
+        pool.addUnchecked(entry.Fee(1000).FromTx(held));
+    }
+
+    const auto stale = make_unlock(2, 90);
+    BOOST_REQUIRE(stale->GetHash() != held->GetHash());
+    const auto stale_result = WITH_LOCK(cs_main, return m_node.chainman->ProcessTransaction(stale));
+    BOOST_CHECK(stale_result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+    BOOST_CHECK_EQUAL(stale_result.m_state.GetRejectReason(), "assetunlock-stale-instance");
+
+    const auto fresher = make_unlock(2, 95);
+    const auto fresher_result = WITH_LOCK(cs_main, return m_node.chainman->ProcessTransaction(fresher));
+    BOOST_CHECK(fresher_result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+    BOOST_CHECK(fresher_result.m_state.GetRejectReason() != "assetunlock-stale-instance");
+    BOOST_CHECK(pool.exists(held->GetHash()));
+}
+
 BOOST_FIXTURE_TEST_CASE(credit_pool_snapshot_persisted_after_transactionless_construction, TestChain100Setup)
 {
     // Block assembly asks for the tip's credit pool outside any block-scoped EvoDB transaction,

@@ -120,7 +120,7 @@ class AssetLocksTest(DashTestFramework):
         return hash256(request_id_buf)[::-1].hex()
 
 
-    def create_assetunlock(self, index, withdrawal, pubkey=None, fee=tiny_amount, version=1):
+    def create_assetunlock(self, index, withdrawal, pubkey=None, fee=tiny_amount, version=1, requested_height=None):
         node_wallet = self.nodes[0]
         mninfo = self.mninfo
         assert_greater_than(int(withdrawal), fee)
@@ -128,7 +128,7 @@ class AssetLocksTest(DashTestFramework):
 
         request_id = self.create_assetunlock_request_id(index)
 
-        height = node_wallet.getblockcount()
+        height = node_wallet.getblockcount() if requested_height is None else requested_height
         self.log.info(f"Creating asset unlock: index={index} {request_id}")
         quorumHash = mninfo[0].get_node(self).quorum("selectquorum", llmq_type_test, request_id)["quorumHash"]
         self.log.info(f"Used quorum hash: {quorumHash}")
@@ -1000,6 +1000,33 @@ class AssetLocksTest(DashTestFramework):
         child_rpc = node_wallet.getrawtransaction(child_txid, 1)
         assert_equal(child_rpc['vin'][0]['txid'], stable_txid)
         assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instantlock'], True)
+
+        self.log.info("At most one instance of a withdrawal index is held: a version 1 instance signed one block earlier is the claimant")
+        cross_index = 803
+        tip_height = node_wallet.getblockcount()
+        unlock_v1 = self.create_assetunlock(cross_index, COIN, pubkey, version=1, requested_height=tip_height - 1)
+        v1_txid = self.send_tx_simple(unlock_v1)
+        self.sync_mempools()
+
+        self.log.info("A version 2 instance signed at the same height is stale: rejected before its signature is verified")
+        unlock_v2_stale = self.create_assetunlock(cross_index, COIN, pubkey, version=2, requested_height=tip_height - 1)
+        stale_result = node_wallet.testmempoolaccept([unlock_v2_stale.serialize().hex()])[0]
+        assert_equal(stale_result['txid'], self.get_v2_txid(unlock_v2_stale))
+        assert_equal(stale_result['allowed'], False)
+        assert_equal(stale_result['reject-reason'], 'assetunlock-stale-instance')
+        assert v1_txid in node_wallet.getrawmempool()
+
+        self.log.info("Signed one block later, the version 2 instance is fresher: it replaces the version 1 claimant and gets locked")
+        assert_equal(self.send_tx_simple(unlock_v2_fresh), cross_txid)
+        self.sync_mempools()
+        mempool = node_wallet.getrawmempool()
+        assert cross_txid in mempool
+        assert v1_txid not in mempool
+        assert_equal(node_wallet.getmempoolinfo()['pendingassetunlocks'], Decimal(unlock_v2_fresh.vout[0].nValue + tiny_amount) / COIN)
+        self.wait_for_instantlock(cross_txid)
+        assert_equal(node_wallet.getassetunlockstatuses([str(cross_index)])[0], {'index': cross_index, 'status': 'mempooled', 'instantlock': True})
+        tip_hash = self.generate(node, 1)[0]
+        assert cross_txid in node_wallet.getblock(tip_hash)['tx']
 
         node_wallet.disconnect_p2ps()
         self.set_sporks()
