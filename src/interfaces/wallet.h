@@ -129,6 +129,10 @@ public:
     //! Get the number of keys since the last auto backup
     virtual int64_t getKeysLeftSinceAutoBackup() = 0;
 
+    //! Get automatic backup status: >0 = enabled, 0 = disabled, -1 = failed,
+    //! -2 = wallet locked. Process-wide, not per-wallet.
+    virtual int getWalletBackupStatus() = 0;
+
     //! Get wallet name.
     virtual std::string getWalletName() = 0;
 
