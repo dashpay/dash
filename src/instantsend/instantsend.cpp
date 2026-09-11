@@ -137,6 +137,13 @@ void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
     instantsend::InstantSendLockPtr islock = GetInstantSendLockByTxid(tx->GetHash());
 
     if (islock == nullptr) {
+        // An unlocked asset unlock leaving the mempool (evicted by another instance of its
+        // withdrawal index, expired, or trimmed) is gone for good under this txid. It has no
+        // inputs, so the conflict cleanup keyed on spent outpoints never reaches its entry;
+        // drop it here or it would be re-queued for locking on every block.
+        if (tx->IsPlatformTransfer()) {
+            RemoveNonLockedTx(tx->GetHash(), false);
+        }
         return;
     }
 
@@ -261,12 +268,21 @@ std::vector<CTransactionRef> CInstantSendManager::PrepareTxToRetry()
     LOCK2(cs_nonLocked, cs_pendingRetry);
     if (pendingRetryTxs.empty()) return txns;
     txns.reserve(pendingRetryTxs.size());
-    for (const auto& txid : pendingRetryTxs) {
-        if (auto it = nonLockedTxs.find(txid); it != nonLockedTxs.end()) {
-            const auto& [_, tx_info] = *it;
-            if (tx_info.tx) {
-                txns.push_back(tx_info.tx);
-            }
+    for (auto it = pendingRetryTxs.begin(); it != pendingRetryTxs.end();) {
+        const auto tx_it = nonLockedTxs.find(*it);
+        const CTransactionRef tx = tx_it != nonLockedTxs.end() ? tx_it->second.tx : nullptr;
+        if (tx) {
+            txns.push_back(tx);
+        }
+        // Whether an asset unlock can be locked changes only with the tip, which re-queues it
+        // (RetryUnminedAssetUnlocks), or with a re-signed instance, which is tried on arrival
+        // (TransactionAddedToMempool). Handing it out once per trigger keeps the worker from
+        // re-verifying its quorum signature and rebuilding the credit pool every iteration
+        // while it stays unlockable.
+        if (tx && tx->IsPlatformTransfer()) {
+            it = pendingRetryTxs.erase(it);
+        } else {
+            ++it;
         }
     }
     return txns;
