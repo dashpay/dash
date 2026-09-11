@@ -885,10 +885,37 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // authoritative. Version 2 unlocks are never expiry-evicted, so an already-mined instance
     // admitted here would linger indefinitely. GetCreditPool reads from an LRU cache; the first
     // call after startup may reconstruct the pool from the nearest disk snapshot.
-    if (const auto opt_unlock = tx.IsPlatformTransfer() ? GetTxPayload<CAssetUnlockPayload>(tx) : std::nullopt;
-        opt_unlock && m_chain_helper.credit_pool_manager->GetCreditPool(m_active_chainstate.m_chain.Tip())
-                          .indexes.Contains(opt_unlock->getIndex())) {
-        return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-known");
+    if (const auto opt_unlock = tx.IsPlatformTransfer() ? GetTxPayload<CAssetUnlockPayload>(tx) : std::nullopt) {
+        try {
+            if (m_chain_helper.credit_pool_manager->GetCreditPool(m_active_chainstate.m_chain.Tip())
+                    .indexes.Contains(opt_unlock->getIndex())) {
+                return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-known");
+            }
+        } catch (const EvoDbInconsistencyError& e) {
+            // Local EvoDB corruption (the node is already aborting): not a statement about the tx
+            return state.Error(e.what());
+        } catch (const std::exception& e) {
+            // Reconstruction failed locally (block read, inconsistent pool); the tx is not at
+            // fault and the peer is not punished
+            LogPrintf("%s -- GetCreditPool failed: %s\n", __func__, e.what());
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "failed-getcreditpool");
+        }
+
+        // At most one instance of a withdrawal index is held. A second claimant under a
+        // different txid is Platform re-signing a withdrawal across versions (a version 1
+        // instance signed before v24 activation, re-signed as version 2 after it) or a Platform
+        // fault; either way the fresher instance supersedes the held one (Finalize evicts it)
+        // and a staler one is rejected, mirroring the in-place refresh of a stable-txid instance.
+        // Two claimants would otherwise inflate the pending withdrawal total and keep InstantSend
+        // from locking either. Checked before the quorum signature so a stale instance costs no
+        // signature verification.
+        for (const uint256& other_txid : m_pool.GetAssetUnlockTxidsByIndex(opt_unlock->getIndex())) {
+            const CTransactionRef other = m_pool.get(other_txid);
+            const auto other_payload = other ? GetTxPayload<CAssetUnlockPayload>(*other) : std::nullopt;
+            if (!Assume(other_payload) || opt_unlock->getRequestedHeight() <= other_payload->getRequestedHeight()) {
+                return state.Invalid(TxValidationResult::TX_CONFLICT, "assetunlock-stale-instance");
+            }
+        }
     }
 
     // do all inputs exist?
@@ -1136,6 +1163,10 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     // - the transaction is not a zero fee transaction
     bool validForFeeEstimation = (ws.m_modified_fees != 0) &&
                                  !bypass_limits && !args.m_package_submission && IsCurrentForFeeEstimation(m_active_chainstate) && m_pool.HasNoInputsOf(tx);
+
+    // PreChecks admits an asset unlock alongside another claimant of its withdrawal index only
+    // when this one is fresher; the held claimant and its descendants give way now.
+    m_pool.removeAssetUnlockConflicts(tx);
 
     // Store transaction in memory
     m_pool.addUnchecked(*entry, ws.m_ancestors, validForFeeEstimation);
