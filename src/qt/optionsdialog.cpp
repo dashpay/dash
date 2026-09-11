@@ -111,6 +111,9 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
 
     pageButtons = new QButtonGroup(this);
     pageButtons->addButton(ui->btnMain, pageButtons->buttons().size());
+#ifndef ENABLE_PLATFORM_GUI
+    ui->showPlatformTab->hide();
+#endif
     /* Remove Wallet/CoinJoin tabs and 3rd party-URL textbox in case of -disablewallet */
     if (!m_enable_wallet) {
         ui->stackedWidgetOptions->removeWidget(ui->pageWallet);
@@ -120,6 +123,7 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
         ui->thirdPartyTxUrlsLabel->setVisible(false);
         ui->thirdPartyTxUrls->setVisible(false);
         ui->showMasternodesTab->hide();
+        ui->showPlatformTab->hide();
         ui->showGovernanceTab->hide();
         ui->showGovernanceCycleIcon->hide();
     } else {
@@ -394,6 +398,9 @@ void OptionsDialog::setMapper()
 
     /* Display */
     mapper->addMapping(ui->showMasternodesTab, OptionsModel::ShowMasternodesTab);
+#ifdef ENABLE_PLATFORM_GUI
+    mapper->addMapping(ui->showPlatformTab, OptionsModel::ShowPlatformTab);
+#endif
     mapper->addMapping(ui->showGovernanceCycleIcon, OptionsModel::ShowGovernanceClock);
     mapper->addMapping(ui->showGovernanceTab, OptionsModel::ShowGovernanceTab);
     mapper->addMapping(ui->digits, OptionsModel::Digits);

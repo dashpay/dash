@@ -2,6 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <chainparams.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/wallet.h>
@@ -20,6 +24,10 @@
 #include <wallet/spend.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
+
+#ifdef ENABLE_PLATFORM_GUI
+#include <platform/walletrecords.h>
+#endif
 
 #include <boost/test/unit_test.hpp>
 
@@ -742,5 +750,142 @@ BOOST_FIXTURE_TEST_CASE(recovery_import_idempotent, SeededWalletPair)
         BOOST_CHECK_EQUAL(reimported.creation_time, 0);
     }
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+
+//! The identity record must round-trip through the wallet-DB serialization —
+//! including the shapes seed-only recovery synthesizes — and malformed
+//! payloads must be rejected, not crash.
+BOOST_AUTO_TEST_CASE(identity_record_roundtrip)
+{
+    platform::IdentityRecord record;
+    record.state = platform::IdentityRecord::State::REGISTERED;
+    record.funding_txid = g_insecure_rand_ctx.rand256();
+    record.funding_vout = 3;
+    record.funding_key_index = 7;
+    record.funding_amount = 123456;
+    for (size_t i{0}; i < record.identity_id.size(); ++i) {
+        record.identity_id[i] = static_cast<uint8_t>(i);
+        record.preorder_salt[i] = static_cast<uint8_t>(0xff - i);
+    }
+    record.label = "Alice";
+    record.normalized_label = "a11ce";
+    record.contested = true;
+    record.last_error = "boom";
+    record.started_at = 1'700'000'000;
+
+    const auto bytes{platform::SerializeIdentityRecord(record)};
+    platform::IdentityRecord decoded;
+    BOOST_REQUIRE(platform::DeserializeIdentityRecord(bytes, decoded));
+    BOOST_CHECK(decoded.version == record.version);
+    BOOST_CHECK(decoded.state == record.state);
+    BOOST_CHECK(decoded.funding_txid == record.funding_txid);
+    BOOST_CHECK_EQUAL(decoded.funding_vout, record.funding_vout);
+    BOOST_CHECK_EQUAL(decoded.funding_key_index, record.funding_key_index);
+    BOOST_CHECK_EQUAL(decoded.funding_amount, record.funding_amount);
+    BOOST_CHECK(decoded.identity_id == record.identity_id);
+    BOOST_CHECK_EQUAL(decoded.label, record.label);
+    BOOST_CHECK_EQUAL(decoded.normalized_label, record.normalized_label);
+    BOOST_CHECK(decoded.preorder_salt == record.preorder_salt);
+    BOOST_CHECK_EQUAL(decoded.contested, record.contested);
+    BOOST_CHECK_EQUAL(decoded.last_error, record.last_error);
+    BOOST_CHECK_EQUAL(decoded.started_at, record.started_at);
+
+    // Recovery's nameless shape: IDENTITY_CONFIRMED, funding zeroed, no label.
+    platform::IdentityRecord recovered;
+    recovered.state = platform::IdentityRecord::State::IDENTITY_CONFIRMED;
+    recovered.identity_id = record.identity_id;
+    recovered.started_at = 1'700'000'001;
+    BOOST_REQUIRE(platform::DeserializeIdentityRecord(platform::SerializeIdentityRecord(recovered), decoded));
+    BOOST_CHECK(decoded.state == recovered.state);
+    BOOST_CHECK(decoded.identity_id == recovered.identity_id);
+    BOOST_CHECK(decoded.label.empty());
+    BOOST_CHECK_EQUAL(decoded.funding_amount, 0);
+
+    BOOST_CHECK(!platform::DeserializeIdentityRecord({}, decoded));
+    auto truncated{bytes};
+    truncated.resize(bytes.size() / 2);
+    BOOST_CHECK(!platform::DeserializeIdentityRecord(truncated, decoded));
+    auto bad_version{bytes};
+    bad_version[0] = 0;
+    BOOST_CHECK(!platform::DeserializeIdentityRecord(bad_version, decoded));
+    bad_version[0] = platform::IdentityRecord::CURRENT_VERSION + 1;
+    BOOST_CHECK(!platform::DeserializeIdentityRecord(bad_version, decoded));
+}
+
+//! Payment-cursor rebuild as a pure function: one past the highest derived
+//! script found in wallet history, bounded by the window, tolerant of
+//! derivation failure, and its record encoding must round-trip.
+BOOST_AUTO_TEST_CASE(payment_cursor_computation)
+{
+    const auto script_for = [](uint32_t index) {
+        return CScript{} << OP_RETURN << CScriptNum{static_cast<int64_t>(index)};
+    };
+    const auto derive = [&](uint32_t index) -> std::optional<CScript> { return script_for(index); };
+
+    std::set<CScript> wallet_scripts;
+    BOOST_CHECK_EQUAL(platform::ComputePaymentCursor(100, derive, wallet_scripts), 0U);
+
+    wallet_scripts.insert(script_for(0));
+    wallet_scripts.insert(script_for(7));
+    BOOST_CHECK_EQUAL(platform::ComputePaymentCursor(100, derive, wallet_scripts), 8U);
+
+    // Matches at or beyond the window are ignored.
+    wallet_scripts.insert(script_for(100));
+    BOOST_CHECK_EQUAL(platform::ComputePaymentCursor(100, derive, wallet_scripts), 8U);
+
+    // A derivation failure ends the scan at the last derivable index.
+    const auto failing = [&](uint32_t index) -> std::optional<CScript> {
+        if (index >= 5) return std::nullopt;
+        return script_for(index);
+    };
+    BOOST_CHECK_EQUAL(platform::ComputePaymentCursor(100, failing, wallet_scripts), 1U);
+
+    BOOST_CHECK_EQUAL(platform::DecodePaymentCursor(platform::EncodePaymentCursor(0x01020304)), 0x01020304U);
+    BOOST_CHECK_EQUAL(platform::DecodePaymentCursor({}), 0U);
+    BOOST_CHECK_EQUAL(platform::DecodePaymentCursor({0x01, 0x02}), 0U);
+}
+
+//! End to end against real DIP-15 derivations: a restored wallet rediscovers
+//! how far it had paid a contact from its own transaction history alone.
+BOOST_FIXTURE_TEST_CASE(recovery_payment_cursor_from_history, SeededWalletPair)
+{
+    // The contact's receiving chain, as their request's decrypted xpub
+    // provides it to us. Both fixture wallets share one phrase, so wallet A
+    // can stand in for the contact and export chain (their, my).
+    const auto their_keychain{m_iface->ensureFriendshipReceivingKeychain(
+        FriendshipKeychainRequest{ACCOUNT, m_their_id, m_my_id, /*birth_time=*/0})};
+    BOOST_REQUIRE(their_keychain);
+
+    // Payments made before the loss: indexes 0 and 3 of their chain.
+    CMutableTransaction payment;
+    payment.vin.emplace_back(g_insecure_rand_ctx.rand256(), 0);
+    for (const uint32_t index : {0u, 3u}) {
+        CTxDestination destination;
+        BOOST_REQUIRE(DeriveFriendshipPaymentDestination(their_keychain.value, index, destination));
+        payment.vout.emplace_back(COIN, GetScriptForDestination(destination));
+    }
+    {
+        LOCK(m_wallet_b->cs_wallet);
+        m_wallet_b->AddToWallet(MakeTransactionRef(payment), TxStateInMempool{});
+    }
+
+    std::set<CScript> wallet_scripts;
+    for (const auto& wtx : m_iface_b->getWalletTxs()) {
+        for (const auto& out : wtx.tx->vout) {
+            wallet_scripts.insert(out.scriptPubKey);
+        }
+    }
+    const auto derive = [&](uint32_t index) -> std::optional<CScript> {
+        CTxDestination destination;
+        if (!DeriveFriendshipPaymentDestination(their_keychain.value, index, destination)) {
+            return std::nullopt;
+        }
+        return GetScriptForDestination(destination);
+    };
+    BOOST_CHECK_EQUAL(platform::ComputePaymentCursor(100, derive, wallet_scripts), 4U);
+}
+
+#endif // ENABLE_PLATFORM_GUI
 
 BOOST_AUTO_TEST_SUITE_END()

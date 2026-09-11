@@ -65,6 +65,7 @@ public:
         InvalidAmount,
         InvalidAddress,
         AmountExceedsBalance,
+        AmountTemporarilyUnavailable,
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
         TransactionCreationFailed, // Error returned when wallet is still locked
@@ -129,15 +130,15 @@ public:
 
         // Disable unused copy/move constructors/assignments explicitly.
         UnlockContext(const UnlockContext&) = delete;
-        UnlockContext(UnlockContext&&) = delete;
+        UnlockContext(UnlockContext&& other) noexcept;
         UnlockContext& operator=(const UnlockContext&) = delete;
         UnlockContext& operator=(UnlockContext&&) = delete;
 
     private:
         WalletModel *wallet;
-        const bool valid;
-        const bool was_locked;
-        const bool was_mixing;
+        bool valid;
+        bool was_locked;
+        bool was_mixing;
     };
 
     UnlockContext requestUnlock(bool fForMixingOnly = false);

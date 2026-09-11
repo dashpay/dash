@@ -85,6 +85,7 @@ public:
         ExternalSignerPath,     // QString
         SpendZeroConfChange,    // bool
         ShowMasternodesTab,     // bool
+        ShowPlatformTab,        // bool
         ShowGovernanceClock,    // bool
         ShowGovernanceTab,      // bool
         CoinJoinEnabled,        // bool
@@ -138,6 +139,7 @@ public:
     bool getEnablePSBTControls() const { return m_enable_psbt_controls; }
     bool getKeepChangeAddress() const { return fKeepChangeAddress; }
     bool getShowMasternodesTab() const { return m_enable_masternodes; }
+    bool getShowPlatformTab() const { return m_enable_platform; }
     bool getShowGovernanceClock() const { return m_show_governance_clock; }
     bool getShowGovernanceTab() const { return m_enable_governance; }
     bool getShowAdvancedCJUI() { return fShowAdvancedCJUI; }
@@ -175,6 +177,7 @@ private:
     bool m_mask_values;
     bool fKeepChangeAddress;
     bool m_enable_masternodes;
+    bool m_enable_platform;
     bool m_enable_governance;
     bool m_show_governance_clock;
     bool fShowAdvancedCJUI;
@@ -202,6 +205,7 @@ Q_SIGNALS:
     void showGovernanceClockChanged();
     void showGovernanceChanged();
     void showMasternodesChanged();
+    void showPlatformChanged();
     void showTrayIconChanged(bool);
     void fontForMoneyChanged(const QFont&);
     void dustProtectionChanged();

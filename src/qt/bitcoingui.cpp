@@ -7,6 +7,9 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#ifdef ENABLE_PLATFORM_GUI
+#include <platform/params.h>
+#endif
 #include <interfaces/coinjoin.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
@@ -771,6 +774,13 @@ void BitcoinGUI::createToolBars()
         coinJoinCoinsButton->setStatusTip(coinJoinCoinsAction->statusTip());
         tabGroup->addButton(coinJoinCoinsButton);
 
+#ifdef ENABLE_PLATFORM_GUI
+        platformButton = new QToolButton(this);
+        platformButton->setText(tr("&DashPay"));
+        platformButton->setStatusTip(tr("Usernames, profiles and contacts on Dash Platform"));
+        tabGroup->addButton(platformButton);
+#endif
+
         masternodeButton = new QToolButton(this);
         masternodeButton->setText(tr("&Masternodes"));
         masternodeButton->setStatusTip(tr("Browse masternodes"));
@@ -788,6 +798,9 @@ void BitcoinGUI::createToolBars()
         connect(historyButton, &QToolButton::clicked, this, &BitcoinGUI::gotoHistoryPage);
         connect(governanceButton, &QToolButton::clicked, this, &BitcoinGUI::gotoGovernancePage);
         connect(masternodeButton, &QToolButton::clicked, this, &BitcoinGUI::gotoMasternodePage);
+#ifdef ENABLE_PLATFORM_GUI
+        connect(platformButton, &QToolButton::clicked, this, &BitcoinGUI::gotoPlatformPage);
+#endif
 
         // Give the selected tab button a bolder font.
         connect(tabGroup, qOverload<QAbstractButton *, bool>(&QButtonGroup::buttonToggled), this, &BitcoinGUI::highlightTabButton);
@@ -801,6 +814,9 @@ void BitcoinGUI::createToolBars()
             if (button == coinJoinCoinsButton) { m_coinjoin_action = action; }
             else if (button == governanceButton) { m_governance_action = action; }
             else if (button == masternodeButton) { m_masternode_action = action; }
+#ifdef ENABLE_PLATFORM_GUI
+            else if (button == platformButton) { m_platform_action = action; }
+#endif
         }
 
         overviewButton->setChecked(true);
@@ -927,6 +943,9 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             connect(optionsModel, &OptionsModel::showGovernanceChanged, this, &BitcoinGUI::updateGovernanceVisibility);
             connect(optionsModel, &OptionsModel::showGovernanceClockChanged, this, &BitcoinGUI::updateGovernanceCycleIcon);
             connect(optionsModel, &OptionsModel::showMasternodesChanged, this, &BitcoinGUI::updateMasternodesVisibility);
+#ifdef ENABLE_PLATFORM_GUI
+            connect(optionsModel, &OptionsModel::showPlatformChanged, this, &BitcoinGUI::updatePlatformVisibility);
+#endif
 
             if (trayIcon) {
                 // be aware of the tray icon disable state change reported by the OptionsModel object.
@@ -964,6 +983,9 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
     updateCoinJoinVisibility();
     updateGovernanceVisibility();
     updateMasternodesVisibility();
+#ifdef ENABLE_PLATFORM_GUI
+    updatePlatformVisibility();
+#endif
 }
 
 #ifdef ENABLE_WALLET
@@ -1337,6 +1359,16 @@ void BitcoinGUI::gotoMasternodePage()
     }
 }
 
+#ifdef ENABLE_PLATFORM_GUI
+void BitcoinGUI::gotoPlatformPage()
+{
+    if (platformButton) {
+        platformButton->setChecked(true);
+        if (walletFrame) walletFrame->gotoPlatformPage();
+    }
+}
+#endif
+
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsButton->setChecked(true);
@@ -1572,6 +1604,32 @@ void BitcoinGUI::updateMasternodesVisibility()
     GUIUtil::updateButtonGroupShortcuts(tabGroup);
     updateWidth();
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void BitcoinGUI::updatePlatformVisibility()
+{
+    if (!clientModel || !clientModel->getOptionsModel()) return;
+    // Only offer the tab on networks where Platform is deployed (or explicitly
+    // configured), and only when the user opted in.
+    const bool fShow = clientModel->getOptionsModel()->getShowPlatformTab() &&
+                       platform::GetParams(Params().NetworkIDString()).has_value();
+
+    // Show/hide the underlying QAction, hiding the QToolButton itself doesn't
+    // work for the GUI part but is still needed for shortcuts to work properly.
+    if (m_platform_action) m_platform_action->setVisible(fShow);
+    if (platformButton) {
+#ifdef ENABLE_WALLET
+        if (!fShow && platformButton->isChecked()) {
+            gotoOverviewPage();
+        }
+#endif // ENABLE_WALLET
+        platformButton->setVisible(fShow);
+    }
+
+    GUIUtil::updateButtonGroupShortcuts(tabGroup);
+    updateWidth();
+}
+#endif // ENABLE_PLATFORM_GUI
 
 void BitcoinGUI::updateWidth()
 {
