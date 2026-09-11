@@ -331,6 +331,7 @@ std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQTyp
     gsl::not_null<const CBlockIndex*> pIndexScanCommitments{pindexStore};
     size_t nScanCommitments{nCountRequested};
     std::vector<CFinalCommitment> vecResultCommitments;
+    std::optional<uint256> continuationQuorumHash;
 
     {
         LOCK(m_cs_maps);
@@ -354,16 +355,29 @@ std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQTyp
             // scanning for the rests
             if (!vecResultCommitments.empty()) {
                 nScanCommitments -= vecResultCommitments.size();
-                // bail out if it's below genesis block
-                const auto [_, minedBlockHash] = quorumBlockProcessor.GetMinedCommitment(llmqType, vecResultCommitments.back().quorumHash);
-                const CBlockIndex* pLastIndex = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(minedBlockHash));
-                if (!pLastIndex || pLastIndex->pprev == nullptr) return {};
-                pIndexScanCommitments = pLastIndex->pprev;
+                // Resolve the continuation point after releasing m_cs_maps. Both the
+                // mined-commitment lookup and block-index lookup take locks whose
+                // order is incompatible with m_cs_maps.
+                continuationQuorumHash = vecResultCommitments.back().quorumHash;
             }
         } else {
             // If there is nothing in cache request at least keepOldConnections because this gets cached then later
             nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
         }
+    }
+
+    if (continuationQuorumHash) {
+        uint256 continuationBlockHash;
+        if (llmq_params_opt->useRotation) {
+            // Rotating scans are keyed by quorum base blocks. Resuming from the
+            // mined block would revisit the other commitments from the same cycle.
+            continuationBlockHash = *continuationQuorumHash;
+        } else {
+            continuationBlockHash = quorumBlockProcessor.GetMinedCommitment(llmqType, *continuationQuorumHash).second;
+        }
+        const CBlockIndex* pLastIndex = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(continuationBlockHash));
+        if (!pLastIndex || pLastIndex->pprev == nullptr) return {};
+        pIndexScanCommitments = pLastIndex->pprev;
     }
 
     // Get the block indexes of the mined commitments to build the required quorums from

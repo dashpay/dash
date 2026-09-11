@@ -173,7 +173,7 @@ static CCbTx Coinbase(const ProofTransaction& proof, const ProofCertificate& cer
             !tx->vin[0].scriptSig.empty() && tx->vin[0].scriptSig.size() <= 100 &&
             !tx->vout.empty() && tx->vout.size() <= 4096, "coinbase envelope");
     auto payload = GetTxPayload<CCbTx>(*tx);
-    Require(payload && payload->nVersion == CCbTx::Version::CLSIG_AND_BALANCE &&
+    Require(payload && payload->nVersion >= CCbTx::Version::CLSIG_AND_BALANCE &&
             payload->nHeight == int64_t(cert.height) && payload->bestCLHeightDiff < cert.height &&
             !payload->merkleRootQuorums.IsNull(), "coinbase payload");
     return *payload;
@@ -372,6 +372,9 @@ UniValue ProofState::ToJson() const
 
 ProofState ProofState::FromJson(const UniValue& value)
 {
+    Require(value.isObject() && value.exists("network") && value.exists("height") &&
+                value.exists("block_hash") && value.exists("masternode_root") && value.exists("quorum_root"),
+            "snapshot fields missing");
     ProofState state;
     state.network = value["network"].getInt<uint8_t>();
     state.height = value["height"].getInt<uint32_t>();

@@ -1458,7 +1458,7 @@ static RPCHelpMan getquorumproofchain()
              "Minimum certified target height; zero selects the latest available ChainLock"},
             {"quorum_hash", RPCArg::Type::STR, RPCArg::Default{""}, "Optional Platform quorum hash to open"},
             {"llmq_type", RPCArg::Type::NUM, RPCArg::Default{0}, "Required with quorum_hash"},
-            {"node_count", RPCArg::Type::NUM, RPCArg::Default{4}, "Number of eligible EvoNode records (0..15)"},
+            {"node_count", RPCArg::Type::NUM, RPCArg::Default{0}, "Number of eligible EvoNode records (0..15)"},
         },
         RPCResult{RPCResult::Type::OBJ,
                   "",
@@ -1468,7 +1468,7 @@ static RPCHelpMan getquorumproofchain()
                       {RPCResult::Type::STR_HEX, "bootstrap_hex", "Proof and record openings; empty when no records requested"},
                       {RPCResult::Type::OBJ, "target", "Authenticated target state", {{RPCResult::Type::ELISION, "", ""}}},
                   }},
-        RPCExamples{HelpExampleCli("getquorumproofchain", "\"checkpoint_hash\" 0 \"\" 0 4")},
+        RPCExamples{HelpExampleCli("getquorumproofchain", "\"checkpoint_hash\"")},
         [&](const RPCHelpMan&, const JSONRPCRequest& request) -> UniValue {
             const auto& node = EnsureAnyNodeContext(request.context);
             const auto& ctx = EnsureLLMQContext(node);
@@ -1477,7 +1477,7 @@ static RPCHelpMan getquorumproofchain()
             const int32_t minimum = request.params[1].isNull() ? 0 : request.params[1].getInt<int32_t>();
             const auto quorumText = request.params[2].isNull() ? std::string{} : request.params[2].get_str();
             const int type = request.params[3].isNull() ? 0 : request.params[3].getInt<int>();
-            const int nodeCount = request.params[4].isNull() ? 4 : request.params[4].getInt<int>();
+            const int nodeCount = request.params[4].isNull() ? 0 : request.params[4].getInt<int>();
             if (minimum < 0 || type < 0 || type > 255 || nodeCount < 0 || nodeCount > 15 ||
                 (quorumText.empty() != (type == 0)) || (!quorumText.empty() && (quorumText.size() != 64 || !IsHex(quorumText)))) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proof request");
@@ -1600,14 +1600,24 @@ static RPCHelpMan verifyquorumproofchain()
         }},
         RPCExamples{HelpExampleCli("verifyquorumproofchain", "'{...}' \"proof_hex\"")},
         [&](const RPCHelpMan&, const JSONRPCRequest& request) -> UniValue {
+            llmq::ProofState trusted;
+            std::string text;
+            uint32_t minimum{0};
+            try {
+                trusted = llmq::ProofState::FromJson(request.params[0]);
+                text = request.params[1].get_str();
+                minimum = request.params[2].isNull() ? 0 : request.params[2].getInt<uint32_t>();
+            } catch (const std::exception& e) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+            }
+            if (text.size() > llmq::MAX_PROOF_BYTES * 2 || !IsHex(text)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Proof hex size/encoding");
+            }
+
             UniValue result(UniValue::VOBJ);
             try {
-                const auto trusted = llmq::ProofState::FromJson(request.params[0]);
-                const auto text = request.params[1].get_str();
-                if (text.size() > llmq::MAX_PROOF_BYTES * 2 || !IsHex(text)) throw std::runtime_error("Proof hex size/encoding");
                 auto proof = llmq::QuorumProofChain::Decode(ParseHex(text));
                 auto target = proof.Verify(trusted);
-                const auto minimum = request.params[2].isNull() ? 0 : request.params[2].getInt<uint32_t>();
                 if (target.height < minimum) throw std::runtime_error("Stale proof target");
                 result.pushKV("valid", true);
                 result.pushKV("target", target.ToJson());

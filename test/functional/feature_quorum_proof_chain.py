@@ -45,8 +45,12 @@ class QuorumProofChainTest(BitcoinTestFramework):
         assert_equal(node.verifyquorumproofchain(anchor, proof, fixture["target"]["height"] + 1)["valid"], False)
         wrong = dict(anchor, quorum_root="01" * 32)
         assert_equal(node.verifyquorumproofchain(wrong, proof)["valid"], False)
-        for invalid in (proof[:-2], proof + "00", "444153484e433031" + proof[16:], "00" * 1048577):
+        for invalid in (proof[:-2], proof + "00", "444153484e433031" + proof[16:]):
             assert_equal(node.verifyquorumproofchain(anchor, invalid)["valid"], False)
+        assert_raises_rpc_error(-8, "Proof hex size/encoding", node.verifyquorumproofchain, anchor, "00" * 1048577)
+        assert_raises_rpc_error(-8, "snapshot fields missing", node.verifyquorumproofchain,
+                                {"height": anchor["height"]}, proof)
+        assert_raises_rpc_error(-8, None, node.verifyquorumproofchain, anchor, proof, -1)
         tampered = bytearray.fromhex(proof)
         tampered[-20] ^= 1
         assert_equal(node.verifyquorumproofchain(anchor, tampered.hex())["valid"], False)
