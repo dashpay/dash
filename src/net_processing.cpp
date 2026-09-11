@@ -4859,15 +4859,16 @@ void PeerManagerImpl::ProcessMessage(
 
         CTransactionRef ptx;
         CCoinJoinBroadcastTx dstx;
+        const bool is_dstx{msg_type == NetMsgType::DSTX};
         int nInvType = MSG_TX;
 
         // Read data and assign inv type
-        if(msg_type == NetMsgType::TX) {
-            vRecv >> ptx;
-        } else if (msg_type == NetMsgType::DSTX) {
+        if (is_dstx) {
             vRecv >> dstx;
             ptx = dstx.tx;
             nInvType = MSG_DSTX;
+        } else {
+            vRecv >> ptx;
         }
         const CTransaction& tx = *ptx;
 
@@ -4879,6 +4880,12 @@ void PeerManagerImpl::ProcessMessage(
         if (is_stable_unlock) nInvType = MSG_ASSET_UNLOCK;
         const uint256 relay_hash{is_stable_unlock ? tx.GetInstanceHash() : txid};
         AddKnownInv(*peer, relay_hash);
+        // A peer below ASSET_UNLOCK_INV_VERSION is announced the txid; record it too so the
+        // transaction is not echoed back to it. Never for a newer peer: relay queues the txid and
+        // the known filter is consulted before it is turned into an instance-hash announcement,
+        // so recording it would keep every later refresh of this withdrawal from reaching the
+        // peer that sent the first instance.
+        if (is_stable_unlock && pfrom.GetCommonVersion() < ASSET_UNLOCK_INV_VERSION) AddKnownInv(*peer, txid);
 
         CInv inv(nInvType, relay_hash);
         {
@@ -4895,7 +4902,7 @@ void PeerManagerImpl::ProcessMessage(
         }
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
-        if (nInvType == MSG_DSTX) {
+        if (is_dstx) {
             uint256 hashTx = tx.GetHash();
             const auto result = ValidateDSTX(m_dmnman, m_dstxman, m_chainman, m_mn_metaman, m_mempool, dstx, hashTx);
             if (result.do_return) {
@@ -4929,7 +4936,7 @@ void PeerManagerImpl::ProcessMessage(
 
         if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
             // Process custom txes, this changes AlreadyHave to "true"
-            if (nInvType == MSG_DSTX) {
+            if (is_dstx) {
                 LogPrint(BCLog::COINJOIN, "DSTX -- Masternode transaction accepted, txid=%s, peer=%d\n",
                          tx.GetHash().ToString(), pfrom.GetId());
                 m_dstxman.AddDSTX(dstx);
@@ -5003,6 +5010,12 @@ void PeerManagerImpl::ProcessMessage(
             }
         } else {
             m_recent_rejects.insert(relay_hash);
+            // Peers below ASSET_UNLOCK_INV_VERSION announce this instance by txid, which
+            // AlreadyHave() checks against the rejects filter; without the txid here every such
+            // announcement would have it re-requested and its quorum signature re-verified. A
+            // fresher instance is still admitted: AlreadyHave() never consults the txid for
+            // MSG_ASSET_UNLOCK.
+            if (is_stable_unlock) m_recent_rejects.insert(txid);
             ForgetTx(tx);
             if (RecursiveDynamicUsage(*ptx) < 100000) {
                 AddToCompactExtraTransactions(ptx);
