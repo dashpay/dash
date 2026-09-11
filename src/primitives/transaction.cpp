@@ -112,19 +112,20 @@ std::string CMutableTransaction::ToString() const
     return str;
 }
 
-uint256 CTransaction::ComputeInstanceHash() const
-{
-    return SerializeHash(*this);
-}
-
 uint256 CTransaction::ComputeHash() const
 {
     if (IsAssetUnlockWithStableTxid(*this)) return ComputeStableUnlockHash(*this);
-    return m_instance_hash;
+    return SerializeHash(*this);
 }
 
-CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), m_instance_hash{ComputeInstanceHash()}, hash{ComputeHash()} {}
-CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), m_instance_hash{ComputeInstanceHash()}, hash{ComputeHash()} {}
+uint256 CTransaction::GetInstanceHash() const
+{
+    if (IsAssetUnlockWithStableTxid(*this)) return SerializeHash(*this);
+    return hash;
+}
+
+CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), hash{ComputeHash()} {}
+CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), hash{ComputeHash()} {}
 
 CAmount CTransaction::GetValueOut() const
 {
