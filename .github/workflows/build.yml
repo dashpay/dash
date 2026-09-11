@@ -133,6 +133,7 @@ jobs:
     if: |
       vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_ASAN == '' ||
+      vars.SKIP_LINUX64_CMAKE == '' ||
       vars.SKIP_LINUX64_FUZZ == '' ||
       vars.SKIP_LINUX64_SQLITE == ''
     with:
@@ -229,6 +230,20 @@ jobs:
     if: ${{ vars.SKIP_LINUX64_ASAN == '' }}
     with:
       build-target: linux64_asan
+      container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.depends-linux64.outputs.key }}
+      depends-host: ${{ needs.depends-linux64.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  src-linux64_cmake:
+    name: linux64_cmake-build
+    uses: ./.github/workflows/build-src-cmake.yml
+    needs: [check-skip, container, depends-linux64]
+    if: ${{ vars.SKIP_LINUX64_CMAKE == '' }}
+    with:
+      build-target: linux64_cmake
       container-path: ${{ needs.container.outputs.path }}
       depends-key: ${{ needs.depends-linux64.outputs.key }}
       depends-host: ${{ needs.depends-linux64.outputs.host }}
