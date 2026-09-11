@@ -34,6 +34,8 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, Chains
 
     if (auto value{args.GetIntArg("-maxtipage")}) opts.max_tip_age = std::chrono::seconds{*value};
 
+    if (auto value{args.GetIntArg("-stopatheight")}) opts.stop_at_height = *value;
+
     return std::nullopt;
 }
 } // namespace node

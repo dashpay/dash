@@ -2,8 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util/fs.h>
-#include <util/settings.h>
+#include <common/settings.h>
 
 #if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
@@ -11,13 +10,17 @@
 
 #include <tinyformat.h>
 #include <univalue.h>
+#include <util/fs.h>
 
+#include <algorithm>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
-namespace util {
+namespace common {
 namespace {
 
 enum class Source {
@@ -280,4 +283,4 @@ size_t SettingsSpan::negated() const
     return 0;
 }
 
-} // namespace util
+} // namespace common

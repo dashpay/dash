@@ -868,15 +868,15 @@ public:
     bool isSettingIgnored(const std::string& name) override
     {
         bool ignored = false;
-        gArgs.LockSettings([&](util::Settings& settings) {
-            if (auto* options = util::FindKey(settings.command_line_options, name)) {
+        gArgs.LockSettings([&](common::Settings& settings) {
+            if (auto* options = common::FindKey(settings.command_line_options, name)) {
                 ignored = !options->empty();
             }
         });
         return ignored;
     }
-    util::SettingsValue getPersistentSetting(const std::string& name) override { return gArgs.GetPersistentSetting(name); }
-    void updateRwSetting(const std::string& name, const util::SettingsValue& value) override
+    common::SettingsValue getPersistentSetting(const std::string& name) override { return gArgs.GetPersistentSetting(name); }
+    void updateRwSetting(const std::string& name, const common::SettingsValue& value) override
     {
         gArgs.LockSettings([&](util::Settings& settings) {
             if (value.isNull()) {
@@ -887,9 +887,9 @@ public:
         });
         gArgs.WriteSettingsFile();
     }
-    void forceSetting(const std::string& name, const util::SettingsValue& value) override
+    void forceSetting(const std::string& name, const common::SettingsValue& value) override
     {
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             if (value.isNull()) {
                 settings.forced_settings.erase(name);
             } else {
@@ -900,7 +900,7 @@ public:
     void resetSettings() override
     {
         gArgs.WriteSettingsFile(/*errors=*/nullptr, /*backup=*/true);
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             settings.rw_settings.clear();
         });
         gArgs.WriteSettingsFile();
@@ -1600,27 +1600,27 @@ public:
     {
         RPCRunLater(name, std::move(fn), seconds);
     }
-    util::SettingsValue getSetting(const std::string& name) override
+    common::SettingsValue getSetting(const std::string& name) override
     {
         return gArgs.GetSetting(name);
     }
-    std::vector<util::SettingsValue> getSettingsList(const std::string& name) override
+    std::vector<common::SettingsValue> getSettingsList(const std::string& name) override
     {
         return gArgs.GetSettingsList(name);
     }
-    util::SettingsValue getRwSetting(const std::string& name) override
+    common::SettingsValue getRwSetting(const std::string& name) override
     {
-        util::SettingsValue result;
-        gArgs.LockSettings([&](const util::Settings& settings) {
-            if (const util::SettingsValue* value = util::FindKey(settings.rw_settings, name)) {
+        common::SettingsValue result;
+        gArgs.LockSettings([&](const common::Settings& settings) {
+            if (const common::SettingsValue* value = common::FindKey(settings.rw_settings, name)) {
                 result = *value;
             }
         });
         return result;
     }
-    bool updateRwSetting(const std::string& name, const util::SettingsValue& value, bool write) override
+    bool updateRwSetting(const std::string& name, const common::SettingsValue& value, bool write) override
     {
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             if (value.isNull()) {
                 settings.rw_settings.erase(name);
             } else {

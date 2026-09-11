@@ -84,8 +84,6 @@ static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 static const unsigned int MAX_HEADERS_UNCOMPRESSED_RESULT = 2000;
 static const unsigned int MAX_HEADERS_COMPRESSED_RESULT = 8000;
 
-/** Default for -stopatheight */
-static const int DEFAULT_STOPATHEIGHT = 0;
 /** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will not be pruned. */
 static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
 static const signed int DEFAULT_CHECKBLOCKS = 6;
@@ -944,6 +942,7 @@ public:
      * By default this only executes fully when using the Regtest chain; see: m_options.check_block_index.
      */
     void CheckBlockIndex();
+    int StopAtHeight() const { return m_options.stop_at_height; };
 
     /**
      * Alias for ::cs_main.

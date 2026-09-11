@@ -5,6 +5,7 @@
 #ifndef BITCOIN_INTERFACES_NODE_H
 #define BITCOIN_INTERFACES_NODE_H
 
+#include <common/settings.h>
 #include <consensus/amount.h>          // For CAmount
 #include <net.h>                       // For NodeId
 #include <net_types.h>                 // For banmap_t
@@ -13,7 +14,6 @@
 #include <saltedhasher.h>              // For StaticSaltedHasher
 #include <support/allocators/secure.h> // For SecureString
 #include <uint256.h>
-#include <util/settings.h>             // For util::SettingsValue
 #include <util/translation.h>
 
 #include <evo/types.h>
@@ -367,14 +367,14 @@ public:
     virtual bool isSettingIgnored(const std::string& name) = 0;
 
     //! Return setting value from <datadir>/settings.json or dash.conf.
-    virtual util::SettingsValue getPersistentSetting(const std::string& name) = 0;
+    virtual common::SettingsValue getPersistentSetting(const std::string& name) = 0;
 
     //! Update a setting in <datadir>/settings.json.
-    virtual void updateRwSetting(const std::string& name, const util::SettingsValue& value) = 0;
+    virtual void updateRwSetting(const std::string& name, const common::SettingsValue& value) = 0;
 
     //! Force a setting value to be applied, overriding any other configuration
     //! source, but not being persisted.
-    virtual void forceSetting(const std::string& name, const util::SettingsValue& value) = 0;
+    virtual void forceSetting(const std::string& name, const common::SettingsValue& value) = 0;
 
     //! Clear all settings in <datadir>/settings.json and store a backup of
     //! previous settings in <datadir>/settings.json.bak.

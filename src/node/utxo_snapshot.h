@@ -70,7 +70,7 @@ constexpr std::string_view SNAPSHOT_TODELETE_SUFFIX = "_todelete";
 
 
 //! Return a path to the snapshot-based chainstate dir, if one exists.
-std::optional<fs::path> FindSnapshotChainstateDir();
+std::optional<fs::path> FindSnapshotChainstateDir(const fs::path& data_dir);
 
 } // namespace node
 
