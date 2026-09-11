@@ -166,8 +166,13 @@ bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256,
         size_t records_processed{0};
         const auto history{CanonicallySortedCopy(snapshot.historical_mn_list_diffs)};
         for (const auto& entry : history) {
+            // The chain is replayed newest first, so every target must be a
+            // block not yet seen (neither the base nor an earlier target) and
+            // the registration counter, which only grows on-chain, must not.
             if (entry.previous_block_hash != previous_hash || entry.block_hash.IsNull() ||
-                entry.height < 0 || entry.height >= previous_height || entry.canonical_list_hash.IsNull()) {
+                entry.block_hash == snapshot.base_block_hash || lists.contains(entry.block_hash) || entry.height < 0 ||
+                entry.height >= previous_height || entry.total_registered_count > current.GetTotalRegisteredCount() ||
+                entry.canonical_list_hash.IsNull()) {
                 throw std::ios_base::failure("broken historical MN-list diff chain");
             }
             // Each entry traverses, sorts, and canonically hashes the whole
@@ -202,9 +207,7 @@ bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256,
             if (CanonicalMNListHash(current) != entry.canonical_list_hash) {
                 throw std::ios_base::failure("historical MN-list diff hash mismatch");
             }
-            if (!lists.emplace(entry.block_hash, current).second) {
-                throw std::ios_base::failure("duplicate historical MN-list diff target");
-            }
+            lists.emplace(entry.block_hash, current);
             previous_hash = entry.block_hash;
             previous_height = entry.height;
         }

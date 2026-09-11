@@ -1274,6 +1274,48 @@ BOOST_FIXTURE_TEST_CASE(validation_enforces_the_decode_operation_budget, BasicTe
     });
 }
 
+BOOST_FIXTURE_TEST_CASE(historical_chain_rejects_revisited_blocks_and_counter_growth, BasicTestingSetup)
+{
+    const auto broken_chain = [](const evo::EvoSnapshot& snapshot) {
+        std::map<uint256, CDeterministicMNList> lists;
+        std::string error;
+        BOOST_CHECK(!evo::ReconstructHistoricalMNLists(snapshot, lists, error));
+        BOOST_CHECK_MESSAGE(error.find("broken historical MN-list diff chain") != std::string::npos, error);
+    };
+
+    // A transition must leave its predecessor: neither the first entry nor a
+    // later one may target the base block, and no target may repeat.
+    auto snapshot{SyntheticSnapshot()};
+    auto history{evo::CanonicallySortedCopy(snapshot.historical_mn_list_diffs)};
+    BOOST_REQUIRE(history.size() >= 3);
+    snapshot.historical_mn_list_diffs = history;
+    snapshot.historical_mn_list_diffs[0].block_hash = snapshot.base_block_hash;
+    broken_chain(snapshot);
+    snapshot.historical_mn_list_diffs = history;
+    snapshot.historical_mn_list_diffs[1].block_hash = snapshot.base_block_hash;
+    snapshot.historical_mn_list_diffs[2].previous_block_hash = snapshot.base_block_hash;
+    broken_chain(snapshot);
+    snapshot.historical_mn_list_diffs = history;
+    snapshot.historical_mn_list_diffs[2].block_hash = history[0].block_hash;
+    broken_chain(snapshot);
+
+    // Registrations only ever raise the counter, so replaying backwards it can
+    // never grow. A forged entry that also recomputes its canonical hash would
+    // otherwise pass every remaining check.
+    snapshot.historical_mn_list_diffs = history;
+    auto& entry{snapshot.historical_mn_list_diffs[0]};
+    std::map<uint256, CDeterministicMNList> lists;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(evo::ReconstructHistoricalMNLists(snapshot, lists, error), error);
+    const auto& reconstructed{lists.at(entry.block_hash)};
+    ++entry.total_registered_count;
+    CDeterministicMNList inflated{entry.block_hash, entry.height, entry.total_registered_count};
+    reconstructed.ForEachMNShared(/*onlyValid=*/false,
+                                  [&](const auto& dmn) { inflated.AddMN(dmn, /*fBumpTotalCount=*/false); });
+    entry.canonical_list_hash = evo::CanonicalMNListHash(inflated);
+    broken_chain(snapshot);
+}
+
 BOOST_FIXTURE_TEST_CASE(reconstruction_record_budget_is_cumulative, BasicTestingSetup)
 {
     const auto snapshot{SyntheticSnapshot()};
