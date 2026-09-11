@@ -50,8 +50,8 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
   caller-supplied funding transaction.
 - `protx shared_sign` signs a shared registration, dissolution or shared
   registrar update with every share owner key the wallet holds. It refuses a
-  dissolution carrying a lock time or non-final sequence unless
-  `allowTimeLocks` is set.
+  registration or dissolution carrying an unsatisfied lock time or a relative
+  input lock unless `allowTimeLocks` is set.
 - `protx shared_combine` combines collected signatures and optionally submits.
   A dissolution combined here requires a signature from every share; unilateral
   dissolutions come fully signed from `protx dissolve`.

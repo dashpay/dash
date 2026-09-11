@@ -5,6 +5,7 @@
 #include <arith_uint256.h>
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <deploymentstatus.h>
@@ -1472,7 +1473,7 @@ static RPCHelpMan protx_shared_sign()
         + HELP_REQUIRING_PASSPHRASE,
         {
             {"tx", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The serialized transaction in hex format."},
-            {"allowTimeLocks", RPCArg::Type::BOOL, RPCArg::Default{false}, "Sign a dissolution carrying a lock time or non-final input sequence. The signed digest commits to these fields, so a lock a co-signer failed to notice delays when the dissolution can confirm."},
+            {"allowTimeLocks", RPCArg::Type::BOOL, RPCArg::Default{false}, "Sign a registration or dissolution carrying an unsatisfied lock time or a relative (BIP68) input lock. The signed digest commits to these fields, so a lock a co-signer failed to notice delays when the transaction can confirm."},
         },
         RPCResult{RPCResult::Type::ARR, "", "",
         {
@@ -1486,6 +1487,7 @@ static RPCHelpMan protx_shared_sign()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const ChainstateManager& chainman = EnsureChainman(node);
     CDeterministicMNManager& dmnman = *CHECK_NONFATAL(node.dmnman);
 
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
@@ -1497,6 +1499,34 @@ static RPCHelpMan protx_shared_sign()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction not deserializable");
     }
 
+    // The registration consent digest and the dissolution digest both commit to nLockTime and
+    // every input sequence, so a lock the signer failed to notice would be silently baked into
+    // their signature and delay when the transaction can confirm. Require an explicit opt-in for
+    // an absolute lock that is not yet satisfied at the next block, and for any BIP68 relative
+    // lock (special transactions are version 3, so sequences carry relative-lock semantics).
+    // Wallet-funded inputs use a non-final sequence purely for fee sniping discouragement with an
+    // already-satisfied nLockTime, which is not a lock and must not trip this guard.
+    const bool allow_time_locks{request.params[1].isNull() ? false
+                                                           : ParseBoolV(request.params[1], "allowTimeLocks")};
+    const auto require_no_time_lock = [&](const char* what) {
+        if (allow_time_locks) return;
+        const CTransaction ctx{tx};
+        bool has_time_lock{false};
+        {
+            LOCK(::cs_main);
+            const CBlockIndex* tip{chainman.ActiveChain().Tip()};
+            has_time_lock = !IsFinalTx(ctx, tip->nHeight + 1, tip->GetMedianTimePast());
+        }
+        for (const auto& txin : ctx.vin) {
+            has_time_lock |= !(txin.nSequence & CTxIn::SEQUENCE_LOCKTIME_DISABLE_FLAG);
+        }
+        if (has_time_lock) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               strprintf("%s carries a lock time or relative lock, which delays when it can "
+                                         "confirm; pass allowTimeLocks=true to sign it anyway", what));
+        }
+    };
+
     // Resolve the share table and the digest to sign from the transaction type
     CollateralShares shares;
     uint256 sign_hash;
@@ -1505,6 +1535,7 @@ static RPCHelpMan protx_shared_sign()
         if (!opt_ptx || !opt_ptx->IsShared()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction is not a shared masternode registration");
         }
+        require_no_time_lock("registration");
         shares = opt_ptx->shares;
         sign_hash = opt_ptx->MakeSharedRegConsentHash(CTransaction(tx));
     } else if (tx.nType == TRANSACTION_PROVIDER_DISSOLVE) {
@@ -1526,19 +1557,7 @@ static RPCHelpMan protx_shared_sign()
         if (!dmn || !dmn->pdmnState->IsShared()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "shared masternode not found");
         }
-        // Consensus permits time-locked dissolutions and the digest commits to the lock fields, so
-        // a lock the signer failed to notice would be silently baked into their signature
-        const bool allow_time_locks{request.params[1].isNull() ? false
-                                                               : ParseBoolV(request.params[1], "allowTimeLocks")};
-        bool has_time_lock{tx.nLockTime != 0};
-        for (const auto& txin : tx.vin) {
-            has_time_lock |= txin.nSequence != CTxIn::SEQUENCE_FINAL;
-        }
-        if (has_time_lock && !allow_time_locks) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               "dissolution carries a lock time or non-final input sequence, which delays when "
-                               "it can confirm; pass allowTimeLocks=true to sign it anyway");
-        }
+        require_no_time_lock("dissolution");
         shares = dmn->pdmnState->shares;
         sign_hash = opt_ptx->MakeSignHash(CTransaction(tx), static_cast<uint8_t>(shares.size()));
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {

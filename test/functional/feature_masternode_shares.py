@@ -658,6 +658,21 @@ class MasternodeSharesTest(DashTestFramework):
         sigtest_prepared = node.protx(
             "register_shared_prepare", sigtest_funding, shares_sigtest, f"127.0.0.1:{p2p_port(4)}",
             node.bls("generate")["public"], node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS, EARLY_PENALTY)
+        # The consent digest commits to the lock fields, so shared_sign refuses a time-locked
+        # registration unless the signer explicitly opts in (mirroring the dissolution guard)
+        # (the wallet-funded inputs already carry the fee-sniping sequence 0xfffffffe, which
+        # is not a lock on its own and must not trip the guard; an unsatisfied nLockTime or a
+        # BIP68 relative lock must)
+        locked_reg = tx_from_hex(sigtest_prepared["tx"])
+        assert_equal({vin.nSequence for vin in locked_reg.vin}, {0xfffffffe})
+        locked_reg.nLockTime = node.getblockcount() + 100
+        assert_raises_rpc_error(-8, "registration carries a lock time", node.protx, "shared_sign",
+                                locked_reg.serialize().hex())
+        locked_reg.nLockTime = 0
+        locked_reg.vin[0].nSequence = 10
+        assert_raises_rpc_error(-8, "registration carries a lock time", node.protx, "shared_sign",
+                                locked_reg.serialize().hex())
+        assert_equal(len(node.protx("shared_sign", locked_reg.serialize().hex(), True)), 2)
         sigtest_sigs = node.protx("shared_sign", sigtest_prepared["tx"])
         assert_equal(sorted(s["shareIndex"] for s in sigtest_sigs), [0, 1])
 
@@ -939,10 +954,16 @@ class MasternodeSharesTest(DashTestFramework):
         # The digest commits lock fields, so shared_sign refuses a time-locked dissolution unless
         # the signer explicitly opts in
         locked_tx = tx_from_hex(prepared["tx"])
-        locked_tx.nLockTime = 100
+        locked_tx.nLockTime = node.getblockcount() + 100
+        locked_tx.vin[0].nSequence = 0xfffffffe
         assert_raises_rpc_error(-8, "pass allowTimeLocks=true", node.protx, "shared_sign",
                                 locked_tx.serialize().hex())
         assert_equal(len(node.protx("shared_sign", locked_tx.serialize().hex(), True)), 2)
+        # a relative (BIP68) lock on the collateral input is refused the same way
+        relative_tx = tx_from_hex(prepared["tx"])
+        relative_tx.vin[0].nSequence = 10
+        assert_raises_rpc_error(-8, "pass allowTimeLocks=true", node.protx, "shared_sign",
+                                relative_tx.serialize().hex())
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_equal(len(sigs), 2)
         # shared_sign signatures cover the unanimous digest, so combining only the actor's
