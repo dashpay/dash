@@ -26,16 +26,17 @@ on:
     outputs:
       path:
         description: "Path to built container"
-        value: ghcr.io/${{ jobs.build-amd64.outputs.repo }}/${{ inputs.name }}:${{ jobs.build-amd64.outputs.tag }}
+        value: ghcr.io/${{ jobs.check.outputs.repo }}/${{ inputs.name }}:${{ jobs.check.outputs.hash-tag }}
 
 jobs:
-  build-amd64:
-    name: Build container (amd64)
-    runs-on: ${{ inputs.runs-on-amd64 }}
+  check:
+    name: Check for existing container
+    runs-on: ${{ inputs.runs-on-arm64 }}
     outputs:
       tag: ${{ steps.prepare.outputs.tag }}
       repo: ${{ steps.prepare.outputs.repo }}
-      digest: ${{ steps.build.outputs.digest }}
+      hash-tag: ${{ steps.prepare.outputs.hash-tag }}
+      exists: ${{ steps.exists.outputs.exists }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -44,13 +45,217 @@ jobs:
           allow-unsafe-pr-checkout: true
           persist-credentials: false
 
+      # pull_request_target executes the base-branch workflow while the main
+      # checkout is the PR head. Grab the executing copy so the content key
+      # hashes what actually runs (see WORKFLOW_SUM below).
+      - name: Checkout executing workflow file
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            .github/workflows/build-container.yml
+          sparse-checkout-cone-mode: false
+          path: .executing-workflow
+          persist-credentials: false
+
+      # imagetools inspect is used below; ensure buildx is present on all
+      # runner images (stock GHA and custom labels).
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Must precede the digest lookups in "Prepare variables", which may need
+      # credentials to resolve a private image reference.
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Python rather than shell (review request): an unexpected failure in
+      # any hashing or discovery stage raises and fails the step closed, with
+      # no pipefail/errexit subtleties.
       - name: Prepare variables
         id: prepare
+        env:
+          CONTEXT: ${{ inputs.context }}
+          DOCKERFILE: ${{ inputs.file }}
+          REPOSITORY: ${{ github.repository }}
+        shell: python3 {0}
         run: |
-          BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "tag=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
-          echo "repo=${REPO_NAME}" >> "$GITHUB_OUTPUT"
+          import hashlib, os, re, subprocess, sys
+
+          def die(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          context = os.path.realpath(os.environ["CONTEXT"])
+          # Anything the image is built from has to live inside the hashed
+          # context, or edits to it would not invalidate the tag.
+          dockerfile = os.path.relpath(os.path.realpath(os.environ["DOCKERFILE"]), context)
+          if dockerfile.startswith(".."):
+              die(f"Dockerfile '{os.environ['DOCKERFILE']}' is outside the hashed context")
+
+          files = sorted(os.path.join(root, name)
+                         for root, _, names in os.walk(context) for name in names)
+          if not files:
+              die(f"Build context '{os.environ['CONTEXT']}' contains no files")
+
+          # Hash the whole context, not just the named Dockerfile: ci.Dockerfile
+          # pulls in ci-slim.Dockerfile via dockerfile-x, so hashing one file
+          # alone would let a sibling change reuse a stale image.
+          key = hashlib.sha256()
+          for path in files:
+              with open(path, "rb") as fh:
+                  content = hashlib.sha256(fh.read()).hexdigest()
+              key.update(f"{os.path.relpath(path, context)} {content}\n".encode())
+
+          # BuildKit re-resolves every external image on a real build, so an
+          # upstream push to any of them changes the result. They must be in the
+          # key or that push is silently ignored. Discovered by parsing rather
+          # than listed by hand, so a newly added FROM cannot be forgotten;
+          # "# syntax = frontend" counts too, BuildKit fetches that floating
+          # frontend on every build. Build stages, scratch, numeric stage
+          # indexes and local dockerfile-x includes (./foo.Dockerfile) are not
+          # registry images; everything else is, including bare names such as
+          # "FROM alpine".
+          refs, stages = set(), set()
+          for path in files:
+              with open(path, encoding="utf-8", errors="replace") as fh:
+                  for line in fh:
+                      tokens = line.split()
+                      syntax = re.match(r"#\s*syntax\s*=\s*(\S+)", line.strip())
+                      if syntax:
+                          refs.add(syntax.group(1))
+                      elif tokens and tokens[0].upper() == "FROM":
+                          words = [t for t in tokens[1:] if not t.startswith("--")]
+                          if words:
+                              refs.add(words[0])
+                          if len(words) >= 3 and words[1].upper() == "AS":
+                              stages.add(words[2])
+                      elif tokens and tokens[0].upper() == "COPY":
+                          refs.update(t[len("--from="):] for t in tokens[1:]
+                                      if t.startswith("--from="))
+          refs = {r for r in refs - stages
+                  if not r.startswith((".", "/")) and r != "scratch" and not r.isdigit()}
+          if not refs:
+              die("Found no external image references; the parser is broken "
+                  "and drift in base images would go undetected")
+
+          print("Resolving external image references:")
+          unresolved = False
+          for ref in sorted(refs):
+              result = subprocess.run(
+                  ["docker", "buildx", "imagetools", "inspect", "--raw", ref],
+                  capture_output=True)
+              if result.returncode == 0 and result.stdout:
+                  digest = hashlib.sha256(result.stdout).hexdigest()
+              else:
+                  # Rate limit or outage. Mark the key and force a rebuild for
+                  # this run: reusing a prior "unresolved" image can hide
+                  # base-image drift that happened between outages. Once
+                  # lookups recover the digest-keyed path is used again.
+                  digest, unresolved = "unresolved", True
+              print(f"  {ref} -> {digest}")
+              key.update(f"{ref}={digest}\n".encode())
+
+          # Note that unpinned apt packages and git refs that move under a fixed
+          # name (IWYU's clang_NN branch, dash_hash's tag) are deliberately not
+          # covered. Adding them would achieve nothing: the key only names the
+          # image, their RUN command strings are unchanged, and a rebuild would
+          # restore byte-identical layers from cache. Pin them in the Dockerfile
+          # if they need to move, the way CTCACHE_COMMIT already does.
+          #
+          # The Dockerfile we were told to build is part of the key too. Both
+          # images share this context, so hashing only the directory gives them
+          # the same key, and repointing one image's file: input would otherwise
+          # silently reuse the image built from the old one.
+          key.update(f"dockerfile={dockerfile}\n".encode())
+
+          # This workflow is hashed as well: build-args, target and platforms
+          # all change the image without touching a Dockerfile, and they live
+          # in the build step below rather than in the context. Note this covers
+          # settings written here, not values a caller passes in. Anything added
+          # to workflow_call.inputs that reaches the build step -- a build-args
+          # or target passthrough, say -- has to be added to this key too, or
+          # changing it in build.yml will silently reuse the old image.
+          #
+          # Under pull_request_target the executing workflow is the base-branch
+          # copy (GITHUB_SHA), while the working tree is the PR head. Hash the
+          # version that actually runs so a PR cannot pre-seed a key for build
+          # settings it did not execute. Only the file's digest goes into the
+          # key, never its path, so a PR run and the post-merge push run of
+          # identical workflow bytes share one key and reuse one image.
+          workflow = ".github/workflows/build-container.yml"
+          if os.environ.get("GITHUB_EVENT_NAME") == "pull_request_target":
+              workflow = os.path.join(".executing-workflow", workflow)
+          try:
+              with open(workflow, "rb") as fh:
+                  key.update(hashlib.sha256(fh.read()).hexdigest().encode())
+          except OSError:
+              die(f"{workflow} not found; the key would silently stop covering build settings")
+
+          hash_tag = key.hexdigest()
+          print(f"Content key: {hash_tag}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"tag={os.environ['GITHUB_REF'].rsplit('/', 1)[-1].lower()}\n")
+              out.write(f"repo={os.environ['REPOSITORY'].lower()}\n")
+              out.write(f"hash-tag={hash_tag}\n")
+              out.write(f"unresolved={str(unresolved).lower()}\n")
+
+      - name: Check whether the image was already built
+        id: exists
+        env:
+          REF: ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ steps.prepare.outputs.hash-tag }}
+          UNRESOLVED: ${{ steps.prepare.outputs.unresolved }}
+        shell: python3 {0}
+        run: |
+          import json, os, subprocess
+
+          ref = os.environ["REF"]
+          exists = False
+          if os.environ["UNRESOLVED"] == "true":
+              # If any external digest lookup failed, force a rebuild. A prior
+              # image published under the same "unresolved" marker may predate
+              # a base-image change we could not observe during the outage.
+              print(f"External image lookup was unresolved; rebuilding rather than reusing {ref}")
+          else:
+              # The multi-arch manifest is pushed last, so its presence means
+              # both arch-specific builds completed. Any failure here falls
+              # through to a rebuild, which is correct (just slower).
+              result = subprocess.run(
+                  ["docker", "buildx", "imagetools", "inspect", "--raw", ref],
+                  capture_output=True)
+              try:
+                  platforms = {(m["platform"]["os"], m["platform"]["architecture"])
+                               for m in json.loads(result.stdout)["manifests"]}
+                  exists = {("linux", "amd64"), ("linux", "arm64")} <= platforms
+              except Exception:
+                  exists = False
+              print(f"Reusing existing image {ref}" if exists
+                    else f"No complete multi-arch image at {ref}, building")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"exists={str(exists).lower()}\n")
+
+  build-amd64:
+    name: Build container (amd64)
+    needs: [check]
+    # success() is implicit for an `if` with no status function, so this is
+    # explicit rather than load-bearing: a failed check skips the build either
+    # way. Only a status function (always(), !cancelled()) would change that.
+    if: ${{ success() && needs.check.outputs.exists != 'true' }}
+    runs-on: ${{ inputs.runs-on-amd64 }}
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -71,14 +276,19 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ hashFiles(inputs.file) }}-amd64
+            ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}:${{ needs.check.outputs.hash-tag }}-amd64
           cache-from: |
-            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ hashFiles(inputs.file) }}-amd64
-            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ steps.prepare.outputs.tag }}
+            type=registry,ref=ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}:${{ needs.check.outputs.hash-tag }}-amd64
+            type=registry,ref=ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}:${{ needs.check.outputs.tag }}
           cache-to: type=inline
 
   build-arm64:
     name: Build container (arm64)
+    needs: [check]
+    # success() is implicit for an `if` with no status function, so this is
+    # explicit rather than load-bearing: a failed check skips the build either
+    # way. Only a status function (always(), !cancelled()) would change that.
+    if: ${{ success() && needs.check.outputs.exists != 'true' }}
     runs-on: ${{ inputs.runs-on-arm64 }}
     outputs:
       digest: ${{ steps.build.outputs.digest }}
@@ -89,14 +299,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           allow-unsafe-pr-checkout: true
           persist-credentials: false
-
-      - name: Prepare variables
-        id: prepare
-        run: |
-          BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '[:upper:]' '[:lower:]')
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "tag=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
-          echo "repo=${REPO_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -117,16 +319,16 @@ jobs:
           push: true
           platforms: linux/arm64
           tags: |
-            ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ hashFiles(inputs.file) }}-arm64
+            ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}:${{ needs.check.outputs.hash-tag }}-arm64
           cache-from: |
-            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ hashFiles(inputs.file) }}-arm64
-            type=registry,ref=ghcr.io/${{ steps.prepare.outputs.repo }}/${{ inputs.name }}:${{ steps.prepare.outputs.tag }}
+            type=registry,ref=ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}:${{ needs.check.outputs.hash-tag }}-arm64
+            type=registry,ref=ghcr.io/${{ needs.check.outputs.repo }}/${{ inputs.name }}:${{ needs.check.outputs.tag }}
           cache-to: type=inline
 
   create-manifest:
     name: Create multi-arch manifest
     runs-on: ${{ inputs.runs-on-arm64 }}
-    needs: [build-amd64, build-arm64]
+    needs: [check, build-amd64, build-arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -146,10 +348,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push multi-arch manifest
+        env:
+          CHECK_REPO: ${{ needs.check.outputs.repo }}
+          IMAGE_NAME: ${{ inputs.name }}
+          CHECK_TAG: ${{ needs.check.outputs.tag }}
+          CHECK_HASH_TAG: ${{ needs.check.outputs.hash-tag }}
         run: |
-          REPO="ghcr.io/${{ needs.build-amd64.outputs.repo }}/${{ inputs.name }}"
-          TAG="${{ needs.build-amd64.outputs.tag }}"
-          HASH_TAG="${{ hashFiles(inputs.file) }}"
+          REPO="ghcr.io/${CHECK_REPO}/${IMAGE_NAME}"
+          TAG="${CHECK_TAG}"
+          HASH_TAG="${CHECK_HASH_TAG}"
 
           # Create manifest from arch-specific images
           docker buildx imagetools create -t "${REPO}:${HASH_TAG}" \
