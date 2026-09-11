@@ -42,6 +42,15 @@ ${CI_RETRY_EXE} pip3 install pyzmq==24.0.1
 ${CI_RETRY_EXE} pip3 install vulture==2.6
 
 SHELLCHECK_VERSION=v0.8.0
-curl -sL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" | \
+ARCH_INFERRED="${TARGETARCH}"
+if [ -z "${ARCH_INFERRED}" ]; then
+    ARCH_INFERRED="$(dpkg --print-architecture || true)"
+fi
+case "${ARCH_INFERRED}" in
+    amd64|x86_64) SC_ARCH="x86_64" ;;
+    arm64|aarch64) SC_ARCH="aarch64" ;;
+    *) echo "Unsupported architecture for ShellCheck: ${ARCH_INFERRED}"; exit 1 ;;
+esac
+curl -sL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.${SC_ARCH}.tar.xz" | \
     tar --xz -xf - --directory /tmp/
 mv "/tmp/shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/bin/
