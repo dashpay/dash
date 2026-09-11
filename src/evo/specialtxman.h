@@ -21,6 +21,7 @@ class CCoinsViewCache;
 class CCreditPoolManager;
 class CDeterministicMNList;
 class CDeterministicMNManager;
+class CProDisTx;
 class CRangesSet;
 class CTransaction;
 class ChainstateManager;
@@ -134,6 +135,28 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                      CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
                      TxValidationState& state, bool check_sigs);
+bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
+                   const Consensus::Params& consensus_params, bool is_v24_active, TxValidationState& state,
+                   bool check_sigs);
+bool CheckProUpShareTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                       CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
+                       TxValidationState& state, bool check_sigs);
+bool CheckProUpSharedRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                           CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params,
+                           bool is_v24_active, TxValidationState& state, bool check_sigs);
+/** Full ProDisTx validation against a given masternode list and spend height. The masternode must
+ *  already be in the list at the previous block: registering and dissolving a shared masternode in
+ *  the same block is deliberately invalid, which lets block validation reuse the mempool path. */
+bool CheckProDisTxForList(const CTransaction& tx, const CProDisTx& ptx, const CDeterministicMNList& mnList,
+                          int nSpendHeight, TxValidationState& state, bool check_sigs);
+
+/** Consensus rule (v24): an input whose prevout pays the shared-collateral template script may
+ *  only be spent by a ProDisTx. Applies to every transaction; callers gate on v24 activation. */
+bool CheckSharedCollateralSpends(const CTransaction& tx, const CCoinsViewCache& view, TxValidationState& state);
+/** Consensus rule (v24): an output paying the shared-collateral template script is only valid as
+ *  the collateral output of a shared registration. Applies to every transaction, including the
+ *  coinbase; callers gate on v24 activation. */
+bool CheckSharedCollateralTemplateOutputs(const CTransaction& tx, TxValidationState& state);
 
 
 /**

@@ -163,7 +163,9 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     obj.pushKV("PoSeRevivedHeight", nPoSeRevivedHeight);
     obj.pushKV("PoSeBanHeight", nPoSeBanHeight);
     obj.pushKV("revocationReason", nRevocationReason);
-    obj.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    if (!IsShared()) {
+        obj.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    }
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     if (nType == MnType::Evo) {
         obj.pushKV("platformNodeID", platformNodeID.ToString());
@@ -174,7 +176,11 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     }
 
     CTxDestination dest;
-    if (nVersion >= ProTxVersion::ExtAddr) {
+    if (IsShared()) {
+        obj.pushKV("shares", ShareListToJson(shares));
+        obj.pushKV("earlyPeriodBlocks", static_cast<int64_t>(nEarlyPeriodBlocks));
+        obj.pushKV("earlyPenalty", nEarlyPenalty);
+    } else if (nVersion >= ProTxVersion::ExtAddr) {
         obj.pushKV("payouts", PayoutListToJson(payouts));
     } else if (ExtractDestination(scriptPayout, dest)) {
         obj.pushKV("payoutAddress", EncodeDestination(dest));
@@ -197,9 +203,15 @@ UniValue CProRegTx::ToJson() const
         ret.pushKV("service", GetDeprecatedServiceField(*this));
     }
     ret.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
-    ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    if (!IsShared()) {
+        ret.pushKV("ownerAddress", EncodeDestination(PKHash(keyIDOwner)));
+    }
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    if (nVersion >= ProTxVersion::ExtAddr) {
+    if (IsShared()) {
+        ret.pushKV("shares", ShareListToJson(shares));
+        ret.pushKV("earlyPeriodBlocks", static_cast<int64_t>(nEarlyPeriodBlocks));
+        ret.pushKV("earlyPenalty", nEarlyPenalty);
+    } else if (nVersion >= ProTxVersion::ExtAddr) {
         ret.pushKV("payouts", PayoutListToJson(payouts));
     } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
@@ -240,6 +252,41 @@ UniValue CProUpRevTx::ToJson() const
     ret.pushKV("proTxHash", proTxHash.ToString());
     ret.pushKV("reason", nReason);
     ret.pushKV("inputsHash", inputsHash.ToString());
+    return ret;
+}
+
+UniValue CProDisTx::ToJson() const
+{
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("version", nVersion);
+    ret.pushKV("proTxHash", proTxHash.ToString());
+    ret.pushKV("actorIndex", actorIndex);
+    ret.pushKV("sigCount", static_cast<uint64_t>(vchSigs.size()));
+    return ret;
+}
+
+UniValue CProUpShareTx::ToJson() const
+{
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("version", nVersion);
+    ret.pushKV("proTxHash", proTxHash.ToString());
+    ret.pushKV("shareIndex", shareIndex);
+    if (CTxDestination dest; ExtractDestination(scriptReward, dest)) {
+        ret.pushKV("rewardAddress", EncodeDestination(dest));
+    }
+    ret.pushKV("inputsHash", inputsHash.ToString());
+    return ret;
+}
+
+UniValue CProUpSharedRegTx::ToJson() const
+{
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("version", nVersion);
+    ret.pushKV("proTxHash", proTxHash.ToString());
+    ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
+    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+    ret.pushKV("inputsHash", inputsHash.ToString());
+    ret.pushKV("sigCount", static_cast<uint64_t>(vchSigs.size()));
     return ret;
 }
 
@@ -357,6 +404,9 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
             obj.pushKV("payouts", PayoutListToJson(payouts));
         } else if (ExtractDestination(scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));
+        }
+        if (!shares.empty()) {
+            obj.pushKV("shares", ShareListToJson(shares));
         }
         if (ExtractDestination(scriptOperatorPayout, dest)) {
             obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));

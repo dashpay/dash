@@ -119,15 +119,6 @@ namespace node {
 // All members of the classes in this namespace are intentionally public, as the
 // classes themselves are private.
 namespace {
-std::vector<CScript> GetOwnerPayoutScripts(const CDeterministicMNState& state)
-{
-    std::vector<CScript> ret;
-    for (const auto& payout : GetOwnerPayouts(state)) {
-        ret.emplace_back(payout.scriptPayout);
-    }
-    return ret;
-}
-
 class MnEntryImpl : public MnEntry
 {
 private:
@@ -139,7 +130,7 @@ public:
     MnEntryImpl(const CDeterministicMNCPtr& dmn) :
         MnEntry{dmn},
         m_dmn{Assert(dmn)},
-        m_script_payouts{GetOwnerPayoutScripts(*m_dmn->pdmnState)},
+        m_script_payouts{m_dmn->pdmnState->GetOwnerRewardScripts()},
         m_script_payout{m_script_payouts.empty() ? CScript() : m_script_payouts.front()}
     {
     }
@@ -172,7 +163,26 @@ public:
     MnType getType() const override { return m_dmn->nType; }
     UniValue toJson() const override { return m_dmn->ToJson(); }
     const CKeyID& getKeyIdOwner() const override { return m_dmn->pdmnState->keyIDOwner; }
+    std::vector<CKeyID> getShareOwnerKeyIds() const override
+    {
+        // Shared-aware: a shared masternode has a null keyIDOwner, its share owner keys take its place
+        std::vector<CKeyID> ret;
+        ret.reserve(m_dmn->pdmnState->shares.size());
+        for (const auto& share : m_dmn->pdmnState->shares) {
+            ret.push_back(share.keyIDOwner);
+        }
+        return ret;
+    }
     const CKeyID& getKeyIdVoting() const override { return m_dmn->pdmnState->keyIDVoting; }
+    std::vector<CScript> getShareRefundScripts() const override
+    {
+        std::vector<CScript> ret;
+        ret.reserve(m_dmn->pdmnState->shares.size());
+        for (const auto& share : m_dmn->pdmnState->shares) {
+            ret.push_back(share.scriptRefund);
+        }
+        return ret;
+    }
     const COutPoint& getCollateralOutpoint() const override { return m_dmn->collateralOutpoint; }
     const CScript& getScriptPayout() const override { return m_script_payout; }
     std::vector<CScript> getScriptPayouts() const override { return m_script_payouts; }

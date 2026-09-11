@@ -39,6 +39,8 @@ static std::optional<TransactionRecord::Type> SpecialTransactionRecordType(const
     case TRANSACTION_PROVIDER_UPDATE_SERVICE:
     case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
     case TRANSACTION_PROVIDER_UPDATE_REVOKE:
+    case TRANSACTION_PROVIDER_UPDATE_SHARE:
+    case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR:
         return TransactionRecord::MasternodeUpdate;
     case TRANSACTION_ASSET_LOCK:
         return TransactionRecord::AssetLock;

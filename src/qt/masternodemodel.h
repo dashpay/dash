@@ -71,6 +71,8 @@ public:
     uint16_t operatorRewardPct() const { return m_operator_reward_pct; }
 
     const CKeyID& keyIdOwnerRaw() const { return m_dmn->getKeyIdOwner(); }
+    std::vector<CKeyID> shareOwnerKeyIdsRaw() const { return m_dmn->getShareOwnerKeyIds(); }
+    std::vector<CScript> shareRefundScriptsRaw() const { return m_dmn->getShareRefundScripts(); }
     const CKeyID& keyIdVotingRaw() const { return m_dmn->getKeyIdVoting(); }
     const COutPoint& collateralOutpointRaw() const { return m_dmn->getCollateralOutpoint(); }
     const CScript& scriptOperatorPayoutRaw() const { return m_dmn->getScriptOperatorPayout(); }

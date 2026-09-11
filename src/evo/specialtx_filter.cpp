@@ -76,6 +76,13 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
             for (const auto& payout : GetOwnerPayouts(*opt_proTx)) {
                 AddScriptElement(payout.scriptPayout, addElement);
             }
+
+            // Add collateral share refund/reward scripts and owner key IDs
+            for (const auto& share : opt_proTx->shares) {
+                AddScriptElement(share.scriptRefund, addElement);
+                AddScriptElement(share.RewardScript(), addElement);
+                AddHashElement(share.keyIDOwner, addElement);
+            }
         }
         break;
     }
@@ -108,6 +115,34 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
         if (const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) {
             // Add ProTx hash
             AddHashElement(opt_proTx->proTxHash, addElement);
+        }
+        break;
+    }
+    case TRANSACTION_PROVIDER_DISSOLVE: {
+        // The refund payments are literal transaction outputs, already in the base filter
+        if (const auto opt_proTx = GetTxPayload<CProDisTx>(tx)) {
+            // Add ProTx hash
+            AddHashElement(opt_proTx->proTxHash, addElement);
+        }
+        break;
+    }
+    case TRANSACTION_PROVIDER_UPDATE_SHARE: {
+        if (const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx)) {
+            // Add ProTx hash
+            AddHashElement(opt_proTx->proTxHash, addElement);
+
+            // Add new reward script
+            AddScriptElement(opt_proTx->scriptReward, addElement);
+        }
+        break;
+    }
+    case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR: {
+        if (const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx)) {
+            // Add ProTx hash
+            AddHashElement(opt_proTx->proTxHash, addElement);
+
+            // Add voting key ID
+            AddHashElement(opt_proTx->keyIDVoting, addElement);
         }
         break;
     }
