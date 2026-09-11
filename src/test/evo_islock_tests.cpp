@@ -427,9 +427,37 @@ BOOST_FIXTURE_TEST_CASE(nonlocked_asset_unlock_refresh_is_retried, TestChain100S
     BOOST_REQUIRE_EQUAL(retry.size(), 1U);
     BOOST_CHECK(retry[0]->GetInstanceHash() == unlock_resigned->GetInstanceHash());
 
+    // Once handed out, an unlock is not retried again until the next block or refresh re-queues
+    // it; otherwise the worker would re-verify its signature on every iteration
+    BOOST_CHECK(isman.PrepareTxToRetry().empty());
+    isman.RetryUnminedAssetUnlocks();
+    BOOST_CHECK_EQUAL(isman.PrepareTxToRetry().size(), 1U);
+
     // A stale instance arriving after the fresh one is likewise recorded: the mempool (not this
     // tracker) decides which instance is held, and the tracker mirrors the last admitted one
     isman.RemoveNonLockedTx(unlock->GetHash(), false);
+    BOOST_CHECK(isman.PrepareTxToRetry().empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(nonlocked_asset_unlock_dropped_when_removed_from_mempool, TestChain100Setup)
+{
+    // An unlocked asset unlock leaving the mempool has no inputs for the conflict cleanup to key
+    // on; the removal hook must drop it from the tracker or it is re-queued on every block
+    auto& isman = *m_node.isman;
+    CMutableTransaction mtx;
+    mtx.nVersion = 3;
+    mtx.nType = TRANSACTION_ASSET_UNLOCK;
+    mtx.vout.emplace_back(COIN, CScript{});
+    SetTxPayload(mtx, CAssetUnlockPayload{2, /*index=*/9, /*fee=*/2000, /*requestedHeight=*/500, uint256::ONE,
+                                          CBLSSignature{}});
+    const auto unlock = MakeTransactionRef(mtx);
+
+    isman.AddNonLockedTx(unlock, nullptr);
+    isman.RetryUnminedAssetUnlocks();
+    BOOST_REQUIRE_EQUAL(isman.PrepareTxToRetry().size(), 1U);
+    isman.TransactionIsRemoved(unlock);
+    BOOST_CHECK_EQUAL(isman.GetCounts().m_unprotected_tx, 0U);
+    isman.RetryUnminedAssetUnlocks();
     BOOST_CHECK(isman.PrepareTxToRetry().empty());
 }
 

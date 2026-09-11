@@ -223,9 +223,17 @@ bool InstantSendSigner::CheckCanLockAssetUnlock(const CTransaction& tx, bool pri
     // a minable one in the mempool. Platform pools withdrawals under the same daily limit, so
     // the pending total exceeding it means something is wrong and nothing is locked until the
     // window clears rather than guessing which withdrawals miners will pick.
-    const CCreditPool pool = chainstate.ChainHelper().GetCreditPool(tip);
-    if (const CAmount pending{m_mempool.GetPendingAssetUnlockAmount()}; pending > pool.currentLimit) {
-        return log_refusal(strprintf("pending withdrawals %d exceed the credit pool limit %d", pending, pool.currentLimit));
+    // The pool is reconstructed from disk on a cold cache; a local failure there (block read,
+    // inconsistent pool, EvoDB) refuses this lock rather than escaping into the worker thread.
+    CAmount limit{0};
+    try {
+        limit = chainstate.ChainHelper().GetCreditPool(tip).currentLimit;
+    } catch (const std::exception& e) {
+        LogPrintf("%s -- txid=%s: GetCreditPool failed: %s\n", __func__, tx.GetHash().ToString(), e.what());
+        return false;
+    }
+    if (const CAmount pending{m_mempool.GetPendingAssetUnlockAmount()}; pending > limit) {
+        return log_refusal(strprintf("pending withdrawals %d exceed the credit pool limit %d", pending, limit));
     }
     return true;
 }

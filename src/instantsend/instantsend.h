@@ -140,7 +140,8 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 
-    void TransactionIsRemoved(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    void TransactionIsRemoved(const CTransactionRef& tx)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache, !cs_nonLocked, !cs_pendingRetry);
     void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock)
