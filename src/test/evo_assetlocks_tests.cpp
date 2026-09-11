@@ -506,11 +506,16 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         const auto unlockPayload = GetTxPayload<CAssetUnlockPayload>(tx);
         BOOST_CHECK(unlockPayload.has_value());
 
+        CBLSSecretKey sk;
+        sk.MakeNewKey();
+        const bool legacy_scheme = bls::bls_legacy_scheme.load();
+        const CBLSSignature sig_a{sk.Sign(uint256::ONE, legacy_scheme)};
+        const CBLSSignature sig_b{sk.Sign(uint256::TWO, legacy_scheme)};
+        BOOST_REQUIRE(sig_a.IsValid() && sig_b.IsValid() && sig_a != sig_b);
         auto make_unlock_tx = [&](uint8_t version, uint64_t index, uint32_t fee, uint32_t requested_height,
-                                  const uint256& quorum_hash) {
+                                  const uint256& quorum_hash, const CBLSSignature& quorum_sig = CBLSSignature{}) {
             CMutableTransaction tx_tmp(tx);
-            SetTxPayload(tx_tmp, CAssetUnlockPayload{version, index, fee, requested_height, quorum_hash,
-                                                     unlockPayload->getQuorumSig()});
+            SetTxPayload(tx_tmp, CAssetUnlockPayload{version, index, fee, requested_height, quorum_hash, quorum_sig});
             return CTransaction(tx_tmp);
         };
 
@@ -531,6 +536,15 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         const CTransaction tx_v2_resigned{make_unlock_tx(2, 0x11, 2000, 700, uint256::TWO)};
         BOOST_CHECK(tx_v2_resigned.GetHash() == tx_v2.GetHash());
         BOOST_CHECK(tx_v2_resigned.GetInstanceHash() != tx_v2.GetInstanceHash());
+        // ...and so does a different quorumSig on its own
+        const CTransaction tx_v2_sig_a{make_unlock_tx(2, 0x11, 2000, 500, uint256::ONE, sig_a)};
+        const CTransaction tx_v2_sig_b{make_unlock_tx(2, 0x11, 2000, 500, uint256::ONE, sig_b)};
+        BOOST_CHECK(tx_v2_sig_a.GetHash() == tx_v2.GetHash());
+        BOOST_CHECK(tx_v2_sig_b.GetHash() == tx_v2.GetHash());
+        BOOST_CHECK(tx_v2_sig_a.GetInstanceHash() != tx_v2.GetInstanceHash());
+        BOOST_CHECK(tx_v2_sig_a.GetInstanceHash() != tx_v2_sig_b.GetInstanceHash());
+        // Version 1 commits to the signature in the txid
+        BOOST_CHECK(make_unlock_tx(1, 0x11, 2000, 500, uint256::ONE, sig_a).GetHash() != tx_v1.GetHash());
         // A different withdrawal (index or fee) has a different txid
         BOOST_CHECK(make_unlock_tx(2, 0x12, 2000, 500, uint256::ONE).GetHash() != tx_v2.GetHash());
         BOOST_CHECK(make_unlock_tx(2, 0x11, 3000, 500, uint256::ONE).GetHash() != tx_v2.GetHash());
@@ -555,6 +569,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
         };
         BOOST_CHECK(msg_hash(tx_v2) != msg_hash(tx_v2_resigned));
         BOOST_CHECK(msg_hash(tx_v2) != tx_v2.GetHash());
+        BOOST_CHECK(msg_hash(tx_v2_sig_a) == msg_hash(tx_v2_sig_b));
     }
 
     {
@@ -611,12 +626,12 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
 
 BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
 {
-    auto make_unlock = [](uint8_t version, uint64_t index, uint32_t requested_height) {
+    auto make_unlock = [](uint8_t version, uint64_t index, uint32_t requested_height,
+                          const CBLSSignature& quorum_sig = CBLSSignature{}) {
         CMutableTransaction mtx;
         mtx.nVersion = 3;
         mtx.nType = TRANSACTION_ASSET_UNLOCK;
-        SetTxPayload(mtx, CAssetUnlockPayload{version, index, /*fee=*/2000, requested_height,
-                                              uint256::ONE, CBLSSignature{}});
+        SetTxPayload(mtx, CAssetUnlockPayload{version, index, /*fee=*/2000, requested_height, uint256::ONE, quorum_sig});
         return MakeTransactionRef(mtx);
     };
 
@@ -637,7 +652,16 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
     // A different re-signed instance keeps the txid but changes the committed root
     block.vtx.back() = make_unlock(2, 2, 700);
     BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
-    BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_two);
+    const uint256 root_resigned{CalcCbTxMerkleRootAssetUnlocks(block)};
+    BOOST_CHECK(root_resigned != root_two);
+
+    // So does the quorum signature alone: it is what the txid leaves out and the commitment
+    // exists to cover
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    block.vtx.back() = make_unlock(2, 2, 700, sk.Sign(uint256::ONE, bls::bls_legacy_scheme.load()));
+    BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
+    BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_resigned);
 }
 
 BOOST_FIXTURE_TEST_CASE(mempool_pending_asset_unlock_amount, TestChain100Setup)
