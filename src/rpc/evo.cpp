@@ -2760,7 +2760,6 @@ static RPCHelpMan protx_help()
         "  register_fund_legacy     - (DEPRECATED) Fund and create a ProTx by parsing BLS using the legacy scheme, then send it to network\n"
         "  register_prepare_legacy  - (DEPRECATED) Create an unsigned ProTx by parsing BLS using the legacy scheme\n"
         "  register_submit          - Sign and submit a ProTx\n"
-        "  register_shared_prepare  - Create an unsigned shared masternode ProTx\n"
 #endif
         "  list                     - List ProTxs\n"
         "  info                     - Return information about a ProTx\n"
@@ -2770,12 +2769,13 @@ static RPCHelpMan protx_help()
         "  update_registrar         - Create and send ProUpRegTx to network\n"
         "  update_registrar_legacy  - (DEPRECATED) Create ProUpRegTx by parsing BLS using the legacy scheme, then send it to network\n"
         "  revoke                   - Create and send ProUpRevTx to network\n"
+        "  register_shared_prepare  - Create an unsigned shared masternode ProTx\n"
         "  shared_sign              - Sign a shared masternode transaction with this wallet's share owner keys\n"
         "  shared_combine           - Combine share owner signatures into a shared masternode transaction\n"
         "  dissolve                 - Create, sign and send a unilateral ProDisTx\n"
+        "  dissolve_prepare         - Create an unsigned unanimous ProDisTx\n"
         "  update_share             - Create and send a ProUpShareTx updating one share's reward address\n"
         "  update_shared_registrar_prepare - Create an unsigned ProUpSharedRegTx\n"
-        "  dissolve_prepare         - Create an unsigned unanimous ProDisTx\n"
 #endif
         "  diff                     - Calculate a diff and a proof between two masternode lists\n"
         "  listdiff                 - Calculate a full MN list diff between two masternode lists\n",
