@@ -53,6 +53,8 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
   dissolution carrying a lock time or non-final sequence unless
   `allowTimeLocks` is set.
 - `protx shared_combine` combines collected signatures and optionally submits.
+  A dissolution combined here requires a signature from every share; unilateral
+  dissolutions come fully signed from `protx dissolve`.
 - `protx dissolve` creates, signs and submits a unilateral ProDisTx (or, with
   `submit=false`, returns hex suitable for offline standby storage).
 - `protx dissolve_prepare` builds an unsigned unanimous ProDisTx.

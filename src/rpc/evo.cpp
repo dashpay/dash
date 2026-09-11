@@ -1888,23 +1888,21 @@ static RPCHelpMan protx_shared_combine()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "shared masternode not found");
         }
         const size_t share_count{dmn->pdmnState->shares.size()};
+        // shared_sign only produces signatures over the unanimous digest (which commits to the
+        // signature count), so a one-signature transaction built here could never verify; the
+        // only valid producer of a unilateral dissolution is "protx dissolve"
+        if (sigs.size() != share_count) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               "a dissolution combined through shared_combine requires a signature from every "
+                               "share; a unilateral dissolution is created fully signed by \"protx dissolve\"");
+        }
         opt_ptx->vchSigs.clear();
-        if (sigs.size() == 1) {
-            // unilateral: the single signature must be the actor's
-            if (sigs.begin()->first != opt_ptx->actorIndex) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "a single signature must be by the actor share");
+        for (size_t i = 0; i < share_count; i++) {
+            const auto it = sigs.find(i);
+            if (it == sigs.end()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("missing signature for share %d", i));
             }
-            opt_ptx->vchSigs.push_back(sigs.begin()->second);
-        } else if (sigs.size() == share_count) {
-            for (size_t i = 0; i < share_count; i++) {
-                const auto it = sigs.find(i);
-                if (it == sigs.end()) {
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("missing signature for share %d", i));
-                }
-                opt_ptx->vchSigs.push_back(it->second);
-            }
-        } else {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "a dissolution requires exactly one signature or one per share");
+            opt_ptx->vchSigs.push_back(it->second);
         }
         SetTxPayload(tx, *opt_ptx);
         if (!fSubmit) {

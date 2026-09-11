@@ -945,6 +945,11 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(len(node.protx("shared_sign", locked_tx.serialize().hex(), True)), 2)
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_equal(len(sigs), 2)
+        # shared_sign signatures cover the unanimous digest, so combining only the actor's
+        # signature could never produce a valid one-signature transaction: it is rejected
+        # rather than returned as an unusable "standby"
+        assert_raises_rpc_error(-8, "requires a signature from every share", node.protx,
+                                "shared_combine", prepared["tx"], [sigs[0]])
         dissolve_txid2 = node.protx("shared_combine", prepared["tx"], sigs, True)
         dissolve_tx2 = node.getrawtransaction(dissolve_txid2, 1)
         assert_equal(dissolve_tx2["proDisTx"]["sigCount"], 2)
