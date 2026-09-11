@@ -143,6 +143,10 @@ BOOST_AUTO_TEST_CASE(share_list_validation)
     CheckShares(two_shares, DummyJoinSigs(2), 100, -1, voting_id, "bad-protx-shares-penalty");
     // earlyPenalty must be strictly below the smallest share amount
     CheckShares(two_shares, DummyJoinSigs(2), 100, 400 * COIN, voting_id, "bad-protx-shares-penalty");
+    // A penalty without an early period is never required, but it would still set the unilateral
+    // bonus ceiling, leaving that much of the actor's share extractable by a stolen owner key
+    CheckShares(two_shares, DummyJoinSigs(2), 0, 1, voting_id, "bad-protx-shares-penalty");
+    CheckShares(two_shares, DummyJoinSigs(2), 100, 0, voting_id, std::nullopt);
 
     // Amount bounds: below the 100 DASH minimum and sums different from the collateral
     {

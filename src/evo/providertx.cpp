@@ -135,6 +135,12 @@ bool IsShareListTriviallyValid(const CollateralShares& shares,
     if (early_penalty < 0 || early_penalty >= min_amount) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
     }
+    // Without an early period the penalty is never required, but it would still act as the
+    // unilateral bonus ceiling, so a stolen share owner key could drain that much of the actor's
+    // share for the life of the masternode
+    if (early_period_blocks == 0 && early_penalty != 0) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
+    }
     return true;
 }
 

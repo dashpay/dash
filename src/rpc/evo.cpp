@@ -2587,7 +2587,7 @@ static RPCHelpMan protx_register_shared_prepare()
             {"votingAddress", RPCArg::Type::STR, RPCArg::Optional::NO, "The voting key address."},
             {"operatorReward", RPCArg::Type::STR, RPCArg::Optional::NO, "The fraction in %% to share with the operator (0.00 to 100.00)."},
             {"earlyPeriodBlocks", RPCArg::Type::NUM, RPCArg::Optional::NO, "Length in blocks of the early period during which unilateral dissolution is penalized (up to 420480)."},
-            {"earlyPenalty", RPCArg::Type::NUM, RPCArg::Optional::NO, "Penalty in duffs for unilateral dissolution during the early period (must be below the smallest share)."},
+            {"earlyPenalty", RPCArg::Type::NUM, RPCArg::Optional::NO, "Penalty in duffs for unilateral dissolution during the early period (must be below the smallest share, and zero when earlyPeriodBlocks is zero)."},
         },
         RPCResult{RPCResult::Type::OBJ, "", "",
         {

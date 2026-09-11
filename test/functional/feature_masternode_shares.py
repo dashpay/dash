@@ -605,6 +605,10 @@ class MasternodeSharesTest(DashTestFramework):
         assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
                                 "register_shared_prepare", preflight_funding, shares,
                                 *preflight_args, 400 * COIN)
+        # a penalty without an early period would only serve as a drain ceiling for a stolen key
+        assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
+                                "register_shared_prepare", preflight_funding, shares,
+                                *preflight_args[:-1], 0, EARLY_PENALTY)
 
         protx_hash, collateral_index = self.register_shared(node, shares, port_offset=1)
 

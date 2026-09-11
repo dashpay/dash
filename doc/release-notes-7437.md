@@ -11,7 +11,8 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
   an immutable amount, refund script and share owner key, plus an updatable
   reward script. Every participant consents by signing a digest that binds the
   exact funding inputs, all outputs, the share table, the penalty terms and the
-  registrar configuration.
+  registrar configuration. The early-period penalty must be below the smallest
+  share and must be zero when no early period is configured.
 - The shared collateral is paid to the 7-byte template script
   `04445348437551` (`0x04 "DSHC" OP_DROP OP_TRUE`). From activation, an output
   paying this exact script is valid only as the collateral of a valid shared
