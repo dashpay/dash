@@ -1206,7 +1206,7 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
 
         if (opt_ptx->IsShared()) {
             // Shared collateral must use exactly the template script; there is no destination to extract
-            if (!sharedcollateral::IsSharedCollateralScript(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey)) {
+            if (!IsSharedCollateralScript(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey)) {
                 return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-collateral-script");
             }
         } else if (!ExtractDestination(tx.vout[opt_ptx->collateralOutpoint.n].scriptPubKey, collateralTxDest)) {
@@ -1796,7 +1796,7 @@ bool CheckSharedCollateralSpends(const CTransaction& tx, const CCoinsViewCache& 
         // ProDisTx's own validation then ties the outpoint to its masternode. Pre-activation
         // template outputs belong to no masternode and are permanently frozen by this rule.
         const Coin& coin = view.AccessCoin(in.prevout);
-        if (!coin.IsSpent() && sharedcollateral::IsSharedCollateralScript(coin.out.scriptPubKey)) {
+        if (!coin.IsSpent() && IsSharedCollateralScript(coin.out.scriptPubKey)) {
             if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_PROVIDER_DISSOLVE) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shared-collateral-spend");
             }
@@ -1808,7 +1808,7 @@ bool CheckSharedCollateralSpends(const CTransaction& tx, const CCoinsViewCache& 
 bool CheckSharedCollateralTemplateOutputs(const CTransaction& tx, TxValidationState& state)
 {
     for (uint32_t i = 0; i < tx.vout.size(); i++) {
-        if (!sharedcollateral::IsSharedCollateralScript(tx.vout[i].scriptPubKey)) continue;
+        if (!IsSharedCollateralScript(tx.vout[i].scriptPubKey)) continue;
         // An output paying the template script is only valid as the collateral output of a shared
         // registration. Anywhere else it would either escape the spend covenant or freeze funds.
         if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_PROVIDER_REGISTER) {

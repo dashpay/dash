@@ -46,7 +46,7 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
 
 ## New RPCs
 
-- `protx register_shared_prepare` builds an unsigned shared registration from a
+- `protx shared_register_prepare` builds an unsigned shared registration from a
   caller-supplied funding transaction.
 - `protx shared_sign` signs a shared registration, dissolution or shared
   registrar update with every share owner key the wallet holds. It refuses a
@@ -54,12 +54,12 @@ together with DIP-0026 multi-party payouts as part of the v24 hard fork
   input lock unless `allowTimeLocks` is set.
 - `protx shared_combine` combines collected signatures and optionally submits.
   A dissolution combined here requires a signature from every share; unilateral
-  dissolutions come fully signed from `protx dissolve`.
-- `protx dissolve` creates, signs and submits a unilateral ProDisTx (or, with
+  dissolutions come fully signed from `protx shared_dissolve`.
+- `protx shared_dissolve` creates, signs and submits a unilateral ProDisTx (or, with
   `submit=false`, returns hex suitable for offline standby storage).
-- `protx dissolve_prepare` builds an unsigned unanimous ProDisTx.
-- `protx update_share` updates one share's reward address. To restore rewards to the immutable refund address, pass that address explicitly; empty reward scripts are not valid in update transactions.
-- `protx update_shared_registrar_prepare` builds an unsigned ProUpSharedRegTx.
+- `protx shared_dissolve_prepare` builds an unsigned unanimous ProDisTx.
+- `protx shared_update_share` updates one share's reward address. To restore rewards to the immutable refund address, pass that address explicitly; empty reward scripts are not valid in update transactions.
+- `protx shared_update_registrar_prepare` builds an unsigned ProUpSharedRegTx.
 
 Updated RPCs
 ------------

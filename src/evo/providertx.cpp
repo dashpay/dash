@@ -108,7 +108,7 @@ bool IsShareListTriviallyValid(const CollateralShares& shares,
                 // An empty reward script means "use the refund script"
                 continue;
             }
-            if (sharedcollateral::IsSharedCollateralScript(*script)) {
+            if (IsSharedCollateralScript(*script)) {
                 return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-payee-template");
             }
             if (!IsValidPayoutScript(*script)) {
@@ -582,7 +582,7 @@ bool CProUpShareTx::IsTriviallyValid(TxValidationState& state) const
     if (scriptReward.empty()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-empty");
     }
-    if (sharedcollateral::IsSharedCollateralScript(scriptReward)) {
+    if (IsSharedCollateralScript(scriptReward)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupshare-payee-template");
     }
     if (!IsValidPayoutScript(scriptReward)) {

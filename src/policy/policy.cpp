@@ -120,7 +120,7 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
             // shared registration. A template output in any other shape can never be spent, so
             // relaying it would only propagate permanently frozen outputs.
             if (tx.IsSpecialTxVersion() && tx.nType == TRANSACTION_PROVIDER_REGISTER &&
-                sharedcollateral::IsSharedCollateralScript(txout.scriptPubKey)) {
+                IsSharedCollateralScript(txout.scriptPubKey)) {
                 if (const auto opt_ptx = GetTxPayload<CProRegTx>(tx);
                     opt_ptx && opt_ptx->IsShared() && opt_ptx->collateralOutpoint.hash.IsNull() &&
                     opt_ptx->collateralOutpoint.n == i) {
@@ -183,7 +183,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
             // scriptSig; consensus pins everything else about the spend, and 7 bytes of
             // OP_DROP/OP_TRUE carry no script-evaluation DoS surface
             if (tx.IsSpecialTxVersion() && tx.nType == TRANSACTION_PROVIDER_DISSOLVE &&
-                sharedcollateral::IsSharedCollateralScript(prev.scriptPubKey)) {
+                IsSharedCollateralScript(prev.scriptPubKey)) {
                 continue;
             }
             return false;

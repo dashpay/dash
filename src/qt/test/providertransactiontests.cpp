@@ -283,9 +283,9 @@ void ProviderTransactionTests::providerTransactionHistory()
     const CAmount received_core_amount{COIN};
     const CTransactionRef received_from_asset_lock{MakeAssetLockTransaction(
         COutPoint{uint256::TWO, 7}, 2 * COIN, external_script, CTxOut{received_core_amount, own_script})};
-    const CTransactionRef update_share{MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_SHARE, make_owned_input(5),
-                                                              input_amount(5) - share_fee, own_script)};
-    const CTransactionRef update_shared_registrar{
+    const CTransactionRef shared_update_share{MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_SHARE, make_owned_input(5),
+                                                                     input_amount(5) - share_fee, own_script)};
+    const CTransactionRef shared_update_registrar{
         MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR, make_owned_input(6),
                                input_amount(6) - shared_registrar_fee, own_script)};
 
@@ -302,14 +302,14 @@ void ProviderTransactionTests::providerTransactionHistory()
          QString{"Updates an existing masternode"}},
         {asset_lock->GetHash(), TransactionRecord::AssetLock, -input_amount(4), QString{"Asset Lock"},
          QString{"Locks funds for use on Dash Platform"}},
-        {update_share->GetHash(), TransactionRecord::MasternodeUpdate, -share_fee, QString{"Masternode Update"},
+        {shared_update_share->GetHash(), TransactionRecord::MasternodeUpdate, -share_fee, QString{"Masternode Update"},
          QString{"Updates an existing masternode"}},
-        {update_shared_registrar->GetHash(), TransactionRecord::MasternodeUpdate, -shared_registrar_fee,
+        {shared_update_registrar->GetHash(), TransactionRecord::MasternodeUpdate, -shared_registrar_fee,
          QString{"Masternode Update"}, QString{"Updates an existing masternode"}},
     };
 
     for (const CTransactionRef& tx : {registration, update_service, update_registrar, update_revoke, asset_lock,
-                                    received_from_asset_lock, update_share, update_shared_registrar}) {
+                                      received_from_asset_lock, shared_update_share, shared_update_registrar}) {
         QVERIFY(wallet->AddToWallet(tx, TxStateInactive{}) != nullptr);
     }
 

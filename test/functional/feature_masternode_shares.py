@@ -54,7 +54,7 @@ class MasternodeSharesTest(DashTestFramework):
 
     def build_funding_tx(self, node):
         """Returns hex of a transaction with enough inputs to fund the collateral plus fee
-        and a change output, but without the collateral output itself (register_shared_prepare
+        and a change output, but without the collateral output itself (shared_register_prepare
         appends it)."""
         dummy = node.getnewaddress()
         raw = node.createrawtransaction([], {dummy: 1000})
@@ -71,7 +71,7 @@ class MasternodeSharesTest(DashTestFramework):
         voting_address = node.getnewaddress()
         funding_hex = self.build_funding_tx(node)
         prepared = node.protx(
-            "register_shared_prepare", funding_hex, shares, f"127.0.0.1:{p2p_port(port_offset)}",
+            "shared_register_prepare", funding_hex, shares, f"127.0.0.1:{p2p_port(port_offset)}",
             operator_key, voting_address, 0, early_period_blocks, early_penalty)
         assert_equal(len(prepared["consentHash"]), 64)
 
@@ -125,7 +125,7 @@ class MasternodeSharesTest(DashTestFramework):
         attacker_script = CScript(bytes.fromhex(miner.getaddressinfo(miner.getnewaddress())["scriptPubKey"]))
         for actor, wallet in enumerate(wallets):
             self.log.info("Checking invalid dissolutions by participant %d", actor)
-            good = tx_from_hex(wallet.protx("dissolve", protx_hash, actor, DISSOLVE_FEE, False))
+            good = tx_from_hex(wallet.protx("shared_dissolve", protx_hash, actor, DISSOLVE_FEE, False))
             assert_equal(node.testmempoolaccept([good.serialize().hex()])[0]["allowed"], True)
             non_actors = [share for i, share in enumerate(shares) if i != actor]
             total = sum(share["amount"] for share in non_actors)
@@ -166,7 +166,7 @@ class MasternodeSharesTest(DashTestFramework):
             self.assert_rejected_transaction(node, bad, "bad-prodis-penalty-sum")
 
         self.log.info("Even fully signed unanimous transactions cannot override the refund covenant")
-        prepared = miner.protx("dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
+        prepared = miner.protx("shared_dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
 
         def sign_unanimous(tx):
             raw = tx.serialize().hex()
@@ -178,7 +178,7 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(node.testmempoolaccept([unanimous.serialize().hex()])[0]["allowed"], True)
         # These outputs satisfy both modes even during the early period. Dropping
         # signatures must fail authorization, rather than only the penalty checks.
-        penalty_unsigned = tx_from_hex(wallets[7].protx("dissolve", protx_hash, 7, DISSOLVE_FEE, False))
+        penalty_unsigned = tx_from_hex(wallets[7].protx("shared_dissolve", protx_hash, 7, DISSOLVE_FEE, False))
         penalty_unsigned.vExtraPayload = penalty_unsigned.vExtraPayload[:36] + b"\x00"
         penalty_unanimous = sign_unanimous(penalty_unsigned)
         assert_equal(node.testmempoolaccept([penalty_unanimous.serialize().hex()])[0]["allowed"], True)
@@ -265,7 +265,7 @@ class MasternodeSharesTest(DashTestFramework):
         pending_operator, mined_operator = [node.bls("generate")["public"] for _ in range(2)]
         transactions = []
         for operator, fee in ((pending_operator, pending_fee), (mined_operator, mined_fee)):
-            prepared = node.protx("update_shared_registrar_prepare", protx_hash, operator, "", fee)
+            prepared = node.protx("shared_update_registrar_prepare", protx_hash, operator, "", fee)
             sigs = node.protx("shared_sign", prepared["tx"])
             transactions.append(node.protx("shared_combine", prepared["tx"], sigs))
 
@@ -274,7 +274,7 @@ class MasternodeSharesTest(DashTestFramework):
         self.disconnect_nodes(0, 1)
         pending_txid = node.sendrawtransaction(transactions[0])
         reward = node.getnewaddress()
-        share_txid = node.protx("update_share", protx_hash, 0, reward, share_fee)
+        share_txid = node.protx("shared_update_share", protx_hash, 0, reward, share_fee)
         # Simulate another miner confirming a different rotation, using independent fee inputs.
         # The pending registrar update is signed by the immutable share owners and remains valid.
         other = self.nodes[1]
@@ -334,7 +334,7 @@ class MasternodeSharesTest(DashTestFramework):
         funding = miner.createrawtransaction(inputs, {address: Decimal("0.99995")
                                                       for address in change_addresses})
         operator = node.bls("generate")
-        prepared = miner.protx("register_shared_prepare", funding, shares,
+        prepared = miner.protx("shared_register_prepare", funding, shares,
                                f"127.0.0.1:{p2p_port(6)}", operator["public"], miner.getnewaddress(),
                                "12.50", 100, 10 * COIN)
         signatures = []
@@ -377,15 +377,15 @@ class MasternodeSharesTest(DashTestFramework):
             assert_equal(wallet.protx("info", protx_hash)["wallet"]["hasOwnerKey"], True)
 
         self.log.info("All shared lifecycle transactions require registration in a prior block")
-        update = wallets[0].protx("update_share", protx_hash, 0, common_reward, change_addresses[0], False)
-        prepared_registrar = wallets[0].protx("update_shared_registrar_prepare", protx_hash,
+        update = wallets[0].protx("shared_update_share", protx_hash, 0, common_reward, change_addresses[0], False)
+        prepared_registrar = wallets[0].protx("shared_update_registrar_prepare", protx_hash,
                                              "", "", change_addresses[0])
         sigs = [wallet.protx("shared_sign", prepared_registrar["tx"])[0] for wallet in wallets]
         registrar = wallets[0].protx("shared_combine", prepared_registrar["tx"], sigs)
-        dissolve = wallets[0].protx("dissolve", protx_hash, 0, DISSOLVE_FEE, False)
+        shared_dissolve = wallets[0].protx("shared_dissolve", protx_hash, 0, DISSOLVE_FEE, False)
         node.invalidateblock(registration_block)
         for lifecycle, reason in ((update, "bad-proupshare-hash"),
-                                  (registrar, "bad-proupsharedreg-hash"), (dissolve, "bad-prodis-hash")):
+                                  (registrar, "bad-proupsharedreg-hash"), (shared_dissolve, "bad-prodis-hash")):
             assert_raises_rpc_error(-25, reason, self.generateblock, node,
                                     miner.getnewaddress(), [combined, lifecycle], sync_fun=self.no_op)
         node.reconsiderblock(registration_block)
@@ -437,7 +437,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.log.info("Unanimous registrar signing works across wallets; the funder finalizes inputs")
         voting = miner.getnewaddress()
-        prepared_update = wallets[0].protx("update_shared_registrar_prepare", protx_hash,
+        prepared_update = wallets[0].protx("shared_update_registrar_prepare", protx_hash,
                                            "", voting, change_addresses[0])
         signatures = [wallet.protx("shared_sign", prepared_update["tx"])[0] for wallet in wallets]
         assert_raises_rpc_error(-4, "transaction inputs could not be fully signed", wallets[1].protx,
@@ -445,7 +445,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.log.info("Conflicting voting-key and share reward updates are consensus-invalid in both block orders")
         registrar = wallets[0].protx("shared_combine", prepared_update["tx"], signatures)
-        reward_update = wallets[1].protx("update_share", protx_hash, 1, voting, change_addresses[1], False)
+        reward_update = wallets[1].protx("shared_update_share", protx_hash, 1, voting, change_addresses[1], False)
         for transactions, reason in (([registrar, reward_update], "bad-proupshare-payee-reuse"),
                                      ([reward_update, registrar], "bad-proupsharedreg-payee-reuse")):
             assert_raises_rpc_error(-25, reason, self.generateblock, node,
@@ -458,7 +458,7 @@ class MasternodeSharesTest(DashTestFramework):
         self.test_invalid_dissolutions(node, miner, wallets, protx_hash, shares)
 
         self.log.info("A pre-signed unanimous dissolution survives reindex and pays spendable refunds")
-        prepared_dissolve = miner.protx("dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
+        prepared_dissolve = miner.protx("shared_dissolve_prepare", protx_hash, 7, DISSOLVE_FEE)
         signatures = [wallet.protx("shared_sign", prepared_dissolve["tx"])[0] for wallet in wallets]
         dissolution = miner.protx("shared_combine", prepared_dissolve["tx"], signatures)
         state = miner.protx("info", protx_hash)["state"]
@@ -500,7 +500,7 @@ class MasternodeSharesTest(DashTestFramework):
             {"amount": 400 * COIN, "refundAddress": node.getnewaddress(), "ownerAddress": node.getnewaddress()},
         ]
         pre_funding = node.createrawtransaction([], {node.getnewaddress(): 1})
-        assert_raises_rpc_error(-8, "provider transaction version 3", node.protx, "register_shared_prepare",
+        assert_raises_rpc_error(-8, "provider transaction version 3", node.protx, "shared_register_prepare",
                                 pre_funding, pre_shares, "", node.bls("generate")["public"],
                                 node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS, EARLY_PENALTY)
 
@@ -592,7 +592,7 @@ class MasternodeSharesTest(DashTestFramework):
             {"amount": 400 * COIN, "refundAddress": refund2, "ownerAddress": owner2},
         ]
 
-        # register_shared_prepare preflights the consensus rules so consensus-invalid terms fail
+        # shared_register_prepare preflights the consensus rules so consensus-invalid terms fail
         # before any participant signs: a share sum below the collateral, and a penalty that is
         # not strictly below the smallest share
         preflight_funding = self.build_funding_tx(node)
@@ -600,14 +600,14 @@ class MasternodeSharesTest(DashTestFramework):
                           node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS]
         bad_shares = [dict(shares[0], amount=shares[0]["amount"] - 1), shares[1]]
         assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
-                                "register_shared_prepare", preflight_funding, bad_shares,
+                                "shared_register_prepare", preflight_funding, bad_shares,
                                 *preflight_args, EARLY_PENALTY)
         assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
-                                "register_shared_prepare", preflight_funding, shares,
+                                "shared_register_prepare", preflight_funding, shares,
                                 *preflight_args, 400 * COIN)
         # a penalty without an early period would only serve as a drain ceiling for a stolen key
         assert_raises_rpc_error(-8, "invalid shared registration terms", node.protx,
-                                "register_shared_prepare", preflight_funding, shares,
+                                "shared_register_prepare", preflight_funding, shares,
                                 *preflight_args[:-1], 0, EARLY_PENALTY)
 
         protx_hash, collateral_index = self.register_shared(node, shares, port_offset=1)
@@ -656,7 +656,7 @@ class MasternodeSharesTest(DashTestFramework):
         ]
         sigtest_funding = self.build_funding_tx(node)
         sigtest_prepared = node.protx(
-            "register_shared_prepare", sigtest_funding, shares_sigtest, f"127.0.0.1:{p2p_port(4)}",
+            "shared_register_prepare", sigtest_funding, shares_sigtest, f"127.0.0.1:{p2p_port(4)}",
             node.bls("generate")["public"], node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS, EARLY_PENALTY)
         # The consent digest commits to the lock fields, so shared_sign refuses a time-locked
         # registration unless the signer explicitly opts in (mirroring the dissolution guard)
@@ -754,9 +754,9 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         # an empty reward address is not a reset; the refund address must be passed explicitly
-        assert_raises_rpc_error(-5, "invalid reward address", node.protx, "update_share", protx_hash, 0, "", fee_addr)
+        assert_raises_rpc_error(-5, "invalid reward address", node.protx, "shared_update_share", protx_hash, 0, "", fee_addr)
         reward1 = node.getnewaddress()
-        node.protx("update_share", protx_hash, 0, reward1, fee_addr)
+        node.protx("shared_update_share", protx_hash, 0, reward1, fee_addr)
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
         info = node.protx("info", protx_hash)
@@ -798,7 +798,7 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         new_voting = node.getnewaddress()
-        prepared = node.protx("update_shared_registrar_prepare", protx_hash, "", new_voting, fee_addr)
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", new_voting, fee_addr)
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_equal(len(sigs), 2)
         node.protx("shared_combine", prepared["tx"], sigs, True)
@@ -812,7 +812,7 @@ class MasternodeSharesTest(DashTestFramework):
         self.log.info("A registrar update with swapped share signatures is rejected by consensus")
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
-        prepared = node.protx("update_shared_registrar_prepare", protx_hash, "", node.getnewaddress(), fee_addr)
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", node.getnewaddress(), fee_addr)
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_equal(sorted(s["shareIndex"] for s in sigs), [0, 1])
         swapped = [
@@ -825,7 +825,7 @@ class MasternodeSharesTest(DashTestFramework):
         self.log.info("A registrar update cannot move the voting key onto a share's payee script")
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
-        prepared = node.protx("update_shared_registrar_prepare", protx_hash, "", reward1, fee_addr)
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", reward1, fee_addr)
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_raises_rpc_error(None, "bad-proupsharedreg-payee-reuse", node.protx,
                                 "shared_combine", prepared["tx"], sigs, True)
@@ -834,12 +834,12 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         pair_addr = node.getnewaddress()
-        prepared = node.protx("update_shared_registrar_prepare", protx_hash, "", pair_addr, fee_addr)
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", pair_addr, fee_addr)
         sigs = node.protx("shared_sign", prepared["tx"])
         node.protx("shared_combine", prepared["tx"], sigs, True)
         # both pass tip-level checks individually, so only the mempool pair guard keeps an honest
         # miner from assembling a block that consensus would then reject
-        assert_raises_rpc_error(None, "protx-dup", node.protx, "update_share", protx_hash, 0, pair_addr, fee_addr)
+        assert_raises_rpc_error(None, "protx-dup", node.protx, "shared_update_share", protx_hash, 0, pair_addr, fee_addr)
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
         assert_equal(node.protx("info", protx_hash)["state"]["votingAddress"], pair_addr)
@@ -848,8 +848,8 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         rev_addr = node.getnewaddress()
-        node.protx("update_share", protx_hash, 0, rev_addr, fee_addr)
-        prepared = node.protx("update_shared_registrar_prepare", protx_hash, "", rev_addr, fee_addr)
+        node.protx("shared_update_share", protx_hash, 0, rev_addr, fee_addr)
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", rev_addr, fee_addr)
         sigs = node.protx("shared_sign", prepared["tx"])
         assert_raises_rpc_error(None, "protx-dup", node.protx,
                                 "shared_combine", prepared["tx"], sigs, True)
@@ -859,7 +859,7 @@ class MasternodeSharesTest(DashTestFramework):
         # restore share 0's reward script for the sections below
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
-        node.protx("update_share", protx_hash, 0, reward1, fee_addr)
+        node.protx("shared_update_share", protx_hash, 0, reward1, fee_addr)
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
         assert_equal(node.protx("info", protx_hash)["state"]["shares"][0]["rewardAddress"], reward1)
@@ -868,7 +868,7 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         new_operator = node.bls("generate")
-        prepared = node.protx("update_shared_registrar_prepare", protx_hash, new_operator["public"], "", fee_addr)
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, new_operator["public"], "", fee_addr)
         sigs = node.protx("shared_sign", prepared["tx"])
         node.protx("shared_combine", prepared["tx"], sigs, True)
         self.bump_mocktime(10 * 60 + 1)
@@ -903,12 +903,12 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.log.info("The dissolution fee is capped")
         assert_raises_rpc_error(-8, "fee exceeds the consensus ceiling", node.protx,
-                                "dissolve", protx_hash, 1, 1000001, False)
+                                "shared_dissolve", protx_hash, 1, 1000001, False)
 
         self.log.info("A zero-penalty unilateral dissolution is invalid during the early period")
         assert_raises_rpc_error(-8, "must pay the penalty", node.protx,
-                                "dissolve", protx_hash, 1, DISSOLVE_FEE, True, False)
-        standby_hex = node.protx("dissolve", protx_hash, 1, DISSOLVE_FEE, False, False)
+                                "shared_dissolve", protx_hash, 1, DISSOLVE_FEE, True, False)
+        standby_hex = node.protx("shared_dissolve", protx_hash, 1, DISSOLVE_FEE, False, False)
         standby_res = node.testmempoolaccept([standby_hex])[0]
         assert_equal(standby_res["allowed"], False)
         assert_equal(standby_res["reject-reason"], "bad-prodis-penalty-floor")
@@ -916,7 +916,7 @@ class MasternodeSharesTest(DashTestFramework):
         self.log.info("A penalty-paying unilateral dissolution succeeds during the early period")
         registered_height = node.protx("info", protx_hash)["state"]["registeredHeight"]
         assert_greater_than(registered_height + EARLY_PERIOD_BLOCKS, node.getblockcount() + 1)
-        dissolve_txid = node.protx("dissolve", protx_hash, 1, DISSOLVE_FEE)
+        dissolve_txid = node.protx("shared_dissolve", protx_hash, 1, DISSOLVE_FEE)
         dissolve_tx = node.getrawtransaction(dissolve_txid, 1)
         assert_equal(dissolve_tx["proDisTx"]["proTxHash"], protx_hash)
         assert_equal(dissolve_tx["proDisTx"]["actorIndex"], 1)
@@ -940,7 +940,7 @@ class MasternodeSharesTest(DashTestFramework):
              "ownerAddress": owner4},
         ]
         protx_hash2, _ = self.register_shared(node, shares2, port_offset=2)
-        standby_hex = node.protx("dissolve", protx_hash2, 0, DISSOLVE_FEE, False, False)
+        standby_hex = node.protx("shared_dissolve", protx_hash2, 0, DISSOLVE_FEE, False, False)
         # a signed unilateral dissolution must not be re-signed via the multi-party flow:
         # shared_sign signs the unanimous digest, which can never verify on a one-signature
         # transaction, so it fails fast instead of producing unusable signatures
@@ -952,7 +952,7 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(node.testmempoolaccept([standby_hex])[0]["allowed"], True)
 
         self.log.info("A unanimous dissolution is penalty-free")
-        prepared = node.protx("dissolve_prepare", protx_hash2, 0, DISSOLVE_FEE)
+        prepared = node.protx("shared_dissolve_prepare", protx_hash2, 0, DISSOLVE_FEE)
         # The digest commits lock fields, so shared_sign refuses a time-locked dissolution unless
         # the signer explicitly opts in
         locked_tx = tx_from_hex(prepared["tx"])
@@ -997,8 +997,8 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr2, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         # Both transactions coexist in the mempool (no false provider conflict).
-        dissolve_txid = node.protx("dissolve", protx_hash3, 0, 500000)
-        update_txid = node.protx("update_share", protx_hash3, 1, node.getnewaddress(), fee_addr2)
+        dissolve_txid = node.protx("shared_dissolve", protx_hash3, 0, 500000)
+        update_txid = node.protx("shared_update_share", protx_hash3, 1, node.getnewaddress(), fee_addr2)
         mempool = node.getrawmempool()
         assert dissolve_txid in mempool
         assert update_txid in mempool
@@ -1041,7 +1041,7 @@ class MasternodeSharesTest(DashTestFramework):
         node.sendtoaddress(fee_addr3, 1)
         self.generate(node, 1, sync_fun=self.no_op)
         reward7 = node.getnewaddress()
-        node.protx("update_share", protx_hash4, 0, reward7, fee_addr3)
+        node.protx("shared_update_share", protx_hash4, 0, reward7, fee_addr3)
         self.bump_mocktime(10 * 60 + 1)
         update_block = self.generate(node, 1, sync_fun=self.no_op)[0]
         assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], reward7)
@@ -1061,7 +1061,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.log.info("A reorg across a dissolution restores the masternode and its shares")
         info_before_dissolve = node.protx("info", protx_hash4)
-        dissolve_txid4 = node.protx("dissolve", protx_hash4, 0, DISSOLVE_FEE)
+        dissolve_txid4 = node.protx("shared_dissolve", protx_hash4, 0, DISSOLVE_FEE)
         self.bump_mocktime(10 * 60 + 1)
         dissolve_block = self.generate(node, 1, sync_fun=self.no_op)[0]
         assert_raises_rpc_error(None, None, node.protx, "info", protx_hash4)

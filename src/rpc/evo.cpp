@@ -312,7 +312,7 @@ static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::str
 
 #ifdef ENABLE_WALLET
 // The shared-masternode helpers and RPCs below all feed into wallet-gated signing (protx
-// shared_sign / dissolve), so they are only compiled with wallet support.
+// shared_sign / shared_dissolve), so they are only compiled with wallet support.
 
 static CollateralShares ParseShares(const UniValue& value, const std::string& paramName)
 {
@@ -1469,7 +1469,7 @@ static RPCHelpMan protx_shared_sign()
         "with every share owner key this wallet holds and returns the produced signatures. The transaction\n"
         "itself is not modified; pass the signatures to \"protx shared_combine\".\n"
         "Only the multi-party flows pass through here: a unilateral dissolution is built, signed and\n"
-        "submitted in one step by \"protx dissolve\" and never needs shared_sign.\n"
+        "submitted in one step by \"protx shared_dissolve\" and never needs shared_sign.\n"
         + HELP_REQUIRING_PASSPHRASE,
         {
             {"tx", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The serialized transaction in hex format."},
@@ -1543,15 +1543,15 @@ static RPCHelpMan protx_shared_sign()
         if (!opt_ptx) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction payload not deserializable");
         }
-        // shared_sign only ever signs unanimous dissolutions (built unsigned by dissolve_prepare);
+        // shared_sign only ever signs unanimous dissolutions (built unsigned by shared_dissolve_prepare);
         // the signing digest commits to the signature count, so signatures produced here would
         // never verify on a transaction carrying a different count. A unilateral dissolution is
-        // built, signed and submitted in one step by "protx dissolve" and must not pass through
+        // built, signed and submitted in one step by "protx shared_dissolve" and must not pass through
         // here at all.
         if (!opt_ptx->vchSigs.empty()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                                "transaction already carries dissolution signatures; a unilateral dissolution "
-                               "is created fully signed by \"protx dissolve\" and needs no shared_sign step");
+                               "is created fully signed by \"protx shared_dissolve\" and needs no shared_sign step");
         }
         const auto dmn = dmnman.GetListAtChainTip().GetMN(opt_ptx->proTxHash);
         if (!dmn || !dmn->pdmnState->IsShared()) {
@@ -1594,9 +1594,9 @@ static RPCHelpMan protx_shared_sign()
     };
 }
 
-static RPCHelpMan protx_dissolve()
+static RPCHelpMan protx_shared_dissolve()
 {
-    return RPCHelpMan{"protx dissolve",
+    return RPCHelpMan{"protx shared_dissolve",
         "\nCreates, signs and optionally submits a unilateral ProDisTx that dissolves a shared masternode,\n"
         "refunding every participant's principal to its immutable refund script. During the early period a\n"
         "unilateral dissolution pays the configured penalty, redistributed pro-rata to the other shares.\n"
@@ -1612,7 +1612,7 @@ static RPCHelpMan protx_dissolve()
             {"payPenalty", RPCArg::Type::BOOL, RPCArg::DefaultHint{"determined by the current height"}, "Pay the early-period penalty. Pass true to build a standby valid at any height, false for one valid only after the early period ends."},
         },
         RPCResult{RPCResult::Type::STR_HEX, "result", "The transaction id if submitted, otherwise the signed transaction hex"},
-        RPCExamples{HelpExampleCli("protx", "dissolve \"proTxHash\" 0")},
+        RPCExamples{HelpExampleCli("protx", "shared_dissolve \"proTxHash\" 0")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -1674,9 +1674,9 @@ static RPCHelpMan protx_dissolve()
     };
 }
 
-static RPCHelpMan protx_update_share()
+static RPCHelpMan protx_shared_update_share()
 {
-    return RPCHelpMan{"protx update_share",
+    return RPCHelpMan{"protx shared_update_share",
         "\nCreates and sends a ProUpShareTx updating one collateral share's reward script. Only the share's\n"
         "owner key (which this wallet must hold) can update it; all other share fields are immutable.\n"
         + HELP_REQUIRING_PASSPHRASE,
@@ -1693,7 +1693,7 @@ static RPCHelpMan protx_update_share()
             RPCResult{"if \"submit\" is set to false",
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProUpShareTx in hex format"},
         },
-        RPCExamples{HelpExampleCli("protx", "update_share \"proTxHash\" 0 \"" + EXAMPLE_ADDRESS[1] + "\" \"" + EXAMPLE_ADDRESS[0] + "\"")},
+        RPCExamples{HelpExampleCli("protx", "shared_update_share \"proTxHash\" 0 \"" + EXAMPLE_ADDRESS[1] + "\" \"" + EXAMPLE_ADDRESS[0] + "\"")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -1753,9 +1753,9 @@ static RPCHelpMan protx_update_share()
     };
 }
 
-static RPCHelpMan protx_update_shared_registrar_prepare()
+static RPCHelpMan protx_shared_update_registrar_prepare()
 {
-    return RPCHelpMan{"protx update_shared_registrar_prepare",
+    return RPCHelpMan{"protx shared_update_registrar_prepare",
         "\nCreates an unsigned ProUpSharedRegTx updating a shared masternode's operator key and/or voting\n"
         "key. Fee inputs from this wallet are added and signed. Every share owner must then sign the\n"
         "returned transaction with \"protx shared_sign\"; combine the signatures with \"protx shared_combine\"\n"
@@ -1773,7 +1773,7 @@ static RPCHelpMan protx_update_shared_registrar_prepare()
             {RPCResult::Type::STR_HEX, "tx", "The serialized unsigned ProUpSharedRegTx"},
             {RPCResult::Type::STR_HEX, "signHash", "The payload hash every share owner must sign"},
         }},
-        RPCExamples{HelpExampleCli("protx", "update_shared_registrar_prepare \"proTxHash\" \"operatorPubKey\" \"\" \"" + EXAMPLE_ADDRESS[0] + "\"")},
+        RPCExamples{HelpExampleCli("protx", "shared_update_registrar_prepare \"proTxHash\" \"operatorPubKey\" \"\" \"" + EXAMPLE_ADDRESS[0] + "\"")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -1834,7 +1834,7 @@ static RPCHelpMan protx_shared_combine()
         "transaction. For a shared ProRegTx the completed transaction hex is returned and the funding\n"
         "inputs still have to be signed (e.g. by passing the result around signrawtransactionwithwallet).\n"
         "For a ProDisTx or ProUpSharedRegTx the transaction can be submitted directly. Submit a\n"
-        "ProUpSharedRegTx from the wallet that ran \"protx update_shared_registrar_prepare\": combining\n"
+        "ProUpSharedRegTx from the wallet that ran \"protx shared_update_registrar_prepare\": combining\n"
         "re-signs its fee inputs, which only that wallet can do (with submit=false the returned hex can\n"
         "be finished there with signrawtransactionwithwallet).\n",
         {
@@ -1909,11 +1909,11 @@ static RPCHelpMan protx_shared_combine()
         const size_t share_count{dmn->pdmnState->shares.size()};
         // shared_sign only produces signatures over the unanimous digest (which commits to the
         // signature count), so a one-signature transaction built here could never verify; the
-        // only valid producer of a unilateral dissolution is "protx dissolve"
+        // only valid producer of a unilateral dissolution is "protx shared_dissolve"
         if (sigs.size() != share_count) {
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                                "a dissolution combined through shared_combine requires a signature from every "
-                               "share; a unilateral dissolution is created fully signed by \"protx dissolve\"");
+                               "share; a unilateral dissolution is created fully signed by \"protx shared_dissolve\"");
         }
         opt_ptx->vchSigs.clear();
         for (size_t i = 0; i < share_count; i++) {
@@ -2573,9 +2573,9 @@ static RPCHelpMan evodb_repair()
 }
 
 #ifdef ENABLE_WALLET
-static RPCHelpMan protx_register_shared_prepare()
+static RPCHelpMan protx_shared_register_prepare()
 {
-    return RPCHelpMan{"protx register_shared_prepare",
+    return RPCHelpMan{"protx shared_register_prepare",
         "\nCreates an unsigned shared masternode registration (a version 3 ProRegTx with a collateral share\n"
         "table) by appending the shared-collateral output and payload to a caller-supplied funding\n"
         "transaction. The funding transaction must already contain every participant's contribution inputs\n"
@@ -2583,7 +2583,7 @@ static RPCHelpMan protx_register_shared_prepare()
         "returned consent hash via \"protx shared_sign\"; combine with \"protx shared_combine\", then have the\n"
         "funding inputs signed (signrawtransactionwithwallet) and broadcast with sendrawtransaction.\n"
         "\nIMPORTANT: once the registration confirms, every participant should create a zero-penalty\n"
-        "standby dissolution (\"protx dissolve <proTxHash> <shareIndex> <fee> false false\") and store\n"
+        "standby dissolution (\"protx shared_dissolve <proTxHash> <shareIndex> <fee> false false\") and store\n"
         "the returned hex with their refund-key backup, separately from the share owner key. It becomes\n"
         "valid when the early period ends (or immediately when no early period applies), then never expires;\n"
         "broadcasting it after that point recovers the participant's principal without cooperation.\n",
@@ -2612,7 +2612,7 @@ static RPCHelpMan protx_register_shared_prepare()
             {RPCResult::Type::NUM, "collateralIndex", "Output index of the shared collateral"},
             {RPCResult::Type::STR_HEX, "consentHash", "The consent digest every share owner must sign"},
         }},
-        RPCExamples{HelpExampleCli("protx", "register_shared_prepare \"fundingTx\" \"[...]\" \"1.2.3.4:1234\" \"operatorPubKey\" \"" + EXAMPLE_ADDRESS[1] + "\" 0 10000 5000000000")},
+        RPCExamples{HelpExampleCli("protx", "shared_register_prepare \"fundingTx\" \"[...]\" \"1.2.3.4:1234\" \"operatorPubKey\" \"" + EXAMPLE_ADDRESS[1] + "\" 0 10000 5000000000")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -2666,7 +2666,7 @@ static RPCHelpMan protx_register_shared_prepare()
     ptx.nEarlyPenalty = request.params[7].getInt<int64_t>();
 
     // Append the shared collateral output; the collateral is always internal
-    tx.vout.emplace_back(GetMnType(ptx.nType).collat_amount, sharedcollateral::SharedCollateralScript());
+    tx.vout.emplace_back(GetMnType(ptx.nType).collat_amount, SharedCollateralScript());
     ptx.collateralOutpoint = COutPoint(uint256(), static_cast<uint32_t>(tx.vout.size() - 1));
 
     // Placeholder consent signatures; filled in by "protx shared_combine"
@@ -2693,12 +2693,12 @@ static RPCHelpMan protx_register_shared_prepare()
     };
 }
 
-static RPCHelpMan protx_dissolve_prepare()
+static RPCHelpMan protx_shared_dissolve_prepare()
 {
-    return RPCHelpMan{"protx dissolve_prepare",
+    return RPCHelpMan{"protx shared_dissolve_prepare",
         "\nCreates an unsigned unanimous ProDisTx dissolving a shared masternode without penalty at any\n"
         "height. Every share owner must sign it via \"protx shared_sign\"; combine and submit the result\n"
-        "with \"protx shared_combine\". For a unilateral dissolution use \"protx dissolve\" instead.\n",
+        "with \"protx shared_combine\". For a unilateral dissolution use \"protx shared_dissolve\" instead.\n",
         {
             {"proTxHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hash of the initial ProRegTx."},
             {"actorIndex", RPCArg::Type::NUM, RPCArg::Optional::NO, "Index into the share table of the participant paying the transaction fee."},
@@ -2709,7 +2709,7 @@ static RPCHelpMan protx_dissolve_prepare()
             {RPCResult::Type::STR_HEX, "tx", "The serialized unsigned ProDisTx"},
             {RPCResult::Type::STR_HEX, "signHash", "The digest every share owner must sign"},
         }},
-        RPCExamples{HelpExampleCli("protx", "dissolve_prepare \"proTxHash\" 0")},
+        RPCExamples{HelpExampleCli("protx", "shared_dissolve_prepare \"proTxHash\" 0")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -2769,13 +2769,13 @@ static RPCHelpMan protx_help()
         "  update_registrar         - Create and send ProUpRegTx to network\n"
         "  update_registrar_legacy  - (DEPRECATED) Create ProUpRegTx by parsing BLS using the legacy scheme, then send it to network\n"
         "  revoke                   - Create and send ProUpRevTx to network\n"
-        "  register_shared_prepare  - Create an unsigned shared masternode ProTx\n"
-        "  shared_sign              - Sign a shared masternode transaction with this wallet's share owner keys\n"
-        "  shared_combine           - Combine share owner signatures into a shared masternode transaction\n"
-        "  dissolve                 - Create, sign and send a unilateral ProDisTx\n"
-        "  dissolve_prepare         - Create an unsigned unanimous ProDisTx\n"
-        "  update_share             - Create and send a ProUpShareTx updating one share's reward address\n"
-        "  update_shared_registrar_prepare - Create an unsigned ProUpSharedRegTx\n"
+        "  shared_register_prepare         - Create an unsigned shared masternode ProTx\n"
+        "  shared_sign                     - Sign a shared masternode transaction with this wallet's share owner keys\n"
+        "  shared_combine                  - Combine share owner signatures into a shared masternode transaction\n"
+        "  shared_dissolve                 - Create, sign and send a unilateral ProDisTx\n"
+        "  shared_dissolve_prepare         - Create an unsigned unanimous ProDisTx\n"
+        "  shared_update_share             - Create and send a ProUpShareTx updating one share's reward address\n"
+        "  shared_update_registrar_prepare - Create an unsigned ProUpSharedRegTx\n"
 #endif
         "  diff                     - Calculate a diff and a proof between two masternode lists\n"
         "  listdiff                 - Calculate a full MN list diff between two masternode lists\n",
@@ -2898,13 +2898,13 @@ Span<const CRPCCommand> GetWalletEvoRPCCommands()
         {"evo", &protx_register_submit},
         {"evo", &protx_update_registrar},
         {"evo", &protx_revoke},
-        {"evo", &protx_register_shared_prepare},
+        {"evo", &protx_shared_register_prepare},
         {"evo", &protx_shared_sign},
         {"evo", &protx_shared_combine},
-        {"evo", &protx_dissolve},
-        {"evo", &protx_dissolve_prepare},
-        {"evo", &protx_update_share},
-        {"evo", &protx_update_shared_registrar_prepare},
+        {"evo", &protx_shared_dissolve},
+        {"evo", &protx_shared_dissolve_prepare},
+        {"evo", &protx_shared_update_share},
+        {"evo", &protx_shared_update_registrar_prepare},
         {"hidden", &protx_register_legacy},
         {"hidden", &protx_register_fund_legacy},
         {"hidden", &protx_register_prepare_legacy},

@@ -7,8 +7,6 @@
 
 #include <script/script.h>
 
-namespace sharedcollateral {
-
 /**
  * The shared masternode collateral template script: 0x04 "DSHC" OP_DROP OP_TRUE
  * (hex 04445348437551). At the script layer this is anyone-can-spend; all
@@ -27,7 +25,5 @@ inline bool IsSharedCollateralScript(const CScript& script)
 {
     return script == SharedCollateralScript();
 }
-
-} // namespace sharedcollateral
 
 #endif // BITCOIN_EVO_SHAREDCOLLATERAL_H

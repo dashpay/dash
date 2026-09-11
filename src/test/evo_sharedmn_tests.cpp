@@ -35,29 +35,29 @@ BOOST_FIXTURE_TEST_SUITE(evo_sharedmn_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(shared_collateral_template)
 {
-    const CScript& templ = sharedcollateral::SharedCollateralScript();
+    const CScript& templ = SharedCollateralScript();
 
     // The template must be exactly the 7 bytes specified by the DIP
     BOOST_CHECK_EQUAL(HexStr(templ), "04445348437551");
-    BOOST_CHECK(sharedcollateral::IsSharedCollateralScript(templ));
+    BOOST_CHECK(IsSharedCollateralScript(templ));
 
     // Matching is exact-script, never prefix or near-miss
     {
         CScript prefix_extended{templ};
         prefix_extended << OP_NOP;
-        BOOST_CHECK(!sharedcollateral::IsSharedCollateralScript(prefix_extended));
+        BOOST_CHECK(!IsSharedCollateralScript(prefix_extended));
     }
     {
         // Same tag, missing OP_TRUE
         CScript truncated = CScript() << std::vector<unsigned char>{'D', 'S', 'H', 'C'} << OP_DROP;
-        BOOST_CHECK(!sharedcollateral::IsSharedCollateralScript(truncated));
+        BOOST_CHECK(!IsSharedCollateralScript(truncated));
     }
     {
         // Different tag byte
         CScript wrong_tag = CScript() << std::vector<unsigned char>{'D', 'S', 'H', 'D'} << OP_DROP << OP_TRUE;
-        BOOST_CHECK(!sharedcollateral::IsSharedCollateralScript(wrong_tag));
+        BOOST_CHECK(!IsSharedCollateralScript(wrong_tag));
     }
-    BOOST_CHECK(!sharedcollateral::IsSharedCollateralScript(CScript()));
+    BOOST_CHECK(!IsSharedCollateralScript(CScript()));
 }
 
 BOOST_AUTO_TEST_CASE(shared_collateral_template_spendable_at_script_layer)
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(shared_collateral_template_spendable_at_script_layer)
     // The template must evaluate true with an empty scriptSig under standard
     // flags (including CLEANSTACK); all spend protection is consensus-level.
     ScriptError err;
-    BOOST_CHECK(VerifyScript(CScript(), sharedcollateral::SharedCollateralScript(), STANDARD_SCRIPT_VERIFY_FLAGS,
+    BOOST_CHECK(VerifyScript(CScript(), SharedCollateralScript(), STANDARD_SCRIPT_VERIFY_FLAGS,
                              BaseSignatureChecker(), &err));
     BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
 }
@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(share_list_validation)
     // Script type restrictions: template, non-standard, P2SH allowed
     {
         CollateralShares shares{two_shares};
-        shares[0].scriptReward = sharedcollateral::SharedCollateralScript();
+        shares[0].scriptReward = SharedCollateralScript();
         CheckShares(shares, DummyJoinSigs(2), 0, 0, voting_id, "bad-protx-shares-payee-template");
         shares[0].scriptReward = CScript() << OP_TRUE;
         CheckShares(shares, DummyJoinSigs(2), 0, 0, voting_id, "bad-protx-shares-payee");
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(share_list_validation)
     }
     {
         CollateralShares shares{two_shares};
-        shares[0].scriptRefund = sharedcollateral::SharedCollateralScript();
+        shares[0].scriptRefund = SharedCollateralScript();
         CheckShares(shares, DummyJoinSigs(2), 0, 0, voting_id, "bad-protx-shares-payee-template");
     }
 
@@ -473,7 +473,7 @@ BOOST_AUTO_TEST_CASE(shared_reg_consent_hash)
     mtx.nType = TRANSACTION_PROVIDER_REGISTER;
     mtx.vin.emplace_back(COutPoint(GetRandHash(), 0));
     mtx.vin.emplace_back(COutPoint(GetRandHash(), 1));
-    mtx.vout.emplace_back(dmn_types::Regular.collat_amount, sharedcollateral::SharedCollateralScript());
+    mtx.vout.emplace_back(dmn_types::Regular.collat_amount, SharedCollateralScript());
     CKey change_key;
     mtx.vout.emplace_back(5 * COIN, NewP2PKHScript(change_key));
 
@@ -978,7 +978,7 @@ BOOST_AUTO_TEST_CASE(shared_tx_filter_matching)
     reg_mtx.nVersion = 3;
     reg_mtx.nType = TRANSACTION_PROVIDER_REGISTER;
     reg_mtx.vin.emplace_back(COutPoint(GetRandHash(), 0));
-    reg_mtx.vout.emplace_back(dmn_types::Regular.collat_amount, sharedcollateral::SharedCollateralScript());
+    reg_mtx.vout.emplace_back(dmn_types::Regular.collat_amount, SharedCollateralScript());
     SetTxPayload(reg_mtx, proTx);
     const CTransaction reg_tx(reg_mtx);
 
