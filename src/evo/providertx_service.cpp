@@ -274,8 +274,8 @@ std::optional<ProviderTxError> ResolveFeeSource(const std::optional<CTxDestinati
     } else if (!operator_payout.empty()) {
         ExtractDestination(operator_payout, fund_destination);
     } else {
-        const auto owner_payouts{GetOwnerPayouts(dmn_state)};
-        if (owner_payouts.empty() || !ExtractDestination(owner_payouts.front().scriptPayout, fund_destination)) {
+        const auto reward_scripts{dmn_state.GetOwnerRewardScripts()};
+        if (reward_scripts.empty() || !ExtractDestination(reward_scripts.front(), fund_destination)) {
             return Error(ProviderTxErrorCode::INVALID_PARAMETER, std::move(missing_error));
         }
     }

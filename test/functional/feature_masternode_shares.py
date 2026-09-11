@@ -879,18 +879,20 @@ class MasternodeSharesTest(DashTestFramework):
         assert_greater_than(info["state"]["PoSeBanHeight"], 0)
         assert_equal(self.owner_gbt_payees(node), [])
 
-        # A shared masternode has no payout list to fall back to as an update_service fee source,
-        # so omitting feeSourceAddress must produce a clear error rather than picking a
-        # participant's script (or crashing on an empty payout list)
-        assert_raises_rpc_error(-8, "no default fee source", node.protx, "update_service", protx_hash,
-                                [f"127.0.0.1:{p2p_port(1)}"], new_operator["secret"])
-
+        # With no feeSourceAddress and no operator payout script, update_service falls back to
+        # the first owner reward script like it does for ordinary masternodes; for a shared
+        # masternode that is share 0's effective reward script (reward1 here, funded by the
+        # coinbase rewards checked above)
+        self.log.info("update_service falls back to the first share's reward script as fee source")
+        node.sendtoaddress(reward1, 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        fallback_txid = node.protx("update_service", protx_hash, [f"127.0.0.1:{p2p_port(1)}"], new_operator["secret"])
+        fallback_tx = node.getrawtransaction(fallback_txid, 1)
+        fallback_inputs = [node.getrawtransaction(vin["txid"], 1)["vout"][vin["vout"]] for vin in fallback_tx["vin"]]
+        assert all(inp["scriptPubKey"]["address"] == reward1 for inp in fallback_inputs)
         # The revive gate requires all keys to be set, and a shared masternode has a null
         # keyIDOwner: this exercises the shared-specific carve-out, without which a banned shared
         # masternode could never be revived
-        node.sendtoaddress(fee_addr, 1)
-        self.generate(node, 1, sync_fun=self.no_op)
-        node.protx("update_service", protx_hash, [f"127.0.0.1:{p2p_port(1)}"], new_operator["secret"], "", fee_addr)
         self.bump_mocktime(10 * 60 + 1)
         self.generate(node, 1, sync_fun=self.no_op)
         info = node.protx("info", protx_hash)
