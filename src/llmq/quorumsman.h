@@ -85,6 +85,8 @@ private:
     mutable size_t m_inbound_request_count GUARDED_BY(cs_data_requests){0};
 
     mutable Mutex m_cs_maps;
+    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache
+        GUARDED_BY(m_cs_maps);
     mutable PerLlmqTypeCache<CQuorumPtr> mapQuorumsCache GUARDED_BY(m_cs_maps);
     mutable PerLlmqTypeCache<std::vector<CQuorumCPtr>> scanQuorumsCache GUARDED_BY(m_cs_maps);
 
@@ -144,6 +146,12 @@ public:
                                          gsl::not_null<const CBlockIndex*> pindexStart,
                                          size_t nCountRequested, const CChain& chain) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_db, !m_cs_maps);
+
+    std::vector<CFinalCommitment> ScanCommitments(Consensus::LLMQType llmqType, size_t nCountRequested) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
+    std::vector<CFinalCommitment> ScanCommitments(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
+                                                  size_t nCountRequested) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
 
     bool IsMasternode() const;
     bool IsWatching() const;
@@ -209,6 +217,9 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
                                    const uint256& selectionHash, const CBlockIndex* pindexStart);
 
 CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
+                                   const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
+
+std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
                                    const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
 
 VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQuorumManager& qman,

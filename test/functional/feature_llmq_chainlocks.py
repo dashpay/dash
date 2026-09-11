@@ -65,6 +65,13 @@ class LLMQChainLocksTest(DashTestFramework):
         self.mine_cycle_quorum()
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
+        # No later coinbase can carry the current tip's signature yet. Reaching
+        # the network gate proves the RPC selected the manager's live ChainLock;
+        # complete proof generation supports mainnet/testnet, not regtest.
+        node = self.nodes[0]
+        assert_raises_rpc_error(-1, "proofs support mainnet/testnet", node.getquorumproofchain,
+                                node.getblockhash(1), node.getblockcount())
+
         self.log.info("Mine single block, ensure it includes latest chainlock")
         self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks)
         self.test_coinbase_best_cl(self.nodes[0])
@@ -292,6 +299,13 @@ class LLMQChainLocksTest(DashTestFramework):
             target_block_hash = node.getblockhash(best_cl_height)
             # Verify CL signature
             assert node.verifychainlock(target_block_hash, best_cl_signature, best_cl_height)
+            historical = node.getchainlockbyheight(best_cl_height)
+            assert_equal(historical["height"], best_cl_height)
+            assert_equal(historical["blockhash"], target_block_hash)
+            assert_equal(historical["signature"], best_cl_signature)
+            assert historical["cbtx_height"] <= cb_height
+            carrier = node.getblock(node.getblockhash(historical["cbtx_height"]), 2)["cbTx"]
+            assert_equal(int(carrier["height"]) - int(carrier["bestCLHeightDiff"]) - 1, best_cl_height)
         else:
             assert "bestCLHeightDiff" not in cbtx and "bestCLSignature" not in cbtx
 
