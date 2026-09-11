@@ -282,6 +282,16 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
     if(total > nBalance)
     {
+#ifdef ENABLE_PLATFORM_GUI
+        // DashPay contact payments commonly chain off unconfirmed change, so
+        // distinguish "wait for a confirmation" from a real shortfall. The
+        // unconfirmed balance is wallet-wide, so with coin control active this
+        // only affects which error is shown, never whether the send proceeds.
+        const auto balances{m_wallet->getBalances()};
+        if (total <= nBalance + balances.unconfirmed_balance) {
+            return AmountTemporarilyUnavailable;
+        }
+#endif
         return AmountExceedsBalance;
     }
 
@@ -321,7 +331,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
-void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin)
+WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -339,7 +349,9 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
         }
 
         auto& newTx = transaction.getWtx();
-        wallet().commitTransaction(newTx, /*value_map=*/std::move(mapValue), std::move(vOrderForm));
+        if (const auto error{wallet().commitTransaction(newTx, /*value_map=*/std::move(mapValue), std::move(vOrderForm))}) {
+            return SendCoinsReturn(TransactionCreationFailed, QString::fromStdString(error->translated));
+        }
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *newTx;
@@ -372,6 +384,7 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
     }
 
     checkBalanceChanged(m_wallet->getBalances()); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    return SendCoinsReturn(OK);
 }
 
 OptionsModel* WalletModel::getOptionsModel() const
@@ -614,6 +627,13 @@ WalletModel::UnlockContext::UnlockContext(WalletModel *_wallet, bool _valid, boo
         was_locked(_was_locked),
         was_mixing(_was_mixing)
 {
+}
+
+WalletModel::UnlockContext::UnlockContext(UnlockContext&& other) noexcept :
+    wallet(other.wallet), valid(other.valid), was_locked(other.was_locked), was_mixing(other.was_mixing)
+{
+    // The moved-to context exclusively owns the relock responsibility.
+    other.valid = false;
 }
 
 WalletModel::UnlockContext::~UnlockContext()

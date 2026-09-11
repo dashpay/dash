@@ -35,7 +35,9 @@
 #include <wallet/hdchain.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/walletutil.h>
+#include <evo/assetlocktx.h>
 #include <evo/deterministicmns.h>
+#include <evo/specialtx.h>
 #include <masternode/sync.h>
 #include <txdb.h>
 #include <node/context.h>
@@ -515,12 +517,55 @@ public:
             errors.push_back(std::move(error));
         return WalletTxSignResult{MakeTransactionRef(std::move(signed_tx)), complete, std::move(errors)};
     }
-    void commitTransaction(CTransactionRef tx,
+    util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const CPubKey& credit_pubkey,
+        const CCoinControl& coin_control) override
+    {
+#ifdef ENABLE_PLATFORM_GUI
+        if (credit_amount <= 0 || !credit_pubkey.IsValid()) {
+            return util::Error{Untranslated("invalid asset lock parameters")};
+        }
+
+        LOCK(m_wallet->cs_wallet);
+
+        CMutableTransaction mtx;
+        mtx.nVersion = 3;
+        mtx.nType = TRANSACTION_ASSET_LOCK;
+        // Version 2 payloads are consensus-invalid until the v24 hard fork
+        // applies to the next block. The credit output is P2PKH, which every
+        // version accepts.
+        const CAssetLockPayload payload{{CTxOut{credit_amount, GetScriptForDestination(PKHash{credit_pubkey})}},
+                                        CAssetLockPayload::GetMaxVersion(m_wallet->chain().isV24Active())};
+        SetTxPayload(mtx, payload);
+
+        // The single OP_RETURN "burn" output must carry the total credit
+        // amount (see CheckAssetLockTx).
+        const std::vector<CRecipient> recipients{{CScript() << OP_RETURN << OP_0, credit_amount, /*fSubtractFeeFromAmount=*/false}};
+        auto res = CreateTransaction(*m_wallet, recipients, RANDOM_CHANGE_POSITION, coin_control,
+                                     /*sign=*/false, static_cast<int>(mtx.vExtraPayload.size()));
+        if (!res) return util::Error{util::ErrorString(res)};
+
+        // Graft funded inputs/outputs onto the special tx and sign it as a
+        // whole (input signatures commit to nType and vExtraPayload).
+        mtx.vin = res->tx->vin;
+        mtx.vout = res->tx->vout;
+        if (!m_wallet->SignTransaction(mtx)) {
+            return util::Error{Untranslated("failed to sign asset lock transaction")};
+        }
+        return MakeTransactionRef(std::move(mtx));
+#else
+        return util::Error{Untranslated("platform support is not compiled in")};
+#endif // ENABLE_PLATFORM_GUI
+    }
+    std::optional<bilingual_str> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
+        bilingual_str broadcast_error;
+        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form), &broadcast_error);
+        if (broadcast_error.empty()) return std::nullopt;
+        return broadcast_error;
     }
     bool transactionCanBeAbandoned(const uint256& txid) override { return m_wallet->TransactionCanBeAbandoned(txid); }
     bool transactionCanBeResent(const uint256& txid) override { return m_wallet->TransactionCanBeResent(txid); }

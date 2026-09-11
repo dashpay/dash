@@ -14,6 +14,7 @@
 #include <util/fs.h>
 #include <util/message.h>
 #include <util/result.h>
+#include <util/translation.h> // For bilingual_str (complete type needed by std::optional)
 #include <util/ui_change_type.h>
 #include <wallet/platformtypes.h>
 
@@ -35,7 +36,6 @@ class CKey;
 class CRPCCommand;
 enum class FeeReason;
 enum class TransactionError;
-struct bilingual_str;
 struct PartiallySignedTransaction;
 namespace node {
 struct NodeContext;
@@ -252,8 +252,20 @@ public:
     //! Sign every wallet-owned input of a transaction and report whether signing is complete.
     virtual util::Result<WalletTxSignResult> signTransaction(const CMutableTransaction& tx) = 0;
 
-    //! Commit transaction.
-    virtual void commitTransaction(CTransactionRef tx,
+    //! Create a signed (uncommitted) asset lock transaction converting
+    //! credit_amount duffs into Platform credits, with a single credit
+    //! output paying P2PKH to credit_pubkey (typically a registration
+    //! funding key from getPlatformPubKey). Broadcast the result with
+    //! commitTransaction(). Fails unless built with --enable-platform-gui.
+    virtual util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const CPubKey& credit_pubkey,
+        const wallet::CCoinControl& coin_control) = 0;
+
+    //! Commit transaction. Returns the mempool rejection reason when the
+    //! transaction was committed to the wallet but could not be accepted to
+    //! the mempool for broadcast; the caller may abandon it to release its
+    //! inputs.
+    virtual std::optional<bilingual_str> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) = 0;
 

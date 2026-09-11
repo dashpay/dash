@@ -251,6 +251,18 @@ void SendCoinsDialog::setModel(WalletModel *_model)
     }
 }
 
+#ifdef ENABLE_PLATFORM_GUI
+void SendCoinsDialog::setPlatformService(PlatformService* service)
+{
+    m_platform_service = service;
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        if (auto* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget())) {
+            entry->setPlatformService(service);
+        }
+    }
+}
+#endif
+
 SendCoinsDialog::~SendCoinsDialog()
 {
     QSettings settings;
@@ -640,8 +652,24 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
         // failed, or more signatures are needed.
         if (broadcast) {
             // now send the prepared transaction
-            model->sendCoins(*m_current_transaction, m_coin_control->IsUsingCoinJoin());
-            Q_EMIT coinsSent(m_current_transaction->getWtx()->GetHash());
+            const auto send_result{model->sendCoins(*m_current_transaction, m_coin_control->IsUsingCoinJoin())};
+#ifdef ENABLE_PLATFORM_GUI
+            if (m_platform_service) {
+                for (const auto& recipient : m_current_transaction->getRecipients()) {
+                    if (send_result.status == WalletModel::OK) {
+                        m_platform_service->commitPaymentAddress(recipient.address);
+                    } else {
+                        m_platform_service->cancelPaymentAddress(recipient.address);
+                    }
+                }
+            }
+#endif
+            if (send_result.status != WalletModel::OK) {
+                processSendCoinsReturn(send_result, send_result.reasonCommitFailed);
+                send_failure = true;
+            } else {
+                Q_EMIT coinsSent(m_current_transaction->getWtx()->GetHash());
+            }
         }
     }
     if (!send_failure) {
@@ -689,6 +717,9 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
 {
     SendCoinsEntry* entry = new SendCoinsEntry(this);
     entry->setModel(model);
+#ifdef ENABLE_PLATFORM_GUI
+    entry->setPlatformService(m_platform_service);
+#endif
     ui->entries->addWidget(entry);
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::useAvailableBalance, this, &SendCoinsDialog::useAvailableBalance);
@@ -846,6 +877,9 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         break;
     case WalletModel::AmountExceedsBalance:
         msgParams.first = tr("The amount exceeds your balance.");
+        break;
+    case WalletModel::AmountTemporarilyUnavailable:
+        msgParams.first = tr("Some of your funds are still pending. Wait for the incoming payment or change to be confirmed, then try again.");
         break;
     case WalletModel::AmountWithFeeExceedsBalance:
         msgParams.first = tr("The total exceeds your balance when the %1 transaction fee is included.").arg(msgArg);
