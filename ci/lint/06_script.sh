@@ -27,6 +27,7 @@ test/lint/git-subtree-check.sh src/crypto/ctaes
 test/lint/git-subtree-check.sh src/secp256k1
 test/lint/git-subtree-check.sh src/minisketch
 test/lint/git-subtree-check.sh src/leveldb
+RUST_BACKTRACE=1 "${LINT_RUNNER_PATH}/test_runner"
 test/lint/check-doc.py
 test/lint/all-lint.py
 
