@@ -21,6 +21,7 @@
 #include <gsl/pointers.h>
 #include <univalue.h>
 
+#include <limits>
 #include <vector>
 
 class TxValidationState;
@@ -145,6 +146,9 @@ public:
 
     static constexpr uint8_t MIN_SHARES{2};
     static constexpr uint8_t MAX_SHARES{8};
+    static_assert(MIN_SHARES < MAX_SHARES);
+    // The share and signature counts travel in one byte; a wider limit would need a new layout
+    static_assert(MAX_SHARES <= std::numeric_limits<uint8_t>::max());
     static constexpr uint32_t MAX_EARLY_PERIOD_BLOCKS{420480}; // approx. two years at 2.5-minute blocks
 
     uint16_t nVersion{ProTxVersion::LegacyBLS}; // message version
@@ -203,6 +207,11 @@ public:
             // fail the write up front like CompactSignatureFormatter does for a malformed signature
             SER_WRITE(obj, if (obj.vchJoinSigs.size() != obj.shares.size()) {
                 throw std::ios_base::failure("join signature count mismatch");
+            });
+            // A count above the one-byte wire field would truncate (256 shares would serialize as
+            // a non-shared registration whose digest nobody signed), so fail loudly instead
+            SER_WRITE(obj, if (obj.shares.size() > CProRegTx::MAX_SHARES) {
+                throw std::ios_base::failure("share count exceeds the wire limit");
             });
             SER_WRITE(obj, shares_count = static_cast<uint8_t>(obj.shares.size()));
             READWRITE(shares_count);
@@ -462,6 +471,9 @@ public:
     {
         READWRITE(obj.nVersion, obj.proTxHash, obj.actorIndex);
         uint8_t sig_count{0};
+        SER_WRITE(obj, if (obj.vchSigs.size() > CProRegTx::MAX_SHARES) {
+            throw std::ios_base::failure("signature count exceeds the wire limit");
+        });
         SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));
         READWRITE(sig_count);
         SER_READ(obj, obj.vchSigs.resize(sig_count));
@@ -544,6 +556,9 @@ public:
                   obj.keyIDVoting, obj.inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
             uint8_t sig_count{0};
+            SER_WRITE(obj, if (obj.vchSigs.size() > CProRegTx::MAX_SHARES) {
+                throw std::ios_base::failure("signature count exceeds the wire limit");
+            });
             SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));
             READWRITE(sig_count);
             SER_READ(obj, obj.vchSigs.resize(sig_count));

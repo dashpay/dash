@@ -66,7 +66,6 @@ bool IsShareListTriviallyValid(const CollateralShares& shares,
                                uint32_t early_period_blocks, CAmount early_penalty, CAmount required_collateral,
                                const CKeyID& keyIDVoting, TxValidationState& state)
 {
-    static_assert(CProRegTx::MIN_SHARES < CProRegTx::MAX_SHARES);
     if (shares.size() < CProRegTx::MIN_SHARES || shares.size() > CProRegTx::MAX_SHARES) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-count");
     }

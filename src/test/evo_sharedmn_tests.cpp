@@ -347,6 +347,31 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
         BOOST_CHECK_THROW(ss_mismatch << mismatched, std::ios_base::failure);
     }
 
+    // A share count above the one-byte wire field must fail loudly rather than truncate into a
+    // non-shared registration (256 shares would serialize a zero count)
+    {
+        CProRegTx oversized;
+        oversized.nVersion = ProTxVersion::ExtAddr;
+        oversized.netInfo = NetInfoInterface::MakeNetInfo(oversized.nVersion);
+        const size_t too_many{size_t{CProRegTx::MAX_SHARES} + 1};
+        for (size_t i = 0; i < too_many; i++) {
+            oversized.shares.push_back(NewShare(100 * COIN, refund_keys[i % 8], owner_keys[i % 8]));
+        }
+        oversized.vchJoinSigs = DummyJoinSigs(too_many);
+        CDataStream ss_oversized(SER_NETWORK, CLIENT_VERSION);
+        BOOST_CHECK_THROW(ss_oversized << oversized, std::ios_base::failure);
+
+        CProDisTx dis;
+        dis.vchSigs = DummyJoinSigs(too_many);
+        CDataStream ss_dis(SER_NETWORK, CLIENT_VERSION);
+        BOOST_CHECK_THROW(ss_dis << dis, std::ios_base::failure);
+
+        CProUpSharedRegTx upreg;
+        upreg.vchSigs = DummyJoinSigs(too_many);
+        CDataStream ss_upreg(SER_NETWORK, CLIENT_VERSION);
+        BOOST_CHECK_THROW(ss_upreg << upreg, std::ios_base::failure);
+    }
+
     // A non-shared extended payload serializes an empty share list and zeroed penalty fields
     CProRegTx nonShared;
     nonShared.nVersion = ProTxVersion::ExtAddr;
