@@ -28,10 +28,12 @@
 #include <versionbits.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <map>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -215,6 +217,11 @@ CDataStream SerializeSnapshot(const evo::EvoSnapshot& snapshot)
 }
 
 void CheckInvalid(evo::EvoSnapshot snapshot) { BOOST_CHECK_THROW(snapshot.Validate(), std::ios_base::failure); }
+
+// The snapshot decoder inserts attacker-chosen update IDs straight into this
+// map, so its hash must not be the identity an adversary can drive into one
+// bucket.
+static_assert(std::is_same_v<decltype(CDeterministicMNListDiff::updatedMNs)::hasher, StaticSaltedHasher>);
 
 } // namespace
 
@@ -406,6 +413,151 @@ BOOST_FIXTURE_TEST_CASE(inactive_mn_roundtrip, BasicTestingSetup)
             BOOST_REQUIRE_EQUAL(lists.size(), 1U);
             BOOST_CHECK(evo::CanonicalMNListHash(lists.begin()->second) == evo::CanonicalMNListHash(snapshot.mn_list));
         }
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(historical_diff_applies_exchanged_unique_properties, BasicTestingSetup)
+{
+    // Between two work blocks a surviving MN can take an address another
+    // survivor still holds at the first endpoint, and a new registration can
+    // take an address an updated MN released. Both endpoint lists are valid,
+    // so the diff between them must apply regardless of update order.
+    const auto older{MNList(H(10), 100, false)};
+    const auto with_net_info = [](const CDeterministicMN& dmn, std::shared_ptr<NetInfoInterface> net_info) {
+        auto state{std::make_shared<CDeterministicMNState>(*dmn.pdmnState)};
+        state->netInfo = std::move(net_info);
+        auto copy{std::make_shared<CDeterministicMN>(dmn)};
+        copy->pdmnState = std::move(state);
+        return copy;
+    };
+    const auto a{older.GetMNByInternalId(2)};
+    const auto b{older.GetMNByInternalId(7)};
+    auto fresh{NetInfoInterface::MakeNetInfo(b->pdmnState->nVersion)};
+    BOOST_REQUIRE_EQUAL(fresh->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.9:%d", Params().GetDefaultPort())),
+                        NetInfoStatus::Success);
+    CDeterministicMNList newer{H(11), 101, 10};
+    newer.AddMN(with_net_info(*a, b->pdmnState->netInfo), /*fBumpTotalCount=*/false);
+    newer.AddMN(with_net_info(*b, fresh), /*fBumpTotalCount=*/false);
+    newer.AddMN(older.GetMNByInternalId(5), /*fBumpTotalCount=*/false);
+    newer.AddMN(with_net_info(*MN(8, 8, MnType::Regular, ProTxVersion::LegacyBLS, 8), a->pdmnState->netInfo),
+                /*fBumpTotalCount=*/false);
+
+    const CDeterministicMNList* endpoints[]{&older, &newer};
+    for (const auto* from : endpoints) {
+        const auto& to{from == &older ? newer : older};
+        CDataStream encoded{SER_DISK, CLIENT_VERSION};
+        evo::SerializeCanonicalMNListDiff(encoded, from->BuildDiff(to));
+        const auto diff{evo::UnserializeCanonicalMNListDiff(encoded)};
+        BOOST_REQUIRE_EQUAL(diff.updatedMNs.size(), 2U);
+        BOOST_REQUIRE_EQUAL(diff.addedMNs.size() + diff.removedMns.size(), 1U);
+        auto applied{*from};
+        applied.ApplyDiffForSnapshot(to.GetBlockHash(), to.GetHeightForSnapshotCodec(), to.GetTotalRegisteredCount(), diff);
+        BOOST_CHECK(evo::CanonicalMNListHash(applied) == evo::CanonicalMNListHash(to));
+
+        // A diff whose result would hold one address twice is still rejected.
+        CDeterministicMNListDiff conflicting;
+        conflicting.updatedMNs.emplace(2, diff.updatedMNs.at(2));
+        auto rejected{*from};
+        BOOST_CHECK_THROW(rejected.ApplyDiffForSnapshot(to.GetBlockHash(), to.GetHeightForSnapshotCodec(),
+                                                        to.GetTotalRegisteredCount(), conflicting),
+                          std::runtime_error);
+    }
+
+    // The full reconstruction path, which re-checks every encoding around the
+    // apply, accepts the exchange as well.
+    evo::EvoSnapshot snapshot;
+    snapshot.base_block_hash = newer.GetBlockHash();
+    snapshot.mn_list = newer;
+    snapshot.historical_mn_list_diffs = {{newer.GetBlockHash(), older.GetBlockHash(), older.GetHeightForSnapshotCodec(),
+                                          older.GetTotalRegisteredCount(), evo::CanonicalMNListHash(older),
+                                          newer.BuildDiff(older)}};
+    std::map<uint256, CDeterministicMNList> lists;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(evo::ReconstructHistoricalMNLists(snapshot, lists, error), error);
+    BOOST_REQUIRE_EQUAL(lists.size(), 1U);
+    BOOST_CHECK(evo::CanonicalMNListHash(lists.begin()->second) == evo::CanonicalMNListHash(older));
+}
+
+BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingSetup)
+{
+    const auto noncanonical = [](const auto& e) {
+        return std::string{e.what()}.find("noncanonical MN object encoding") != std::string::npos;
+    };
+    const std::vector<std::byte> undecodable(CBLSPublicKey::SerSize, std::byte{0xff});
+    for (const int version : {ProTxVersion::LegacyBLS, ProTxVersion::BasicBLS}) {
+        const bool legacy{version == ProTxVersion::LegacyBLS};
+        auto mn{std::make_shared<CDeterministicMN>(*MN(2, 3, MnType::Regular, version, 3))};
+        auto state{std::make_shared<CDeterministicMNState>(*mn->pdmnState)};
+        CDataStream key_bytes{SER_DISK, CLIENT_VERSION};
+        key_bytes.write(undecodable);
+        key_bytes >> CBLSLazyPublicKeyVersionWrapper(state->pubKeyOperator, legacy);
+        mn->pdmnState = state;
+
+        // The lazy wrapper re-emits undecodable bytes verbatim until the key is
+        // first read, after which it emits the empty key: two encodings of one
+        // object, so the decoder must reject the bytes outright.
+        CDataStream lazy{SER_DISK, CLIENT_VERSION};
+        lazy << *mn;
+        BOOST_CHECK(!mn->pdmnState->pubKeyOperator.Get().IsValid());
+        CDataStream materialized{SER_DISK, CLIENT_VERSION};
+        materialized << *mn;
+        BOOST_REQUIRE(lazy.str() != materialized.str());
+
+        CDataStream list{SER_DISK, CLIENT_VERSION};
+        list << H(42) << 500 << uint32_t{10};
+        WriteCompactSize(list, 1);
+        list.write(Span{lazy});
+        BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(list), std::ios_base::failure, noncanonical);
+
+        CDataStream addition{SER_DISK, CLIENT_VERSION};
+        WriteCompactSize(addition, 1);
+        addition.write(Span{lazy});
+        WriteCompactSize(addition, 0);
+        WriteCompactSize(addition, 0);
+        BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(addition), std::ios_base::failure, noncanonical);
+
+        CDeterministicMNStateDiff state_diff;
+        state_diff.fields = CDeterministicMNStateDiff::Field_nVersion | CDeterministicMNStateDiff::Field_pubKeyOperator;
+        state_diff.state.nVersion = version;
+        key_bytes.write(undecodable);
+        key_bytes >> CBLSLazyPublicKeyVersionWrapper(state_diff.state.pubKeyOperator, legacy);
+        CDataStream update{SER_DISK, CLIENT_VERSION};
+        WriteCompactSize(update, 0);
+        WriteCompactSize(update, 1);
+        WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(update, 2);
+        update << state_diff;
+        WriteCompactSize(update, 0);
+        BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(update), std::ios_base::failure, noncanonical);
+
+        // An in-memory snapshot holding the unread bytes must not hash either.
+        lazy.clear();
+        lazy << *MN(2, 3, MnType::Regular, version, 3);
+        auto unread{std::make_shared<CDeterministicMN>(deserialize, lazy)};
+        BOOST_REQUIRE(lazy.empty());
+        auto unread_state{std::make_shared<CDeterministicMNState>(*unread->pdmnState)};
+        key_bytes.write(undecodable);
+        key_bytes >> CBLSLazyPublicKeyVersionWrapper(unread_state->pubKeyOperator, legacy);
+        unread->pdmnState = unread_state;
+        evo::EvoSnapshot snapshot;
+        snapshot.base_block_hash = H(42);
+        snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 500, 10};
+        snapshot.mn_list.AddMN(unread, /*fBumpTotalCount=*/false);
+        BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, noncanonical);
+        BOOST_CHECK_THROW(GetEvoSnapshotHash(snapshot), std::ios_base::failure);
+
+        // A decodable key keeps one encoding whether or not it has been read.
+        CBLSSecretKey secret;
+        BOOST_REQUIRE(secret.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", legacy));
+        auto keyed_state{std::make_shared<CDeterministicMNState>(*unread_state)};
+        keyed_state->pubKeyOperator.Set(secret.GetPublicKey(), legacy);
+        unread->pdmnState = keyed_state;
+        BOOST_CHECK_NO_THROW(snapshot.Validate());
+        const auto before_read{GetEvoSnapshotHash(snapshot)};
+        auto bytes{SerializeSnapshot(snapshot)};
+        evo::EvoSnapshot decoded;
+        BOOST_REQUIRE_NO_THROW(bytes >> decoded);
+        BOOST_CHECK(decoded.mn_list.GetMNByInternalId(2)->pdmnState->pubKeyOperator.Get().IsValid());
+        BOOST_CHECK(GetEvoSnapshotHash(decoded) == before_read);
     }
 }
 

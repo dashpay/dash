@@ -151,6 +151,18 @@ inline size_t EvoSnapshotMaxHistoricalMNOperations()
     return EvoSnapshotMaxHistoricalMNLists() * 4'096;
 }
 
+/**
+ * Lazy BLS wrappers keep the consumed bytes unparsed and silently replace an
+ * undecodable key with the empty (all-zero) encoding on first Get(). Force
+ * that before comparing the canonical reencoding, so the snapshot hash cannot
+ * change depending on whether a consumer has touched the key.
+ */
+inline void MaterializeLazyBLSFields(const CDeterministicMN& dmn) { dmn.pdmnState->pubKeyOperator.Get(); }
+inline void MaterializeLazyBLSFields(const CDeterministicMNStateDiff& state_diff)
+{
+    if (state_diff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) state_diff.state.pubKeyOperator.Get();
+}
+
 template <typename Stream>
 class SnapshotBoundedInput
 {
@@ -180,6 +192,7 @@ public:
     template <typename T>
     void CheckCanonicalEncoding(const T& obj)
     {
+        MaterializeLazyBLSFields(obj);
         CHashWriter canonical{GetType(), GetVersion()};
         canonical << obj;
         if (m_stream.GetHash() != canonical.GetHash()) {

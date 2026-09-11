@@ -35,6 +35,15 @@ struct SaltedHasherImpl<std::pair<N, uint256>>
 };
 
 template<>
+struct SaltedHasherImpl<uint64_t>
+{
+    static std::size_t CalcHash(uint64_t v, uint64_t k0, uint64_t k1)
+    {
+        return CSipHasher(k0, k1).Write(v).Finalize();
+    }
+};
+
+template<>
 struct SaltedHasherImpl<uint256>
 {
     static std::size_t CalcHash(const uint256& v, uint64_t k0, uint64_t k1)

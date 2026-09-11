@@ -633,8 +633,9 @@ public:
     int nHeight{-1}; //memory only
 
     std::vector<CDeterministicMNCPtr> addedMNs;
-    // keys are all relating to the internalId of MNs
-    std::unordered_map<uint64_t, CDeterministicMNStateDiff> updatedMNs;
+    // keys are all relating to the internalId of MNs. Keys can come from
+    // untrusted input (evo snapshots), so the hash is salted against flooding.
+    std::unordered_map<uint64_t, CDeterministicMNStateDiff, StaticSaltedHasher> updatedMNs;
     std::set<uint64_t> removedMns;
 
     template<typename Stream>
