@@ -465,7 +465,7 @@ void ReadFixedBitSet(Stream& s, std::vector<bool>& vec, size_t size)
         vec[p] = (vBytes[p / 8] & (1 << (p % 8))) != 0;
     if (vBytes.size() * 8 != size) {
         size_t rem = vBytes.size() * 8 - size;
-        uint8_t m = ~(uint8_t)(0xff >> rem);
+        const auto m{static_cast<uint8_t>(~(0xffU >> rem))};
         if (vBytes[vBytes.size() - 1] & m) {
             throw std::ios_base::failure("Out-of-range bits set");
         }

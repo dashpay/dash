@@ -393,6 +393,45 @@ void CDeterministicMNList::ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, c
     }
 }
 
+void CDeterministicMNList::ApplyDiffForSnapshot(const uint256& block_hash, int height,
+                                                uint32_t total_registered_count,
+                                                const CDeterministicMNListDiff& diff)
+{
+    if (height < 0) throw std::runtime_error("negative historical MN-list height");
+    blockHash = block_hash;
+    nHeight = height;
+
+    for (const auto& id : diff.removedMns) {
+        auto dmn = GetMNByInternalId(id);
+        if (!dmn) throw std::runtime_error(strprintf("%s: can't find a removed masternode, id=%d", __func__, id));
+        RemoveMN(dmn->proTxHash);
+    }
+    // A historical diff spans many blocks, so surviving MNs can have exchanged
+    // a unique property (an address, an operator key) between the endpoints,
+    // and a new registration can hold an address an updated MN gave up.
+    // Sequential UpdateMN() would reject the first claimant as a duplicate:
+    // release every updated MN's old properties before any new state claims.
+    std::vector<CDeterministicMNCPtr> updated;
+    updated.reserve(diff.updatedMNs.size());
+    for (const auto& [id, state_diff] : diff.updatedMNs) {
+        auto dmn = GetMNByInternalId(id);
+        if (!dmn) throw std::runtime_error(strprintf("%s: can't find an updated masternode, id=%d", __func__, id));
+        auto new_state = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+        state_diff.ApplyToState(*new_state);
+        auto new_dmn = std::make_shared<CDeterministicMN>(*dmn);
+        new_dmn->pdmnState = std::move(new_state);
+        RemoveMN(dmn->proTxHash);
+        updated.push_back(std::move(new_dmn));
+    }
+    for (const auto& dmn : updated) {
+        AddMN(dmn, /*fBumpTotalCount=*/false);
+    }
+    for (const auto& dmn : diff.addedMNs) {
+        AddMN(dmn, /*fBumpTotalCount=*/false);
+    }
+    nTotalRegisteredCount = total_registered_count;
+}
+
 void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount)
 {
     assert(dmn != nullptr);

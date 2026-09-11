@@ -32,6 +32,10 @@ implicit-unsigned-integer-truncation:test/fuzz/crypto_diff_fuzz_chacha20.cpp
 shift-base:*/include/c++/
 shift-base:leveldb/
 shift-base:minisketch/
+# Vendored immer's HAMT merge computes a bitmap shift past the hash width when
+# two keys share a full 64-bit hash. Only reachable through deliberately
+# colliding test keys (evo_snapshot_tests MN fixtures); harmless in immer.
+shift-base:immer/
 shift-base:secp256k1*
 shift-base:test/fuzz/crypto_diff_fuzz_chacha20.cpp
 # Unsigned integer overflow occurs when the result of an unsigned integer

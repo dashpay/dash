@@ -87,6 +87,7 @@ public:
         }
     }
 
+    [[nodiscard]] bool HasInternalId() const { return internalId != std::numeric_limits<uint64_t>::max(); }
     [[nodiscard]] uint64_t GetInternalId() const;
 
     [[nodiscard]] CSimplifiedMNListEntry to_sml_entry() const;
@@ -339,6 +340,8 @@ public:
         assert(nHeight >= 0);
         return nHeight;
     }
+    /** Snapshot hashing also covers the pre-DIP3 default list (height -1). */
+    [[nodiscard]] int GetHeightForSnapshotCodec() const noexcept { return nHeight; }
     void SetHeight(int _height)
     {
         assert(_height >= 0);
@@ -421,6 +424,11 @@ public:
      * Calculating for old block may require up to {DISK_SNAPSHOT_PERIOD} object copy & destroy.
      */
     void ApplyDiff(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNListDiff& diff)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
+
+    /** Apply a snapshot-local historical diff without dereferencing block data. */
+    void ApplyDiffForSnapshot(const uint256& block_hash, int height, uint32_t total_registered_count,
+                              const CDeterministicMNListDiff& diff)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
     void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
@@ -625,8 +633,9 @@ public:
     int nHeight{-1}; //memory only
 
     std::vector<CDeterministicMNCPtr> addedMNs;
-    // keys are all relating to the internalId of MNs
-    std::unordered_map<uint64_t, CDeterministicMNStateDiff> updatedMNs;
+    // keys are all relating to the internalId of MNs. Keys can come from
+    // untrusted input (evo snapshots), so the hash is salted against flooding.
+    std::unordered_map<uint64_t, CDeterministicMNStateDiff, StaticSaltedHasher> updatedMNs;
     std::set<uint64_t> removedMns;
 
     template<typename Stream>

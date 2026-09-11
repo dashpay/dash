@@ -118,6 +118,7 @@ BITCOIN_TESTS =\
   test/evo_mnhf_tests.cpp \
   test/evo_netinfo_tests.cpp \
   test/evo_simplifiedmns_tests.cpp \
+  test/evo_snapshot_tests.cpp \
   test/evo_trivialvalidation.cpp \
   test/evo_utils_tests.cpp \
   test/flatfile_tests.cpp \
