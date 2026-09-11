@@ -9,7 +9,9 @@
 #include <consensus/validation.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
+#include <evo/chainhelper.h>
 #include <evo/creditpool.h>
+#include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <llmq/context.h>
 #include <policy/policy.h>
@@ -683,6 +685,34 @@ BOOST_FIXTURE_TEST_CASE(mempool_pending_asset_unlock_amount, TestChain100Setup)
     BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 0);
     BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(1).empty());
     BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(2).empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_pool_snapshot_persisted_after_transactionless_construction, TestChain100Setup)
+{
+    // Block assembly asks for the tip's credit pool outside any block-scoped EvoDB transaction,
+    // as mempool acceptance and RPCs do. At a snapshot height that constructs and caches the
+    // pool without being able to write its disk snapshot. The next block connection hits the
+    // cached pool, so it must persist the snapshot then, or the snapshot is lost and every
+    // restart reconstructs the pool from an older one.
+    constexpr int SNAPSHOT_HEIGHT{576}; // CCreditPoolManager::DISK_SNAPSHOT_PERIOD
+    const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+    const auto tip = [&]() { return WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip()); };
+    while (tip()->nHeight < SNAPSHOT_HEIGHT) {
+        CreateAndProcessBlock({}, coinbase_pk);
+    }
+    const CBlockIndex* snapshot_index = tip();
+    BOOST_REQUIRE_EQUAL(snapshot_index->nHeight, SNAPSHOT_HEIGHT);
+    BOOST_REQUIRE(WITH_LOCK(cs_main, return DeploymentActiveAt(*snapshot_index, m_node.chainman->GetConsensus(),
+                                                               Consensus::DEPLOYMENT_V20)));
+    const auto snapshot_key = std::make_pair(std::string{"cpm_S"}, snapshot_index->GetBlockHash());
+    BOOST_CHECK(!m_node.evodb->Exists(snapshot_key));
+
+    CreateAndProcessBlock({}, coinbase_pk);
+    CCreditPool snapshot;
+    BOOST_REQUIRE(m_node.evodb->Read(snapshot_key, snapshot));
+    const CCreditPool pool = m_node.chain_helper->credit_pool_manager->GetCreditPool(snapshot_index);
+    BOOST_CHECK_EQUAL(snapshot.locked, pool.locked);
+    BOOST_CHECK_EQUAL(snapshot.currentLimit, pool.currentLimit);
 }
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_package_atomicity, TestChain100Setup)
