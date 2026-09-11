@@ -20,17 +20,44 @@ ChainCode ChainCode::FromBytes(const Bytes& bytes) {
     if (bytes.size() != ChainCode::SIZE) {
         throw std::invalid_argument("ChainCode::FromBytes: Invalid size");
     }
-    ChainCode c = ChainCode();
-    bn_new(c.chainCode);
+    ChainCode c;
     bn_read_bin(c.chainCode, bytes.begin(), ChainCode::SIZE);
     return c;
 }
 
-ChainCode::ChainCode(const ChainCode &cc) {
-    uint8_t bytes[ChainCode::SIZE];
-    cc.Serialize(bytes);
+ChainCode::ChainCode() {
+    bn_null(chainCode);
     bn_new(chainCode);
-    bn_read_bin(chainCode, bytes, ChainCode::SIZE);
+    bn_zero(chainCode);
+}
+
+ChainCode::ChainCode(const ChainCode &cc) : ChainCode() {
+    bn_copy(chainCode, cc.chainCode);
+}
+
+ChainCode& ChainCode::operator=(const ChainCode& cc) {
+    if (this != &cc) {
+#if ALLOC == DYNAMIC
+        if (chainCode->dp != nullptr && chainCode->alloc > 0) {
+            Util::SecureWipe(chainCode->dp, chainCode->alloc * sizeof(dig_t));
+        }
+#elif ALLOC == AUTO
+        Util::SecureWipe(chainCode->dp, sizeof(chainCode->dp));
+#endif
+        bn_copy(chainCode, cc.chainCode);
+    }
+    return *this;
+}
+
+ChainCode::~ChainCode() {
+#if ALLOC == DYNAMIC
+    if (chainCode != nullptr && chainCode->dp != nullptr && chainCode->alloc > 0) {
+        Util::SecureWipe(chainCode->dp, chainCode->alloc * sizeof(dig_t));
+    }
+    bn_free(chainCode);
+#elif ALLOC == AUTO
+    Util::SecureWipe(chainCode, sizeof(chainCode));
+#endif
 }
 
 // Comparator implementation.

@@ -96,6 +96,17 @@ class Util {
     }
 
     /*
+     * Overwrite sensitive memory through a volatile pointer so the writes are
+     * not removed as dead stores by the compiler.
+     */
+    static void SecureWipe(void* ptr, size_t size) noexcept {
+        volatile uint8_t* bytes = static_cast<volatile uint8_t*>(ptr);
+        while (size-- > 0) {
+            *bytes++ = 0;
+        }
+    }
+
+    /*
      * Converts one hex character to an int.
      */
     static uint8_t char2int(const char input) {

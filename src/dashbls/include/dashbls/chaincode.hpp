@@ -38,6 +38,8 @@ class ChainCode {
     static ChainCode FromBytes(const Bytes& bytes);
 
     ChainCode(const ChainCode &cc);
+    ChainCode& operator=(const ChainCode& cc);
+    ~ChainCode();
 
     // Comparator implementation.
     friend bool operator==(ChainCode const &a,  ChainCode const &b);
@@ -48,7 +50,7 @@ class ChainCode {
     std::vector<uint8_t> Serialize() const;
 
     // Prevent direct construction, use static constructor
-    ChainCode() {}
+    ChainCode();
 private:
 
     bn_t chainCode;
@@ -56,4 +58,3 @@ private:
 } // end namespace bls
 
 #endif  // SRC_CHAINCODE_HPP_
-
