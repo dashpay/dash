@@ -18,12 +18,15 @@ from test_framework.key import ECKey
 from test_framework.messages import (
     CAssetLockTx,
     CAssetUnlockTx,
+    CCoinJoinBroadcastTx,
     COIN,
     COutPoint,
     CTransaction,
     CTxIn,
     CTxOut,
     MSG_ASSET_UNLOCK,
+    msg_dstx,
+    msg_tx,
     tx_from_hex,
     hash256,
     ser_string,
@@ -860,12 +863,16 @@ class AssetLocksTest(DashTestFramework):
         # created here stay unminable in the mempool until the window clears
         index = 800
         listener = node_wallet.add_p2p_connection(InvListener())
+        # A peer at the current protocol version supplies the first instance; refreshes of the
+        # withdrawal must still be announced to it later
+        sender = node_wallet.add_p2p_connection(InvListener())
         unlock_a = self.create_assetunlock(index, COIN, pubkey, version=2)
         stable_txid = self.get_v2_txid(unlock_a)
         instance_a = unlock_a.rehash()
         assert stable_txid != instance_a
 
-        assert_equal(self.send_tx_simple(unlock_a), stable_txid)
+        sender.send_and_ping(msg_tx(unlock_a))
+        self.wait_until(lambda: stable_txid in node_wallet.getrawmempool())
         self.sync_mempools()
         rpc_tx = node_wallet.getrawtransaction(stable_txid, 1)
         assert_equal(rpc_tx['txid'], stable_txid)
@@ -917,8 +924,10 @@ class AssetLocksTest(DashTestFramework):
         mempool = node_wallet.getrawmempool()
         assert stable_txid in mempool
         assert child_txid in mempool
-        self.log.info("The refresh is announced under its own instance hash")
+        self.log.info("The refresh is announced under its own instance hash, including to the peer that sent the first instance")
         self.wait_until(lambda: int(instance_a2, 16) in listener.asset_unlock_invs)
+        self.wait_until(lambda: int(instance_a2, 16) in sender.asset_unlock_invs)
+        assert int(instance_a, 16) not in sender.asset_unlock_invs
 
         self.log.info("A stale instance does not refresh a fresher one")
         assert_raises_rpc_error(-26, 'assetunlock-stale-instance', self.send_tx_simple, unlock_a)
@@ -1014,6 +1023,16 @@ class AssetLocksTest(DashTestFramework):
         assert_equal(stale_result['txid'], self.get_v2_txid(unlock_v2_stale))
         assert_equal(stale_result['allowed'], False)
         assert_equal(stale_result['reject-reason'], 'assetunlock-stale-instance')
+        assert v1_txid in node_wallet.getrawmempool()
+
+        self.log.info("A version 2 unlock wrapped in a dstx message goes through DSTX validation and is dropped")
+        unlock_v2_fresh = self.create_assetunlock(cross_index, COIN, pubkey, version=2, requested_height=tip_height)
+        cross_txid = self.get_v2_txid(unlock_v2_fresh)
+        dstx_peer = node_wallet.add_p2p_connection(P2PInterface())
+        wrapped = CCoinJoinBroadcastTx(tx=unlock_v2_fresh, m_protxHash=1, vchSig=b"\x01" * 96, sigTime=self.mocktime)
+        with node_wallet.assert_debug_log(["Invalid DSTX structure", "invalid dstx"]):
+            dstx_peer.send_and_ping(msg_dstx(wrapped))
+        assert cross_txid not in node_wallet.getrawmempool()
         assert v1_txid in node_wallet.getrawmempool()
 
         self.log.info("Signed one block later, the version 2 instance is fresher: it replaces the version 1 claimant and gets locked")
