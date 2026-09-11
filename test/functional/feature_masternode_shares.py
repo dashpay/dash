@@ -504,17 +504,26 @@ class MasternodeSharesTest(DashTestFramework):
                                 pre_funding, pre_shares, "", node.bls("generate")["public"],
                                 node.getnewaddress(), 0, EARLY_PERIOD_BLOCKS, EARLY_PENALTY)
 
-        # Consensus gate: each lifecycle type carries a trivially-valid payload (version 1, empty or
-        # zeroed fields, 65-byte placeholder signatures, a valid operator key where one is required),
-        # so block connection gets past payload deserialization and fails at the deployment check
-        # with the type's dedicated "too early" reason, not a payload or lookup error
+        # Consensus gate: each lifecycle type carries a trivially-valid payload (version 1, zeroed
+        # fields, 65-byte placeholder signatures, a valid operator key or P2PKH reward script where
+        # one is required), so block connection gets past payload deserialization and fails at the
+        # deployment check with the type's dedicated "too early" reason, not a payload or lookup error
         prodis_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_DISSOLVE,
             struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + bytes([1]) + b"\x00" * 65)
+        gate_reward_script = bytes.fromhex(node.getaddressinfo(node.getnewaddress())["scriptPubKey"])
         upshare_hex = self.build_lifecycle_tx(
+            TRANSACTION_PROVIDER_UPDATE_SHARE,
+            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + bytes([len(gate_reward_script)]) +
+            gate_reward_script + b"\x00" * 32 + bytes([65]) + b"\x00" * 65)
+        # A ProUpShareTx must carry an explicit reward script; a zero-length script is rejected
+        # statelessly, before the deployment gate
+        upshare_empty_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARE,
             struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + b"\x00" + b"\x00" * 32 +
             bytes([65]) + b"\x00" * 65)
+        assert_raises_rpc_error(-25, "bad-proupshare-payee-empty", self.generateblock, node, pre_miner,
+                                [upshare_empty_hex], sync_fun=self.no_op)
         upsharedreg_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR,
             struct.pack("<H", 1) + b"\x00" * 32 + bytes.fromhex(node.bls("generate")["public"]) +
@@ -725,6 +734,8 @@ class MasternodeSharesTest(DashTestFramework):
         fee_addr = node.getnewaddress()
         node.sendtoaddress(fee_addr, 1)
         self.generate(node, 1, sync_fun=self.no_op)
+        # an empty reward address is not a reset; the refund address must be passed explicitly
+        assert_raises_rpc_error(-5, "invalid reward address", node.protx, "update_share", protx_hash, 0, "", fee_addr)
         reward1 = node.getnewaddress()
         node.protx("update_share", protx_hash, 0, reward1, fee_addr)
         self.bump_mocktime(10 * 60 + 1)

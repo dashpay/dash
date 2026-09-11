@@ -1622,9 +1622,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         // A pending share reward update could move a share script onto the new voting key, a
         // combination block validation rejects in any order. Check each pending update
         // independently, not a composed table: every subset of a pairwise-safe set is then valid
-        // in every block order, so an honest miner never assembles the forbidden pair. An empty
-        // pending reward script falls back to the immutable refund script, which the tip-level
-        // CheckProUpSharedRegTx already vetted.
+        // in every block order, so an honest miner never assembles the forbidden pair.
         const CTxDestination voting_dest{PKHash(proTx.keyIDVoting)};
         for (auto its = mapProTxRefs.equal_range(proTx.proTxHash); its.first != its.second; ++its.first) {
             auto txit = mapTx.find(its.first->second);
@@ -1632,7 +1630,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
                 continue;
             }
             const auto other = GetTxPayload<CProUpShareTx>(txit->GetTx());
-            if (!other || other->scriptReward.empty()) {
+            if (!other) {
                 continue;
             }
             if (CTxDestination dest; ExtractDestination(other->scriptReward, dest) && dest == voting_dest) {
@@ -1657,9 +1655,8 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             return true; // i.e. failed to find validated ProTx == conflict
         }
         // The mirror image of the check above: a pending shared registrar update could move the
-        // voting key onto this update's new reward script. An empty new reward script falls back
-        // to the immutable refund script, which the registrar update's own admission checks vetted.
-        if (CTxDestination dest; !proTx.scriptReward.empty() && ExtractDestination(proTx.scriptReward, dest)) {
+        // voting key onto this update's new reward script.
+        if (CTxDestination dest; ExtractDestination(proTx.scriptReward, dest)) {
             for (auto its = mapProTxRefs.equal_range(proTx.proTxHash); its.first != its.second; ++its.first) {
                 auto txit = mapTx.find(its.first->second);
                 if (txit == mapTx.end() || txit->GetTx().nType != TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {

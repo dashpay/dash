@@ -271,7 +271,7 @@ UniValue CProUpShareTx::ToJson() const
     ret.pushKV("version", nVersion);
     ret.pushKV("proTxHash", proTxHash.ToString());
     ret.pushKV("shareIndex", shareIndex);
-    if (CTxDestination dest; !scriptReward.empty() && ExtractDestination(scriptReward, dest)) {
+    if (CTxDestination dest; ExtractDestination(scriptReward, dest)) {
         ret.pushKV("rewardAddress", EncodeDestination(dest));
     }
     ret.pushKV("inputsHash", inputsHash.ToString());

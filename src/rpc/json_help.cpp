@@ -302,7 +302,7 @@ RPCResult CProUpShareTx::GetJsonHelp(const std::string& key, bool optional)
         GetRpcResult("version"),
         GetRpcResult("proTxHash"),
         {RPCResult::Type::NUM, "shareIndex", "Index into the share table of the share being updated"},
-        {RPCResult::Type::STR, "rewardAddress", /*optional=*/true, "New Dash address for this share's owner rewards; omitted when reverting to the refund script"},
+        {RPCResult::Type::STR, "rewardAddress", /*optional=*/true, "New Dash address for this share's owner rewards (omitted only when decoding a payload whose reward script is not P2PKH/P2SH)"},
         GetRpcResult("inputsHash"),
     }};
 }
