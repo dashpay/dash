@@ -3,7 +3,10 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-from test_framework.messages import msg_qsendrecsigs
+import random
+from io import BytesIO
+
+from test_framework.messages import COutPoint, msg_isdlock, msg_qsendrecsigs
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
@@ -57,6 +60,7 @@ class InstantSendTest(DashTestFramework):
         self.test_mempool_doublespend()
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
+        self.test_genesis_cycle_islock_isolated()
         self.test_instantsend_after_restart()
 
     def test_block_doublespend(self):
@@ -170,6 +174,38 @@ class InstantSendTest(DashTestFramework):
 
         for node, _ in observers:
             node.disconnect_p2ps()
+
+    def test_genesis_cycle_islock_isolated(self):
+        self.log.info("A missing-quorum ISDLOCK must not drop the genuine locks batched with it")
+        # A genesis-block cycle hash resolves to height 0, a valid rotation boundary, but selects a
+        # signing height from before any quorum, so the lock has no quorum. Before the fix that
+        # dropped the whole verification batch, taking any genuine lock that shared it. We isolate a
+        # node so its only lock source is our peer, then hand it a genuine lock next to the crafted
+        # one; sending both back-to-back lands them in one batch, and a few tries make it certain.
+        controller = self.nodes[0]
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        peer = target.add_p2p_connection(P2PInterface())
+        genesis_hash = int(target.getblockhash(0), 16)
+
+        for _ in range(5):
+            txid = controller.sendtoaddress(controller.getnewaddress(), 1)
+            self.wait_for_instantlock(txid, nodes=connected)
+            genuine = msg_isdlock()
+            genuine.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
+            # Reusing a real signature keeps sig.IsValid() true so the crafted lock reaches quorum selection.
+            poisoned = msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256),
+                                   genesis_hash, genuine.sig)
+            target.sendrawtransaction(controller.getrawtransaction(txid))
+            peer.send_message(poisoned)
+            peer.send_message(genuine)
+            peer.sync_with_ping()
+            self.wait_until(lambda txid=txid: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+
+        target.disconnect_p2ps()
+        self.reconnect_isolated_node(self.isolated_idx, 0)
 
     def test_instantsend_after_restart(self):
         self.log.info("Testing InstantSend works after full restart without new blocks")
