@@ -24,9 +24,6 @@ Build Tools and Keys
 Contains files used to package dashd/dash-qt
 for Debian-based Linux systems. If you compile dashd/dash-qt yourself, there are some useful files here.
 
-### [Builder keys](/contrib/builder-keys)
-PGP keys used for signing Dash Core [release](/doc/release-process.md) results.
-
 ### [MacDeploy](/contrib/macdeploy) ###
 Scripts and notes for Mac builds.
 

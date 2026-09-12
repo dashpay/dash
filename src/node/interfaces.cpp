@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 The Bitcoin Core developers
+// Copyright (c) 2018-2022 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1518,12 +1518,9 @@ public:
         if (!m_node.mempool) return true;
         LockPoints lp;
         CTxMemPoolEntry entry(tx, 0, 0, 0, false, 0, lp);
-        CTxMemPool::setEntries ancestors;
         const CTxMemPool::Limits& limits{m_node.mempool->m_limits};
-        std::string unused_error_string;
         LOCK(m_node.mempool->cs);
-        return m_node.mempool->CalculateMemPoolAncestors(
-            entry, ancestors, limits, unused_error_string);
+        return m_node.mempool->CalculateMemPoolAncestors(entry, limits).has_value();
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {

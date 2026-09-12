@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2011-2022 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -102,10 +102,10 @@ static UniValue FinishTransaction(const std::shared_ptr<CWallet> pwallet, const 
     PartiallySignedTransaction psbtx(rawTx);
 
     // First fill transaction with our data without signing,
-    // so external signers are not asked sign more than once.
+    // so external signers are not asked to sign more than once.
     bool complete;
-    (void)pwallet->FillPSBT(psbtx, complete, SIGHASH_ALL, false, true);
-    const TransactionError err = pwallet->FillPSBT(psbtx, complete, SIGHASH_ALL, true, false);
+    (void)pwallet->FillPSBT(psbtx, complete, SIGHASH_ALL, /*sign=*/false, /*bip32derivs=*/true);
+    const TransactionError err{pwallet->FillPSBT(psbtx, complete, SIGHASH_ALL, /*sign=*/true, /*bip32derivs=*/false)};
     if (err != TransactionError::OK) {
         throw JSONRPCTransactionError(err);
     }
@@ -1506,7 +1506,7 @@ RPCHelpMan walletcreatefundedpsbt()
     // Fill transaction with out data but don't sign
     bool bip32derivs = request.params[4].isNull() ? true : request.params[4].get_bool();
     bool complete = true;
-    const TransactionError err{wallet.FillPSBT(psbtx, complete, 1, false, bip32derivs)};
+    const TransactionError err{wallet.FillPSBT(psbtx, complete, 1, /*sign=*/false, /*bip32derivs=*/bip32derivs)};
     if (err != TransactionError::OK) {
         throw JSONRPCTransactionError(err);
     }

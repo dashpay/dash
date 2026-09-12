@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2009-2022 The Bitcoin Core developers
 // Copyright (c) 2014-2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -797,9 +797,7 @@ static RPCHelpMan setban()
         if (!request.params[2].isNull())
             banTime = request.params[2].getInt<int64_t>();
 
-        bool absolute = false;
-        if (request.params[3].isTrue())
-            absolute = true;
+        const bool absolute{request.params[3].isNull() ? false : request.params[3].get_bool()};
 
         if (absolute && banTime < GetTime()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Error: Absolute timestamp is in the past");
@@ -1029,7 +1027,7 @@ static RPCHelpMan addpeeraddress()
 
     const std::string& addr_string{request.params[0].get_str()};
     const auto port{request.params[1].getInt<uint16_t>()};
-    const bool tried{request.params[2].isTrue()};
+    const bool tried{request.params[2].isNull() ? false : request.params[2].get_bool()};
 
     UniValue obj(UniValue::VOBJ);
     std::optional<CNetAddr> net_addr{LookupHost(addr_string, false)};

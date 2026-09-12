@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2009-2022 The Bitcoin Core developers
 // Copyright (c) 2014-2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -128,9 +128,11 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getmerkleblocks", 2, "count" },
     { "gettransaction", 1, "include_watchonly" },
     { "gettransaction", 2, "verbose" },
+    { "getrawtransaction", 1, "verbosity" },
     { "getrawtransaction", 1, "verbose" },
     { "getislocks", 0, "txids" },
     { "getrawtransactionmulti", 0, "transactions" },
+    { "getrawtransactionmulti", 1, "verbosity" },
     { "getrawtransactionmulti", 1, "verbose" },
     { "gettxchainlocks", 0, "txids" },
     { "createrawtransaction", 0, "inputs" },

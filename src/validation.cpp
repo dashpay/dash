@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2009-2022 The Bitcoin Core developers
 // Copyright (c) 2014-2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -72,6 +72,7 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <utility>
 
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
@@ -818,10 +819,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_NOT_STANDARD, reason);
     }
 
-    // Do not work on transactions that are too small.
-    // A transaction with 1 empty scriptSig input and 1 P2SH output has size of 83 bytes.
-    // Transactions smaller than this are not relayed to mitigate CVE-2017-12842 by not relaying
-    // 64-byte transactions.
+    // Transactions smaller than 65 bytes are not relayed to mitigate CVE-2017-12842.
     if (::GetSerializeSize(tx, PROTOCOL_VERSION) < MIN_STANDARD_TX_SIZE)
         return state.Invalid(TxValidationResult::TX_NOT_STANDARD, "tx-size-small");
 
@@ -963,9 +961,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     // Calculate in-mempool ancestors, up to a limit.
-    std::string errString;
-    if (!m_pool.CalculateMemPoolAncestors(*entry, ws.m_ancestors, m_limits, errString)) {
-        ws.m_ancestors.clear();
+    auto ancestors{m_pool.CalculateMemPoolAncestors(*entry, m_limits)};
+    if (!ancestors) {
         // If CalculateMemPoolAncestors fails second time, we want the original error string.
         std::string dummy_err_string;
         // If the new transaction is relatively small (up to 40k weight)
@@ -984,13 +981,14 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
             .descendant_count = m_limits.descendant_count + 1,
             .descendant_size_vbytes = m_limits.descendant_size_vbytes + EXTRA_DESCENDANT_TX_SIZE_LIMIT,
         };
-        if (ws.m_vsize > EXTRA_DESCENDANT_TX_SIZE_LIMIT ||
-                !m_pool.CalculateMemPoolAncestors(*entry, ws.m_ancestors,
-                                                  cpfp_carve_out_limits,
-                                                  dummy_err_string)) {
-            return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", errString);
+        const auto error_message{util::ErrorString(ancestors).original};
+        if (ws.m_vsize > EXTRA_DESCENDANT_TX_SIZE_LIMIT) {
+            return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", error_message);
         }
+        ancestors = m_pool.CalculateMemPoolAncestors(*entry, cpfp_carve_out_limits);
+        if (!ancestors) return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", error_message);
     }
+
 
     // check special TXs after all the other checks. If we'd do this before the other checks, we might end up
     // DoS scoring a node for non-critical errors, e.g. duplicate keys because a TX is received that was already
@@ -1004,6 +1002,9 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (m_pool.existsProviderTxConflict(tx)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "protx-dup");
     }
+
+    ws.m_ancestors = *ancestors;
+
 
     // The check above compares operator keys per BLS encoding, so it cannot see a second in-flight
     // transaction claiming the same key under the other one. Keeping such a pair out of the mempool
@@ -1170,15 +1171,18 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
 
         // Re-calculate mempool ancestors to call addUnchecked(). They may have changed since the
         // last calculation done in PreChecks, since package ancestors have already been submitted.
-        std::string unused_err_string;
-        if(!m_pool.CalculateMemPoolAncestors(*ws.m_entry, ws.m_ancestors, m_limits, unused_err_string)) {
-            results.emplace(ws.m_ptx->GetHash(), MempoolAcceptResult::Failure(ws.m_state));
-            // Since PreChecks() and PackageMempoolChecks() both enforce limits, this should never fail.
-            Assume(false);
-            all_submitted = false;
-            package_state.Invalid(PackageValidationResult::PCKG_MEMPOOL_ERROR,
-                                  strprintf("BUG! Mempool ancestors or descendants were underestimated: %s",
-                                            ws.m_ptx->GetHash().ToString()));
+        {
+            auto ancestors{m_pool.CalculateMemPoolAncestors(*ws.m_entry, m_limits)};
+            if(!ancestors) {
+                results.emplace(ws.m_ptx->GetHash(), MempoolAcceptResult::Failure(ws.m_state));
+                // Since PreChecks() and PackageMempoolChecks() both enforce limits, this should never fail.
+                Assume(false);
+                all_submitted = false;
+                package_state.Invalid(PackageValidationResult::PCKG_MEMPOOL_ERROR,
+                                    strprintf("BUG! Mempool ancestors or descendants were underestimated: %s",
+                                                ws.m_ptx->GetHash().ToString()));
+            }
+            ws.m_ancestors = std::move(ancestors).value_or(ws.m_ancestors);
         }
         // If we call LimitMempoolSize() for each individual Finalize(), the mempool will not take
         // the transaction's descendant feerate into account because it hasn't seen them yet. Also,

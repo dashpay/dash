@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2009-2022 The Bitcoin Core developers
 // Copyright (c) 2014-2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -592,9 +592,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             continue;
         }
 
-        CTxMemPool::setEntries ancestors;
-        std::string dummy;
-        mempool.CalculateMemPoolAncestors(*iter, ancestors, CTxMemPool::Limits::NoLimits(), dummy, false);
+        auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, *iter, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
 
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);

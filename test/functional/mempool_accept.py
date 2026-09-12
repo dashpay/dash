@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2017-2020 The Bitcoin Core developers
+# Copyright (c) 2017-2022 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test mempool acceptance of raw transactions."""
@@ -14,6 +14,7 @@ from test_framework.messages import (
     BIP125_SEQUENCE_NUMBER,
     COIN,
     COutPoint,
+    CTransaction,
     CTxIn,
     CTxOut,
     MAX_BLOCK_SIZE,
@@ -26,9 +27,11 @@ from test_framework.script import (
     OP_0,
     OP_HASH160,
     OP_RETURN,
+    OP_TRUE,
 )
 from test_framework.script_util import (
     keys_to_multisig_script,
+    MIN_STANDARD_TX_SIZE,
     script_to_p2sh_script,
 )
 from test_framework.util import (
@@ -336,6 +339,31 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
             maxfeerate=0,
         )
 
+        # Prep for tiny-tx tests with P2SH(OP_TRUE) output
+        seed_tx = self.wallet.send_to(from_node=node, scriptPubKey=script_to_p2sh_script(CScript([OP_TRUE])), amount=COIN)
+        self.generate(node, 1)
+
+        self.log.info('A tiny transaction that is disallowed')
+        tx = CTransaction()
+        tx.vin.append(CTxIn(COutPoint(int(seed_tx["txid"], 16), seed_tx["sent_vout"]), CScript([CScript([OP_TRUE])]), SEQUENCE_FINAL))
+        tx.vout.append(CTxOut(0, CScript([OP_RETURN, OP_0])))
+        assert_equal(len(tx.serialize()), 64)
+        assert_equal(MIN_STANDARD_TX_SIZE - 1, 64)
+
+        self.check_mempool_result(
+            result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'tx-size-small'}],
+            rawtxs=[tx.serialize().hex()],
+            maxfeerate=0,
+        )
+
+        self.log.info('Minimally-small transaction that is allowed')
+        tx.vout[0] = CTxOut(COIN - 1000, CScript([OP_RETURN, OP_0, OP_0]))
+        assert_equal(len(tx.serialize()), MIN_STANDARD_TX_SIZE)
+        self.check_mempool_result(
+            result_expected=[{'txid': tx.rehash(), 'allowed': True, 'vsize': tx.get_vsize(), 'fees': { 'base': Decimal('0.00001000')}}],
+            rawtxs=[tx.serialize().hex()],
+            maxfeerate=0,
+        )
 
 if __name__ == '__main__':
     MempoolAcceptanceTest().main()

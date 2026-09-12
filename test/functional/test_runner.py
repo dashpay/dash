@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2020 The Bitcoin Core developers
+# Copyright (c) 2014-2022 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Run regression test suite.
@@ -93,6 +93,7 @@ EXTENDED_SCRIPTS = [
     'feature_pruning.py', # NOTE: Prune mode is incompatible with -txindex, should work with governance validation disabled though.
     'feature_dbcrash.py',
     'feature_index_prune.py',
+    'wallet_pruning.py --legacy-wallet',
 ]
 
 BASE_SCRIPTS = [

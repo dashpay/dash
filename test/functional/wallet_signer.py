@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2017-2018 The Bitcoin Core developers
+# Copyright (c) 2017-2022 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test external signer.
@@ -185,6 +185,7 @@ class WalletSignerTest(BitcoinTestFramework):
 
         self.log.info('Test send using hww1')
 
+        # Don't broadcast transaction yet so the RPC returns the raw hex
         res = hww.send(outputs={dest:0.5},options={"add_to_wallet": False})
         assert res["complete"]
         assert_equal(res["hex"], mock_tx)

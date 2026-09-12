@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
-# Copyright (c) 2019-2020 The Bitcoin Core developers
+# Copyright (c) 2019-2022 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Useful Script constants and utils."""
 from test_framework.script import (
     CScript,
     CScriptOp,
+    OP_0,
     OP_CHECKMULTISIG,
     OP_CHECKSIG,
     OP_DUP,
     OP_EQUAL,
     OP_EQUALVERIFY,
     OP_HASH160,
+    OP_RETURN,
     hash160,
 )
 
 # To prevent a "tx-size-small" policy rule error, a transaction has to have a
-# size of at least 83 bytes (MIN_STANDARD_TX_SIZE in
+# size of at least 65 bytes (MIN_STANDARD_TX_SIZE in
 # src/policy/policy.h). Considering a Tx with the smallest possible single
 # input (blank, empty scriptSig), and with an output omitting the scriptPubKey,
 # we get to a minimum size of 60 bytes:
@@ -26,15 +28,15 @@ from test_framework.script import (
 # Output:      8 [Amount] + 1 [scriptPubKeyLen] = 9 bytes
 #
 # Hence, the scriptPubKey of the single output has to have a size of at
-# least 23 bytes, which corresponds to the size of a P2SH scriptPubKey.
-# The following script constant consists of a single push of 22 bytes of 'a':
-#   <PUSH_22> <22-bytes of 'a'>
-# resulting in a 23-byte size. It should be used whenever (small) fake
-# scriptPubKeys are needed, to guarantee that the minimum transaction size is
-# met.
-DUMMY_P2SH_SCRIPT = CScript([b'a' * 22])
-DUMMY_2_P2SH_SCRIPT = CScript([b'b' * 22])
+# least 5 bytes.
+MIN_STANDARD_TX_SIZE = 65
+MIN_PADDING = MIN_STANDARD_TX_SIZE - 10 - 41 - 9
+assert MIN_PADDING == 5
 
+# This script cannot be spent, allowing dust output values under
+# standardness checks
+DUMMY_MIN_OP_RETURN_SCRIPT = CScript([OP_RETURN] + ([OP_0] * (MIN_PADDING - 1)))
+assert len(DUMMY_MIN_OP_RETURN_SCRIPT) == MIN_PADDING
 
 def key_to_p2pk_script(key):
     key = check_key(key)

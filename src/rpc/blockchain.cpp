@@ -83,7 +83,7 @@ static GlobalMutex cs_blockchange;
 static std::condition_variable cond_blockchange;
 static CUpdatedBlock latestblock GUARDED_BY(cs_blockchange);
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, const CTxMemPool& mempool, const Chainstate& active_chainstate, const chainlock::Chainlocks& chainlocks, const llmq::CInstantSendManager& isman, const SpentIndex* spent_index, UniValue& entry, TxVerbosity verbosity = TxVerbosity::SHOW_DETAILS);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, const CTxMemPool& mempool, const Chainstate& active_chainstate, const chainlock::Chainlocks& chainlocks, const llmq::CInstantSendManager& isman, const SpentIndex* spent_index, UniValue& entry, const CTxUndo* txundo = nullptr, TxVerbosity verbosity = TxVerbosity::SHOW_DETAILS);
 
 /* Calculate the difficulty for a given block index.
  */
