@@ -451,7 +451,7 @@ BITCOIN_CORE_H = \
   util/spanparsing.h \
   util/std23.h \
   util/string.h \
-  util/subprocess.hpp \
+  util/subprocess.h \
   util/syserror.h \
   util/system.h \
   util/thread.h \
