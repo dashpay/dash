@@ -26,7 +26,11 @@ CBlockHeaderAndShortTxIDs::CBlockHeaderAndShortTxIDs(const CBlock& block) :
     prefilledtxn[0] = {0, block.vtx[0]};
     for (size_t i = 1; i < block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
-        shorttxids[i - 1] = GetShortID(tx.GetHash());
+        // Short IDs are computed from instance hashes so that a mempool entry holding a different
+        // re-signed instance of a version 2 asset unlock (same txid, different quorum signing
+        // info) is treated as missing and requested, instead of being spliced into the block and
+        // failing the coinbase asset unlock commitment.
+        shorttxids[i - 1] = GetShortID(tx.GetInstanceHash());
     }
 }
 

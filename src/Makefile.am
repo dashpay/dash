@@ -1306,6 +1306,7 @@ libdashkernel_la_SOURCES = \
   init/common.cpp \
   instantsend/db.cpp \
   instantsend/instantsend.cpp \
+  instantsend/lock.cpp \
   kernel/chain.cpp \
   kernel/checks.cpp \
   kernel/coinstats.cpp \

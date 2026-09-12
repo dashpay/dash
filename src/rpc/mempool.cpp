@@ -677,6 +677,7 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const llmq::CInstantSendManag
     ret.pushKV("minrelaytxfee", ValueFromAmount(pool.m_min_relay_feerate.GetFeePerK()));
     ret.pushKV("instantsendlocks", isman.GetInstantSendLockCount());
     ret.pushKV("unbroadcastcount", pool.GetUnbroadcastTxs().size());
+    ret.pushKV("pendingassetunlocks", ValueFromAmount(pool.GetPendingAssetUnlockAmount()));
     return ret;
 }
 
@@ -697,7 +698,8 @@ static RPCHelpMan getmempoolinfo()
                 {RPCResult::Type::STR_AMOUNT, "mempoolminfee", "Minimum fee rate in " + CURRENCY_UNIT + "/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee"},
                 {RPCResult::Type::STR_AMOUNT, "minrelaytxfee", "Current minimum relay fee for transactions"},
                 {RPCResult::Type::NUM, "instantsendlocks", "Number of unconfirmed InstantSend locks"},
-                {RPCResult::Type::NUM, "unbroadcastcount", "Current number of transactions that haven't passed initial broadcast yet"}
+                {RPCResult::Type::NUM, "unbroadcastcount", "Current number of transactions that haven't passed initial broadcast yet"},
+                {RPCResult::Type::STR_AMOUNT, "pendingassetunlocks", "Sum of the withdrawal amounts (outputs plus fee) of the Asset Unlock transactions in the mempool in " + CURRENCY_UNIT}
             }},
         RPCExamples{
             HelpExampleCli("getmempoolinfo", "")

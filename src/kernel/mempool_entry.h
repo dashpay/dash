@@ -12,6 +12,7 @@
 #include <policy/settings.h>
 #include <primitives/transaction.h>
 #include <util/epochguard.h>
+#include <util/check.h>
 #include <util/overflow.h>
 
 #include <chrono>
@@ -75,7 +76,7 @@ private:
     struct ExplicitCopyTag {
         explicit ExplicitCopyTag() = default;
     };
-    const CTransactionRef tx;
+    CTransactionRef tx; //!< Only replaced by ReplaceAssetUnlockTx(), which preserves the txid
     mutable Parents m_parents;
     mutable Children m_children;
     const CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
@@ -130,6 +131,11 @@ public:
     static constexpr ExplicitCopyTag ExplicitCopy{};
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
+    void ReplaceAssetUnlockTx(CTransactionRef new_tx)
+    {
+        Assume(new_tx->GetHash() == tx->GetHash());
+        tx = std::move(new_tx);
+    }
     const CAmount& GetFee() const { return nFee; }
     size_t GetTxSize() const
     {

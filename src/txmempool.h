@@ -396,7 +396,7 @@ public:
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
-    std::vector<std::pair<uint256, txiter> > vTxHashes GUARDED_BY(cs); //!< All tx hashes/entries in mapTx, in random order
+    std::vector<std::pair<uint256, txiter> > vTxHashes GUARDED_BY(cs); //!< All tx instance hashes (see CTransaction::GetInstanceHash)/entries in mapTx, in random order
 
     typedef std::set<txiter, CompareIteratorByHash> setEntries;
 
@@ -417,7 +417,17 @@ private:
     std::map<uint256, uint256> mapProTxBlsPubKeyHashes;
     std::map<uint160, uint256> mapProTxPlatformNodeIDs;
     std::map<COutPoint, uint256> mapProTxCollaterals;
-    std::map<uint256, int /* expiry height */> mapAssetUnlockExpiry; // tx hash -> height
+    std::map<uint256, int /* expiry height */> mapAssetUnlockExpiry; // tx hash -> height (version 1 only)
+    /** Instance hash (see CTransaction::GetInstanceHash) -> txid of version 2+ asset unlocks.
+     *  Relay identifies the re-signed instances of one withdrawal by instance hash. */
+    std::map<uint256, uint256> m_asset_unlock_instances GUARDED_BY(cs);
+    /** Withdrawal index -> txid of every asset unlock in the pool (any version). Instances of one
+     *  withdrawal signed under different versions have different txids, so this is a multimap. */
+    std::multimap<uint64_t, uint256> m_asset_unlock_indexes GUARDED_BY(cs);
+    /** Sum of the withdrawal amounts (outputs plus fee, what the credit pool charges) of every
+     *  asset unlock in the pool. Compared against the credit pool limit to decide whether all
+     *  pending withdrawals fit the next block; see GetPendingAssetUnlockAmount(). */
+    CAmount m_pending_asset_unlock_amount GUARDED_BY(cs){0};
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -688,6 +698,24 @@ public:
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
 
+    /** Get the transaction holding this version 2 asset unlock instance hash, if any. */
+    CTransactionRef GetAssetUnlockByInstanceHash(const uint256& instance_hash) const;
+    /** Txids of the asset unlocks in the pool claiming this withdrawal index. */
+    std::vector<uint256> GetAssetUnlockTxidsByIndex(uint64_t index) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Sum of the withdrawal amounts of every asset unlock in the pool. When it does not exceed
+     *  the credit pool's current limit, every pending withdrawal can be mined in the next block. */
+    CAmount GetPendingAssetUnlockAmount() const EXCLUSIVE_LOCKS_REQUIRED(cs)
+    {
+        AssertLockHeld(cs);
+        return m_pending_asset_unlock_amount;
+    }
+    /** Remove the asset unlocks whose withdrawal index another instance (of any version) in this
+     *  block consumed; they can never be mined and version 2 instances are not expiry-evicted. */
+    void removeAssetUnlockConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Replace the held instance of a pending withdrawal with a fresher re-signed instance
+     *  sharing its txid. The caller has fully validated the new instance. */
+    void ReplaceAssetUnlockInstance(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+
     bool existsProviderTxConflict(const CTransaction &tx) const;
 
     /**
@@ -788,7 +816,7 @@ private:
     /**
      * addUnchecked extension for Dash-specific transactions (ProTx).
      */
-    void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx);
+    void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Before calling removeUnchecked for a given transaction,
      *  UpdateForRemoveFromMempool must be called on the entire (dependent) set
@@ -799,7 +827,7 @@ private:
      *  removal.
      */
     void removeUnchecked(txiter entry, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeUncheckedProTx(const CTransaction& tx);
+    void removeUncheckedProTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
     /** visited marks a CTxMemPoolEntry as having been traversed
