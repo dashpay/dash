@@ -8,10 +8,6 @@
 #include <key.h>
 #include <script/standard.h>
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include <qt/walletmodeltransaction.h>
 
 #include <interfaces/wallet.h>
