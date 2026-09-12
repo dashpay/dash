@@ -13,15 +13,13 @@ import sys
 from subprocess import check_output
 from typing import List
 
+from lint_ignore_dirs import SHARED_EXCLUDED_SUBTREES
+
 
 HEADER_ID_PREFIX = 'BITCOIN_'
 HEADER_ID_SUFFIX = '_H'
 
 EXCLUDE_FILES_WITH_PREFIX = ['src/crypto/ctaes',
-                             'src/leveldb',
-                             'src/crc32c',
-                             'src/secp256k1',
-                             'src/minisketch',
                              'src/tinyformat.h',
                              'src/bench/nanobench.h',
                              'src/test/fuzz/FuzzedDataProvider.h',
@@ -30,7 +28,7 @@ EXCLUDE_FILES_WITH_PREFIX = ['src/crypto/ctaes',
                              'src/ctpl_stl.h',
                              'src/dashbls',
                              'src/gsl',
-                             'src/immer']
+                             'src/immer'] + SHARED_EXCLUDED_SUBTREES
 
 
 def _get_header_file_lst() -> List[str]:

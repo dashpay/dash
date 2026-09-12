@@ -11,8 +11,11 @@ Note: Will exit successfully regardless of spelling errors.
 
 from subprocess import check_output, STDOUT, CalledProcessError
 
+from lint_ignore_dirs import SHARED_EXCLUDED_SUBTREES
+
 IGNORE_WORDS_FILE = 'test/lint/spelling.ignore-words.txt'
-FILES_ARGS = ['git', 'ls-files', '--', ":(exclude)build-aux/m4/", ":(exclude)contrib/seeds/*.txt", ":(exclude)depends/", ":(exclude)doc/release-notes/", ":(exclude)src/dashbls/", ":(exclude)src/crc32c/", ":(exclude)src/crypto/", ":(exclude)src/ctpl_stl.h", ":(exclude)src/cxxtimer.hpp", ":(exclude)src/immer/", ":(exclude)src/leveldb/", ":(exclude)src/qt/locale/", ":(exclude)src/qt/*.qrc", ":(exclude)src/secp256k1/", ":(exclude)src/minisketch/", ":(exclude)contrib/builder-keys/", ":(exclude)contrib/guix/patches", ":(exclude)src/util/subprocess.hpp", ":(exclude)src/wallet/bip39_english.h"]
+FILES_ARGS = ['git', 'ls-files', '--', ":(exclude)build-aux/m4/", ":(exclude)contrib/seeds/*.txt", ":(exclude)depends/", ":(exclude)doc/release-notes/", ":(exclude)src/dashbls/", ":(exclude)src/crypto/", ":(exclude)src/ctpl_stl.h", ":(exclude)src/cxxtimer.hpp", ":(exclude)src/immer/", ":(exclude)src/qt/locale/", ":(exclude)src/qt/*.qrc", ":(exclude)contrib/builder-keys/", ":(exclude)contrib/guix/patches", ":(exclude)src/util/subprocess.hpp", ":(exclude)src/wallet/bip39_english.h"]
+FILES_ARGS += [f":(exclude){dir}" for dir in SHARED_EXCLUDED_SUBTREES]
 
 
 def check_codespell_install():

@@ -69,7 +69,7 @@ bool LockDirectory(const fs::path& directory, const fs::path& lockfile_name, boo
     if (file) fclose(file);
     auto lock = std::make_unique<fsbridge::FileLock>(pathLockFile);
     if (!lock->TryLock()) {
-        LogPrintf("ERROR: %s\n", SafeStringFormat("Error while attempting to lock directory %s: %s", fs::PathToString(directory), lock->GetReason()));
+        LogError("Error while attempting to lock directory %s: %s\n", fs::PathToString(directory), lock->GetReason());
         return false;
     }
     if (!probe_only) {
