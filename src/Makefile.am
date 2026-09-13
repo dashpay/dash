@@ -972,6 +972,7 @@ libbitcoin_common_a_SOURCES = \
   common/init.cpp \
   common/interfaces.cpp \
   common/run_command.cpp \
+  common/url.cpp \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
@@ -1008,11 +1009,6 @@ libbitcoin_common_a_SOURCES = \
   script/standard.cpp \
   warnings.cpp \
   $(BITCOIN_CORE_H)
-
-if USE_LIBEVENT
-libbitcoin_common_a_CPPFLAGS += $(EVENT_CFLAGS)
-libbitcoin_common_a_SOURCES += common/url.cpp
-endif
 #
 
 # util #

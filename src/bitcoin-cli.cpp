@@ -10,7 +10,6 @@
 
 #include <chainparamsbase.h>
 #include <clientversion.h>
-#include <common/url.h>
 #include <compat/compat.h>
 #include <compat/stdin.h>
 #include <policy/feerate.h>
@@ -49,7 +48,6 @@
 using CliClock = std::chrono::system_clock;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
-UrlDecodeFn* const URL_DECODE = urlDecode;
 
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
