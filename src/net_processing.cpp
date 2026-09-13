@@ -5012,12 +5012,6 @@ void PeerManagerImpl::ProcessMessage(
             }
         } else {
             m_recent_rejects.insert(relay_hash);
-            // Peers below ASSET_UNLOCK_INV_VERSION announce this instance by txid, which
-            // AlreadyHave() checks against the rejects filter; without the txid here every such
-            // announcement would have it re-requested and its quorum signature re-verified. A
-            // fresher instance is still admitted: AlreadyHave() never consults the txid for
-            // MSG_ASSET_UNLOCK.
-            if (is_stable_unlock) m_recent_rejects.insert(txid);
             ForgetTx(tx);
             if (RecursiveDynamicUsage(*ptx) < 100000) {
                 AddToCompactExtraTransactions(ptx);
