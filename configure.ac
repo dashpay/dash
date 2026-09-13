@@ -173,6 +173,12 @@ AC_ARG_WITH([natpmp],
             [use_natpmp=$withval],
             [use_natpmp=auto])
 
+AC_ARG_ENABLE([mimalloc],
+  [AS_HELP_STRING([--disable-mimalloc],
+  [use malloc instead of mimalloc for BLS secret memory until BLSInit() installs the locked pool (default is mimalloc)])],
+  [use_mimalloc=$enableval],
+  [use_mimalloc=yes])
+
 AC_ARG_ENABLE(tests,
     AS_HELP_STRING([--disable-tests],[do not compile tests (default is to compile)]),
     [use_tests=$enableval],
@@ -1578,6 +1584,13 @@ if test "$use_natpmp" != "no"; then
   CPPFLAGS="$TEMP_CPPFLAGS"
 fi
 
+dnl Check for blst (required by src/dashbls)
+TEMP_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $BLST_CPPFLAGS"
+AC_CHECK_HEADERS([blst.h], [], [AC_MSG_ERROR([blst headers missing])])
+AC_CHECK_LIB([blst], [blst_p1_compress], [BLST_LIBS="$BLST_LIBS -lblst"], [AC_MSG_ERROR([libblst missing])], [$BLST_LIBS])
+CPPFLAGS="$TEMP_CPPFLAGS"
+
 if test "$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_bitcoin_util$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench$enable_fuzz_binary" = "nonononononononono"; then
   use_boost=no
 else
@@ -1976,6 +1989,7 @@ AM_CONDITIONAL([ENABLE_ARM_CRC], [test "$enable_arm_crc" = "yes"])
 AM_CONDITIONAL([ENABLE_ARM_NEON], [test "$enable_arm_neon" = "yes"])
 AM_CONDITIONAL([ENABLE_ARM_SHANI], [test "$enable_arm_shani" = "yes"])
 AM_CONDITIONAL([WORDS_BIGENDIAN], [test "$ac_cv_c_bigendian" = "yes"])
+AM_CONDITIONAL([USE_MIMALLOC], [test "$use_mimalloc" = "yes"])
 AM_CONDITIONAL([USE_NATPMP], [test "$use_natpmp" = "yes"])
 AM_CONDITIONAL([USE_UPNP], [test "$use_upnp" = "yes"])
 
@@ -2052,6 +2066,8 @@ AC_SUBST(BACKTRACE_FLAGS)
 AC_SUBST(BACKTRACE_LDFLAGS)
 AC_SUBST(BACKTRACE_LIBS)
 AC_SUBST(GMP_LIBS)
+AC_SUBST(BLST_CPPFLAGS)
+AC_SUBST(BLST_LIBS)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)
@@ -2087,7 +2103,7 @@ CPPFLAGS="$CPPFLAGS_TEMP"
 dnl The ECDH module is required by the wallet's Platform key provider
 dnl (DashPay contact request encryption, wallet/platformkeys.cpp).
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --enable-module-ecdh --disable-openssl-tests"
-AC_CONFIG_SUBDIRS([src/dashbls src/secp256k1])
+AC_CONFIG_SUBDIRS([src/secp256k1])
 
 AC_OUTPUT
 
