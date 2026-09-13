@@ -56,6 +56,7 @@ bench_bench_dash_SOURCES = \
   bench/rollingbloom.cpp \
   bench/rpc_blockchain.cpp \
   bench/rpc_mempool.cpp \
+  bench/streams_findbyte.cpp \
   bench/strencodings.cpp \
   bench/string_cast.cpp \
   bench/util_time.cpp \
