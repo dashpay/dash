@@ -37,6 +37,7 @@ jobs:
       repo: ${{ steps.prepare.outputs.repo }}
       hash-tag: ${{ steps.prepare.outputs.hash-tag }}
       exists: ${{ steps.exists.outputs.exists }}
+      digests: ${{ steps.prepare.outputs.digests }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -84,7 +85,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         shell: python3 {0}
         run: |
-          import hashlib, os, re, subprocess, sys
+          import hashlib, json, os, re, subprocess, sys
 
           def die(message):
               print(f"::error::{message}")
@@ -93,23 +94,38 @@ jobs:
           context = os.path.realpath(os.environ["CONTEXT"])
           # Anything the image is built from has to live inside the hashed
           # context, or edits to it would not invalidate the tag.
-          dockerfile = os.path.relpath(os.path.realpath(os.environ["DOCKERFILE"]), context)
+          dockerfile_path = os.path.realpath(os.environ["DOCKERFILE"])
+          dockerfile = os.path.relpath(dockerfile_path, context)
           if dockerfile.startswith(".."):
               die(f"Dockerfile '{os.environ['DOCKERFILE']}' is outside the hashed context")
 
-          files = sorted(os.path.join(root, name)
-                         for root, _, names in os.walk(context) for name in names)
-          if not files:
+          entries = []
+          for root, dirs, names in os.walk(context, topdown=True, followlinks=False):
+              for name in list(dirs):
+                  path = os.path.join(root, name)
+                  entries.append(path)
+                  if os.path.islink(path):
+                      dirs.remove(name)
+              entries.extend(os.path.join(root, name) for name in names)
+          entries.sort()
+          if not entries:
               die(f"Build context '{os.environ['CONTEXT']}' contains no files")
 
           # Hash the whole context, not just the named Dockerfile: ci.Dockerfile
           # pulls in ci-slim.Dockerfile via dockerfile-x, so hashing one file
           # alone would let a sibling change reuse a stale image.
           key = hashlib.sha256()
-          for path in files:
-              with open(path, "rb") as fh:
-                  content = hashlib.sha256(fh.read()).hexdigest()
-              key.update(f"{os.path.relpath(path, context)} {content}\n".encode())
+          for path in entries:
+              relative = os.path.relpath(path, context)
+              stat = os.lstat(path)
+              if os.path.islink(path):
+                  value = f"symlink:{os.readlink(path)}"
+              elif os.path.isfile(path):
+                  with open(path, "rb") as fh:
+                      value = f"file:{hashlib.sha256(fh.read()).hexdigest()}"
+              else:
+                  value = "directory"
+              key.update(f"{relative} {stat.st_mode & 0o7777:o} {value}\n".encode())
 
           # BuildKit re-resolves every external image on a real build, so an
           # upstream push to any of them changes the result. They must be in the
@@ -120,31 +136,34 @@ jobs:
           # indexes and local dockerfile-x includes (./foo.Dockerfile) are not
           # registry images; everything else is, including bare names such as
           # "FROM alpine".
-          refs, stages = set(), set()
-          for path in files:
+          files = [path for path in entries if os.path.isfile(path)]
+          from_refs, copy_refs, stages = set(), set(), set()
+          for path in entries:
               with open(path, encoding="utf-8", errors="replace") as fh:
                   for line in fh:
                       tokens = line.split()
                       syntax = re.match(r"#\s*syntax\s*=\s*(\S+)", line.strip())
                       if syntax:
-                          refs.add(syntax.group(1))
+                          from_refs.add(syntax.group(1))
                       elif tokens and tokens[0].upper() == "FROM":
                           words = [t for t in tokens[1:] if not t.startswith("--")]
                           if words:
-                              refs.add(words[0])
+                              from_refs.add(words[0])
                           if len(words) >= 3 and words[1].upper() == "AS":
                               stages.add(words[2])
                       elif tokens and tokens[0].upper() == "COPY":
-                          refs.update(t[len("--from="):] for t in tokens[1:]
+                          copy_refs.update(t[len("--from="):] for t in tokens[1:]
                                       if t.startswith("--from="))
-          refs = {r for r in refs - stages
+          refs = from_refs | {r for r in copy_refs - stages
                   if not r.startswith((".", "/")) and r != "scratch" and not r.isdigit()}
+          refs = {r for r in refs if not r.startswith((".", "/")) and r != "scratch" and not r.isdigit()}
           if not refs:
               die("Found no external image references; the parser is broken "
                   "and drift in base images would go undetected")
 
           print("Resolving external image references:")
           unresolved = False
+          digests = {}
           for ref in sorted(refs):
               result = subprocess.run(
                   ["docker", "buildx", "imagetools", "inspect", "--raw", ref],
@@ -158,6 +177,7 @@ jobs:
                   # lookups recover the digest-keyed path is used again.
                   digest, unresolved = "unresolved", True
               print(f"  {ref} -> {digest}")
+              digests[ref] = digest
               key.update(f"{ref}={digest}\n".encode())
 
           # Note that unpinned apt packages and git refs that move under a fixed
@@ -203,6 +223,9 @@ jobs:
               out.write(f"repo={os.environ['REPOSITORY'].lower()}\n")
               out.write(f"hash-tag={hash_tag}\n")
               out.write(f"unresolved={str(unresolved).lower()}\n")
+              out.write("digests<<DIGESTS\n")
+              out.write(json.dumps(digests, sort_keys=True) + "\n")
+              out.write("DIGESTS\n")
 
       - name: Check whether the image was already built
         id: exists
@@ -353,20 +376,30 @@ jobs:
           IMAGE_NAME: ${{ inputs.name }}
           CHECK_TAG: ${{ needs.check.outputs.tag }}
           CHECK_HASH_TAG: ${{ needs.check.outputs.hash-tag }}
+          EXPECTED_DIGESTS: ${{ needs.check.outputs.digests }}
+        shell: python3 {0}
         run: |
-          REPO="ghcr.io/${CHECK_REPO}/${IMAGE_NAME}"
-          TAG="${CHECK_TAG}"
-          HASH_TAG="${CHECK_HASH_TAG}"
+          import hashlib, json, os, subprocess, sys
+
+          expected = json.loads(os.environ["EXPECTED_DIGESTS"])
+          for ref, digest in sorted(expected.items()):
+              result = subprocess.run(
+                  ["docker", "buildx", "imagetools", "inspect", "--raw", ref],
+                  capture_output=True)
+              if result.returncode != 0 or not result.stdout:
+                  print(f"::error::Unable to revalidate external image {ref}")
+                  sys.exit(1)
+              actual = hashlib.sha256(result.stdout).hexdigest()
+              if actual != digest:
+                  print(f"::error::External image {ref} changed during the build")
+                  sys.exit(1)
+
+          repo = f"ghcr.io/{os.environ['CHECK_REPO']}/{os.environ['IMAGE_NAME']}"
+          tag = os.environ["CHECK_TAG"]
+          hash_tag = os.environ["CHECK_HASH_TAG"]
 
           # Create manifest from arch-specific images
-          docker buildx imagetools create -t "${REPO}:${HASH_TAG}" \
-            "${REPO}:${HASH_TAG}-amd64" \
-            "${REPO}:${HASH_TAG}-arm64"
-
-          docker buildx imagetools create -t "${REPO}:${TAG}" \
-            "${REPO}:${HASH_TAG}-amd64" \
-            "${REPO}:${HASH_TAG}-arm64"
-
-          docker buildx imagetools create -t "${REPO}:latest" \
-            "${REPO}:${HASH_TAG}-amd64" \
-            "${REPO}:${HASH_TAG}-arm64"
+          sources = [f"{repo}:{hash_tag}-amd64", f"{repo}:{hash_tag}-arm64"]
+          for tag_name in (hash_tag, tag, "latest"):
+              subprocess.run(["docker", "buildx", "imagetools", "create",
+                               "-t", f"{repo}:{tag_name}", *sources], check=True)
