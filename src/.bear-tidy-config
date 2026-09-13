@@ -5,6 +5,8 @@
       "paths_to_include": [],
       "paths_to_exclude": [
         "src/crc32",
+        "src/crc32c",
+        "src/crypto/ctaes",
         "src/crypto/x11",
         "src/dashbls",
         "src/gsl",
