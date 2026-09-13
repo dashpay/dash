@@ -266,6 +266,7 @@ def check_host(args) -> int:
     if args.download_binary:
         platforms = {
             'aarch64-*-linux*': 'aarch64-linux-gnu',
+            'powerpc64le-*-linux-*': 'powerpc64le-linux-gnu',
             'x86_64-*-linux*': 'x86_64-linux-gnu',
             'x86_64-apple-darwin*': 'x86_64-apple-darwin',
             'aarch64-apple-darwin*': 'arm64-apple-darwin',
