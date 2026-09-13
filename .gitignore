@@ -17,6 +17,7 @@ src/dash-chainstate
 src/dash-wallet
 src/test/fuzz/fuzz
 src/test/test_dash
+src/dashbls/runtest
 src/qt/test/test_dash-qt
 src/qt/res/css/colors/*
 src/bench/bench_dash

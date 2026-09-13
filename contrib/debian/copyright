@@ -27,6 +27,17 @@ Files: src/qt/res/fonts/RobotoMono-Bold.ttf
 License: Apache-2.0
 Comment: Site: https://fonts.google.com/specimen/Roboto+Mono
 
+Files: src/dashbls/*
+Copyright: 2018-present Chia Network Inc.
+           2021-present The Dash Core developers
+License: Apache-2.0
+Comment: Site: https://github.com/dashpay/bls-signatures
+
+Files: src/dashbls/depends/mimalloc/*
+Copyright: 2018-2025 Microsoft Corporation, Daan Leijen
+License: Expat
+Comment: Site: https://github.com/microsoft/mimalloc
+
 
 License: Expat
  Permission is hereby granted, free of charge, to any person obtaining a

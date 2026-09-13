@@ -1,3 +1,9 @@
+> [!NOTE]
+>
+> Inside Dash Core this directory is built by `src/Makefile.dashbls.include`
+> and blst is provided by `depends/packages/blst.mk`. The build instructions
+> below describe the standalone upstream repository.
+
 [![GitHub License](https://img.shields.io/github/license/dashpay/bls-signatures)](https://github.com/dashpay/bls-signatures/blob/main/LICENSE)
 [![Library status](https://img.shields.io/github/actions/workflow/status/dashpay/bls-signatures/build-test.yaml?branch=main&style=flat&logo=github&logoColor=white&label=library)](https://github.com/dashpay/bls-signatures/actions/workflows/build-test.yaml?query=branch%3Amain)
 [![Binds status](https://img.shields.io/github/actions/workflow/status/dashpay/bls-signatures/build-binds.yml?branch=main&style=flat&logo=github&logoColor=white&label=binds)](https://github.com/dashpay/bls-signatures/actions/workflows/build-binds.yml?query=branch%3Amain)
