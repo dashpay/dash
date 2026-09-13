@@ -5046,7 +5046,9 @@ void PeerManagerImpl::ProcessMessage(
                 pfrom.GetId(),
                 state.ToString());
             MaybePunishNodeForTx(pfrom.GetId(), state);
-            m_isman.TransactionIsRemoved(ptx);
+            // A rejected instance of a version 2 asset unlock says nothing about another instance
+            // sharing its txid, which may be held in the mempool and locked
+            if (!is_stable_unlock) m_isman.TransactionIsRemoved(ptx);
         }
         return;
     }
