@@ -997,6 +997,15 @@ class AssetLocksTest(DashTestFramework):
         self.wait_for_instantlock(child_txid)
         assert_equal(child_output()['safe'], True)
 
+        self.log.info("A peer relaying an older instance of the locked withdrawal does not strip the locks")
+        # The rejected instance shares the txid of the locked one still held in the mempool
+        stale_peer = node_wallet.add_p2p_connection(P2PInterface())
+        with node_wallet.assert_debug_log([f"{stable_txid} from peer=", "was not accepted"]):
+            stale_peer.send_and_ping(msg_tx(unlock_a2))
+        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instanceHash'], unlock_b.rehash())
+        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instantlock'], True)
+        assert_equal(node_wallet.getrawtransaction(child_txid, 1)['instantlock'], True)
+
         self.log.info("Mine the withdrawal with its child")
         tip_hash = self.generate(node, 1)[0]
         block = node_wallet.getblock(tip_hash, 2)
@@ -1046,6 +1055,86 @@ class AssetLocksTest(DashTestFramework):
         assert_equal(node_wallet.getassetunlockstatuses([str(cross_index)])[0], {'index': cross_index, 'status': 'mempooled', 'instantlock': True})
         tip_hash = self.generate(node, 1)[0]
         assert cross_txid in node_wallet.getblock(tip_hash)['tx']
+
+        self.log.info("A rejected instance does not blacklist the txid shared by every instance of its withdrawal")
+        # The node does not hold this withdrawal yet. An instance with a tampered requestedHeight
+        # fails validation but carries the txid of the valid one, which a child already spends.
+        orphan_index = 804
+        unlock_valid = self.create_assetunlock(orphan_index, COIN, pubkey, version=2)
+        parent_txid = self.get_v2_txid(unlock_valid)
+        tampered_payload = CAssetUnlockTx()
+        tampered_payload.deserialize(BytesIO(unlock_valid.vExtraPayload))
+        tampered_payload.requestedHeight -= 1
+        unlock_tampered = copy.deepcopy(unlock_valid)
+        unlock_tampered.vExtraPayload = tampered_payload.serialize()
+        assert_equal(self.get_v2_txid(unlock_tampered), parent_txid)
+        assert unlock_tampered.rehash() != unlock_valid.rehash()
+
+        parent_value = unlock_valid.vout[0].nValue
+        orphan_child_hex = node_wallet.createrawtransaction(
+            [{'txid': parent_txid, 'vout': 0}],
+            {node_wallet.getnewaddress(): Decimal(parent_value - tiny_amount) / COIN})
+        parent_prevout = {'txid': parent_txid, 'vout': 0, 'scriptPubKey': unlock_valid.vout[0].scriptPubKey.hex(),
+                          'amount': Decimal(parent_value) / COIN}
+        signed_orphan_child = node_wallet.signrawtransactionwithwallet(orphan_child_hex, [parent_prevout])
+        assert signed_orphan_child['complete']
+        orphan_child = tx_from_hex(signed_orphan_child['hex'])
+        orphan_child_txid = orphan_child.rehash()
+
+        relay_peer = node_wallet.add_p2p_connection(P2PInterface())
+        with node_wallet.assert_debug_log([f"{parent_txid} from peer=", "was not accepted"]):
+            relay_peer.send_and_ping(msg_tx(unlock_tampered))
+        assert parent_txid not in node_wallet.getrawmempool()
+
+        self.log.info("A child spending the withdrawal is kept as an orphan and accepted with its valid parent")
+        with node_wallet.assert_debug_log(expected_msgs=[], unexpected_msgs=["not keeping orphan with rejected parents"]):
+            relay_peer.send_and_ping(msg_tx(orphan_child))
+        assert orphan_child_txid not in node_wallet.getrawmempool()
+        relay_peer.send_and_ping(msg_tx(unlock_valid))
+        mempool = node_wallet.getrawmempool()
+        assert parent_txid in mempool
+        assert orphan_child_txid in mempool
+        self.wait_for_instantlock(parent_txid, orphan_child_txid)
+        tip_hash = self.generate(node, 1)[0]
+        mined_txids = node_wallet.getblock(tip_hash)['tx']
+        assert parent_txid in mined_txids
+        assert orphan_child_txid in mined_txids
+
+        self.log.info("A peer relaying an older instance of an unlocked withdrawal does not keep it from being locked later")
+        # A pending withdrawal over the credit pool limit keeps this one from being locked until it
+        # expires; the per-block retry must then lock it without another re-sign
+        tip_height = node_wallet.getblockcount()
+        blocker = self.create_assetunlock(805, 4001 * COIN, pubkey, version=1,
+                                          requested_height=tip_height - HEIGHT_DIFF_EXPIRING + 2)
+        blocker_txid = self.send_tx_simple(blocker)
+        unlock_old = self.create_assetunlock(806, COIN, pubkey, version=2)
+        retry_lock_txid = self.get_v2_txid(unlock_old)
+        assert_equal(self.send_tx_simple(unlock_old), retry_lock_txid)
+        self.sync_mempools()
+        # Empty blocks keep the withdrawal unmined while the blocker is pending
+        self.generateblock(node, node_wallet.getnewaddress(), [])
+        unlock_new = self.create_assetunlock(806, COIN, pubkey, version=2)
+        assert_equal(self.send_tx_simple(unlock_new), retry_lock_txid)
+        self.sync_unlock_instance(retry_lock_txid, unlock_new.rehash())
+        assert blocker_txid in node_wallet.getrawmempool()
+        assert_equal(node_wallet.getrawtransaction(retry_lock_txid, 1)['instantlock'], False)
+
+        for mn in self.mninfo:
+            mn_node = mn.get_node(self)
+            with mn_node.assert_debug_log([f"{retry_lock_txid} from peer=", "assetunlock-stale-instance"]):
+                mn_node.add_p2p_connection(P2PInterface()).send_and_ping(msg_tx(unlock_old))
+            mn_node.disconnect_p2ps()
+
+        self.log.info("Once the blocking withdrawal expires, the per-block retry locks the unlock")
+        for _ in range(3):
+            if blocker_txid not in node_wallet.getrawmempool():
+                break
+            self.generateblock(node, node_wallet.getnewaddress(), [])
+        assert blocker_txid not in node_wallet.getrawmempool()
+        assert retry_lock_txid in node_wallet.getrawmempool()
+        self.wait_for_instantlock(retry_lock_txid)
+        tip_hash = self.generate(node, 1)[0]
+        assert retry_lock_txid in node_wallet.getblock(tip_hash)['tx']
 
         node_wallet.disconnect_p2ps()
         self.set_sporks()
