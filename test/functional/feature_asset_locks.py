@@ -1034,9 +1034,22 @@ class AssetLocksTest(DashTestFramework):
         assert_equal(stale_result['reject-reason'], 'assetunlock-stale-instance')
         assert v1_txid in node_wallet.getrawmempool()
 
-        self.log.info("A version 2 unlock wrapped in a dstx message goes through DSTX validation and is dropped")
         unlock_v2_fresh = self.create_assetunlock(cross_index, COIN, pubkey, version=2, requested_height=tip_height)
         cross_txid = self.get_v2_txid(unlock_v2_fresh)
+        self.log.info("A package cannot replace an unlock while spending the evicted claimant")
+        package_child_hex = node_wallet.createrawtransaction(
+            [{'txid': v1_txid, 'vout': 0}, {'txid': cross_txid, 'vout': 0}],
+            {node_wallet.getnewaddress(): Decimal(unlock_v1.vout[0].nValue + unlock_v2_fresh.vout[0].nValue - tiny_amount) / COIN})
+        fresh_prevout = {'txid': cross_txid, 'vout': 0, 'scriptPubKey': unlock_v2_fresh.vout[0].scriptPubKey.hex(),
+                         'amount': Decimal(unlock_v2_fresh.vout[0].nValue) / COIN}
+        signed_package_child = node_wallet.signrawtransactionwithwallet(package_child_hex, [fresh_prevout])
+        assert signed_package_child['complete']
+        assert_raises_rpc_error(-25, 'assetunlock-conflicting-package', node_wallet.submitpackage,
+                                [unlock_v1.serialize().hex(), unlock_v2_fresh.serialize().hex(), signed_package_child['hex']])
+        assert v1_txid in node_wallet.getrawmempool()
+        assert cross_txid not in node_wallet.getrawmempool()
+
+        self.log.info("A version 2 unlock wrapped in a dstx message goes through DSTX validation and is dropped")
         dstx_peer = node_wallet.add_p2p_connection(P2PInterface())
         wrapped = CCoinJoinBroadcastTx(tx=unlock_v2_fresh, m_protxHash=1, vchSig=b"\x01" * 96, sigTime=self.mocktime)
         with node_wallet.assert_debug_log(["Invalid DSTX structure", "invalid dstx"]):
