@@ -252,7 +252,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         {
             LOCK(::cs_main);
             BOOST_CHECK(!chainman.IsSnapshotValidated());
-            BOOST_CHECK(!node::FindSnapshotChainstateDir());
+            BOOST_CHECK(!node::FindSnapshotChainstateDir(m_args.GetDataDirNet()));
         }
 
         size_t initial_size;
@@ -302,7 +302,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                 auto_infile >> coin;
         }));
 
-        BOOST_CHECK(!node::FindSnapshotChainstateDir());
+        BOOST_CHECK(!node::FindSnapshotChainstateDir(m_args.GetDataDirNet()));
 
         BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
             this, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
@@ -326,7 +326,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         }));
 
         BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this));
-        BOOST_CHECK(fs::exists(*node::FindSnapshotChainstateDir()));
+        BOOST_CHECK(fs::exists(*node::FindSnapshotChainstateDir(m_args.GetDataDirNet())));
 
         // Ensure our active chain is the snapshot chainstate.
         BOOST_CHECK(!chainman.ActiveChainstate().m_from_snapshot_blockhash->IsNull());
@@ -348,7 +348,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         {
             LOCK(::cs_main);
 
-            fs::path found = *node::FindSnapshotChainstateDir();
+            fs::path found = *node::FindSnapshotChainstateDir(m_args.GetDataDirNet());
 
             // Note: WriteSnapshotBaseBlockhash() is implicitly tested above.
             BOOST_CHECK_EQUAL(
@@ -636,7 +636,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
 
     this->SetupSnapshot();
 
-    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir();
+    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir(m_args.GetDataDirNet());
     BOOST_CHECK(fs::exists(snapshot_chainstate_dir));
     BOOST_CHECK_EQUAL(snapshot_chainstate_dir, gArgs.GetDataDirNet() / "chainstate_snapshot");
 
@@ -926,7 +926,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     SnapshotCompletionResult res;
     auto mock_shutdown = [](bilingual_str msg) {};
 
-    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir();
+    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir(m_args.GetDataDirNet());
     BOOST_CHECK(fs::exists(snapshot_chainstate_dir));
     BOOST_CHECK_EQUAL(snapshot_chainstate_dir, gArgs.GetDataDirNet() / "chainstate_snapshot");
 

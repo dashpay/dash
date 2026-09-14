@@ -16,6 +16,7 @@ class CChainParams;
 
 static constexpr bool DEFAULT_CHECKPOINTS_ENABLED{true};
 static constexpr auto DEFAULT_MAX_TIP_AGE{6h}; // ~144 blocks behind -> 2 x fork detection time, was 24h in bitcoin
+static constexpr int DEFAULT_STOPATHEIGHT{0};
 
 namespace kernel {
 
@@ -34,6 +35,7 @@ struct ChainstateManagerOpts {
     std::optional<uint256> assumed_valid_block{};
     //! If the tip is older than this, the node is considered to be in initial block download.
     std::chrono::seconds max_tip_age{DEFAULT_MAX_TIP_AGE};
+    int stop_at_height{DEFAULT_STOPATHEIGHT};
 };
 
 } // namespace kernel

@@ -16,7 +16,6 @@
 #include <kernel/validation_cache_sizes.h>
 
 #include <chainlock/chainlock.h>
-#include <chainparams.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <evo/chainhelper.h>
@@ -57,13 +56,9 @@ int main(int argc, char* argv[])
     }
     std::filesystem::path abs_datadir = std::filesystem::absolute(argv[1]);
     std::filesystem::create_directories(abs_datadir);
-    gArgs.ForceSetArg("-datadir", abs_datadir.string());
 
 
-    // SETUP: Misc Globals
-    SelectParams(CBaseChainParams::MAIN);
-    const CChainParams& chainparams = Params();
-
+    // SETUP: Context
     kernel::Context kernel_context{};
     // We can't use a goto here, but we can use an assert since none of the
     // things instantiated so far requires running the epilogue to be torn down
@@ -89,7 +84,9 @@ int main(int argc, char* argv[])
     GetMainSignals().RegisterBackgroundSignalScheduler(scheduler);
 
 
+
     // SETUP: Chainstate
+    auto chainparams = CChainParams::Main();
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
     };
@@ -115,7 +112,7 @@ int main(int argc, char* argv[])
     options.isman = &isman;
     options.chainlocks = &chainlocks;
     options.mn_sync = &mn_sync;
-    options.data_dir = gArgs.GetDataDirNet();
+    options.data_dir = abs_datadir;
     options.check_interrupt = [] { return false; };
     options.coins_error_cb = [] {};
     auto [status, error] = node::LoadChainstate(chainman, cache_sizes, options, evodb, dmnman, llmq_ctx, chain_helper);
@@ -141,7 +138,8 @@ int main(int argc, char* argv[])
     // Main program logic starts here
     std::cout
         << "Hello! I'm going to print out some information about your datadir." << std::endl
-        << "\t" << "Path: " << gArgs.GetDataDirNet() << std::endl;
+        << "\t"
+        << "Path: " << abs_datadir << std::endl;
     {
         LOCK(chainman.GetMutex());
         std::cout
