@@ -180,8 +180,8 @@ class InstantSendTest(DashTestFramework):
         # A genesis-block cycle hash resolves to height 0, a valid rotation boundary, but selects a
         # signing height from before any quorum, so the lock has no quorum. Before the fix that
         # dropped the whole verification batch, taking any genuine lock that shared it. We isolate a
-        # node so its only lock source is our peer, then hand it a genuine lock next to the crafted
-        # one; sending both back-to-back lands them in one batch, and a few tries make it certain.
+        # node so its only lock source is our peer, then deliver a genuine lock between two such
+        # quorum-less locks.
         controller = self.nodes[0]
         target = self.nodes[self.isolated_idx]
         connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
@@ -190,17 +190,23 @@ class InstantSendTest(DashTestFramework):
         peer = target.add_p2p_connection(P2PInterface())
         genesis_hash = int(target.getblockhash(0), 16)
 
+        def genesis_lock(sig):
+            # No quorum signs at height 0; reusing a real signature keeps sig.IsValid() true so the
+            # lock still reaches (and fails) quorum selection instead of being rejected as malformed.
+            return msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256), genesis_hash, sig)
+
         for _ in range(5):
             txid = controller.sendtoaddress(controller.getnewaddress(), 1)
             self.wait_for_instantlock(txid, nodes=connected)
             genuine = msg_isdlock()
             genuine.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
-            # Reusing a real signature keeps sig.IsValid() true so the crafted lock reaches quorum selection.
-            poisoned = msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256),
-                                   genesis_hash, genuine.sig)
             target.sendrawtransaction(controller.getrawtransaction(txid))
-            peer.send_message(poisoned)
-            peer.send_message(genuine)
+            # The worker polls the pending queue every 100ms but we enqueue these three in
+            # microseconds, so at most one poll can split them and every split still batches the
+            # genuine lock with a quorum-less neighbour. The genuine lock therefore cannot reach a
+            # batch of its own, which is what let it survive before the fix.
+            for lock in (genesis_lock(genuine.sig), genuine, genesis_lock(genuine.sig)):
+                peer.send_message(lock)
             peer.sync_with_ping()
             self.wait_until(lambda txid=txid: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
 
