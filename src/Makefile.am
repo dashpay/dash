@@ -39,6 +39,39 @@ BUILT_SOURCES = dashbls/depends/relic/include/relic_conf.h
 dashbls/depends/relic/include/relic_conf.h:
 	$(AM_V_GEN)$(MAKE) -C dashbls depends/relic/include/relic_conf.h
 
+# BUILT_SOURCES orders normal aggregate builds, but does not add a prerequisite
+# to object targets requested directly. Keep every object that can include Dash
+# BLS headers ordered behind the generated RELIC configuration header as well.
+BLS_OBJECTS = \
+	$(bench_bench_dash_OBJECTS) \
+	$(dash_chainstate_OBJECTS) \
+	$(dash_cli_OBJECTS) \
+	$(dash_gui_OBJECTS) \
+	$(dash_node_OBJECTS) \
+	$(dash_tx_OBJECTS) \
+	$(dash_util_OBJECTS) \
+	$(dash_wallet_OBJECTS) \
+	$(dashd_OBJECTS) \
+	$(libbitcoin_cli_a_OBJECTS) \
+	$(libbitcoin_common_a_OBJECTS) \
+	$(libbitcoin_consensus_a_OBJECTS) \
+	$(libbitcoin_node_a_OBJECTS) \
+	$(libbitcoin_util_a_OBJECTS) \
+	$(libbitcoin_wallet_a_OBJECTS) \
+	$(libbitcoin_wallet_tool_a_OBJECTS) \
+	$(libbitcoin_zmq_a_OBJECTS) \
+	$(libdashconsensus_la_OBJECTS) \
+	$(libdashkernel_la_OBJECTS) \
+	$(libtest_fuzz_a_OBJECTS) \
+	$(libtest_util_a_OBJECTS) \
+	$(qt_dash_qt_OBJECTS) \
+	$(qt_libbitcoinqt_a_OBJECTS) \
+	$(qt_test_test_dash_qt_OBJECTS) \
+	$(test_fuzz_fuzz_OBJECTS) \
+	$(test_test_dash_OBJECTS)
+
+$(BLS_OBJECTS): $(BUILT_SOURCES)
+
 if ENABLE_STACKTRACES
 if ENABLE_CRASH_HOOKS
 if CRASH_HOOKS_WRAPPED_CXX_ABI
