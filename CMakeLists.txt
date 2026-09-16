@@ -94,9 +94,6 @@ option(BUILD_TESTS "Build test_bitcoin executable." ON)
 option(BUILD_TX "Build bitcoin-tx executable." ${BUILD_TESTS})
 option(BUILD_UTIL "Build bitcoin-util executable." ${BUILD_TESTS})
 
-# NOTE: Dash has not backported libbitcoinkernel yet, so there is no
-#       BUILD_KERNEL_LIB option. bitcoin-chainstate links the regular
-#       libraries instead.
 option(BUILD_UTIL_CHAINSTATE "Build experimental bitcoin-chainstate executable." OFF)
 
 option(ENABLE_WALLET "Enable wallet." ON)

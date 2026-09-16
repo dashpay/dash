@@ -554,6 +554,7 @@ endif()
 
 
 if(BUILD_UTIL_CHAINSTATE)
+  add_subdirectory(kernel)
   add_executable(bitcoin-chainstate
     bitcoin-chainstate.cpp
   )
@@ -569,14 +570,7 @@ if(BUILD_UTIL_CHAINSTATE)
   target_link_libraries(bitcoin-chainstate
     PRIVATE
       core_interface
-      bitcoin_common
-      bitcoin_node
-      bitcoin_util
-      Boost::headers
-      dashbls
-      leveldb
-      univalue
-      $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
+      bitcoinkernel
   )
   set_target_properties(bitcoin-chainstate PROPERTIES OUTPUT_NAME dash-chainstate)
   list(APPEND installable_targets bitcoin-chainstate)
