@@ -743,6 +743,19 @@ BOOST_FIXTURE_TEST_CASE(mempool_single_claimant_per_withdrawal_index, TestChain1
     BOOST_CHECK(pool.exists(held->GetHash()));
 }
 
+BOOST_FIXTURE_TEST_CASE(package_asset_unlock_indexes, TestChain100Setup)
+{
+    const auto first = CreateCreditPoolUnlockTx(4, COIN, 1, 1000, 90);
+    const auto same_index = CreateCreditPoolUnlockTx(4, COIN, 2, 1000, 95);
+    const auto other_index = CreateCreditPoolUnlockTx(5, COIN, 2, 1000, 95);
+    LOCK(cs_main);
+    auto& chainstate = m_node.chainman->ActiveChainstate();
+    const auto conflicting = ProcessNewPackage(chainstate, *m_node.mempool, {first, same_index}, /*test_accept=*/true);
+    BOOST_CHECK_EQUAL(conflicting.m_state.GetRejectReason(), "assetunlock-conflicting-package");
+    const auto distinct = ProcessNewPackage(chainstate, *m_node.mempool, {first, other_index}, /*test_accept=*/true);
+    BOOST_CHECK(distinct.m_state.GetRejectReason() != "assetunlock-conflicting-package");
+}
+
 BOOST_FIXTURE_TEST_CASE(package_asset_unlock_conflict_does_not_evict_parent, TestChain100Setup)
 {
     CTxMemPool& pool = *Assert(m_node.mempool);
