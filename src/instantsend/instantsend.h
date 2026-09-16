@@ -68,6 +68,8 @@ private:
     Uint256HashMap<instantsend::PendingISLockFromPeer> pendingInstantSendLocks GUARDED_BY(cs_pendingLocks);
     // Tried to verify but there is no tx yet
     Uint256HashMap<instantsend::PendingISLockFromPeer> pendingNoTxInstantSendLocks GUARDED_BY(cs_pendingLocks);
+    // Regtest-only: when false, FetchPendingLocks() hands out nothing so tests can queue a deterministic batch
+    bool m_fetch_pending_active GUARDED_BY(cs_pendingLocks){true};
 
     // TXs which are neither IS locked nor ChainLocked. We use this to determine for which TXs we need to retry IS
     // locking of child TXs
@@ -127,6 +129,7 @@ public:
     [[nodiscard]] instantsend::PendingState FetchPendingLocks() EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     void EnqueueInstantSendLock(NodeId from, const uint256& hash, std::shared_ptr<instantsend::InstantSendLock> islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    void SetFetchPendingActive(bool active) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     [[nodiscard]] std::vector<CTransactionRef> PrepareTxToRetry()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
 

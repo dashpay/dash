@@ -180,8 +180,8 @@ class InstantSendTest(DashTestFramework):
         # A genesis-block cycle hash resolves to height 0, a valid rotation boundary, but selects a
         # signing height from before any quorum, so the lock has no quorum. Before the fix that
         # dropped the whole verification batch, taking any genuine lock that shared it. We isolate a
-        # node so its only lock source is our peer, then deliver a genuine lock between two such
-        # quorum-less locks.
+        # node so its only lock source is our peer, then queue a genuine lock alongside one
+        # quorum-less lock.
         controller = self.nodes[0]
         target = self.nodes[self.isolated_idx]
         connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
@@ -195,20 +195,22 @@ class InstantSendTest(DashTestFramework):
             # lock still reaches (and fails) quorum selection instead of being rejected as malformed.
             return msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256), genesis_hash, sig)
 
-        for _ in range(5):
-            txid = controller.sendtoaddress(controller.getnewaddress(), 1)
-            self.wait_for_instantlock(txid, nodes=connected)
-            genuine = msg_isdlock()
-            genuine.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
-            target.sendrawtransaction(controller.getrawtransaction(txid))
-            # The worker polls the pending queue every 100ms but we enqueue these three in
-            # microseconds, so at most one poll can split them and every split still batches the
-            # genuine lock with a quorum-less neighbour. The genuine lock therefore cannot reach a
-            # batch of its own, which is what let it survive before the fix.
-            for lock in (genesis_lock(genuine.sig), genuine, genesis_lock(genuine.sig)):
-                peer.send_message(lock)
-            peer.sync_with_ping()
-            self.wait_until(lambda txid=txid: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+        txid = controller.sendtoaddress(controller.getnewaddress(), 1)
+        self.wait_for_instantlock(txid, nodes=connected)
+        genuine = msg_isdlock()
+        genuine.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
+        target.sendrawtransaction(controller.getrawtransaction(txid))
+        # Hold the worker so both locks are queued before it fetches them as a single batch.
+        target.setinstantsendworkeractive(False)
+        peer.send_message(genesis_lock(genuine.sig))
+        peer.send_message(genuine)
+        peer.sync_with_ping()
+        # The quorum-less lock is retried against the previous active set after the genuine one is applied.
+        with target.assert_debug_log(["doing verification on old active set", "verified locks. count=0"], timeout=20):
+            target.setinstantsendworkeractive(True)
+            self.wait_until(lambda: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+        peer.sync_with_ping()
+        assert peer.is_connected
 
         target.disconnect_p2ps()
         self.reconnect_isolated_node(self.isolated_idx, 0)

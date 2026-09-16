@@ -284,6 +284,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "prioritisetransaction", 1, "fee_delta" },
     { "setban", 2, "bantime" },
     { "setban", 3, "absolute" },
+    { "setinstantsendworkeractive", 0, "state" },
     { "setmnthreadactive", 0, "state" },
     { "setnetworkactive", 0, "state" },
     { "setcoinjoinrounds", 0, "rounds" },
