@@ -801,8 +801,9 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
         if (auto it = std::find_if(begin, end, [&](const auto& e) { return e.second == tx_hash; }); it != end) {
             m_asset_unlock_indexes.erase(it);
         }
-        m_pending_asset_unlock_amount -= GetAssetUnlockAmount(tx, assetUnlockTx);
-        Assume(m_pending_asset_unlock_amount >= 0);
+        const auto amount = GetAssetUnlockAmount(tx, assetUnlockTx);
+        Assume(m_pending_asset_unlock_amount >= arith_uint256{static_cast<uint64_t>(amount)});
+        m_pending_asset_unlock_amount -= amount;
         if (IsAssetUnlockWithStableTxid(tx)) {
             m_asset_unlock_instances.erase(tx.GetInstanceHash());
         } else {
@@ -1302,7 +1303,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     uint64_t prev_ancestor_count{0};
     size_t check_asset_unlock_instances{0};
     size_t check_asset_unlock_indexes{0};
-    CAmount check_pending_asset_unlock_amount{0};
+    arith_uint256 check_pending_asset_unlock_amount{0};
 
     CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(&active_coins_tip));
 

@@ -7,6 +7,7 @@
 #define BITCOIN_TXMEMPOOL_H
 
 #include <atomic>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
@@ -18,6 +19,7 @@
 #include <kernel/mempool_limits.h>
 #include <kernel/mempool_options.h>
 
+#include <arith_uint256.h>
 #include <coins.h>
 #include <consensus/amount.h>
 #include <evo/netinfo.h>
@@ -429,7 +431,9 @@ private:
     /** Sum of the withdrawal amounts (outputs plus fee, what the credit pool charges) of every
      *  asset unlock in the pool. Compared against the credit pool limit to decide whether all
      *  pending withdrawals fit the next block; see GetPendingAssetUnlockAmount(). */
-    CAmount m_pending_asset_unlock_amount GUARDED_BY(cs){0};
+    // The aggregate is not supply-bounded until block validation. Keep the exact sum
+    // even beyond CAmount's range so removals restore the correct pending amount.
+    arith_uint256 m_pending_asset_unlock_amount GUARDED_BY(cs){0};
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -717,11 +721,15 @@ public:
     /** Txids of the asset unlocks in the pool claiming this withdrawal index. */
     std::vector<uint256> GetAssetUnlockTxidsByIndex(uint64_t index) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Sum of the withdrawal amounts of every asset unlock in the pool. When it does not exceed
-     *  the credit pool's current limit, every pending withdrawal can be mined in the next block. */
+     *  the credit pool's current limit, every pending withdrawal can be mined in the next block.
+     *  Totals beyond CAmount's range are capped, remaining above any valid credit-pool limit. */
     CAmount GetPendingAssetUnlockAmount() const EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
         AssertLockHeld(cs);
-        return m_pending_asset_unlock_amount;
+        constexpr CAmount max_amount{std::numeric_limits<CAmount>::max()};
+        return m_pending_asset_unlock_amount > arith_uint256{max_amount}
+                   ? max_amount
+                   : static_cast<CAmount>(m_pending_asset_unlock_amount.GetLow64());
     }
     /** Remove the asset unlocks whose withdrawal index another instance (of any version) in this
      *  block consumed; they can never be mined and version 2 instances are not expiry-evicted. */
