@@ -781,6 +781,34 @@ BOOST_FIXTURE_TEST_CASE(package_asset_unlock_conflict_does_not_evict_parent, Tes
     BOOST_CHECK(!pool.exists(child_ref->GetHash()));
 }
 
+BOOST_FIXTURE_TEST_CASE(package_asset_unlock_preserves_indirect_dependencies, TestChain100Setup)
+{
+    CTxMemPool& pool = *Assert(m_node.mempool);
+    TestMemPoolEntryHelper entry;
+    const auto held = CreateCreditPoolUnlockTx(4, COIN, 1, 1000, 90);
+    const auto replacement = CreateCreditPoolUnlockTx(4, COIN, 2, 1000, 95);
+    CMutableTransaction parent;
+    parent.vin.emplace_back(COutPoint(held->GetHash(), 0));
+    parent.vout.emplace_back(COIN, CScript{});
+    const auto parent_ref = MakeTransactionRef(parent);
+    CMutableTransaction child;
+    child.vin.emplace_back(COutPoint(parent_ref->GetHash(), 0));
+    child.vin.emplace_back(COutPoint(replacement->GetHash(), 0));
+    child.vout.emplace_back(COIN, CScript{});
+    const auto child_ref = MakeTransactionRef(child);
+    LOCK2(cs_main, pool.cs);
+    pool.addUnchecked(entry.Fee(1000).FromTx(held));
+    for (bool parent_in_mempool : {false, true}) {
+        if (parent_in_mempool) pool.addUnchecked(entry.Fee(1000).FromTx(parent_ref));
+        const auto result = ProcessNewPackage(m_node.chainman->ActiveChainstate(), pool,
+                                              {replacement, parent_ref, child_ref}, /*test_accept=*/false);
+        BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "assetunlock-conflicting-package");
+        BOOST_CHECK(pool.exists(held->GetHash()));
+        BOOST_CHECK_EQUAL(pool.exists(parent_ref->GetHash()), parent_in_mempool);
+        BOOST_CHECK(!pool.exists(replacement->GetHash()));
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE(credit_pool_snapshot_persisted_after_transactionless_construction, TestChain100Setup)
 {
     // Block assembly asks for the tip's credit pool outside any block-scoped EvoDB transaction,

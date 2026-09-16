@@ -1528,6 +1528,29 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
     m_view.SetBackend(m_dummy);
 
     LOCK(m_pool.cs);
+    // Replacing an unlock also removes its descendants. None of those transactions may
+    // supply inputs to a package whose scripts will be checked before submission.
+    CTxMemPool::setEntries evicted;
+    for (const auto& tx : package) {
+        if (!tx->IsPlatformTransfer()) continue;
+        const auto payload = GetTxPayload<CAssetUnlockPayload>(*tx);
+        if (!payload) continue;
+        for (const auto& txid : m_pool.GetAssetUnlockTxidsByIndex(payload->getIndex())) {
+            if (txid == tx->GetHash()) continue;
+            if (const auto entry = m_pool.GetIter(txid)) m_pool.CalculateDescendants(*entry, evicted);
+        }
+    }
+    std::unordered_set<uint256, SaltedTxidHasher> evicted_txids;
+    for (const auto& entry : evicted)
+        evicted_txids.emplace(entry->GetTx().GetHash());
+    for (const auto& tx : package) {
+        if (evicted_txids.contains(tx->GetHash()) || std::any_of(tx->vin.begin(), tx->vin.end(), [&](const CTxIn& input) {
+                return evicted_txids.contains(input.prevout.hash);
+            })) {
+            package_state.Invalid(PackageValidationResult::PCKG_POLICY, "assetunlock-conflicting-package");
+            return PackageMempoolAcceptResult(package_state, {});
+        }
+    }
     std::map<const uint256, const MempoolAcceptResult> results;
     // Node operators are free to set their mempool policies however they please, nodes may receive
     // transactions in different orders, and malicious counterparties may try to take advantage of
