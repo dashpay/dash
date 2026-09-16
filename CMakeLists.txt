@@ -694,17 +694,18 @@ if(ENABLE_STACKTRACES)
       RESULT_VAR CRASH_HOOKS_WRAPPED_CXX_ABI
     )
     if(CRASH_HOOKS_WRAPPED_CXX_ABI)
-      target_link_options(stacktraces_interface INTERFACE
+      add_library(crash_hooks_interface INTERFACE)
+      target_link_options(crash_hooks_interface INTERFACE
         "-Wl,-wrap,__cxa_allocate_exception"
         "-Wl,-wrap,__cxa_free_exception"
       )
       if(WIN32)
-        target_link_options(stacktraces_interface INTERFACE
+        target_link_options(crash_hooks_interface INTERFACE
           "-Wl,-wrap,_assert"
           "-Wl,-wrap,_wassert"
         )
       else()
-        target_link_options(stacktraces_interface INTERFACE
+        target_link_options(crash_hooks_interface INTERFACE
           "-Wl,-wrap,__assert_fail"
         )
       endif()

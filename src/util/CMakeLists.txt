@@ -52,6 +52,7 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_util
   PRIVATE
     core_interface
+    $<TARGET_NAME_IF_EXISTS:crash_hooks_interface>
     bitcoin_clientversion
     bitcoin_crypto
     Boost::headers
