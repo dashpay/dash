@@ -229,7 +229,7 @@ void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType l
 void CRecoveredSigsDb::TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
 {
     CDBBatch batch(*db);
-    RemoveRecoveredSig(batch, llmqType, id, false, true);
+    RemoveRecoveredSig(batch, llmqType, id, false, false);
     db->WriteBatch(batch);
 }
 
