@@ -124,9 +124,9 @@ target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
     bitcoin_crypto
-    Boost::headers
     dashbls
     secp256k1
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
 )
 
 # Dash still ships the public consensus library that upstream dropped in
@@ -151,7 +151,6 @@ if(BUILD_CONSENSUS_LIB)
   target_link_libraries(dashconsensus
     PRIVATE
       core_interface
-      Boost::headers
       dashbls
       secp256k1
   )
@@ -160,6 +159,10 @@ if(BUILD_CONSENSUS_LIB)
   # that here, otherwise consumers linked against an Autotools install cannot
   # resolve DT_NEEDED against a CMake one.
   set_target_properties(dashconsensus PROPERTIES VERSION 0.0.0 SOVERSION 0)
+  if(MINGW)
+    # libtool includes the ABI version in the DLL name, but not its import library.
+    set_target_properties(dashconsensus PROPERTIES RUNTIME_OUTPUT_NAME dashconsensus-0)
+  endif()
   if(APPLE)
     # libtool derives the Mach-O versions as (current - age + 1), so 0:0:0
     # yields 1.0.0 where CMake would otherwise take them from the properties
@@ -264,7 +267,7 @@ target_link_libraries(bitcoin_common
     univalue
     dashbls
     secp256k1
-    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
     $<TARGET_NAME_IF_EXISTS:libevent::libevent>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
@@ -468,7 +471,7 @@ target_link_libraries(bitcoin_node
     leveldb
     minisketch
     univalue
-    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
     $<TARGET_NAME_IF_EXISTS:libevent::libevent>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:NATPMP::NATPMP>
