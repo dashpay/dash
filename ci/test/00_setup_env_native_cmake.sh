@@ -21,4 +21,4 @@ export RUN_FUNCTIONAL_TESTS="true"
 export GOAL="install"
 # The remaining feature flags (GUI, wallet, ZMQ, ...) come from
 # depends/toolchain.cmake, which reflects what was actually built in depends.
-export BITCOIN_CONFIG="-DBUILD_BENCH=ON"
+export BITCOIN_CONFIG="-DBUILD_BENCH=ON -DBUILD_UTIL_CHAINSTATE=ON -DENABLE_CRASH_HOOKS=ON"
