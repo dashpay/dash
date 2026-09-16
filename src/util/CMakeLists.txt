@@ -55,7 +55,7 @@ target_link_libraries(bitcoin_util
     $<TARGET_NAME_IF_EXISTS:crash_hooks_interface>
     bitcoin_clientversion
     bitcoin_crypto
-    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:Boost::headers>
     dashbls
     univalue
     $<$<PLATFORM_ID:Windows>:ws2_32>

@@ -3,10 +3,13 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 function(add_boost_if_needed)
-  #[=[
-  TODO: Not all targets, which will be added in the future, require
-        Boost. Therefore, a proper check will be appropriate here.
+  if(NOT (BUILD_DAEMON OR BUILD_GUI OR BUILD_CLI OR BUILD_TX OR BUILD_UTIL
+      OR BUILD_UTIL_CHAINSTATE OR ENABLE_WALLET OR BUILD_TESTS OR BUILD_BENCH
+      OR BUILD_FUZZ_BINARY OR WITH_MULTIPROCESS))
+    return()
+  endif()
 
+  #[=[
   Implementation notes:
   Although only Boost headers are used to build Bitcoin Core,
   we still leverage a standard CMake's approach to handle
