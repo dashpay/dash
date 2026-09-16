@@ -130,6 +130,7 @@ public:
     bool HasRecoveredSigForHash(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
     bool GetRecoveredSigByHash(const uint256& hash, CRecoveredSig& ret) const;
     bool GetRecoveredSigById(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const;
+    bool GetRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash, CRecoveredSig& ret) const;
     void WriteRecoveredSig(const CRecoveredSig& recSig) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
     void TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
@@ -143,6 +144,7 @@ public:
     void CleanupOldVotes(int64_t maxAge);
 
 private:
+    void CleanupOldPlatformSigs(int64_t maxAge) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
     bool ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const;
     void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey,
                             bool deleteTimeKey) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
@@ -240,7 +242,10 @@ public:
     bool HasRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
     bool HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const;
     bool HasRecoveredSigForSession(const uint256& signHash) const;
-    bool GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& retRecSig) const;
+    // Platform permits multiple messages per request; other quorum types stop after any recovery.
+    bool HasRecoveredSigForSigning(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
+    bool GetRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash,
+                         CRecoveredSig& retRecSig) const;
     bool IsConflicting(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
 
     bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const;

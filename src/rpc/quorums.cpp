@@ -769,10 +769,7 @@ static RPCHelpMan quorum_getrecsig()
     const uint256 msgHash(ParseHashV(request.params[2], "msgHash"));
 
     llmq::CRecoveredSig recSig;
-    if (!llmq_ctx.sigman->GetRecoveredSigForId(llmqType, id, recSig)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "recovered signature not found");
-    }
-    if (recSig.getMsgHash() != msgHash) {
+    if (!llmq_ctx.sigman->GetRecoveredSig(llmqType, id, msgHash, recSig)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "recovered signature not found");
     }
     return recSig.ToJson();

@@ -30,6 +30,10 @@ CRecoveredSigsDb::~CRecoveredSigsDb() = default;
 
 bool CRecoveredSigsDb::HasRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const
 {
+    if (llmqType == Params().GetConsensus().llmqTypePlatform &&
+        db->Exists(std::make_tuple(std::string("rs_m"), llmqType, id, msgHash))) {
+        return true;
+    }
     auto k = std::make_tuple(std::string("rs_r"), llmqType, id, msgHash);
     return db->Exists(k);
 }
@@ -109,6 +113,9 @@ bool CRecoveredSigsDb::ReadRecoveredSig(Consensus::LLMQType llmqType, const uint
 
 bool CRecoveredSigsDb::GetRecoveredSigByHash(const uint256& hash, CRecoveredSig& ret) const
 {
+    if (db->Read(std::make_pair(std::string("rs_p"), hash), ret)) {
+        return true;
+    }
     auto k1 = std::make_tuple(std::string("rs_h"), hash);
     std::pair<Consensus::LLMQType, uint256> k2;
     if (!db->Read(k1, k2)) {
@@ -123,19 +130,39 @@ bool CRecoveredSigsDb::GetRecoveredSigById(Consensus::LLMQType llmqType, const u
     return ReadRecoveredSig(llmqType, id, ret);
 }
 
+bool CRecoveredSigsDb::GetRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash,
+                                       CRecoveredSig& ret) const
+{
+    if (llmqType == Params().GetConsensus().llmqTypePlatform) {
+        uint256 hash;
+        if (db->Read(std::make_tuple(std::string("rs_m"), llmqType, id, msgHash), hash)) {
+            return GetRecoveredSigByHash(hash, ret);
+        }
+        // Retain access to signatures written before Platform records were keyed by message.
+    }
+    return ReadRecoveredSig(llmqType, id, ret) && ret.getMsgHash() == msgHash;
+}
+
 void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
 {
     CDBBatch batch(*db);
 
     uint32_t curTime = GetTime<std::chrono::seconds>().count();
 
-    // we put these close to each other to leverage leveldb's key compaction
-    // this way, the second key can be used for fast HasRecoveredSig checks while the first key stores the recSig
-    auto k1 = std::make_tuple(std::string("rs_r"), recSig.getLlmqType(), recSig.getId());
-    auto k2 = std::make_tuple(std::string("rs_r"), recSig.getLlmqType(), recSig.getId(), recSig.getMsgHash());
-    batch.Write(k1, recSig);
-    // this key is also used to store the current time, so that we can easily get to the "rs_t" key when we have the id
-    batch.Write(k2, curTime);
+    if (recSig.getLlmqType() == Params().GetConsensus().llmqTypePlatform) {
+        // Keep each Platform message independently: arrival order does not establish freshness.
+        batch.Write(std::make_pair(std::string("rs_p"), recSig.GetHash()), recSig);
+        batch.Write(std::make_tuple(std::string("rs_m"), recSig.getLlmqType(), recSig.getId(), recSig.getMsgHash()),
+                    recSig.GetHash());
+        batch.Write(std::make_tuple(std::string("rs_u"), htobe32_internal(curTime), recSig.GetHash()), uint8_t{1});
+    } else {
+        // Keep the by-id record and its message/time index together for non-Platform quorums.
+        batch.Write(std::make_tuple(std::string("rs_r"), recSig.getLlmqType(), recSig.getId()), recSig);
+        batch.Write(std::make_tuple(std::string("rs_r"), recSig.getLlmqType(), recSig.getId(), recSig.getMsgHash()),
+                    curTime);
+        batch.Write(std::make_tuple(std::string("rs_t"), htobe32_internal(curTime), recSig.getLlmqType(), recSig.getId()),
+                    uint8_t{1});
+    }
 
     // store by object hash
     auto k3 = std::make_tuple(std::string("rs_h"), recSig.GetHash());
@@ -146,15 +173,13 @@ void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
     auto k4 = std::make_tuple(std::string("rs_s"), signHash.Get());
     batch.Write(k4, static_cast<uint8_t>(1));
 
-    // store by current time. Allows fast cleanup of old recSigs
-    auto k5 = std::make_tuple(std::string("rs_t"), htobe32_internal(curTime), recSig.getLlmqType(), recSig.getId());
-    batch.Write(k5, static_cast<uint8_t>(1));
-
     db->WriteBatch(batch);
 
     {
         LOCK(cs_cache);
-        hasSigForIdCache.insert(std::make_pair(recSig.getLlmqType(), recSig.getId()), true);
+        if (recSig.getLlmqType() != Params().GetConsensus().llmqTypePlatform) {
+            hasSigForIdCache.insert(std::make_pair(recSig.getLlmqType(), recSig.getId()), true);
+        }
         hasSigForSessionCache.insert(signHash.Get(), true);
         hasSigForHashCache.insert(recSig.GetHash(), true);
     }
@@ -208,8 +233,39 @@ void CRecoveredSigsDb::TruncateRecoveredSig(Consensus::LLMQType llmqType, const 
     db->WriteBatch(batch);
 }
 
+void CRecoveredSigsDb::CleanupOldPlatformSigs(int64_t maxAge)
+{
+    std::unique_ptr<CDBIterator> cursor(db->NewIterator());
+    auto start = std::make_tuple(std::string("rs_u"), uint32_t{0}, uint256{});
+    const auto end_time = static_cast<uint32_t>(GetTime<std::chrono::seconds>().count() - maxAge);
+    CDBBatch batch(*db);
+    for (cursor->Seek(start); cursor->Valid(); cursor->Next()) {
+        decltype(start) key;
+        if (!cursor->GetKey(key) || std::get<0>(key) != "rs_u" || be32toh_internal(std::get<1>(key)) >= end_time) break;
+        const auto& hash = std::get<2>(key);
+        CRecoveredSig rec_sig;
+        if (db->Read(std::make_pair(std::string("rs_p"), hash), rec_sig)) {
+            const auto sign_hash = rec_sig.buildSignHash().Get();
+            batch.Erase(std::make_pair(std::string("rs_p"), hash));
+            batch.Erase(std::make_tuple(std::string("rs_m"), rec_sig.getLlmqType(), rec_sig.getId(), rec_sig.getMsgHash()));
+            batch.Erase(std::make_pair(std::string("rs_h"), hash));
+            batch.Erase(std::make_pair(std::string("rs_s"), sign_hash));
+            LOCK(cs_cache);
+            hasSigForHashCache.erase(hash);
+            hasSigForSessionCache.erase(sign_hash);
+        }
+        batch.Erase(key);
+        if (batch.SizeEstimate() >= (1 << 24)) {
+            db->WriteBatch(batch);
+            batch.Clear();
+        }
+    }
+    db->WriteBatch(batch);
+}
+
 void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
 {
+    CleanupOldPlatformSigs(maxAge);
     std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
 
     auto start = std::make_tuple(std::string("rs_t"), static_cast<uint32_t>(0), static_cast<Consensus::LLMQType>(0), uint256());
@@ -535,36 +591,16 @@ bool CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- valid recSig. signHash=%s, id=%s, msgHash=%s\n", __func__,
             signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString());
 
-    if (db.HasRecoveredSigForId(llmqType, recoveredSig->getId())) {
+    if (llmqType == Params().GetConsensus().llmqTypePlatform) {
+        if (db.HasRecoveredSig(llmqType, recoveredSig->getId(), recoveredSig->getMsgHash())) return false;
+    } else {
         CRecoveredSig otherRecoveredSig;
         if (db.GetRecoveredSigById(llmqType, recoveredSig->getId(), otherRecoveredSig)) {
-            auto otherSignHash = otherRecoveredSig.buildSignHash();
-            if (signHash.Get() != otherSignHash.Get()) {
-                if (llmqType == Params().GetConsensus().llmqTypePlatform) {
-                    // Platform re-signs expired withdrawals under the same request id with a new
-                    // message hash; the latest recovered sig supersedes the previous one. The
-                    // truncate and the write below are separate batches; a crash in between only
-                    // loses a sig that Platform will produce again on the next re-sign.
-                    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- replacing recoveredSig for platform signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
-                             signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString(), otherSignHash.ToString());
-                    db.TruncateRecoveredSig(llmqType, recoveredSig->getId());
-                } else {
-                    // this should really not happen, as each masternode is participating in only one vote,
-                    // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
-                    LogPrintf("CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
-                              signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString(), otherSignHash.ToString());
-                    return false;
-                }
-            } else {
-                // Looks like we're trying to process a recSig that is already known. This might happen if the same
-                // recSig comes in through regular QRECSIG messages and at the same time through some other message
-                // which allowed to reconstruct a recSig (e.g. ISLOCK). In this case, just bail out.
-                return false;
+            if (signHash.Get() != otherRecoveredSig.buildSignHash().Get()) {
+                LogPrintf("CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s\n", __func__,
+                          signHash.ToString(), recoveredSig->getId().ToString(), recoveredSig->getMsgHash().ToString());
             }
-        } else {
-            // This case is very unlikely. It can only happen when cleanup caused this specific recSig to vanish
-            // between the HasRecoveredSigForId and GetRecoveredSigById call. If that happens, treat it as if we
-            // never had that recSig
+            return false;
         }
     }
 
@@ -625,16 +661,21 @@ bool CSigningManager::HasRecoveredSigForSession(const uint256& signHash) const
     return db.HasRecoveredSigForSession(signHash);
 }
 
-bool CSigningManager::GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id, llmq::CRecoveredSig& retRecSig) const
+bool CSigningManager::HasRecoveredSigForSigning(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const
 {
-    if (!db.GetRecoveredSigById(llmqType, id, retRecSig)) {
-        return false;
-    }
-    return true;
+    return llmqType == Params().GetConsensus().llmqTypePlatform ? db.HasRecoveredSig(llmqType, id, msgHash)
+                                                                : db.HasRecoveredSigForId(llmqType, id);
+}
+
+bool CSigningManager::GetRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash,
+                                      CRecoveredSig& retRecSig) const
+{
+    return db.GetRecoveredSig(llmqType, id, msgHash, retRecSig);
 }
 
 bool CSigningManager::IsConflicting(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const
 {
+    if (llmqType == Params().GetConsensus().llmqTypePlatform) return false;
     if (!db.HasRecoveredSigForId(llmqType, id)) {
         // no recovered sig present, so no conflict
         return false;

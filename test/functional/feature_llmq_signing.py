@@ -24,6 +24,8 @@ class LLMQSigningTest(DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(6, 5)
         self.set_dash_llmq_test_params(5, 3)
+        for args in self.extra_args:
+            args.append("-llmqtestplatformparams=3:2")
 
     def add_options(self, parser):
         self.add_wallet_options(parser)
@@ -200,6 +202,39 @@ class LLMQSigningTest(DashTestFramework):
             # Let 2 seconds pass so that the next node is used for recovery, which should succeed
             self.bump_mocktime(2)
             wait_for_sigs(True, False, True, 2)
+
+        self.test_platform_resigning()
+
+    def test_platform_resigning(self):
+        self.log.info("Re-sign Platform messages using a member that only received the first signature")
+        for _ in range(3):
+            self.dynamically_add_masternode(evo=True)
+        self.mine_quorum(llmq_type_name='llmq_test_platform', expected_members=3, expected_connections=2,
+                         expected_contributions=3, expected_commitments=3, llmq_type=106)
+        request_id = uint256_to_string(100)
+        first_message = uint256_to_string(101)
+        second_message = uint256_to_string(102)
+        quorum_hash = self.nodes[0].quorum('selectquorum', 106, request_id)['quorumHash']
+        members = [mn.get_node(self) for mn in self.get_quorum_masternodes(quorum_hash, llmq_type=106)]
+
+        def wait_for_message(message):
+            def all_members_have_signature():
+                self.bump_mocktime(1)
+                return all(node.quorum('hasrecsig', 106, request_id, message) for node in members)
+            self.wait_until(all_members_have_signature, sleep=1)
+
+        for node in members[:2]:
+            assert node.quorum('platformsign', request_id, first_message, quorum_hash)
+        wait_for_message(first_message)
+        first_sig = members[2].quorum('getrecsig', 106, request_id, first_message)
+
+        # The third member learned the signature through relay and has never voted on this id.
+        for node in members[1:]:
+            assert node.quorum('platformsign', request_id, second_message, quorum_hash)
+        wait_for_message(second_message)
+        for node in members:
+            assert_equal(node.quorum('getrecsig', 106, request_id, first_message), first_sig)
+            assert_equal(node.quorum('getrecsig', 106, request_id, second_message)['msgHash'], second_message)
 
     def assert_qsendrecsigs_symmetric(self):
         # If only one direction's QSENDRECSIGS arrives, the receiving side keeps
