@@ -156,6 +156,7 @@ target_link_libraries(bitcoinkernel
   PRIVATE
     core_interface
     bitcoin_crypto
+    $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
   PUBLIC
     Boost::headers
