@@ -63,6 +63,11 @@ Proposal::Proposal(ClientModel& client_model, const CGovernanceObject& govObj,
 
     m_funded_height = client_model.node().gov().getProposalFundedHeight(govObj.GetHash());
     m_votes = client_model.node().gov().getObjVotes(govObj, VOTE_SIGNAL_FUNDING);
+    for (const auto& vote : client_model.node().gov().getCurrentVotes(govObj.GetHash())) {
+        if (vote.GetSignal() == VOTE_SIGNAL_FUNDING) {
+            m_current_votes.emplace(vote.GetMasternodeOutpoint(), vote);
+        }
+    }
 
     if (const UniValue& titleValue = prop_data.find_value("name"); titleValue.isStr()) {
         m_title = QString::fromStdString(titleValue.get_str());
@@ -87,6 +92,12 @@ Proposal::Proposal(ClientModel& client_model, const CGovernanceObject& govObj,
     if (const UniValue& urlValue = prop_data.find_value("url"); urlValue.isStr()) {
         m_url = QString::fromStdString(urlValue.get_str());
     }
+}
+
+std::optional<CGovernanceVote> Proposal::fundingVote(const COutPoint& outpoint) const
+{
+    const auto it = m_current_votes.find(outpoint);
+    return it == m_current_votes.end() ? std::nullopt : std::make_optional(it->second);
 }
 
 int Proposal::paymentsRequested() const
@@ -220,6 +231,13 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
     }
 
     const auto* proposal = m_data[index.row()].get();
+    if (index.column() == Column::MY_VOTES) {
+        const auto it = m_wallet_votes.find(proposal->objHash());
+        if (it == m_wallet_votes.end()) return {};
+        if (role == Qt::ToolTipRole) return it->second.second;
+        if (role == Qt::DisplayRole || role == Qt::EditRole) return it->second.first;
+        return {};
+    }
     const bool isFundable = m_fundable_hashes.count(proposal->objHash()) > 0;
     switch(role) {
     case Qt::DisplayRole:
@@ -366,6 +384,8 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
     switch (section) {
     case Column::STATUS:
         return {};
+    case Column::MY_VOTES:
+        return tr("My Votes");
     case Column::HASH:
         return tr("Hash");
     case Column::TITLE:
@@ -440,6 +460,14 @@ void ProposalModel::setDisplayUnit(const BitcoinUnit& display_unit)
     m_display_unit = display_unit;
     if (!m_data.empty()) {
         Q_EMIT dataChanged(createIndex(0, Column::PAYMENT_AMOUNT), createIndex(rowCount() - 1, Column::PAYMENT_AMOUNT));
+    }
+}
+
+void ProposalModel::setWalletVotes(Uint256HashMap<std::pair<QString, QString>> votes)
+{
+    m_wallet_votes = std::move(votes);
+    if (!m_data.empty()) {
+        Q_EMIT dataChanged(index(0, Column::MY_VOTES), index(rowCount() - 1, Column::MY_VOTES));
     }
 }
 

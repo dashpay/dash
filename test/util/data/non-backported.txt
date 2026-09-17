@@ -57,6 +57,8 @@ src/qt/proposalinfo.*
 src/qt/proposallist.*
 src/qt/proposalmodel.*
 src/qt/proposalresume.*
+src/qt/proposalvotedialog.*
+src/qt/test/proposalvotetests.*
 src/rpc/coinjoin.cpp
 src/rpc/evo.cpp
 src/rpc/governance.cpp

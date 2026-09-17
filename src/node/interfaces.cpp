@@ -346,6 +346,13 @@ public:
         }
         return {0, 0};
     }
+    std::vector<CGovernanceVote> getCurrentVotes(const uint256& hash) override
+    {
+        if (context().govman != nullptr) {
+            return context().govman->GetCurrentVotes(hash, COutPoint{});
+        }
+        return {};
+    }
     bool existsObj(const uint256& hash) override
     {
         if (context().govman != nullptr) {

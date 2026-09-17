@@ -28,6 +28,7 @@ class ProposalModel;
 class WalletModel;
 enum vote_outcome_enum_t : int;
 struct ProposalData;
+struct ProposalVoter;
 namespace Governance {
 class Object;
 } // namespace Governance
@@ -69,6 +70,8 @@ private:
     bool canVote() const { return !votableMasternodes.empty(); }
     int queryCollateralDepth(const uint256& collateralHash) const;
     std::vector<Governance::Object> getWalletProposals(std::optional<bool> pending) const;
+    std::vector<ProposalVoter> proposalVoters(const Proposal& proposal) const;
+    void updateVotingDeadline();
     void refreshColumnWidths();
     void requestForceRefresh();
     void setProposalList(ProposalData&& data);
