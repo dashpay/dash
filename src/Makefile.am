@@ -1478,10 +1478,21 @@ check-symbols: $(bin_PROGRAMS)
 	@echo "Running symbol and dynamic library checks..."
 	$(AM_V_at) $(PYTHON) $(top_srcdir)/contrib/guix/symbol-check.py $(bin_PROGRAMS)
 
+if USE_FORTIFY_SOURCE
+SECURITY_CHECK_FLAGS =
+SECURITY_CHECK_MSG = Checking binary security...
+else
+# _FORTIFY_SOURCE is not defined for this build (e.g. --enable-debug disables
+# all optimizations, which makes it a no-op), so the binaries legitimately
+# import no fortified functions. Skip that check instead of failing on it.
+SECURITY_CHECK_FLAGS = --skip-fortify
+SECURITY_CHECK_MSG = Checking binary security (FORTIFY skipped: built without _FORTIFY_SOURCE)...
+endif
+
 check-security: $(bin_PROGRAMS)
 if HARDEN
-	@echo "Checking binary security..."
-	$(AM_V_at) $(PYTHON) $(top_srcdir)/contrib/guix/security-check.py $(bin_PROGRAMS)
+	@echo "$(SECURITY_CHECK_MSG)"
+	$(AM_V_at) $(PYTHON) $(top_srcdir)/contrib/guix/security-check.py $(SECURITY_CHECK_FLAGS) $(bin_PROGRAMS)
 endif
 
 

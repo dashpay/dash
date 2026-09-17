@@ -10,7 +10,12 @@ Otherwise the exit status will be 1 and it will log which executables failed whi
 Example usage:
 
     find ../path/to/guix/binaries -type f -executable | xargs python3 contrib/guix/security-check.py
+
+Pass --skip-fortify for binaries built without _FORTIFY_SOURCE (for example a
+--enable-debug build, where it is left out because it is a no-op at -O0); such
+binaries legitimately import no fortified functions.
 '''
+import argparse
 import re
 import sys
 from typing import List
@@ -270,8 +275,14 @@ CHECKS = {
 }
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--skip-fortify', action='store_true',
+                        help='do not require fortified functions (build was configured without _FORTIFY_SOURCE)')
+    parser.add_argument('binaries', nargs='*', help='executables to check')
+    args = parser.parse_args()
+
     retval: int = 0
-    for filename in sys.argv[1:]:
+    for filename in args.binaries:
         binary = lief.parse(filename)
         etype = binary.format
         arch = binary.abstract.header.architecture
@@ -279,6 +290,8 @@ if __name__ == '__main__':
 
         failed: List[str] = []
         for (name, func) in CHECKS[etype][arch]:
+            if name == 'FORTIFY' and args.skip_fortify:
+                continue
             if not func(binary):
                 failed.append(name)
         if failed:
