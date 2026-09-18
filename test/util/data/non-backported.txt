@@ -46,8 +46,10 @@ src/qt/masternodemodel.*
 src/qt/masternodeoperationrunner.*
 src/qt/masternodewidgets.*
 src/qt/masternodewizard.*
+src/qt/mnsharesession.*
 src/qt/mnemonicverificationdialog.*
 src/qt/networkwidget.*
+src/qt/protxsender.*
 src/qt/test/providertransactiontests.cpp
 src/qt/test/providertransactiontests.h
 src/qt/test/masternodemaintenancetests.*
@@ -57,6 +59,7 @@ src/qt/proposalinfo.*
 src/qt/proposallist.*
 src/qt/proposalmodel.*
 src/qt/proposalresume.*
+src/qt/sharedmnrpc.h
 src/rpc/coinjoin.cpp
 src/rpc/evo.cpp
 src/rpc/governance.cpp

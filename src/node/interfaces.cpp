@@ -178,9 +178,7 @@ public:
     {
         std::vector<CScript> ret;
         ret.reserve(m_dmn->pdmnState->shares.size());
-        for (const auto& share : m_dmn->pdmnState->shares) {
-            ret.push_back(share.scriptRefund);
-        }
+        for (const auto& share : m_dmn->pdmnState->shares) ret.push_back(share.scriptRefund);
         return ret;
     }
     const COutPoint& getCollateralOutpoint() const override { return m_dmn->collateralOutpoint; }
@@ -192,6 +190,18 @@ public:
     const int32_t& getRegisteredHeight() const override { return m_dmn->pdmnState->nRegisteredHeight; }
     const uint16_t& getOperatorReward() const override { return m_dmn->nOperatorReward; }
     const uint256& getProTxHash() const override { return m_dmn->proTxHash; }
+    bool isShared() const override { return m_dmn->pdmnState->IsShared(); }
+    std::vector<interfaces::MnShare> getShares() const override
+    {
+        std::vector<interfaces::MnShare> ret;
+        ret.reserve(m_dmn->pdmnState->shares.size());
+        for (const auto& share : m_dmn->pdmnState->shares) {
+            ret.push_back({share.amount, share.scriptRefund, share.scriptReward, share.keyIDOwner});
+        }
+        return ret;
+    }
+    const uint32_t& getEarlyPeriodBlocks() const override { return m_dmn->pdmnState->nEarlyPeriodBlocks; }
+    const CAmount& getEarlyPenalty() const override { return m_dmn->pdmnState->nEarlyPenalty; }
 };
 
 class MnListImpl : public MnList
@@ -1070,6 +1080,11 @@ public:
         return m_context->active_ctx != nullptr;
     }
     bool isLoadingBlocks() override { return node::fReindex || node::fImporting; }
+    bool isV24Active() override
+    {
+        LOCK(::cs_main);
+        return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_V24);
+    }
     void setNetworkActive(bool active) override
     {
         if (m_context->connman) {

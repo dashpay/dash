@@ -10,7 +10,9 @@
 #include <net_types.h>                 // For banmap_t
 #include <netaddress.h>                // For Network
 #include <netbase.h>                   // For ConnectionDirection
+#include <pubkey.h>                    // For CKeyID
 #include <saltedhasher.h>              // For StaticSaltedHasher
+#include <script/script.h>             // For CScript
 #include <support/allocators/secure.h> // For SecureString
 #include <uint256.h>
 #include <util/settings.h>             // For util::SettingsValue
@@ -34,10 +36,8 @@ class CDeterministicMNList;
 class CFeeRate;
 class CGovernanceObject;
 class CGovernanceVote;
-class CKeyID;
 class CNodeStats;
 class Coin;
-class CScript;
 class CService;
 class RPCTimerInterface;
 class UniValue;
@@ -63,6 +63,17 @@ namespace CoinJoin {
 class Loader;
 } // namespace CoinJoin
 struct BlockTip;
+
+//! One collateral share of a shared masternode (mirrors CCollateralShare).
+struct MnShare
+{
+    CAmount amount{0};
+    CScript scriptRefund;
+    CScript scriptReward;
+    CKeyID keyIDOwner;
+
+    const CScript& rewardScript() const { return scriptReward.empty() ? scriptRefund : scriptReward; }
+};
 
 //! Interface for a masternode entry
 class MnEntry
@@ -95,6 +106,10 @@ public:
     virtual const int32_t& getRegisteredHeight() const = 0;
     virtual const uint16_t& getOperatorReward() const = 0;
     virtual const uint256& getProTxHash() const = 0;
+    virtual bool isShared() const { return false; }
+    virtual std::vector<MnShare> getShares() const { return {}; }
+    virtual const uint32_t& getEarlyPeriodBlocks() const { static const uint32_t value{0}; return value; }
+    virtual const CAmount& getEarlyPenalty() const { static const CAmount value{0}; return value; }
 };
 
 using MnEntryCPtr = std::shared_ptr<const MnEntry>;
@@ -457,6 +472,9 @@ public:
 
     //! Is loading blocks.
     virtual bool isLoadingBlocks() = 0;
+
+    //! Whether the v24 hard fork rules are active at the chain tip.
+    virtual bool isV24Active() = 0;
 
     //! Set network active.
     virtual void setNetworkActive(bool active) = 0;
