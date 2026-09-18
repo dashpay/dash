@@ -205,7 +205,7 @@ public:
     }
 };
 
-util::Result<SelectionResult> SelectCoinsSRD(const std::vector<OutputGroup>& utxo_pool, CAmount target_value, FastRandomContext& rng,
+util::Result<SelectionResult> SelectCoinsSRD(const std::vector<OutputGroup>& utxo_pool, CAmount target_value, CAmount change_fee, FastRandomContext& rng,
                                              int max_weight, bool only_fully_mixed)
 {
     if (utxo_pool.empty()) return util::Error();
@@ -218,7 +218,7 @@ util::Result<SelectionResult> SelectCoinsSRD(const std::vector<OutputGroup>& utx
     // generated one, since SRD will result in a random change amount anyway; avoid making the
     // target needlessly large.
     if (!only_fully_mixed) {
-        target_value += CHANGE_LOWER;
+        target_value += CHANGE_LOWER + change_fee;
     }
 
     std::vector<size_t> indexes;
