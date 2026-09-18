@@ -81,3 +81,20 @@ GUI changes
 - The owned-masternode filter includes shared masternodes when the wallet holds
   a participant's refund destination, including when rewards go to a different
   wallet. (#7437)
+- The Masternodes tab gains a "Shared Masternode…" wizard for registering a
+  masternode funded by several people. The coordinator enters the participants,
+  masternode settings and exit terms, reserves coins for their own share and
+  copies one invitation; every participant pastes it, reserves their coins and
+  copies back their details. Two more rounds complete the registration: locked
+  terms out and approvals back, then a signing request out and signed
+  contributions back. Any message can be pasted from the landing page, replies
+  are accepted in any order, and every message shows a short code so
+  participants can confirm they hold the same one. Sessions can be saved and
+  reopened by either role. Reserved coins are released after broadcast.
+- Shared masternodes appear in the list with the type "Shared (you hold k of
+  n)", a details view listing every share, and context-menu actions to change
+  the wallet's reward address, rotate the operator or voting key (with every
+  share owner's approval), dissolve now, dissolve together, or create a
+  standby dissolution file holding both the penalty-free and the immediate
+  variant. Pasting a maintenance request or a standby dissolution into the
+  list opens the matching dialog.
