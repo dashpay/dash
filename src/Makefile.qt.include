@@ -104,6 +104,7 @@ QT_MOC_CPP = \
   qt/moc_rpcconsole.cpp \
   qt/moc_protxsender.cpp \
   qt/moc_sendcoinsdialog.cpp \
+  qt/moc_sharedmncreatedialog.cpp \
   qt/moc_sharedmnwidgets.cpp \
   qt/moc_sendcoinsentry.cpp \
   qt/moc_signverifymessagedialog.cpp \
@@ -201,6 +202,7 @@ BITCOIN_QT_H = \
   qt/sendcoinsdialog.h \
   qt/sendcoinsentry.h \
   qt/sendcoinsrecipient.h \
+  qt/sharedmncreatedialog.h \
   qt/sharedmnrpc.h \
   qt/sharedmnwidgets.h \
   qt/signverifymessagedialog.h \
@@ -338,6 +340,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/protxsender.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
+  qt/sharedmncreatedialog.cpp \
   qt/sharedmnwidgets.cpp \
   qt/signverifymessagedialog.cpp \
   qt/transactiondesc.cpp \
