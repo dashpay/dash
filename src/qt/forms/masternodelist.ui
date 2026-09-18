@@ -58,6 +58,11 @@
              <string>Evo</string>
             </property>
            </item>
+           <item>
+            <property name="text">
+             <string>Shared</string>
+            </property>
+           </item>
           </widget>
          </item>
          <item>
@@ -100,6 +105,16 @@
            </property>
            <property name="text">
             <string>Register Masternode…</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnSharedMasternode">
+           <property name="toolTip">
+            <string>Create a masternode with collateral pooled by multiple parties, or continue a saved session</string>
+           </property>
+           <property name="text">
+            <string>Shared Masternode…</string>
            </property>
           </widget>
          </item>
