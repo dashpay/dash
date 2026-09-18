@@ -779,6 +779,14 @@ BOOST_FIXTURE_TEST_CASE(package_asset_unlock_conflict_does_not_evict_parent, Tes
     BOOST_CHECK(pool.exists(held->GetHash()));
     BOOST_CHECK(!pool.exists(fresher->GetHash()));
     BOOST_CHECK(!pool.exists(child_ref->GetHash()));
+
+    // Test acceptance predicts the same outcome instead of validating the child against a
+    // mempool that still holds the claimant the replacement would evict.
+    const auto test_result = WITH_LOCK(cs_main, return ProcessNewPackage(
+        m_node.chainman->ActiveChainstate(), pool, {fresher, child_ref}, /*test_accept=*/true));
+    BOOST_CHECK(test_result.m_state.IsInvalid());
+    BOOST_CHECK_EQUAL(test_result.m_state.GetRejectReason(), "assetunlock-conflicting-package");
+    BOOST_CHECK(pool.exists(held->GetHash()));
 }
 
 BOOST_FIXTURE_TEST_CASE(package_asset_unlock_preserves_indirect_dependencies, TestChain100Setup)

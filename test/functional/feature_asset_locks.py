@@ -1049,6 +1049,20 @@ class AssetLocksTest(DashTestFramework):
         assert v1_txid in node_wallet.getrawmempool()
         assert cross_txid not in node_wallet.getrawmempool()
 
+        self.log.info("Package test acceptance predicts that rejection rather than validating the child against the evicted claimant")
+        evicted_child_hex = node_wallet.createrawtransaction(
+            [{'txid': v1_txid, 'vout': 0}],
+            {node_wallet.getnewaddress(): Decimal(unlock_v1.vout[0].nValue - tiny_amount) / COIN})
+        signed_evicted_child = node_wallet.signrawtransactionwithwallet(evicted_child_hex)
+        assert signed_evicted_child['complete']
+        test_result = node_wallet.testmempoolaccept([unlock_v2_fresh.serialize().hex(), signed_evicted_child['hex']])
+        assert_equal([r['txid'] for r in test_result], [cross_txid, node_wallet.decoderawtransaction(signed_evicted_child['hex'])['txid']])
+        for r in test_result:
+            assert_equal(r['package-error'], 'assetunlock-conflicting-package')
+            assert 'allowed' not in r
+        assert v1_txid in node_wallet.getrawmempool()
+        assert cross_txid not in node_wallet.getrawmempool()
+
         self.log.info("A version 2 unlock wrapped in a dstx message goes through DSTX validation and is dropped")
         dstx_peer = node_wallet.add_p2p_connection(P2PInterface())
         wrapped = CCoinJoinBroadcastTx(tx=unlock_v2_fresh, m_protxHash=1, vchSig=b"\x01" * 96, sigTime=self.mocktime)

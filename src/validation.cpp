@@ -741,6 +741,12 @@ private:
     bool PackageMempoolChecks(const std::vector<CTransactionRef>& txns,
                               PackageValidationState& package_state) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
 
+    // Admitting an asset unlock evicts every other mempool claimant of its withdrawal index along
+    // with their descendants. Reject a package that spends any of them: its scripts are checked
+    // against the mempool before that eviction happens.
+    bool CheckPackageAssetUnlockEvictions(const std::vector<CTransactionRef>& txns,
+                                          PackageValidationState& package_state) EXCLUSIVE_LOCKS_REQUIRED(m_pool.cs);
+
     // Run the script checks using our policy flags. As this can be slow, we should
     // only invoke this on transactions that have otherwise passed policy checks.
     bool PolicyScriptChecks(const ATMPArgs& args, Workspace& ws) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
@@ -1114,6 +1120,33 @@ bool MemPoolAccept::PackageMempoolChecks(const std::vector<CTransactionRef>& txn
    return true;
 }
 
+bool MemPoolAccept::CheckPackageAssetUnlockEvictions(const std::vector<CTransactionRef>& txns,
+                                                     PackageValidationState& package_state)
+{
+    AssertLockHeld(m_pool.cs);
+    CTxMemPool::setEntries evicted;
+    for (const auto& tx : txns) {
+        if (!tx->IsPlatformTransfer()) continue;
+        const auto payload = GetTxPayload<CAssetUnlockPayload>(*tx);
+        if (!payload) continue;
+        for (const auto& txid : m_pool.GetAssetUnlockTxidsByIndex(payload->getIndex())) {
+            if (txid == tx->GetHash()) continue;
+            if (const auto entry = m_pool.GetIter(txid)) m_pool.CalculateDescendants(*entry, evicted);
+        }
+    }
+    std::unordered_set<uint256, SaltedTxidHasher> evicted_txids;
+    for (const auto& entry : evicted)
+        evicted_txids.emplace(entry->GetTx().GetHash());
+    for (const auto& tx : txns) {
+        if (evicted_txids.contains(tx->GetHash()) || std::any_of(tx->vin.begin(), tx->vin.end(), [&](const CTxIn& input) {
+                return evicted_txids.contains(input.prevout.hash);
+            })) {
+            return package_state.Invalid(PackageValidationResult::PCKG_POLICY, "assetunlock-conflicting-package");
+        }
+    }
+    return true;
+}
+
 bool MemPoolAccept::PolicyScriptChecks(const ATMPArgs& args, Workspace& ws)
 {
     AssertLockHeld(cs_main);
@@ -1414,6 +1447,8 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
 
     LOCK(m_pool.cs);
 
+    if (!CheckPackageAssetUnlockEvictions(txns, package_state)) return PackageMempoolAcceptResult(package_state, {});
+
     // Do all PreChecks first and fail fast to avoid running expensive script checks when unnecessary.
     for (Workspace& ws : workspaces) {
         if (!PreChecks(args, ws)) {
@@ -1528,29 +1563,9 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
     m_view.SetBackend(m_dummy);
 
     LOCK(m_pool.cs);
-    // Replacing an unlock also removes its descendants. None of those transactions may
-    // supply inputs to a package whose scripts will be checked before submission.
-    CTxMemPool::setEntries evicted;
-    for (const auto& tx : package) {
-        if (!tx->IsPlatformTransfer()) continue;
-        const auto payload = GetTxPayload<CAssetUnlockPayload>(*tx);
-        if (!payload) continue;
-        for (const auto& txid : m_pool.GetAssetUnlockTxidsByIndex(payload->getIndex())) {
-            if (txid == tx->GetHash()) continue;
-            if (const auto entry = m_pool.GetIter(txid)) m_pool.CalculateDescendants(*entry, evicted);
-        }
-    }
-    std::unordered_set<uint256, SaltedTxidHasher> evicted_txids;
-    for (const auto& entry : evicted)
-        evicted_txids.emplace(entry->GetTx().GetHash());
-    for (const auto& tx : package) {
-        if (evicted_txids.contains(tx->GetHash()) || std::any_of(tx->vin.begin(), tx->vin.end(), [&](const CTxIn& input) {
-                return evicted_txids.contains(input.prevout.hash);
-            })) {
-            package_state.Invalid(PackageValidationResult::PCKG_POLICY, "assetunlock-conflicting-package");
-            return PackageMempoolAcceptResult(package_state, {});
-        }
-    }
+    // Checked on the whole package before any parent is submitted on its own below: a single
+    // submission of a fresher claimant would already carry out the eviction.
+    if (!CheckPackageAssetUnlockEvictions(package, package_state)) return PackageMempoolAcceptResult(package_state, {});
     std::map<const uint256, const MempoolAcceptResult> results;
     // Node operators are free to set their mempool policies however they please, nodes may receive
     // transactions in different orders, and malicious counterparties may try to take advantage of
