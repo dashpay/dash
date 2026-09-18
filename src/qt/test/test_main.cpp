@@ -21,7 +21,11 @@
 #include <qt/test/addressbooktests.h>
 #include <qt/test/masternodemaintenancetests.h>
 #include <qt/test/masternodewidgettests.h>
+#include <qt/test/mnsharesessiontests.h>
+#include <qt/test/sharedmnwidgettests.h>
+#include <qt/test/sharedmnwizardtests.h>
 #include <qt/test/providertransactiontests.h>
+#include <qt/test/sharedmnwalkthroughtests.h>
 #include <qt/test/wallettests.h>
 #endif // ENABLE_WALLET
 
@@ -112,11 +116,23 @@ int main(int argc, char* argv[])
     AddressBookTests test6(app.node());
     num_test_failures += QTest::qExec(&test6);
 
+    MnShareSessionTests mn_share_session_tests;
+    num_test_failures += QTest::qExec(&mn_share_session_tests);
+
+    SharedMnWidgetTests shared_mn_widget_tests;
+    num_test_failures += QTest::qExec(&shared_mn_widget_tests);
+
+    SharedMnWizardTests shared_mn_wizard_tests(app.node());
+    num_test_failures += QTest::qExec(&shared_mn_wizard_tests);
+
     ProviderTransactionTests provider_transaction_tests(app.node());
     num_test_failures += QTest::qExec(&provider_transaction_tests);
 
     MasternodeMaintenanceTests masternode_maintenance_tests(app.node());
     num_test_failures += QTest::qExec(&masternode_maintenance_tests);
+
+    SharedMnWalkthroughTests shared_mn_walkthrough_tests(app.node());
+    num_test_failures += QTest::qExec(&shared_mn_walkthrough_tests);
 #endif
     TrafficGraphDataTests test7;
     num_test_failures += QTest::qExec(&test7);

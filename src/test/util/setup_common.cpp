@@ -105,7 +105,11 @@ using node::NodeContext;
 using node::VerifyLoadedChainstate;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
-UrlDecodeFn* const URL_DECODE = nullptr;
+// The GUI and the RPC clients address a specific wallet through a
+// "/wallet/<name>" URI. Tests that drive those code paths need the same
+// decoder the real binaries install, or every wallet RPC falls back to "the
+// one loaded wallet" and fails as soon as a test loads two.
+UrlDecodeFn* const URL_DECODE = urlDecode;
 
 FastRandomContext g_insecure_rand_ctx;
 /** Random context to get unique temp data dirs. Separate from g_insecure_rand_ctx, which can be seeded from a const env var */

@@ -32,6 +32,14 @@ private Q_SLOTS:
     void revokeRequestConstruction();
     void dialogFieldGeometry();
     void dialogLifecycleAndSubmissionStates();
+    void updateShareRewardValidation();
+    void updateShareUnlocksTheWallet();
+    void dissolveDialogTabsAndPayouts();
+    void standbyDissolutionFile();
+    void rotateOperatorKeyValidation();
+    void rotationSenderComesFromTheInputs();
+    void maintenanceEnvelopePreload();
+    void dissolveRequestMustReturnPrincipal();
 
 private:
     interfaces::Node& m_node;

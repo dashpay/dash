@@ -16,20 +16,28 @@ TEST_QT_MOC_CPP = \
 if ENABLE_WALLET
 TEST_QT_MOC_CPP += \
   qt/test/moc_addressbooktests.cpp \
+  qt/test/moc_mnsharesessiontests.cpp \
+  qt/test/moc_sharedmnwalkthroughtests.cpp \
   qt/test/moc_providertransactiontests.cpp \
   qt/test/moc_masternodewidgettests.cpp \
   qt/test/moc_masternodemaintenancetests.cpp \
+  qt/test/moc_sharedmnwidgettests.cpp \
+  qt/test/moc_sharedmnwizardtests.cpp \
   qt/test/moc_wallettests.cpp
 endif # ENABLE_WALLET
 
 TEST_QT_H = \
   qt/test/addressbooktests.h \
   qt/test/apptests.h \
+  qt/test/mnsharesessiontests.h \
   qt/test/masternodemaintenancetests.h \
   qt/test/masternodewidgettests.h \
   qt/test/optiontests.h \
   qt/test/providertransactiontests.h \
   qt/test/rpcnestedtests.h \
+  qt/test/sharedmnwidgettests.h \
+  qt/test/sharedmnwizardtests.h \
+  qt/test/sharedmnwalkthroughtests.h \
   qt/test/uritests.h \
   qt/test/util.h \
   qt/test/trafficgraphdatatests.h \
@@ -51,9 +59,13 @@ qt_test_test_dash_qt_SOURCES = \
 if ENABLE_WALLET
 qt_test_test_dash_qt_SOURCES += \
   qt/test/addressbooktests.cpp \
+  qt/test/mnsharesessiontests.cpp \
   qt/test/providertransactiontests.cpp \
+  qt/test/sharedmnwalkthroughtests.cpp \
   qt/test/masternodewidgettests.cpp \
   qt/test/masternodemaintenancetests.cpp \
+  qt/test/sharedmnwidgettests.cpp \
+  qt/test/sharedmnwizardtests.cpp \
   qt/test/wallettests.cpp \
   wallet/test/wallet_test_fixture.cpp
 endif # ENABLE_WALLET

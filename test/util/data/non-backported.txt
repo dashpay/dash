@@ -54,6 +54,10 @@ src/qt/test/providertransactiontests.cpp
 src/qt/test/providertransactiontests.h
 src/qt/test/masternodemaintenancetests.*
 src/qt/test/masternodewidgettests.*
+src/qt/test/mnsharesessiontests.*
+src/qt/test/sharedmnwalkthroughtests.*
+src/qt/test/sharedmnwidgettests.*
+src/qt/test/sharedmnwizardtests.*
 src/qt/proposalcreate.*
 src/qt/proposalinfo.*
 src/qt/proposallist.*
