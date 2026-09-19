@@ -826,7 +826,16 @@ public:
      * @param[in] mapValue key-values to be set on the transaction.
      * @param[in] orderForm BIP 70 / BIP 21 order form details to be set on the transaction.
      */
-    void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
+    /**
+     * Add the transaction to the wallet and maybe attempt to broadcast it.
+     * When broadcasting is attempted but the mempool rejects the
+     * transaction, the rejection reason is reported through broadcast_error
+     * (when given); the transaction stays committed to the wallet either
+     * way, so the caller may abandon it.
+     */
+    void CommitTransaction(CTransactionRef tx, mapValue_t mapValue,
+                           std::vector<std::pair<std::string, std::string>> orderForm,
+                           bilingual_str* broadcast_error = nullptr);
 
     /** Will SubmitTxMemoryPoolAndRelay() consider wtx if supplied */
     bool CanTxBeResent(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);

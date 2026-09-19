@@ -143,6 +143,9 @@ private:
     QToolButton* historyButton = nullptr;
     QToolButton* masternodeButton = nullptr;
     QToolButton* governanceButton = nullptr;
+#ifdef ENABLE_PLATFORM_GUI
+    QToolButton* platformButton = nullptr;
+#endif
     QAction* appToolBarLogoAction = nullptr;
     QAction* quitAction = nullptr;
     QAction* sendCoinsAction = nullptr;
@@ -154,6 +157,9 @@ private:
     QAction* m_coinjoin_action = nullptr;
     QAction* m_governance_action = nullptr;
     QAction* m_masternode_action = nullptr;
+#ifdef ENABLE_PLATFORM_GUI
+    QAction* m_platform_action = nullptr;
+#endif
     QAction* m_load_psbt_action = nullptr;
     QAction* m_load_psbt_clipboard_action = nullptr;
     QAction* aboutAction = nullptr;
@@ -356,6 +362,10 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to masternode page */
     void gotoMasternodePage();
+#ifdef ENABLE_PLATFORM_GUI
+    /** Switch to DashPay (Dash Platform) page */
+    void gotoPlatformPage();
+#endif
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
@@ -417,6 +427,9 @@ public Q_SLOTS:
     void updateCoinJoinVisibility();
     void updateGovernanceVisibility();
     void updateMasternodesVisibility();
+#ifdef ENABLE_PLATFORM_GUI
+    void updatePlatformVisibility();
+#endif
 
     void updateWidth();
 };

@@ -5,6 +5,10 @@
 #ifndef BITCOIN_QT_WALLETFRAME_H
 #define BITCOIN_QT_WALLETFRAME_H
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <QFrame>
 #include <QGroupBox>
 #include <QMap>
@@ -80,6 +84,10 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to masternode page */
     void gotoMasternodePage();
+#ifdef ENABLE_PLATFORM_GUI
+    /** Switch to DashPay (Dash Platform) page */
+    void gotoPlatformPage();
+#endif
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
