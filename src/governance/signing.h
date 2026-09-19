@@ -45,7 +45,6 @@ public:
     explicit GovernanceSigner(CDeterministicMNManager& dmnman, CGovernanceManager& govman,
                               governance::SuperblockManager& superblocks, const CActiveMasternodeManager& mn_activeman,
                               const ChainstateManager& chainman, const CMasternodeSync& mn_sync);
-    ~GovernanceSigner();
 
     void UpdatedBlockTip(const CBlockIndex* pindex);
 

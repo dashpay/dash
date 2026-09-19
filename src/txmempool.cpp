@@ -536,7 +536,7 @@ void CTxMemPool::getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& add
         auto ait = mapAddress.lower_bound(address);
         while (ait != mapAddress.end() && (*ait).first.m_address_bytes == address.m_address_bytes
                && (*ait).first.m_address_type == address.m_address_type) {
-            results.push_back(*ait);
+            results.emplace_back(*ait);
             ait++;
         }
     }

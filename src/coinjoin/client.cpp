@@ -259,6 +259,7 @@ std::vector<std::string> CCoinJoinClientManager::getSessionStatuses() const
     std::vector<std::string> ret;
 
     LOCK(cs_deqsessions);
+    ret.reserve(deqSessions.size());
     for (const auto& session : deqSessions) {
         ret.push_back(session.GetStatus(fWaitForBlock).original);
     }

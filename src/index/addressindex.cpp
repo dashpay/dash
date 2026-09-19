@@ -322,14 +322,12 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
                 }
 
                 // Remove receiving activity from history
-                addressIndex.push_back(std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight,
-                                                                       i, txhash, k, false),
-                                                      out.nValue));
+                addressIndex.emplace_back(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, k, false),
+                                          out.nValue);
 
                 // Remove from unspent index (mark for deletion)
-                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, txhash, k),
-                                                             CAddressUnspentValue() // null value signals deletion
-                                                             ));
+                addressUnspentIndex.emplace_back(CAddressUnspentKey(address_type, address_bytes, txhash, k),
+                                                 CAddressUnspentValue()); // null value signals deletion
             }
 
             // Undo inputs (restore to unspent index, remove spending from history)
@@ -350,14 +348,12 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
                 }
 
                 // Remove spending activity from history
-                addressIndex.push_back(
-                    std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, j, true),
-                                   prevout.nValue * -1));
+                addressIndex.emplace_back(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, i, txhash, j, true),
+                                          prevout.nValue * -1);
 
                 // Restore to unspent index
-                addressUnspentIndex.push_back(
-                    std::make_pair(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n),
-                                   CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, coin.nHeight)));
+                addressUnspentIndex.emplace_back(CAddressUnspentKey(address_type, address_bytes, input.prevout.hash, input.prevout.n),
+                                                 CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, coin.nHeight));
             }
         }
 
@@ -377,14 +373,12 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
                 }
 
                 // Remove coinbase receiving activity
-                addressIndex.push_back(
-                    std::make_pair(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, 0, cb_hash, k, false),
-                                   out.nValue));
+                addressIndex.emplace_back(CAddressIndexKey(address_type, address_bytes, pindex->nHeight, 0, cb_hash, k, false),
+                                          out.nValue);
 
                 // Remove from unspent index
-                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(address_type, address_bytes, cb_hash, k),
-                                                             CAddressUnspentValue() // null value signals deletion
-                                                             ));
+                addressUnspentIndex.emplace_back(CAddressUnspentKey(address_type, address_bytes, cb_hash, k),
+                                                 CAddressUnspentValue()); // null value signals deletion
             }
         }
 

@@ -221,7 +221,7 @@ public:
                     // Skip the change output to only return the requested coins
                     continue;
                 }
-                tallyItem.outpoints.emplace_back(COutPoint{tx->GetHash(), n});
+                tallyItem.outpoints.emplace_back(tx->GetHash(), n);
                 tallyItem.nAmount += tx->vout[n].nValue;
             }
         }

@@ -186,7 +186,7 @@ util::Result<std::unique_ptr<StatsdClient>> StatsdClient::make(const ArgsManager
             }
         } else {
             // There was no port specified, remove everything after the first forward slash
-            host = host.substr(/*pos=*/0, host.find("/"));
+            host = host.substr(/*pos=*/0, host.find('/'));
         }
 
         if (host.empty()) {

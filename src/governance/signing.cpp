@@ -35,8 +35,6 @@ GovernanceSigner::GovernanceSigner(CDeterministicMNManager& dmnman, CGovernanceM
 {
 }
 
-GovernanceSigner::~GovernanceSigner() = default;
-
 std::optional<const CSuperblock> GovernanceSigner::CreateSuperblockCandidate(int nHeight) const
 {
     if (!m_govman.IsValid()) return std::nullopt;

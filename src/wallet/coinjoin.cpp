@@ -77,7 +77,7 @@ bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::ve
         int nRounds = GetRealOutpointCoinJoinRounds(txin.prevout);
 
         nValueTotal += nValue;
-        vecTxDSInRet.emplace_back(CTxDSIn(txin, scriptPubKey, nRounds));
+        vecTxDSInRet.emplace_back(txin, scriptPubKey, nRounds);
         setRecentTxIds.emplace(txHash);
         WalletCJLogPrint(this, "CWallet::%s -- hash: %s, nValue: %d.%08d\n", __func__, txHash.ToString(), nValue / COIN,
                          nValue % COIN);
@@ -193,7 +193,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
                 itTallyItem->second.txdest = txdest;
             }
             itTallyItem->second.nAmount += wtx.tx->vout[i].nValue;
-            itTallyItem->second.outpoints.emplace_back(COutPoint{outpoint.hash, i});
+            itTallyItem->second.outpoints.emplace_back(outpoint.hash, i);
         }
     }
 

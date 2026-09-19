@@ -234,7 +234,7 @@ CCreditPool CCreditPoolManager::GetCreditPool(const CBlockIndex* block_index)
 
     std::optional<CCreditPool> poolTmp;
     while (block_index != nullptr && !(poolTmp = GetFromCache(*block_index)).has_value()) {
-        to_calculate.push(block_index);
+        to_calculate.emplace(block_index);
         block_index = block_index->pprev;
     }
     if (block_index == nullptr) poolTmp = CCreditPool{};

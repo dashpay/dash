@@ -377,6 +377,7 @@ bool CSuperblock::IsExpired(int heightToTest) const
 std::vector<uint256> CSuperblock::GetProposalHashes() const
 {
     std::vector<uint256> res;
+    res.reserve(vecPayments.size());
 
     for (const auto& payment : vecPayments) {
         res.push_back(payment.proposalHash);

@@ -578,7 +578,7 @@ bool BlsCheck::operator()()
     return true;
 }
 
-void BlsCheck::swap(BlsCheck& obj)
+void BlsCheck::swap(BlsCheck& obj) noexcept
 {
     std::swap(m_sig, obj.m_sig);
     std::swap(m_pubkeys, obj.m_pubkeys);

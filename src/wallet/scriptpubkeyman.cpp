@@ -2082,7 +2082,7 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
         std::string desc_str;
         bool watchonly = !desc->ToPrivateString(*this, desc_str);
         if (watchonly && !m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-            out.watch_descs.push_back({desc->ToString(), creation_time});
+            out.watch_descs.emplace_back(desc->ToString(), creation_time);
 
             // Get the scriptPubKeys without writing this to the wallet
             FlatSigningProvider provider;
@@ -2148,7 +2148,7 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
             assert(IsMine(sh_spk) == ISMINE_NO);
 
             std::unique_ptr<Descriptor> sh_desc = InferDescriptor(sh_spk, *GetSolvingProvider(sh_spk));
-            out.solvable_descs.push_back({sh_desc->ToString(), creation_time});
+            out.solvable_descs.emplace_back(sh_desc->ToString(), creation_time);
         }
     }
 

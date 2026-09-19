@@ -3728,7 +3728,7 @@ void PeerManagerImpl::ProcessCompactBlockTxns(CNode& pfrom, Peer& peer, const Bl
                 // peer for the same block. We let the full block download below continue under the same m_downloading_since
                 // timer.
                 std::vector<CInv> invs;
-                invs.push_back(CInv(MSG_BLOCK, block_transactions.blockhash));
+                invs.emplace_back(MSG_BLOCK, block_transactions.blockhash);
                 m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETDATA, invs));
             } else {
                 RemoveBlockRequest(block_transactions.blockhash, pfrom.GetId());

@@ -1115,9 +1115,9 @@ bool CSigSharesManager::SendMessages()
                                     [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
                 // No session is using this id yet
                 session->sendSessionId = session_id;
-                sigSessionAnnouncements[nodeId].emplace_back(
-                    CSigSesAnn(/*sessionId=*/session->sendSessionId, /*llmqType=*/session->llmqType,
-                               /*quorumHash=*/session->quorumHash, /*id=*/session->id, /*msgHash=*/session->msgHash));
+                sigSessionAnnouncements[nodeId].emplace_back(/*sessionId=*/session->sendSessionId, /*llmqType=*/session->llmqType,
+                                                             /*quorumHash=*/session->quorumHash, /*id=*/session->id,
+                                                             /*msgHash=*/session->msgHash);
             }
             // It's very unlikely that there is a session with the same id,
             // but if there is one we just start over and pick another id

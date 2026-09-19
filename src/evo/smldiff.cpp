@@ -235,6 +235,7 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
     mnListDiffRet.cbTx = CMutableTransaction(*block.vtx[0]);
 
     std::vector<uint256> vHashes;
+    vHashes.reserve(block.vtx.size());
     std::vector<bool> vMatch(block.vtx.size(), false);
     for (const auto& tx : block.vtx) {
         vHashes.emplace_back(tx->GetHash());

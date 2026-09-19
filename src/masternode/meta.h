@@ -104,6 +104,7 @@ public:
     {
         LOCK(cs);
         std::vector<CMasternodeMetaInfo> tmpMetaInfo;
+        tmpMetaInfo.reserve(metaInfos.size());
         for (const auto& p : metaInfos) {
             tmpMetaInfo.emplace_back(p.second);
         }

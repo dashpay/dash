@@ -55,7 +55,7 @@ public:
     ~BlsCheck();
 
     bool operator()();
-    void swap(BlsCheck& obj);
+    void swap(BlsCheck& obj) noexcept;
 };
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2);

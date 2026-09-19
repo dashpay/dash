@@ -834,6 +834,7 @@ bool isStyleSheetDirectoryCustom()
 std::vector<QString> listStyleSheets()
 {
     std::vector<QString> vecStylesheets;
+    vecStylesheets.reserve(mapThemeToStyle.size());
     for (const auto& it : mapThemeToStyle) {
         vecStylesheets.push_back(it.second);
     }
@@ -878,7 +879,7 @@ void loadStyleSheet(bool fForceUpdate)
             for (auto file = vecFiles.begin(); file != vecFiles.end() && !fModified; ++file) {
                 QFileInfo info(*file);
                 QDateTime lastModified = info.lastModified(), prevLastModified;
-                auto it = mapLastModified.emplace(std::make_pair(*file, lastModified));
+                auto it = mapLastModified.emplace(*file, lastModified);
                 prevLastModified = it.second ? QDateTime() : it.first->second;
                 it.first->second = lastModified;
                 fModified = prevLastModified != lastModified;

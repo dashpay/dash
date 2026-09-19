@@ -52,7 +52,7 @@ void CDKGPendingMessages::PushPendingMessage(NodeId from, const uint256& sender_
     count++;
 
     seenMessages.emplace(hash);
-    pendingMessages.emplace_back(std::make_pair(from, std::move(pm)));
+    pendingMessages.emplace_back(from, std::move(pm));
 }
 
 std::list<CDKGPendingMessages::BinaryMessage> CDKGPendingMessages::PopPendingMessages(size_t maxCount)

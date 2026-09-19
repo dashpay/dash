@@ -1239,11 +1239,11 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                     // initialize outputs
                     if (nPosition == 0) {
-                        stack.push_back(valtype());
+                        stack.emplace_back();
                         stack.push_back(vch);
                     } else if (static_cast<size_t>(nPosition) == vch.size()) {
                         stack.push_back(vch);
-                        stack.push_back(valtype());
+                        stack.emplace_back();
                     } else {
                         valtype vchOut1, vchOut2;
                         vchOut1.insert(vchOut1.end(), vch.begin(), vch.begin() + nPosition);

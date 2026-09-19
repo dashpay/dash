@@ -1286,7 +1286,7 @@ void RPCConsole::updateDetailWidget()
     ui->peerMappedAS->setText(stats->nodeStats.m_mapped_as != 0 ? QString::number(stats->nodeStats.m_mapped_as) : ts.na);
 
     const auto addr_key{GUIUtil::MakeQByteArray(stats->nodeStats.addr.GetKey())};
-    const std::shared_ptr<MasternodeEntry> dmn = [&]() -> const std::shared_ptr<MasternodeEntry> {
+    const std::shared_ptr<MasternodeEntry> dmn = [&]() -> std::shared_ptr<MasternodeEntry> {
         if (m_feed_masternode) {
             if (const auto data{m_feed_masternode->data()}; data) {
                 for (const auto& mn : data->m_entries) {

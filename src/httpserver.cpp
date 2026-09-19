@@ -415,8 +415,8 @@ static bool HTTPBindAddresses(struct evhttp* http)
             endpoints.emplace_back(host, port);
         }
     } else { // No specific bind address specified, bind to any
-        endpoints.push_back(std::make_pair("::", http_port));
-        endpoints.push_back(std::make_pair("0.0.0.0", http_port));
+        endpoints.emplace_back("::", http_port);
+        endpoints.emplace_back("0.0.0.0", http_port);
     }
 
     // Bind addresses

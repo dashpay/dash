@@ -578,7 +578,7 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
     for (const auto& [proTxHash, votingKeyID] : votableMasternodes) {
         // Find the masternode
         QString protx_hash{QString::fromStdString(proTxHash.ToString())};
-        const auto dmn = [&]() -> const std::shared_ptr<MasternodeEntry> {
+        const auto dmn = [&]() -> std::shared_ptr<MasternodeEntry> {
             for (const auto& mn : data_mn->m_entries) {
                 if (mn->proTxHash() == protx_hash) {
                     return mn->isBanned() ? nullptr : mn;

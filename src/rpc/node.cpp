@@ -356,7 +356,7 @@ static bool getAddressesFromParams(const UniValue& params, std::vector<std::pair
         if (!getIndexKey(params[0].get_str(), hashBytes, type)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
         }
-        addresses.push_back(std::make_pair(hashBytes, type));
+        addresses.emplace_back(hashBytes, type);
     } else if (params[0].isObject()) {
 
         UniValue addressValues = params[0].get_obj().find_value("addresses");
@@ -370,7 +370,7 @@ static bool getAddressesFromParams(const UniValue& params, std::vector<std::pair
             if (!getIndexKey(address.get_str(), hashBytes, type)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
-            addresses.push_back(std::make_pair(hashBytes, type));
+            addresses.emplace_back(hashBytes, type);
         }
     } else {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
@@ -423,9 +423,10 @@ static RPCHelpMan getaddressmempool()
     }
 
     std::vector<CMempoolAddressDeltaKey> input_addresses;
+    input_addresses.reserve(addresses.size());
     std::vector<CMempoolAddressDeltaEntry> indexes;
     for (const auto& [hash, type] : addresses) {
-        input_addresses.push_back({type, hash});
+        input_addresses.emplace_back(type, hash);
     }
 
     mempool.getAddressIndex(input_addresses, indexes);

@@ -74,6 +74,7 @@ python3 "${BASE_ROOT_DIR}/ci/dash/lint-cstyle-casts.py" prepare \
 
 if ! ( run-clang-tidy \
   -checks=clang-diagnostic-old-style-cast,google-readability-casting \
+  -warnings-as-errors=-clang-diagnostic-old-style-cast,-google-readability-casting \
   -clang-tidy-binary="${CLANG_TIDY_CACHE}" \
   -p "${CAST_LINT_DB}" \
   -quiet "${MAKEJOBS}" | \

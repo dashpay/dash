@@ -1223,7 +1223,7 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
     std::vector<const CBlockIndex*> snapshot_blocks = CollectSnapshotBlocks(start_index, stop_index, consensus_params);
 
     if (snapshot_blocks.empty()) {
-        result.verification_errors.push_back("Could not find starting snapshot");
+        result.verification_errors.emplace_back("Could not find starting snapshot");
         return result;
     }
 

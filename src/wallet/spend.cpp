@@ -35,7 +35,7 @@ static constexpr size_t OUTPUT_GROUP_MAX_ENTRIES{100};
 int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoint, const SigningProvider* provider, const CCoinControl* coin_control)
 {
     CMutableTransaction txn;
-    txn.vin.push_back(CTxIn(outpoint));
+    txn.vin.emplace_back(outpoint);
     if (!provider || !DummySignInput(*provider, txn.vin[0], txout, coin_control)) {
         return -1;
     }

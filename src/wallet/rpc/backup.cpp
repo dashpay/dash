@@ -689,7 +689,7 @@ RPCHelpMan importelectrumwallet()
 
     std::ifstream file;
     std::string strFileName = request.params[0].get_str();
-    size_t nDotPos = strFileName.find_last_of(".");
+    size_t nDotPos = strFileName.find_last_of('.');
     if(nDotPos == std::string::npos)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "File has no extension, should be .json or .csv");
 

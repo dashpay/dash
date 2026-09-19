@@ -233,6 +233,7 @@ constexpr std::array<std::string_view, 1> vecIgnoreObjects{
 //! Weights considered when testing for weights supported by a font
 const auto vecWeightConsider = []() {
     std::vector<QFont::Weight> ret;
+    ret.reserve(mapWeightArgs.second.size());
     for (const auto& [key, _] : mapWeightArgs.second) {
         ret.push_back(key);
     }
@@ -712,7 +713,7 @@ void setFont(const std::vector<QWidget*>& vecWidgets, const QString& font, FontW
 {
     const FontAttrib font_attrib{font, weight, point_size, is_italic};
     for (auto it : vecWidgets) {
-        auto itFontUpdate = mapFontUpdates.emplace(std::make_pair(it, font_attrib));
+        auto itFontUpdate = mapFontUpdates.emplace(it, font_attrib);
         if (!itFontUpdate.second) {
             itFontUpdate.first->second = font_attrib;
         }
