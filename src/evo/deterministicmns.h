@@ -13,6 +13,7 @@
 #include <clientversion.h>
 #include <consensus/params.h>
 #include <crypto/common.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <saltedhasher.h>
 #include <sync.h>
 
@@ -39,8 +40,6 @@ class CSimplifiedMNListEntry;
 class CMasternodeMetaMan;
 class CSpecialTxProcessor;
 struct RPCResult;
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 class CDeterministicMN
 {

@@ -7,13 +7,12 @@
 
 #include <bls/bls_ies.h>
 #include <evo/types.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/types.h>
 #include <saltedhasher.h>
-#include <unordered_lru_cache.h>
-
 #include <sync.h>
 
 #include <gsl/pointers.h>
@@ -30,7 +29,6 @@ class CDeterministicMNManager;
 class CDBWrapper;
 class CEvoDB;
 class ChainstateManager;
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 namespace util {
 struct DbWrapperParams;
 } // namespace util

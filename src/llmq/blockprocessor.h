@@ -6,12 +6,12 @@
 #define BITCOIN_LLMQ_BLOCKPROCESSOR_H
 
 #include <bls/bls.h>
+#include <checkqueue.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
 #include <llmq/utils.h>
 #include <msg_result.h>
-
-#include <checkqueue.h>
 #include <protocol.h>
 #include <saltedhasher.h>
 #include <sync.h>
@@ -32,8 +32,6 @@ class CDataStream;
 class CDeterministicMNManager;
 class CEvoDB;
 class CNode;
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 namespace llmq
 {

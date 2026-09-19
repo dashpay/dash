@@ -8,6 +8,7 @@
 #include <bls/bls.h>
 #include <consensus/amount.h>
 #include <gsl/pointers.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <sync.h>
@@ -20,7 +21,6 @@ class CBlockIndex;
 class CChain;
 class CRangesSet;
 class TxValidationState;
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 struct RPCResult;
 namespace llmq {
 class CQuorumManager;

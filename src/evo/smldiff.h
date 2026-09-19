@@ -10,7 +10,7 @@
 #include <evo/netinfo.h>
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
-
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <merkleblock.h>
 #include <netaddress.h>
 #include <pubkey.h>
@@ -29,8 +29,6 @@ class CFinalCommitment;
 class CQuorumBlockProcessor;
 class CQuorumManager;
 } // namespace llmq
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 /// P2P messages
 

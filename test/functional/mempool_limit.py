@@ -31,7 +31,6 @@ class MempoolLimitTest(BitcoinTestFramework):
         self.extra_args = [[
             "-datacarriersize=100000",
             "-maxmempool=5",
-            "-spendzeroconfchange=0",
         ]]
         self.supports_cli = False
 
@@ -106,6 +105,17 @@ class MempoolLimitTest(BitcoinTestFramework):
         assert_fee_amount(poor_parent_result["fees"]["base"], tx_poor["tx"].get_vsize(), relayfee)
         assert_equal(rich_parent_result["fees"]["base"], 0)
         assert_equal(child_result["fees"]["base"], DEFAULT_FEE)
+        # The "rich" parent does not require CPFP so its effective feerate is just its individual feerate.
+        assert_fee_amount(DEFAULT_FEE, tx_rich["tx"].get_vsize(), rich_parent_result["fees"]["effective-feerate"])
+        assert_equal(rich_parent_result["fees"]["effective-includes"], [tx_rich["txid"]])
+        # The "poor" parent and child's effective feerates are the same, composed of their total
+        # fees divided by their combined vsize.
+        package_fees = poor_parent_result["fees"]["base"] + child_result["fees"]["base"]
+        package_vsize = tx_poor["tx"].get_vsize() + tx_child["tx"].get_vsize()
+        assert_fee_amount(package_fees, package_vsize, poor_parent_result["fees"]["effective-feerate"])
+        assert_fee_amount(package_fees, package_vsize, child_result["fees"]["effective-feerate"])
+        assert_equal([tx_poor["txid"], tx_child["tx"].hash], poor_parent_result["fees"]["effective-includes"])
+        assert_equal([tx_poor["txid"], tx_child["tx"].hash], child_result["fees"]["effective-includes"])
 
         # The node will broadcast each transaction, still abiding by its peer's fee filter
         self.bump_mocktime(30)

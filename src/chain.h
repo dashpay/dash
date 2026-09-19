@@ -9,6 +9,7 @@
 #include <arith_uint256.h>
 #include <consensus/params.h>
 #include <flatfile.h>
+#include <kernel/cs_main.h>
 #include <primitives/block.h>
 #include <sync.h>
 #include <uint256.h>
@@ -35,8 +36,6 @@ static constexpr int64_t TIMESTAMP_WINDOW = MAX_FUTURE_BLOCK_TIME;
  * for the "Catching up..." mode in GUI.
  */
 static constexpr int64_t MAX_BLOCK_TIME_GAP = 25 * 60;
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 class CBlockFileInfo
 {

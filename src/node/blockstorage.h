@@ -8,6 +8,7 @@
 #include <attributes.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <kernel/cs_main.h>
 #include <kernel/blockmanager_opts.h>
 #include <protocol.h>
 #include <sync.h>
@@ -18,8 +19,6 @@
 #include <optional>
 #include <unordered_map>
 #include <vector>
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 class ArgsManager;
 class BlockValidationState;

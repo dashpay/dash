@@ -8,6 +8,7 @@ Tests correspond to code in rpc/net.cpp.
 """
 
 import time
+
 import test_framework.messages
 from test_framework.messages import (
     MAX_PROTOCOL_MESSAGE_LENGTH,
@@ -55,9 +56,6 @@ class NetTest(DashTestFramework):
     def run_test(self):
         # We need miniwallet to make a transaction
         self.wallet = MiniWallet(self.nodes[0])
-        self.generate(self.wallet, 1)
-        # Get out of IBD for the getpeerinfo tests.
-        self.generate(self.nodes[0], 101)
 
         # By default, the test framework sets up an addnode connection from
         # node 1 --> node0. By connecting node0 --> node 1, we're left with

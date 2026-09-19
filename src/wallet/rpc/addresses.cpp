@@ -46,9 +46,7 @@ RPCHelpMan getnewaddress()
     }
 
     // Parse the label first so we don't generate a key if there's an error
-    std::string label;
-    if (!request.params[0].isNull())
-        label = LabelFromValue(request.params[0]);
+    const std::string label{LabelFromValue(request.params[0])};
 
     auto op_dest = pwallet->GetNewDestination(label);
     if (!op_dest) {
@@ -117,7 +115,7 @@ RPCHelpMan setlabel()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Dash address");
     }
 
-    std::string label = LabelFromValue(request.params[1]);
+    const std::string label{LabelFromValue(request.params[1])};
 
     if (pwallet->IsMine(dest)) {
         pwallet->SetAddressBook(dest, label, "receive");
@@ -231,9 +229,7 @@ RPCHelpMan addmultisigaddress()
 
     LOCK2(pwallet->cs_wallet, spk_man.cs_KeyStore);
 
-    std::string label;
-    if (!request.params[2].isNull())
-        label = LabelFromValue(request.params[2]);
+    const std::string label{LabelFromValue(request.params[2])};
 
     int required = request.params[0].getInt<int>();
 
@@ -607,7 +603,7 @@ RPCHelpMan getaddressesbylabel()
 
     LOCK(pwallet->cs_wallet);
 
-    std::string label = LabelFromValue(request.params[0]);
+    const std::string label{LabelFromValue(request.params[0])};
 
     // Find all addresses that have the given label
     UniValue ret(UniValue::VOBJ);

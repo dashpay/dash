@@ -7,6 +7,7 @@
 
 #include <consensus/amount.h>
 #include <gsl/pointers.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <sync.h>
 #include <threadsafety.h>
 
@@ -42,8 +43,6 @@ class CQuorumSnapshotManager;
 namespace node {
 class BlockManager;
 } // namespace node
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 class CSpecialTxProcessor
 {

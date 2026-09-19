@@ -42,6 +42,10 @@ class PlatformBanMessagesTest(DashTestFramework):
         evo_info_0 = self.dynamically_add_masternode(evo=True)
         for _ in range(2):
             self.dynamically_add_masternode(evo=True)
+        # Quorum members are taken from the list WORK_DIFF_DEPTH (8) blocks below the cycle base and
+        # must be confirmed there, so make sure the new masternodes qualify for the next cycle
+        # regardless of where in the cycle the tip is
+        self.generate(self.nodes[0], 10, sync_fun=self.no_op)
 
         self.mempool_size = 0
 

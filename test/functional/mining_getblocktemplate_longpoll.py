@@ -60,9 +60,6 @@ class GetBlockTemplateLPTest(BitcoinTestFramework):
         thr.join(5)  # wait 5 seconds or until thread exits
         assert not thr.is_alive()
 
-        # Add enough mature utxos to the wallets, so that all txs spend confirmed coins
-        self.generate(self.nodes[0], 100)
-
         self.log.info("Test that introducing a new transaction into the mempool will terminate the longpoll")
         thr = LongpollThread(self.nodes[0])
         thr.start()

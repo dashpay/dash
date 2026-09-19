@@ -195,6 +195,11 @@ class AssetLocksTest(DashTestFramework):
             result_expected['vsize'] = tx.get_vsize()
 
         result_test = self.nodes[0].testmempoolaccept([tx.serialize().hex()])
+        for r in result_test:
+            # Skip these checks for now
+            if "fees" in r:
+                r["fees"].pop("effective-feerate")
+                r["fees"].pop("effective-includes")
 
         assert_equal([result_expected], result_test)
         self.check_mempool_size()

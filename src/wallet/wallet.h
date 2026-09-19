@@ -12,6 +12,7 @@
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/handler.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <policy/feerate.h>
 #include <psbt.h>
 #include <saltedhasher.h>
@@ -132,8 +133,6 @@ static const bool DEFAULT_USE_HD_WALLET = true;
 class CCoinControl;
 class CWalletTx;
 class ReserveDestination;
-
-extern RecursiveMutex cs_main;
 
 /** (client) version numbers for particular wallet features */
 struct CompactTallyItem

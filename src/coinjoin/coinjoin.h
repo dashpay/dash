@@ -7,15 +7,15 @@
 
 #include <coinjoin/common.h>
 
-#include <util/helpers.h>
-
 #include <core_io.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <netaddress.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <sync.h>
 #include <timedata.h>
+#include <util/helpers.h>
 #include <util/translation.h>
 #include <version.h>
 
@@ -39,8 +39,6 @@ class Chainlocks;
 namespace llmq {
 class CInstantSendManager;
 } // namespace llmq
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 // timeouts
 static constexpr int COINJOIN_AUTO_TIMEOUT_MIN = 5;

@@ -8,6 +8,7 @@
 #include <cachemap.h>
 #include <cachemultimap.h>
 #include <governance/vote.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <primitives/transaction.h>
 #include <sync.h>
 #include <util/time.h>
@@ -61,8 +62,6 @@ inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
 
 static constexpr int RATE_BUFFER_SIZE = 5;
 static constexpr bool DEFAULT_GOVERNANCE_ENABLE{true};
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 class CRateCheckBuffer
 {

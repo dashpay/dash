@@ -24,6 +24,7 @@
 #include <index/addressindex_types.h>
 #include <index/spentindex_types.h>
 #include <indirectmap.h>
+#include <kernel/cs_main.h>
 #include <kernel/mempool_entry.h>
 #include <netaddress.h>
 #include <policy/feerate.h>
@@ -47,7 +48,6 @@
 class CBlockIndex;
 class CChain;
 class Chainstate;
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 // Forward declaration for CBLSLazyPublicKey:
 template<typename T> class CBLSLazyWrapper;

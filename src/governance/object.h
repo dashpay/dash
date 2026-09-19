@@ -8,6 +8,7 @@
 #include <governance/common.h>
 #include <governance/vote.h>
 #include <governance/votedb.h>
+#include <kernel/cs_main.h> // IWYU pragma: export
 #include <sync.h>
 #include <util/time.h>
 
@@ -22,8 +23,6 @@ class CDeterministicMNList;
 class ChainstateManager;
 class CMasternodeMetaMan;
 struct RPCResult;
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 enum governance_exception_type_enum_t {
     /// Default value, normally indicates no exception condition occurred

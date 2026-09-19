@@ -1881,6 +1881,10 @@ class DashTestFramework(BitcoinTestFramework):
         required_balance = EVONODE_COLLATERAL * self.evo_count
         required_balance += MASTERNODE_COLLATERAL * (self.mn_count - self.evo_count) + 100
         self.log.info("Generating %d coins" % required_balance)
+        # Like the pre-mined chain of BitcoinTestFramework (see _initialize_chain), give the
+        # MiniWallet's default address a coinbase, mature by the time the collateral is
+        self.bump_mocktime(1)
+        self.generatetoaddress(self.nodes[0], 1, ADDRESS_BCRT1_P2SH_OP_TRUE, sync_fun=self.no_op)
         while self.nodes[0].getbalance() < required_balance:
             self.bump_mocktime(1)
             self.generate(self.nodes[0], 10, sync_fun=self.no_op)

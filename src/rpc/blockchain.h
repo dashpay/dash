@@ -8,6 +8,7 @@
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <kernel/coinstats.h>
+#include <kernel/cs_main.h>
 #include <streams.h>
 #include <sync.h>
 #include <util/fs.h>
@@ -16,8 +17,6 @@
 #include <functional>
 #include <optional>
 #include <vector>
-
-extern RecursiveMutex cs_main; // NOLINT(readability-redundant-declaration)
 
 class CBlock;
 class CBlockIndex;

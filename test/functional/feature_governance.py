@@ -95,7 +95,7 @@ class DashGovernanceTest (DashTestFramework):
 
         self.log.info("Check 1st superblock before v20")
         self.bump_mocktime(3)
-        self.generate(self.nodes[0], 3, sync_fun=self.sync_blocks())
+        self.generate(self.nodes[0], 2, sync_fun=self.sync_blocks())
         assert_equal(self.nodes[0].getblockcount(), 137)
         assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], False)
         self.check_superblockbudget(False)
