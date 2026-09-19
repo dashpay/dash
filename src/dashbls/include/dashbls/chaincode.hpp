@@ -15,18 +15,9 @@
 #ifndef SRC_CHAINCODE_HPP_
 #define SRC_CHAINCODE_HPP_
 
+#include <array>
 #include <iostream>
 #include <vector>
-
-#include "relic_conf.h"
-
-#if defined GMP && ARITH == GMP
-#include <gmp.h>
-#endif
-
-
-#include "relic.h"
-#include "relic_test.h"
 
 #include "util.hpp"
 
@@ -51,9 +42,8 @@ class ChainCode {
     ChainCode() {}
 private:
 
-    bn_t chainCode;
+    std::array<uint8_t, SIZE> chainCode{};
 };
 } // end namespace bls
 
 #endif  // SRC_CHAINCODE_HPP_
-
