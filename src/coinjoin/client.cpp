@@ -897,7 +897,7 @@ bool CCoinJoinClientManager::CheckAutomaticBackup()
     // We don't need auto-backups for descriptor wallets
     if (!m_wallet->IsLegacy()) return true;
 
-    switch (nWalletBackups) {
+    switch (CWallet::nWalletBackups) {
     case 0:
         WalletCJLogPrint(m_wallet, "CCoinJoinClientManager::CheckAutomaticBackup -- Automatic backups disabled, no mixing available.\n");
         stopMixing();

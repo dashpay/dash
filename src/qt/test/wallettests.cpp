@@ -198,24 +198,24 @@ void TestGUI(interfaces::Node& node)
     {
         QLabel* coinJoinLabel = overviewPage.findChild<QLabel*>("labelCoinJoinEnabled");
         QVERIFY(coinJoinLabel != nullptr);
-        const int nWalletBackupsOld = nWalletBackups;
+        const int nWalletBackupsOld = CWallet::nWalletBackups;
 
-        nWalletBackups = 0;
+        CWallet::nWalletBackups = 0;
         overviewPage.coinJoinStatus(/*fForce=*/true);
         QCOMPARE(coinJoinLabel->toolTip(), QString("Automatic backups are disabled, no mixing available!"));
 
-        nWalletBackups = -1;
+        CWallet::nWalletBackups = -1;
         overviewPage.coinJoinStatus(/*fForce=*/true);
         QCOMPARE(coinJoinLabel->toolTip(),
                  QString("ERROR! Failed to create automatic backup, see debug.log for details.<br><br>Mixing is "
                          "disabled, please close your wallet and fix the issue!"));
 
-        nWalletBackups = -2;
+        CWallet::nWalletBackups = -2;
         overviewPage.coinJoinStatus(/*fForce=*/true);
         QCOMPARE(coinJoinLabel->toolTip(),
                  QString("WARNING! Failed to replenish keypool, please unlock your wallet to do so."));
 
-        nWalletBackups = nWalletBackupsOld;
+        CWallet::nWalletBackups = nWalletBackupsOld;
     }
 
     // Check Request Payment button
