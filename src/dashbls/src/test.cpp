@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #define CATCH_CONFIG_RUNNER
+#include <new>
 #include <thread>
 
 #include "bls.hpp"
@@ -73,6 +74,8 @@ TEST_CASE("class PrivateKey") {
         REQUIRE(pk1.GetG1Element() == pk2.GetG1Element());
         REQUIRE(pk1.GetG2Element() == pk2.GetG2Element());
         REQUIRE(pk3 != pk2);
+        pk2 = pk2;
+        REQUIRE(pk1 == pk2);
     }
     SECTION("Move {constructor|assignment operator}") {
         PrivateKey pk1 = PrivateKey::RandomPrivateKey();
@@ -1267,6 +1270,32 @@ TEST_CASE("Schemes") {
 }
 
 TEST_CASE("Legacy HD keys") {
+    SECTION("Chain code copy construction and assignment preserve value") {
+        std::array<uint8_t, ChainCode::SIZE> first{};
+        std::array<uint8_t, ChainCode::SIZE> second{};
+        first.front() = 1;
+        second.back() = 2;
+
+        const ChainCode source = ChainCode::FromBytes(Bytes(first));
+        ChainCode copy{source};
+        ChainCode assigned = ChainCode::FromBytes(Bytes(second));
+
+        assigned = source;
+        REQUIRE(copy == source);
+        REQUIRE(assigned == source);
+
+        assigned = assigned;
+        REQUIRE(assigned == source);
+
+#if ALLOC == AUTO
+        alignas(ChainCode) std::array<uint8_t, sizeof(ChainCode)> storage;
+        storage.fill(0xa5);
+        auto* stored = new (storage.data()) ChainCode{source};
+        stored->~ChainCode();
+        REQUIRE(std::all_of(storage.begin(), storage.end(), [](uint8_t byte) { return byte == 0; }));
+#endif
+    }
+
     SECTION("Should create an extended private key from seed") {
         std::vector<uint8_t> seed{1, 50, 6, 244, 24, 199, 1, 25};
         ExtendedPrivateKey esk = ExtendedPrivateKey::FromSeed(Bytes(seed));
