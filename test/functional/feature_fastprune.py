@@ -9,6 +9,9 @@ don't crash or freeze the node (regression test for bitcoin/bitcoin#27191).
 """
 from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import (
+    assert_equal
+)
 from test_framework.wallet import MiniWallet
 
 
@@ -34,8 +37,9 @@ class FeatureFastpruneTest(BitcoinTestFramework):
             output="raw(55)",
             transactions=[tx.serialize().hex()],
         )
-        # Note: no block count assertion — Dash starts at block 200 (DIP3/masternode
-        # activation), so the absolute count differs from Bitcoin regtest.
+        # Dash's pre-mined chain starts the test at height 200, then the
+        # COINBASE_MATURITY + 1 blocks generated above, then this block.
+        assert_equal(self.nodes[0].getblockcount(), 200 + COINBASE_MATURITY + 2)
 
 
 if __name__ == "__main__":
