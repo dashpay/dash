@@ -119,11 +119,13 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
 
     const uint256 block_hash = block_index.GetBlockHash();
     CCreditPool pool;
-    {
-        LOCK(cache_mutex);
-        if (creditPoolCache.get(block_hash, pool)) {
-            return pool;
-        }
+    if (WITH_LOCK(cache_mutex, return creditPoolCache.get(block_hash, pool))) {
+        // The pool may have been constructed, and cached, outside a block-scoped transaction
+        // (mempool acceptance, template creation, RPC), where its snapshot cannot be written.
+        // Persist it from the first transaction-scoped lookup instead, or the snapshot would be
+        // lost for good: block connection only sees the cache hit and never constructs it again.
+        MaybeWriteSnapshot(block_hash, block_index.nHeight, pool);
+        return pool;
     }
     if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0) {
         if (evoDb.Read(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
@@ -135,24 +137,31 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
     return std::nullopt;
 }
 
-void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const CCreditPool &pool)
+void CCreditPoolManager::MaybeWriteSnapshot(const uint256& block_hash, int height, const CCreditPool& pool)
 {
-    if (height % DISK_SNAPSHOT_PERIOD == 0) {
-        if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
-            // A mismatch is local EvoDB corruption, not a statement about the
-            // block. Abort here: some callers (miner, RPC) never pass through a
-            // validation-state catch, and the block-connect catches must not
-            // translate this into a consensus rejection.
-            const std::string msg = strprintf("CCreditPoolManager::%s -- EvoDB credit pool mismatch for block %s",
-                                              __func__, block_hash.ToString());
-            AbortNode(msg);
-            throw EvoDbInconsistencyError(msg);
-        }
+    // The disk snapshot is an optimization; skip it outside a block-scoped EvoDB transaction
+    // (e.g. a pool constructed on a cold cache during mempool acceptance or template creation),
+    // where the write would never be committed and would trip the clean-transaction assertion
+    // at the next root commit. GetFromCache() writes it once a transaction-scoped lookup hits
+    // the cached pool.
+    if (height % DISK_SNAPSHOT_PERIOD != 0 || !evoDb.HasActiveTransaction()) return;
+    if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
+        // A mismatch is local EvoDB corruption, not a statement about the
+        // block. Abort here: some callers (miner, RPC) never pass through a
+        // validation-state catch, and the block-connect catches must not
+        // translate this into a consensus rejection.
+        const std::string msg = strprintf("CCreditPoolManager::%s -- EvoDB credit pool mismatch for block %s", __func__,
+                                          block_hash.ToString());
+        AbortNode(msg);
+        throw EvoDbInconsistencyError(msg);
     }
-    {
-        LOCK(cache_mutex);
-        creditPoolCache.insert(block_hash, pool);
-    }
+}
+
+void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const CCreditPool& pool)
+{
+    MaybeWriteSnapshot(block_hash, height, pool);
+    LOCK(cache_mutex);
+    creditPoolCache.insert(block_hash, pool);
 }
 
 CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev)

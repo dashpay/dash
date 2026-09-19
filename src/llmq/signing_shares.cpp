@@ -409,7 +409,7 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
             }
 
             // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-            if (sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+            if (sigman.HasRecoveredSigForSigning(sigShare.getLlmqType(), sigShare.getId(), sigShare.getMsgHash())) {
                 continue;
             }
 
@@ -452,7 +452,8 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
     }
 
     const auto signHash = sigShare.GetSignHash();
-    const bool alreadyRecovered = sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId()) ||
+    const bool alreadyRecovered = sigman.HasRecoveredSigForSigning(sigShare.getLlmqType(), sigShare.getId(),
+                                                                   sigShare.getMsgHash()) ||
                                   sigman.HasRecoveredSigForSession(signHash);
 
     {
@@ -625,7 +626,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::ProcessSigShare(const CSigShar
         quorumNodes = m_connman.GetMasternodeQuorumNodes(sigShare.getLlmqType(), sigShare.getQuorumHash());
     }
 
-    if (sigman.HasRecoveredSigForId(llmqType, sigShare.getId())) {
+    if (sigman.HasRecoveredSigForSigning(llmqType, sigShare.getId(), sigShare.getMsgHash())) {
         return nullptr;
     }
 
@@ -666,7 +667,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::ProcessSigShare(const CSigShar
 std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& quorum, const uint256& id,
                                                                 const uint256& msgHash)
 {
-    if (sigman.HasRecoveredSigForId(quorum.params.type, id)) {
+    if (sigman.HasRecoveredSigForSigning(quorum.params.type, id, msgHash)) {
         return nullptr;
     }
 
@@ -829,7 +830,7 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const ui
             }
         }
 
-        if (db.HasRecoveredSigForId(llmqType, id)) {
+        if (sigman.HasRecoveredSigForSigning(llmqType, id, msgHash)) {
             // no need to sign it if we already have a recovered sig
             return true;
         }

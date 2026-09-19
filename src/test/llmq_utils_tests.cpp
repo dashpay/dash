@@ -5,9 +5,14 @@
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
+#include <chainparams.h>
 #include <consensus/params.h>
+#include <dbwrapper.h>
+#include <llmq/context.h>
 #include <llmq/net_signing.h>
 #include <llmq/params.h>
+#include <llmq/signhash.h>
+#include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/utils.h>
 #include <netaddress.h>
@@ -23,6 +28,87 @@ using namespace llmq;
 using namespace llmq::testutils;
 
 BOOST_FIXTURE_TEST_SUITE(llmq_utils_tests, BasicTestingSetup)
+
+BOOST_FIXTURE_TEST_CASE(platform_recovered_sigs_preserve_each_message, TestingSetup)
+{
+    auto& sigman = *m_node.llmq_ctx->sigman;
+    const auto type = Params().GetConsensus().llmqTypePlatform;
+    const auto id = GetTestQuorumHash(1);
+    const auto quorum = GetTestQuorumHash(2);
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto make_sig = [&](uint32_t message) {
+        const auto msg = GetTestQuorumHash(message);
+        return std::make_shared<const CRecoveredSig>(type, quorum, id, msg,
+                                                     key.Sign(SignHash(type, quorum, id, msg).Get(),
+                                                              bls::bls_legacy_scheme.load()));
+    };
+    const auto current = make_sig(4);
+    const auto earlier = make_sig(3);
+    BOOST_CHECK(sigman.ProcessRecoveredSig(current));
+    BOOST_CHECK(!sigman.HasRecoveredSigForSigning(type, id, earlier->getMsgHash()));
+    BOOST_CHECK(sigman.ProcessRecoveredSig(earlier));
+    BOOST_CHECK(!sigman.ProcessRecoveredSig(current));
+    for (const auto& sig : {current, earlier}) {
+        CRecoveredSig stored;
+        BOOST_REQUIRE(sigman.GetRecoveredSig(type, id, sig->getMsgHash(), stored));
+        BOOST_CHECK(stored.GetHash() == sig->GetHash());
+        BOOST_CHECK(sigman.HasRecoveredSigForSigning(type, id, sig->getMsgHash()));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(platform_recovered_sigs_persistence_and_expiry)
+{
+    const auto type = Params().GetConsensus().llmqTypePlatform;
+    const auto id = GetTestQuorumHash(1);
+    const auto quorum = GetTestQuorumHash(2);
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto make_sig = [&](uint32_t message) {
+        const auto msg = GetTestQuorumHash(message);
+        return CRecoveredSig(type, quorum, id, msg,
+                             key.Sign(SignHash(type, quorum, id, msg).Get(), bls::bls_legacy_scheme.load()));
+    };
+    const auto first = make_sig(3);
+    const auto second = make_sig(4);
+    const auto path = m_args.GetDataDirBase() / "platform_sigs";
+    const int64_t now = GetTime();
+    {
+        CRecoveredSigsDb db({.path = path, .wipe = true});
+        SetMockTime(now);
+        db.WriteRecoveredSig(first);
+        SetMockTime(now + 100);
+        db.WriteRecoveredSig(second);
+    }
+    {
+        CRecoveredSigsDb db({.path = path});
+        for (const auto* sig : {&first, &second}) {
+            CRecoveredSig stored;
+            BOOST_REQUIRE(db.GetRecoveredSig(type, id, sig->getMsgHash(), stored));
+            BOOST_CHECK(stored.GetHash() == sig->GetHash());
+            BOOST_REQUIRE(db.GetRecoveredSigByHash(sig->GetHash(), stored));
+            BOOST_CHECK(stored.GetHash() == sig->GetHash());
+            BOOST_CHECK(db.HasRecoveredSigForHash(sig->GetHash()));
+            BOOST_CHECK(db.HasRecoveredSigForSession(sig->buildSignHash().Get()));
+        }
+        SetMockTime(now + 151);
+        db.CleanupOldRecoveredSigs(100);
+        CRecoveredSig stored;
+        BOOST_CHECK(!db.GetRecoveredSig(type, id, first.getMsgHash(), stored));
+        BOOST_CHECK(!db.GetRecoveredSigByHash(first.GetHash(), stored));
+        BOOST_CHECK(!db.HasRecoveredSig(type, id, first.getMsgHash()));
+        BOOST_CHECK(!db.HasRecoveredSigForHash(first.GetHash()));
+        BOOST_CHECK(!db.HasRecoveredSigForSession(first.buildSignHash().Get()));
+        BOOST_REQUIRE(db.GetRecoveredSig(type, id, second.getMsgHash(), stored));
+        BOOST_CHECK(stored.GetHash() == second.GetHash());
+        SetMockTime(now + 201);
+        db.CleanupOldRecoveredSigs(100);
+        BOOST_CHECK(!db.GetRecoveredSig(type, id, second.getMsgHash(), stored));
+        BOOST_CHECK(!db.HasRecoveredSigForHash(second.GetHash()));
+        BOOST_CHECK(!db.HasRecoveredSigForSession(second.buildSignHash().Get()));
+    }
+    SetMockTime(0);
+}
 
 BOOST_AUTO_TEST_CASE(trivially_passes) { BOOST_CHECK(true); }
 

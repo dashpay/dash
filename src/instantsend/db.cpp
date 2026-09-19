@@ -203,8 +203,7 @@ void CInstantSendDb::WriteBlockInstantSendLocks(const gsl::not_null<std::shared_
     LOCK(cs_db);
     CDBBatch batch(*db);
     for (const auto& tx : pblock->vtx) {
-        if (tx->IsCoinBase() || tx->vin.empty()) {
-            // coinbase and TXs with no inputs can't be locked
+        if (!HasLockInputs(*tx)) {
             continue;
         }
         uint256 islockHash = GetInstantSendLockHashByTxidInternal(tx->GetHash());
@@ -222,8 +221,7 @@ void CInstantSendDb::RemoveBlockInstantSendLocks(const gsl::not_null<std::shared
     LOCK(cs_db);
     CDBBatch batch(*db);
     for (const auto& tx : pblock->vtx) {
-        if (tx->IsCoinBase() || tx->vin.empty()) {
-            // coinbase and TXs with no inputs can't be locked
+        if (!HasLockInputs(*tx)) {
             continue;
         }
         uint256 islockHash = GetInstantSendLockHashByTxidInternal(tx->GetHash());

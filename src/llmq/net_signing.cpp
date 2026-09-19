@@ -407,7 +407,7 @@ void NetSigning::ProcessPendingSigShares(
     size_t verifyCount = 0;
     for (const auto& [nodeId, v] : sigSharesByNodes) {
         for (const auto& sigShare : v) {
-            if (m_sig_manager.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+            if (m_sig_manager.HasRecoveredSigForSigning(sigShare.getLlmqType(), sigShare.getId(), sigShare.getMsgHash())) {
                 continue;
             }
 

@@ -561,7 +561,12 @@ static UniValue quorum_sign_helper(const JSONRPCRequest& request, Consensus::LLM
                            "Quorum signing is disabled until snapshot background validation completes");
     }
     if (fSubmit) {
-        return CHECK_NONFATAL(node.active_ctx)->shareman->AsyncSignIfMember(llmqType, id, msgHash, quorumHash);
+        // Platform re-signs expired withdrawals under the same request id with a new message
+        // hash, so platform-type sessions must not refuse a changed message
+        const bool allow_diff_msghash{llmqType == Params().GetConsensus().llmqTypePlatform};
+        return CHECK_NONFATAL(node.active_ctx)
+            ->shareman->AsyncSignIfMember(llmqType, id, msgHash, quorumHash, /*allowReSign=*/false,
+                                          /*allowDiffMsgHashSigning=*/allow_diff_msghash);
     } else {
         const auto pQuorum = [&]() {
             if (quorumHash.IsNull()) {
@@ -789,10 +794,7 @@ static RPCHelpMan quorum_getrecsig()
     const uint256 msgHash(ParseHashV(request.params[2], "msgHash"));
 
     llmq::CRecoveredSig recSig;
-    if (!llmq_ctx.sigman->GetRecoveredSigForId(llmqType, id, recSig)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "recovered signature not found");
-    }
-    if (recSig.getMsgHash() != msgHash) {
+    if (!llmq_ctx.sigman->GetRecoveredSig(llmqType, id, msgHash, recSig)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "recovered signature not found");
     }
     return recSig.ToJson();

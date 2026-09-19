@@ -93,6 +93,11 @@ private:
     [[nodiscard]] bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params) const;
     [[nodiscard]] bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash,
                                     const Consensus::Params& params) const;
+    /** Whether an asset unlock may be locked: a version 2 instance that is minable in the next
+     *  block (valid quorum signature, inside its height window) while every withdrawal pending
+     *  in the mempool fits the credit pool limit, with no other instance of its withdrawal
+     *  index in the mempool. */
+    [[nodiscard]] bool CheckCanLockAssetUnlock(const CTransaction& tx, bool printDebug) const;
 
     void HandleNewInputLockRecoveredSig(const llmq::CRecoveredSig& recoveredSig, const uint256& txid)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_creating);

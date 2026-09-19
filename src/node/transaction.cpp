@@ -55,7 +55,13 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
             // So if the output does exist, then this transaction exists in the chain.
             if (!existingCoin.IsSpent()) return TransactionError::ALREADY_IN_CHAIN;
         }
-        if (auto mempool_tx = node.mempool->get(txid); mempool_tx) {
+        const auto mempool_tx = node.mempool->get(txid);
+        // A version 2 asset unlock sharing a mempool entry's txid but carrying different quorum
+        // signing info is a re-signed instance of that withdrawal and must reach the mempool,
+        // which accepts it as an in-place refresh.
+        const bool is_unlock_refresh{mempool_tx && IsAssetUnlockWithStableTxid(*tx) &&
+                                     mempool_tx->GetInstanceHash() != tx->GetInstanceHash()};
+        if (mempool_tx && !is_unlock_refresh) {
             // There's already a transaction in the mempool with this txid. Don't
             // try to submit this transaction to the mempool (since it'll be
             // rejected as a TX_CONFLICT), but do attempt to reannounce the mempool

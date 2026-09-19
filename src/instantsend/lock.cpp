@@ -42,4 +42,22 @@ uint256 GenInputLockRequestId(const COutPoint& outpoint)
 {
     return ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, outpoint));
 }
+
+std::vector<COutPoint> GetLockInputs(const CTransaction& tx)
+{
+    if (IsAssetUnlockPayload(tx)) {
+        return {COutPoint{::SerializeHash(std::make_pair(ASSET_UNLOCK_REQUESTID_PREFIX, GetAssetUnlockIndex(tx))), 0}};
+    }
+    std::vector<COutPoint> inputs;
+    inputs.reserve(tx.vin.size());
+    for (const auto& in : tx.vin) {
+        inputs.push_back(in.prevout);
+    }
+    return inputs;
+}
+
+bool HasLockInputs(const CTransaction& tx)
+{
+    return !tx.IsCoinBase() && (!tx.vin.empty() || IsAssetUnlockPayload(tx));
+}
 } // namespace instantsend
