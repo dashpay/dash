@@ -44,16 +44,6 @@ G1ElementWrapper G1ElementWrapper::Add(const G1ElementWrapper &other) {
     return G1ElementWrapper(GetWrappedInstance() + other.GetWrappedInstance());
 }
 
-G1ElementWrapper G1ElementWrapper::Mul(const BignumWrapper &other) {
-    bn_t factor;
-    // Since the type of bn_t is bn_st[0], we can do this dance to make a temporary
-    // copy of the struct itself to hand to G1ElementWrapper's multiply.  The
-    // type was clearly intended to by by-value in argument lists (degrade to ptr)
-    // but value semantics in C++ complicates matters.
-    factor[0] = *(&other.GetWrappedInstance());
-    return G1ElementWrapper(GetWrappedInstance() * factor);
-}
-
 bool G1ElementWrapper::EqualTo(const G1ElementWrapper &others) {
     return GetWrappedInstance() == others.GetWrappedInstance();
 }

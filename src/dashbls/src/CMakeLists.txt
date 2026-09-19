@@ -1,41 +1,46 @@
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/dashbls/*.hpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 source_group("SrcHeaders" FILES ${HEADERS})
 
-add_library(dashbls
+list(APPEND bls_sources
   ${HEADERS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/privatekey.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/bls.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/chaincode.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/elements.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/extendedprivatekey.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/extendedpublickey.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/legacy.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/schemes.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/threshold.cpp)
-
-target_include_directories(dashbls
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    $<$<BOOL:${GMP_FOUND}>:${GMP_INCLUDES}>
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include/dashbls
-    ${CMAKE_CURRENT_SOURCE_DIR}/../depends/mimalloc/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../depends/relic/include
-    ${CMAKE_CURRENT_BINARY_DIR}/../depends/relic/include
+  privatekey.cpp
+  bls.cpp
+  chaincode.cpp
+  elements.cpp
+  extendedprivatekey.cpp
+  extendedpublickey.cpp
+  legacy.cpp
+  schemes.cpp
+  threshold.cpp
+  privatekey.cpp
+  bls.cpp
+  elements.cpp
+  schemes.cpp
+  ${blst_SOURCE_DIR}/src/server.c
 )
 
-target_compile_definitions(dashbls
-  PRIVATE
-    BLSALLOC_MIMALLOC=1
-)
+  list(APPEND bls_sources
+    ${blst_SOURCE_DIR}/build/assembly.S
+  )
+  add_compile_options(-fno-builtin)
+  add_compile_options(-fPIC)
+  add_compile_options(-Wall)
+  add_compile_options(-Wextra)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+    add_compile_options(-mno-avx)
+  endif()
 
+
+add_library(dashbls ${bls_sources})
+target_include_directories(dashbls PUBLIC ${blst_SOURCE_DIR}/bindings ${PROJECT_SOURCE_DIR}/include/dashbls/)
+target_compile_definitions(dashbls PRIVATE __BLST_PORTABLE__ BLSALLOC_MIMALLOC=1)
 target_link_libraries(dashbls
   PUBLIC
-    relic_s
     mimalloc-static
 )
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../depends/relic/include/ DESTINATION include/dashbls)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../depends/relic/include/ DESTINATION include/dashbls)
+install(DIRECTORY ${blst_SOURCE_DIR}/include/ DESTINATION include/dashbls)
+install(DIRECTORY ${blst_BINARY_DIR}/include/ DESTINATION include/dashbls)
 install(FILES ${HEADERS} DESTINATION include/dashbls)
 install(FILES $<TARGET_FILE:dashbls> DESTINATION lib)
 
@@ -44,8 +49,9 @@ if(BUILD_BLS_TESTS)
 
   add_executable(runtest test.cpp)
   target_link_libraries(runtest
-                        PRIVATE dashbls
-                        PRIVATE catch2)
+    PRIVATE
+    dashbls
+    catch2)
 
   if(EMSCRIPTEN)
     target_link_options(runtest PRIVATE "SHELL:-s MALLOC=emmalloc")
@@ -65,4 +71,15 @@ if(BUILD_BLS_BENCHMARKS)
       target_link_options(runbench PRIVATE "SHELL:-s ASSERTIONS=2")
     endif()
   endif()
+endif()
+
+if(BUILD_BLS_TESTS)
+  # runtest compares the library against test-vectors/reference.txt;
+  # vectorgen regenerates that file from whichever library it is built against.
+  target_compile_definitions(runtest PRIVATE
+    DASHBLS_REFERENCE_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/../test-vectors/reference.txt")
+
+  add_executable(vectorgen ${CMAKE_CURRENT_SOURCE_DIR}/../tools/vectorgen.cpp)
+  target_include_directories(vectorgen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(vectorgen PRIVATE dashbls)
 endif()

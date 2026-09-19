@@ -45,7 +45,6 @@ jobs:
     - name: Prepare build system for macOS
       if: startsWith(matrix.os, 'macos')
       run: |
-        ls -l
         export MACOSX_DEPLOYMENT_TARGET=10.14
         brew install autoconf automake gmp libtool pkg-config
 

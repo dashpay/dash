@@ -13,22 +13,27 @@
 // limitations under the License.
 
 #include <chrono>
+
 #include "bls.hpp"
 #include "test-utils.hpp"
 
-extern "C" {
-#include "relic.h"
-}
-
 using std::string;
 using std::vector;
-using std::cout;
-using std::endl;
 
 using namespace bls;
 
+std::vector<uint8_t> wjbgetRandomSeed()
+{
+    uint8_t buf[32];
 
-void benchSigs() {
+    for (int i = 0; i < 32; i++) buf[i] = rand();
+
+    std::vector<uint8_t> ret(buf, buf + 32);
+    return ret;
+}
+
+void benchSigs()
+{
     string testName = "Signing";
     const int numIters = 5000;
     PrivateKey sk = BasicSchemeMPL().KeyGen(getRandomSeed());
@@ -42,21 +47,22 @@ void benchSigs() {
     endStopwatch(testName, start, numIters);
 }
 
-void benchVerification() {
+void benchVerification()
+{
     string testName = "Verification";
     const int numIters = 1000;
     PrivateKey sk = BasicSchemeMPL().KeyGen(getRandomSeed());
     G1Element pk = sk.GetG1Element();
-
     std::vector<G2Element> sigs;
 
+    vector<uint8_t> pkBytes = pk.Serialize();
     for (int i = 0; i < numIters; i++) {
         uint8_t message[4];
         Util::IntToFourBytes(message, i);
         vector<uint8_t> messageBytes(message, message + 4);
-        sigs.push_back(BasicSchemeMPL().Sign(sk, messageBytes));
+        G2Element sig = BasicSchemeMPL().Sign(sk, messageBytes);
+        sigs.push_back(sig);
     }
-
     auto start = startStopwatch();
     for (int i = 0; i < numIters; i++) {
         uint8_t message[4];
@@ -68,7 +74,8 @@ void benchVerification() {
     endStopwatch(testName, start, numIters);
 }
 
-void benchBatchVerification() {
+void benchBatchVerification()
+{
     const int numIters = 10000;
 
     vector<vector<uint8_t>> sig_bytes;
@@ -116,7 +123,8 @@ void benchBatchVerification() {
     endStopwatch("Batch verification", start, numIters);
 }
 
-void benchSerialize() {
+void benchSerialize()
+{
     const int numIters = 5000000;
     PrivateKey sk = BasicSchemeMPL().KeyGen(getRandomSeed());
     G1Element pk = sk.GetG1Element();
@@ -142,7 +150,8 @@ void benchSerialize() {
     endStopwatch("Serialize G2Element", start, numIters);
 }
 
-void benchSerializeToArray() {
+void benchSerializeToArray()
+{
     const int numIters = 5000000;
     PrivateKey sk = BasicSchemeMPL().KeyGen(getRandomSeed());
     G1Element pk = sk.GetG1Element();
@@ -168,7 +177,8 @@ void benchSerializeToArray() {
     endStopwatch("SerializeToArray G2Element", start, numIters);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     benchSigs();
     benchVerification();
     benchBatchVerification();

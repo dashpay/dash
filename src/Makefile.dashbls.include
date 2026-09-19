@@ -1,0 +1,111 @@
+# Copyright (c) 2026 The Dash Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+LIBDASHBLS_INT = dashbls/libdashbls.la
+LIBMIMALLOC_INT = dashbls/libmimalloc-secure.la
+
+noinst_LTLIBRARIES += $(LIBDASHBLS_INT)
+noinst_LTLIBRARIES += $(LIBMIMALLOC_INT)
+
+# What consumers link, dependents first: dashbls -> mimalloc -> blst (from depends)
+LIBDASHBLS = $(LIBDASHBLS_INT) $(LIBMIMALLOC_INT) $(BLST_LIBS)
+
+# Flags for consumers of the library
+DASHBLS_CPPFLAGS = -isystem$(srcdir)/dashbls/include
+
+# Flags used only when building the library itself. Its headers are treated
+# as system headers, as they are for consumers, so that Dash's warning set
+# (-Werror in CI) does not apply to the vendored code.
+DASHBLS_CPPFLAGS_INT =
+DASHBLS_CPPFLAGS_INT += -isystem$(srcdir)/dashbls/include/dashbls
+DASHBLS_CPPFLAGS_INT += -isystem$(srcdir)/dashbls/depends/mimalloc/include
+DASHBLS_CPPFLAGS_INT += -DBLSALLOC_MIMALLOC=1
+
+MIMALLOC_CPPFLAGS_INT =
+MIMALLOC_CPPFLAGS_INT += -I$(srcdir)/dashbls/depends/mimalloc/include
+MIMALLOC_CPPFLAGS_INT += -I$(srcdir)/dashbls/depends/mimalloc/src
+MIMALLOC_CPPFLAGS_INT += -DMI_SECURE=4
+MIMALLOC_CPPFLAGS_INT += -DNDEBUG
+
+DASHBLS_H = \
+  dashbls/include/dashbls/bls.hpp \
+  dashbls/include/dashbls/chaincode.hpp \
+  dashbls/include/dashbls/elements.hpp \
+  dashbls/include/dashbls/extendedprivatekey.hpp \
+  dashbls/include/dashbls/extendedpublickey.hpp \
+  dashbls/include/dashbls/hdkeys.hpp \
+  dashbls/include/dashbls/hkdf.hpp \
+  dashbls/include/dashbls/legacy.hpp \
+  dashbls/include/dashbls/privatekey.hpp \
+  dashbls/include/dashbls/schemes.hpp \
+  dashbls/include/dashbls/test-utils.hpp \
+  dashbls/include/dashbls/threshold.hpp \
+  dashbls/include/dashbls/util.hpp
+
+dashbls_libdashbls_la_SOURCES = \
+  $(DASHBLS_H) \
+  dashbls/src/bls.cpp \
+  dashbls/src/chaincode.cpp \
+  dashbls/src/elements.cpp \
+  dashbls/src/extendedprivatekey.cpp \
+  dashbls/src/extendedpublickey.cpp \
+  dashbls/src/legacy.cpp \
+  dashbls/src/privatekey.cpp \
+  dashbls/src/schemes.cpp \
+  dashbls/src/threshold.cpp
+
+dashbls_libdashbls_la_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_CPPFLAGS_INT)
+
+# Specify -static in both CXXFLAGS and LDFLAGS so libtool will only build a
+# static version of this library (same as crc32c and leveldb).
+dashbls_libdashbls_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -static
+dashbls_libdashbls_la_LDFLAGS = $(AM_LDFLAGS) -static
+
+MIMALLOC_H = \
+  dashbls/depends/mimalloc/include/mimalloc-new-delete.h \
+  dashbls/depends/mimalloc/include/mimalloc-override.h \
+  dashbls/depends/mimalloc/include/mimalloc-stats.h \
+  dashbls/depends/mimalloc/include/mimalloc.h \
+  dashbls/depends/mimalloc/src/bitmap.h
+
+dashbls_libmimalloc_secure_la_SOURCES = \
+  $(MIMALLOC_H) \
+  dashbls/depends/mimalloc/src/alloc-aligned.c \
+  dashbls/depends/mimalloc/src/alloc-posix.c \
+  dashbls/depends/mimalloc/src/alloc.c \
+  dashbls/depends/mimalloc/src/arena-meta.c \
+  dashbls/depends/mimalloc/src/arena.c \
+  dashbls/depends/mimalloc/src/bitmap.c \
+  dashbls/depends/mimalloc/src/heap.c \
+  dashbls/depends/mimalloc/src/init.c \
+  dashbls/depends/mimalloc/src/libc.c \
+  dashbls/depends/mimalloc/src/options.c \
+  dashbls/depends/mimalloc/src/os.c \
+  dashbls/depends/mimalloc/src/page-map.c \
+  dashbls/depends/mimalloc/src/page.c \
+  dashbls/depends/mimalloc/src/random.c \
+  dashbls/depends/mimalloc/src/stats.c \
+  dashbls/depends/mimalloc/src/prim/prim.c
+
+dashbls_libmimalloc_secure_la_CPPFLAGS = $(AM_CPPFLAGS) $(MIMALLOC_CPPFLAGS_INT)
+dashbls_libmimalloc_secure_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -static
+dashbls_libmimalloc_secure_la_LDFLAGS = $(AM_LDFLAGS) -static
+
+if ENABLE_TESTS
+if !ENABLE_FUZZ
+DASHBLS_RUNTEST = dashbls/runtest
+TESTS += $(DASHBLS_RUNTEST)
+check_PROGRAMS += $(DASHBLS_RUNTEST)
+
+dashbls_runtest_SOURCES = \
+  dashbls/src/test.cpp \
+  dashbls/src/test-vectors.hpp \
+  dashbls/depends/catch2/include/catch2/catch.hpp
+dashbls_runtest_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_CPPFLAGS_INT) -isystem$(srcdir)/dashbls/depends/catch2/include
+dashbls_runtest_CPPFLAGS += -DDASHBLS_REFERENCE_VECTORS=\"$(abs_srcdir)/dashbls/test-vectors/reference.txt\"
+dashbls_runtest_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+dashbls_runtest_LDADD = $(LIBDASHBLS)
+dashbls_runtest_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
+endif
+endif

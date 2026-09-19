@@ -1,12 +1,10 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.14.0 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.18.0 FATAL_ERROR)
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(
         ${INCLUDE_DIRECTORIES}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../depends/relic/include
-        ${CMAKE_CURRENT_BINARY_DIR}/../depends/relic/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../depends/catch2/include
 )
 

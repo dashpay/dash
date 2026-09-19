@@ -15,13 +15,7 @@
 #ifndef SRC_BLSHKDF_HPP_
 #define SRC_BLSHKDF_HPP_
 
-#include "relic_conf.h"
 #include <math.h>
-
-#if defined GMP && ARITH == GMP
-#include <gmp.h>
-#endif
-
 #include <cassert>
 #include "util.hpp"
 
@@ -40,7 +34,7 @@ class HKDF256 {
         // assert(ikm_len == 32);  // Used for EIP2333 key derivation
         // Hash256 used as the hash function (sha256)
         // PRK Output is 32 bytes (HashLen)
-        md_hmac(prk_output, ikm, ikm_len, salt, saltLen);
+        Util::md_hmac(prk_output, ikm, ikm_len, salt, saltLen);
     }
 
     static void Expand(uint8_t* okm, size_t L, const uint8_t* prk, const uint8_t* info, const size_t infoLen) {
@@ -59,12 +53,12 @@ class HKDF256 {
             if (i == 1) {
                 memcpy(hmacInput1, info, infoLen);
                 hmacInput1[infoLen] = i;
-                md_hmac(T, hmacInput1, infoLen + 1, prk, HASH_LEN);
+                Util::md_hmac(T, hmacInput1, infoLen + 1, prk, HASH_LEN);
             } else {
                 memcpy(hmacInput, T, HASH_LEN);
                 memcpy(hmacInput + HASH_LEN, info, infoLen);
                 hmacInput[HASH_LEN + infoLen] = i;
-                md_hmac(T, hmacInput, HASH_LEN + infoLen + 1, prk, HASH_LEN);
+                Util::md_hmac(T, hmacInput, HASH_LEN + infoLen + 1, prk, HASH_LEN);
             }
             size_t to_write = L - bytesWritten;
             if (to_write > HASH_LEN) {

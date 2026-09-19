@@ -1,0 +1,56 @@
+name: Binds (Go)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }}, Go ${{ matrix.golang }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04-arm]
+        golang: [ '1.24' ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
+    - name: Install Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: ^${{ matrix.golang }}
+
+    - name: Prepare build system for Ubuntu
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -qq --yes valgrind libgmp-dev cmake
+        hash -r
+        cmake --version
+
+    - name: Prepare build system for macOS
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        brew install gmp
+
+    - name: Build library using CMake
+      run: |
+        cores=$(getconf _NPROCESSORS_ONLN)
+        jobs=$(( cores > 1 ? cores - 1 : 1 ))
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        cmake --build . --parallel "$jobs"
+
+    - name: Build bindings
+      run: |
+        cd go-bindings
+        make config
+        make

@@ -26,12 +26,6 @@ namespace helpers {
         return buffer;
     }
 
-    val toUint8Array(bn_t bn) {
-        std::vector<uint8_t> vec = toVector(bn);
-        val buffer = toUint8Array(vec);
-        return buffer;
-    }
-
     std::vector<uint8_t> toVector(uint8_t *pointer, size_t data_size) {
         std::vector<uint8_t> data;
         data.reserve(data_size);
@@ -48,32 +42,11 @@ namespace helpers {
         return vec;
     }
 
-    std::vector<uint8_t> toVector(bn_t bn) {
-        uint8_t buf[bn_size_bin(bn)];
-        bn_write_bin(buf, bn_size_bin(bn), bn);
-        std::vector<uint8_t> vec = helpers::toVector(buf, bn_size_bin(bn));
-        return vec;
-    }
-
     std::vector<std::vector<uint8_t>> jsBuffersArrayToVector(val buffersArray) {
         auto l = buffersArray["length"].as<unsigned>();
         std::vector<std::vector<uint8_t>> vec;
         for (unsigned i = 0; i < l; ++i) {
             vec.push_back(toVector(buffersArray[i].as<val>()));
-        }
-        return vec;
-    }
-
-    std::vector<bn_t *> jsBuffersArrayToBnVector(val buffersArray) {
-        auto l = buffersArray["length"].as<unsigned>();
-        std::vector<bn_t *> vec;
-        for (unsigned i = 0; i < l; ++i) {
-            bn_t data;
-            bn_new(data);
-            std::vector<uint8_t> bnVec = toVector(buffersArray[i]);
-            bn_read_bin(data, bnVec.data(), static_cast<int>(bnVec.size()));
-            bn_t *point = &data;
-            vec.push_back(point);
         }
         return vec;
     }

@@ -14,6 +14,8 @@
 
 #include "bls.hpp"
 
+#include <cstring>
+
 namespace bls {
 
 ChainCode ChainCode::FromBytes(const Bytes& bytes) {
@@ -21,21 +23,15 @@ ChainCode ChainCode::FromBytes(const Bytes& bytes) {
         throw std::invalid_argument("ChainCode::FromBytes: Invalid size");
     }
     ChainCode c = ChainCode();
-    bn_new(c.chainCode);
-    bn_read_bin(c.chainCode, bytes.begin(), ChainCode::SIZE);
+    memcpy(c.chainCode.data(), bytes.begin(), ChainCode::SIZE);
     return c;
 }
 
-ChainCode::ChainCode(const ChainCode &cc) {
-    uint8_t bytes[ChainCode::SIZE];
-    cc.Serialize(bytes);
-    bn_new(chainCode);
-    bn_read_bin(chainCode, bytes, ChainCode::SIZE);
-}
+ChainCode::ChainCode(const ChainCode &cc) : chainCode(cc.chainCode) {}
 
 // Comparator implementation.
 bool operator==(ChainCode const &a,  ChainCode const &b) {
-    return bn_cmp(a.chainCode, b.chainCode) == RLC_EQ;
+    return a.chainCode == b.chainCode;
 }
 
 bool operator!=(ChainCode const &a,  ChainCode const &b) {
@@ -49,7 +45,7 @@ std::ostream &operator<<(std::ostream &os, ChainCode const &s) {
 }
 
 void ChainCode::Serialize(uint8_t *buffer) const {
-    bn_write_bin(buffer, ChainCode::SIZE, chainCode);
+    memcpy(buffer, chainCode.data(), SIZE);
 }
 
 std::vector<uint8_t> ChainCode::Serialize() const {

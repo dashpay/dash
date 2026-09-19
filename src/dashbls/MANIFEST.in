@@ -1,6 +1,44 @@
-include README.md LICENSE
-global-include CMakeLists.txt *.cmake
-recursive-include cmake_modules *
-recursive-include src *
-recursive-include python-bindings *
-recursive-include contrib *
+# Unused sources
+exclude src/test.cpp src/test-bench.cpp
+
+# Foreign languages
+prune js-bindings
+prune go-bindings
+prune rust-bindings
+exclude emsdk_*.sh js_*.sh apple.rust.deps.sh
+
+# Vendored test dependency
+prune depends/catch2
+
+# Vendored dependency extras
+prune depends/mimalloc/doc
+prune depends/mimalloc/docs
+prune depends/mimalloc/ide
+prune depends/mimalloc/test
+prune depends/mimalloc/contrib
+prune depends/relic/.github
+prune depends/relic/art
+prune depends/relic/bench
+prune depends/relic/demo
+prune depends/relic/doc
+prune depends/relic/preset
+prune depends/relic/test
+prune depends/relic/tools
+
+# Autotools build
+prune build-aux
+prune autom4te.cache
+exclude Makefile.am Makefile.*.include Makefile.in Makefile configure.ac aclocal.m4 autogen.sh
+
+# dot{dir,file}s
+prune .github
+prune .vscode
+prune .claude
+exclude .clang-format .python-version .gitignore
+
+# Build artifacts
+prune build
+prune .libs
+global-exclude *.o *.a *.lo *.la *.so *.dylib *.dll *.pyc
+global-exclude *.orig *.rej *.bak
+global-exclude *.egg-info/*

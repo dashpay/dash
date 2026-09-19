@@ -1,0 +1,49 @@
+name: Binds (Rust)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }}, Rust ${{ matrix.rust }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04-arm]
+        rust: [ '1.91.0' ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
+    - name: Prepare build system for Ubuntu
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -qq --yes valgrind libgmp-dev cmake
+        hash -r
+        cmake --version
+
+    - name: Prepare build system for macOS
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        brew install gmp
+
+    - name: Install Rust
+      run: |
+        rustup toolchain install ${{ matrix.rust }}
+        rustup default ${{ matrix.rust }}
+        rustc --version
+        cargo --version
+
+    - name: Build and test Rust bindings
+      run: |
+        cd rust-bindings/bls-dash-sys
+        cargo test
