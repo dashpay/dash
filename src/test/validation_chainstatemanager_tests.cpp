@@ -6,6 +6,7 @@
 #include <consensus/validation.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <evo/snapshot.h>
 #include <llmq/context.h>
 #include <llmq/options.h>
 #include <node/chainstate.h>
@@ -171,6 +172,57 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     DashChainstateSetupClose(m_node);
     // dmnman holds a reference to m_node.evodb, it mustn't outlive it
     m_node.dmnman.reset();
+}
+
+BOOST_AUTO_TEST_CASE(snapshot_startup_missing_base_header_is_nonfatal)
+{
+    ChainstateManager& manager = *m_node.chainman;
+    Chainstate& background = WITH_LOCK(::cs_main, return manager.InitializeChainstate(
+        m_node.mempool.get(), *m_node.evodb, m_node.chain_helper));
+    background.InitCoinsDB(/*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
+    WITH_LOCK(::cs_main, background.InitCoinsCache(1 << 23));
+    m_node.dmnman = std::make_unique<CDeterministicMNManager>(*m_node.evodb, *Assert(m_node.mn_metaman.get()));
+    DashChainstateSetup(manager, m_node, /*llmq_dbs_in_memory=*/true, /*llmq_dbs_wipe=*/false);
+    BOOST_REQUIRE(background.LoadGenesisBlock());
+
+    const uint256 missing_base{GetRandHash()};
+    SeedSnapshotMarker(*m_node.evodb, missing_base);
+    Chainstate* snapshot = WITH_LOCK(::cs_main, return manager.ActivateExistingSnapshot(
+        m_node.mempool.get(), missing_base));
+    BOOST_REQUIRE(snapshot);
+
+    // Startup detection is allowed to precede receipt/loading of the base
+    // header. Accessors and background candidate setup must fail softly.
+    WITH_LOCK(::cs_main, {
+        BOOST_CHECK(snapshot->SnapshotBase() == nullptr);
+        const size_t candidates_before{background.setBlockIndexCandidates.size()};
+        background.TryAddBlockIndexCandidate(manager.m_blockman.LookupBlockIndex(
+            manager.GetConsensus().hashGenesisBlock));
+        BOOST_CHECK_EQUAL(background.setBlockIndexCandidates.size(), candidates_before);
+    });
+
+    DashChainstateSetupClose(m_node);
+    // dmnman holds a reference to m_node.evodb, it mustn't outlive it
+    m_node.dmnman.reset();
+}
+
+BOOST_FIXTURE_TEST_CASE(snapshot_prune_lock_release_survives_disconnect, TestChain100Setup)
+{
+    ChainstateManager& manager{*Assert(m_node.chainman)};
+
+    WITH_LOCK(::cs_main, {
+        manager.m_blockman.UpdatePruneLock("assumeutxo", {.height_first = manager.ActiveHeight()});
+        manager.ReleaseSnapshotPruneLock();
+        BOOST_CHECK(!manager.m_blockman.DeletePruneLock("assumeutxo"));
+    });
+
+    BlockValidationState state;
+    BOOST_REQUIRE(manager.ActiveChainstate().InvalidateBlock(
+        state, WITH_LOCK(::cs_main, return manager.ActiveTip())));
+
+    // DisconnectTip rewinds every remaining prune lock. The released snapshot
+    // lock must not be recreated or start constraining pruning after a reorg.
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !manager.m_blockman.DeletePruneLock("assumeutxo")));
 }
 
 //! Test rebalancing the caches associated with each chainstate.
@@ -1058,6 +1110,36 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_CHECK(!m_node.evodb->HasDualChainstateMarker());
     uint256 obsolete_marker;
     BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, obsolete_marker));
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_records_only_required_background_work_mn_hashes, SnapshotTestSetup)
+{
+    auto [validation_chainstate, _] = this->SetupSnapshot();
+    const CBlockIndex* required_block;
+    const CBlockIndex* unrelated_block;
+    {
+        LOCK(::cs_main);
+        required_block = validation_chainstate->m_chain[1];
+        unrelated_block = validation_chainstate->m_chain[2];
+    }
+    BOOST_REQUIRE(required_block);
+    BOOST_REQUIRE(unrelated_block);
+    const CDeterministicMNList required_list{
+        required_block->GetBlockHash(), required_block->nHeight, 0};
+    const CDeterministicMNList unrelated_list{
+        unrelated_block->GetBlockHash(), unrelated_block->nHeight, 0};
+    const uint256 required_hash{evo::CanonicalMNListHash(required_list)};
+
+    auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL);
+    m_node.evodb->WriteRequiredWorkMNListHashes({required_block->GetBlockHash()});
+    validation_chainstate->SetRequiredBackgroundMNListHashes({required_block->GetBlockHash()});
+    validation_chainstate->RecordBackgroundMNListHash(required_block, required_list);
+    validation_chainstate->RecordBackgroundMNListHash(unrelated_block, unrelated_list);
+
+    uint256 captured_hash;
+    BOOST_REQUIRE(m_node.evodb->ReadBackgroundWorkMNListHash(required_block->GetBlockHash(), captured_hash));
+    BOOST_CHECK_EQUAL(captured_hash, required_hash);
+    BOOST_CHECK(!m_node.evodb->ReadBackgroundWorkMNListHash(unrelated_block->GetBlockHash(), captured_hash));
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename, SnapshotTestSetup)
