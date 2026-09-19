@@ -102,42 +102,59 @@ about Git.
 
 ### Creating the Pull Request
 
-Pull request titles should follow the Conventional Commits specification which
-uses the `<type>(optional scope): <description>` scheme. Please see the
-specification linked below for valid types. When making a change to a specific
+Pull request titles must follow the [Conventional Commits
+specification](https://www.conventionalcommits.org/en/v1.0.0/), which uses the
+`<type>(optional scope): <description>` scheme. CI rejects a title whose type
+or scope is not in the lists below. When making a change to a specific
 component, please specify the name of the component inside the scope. For
 example, if you are developing a new feature related to consensus, the PR title
 should look like this: `feat(consensus): amazing new feature`. Breaking changes
 should be designated by appending an exclamation point after `<type>(scope)`
 like this: `feat(rpc)!: remove deprecated rpc`.
 
-For more details on allowed types and more information about Conventional
-Commits, please see the [Conventional Commits
-specification](https://www.conventionalcommits.org/en/v1.0.0/). In addition to
-typical types, the `backport` type should be used for bitcoin backport PRs. For
-all available types and scopes, please see the
-[.github/semantic.yml](.github/semantic.yml) file. Commonly used scopes ones
-include:
+Allowed types:
+
+  - *feat* a new feature
+  - *fix* a bug fix
+  - *perf* a performance improvement
+  - *refactor* a code change that neither fixes a bug nor adds a feature
+  - *test* adding or correcting tests only
+  - *docs* documentation only
+  - *style* formatting or naming with no behaviour change
+  - *trivial* a change too small to need review of its rationale, such as a
+    typo or an unused file
+  - *build* the build system or dependencies
+  - *guix* the Guix reproducible builds
+  - *ci* CI configuration and scripts
+  - *lint* linters and their configuration
+  - *chore* maintenance that fits no other type
+  - *revert* reverting an earlier change
+  - *backport* Bitcoin Core backports
+
+Allowed scopes:
 
   - *consensus* for changes to consensus critical code
-  - *log* Changes to log messages
+  - *interfaces* for changes to the node and wallet interfaces
+  - *log* for changes to log messages
   - *mining* for changes to the mining code
   - *net* for changes to the peer-to-peer network code
   - *qt* for changes to dash-qt
   - *rest* for changes to the REST APIs
   - *rpc* for changes to the RPC APIs
   - *scripts* for changes to the scripts and tools
+  - *stats* for changes to reporting of statistics
   - *utils* for changes to the utils and libraries
   - *wallet* for changes to the wallet code
   - *zmq* for changes to the ZMQ APIs
-  - *guix* for changes to the GUIX reproducible builds
-  - *stats* for changes to reporting of statistics
+
+The lists are enforced by `.github/workflows/semantic-pull-request.yml`; update
+both places together when adding a type or scope.
 
 Examples:
 
     feat(consensus): add new opcode for BIP-XXXX OP_CHECKAWESOMESIG
     feat(net): automatically create onion service, listen on Tor
-    feat(qt): add feed bump button
+    feat(qt): show masternode payment status on the overview page
     fix(log): fix typo in log message
     feat(rpc)!: modify gettransaction parameter type
 
@@ -211,7 +228,7 @@ pull request to pull request.
 
 When a pull request conflicts with the target branch, you may be asked to rebase it on top of the current target branch.
 
-    git fetch https://github.com/bitcoin/bitcoin  # Fetch the latest upstream commit
+    git fetch https://github.com/dashpay/dash <target-branch>  # Fetch the latest upstream commit
     git rebase FETCH_HEAD  # Rebuild commits on top of the new base
 
 Avoid rebasing a non-conflicting pull request on top of the updated target
@@ -245,7 +262,10 @@ When adding a new feature, thought must be given to the long term technical debt
 and maintenance that feature may require after inclusion. Before proposing a new
 feature that will require maintenance, please consider if you are willing to
 maintain it (including bug fixing). If features get orphaned with no maintainer
-in the future, they may be removed by the Repository Maintainer.
+in the future, they may be removed by the Repository Maintainer. Features
+might be rejected due to design or scope issues. If a feature is based on a lot
+of dependencies, consider first building the system outside of Dash Core, if
+possible.
 
 
 ### Refactoring
@@ -260,7 +280,10 @@ review and uncontroversial. In all cases, refactoring PRs must not change the
 behaviour of code within the pull request (bugs must be preserved as is).
 
 Project maintainers aim for a quick turnaround on refactoring pull requests, so
-where possible keep them short, uncomplex and easy to verify.
+where possible keep them short, uncomplex and easy to verify. Refactoring is
+accepted when a feature or bug fix needs it or it clearly improves developer
+experience. Stylistic changes not called for by the
+[developer notes](doc/developer-notes.md) are usually rejected.
 
 
 "Decision Making" Process
@@ -282,19 +305,24 @@ In general, all pull requests must:
   - Have a clear use case, fix a demonstrable bug or serve the greater good of
     the project (for example refactoring for modularisation);
   - Be well peer-reviewed;
-  - Have unit tests, functional tests, and fuzz tests, where appropriate;
+  - Have tests where they prove the change. A regression test must fail
+    without the fix and observe the behaviour the pull request claims. A
+    change that is proven by its diff (a typo, a by-reference parameter, a
+    log string) needs no test. A change that cannot be tested
+    deterministically (performance, races) should say how it was verified
+    instead;
   - Follow code style guidelines ([C++](doc/developer-notes.md), [functional tests](test/functional/README.md));
   - Not break the existing test suite;
-  - Where bugs are fixed, where possible, there should be unit tests
-    demonstrating the bug and also proving the fix. This helps prevent regression.
+  - Where bugs are fixed, provide steps to reproduce or an explanation of
+    the issue and reasoning for the way the bug was fixed;
   - Change relevant comments and documentation when behaviour of code changes.
 
 Patches that change Dash consensus rules are considerably more involved than
 normal because they affect the entire ecosystem and so must be preceded by
-extensive mailing list discussions and have a numbered BIP. While each case will
-be different, one should be prepared to expend more time and effort than for
-other kinds of patches because of increased peer review and consensus building
-requirements.
+extensive discussion and have a numbered [DIP](https://github.com/dashpay/dips).
+While each case will be different, one should be prepared to expend more time
+and effort than for other kinds of patches because of increased peer review and
+consensus building requirements.
 
 
 ### Peer Review
@@ -304,7 +332,7 @@ request. Typically reviewers will review the code for obvious errors, as well as
 test out the patch set and opine on the technical merits of the patch. Project
 maintainers take into account the peer review when determining if there is
 consensus to merge a pull request (remember that discussions may have been
-spread out over GitHub, mailing list and IRC discussions).
+spread out over GitHub and Discord).
 
 Code review is a burdensome but important part of the development process, and
 as such, certain types of pull requests are rejected. In general, if the
@@ -353,9 +381,9 @@ mistakes could be very costly to the wider community. This includes refactoring
 of consensus-critical code.
 
 Where a patch set proposes to change the Dash consensus, it must have been
-discussed extensively on the mailing list and IRC, be accompanied by a widely
-discussed BIP and have a generally widely perceived technical consensus of being
-a worthwhile change based on the judgement of the maintainers.
+discussed extensively, be accompanied by a widely discussed DIP and have a
+generally widely perceived technical consensus of being a worthwhile change
+based on the judgement of the maintainers.
 
 #### Verifying a Rebase
 
@@ -401,7 +429,7 @@ of reasons for this, some of which you can do something about:
 Backporting
 -----------
 
-Security and bug fixes can be backported from `master` to release
+Security and bug fixes can be backported from `develop` to release
 branches.
 If the backport is non-trivial, it may be appropriate to open an
 additional PR to backport the change, but only after the original PR
@@ -424,7 +452,11 @@ Also see the [backport.py script](
 https://github.com/bitcoin-core/bitcoin-maintainer-tools#backport).
 
 Bitcoin Backports are an incredibly valuable part of Dash's development. Backporting allows us to easily implement new
-features, improvements and fixes as bitcoin implements them.
+features, improvements and fixes as bitcoin implements them. A backport pull
+request names the upstream pull requests it brings in and explains every
+omitted commit, hunk or test. Features that Dash does not adopt (SegWit,
+replace-by-fee, feefilter, signet) are dropped without comment and do not make
+a backport partial.
 
 To see detailed statistics & progress see Google Sheet tracker: [Bitcoin backports for Dash](https://docs.google.com/spreadsheets/d/1DnKxat0S0H62CJOzXpKGPXTa8hgoVOjGYZzoClmGSB8/edit?usp=sharing).
 You should use this sheet to find what PRs to backport and its commit.
@@ -448,34 +480,36 @@ This allows you to easily cherry-pick merges and look into logs of bitcoin witho
 To pull the most up-to-date merges first make sure bitcoin is up-to-date:
 
 ```
-git fetch bitcoin
+git fetch --no-tags bitcoin
+git fetch --no-tags bitcoin 'refs/tags/v*:refs/tags/bitcoin/v*'
 ```
 
 To create a text file with all the merges between two versions, use:
 
 ```
-git log --first-parent --oneline bitcoin/<version_start>..bitcoin/<version_end> >> <filename>.txt
+git log --first-parent --oneline bitcoin/v<version_start>..bitcoin/v<version_end> >> <filename>.txt
 ```
 
 This will pull all the backports for `<version_start>` up until `<version_end>`.
 `<filename>` will be the name of the file the where all the merges are written to.
+Release tags are named `v0.21.0` and earlier, `v22.0` and later.
 
 #### For example
 
 The command
 
 ```
-git log --first-parent --oneline bitcoin/0.14..bitcoin/0.15 >> backports_0.14-0.15.txt
+git log --first-parent --oneline bitcoin/v28.0..bitcoin/v29.0 >> backports_28-29.txt
 ```
 
-will pull all merges made to Bitcoin version 0.14 until the start of version 15 and write to `backports_0.14-0.15.txt`.
+will pull all merges made to Bitcoin between the releases of version 28.0 and version 29.0 and write to `backports_28-29.txt`.
 
 #### NOTE:
 
 In order to pull the most recent merges, that is, for a version that is not yet released, run:
 
 ```
-git log --first-parent --oneline bitcoin/<cur_ver>..bitcoin/master >> <filename>.txt
+git log --first-parent --oneline bitcoin/v<cur_ver>..bitcoin/master >> <filename>.txt
 ```
 
 this will pull all the merges made to Bitcoin since the release of the current version.
