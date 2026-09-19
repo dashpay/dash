@@ -79,7 +79,7 @@ not checks at all: return an error, `AbortNode()`, or `InitError()`.
 
 Vendored or subtree-style code should normally be left alone:
 
-- `src/{crc32c,dashbls,gsl,immer,leveldb,minisketch,secp256k1,univalue}`
+- `src/{crc32c,gsl,immer,leveldb,mimalloc,minisketch,secp256k1,univalue}`
 - `src/crypto/{ctaes,x11}`
 
 `test/util/data/non-backported.txt` lists Dash-specific files used by Dash

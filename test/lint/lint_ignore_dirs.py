@@ -4,5 +4,5 @@ SHARED_EXCLUDED_SUBTREES = ["src/leveldb/",
                  "src/minisketch/",
                  "src/immer/",
                  "src/crypto/x11/",
-                 "src/dashbls/",
+                 "src/mimalloc/",
                 ]

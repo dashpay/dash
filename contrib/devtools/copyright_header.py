@@ -37,7 +37,7 @@ EXCLUDE_DIRS = [
     # git subtrees
     "src/crc32c/",
     "src/crypto/ctaes/",
-    "src/dashbls/",
+    "src/mimalloc/",
     "src/gsl/",
     "src/immer/",
     "src/leveldb/",

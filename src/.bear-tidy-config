@@ -6,7 +6,7 @@
       "paths_to_exclude": [
         "src/crc32",
         "src/crypto/x11",
-        "src/dashbls",
+        "src/mimalloc",
         "src/gsl",
         "src/immer",
         "src/leveldb",

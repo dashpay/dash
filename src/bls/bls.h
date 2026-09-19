@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2025 The Dash Core developers
+// Copyright (c) 2018-2026 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,26 +7,25 @@
 
 #include <hash.h>
 #include <serialize.h>
+#include <span.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 
-// bls-dash uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
-#undef ERROR
-#undef DEBUG
-#include <dashbls/bls.hpp>
-#include <dashbls/privatekey.hpp>
-#include <dashbls/elements.hpp>
-#include <dashbls/schemes.hpp>
-#include <dashbls/threshold.hpp>
-#undef DOUBLE
-#undef SEED
+#include <blst.h>
 
 #include <array>
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <ranges>
+#include <utility>
+#include <vector>
 
 namespace bls {
+    //! Selects the scheme used wherever no explicit flag is given (the
+    //! flag-less Serialize/Unserialize/GetHash overloads, aggregation and
+    //! aggregated verification): the legacy scheme from before the v19 hard
+    //! fork, or the basic (IETF) scheme after it.
     extern std::atomic<bool> bls_legacy_scheme;
 }
 
@@ -36,9 +35,47 @@ constexpr int BLS_CURVE_SECKEY_SIZE{32};
 constexpr int BLS_CURVE_PUBKEY_SIZE{48};
 constexpr int BLS_CURVE_SIG_SIZE{96};
 
+class CBLSSecretKey;
 class CBLSSignature;
 class CBLSPublicKey;
 
+/**
+ * A secret scalar kept in secure memory (see BLSInit). A default constructed
+ * holder stands for the zero scalar and owns no memory.
+ */
+class CBLSSecretScalar
+{
+private:
+    blst_scalar* m_data{nullptr};
+
+public:
+    CBLSSecretScalar() = default;
+    CBLSSecretScalar(const CBLSSecretScalar& o);
+    CBLSSecretScalar& operator=(const CBLSSecretScalar& o);
+    CBLSSecretScalar(CBLSSecretScalar&& o) noexcept : m_data(std::exchange(o.m_data, nullptr)) {}
+    CBLSSecretScalar& operator=(CBLSSecretScalar&& o) noexcept
+    {
+        std::swap(m_data, o.m_data);
+        return *this;
+    }
+    ~CBLSSecretScalar();
+
+    //! The scalar, or zero when nothing has been stored
+    const blst_scalar& Get() const;
+    //! Writable storage, allocated on first use
+    blst_scalar& Mutable();
+    bool IsZero() const;
+    bool operator==(const CBLSSecretScalar& o) const;
+};
+
+/**
+ * Common part of the BLS objects. The derived class C provides the codec
+ * through four static hooks:
+ *   bool DecodeImpl(Span<const uint8_t> in, bool specificLegacyScheme, ImplType& out)
+ *   void EncodeImpl(const ImplType& in, bool specificLegacyScheme, uint8_t* out)
+ *   bool IsIdentity(const ImplType& v)
+ *   bool EqualImpl(const ImplType& a, const ImplType& b)
+ */
 template <typename ImplType, size_t _SerSize, typename C>
 class CBLSWrapper
 {
@@ -47,7 +84,7 @@ class CBLSWrapper
     friend class CBLSSignature;
 
 protected:
-    ImplType impl;
+    ImplType impl{};
     bool fValid{false};
     mutable uint256 cachedHash;
 
@@ -72,11 +109,9 @@ public:
         return *this;
     }
 
-    virtual ~CBLSWrapper() = default;
-
     bool operator==(const C& r) const
     {
-        return fValid == r.fValid && impl == r.impl;
+        return fValid == r.fValid && C::EqualImpl(impl, r.impl);
     }
     bool operator!=(const C& r) const
     {
@@ -106,36 +141,31 @@ public:
 
         if (std::ranges::all_of(vecBytes, [](uint8_t c) { return c == 0; })) {
             Reset();
+        } else if (!C::DecodeImpl(vecBytes, specificLegacyScheme, impl) || C::IsIdentity(impl)) {
+            // neither undecodable input nor the identity element make a valid object
+            Reset();
         } else {
-            try {
-                impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), vecBytes.size()), specificLegacyScheme);
-                if (impl == ImplType()) {
-                    Reset();
-                    cachedHash.SetNull();
-                    return;
-                }
-                fValid = true;
-            } catch (...) {
-                Reset();
-            }
+            fValid = true;
         }
         cachedHash.SetNull();
     }
 
     std::vector<uint8_t> ToByteVector(const bool specificLegacyScheme) const
     {
-        if (!fValid) {
-            return std::vector<uint8_t>(SerSize, 0);
+        std::vector<uint8_t> ret(SerSize, 0);
+        if (fValid) {
+            C::EncodeImpl(impl, specificLegacyScheme, ret.data());
         }
-        return impl.Serialize(specificLegacyScheme);
+        return ret;
     }
 
     std::array<uint8_t, SerSize> ToBytes(const bool specificLegacyScheme) const
     {
-        if (!fValid) {
-            return std::array<uint8_t, SerSize>{};
+        std::array<uint8_t, SerSize> ret{};
+        if (fValid) {
+            C::EncodeImpl(impl, specificLegacyScheme, ret.data());
         }
-        return impl.SerializeToArray(specificLegacyScheme);
+        return ret;
     }
 
     const uint256& GetHash() const
@@ -232,29 +262,23 @@ public:
     }
 };
 
-struct CBLSIdImplicit : public uint256
-{
-    CBLSIdImplicit() = default;
-    // cppcheck-suppress noExplicitConstructor
-    CBLSIdImplicit(const uint256& id)
-    {
-        memcpy(begin(), id.begin(), sizeof(uint256));
-    }
-    static CBLSIdImplicit FromBytes(const uint8_t* buffer, const bool fLegacy)
-    {
-        CBLSIdImplicit instance;
-        memcpy(instance.begin(), buffer, sizeof(CBLSIdImplicit));
-        return instance;
-    }
-    [[nodiscard]] std::vector<uint8_t> Serialize(const bool fLegacy) const
-    {
-        return {begin(), end()};
-    }
-    [[nodiscard]] std::array<uint8_t, 32> SerializeToArray(const bool fLegacy) const { return m_data; }
-};
 
-class CBLSId : public CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_SIZE, CBLSId>
+class CBLSId : public CBLSWrapper<uint256, BLS_CURVE_ID_SIZE, CBLSId>
 {
+    friend class CBLSWrapper<uint256, BLS_CURVE_ID_SIZE, CBLSId>;
+
+    static bool DecodeImpl(Span<const uint8_t> in, bool /*specificLegacyScheme*/, uint256& out)
+    {
+        memcpy(out.begin(), in.data(), BLS_CURVE_ID_SIZE);
+        return true;
+    }
+    static void EncodeImpl(const uint256& in, bool /*specificLegacyScheme*/, uint8_t* out)
+    {
+        memcpy(out, in.begin(), BLS_CURVE_ID_SIZE);
+    }
+    static bool IsIdentity(const uint256& v) { return v.IsNull(); }
+    static bool EqualImpl(const uint256& a, const uint256& b) { return a == b; }
+
 public:
     using CBLSWrapper::operator=;
     using CBLSWrapper::operator==;
@@ -266,8 +290,20 @@ public:
 };
 
 //! CBLSSecretKey is invariant to BLS scheme for Creation / Serialization / Deserialization
-class CBLSSecretKey : public CBLSWrapper<bls::PrivateKey, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
+class CBLSSecretKey : public CBLSWrapper<CBLSSecretScalar, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
 {
+    friend class CBLSWrapper<CBLSSecretScalar, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>;
+    friend class CBLSPublicKey;
+    friend class CBLSSignature;
+
+    //! The flag does not select a scheme here: with it set the bytes are
+    //! reduced modulo the group order, without it values above the order
+    //! are rejected.
+    static bool DecodeImpl(Span<const uint8_t> in, bool modOrder, CBLSSecretScalar& out);
+    static void EncodeImpl(const CBLSSecretScalar& in, bool /*specificLegacyScheme*/, uint8_t* out);
+    static bool IsIdentity(const CBLSSecretScalar& s) { return s.IsZero(); }
+    static bool EqualImpl(const CBLSSecretScalar& a, const CBLSSecretScalar& b) { return a == b; }
+
 public:
     using CBLSWrapper::operator=;
     using CBLSWrapper::operator==;
@@ -298,10 +334,16 @@ public:
     [[nodiscard]] CBLSSignature Sign(const uint256& hash, const bool specificLegacyScheme) const;
 };
 
-class CBLSPublicKey : public CBLSWrapper<bls::G1Element, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>
+class CBLSPublicKey : public CBLSWrapper<blst_p1, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>
 {
+    friend class CBLSWrapper<blst_p1, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>;
     friend class CBLSSecretKey;
     friend class CBLSSignature;
+
+    static bool DecodeImpl(Span<const uint8_t> in, bool specificLegacyScheme, blst_p1& out);
+    static void EncodeImpl(const blst_p1& in, bool specificLegacyScheme, uint8_t* out);
+    static bool IsIdentity(const blst_p1& p) { return blst_p1_is_inf(&p); }
+    static bool EqualImpl(const blst_p1& a, const blst_p1& b) { return blst_p1_is_equal(&a, &b); }
 
 public:
     using CBLSWrapper::operator=;
@@ -338,9 +380,15 @@ public:
     }
 };
 
-class CBLSSignature : public CBLSWrapper<bls::G2Element, BLS_CURVE_SIG_SIZE, CBLSSignature>
+class CBLSSignature : public CBLSWrapper<blst_p2, BLS_CURVE_SIG_SIZE, CBLSSignature>
 {
+    friend class CBLSWrapper<blst_p2, BLS_CURVE_SIG_SIZE, CBLSSignature>;
     friend class CBLSSecretKey;
+
+    static bool DecodeImpl(Span<const uint8_t> in, bool specificLegacyScheme, blst_p2& out);
+    static void EncodeImpl(const blst_p2& in, bool specificLegacyScheme, uint8_t* out);
+    static bool IsIdentity(const blst_p2& p) { return blst_p2_is_inf(&p); }
+    static bool EqualImpl(const blst_p2& a, const blst_p2& b) { return blst_p2_is_equal(&a, &b); }
 
 public:
     using CBLSWrapper::operator==;
@@ -414,7 +462,6 @@ public:
     {
         *this = r;
     }
-    virtual ~CBLSLazyWrapper() = default;
 
     CBLSLazyWrapper& operator=(const CBLSLazyWrapper& r)
     {

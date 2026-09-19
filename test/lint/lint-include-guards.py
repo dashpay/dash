@@ -26,7 +26,7 @@ EXCLUDE_FILES_WITH_PREFIX = ['src/crypto/ctaes',
                              'src/bls',
                              'src/crypto/x11/sph',
                              'src/ctpl_stl.h',
-                             'src/dashbls',
+                             'src/mimalloc',
                              'src/gsl',
                              'src/immer'] + SHARED_EXCLUDED_SUBTREES
 

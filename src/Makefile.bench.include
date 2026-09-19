@@ -74,7 +74,7 @@ bench_bench_dash_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
-  $(LIBDASHBLS) \
+  $(BLS_LIBS) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1) \
@@ -83,7 +83,6 @@ bench_bench_dash_LDADD = \
   $(EVENT_LIBS) \
   $(MINIUPNPC_LIBS) \
   $(NATPMP_LIBS) \
-  $(GMP_LIBS) \
   $(BACKTRACE_LIBS)
 
 if ENABLE_ZMQ

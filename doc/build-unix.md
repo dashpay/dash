@@ -76,12 +76,6 @@ ZMQ dependencies (provides ZMQ API):
 sudo apt-get install libzmq3-dev
 ```
 
-GMP dependencies (provides platform-optimized routines):
-
-```sh
-sudo apt-get install libgmp-dev
-```
-
 User-Space, Statically Defined Tracing (USDT) dependencies:
 
 ```sh
@@ -163,12 +157,6 @@ ZMQ dependencies (provides ZMQ API):
 
 ```sh
 sudo dnf install zeromq-devel
-```
-
-GMP dependencies (provides platform-optimized routines):
-
-```sh
-sudo dnf install gmp-devel
 ```
 
 User-Space, Statically Defined Tracing (USDT) dependencies:
