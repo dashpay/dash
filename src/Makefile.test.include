@@ -155,6 +155,7 @@ BITCOIN_TESTS =\
   test/logging_tests.cpp \
   test/quorum_proofs_tests.cpp \
   test/masternode_payments_tests.cpp \
+  test/masternode_params_tests.cpp \
   test/dbwrapper_tests.cpp \
   test/validation_tests.cpp \
   test/mempool_tests.cpp \
