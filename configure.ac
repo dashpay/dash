@@ -1152,7 +1152,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <malloc.h>]],
 dnl Check for posix_fallocate
 AC_MSG_CHECKING([for posix_fallocate])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-                   // same as in src/util/system.cpp
+                   // same as in src/util/fs_helpers.cpp
                    #ifdef __linux__
                    #ifdef _POSIX_C_SOURCE
                    #undef _POSIX_C_SOURCE
@@ -1597,10 +1597,6 @@ if test "$use_boost" = "yes"; then
 
   dnl we don't use multi_index serialization
   BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_DISABLE_SERIALIZATION"
-
-  if test "$enable_debug" = "yes" || test "$enable_fuzz" = "yes"; then
-    BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE"
-  fi
 
   dnl Prevent use of std::unary_function, which was removed in C++17,
   dnl and will generate warnings with newer compilers for Boost
