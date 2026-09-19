@@ -54,8 +54,19 @@ QLabel* makeHint(const QString& text, QWidget* parent);
 QLabel* makeValue(const QString& text, QWidget* parent, bool monospace = false);
 //! Group `text` into blocks of `chunk_size` characters separated by spaces. A BLS
 //! key is one 96-character word that a wrapping label refuses to break; grouped,
-//! it wraps between blocks and stays readable.
-QString chunked(const QString& text, int chunk_size = 12);
+//! it wraps between blocks and stays readable. Inline because the masternode
+//! model, which is built without wallet support too, formats keys with it.
+inline QString chunked(const QString& text, int chunk_size = 12)
+{
+    if (chunk_size <= 0) return text;
+    QString ret;
+    ret.reserve(text.size() + text.size() / chunk_size);
+    for (int pos = 0; pos < text.size(); pos += chunk_size) {
+        if (pos > 0) ret += QLatin1Char(' ');
+        ret += text.mid(pos, chunk_size);
+    }
+    return ret;
+}
 //! Monospace value with a Copy button beside it. `display` is shown as given,
 //! `copy_text` is what the button puts on the clipboard, so a key can be shown
 //! in chunks and still be copied unbroken.

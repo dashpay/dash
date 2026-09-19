@@ -80,18 +80,6 @@ QLabel* makeValue(const QString& text, QWidget* parent, bool monospace)
     return label;
 }
 
-QString chunked(const QString& text, int chunk_size)
-{
-    if (chunk_size <= 0) return text;
-    QString ret;
-    ret.reserve(text.size() + text.size() / chunk_size);
-    for (int pos = 0; pos < text.size(); pos += chunk_size) {
-        if (pos > 0) ret += QLatin1Char(' ');
-        ret += text.mid(pos, chunk_size);
-    }
-    return ret;
-}
-
 QWidget* makeCopyableValue(const QString& display, const QString& copy_text, QWidget* parent)
 {
     auto* row_widget{new QWidget(parent)};

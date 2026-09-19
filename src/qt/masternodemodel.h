@@ -10,7 +10,9 @@
 
 #include <QAbstractTableModel>
 #include <QByteArray>
+#include <QHash>
 #include <QIcon>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -19,10 +21,29 @@
 #include <tuple>
 #include <vector>
 
+//! Standby dissolutions are signed offline transactions the GUI never keeps;
+//! only the fact that one was written on this computer is remembered.
+namespace MasternodeStandby {
+//! What this computer remembers about a masternode's standby dissolution
+struct StandbyRecord {
+    bool saved{false}; //!< a standby dissolution was written on this computer
+    QString date;      //!< when it was written; only meaningful when `saved`
+};
+
+//! Look up what this computer remembers about `pro_tx_hash`
+StandbyRecord SavedDate(const QString& pro_tx_hash);
+} // namespace MasternodeStandby
+
 class MasternodeEntry
 {
 private:
     bool m_banned{false};
+    bool m_shared{false};
+    CAmount m_early_penalty{0};
+    uint32_t m_early_period_blocks{0};
+    std::vector<interfaces::MnShare> m_shares;
+    QString m_shares_fingerprint{};
+    QString m_share_addresses{};
     int32_t m_last_paid_height{0};
     int32_t m_next_payment_height{0};
     int32_t m_pose_penalty{0};
@@ -61,6 +82,11 @@ public:
     ~MasternodeEntry();
 
     bool isBanned() const { return m_banned; }
+    bool isShared() const { return m_shared; }
+    CAmount earlyPenalty() const { return m_early_penalty; }
+    uint32_t earlyPeriodBlocks() const { return m_early_period_blocks; }
+    const std::vector<interfaces::MnShare>& shares() const { return m_shares; }
+    const QString& shareAddresses() const { return m_share_addresses; }
     int lastPaidHeight() const { return m_last_paid_height; }
     int nextPaymentHeight() const { return m_next_payment_height; }
     int posePenalty() const { return m_pose_penalty; }
@@ -109,9 +135,10 @@ public:
                         m_pose_ban_height, m_pose_revived_height, m_service_key, m_service, m_operator_reward_pct,
                         m_operator_reward, m_operator_payout_address, m_payout_address, m_payout_addresses,
                         m_voting_address, m_pub_key_operator, m_operator_legacy_scheme, m_network_addresses,
-                        m_platform_node_id, m_platform_p2p_addresses, m_platform_https_addresses);
+                        m_platform_node_id, m_platform_p2p_addresses, m_platform_https_addresses,
+                        m_shares_fingerprint);
     }
-    QString toHtml() const;
+    QString toHtml(int current_height = 0, const QSet<int>& my_share_indexes = {}) const;
 };
 
 using MasternodeEntryList = std::vector<std::shared_ptr<MasternodeEntry>>;
@@ -123,6 +150,7 @@ class MasternodeModel : public QAbstractTableModel
 private:
     int m_current_height{0};
     MasternodeEntryList m_data;
+    QHash<QString, int> m_my_share_counts;
     QIcon m_icon_banned;
     QIcon m_icon_enabled;
 
@@ -142,6 +170,10 @@ public:
         COUNT
     };
 
+    //! TYPE-column sort/filter value for shared masternodes; distinct from every MnType value
+    //! (shared masternodes are MnType::Regular with a pooled collateral)
+    static constexpr int TYPE_SHARED{-1};
+
     explicit MasternodeModel(QObject* parent = nullptr);
     ~MasternodeModel();
 
@@ -152,9 +184,14 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
+    //! Number of shares this wallet holds the owner key of, per proTx hash;
+    //! shown in the Type column's tooltip
+    void setMyShareCounts(QHash<QString, int>&& counts) { m_my_share_counts = std::move(counts); }
+
     void append(std::shared_ptr<MasternodeEntry>&& entry);
     void remove(int row);
     void reconcile(MasternodeEntryList&& entries);
+    int currentHeight() const { return m_current_height; }
     void setCurrentHeight(int height) { m_current_height = height; }
     const MasternodeEntry* getEntryAt(const QModelIndex& index) const;
 };

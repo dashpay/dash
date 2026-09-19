@@ -13,11 +13,14 @@
 #include <script/script.h>
 #include <script/standard.h>
 
+#include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
+#include <qt/masternodewidgets.h>
 
 #include <QHash>
 #include <QObject>
+#include <QSettings>
 #include <QStringList>
 
 #include <univalue.h>
@@ -38,8 +41,22 @@ std::optional<QString> JoinArray(const UniValue& arr)
 }
 } // anonymous namespace
 
+MasternodeStandby::StandbyRecord MasternodeStandby::SavedDate(const QString& pro_tx_hash)
+{
+    QSettings settings;
+    if (const QString date{settings.value(QStringLiteral("sharedmn/standby/") + pro_tx_hash).toString()};
+        !date.isEmpty()) {
+        return {/*saved=*/true, date};
+    }
+    return {};
+}
+
 MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QString& collateral_address, int next_payment_height) :
     m_banned{dmn->isBanned()},
+    m_shared{dmn->isShared()},
+    m_early_penalty{dmn->getEarlyPenalty()},
+    m_early_period_blocks{dmn->getEarlyPeriodBlocks()},
+    m_shares{dmn->getShares()},
     m_last_paid_height{dmn->getLastPaidHeight()},
     m_next_payment_height{next_payment_height},
     m_pose_penalty{dmn->getPoSePenalty()},
@@ -49,7 +66,7 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
     m_collateral_address{collateral_address},
     m_collateral_outpoint{QString::fromStdString(dmn->getCollateralOutpoint().ToStringShort())},
     m_protx_hash{QString::fromStdString(dmn->getProTxHash().ToString())},
-    m_type_description{QString::fromStdString(std::string(GetMnType(dmn->getType()).description))},
+    m_type_description{dmn->isShared() ? QObject::tr("Shared") : QString::fromStdString(std::string(GetMnType(dmn->getType()).description))},
     m_voting_address{QString::fromStdString(EncodeDestination(PKHash(dmn->getKeyIdVoting())))},
     m_operator_reward_pct{dmn->getOperatorReward()}
 {
@@ -69,6 +86,29 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
         owner_addresses << QString::fromStdString(EncodeDestination(PKHash(key_id)));
     }
     m_owner_address = owner_addresses.isEmpty() ? QObject::tr("UNKNOWN") : owner_addresses.join(", ");
+
+    if (m_shared) {
+        // A fingerprint of the mutable share state (reward scripts, penalty terms) so
+        // reconcile() refreshes the row after a share update, plus a flat address list
+        // the text filter matches against
+        QStringList fingerprint, addresses;
+        for (const auto& share : m_shares) {
+            const QString owner{QString::fromStdString(EncodeDestination(PKHash(share.keyIDOwner)))};
+            QString refund, reward;
+            if (CTxDestination dest; ExtractDestination(share.scriptRefund, dest)) {
+                refund = QString::fromStdString(EncodeDestination(dest));
+            }
+            if (CTxDestination dest; ExtractDestination(share.rewardScript(), dest)) {
+                reward = QString::fromStdString(EncodeDestination(dest));
+            }
+            fingerprint << QString::number(share.amount) + ":" + owner + ":" + refund + ":" + reward;
+            addresses << owner << refund << reward;
+        }
+        m_shares_fingerprint = fingerprint.join("|") + "|" + QString::number(m_early_period_blocks) + "|" +
+                               QString::number(m_early_penalty);
+        addresses.removeDuplicates();
+        m_share_addresses = addresses.join(" ");
+    }
 
     QStringList payout_addresses;
     for (const auto& script_payout : dmn->getScriptPayouts()) {
@@ -156,7 +196,7 @@ std::vector<unsigned char> MasternodeEntry::operatorPubKeyBytes() const
     return key.ToByteVector(/*specificLegacyScheme=*/false);
 }
 
-QString MasternodeEntry::toHtml() const
+QString MasternodeEntry::toHtml(int current_height, const QSet<int>& my_share_indexes) const
 {
     QString ret;
     ret.reserve(4000);
@@ -164,10 +204,15 @@ QString MasternodeEntry::toHtml() const
 
     ret += "<b>" + QObject::tr("ProTx Hash") + ":</b> " + m_protx_hash.toHtmlEscaped() + "<br>";
     if (m_pub_key_operator) {
-        ret += "<b>" + QObject::tr("Public Key Operator") + ":</b> " + m_pub_key_operator->toHtmlEscaped() + "<br>";
+        // 96 hex characters are one unbreakable word that would set the width of
+        // the whole details pane; grouped, the line wraps like everything else
+        ret += "<b>" + QObject::tr("Public Key Operator") + ":</b> " +
+               MasternodeWidgetUtil::chunked(*m_pub_key_operator).toHtmlEscaped() + "<br>";
     }
-    ret += "<b>" + QObject::tr("Owner Address") + ":</b> " + m_owner_address.toHtmlEscaped() + "<br>";
-    ret += "<b>" + QObject::tr("Payout Address") + ":</b> " + m_payout_address.toHtmlEscaped() + "<br>";
+    if (!m_shared) {
+        ret += "<b>" + QObject::tr("Owner Address") + ":</b> " + m_owner_address.toHtmlEscaped() + "<br>";
+        ret += "<b>" + QObject::tr("Payout Address") + ":</b> " + m_payout_address.toHtmlEscaped() + "<br>";
+    }
     ret += "<b>" + QObject::tr("Voting Address") + ":</b> " + m_voting_address.toHtmlEscaped() + "<br>";
     ret += "<b>" + QObject::tr("Collateral Address") + ":</b> " + m_collateral_address.toHtmlEscaped() + "<br>";
     if (m_collateral_hash) {
@@ -185,6 +230,71 @@ QString MasternodeEntry::toHtml() const
         ret += "<b>" + QObject::tr("Consecutive Payments") + ":</b> " + QString::number(*m_consecutive_payments) + "<br>";
     }
     ret += "<b>" + QObject::tr("Operator Reward") + ":</b> " + QString::number(m_operator_reward_pct / 100.0, 'f', 2) + "%<br>";
+
+    if (m_shared) {
+        CAmount total{0};
+        for (const auto& share : m_shares) {
+            total += share.amount;
+        }
+        ret += "<br><b>" + QObject::tr("Shares") + "</b>";
+        // Three addresses side by side in their own columns run off the right
+        // edge of any details pane, so they are stacked in one cell instead
+        ret += "<table cellpadding='2'><tr><th align='left'>#</th><th align='left'>" + QObject::tr("Participant") +
+               "</th><th align='left'>" + QObject::tr("Amount") + "</th><th align='left'>" +
+               QObject::tr("Addresses") + "</th></tr>";
+        for (size_t i = 0; i < m_shares.size(); ++i) {
+            const auto& share{m_shares[i]};
+            // Shares are numbered from 1 everywhere the user can see them; the
+            // RPC index is one lower
+            const int number{static_cast<int>(i) + 1};
+            QString participant{QObject::tr("Share %1").arg(number)};
+            if (my_share_indexes.contains(static_cast<int>(i))) {
+                participant += " <b>(" + QObject::tr("you") + ")</b>";
+            }
+            QString owner{QString::fromStdString(EncodeDestination(PKHash(share.keyIDOwner))).toHtmlEscaped()};
+            QString refund{QObject::tr("UNKNOWN")}, reward{QObject::tr("UNKNOWN")};
+            if (CTxDestination dest; ExtractDestination(share.scriptRefund, dest)) {
+                refund = QString::fromStdString(EncodeDestination(dest));
+            }
+            if (CTxDestination dest; ExtractDestination(share.rewardScript(), dest)) {
+                reward = QString::fromStdString(EncodeDestination(dest));
+            }
+            reward = share.scriptReward.empty() ? QObject::tr("same as refund") : reward.toHtmlEscaped();
+            const double pct{total > 0 ? 100.0 * share.amount / total : 0.0};
+            ret += "<tr><td valign='top'>" + QString::number(number) + "</td><td valign='top'>" + participant +
+                   "</td><td valign='top'>" +
+                   BitcoinUnits::formatWithUnit(BitcoinUnits::Unit::DASH, share.amount).toHtmlEscaped() + " (" +
+                   QString::number(pct, 'f', 1) + "%)</td><td>" + QObject::tr("Owner") + ": " + owner + "<br>" +
+                   QObject::tr("Reward") + ": " + reward + "<br>" + QObject::tr("Refund") + ": " +
+                   refund.toHtmlEscaped() + "</td></tr>";
+        }
+        ret += "</table>";
+
+        const int64_t spacing{Params().GetConsensus().nPowTargetSpacing};
+        const int64_t early_until{static_cast<int64_t>(m_registered_height) + m_early_period_blocks};
+        if (m_early_period_blocks == 0) {
+            ret += "<b>" + QObject::tr("Early period") + ":</b> " + QObject::tr("none") + "<br>";
+        } else if (current_height <= 0) {
+            ret += "<b>" + QObject::tr("Early period") + ":</b> " + QObject::tr("ends block %1").arg(early_until) + "<br>";
+        } else if (current_height < early_until) {
+            ret += "<b>" + QObject::tr("Early period") + ":</b> " +
+                   QObject::tr("ends block %1 (about %2 from now)")
+                       .arg(QString::number(early_until),
+                            GUIUtil::formatBlockDuration(early_until - current_height, spacing)) +
+                   "<br>";
+        } else {
+            ret += "<b>" + QObject::tr("Early period") + ":</b> " + QObject::tr("ended (block %1)").arg(early_until) + "<br>";
+        }
+        ret += "<b>" + QObject::tr("Early-exit penalty") + ":</b> " +
+               BitcoinUnits::formatWithUnit(BitcoinUnits::Unit::DASH, m_early_penalty).toHtmlEscaped() + "<br>";
+
+        const auto standby_record{MasternodeStandby::SavedDate(m_protx_hash)};
+        const QString standby{standby_record.saved
+                                  ? QObject::tr("saved on this computer on %1").arg(standby_record.date.toHtmlEscaped())
+                                  : QObject::tr("not created on this computer")};
+        ret += "<b>" + QObject::tr("Standby dissolution") + ":</b> " + standby + "<br>";
+    }
+
     if (m_network_addresses && !m_network_addresses->isEmpty()) {
         ret += "<b>" + QObject::tr("Network Addresses") + ":</b> " + m_network_addresses->toHtmlEscaped() + "<br>";
     }
@@ -258,6 +368,11 @@ QVariant MasternodeModel::data(const QModelIndex& index, int role) const
     }
 
     if (role == Qt::ToolTipRole) {
+        if (index.column() == Column::TYPE && entry->isShared()) {
+            return tr("Shared masternode · you hold %1 of %2 shares")
+                .arg(m_my_share_counts.value(entry->proTxHash(), 0))
+                .arg(entry->shares().size());
+        }
         if (index.column() == Column::STATUS && m_current_height > 0) {
             const int64_t spacing = Params().GetConsensus().nPowTargetSpacing;
             if (entry->isBanned()) {
@@ -291,15 +406,24 @@ QVariant MasternodeModel::data(const QModelIndex& index, int role) const
             entry->payoutAddress() + " " +
             entry->operatorReward() + " " +
             entry->collateralAddress() + " " +
-            entry->ownerAddress() + " " +
+            (entry->isShared() ? QString{} : entry->ownerAddress() + " ") +
             entry->votingAddress() + " " +
-            entry->proTxHash()
+            entry->proTxHash() +
+            (entry->isShared() ? " " + entry->shareAddresses() : QString{})
         };
     } else if (role == Qt::DisplayRole) {
         switch (index.column()) {
         case Column::SERVICE:
             return entry->service();
         case Column::TYPE:
+            // "Shared" alone says nothing about this wallet's stake in it, and
+            // the share count is the one number a co-owner wants at a glance
+            if (entry->isShared()) {
+                if (const int mine{m_my_share_counts.value(entry->proTxHash(), 0)}; mine > 0) {
+                    return tr("Shared (you hold %1 of %2)").arg(mine).arg(entry->shares().size());
+                }
+                return tr("Shared (%1 shares)").arg(entry->shares().size());
+            }
             return entry->typeDescription();
         case Column::STATUS:
             return {};
@@ -324,7 +448,7 @@ QVariant MasternodeModel::data(const QModelIndex& index, int role) const
         case Column::SERVICE:
             return entry->serviceKey();
         case Column::TYPE:
-            return static_cast<int>(entry->type());
+            return entry->isShared() ? TYPE_SHARED : static_cast<int>(entry->type());
         case Column::STATUS:
             if (m_current_height > 0) {
                 if (entry->isBanned()) {
