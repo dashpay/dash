@@ -299,9 +299,9 @@ message(STATUS "Compiler flags: ${CMAKE_C_FLAGS}")
 message(STATUS "Linker flags: ${CMAKE_EXE_LINKER_FLAGS}")
 
 string(TOUPPER ${ARITH} ARITH)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/relic_conf.h.in
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/relic_conf.h.cmake.in
 	${CMAKE_CURRENT_BINARY_DIR}/include/relic_conf.h @ONLY)
-message(STATUS "Configured ${CMAKE_CURRENT_SOURCE_DIR}/include/relic_conf.h.in")
+message(STATUS "Configured ${CMAKE_CURRENT_SOURCE_DIR}/include/relic_conf.h.cmake.in")
 string(TOLOWER ${ARITH} ARITH)
 
 if (LABEL)
