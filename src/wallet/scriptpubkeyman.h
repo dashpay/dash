@@ -264,6 +264,9 @@ public:
 
     /** Keypool has new keys */
     boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
+
+    /** Birth time changed */
+    boost::signals2::signal<void (const ScriptPubKeyMan* spkm, int64_t new_birth_time)> NotifyFirstKeyTimeChanged;
 };
 
 class DescriptorScriptPubKeyMan;
