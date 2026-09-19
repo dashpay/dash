@@ -405,6 +405,11 @@ private:
     void MasternodeRateUpdate(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
+    /** Queue a deferred re-announcement for a trigger that is too new to propagate
+     *  reliably yet. Only call this for triggers we are keeping. */
+    void ScheduleTriggerRelay(const CGovernanceObject& govobj)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
+
     bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus, bool fForce, bool& fRateCheckBypassed)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
