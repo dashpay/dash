@@ -79,7 +79,6 @@ protected:
     void NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) override;
 
 private:
-    friend struct NetInstantSendTest;
     struct BatchVerificationData;
 
     bool ValidateIncomingISLock(const instantsend::InstantSendLock& islock, NodeId node_id);
