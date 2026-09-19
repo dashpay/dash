@@ -99,8 +99,14 @@ protected:
     void showError(const QString& message);
     void clearError();
     void abortOperation(const QString& message);
+    void setBusy(bool busy);
     void resolveOperatorKey(OperatorSecretWidget& widget, SecretCallback callback);
     void startSubmission(std::function<bool(MasternodeOperationRunner::SubmissionCallback)> start);
+    //! Ask the user to unlock the wallet and hold the unlock for the rest of
+    //! this dialog's operation. Reports the reason and returns false when the
+    //! wallet stayed locked. Subclasses that submit through their own sender
+    //! instead of startSubmission() must call this first.
+    bool ensureUnlocked();
 
     interfaces::Node& m_node;
     WalletModel* const m_wallet_model;
@@ -115,9 +121,7 @@ protected Q_SLOTS:
 private:
     struct UnlockHolder;
 
-    bool ensureUnlocked();
     void finishSubmission(MasternodeOperationRunner::SubmissionResult result);
-    void setBusy(bool busy);
 
     std::unique_ptr<UnlockHolder> m_unlock;
     QDialogButtonBox* m_button_box{nullptr};

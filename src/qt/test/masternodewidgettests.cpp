@@ -6,6 +6,8 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <evo/types.h>
 #include <interfaces/node.h>
 #include <interfaces/providertx.h>
@@ -18,19 +20,24 @@
 #include <qt/masternodewizard.h>
 #include <qt/optionsmodel.h>
 #include <qt/qvalidatedlineedit.h>
+#include <qt/sharedmnwidgets.h>
 #include <qt/walletmodel.h>
+#include <primitives/transaction.h>
+#include <pubkey.h>
 #include <random.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <util/system.h>
 #include <util/translation.h>
+#include <validation.h>
 #include <wallet/wallet.h>
 
 #include <QAbstractButton>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -161,6 +168,98 @@ public:
     std::atomic<bool> submitted{true};
     CTransactionRef success_tx{MakeTransactionRef(CMutableTransaction{})};
 };
+
+CKeyID TestKeyID(uint8_t marker)
+{
+    uint160 key_id;
+    key_id.begin()[0] = marker;
+    return CKeyID{key_id};
+}
+
+CScript TestScript(uint8_t marker)
+{
+    return GetScriptForDestination(PKHash{TestKeyID(marker)});
+}
+
+//! Masternode entry fake for the list and model integration: a regular
+//! masternode, or a shared one when constructed with collateral shares.
+class TestListMnEntry final : public interfaces::MnEntry
+{
+public:
+    explicit TestListMnEntry(uint8_t marker, std::vector<interfaces::MnShare> shares = {}) :
+        interfaces::MnEntry(CDeterministicMNCPtr{}),
+        m_shares{std::move(shares)},
+        m_owner{m_shares.empty() ? TestKeyID(marker) : CKeyID{}},
+        m_voting{TestKeyID(static_cast<uint8_t>(marker + 1))},
+        m_payout{TestScript(static_cast<uint8_t>(marker + 2))},
+        m_collateral{uint256::ONE, marker}
+    {
+        m_hash.begin()[0] = marker;
+    }
+
+    bool isBanned() const override { return false; }
+    CService getNetInfoPrimary() const override { return {}; }
+    std::vector<CService> getPlatformHTTPSAddrs() const override { return {}; }
+    MnType getType() const override { return MnType::Regular; }
+    UniValue toJson() const override { return UniValue{UniValue::VOBJ}; }
+    const CKeyID& getKeyIdOwner() const override { return m_owner; }
+    std::vector<CKeyID> getShareOwnerKeyIds() const override
+    {
+        std::vector<CKeyID> ret;
+        for (const auto& share : m_shares) ret.push_back(share.keyIDOwner);
+        return ret;
+    }
+    std::vector<CScript> getShareRefundScripts() const override
+    {
+        std::vector<CScript> ret;
+        for (const auto& share : m_shares) ret.push_back(share.scriptRefund);
+        return ret;
+    }
+    const CKeyID& getKeyIdVoting() const override { return m_voting; }
+    const COutPoint& getCollateralOutpoint() const override { return m_collateral; }
+    const CScript& getScriptPayout() const override { return m_payout; }
+    //! Mirrors CDeterministicMNState::GetOwnerRewardScripts(): a shared
+    //! masternode pays every share's reward script, the refund script when
+    //! that share never set one
+    std::vector<CScript> getScriptPayouts() const override
+    {
+        if (m_shares.empty()) return {m_payout};
+        std::vector<CScript> ret;
+        for (const auto& share : m_shares) ret.push_back(share.rewardScript());
+        return ret;
+    }
+    const CScript& getScriptOperatorPayout() const override { return m_operator_payout; }
+    const int32_t& getLastPaidHeight() const override { return m_last_paid; }
+    const int32_t& getPoSePenalty() const override { return m_penalty; }
+    const int32_t& getRegisteredHeight() const override { return m_registered; }
+    const uint16_t& getOperatorReward() const override { return m_operator_reward; }
+    const uint256& getProTxHash() const override { return m_hash; }
+    bool isShared() const override { return !m_shares.empty(); }
+    std::vector<interfaces::MnShare> getShares() const override { return m_shares; }
+    const uint32_t& getEarlyPeriodBlocks() const override { return m_early_period_blocks; }
+    const CAmount& getEarlyPenalty() const override { return m_early_penalty; }
+
+    uint32_t m_early_period_blocks{0};
+    CAmount m_early_penalty{0};
+
+private:
+    std::vector<interfaces::MnShare> m_shares;
+    CKeyID m_owner;
+    CKeyID m_voting;
+    CScript m_payout;
+    CScript m_operator_payout;
+    COutPoint m_collateral;
+    uint256 m_hash;
+    int32_t m_last_paid{10};
+    int32_t m_penalty{0};
+    int32_t m_registered{100};
+    uint16_t m_operator_reward{0};
+};
+
+std::shared_ptr<MasternodeEntry> MakeListEntry(const std::shared_ptr<TestListMnEntry>& dmn)
+{
+    return std::make_shared<MasternodeEntry>(dmn, TestP2PKHAddress(0xee), /*next_payment_height=*/0);
+}
 } // namespace
 
 void MasternodeWidgetTests::endpointTokenization()
@@ -847,15 +946,268 @@ void MasternodeWidgetTests::masternodeListRegistrationAvailability()
     QVERIFY(owned_checkbox->isChecked());
     owned_checkbox->setChecked(false);
 
+    // A new tip re-evaluates the gate: the shared masternode button depends on
+    // v24 activation, which a wallet opened before the fork would otherwise
+    // never see happen.
+    auto* const shared_button{list.findChild<QPushButton*>("btnSharedMasternode")};
+    QVERIFY(shared_button != nullptr);
+    const bool v24_active{m_node.isV24Active()};
+    const QString shared_tooltip{shared_button->toolTip()};
+    QCOMPARE(shared_button->isEnabled(), v24_active);
+    QVERIFY(shared_tooltip.contains(v24_active ? "Create or continue" : "v24 hard fork", Qt::CaseInsensitive));
+
+    for (const bool via_blocks : {true, false}) {
+        shared_button->setEnabled(!v24_active);
+        shared_button->setToolTip(QStringLiteral("stale"));
+        if (via_blocks) {
+            Q_EMIT client_model.numBlocksChanged(101, QDateTime::currentDateTime(), QString{}, 1.0, SyncType::BLOCK_SYNC,
+                                                 SynchronizationState::POST_INIT);
+        } else {
+            Q_EMIT client_model.masternodeListChanged();
+        }
+        QCOMPARE(shared_button->isEnabled(), v24_active);
+        QCOMPARE(shared_button->toolTip(), shared_tooltip);
+    }
+
     list.setClientModel(nullptr);
     QVERIFY(!register_button->isEnabled());
     QVERIFY(register_button->toolTip().contains("node is ready", Qt::CaseInsensitive));
+
+    // Detaching the model takes its connections with it: a late tip signal
+    // must not reach a list that is no longer showing this node.
+    shared_button->setToolTip(QStringLiteral("stale"));
+    Q_EMIT client_model.masternodeListChanged();
+    QCOMPARE(shared_button->toolTip(), QStringLiteral("stale"));
 
     // Reapplying the no-wallet state must preserve both the guard and its
     // explanation (for example after the last wallet is closed).
     list.setWalletModel(nullptr);
     QVERIFY(!register_button->isEnabled());
     QVERIFY(register_button->toolTip().contains("requires a wallet", Qt::CaseInsensitive));
+}
+
+void MasternodeWidgetTests::sharedMasternodeOwnedFilter()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), m_node.context()->coinjoin_loader.get(),
+                                                "", gArgs, CreateMockWalletDatabase())};
+    wallet->LoadWallet();
+    wallet->SetWalletFlag(wallet::WALLET_FLAG_DESCRIPTORS);
+
+    CTxDestination refund;
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->SetupDescriptorScriptPubKeyMans("", "");
+        const auto refund_result{wallet->GetNewDestination("")};
+        QVERIFY(refund_result);
+        refund = *refund_result;
+    }
+
+    OptionsModel options_model(m_node);
+    bilingual_str options_error;
+    QVERIFY(options_model.Init(options_error));
+    ClientModel client_model(m_node, &options_model);
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), client_model);
+
+    // This wallet holds the refund destination of the second share only: its
+    // rewards are paid elsewhere, so neither a payout script nor an owner or
+    // voting key matches. The refund destination is still a stake in the
+    // masternode, because that is where the principal returns on dissolution.
+    std::vector<interfaces::MnShare> shares{
+        {400 * COIN, TestScript(0x11), TestScript(0x12), TestKeyID(0x13)},
+        {600 * COIN, GetScriptForDestination(refund), TestScript(0x14), TestKeyID(0x15)}};
+    const auto mine{MakeListEntry(std::make_shared<TestListMnEntry>(0x20, shares))};
+    QVERIFY(MasternodeList::isOwnedBy(wallet_model.wallet(), {}, *mine));
+
+    shares[1].scriptRefund = TestScript(0x16);
+    const auto theirs{MakeListEntry(std::make_shared<TestListMnEntry>(0x30, shares))};
+    QVERIFY(!MasternodeList::isOwnedBy(wallet_model.wallet(), {}, *theirs));
+}
+
+void MasternodeWidgetTests::sharedMasternodeContextMenu()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), m_node.context()->coinjoin_loader.get(),
+                                                "", gArgs, CreateMockWalletDatabase())};
+    wallet->LoadWallet();
+    wallet->SetWalletFlag(wallet::WALLET_FLAG_DESCRIPTORS);
+
+    CTxDestination owner;
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->SetupDescriptorScriptPubKeyMans("", "");
+        const auto owner_result{wallet->GetNewDestination("")};
+        QVERIFY(owner_result);
+        owner = *owner_result;
+    }
+    const auto* owner_hash{std::get_if<PKHash>(&owner)};
+    QVERIFY(owner_hash != nullptr);
+
+    OptionsModel options_model(m_node);
+    bilingual_str options_error;
+    QVERIFY(options_model.Init(options_error));
+    ClientModel client_model(m_node, &options_model);
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), client_model);
+
+    MasternodeList list;
+    list.setWalletModel(&wallet_model);
+    list.setClientModel(&client_model);
+
+    const std::vector<interfaces::MnShare> theirs{{400 * COIN, TestScript(0x41), CScript{}, TestKeyID(0x42)},
+                                                  {600 * COIN, TestScript(0x43), CScript{}, TestKeyID(0x44)}};
+    std::vector<interfaces::MnShare> mine{theirs};
+    mine[1].keyIDOwner = ToKeyID(*owner_hash);
+
+    // A regular masternode keeps Update Registrar and hides every shared action
+    const auto regular{MakeListEntry(std::make_shared<TestListMnEntry>(0x50))};
+    list.updateContextMenuActions(regular.get());
+    QVERIFY(list.m_action_update_registrar->isVisible());
+    for (const QAction* action :
+         {list.m_action_update_share, list.m_action_rotate_keys, list.m_action_dissolve, list.m_action_standby}) {
+        QVERIFY(!action->isVisible());
+    }
+
+    // A shared masternode this wallet holds no share of shows the actions,
+    // disabled, and says which key is missing instead of hiding the reason
+    const auto foreign_shared{MakeListEntry(std::make_shared<TestListMnEntry>(0x60, theirs))};
+    list.updateContextMenuActions(foreign_shared.get());
+    QVERIFY(!list.m_action_update_registrar->isVisible());
+    for (const QAction* action :
+         {list.m_action_update_share, list.m_action_rotate_keys, list.m_action_dissolve, list.m_action_standby}) {
+        QVERIFY(action->isVisible());
+        QVERIFY(!action->isEnabled());
+        QCOMPARE(action->toolTip(), QString("Requires one of this masternode's share owner keys in this wallet"));
+    }
+    QCOMPARE(list.m_action_dissolve->text(), QString("Dissolve…"));
+    QCOMPARE(list.m_action_update_share->text(), QString("Change Reward Address…"));
+    QCOMPARE(list.m_action_rotate_keys->text(), QString("Rotate Keys…"));
+    QCOMPARE(list.m_action_standby->text(), QString("Create Standby Dissolution…"));
+
+    // Holding one share owner key enables all of them; the standby item is the
+    // only one that reports the missing offline dissolution
+    const auto owned_shared{MakeListEntry(std::make_shared<TestListMnEntry>(0x70, mine))};
+    list.updateContextMenuActions(owned_shared.get());
+    for (const QAction* action : {list.m_action_update_share, list.m_action_rotate_keys, list.m_action_dissolve}) {
+        QVERIFY(action->isEnabled());
+        // An unset tooltip reads back as the item's own text
+        QCOMPARE(action->toolTip(), action->text());
+    }
+    QVERIFY(list.m_action_standby->isEnabled());
+    QVERIFY(list.m_action_standby->toolTip().contains("not created on this computer", Qt::CaseInsensitive));
+
+    // "Filter by > Owner Address" stays usable and picks the share this wallet
+    // holds, which the row's search text matches
+    auto* const filter_text{list.findChild<QLineEdit*>("filterText")};
+    QVERIFY(filter_text != nullptr);
+    QVERIFY(list.m_action_filter_owner->isEnabled());
+    QCOMPARE(list.shareOwnerFilterAddress(*owned_shared), QString::fromStdString(EncodeDestination(owner)));
+    QCOMPARE(list.shareOwnerFilterAddress(*foreign_shared),
+             QString::fromStdString(EncodeDestination(PKHash{TestKeyID(0x42)})));
+    QVERIFY(owned_shared->shareAddresses().contains(QString::fromStdString(EncodeDestination(owner))));
+
+    list.setWalletModel(nullptr);
+}
+
+void MasternodeWidgetTests::standbyDissolutionDescription()
+{
+    const std::vector<interfaces::MnShare> shares{{400 * COIN, TestScript(0xa1), CScript{}, TestKeyID(0xa2)},
+                                                  {600 * COIN, TestScript(0xa3), CScript{}, TestKeyID(0xa4)}};
+    const auto entry{MakeListEntry(std::make_shared<TestListMnEntry>(0xa0, shares))};
+    constexpr CAmount fee{100000};
+
+    const auto make_dissolution = [&entry](uint16_t actor_index, const std::vector<CTxOut>& outputs, size_t sig_count) {
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_DISSOLVE;
+        tx.vin.emplace_back(entry->collateralOutpointRaw());
+        tx.vout = outputs;
+        CProDisTx payload;
+        payload.proTxHash = entry->proTxHashRaw();
+        payload.actorIndex = actor_index;
+        payload.vchSigs.assign(sig_count, std::vector<unsigned char>(CPubKey::COMPACT_SIGNATURE_SIZE, 0));
+        SetTxPayload(tx, payload);
+        return tx;
+    };
+
+    MasternodeList list;
+
+    // The honest standby dissolution: share 2 acts, share 1 is paid its
+    // principal in full, and only the acting share has signed
+    const QString unilateral{list.describeStandbyDissolution(
+        make_dissolution(/*actor_index=*/1, {{shares[0].amount, shares[0].scriptRefund},
+                                             {shares[1].amount - fee, shares[1].scriptRefund}},
+                         /*sig_count=*/1),
+        entry.get())};
+    QVERIFY2(unilateral.contains("Share 2 of 2"), qPrintable(unilateral));
+    QVERIFY(unilateral.contains("Approved by: your signature only"));
+    QVERIFY(unilateral.contains("Share 1 of 2 → " + SharedMnFormatAmount(BitcoinUnits::Unit::DASH, 400 * COIN)));
+    QVERIFY(unilateral.contains("Fee: " + SharedMnFormatAmount(BitcoinUnits::Unit::DASH, fee)));
+    QVERIFY(unilateral.contains("Every share's principal is returned"));
+    QVERIFY(!unilateral.contains("not in the current masternode list"));
+
+    // A transaction sweeping the collateral elsewhere says so instead of
+    // repeating the reassuring wording
+    const CScript stranger{TestScript(0xa9)};
+    const QString hostile{list.describeStandbyDissolution(
+        make_dissolution(/*actor_index=*/0, {{shares[0].amount + shares[1].amount - fee, stranger}},
+                         /*sig_count=*/2),
+        entry.get())};
+    QVERIFY2(hostile.contains("does not return every share's full principal"), qPrintable(hostile));
+    QVERIFY(hostile.contains("Approved by: every share owner"));
+    QVERIFY(hostile.contains(QString::fromStdString(EncodeDestination(PKHash{TestKeyID(0xa9)}))));
+
+    // Without the masternode in the list there are no share names to match
+    // outputs against, and the description says that rather than inventing them
+    const QString unknown{list.describeStandbyDissolution(
+        make_dissolution(/*actor_index=*/0, {{shares[0].amount, shares[0].scriptRefund}}, /*sig_count=*/1), nullptr)};
+    QVERIFY2(unknown.contains("not in the current masternode list"), qPrintable(unknown));
+    QVERIFY(unknown.contains("does not return every share's full principal"));
+}
+
+void MasternodeWidgetTests::sharedMasternodeDetails()
+{
+    const std::vector<interfaces::MnShare> shares{{400 * COIN, TestScript(0x81), TestScript(0x82), TestKeyID(0x83)},
+                                                  {600 * COIN, TestScript(0x84), CScript{}, TestKeyID(0x85)}};
+    auto dmn{std::make_shared<TestListMnEntry>(0x90, shares)};
+    dmn->m_early_period_blocks = 100;
+    dmn->m_early_penalty = 5 * COIN;
+    auto entry{MakeListEntry(dmn)};
+
+    MasternodeModel model;
+    const QString protx_hash{entry->proTxHash()};
+    model.append(std::move(entry));
+    model.setMyShareCounts({{protx_hash, 1}});
+
+    QCOMPARE(model.data(model.index(0, MasternodeModel::TYPE), Qt::ToolTipRole).toString(),
+             QString("Shared masternode · you hold 1 of 2 shares"));
+    // The row itself says how many of the shares this wallet holds
+    QCOMPARE(model.data(model.index(0, MasternodeModel::TYPE), Qt::DisplayRole).toString(),
+             QString("Shared (you hold 1 of 2)"));
+    QCOMPARE(model.data(model.index(0, MasternodeModel::TYPE), Qt::EditRole).toInt(), MasternodeModel::TYPE_SHARED);
+
+    const auto* listed{model.getEntryAt(model.index(0, 0))};
+    QVERIFY(listed != nullptr);
+    const QString html{listed->toHtml(/*current_height=*/150, /*my_share_indexes=*/{1})};
+
+    // Shares are numbered from 1 and the wallet's own share is marked
+    QVERIFY(html.contains("<td valign='top'>1</td><td valign='top'>Share 1</td>"));
+    QVERIFY(html.contains("<td valign='top'>2</td><td valign='top'>Share 2 <b>(you)</b></td>"));
+    QVERIFY(!html.contains("Share 0"));
+    QVERIFY(html.contains("(40.0%)"));
+    QVERIFY(html.contains("(60.0%)"));
+    // A share without its own reward script is paid at its refund address
+    QVERIFY(html.contains("same as refund"));
+    QVERIFY(html.contains("Early-exit penalty"));
+    QVERIFY(html.contains("ends block 200"));
+    QVERIFY(html.contains("Standby dissolution"));
+    QVERIFY(html.contains("not created on this computer"));
+
+    // Past the early period the details say so instead of counting down
+    QVERIFY(listed->toHtml(/*current_height=*/250).contains("ended (block 200)"));
 }
 
 void MasternodeWidgetTests::wizardInteractionLifecycle()

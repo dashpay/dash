@@ -7,6 +7,7 @@
 
 #include <qt/masternodemodel.h>
 
+#include <QHash>
 #include <QMenu>
 #include <QSet>
 #include <QSortFilterProxyModel>
@@ -16,13 +17,16 @@
 
 #include <atomic>
 #include <memory>
+#include <set>
 
 class ClientModel;
+struct CMutableTransaction;
 class MasternodeFeed;
 class WalletModel;
 struct MasternodeData;
 namespace interfaces {
 class MnList;
+class Wallet;
 using MnListPtr = std::shared_ptr<MnList>;
 } // namespace interfaces
 namespace Ui {
@@ -43,6 +47,7 @@ public:
         All,
         Regular,
         Evo,
+        Shared,
         COUNT
     };
 
@@ -73,12 +78,29 @@ class MasternodeList : public QWidget
 
     Ui::MasternodeList* ui;
 
+    friend class MasternodeWidgetTests;
+
 public:
     explicit MasternodeList(QWidget* parent = nullptr);
     ~MasternodeList() override;
 
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
+
+    //! Single entry point for every shared masternode message a user can
+    //! paste, wherever they pasted it. The list is the only place that can
+    //! resolve the proTxHash a maintenance message carries to the masternode
+    //! it is about, so all three kinds are routed from here: a session
+    //! envelope opens the creation wizard, a signing envelope opens the
+    //! dissolution or key-rotation dialog for that masternode, and a standby
+    //! dissolution is offered for broadcast.
+    Q_INVOKABLE void openSharedMessage(const QString& text);
+
+    //! Whether this wallet has a stake in `entry`: its collateral, one of its
+    //! keys, or a destination it pays to. A shared masternode counts through
+    //! any share's owner key or refund destination.
+    static bool isOwnedBy(interfaces::Wallet& wallet, const std::set<COutPoint>& protx_coins,
+                          const MasternodeEntry& entry);
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -92,10 +114,29 @@ private:
     QAction* m_action_update_service{nullptr};
     QAction* m_action_update_registrar{nullptr};
     QAction* m_action_revoke{nullptr};
+    QAction* m_action_update_share{nullptr};
+    QAction* m_action_dissolve{nullptr};
+    QAction* m_action_rotate_keys{nullptr};
+    QAction* m_action_standby{nullptr};
+    QAction* m_action_filter_owner{nullptr};
     WalletModel* walletModel{nullptr};
 
-    void setMasternodeList(MasternodeData&& data, QSet<QString>&& owned_mns);
+    void setMasternodeList(MasternodeData&& data, QSet<QString>&& owned_mns, QHash<QString, int>&& my_share_counts);
     void updateRegistrationAvailability();
+    //! Visibility, enabled state and tooltips of the context-menu actions for
+    //! the entry the menu is about to open on
+    void updateContextMenuActions(const MasternodeEntry* entry);
+    void openDissolveDialog(bool standby);
+    //! Entry for `pro_tx_hash` in the current list, or nullptr
+    const MasternodeEntry* entryForProTxHash(const QString& pro_tx_hash) const;
+    //! Confirm and send a standby dissolution somebody kept offline
+    void broadcastStandbyDissolution(const QString& tx_hex);
+    //! What `tx` does, for the confirmation before it is broadcast: which
+    //! masternode it ends, which share acts, on whose approval, and what each
+    //! output actually pays. `entry` is that masternode in the current list,
+    //! or nullptr when it is not in it.
+    QString describeStandbyDissolution(const CMutableTransaction& tx, const MasternodeEntry* entry) const;
+    QString shareOwnerFilterAddress(const MasternodeEntry& entry) const;
 
     const MasternodeEntry* GetSelectedEntry();
     const MasternodeEntry* selectedEntryForDialog();
@@ -107,6 +148,7 @@ private Q_SLOTS:
     void copyCollateralOutpoint_clicked();
     void copyProTxHash_clicked();
     void showRegisterWizard();
+    void showSharedMnCreateDialog();
     void extraInfoDIP3_clicked();
     void filterByCollateralAddress();
     void filterByOwnerAddress();
@@ -116,9 +158,13 @@ private Q_SLOTS:
     void on_checkBoxOwned_stateChanged(int state);
     void on_comboBoxType_currentIndexChanged(int index);
     void on_filterText_textChanged(const QString& strFilterIn);
+    void onCreateStandbyDissolution();
+    void onDissolve();
     void onRevoke();
+    void onRotateSharedKeys();
     void onUpdateRegistrar();
     void onUpdateService();
+    void onUpdateShare();
     void showContextMenuDIP3(const QPoint&);
     void updateFilteredCount();
     void updateMasternodeList();

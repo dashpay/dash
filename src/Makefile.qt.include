@@ -102,7 +102,11 @@ QT_MOC_CPP = \
   qt/moc_receiverequestdialog.cpp \
   qt/moc_recentrequeststablemodel.cpp \
   qt/moc_rpcconsole.cpp \
+  qt/moc_protxsender.cpp \
   qt/moc_sendcoinsdialog.cpp \
+  qt/moc_sharedmncreatedialog.cpp \
+  qt/moc_sharedmndialogs.cpp \
+  qt/moc_sharedmnwidgets.cpp \
   qt/moc_sendcoinsentry.cpp \
   qt/moc_signverifymessagedialog.cpp \
   qt/moc_splashscreen.cpp \
@@ -169,6 +173,7 @@ BITCOIN_QT_H = \
   qt/masternodewidgets.h \
   qt/masternodewizard.h \
   qt/mnemonicverificationdialog.h \
+  qt/mnsharesession.h \
   qt/modaloverlay.h \
   qt/networkstyle.h \
   qt/networkwidget.h \
@@ -194,9 +199,14 @@ BITCOIN_QT_H = \
   qt/receiverequestdialog.h \
   qt/recentrequeststablemodel.h \
   qt/rpcconsole.h \
+  qt/protxsender.h \
   qt/sendcoinsdialog.h \
   qt/sendcoinsentry.h \
   qt/sendcoinsrecipient.h \
+  qt/sharedmncreatedialog.h \
+  qt/sharedmndialogs.h \
+  qt/sharedmnrpc.h \
+  qt/sharedmnwidgets.h \
   qt/signverifymessagedialog.h \
   qt/splashscreen.h \
   qt/trafficgraphdata.h \
@@ -316,6 +326,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/masternodewidgets.cpp \
   qt/masternodewizard.cpp \
   qt/mnemonicverificationdialog.cpp \
+  qt/mnsharesession.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
   qt/paymentserver.cpp \
@@ -328,8 +339,12 @@ BITCOIN_QT_WALLET_CPP = \
   qt/receivecoinsdialog.cpp \
   qt/receiverequestdialog.cpp \
   qt/recentrequeststablemodel.cpp \
+  qt/protxsender.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
+  qt/sharedmncreatedialog.cpp \
+  qt/sharedmndialogs.cpp \
+  qt/sharedmnwidgets.cpp \
   qt/signverifymessagedialog.cpp \
   qt/transactiondesc.cpp \
   qt/transactionfilterproxy.cpp \

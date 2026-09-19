@@ -10,22 +10,46 @@
 #include <key_io.h>
 #include <netaddress.h>
 #include <netbase.h>
+#include <core_io.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
+#include <interfaces/wallet.h>
+#include <node/context.h>
+#include <qt/bitcoinamountfield.h>
+#include <qt/clientmodel.h>
 #include <qt/masternodedialogs.h>
 #include <qt/masternodemodel.h>
 #include <qt/masternodewidgets.h>
+#include <qt/mnsharesession.h>
+#include <qt/optionsmodel.h>
 #include <qt/qvalidatedlineedit.h>
+#include <qt/sharedmndialogs.h>
+#include <qt/sharedmnwidgets.h>
+#include <qt/walletmodel.h>
+#include <script/descriptor.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
 #include <univalue.h>
+#include <util/system.h>
 #include <util/translation.h>
+#include <validation.h>
+#include <wallet/context.h>
+#include <wallet/wallet.h>
 
 #include <QApplication>
+#include <QComboBox>
+#include <QDir>
+#include <QFile>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QTableWidget>
+#include <QTabWidget>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
 
@@ -33,6 +57,15 @@
 #include <memory>
 #include <string>
 #include <utility>
+
+using wallet::AddWallet;
+using wallet::CWallet;
+using wallet::CreateMockWalletDatabase;
+using wallet::RemoveWallet;
+using wallet::WALLET_FLAG_DESCRIPTORS;
+using wallet::WalletContext;
+using wallet::WalletDescriptor;
+using wallet::WalletRescanReserver;
 
 namespace {
 
@@ -81,8 +114,43 @@ public:
         return result;
     }
     const CKeyID& getKeyIdOwner() const override { return m_owner; }
-    std::vector<CKeyID> getShareOwnerKeyIds() const override { return {}; }
-    std::vector<CScript> getShareRefundScripts() const override { return {}; }
+    std::vector<CKeyID> getShareOwnerKeyIds() const override
+    {
+        std::vector<CKeyID> ids;
+        for (const auto& share : m_shares) {
+            ids.push_back(share.keyIDOwner);
+        }
+        return ids;
+    }
+    std::vector<CScript> getShareRefundScripts() const override
+    {
+        std::vector<CScript> scripts;
+        for (const auto& share : m_shares) {
+            scripts.push_back(share.scriptRefund);
+        }
+        return scripts;
+    }
+    bool isShared() const override { return !m_shares.empty(); }
+    std::vector<interfaces::MnShare> getShares() const override { return m_shares; }
+    const uint32_t& getEarlyPeriodBlocks() const override { return m_early_period_blocks; }
+    const CAmount& getEarlyPenalty() const override { return m_early_penalty; }
+
+    //! Turn this entry into a shared masternode with `amounts` as its share
+    //! table; every share gets a distinct owner key and refund script
+    void makeShared(const std::vector<CAmount>& amounts, CAmount early_penalty, uint32_t early_period_blocks)
+    {
+        m_hash.SetHex("2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f");
+        m_early_penalty = early_penalty;
+        m_early_period_blocks = early_period_blocks;
+        m_shares.clear();
+        for (const CAmount amount : amounts) {
+            interfaces::MnShare share;
+            share.amount = amount;
+            share.keyIDOwner = NewKeyID();
+            share.scriptRefund = GetScriptForDestination(PKHash{NewKeyID()});
+            m_shares.push_back(share);
+        }
+    }
     const CKeyID& getKeyIdVoting() const override { return m_voting; }
     const COutPoint& getCollateralOutpoint() const override { return m_collateral; }
     const CScript& getScriptPayout() const override { return m_payout; }
@@ -107,6 +175,10 @@ public:
         m_platform_node_id = "2222222222222222222222222222222222222222";
         setOperatorKey(/*legacy_display=*/false);
     }
+
+    //! Point one share's owner key at a key the test wallet holds, so the
+    //! dialogs treat that share as this wallet's own
+    void setShareOwner(size_t index, const CKeyID& key_id) { m_shares.at(index).keyIDOwner = key_id; }
 
     void clearEndpoints()
     {
@@ -159,6 +231,9 @@ private:
     int32_t m_penalty{0};
     int32_t m_registered{1};
     uint16_t m_operator_reward{0};
+    std::vector<interfaces::MnShare> m_shares;
+    CAmount m_early_penalty{0};
+    uint32_t m_early_period_blocks{0};
     uint256 m_hash;
     uint16_t m_operator_version{ProTxVersion::BasicBLS};
     CBLSSecretKey m_operator_secret;
@@ -168,6 +243,66 @@ private:
     std::string m_platform_p2p{"127.0.0.1:26656"};
     std::string m_platform_https{"api.example.com:443"};
     std::string m_platform_node_id{"1111111111111111111111111111111111111111"};
+};
+
+
+//! A descriptor wallet holding `test`'s coinbase key and its coins, registered
+//! in the node's wallet context. With `encrypt` it is left locked, which is the
+//! normal state of a masternode owner's wallet.
+std::shared_ptr<CWallet> MakeCoinbaseWallet(interfaces::Node& node, WalletContext& context, TestChain100Setup& test,
+                                           const std::string& name, bool encrypt)
+{
+    const auto wallet{std::make_shared<CWallet>(node.context()->chain.get(), node.context()->coinjoin_loader.get(),
+                                                name, gArgs, CreateMockWalletDatabase())};
+    wallet->LoadWallet();
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    const CBlockIndex* const tip{WITH_LOCK(node.context()->chainman->GetMutex(),
+                                           return node.context()->chainman->ActiveChain().Tip())};
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->SetupDescriptorScriptPubKeyMans("", "");
+        FlatSigningProvider provider;
+        std::string error;
+        std::unique_ptr<Descriptor> descriptor{
+            Parse("combo(" + EncodeSecret(test.coinbaseKey) + ")", provider, error, /*require_checksum=*/false)};
+        if (!descriptor) return nullptr;
+        WalletDescriptor wallet_descriptor(std::move(descriptor), 0, 0, 1, 1);
+        if (!wallet->AddWalletDescriptor(wallet_descriptor, provider, "", false)) return nullptr;
+        wallet->SetAddressBook(PKHash(test.coinbaseKey.GetPubKey()), "", "receive");
+        wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
+    }
+    {
+        WalletRescanReserver reserver(*wallet);
+        reserver.reserve();
+        if (wallet->ScanForWalletTransactions(Params().GetConsensus().hashGenesisBlock, /*start_height=*/0,
+                                              /*max_height=*/{}, reserver, /*fUpdate=*/true, /*save_progress=*/false)
+                .status != CWallet::ScanResult::SUCCESS) {
+            return nullptr;
+        }
+    }
+    if (encrypt && !wallet->EncryptWallet("test passphrase")) return nullptr;
+    AddWallet(context, wallet);
+    return wallet;
+}
+
+//! Unregisters the wallet even when a QVERIFY returns early: a wallet left in
+//! the context makes the fixture teardown hang
+class WalletGuard
+{
+public:
+    WalletGuard(WalletContext& context, std::shared_ptr<CWallet> wallet) :
+        m_context{context},
+        m_wallet{std::move(wallet)}
+    {
+    }
+    ~WalletGuard()
+    {
+        if (m_wallet) RemoveWallet(m_context, m_wallet, /*load_on_start=*/std::nullopt);
+    }
+
+private:
+    WalletContext& m_context;
+    std::shared_ptr<CWallet> m_wallet;
 };
 
 } // anonymous namespace
@@ -528,4 +663,420 @@ void MasternodeMaintenanceTests::dialogLifecycleAndSubmissionStates()
     QCOMPARE(accepted_spy.count(), 0);
     QVERIFY(!dialog.m_busy);
     QVERIFY(QApplication::overrideCursor() == nullptr);
+}
+
+namespace {
+//! A shared masternode entry with `amounts` as its share table
+std::shared_ptr<TestMnEntry> MakeSharedSource(const std::vector<CAmount>& amounts, CAmount early_penalty,
+                                              uint32_t early_period_blocks)
+{
+    auto source{std::make_shared<TestMnEntry>(MnType::Regular)};
+    source->makeShared(amounts, early_penalty, early_period_blocks);
+    return source;
+}
+
+//! A "dash-shared-mn-sigs" registrar envelope carrying an unsigned prepared key
+//! rotation that spends `fee_input`, exactly as the preparing wallet's node
+//! would have built it
+QString MakeRegistrarEnvelope(const uint256& pro_tx_hash, const COutPoint& fee_input)
+{
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR;
+    tx.vin.emplace_back(fee_input);
+    CProUpSharedRegTx payload;
+    payload.proTxHash = pro_tx_hash;
+    CBLSSecretKey operator_secret;
+    operator_secret.MakeNewKey();
+    payload.pubKeyOperator.Set(operator_secret.GetPublicKey(), /*bls_legacy_scheme=*/false);
+    SetTxPayload(tx, payload);
+
+    UniValue json(UniValue::VOBJ);
+    json.pushKV("type", "dash-shared-mn-sigs");
+    json.pushKV("version", 1);
+    json.pushKV("network", Params().NetworkIDString());
+    json.pushKV("kind", "registrar");
+    json.pushKV("proTxHash", pro_tx_hash.ToString());
+    json.pushKV("tx", EncodeHexTx(CTransaction(tx)));
+    json.pushKV("signatures", UniValue{UniValue::VARR});
+    shared_mn::AppendFingerprint(json);
+    return QString::fromStdString(json.write(/*prettyIndent=*/2));
+}
+
+//! Duffs; a plausible dissolution fee, well inside CProDisTx::MAX_FEE
+constexpr CAmount TEST_DISSOLVE_FEE{100000};
+
+//! The unsigned ProDisTx "protx shared_dissolve_prepare" builds for `shares`:
+//! every non-actor share is paid its principal at its own refund script in
+//! share order, and the actor takes the fee out of its own
+CMutableTransaction MakeDissolveTemplate(const uint256& pro_tx_hash, uint16_t actor_index,
+                                         const std::vector<interfaces::MnShare>& shares, CAmount fee)
+{
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_DISSOLVE;
+    tx.vin.emplace_back(COutPoint{uint256::ONE, 0});
+    for (size_t i = 0; i < shares.size(); ++i) {
+        if (i == actor_index) continue;
+        tx.vout.emplace_back(shares[i].amount, shares[i].scriptRefund);
+    }
+    tx.vout.emplace_back(shares[actor_index].amount - fee, shares[actor_index].scriptRefund);
+    CProDisTx payload;
+    payload.proTxHash = pro_tx_hash;
+    payload.actorIndex = actor_index;
+    SetTxPayload(tx, payload);
+    return tx;
+}
+
+//! A "dash-shared-mn-sigs" envelope carrying `tx`, exactly as one participant
+//! would paste it to another
+QString MakeDissolveEnvelopeFor(const uint256& pro_tx_hash, const CMutableTransaction& tx)
+{
+    UniValue json(UniValue::VOBJ);
+    json.pushKV("type", "dash-shared-mn-sigs");
+    json.pushKV("version", 1);
+    json.pushKV("network", Params().NetworkIDString());
+    json.pushKV("kind", "dissolve");
+    json.pushKV("proTxHash", pro_tx_hash.ToString());
+    json.pushKV("tx", EncodeHexTx(CTransaction(tx)));
+    json.pushKV("signatures", UniValue{UniValue::VARR});
+    shared_mn::AppendFingerprint(json);
+    return QString::fromStdString(json.write(/*prettyIndent=*/2));
+}
+
+//! The honest dissolution envelope for `shares`, with share 0 paying the fee
+QString MakeDissolveEnvelope(const uint256& pro_tx_hash, const std::vector<interfaces::MnShare>& shares)
+{
+    return MakeDissolveEnvelopeFor(pro_tx_hash,
+                                   MakeDissolveTemplate(pro_tx_hash, /*actor_index=*/0, shares, TEST_DISSOLVE_FEE));
+}
+} // anonymous namespace
+
+void MasternodeMaintenanceTests::updateShareRewardValidation()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    auto source{MakeSharedSource({400 * COIN, 300 * COIN, 300 * COIN}, 5 * COIN, /*early_period_blocks=*/1000)};
+    MasternodeEntry entry{source, "collateral", 50};
+    const auto shares{entry.shares()};
+
+    const QString voting{entry.votingAddress()};
+    const QString owner{QString::fromStdString(EncodeDestination(PKHash(shares.front().keyIDOwner)))};
+    CKeyID unrelated;
+    unrelated.SetHex("7e");
+    const QString fresh{QString::fromStdString(EncodeDestination(PKHash{unrelated}))};
+
+    QVERIFY(!UpdateShareDialog::RewardAddressProblem("", voting, shares).isEmpty());
+    QVERIFY(!UpdateShareDialog::RewardAddressProblem("not-an-address", voting, shares).isEmpty());
+    QVERIFY(UpdateShareDialog::RewardAddressProblem(voting, voting, shares).contains("voting address"));
+    QVERIFY(UpdateShareDialog::RewardAddressProblem(owner, voting, shares).contains("owner address"));
+    QVERIFY(UpdateShareDialog::RewardAddressProblem(fresh, voting, shares).isEmpty());
+
+    UpdateShareDialog dialog(m_node, /*wallet_model=*/nullptr, entry, /*parent=*/nullptr);
+    QCOMPARE(dialog.windowTitle(), QString("Change Reward Address"));
+    QCOMPARE(dialog.m_share_combo->count(), 3);
+    QVERIFY(dialog.m_share_combo->itemText(0).startsWith("Share 1 of 3"));
+    QVERIFY(dialog.m_share_combo->itemText(2).startsWith("Share 3 of 3"));
+
+    // "Use refund address" is the only way to point a share's rewards back at
+    // its refund address: the RPC rejects an empty reward address
+    dialog.m_share_combo->setCurrentIndex(1);
+    dialog.useRefundAddress();
+    CTxDestination refund_dest;
+    QVERIFY(ExtractDestination(shares[1].scriptRefund, refund_dest));
+    QCOMPARE(dialog.m_reward_edit->text(), QString::fromStdString(EncodeDestination(refund_dest)));
+    QVERIFY(UpdateShareDialog::RewardAddressProblem(dialog.m_reward_edit->text(), voting, shares).isEmpty());
+}
+
+void MasternodeMaintenanceTests::updateShareUnlocksTheWallet()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+    const auto wallet{MakeCoinbaseWallet(m_node, context, test, "owner", /*encrypt=*/true)};
+    QVERIFY(wallet != nullptr);
+    WalletGuard guard{context, wallet};
+
+    OptionsModel options_model(m_node);
+    bilingual_str options_error;
+    QVERIFY2(options_model.Init(options_error), qPrintable(QString::fromStdString(options_error.translated)));
+    ClientModel client_model(m_node, &options_model);
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), client_model);
+    QCOMPARE(int(wallet_model.getEncryptionStatus()), int(WalletModel::Locked));
+
+    auto source{MakeSharedSource({400 * COIN, 300 * COIN, 300 * COIN}, 5 * COIN, /*early_period_blocks=*/1000)};
+    source->setShareOwner(0, ToKeyID(PKHash(test.coinbaseKey.GetPubKey())));
+    MasternodeEntry entry{source, "collateral", 50};
+
+    UpdateShareDialog dialog(m_node, &wallet_model, entry, /*parent=*/nullptr);
+    QCOMPARE(dialog.m_share_combo->count(), 1);
+    dialog.useNewAddress();
+    QVERIFY(!dialog.m_reward_edit->text().isEmpty());
+
+    // "protx shared_update_share" calls EnsureWalletIsUnlocked, so submitting
+    // without asking for the passphrase first fails on every encrypted wallet
+    QSignalSpy unlock_spy(&wallet_model, &WalletModel::requireUnlock);
+    dialog.submit();
+    QCOMPARE(unlock_spy.count(), 1);
+    // Nothing was sent: the unlock was not granted (no passphrase dialog is
+    // answered here), so the dialog says so instead of going busy
+    QVERIFY(!dialog.m_busy);
+    QVERIFY2(dialog.m_status_label->text().contains("unlocked", Qt::CaseInsensitive),
+             qPrintable(dialog.m_status_label->text()));
+}
+
+void MasternodeMaintenanceTests::dissolveDialogTabsAndPayouts()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    const std::vector<CAmount> amounts{400 * COIN, 300 * COIN, 300 * COIN};
+    auto source{MakeSharedSource(amounts, 5 * COIN, /*early_period_blocks=*/1000)};
+    MasternodeEntry entry{source, "collateral", 50};
+
+    DissolveDialog dialog(m_node, /*wallet_model=*/nullptr, entry, /*current_height=*/100, /*parent=*/nullptr);
+    QCOMPARE(dialog.windowTitle(), QString("Dissolve Shared Masternode"));
+    QVERIFY(dialog.m_tabs != nullptr);
+    QCOMPARE(dialog.m_tabs->count(), 3);
+    QCOMPARE(dialog.m_tabs->tabText(0), QString("Dissolve Now"));
+    QCOMPARE(dialog.m_tabs->tabText(1), QString("Dissolve Together"));
+    QCOMPARE(dialog.m_tabs->tabText(2), QString("Standby Dissolution"));
+
+    dialog.m_now_actor->setCurrentIndex(0);
+    dialog.updateNowPreview();
+    QCOMPARE(dialog.m_now_table->rowCount(), 3);
+    QCOMPARE(dialog.m_now_table->item(0, 0)->text(), QString("Share 1 of 3 (you)"));
+    QCOMPARE(dialog.m_now_table->item(1, 0)->text(), QString("Share 2 of 3"));
+
+    const auto preview{MnShareSession::PenaltyPreviewFor(amounts, /*actor_index=*/0, 5 * COIN,
+                                                         /*early_period_blocks=*/1000, dialog.m_now_fee->value(),
+                                                         /*at_height=*/100, /*registered_height=*/1)};
+    QVERIFY(preview.valid);
+    QVERIFY(preview.early);
+    for (int row = 0; row < 3; ++row) {
+        QCOMPARE(dialog.m_now_table->item(row, 2)->text(),
+                 SharedMnFormatAmount(BitcoinUnits::Unit::DASH, preview.payouts[row]));
+    }
+    // The actor pays the penalty and the fee out of its principal; everybody
+    // else is paid their principal plus a share of that penalty
+    QVERIFY(preview.payouts[0] < amounts[0]);
+    QVERIFY(preview.payouts[1] > amounts[1]);
+    QVERIFY(preview.payouts[2] > amounts[2]);
+}
+
+void MasternodeMaintenanceTests::standbyDissolutionFile()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    auto source{MakeSharedSource({400 * COIN, 300 * COIN, 300 * COIN}, 5 * COIN, /*early_period_blocks=*/1000)};
+    MasternodeEntry entry{source, "collateral", 50};
+
+    DissolveDialog dialog(m_node, /*wallet_model=*/nullptr, entry, /*current_height=*/100, /*parent=*/nullptr);
+    const QString full_hex{QString(64, QLatin1Char('a'))};
+    const QString immediate_hex{QString(64, QLatin1Char('b'))};
+    dialog.m_sb_share_index = 1;
+    dialog.m_sb_hex_full = full_hex;
+    dialog.m_sb_hex_immediate = immediate_hex;
+
+    QCOMPARE(dialog.standbyFileName(),
+             QStringLiteral("standby-dissolution-%1-share2.txt").arg(entry.proTxHash().left(8)));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path{dir.filePath("standby.txt")};
+    QString error;
+    QVERIFY2(dialog.writeStandbyFile(path, error), qPrintable(error));
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const QStringList lines{QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'))};
+    file.close();
+
+    // Both variants are in one file, each introduced by a header line saying
+    // when it can be broadcast
+    const auto header_line = [&lines](const QString& prefix) {
+        for (int i = 0; i < lines.size(); ++i) {
+            if (lines.at(i).startsWith(prefix)) return i;
+        }
+        return -1;
+    };
+    const int full_header{header_line(QStringLiteral("FULL PRINCIPAL"))};
+    const int immediate_header{header_line(QStringLiteral("IMMEDIATE"))};
+    QVERIFY(full_header >= 0);
+    QVERIFY(immediate_header > full_header);
+    QCOMPARE(lines.at(full_header + 1), full_hex);
+    QCOMPARE(lines.at(immediate_header + 1), immediate_hex);
+    QVERIFY(lines.contains(QStringLiteral("Share 2 of 3")));
+    QVERIFY(lines.contains(QStringLiteral("Masternode: %1").arg(entry.proTxHash())));
+}
+
+void MasternodeMaintenanceTests::rotateOperatorKeyValidation()
+{
+    // A 96-character hex string is the right length for a basic-scheme BLS
+    // public key but says nothing about whether the bytes are a curve point
+    QVERIFY(!RotateSharedKeysDialog::IsValidOperatorKey(QString(96, QLatin1Char('f'))));
+    QVERIFY(!RotateSharedKeysDialog::IsValidOperatorKey(QString(96, QLatin1Char('z'))));
+    QVERIFY(!RotateSharedKeysDialog::IsValidOperatorKey(QString(94, QLatin1Char('0'))));
+    QVERIFY(!RotateSharedKeysDialog::IsValidOperatorKey(""));
+
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    QVERIFY(RotateSharedKeysDialog::IsValidOperatorKey(
+        QString::fromStdString(key.GetPublicKey().ToString(/*specificLegacyScheme=*/false))));
+}
+
+void MasternodeMaintenanceTests::rotationSenderComesFromTheInputs()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+    const auto wallet{MakeCoinbaseWallet(m_node, context, test, "preparer", /*encrypt=*/false)};
+    QVERIFY(wallet != nullptr);
+    WalletGuard guard{context, wallet};
+
+    OptionsModel options_model(m_node);
+    bilingual_str options_error;
+    QVERIFY2(options_model.Init(options_error), qPrintable(QString::fromStdString(options_error.translated)));
+    ClientModel client_model(m_node, &options_model);
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), client_model);
+
+    auto source{MakeSharedSource({400 * COIN, 300 * COIN, 300 * COIN}, 5 * COIN, /*early_period_blocks=*/1000)};
+    source->setShareOwner(0, ToKeyID(PKHash(test.coinbaseKey.GetPubKey())));
+    MasternodeEntry entry{source, "collateral", 50};
+
+    // The request this wallet prepared, pasted back into a fresh dialog: a
+    // rotation takes as long as the other share owners take to answer, so the
+    // modal window that prepared it is long gone
+    const COutPoint fee_input{test.m_coinbase_txns.at(0)->GetHash(), 0};
+    const QString envelope{MakeRegistrarEnvelope(source->getProTxHash(), fee_input)};
+
+    RotateSharedKeysDialog ours(m_node, &wallet_model, entry, /*parent=*/nullptr);
+    ours.preloadEnvelope(envelope);
+    QVERIFY(ours.m_collector->hasTransaction());
+    QVERIFY2(ours.preparedByThisWallet(), qPrintable(ours.m_status_label->text()));
+    // The editable form stays, and Send only waits for the other approvals
+    QVERIFY(ours.m_requested_change->isHidden());
+    QVERIFY(!ours.m_finish_banner->isHidden());
+    QVERIFY(ours.m_reason_label->text().contains("approve"));
+
+    // Another share owner's wallet does not own the fee inputs, so it reads the
+    // request instead of trying to send it
+    CKey other_key;
+    other_key.MakeNewKey(/*fCompressed=*/true);
+    const auto other_wallet{std::make_shared<CWallet>(m_node.context()->chain.get(),
+                                                      m_node.context()->coinjoin_loader.get(), "approver", gArgs,
+                                                      CreateMockWalletDatabase())};
+    other_wallet->LoadWallet();
+    other_wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    {
+        LOCK(other_wallet->cs_wallet);
+        other_wallet->SetupDescriptorScriptPubKeyMans("", "");
+    }
+    AddWallet(context, other_wallet);
+    WalletGuard other_guard{context, other_wallet};
+    WalletModel other_model(interfaces::MakeWallet(context, other_wallet), client_model);
+
+    RotateSharedKeysDialog theirs(m_node, &other_model, entry, /*parent=*/nullptr);
+    theirs.preloadEnvelope(envelope);
+    QVERIFY(theirs.m_collector->hasTransaction());
+    QVERIFY(!theirs.preparedByThisWallet());
+    QVERIFY(!theirs.m_requested_change->isHidden());
+    QVERIFY(!theirs.m_send_button->isEnabled());
+    QVERIFY(theirs.m_reason_label->text().contains("prepared the request"));
+}
+
+void MasternodeMaintenanceTests::maintenanceEnvelopePreload()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    auto source{MakeSharedSource({400 * COIN, 300 * COIN, 300 * COIN}, 5 * COIN, /*early_period_blocks=*/1000)};
+    MasternodeEntry entry{source, "collateral", 50};
+
+    DissolveDialog dialog(m_node, /*wallet_model=*/nullptr, entry, /*current_height=*/100, /*parent=*/nullptr);
+    QCOMPARE(dialog.m_tabs->currentIndex(), 0);
+
+    const QString envelope{MakeDissolveEnvelope(source->getProTxHash(), entry.shares())};
+    UniValue json;
+    QVERIFY(json.read(envelope.toStdString()));
+    const QString expected_code{shared_mn::EnvelopeFingerprint(json)};
+
+    dialog.preloadEnvelope(envelope);
+    QCOMPARE(dialog.m_tabs->currentIndex(), dialog.m_together_tab_index);
+    QVERIFY(dialog.m_un_collector->hasTransaction());
+    QCOMPARE(dialog.m_un_collector->code(), expected_code);
+    QVERIFY(dialog.m_un_collector->m_board->lastReceived().contains(expected_code));
+
+    // An envelope for another masternode is refused and leaves the adopted one alone
+    QString other_error;
+    QVERIFY(!dialog.m_un_collector->importEnvelope(MakeDissolveEnvelope(uint256::ONE, entry.shares()), other_error));
+    QVERIFY(!other_error.isEmpty());
+    QVERIFY(dialog.m_un_collector->hasTransaction());
+}
+
+void MasternodeMaintenanceTests::dissolveRequestMustReturnPrincipal()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    const std::vector<CAmount> amounts{400 * COIN, 300 * COIN, 300 * COIN};
+    auto source{MakeSharedSource(amounts, 5 * COIN, /*early_period_blocks=*/1000)};
+    MasternodeEntry entry{source, "collateral", 50};
+    const auto shares{entry.shares()};
+    const uint256& protx{source->getProTxHash()};
+
+    DissolveDialog dialog(m_node, /*wallet_model=*/nullptr, entry, /*current_height=*/100, /*parent=*/nullptr);
+
+    // The attack a unanimous dissolution makes possible: name the victim as
+    // the actor, drop the actor output, and sweep the whole collateral to
+    // another share's refund script. Consensus accepts it once every share
+    // owner signs, so the wallet must never offer it for signing.
+    {
+        CMutableTransaction tx{MakeDissolveTemplate(protx, /*actor_index=*/0, shares, TEST_DISSOLVE_FEE)};
+        tx.vout.clear();
+        tx.vout.emplace_back(amounts[0] + amounts[1] - TEST_DISSOLVE_FEE, shares[1].scriptRefund);
+        tx.vout.emplace_back(amounts[2], shares[2].scriptRefund);
+        CProDisTx payload;
+        payload.proTxHash = protx;
+        payload.actorIndex = 0;
+        SetTxPayload(tx, payload);
+
+        QString error;
+        QVERIFY(!dialog.m_un_collector->importEnvelope(MakeDissolveEnvelopeFor(protx, tx), error));
+        QVERIFY2(error.contains("principal", Qt::CaseInsensitive), qPrintable(error));
+        QVERIFY(!dialog.m_un_collector->hasTransaction());
+    }
+
+    // An output nobody's share asked for
+    {
+        CKeyID stranger;
+        stranger.SetHex("99");
+        CMutableTransaction tx{MakeDissolveTemplate(protx, /*actor_index=*/0, shares, TEST_DISSOLVE_FEE)};
+        tx.vout.emplace_back(1000, GetScriptForDestination(PKHash{stranger}));
+        QString error;
+        QVERIFY(!dialog.m_un_collector->importEnvelope(MakeDissolveEnvelopeFor(protx, tx), error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(!dialog.m_un_collector->hasTransaction());
+    }
+
+    // A fee past the consensus ceiling burns the actor's principal
+    {
+        const CMutableTransaction tx{
+            MakeDissolveTemplate(protx, /*actor_index=*/0, shares, CProDisTx::MAX_FEE + 1)};
+        QString error;
+        QVERIFY(!dialog.m_un_collector->importEnvelope(MakeDissolveEnvelopeFor(protx, tx), error));
+        QVERIFY2(error.contains("fee", Qt::CaseInsensitive), qPrintable(error));
+        QVERIFY(!dialog.m_un_collector->hasTransaction());
+    }
+
+    // The honest template is adopted, and its payouts are on screen next to
+    // the button that approves them
+    dialog.preloadEnvelope(MakeDissolveEnvelope(protx, shares));
+    QVERIFY2(dialog.m_un_collector->hasTransaction(), qPrintable(dialog.m_un_collector->m_status_label->text()));
+    QVERIFY(dialog.m_un_table->isVisibleTo(&dialog));
+    QCOMPARE(dialog.m_un_table->rowCount(), 3);
+    QCOMPARE(dialog.m_un_table->item(0, 0)->text(), QString("Share 1 of 3"));
+    QCOMPARE(dialog.m_un_table->item(0, 2)->text(),
+             SharedMnFormatAmount(BitcoinUnits::Unit::DASH, amounts[0] - TEST_DISSOLVE_FEE));
+    QCOMPARE(dialog.m_un_table->item(1, 2)->text(), SharedMnFormatAmount(BitcoinUnits::Unit::DASH, amounts[1]));
+    QCOMPARE(dialog.m_un_table->item(2, 2)->text(), SharedMnFormatAmount(BitcoinUnits::Unit::DASH, amounts[2]));
+    QVERIFY(dialog.m_un_fee_label->text().contains(SharedMnFormatAmount(BitcoinUnits::Unit::DASH, TEST_DISSOLVE_FEE)));
+    QVERIFY(dialog.m_un_fee_label->text().contains("Share 1 of 3"));
 }

@@ -558,7 +558,8 @@ QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#removeRequestButton,
 QWidget#ReceiveCoinsDialog .QFrame#frame2 QPushButton#clearButton,
 QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#showRequestButton,
 QDialog#SignVerifyMessageDialog QPushButton#clearButton_SM,
-QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM {
+QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM,
+QPushButton[mnSecondary="true"] {
     background-color: red;
     color: red;
 }
@@ -575,7 +576,8 @@ QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#removeRequestButton:hover,
 QWidget#ReceiveCoinsDialog .QFrame#frame2 QPushButton#clearButton:hover,
 QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#showRequestButton:hover,
 QDialog#SignVerifyMessageDialog QPushButton#clearButton_SM:hover,
-QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM:hover {
+QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM:hover,
+QPushButton[mnSecondary="true"]:hover {
     background-color: red;
     border-color: red;
     color: red;
@@ -593,7 +595,8 @@ QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#removeRequestButton:pressed
 QWidget#ReceiveCoinsDialog .QFrame#frame2 QPushButton#clearButton:pressed,
 QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#showRequestButton:pressed,
 QDialog#SignVerifyMessageDialog QPushButton#clearButton_SM:pressed,
-QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM:pressed {
+QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM:pressed,
+QPushButton[mnSecondary="true"]:pressed {
     border: 0;
     background-color: red;
     border-color: red;
@@ -612,10 +615,22 @@ QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#removeRequestButton:disable
 QWidget#ReceiveCoinsDialog .QFrame#frame2 QPushButton#clearButton:disabled,
 QWidget#ReceiveCoinsDialog .QFrame#frame QPushButton#showRequestButton:disabled,
 QDialog#SignVerifyMessageDialog QPushButton#clearButton_SM:disabled,
-QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM:disabled {
+QDialog#SignVerifyMessageDialog QPushButton#clearButton_VM:disabled,
+QPushButton[mnSecondary="true"]:disabled {
     border: 1px solid;
     background-color: red;
     border-color: red;
+    color: red;
+}
+
+/******************************************************
+QPushButton - Special case, a selected secondary button
+(the segmented early-period presets)
+******************************************************/
+
+QPushButton[mnSecondary="true"]:checked,
+QPushButton[mnSecondary="true"]:checked:hover {
+    background-color: red;
     color: red;
 }
 

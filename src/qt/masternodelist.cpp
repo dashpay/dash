@@ -5,6 +5,11 @@
 #include <qt/masternodelist.h>
 #include <qt/forms/ui_masternodelist.h>
 
+#include <core_io.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
+#include <key_io.h>
+#include <primitives/transaction.h>
 #include <script/standard.h>
 
 #include <qt/clientfeeds.h>
@@ -12,23 +17,35 @@
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil.h>
 #include <qt/masternodedialogs.h>
+#include <qt/masternodewidgets.h>
 #include <qt/masternodewizard.h>
+#include <qt/protxsender.h>
+#include <qt/sharedmncreatedialog.h>
+#include <qt/sharedmndialogs.h>
+#include <qt/sharedmnwidgets.h>
 #include <qt/walletmodel.h>
 
 #include <QApplication>
 #include <QClipboard>
 #include <QDebug>
+#include <QEventLoop>
 #include <QHeaderView>
+#include <QMessageBox>
+#include <QPointer>
 #include <QMetaObject>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QThread>
 
+#include <algorithm>
+#include <iterator>
 #include <set>
+#include <vector>
 
 bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& source_parent) const
 {
-    // "Type" filter
+    // "Type" filter. Shared masternodes are MnType::Regular but surface as MasternodeModel::TYPE_SHARED
+    // here, so the "Regular" filter shows only single-owner masternodes.
     if (m_type_filter != TypeFilter::All) {
         QModelIndex idx = sourceModel()->index(source_row, MasternodeModel::TYPE, source_parent);
         int type = sourceModel()->data(idx, Qt::EditRole).toInt();
@@ -36,6 +53,9 @@ bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const 
             return false;
         }
         if (m_type_filter == TypeFilter::Evo && type != static_cast<int>(MnType::Evo)) {
+            return false;
+        }
+        if (m_type_filter == TypeFilter::Shared && type != MasternodeModel::TYPE_SHARED) {
             return false;
         }
     }
@@ -126,18 +146,28 @@ MasternodeList::MasternodeList(QWidget* parent) :
     m_action_update_service = contextMenuDIP3->addAction(tr("Update Service…"), this, &MasternodeList::onUpdateService);
     m_action_update_registrar = contextMenuDIP3->addAction(tr("Update Registrar…"), this,
                                                            &MasternodeList::onUpdateRegistrar);
+    m_action_update_share = contextMenuDIP3->addAction(tr("Change Reward Address…"), this, &MasternodeList::onUpdateShare);
+    m_action_rotate_keys = contextMenuDIP3->addAction(tr("Rotate Keys…"), this, &MasternodeList::onRotateSharedKeys);
+    m_action_dissolve = contextMenuDIP3->addAction(tr("Dissolve…"), this, &MasternodeList::onDissolve);
+    m_action_standby = contextMenuDIP3->addAction(tr("Create Standby Dissolution…"), this,
+                                                  &MasternodeList::onCreateStandbyDissolution);
+    // Revoking ends the node's operator key on its own and cannot be undone, so
+    // it is kept away from the routine actions above it
+    contextMenuDIP3->addSeparator();
     m_action_revoke = contextMenuDIP3->addAction(tr("Revoke…"), this, &MasternodeList::onRevoke);
     contextMenuDIP3->addSeparator();
 
     QMenu* filterMenu = contextMenuDIP3->addMenu(tr("Filter by"));
     filterMenu->addAction(tr("Collateral Address"), this, &MasternodeList::filterByCollateralAddress);
     filterMenu->addAction(tr("Payout Address"), this, &MasternodeList::filterByPayoutAddress);
-    filterMenu->addAction(tr("Owner Address"), this, &MasternodeList::filterByOwnerAddress);
+    m_action_filter_owner = filterMenu->addAction(tr("Owner Address"), this, &MasternodeList::filterByOwnerAddress);
     filterMenu->addAction(tr("Voting Address"), this, &MasternodeList::filterByVotingAddress);
 
     ui->btnRegisterMasternode->setEnabled(false);
     ui->btnRegisterMasternode->setToolTip(tr("Registering a masternode requires a wallet."));
     connect(ui->btnRegisterMasternode, &QPushButton::clicked, this, &MasternodeList::showRegisterWizard);
+    ui->btnSharedMasternode->setEnabled(false);
+    connect(ui->btnSharedMasternode, &QPushButton::clicked, this, &MasternodeList::showSharedMnCreateDialog);
 
     connect(ui->tableViewMasternodes, &QTableView::customContextMenuRequested, this, &MasternodeList::showContextMenuDIP3);
     connect(ui->tableViewMasternodes, &QTableView::doubleClicked, this, &MasternodeList::extraInfoDIP3_clicked);
@@ -170,11 +200,20 @@ void MasternodeList::changeEvent(QEvent* event)
 
 void MasternodeList::setClientModel(ClientModel* model)
 {
+    if (clientModel != nullptr) {
+        disconnect(clientModel, &ClientModel::numBlocksChanged, this, nullptr);
+        disconnect(clientModel, &ClientModel::masternodeListChanged, this, nullptr);
+    }
     this->clientModel = model;
     updateRegistrationAvailability();
     if (!clientModel) {
         return;
     }
+    // Whether a masternode can be registered at all depends on the tip: a
+    // wallet opened before v24 activates must not keep the shared masternode
+    // button disabled until its models happen to be re-set
+    connect(clientModel, &ClientModel::numBlocksChanged, this, &MasternodeList::updateRegistrationAvailability);
+    connect(clientModel, &ClientModel::masternodeListChanged, this, &MasternodeList::updateRegistrationAvailability);
     m_feed = clientModel->feedMasternode();
     if (m_feed) {
         connect(m_feed, &MasternodeFeed::dataReady, this, &MasternodeList::updateMasternodeList);
@@ -217,6 +256,21 @@ void MasternodeList::updateRegistrationAvailability()
     } else {
         ui->btnRegisterMasternode->setToolTip(tr("Register a new masternode or EvoNode using this wallet"));
     }
+
+    const bool v24_active{clientModel != nullptr && clientModel->node().isV24Active()};
+    const bool can_shared{can_register && v24_active};
+    ui->btnSharedMasternode->setEnabled(can_shared);
+    if (walletModel == nullptr) {
+        ui->btnSharedMasternode->setToolTip(tr("Managing shared masternodes requires a wallet."));
+    } else if (walletModel->wallet().privateKeysDisabled()) {
+        ui->btnSharedMasternode->setToolTip(tr("Managing shared masternodes requires a wallet with private keys."));
+    } else if (clientModel == nullptr) {
+        ui->btnSharedMasternode->setToolTip(tr("Shared masternode management is unavailable until the node is ready."));
+    } else if (!v24_active) {
+        ui->btnSharedMasternode->setToolTip(tr("Shared masternodes require the v24 hard fork, which is not active on this network yet."));
+    } else {
+        ui->btnSharedMasternode->setToolTip(tr("Create or continue a multi-party shared masternode registration session"));
+    }
 }
 
 void MasternodeList::showRegisterWizard()
@@ -226,6 +280,159 @@ void MasternodeList::showRegisterWizard()
     dlg.exec();
 }
 
+void MasternodeList::showSharedMnCreateDialog()
+{
+    if (!clientModel || !walletModel) {
+        return;
+    }
+    SharedMnCreateDialog dlg(clientModel->node(), walletModel, this);
+    dlg.exec();
+}
+
+const MasternodeEntry* MasternodeList::entryForProTxHash(const QString& pro_tx_hash) const
+{
+    if (m_model == nullptr) return nullptr;
+    for (int row = 0; row < m_model->rowCount(); ++row) {
+        const MasternodeEntry* entry{m_model->getEntryAt(m_model->index(row, 0))};
+        if (entry != nullptr && entry->proTxHash().compare(pro_tx_hash, Qt::CaseInsensitive) == 0) return entry;
+    }
+    return nullptr;
+}
+
+QString MasternodeList::describeStandbyDissolution(const CMutableTransaction& tx, const MasternodeEntry* entry) const
+{
+    const auto ptx{GetTxPayload<CProDisTx>(tx)};
+    if (!ptx) return tr("This transaction is not a readable shared masternode dissolution.");
+
+    const BitcoinUnits::Unit unit{SharedMnDisplayUnit(walletModel)};
+    const std::vector<interfaces::MnShare> shares{entry != nullptr ? entry->shares()
+                                                                  : std::vector<interfaces::MnShare>{}};
+    const auto share_label = [&shares](size_t index) {
+        return tr("Share %1 of %2").arg(index + 1).arg(shares.size());
+    };
+    // An output paying somewhere no share asked for is the whole point of
+    // showing this list, so it is named by its address rather than skipped
+    const auto script_address = [](const CScript& script) {
+        CTxDestination dest;
+        if (!ExtractDestination(script, dest)) return tr("an unrecognised script");
+        return QString::fromStdString(EncodeDestination(dest));
+    };
+
+    QStringList lines;
+    lines << tr("Masternode: %1").arg(MasternodeWidgetUtil::chunked(QString::fromStdString(ptx->proTxHash.ToString())));
+    if (entry == nullptr) {
+        lines << tr("This masternode is not in the current masternode list.");
+    } else {
+        lines << tr("Service: %1").arg(entry->service());
+        lines << tr("Collateral address: %1").arg(entry->collateralAddress());
+    }
+    if (ptx->actorIndex < shares.size()) {
+        lines << tr("Fee paid by: %1").arg(share_label(ptx->actorIndex));
+    }
+    lines << (!shares.empty() && ptx->vchSigs.size() == shares.size() ? tr("Approved by: every share owner")
+                                                                     : tr("Approved by: your signature only"));
+
+    lines << QString{} << tr("Payouts:");
+    for (const CTxOut& out : tx.vout) {
+        const auto match = std::find_if(shares.begin(), shares.end(), [&out](const interfaces::MnShare& share) {
+            return share.scriptRefund == out.scriptPubKey;
+        });
+        const QString payee{match != shares.end()
+                                ? share_label(static_cast<size_t>(std::distance(shares.begin(), match)))
+                                : script_address(out.scriptPubKey)};
+        lines << QStringLiteral("  ") + tr("%1 → %2").arg(payee, SharedMnFormatAmount(unit, out.nValue));
+    }
+
+    const SharedMnDissolution dissolution{SharedMnReadDissolution(tx, ptx->actorIndex, shares)};
+    if (!shares.empty()) {
+        lines << tr("Fee: %1").arg(SharedMnFormatAmount(unit, dissolution.fee));
+    }
+    lines << QString{}
+          << (dissolution.returnsPrincipal
+                  ? tr("Every share's principal is returned to its own refund address. This cannot be undone.")
+                  : tr("Note: this transaction does not return every share's full principal. This cannot be undone."));
+    lines << QString{} << tr("Transaction: %1").arg(QString::fromStdString(CTransaction(tx).GetHash().ToString()));
+    return lines.join(QLatin1Char('\n'));
+}
+
+void MasternodeList::broadcastStandbyDissolution(const QString& tx_hex)
+{
+    if (clientModel == nullptr) return;
+    CMutableTransaction tx;
+    if (!DecodeHexTx(tx, tx_hex.trimmed().toStdString())) return;
+    const QString txid{QString::fromStdString(CTransaction(tx).GetHash().ToString())};
+    const auto ptx{GetTxPayload<CProDisTx>(tx)};
+    if (QMessageBox::question(this, tr("Broadcast this standby dissolution?"),
+                              describeStandbyDissolution(
+                                  tx, ptx ? entryForProTxHash(QString::fromStdString(ptx->proTxHash.ToString()))
+                                          : nullptr),
+                              QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Yes) {
+        return;
+    }
+
+    // The list can be destroyed while the loop below runs (closing the wallet
+    // deletes the owning WalletView), so the sender is not parented to it and
+    // nothing touches `this` afterwards without checking it is still alive.
+    ProTxSender sender(clientModel->node(), /*parent=*/nullptr);
+    UniValue params(UniValue::VOBJ);
+    params.pushKV("hexstring", tx_hex.trimmed().toStdString());
+    ProTxResult result;
+    QEventLoop loop;
+    connect(&sender, &ProTxSender::finished, &loop, [&](const ProTxResult& r) {
+        result = r;
+        loop.quit();
+    });
+    if (!sender.execute(QStringLiteral("sendrawtransaction"), params, /*wallet_model=*/nullptr)) return;
+    const QPointer<MasternodeList> self{this};
+    setEnabled(false);
+    loop.exec();
+    if (self.isNull()) return;
+    setEnabled(true);
+    if (!result.ok) {
+        QMessageBox::critical(this, tr("Broadcast failed"), result.message);
+        return;
+    }
+    QMessageBox::information(this, tr("Standby dissolution sent"), tr("Transaction: %1").arg(txid));
+}
+
+void MasternodeList::openSharedMessage(const QString& text)
+{
+    if (clientModel == nullptr || walletModel == nullptr) return;
+    const SharedMnImport::Detected detected{SharedMnImport::Detect(text)};
+    switch (detected.kind) {
+    case SharedMnImport::Kind::Session: {
+        SharedMnCreateDialog dlg(clientModel->node(), walletModel, this);
+        dlg.openSharedMessage(text);
+        dlg.exec();
+        return;
+    }
+    case SharedMnImport::Kind::Sigs: {
+        const MasternodeEntry* entry{entryForProTxHash(detected.proTxHash)};
+        if (entry == nullptr) {
+            QMessageBox::warning(this, tr("Masternode not found"),
+                                 tr("This message is about a masternode that is not in the list yet."));
+            return;
+        }
+        if (detected.sigKind == QLatin1String("dissolve")) {
+            DissolveDialog dlg(clientModel->node(), walletModel, *entry, m_model->currentHeight(), this);
+            dlg.preloadEnvelope(text);
+            dlg.exec();
+        } else {
+            RotateSharedKeysDialog dlg(clientModel->node(), walletModel, *entry, this);
+            dlg.preloadEnvelope(text);
+            dlg.exec();
+        }
+        return;
+    }
+    case SharedMnImport::Kind::StandbyHex:
+        broadcastStandbyDissolution(text);
+        return;
+    case SharedMnImport::Kind::Unknown:
+        QMessageBox::warning(this, tr("Nothing to open"), detected.error);
+        return;
+    }
+}
+
 void MasternodeList::showContextMenuDIP3(const QPoint& point)
 {
     QModelIndex index = ui->tableViewMasternodes->indexAt(point);
@@ -233,8 +440,14 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
     ui->tableViewMasternodes->setCurrentIndex(index);
     ui->tableViewMasternodes->selectRow(index.row());
 
-    const auto* entry{GetSelectedEntry()};
+    updateContextMenuActions(GetSelectedEntry());
+    contextMenuDIP3->exec(QCursor::pos());
+}
+
+void MasternodeList::updateContextMenuActions(const MasternodeEntry* entry)
+{
     const bool can_sign{walletModel != nullptr && !walletModel->wallet().privateKeysDisabled()};
+    const bool is_shared{entry != nullptr && entry->isShared()};
     const bool owns_owner_key{entry != nullptr && can_sign &&
                               walletModel->wallet().isSpendable(PKHash(entry->keyIdOwnerRaw()))};
     const auto availability{MasternodeMaintenance::actionAvailability(can_sign, owns_owner_key)};
@@ -242,12 +455,38 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
     m_action_update_service->setEnabled(availability.update_service);
     m_action_update_service->setToolTip(
         availability.update_service ? QString{} : tr("Requires a wallet capable of signing transactions"));
+    // A shared masternode has no registrar to update on its own: its keys move
+    // through a key rotation every share owner approves
+    m_action_update_registrar->setVisible(!is_shared);
     m_action_update_registrar->setEnabled(availability.update_registrar);
     m_action_update_registrar->setToolTip(
         availability.update_registrar ? QString{} : tr("Requires this masternode's owner key in the wallet"));
     m_action_revoke->setEnabled(availability.revoke);
     m_action_revoke->setToolTip(availability.revoke ? QString{} : tr("Requires a wallet capable of signing transactions"));
-    contextMenuDIP3->exec(QCursor::pos());
+
+    // Shared-only actions need one of this masternode's share owner keys in the wallet
+    bool owns_share{false};
+    if (can_sign && is_shared) {
+        const auto& shares{entry->shares()};
+        owns_share = std::any_of(shares.begin(), shares.end(), [&](const auto& share) {
+            return walletModel->wallet().isSpendable(PKHash(share.keyIDOwner));
+        });
+    }
+    const QString shared_tooltip{
+        owns_share ? QString{} : tr("Requires one of this masternode's share owner keys in this wallet")};
+    for (auto* action : {m_action_update_share, m_action_rotate_keys, m_action_dissolve, m_action_standby}) {
+        action->setVisible(is_shared);
+        action->setEnabled(owns_share);
+        action->setToolTip(shared_tooltip);
+    }
+    if (owns_share) {
+        const auto saved{MasternodeStandby::SavedDate(entry->proTxHash())};
+        m_action_standby->setToolTip(saved.saved ? tr("Already saved on this computer on %1").arg(saved.date)
+                                                 : tr("Not created on this computer yet"));
+    }
+
+    m_action_filter_owner->setToolTip(is_shared ? tr("Filters by one of this masternode's share owner addresses") :
+                                                  QString{});
 }
 
 const MasternodeEntry* MasternodeList::selectedEntryForDialog()
@@ -281,6 +520,49 @@ void MasternodeList::onRevoke()
     }
 }
 
+void MasternodeList::onUpdateShare()
+{
+    const auto* entry = GetSelectedEntry();
+    if (!entry || !clientModel || !walletModel || !entry->isShared()) {
+        return;
+    }
+    UpdateShareDialog dlg(clientModel->node(), walletModel, *entry, this);
+    dlg.exec();
+}
+
+void MasternodeList::onDissolve()
+{
+    openDissolveDialog(/*standby=*/false);
+}
+
+void MasternodeList::onCreateStandbyDissolution()
+{
+    openDissolveDialog(/*standby=*/true);
+}
+
+void MasternodeList::openDissolveDialog(bool standby)
+{
+    const auto* entry = GetSelectedEntry();
+    if (!entry || !clientModel || !walletModel || !entry->isShared()) {
+        return;
+    }
+    DissolveDialog dlg(clientModel->node(), walletModel, *entry, m_model->currentHeight(), this);
+    if (standby) {
+        dlg.selectStandbyTab();
+    }
+    dlg.exec();
+}
+
+void MasternodeList::onRotateSharedKeys()
+{
+    const auto* entry = GetSelectedEntry();
+    if (!entry || !clientModel || !walletModel || !entry->isShared()) {
+        return;
+    }
+    RotateSharedKeysDialog dlg(clientModel->node(), walletModel, *entry, this);
+    dlg.exec();
+}
+
 void MasternodeList::updateMasternodeList()
 {
     if (!clientModel || !m_feed) {
@@ -305,7 +587,7 @@ void MasternodeList::updateMasternodeList()
 
     // If we don't have a wallet, nothing else to do...
     if (!walletModel) {
-        setMasternodeList(std::move(ret), {});
+        setMasternodeList(std::move(ret), {}, {});
         return;
     }
 
@@ -315,37 +597,57 @@ void MasternodeList::updateMasternodeList()
     }
 
     QSet<QString> owned_mns;
+    QHash<QString, int> my_share_counts;
     for (const auto& entry : feed->m_entries) {
-        const auto script_payouts{entry->scriptPayoutsRaw()};
-        const bool owns_payout{std::any_of(script_payouts.begin(), script_payouts.end(), [&](const auto& script) {
-            return walletModel->wallet().isSpendable(script);
-        })};
-        // A shared masternode has a null keyIDOwner; its share owner keys take its place
-        const auto share_owner_key_ids{entry->shareOwnerKeyIdsRaw()};
-        const bool owns_share{std::any_of(share_owner_key_ids.begin(), share_owner_key_ids.end(), [&](const auto& key_id) {
-            return walletModel->wallet().isSpendable(PKHash(key_id));
-        })};
-        const auto share_refunds{entry->shareRefundScriptsRaw()};
-        const bool owns_refund{std::any_of(share_refunds.begin(), share_refunds.end(), [&](const auto& script) {
-            return walletModel->wallet().isSpendable(script);
-        })};
-        bool fMyMasternode{setOutpts.count(entry->collateralOutpointRaw()) ||
-                           walletModel->wallet().isSpendable(PKHash(entry->keyIdOwnerRaw())) ||
-                           owns_share ||
-                           owns_refund ||
-                           walletModel->wallet().isSpendable(PKHash(entry->keyIdVotingRaw())) ||
-                           owns_payout ||
-                           walletModel->wallet().isSpendable(entry->scriptOperatorPayoutRaw())};
-        if (fMyMasternode) {
+        if (isOwnedBy(walletModel->wallet(), setOutpts, *entry)) {
             owned_mns.insert(entry->proTxHash());
         }
+        if (!entry->isShared()) continue;
+        const auto& shares{entry->shares()};
+        const auto count{std::count_if(shares.begin(), shares.end(), [&](const auto& share) {
+            return walletModel->wallet().isSpendable(PKHash(share.keyIDOwner));
+        })};
+        if (count > 0) {
+            my_share_counts.insert(entry->proTxHash(), static_cast<int>(count));
+        }
     }
-    setMasternodeList(std::move(ret), std::move(owned_mns));
+    setMasternodeList(std::move(ret), std::move(owned_mns), std::move(my_share_counts));
 }
 
-void MasternodeList::setMasternodeList(MasternodeData&& list, QSet<QString>&& owned_mns)
+bool MasternodeList::isOwnedBy(interfaces::Wallet& wallet, const std::set<COutPoint>& protx_coins,
+                               const MasternodeEntry& entry)
+{
+    if (protx_coins.count(entry.collateralOutpointRaw()) > 0) return true;
+    if (wallet.isSpendable(PKHash(entry.keyIdOwnerRaw()))) return true;
+    if (wallet.isSpendable(PKHash(entry.keyIdVotingRaw()))) return true;
+    if (wallet.isSpendable(entry.scriptOperatorPayoutRaw())) return true;
+
+    const auto script_payouts{entry.scriptPayoutsRaw()};
+    if (std::any_of(script_payouts.begin(), script_payouts.end(),
+                    [&](const auto& script) { return wallet.isSpendable(script); })) {
+        return true;
+    }
+
+    // A shared masternode has a null keyIDOwner; its share owner keys take its place
+    const auto share_owner_key_ids{entry.shareOwnerKeyIdsRaw()};
+    if (std::any_of(share_owner_key_ids.begin(), share_owner_key_ids.end(),
+                    [&](const auto& key_id) { return wallet.isSpendable(PKHash(key_id)); })) {
+        return true;
+    }
+
+    // A participant whose rewards go to another wallet still owns the share
+    // through its immutable refund destination, which is where the principal
+    // returns on dissolution
+    const auto share_refund_scripts{entry.shareRefundScriptsRaw()};
+    return std::any_of(share_refund_scripts.begin(), share_refund_scripts.end(),
+                       [&](const auto& script) { return wallet.isSpendable(script); });
+}
+
+void MasternodeList::setMasternodeList(MasternodeData&& list, QSet<QString>&& owned_mns,
+                                       QHash<QString, int>&& my_share_counts)
 {
     m_model->setCurrentHeight(list.m_list_height);
+    m_model->setMyShareCounts(std::move(my_share_counts));
     m_model->reconcile(std::move(list.m_entries));
 
     if (walletModel) {
@@ -379,7 +681,12 @@ void MasternodeList::on_comboBoxType_currentIndexChanged(int index)
         return;
     }
     const auto index_enum{static_cast<MasternodeListSortFilterProxyModel::TypeFilter>(index)};
-    ui->tableViewMasternodes->setColumnHidden(MasternodeModel::TYPE, index_enum != MasternodeListSortFilterProxyModel::TypeFilter::All);
+    // The Type cell is redundant when the filter already names the type, except
+    // for a shared masternode, where it is the only place the row says how many
+    // of its shares this wallet holds
+    ui->tableViewMasternodes->setColumnHidden(
+        MasternodeModel::TYPE, index_enum != MasternodeListSortFilterProxyModel::TypeFilter::All &&
+                                   index_enum != MasternodeListSortFilterProxyModel::TypeFilter::Shared);
     m_proxy_model->setTypeFilter(index_enum);
     m_proxy_model->forceInvalidateFilter();
     updateFilteredCount();
@@ -436,7 +743,17 @@ void MasternodeList::extraInfoDIP3_clicked()
         return;
     }
 
-    auto* dialog = new DescriptionDialog(tr("Details for Masternode %1").arg(entry->proTxHash()), entry->toHtml(), /*parent=*/this);
+    QSet<int> my_share_indexes;
+    if (walletModel && entry->isShared()) {
+        const auto& shares{entry->shares()};
+        for (size_t i = 0; i < shares.size(); ++i) {
+            if (walletModel->wallet().isSpendable(PKHash(shares[i].keyIDOwner))) {
+                my_share_indexes.insert(static_cast<int>(i));
+            }
+        }
+    }
+    auto* dialog = new DescriptionDialog(tr("Details for Masternode %1").arg(entry->proTxHash()),
+                                         entry->toHtml(m_model->currentHeight(), my_share_indexes), /*parent=*/this);
     dialog->resize(1000, 500);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
@@ -482,8 +799,24 @@ void MasternodeList::filterByOwnerAddress()
 {
     const auto* entry = GetSelectedEntry();
     if (entry) {
-        ui->filterText->setText(entry->ownerAddress());
+        ui->filterText->setText(entry->isShared() ? shareOwnerFilterAddress(*entry) : entry->ownerAddress());
     }
+}
+
+QString MasternodeList::shareOwnerFilterAddress(const MasternodeEntry& entry) const
+{
+    // A shared masternode has one owner address per share and the row matches
+    // every one of them, so filtering by the share this wallet holds keeps the
+    // masternode listed and finds the participant's other masternodes too
+    const auto& shares{entry.shares()};
+    if (shares.empty()) {
+        return {};
+    }
+    const auto owned{std::find_if(shares.begin(), shares.end(), [&](const auto& share) {
+        return walletModel != nullptr && walletModel->wallet().isSpendable(PKHash(share.keyIDOwner));
+    })};
+    const auto& share{owned != shares.end() ? *owned : shares.front()};
+    return QString::fromStdString(EncodeDestination(PKHash(share.keyIDOwner)));
 }
 
 void MasternodeList::filterByVotingAddress()
