@@ -92,6 +92,7 @@ QT_MOC_CPP = \
   qt/moc_proposalinfo.cpp \
   qt/moc_proposallist.cpp \
   qt/moc_proposalmodel.cpp \
+  qt/moc_proposalvotedialog.cpp \
   qt/moc_proposalresume.cpp \
   qt/moc_psbtoperationsdialog.cpp \
   qt/moc_qrdialog.cpp \
@@ -184,6 +185,7 @@ BITCOIN_QT_H = \
   qt/proposalinfo.h \
   qt/proposallist.h \
   qt/proposalmodel.h \
+  qt/proposalvotedialog.h \
   qt/proposalresume.h \
   qt/psbtoperationsdialog.h \
   qt/qrdialog.h \
@@ -291,6 +293,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/peertablesortproxy.cpp \
   qt/proposalinfo.cpp \
   qt/proposalmodel.cpp \
+  qt/proposalvotedialog.cpp \
   qt/qvalidatedlineedit.cpp \
   qt/qvaluecombobox.cpp \
   qt/rpcconsole.cpp \

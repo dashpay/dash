@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_PROPOSALMODEL_H
 #define BITCOIN_QT_PROPOSALMODEL_H
 
+#include <governance/vote.h>
 #include <interfaces/node.h>
 #include <saltedhasher.h>
 #include <uint256.h>
@@ -17,9 +18,11 @@
 #include <QString>
 
 #include <array>
+#include <map>
 #include <memory>
 #include <optional>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 class CGovernanceObject;
@@ -45,6 +48,7 @@ private:
     int m_collateral_confs{0};
     interfaces::GOV::GovernanceInfo m_gov_info;
     interfaces::GOV::Votes m_votes;
+    std::map<COutPoint, CGovernanceVote> m_current_votes;
     QDateTime m_date_collateral{};
     QDateTime m_endDate{};
     QDateTime m_startDate{};
@@ -63,6 +67,7 @@ public:
                       const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs,
                       bool is_broadcast);
 
+    std::optional<CGovernanceVote> fundingVote(const COutPoint& outpoint) const;
     bool isBroadcast() const { return m_is_broadcast; }
     CAmount paymentAmount() const { return m_paymentAmount; }
     const uint256& objHash() const { return m_objHash; }
@@ -107,6 +112,7 @@ private:
     QIcon m_icon_voting;
     std::array<QIcon, 6> m_icon_confirming;
     Uint256HashSet m_fundable_hashes;
+    Uint256HashMap<std::pair<QString, QString>> m_wallet_votes;
 
 public:
     explicit ProposalModel(QObject* parent = nullptr);
@@ -118,6 +124,7 @@ public:
         START_DATE,
         END_DATE,
         VOTING_STATUS,
+        MY_VOTES,
         HASH,
         _COUNT // for internal use only
     };
@@ -133,6 +140,7 @@ public:
     void refreshIcons();
     void setDisplayUnit(const BitcoinUnit& display_unit);
     void setVotingParams(int nAbsVoteReq);
+    void setWalletVotes(Uint256HashMap<std::pair<QString, QString>> votes);
     const Proposal* getProposalAt(const QModelIndex& index) const;
 
 private:

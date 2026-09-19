@@ -9,6 +9,7 @@ TESTS += qt/test/test_dash-qt
 TEST_QT_MOC_CPP = \
   qt/test/moc_apptests.cpp \
   qt/test/moc_optiontests.cpp \
+  qt/test/moc_proposalvotetests.cpp \
   qt/test/moc_rpcnestedtests.cpp \
   qt/test/moc_trafficgraphdatatests.cpp \
   qt/test/moc_uritests.cpp
@@ -28,6 +29,7 @@ TEST_QT_H = \
   qt/test/masternodemaintenancetests.h \
   qt/test/masternodewidgettests.h \
   qt/test/optiontests.h \
+  qt/test/proposalvotetests.h \
   qt/test/providertransactiontests.h \
   qt/test/rpcnestedtests.h \
   qt/test/uritests.h \
@@ -42,6 +44,7 @@ qt_test_test_dash_qt_SOURCES = \
   init/bitcoin-qt.cpp \
   qt/test/apptests.cpp \
   qt/test/optiontests.cpp \
+  qt/test/proposalvotetests.cpp \
   qt/test/rpcnestedtests.cpp \
   qt/test/test_main.cpp \
   qt/test/trafficgraphdatatests.cpp \

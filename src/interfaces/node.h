@@ -178,6 +178,7 @@ public:
         uint16_t m_evo{0};
     };
     virtual UniqueVoters getObjUniqueVoters(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
+    virtual std::vector<CGovernanceVote> getCurrentVotes(const uint256& hash) = 0;
     virtual bool existsObj(const uint256& hash) = 0;
     virtual bool isEnabled() = 0;
     virtual bool processVoteAndRelay(const CGovernanceVote& vote, std::string& error) = 0;

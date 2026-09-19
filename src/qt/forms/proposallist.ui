@@ -65,6 +65,12 @@
       </layout>
      </item>
      <item>
+      <widget class="QLabel" name="votingDeadline">
+       <property name="text"><string>Voting deadline: waiting for sync…</string></property>
+       <property name="wordWrap"><bool>true</bool></property>
+      </widget>
+     </item>
+     <item>
       <widget class="QStackedWidget" name="proposalStack">
        <widget class="QTableView" name="govTableView">
        </widget>
@@ -112,6 +118,12 @@
      </item>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_bottom">
+       <item>
+        <widget class="QPushButton" name="btnVote">
+         <property name="text"><string>Votes…</string></property>
+         <property name="toolTip"><string>View your current votes and vote with selected masternodes</string></property>
+        </widget>
+       </item>
        <item>
         <widget class="QPushButton" name="btnCreateProposal">
          <property name="text">

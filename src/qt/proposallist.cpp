@@ -22,6 +22,7 @@
 #include <qt/proposallist.h>
 #include <qt/proposalmodel.h>
 #include <qt/proposalresume.h>
+#include <qt/proposalvotedialog.h>
 
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
@@ -63,6 +64,7 @@ ProposalList::ProposalList(QWidget* parent) :
     ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->govTableView->setModel(proposalModelProxy);
     ui->govTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->govTableView->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->govTableView->setSortingEnabled(true);
     ui->govTableView->sortByColumn(ProposalModel::Column::TITLE, Qt::AscendingOrder);
     ui->govTableView->verticalHeader()->setVisible(false);
@@ -92,6 +94,8 @@ ProposalList::ProposalList(QWidget* parent) :
     // Connect buttons
     connect(ui->btnCreateProposal, &QPushButton::clicked, this, &ProposalList::showCreateProposalDialog);
     connect(ui->btnResumeProposal, &QPushButton::clicked, this, &ProposalList::showResumeProposalDialog);
+    connect(ui->btnVote, &QPushButton::clicked, this, &ProposalList::voteYes);
+    connect(ui->govTableView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &ProposalList::updateProposalButtons);
     updateProposalButtons();
 
     // Set up info button
@@ -128,14 +132,24 @@ void ProposalList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
     if (!clientModel) {
+        m_feed_masternode = nullptr;
+        m_feed_proposal = nullptr;
+        votableMasternodes.clear();
+        proposalModel->setWalletVotes({});
+        ui->govTableView->setColumnHidden(ProposalModel::Column::MY_VOTES, true);
+        updateVotingDeadline();
+        updateProposalButtons();
         return;
     }
     m_feed_masternode = clientModel->feedMasternode();
     m_feed_proposal = clientModel->feedProposal();
     if (m_feed_masternode && m_feed_proposal) {
+        connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &ProposalList::updateProposalList);
         connect(m_feed_proposal, &ProposalFeed::dataReady, this, &ProposalList::updateProposalList);
         updateProposalList();
     }
+    connect(clientModel, &ClientModel::numBlocksChanged, this, &ProposalList::updateVotingDeadline);
+    connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &ProposalList::updateVotingDeadline);
     connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &ProposalList::updateInfoTooltip);
     connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &ProposalList::updateProposalButtons);
     connect(clientModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ProposalList::updateDisplayUnit);
@@ -181,7 +195,9 @@ std::vector<Governance::Object> ProposalList::getWalletProposals(std::optional<b
 
 void ProposalList::setWalletModel(WalletModel* model)
 {
+    if (walletModel) disconnect(walletModel, nullptr, this, nullptr);
     this->walletModel = model;
+    updateProposalList();
     if (!walletModel || !clientModel) {
         return;
     }
@@ -267,11 +283,41 @@ void ProposalList::updateProposalList()
     setProposalList(std::move(ret));
 }
 
+std::vector<ProposalVoter> ProposalList::proposalVoters(const Proposal& proposal) const
+{
+    std::vector<ProposalVoter> voters;
+    const auto data_mn = m_feed_masternode ? m_feed_masternode->data() : nullptr;
+    if (!data_mn || !data_mn->m_valid) return voters;
+    for (const auto& entry : data_mn->m_entries) {
+        if (entry->isBanned() || !votableMasternodes.count(entry->proTxHashRaw())) continue;
+        const auto vote = proposal.fundingVote(entry->collateralOutpointRaw());
+        voters.push_back({entry->proTxHashRaw(), entry->service(), entry->votingAddress(),
+                          GetMnType(entry->type()).voting_weight,
+                          vote ? vote->GetOutcome() : VOTE_OUTCOME_NONE, vote ? vote->GetTimestamp() : 0});
+    }
+    std::sort(voters.begin(), voters.end(), [](const auto& a, const auto& b) { return a.pro_tx_hash < b.pro_tx_hash; });
+    return voters;
+}
+
 void ProposalList::setProposalList(ProposalData&& data)
 {
+    Uint256HashMap<std::pair<QString, QString>> wallet_votes;
+    for (const auto& proposal : data.m_proposals) {
+        const auto voters = proposalVoters(*proposal);
+        QStringList details;
+        details << tr("Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.");
+        for (const auto& voter : voters) {
+            details << tr("%1: %2 (weight %3)").arg(QString::fromStdString(voter.pro_tx_hash.ToString()),
+                                                ProposalVoteOutcome(voter.outcome)).arg(voter.weight);
+        }
+        wallet_votes.emplace(proposal->objHash(), std::make_pair(voters.empty() ? tr("No voting keys") : ProposalVoteSummary(voters), details.join("\n")));
+    }
+    proposalModel->setWalletVotes(std::move(wallet_votes));
+    ui->govTableView->setColumnHidden(ProposalModel::Column::MY_VOTES, !walletModel);
     proposalModel->setVotingParams(data.m_abs_vote_req);
     proposalModel->reconcile(std::move(data.m_proposals), std::move(data.m_fundable_hashes));
     m_gov_info = std::move(data.m_gov_info);
+    updateVotingDeadline();
     updateInfoTooltip();
     updateProposalButtons();
 }
@@ -358,7 +404,9 @@ void ProposalList::showProposalContextMenu(const QPoint& pos)
     }
 
     // Add voting options if wallet is available and has voting capability
-    if (walletModel && canVote()) {
+    ui->govTableView->selectRow(index.row());
+    if (clientModel && walletModel && canVote() && proposal->isBroadcast() &&
+        clientModel->masternodeSync().isGovernanceSynced()) {
         proposalContextMenu->addSeparator();
         proposalContextMenu->addAction(tr("Vote Yes"), this, &ProposalList::voteYes);
         proposalContextMenu->addAction(tr("Vote No"), this, &ProposalList::voteNo);
@@ -435,8 +483,28 @@ void ProposalList::updateInfoTooltip()
     ui->btnInfoView->setToolTip(QString("<nobr>%1</nobr><br><nobr>%2</nobr><br><nobr>%3</nobr>").arg(tooltip1).arg(tooltip2).arg(tooltip3));
 }
 
+void ProposalList::updateVotingDeadline()
+{
+    if (!clientModel || !clientModel->masternodeSync().isBlockchainSynced() ||
+        !clientModel->masternodeSync().isGovernanceSynced() || m_gov_info.superblockcycle <= 0) {
+        ui->votingDeadline->setText(tr("Voting deadline: waiting for sync…"));
+        return;
+    }
+    const int height = clientModel->getNumBlocks();
+    // A block notification can precede the next proposal feed snapshot.
+    const int next_superblock = (height / m_gov_info.superblockcycle + 1) * m_gov_info.superblockcycle;
+    ui->votingDeadline->setText(ProposalVotingDeadline(height, next_superblock - m_gov_info.superblockmaturitywindow,
+                                                     m_gov_info.targetSpacing));
+    ui->votingDeadline->setToolTip(tr("Estimated from the remaining blocks and target block time. "
+                                     "Votes can still be relayed after the deadline, but may not affect this cycle's payment."));
+}
+
 void ProposalList::updateProposalButtons()
 {
+    const auto selection = ui->govTableView->selectionModel()->selectedRows();
+    const auto* selected = selection.isEmpty() ? nullptr : proposalModel->getProposalAt(proposalModelProxy->mapToSource(selection.first()));
+    ui->btnVote->setEnabled(clientModel && clientModel->masternodeSync().isGovernanceSynced() && walletModel && canVote() &&
+                           selected && selected->isBroadcast());
     if (!clientModel || !clientModel->masternodeSync().isGovernanceSynced()) {
         const QString tooltip = tr("Cannot interact with governance before sync completes");
         ui->btnCreateProposal->setEnabled(false);
@@ -538,12 +606,12 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
         return;
     }
 
-    if (!m_feed_masternode) {
+    if (!clientModel || !m_feed_masternode) {
         QMessageBox::warning(this, tr("Voting Failed"), tr("Unable to fetch masternode data."));
         return;
     }
 
-    const auto data_mn = m_feed_masternode->data();
+    auto data_mn = m_feed_masternode->data();
     if (!data_mn || !data_mn->m_valid) {
         QMessageBox::warning(this, tr("Voting Failed"), tr("Unable to fetch masternode data."));
         return;
@@ -560,7 +628,22 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
     const auto proposal = proposalModel->getProposalAt(proposalModelProxy->mapToSource(index));
     if (!proposal) return;
 
-    const uint256 proposalHash(uint256S(proposal->hash().toStdString()));
+    if (!proposal->isBroadcast() || !clientModel->masternodeSync().isGovernanceSynced()) {
+        QMessageBox::warning(this, tr("Voting Failed"), tr("Voting requires a broadcast proposal and a synced node."));
+        return;
+    }
+    const uint256 proposalHash = proposal->objHash();
+    ProposalVoteDialog dialog(proposal->title(), ui->votingDeadline->text(), proposalVoters(*proposal), outcome, this);
+    connect(clientModel, &ClientModel::numBlocksChanged, &dialog, [this, &dialog] {
+        dialog.setDeadline(ui->votingDeadline->text());
+    });
+    connect(clientModel, &ClientModel::additionalDataSyncProgressChanged, &dialog, [this, &dialog] {
+        dialog.setDeadline(ui->votingDeadline->text());
+    });
+    if (dialog.exec() != QDialog::Accepted || !clientModel || !walletModel) return;
+    const auto selected_masternodes = dialog.selectedMasternodes();
+    if (selected_masternodes.empty()) return;
+    outcome = dialog.outcome();
 
     // Request unlock if needed and keep context alive for the voting operation
     WalletModel::UnlockContext ctx(walletModel->requestUnlock());
@@ -574,8 +657,21 @@ void ProposalList::voteForProposal(vote_outcome_enum_t outcome)
     int nFailed = 0;
     QStringList failedMessages;
 
-    // Vote with each masternode
-    for (const auto& [proTxHash, votingKeyID] : votableMasternodes) {
+    // Refresh eligibility after the selection and unlock dialogs, which run nested event loops.
+    updateProposalList();
+    data_mn = m_feed_masternode ? m_feed_masternode->data() : nullptr;
+    if (!clientModel || !data_mn || !data_mn->m_valid || !clientModel->masternodeSync().isGovernanceSynced()) {
+        QMessageBox::warning(this, tr("Voting Failed"), tr("Unable to fetch synced masternode data."));
+        return;
+    }
+    for (const auto& proTxHash : selected_masternodes) {
+        const auto key = votableMasternodes.find(proTxHash);
+        if (key == votableMasternodes.end()) {
+            nFailed++;
+            failedMessages.append(tr("Masternode %1 is no longer eligible").arg(QString::fromStdString(proTxHash.ToString())));
+            continue;
+        }
+        const auto& votingKeyID = key->second;
         // Find the masternode
         QString protx_hash{QString::fromStdString(proTxHash.ToString())};
         const auto dmn = [&]() -> const std::shared_ptr<MasternodeEntry> {
@@ -664,6 +760,7 @@ void ProposalList::refreshColumnWidths()
     header->setSectionResizeMode(ProposalModel::Column::START_DATE, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::END_DATE, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::VOTING_STATUS, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(ProposalModel::Column::MY_VOTES, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::HASH, QHeaderView::ResizeToContents);
 
     // Calculate width used by ResizeToContents columns
@@ -680,7 +777,7 @@ void ProposalList::refreshColumnWidths()
     // Hash gets what's left after Title takes its minimum, clamped to [0, hashContentWidth]
     const int hashContentWidth = header->sectionSize(ProposalModel::Column::HASH);
     const int hashWidth = std::clamp<int>(availableWidth - TITLE_MIN_WIDTH, 0, hashContentWidth);
-    const int titleWidth = availableWidth - hashWidth;
+    const int titleWidth = std::max(TITLE_MIN_WIDTH, availableWidth - hashWidth);
     header->setSectionResizeMode(ProposalModel::Column::TITLE, QHeaderView::Interactive);
     header->setSectionResizeMode(ProposalModel::Column::HASH, QHeaderView::Interactive);
     header->resizeSection(ProposalModel::Column::TITLE, titleWidth);
