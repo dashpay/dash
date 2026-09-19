@@ -201,6 +201,34 @@ source-history work, not only conflict resolution.
   that textually resembles Bitcoin Core can still fail to compile or lose Dash
   behavior if Dash-only overloads, helpers, or wallet paths are removed.
 
+### Upstream features Dash never adopts
+
+The following Bitcoin Core features are permanently absent from Dash Core.
+Their absence is a design decision, not a pending or partial backport. Do not
+flag missing hunks, tests, RPC fields, or options that exist only to serve
+them, do not open follow-ups to add them, and do not describe a backport as
+"partial" solely because it omits them. Drop such hunks silently and mention
+the omission in one line only if the upstream commit is otherwise unclear.
+
+- SegWit itself: witness data and its serialization, weight units and
+  `-blockmaxweight`, `NODE_WITNESS`, wtxid-based relay (BIP 339), P2WPKH and
+  P2WSH outputs, `wpkh()`/`wsh()` descriptors, BIP 49/84 derivation paths.
+  Taproot is a separate matter: BIP 143 signature hashing, BIP 340/341/342,
+  P2TR outputs, tapscript, `tr()` descriptors, bech32m payment addresses may
+  be adopted together as one future project. Until that lands, treat them as
+  temporarily absent or incomplete.
+- Replace-by-fee (BIP 125) and everything built on it: `replaceable` flags,
+  `-walletrbf`, `-mempoolfullrbf`, `bumpfee`/`psbtbumpfee`, mempool
+  replacement policy, v3/TRUC transactions, ephemeral anchors. Dash mempool
+  conflicts are rejected outright.
+- `feefilter` (BIP 133). The message slot exists in `src/net.cpp` only so the
+  message table stays aligned with upstream.
+- Signet.
+
+If a backport touches one of these areas, keep the surrounding upstream
+structure and remove only the feature-specific lines, so later backports still
+apply cleanly.
+
 ## Dash-Specific Review Hotspots
 
 Be extra careful around:
