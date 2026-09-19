@@ -48,6 +48,8 @@ public:
     // static because also called from sendcoinsdialog
     static void updateLabels(wallet::CCoinControl& m_coin_control, WalletModel*, QDialog*);
 
+    void refreshLabels();
+
     static QList<CAmount> payAmounts;
     static bool fSubtractFeeFromAmount;
 
