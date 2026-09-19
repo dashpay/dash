@@ -888,8 +888,9 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
 
         if (opt_cbTx.has_value()) {
             if (!CheckCreditPoolDiffForBlock(block, pindex, *opt_cbTx, blockSubsidy, state)) {
-                return error("CSpecialTxProcessor: CheckCreditPoolDiffForBlock for block %s failed with %s",
-                             pindex->GetBlockHash().ToString(), state.ToString());
+                LogError("CSpecialTxProcessor: CheckCreditPoolDiffForBlock for block %s failed with %s\n",
+                         pindex->GetBlockHash().ToString(), state.ToString());
+                return false;
             }
         }
 
@@ -1032,7 +1033,8 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
     } catch (const std::exception& e) {
         bls::bls_legacy_scheme.store(bls_legacy_scheme);
         LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
-        return error(strprintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what()).c_str());
+        LogError("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
+        return false;
     }
 
     return true;

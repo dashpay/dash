@@ -326,12 +326,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->nTx            = diskindex.nTx;
 
                 if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams)) {
-                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
+                    LogError("%s: CheckProofOfWork failed: %s\n", __func__, pindexNew->ToString());
+                    return false;
                 }
 
                 pcursor->Next();
             } else {
-                return error("%s: failed to read value", __func__);
+                LogError("%s: failed to read value\n", __func__);
+                return false;
             }
         } else {
             break;
@@ -468,7 +470,8 @@ static bool FinalizeMigration(CDBWrapper& target_db, const uint256& best_block_h
         CDBBatch best_block_batch(target_db);
         best_block_batch.Write(DB_BEST_BLOCK, locator);
         if (!target_db.WriteBatch(best_block_batch, true)) {
-            return error("%s: Failed to write best block for %s", __func__, index_name);
+            LogError("%s: Failed to write best block for %s\n", __func__, index_name);
+            return false;
         }
         LogPrintf("Set %s best block to %s\n", index_name, best_block_hash.ToString());
     }
@@ -544,7 +547,10 @@ bool CBlockTreeDB::MigrateOldIndexData()
     // so the next start can resume.
     auto handle_count = [](int64_t count, const char* index_name, const char* func_name,
                            bool was_current, size_t& total) -> bool {
-        if (count < 0) return error("%s: Failed to migrate %s", func_name, index_name);
+        if (count < 0) {
+            LogError("%s: Failed to migrate %s\n", func_name, index_name);
+            return false;
+        }
         if (count > 0) {
             LogPrintf("%s %d %s entries\n",
                       was_current ? "Migrated" : "Discarded stale", count, index_name);

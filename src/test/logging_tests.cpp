@@ -2,9 +2,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <flat-database.h>
 #include <init/common.h>
 #include <logging.h>
 #include <logging/timer.h>
+#include <netfulfilledman.h>
 #include <test/util/setup_common.h>
 #include <util/string.h>
 
@@ -151,6 +153,33 @@ BOOST_FIXTURE_TEST_CASE(logging_LogPrintMacros, LogSetup)
         "[error] foo10: bar10",
     };
     BOOST_CHECK_EQUAL_COLLECTIONS(log_lines.begin(), log_lines.end(), expected.begin(), expected.end());
+}
+
+BOOST_FIXTURE_TEST_CASE(logging_flat_database_failure, LogSetup)
+{
+    LogInstance().m_log_sourcelocations = true;
+    CFlatDB<NetFulfilledRequestStore> db{"missing/fulfilled.dat", "magic"};
+    BOOST_REQUIRE(!fs::exists(gArgs.GetDataDirNet() / "missing"));
+    BOOST_CHECK(!db.Store(NetFulfilledRequestStore{}));
+    LogInfo("After flat database failure\n");
+
+    std::ifstream file{tmp_log_path};
+    bool found_error{false};
+    bool found_followup{false};
+    for (std::string log; std::getline(file, log);) {
+        if (log.find("Failed to open file") != std::string::npos) {
+            BOOST_CHECK(log.find("flat-database.h:") != std::string::npos);
+            BOOST_CHECK(log.find("[CoreWrite] [error] CoreWrite: Failed to open file") != std::string::npos);
+            BOOST_CHECK(log.find("dump finished") == std::string::npos);
+            found_error = true;
+        }
+        if (log.find("After flat database failure") != std::string::npos) {
+            BOOST_CHECK(log.find("logging_tests.cpp:") != std::string::npos);
+            found_followup = true;
+        }
+    }
+    BOOST_CHECK(found_error);
+    BOOST_CHECK(found_followup);
 }
 
 BOOST_FIXTURE_TEST_CASE(logging_LogPrintMacros_CategoryName, LogSetup)

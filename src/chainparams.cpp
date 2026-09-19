@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <ranges>
+#include <stdexcept>
 
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
@@ -102,8 +103,9 @@ static CBlock FindDevNetGenesisBlock(const CBlock &prevBlock, const CAmount& rew
 
     // This is very unlikely to happen as we start the devnet with a very low difficulty. In many cases even the first
     // iteration of the above loop will give a result already
-    error("FindDevNetGenesisBlock: could not find devnet genesis block for %s", devNetName);
+    LogError("FindDevNetGenesisBlock: could not find devnet genesis block for %s\n", devNetName);
     assert(false);
+    throw std::runtime_error(strprintf("FindDevNetGenesisBlock: could not find devnet genesis block for %s", devNetName));
 }
 
 bool CChainParams::IsValidMNActivation(int nBit, int64_t timePast) const
@@ -138,7 +140,7 @@ void CChainParams::AddLLMQ(Consensus::LLMQType llmqType)
             return;
         }
     }
-    error("CChainParams::%s: unknown LLMQ type %d", __func__, static_cast<uint8_t>(llmqType));
+    LogError("CChainParams::%s: unknown LLMQ type %d\n", __func__, static_cast<uint8_t>(llmqType));
     assert(false);
 }
 

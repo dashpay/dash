@@ -50,13 +50,6 @@ extern const char * const BITCOIN_SETTINGS_FILENAME;
 void SetupEnvironment();
 [[nodiscard]] bool SetupNetworking();
 
-template<typename... Args>
-bool error(const char* fmt, const Args&... args)
-{
-    LogPrintf("ERROR: %s\n", SafeStringFormat(fmt, args...));
-    return false;
-}
-
 void PrintExceptionContinue(const std::exception_ptr pex, std::string_view thread_name);
 
 // Return true if -datadir option points to a valid directory or is not specified.

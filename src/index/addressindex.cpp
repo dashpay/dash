@@ -70,7 +70,8 @@ bool AddressIndex::DB::ReadAddressIndex(const uint160& address_hash, const Addre
                 entries.emplace_back(key.second, value);
                 pcursor->Next();
             } else {
-                return error("failed to get address index value");
+                LogError("failed to get address index value\n");
+                return false;
             }
         } else {
             break;
@@ -96,7 +97,8 @@ bool AddressIndex::DB::ReadAddressUnspentIndex(const uint160& address_hash, cons
                 entries.emplace_back(key.second, value);
                 pcursor->Next();
             } else {
-                return error("failed to get address unspent value");
+                LogError("failed to get address unspent value\n");
+                return false;
             }
         } else {
             break;
@@ -181,8 +183,9 @@ bool AddressIndex::CustomAppend(const interfaces::BlockInfo& block)
     // Read undo data for this block to get information about spent outputs
     CBlockUndo blockundo;
     if (!node::UndoReadFromDisk(blockundo, pindex)) {
-        return error("%s: Failed to read undo data for block %s at height %d", __func__,
-                     block.hash.ToString(), block.height);
+        LogError("%s: Failed to read undo data for block %s at height %d\n", __func__,
+                 block.hash.ToString(), block.height);
+        return false;
     }
 
     std::vector<CAddressIndexEntry> addressIndex;
@@ -191,8 +194,9 @@ bool AddressIndex::CustomAppend(const interfaces::BlockInfo& block)
     // Process each non-coinbase transaction
     // blockundo.vtxundo[i] corresponds to block.vtx[i+1] (coinbase is skipped in undo data)
     if (blockundo.vtxundo.size() != block.data->vtx.size() - 1) {
-        return error("%s: Undo data size mismatch for block %s (expected %zu, got %zu)", __func__,
-                     block.hash.ToString(), block.data->vtx.size() - 1, blockundo.vtxundo.size());
+        LogError("%s: Undo data size mismatch for block %s (expected %zu, got %zu)\n", __func__,
+                 block.hash.ToString(), block.data->vtx.size() - 1, blockundo.vtxundo.size());
+        return false;
     }
 
     for (size_t i = 0; i < blockundo.vtxundo.size(); i++) {
@@ -202,7 +206,8 @@ bool AddressIndex::CustomAppend(const interfaces::BlockInfo& block)
 
         // Verify undo data matches transaction
         if (tx->vin.size() != txundo.vprevout.size()) {
-            return error("%s: Undo data mismatch for tx %s", __func__, txhash.ToString());
+            LogError("%s: Undo data mismatch for tx %s\n", __func__, txhash.ToString());
+            return false;
         }
 
         // Process inputs (spending activity)
@@ -283,14 +288,16 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
     for (const CBlockIndex* pindex = current_tip_index; pindex != new_tip_index; pindex = pindex->pprev) {
         CBlock block;
         if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
-            return error("%s: Failed to read block %s from disk during rewind", __func__,
-                         pindex->GetBlockHash().ToString());
+            LogError("%s: Failed to read block %s from disk during rewind\n", __func__,
+                     pindex->GetBlockHash().ToString());
+            return false;
         }
 
         CBlockUndo blockundo;
         if (pindex->nHeight > 0 && !node::UndoReadFromDisk(blockundo, pindex)) {
-            return error("%s: Failed to read undo data for block %s during rewind", __func__,
-                         pindex->GetBlockHash().ToString());
+            LogError("%s: Failed to read undo data for block %s during rewind\n", __func__,
+                     pindex->GetBlockHash().ToString());
+            return false;
         }
 
         std::vector<CAddressIndexEntry> addressIndex;
@@ -301,8 +308,9 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
         // reverse order ensures spends are undone before outputs, preventing phantom UTXOs.
         // blockundo.vtxundo[i] corresponds to block.vtx[i+1] (coinbase skipped)
         if (blockundo.vtxundo.size() != block.vtx.size() - 1) {
-            return error("%s: Undo data size mismatch for block %s (expected %zu, got %zu)", __func__,
-                         pindex->GetBlockHash().ToString(), block.vtx.size() - 1, blockundo.vtxundo.size());
+            LogError("%s: Undo data size mismatch for block %s (expected %zu, got %zu)\n", __func__,
+                     pindex->GetBlockHash().ToString(), block.vtx.size() - 1, blockundo.vtxundo.size());
+            return false;
         }
 
         for (size_t i = blockundo.vtxundo.size(); i > 0; --i) {
@@ -334,7 +342,8 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
 
             // Undo inputs (restore to unspent index, remove spending from history)
             if (tx->vin.size() != txundo.vprevout.size()) {
-                return error("%s: Undo data mismatch for tx %s", __func__, txhash.ToString());
+                LogError("%s: Undo data mismatch for tx %s\n", __func__, txhash.ToString());
+                return false;
             }
 
             for (size_t j = 0; j < tx->vin.size(); j++) {
@@ -390,7 +399,8 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
 
         // Apply both rewind updates in a single batch to avoid leaving the index half-rewound.
         if (!m_db->RewindBatch(addressIndex, addressUnspentIndex)) {
-            return error("%s: Failed to apply address index rewind batch", __func__);
+            LogError("%s: Failed to apply address index rewind batch\n", __func__);
+            return false;
         }
     }
 

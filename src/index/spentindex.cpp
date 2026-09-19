@@ -74,8 +74,9 @@ bool SpentIndex::CustomAppend(const interfaces::BlockInfo& block)
     // Read undo data for this block to get information about spent outputs
     CBlockUndo blockundo;
     if (!node::UndoReadFromDisk(blockundo, pindex)) {
-        return error("%s: Failed to read undo data for block %s at height %d", __func__,
-                     block.hash.ToString(), block.height);
+        LogError("%s: Failed to read undo data for block %s at height %d\n", __func__,
+                 block.hash.ToString(), block.height);
+        return false;
     }
 
     std::vector<CSpentIndexEntry> entries;
@@ -83,8 +84,9 @@ bool SpentIndex::CustomAppend(const interfaces::BlockInfo& block)
     // Process each non-coinbase transaction
     // blockundo.vtxundo[i] corresponds to block.vtx[i+1] (coinbase is skipped in undo data)
     if (blockundo.vtxundo.size() != block.data->vtx.size() - 1) {
-        return error("%s: Undo data size mismatch for block %s (expected %zu, got %zu)", __func__,
-                     block.hash.ToString(), block.data->vtx.size() - 1, blockundo.vtxundo.size());
+        LogError("%s: Undo data size mismatch for block %s (expected %zu, got %zu)\n", __func__,
+                 block.hash.ToString(), block.data->vtx.size() - 1, blockundo.vtxundo.size());
+        return false;
     }
 
     for (size_t i = 0; i < blockundo.vtxundo.size(); i++) {
@@ -94,7 +96,8 @@ bool SpentIndex::CustomAppend(const interfaces::BlockInfo& block)
 
         // Process each input
         if (tx->vin.size() != txundo.vprevout.size()) {
-            return error("%s: Undo data mismatch for tx %s", __func__, txhash.ToString());
+            LogError("%s: Undo data mismatch for tx %s\n", __func__, txhash.ToString());
+            return false;
         }
 
         for (size_t j = 0; j < tx->vin.size(); j++) {
@@ -131,8 +134,9 @@ bool SpentIndex::CustomRewind(const interfaces::BlockKey& current_tip, const int
         // Read block to get transactions
         CBlock block;
         if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
-            return error("%s: Failed to read block %s from disk during rewind", __func__,
-                         pindex->GetBlockHash().ToString());
+            LogError("%s: Failed to read block %s from disk during rewind\n", __func__,
+                     pindex->GetBlockHash().ToString());
+            return false;
         }
 
         std::vector<CSpentIndexKey> keys_to_erase;
@@ -149,7 +153,8 @@ bool SpentIndex::CustomRewind(const interfaces::BlockKey& current_tip, const int
         }
 
         if (!keys_to_erase.empty() && !m_db->EraseSpentIndex(keys_to_erase)) {
-            return error("%s: Failed to erase spent index during rewind", __func__);
+            LogError("%s: Failed to erase spent index during rewind\n", __func__);
+            return false;
         }
     }
 

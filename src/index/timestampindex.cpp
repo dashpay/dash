@@ -79,8 +79,9 @@ bool TimestampIndex::CustomRewind(const interfaces::BlockKey& current_tip, const
 
         CTimestampIndexKey key(pindex->nTime, pindex->GetBlockHash());
         if (!m_db->EraseTimestampIndex(key)) {
-            return error("%s: Failed to erase timestamp index for block %s during rewind", __func__,
-                         pindex->GetBlockHash().ToString());
+            LogError("%s: Failed to erase timestamp index for block %s during rewind\n", __func__,
+                     pindex->GetBlockHash().ToString());
+            return false;
         }
     }
 

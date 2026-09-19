@@ -135,11 +135,13 @@ bool BlockFilterIndex::CustomInit(const std::optional<interfaces::BlockKey>& blo
     int version = 0;
     if (m_db->Exists(DB_VERSION)) {
         if (!m_db->Read(DB_VERSION, version)) {
-            return error("%s: Failed to read %s index version from database", __func__, GetName());
+            LogError("%s: Failed to read %s index version from database\n", __func__, GetName());
+            return false;
         }
         if (version > CURRENT_VERSION) {
-            return error("%s: %s index version %d is too high (expected <= %d)",
-                        __func__, GetName(), version, CURRENT_VERSION);
+            LogError("%s: %s index version %d is too high (expected <= %d)\n",
+                    __func__, GetName(), version, CURRENT_VERSION);
+            return false;
         }
     }
 
@@ -491,8 +493,9 @@ bool BlockFilterIndex::LookupFilterRange(int start_height, const CBlockIndex* st
             file = std::make_unique<AutoFile>(m_filter_fileseq->Open(entry.pos, true));
             file_num = entry.pos.nFile;
         } else if (fseek(file->Get(), entry.pos.nPos, SEEK_SET) != 0) {
-            return error("%s: unable to seek to position %u in filter file %d",
-                         __func__, entry.pos.nPos, entry.pos.nFile);
+            LogError("%s: unable to seek to position %u in filter file %d\n",
+                     __func__, entry.pos.nPos, entry.pos.nFile);
+            return false;
         }
         if (file->IsNull() || !ReadFilterFromFile(*file, entry.hash, *filter_pos_it)) {
             return false;
