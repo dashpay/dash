@@ -48,8 +48,18 @@ class SignRawTransactionWithKeyTest(BitcoinTestFramework):
         # 2) No script verification error occurred
         assert 'errors' not in rawTxSigned
 
+    def invalid_private_key_and_tx(self):
+        self.log.info("Test signing transaction with an invalid private key")
+        tx = self.nodes[0].createrawtransaction(INPUTS, OUTPUTS)
+        privkeys = ["123"]
+        assert_raises_rpc_error(-5, "Invalid private key", self.nodes[0].signrawtransactionwithkey, tx, privkeys)
+        self.log.info("Test signing transaction with an invalid tx hex")
+        privkeys = [self.nodes[0].get_deterministic_priv_key().key]
+        assert_raises_rpc_error(-22, "TX decode failed. Make sure the tx has at least one input.", self.nodes[0].signrawtransactionwithkey, tx + "00", privkeys)
+
     def run_test(self):
         self.successful_signing_test()
+        self.invalid_private_key_and_tx()
 
 
 if __name__ == '__main__':
