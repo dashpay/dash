@@ -5,6 +5,7 @@
              ((gnu packages certs) #:select (nss-certs))
              ((gnu packages check) #:select (libfaketime))
              ((gnu packages cmake) #:select (cmake-minimal))
+             ((gnu packages elf) #:select (patchelf))
              (gnu packages commencement)
              (gnu packages compression)
              (gnu packages cross-base)
@@ -534,6 +535,8 @@ inspecting signatures in Mach-O binaries.")
         autoconf-2.71
         automake
         pkg-config
+        patchelf
+        zlib
         ;; Scripting
         python-minimal ;; (3.10)
         ;; Git

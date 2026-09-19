@@ -23,6 +23,26 @@ private:
     bool fAllowURI;
 };
 
+/** Recipient entry validator that also permits DashPay username candidates.
+ *
+ * This only controls which characters may be entered. A username is not a
+ * payment destination until it has been proof-resolved and replaced with a
+ * valid Dash address; BitcoinAddressCheckValidator remains responsible for
+ * that final check.
+ */
+class DashPayRecipientEntryValidator : public QValidator
+{
+    Q_OBJECT
+
+public:
+    explicit DashPayRecipientEntryValidator(QObject* parent, bool allow_uri = false);
+
+    State validate(QString& input, int& pos) const override;
+
+private:
+    BitcoinAddressEntryValidator m_address_validator;
+};
+
 /** Bitcoin address widget validator, checks for a valid bitcoin address.
  */
 class BitcoinAddressCheckValidator : public QValidator

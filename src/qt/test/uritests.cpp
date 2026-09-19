@@ -4,6 +4,7 @@
 
 #include <qt/test/uritests.h>
 
+#include <qt/bitcoinaddressvalidator.h>
 #include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 
@@ -11,6 +12,21 @@
 
 void URITests::uriTests()
 {
+    DashPayRecipientEntryValidator recipient_validator{nullptr, true};
+    int cursor_pos{0};
+    QString username{"uxalpha7c9"};
+    QCOMPARE(recipient_validator.validate(username, cursor_pos), QValidator::Acceptable);
+    QCOMPARE(username, QString{"uxalpha7c9"});
+    for (const QString& candidate : {QString{"label0"}, QString{"nameOIL"}, QString{"dash-pay"}}) {
+        QString editable{candidate};
+        QCOMPARE(recipient_validator.validate(editable, cursor_pos), QValidator::Acceptable);
+        QCOMPARE(editable, candidate);
+    }
+    QString trailing_hyphen{"dash-"};
+    QCOMPARE(recipient_validator.validate(trailing_hyphen, cursor_pos), QValidator::Intermediate);
+    QString invalid_username{"dash_pay"};
+    QCOMPARE(recipient_validator.validate(invalid_username, cursor_pos), QValidator::Invalid);
+
     SendCoinsRecipient rv;
     QUrl uri;
     uri.setUrl(QString("dash:XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg?req-dontexist="));

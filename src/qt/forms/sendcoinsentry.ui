@@ -55,6 +55,28 @@
       </widget>
     </item>
     <item>
+      <widget class="QToolButton" name="contactsButton">
+      <property name="visible">
+        <bool>false</bool>
+      </property>
+      <property name="toolTip">
+        <string>Choose a DashPay contact to pay</string>
+      </property>
+      <property name="text">
+        <string/>
+      </property>
+      <property name="iconSize">
+        <size>
+        <width>22</width>
+        <height>22</height>
+        </size>
+      </property>
+      <property name="shortcut">
+        <string>Alt+C</string>
+      </property>
+      </widget>
+    </item>
+    <item>
       <widget class="QToolButton" name="addressBookButton">
       <property name="toolTip">
         <string>Choose previously used address</string>
