@@ -19,6 +19,7 @@
 #include <optional>
 #include <stdint.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -518,6 +519,29 @@ public:
         return retval;
     }
 
+    size_t size() const
+    {
+        if (!file) throw std::ios_base::failure("AutoFile::size: file handle is nullptr");
+#ifdef WIN32
+        const auto position{_ftelli64(file)};
+        struct _stat64 file_stat;
+        if (position < 0 || _fstat64(_fileno(file), &file_stat) != 0) {
+#else
+        const auto position{ftello(file)};
+        struct stat file_stat;
+        if (position < 0 || fstat(fileno(file), &file_stat) != 0) {
+#endif
+            throw std::ios_base::failure("AutoFile::size: failed to inspect file");
+        }
+        if (file_stat.st_size < position) {
+            throw std::ios_base::failure("AutoFile::size: position exceeds file size");
+        }
+        const uint64_t remaining{static_cast<uint64_t>(file_stat.st_size - position)};
+        if (remaining > std::numeric_limits<size_t>::max()) {
+            throw std::ios_base::failure("AutoFile::size: remaining size does not fit size_t");
+        }
+        return static_cast<size_t>(remaining);
+    }
     /** Get wrapped FILE* with transfer of ownership.
      * @note This will invalidate the AutoFile object, and makes it the responsibility of the caller
      * of this function to clean up the returned FILE*.
