@@ -240,10 +240,18 @@ BOOST_AUTO_TEST_CASE(snapshot_markers_can_be_discarded)
             auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
             db.WriteSnapshotBaseMNListHash(BlockHash(4));
             db.WriteBackgroundMNListHash(BlockHash(40), BlockHash(4));
+            db.Write(EVODB_SNAPSHOT_EVO_SECTION, BlockHash(44));
             db.WriteDualChainstateMarker();
             tx->Commit();
         }
         BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        {
+            auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+            db.WriteRequiredWorkMNListHashes({BlockHash(30), BlockHash(35)});
+            db.WriteBackgroundWorkMNListHash(BlockHash(30), BlockHash(3));
+            tx->Commit();
+        }
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
         BOOST_REQUIRE(db.HasDualChainstateMarker());
 
         // Abandoning snapshot activation after the markers were committed must
@@ -264,6 +272,10 @@ BOOST_AUTO_TEST_CASE(snapshot_markers_can_be_discarded)
     BOOST_CHECK(!reopened.ReadSnapshotBaseMNListHash(hash));
     BOOST_CHECK(!reopened.ReadBackgroundMNListHash(hash, hash2));
     BOOST_CHECK(!reopened.HasDualChainstateMarker());
+    std::vector<uint256> required;
+    BOOST_CHECK(!reopened.ReadRequiredWorkMNListHashes(required));
+    BOOST_CHECK(!reopened.ReadBackgroundWorkMNListHash(BlockHash(30), hash));
+    BOOST_CHECK(!reopened.Exists(EVODB_SNAPSHOT_EVO_SECTION));
 }
 
 BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)

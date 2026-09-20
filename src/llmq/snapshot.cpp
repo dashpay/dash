@@ -12,6 +12,8 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <node/blockstorage.h>
+#include <shutdown.h>
+#include <util/check.h>
 #include <validation.h>
 
 #include <univalue.h>
@@ -321,10 +323,50 @@ void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llm
 {
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
 
-    // LOCK(::cs_main);
-    AssertLockNotHeld(m_evoDb.cs);
-    LOCK2(snapshotCacheCs, m_evoDb.cs);
-    m_evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
+        // A mismatch is local EvoDB corruption, not a statement about the
+        // block. Abort here like the credit pool does: quorum members are also
+        // computed outside the block-connect catches (DKG, RPC), and those
+        // catches must not translate this into a consensus rejection.
+        const std::string msg = strprintf("CQuorumSnapshotManager::%s -- EvoDB quorum snapshot mismatch for block %s",
+                                          __func__, pindex->GetBlockHash().ToString());
+        AbortNode(msg);
+        throw EvoDbInconsistencyError(msg);
+    }
+    LOCK(snapshotCacheCs);
     quorumSnapshotCache.insert(snapshotHash, snapshot);
+}
+
+bool CQuorumSnapshotManager::SeedSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex,
+                                                   const CQuorumSnapshot& snapshot)
+{
+    if (!Assume(pindex != nullptr)) return false;
+    const auto snapshot_hash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
+    return m_evoDb.WriteDerived(std::make_pair(DB_QUORUM_SNAPSHOT, snapshot_hash), snapshot);
+}
+
+bool CQuorumSnapshotManager::SeedQuorumModifier(Consensus::LLMQType llmq_type,
+                                                const uint256& work_block_hash,
+                                                const uint256& modifier)
+{
+    return m_evoDb.WriteDerived(std::make_tuple(std::string_view{"llmq_M3"}, llmq_type, work_block_hash), modifier);
+}
+
+std::optional<uint256> CQuorumSnapshotManager::GetSeededQuorumModifier(
+    Consensus::LLMQType llmq_type, const uint256& work_block_hash) const
+{
+    uint256 modifier;
+    if (!m_evoDb.Read(std::make_tuple(std::string_view{"llmq_M3"}, llmq_type, work_block_hash), modifier)) {
+        return std::nullopt;
+    }
+    return modifier;
+}
+
+void CQuorumSnapshotManager::InvalidateSnapshotCacheForBlock(Consensus::LLMQType llmq_type,
+                                                              const uint256& block_hash)
+{
+    const auto snapshot_hash{::SerializeHash(std::make_pair(llmq_type, block_hash))};
+    LOCK(snapshotCacheCs);
+    quorumSnapshotCache.erase(snapshot_hash);
 }
 } // namespace llmq
