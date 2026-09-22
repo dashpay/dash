@@ -24,12 +24,6 @@ git clone https://github.com/dashpay/dash.git
 
 ### 3. Install Optional Dependencies
 
-###### GMP
-
-```bash
-pkg install gmp
-```
-
 It is not necessary to build wallet functionality to run either `dashd` or `dash-qt`.
 
 ###### Descriptor Wallet Support

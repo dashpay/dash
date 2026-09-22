@@ -10,7 +10,7 @@ This guide describes how to build dashd, command-line utilities, and GUI on Open
 Run the following as root to install the base dependencies for building.
 
 ```bash
-pkg_add bash git gmake gmp libevent libtool boost
+pkg_add bash git gmake libevent libtool boost
 # Select the newest version of the following packages:
 pkg_add autoconf automake python
 

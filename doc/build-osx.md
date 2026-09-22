@@ -47,7 +47,7 @@ To install, run the following from your terminal:
 See [dependencies.md](dependencies.md) for a complete overview.
 
 ``` bash
-brew install automake libtool boost gmp pkg-config libevent
+brew install automake libtool boost pkg-config libevent
 ```
 
 ### 4. Clone Dash repository

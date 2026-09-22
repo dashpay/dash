@@ -5,27 +5,24 @@
 #ifndef SRC_LEGACY_HPP_
 #define SRC_LEGACY_HPP_
 
-#include <ios>
-
-#include "relic_conf.h"
-
-#if defined GMP && ARITH == GMP
-#include <gmp.h>
-#endif
-
 extern "C" {
-#include "relic.h"
+#include "blst.h"
 }
 
+#include <cstdint>
+
+namespace bls {
 /**
  * Maps a byte array to a point in an elliptic curve over a quadratic extension.
  *
- * Called ep2_map() in old relic version, _legacy prefix is to avoid duplicated symbols
+ * Called ep2_map() in old relic version. Now reimplemented on blst and must stay
+ * bit-for-bit compatible: pre-v19 (legacy scheme) consensus depends on it.
  *
- * @param[out] p			- the result.
- * @param[in] msg			- the byte array to map.
- * @param[in] len			- the array length in bytes.
+ * @param[out] p    - the result.
+ * @param[in] msg   - the byte array to map (must be 32 bytes).
+ * @param[in] len   - the array length in bytes (must be 32).
  */
-void ep2_map_legacy(ep2_t p, const uint8_t *msg, int len);
+void ep2_map_legacy(blst_p2 *p, const uint8_t *msg, int len);
+} // namespace bls
 
 #endif  // #define SRC_LEGACY_HPP_
