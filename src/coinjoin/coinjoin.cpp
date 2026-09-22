@@ -468,7 +468,7 @@ bool CoinJoin::IsCollateralValid(ChainstateManager& chainman, const llmq::CInsta
         nValueOut += txout.nValue;
 
         if (!txout.scriptPubKey.IsPayToPublicKeyHash() && !txout.scriptPubKey.IsUnspendable()) {
-            LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString()); /* Continued */
+            LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
             return false;
         }
     }
@@ -488,11 +488,11 @@ bool CoinJoin::IsCollateralValid(ChainstateManager& chainman, const llmq::CInsta
 
     //collateral transactions are required to pay out a small fee to the miners
     if (nValueIn - nValueOut < GetCollateralAmount()) {
-        LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- did not include enough fees in transaction: fees: %d, txCollateral=%s", nValueOut - nValueIn, txCollateral.ToString()); /* Continued */
+        LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- did not include enough fees in transaction: fees: %d, txCollateral=%s", nValueOut - nValueIn, txCollateral.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
         return false;
     }
 
-    LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- %s", txCollateral.ToString()); /* Continued */
+    LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- %s", txCollateral.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 
     if (!ATMPIfSaneFee(chainman, MakeTransactionRef(txCollateral), /*test_accept=*/true)) {
         LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- didn't pass ATMPIfSaneFee()\n");

@@ -460,7 +460,7 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
         LOCK(cs);
 
         if (alreadyRecovered) {
-            LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+            LogPrint(BCLog::LLMQ_SIGS,
                      "CSigSharesManager::%s -- dropping sigShare for recovered session. signHash=%s, id=%s, "
                      "msgHash=%s, member=%d, node=%d\n",
                      __func__, signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(),
@@ -685,7 +685,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
         std::shared_ptr<CRecoveredSig> singleMemberRecoveredSig;
         if (quorum.params.is_single_member()) {
             if (sigSharesForSignHash->empty()) {
-                LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                LogPrint(BCLog::LLMQ_SIGS,
                          "CSigSharesManager::%s -- impossible to recover single-node signature - no shares yet. id=%s, "
                          "msgHash=%s\n",
                          __func__, id.ToString(), msgHash.ToString());
@@ -810,12 +810,12 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const ui
             db.GetVoteForId(llmqType, id, prevMsgHash);
             if (msgHash != prevMsgHash) {
                 if (allowDiffMsgHashSigning) {
-                    LogPrintf("%s -- already voted for id=%s and msgHash=%s. Signing for different " /* Continued */
+                    LogPrintf("%s -- already voted for id=%s and msgHash=%s. Signing for different "
                               "msgHash=%s\n",
                               __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
                     hasVoted = false;
                 } else {
-                    LogPrintf("%s -- already voted for id=%s and msgHash=%s. Not voting on " /* Continued */
+                    LogPrintf("%s -- already voted for id=%s and msgHash=%s. Not voting on "
                               "conflicting msgHash=%s\n",
                               __func__, id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
                     return false;
@@ -1370,13 +1370,13 @@ void CSigSharesManager::Cleanup()
                     }
                 }
 
-                LogPrintLevel(BCLog::LLMQ_SIGS, BCLog::Level::Info, /* Continued */
+                LogPrintLevel(BCLog::LLMQ_SIGS, BCLog::Level::Info,
                               "CSigSharesManager::%s -- signing session timed out. signHash=%s, id=%s, msgHash=%s, "
                               "sigShareCount=%d, missingMembers=%s\n",
                               __func__, signHash.ToString(), oneSigShare.getId().ToString(),
                               oneSigShare.getMsgHash().ToString(), count, strMissingMembers);
             } else {
-                LogPrintLevel(BCLog::LLMQ_SIGS, BCLog::Level::Info, /* Continued */
+                LogPrintLevel(BCLog::LLMQ_SIGS, BCLog::Level::Info,
                               "CSigSharesManager::%s -- signing session timed out. signHash=%s, sigShareCount=%d\n",
                               __func__, signHash.ToString(), count);
             }
@@ -1550,7 +1550,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShareForSingleMember(const 
 
     sigShare.UpdateKey();
 
-    LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+    LogPrint(BCLog::LLMQ_SIGS,
              "CSigSharesManager::%s -- created sigShare. signHash=%s, id=%s, msgHash=%s, llmqType=%d, quorum=%s, "
              "time=%s\n",
              __func__, signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(),

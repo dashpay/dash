@@ -231,7 +231,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
             ::cs_main,
             return m_peer_manager->PeerConsumeObjectRequest(peer.GetId(), CInv{MSG_GOVERNANCE_OBJECT_VOTE, nHash}));
         if (!announced_or_requested) {
-            LogPrint(BCLog::GOBJECT, /* Continued */
+            LogPrint(BCLog::GOBJECT,
                      "MNGOVERNANCEOBJECTVOTE -- Received unrequested vote object: %s, hash: %s, peer = %d\n",
                      vote.ToString(tip_mn_list), strHash, peer.GetId());
             return;

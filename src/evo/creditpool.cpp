@@ -219,7 +219,7 @@ CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CB
     }
 
     if (currentLimit != 0 || latelyUnlocked > 0 || blockData.credit_pool > 0) {
-        LogPrint(BCLog::CREDITPOOL, /* Continued */
+        LogPrint(BCLog::CREDITPOOL,
                  "CCreditPoolManager: asset unlock limits on height: %d locked: %d.%08d limit: %d.%08d "
                  "unlocked-in-window: %d.%08d\n",
                  block_index->nHeight, blockData.credit_pool / COIN, blockData.credit_pool % COIN, currentLimit / COIN,

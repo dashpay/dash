@@ -252,7 +252,7 @@ bool CGovernanceManager::ProcessObject(const std::string& peer_str, const uint25
 
     bool unused_rcb;
     if (fRateCheckBypassed && fIsValid && !MasternodeRateCheck(govobj, true, true, unused_rcb)) {
-        LogPrint(BCLog::GOBJECT, /* Continued */
+        LogPrint(BCLog::GOBJECT,
                  "MNGOVERNANCEOBJECT -- masternode rate check failed (after signature verification) - %s - (current "
                  "block height %d)\n",
                  strHash, nCachedBlockHeight);

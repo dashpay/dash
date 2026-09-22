@@ -323,7 +323,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
 
     uint256 quorumHash = GetQuorumBlockHash(llmq_params, chainstate.m_chain, nHeight, qc.quorumIndex);
 
-    LogPrint(BCLog::LLMQ, /* Continued */
+    LogPrint(BCLog::LLMQ,
              "%s -- processing commitment for block height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, "
              "validMembers=%d, quorumPublicKey=%s "
              "fJustCheck[%d] processing commitment from block.\n",
@@ -336,7 +336,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     }
 
     if (quorumHash.IsNull()) {
-        LogPrint(BCLog::LLMQ, /* Continued */
+        LogPrint(BCLog::LLMQ,
                  "%s -- height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, "
                  "quorumPublicKey=%s quorumHash is null.\n",
                  __func__, nHeight, std23::to_underlying(qc.llmqType), qc.quorumIndex, quorumHash.ToString(), qc.CountSigners(),
@@ -344,7 +344,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-block");
     }
     if (quorumHash != qc.quorumHash) {
-        LogPrint(BCLog::LLMQ, /* Continued */
+        LogPrint(BCLog::LLMQ,
                  "%s -- height=%d, type=%d, quorumIndex=%d, quorumHash=%s, qc.quorumHash=%s signers=%s, "
                  "validMembers=%d, quorumPublicKey=%s non equal quorumHash.\n",
                  __func__, nHeight, std23::to_underlying(qc.llmqType), qc.quorumIndex, quorumHash.ToString(),
@@ -354,7 +354,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
 
     if (qc.IsNull()) {
         if (!qc.VerifyNull()) {
-            LogPrint(BCLog::LLMQ, /* Continued */
+            LogPrint(BCLog::LLMQ,
                      "%s -- height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%dqc "
                      "verifynull failed.\n",
                      __func__, nHeight, std23::to_underlying(qc.llmqType), qc.quorumIndex, quorumHash.ToString(),
@@ -392,7 +392,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
 
     // we don't validate signatures here; they already validated on previous step
     if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checksigs=*/false)) {
-        LogPrint(BCLog::LLMQ, /* Continued */
+        LogPrint(BCLog::LLMQ,
                  "%s -- height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, "
                  "quorumPublicKey=%s qc verify failed.\n",
                  __func__, nHeight, std23::to_underlying(qc.llmqType), qc.quorumIndex, quorumHash.ToString(), qc.CountSigners(),

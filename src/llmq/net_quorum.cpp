@@ -821,7 +821,7 @@ bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& 
                                           dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
                 }
             }
-            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
+            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str());
         }
         connman.SetMasternodeQuorumNodes(llmqParams.type, util_params.m_base_index->GetBlockHash(), connections);
     }

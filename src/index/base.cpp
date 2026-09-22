@@ -280,7 +280,7 @@ void BaseIndex::BlockConnected(const std::shared_ptr<const CBlock>& block, const
         // in the ValidationInterface queue backlog even after the sync thread has caught up to the
         // new chain tip. In this unlikely event, log a warning and let the queue clear.
         if (best_block_index->GetAncestor(pindex->nHeight - 1) != pindex->pprev) {
-            LogPrintf("%s: WARNING: Block %s does not connect to an ancestor of " /* Continued */
+            LogPrintf("%s: WARNING: Block %s does not connect to an ancestor of "
                       "known best chain (tip=%s); not updating index\n",
                       __func__, pindex->GetBlockHash().ToString(),
                       best_block_index->GetBlockHash().ToString());
@@ -319,7 +319,7 @@ void BaseIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, co
     // a parent — otherwise same-height siblings would incorrectly trigger a rewind.
     if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
         if (best_block_index->GetAncestor(pindex->nHeight) != pindex) {
-            LogPrintf("%s: WARNING: Block %s is not on the indexed chain " /* Continued */
+            LogPrintf("%s: WARNING: Block %s is not on the indexed chain "
                       "(tip=%s); not updating index\n",
                       __func__, pindex->GetBlockHash().ToString(), best_block_index->GetBlockHash().ToString());
             return;
@@ -356,7 +356,7 @@ void BaseIndex::ChainStateFlushed(const CBlockLocator& locator)
     // event, log a warning and let the queue clear.
     const CBlockIndex* best_block_index = m_best_block_index.load();
     if (best_block_index->GetAncestor(locator_tip_index->nHeight) != locator_tip_index) {
-        LogPrintf("%s: WARNING: Locator contains block (hash=%s) not on known best " /* Continued */
+        LogPrintf("%s: WARNING: Locator contains block (hash=%s) not on known best "
                   "chain (tip=%s); not writing index locator\n",
                   __func__, locator_tip_hash.ToString(),
                   best_block_index->GetBlockHash().ToString());

@@ -824,7 +824,7 @@ static void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, C
                                           dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
                 }
             }
-            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
+            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str());
         }
         connman.AddPendingProbeConnections(probeConnections);
     }
