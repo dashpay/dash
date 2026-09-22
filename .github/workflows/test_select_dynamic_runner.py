@@ -447,6 +447,38 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         self.assertFalse(MODULE.targets_github_hosted_runner(job, ["UBUNTU-CORE"]))
         self.assertTrue(MODULE.targets_github_hosted_runner(job, [""]))
 
+    def test_a_hosted_label_is_never_excluded_from_the_backlog(self):
+        # Naming a hosted or Blacksmith label here would zero the backlog and
+        # silently switch the existing Blacksmith ladder off, so refuse it.
+        safe = MODULE.selfhosted_backlog_exclusions(
+            "ubuntu-core", "blacksmith-amd64", "blacksmith-arm64"
+        )
+        self.assertEqual(safe, ("ubuntu-core",))
+
+        for label in (
+            MODULE.DEFAULT_RUNNER_AMD64,
+            MODULE.DEFAULT_RUNNER_ARM64,
+            MODULE.DEFAULT_RUNNER_AMD64.upper(),
+            "  ubuntu-24.04  ",
+            "blacksmith-amd64",
+            "blacksmith-4vcpu-ubuntu-2404",
+            "",
+        ):
+            with self.subTest(label=label):
+                self.assertEqual(
+                    MODULE.selfhosted_backlog_exclusions(
+                        label, "blacksmith-amd64", "blacksmith-arm64"
+                    ),
+                    (),
+                )
+
+    def test_backlog_is_unaffected_when_the_label_collides_with_hosted(self):
+        outputs = self._select(queued_jobs=11, runner_selfhosted_var="ubuntu-24.04")
+
+        # The 11 hosted jobs still count, so Blacksmith escalation is untouched.
+        self.assertEqual(outputs["backlog_count"], "11")
+        self.assertEqual(outputs["runner_amd64"], "blacksmith-amd64")
+
     def test_backlog_excludes_queued_selfhosted_lint_jobs(self):
         responses = backlog_responses(3)
         jobs_url = next(url for url in responses if "/jobs?" in url)

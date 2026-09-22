@@ -146,6 +146,37 @@ def load_event(event_path: str) -> Dict:
         return json.load(fh)
 
 
+def selfhosted_backlog_exclusions(
+    runner_selfhosted_var: str,
+    runner_amd64_var: str,
+    runner_arm64_var: str,
+) -> Tuple[str, ...]:
+    """Labels to leave out of the GitHub-hosted backlog count.
+
+    Queued jobs on our own hardware are not competing for the account-wide
+    hosted concurrency limit, so counting them would inflate the figure used to
+    decide whether to escalate to Blacksmith. But the exclusion is a bare label
+    match driven by a repository variable, and naming a hosted or Blacksmith
+    label there would silently zero the backlog and switch the existing
+    escalation ladder off with nothing appearing broken. Refuse to exclude
+    anything that some other rung already routes to.
+    """
+    label = runner_selfhosted_var.strip().lower()
+    if not label:
+        return ()
+
+    reserved = {
+        DEFAULT_RUNNER_AMD64.lower(),
+        DEFAULT_RUNNER_ARM64.lower(),
+        runner_amd64_var.strip().lower(),
+        runner_arm64_var.strip().lower(),
+    } - {""}
+    if label in reserved or label.startswith(NON_GITHUB_HOSTED_RUNNER_PREFIXES):
+        return ()
+
+    return (label,)
+
+
 def parse_author_allowlist(raw: str) -> Set[str]:
     """Split a comma/whitespace separated list of logins into a lowercased set.
 
@@ -196,7 +227,7 @@ def is_selfhosted_allowed(
         if not head_name or not base_name:
             # Cannot attribute the tree to a repository; refuse rather than guess.
             return False
-        if head_name != base_name:
+        if head_name.lower() != base_name.lower():
             head_owner = (head_repo.get("owner") or {}).get("login") or ""
             if head_owner.strip().lower() not in allowed_authors:
                 return False
@@ -275,7 +306,11 @@ def select_runners(
 
     try:
         backlog_count_value = count_queued_jobs(
-            fetch_json, repos, non_hosted_labels=(runner_selfhosted_var,)
+            fetch_json,
+            repos,
+            non_hosted_labels=selfhosted_backlog_exclusions(
+                runner_selfhosted_var, runner_amd64_var, runner_arm64_var
+            ),
         )
         backlog_count = str(backlog_count_value)
     except Exception as exc:  # noqa: BLE001
