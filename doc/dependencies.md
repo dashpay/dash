@@ -19,14 +19,11 @@ You can find installation instructions in the `build-*.md` file for your platfor
 | --- | --- | --- | --- | --- |
 | [Boost](../depends/packages/boost.mk) | [link](https://www.boost.org/users/download/) | 1.81.0 | [1.73.0](https://github.com/bitcoin/bitcoin/pull/29066) | No |
 | [libevent](../depends/packages/libevent.mk) | [link](https://github.com/libevent/libevent/releases) | [2.1.12-stable](https://github.com/bitcoin/bitcoin/pull/21991) | [2.1.8](https://github.com/bitcoin/bitcoin/pull/24681) | No |
+| [blst](../depends/packages/blst.mk) | [link](https://github.com/supranational/blst/releases) | 0.3.17 | | No |
 | glibc | [link](https://www.gnu.org/software/libc/) | N/A | [2.31](https://github.com/bitcoin/bitcoin/pull/29987) | Yes |
 | Linux Kernel | [link](https://www.kernel.org/) | N/A | [3.17.0](https://github.com/bitcoin/bitcoin/pull/27699) | Yes |
 
 ## Optional
-
-| Dependency | Releases | Version used | Minimum required | Runtime |
-| --- | --- | --- | --- | --- |
-| libgmp | [link](https://gmplib.org/download/gmp/)<sup>[ \* ](#note1)</sup> | 6.3.0 | [6.2.0](https://github.com/dashpay/bls-signatures/pull/92) | No |
 
 ### GUI
 | Dependency | Releases | Version used | Minimum required | Runtime |
@@ -52,5 +49,3 @@ You can find installation instructions in the `build-*.md` file for your platfor
 | --- | --- | --- | --- | --- |
 | [Berkeley DB](../depends/packages/bdb.mk) (legacy wallet) | [link](https://www.oracle.com/technetwork/database/database-technologies/berkeleydb/downloads/index.html) | 4.8.30 | 4.8.x | No |
 | [SQLite](../depends/packages/sqlite.mk) | [link](https://sqlite.org) | 3.38.5 | [3.7.17](https://github.com/bitcoin/bitcoin/pull/19077) | No |
-
-<a name="note1">Note \*</a> : The minimum supported version on macOS is 6.3.0

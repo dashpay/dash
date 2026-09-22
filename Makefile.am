@@ -170,7 +170,7 @@ LCOV_FILTER_PATTERN = \
 	-p "/usr/include/" \
 	-p "/usr/lib/" \
 	-p "/usr/lib64/" \
-	-p "src/dashbls/" \
+	-p "src/mimalloc/" \
 	-p "src/immer/" \
 	-p "src/leveldb/" \
 	-p "src/crc32c/" \

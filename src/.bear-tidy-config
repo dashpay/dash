@@ -7,7 +7,7 @@
         "src/crc32c",
         "src/crypto/ctaes",
         "src/crypto/x11",
-        "src/dashbls",
+        "src/mimalloc",
         "src/gsl",
         "src/immer",
         "src/leveldb",

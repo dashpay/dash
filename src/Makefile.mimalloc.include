@@ -1,0 +1,53 @@
+# Copyright (c) 2026 The Dash Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+LIBMIMALLOC_INT = mimalloc/libmimalloc-secure.la
+
+noinst_LTLIBRARIES += $(LIBMIMALLOC_INT)
+
+# What the users of bls/ link, dependents first: mimalloc -> blst (from depends)
+BLS_LIBS = $(LIBMIMALLOC_INT) $(BLST_LIBS)
+
+# Flags for consumers of the library (bls/bls.cpp)
+MIMALLOC_CPPFLAGS = -isystem$(srcdir)/mimalloc/include
+
+# Flags used only when building the library itself: secure mode (guard pages,
+# encrypted free lists, zeroing on free) for the BLS secret keys it holds.
+MIMALLOC_CPPFLAGS_INT =
+MIMALLOC_CPPFLAGS_INT += -I$(srcdir)/mimalloc/include
+MIMALLOC_CPPFLAGS_INT += -I$(srcdir)/mimalloc/src
+MIMALLOC_CPPFLAGS_INT += -DMI_SECURE=4
+MIMALLOC_CPPFLAGS_INT += -DNDEBUG
+
+MIMALLOC_H = \
+  mimalloc/include/mimalloc-new-delete.h \
+  mimalloc/include/mimalloc-override.h \
+  mimalloc/include/mimalloc-stats.h \
+  mimalloc/include/mimalloc.h \
+  mimalloc/src/bitmap.h
+
+mimalloc_libmimalloc_secure_la_SOURCES = \
+  $(MIMALLOC_H) \
+  mimalloc/src/alloc-aligned.c \
+  mimalloc/src/alloc-posix.c \
+  mimalloc/src/alloc.c \
+  mimalloc/src/arena-meta.c \
+  mimalloc/src/arena.c \
+  mimalloc/src/bitmap.c \
+  mimalloc/src/heap.c \
+  mimalloc/src/init.c \
+  mimalloc/src/libc.c \
+  mimalloc/src/options.c \
+  mimalloc/src/os.c \
+  mimalloc/src/page-map.c \
+  mimalloc/src/page.c \
+  mimalloc/src/random.c \
+  mimalloc/src/stats.c \
+  mimalloc/src/prim/prim.c
+
+mimalloc_libmimalloc_secure_la_CPPFLAGS = $(AM_CPPFLAGS) $(MIMALLOC_CPPFLAGS_INT)
+# Specify -static in both CFLAGS and LDFLAGS so libtool will only build a
+# static version of this library (same as crc32c and leveldb).
+mimalloc_libmimalloc_secure_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -static
+mimalloc_libmimalloc_secure_la_LDFLAGS = $(AM_LDFLAGS) -static
