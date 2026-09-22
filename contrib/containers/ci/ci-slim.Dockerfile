@@ -1,6 +1,7 @@
 # Builder for cppcheck
 FROM debian:bookworm-slim AS cppcheck-builder
 ARG CPPCHECK_VERSION=2.21.0
+ARG CPPCHECK_ARCHIVE_SHA256=f028ff75ca5372738f3737c8b3e8611426a6526b6aea2ef01301ab0f5902f044
 RUN set -ex; \
     apt-get update && apt-get install -y --no-install-recommends \
         curl \
@@ -11,6 +12,7 @@ RUN set -ex; \
     && rm -rf /var/lib/apt/lists/*; \
     echo "Downloading Cppcheck version: ${CPPCHECK_VERSION}"; \
     curl -fL "https://github.com/danmar/cppcheck/archive/${CPPCHECK_VERSION}.tar.gz" -o /tmp/cppcheck.tar.gz; \
+    echo "${CPPCHECK_ARCHIVE_SHA256}  /tmp/cppcheck.tar.gz" | sha256sum -c -; \
     mkdir -p /src/cppcheck && tar -xzf /tmp/cppcheck.tar.gz -C /src/cppcheck --strip-components=1; \
     rm /tmp/cppcheck.tar.gz; \
     cd /src/cppcheck; \

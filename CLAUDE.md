@@ -170,6 +170,33 @@ test/lint/lint-circular-dependencies.py
 Functional-test prerequisites and usage details live in `test/README.md`.
 Several Dash-specific tests need the `dash_hash` Python package.
 
+### Running Linters Exactly Like CI
+
+Running `test/lint/*` on the host is fine when the local tools match CI. When
+they disagree (codespell/flake8/mypy/shellcheck version drift, or cppcheck,
+which is rarely installed locally), run the CI lint job in its container:
+
+```bash
+docker build --platform=linux/amd64 -t dash-linter ci/lint  # rebuild only when ci/lint/ changes
+
+# Commit or stash tracked changes first: commit-script-check.sh checks out
+# commits, runs `git reset --hard`, and executes the verification commands of
+# `scripted-diff:` commits in the range, so only run it on commits you trust.
+GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+docker run --rm --platform=linux/amd64 --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD":"$PWD" -v "$GIT_COMMON_DIR":"$GIT_COMMON_DIR" -w "$PWD" \
+    -e BUILD_TARGET=linux64 -e CHECK_DOC=1 -e PULL_REQUEST=true \
+    -e COMMIT_RANGE="$(git merge-base develop HEAD)..HEAD" \
+    dash-linter bash -c 'git config --global --add safe.directory "$PWD" && ./ci/dash/lint.sh'
+```
+
+Run it from the repo/worktree root; the second mount is what makes it work
+from a worktree. `COMMIT_RANGE` uses your local `develop`, so keep that branch
+current with `dashpay/dash`. Do not use the `docker run` flow documented in
+`test/lint/README.md` to reproduce CI: it merge-bases against `master` and
+runs checks the CI lint job does not. The run leaves an untracked
+`ci-cache-linux64/` directory behind; keeping it speeds up cppcheck reruns.
+
 ## Backport Work
 
 Dash Core regularly backports Bitcoin Core changes. Treat backports as
