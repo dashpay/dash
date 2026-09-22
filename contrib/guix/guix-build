@@ -302,8 +302,15 @@ mkdir -p "$OUTDIR_BASE"
 # Download the depends sources now as we won't have internet access in the build
 # container
 for host in $HOSTS; do
-    make -C "${PWD}/depends" -j"$JOBS" download-"$(host_to_commonname "$host")" ${V:+V=1} ${SOURCES_PATH:+SOURCES_PATH="$SOURCES_PATH"}
+    make -C "${PWD}/depends" -j"$JOBS" download-"$(host_to_commonname "$host")" ${V:+V=1} ${PLATFORM_GUI:+PLATFORM_GUI=1} ${SOURCES_PATH:+SOURCES_PATH="$SOURCES_PATH"}
 done
+
+# Rust standard libraries and vendored crates are host-independent and need
+# network (and git) access, so they must be fetched once out here as well —
+# the build container is offline.
+if [ -n "${PLATFORM_GUI}" ]; then
+    make -C "${PWD}/depends" -j"$JOBS" PLATFORM_GUI=1 download-rust-std vendor-dep-crates ${V:+V=1} ${SOURCES_PATH:+SOURCES_PATH="$SOURCES_PATH"}
+fi
 
 # Usage: outdir_for_host HOST SUFFIX
 #
@@ -466,6 +473,7 @@ EOF
                                         ${SOURCES_PATH:+SOURCES_PATH="$SOURCES_PATH"} \
                                         ${BASE_CACHE:+BASE_CACHE="$BASE_CACHE"} \
                                         ${SDK_PATH:+SDK_PATH="$SDK_PATH"} \
+                                        ${PLATFORM_GUI:+PLATFORM_GUI=1} \
                                         DISTSRC="$(DISTSRC_BASE=/distsrc-base && distsrc_for_host "$HOST")" \
                                         OUTDIR="$(OUTDIR_BASE=/outdir-base && outdir_for_host "$HOST")" \
                                         DIST_ARCHIVE_BASE=/outdir-base/dist-archive \

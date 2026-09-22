@@ -36,6 +36,17 @@ public:
     static constexpr uint8_t CURRENT_VERSION = 2;
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_ASSET_LOCK;
 
+    //! Highest payload version CheckAssetLockTx accepts under the given
+    //! deployment state, and therefore the version to use for new asset
+    //! locks. Callers building a transaction must pass whether v24 applies
+    //! to the *next* block (the state it will be validated against); version
+    //! 1 remains valid after activation, so a transaction built right before
+    //! the boundary and mined after it stays valid.
+    static constexpr uint8_t GetMaxVersion(bool is_v24_active)
+    {
+        return is_v24_active ? CURRENT_VERSION : INITIAL_VERSION;
+    }
+
 private:
     uint8_t nVersion{CURRENT_VERSION};
     std::vector<CTxOut> creditOutputs;
