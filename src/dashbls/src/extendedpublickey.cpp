@@ -59,13 +59,13 @@ ExtendedPublicKey ExtendedPublicKey::PublicChild(uint32_t i, const bool fLegacy)
     hmacInput[inputLen - 1] = 0;
     Util::IntToFourBytes(hmacInput + G1Element::SIZE, i);
 
-    md_hmac(ILeft, hmacInput, inputLen,
+    Util::md_hmac(ILeft, hmacInput, inputLen,
                     hmacKey, ChainCode::SIZE);
 
     // Change 1 byte to generate a different sequence for chaincode
     hmacInput[inputLen - 1] = 1;
 
-    md_hmac(IRight, hmacInput, inputLen,
+    Util::md_hmac(IRight, hmacInput, inputLen,
                     hmacKey, ChainCode::SIZE);
 
     PrivateKey leftSk = PrivateKey::FromBytes(Bytes(ILeft, PrivateKey::PRIVATE_KEY_SIZE), true);

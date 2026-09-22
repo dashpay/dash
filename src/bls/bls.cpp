@@ -401,7 +401,7 @@ static void create_secure_allocator()
 
     // static variable in function scope ensures it's initialized when first accessed
     // and destroyed before LockedPoolManager
-    static mt_pooled_secure_allocator<uint8_t> a(sizeof(bn_t) + sizeof(size_t));
+    static mt_pooled_secure_allocator<uint8_t> a(sizeof(blst_p2) + sizeof(size_t));
     secure_allocator_instance = &a;
 }
 

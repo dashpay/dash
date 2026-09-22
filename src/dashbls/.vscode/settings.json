@@ -1,0 +1,8 @@
+{
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.rulers": [88, 100]
+  },
+  "editor.minimap.enabled": true,
+}

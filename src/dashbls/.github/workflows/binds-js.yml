@@ -1,0 +1,94 @@
+name: Binds (Javascript)
+
+on:
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        description: Token used to publish the package to the npm registry
+        required: false
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }}, Javascript
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04-arm]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Install Emscripten SDK
+      uses: mymindstorm/setup-emsdk@v16
+
+    - name: Build JavaScript bindings
+      run: |
+        emcc -v
+        sh emsdk_build.sh
+
+    - name: Test JavaScript bindings
+      run: |
+        sh js_test.sh
+
+  publish:
+    name: Publish (releases), Javascript
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Install Emscripten SDK
+      uses: mymindstorm/setup-emsdk@v16
+
+    - name: Set up Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        registry-url: https://registry.npmjs.org
+
+    # emsdk_build.sh copies package.json into js_build/, so the version has to
+    # be rewritten in the source tree before the build runs.
+    - name: Update version in package.json
+      working-directory: js-bindings
+      env:
+        RELEASE: ${{ github.ref_name }}
+      run: |
+        jq --arg VER "${RELEASE#v}" '.version=$VER' package.json > temp.json
+        mv temp.json package.json
+
+    - name: Build JavaScript bindings
+      run: |
+        emcc -v
+        sh emsdk_build.sh
+
+    - name: Publish to npm
+      working-directory: js_build/js-bindings
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: npm publish --access public

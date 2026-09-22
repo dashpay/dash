@@ -1,0 +1,155 @@
+name: Binds (Python)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint, Python
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v9.0.0
+
+    - name: Check lints
+      run: uvx ruff check --output-format=github .
+
+    - name: Check formatting
+      run: uvx ruff format --check --diff .
+
+  build:
+    name: Build (${{ matrix.name }}), Python
+    needs: lint
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(startsWith(github.ref, 'refs/tags/')
+          && '[
+          {"name": "linux-arm64",   "runs-on": "ubuntu-24.04-arm", "archs": "aarch64"},
+          {"name": "linux-amd64",   "runs-on": "ubuntu-latest",    "archs": "x86_64"},
+          {"name": "macos-arm64",   "runs-on": "macos-latest",     "archs": "arm64",   "macos-target": "14.0"},
+          {"name": "macos-amd64",   "runs-on": "macos-15-intel",   "archs": "x86_64",  "macos-target": "14.0"},
+          {"name": "windows-amd64", "runs-on": "windows-latest",   "archs": "AMD64"}
+          ]'
+          || '[
+          {"name": "linux-arm64",   "runs-on": "ubuntu-24.04-arm", "archs": "aarch64"},
+          {"name": "macos-arm64",   "runs-on": "macos-latest",     "archs": "arm64",   "macos-target": "14.0"},
+          {"name": "windows-amd64", "runs-on": "windows-latest",   "archs": "AMD64"}
+          ]') }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v9.0.0
+      with:
+        enable-cache: false
+
+    - name: Build and test wheels
+      uses: pypa/cibuildwheel@v4.1.1
+      env:
+        CIBW_ARCHS: ${{ matrix.archs }}
+        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos-target }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.name }}
+        path: wheelhouse/*.whl
+        if-no-files-found: error
+
+  sdist:
+    name: Build (sdist), Python
+    needs: lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v9.0.0
+
+    - name: Build the sdist
+      run: uv build --sdist --out-dir dist
+
+    - name: Prepare build system
+      run: |
+        sudo apt-get update
+        sudo apt-get install -qq --yes libgmp-dev
+
+    - name: Install from the sdist and run the unit tests
+      run: |
+        uv venv .venv-sdist
+        uv pip install --python .venv-sdist --no-binary=dashbls dist/*.tar.gz
+        uv pip install --python .venv-sdist pytest pytest-benchmark
+        .venv-sdist/bin/python -m pytest --import-mode=importlib -v binds/python/test_unit.py
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: dist/*.tar.gz
+        if-no-files-found: error
+
+  publish:
+    name: Publish (releases), Python
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: dist
+
+    - name: Download the sdist
+      uses: actions/download-artifact@v4
+      with:
+        name: sdist
+        path: dist
+
+    - name: Attach the wheels and sdist to the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        RELEASE: ${{ github.ref_name }}
+      run: |
+        ls -l dist
+        # Pushing a tag does not create a release, and `upload` will not make one.
+        gh release view "$RELEASE" >/dev/null 2>&1 \
+          || gh release create "$RELEASE" --verify-tag --generate-notes
+        gh release upload "$RELEASE" dist/*.whl dist/*.tar.gz --clobber
+
+  index:
+    name: Publish (index), Python
+    needs: publish
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/build-docs.yml

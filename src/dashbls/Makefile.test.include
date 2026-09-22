@@ -16,9 +16,10 @@ runtest_SOURCES = \
 	$(RELIC_H) \
 	$(RUNTEST_H) \
 	src/test.cpp \
-	src/test-utils.hpp
+	src/test-utils.hpp \
+	src/test-vectors.hpp
 
-runtest_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_INCLUDES) $(RELIC_INCLUDES) $(RUNTEST_INCLUDES)
+runtest_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_INCLUDES) $(RELIC_INCLUDES) $(RUNTEST_INCLUDES) -DDASHBLS_REFERENCE_VECTORS=\"$(abs_top_srcdir)/test-vectors/reference.txt\"
 runtest_CXXFLAGS = $(AM_CXXFLAGS)
 runtest_LDFLAGS  = -static $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 

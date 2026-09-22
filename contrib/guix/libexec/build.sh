@@ -270,7 +270,7 @@ mkdir -p "$DISTSRC"
                     ${HOST_CXXFLAGS:+CXXFLAGS="${HOST_CXXFLAGS}"} \
                     ${HOST_LDFLAGS:+LDFLAGS="${HOST_LDFLAGS}"}
 
-    sed -i.old 's/-lstdc++ //g' {./,src/dashbls/,src/secp256k1/}{config.status,libtool}
+    sed -i.old 's/-lstdc++ //g' {./,src/secp256k1/}{config.status,libtool}
 
 
     # Build Dash Core

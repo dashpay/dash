@@ -1,6 +1,89 @@
+[project]
+name = "dashbls"
+description = "Python 3.x binds for Dash's bls-signatures"
+authors = [{ name = "Dash Core Developers" }]
+keywords = ["bls", "signatures", "bls12-381", "dash", "cryptography"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/dashpay/bls-signatures"
+Source = "https://github.com/dashpay/bls-signatures"
+Issues = "https://github.com/dashpay/bls-signatures/issues"
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.9",
+  "pytest>=8.1",
+  "pytest-benchmark>=5.1",
+]
+
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.5.0", "pybind11"]
+requires = [
+  "cmake>=3.18",
+  "pybind11>=2.13.6",
+  "setuptools_scm>=8",
+  "setuptools>=77",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
+
+[tool.cibuildwheel]
+build-frontend = "uv"
+skip = [
+  "*-musllinux_*",
+  "cp*t-*",
+  "pp*",
+]
+test-command = "pytest --import-mode=importlib {project}/binds/python/test_unit.py"
+test-requires = [
+  "pytest>=8.1",
+  "pytest-benchmark>=5.1",
+]
+
+[tool.cibuildwheel.linux]
+before-all = "dnf -y install gmp-devel"
+manylinux-aarch64-image = "manylinux_2_28"
+manylinux-x86_64-image = "manylinux_2_28"
+
+[tool.cibuildwheel.macos]
+environment = { CMAKE_ARGS = "-DARITH=easy" }
+
+[tool.pytest.ini_options]
+testpaths = ["binds/python"]
+addopts = "--benchmark-skip"
+
+[tool.ruff]
+indent-width = 4
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+  "ANN", # flake8-annotations
+  "B",   # flake8-bugbear
+  "BLE", # flake8-blind-except
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "RUF", # ruff
+  "S",   # flake8-bandit
+  "TC",  # flake8-type-checking
+  "UP",  # pyupgrade
+  "W",   # pycodestyle warnings
+]
+
+[tool.ruff.lint.per-file-ignores]
+"binds/python/test*.py" = ["S101"]
+"binds/python/samples/*.py" = ["S101"]
+
+[tool.ruff.format]
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+skip-magic-trailing-comma = false

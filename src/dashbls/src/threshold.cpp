@@ -8,74 +8,7 @@
 
 #include "schemes.hpp"
 
-#include <memory>
-
 static std::unique_ptr<bls::CoreMPL> pThresholdScheme(new bls::LegacySchemeMPL);
-
-/**
- * Inverts a prime field element using the Euclidean Extended Algorithm,
- * using bns and a custom prime modulus.
- *
- * @param[out] c			- the result.
- * @param[in] a				- the prime field element to invert.
- * @param[in] p				- the custom prime modulus.
- */
-static void fp_inv_exgcd_bn(bn_t c, const bn_t u_in, const bn_t p) {
-    bn_t u, v, g1, g2, q, r;
-
-    bn_null(u);
-    bn_null(v);
-    bn_null(g1);
-    bn_null(g2);
-    bn_null(q);
-    bn_null(r);
-
-    RLC_TRY {
-        bn_new(u);
-        bn_new(v);
-        bn_new(g1);
-        bn_new(g2);
-        bn_new(q);
-        bn_new(r);
-
-        /* u = a, v = p, g1 = 1, g2 = 0. */
-        bn_copy(u, u_in);
-        bn_copy(v, p);
-        bn_set_dig(g1, 1);
-        bn_zero(g2);
-
-        /* While (u != 1. */
-        while (bn_cmp_dig(u, 1) != RLC_EQ) {
-            /* q = [v/u], r = v mod u. */
-            bn_div_rem(q, r, v, u);
-            /* v = u, u = r. */
-            bn_copy(v, u);
-            bn_copy(u, r);
-            /* r = g2 - q * g1. */
-            bn_mul(r, q, g1);
-            bn_sub(r, g2, r);
-            /* g2 = g1, g1 = r. */
-            bn_copy(g2, g1);
-            bn_copy(g1, r);
-        }
-
-        if (bn_sign(g1) == RLC_NEG) {
-            bn_add(g1, g1, p);
-        }
-        bn_copy(c, g1);
-    }
-    RLC_CATCH_ANY {
-        RLC_THROW(ERR_CAUGHT);
-    }
-    RLC_FINALLY {
-        bn_free(u);
-        bn_free(v);
-        bn_free(g1);
-        bn_free(g2);
-        bn_free(q);
-        bn_free(r);
-    };
-}
 
 namespace bls {
 
@@ -91,43 +24,32 @@ namespace bls {
     } // end namespace Poly
 
     struct PolyOpsBase {
-        bn_t order;
-        bn_t iv;
-
-        PolyOpsBase() {
-            bn_new(order);
-            gt_get_ord(order);
-            bn_new(iv);
+        static bool IsZero(const blst_scalar& a) {
+            std::array<unsigned char, sizeof(blst_scalar)> zero{};
+            return memcmp(&a, &zero, sizeof(blst_scalar)) == 0;
         }
 
-        ~PolyOpsBase() {
-            bn_free(iv);
-            bn_free(order);
+        void MulFP(blst_scalar& r, const blst_scalar& a, const blst_scalar& b) {
+            blst_sk_mul_n_check(&r, &a, &b);
         }
 
-        void MulFP(bn_t& r, const bn_t& a, const bn_t& b) {
-            bn_mul(r, a, b);
-            ModOrder(r);
+        void AddFP(blst_scalar& r, const blst_scalar& a, const blst_scalar& b) {
+            blst_sk_add_n_check(&r, &a, &b);
         }
 
-        void AddFP(bn_t& r, const bn_t& a, const bn_t& b) {
-            bn_add(r, a, b);
-            ModOrder(r);
+        void SubFP(blst_scalar& r, const blst_scalar& a, const blst_scalar& b) {
+            blst_sk_sub_n_check(&r, &a, &b);
         }
 
-        void SubFP(bn_t& r, const bn_t& a, const bn_t& b) {
-            bn_sub(r, a, b);
-            ModOrder(r);
+        void DivFP(blst_scalar& r, const blst_scalar& a, const blst_scalar& b) {
+            blst_scalar iv;
+            blst_sk_inverse(&iv, &b);
+            blst_sk_mul_n_check(&r, &a, &iv);
         }
 
-        void DivFP(bn_t& r, const bn_t& a, const bn_t& b) {
-            fp_inv_exgcd_bn(iv, b, order);
-            bn_mul(r, a, iv);
-            ModOrder(r);
-        }
-
-        void ModOrder(bn_t& r) {
-            bn_mod(r, r, order);
+        void ScalarFromBytes(blst_scalar& r, const uint8_t* bytes) {
+            // reduces mod the group order, like bn_read_bin + bn_mod
+            blst_scalar_from_be_bytes(&r, bytes, Poly::nIdSize);
         }
     };
 
@@ -140,7 +62,7 @@ namespace bls {
             return PrivateKey::Aggregate({a, b});
         }
 
-        PrivateKey Mul(const PrivateKey& a, const bn_t& b) {
+        PrivateKey Mul(const PrivateKey& a, const blst_scalar& b) {
             return a * b;
         }
     };
@@ -151,7 +73,7 @@ namespace bls {
             return a + b;
         }
 
-        G1Element Mul(const G1Element& a, const bn_t& b) {
+        G1Element Mul(const G1Element& a, const blst_scalar& b) {
             return a * b;
         }
     };
@@ -162,7 +84,7 @@ namespace bls {
             return a + b;
         }
 
-        G2Element Mul(const G2Element& a, bn_t& b) {
+        G2Element Mul(const G2Element& a, const blst_scalar& b) {
             return a * b;
         }
     };
@@ -175,18 +97,14 @@ namespace bls {
             throw std::length_error("At least 2 coefficients required");
         }
 
-        bn_t x;
-        bn_new(x);
-        bn_read_bin(x, id.begin(), Poly::nIdSize);
-        ops.ModOrder(x);
+        blst_scalar x;
+        ops.ScalarFromBytes(x, id.begin());
 
         BLSType y = vecIn.back();
         for (int i = (int) vecIn.size() - 2; i >= 0; i--) {
             y = ops.Mul(y, x);
             y = ops.Add(y, vecIn[i]);
         }
-
-        bn_free(x);
 
         return y;
     }
@@ -209,48 +127,28 @@ namespace bls {
         */
         const size_t k = vec.size();
 
-        bn_t *delta = new bn_t[k];
-        bn_t *ids2 = new bn_t[k];
+        std::vector<blst_scalar> delta(k);
+        std::vector<blst_scalar> ids2(k);
 
         for (size_t i = 0; i < k; i++) {
-            bn_new(delta[i]);
-            bn_new(ids2[i]);
-            bn_read_bin(ids2[i], ids[i].begin(), Poly::nIdSize);
-            ops.ModOrder(ids2[i]);
+            ops.ScalarFromBytes(ids2[i], ids[i].begin());
         }
 
-        bn_t a, b, v;
-        bn_new(a);
-        bn_new(b);
-        bn_new(v);
+        blst_scalar a, b, v;
 
-        auto cleanup = [&](){
-            bn_free(a);
-            bn_free(b);
-            bn_free(v);
-            for (size_t i = 0; i < k; i++) {
-                bn_free(delta[i]);
-                bn_free(ids2[i]);
-            }
-            delete[] delta;
-            delete[] ids2;
-        };
-
-        bn_copy(a, ids2[0]);
+        a = ids2[0];
         for (size_t i = 1; i < k; i++) {
             ops.MulFP(a, a, ids2[i]);
         }
-        if (bn_is_zero(a)) {
-            cleanup();
+        if (PolyOpsBase::IsZero(a)) {
             throw std::invalid_argument("Zero id");
         }
         for (size_t i = 0; i < k; i++) {
-            bn_copy(b, ids2[i]);
+            b = ids2[i];
             for (size_t j = 0; j < k; j++) {
                 if (j != i) {
                     ops.SubFP(v, ids2[j], ids2[i]);
-                    if (bn_is_zero(v)) {
-                        cleanup();
+                    if (PolyOpsBase::IsZero(v)) {
                         throw std::invalid_argument("Duplicate id");
                     }
                     ops.MulFP(b, b, v);
@@ -266,8 +164,6 @@ namespace bls {
         for (size_t i = 0; i < k; i++) {
             r = ops.Add(r, ops.Mul(vec[i], delta[i]));
         }
-
-        cleanup();
 
         return r;
     }
@@ -295,7 +191,7 @@ namespace bls {
     G2Element Threshold::SignatureRecover(const std::vector<G2Element>& sigs, const std::vector<Bytes>& ids) {
         return Poly::LagrangeInterpolate(sigs, ids);
     }
-    
+
     G2Element Threshold::Sign(const PrivateKey& privateKey, const Bytes& vecMessage) {
         return pThresholdScheme->Sign(privateKey, vecMessage);
     }

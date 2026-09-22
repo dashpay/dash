@@ -74,7 +74,8 @@ impl PrivateKey {
 
     #[cfg(feature = "dash_helpers")]
     pub fn generate_dash(rng: &mut StdRng) -> Result<Self, BlsError> {
-        let seed = rng.gen::<[u8; 32]>();
+        let mut seed = [0u8; 32];
+        rng.fill_bytes(&mut seed);
         let scheme = BasicSchemeMPL::new();
         Ok(PrivateKey {
             c_private_key: c_err_to_result(|did_err| unsafe {

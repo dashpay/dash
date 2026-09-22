@@ -11,86 +11,32 @@ on:
       - '**'
 
 concurrency:
-  # SHA is added to the end if on `main` to let all main workflows run
   group: ${{ github.ref }}-${{ github.workflow }}-${{ github.event_name }}-${{ (github.ref == 'refs/heads/main') && github.sha || '' }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    name: ${{ matrix.os }}, Python ${{ matrix.python }}, Go ${{ matrix.golang }}, Rust ${{ matrix.rust }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-        golang: [ '1.24' ]
-        python: ['3.10', '3.11', '3.12', '3.13']
-        rust: [ '1.91.0' ]
+  build-go:
+    name: Go
+    uses: ./.github/workflows/binds-go.yml
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+  build-js:
+    name: JavaScript
+    uses: ./.github/workflows/binds-js.yml
+    # Reusable workflows do not inherit secrets; the tagged publish needs this.
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-    - uses: chia-network/actions/setup-python@main
-      with:
-        python-version: ${{ matrix.python }}
+  build-rs:
+    name: Rust
+    uses: ./.github/workflows/binds-rs.yml
 
-    - name: Test Python implementation
-      run: |
-        python python-impl/impl-test.py
-
-    - name: Install Emscripten SDK
-      uses: mymindstorm/setup-emsdk@v11
-
-    - name: Build JavaScript bindings
-      run: |
-        emcc -v
-        sh emsdk_build.sh
-
-    - name: Test JavaScript bindings
-      run: |
-        sh js_test.sh
-
-    - name: Install Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^${{ matrix.golang }}
-
-    - name: Prepare build system for Ubuntu
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        sudo apt-get update
-        sudo apt-get install -qq --yes valgrind libgmp-dev cmake
-        hash -r
-        cmake --version
-
-    - name: Prepare build system for macOS
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        ls -l
-        export MACOSX_DEPLOYMENT_TARGET=10.14
-        brew install gmp
-
-    - name: Build library using CMake
-      run: |
-        mkdir -p build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Debug
-        cmake --build . -- -j 6
-
-    - name: Build Go bindings
-      run: |
-        cd go-bindings
-        make config
-        make
-
-    - name: Install Rust
-      run: |
-        rustup toolchain install ${{ matrix.rust }}
-        rustup default ${{ matrix.rust }}
-        rustc --version
-        cargo --version
-
-    - name: Build and test Rust bindings
-      run: |
-        cd rust-bindings/bls-dash-sys
-        cargo test
+  build-py:
+    name: Python
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/binds-py.yml
