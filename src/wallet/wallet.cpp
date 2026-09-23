@@ -4064,6 +4064,22 @@ PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKe
     return result;
 }
 
+PlatformKeyResult<uint32_t> CWallet::PlatformAccountReference(const IdentityAuthKey& request, const CompactXpub& compact_xpub) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<uint32_t> result;
+    platformkeys::ExtKey256 key;
+    uint256 mac;
+    result.status = DerivePlatformKey(PlatformKeyRequest{request}, key);
+    if (result.status != PlatformKeyStatus::SUCCESS) return result;
+    if (!platformkeys::ComputeAccountReferenceMac(key.key, compact_xpub, mac)) {
+        result.status = PlatformKeyStatus::DERIVATION_ERROR;
+        return result;
+    }
+    result.value = platformkeys::AccountReferenceFromMac(mac);
+    return result;
+}
+
 PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
 {
     LOCK(cs_wallet);
@@ -4104,7 +4120,7 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         return result;
     }
 
-    result.value = {key.key.GetPubKey(), key.chaincode};
+    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     return result;
 }
 

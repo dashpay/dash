@@ -1105,6 +1105,7 @@ public:
     PlatformKeyResult<std::vector<unsigned char>> SignPlatformDigest(const PlatformKeyRequest& request,
                                                                      const uint256& digest) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
+    PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
 
     /* Returns the time of the first created key or, in case of an import, it could be the time of the first received transaction */
