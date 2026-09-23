@@ -417,6 +417,9 @@ private:
 
     std::multimap<uint256, uint256> mapProTxRefs; // proTxHash -> transaction (all TXs that refer to an existing proTx)
     std::map<NetInfoEntry, uint256> mapProTxAddresses;
+    /** tx hash -> Platform entries a pending update's ExtAddr migration will synthesize, reserved in
+     *  mapProTxAddresses. Recorded because the tip state they were derived from may change before removal. */
+    std::map<uint256, NetInfoList> mapProTxMigratedAddresses;
     std::map<CKeyID, uint256> mapProTxPubKeyIDs;
     std::map<uint256, uint256> mapProTxBlsPubKeyHashes;
     std::map<uint160, uint256> mapProTxPlatformNodeIDs;
@@ -536,6 +539,7 @@ public:
     void removeProTxReferences(const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxSpentCollateralConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxKeyChangedConflicts(const CTransaction &tx, const uint256& proTxHash, const uint256& newKeyHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeProTxMigrationConflicts(const CTransaction& tx, const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Remove pending TXs of refType for proTxHash that pair the P2PKH destination of keyIDVoting with a
      *  share reward script: ProUpShareTxs paying it, or ProUpSharedRegTxs setting it as the voting key. */
     void removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -837,6 +841,9 @@ private:
      * addUnchecked extension for Dash-specific transactions (ProTx).
      */
     void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Platform entries this service or registrar update would synthesize by raising its masternode
+     *  to ExtAddr at the current tip (see GetMigratedPlatformEntries) */
+    NetInfoList GetMigratedProTxAddresses(const CTransaction& tx) const;
 
     /** Before calling removeUnchecked for a given transaction,
      *  UpdateForRemoveFromMempool must be called on the entire (dependent) set

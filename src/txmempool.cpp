@@ -30,6 +30,7 @@
 #include <evo/deterministicmns.h>
 #include <instantsend/instantsend.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -610,10 +611,76 @@ static CAmount GetAssetUnlockAmount(const CTransaction& tx, const CAssetUnlockPa
     return tx.GetValueOut() + payload.getFee();
 }
 
+/**
+ * Roles an update of a pre-ExtAddr EvoNode can play in Platform entry synthesis. A version raiser lifts
+ * the node to ExtAddr; once it has, a pre-ExtAddr service update applied after it synthesizes Platform
+ * entries from its own payload, which that update's own checks against the tip never saw.
+ */
+enum class SynthesisRole {
+    NONE,
+    VERSION_RAISER,
+    PRE_EXTADDR_SERVICE
+};
+
+static SynthesisRole GetSynthesisRole(const CTransaction& tx)
+{
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        const auto proTx = GetTxPayload<CProUpServTx>(tx);
+        if (!proTx) return SynthesisRole::NONE;
+        if (proTx->nVersion >= ProTxVersion::ExtAddr) return SynthesisRole::VERSION_RAISER;
+        return proTx->nType == MnType::Evo ? SynthesisRole::PRE_EXTADDR_SERVICE : SynthesisRole::NONE;
+    }
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        const auto proTx = GetTxPayload<CProUpRegTx>(tx);
+        return proTx && proTx->nVersion >= ProTxVersion::ExtAddr ? SynthesisRole::VERSION_RAISER : SynthesisRole::NONE;
+    }
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        const auto proTx = GetTxPayload<CProUpRevTx>(tx);
+        return proTx && proTx->nVersion >= ProTxVersion::ExtAddr ? SynthesisRole::VERSION_RAISER : SynthesisRole::NONE;
+    }
+    return SynthesisRole::NONE;
+}
+
+NetInfoList CTxMemPool::GetMigratedProTxAddresses(const CTransaction& tx) const
+{
+    NetInfoList ret;
+    auto collect = [&ret](const auto& entries) {
+        for (const auto& [_, entry] : entries) {
+            ret.push_back(entry);
+        }
+    };
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        const auto proTx = GetTxPayload<CProUpServTx>(tx);
+        const auto dmn = proTx ? m_dmnman.GetListAtChainTip().GetMN(proTx->proTxHash) : nullptr;
+        if (dmn) {
+            collect(GetMigratedPlatformEntries(*proTx->netInfo, proTx->nType,
+                                               std::max<uint16_t>(dmn->pdmnState->nVersion, proTx->nVersion),
+                                               proTx->platformP2PPort, proTx->platformHTTPPort));
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        const auto proTx = GetTxPayload<CProUpRegTx>(tx);
+        const auto dmn = proTx ? m_dmnman.GetListAtChainTip().GetMN(proTx->proTxHash) : nullptr;
+        // An operator key change clears the stored addresses, leaving nothing to migrate
+        if (dmn && dmn->pdmnState->pubKeyOperator == proTx->pubKeyOperator) {
+            const auto& state = *dmn->pdmnState;
+            collect(GetMigratedPlatformEntries(*state.netInfo, dmn->nType,
+                                               std::max<uint16_t>(state.nVersion, proTx->nVersion),
+                                               state.platformP2PPort, state.platformHTTPPort));
+        }
+    }
+    return ret;
+}
+
 void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx)
 {
     AssertLockHeld(cs);
     const uint256 tx_hash{tx.GetHash()};
+    if (auto migrated{GetMigratedProTxAddresses(tx)}; !migrated.empty()) {
+        for (const auto& entry : migrated) {
+            mapProTxAddresses.emplace(entry, tx_hash);
+        }
+        mapProTxMigratedAddresses.emplace(tx_hash, std::move(migrated));
+    }
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
         auto proTx = *Assert(GetTxPayload<CProRegTx>(tx));
         if (!proTx.collateralOutpoint.hash.IsNull()) {
@@ -756,6 +823,15 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
     };
 
     const uint256 tx_hash{tx.GetHash()};
+    if (auto it = mapProTxMigratedAddresses.find(tx_hash); it != mapProTxMigratedAddresses.end()) {
+        for (const auto& entry : it->second) {
+            if (auto addr_it = mapProTxAddresses.find(entry);
+                addr_it != mapProTxAddresses.end() && addr_it->second == tx_hash) {
+                mapProTxAddresses.erase(addr_it);
+            }
+        }
+        mapProTxMigratedAddresses.erase(it);
+    }
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
         auto proTx = *Assert(GetTxPayload<CProRegTx>(tx));
         if (!proTx.collateralOutpoint.IsNull()) {
@@ -1063,6 +1139,34 @@ void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
     }
 }
 
+void CTxMemPool::removeProTxMigrationConflicts(const CTransaction& tx, const uint256& proTxHash)
+{
+    // A connected update can invalidate what pending updates of the same masternode derived from the
+    // tip: a service update changes the address a pending migration's reserved entries came from, and
+    // raising the node to ExtAddr turns a pending pre-ExtAddr service update into an unreserved
+    // migration. Drop those instead of keeping stale reservations; they can be resubmitted.
+    const bool connected_service{tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE};
+    const bool connected_raiser{GetSynthesisRole(tx) == SynthesisRole::VERSION_RAISER};
+    std::set<uint256> conflictingTxs;
+    for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
+        const auto txit = mapTx.find(its.first->second);
+        if (txit == mapTx.end() || txit->GetTx().GetHash() == tx.GetHash()) continue;
+        const auto& ref_tx = txit->GetTx();
+        if ((connected_service && mapProTxMigratedAddresses.count(ref_tx.GetHash())) ||
+            (connected_raiser && GetSynthesisRole(ref_tx) == SynthesisRole::PRE_EXTADDR_SERVICE &&
+             !mapProTxMigratedAddresses.count(ref_tx.GetHash()))) {
+            conflictingTxs.emplace(ref_tx.GetHash());
+        }
+    }
+    for (const auto& txHash : conflictingTxs) {
+        auto txit = mapTx.find(txHash);
+        if (txit == mapTx.end()) {
+            continue;
+        }
+        removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+    }
+}
+
 void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const uint256& proTxHash, const uint256& newKeyHash)
 {
     std::set<uint256> conflictingTxs;
@@ -1188,6 +1292,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
         if (opt_proTx->nType == MnType::Evo && !opt_proTx->platformNodeID.IsNull()) {
             removeProTxPlatformNodeIDConflicts(tx, opt_proTx->platformNodeID);
         }
+        removeProTxMigrationConflicts(tx, opt_proTx->proTxHash);
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
         if (!opt_proTx) {
@@ -1197,6 +1302,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
 
         removeProTxPubKeyConflicts(tx, opt_proTx->pubKeyOperator);
         removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(opt_proTx->pubKeyOperator));
+        removeProTxMigrationConflicts(tx, opt_proTx->proTxHash);
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
         const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
         if (!opt_proTx) {
@@ -1205,6 +1311,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
         }
 
         removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(CBLSPublicKey()));
+        removeProTxMigrationConflicts(tx, opt_proTx->proTxHash);
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
         const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
         if (!opt_proTx) {
@@ -1586,6 +1693,41 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         return false;
     };
 
+    // The Platform entries an update's ExtAddr migration would synthesize must not already be claimed
+    // by another pending transaction, including another update of the same masternode (as for payload
+    // entries): a reservation has a single holder and would be lost when that holder leaves.
+    auto hasMigratedAddressConflict = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs) {
+        AssertLockHeld(cs);
+        for (const auto& entry : GetMigratedProTxAddresses(tx)) {
+            if (mapProTxAddresses.count(entry)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // While a masternode is a pre-ExtAddr EvoNode at the tip, a pending version raiser and a pending
+    // pre-ExtAddr service update of it depend on each other: in a block the raiser lands first and
+    // the service update then synthesizes Platform entries from its payload that nothing checked or
+    // reserved. Keep at most one of the two roles pending.
+    auto hasSynthesisRoleConflict = [&](const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+        AssertLockHeld(cs);
+        const auto role{GetSynthesisRole(tx)};
+        if (role == SynthesisRole::NONE) return false;
+        const auto dmn = m_dmnman.GetListAtChainTip().GetMN(proTxHash);
+        if (!dmn || dmn->nType != MnType::Evo || dmn->pdmnState->nVersion >= ProTxVersion::ExtAddr) {
+            return false;
+        }
+        const auto partner{role == SynthesisRole::VERSION_RAISER ? SynthesisRole::PRE_EXTADDR_SERVICE
+                                                                 : SynthesisRole::VERSION_RAISER};
+        for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
+            const auto txit = mapTx.find(its.first->second);
+            if (txit != mapTx.end() && GetSynthesisRole(txit->GetTx()) == partner) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     const uint256 tx_hash{tx.GetHash()};
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
         const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
@@ -1659,6 +1801,9 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
                 return true;
             }
         }
+        if (hasMigratedAddressConflict() || hasSynthesisRoleConflict(opt_proTx->proTxHash)) {
+            return true;
+        }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
         if (!opt_proTx) {
@@ -1682,6 +1827,9 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
             }
+        }
+        if (hasMigratedAddressConflict() || hasSynthesisRoleConflict(proTx.proTxHash)) {
+            return true;
         }
 
         auto it = mapProTxBlsPubKeyHashes.find(proTx.pubKeyOperator.GetHash());
@@ -1708,6 +1856,9 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
             }
+        }
+        if (hasSynthesisRoleConflict(proTx.proTxHash)) {
+            return true;
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
         const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);

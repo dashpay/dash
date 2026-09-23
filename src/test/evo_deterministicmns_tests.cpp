@@ -2567,6 +2567,161 @@ void FuncMigrationPlatformEntryCollisionInBlock(TestChainV24SignalBeforeV19Setup
     BOOST_CHECK_EQUAL(mcs.BuildListRejectReason({claimant, migration}), "bad-protx-dup-netinfo-entry");
 }
 
+// Scenario D: a pending migration reserves its synthesized entries in the mempool, in both orders, so
+// block assembly never selects a colliding pair together
+void FuncMigrationMempoolReservesPlatformEntries(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+
+    const auto claimant = mcs.MakeExtAddrEvoProRegTx("1.1.1.7", VictimPlatformP2P,
+                                                     "00112233445566778899aabbccddeeff00112277");
+    const auto migration = CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, mcs.victim_operator);
+    // A key rotation clears the stored addresses, so it synthesizes nothing and must not conflict
+    CBLSSecretKey rotated_operator;
+    rotated_operator.MakeNewKey();
+    const auto rotation = CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, rotated_operator);
+
+    CTxMemPool pool{MemPoolOptionsForTest(setup.m_node)};
+    TestMemPoolEntryHelper entry;
+    LOCK2(cs_main, pool.cs);
+
+    pool.addUnchecked(entry.FromTx(migration));
+    BOOST_CHECK(pool.existsProviderTxConflict(CTransaction(claimant)));
+    pool.removeRecursive(CTransaction(migration), MemPoolRemovalReason::MANUAL);
+    BOOST_CHECK(!pool.existsProviderTxConflict(CTransaction(claimant)));
+
+    pool.addUnchecked(entry.FromTx(claimant));
+    BOOST_CHECK(pool.existsProviderTxConflict(CTransaction(migration)));
+    BOOST_CHECK(!pool.existsProviderTxConflict(CTransaction(rotation)));
+    pool.removeRecursive(CTransaction(claimant), MemPoolRemovalReason::MANUAL);
+    BOOST_CHECK(!pool.existsProviderTxConflict(CTransaction(migration)));
+    BOOST_CHECK_EQUAL(pool.size(), 0U);
+}
+
+// Scenario E: an update that raises a BasicBLS EvoNode to ExtAddr (a registrar, service or revocation
+// update at ExtAddr) and a pre-ExtAddr service update of the same node are each valid against the tip.
+// In a block the raiser lands first, and the service update then synthesizes Platform entries from its
+// own payload. The mempool must not hold both, or every template would contain the pair.
+void FuncMigrationMempoolRejectsSynthesisPartner(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+    auto& chainman = setup.chainman;
+    auto& mempool = *Assert(setup.m_node.mempool.get());
+
+    // Another masternode holds 1.1.1.9:20301, the entry the victim would synthesize after moving there
+    setup.ProcessBlock(
+        {mcs.MakeExtAddrEvoProRegTx("1.1.1.7", "1.1.1.9:20301", "00112233445566778899aabbccddeeff00112277")});
+
+    const auto make_move = [&] {
+        return mcs.MakeBasicEvoProUpServTx(mcs.victim, "1.1.1.9:20300", MigrationCollisionSetup::VICTIM_P2P_PORT, 20302,
+                                           "8899aabbccddeeff00112233445566778899aabb", mcs.victim_operator,
+                                           /*fee=*/10000);
+    };
+    const auto make_ext_serv = [&] {
+        CProUpServTx proTx;
+        proTx.nVersion = ProTxVersion::ExtAddr;
+        proTx.nType = MnType::Evo;
+        proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
+        proTx.proTxHash = mcs.victim;
+        BOOST_REQUIRE_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.10:20300"), NetInfoStatus::Success);
+        BOOST_REQUIRE_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::PLATFORM_P2P, "1.1.1.10:20301"),
+                            NetInfoStatus::Success);
+        BOOST_REQUIRE_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.10:20302"),
+                            NetInfoStatus::Success);
+        // Distinct from the move's, so only the synthesis rule can make the two conflict
+        proTx.platformNodeID.SetHex("99aabbccddeeff00112233445566778899aabbcc");
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+        const auto spent = FundTransaction(chainman, tx, setup.utxos,
+                                           GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
+        tx.vout.back().nValue -= 10000;
+        proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        proTx.sig = mcs.victim_operator.Sign(::SerializeHash(proTx), /*specificLegacyScheme=*/false);
+        SetTxPayload(tx, proTx);
+        SignTransaction(tx, spent, setup.coinbaseKey);
+        return tx;
+    };
+    const auto make_ext_revoke = [&] {
+        CProUpRevTx proTx;
+        proTx.nVersion = ProTxVersion::ExtAddr;
+        proTx.proTxHash = mcs.victim;
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
+        const auto spent = FundTransaction(chainman, tx, setup.utxos,
+                                           GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
+        tx.vout.back().nValue -= 10000;
+        proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        proTx.sig = mcs.victim_operator.Sign(::SerializeHash(proTx), /*specificLegacyScheme=*/false);
+        SetTxPayload(tx, proTx);
+        SignTransaction(tx, spent, setup.coinbaseKey);
+        return tx;
+    };
+
+    const std::vector<std::pair<std::string, CMutableTransaction>> raisers{
+        {"same-key registrar update",
+         CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, mcs.victim_operator, /*fee=*/10000)},
+        {"ExtAddr service update", make_ext_serv()},
+        {"ExtAddr revocation", make_ext_revoke()},
+    };
+    for (const auto& [what, raiser] : raisers) {
+        BOOST_TEST_MESSAGE("raiser: " << what);
+        const auto move = make_move();
+        {
+            LOCK(cs_main);
+            const auto r_raiser = chainman.ProcessTransaction(MakeTransactionRef(raiser));
+            BOOST_REQUIRE_MESSAGE(r_raiser.m_result_type == MempoolAcceptResult::ResultType::VALID,
+                                  what << " rejected: " << r_raiser.m_state.GetRejectReason());
+            const auto r_move = chainman.ProcessTransaction(MakeTransactionRef(move));
+            BOOST_CHECK_MESSAGE(r_move.m_result_type != MempoolAcceptResult::ResultType::VALID,
+                                "move admitted alongside the " << what);
+            BOOST_CHECK_EQUAL(r_move.m_state.GetRejectReason(), "protx-dup");
+        }
+        std::unique_ptr<node::CBlockTemplate> tmpl;
+        auto make_template = [&] {
+            tmpl = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool}.CreateNewBlock(
+                setup.coinbase_pk);
+        };
+        BOOST_CHECK_NO_THROW(make_template());
+        BOOST_CHECK(tmpl != nullptr);
+
+        // Reverse order: with the move pending, the raiser is refused
+        LOCK2(cs_main, mempool.cs);
+        mempool.removeRecursive(CTransaction(raiser), MemPoolRemovalReason::MANUAL);
+        BOOST_CHECK(!mempool.existsProviderTxConflict(CTransaction(move)));
+        TestMemPoolEntryHelper entry;
+        mempool.addUnchecked(entry.FromTx(move));
+        BOOST_CHECK(mempool.existsProviderTxConflict(CTransaction(raiser)));
+        mempool.removeRecursive(CTransaction(move), MemPoolRemovalReason::MANUAL);
+        BOOST_CHECK_EQUAL(mempool.size(), 0U);
+    }
+}
+
+// Scenario F: a connected update invalidates the reservation a pending migration made against the old
+// tip, so the pending migration is evicted instead of keeping stale reservations
+void FuncMigrationMempoolEvictsStaleReservation(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+    auto& mempool = *Assert(setup.m_node.mempool.get());
+
+    const auto migration = CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, mcs.victim_operator);
+    {
+        LOCK2(cs_main, mempool.cs);
+        TestMemPoolEntryHelper entry;
+        mempool.addUnchecked(entry.FromTx(migration));
+    }
+    setup.ProcessBlock(
+        {mcs.MakeBasicEvoProUpServTx(mcs.victim, "1.1.1.9:20300", MigrationCollisionSetup::VICTIM_P2P_PORT, 20302,
+                                     "8899aabbccddeeff00112233445566778899aabb", mcs.victim_operator)});
+    LOCK2(cs_main, mempool.cs);
+    BOOST_CHECK(!mempool.exists(migration.GetHash()));
+    // Its reservation of the victim's old synthesized entry is released with it
+    const auto claimant = mcs.MakeExtAddrEvoProRegTx("1.1.1.7", VictimPlatformP2P,
+                                                     "00112233445566778899aabbccddeeff00112277");
+    BOOST_CHECK(!mempool.existsProviderTxConflict(CTransaction(claimant)));
+}
+
 BOOST_AUTO_TEST_CASE(migration_proupreg_platform_entry_collision)
 {
     TestChainV24SignalBeforeV19Setup setup;
@@ -2583,6 +2738,24 @@ BOOST_AUTO_TEST_CASE(migration_platform_entry_collision_in_block)
 {
     TestChainV24SignalBeforeV19Setup setup;
     FuncMigrationPlatformEntryCollisionInBlock(setup);
+}
+
+BOOST_AUTO_TEST_CASE(migration_mempool_reserves_platform_entries)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationMempoolReservesPlatformEntries(setup);
+}
+
+BOOST_AUTO_TEST_CASE(migration_mempool_rejects_synthesis_partner)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationMempoolRejectsSynthesisPartner(setup);
+}
+
+BOOST_AUTO_TEST_CASE(migration_mempool_evicts_stale_reservation)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationMempoolEvictsStaleReservation(setup);
 }
 
 // The SAME masternode, two registrar updates in one block, version-crossing. tx1 rotates a
