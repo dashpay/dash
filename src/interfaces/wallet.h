@@ -156,6 +156,12 @@ public:
     virtual wallet::PlatformKeyResult<SecureVector> platformECDHSecret(const wallet::IdentityAuthKey& key,
                                                                        const CPubKey& counterparty) = 0;
 
+    //! DIP-15 accountReference of a contact request sending compact_xpub,
+    //! keyed by the identity ENCRYPTION key, for account 0 and version 0 as
+    //! DashPay iOS sends it. The key never leaves the wallet.
+    virtual wallet::PlatformKeyResult<uint32_t> platformAccountReference(const wallet::IdentityAuthKey& key,
+                                                                         const wallet::CompactXpub& compact_xpub) = 0;
+
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
     //! descriptor and return the corresponding public chain. Derivation,
     //! descriptor update and result publication are one wallet-locked action.
