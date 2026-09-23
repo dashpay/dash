@@ -819,6 +819,8 @@ uint256 CSpecialTxProcessor::GetDeterministicMNListHash(gsl::not_null<const CBlo
     return SerializeHash(m_dmnman.GetListForBlock(pindex));
 }
 
+void CSpecialTxProcessor::UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex) { m_dmnman.UpdatedBlockTip(pindex); }
+
 bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const CChain& chain, const CBlock& block,
                                                    const CBlockIndex* pindex, SpecialTxRules rules,
                                                    const CCoinsViewCache& view, CAmount blockSubsidy, bool fJustCheck,

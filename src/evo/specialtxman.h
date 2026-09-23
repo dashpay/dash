@@ -107,6 +107,9 @@ public:
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const;
 
+    /** Passthrough to CDeterministicMNManager::UpdatedBlockTip */
+    void UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex);
+
 private:
     bool CheckSpecialTxInner(const CChain* chain, const CTransaction& tx, const CBlockIndex* pindexPrev,
                              SpecialTxRules rules, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes,
