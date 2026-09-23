@@ -1076,6 +1076,7 @@ public:
     PlatformKeyResult<std::vector<unsigned char>> SignPlatformDigest(const PlatformKeyRequest& request,
                                                                      const uint256& digest) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
+    PlatformKeyResult<uint256> PlatformAccountReferenceMac(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
 
     /**

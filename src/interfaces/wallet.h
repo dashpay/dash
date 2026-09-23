@@ -155,8 +155,16 @@ public:
 
     //! ECDH shared secret between the identity authentication key
     //! and a counterparty public key, using the libsecp256k1 ECDH KDF.
+    //! Refuses key_index 0 (the identity MASTER key).
     virtual wallet::PlatformKeyResult<SecureVector> platformECDHSecret(const wallet::IdentityAuthKey& key,
                                                                        const CPubKey& counterparty) = 0;
+
+    //! DIP-15 accountReference MAC: HMAC-SHA256 keyed by the identity
+    //! authentication (ENCRYPTION) private key over the compact xpub sent in
+    //! a contact request. Refuses key_index 0. The caller masks the account
+    //! index with the result; the key never leaves the wallet.
+    virtual wallet::PlatformKeyResult<uint256> platformAccountReferenceMac(const wallet::IdentityAuthKey& key,
+                                                                           const wallet::CompactXpub& compact_xpub) = 0;
 
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
     //! descriptor and return the corresponding public chain. Derivation,

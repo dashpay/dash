@@ -3968,7 +3968,8 @@ PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKe
 {
     LOCK(cs_wallet);
     PlatformKeyResult<SecureVector> result;
-    if (!counterparty.IsFullyValid()) {
+    // Key 0 is the identity MASTER key; DIP-15 never uses it for ECDH.
+    if (request.key_index == 0 || !counterparty.IsFullyValid()) {
         result.status = PlatformKeyStatus::INVALID_ARGUMENT;
         return result;
     }
@@ -3978,6 +3979,25 @@ PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKe
         !platformkeys::ComputeECDHSecret(key.key, counterparty, result.value)) {
         result.status = PlatformKeyStatus::DERIVATION_ERROR;
         result.value.clear();
+    }
+    return result;
+}
+
+PlatformKeyResult<uint256> CWallet::PlatformAccountReferenceMac(const IdentityAuthKey& request, const CompactXpub& compact_xpub) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<uint256> result;
+    // The MAC is keyed by the same ENCRYPTION key as the ECDH secret; never MASTER.
+    if (request.key_index == 0) {
+        result.status = PlatformKeyStatus::INVALID_ARGUMENT;
+        return result;
+    }
+    platformkeys::ExtKey256 key;
+    result.status = DerivePlatformKey(PlatformKeyRequest{request}, key);
+    if (result.status == PlatformKeyStatus::SUCCESS &&
+        !platformkeys::ComputeAccountReferenceMac(key.key, compact_xpub, result.value)) {
+        result.status = PlatformKeyStatus::DERIVATION_ERROR;
+        result.value.SetNull();
     }
     return result;
 }
@@ -4022,7 +4042,7 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         return result;
     }
 
-    result.value = {key.key.GetPubKey(), key.chaincode};
+    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     return result;
 }
 
