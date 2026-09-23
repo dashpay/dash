@@ -2722,6 +2722,27 @@ void FuncMigrationMempoolEvictsStaleReservation(TestChainV24SignalBeforeV19Setup
     BOOST_CHECK(!mempool.existsProviderTxConflict(CTransaction(claimant)));
 }
 
+// Scenario G: a migration mined elsewhere evicts a pending claimant of an entry it synthesized, whose
+// reservation would otherwise block the migrated masternode's later updates that keep that entry
+void FuncMigrationMinedEvictsPendingClaimant(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+    auto& mempool = *Assert(setup.m_node.mempool.get());
+
+    const auto claimant = mcs.MakeExtAddrEvoProRegTx("1.1.1.7", VictimPlatformP2P,
+                                                     "00112233445566778899aabbccddeeff00112277");
+    {
+        LOCK2(cs_main, mempool.cs);
+        TestMemPoolEntryHelper entry;
+        mempool.addUnchecked(entry.FromTx(claimant));
+    }
+    setup.ProcessBlock({CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, mcs.victim_operator)});
+    BOOST_REQUIRE_EQUAL(setup.dmnman.GetListAtChainTip().GetMN(mcs.victim)->pdmnState->nVersion, ProTxVersion::ExtAddr);
+
+    LOCK(mempool.cs);
+    BOOST_CHECK(!mempool.exists(claimant.GetHash()));
+}
+
 BOOST_AUTO_TEST_CASE(migration_proupreg_platform_entry_collision)
 {
     TestChainV24SignalBeforeV19Setup setup;
@@ -2756,6 +2777,12 @@ BOOST_AUTO_TEST_CASE(migration_mempool_evicts_stale_reservation)
 {
     TestChainV24SignalBeforeV19Setup setup;
     FuncMigrationMempoolEvictsStaleReservation(setup);
+}
+
+BOOST_AUTO_TEST_CASE(migration_mined_evicts_pending_claimant)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationMinedEvictsPendingClaimant(setup);
 }
 
 // The SAME masternode, two registrar updates in one block, version-crossing. tx1 rotates a

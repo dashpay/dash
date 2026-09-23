@@ -1141,6 +1141,18 @@ void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
 
 void CTxMemPool::removeProTxMigrationConflicts(const CTransaction& tx, const uint256& proTxHash)
 {
+    // Pending claimants of the Platform entries this update synthesizes can no longer be mined, and
+    // their reservations would block the masternode's own later updates that keep those entries.
+    // Computed against the tip the update was applied to, which the masternode list still reflects
+    // while the block's transactions are removed.
+    for (const auto& entry : GetMigratedProTxAddresses(tx)) {
+        if (const auto it = mapProTxAddresses.find(entry); it != mapProTxAddresses.end() && it->second != tx.GetHash()) {
+            if (const auto txit = mapTx.find(it->second); txit != mapTx.end()) {
+                removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+            }
+        }
+    }
+
     // A connected update can invalidate what pending updates of the same masternode derived from the
     // tip: a service update changes the address a pending migration's reserved entries came from, and
     // raising the node to ExtAddr turns a pending pre-ExtAddr service update into an unreserved
