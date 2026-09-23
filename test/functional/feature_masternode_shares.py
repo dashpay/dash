@@ -342,6 +342,59 @@ class MasternodeSharesTest(DashTestFramework):
             assert_equal(confirmed_address, voting)
             assert pending_txid not in node.getrawmempool()
 
+    def test_stale_service_update(self, node, protx_hash, rotate, port):
+        """A service update signed with an operator key that a pending key change replaces never shares
+        the mempool with that change, whichever arrives first. rotate(operator_public, fee_address)
+        submits an operator key change for protx_hash and returns its txid."""
+        def mine():
+            self.bump_mocktime(10 * 60 + 1)
+            return self.generate(node, 1, sync_fun=self.no_op)[0]
+
+        def assert_banned_with(operator):
+            state = node.protx("info", protx_hash)["state"]
+            assert_equal(state["pubKeyOperator"], operator)
+            assert_greater_than(state["PoSeBanHeight"], 0)
+
+        # one per submitted transaction, plus one the refused updates name but never spend
+        fees = [node.getnewaddress() for _ in range(6)]
+        node.sendmany("", {address: 1 for address in fees})
+        mine()
+        address = [f"127.0.0.1:{p2p_port(port)}"]
+        key1, key2, key3 = [node.bls("generate") for _ in range(3)]
+        # Start from an operator key this test controls
+        rotate(key1["public"], fees.pop())
+        mine()
+
+        self.log.info("A rotation evicts a pending service update signed with the key it replaces")
+        serv_txid = node.protx("update_service", protx_hash, address, key1["secret"], "", fees.pop())
+        rotation_txid = rotate(key2["public"], fees.pop())
+        mempool = node.getrawmempool()
+        assert rotation_txid in mempool
+        assert serv_txid not in mempool
+        rotation_block = mine()
+        assert_banned_with(key2["public"])
+
+        self.log.info("A rotation returned to the mempool by a reorg still refuses the old key's update")
+        node.invalidateblock(rotation_block)
+        assert rotation_txid in node.getrawmempool()
+        assert_raises_rpc_error(None, "protx-dup", node.protx, "update_service", protx_hash, address,
+                                key1["secret"], "", fees[-1])
+        node.reconsiderblock(rotation_block)
+        assert_equal(node.getbestblockhash(), rotation_block)
+
+        self.log.info("A service update signed with the key a pending rotation replaces is refused")
+        rotation_txid = rotate(key3["public"], fees.pop())
+        assert_raises_rpc_error(None, "protx-dup", node.protx, "update_service", protx_hash, address,
+                                key2["secret"], "", fees[-1])
+        assert rotation_txid in node.getblock(mine())["tx"]
+
+        self.log.info("A service update signed with the key a pending revocation clears is refused")
+        revoke_txid = node.protx("revoke", protx_hash, key3["secret"], 0, fees.pop())
+        assert_raises_rpc_error(None, "protx-dup", node.protx, "update_service", protx_hash, address,
+                                key3["secret"], "", fees[-1])
+        assert revoke_txid in node.getblock(mine())["tx"]
+        assert_banned_with("0" * 96)
+
     def test_separate_participant_wallets(self):
         self.log.info("Eight separate wallets fund and authorize a shared masternode")
         node = self.nodes[0]
@@ -1030,6 +1083,11 @@ class MasternodeSharesTest(DashTestFramework):
         reuse_info = node.protx("info", reuse_txid)
         assert_equal(reuse_info["state"]["ownerAddress"], owner2)
         assert_equal(len(node.masternodelist()), 1)
+
+        def rotate_ordinary(operator, fee):
+            return node.protx("update_registrar", reuse_txid, operator, "", "", fee)
+        self.test_stale_service_update(node, reuse_txid, rotate_ordinary, port=7)
+
         # Spend the ordinary masternode's collateral so the rest of the test sees the same
         # masternode list it did before this check
         reuse_spend = node.createrawtransaction([{"txid": reuse_txid, "vout": reuse_info["collateralIndex"]}],
@@ -1164,6 +1222,12 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.test_pending_registrar_update(node, protx_hash4)
         self.test_voting_payee_conflict_eviction(node, protx_hash4)
+
+        def rotate_shared(operator, fee):
+            prepared = node.protx("shared_update_registrar_prepare", protx_hash4, operator, "", fee)
+            sigs = node.protx("shared_sign", prepared["tx"])["signatures"]
+            return node.protx("shared_combine", prepared["tx"], sigs, True)
+        self.test_stale_service_update(node, protx_hash4, rotate_shared, port=5)
 
         self.log.info("Shared state survives a node restart")
         state_before_restart = node.protx("info", protx_hash4)["state"]
