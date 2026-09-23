@@ -8,6 +8,23 @@
 #include <script/standard.h>
 #include <univalue.h>
 
+std::vector<std::pair<NetInfoPurpose, NetInfoEntry>> GetMigratedPlatformEntries(const NetInfoInterface& net_info,
+                                                                                MnType type, uint16_t target_version,
+                                                                                uint16_t platform_p2p_port,
+                                                                                uint16_t platform_http_port)
+{
+    std::vector<std::pair<NetInfoPurpose, NetInfoEntry>> entries;
+    if (type != MnType::Evo || target_version < ProTxVersion::ExtAddr || net_info.CanStorePlatform() || net_info.IsEmpty()) {
+        return entries;
+    }
+    const CNetAddr addr{net_info.GetPrimary()};
+    for (const auto& [purpose, port] : {std::pair{NetInfoPurpose::PLATFORM_P2P, platform_p2p_port},
+                                        std::pair{NetInfoPurpose::PLATFORM_HTTPS, platform_http_port}}) {
+        if (port != 0) entries.emplace_back(purpose, NetInfoEntry{CService{addr, port}});
+    }
+    return entries;
+}
+
 std::string CDeterministicMNState::ToString() const
 {
     CTxDestination dest;

@@ -2202,7 +2202,8 @@ static uint256 RegisterBasicEvoNode(TestChainV24SignalBeforeV19Setup& setup, con
 }
 
 static CMutableTransaction CreateExtAddrProUpRegTx(TestChainV24SignalBeforeV19Setup& setup, const uint256& proTxHash,
-                                                   const CKey& owner_key, const CBLSSecretKey& operator_key)
+                                                   const CKey& owner_key, const CBLSSecretKey& operator_key,
+                                                   CAmount fee = 0)
 {
     CProUpRegTx proTx;
     proTx.nVersion = ProTxVersion::ExtAddr;
@@ -2215,6 +2216,7 @@ static CMutableTransaction CreateExtAddrProUpRegTx(TestChainV24SignalBeforeV19Se
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
     const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
                                        GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
+    tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     CHashSigner::SignHash(::SerializeHash(proTx), owner_key, proTx.vchSig);
     SetTxPayload(tx, proTx);
@@ -2365,6 +2367,222 @@ BOOST_AUTO_TEST_CASE(evonode_migration_rejects_bad_platform_port)
 {
     TestChainV24SignalBeforeV19Setup setup;
     FuncEvoNodeMigrationRejectsBadPlatformPort(setup);
+}
+
+// Raising a BasicBLS EvoNode to ExtAddr synthesizes Platform entries from its scalar ports (primary
+// address + port). Those entries join the unique-property map, so another masternode already holding
+// one must make the update invalid; accepting it would make the re-key in UpdateMN() throw out of
+// block assembly.
+struct MigrationCollisionSetup {
+    static constexpr const char* VICTIM_IP{"1.1.1.6"};
+    static constexpr uint16_t VICTIM_P2P_PORT{20301}; // RegisterBasicEvoNode's Platform P2P port
+
+    explicit MigrationCollisionSetup(TestChainV24SignalBeforeV19Setup& setup) :
+        setup{setup}
+    {
+        setup.MineToV19();
+        victim_owner.MakeNewKey(true);
+        victim_operator.MakeNewKey();
+        victim = RegisterBasicEvoNode(setup, VICTIM_IP, 20302, victim_owner, victim_operator);
+        setup.MineToV24();
+    }
+
+    // An ExtAddr EvoNode at core_ip whose Platform P2P entry is platform_p2p
+    CMutableTransaction MakeExtAddrEvoProRegTx(const std::string& core_ip, const std::string& platform_p2p,
+                                               const char* platform_node_id, CBLSSecretKey operator_key = {})
+    {
+        CKey owner_key;
+        owner_key.MakeNewKey(true);
+        if (!operator_key.IsValid()) operator_key.MakeNewKey();
+        CProRegTx pro_reg;
+        pro_reg.nVersion = ProTxVersion::ExtAddr;
+        pro_reg.nType = MnType::Evo;
+        pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
+        pro_reg.collateralOutpoint.n = 0;
+        BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, core_ip + ":20400"),
+                            NetInfoStatus::Success);
+        BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::PLATFORM_P2P, platform_p2p), NetInfoStatus::Success);
+        BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::PLATFORM_HTTPS, core_ip + ":20402"),
+                            NetInfoStatus::Success);
+        pro_reg.platformNodeID.SetHex(platform_node_id);
+        pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
+        pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+        pro_reg.keyIDVoting = owner_key.GetPubKey().GetID();
+        pro_reg.payouts = {{GenerateRandomAddress(), MasternodePayoutShare::MAX_REWARD}};
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_REGISTER;
+        const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
+                                           GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
+                                           dmn_types::Evo.collat_amount);
+        pro_reg.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        SetTxPayload(tx, pro_reg);
+        SignTransaction(tx, spent, setup.coinbaseKey);
+        return tx;
+    }
+
+    // A BasicBLS service update for an EvoNode: core_addr plus scalar Platform ports
+    CMutableTransaction MakeBasicEvoProUpServTx(const uint256& proTxHash, const std::string& core_addr,
+                                                uint16_t platform_p2p_port, uint16_t platform_http_port,
+                                                const char* platform_node_id, const CBLSSecretKey& operator_key,
+                                                CAmount fee = 0)
+    {
+        CProUpServTx proTx;
+        proTx.nVersion = ProTxVersion::BasicBLS;
+        proTx.nType = MnType::Evo;
+        proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
+        proTx.proTxHash = proTxHash;
+        BOOST_REQUIRE_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, core_addr), NetInfoStatus::Success);
+        proTx.platformNodeID.SetHex(platform_node_id);
+        proTx.platformP2PPort = platform_p2p_port;
+        proTx.platformHTTPPort = platform_http_port;
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+        const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
+                                           GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
+        tx.vout.back().nValue -= fee;
+        proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        proTx.sig = operator_key.Sign(::SerializeHash(proTx), /*specificLegacyScheme=*/false);
+        SetTxPayload(tx, proTx);
+        SignTransaction(tx, spent, setup.coinbaseKey);
+        return tx;
+    }
+
+    std::string BuildListRejectReason(const std::vector<CMutableTransaction>& txs)
+    {
+        CMutableTransaction coinbase;
+        coinbase.vin.emplace_back(COutPoint(), CScript() << OP_0 << OP_0);
+        coinbase.vout.emplace_back(50 * COIN, setup.coinbase_pk);
+        CBlock block;
+        block.vtx.emplace_back(MakeTransactionRef(std::move(coinbase)));
+        for (const auto& tx : txs) {
+            block.vtx.emplace_back(MakeTransactionRef(tx));
+        }
+        BlockValidationState state;
+        CDeterministicMNList mn_list;
+        LOCK(cs_main);
+        BOOST_CHECK(!setup.chainman.ActiveChainstate().ChainHelper().special_tx->BuildNewListFromBlock(
+            block, setup.Tip(), setup.IsV24Active(), setup.chainman.ActiveChainstate().CoinsTip(),
+            /*debugLogs=*/false, state, mn_list));
+        return state.GetRejectReason();
+    }
+
+    TestChainV24SignalBeforeV19Setup& setup;
+    CKey victim_owner;
+    CBLSSecretKey victim_operator;
+    uint256 victim;
+};
+
+static const std::string VictimPlatformP2P{
+    strprintf("%s:%d", MigrationCollisionSetup::VICTIM_IP, MigrationCollisionSetup::VICTIM_P2P_PORT)};
+
+// Scenario A: another masternode takes the victim's ip:platformP2PPort, then the victim's routine
+// registrar update migrates it to ExtAddr
+void FuncMigrationProUpRegPlatformEntryCollision(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+    auto& chainman = setup.chainman;
+    auto& dmnman = setup.dmnman;
+
+    setup.ProcessBlock(
+        {mcs.MakeExtAddrEvoProRegTx("1.1.1.7", VictimPlatformP2P, "00112233445566778899aabbccddeeff00112277")});
+
+    const auto tx = CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, mcs.victim_operator);
+    {
+        TxValidationState val_state;
+        LOCK(cs_main);
+        BOOST_CHECK(!CheckProUpRegTx(CTransaction(tx), chainman.ActiveChain().Tip(), dmnman,
+                                     chainman.ActiveChainstate().CoinsTip(), chainman.GetConsensus(),
+                                     IsV24Active(chainman), val_state, /*check_sigs=*/true));
+        BOOST_CHECK_EQUAL(val_state.GetRejectReason(), "bad-protx-dup-netinfo-entry");
+    }
+    BOOST_CHECK_EQUAL(mcs.BuildListRejectReason({tx}), "bad-protx-dup-netinfo-entry");
+    BOOST_CHECK_EQUAL(dmnman.GetListAtChainTip().GetMN(mcs.victim)->pdmnState->nVersion, ProTxVersion::BasicBLS);
+}
+
+// Scenario B: an attacker's own ExtAddr EvoNode sends a BasicBLS service update. The payload's scalar
+// ports are re-synthesized onto the payload's core address, so pointing that address at the victim's
+// IP makes a synthesized entry equal the victim's core address.
+void FuncMigrationProUpServPlatformEntryCollision(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+    auto& chainman = setup.chainman;
+    auto& dmnman = setup.dmnman;
+
+    CBLSSecretKey attacker_operator;
+    attacker_operator.MakeNewKey();
+    const char* attacker_node_id{"00112233445566778899aabbccddeeff00112288"};
+    const auto reg = mcs.MakeExtAddrEvoProRegTx("1.1.1.8", "1.1.1.8:20401", attacker_node_id, attacker_operator);
+    const auto attacker = reg.GetHash();
+    setup.ProcessBlock({reg});
+    BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(attacker)->pdmnState->nVersion, ProTxVersion::ExtAddr);
+
+    // The victim's core address is VICTIM_IP:20300 (RegisterBasicEvoNode), which the synthesized
+    // Platform P2P entry VICTIM_IP:20300 collides with
+    const auto tx = mcs.MakeBasicEvoProUpServTx(attacker, strprintf("%s:20310", MigrationCollisionSetup::VICTIM_IP),
+                                                /*platform_p2p_port=*/20300, /*platform_http_port=*/20311,
+                                                attacker_node_id, attacker_operator);
+    {
+        TxValidationState val_state;
+        LOCK(cs_main);
+        BOOST_CHECK(!CheckProUpServTx(CTransaction(tx), chainman.ActiveChain().Tip(), dmnman, chainman.GetConsensus(),
+                                      IsV24Active(chainman), val_state, /*check_sigs=*/true));
+        BOOST_CHECK_EQUAL(val_state.GetRejectReason(), "bad-protx-dup-netinfo-entry");
+    }
+    BOOST_CHECK_EQUAL(mcs.BuildListRejectReason({tx}), "bad-protx-dup-netinfo-entry");
+
+    // Control: the same update without the collision is valid
+    const auto ok_tx = mcs.MakeBasicEvoProUpServTx(attacker, "1.1.1.8:20310", 20300, 20311, attacker_node_id,
+                                                   attacker_operator);
+    {
+        TxValidationState val_state;
+        LOCK(cs_main);
+        BOOST_CHECK_MESSAGE(CheckProUpServTx(CTransaction(ok_tx), chainman.ActiveChain().Tip(), dmnman,
+                                             chainman.GetConsensus(), IsV24Active(chainman), val_state,
+                                             /*check_sigs=*/true),
+                            "unexpected rejection: " << val_state.GetRejectReason());
+    }
+}
+
+// Scenario C: the claimant and the migration land in the same block. Per-transaction checks ran against
+// the previous tip, so only the rebuild sees the claim.
+void FuncMigrationPlatformEntryCollisionInBlock(TestChainV24SignalBeforeV19Setup& setup)
+{
+    MigrationCollisionSetup mcs{setup};
+    auto& chainman = setup.chainman;
+    auto& dmnman = setup.dmnman;
+
+    const auto claimant = mcs.MakeExtAddrEvoProRegTx("1.1.1.7", VictimPlatformP2P,
+                                                     "00112233445566778899aabbccddeeff00112277");
+    const auto migration = CreateExtAddrProUpRegTx(setup, mcs.victim, mcs.victim_owner, mcs.victim_operator);
+    {
+        TxValidationState val_state;
+        LOCK(cs_main);
+        BOOST_REQUIRE_MESSAGE(CheckProUpRegTx(CTransaction(migration), chainman.ActiveChain().Tip(), dmnman,
+                                              chainman.ActiveChainstate().CoinsTip(), chainman.GetConsensus(),
+                                              IsV24Active(chainman), val_state, /*check_sigs=*/true),
+                              "migration rejected against the previous tip: " << val_state.GetRejectReason());
+    }
+    BOOST_CHECK_EQUAL(mcs.BuildListRejectReason({claimant, migration}), "bad-protx-dup-netinfo-entry");
+}
+
+BOOST_AUTO_TEST_CASE(migration_proupreg_platform_entry_collision)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationProUpRegPlatformEntryCollision(setup);
+}
+
+BOOST_AUTO_TEST_CASE(migration_proupserv_platform_entry_collision)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationProUpServPlatformEntryCollision(setup);
+}
+
+BOOST_AUTO_TEST_CASE(migration_platform_entry_collision_in_block)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMigrationPlatformEntryCollisionInBlock(setup);
 }
 
 // The SAME masternode, two registrar updates in one block, version-crossing. tx1 rotates a

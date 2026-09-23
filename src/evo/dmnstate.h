@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include <boost/hana/for_each.hpp>
 #include <boost/hana/tuple.hpp>
@@ -173,6 +174,15 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson(MnType nType) const;
 };
+
+/**
+ * Platform entries synthesized from an EvoNode's scalar Platform ports when its netInfo is raised to
+ * target_version's ExtNetInfo format: each non-zero port paired with the primary address. Empty when
+ * the conversion synthesizes nothing (not an EvoNode, not reaching ExtAddr, or already ExtNetInfo).
+ */
+[[nodiscard]] std::vector<std::pair<NetInfoPurpose, NetInfoEntry>> GetMigratedPlatformEntries(
+    const NetInfoInterface& net_info, MnType type, uint16_t target_version, uint16_t platform_p2p_port,
+    uint16_t platform_http_port);
 
 class CDeterministicMNStateDiff
 {

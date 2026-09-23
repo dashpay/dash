@@ -41,6 +41,23 @@ static bool AddNetInfoEntries(const std::shared_ptr<NetInfoInterface>& net_info,
     return true;
 }
 
+// Is any of these entries already held by a masternode other than `self`? Checked against a
+// masternode's netInfo as it will be stored: raising a BasicBLS EvoNode to ExtAddr synthesizes Platform
+// entries from its scalar ports, and a collision there would make the re-key in UpdateMN() throw.
+static bool IsNetInfoEntryHeldByOther(const CDeterministicMNList& list, const NetInfoList& entries, const uint256& self)
+{
+    for (const auto& entry : entries) {
+        CDeterministicMNCPtr holder;
+        if (const auto service_opt{entry.GetAddrPort()}) {
+            holder = list.GetUniquePropertyMN(*service_opt);
+        } else if (const auto domain_opt{entry.GetDomainPort()}) {
+            holder = list.GetUniquePropertyMN(*domain_opt);
+        }
+        if (holder && holder->proTxHash != self) return true;
+    }
+    return false;
+}
+
 // Raising a masternode's state version out of the legacy BLS scheme re-encodes its operator key and
 // moves it to a new scheme-dependent unique-property slot; the collision guards key off this.
 static bool IsSchemeMigration(int old_version, int new_version)
@@ -88,15 +105,15 @@ static bool SetStateVersion(CDeterministicMNState& state_mn, uint16_t nVersion, 
                                    state_mn.netInfo->GetEntries(NetInfoPurpose::PLATFORM_HTTPS), state)) {
                 return false;
             }
-        } else if (nType == MnType::Evo && !state_mn.netInfo->IsEmpty()) {
-            const CNetAddr addr{state_mn.netInfo->GetPrimary()};
-            if ((state_mn.platformP2PPort != 0 &&
-                 converted_netinfo->AddEntry(NetInfoPurpose::PLATFORM_P2P,
-                                             CService(addr, state_mn.platformP2PPort).ToStringAddrPort()) != NetInfoStatus::Success) ||
-                (state_mn.platformHTTPPort != 0 &&
-                 converted_netinfo->AddEntry(NetInfoPurpose::PLATFORM_HTTPS,
-                                             CService(addr, state_mn.platformHTTPPort).ToStringAddrPort()) != NetInfoStatus::Success)) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-version");
+        } else {
+            // GetMigratedPlatformEntries() is the single definition of these entries: the mempool uses
+            // it to reserve them while this update is pending
+            for (const auto& [purpose, entry] :
+                 GetMigratedPlatformEntries(*state_mn.netInfo, nType, nVersion, state_mn.platformP2PPort,
+                                            state_mn.platformHTTPPort)) {
+                if (converted_netinfo->AddEntry(purpose, entry.ToStringAddrPort()) != NetInfoStatus::Success) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-version");
+                }
             }
         }
         state_mn.platformP2PPort = 0;
@@ -528,6 +545,11 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                                                      /*self=*/opt_proTx->proTxHash)) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
             }
+            // Raising a BasicBLS EvoNode to ExtAddr synthesizes Platform entries the payload check
+            // above never saw
+            if (is_v24_active && IsNetInfoEntryHeldByOther(newList, newState->netInfo->GetEntries(), opt_proTx->proTxHash)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+            }
 
             newList.UpdateMN(opt_proTx->proTxHash, newState);
             if (debugLogs) {
@@ -591,6 +613,11 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             } else {
                 newState->scriptPayout = opt_proTx->scriptPayout;
                 newState->payouts.clear();
+            }
+            // Raising a BasicBLS EvoNode to ExtAddr synthesizes Platform entries from its scalar ports.
+            // Another masternode may have taken one, possibly earlier in this block.
+            if (is_v24_active && IsNetInfoEntryHeldByOther(newList, newState->netInfo->GetEntries(), opt_proTx->proTxHash)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
             }
 
             newList.UpdateMN(opt_proTx->proTxHash, newState);
@@ -1367,6 +1394,10 @@ bool CheckProUpServTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> 
         if (!ApplyProUpServTx(new_state, *opt_ptx, is_v24_active, migration_state)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, migration_state.GetRejectReason());
         }
+        // Covers the Platform entries a migration synthesizes, not only those in the payload
+        if (IsNetInfoEntryHeldByOther(mnList, new_state.netInfo->GetEntries(), opt_ptx->proTxHash)) {
+            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-netinfo-entry");
+        }
     }
 
     // A service update carries no operator key, but raising a legacy masternode to the basic scheme
@@ -1475,6 +1506,10 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
             if (!SetStateVersion(new_state, std::max<uint16_t>(dmn->pdmnState->nVersion, opt_ptx->nVersion), dmn->nType,
                                  migration_state)) {
                 return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, migration_state.GetRejectReason());
+            }
+            // Migrating a BasicBLS EvoNode synthesizes Platform entries from its scalar ports
+            if (IsNetInfoEntryHeldByOther(mnList, new_state.netInfo->GetEntries(), opt_ptx->proTxHash)) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-netinfo-entry");
             }
         }
     }
