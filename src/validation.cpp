@@ -428,6 +428,12 @@ void Chainstate::MaybeUpdateMempoolForReorg(
 
     AssertLockHeld(cs_main);
     AssertLockHeld(m_mempool->cs);
+    // The mempool checks provider transactions against the masternode list at the tip, which the
+    // block tip notifications move only after this. Move it now, so a transaction re-added below is
+    // not checked against the list of a disconnected block.
+    if (fAddToMempool && m_chain_helper && m_chain.Tip()) {
+        m_chain_helper->UpdatedMNListTip(m_chain.Tip());
+    }
     std::vector<uint256> vHashUpdate;
     // disconnectpool's insertion_order index sorts the entries from
     // oldest to newest, but the oldest entry will be the last tx from the
@@ -1243,6 +1249,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
+    m_pool.removeProTxStaleServiceUpdates(tx, ws.m_ancestors);
     return true;
 }
 
@@ -1454,6 +1461,10 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
     LOCK(m_pool.cs);
 
     if (!CheckPackageAssetUnlockEvictions(txns, package_state)) return PackageMempoolAcceptResult(package_state, {});
+    if (m_pool.PackageHasStaleServiceUpdate(txns)) {
+        package_state.Invalid(PackageValidationResult::PCKG_POLICY, "protx-dup");
+        return PackageMempoolAcceptResult(package_state, {});
+    }
 
     // Do all PreChecks first and fail fast to avoid running expensive script checks when unnecessary.
     for (Workspace& ws : workspaces) {
@@ -1580,6 +1591,10 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
     // Checked on the whole package before any parent is submitted on its own below: a single
     // submission of a fresher claimant would already carry out the eviction.
     if (!CheckPackageAssetUnlockEvictions(package, package_state_quit_early)) return PackageMempoolAcceptResult(package_state_quit_early, {});
+    if (m_pool.PackageHasStaleServiceUpdate(package)) {
+        package_state_quit_early.Invalid(PackageValidationResult::PCKG_POLICY, "protx-dup");
+        return PackageMempoolAcceptResult(package_state_quit_early, {});
+    }
     // Stores final results that won't change
     std::map<const uint256, const MempoolAcceptResult> results_final;
     // Node operators are free to set their mempool policies however they please, nodes may receive

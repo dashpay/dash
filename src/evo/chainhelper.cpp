@@ -69,6 +69,8 @@ uint256 CChainstateHelper::GetDeterministicMNListHash(const CBlockIndex* pindex)
     return SerializeHash(m_dmnman.GetListForBlock(Assert(pindex)));
 }
 
+void CChainstateHelper::UpdatedMNListTip(const CBlockIndex* pindex) { m_dmnman.UpdatedBlockTip(Assert(pindex)); }
+
 /** Passthrough functions to CCreditPoolManager */
 CCreditPool CChainstateHelper::GetCreditPool(const CBlockIndex* const pindex)
 {
