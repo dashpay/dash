@@ -1718,6 +1718,34 @@ void FuncTestMempoolStaleServiceUpdate(TestChainSetup& setup)
     const auto result = submit(make_serv(/*port=*/7, operatorKey));
     BOOST_CHECK(result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
     BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "protx-dup");
+    reset_mempool();
+
+    // A reorg returning a block that confirmed a service update and then a rotation, while a pending
+    // transaction spends the service update: the returning rotation evicts the service update
+    // together with its spender, although the reorg has not yet linked the two
+    {
+        const CBlockIndex* fork_point{tip_index()};
+        const auto tx_serv = make_serv(/*port=*/9, operatorKey);
+        const auto tx_rot = make_reg(newOperatorKey);
+        setup.CreateAndProcessBlock({tx_serv, tx_rot}, coinbase_pk);
+        sync_dmn_tip();
+        SimpleUTXOMap serv_coins{{COutPoint(tx_serv.GetHash(), 0),
+                                  Coin(tx_serv.vout[0], /*nHeightIn=*/0, /*fCoinBaseIn=*/false)}};
+        CMutableTransaction tx_child;
+        tx_child.vin.emplace_back(COutPoint(tx_serv.GetHash(), 0));
+        tx_child.vout.emplace_back(tx_serv.vout[0].nValue - fee, coinbase_pk);
+        SignTransaction(tx_child, serv_coins, setup.coinbaseKey);
+        BOOST_REQUIRE(accepted(tx_child));
+
+        BlockValidationState reorg_state;
+        BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(
+            reorg_state, WITH_LOCK(cs_main, return chainman.ActiveChain().Next(fork_point))));
+        BOOST_CHECK(in_mempool(tx_rot));
+        BOOST_CHECK(!in_mempool(tx_serv));
+        BOOST_CHECK(!in_mempool(tx_child));
+        LOCK2(cs_main, mempool.cs);
+        mempool.check(chainman.ActiveChainstate().CoinsTip(), chainman.ActiveChain().Height() + 1);
+    }
 }
 
 void FuncVerifyDB(TestChainSetup& setup)

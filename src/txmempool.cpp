@@ -1113,8 +1113,15 @@ void CTxMemPool::CalculateServiceUpdates(const uint256& proTxHash, const setEntr
     AssertLockHeld(cs);
     for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
         auto txit = mapTx.find(its.first->second);
-        if (txit != mapTx.end() && txit->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_SERVICE && !exclude.count(txit)) {
-            CalculateDescendants(txit, entries);
+        if (txit == mapTx.end() || txit->GetTx().nType != TRANSACTION_PROVIDER_UPDATE_SERVICE || exclude.count(txit)) {
+            continue;
+        }
+        CalculateDescendants(txit, entries);
+        // While a reorg returns transactions to the pool, links to in-pool children are only
+        // rebuilt afterwards (UpdateTransactionsFromBlock), so also follow the spenders directly
+        const uint256& hash{txit->GetTx().GetHash()};
+        for (auto next = mapNextTx.lower_bound(COutPoint(hash, 0)); next != mapNextTx.end() && next->first->hash == hash; ++next) {
+            CalculateDescendants(mapTx.find(next->second->GetHash()), entries);
         }
     }
 }
