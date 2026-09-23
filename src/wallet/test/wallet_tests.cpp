@@ -12,18 +12,24 @@
 #include <vector>
 
 #include <bls/bls.h>
+#include <chainlock/chainlock.h>
 #include <coinjoin/client.h>
 #include <coinjoin/coinjoin.h>
+#include <consensus/validation.h>
+#include <evo/assetlocktx.h>
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
+#include <evo/specialtx.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
+#include <interfaces/wallet.h>
 #include <key_io.h>
 #include <node/blockstorage.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
+#include <spork.h>
 #include <test/util/logging.h>
 #include <test/util/masternode.h>
 #include <test/util/random.h>
@@ -814,6 +820,144 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTestingSetup)
         expected_coins_sizes[out_type] = 2U;
         TestCoinsResult(*this, out_type, 1 * COIN, expected_coins_sizes);
     }
+}
+
+//! Special transactions are only accepted once DIP0003 is active, which the
+//! default regtest parameters place far beyond the pinned fixture chains. The
+//! same chain as the evo tests: activation at 109, tip at 108.
+struct AssetLockTestingSetup : public TestChainSetup {
+    AssetLockTestingSetup() : TestChainSetup{107, CBaseChainParams::REGTEST, {"-dip3params=109:500"}}
+    {
+        CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        wallet = CreateSyncedWallet(*m_node.chain, *m_node.coinjoin_loader, *Assert(m_node.chainman), m_args, coinbaseKey);
+    }
+
+    ~AssetLockTestingSetup() { wallet.reset(); }
+
+    std::unique_ptr<CWallet> wallet;
+};
+
+//! An asset lock built through the wallet interface must be a consensus-valid
+//! special transaction the local mempool accepts, and a mempool rejection on
+//! commit must reach the caller so the transaction can be abandoned.
+BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
+{
+    WalletContext context;
+    context.args = &m_args;
+    context.chain = m_node.chain.get();
+    context.coinjoin_loader = m_node.coinjoin_loader.get();
+    const auto wallet_ref{std::shared_ptr<CWallet>(wallet.get(), [](CWallet*) {})};
+    auto iface{interfaces::MakeWallet(context, wallet_ref)};
+    wallet->SetBroadcastTransactions(true);
+
+    CKey credit_key;
+    credit_key.MakeNewKey(/*fCompressed=*/true);
+    const CAmount credit_amount{COIN};
+    CCoinControl coin_control;
+
+    BOOST_CHECK(!iface->createAssetLockTransaction(0, credit_key.GetPubKey(), coin_control));
+    BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, CPubKey{}, coin_control));
+    CKey uncompressed_key;
+    uncompressed_key.Set(credit_key.begin(), credit_key.end(), /*fCompressedIn=*/false);
+    BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, uncompressed_key.GetPubKey(), coin_control));
+
+    const auto res{iface->createAssetLockTransaction(credit_amount, credit_key.GetPubKey(), coin_control)};
+    BOOST_REQUIRE_MESSAGE(res, util::ErrorString(res).original);
+    const CTransactionRef& tx{*res};
+    BOOST_CHECK_EQUAL(tx->nVersion, 3);
+    BOOST_CHECK_EQUAL(tx->nType, TRANSACTION_ASSET_LOCK);
+
+    const auto payload{GetTxPayload<CAssetLockPayload>(*tx)};
+    BOOST_REQUIRE(payload);
+    BOOST_CHECK_EQUAL(payload->getVersion(), CAssetLockPayload::INITIAL_VERSION);
+    BOOST_REQUIRE_EQUAL(payload->getCreditOutputs().size(), 1U);
+    BOOST_CHECK_EQUAL(payload->getCreditOutputs()[0].nValue, credit_amount);
+    BOOST_CHECK(payload->getCreditOutputs()[0].scriptPubKey == GetScriptForDestination(PKHash{credit_key.GetPubKey()}));
+
+    // Funded like any wallet transaction: the anti-fee-sniping locktime
+    // (tip height, occasionally lowered by up to 100) is kept.
+    const int tip_height{WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Height())};
+    BOOST_CHECK_GT(tx->nLockTime, 0U);
+    BOOST_CHECK_LE(tx->nLockTime, static_cast<uint32_t>(tip_height));
+
+    TxValidationState tx_state;
+    BOOST_CHECK_MESSAGE(CheckAssetLockTx(*tx, tx_state, /*is_v24_active=*/false), tx_state.ToString());
+    BOOST_CHECK_MESSAGE(CheckAssetLockTx(*tx, tx_state, /*is_v24_active=*/true), tx_state.ToString());
+
+    // Both spend the same coin: the first reaches the mempool, the second is
+    // a conflict the wallet must report and let the caller abandon.
+    CCoinControl same_input;
+    same_input.Select(tx->vin[0].prevout);
+    same_input.m_allow_other_inputs = false;
+    const auto conflicting{iface->createAssetLockTransaction(credit_amount, credit_key.GetPubKey(), same_input)};
+    BOOST_REQUIRE_MESSAGE(conflicting, util::ErrorString(conflicting).original);
+    BOOST_CHECK(!iface->commitTransaction(tx, {}, {}));
+    BOOST_CHECK(m_node.mempool->exists(tx->GetHash()));
+
+    const auto error{iface->commitTransaction(*conflicting, {}, {})};
+    BOOST_REQUIRE(error);
+    BOOST_CHECK_NE(error->original.find("txn-mempool-conflict"), std::string::npos);
+    BOOST_CHECK(!m_node.mempool->exists((*conflicting)->GetHash()));
+    BOOST_CHECK(iface->transactionCanBeAbandoned((*conflicting)->GetHash()));
+    BOOST_CHECK(iface->abandonTransaction((*conflicting)->GetHash()));
+
+    // An encrypted wallet builds asset locks only when fully unlocked: not
+    // while locked, and not while unlocked for mixing only.
+    const SecureString passphrase{"asset lock"};
+    BOOST_REQUIRE(wallet->EncryptWallet(passphrase));
+    BOOST_REQUIRE(wallet->IsLocked());
+    BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, credit_key.GetPubKey(), coin_control));
+    BOOST_REQUIRE(wallet->Unlock(passphrase, /*fForMixingOnly=*/true));
+    BOOST_REQUIRE(wallet->IsLocked() && !wallet->IsLocked(/*fForMixing=*/true));
+    BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, credit_key.GetPubKey(), coin_control));
+    BOOST_REQUIRE(wallet->Lock());
+    BOOST_REQUIRE(wallet->Unlock(passphrase));
+    const auto unlocked{iface->createAssetLockTransaction(credit_amount, credit_key.GetPubKey(), coin_control)};
+    BOOST_CHECK_MESSAGE(unlocked, util::ErrorString(unlocked).original);
+}
+
+//! A transaction conflicted by a block reports whether that block is
+//! ChainLocked: only then can the conflict no longer be reorganized away.
+BOOST_FIXTURE_TEST_CASE(conflict_chainlock_status, TestChain100Setup)
+{
+    WalletContext context;
+    context.args = &m_args;
+    context.chain = m_node.chain.get();
+    context.coinjoin_loader = m_node.coinjoin_loader.get();
+    const std::shared_ptr<CWallet> wallet{CreateSyncedWallet(*m_node.chain, *m_node.coinjoin_loader, *Assert(m_node.chainman), m_args, coinbaseKey)};
+    auto iface{interfaces::MakeWallet(context, wallet)};
+
+    CMutableTransaction payment;
+    payment.vin.emplace_back(COutPoint{m_coinbase_txns.back()->GetHash(), 0});
+    payment.vout.emplace_back(COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    const CTransactionRef tx{MakeTransactionRef(payment)};
+    const CBlockIndex* tip{WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip())};
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->AddToWallet(tx, TxStateConflicted{tip->GetBlockHash(), tip->nHeight});
+    }
+    interfaces::WalletTxStatus status;
+    int num_blocks{0};
+    int64_t block_time{0};
+    BOOST_REQUIRE(iface->tryGetTxStatus(tx->GetHash(), status, num_blocks, block_time));
+    BOOST_CHECK_LT(status.depth_in_main_chain, 0);
+    BOOST_CHECK(!status.is_conflict_chainlocked);
+
+    m_node.sporkman->SetSporkAddress(Params().SporkAddress());
+    m_node.sporkman->SetPrivKey("cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK");
+    m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0);
+    m_node.chainlocks->UpdateBestChainlock(uint256::ONE, chainlock::ChainLockSig{tip->nHeight, tip->GetBlockHash(), CBLSSignature{}}, tip);
+    BOOST_REQUIRE(iface->tryGetTxStatus(tx->GetHash(), status, num_blocks, block_time));
+    BOOST_CHECK(status.is_conflict_chainlocked);
+
+    // A transaction confirmed in that block is ChainLocked, not conflicted.
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->AddToWallet(tx, TxStateConfirmed{tip->GetBlockHash(), tip->nHeight, /*index=*/1});
+    }
+    BOOST_REQUIRE(iface->tryGetTxStatus(tx->GetHash(), status, num_blocks, block_time));
+    BOOST_CHECK(status.is_chainlocked);
+    BOOST_CHECK(!status.is_conflict_chainlocked);
 }
 
 BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)
