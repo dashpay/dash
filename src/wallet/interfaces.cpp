@@ -263,6 +263,11 @@ public:
     {
         return m_wallet->PlatformECDHSecret(key, counterparty);
     }
+    wallet::PlatformKeyResult<uint256> platformAccountReferenceMac(const wallet::IdentityAuthKey& key,
+                                                                   const wallet::CompactXpub& compact_xpub) override
+    {
+        return m_wallet->PlatformAccountReferenceMac(key, compact_xpub);
+    }
     wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) override
     {
