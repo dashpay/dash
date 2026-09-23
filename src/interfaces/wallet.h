@@ -14,6 +14,7 @@
 #include <util/fs.h>
 #include <util/message.h>
 #include <util/result.h>
+#include <util/translation.h>          // For bilingual_str
 #include <util/ui_change_type.h>
 #include <wallet/platformtypes.h>
 
@@ -21,6 +22,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <psbt.h>
 #include <set>
 #include <string>
@@ -35,7 +37,6 @@ class CKey;
 class CRPCCommand;
 enum class FeeReason;
 enum class TransactionError;
-struct bilingual_str;
 struct PartiallySignedTransaction;
 namespace node {
 struct NodeContext;
@@ -260,8 +261,21 @@ public:
     //! Sign every wallet-owned input of a transaction and report whether signing is complete.
     virtual util::Result<WalletTxSignResult> signTransaction(const CMutableTransaction& tx) = 0;
 
-    //! Commit transaction.
-    virtual void commitTransaction(CTransactionRef tx,
+    //! Create a signed (uncommitted) asset lock transaction converting
+    //! credit_amount duffs into Platform credits, with a single P2PKH credit
+    //! output to credit_pubkey (typically a registration funding key from
+    //! getPlatformPubKey). Broadcast the result with commitTransaction().
+    virtual util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const CPubKey& credit_pubkey,
+        const wallet::CCoinControl& coin_control) = 0;
+
+    //! Commit transaction. Returns the mempool rejection reason when the
+    //! transaction was committed to the wallet but could not be accepted to
+    //! the mempool for broadcast; the caller may abandon it to release its
+    //! inputs. Returns std::nullopt when the transaction was accepted or when
+    //! wallet broadcasting is disabled (-walletbroadcast=0), which the caller
+    //! cannot distinguish here.
+    virtual std::optional<bilingual_str> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) = 0;
 
@@ -571,6 +585,10 @@ struct WalletTxStatus
     bool is_in_main_chain;
     bool is_chainlocked;
     bool is_islocked;
+    //! A conflicting transaction is in a ChainLocked block, so this one can
+    //! never confirm; a conflict in a block not ChainLocked yet may still be
+    //! reorganized away.
+    bool is_conflict_chainlocked;
 };
 
 //! Wallet transaction output.
