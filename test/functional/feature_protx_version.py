@@ -163,12 +163,12 @@ class ProTxVersionTest(DashTestFramework):
             assert prev_quorum != quorum
             self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
-        self.test_protx_v24_versioning(new_mn, migrate_legacy_mn, surviving_legacy_mn, basic_mn, payout_mn)
+        self.test_protx_v24_versioning(new_mn, migrate_legacy_mn, surviving_legacy_mn, basic_mn, payout_mn, evo_info_0)
 
 
     def test_protx_v24_versioning(self, mn: MasternodeInfo, legacy_mn: MasternodeInfo,
                                   surviving_legacy_mn: MasternodeInfo, basic_mn: MasternodeInfo,
-                                  payout_mn: MasternodeInfo):
+                                  payout_mn: MasternodeInfo, basic_evo: MasternodeInfo):
         assert not softfork_active(self.nodes[0], 'v24')
         self.activate_by_name('v24', slow_mode=False)
         self.log.info("Activated v24 at height:" + str(self.nodes[0].getblockcount()))
@@ -186,6 +186,23 @@ class ProTxVersionTest(DashTestFramework):
         assert_equal(state['version'], 3)
         assert_equal([p['address'] for p in state['payouts']], [payout_before])
         node.sendtoaddress(mn.fundsAddr, 1)
+
+        self.log.info("update_registrar on a basic (v2) EvoNode keeps it at v2, since only an ExtAddr service "
+                      "update may raise an EvoNode that has addresses")
+        assert_equal(node.protx('info', basic_evo.proTxHash)['state']['version'], 2)
+        node.sendtoaddress(basic_evo.fundsAddr, 1)
+        payout_address = node.getnewaddress()
+        upreg_hash = basic_evo.update_registrar(node, submit=True, rewards_address=payout_address,
+                                                fundsAddr=basic_evo.fundsAddr)
+        tip = self.bury_tx(node, upreg_hash)
+        assert_equal(node.getrawtransaction(upreg_hash, 1, tip)['proUpRegTx']['version'], 2)
+        state = node.protx('info', basic_evo.proTxHash)['state']
+        assert_equal(state['version'], 2)
+        assert_equal(state['payoutAddress'], payout_address)
+        basic_evo.update_registrar(node, submit=True, payouts=[{'address': payout_address, 'reward': 5000},
+                                                                {'address': node.getnewaddress(), 'reward': 5000}],
+                                   fundsAddr=basic_evo.fundsAddr, expected_assert_code=-8,
+                                   expected_assert_msg="multiple payouts require the EvoNode to be upgraded first")
 
         self.log.info("A basic-scheme masternode reports version 2 before any post-v24 update")
         assert_equal(node.protx('info', mn.proTxHash)['state']['version'], 2)
