@@ -324,7 +324,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
-void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin)
+WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -342,7 +342,15 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
         }
 
         auto& newTx = transaction.getWtx();
-        wallet().commitTransaction(newTx, /*value_map=*/std::move(mapValue), std::move(vOrderForm));
+        if (const auto error{wallet().commitTransaction(newTx, /*value_map=*/std::move(mapValue), std::move(vOrderForm))}) {
+            // The transaction is committed to the wallet either way; abandon
+            // it so the wallet does not rebroadcast a payment the user was
+            // told failed, and its inputs are free for a retry.
+            wallet().abandonTransaction(newTx->GetHash());
+            // A mempool rejection reason is untranslated (only original is set).
+            return SendCoinsReturn(TransactionCommitFailed,
+                                   QString::fromStdString(error->translated.empty() ? error->original : error->translated));
+        }
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *newTx;
@@ -375,6 +383,7 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
     }
 
     checkBalanceChanged(m_wallet->getBalances()); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    return SendCoinsReturn(OK);
 }
 
 OptionsModel* WalletModel::getOptionsModel() const
