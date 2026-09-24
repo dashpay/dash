@@ -324,6 +324,10 @@ bool OptionsModel::Init(bilingual_str& error)
         settings.setValue("fShowMasternodesTab", false);
     m_enable_masternodes = settings.value("fShowMasternodesTab", false).toBool();
 
+    if (!settings.contains("fShowPlatformTab"))
+        settings.setValue("fShowPlatformTab", false);
+    m_enable_platform = settings.value("fShowPlatformTab", false).toBool();
+
     if (!settings.contains("show_governance_clock"))
         settings.setValue("show_governance_clock", false);
     m_show_governance_clock = settings.value("show_governance_clock", false).toBool();
@@ -660,6 +664,8 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
         return m_sub_fee_from_amount;
     case ShowMasternodesTab:
         return m_enable_masternodes;
+    case ShowPlatformTab:
+        return m_enable_platform;
     case ShowGovernanceClock:
         return m_show_governance_clock;
     case ShowGovernanceTab:
@@ -859,6 +865,13 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
             m_enable_masternodes = value.toBool();
             settings.setValue("fShowMasternodesTab", m_enable_masternodes);
             Q_EMIT showMasternodesChanged();
+        }
+        break;
+    case ShowPlatformTab:
+        if (changed()) {
+            m_enable_platform = value.toBool();
+            settings.setValue("fShowPlatformTab", m_enable_platform);
+            Q_EMIT showPlatformChanged();
         }
         break;
     case SubFeeFromAmount:

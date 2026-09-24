@@ -48,6 +48,9 @@ src/qt/masternodewidgets.*
 src/qt/masternodewizard.*
 src/qt/mnsharesession.*
 src/qt/mnemonicverificationdialog.*
+src/qt/platform/*.cpp
+src/qt/platform/*.h
+src/qt/test/platformtests.*
 src/platform/*.cpp
 src/platform/*.h
 src/qt/networkwidget.*

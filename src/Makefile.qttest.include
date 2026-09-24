@@ -25,6 +25,9 @@ TEST_QT_MOC_CPP += \
   qt/test/moc_sharedmnwidgettests.cpp \
   qt/test/moc_sharedmnwizardtests.cpp \
   qt/test/moc_wallettests.cpp
+if ENABLE_PLATFORM_GUI
+TEST_QT_MOC_CPP += qt/test/moc_platformtests.cpp
+endif
 endif # ENABLE_WALLET
 
 TEST_QT_H = \
@@ -35,6 +38,7 @@ TEST_QT_H = \
   qt/test/masternodetestutil.h \
   qt/test/masternodewidgettests.h \
   qt/test/optiontests.h \
+  qt/test/platformtests.h \
   qt/test/proposalvotetests.h \
   qt/test/providertransactiontests.h \
   qt/test/rpcnestedtests.h \
@@ -73,6 +77,9 @@ qt_test_test_dash_qt_SOURCES += \
   qt/test/sharedmnwizardtests.cpp \
   qt/test/wallettests.cpp \
   wallet/test/wallet_test_fixture.cpp
+if ENABLE_PLATFORM_GUI
+qt_test_test_dash_qt_SOURCES += qt/test/platformtests.cpp
+endif
 endif # ENABLE_WALLET
 
 nodist_qt_test_test_dash_qt_SOURCES = $(TEST_QT_MOC_CPP)
