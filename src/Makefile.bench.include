@@ -33,6 +33,7 @@ bench_bench_dash_SOURCES = \
   bench/data.cpp \
   bench/data.h \
   bench/descriptors.cpp \
+  bench/disconnected_transactions.cpp \
   bench/duplicate_inputs.cpp \
   bench/ecdsa.cpp \
   bench/ellswift.cpp \

@@ -59,7 +59,7 @@ class ChainstateManager;
 enum class EvoDbIdentity;
 struct PrecomputedTransactionData;
 struct ChainTxData;
-struct DisconnectedBlockTransactions;
+class DisconnectedBlockTransactions;
 struct LockPoints;
 struct AssumeutxoData;
 namespace Consensus {

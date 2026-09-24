@@ -6,6 +6,7 @@
 #include <consensus/validation.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <kernel/disconnected_transactions.h>
 #include <llmq/context.h>
 #include <llmq/options.h>
 #include <node/chainstate.h>
@@ -658,7 +659,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
     // it will initialize instead of attempting to complete validation.
     //
     // Note that this is not a realistic use of DisconnectTip().
-    DisconnectedBlockTransactions unused_pool;
+    DisconnectedBlockTransactions unused_pool{MAX_DISCONNECTED_TX_POOL_SIZE * 1000};
     BlockValidationState unused_state;
     {
         LOCK2(::cs_main, bg_chainstate.MempoolMutex());
@@ -829,7 +830,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_snapshot_only_flush_restart, Sna
 
     // Keep this M2 marker-independence test below completion height; #25740 now
     // completes and cleans up immediately on restart when background is at base.
-    DisconnectedBlockTransactions unused_pool;
+    DisconnectedBlockTransactions unused_pool{MAX_DISCONNECTED_TX_POOL_SIZE * 1000};
     BlockValidationState unused_state;
     {
         LOCK2(::cs_main, background_chainstate->MempoolMutex());
