@@ -5,6 +5,10 @@
 #ifndef BITCOIN_QT_WALLETVIEW_H
 #define BITCOIN_QT_WALLETVIEW_H
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <consensus/amount.h>
 
 #include <qt/bitcoinunits.h>
@@ -15,6 +19,9 @@
 
 class ClientModel;
 class OverviewPage;
+#ifdef ENABLE_PLATFORM_GUI
+class PlatformPage;
+#endif
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
 class SendCoinsRecipient;
@@ -47,6 +54,9 @@ public:
     */
     void setClientModel(ClientModel *clientModel);
     WalletModel* getWalletModel() const noexcept { return walletModel; }
+#ifdef ENABLE_PLATFORM_GUI
+    PlatformPage* getPlatformPage() const noexcept { return platformPage; }
+#endif
 
     bool handlePaymentRequest(const SendCoinsRecipient& recipient);
 
@@ -70,6 +80,9 @@ private:
     AddressBookPage *usedReceivingAddressesPage;
     MasternodeList* masternodeListPage{nullptr};
     ProposalList* proposalListPage{nullptr};
+#ifdef ENABLE_PLATFORM_GUI
+    PlatformPage* platformPage{nullptr};
+#endif
 
     TransactionView *transactionView;
 
@@ -85,6 +98,10 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to masternode page */
     void gotoMasternodePage();
+#ifdef ENABLE_PLATFORM_GUI
+    /** Switch to DashPay (Dash Platform) page */
+    void gotoPlatformPage();
+#endif
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
@@ -139,6 +156,10 @@ Q_SIGNALS:
     void outOfSyncWarningClicked();
     /** Request navigation to proposal info view */
     void showProposalInfo();
+#ifdef ENABLE_PLATFORM_GUI
+    /** Request the DashPay settings of this wallet */
+    void dashPaySettingsRequested();
+#endif
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H

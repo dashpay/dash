@@ -628,6 +628,15 @@ WalletModel::UnlockContext::UnlockContext(WalletModel *_wallet, bool _valid, boo
 {
 }
 
+WalletModel::UnlockContext::UnlockContext(UnlockContext&& other) noexcept :
+    wallet(other.wallet),
+    valid(other.valid),
+    was_locked(other.was_locked),
+    was_mixing(other.was_mixing)
+{
+    other.valid = false;
+}
+
 WalletModel::UnlockContext::~UnlockContext()
 {
     if(valid && (was_locked || was_mixing))
