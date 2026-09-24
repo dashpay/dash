@@ -22,7 +22,10 @@ outputs as trusted, so Platform-to-Core transfers become rapidly respendable.
 Version 2 unlocks are relayed by instance hash (new inventory type
 `MSG_ASSET_UNLOCK`, protocol version 70242), kept in the mempool while expired
 awaiting a re-signed replacement, and committed to by the coinbase transaction
-(CbTx version 4, `merkleRootAssetUnlocks`).
+(CbTx version 4, `merkleRootAssetUnlocks`). An expired instance is also accepted
+from peers and from `mempool.dat` if it was minable at the end of its height
+window, and relaying an unlock outside the receiving node's window or quorum
+range is no longer penalized.
 
 Updated RPCs
 ------------

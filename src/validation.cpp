@@ -1066,7 +1066,11 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // NOTE: we use UTXO here and do NOT allow mempool txes as masternode collaterals
     const CBlockIndex* tip{m_active_chainstate.m_chain.Tip()};
     const bool is_v24_active{DeploymentActiveAfter(tip, m_active_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
-    if (!m_chain_helper.special_tx->CheckSpecialTx(tx, tip, is_v24_active, m_active_chainstate.CoinsTip(), true, state))
+    // An expired version 2 asset unlock is kept awaiting a re-signed instance, so it is admitted if
+    // it was minable at the last height of its window rather than at the tip
+    const auto unlock{IsAssetUnlockWithStableTxid(tx) ? GetTxPayload<CAssetUnlockPayload>(tx) : std::nullopt};
+    const CBlockIndex* pindex_check{unlock ? tip->GetAncestor(std::clamp(unlock->getHeightToExpiry() - 1, 0, tip->nHeight)) : tip};
+    if (!m_chain_helper.special_tx->CheckSpecialTx(tx, pindex_check, is_v24_active, m_active_chainstate.CoinsTip(), true, state))
         return false;
 
     if (m_pool.existsProviderTxConflict(tx)) {
