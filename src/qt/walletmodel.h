@@ -64,6 +64,7 @@ public:
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
         TransactionCreationFailed, // Error returned when wallet is still locked
+        TransactionCommitFailed,
         AbsurdFee
     };
 
@@ -101,8 +102,9 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const wallet::CCoinControl& coinControl);
 
-    // Send coins to a list of recipients
-    void sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);
+    // Send coins to a list of recipients; TransactionCommitFailed when the
+    // mempool refused the committed transaction.
+    SendCoinsReturn sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);
 
     // Wallet encryption
     bool setWalletEncrypted(const SecureString& passphrase);
