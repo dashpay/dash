@@ -211,6 +211,39 @@ Arguments passed:
 4. The expected transaction fee as an `int64`
 5. The position of the change output as an `int32`
 
+### Context `mempool`
+
+#### Tracepoint `mempool:added`
+
+Is called when a transaction is added to the node's mempool. Passes information
+about the transaction.
+
+Arguments passed:
+1. Transaction ID (hash) as `pointer to unsigned chars` (i.e. 32 bytes in little-endian)
+2. Transaction virtual size as `uint64`
+3. Transaction fee as `int64`
+
+#### Tracepoint `mempool:removed`
+
+Is called when a transaction is removed from the node's mempool. Passes information
+about the transaction.
+
+Arguments passed:
+1. Transaction ID (hash) as `pointer to unsigned chars` (i.e. 32 bytes in little-endian)
+2. Removal reason as `pointer to C-style String` (max. length 9 characters)
+3. Transaction virtual size as `uint64`
+4. Transaction fee as `int64`
+5. Transaction mempool entry time (epoch) as `uint64`
+
+#### Tracepoint `mempool:rejected`
+
+Is called when a transaction is not permitted to enter the mempool. Passes
+information about the rejected transaction.
+
+Arguments passed:
+1. Transaction ID (hash) as `pointer to unsigned chars` (i.e. 32 bytes in little-endian)
+2. Reject reason as `pointer to C-style String` (max. length 118 characters)
+
 ## Adding tracepoints to Dash Core
 
 To add a new tracepoint, `#include <util/trace.h>` in the compilation unit where
