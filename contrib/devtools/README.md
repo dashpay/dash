@@ -219,3 +219,11 @@ bundle hash on any machine. The Platform tarball and the bundle are then
 uploaded to the depends sources mirror.
 
     contrib/devtools/platform-bundle.sh <platform-commit>
+
+check-no-rust.py
+================
+
+Fails if any of the given executables contain Rust code. Run by the
+`linux64_sqlite` CI job, which builds against depends with `PLATFORM_GUI=1`,
+on `dashd`, the command-line tools and the fuzz binary, which must never link
+the Dash Platform CXX bindings.
