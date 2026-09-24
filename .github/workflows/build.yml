@@ -232,7 +232,6 @@ jobs:
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
     if: |
-      vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_ASAN == '' ||
       vars.SKIP_LINUX64_FUZZ == ''
     with:
@@ -270,6 +269,21 @@ jobs:
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
       runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+
+  depends-linux64_platform_gui:
+    name: x86_64-pc-linux-gnu_platform_gui
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: ${{ vars.SKIP_LINUX64 == '' }}
+    with:
+      build-target: linux64_platform_gui
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-build: ${{ needs.check-skip.outputs['runner-fast'] }}
+      # A pull request based before this target existed has no matrix entry
+      # for it, so its HOST is guessed from the machine: check on x86_64 too.
+      runs-on-check: ${{ needs.check-skip.outputs['runner-fast'] }}
 
   depends-mac:
     name: x86_64-apple-darwin
@@ -332,15 +346,15 @@ jobs:
   src-linux64:
     name: linux64-build
     uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-linux64]
+    needs: [check-skip, container, depends-linux64_platform_gui]
     if: ${{ vars.SKIP_LINUX64 == '' }}
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-linux64.outputs.key }}
-      depends-host: ${{ needs.depends-linux64.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
+      depends-key: ${{ needs.depends-linux64_platform_gui.outputs.key }}
+      depends-host: ${{ needs.depends-linux64_platform_gui.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64_platform_gui.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64_platform_gui.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-fast'] }}
     secrets: *remote-ccache-auth
 
