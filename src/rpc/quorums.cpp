@@ -28,7 +28,6 @@
 #include <util/helpers.h>
 
 #include <chainparams.h>
-#include <consensus/merkle.h>
 #include <core_io.h>
 #include <deploymentstatus.h>
 #include <index/txindex.h>
@@ -43,74 +42,10 @@
 
 #include <iomanip>
 #include <map>
-#include <memory>
-#include <mutex>
 #include <optional>
 
 using node::GetTransaction;
 using node::NodeContext;
-
-namespace {
-std::mutex g_proof_chain_mutex;
-std::shared_ptr<const CChain> g_proof_chain_snapshot;
-const ChainstateManager* g_proof_chain_owner{nullptr};
-const CBlockIndex* g_proof_chain_tip{nullptr};
-
-std::shared_ptr<const CChain> GetProofChainSnapshot(const ChainstateManager& chainman, CBlockIndex* tip)
-{
-    std::lock_guard lock(g_proof_chain_mutex);
-    if (!g_proof_chain_snapshot || g_proof_chain_owner != &chainman || g_proof_chain_tip != tip) {
-        // Snapshots are shared and immutable, so a new tip needs a new object. Seed it
-        // from the previous one: CChain::SetTip then only rewrites heights that changed
-        // (new blocks, or the fork on a reorg) instead of all ~2.5M entries per block.
-        auto snapshot = std::make_shared<CChain>();
-        if (g_proof_chain_snapshot && g_proof_chain_owner == &chainman) {
-            snapshot->CopyFrom(*g_proof_chain_snapshot);
-        }
-        snapshot->SetTip(*tip);
-        g_proof_chain_snapshot = std::move(snapshot);
-        g_proof_chain_owner = &chainman;
-        g_proof_chain_tip = tip;
-    }
-    return g_proof_chain_snapshot;
-}
-
-/** The simplified masternode list at a block, with its entry hashes: the leaves of
- *  that block's masternode root. Every request that opens EvoNode records at the
- *  same target needs them, and hashing every entry costs more than the lookup. */
-struct MasternodeLeaves {
-    std::shared_ptr<const CSimplifiedMNList> sml;
-    std::vector<uint256> leaves;
-};
-
-std::mutex g_mn_leaves_mutex;
-std::map<uint256, MasternodeLeaves> g_mn_leaves; // keyed by block hash; a few recent targets
-
-MasternodeLeaves GetMasternodeLeaves(CDeterministicMNManager& dmnman, const CBlockIndex* target,
-                                     const uint256& masternode_root)
-{
-    const uint256 key = target->GetBlockHash();
-    {
-        std::lock_guard lock(g_mn_leaves_mutex);
-        if (const auto it = g_mn_leaves.find(key); it != g_mn_leaves.end()) return it->second;
-    }
-    const auto list = WITH_LOCK(cs_main, return dmnman.GetListForBlock(target));
-    MasternodeLeaves result{list.to_sml(), {}};
-    result.leaves.reserve(result.sml->mnList.size());
-    for (const auto& entry : result.sml->mnList)
-        result.leaves.push_back(entry->CalcHash());
-    // Keep only a list that is the one the block commits to.
-    bool mutated{false};
-    if (ComputeMerkleRoot(result.leaves, &mutated) != masternode_root || mutated) {
-        throw std::runtime_error("Masternode list does not match the target block");
-    }
-    std::lock_guard lock(g_mn_leaves_mutex);
-    // Only recent targets are requested; drop everything rather than track recency.
-    if (g_mn_leaves.size() >= 8) g_mn_leaves.clear();
-    g_mn_leaves.emplace(key, result);
-    return result;
-}
-} // namespace
 
 static RPCHelpMan quorum_list()
 {
@@ -1554,22 +1489,20 @@ static RPCHelpMan getquorumproofchain()
             const CBlockIndex* checkpoint;
             CBlockIndex* tip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
             CHECK_NONFATAL(tip != nullptr);
-            const auto chain_snapshot = GetProofChainSnapshot(chainman, tip);
-            const CChain& chain = *chain_snapshot;
             {
                 LOCK(cs_main);
                 checkpoint = chainman.m_blockman.LookupBlockIndex(anchorHash);
-                if (!checkpoint || !chain.Contains(checkpoint))
+                if (!checkpoint || tip->GetAncestor(checkpoint->nHeight) != checkpoint)
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Checkpoint is not on the active chain");
             }
             try {
-                chainlock::CoinbaseChainLockReader reader(chain);
+                chainlock::CoinbaseChainLockReader reader(tip);
                 const int64_t start = std::max<int64_t>(minimum, int64_t(checkpoint->nHeight) + 1);
-                if (start > chain.Height()) throw std::runtime_error("No archived certificate within search budget");
-                const int maximum = int(std::min<int64_t>(chain.Height(), start + int64_t(llmq::MAX_PROOF_HEADERS)));
+                if (start > tip->nHeight) throw std::runtime_error("No archived certificate within search budget");
+                const int maximum = int(std::min<int64_t>(tip->nHeight, start + int64_t(llmq::MAX_PROOF_HEADERS)));
                 const CBlockIndex* target_guard{nullptr};
                 const CBlockIndex* target{nullptr};
-                llmq::QuorumProofBuilder builder(*ctx.quorum_block_processor, *ctx.qman, chain, chainman, reader);
+                llmq::QuorumProofBuilder builder(*ctx.quorum_block_processor, *ctx.qman, tip, chainman, reader);
                 std::optional<llmq::QuorumProofChain> proof;
                 // At a quorum-mining boundary, the signing offset can select a
                 // retired quorum absent from the checkpoint root. Height is a
@@ -1578,7 +1511,7 @@ static RPCHelpMan getquorumproofchain()
                     target_guard = nullptr;
                     std::optional<chainlock::CoinbaseChainLock> target_chainlock;
                     if (minimum == 0) {
-                        target_chainlock = reader.Read(chain.Height());
+                        target_chainlock = reader.Read(tip->nHeight);
                     } else {
                         target_chainlock = reader.Find(int(next), maximum);
                     }
@@ -1592,7 +1525,7 @@ static RPCHelpMan getquorumproofchain()
                     // certificate; historical handoffs still come from disk.
                     if (minimum == 0 || !target_chainlock) {
                         const auto live = CHECK_NONFATAL(node.chainlocks)->GetBestChainLock();
-                        const auto* live_index = chain[live.getHeight()];
+                        const auto* live_index = tip->GetAncestor(live.getHeight());
                         if (live_index && live_index->GetBlockHash() == live.getBlockHash() &&
                             live.getHeight() >= next && live.getHeight() > target_signature.getHeight() &&
                             (minimum == 0 || live.getHeight() <= maximum)) {
@@ -1602,7 +1535,7 @@ static RPCHelpMan getquorumproofchain()
                     }
                     if (!target_guard || target_signature.getHeight() <= checkpoint->nHeight)
                         throw std::runtime_error("No archived certificate within search budget");
-                    target = chain[target_signature.getHeight()];
+                    target = tip->GetAncestor(target_signature.getHeight());
                     proof = builder.Build(checkpoint, target_signature);
                     if (proof || minimum == 0) break;
                     next = int64_t(target_signature.getHeight()) + 1;
@@ -1632,8 +1565,7 @@ static RPCHelpMan getquorumproofchain()
                     if (!found) throw std::runtime_error("Requested quorum is not in the target root");
                 }
                 if (nodeCount > 0) {
-                    const auto [sml, leaves] = GetMasternodeLeaves(*CHECK_NONFATAL(node.dmnman), target,
-                                                                   state.masternodeRoot);
+                    const auto [sml, leaves] = llmq::MasternodeLeavesAt(*CHECK_NONFATAL(node.dmnman), target);
                     int included = 0;
                     for (size_t i = 0; i < sml->mnList.size() && included < nodeCount; ++i) {
                         const auto& entry = *sml->mnList[i];

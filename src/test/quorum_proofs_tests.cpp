@@ -154,9 +154,9 @@ struct QuorumProofGenerationSetup : TestingSetup {
             payload.nHeight = height;
             if (!commitments.empty()) payload.merkleRootQuorums = SerializeHash(commitments.back());
             if (height > checkpoint_height + 1) {
-                const auto signer = llmq::SelectCommitmentForSigning(params, chain, *m_node.llmq_ctx->qman,
-                                                                     chainlock::GenSigRequestId(height - 1), height - 1,
-                                                                     llmq::SIGN_HEIGHT_OFFSET);
+                const auto signer = llmq::SelectCommitmentForSigning(params, *m_node.llmq_ctx->qman,
+                                                                     chainlock::GenSigRequestId(height - 1),
+                                                                     chain[height - 1 - llmq::SIGN_HEIGHT_OFFSET]);
                 BOOST_REQUIRE(signer);
                 const auto match = std::find_if(commitments.begin(), commitments.end(), [&](const auto& entry) {
                     return entry.quorumHash == signer->quorumHash;
@@ -288,8 +288,8 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
     CreateHistory();
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
-    chainlock::CoinbaseChainLockReader reader(chain);
-    llmq::QuorumProofBuilder builder(*m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qman, chain,
+    chainlock::CoinbaseChainLockReader reader(chain.Tip());
+    llmq::QuorumProofBuilder builder(*m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qman, chain.Tip(),
                                      *m_node.chainman, reader);
     const auto first = reader.Find(checkpoint_height + 1, chain.Height());
     BOOST_REQUIRE(first);
@@ -326,8 +326,8 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     CreateHistory();
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
-    chainlock::CoinbaseChainLockReader reader(chain);
-    llmq::QuorumProofBuilder builder(*m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qman, chain,
+    chainlock::CoinbaseChainLockReader reader(chain.Tip());
+    llmq::QuorumProofBuilder builder(*m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qman, chain.Tip(),
                                      *m_node.chainman, reader);
     const auto entry = reader.Find(handoff_height + llmq::SIGN_HEIGHT_OFFSET, chain.Height());
     BOOST_REQUIRE(entry);

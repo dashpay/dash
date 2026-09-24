@@ -174,11 +174,6 @@ CarrierEntry LoadCarrier(const CBlockIndex* carrier, int carrier_height)
 }
 } // namespace
 
-CoinbaseChainLockReader::CoinbaseChainLockReader(const CChain& chain) :
-    m_tip(chain.Tip())
-{
-}
-
 std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Read(int carrier_height)
 {
     const auto* carrier = m_tip ? m_tip->GetAncestor(carrier_height) : nullptr;

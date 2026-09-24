@@ -218,8 +218,8 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
 CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
                                    const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
 
-std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
-                                   const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
+std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
+                                                           const uint256& selectionHash, const CBlockIndex* pindexStart);
 
 VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQuorumManager& qman,
                                       const CBlockIndex* pindexStart, const uint256& id, const uint256& msgHash,

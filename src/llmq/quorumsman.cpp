@@ -797,23 +797,10 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQuoru
     return ret ? VerifyRecSigStatus::Valid : VerifyRecSigStatus::Invalid;
 }
 
-std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
-                                   const uint256& selectionHash, int signHeight, int signOffset)
+std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
+                                                           const uint256& selectionHash, const CBlockIndex* pindexStart)
 {
     size_t poolSize = llmq_params.signingActiveQuorumCount;
-
-    CBlockIndex* pindexStart;
-    {
-        LOCK(::cs_main);
-        if (signHeight == -1) {
-            signHeight = active_chain.Height();
-        }
-        int startBlockHeight = signHeight - signOffset;
-        if (startBlockHeight > active_chain.Height() || startBlockHeight < 0) {
-            return std::nullopt;
-        }
-        pindexStart = active_chain[startBlockHeight];
-    }
 
     if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
         auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);

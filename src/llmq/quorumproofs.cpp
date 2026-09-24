@@ -1,11 +1,14 @@
 // Copyright (c) 2026 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying file COPYING.
 #include <algorithm>
+#include <array>
 #include <chain.h>
 #include <chainlock/clsig.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
 #include <evo/cbtx.h>
+#include <evo/deterministicmns.h>
+#include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 #include <hash.h>
 #include <limits>
@@ -15,6 +18,7 @@
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
+#include <saltedhasher.h>
 #include <set>
 #include <shutdown.h>
 #include <stdexcept>
@@ -539,11 +543,32 @@ ProofState QuorumProofBuilder::StateAt(const CBlockIndex* index)
     return state;
 }
 
+MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBlockIndex* index)
+{
+    Require(index != nullptr, "missing block index");
+    // Every EvoNode record at one target opens the same list, and hashing its
+    // entries costs more than the lookup. The list is kept only once it hashes
+    // to the block's own masternode root.
+    static ProofCache<MasternodeLeaves, 8> cache;
+    MasternodeLeaves result;
+    if (cache.Get(index->GetBlockHash(), result)) return result;
+    const auto list = WITH_LOCK(cs_main, return dmnman.GetListForBlock(index));
+    result.sml = list.to_sml();
+    result.leaves.reserve(result.sml->mnList.size());
+    for (const auto& entry : result.sml->mnList)
+        result.leaves.push_back(entry->CalcHash());
+    const auto root = QuorumProofBuilder::StateAt(index).masternodeRoot;
+    bool mutated{false};
+    Require(ComputeMerkleRoot(result.leaves, &mutated) == root && !mutated, "masternode root mismatch");
+    cache.Insert(index->GetBlockHash(), result);
+    return result;
+}
+
 std::optional<CFinalCommitment> QuorumProofBuilder::DetermineChainlockSigningCommitment(int32_t height) const
 {
     const auto params = Params().GetLLMQ(Params().GetConsensus().llmqTypeChainLocks);
     if (!params || height < SIGN_HEIGHT_OFFSET) return std::nullopt;
-    const auto* start = m_chain[height - SIGN_HEIGHT_OFFSET];
+    const auto* start = m_tip->GetAncestor(height - SIGN_HEIGHT_OFFSET);
     if (!start) return std::nullopt;
     // This hash commits to the entire selection history, including its branch.
     // The type and request height fix the remaining signing-selection inputs.
@@ -563,8 +588,7 @@ std::optional<CFinalCommitment> QuorumProofBuilder::DetermineChainlockSigningCom
         // The commitment database follows the active chain. Do not populate a
         // snapshot's cache from another branch if a reorg raced this request.
         Require(m_chainman.ActiveChain().Contains(start), "proof chain changed during construction");
-        result = SelectCommitmentForSigning(*params, m_chain, m_qman, chainlock::GenSigRequestId(height), height,
-                                            SIGN_HEIGHT_OFFSET);
+        result = SelectCommitmentForSigning(*params, m_qman, chainlock::GenSigRequestId(height), start);
     }
     if (result) {
         commitment_hash = ::SerializeHash(*result);
@@ -574,7 +598,12 @@ std::optional<CFinalCommitment> QuorumProofBuilder::DetermineChainlockSigningCom
     return result;
 }
 
-static const CBlockIndex* MinedCommitmentBlock(const CQuorumBlockProcessor& processor, const CChain& chain,
+static bool OnBranch(const CBlockIndex* tip, const CBlockIndex* index)
+{
+    return tip->GetAncestor(index->nHeight) == index;
+}
+
+static const CBlockIndex* MinedCommitmentBlock(const CQuorumBlockProcessor& processor, const CBlockIndex* tip,
                                                const node::BlockManager& blocks, Consensus::LLMQType kind,
                                                const uint256& quorum)
 {
@@ -583,14 +612,14 @@ static const CBlockIndex* MinedCommitmentBlock(const CQuorumBlockProcessor& proc
     uint256 mined_hash;
     LOCK(cs_main);
     // A quorum can be mined differently after a reorg. Reuse an entry only if
-    // its exact mining block is an ancestor in this request's chain snapshot.
+    // its exact mining block is an ancestor of this request's tip.
     if (cache.Get(key, mined_hash)) {
         const auto* mined = blocks.LookupBlockIndex(mined_hash);
-        if (mined && chain.Contains(mined)) return mined;
+        if (mined && OnBranch(tip, mined)) return mined;
     }
     const auto result = processor.GetMinedCommitment(kind, quorum);
     const auto* mined = blocks.LookupBlockIndex(result.second);
-    if (result.first.IsNull() || !mined || !chain.Contains(mined)) return nullptr;
+    if (result.first.IsNull() || !mined || !OnBranch(tip, mined)) return nullptr;
     cache.Insert(key, result.second);
     return mined;
 }
@@ -634,14 +663,14 @@ static ProofTransaction MiningTransaction(const CBlockIndex* mined, Consensus::L
 std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* checkpoint,
                                                           const chainlock::ChainLockSig& target) const
 {
-    const auto& chain = m_chain;
     const auto& blocks = m_chainman.m_blockman;
-    const auto* targetIndex = chain[target.getHeight()];
-    Require(checkpoint && targetIndex && chain.Contains(checkpoint) && checkpoint->nHeight < targetIndex->nHeight,
+    const auto* targetIndex = m_tip->GetAncestor(target.getHeight());
+    Require(checkpoint && targetIndex && OnBranch(m_tip, checkpoint) && checkpoint->nHeight < targetIndex->nHeight,
             "checkpoint/target not on chain");
     Require(targetIndex->GetBlockHash() == target.getBlockHash(), "target ChainLock block mismatch");
     auto certificate = [&](const chainlock::CoinbaseChainLock& entry) {
-        return ProofCertificate{uint32_t(entry.height), chain[entry.height]->GetBlockHeader(), entry.Signed().getSig()};
+        return ProofCertificate{uint32_t(entry.height), m_tip->GetAncestor(entry.height)->GetBlockHeader(),
+                                entry.Signed().getSig()};
     };
     QuorumProofChain proof;
     proof.anchor = StateAt(checkpoint);
@@ -661,7 +690,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
     while (!seedHashes.count(needed->quorumHash)) {
         Require(proof.links.size() < MAX_PROOF_CERTIFICATES - 1, "certificate budget exhausted");
         Require(!ShutdownRequested(), "proof construction interrupted");
-        const auto* mined = MinedCommitmentBlock(m_quorum_block_processor, chain, blocks, kind, needed->quorumHash);
+        const auto* mined = MinedCommitmentBlock(m_quorum_block_processor, m_tip, blocks, kind, needed->quorumHash);
         Require(mined != nullptr, "mining block unavailable");
         if (mined->nHeight <= checkpoint->nHeight) return std::nullopt;
         const auto mining = MiningTransaction(mined, kind, needed->quorumHash);
@@ -679,7 +708,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
             if (height > mined->nHeight + 8 && best) break;
             auto signer = DetermineChainlockSigningCommitment(height);
             if (!signer || signer->quorumHash == needed->quorumHash) continue;
-            const auto* previous = MinedCommitmentBlock(m_quorum_block_processor, chain, blocks, kind, signer->quorumHash);
+            const auto* previous = MinedCommitmentBlock(m_quorum_block_processor, m_tip, blocks, kind, signer->quorumHash);
             if (!previous || previous->nHeight >= mined->nHeight || (previous->nHeight <= checkpoint->nHeight && !seedHashes.count(signer->quorumHash))) continue;
             auto cert = certificate(*entry);
             if (!cert.Verify(*signer, checkpoint->nHeight, kind)) continue;
@@ -692,7 +721,9 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
             predecessor = std::move(signer);
         }
         Require(best && predecessor, "no B-only route within proof budget");
-        for (int32_t h = mined->nHeight; h < int64_t(best->certificate.height); ++h) best->ancestors.push_back(chain[h]->GetBlockHeader());
+        for (int32_t h = mined->nHeight; h < int64_t(best->certificate.height); ++h) {
+            best->ancestors.push_back(m_tip->GetAncestor(h)->GetBlockHeader());
+        }
         remaining -= best->ancestors.size();
         later = best->certificate.height;
         needed = std::move(predecessor);

@@ -2,7 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <arith_uint256.h>
 #include <chain.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -41,47 +40,6 @@ BOOST_AUTO_TEST_CASE(skiplist_test)
         BOOST_CHECK(vIndex[SKIPLIST_LENGTH - 1].GetAncestor(from) == &vIndex[from]);
         BOOST_CHECK(vIndex[from].GetAncestor(to) == &vIndex[to]);
         BOOST_CHECK(vIndex[from].GetAncestor(0) == vIndex.data());
-    }
-}
-
-BOOST_AUTO_TEST_CASE(copyfrom_then_settip_matches_fresh_chain)
-{
-    // Main chain 0..99 and a fork from height 60 to 90.
-    std::vector<CBlockIndex> main(100), fork(31);
-    std::vector<uint256> main_hashes(100), fork_hashes(31);
-    for (int i = 0; i < 100; ++i) {
-        main_hashes[i] = ArithToUint256(i);
-        main[i].phashBlock = &main_hashes[i];
-        main[i].nHeight = i;
-        main[i].pprev = i ? &main[i - 1] : nullptr;
-        main[i].BuildSkip();
-    }
-    for (int i = 0; i < 31; ++i) {
-        fork_hashes[i] = ArithToUint256(1000 + i);
-        fork[i].phashBlock = &fork_hashes[i];
-        fork[i].nHeight = 60 + i;
-        fork[i].pprev = i ? &fork[i - 1] : &main[59];
-        fork[i].BuildSkip();
-    }
-    auto same = [](const CChain& a, const CChain& b) {
-        if (a.Height() != b.Height()) return false;
-        for (int h = 0; h <= a.Height(); ++h) {
-            if (a[h] != b[h]) return false;
-        }
-        return true;
-    };
-    for (CBlockIndex* target : {&main[99], &main[40], &fork[30], &fork[5], &main[99], &main[0]}) {
-        CChain previous;
-        previous.SetTip(main[80]);
-        CChain extended;
-        extended.CopyFrom(previous);
-        extended.SetTip(*target);
-        CChain fresh;
-        fresh.SetTip(*target);
-        BOOST_CHECK(same(extended, fresh));
-        // The source is left untouched.
-        BOOST_CHECK_EQUAL(previous.Height(), 80);
-        BOOST_CHECK(previous.Tip() == &main[80]);
     }
 }
 

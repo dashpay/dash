@@ -7,8 +7,8 @@
 #include <llmq/quorumproofdata.h>
 #include <optional>
 class CBlockIndex;
-class CChain;
-class CDataStream;
+class CDeterministicMNManager;
+class CSimplifiedMNList;
 class ChainstateManager;
 namespace chainlock {
 class CoinbaseChainLockReader;
@@ -59,6 +59,14 @@ std::vector<unsigned char> EncodeBootstrap(const QuorumProofChain& proof, const 
 /** As above, for a proof whose Verify(proof.anchor) result the caller already holds. */
 std::vector<unsigned char> EncodeBootstrap(const QuorumProofChain& proof, const ProofState& verified,
                                            const std::vector<ProofProjection>& records);
+/** The simplified masternode list at a block with its entry hashes, the leaves
+ *  of that block's masternode root. */
+struct MasternodeLeaves {
+    std::shared_ptr<const CSimplifiedMNList> sml;
+    std::vector<uint256> leaves;
+};
+/** Memoized by block hash once the list hashes to the block's masternode root. */
+MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBlockIndex* index);
 /** Checkpoint and target states are memoized by block hash; a state read once
  *  stays available even if the block's data is later removed. */
 void ClearProofStateCacheForTesting();
@@ -67,17 +75,19 @@ class QuorumProofBuilder
 {
     const CQuorumBlockProcessor& m_quorum_block_processor;
     const CQuorumManager& m_qman;
-    const CChain& m_chain;
+    const CBlockIndex* m_tip;
     const ChainstateManager& m_chainman;
     chainlock::CoinbaseChainLockReader& m_chainlocks;
     std::optional<CFinalCommitment> DetermineChainlockSigningCommitment(int32_t height) const;
 
 public:
-    QuorumProofBuilder(const CQuorumBlockProcessor& processor, const CQuorumManager& qman, const CChain& chain,
+    /** Every block the proof touches must be an ancestor of tip, which pins one
+     *  branch for the whole build. */
+    QuorumProofBuilder(const CQuorumBlockProcessor& processor, const CQuorumManager& qman, const CBlockIndex* tip,
                        const ChainstateManager& chainman, chainlock::CoinbaseChainLockReader& chainlocks) :
         m_quorum_block_processor(processor),
         m_qman(qman),
-        m_chain(chain),
+        m_tip(tip),
         m_chainman(chainman),
         m_chainlocks(chainlocks)
     {
