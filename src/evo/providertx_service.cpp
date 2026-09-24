@@ -907,11 +907,12 @@ ProviderTxResult<ProviderTxSubmission> UpdateRegistrar(node::NodeContext& node, 
         auto payouts_result{BuildPayouts(*request.payouts)};
         if (const auto* error{std::get_if<ProviderTxError>(&payouts_result)}) return *error;
         payload.payouts = std::get<MasternodePayoutShares>(std::move(payouts_result));
-        // A kept-version EvoNode carries a single payout as its legacy payout address
+        // A kept-version EvoNode carries a single full payout as its legacy payout address
         if (payload.nVersion < ProTxVersion::ExtAddr &&
-            (payload.payouts.size() > 1 || (request.uses_extended_payouts && !keep_evo_version))) {
+            (payload.payouts.size() > 1 || payload.payouts.front().reward != MasternodePayoutShare::MAX_REWARD ||
+             (request.uses_extended_payouts && !keep_evo_version))) {
             return Error(ProviderTxErrorCode::INVALID_PARAMETER,
-                         keep_evo_version ? "multiple payouts require the EvoNode to be upgraded first with protx "
+                         keep_evo_version ? "payout shares require the EvoNode to be upgraded first with protx "
                                             "update_service_evo listing its Platform addresses"
                                           : "payouts array requires provider transaction version 3");
         }

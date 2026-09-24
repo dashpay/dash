@@ -202,7 +202,10 @@ class ProTxVersionTest(DashTestFramework):
         basic_evo.update_registrar(node, submit=True, payouts=[{'address': payout_address, 'reward': 5000},
                                                                 {'address': node.getnewaddress(), 'reward': 5000}],
                                    fundsAddr=basic_evo.fundsAddr, expected_assert_code=-8,
-                                   expected_assert_msg="multiple payouts require the EvoNode to be upgraded first")
+                                   expected_assert_msg="payout shares require the EvoNode to be upgraded first")
+        basic_evo.update_registrar(node, submit=True, payouts=[{'address': payout_address, 'reward': 5000}],
+                                   fundsAddr=basic_evo.fundsAddr, expected_assert_code=-8,
+                                   expected_assert_msg="payout shares require the EvoNode to be upgraded first")
 
         self.log.info("A basic-scheme masternode reports version 2 before any post-v24 update")
         assert_equal(node.protx('info', mn.proTxHash)['state']['version'], 2)
