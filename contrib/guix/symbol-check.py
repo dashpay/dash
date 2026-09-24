@@ -171,6 +171,16 @@ PE_ALLOWED_LIBRARIES = {
 'VERSION.dll', # version checking
 'WINMM.dll', # WinMM audio API
 'WTSAPI32.dll', # Remote Desktop
+# dash-qt only, and only with --enable-platform-gui (the Dash Platform CXX
+# bindings); dash-qt without it, dashd and the tools never import these.
+# The list is shared by every binary, so this is not enforced here: CI runs
+# contrib/devtools/check-no-rust.py on the other binaries instead.
+'api-ms-win-core-synch-l1-2-0.dll', # dash-qt: WaitOnAddress (Rust standard library)
+'bcryptprimitives.dll', # dash-qt: ProcessPrng (Rust standard library)
+'CRYPT32.dll', # dash-qt: system trust store (rustls-native-certs via schannel)
+'ncrypt.dll', # dash-qt: CNG key storage (schannel)
+'ntdll.dll', # dash-qt: NT native API (Rust standard library, mio)
+'Secur32.dll', # dash-qt: SSPI (schannel)
 }
 
 def check_version(max_versions, version, arch) -> bool:
@@ -251,8 +261,10 @@ def check_MACHO_lld(binary) -> bool:
 
 def check_PE_libraries(binary) -> bool:
     ok: bool = True
+    # DLL names are case-insensitive; Rust's windows-sys imports lowercase ones.
+    allowed = {lib.lower() for lib in PE_ALLOWED_LIBRARIES}
     for dylib in binary.libraries:
-        if dylib not in PE_ALLOWED_LIBRARIES:
+        if dylib.lower() not in allowed:
             print(f'{dylib} is not in ALLOWED_LIBRARIES!')
             ok = False
     return ok
