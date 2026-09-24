@@ -9,6 +9,8 @@ export LC_ALL=C.UTF-8
 export CONTAINER_NAME=ci_native_previous_releases
 export HOST=x86_64-pc-linux-gnu
 export PACKAGES="python3-zmq"
+# CI builds linux64 against the linux64_platform_gui depends: set its depends
+# options in 00_setup_env_native_platform_gui.sh, not here.
 export DEP_OPTS=""
 export TEST_RUNNER_EXTRA="--previous-releases --coverage --extended --exclude feature_pruning,feature_dbcrash"  # Run extended tests so that coverage does not fail, but exclude the very slow dbcrash
 export RUN_UNIT_TESTS_SEQUENTIAL="true"
@@ -17,3 +19,4 @@ export GOAL="install"
 export DOWNLOAD_PREVIOUS_RELEASES="true"
 export BITCOIN_CONFIG="--enable-zmq --with-libs=no --enable-reduce-exports CPPFLAGS='-DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE -DDEBUG_LOCKORDER -DDEBUG_LOCKCONTENTION' LDFLAGS=-static-libstdc++ CC=gcc-14 CXX=g++-14"
 export RUN_STDLIB_PATH_CHECK=true
+export RUN_CHECK_NO_RUST="true"
