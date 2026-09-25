@@ -817,6 +817,10 @@ public:
     std::atomic<bool> m_masternode_probe_connection{false};
     // If 'true', we identified it as an intra-quorum relay connection
     std::atomic<bool> m_masternode_iqr_connection{false};
+    // Whether the peer asked for transaction relay in its VERSION message (fRelay)
+    std::atomic<bool> m_version_relay_txs{false};
+    // Service flags the peer advertised in its VERSION message
+    std::atomic<ServiceFlags> m_version_services{NODE_NONE};
     CSemaphoreGrant grantOutbound;
     std::atomic<int> nRefCount{0};
 

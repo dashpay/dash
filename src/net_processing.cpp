@@ -1579,7 +1579,11 @@ void PeerManagerImpl::PushNodeVersion(CNode& pnode, const Peer& peer)
         nProtocolVersion = gArgs.GetIntArg("-pushversion", PROTOCOL_VERSION);
     }
 
-    const bool tx_relay{!RejectIncomingTxs(pnode)};
+    bool tx_relay{!RejectIncomingTxs(pnode)};
+    if (m_chainparams.NetworkIDString() == CBaseChainParams::REGTEST) {
+        if (gArgs.GetBoolArg("-pushnorelay", false)) tx_relay = false;
+        if (gArgs.GetBoolArg("-pushnocompactfilters", false)) my_services &= ~NODE_COMPACT_FILTERS;
+    }
     m_connman.PushMessage(&pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, nProtocolVersion, my_services, nTime,
                           your_services, addr_you, // Together the pre-version-31402 serialization of CAddress "addrYou" (without nTime)
                           my_services, CService(), // Together the pre-version-31402 serialization of CAddress "addrMe" (without nTime)
@@ -4057,6 +4061,8 @@ void PeerManagerImpl::ProcessMessage(
         }
 
         pfrom.m_has_all_wanted_services = HasAllDesirableServiceFlags(nServices);
+        pfrom.m_version_services = nServices;
+        pfrom.m_version_relay_txs = fRelay;
         peer->m_their_services = nServices;
         pfrom.SetAddrLocal(addrMe);
         {

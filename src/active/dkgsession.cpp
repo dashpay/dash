@@ -233,13 +233,27 @@ void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) co
 
     CDKGLogger logger(*this, __func__, __LINE__);
 
-    Uint256HashMap<int> protoMap;
+    struct PeerInfo {
+        int version{0};
+        // Only masternode connections are judged: block-relay-only connections always advertise
+        // relay=0, and one connection that provides a service is enough.
+        bool has_mn_connection{false};
+        bool relays_txs{false};
+        bool serves_compact_filters{false};
+    };
+    Uint256HashMap<PeerInfo> peerInfo;
     connman.ForEachNode([&](const CNode* pnode) {
         auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
         if (verifiedProRegTxHash.IsNull()) {
             return;
         }
-        protoMap.emplace(verifiedProRegTxHash, pnode->nVersion);
+        auto [it, inserted] = peerInfo.try_emplace(verifiedProRegTxHash);
+        if (inserted) it->second.version = pnode->nVersion;
+        if (pnode->m_masternode_connection) {
+            it->second.has_mn_connection = true;
+            it->second.relays_txs |= pnode->m_version_relay_txs;
+            it->second.serves_compact_filters |= (pnode->m_version_services & NODE_COMPACT_FILTERS) != 0;
+        }
     });
 
     bool fShouldAllMembersBeConnected = IsAllMembersConnectedEnabled(params.type, m_sporkman);
@@ -247,14 +261,22 @@ void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) co
         if (m->dmn->proTxHash == myProTxHash) {
             continue;
         }
-        if (auto it = protoMap.find(m->dmn->proTxHash); it == protoMap.end()) {
+        if (auto it = peerInfo.find(m->dmn->proTxHash); it == peerInfo.end()) {
             m->badConnection = fShouldAllMembersBeConnected;
             if (m->badConnection) {
                 logger.Batch("%s is not connected to us, badConnection=1", m->dmn->proTxHash.ToString());
             }
-        } else if (it->second < MIN_MASTERNODE_PROTO_VERSION) {
+        } else if (it->second.version < MIN_MASTERNODE_PROTO_VERSION) {
             m->badConnection = true;
-            logger.Batch("%s does not have min proto version %d (has %d)", m->dmn->proTxHash.ToString(), MIN_MASTERNODE_PROTO_VERSION, it->second);
+            logger.Batch("%s does not have min proto version %d (has %d)", m->dmn->proTxHash.ToString(),
+                         MIN_MASTERNODE_PROTO_VERSION, it->second.version);
+        } else if (it->second.has_mn_connection && !it->second.relays_txs) {
+            // A masternode signs InstantSend locks only for transactions in its own mempool
+            m->badConnection = true;
+            logger.Batch("%s does not relay transactions", m->dmn->proTxHash.ToString());
+        } else if (it->second.has_mn_connection && !it->second.serves_compact_filters) {
+            m->badConnection = true;
+            logger.Batch("%s does not serve compact block filters", m->dmn->proTxHash.ToString());
         }
         if (m_mn_metaman.OutboundFailedTooManyTimes(m->dmn->proTxHash)) {
             m->badConnection = true;
