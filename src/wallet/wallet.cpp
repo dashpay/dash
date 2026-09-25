@@ -3663,18 +3663,22 @@ void CWallet::postInitProcess()
 }
 
 std::vector<fs::path> GetBackupsToDelete(const std::multimap<std::chrono::system_clock::time_point, fs::path>& backups,
-                                         int nWalletBackups, int maxBackups)
+                                         std::chrono::system_clock::time_point backup_time, int nWalletBackups,
+                                         int maxBackups)
 {
     if (maxBackups <= 0) return {};
 
     // CWallet::nWalletBackups doubles as an error status and can be negative, so
     // treat anything below zero as an empty count window rather than wrapping the cast.
     const size_t keep_by_count{nWalletBackups > 0 ? static_cast<size_t>(nWalletBackups) : 0};
-    if (backups.size() <= keep_by_count) return {};
 
-    // Newest first, so age ascends with the index.
-    const std::vector<std::pair<std::chrono::system_clock::time_point, fs::path>> sorted_backups(backups.rbegin(),
-                                                                                                backups.rend());
+    // Backups dated after the one just written can only come from a clock that has since
+    // moved backward. They can't be placed relative to it, and ranking them as newer would
+    // push it out of the count window, so leave them alone. Newest first, so age ascends
+    // with the index.
+    const std::vector<std::pair<std::chrono::system_clock::time_point, fs::path>> sorted_backups(
+        std::make_reverse_iterator(backups.upper_bound(backup_time)), backups.rend());
+    if (sorted_backups.size() <= keep_by_count) return {};
     const auto newest = sorted_backups[0].first;
 
     // Always keep the newest backup, which anchors the age ranges, plus the count window.
@@ -3803,8 +3807,8 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error
     }
 
     // Create backup of the ...
+    const std::chrono::sys_seconds secs{GetTime<std::chrono::seconds>()};
     std::string dateTimeStr = [&]() {
-        const std::chrono::sys_seconds secs{GetTime<std::chrono::seconds>()};
         const auto days{std::chrono::floor<std::chrono::days>(secs)};
         const std::chrono::year_month_day ymd{days};
         const std::chrono::hh_mm_ss hms{secs - days};
@@ -3874,7 +3878,9 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error
         }
     }
 
-    std::vector<fs::path> backupsToDelete = GetBackupsToDelete(folder_set, nWalletBackups, nMaxWalletBackups);
+    // The filename only carries minutes, so compare at that precision.
+    std::vector<fs::path> backupsToDelete = GetBackupsToDelete(folder_set, std::chrono::floor<std::chrono::minutes>(secs),
+                                                               nWalletBackups, nMaxWalletBackups);
     for (const auto& path : backupsToDelete) {
         try {
             fs::remove(path);

@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(time_based_exponential_retention)
     for (int i = 0; i < 5; ++i) {
         backups.insert({MakeBackupTime(i), MakeBackupPath(i)});
     }
-    auto to_delete = GetBackupsToDelete(backups, 10, 50);
+    auto to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
     BOOST_CHECK(to_delete.empty());
 
     // Case 2: Exactly nWalletBackups (10)
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(time_based_exponential_retention)
     for (int i = 0; i < 10; ++i) {
         backups.insert({MakeBackupTime(i), MakeBackupPath(i)});
     }
-    to_delete = GetBackupsToDelete(backups, 10, 50);
+    to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
     BOOST_CHECK(to_delete.empty());
 
     // Case 3: 11 backups - all recent (< 1 day old)
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(time_based_exponential_retention)
     for (int i = 0; i < 11; ++i) {
         backups.insert({MakeBackupTime(0), MakeBackupPath(0, i)});
     }
-    to_delete = GetBackupsToDelete(backups, 10, 50);
+    to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
     // All backups are 0 days old, so none fall into [1,2) or later ranges
     // Keep only latest 10, delete 1
     BOOST_CHECK_EQUAL(to_delete.size(), 1);
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(time_based_exponential_retention)
     backups.insert({MakeBackupTime(25), MakeBackupPath(25)}); // [16,32) days
     backups.insert({MakeBackupTime(30), MakeBackupPath(30)}); // [16,32) days
 
-    to_delete = GetBackupsToDelete(backups, 10, 50);
+    to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
 
     // Should keep:
     // - Latest 10 (by count): all backups from today
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(time_based_exponential_retention)
         backups.insert({MakeBackupTime(i), MakeBackupPath(i)});
     }
 
-    to_delete = GetBackupsToDelete(backups, 10, 50);
+    to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
 
     // Should keep:
     // - Latest 10 by count and the oldest backup in each exponential time range
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(hard_max_limit)
         backups.insert({MakeBackupTime(i), MakeBackupPath(i)});
     }
 
-    auto to_delete = GetBackupsToDelete(backups, 10, 15);
+    auto to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 15);
 
     // Without maxBackups limit, we'd keep 14 backups (see Case 5 above)
     // With maxBackups=15, we still keep 14 (under the limit)
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(hard_max_limit)
     BOOST_CHECK(expected_kept_15 == actual_kept_15);
 
     // Now test with maxBackups=12 (less than natural retention)
-    to_delete = GetBackupsToDelete(backups, 10, 12);
+    to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 12);
 
     // Should cap at 12 backups: keep latest 10 + 2 oldest time ranges
     // Total: 12 kept, 88 deleted
@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE(irregular_backup_schedule)
     // Day 20: 1 backup (gap)
     backups.insert({MakeBackupTime(20), MakeBackupPath(20)});
 
-    auto to_delete = GetBackupsToDelete(backups, 10, 50);
+    auto to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
 
     // Should keep:
     // - Latest 10 (5 from day 0, 3 from day 1, 2 from day 2)
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(long_inactivity_period)
     // New backup today
     backups.insert({MakeBackupTime(0), MakeBackupPath(0)});
 
-    auto to_delete = GetBackupsToDelete(backups, 10, 50);
+    auto to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 50);
 
     // Should keep:
     // - Latest 10 (1 from today, 9 from 60 days ago)
@@ -258,6 +258,40 @@ BOOST_AUTO_TEST_CASE(long_inactivity_period)
     BOOST_CHECK(expected_kept == actual_kept);
 }
 
+BOOST_AUTO_TEST_CASE(clock_moved_backward)
+{
+    std::multimap<std::chrono::system_clock::time_point, fs::path> backups;
+
+    // 40 daily backups written with a correct clock, then the clock jumps back 20 days
+    // and a new backup is written half an hour after the existing day-20 one.
+    for (int i = 0; i < 40; ++i) {
+        backups.insert({MakeBackupTime(i), MakeBackupPath(i)});
+    }
+    const auto backup_time{MakeBackupTime(20) + std::chrono::minutes{30}};
+    const fs::path just_written{MakeBackupPath(20, 30)};
+    backups.insert({backup_time, just_written});
+
+    const auto to_delete = GetBackupsToDelete(backups, backup_time, 10, 50);
+    const std::set<fs::path> actual_deletions{to_delete.begin(), to_delete.end()};
+
+    // Ranked by filename time alone, the new backup would fall behind the 20 later-dated
+    // files, out of the count window, and be deleted as a non-oldest member of [16,32).
+    BOOST_CHECK(!actual_deletions.count(just_written));
+
+    // The later-dated backups can't be placed relative to the new one, so none are touched.
+    for (int i = 0; i < 20; ++i) {
+        BOOST_CHECK(!actual_deletions.count(MakeBackupPath(i)));
+    }
+
+    // Everything else is pruned as if the new backup were the newest: it and days 20-28
+    // fill the count window, and days 35 and 39 are the oldest in the [8,16) and [16,32)
+    // day ranges before it.
+    const std::set<fs::path> expected_deletions{MakeBackupPath(29), MakeBackupPath(30), MakeBackupPath(31),
+                                                MakeBackupPath(32), MakeBackupPath(33), MakeBackupPath(34),
+                                                MakeBackupPath(36), MakeBackupPath(37), MakeBackupPath(38)};
+    BOOST_CHECK(expected_deletions == actual_deletions);
+}
+
 BOOST_AUTO_TEST_CASE(non_positive_max_backups)
 {
     std::multimap<std::chrono::system_clock::time_point, fs::path> backups;
@@ -266,9 +300,9 @@ BOOST_AUTO_TEST_CASE(non_positive_max_backups)
     }
 
     // maxBackups <= 0 means "delete nothing", regardless of nWalletBackups
-    BOOST_CHECK(GetBackupsToDelete(backups, 10, 0).empty());
-    BOOST_CHECK(GetBackupsToDelete(backups, 10, -1).empty());
-    BOOST_CHECK(GetBackupsToDelete(backups, 0, 0).empty());
+    BOOST_CHECK(GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 0).empty());
+    BOOST_CHECK(GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, -1).empty());
+    BOOST_CHECK(GetBackupsToDelete(backups, BACKUP_ANCHOR, 0, 0).empty());
 }
 
 BOOST_AUTO_TEST_CASE(count_window_boundaries)
@@ -280,7 +314,7 @@ BOOST_AUTO_TEST_CASE(count_window_boundaries)
 
     // maxBackups == nWalletBackups leaves no room for time buckets, degrading to
     // the pre-exponential "keep the N most recent" policy.
-    auto to_delete = GetBackupsToDelete(backups, 10, 10);
+    auto to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 10, 10);
     BOOST_CHECK_EQUAL(to_delete.size(), 10);
     std::set<fs::path> expected_deleted;
     for (int i = 10; i < 20; ++i) {
@@ -290,7 +324,7 @@ BOOST_AUTO_TEST_CASE(count_window_boundaries)
 
     // An empty count window leaves retention to the time buckets: the newest backup is
     // kept as their anchor, then one per [1,2), [2,4), [4,8), [8,16), [16,32).
-    to_delete = GetBackupsToDelete(backups, 0, 30);
+    to_delete = GetBackupsToDelete(backups, BACKUP_ANCHOR, 0, 30);
     std::set<fs::path> expected_kept{MakeBackupPath(0), MakeBackupPath(1),  MakeBackupPath(3),
                                      MakeBackupPath(7), MakeBackupPath(15), MakeBackupPath(19)};
     std::set<fs::path> actual_kept;
@@ -302,7 +336,7 @@ BOOST_AUTO_TEST_CASE(count_window_boundaries)
     BOOST_CHECK(expected_kept == actual_kept);
 
     // Negative nWalletBackups is treated the same as an empty count window.
-    BOOST_CHECK(GetBackupsToDelete(backups, -1, 30) == to_delete);
+    BOOST_CHECK(GetBackupsToDelete(backups, BACKUP_ANCHOR, -1, 30) == to_delete);
 }
 
 BOOST_AUTO_TEST_CASE(init_auto_backup_clamping)
