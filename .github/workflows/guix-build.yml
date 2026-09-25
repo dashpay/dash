@@ -3,7 +3,7 @@ name: Guix Build
 permissions: {}
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] runs only when a maintainer applies the 'guix-build' label
     types: [labeled]
   push:
   schedule:

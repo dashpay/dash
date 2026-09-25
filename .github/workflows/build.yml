@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] CI for fork PRs; PR code runs with a read-only token except the container image builds
 
 permissions:
   actions: read

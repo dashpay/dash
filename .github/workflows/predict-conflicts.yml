@@ -1,7 +1,7 @@
 name: "Check Potential Conflicts"
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] needs a write token to comment on fork PRs; runs base-branch code only
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, closed]
   pull_request_review:
     types: [submitted]
