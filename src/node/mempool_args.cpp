@@ -100,3 +100,30 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& argsman, con
 
     return std::nullopt;
 }
+
+std::vector<std::string> GetStricterThanDefaultRelayPolicy(const MemPoolOptions& mempool_opts)
+{
+    const MemPoolOptions defaults{};
+    std::vector<std::string> stricter;
+    // -incrementalrelayfee also raises the minimum relay fee unless -minrelaytxfee is set explicitly.
+    if (mempool_opts.incremental_relay_feerate > defaults.incremental_relay_feerate) {
+        stricter.emplace_back("-incrementalrelayfee");
+    } else if (mempool_opts.min_relay_feerate > defaults.min_relay_feerate) {
+        stricter.emplace_back("-minrelaytxfee");
+    }
+    if (mempool_opts.dust_relay_feerate > defaults.dust_relay_feerate) stricter.emplace_back("-dustrelayfee");
+    if (mempool_opts.max_datacarrier_bytes.value_or(0) < defaults.max_datacarrier_bytes.value_or(0)) {
+        stricter.emplace_back("-datacarrier/-datacarriersize");
+    }
+    if (!mempool_opts.permit_bare_multisig && defaults.permit_bare_multisig)
+        stricter.emplace_back("-permitbaremultisig");
+    if (mempool_opts.limits.ancestor_count < defaults.limits.ancestor_count)
+        stricter.emplace_back("-limitancestorcount");
+    if (mempool_opts.limits.ancestor_size_vbytes < defaults.limits.ancestor_size_vbytes)
+        stricter.emplace_back("-limitancestorsize");
+    if (mempool_opts.limits.descendant_count < defaults.limits.descendant_count)
+        stricter.emplace_back("-limitdescendantcount");
+    if (mempool_opts.limits.descendant_size_vbytes < defaults.limits.descendant_size_vbytes)
+        stricter.emplace_back("-limitdescendantsize");
+    return stricter;
+}
