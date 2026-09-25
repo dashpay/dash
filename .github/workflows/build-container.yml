@@ -168,21 +168,27 @@ jobs:
           TAG: ${{ needs.build-amd64.outputs.tag }}
           HASH_TAG: ${{ hashFiles(inputs.file) }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          AMD64_DIGEST: ${{ needs.build-amd64.outputs.digest }}
+          ARM64_DIGEST: ${{ needs.build-arm64.outputs.digest }}
         run: |
           REPO="ghcr.io/${REPO_NAME}/${IMAGE_NAME}"
+          # Reference this run's builds by digest; the shared hash tags can be
+          # overwritten by other runs before this job starts
+          AMD64_IMAGE="${REPO}@${AMD64_DIGEST}"
+          ARM64_IMAGE="${REPO}@${ARM64_DIGEST}"
 
           # Create manifest from arch-specific images
           docker buildx imagetools create -t "${REPO}:${HASH_TAG}" \
-            "${REPO}:${HASH_TAG}-amd64" \
-            "${REPO}:${HASH_TAG}-arm64"
+            "${AMD64_IMAGE}" \
+            "${ARM64_IMAGE}"
 
           docker buildx imagetools create -t "${REPO}:${TAG}" \
-            "${REPO}:${HASH_TAG}-amd64" \
-            "${REPO}:${HASH_TAG}-arm64"
+            "${AMD64_IMAGE}" \
+            "${ARM64_IMAGE}"
 
           # Only trusted pushes to the default branch may move :latest
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]]; then
             docker buildx imagetools create -t "${REPO}:latest" \
-              "${REPO}:${HASH_TAG}-amd64" \
-              "${REPO}:${HASH_TAG}-arm64"
+              "${AMD64_IMAGE}" \
+              "${ARM64_IMAGE}"
           fi
