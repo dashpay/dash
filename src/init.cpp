@@ -1429,8 +1429,9 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
         // Regression tests deliberately give individual masternodes a stricter policy to create
         // mempool inconsistencies (see feature_llmq_is_retroactive.py).
-        if (const auto stricter{GetStricterThanDefaultRelayPolicy(mempool_opts)};
-            !stricter.empty() && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
+        auto stricter{GetStricterThanDefaultRelayPolicy(mempool_opts)};
+        if (nBytesPerSigOp > DEFAULT_BYTES_PER_SIGOP) stricter.emplace_back("-bytespersigop");
+        if (!stricter.empty() && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
             return InitError(
                 strprintf(Untranslated("Masternode must not use a stricter transaction relay policy than the default, "
                                        "which would make it skip InstantSend signing. Remove or restore: %s"),
