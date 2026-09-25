@@ -5,11 +5,6 @@
   <key>LSMinimumSystemVersion</key>
   <string>14</string>
 
-  <key>LSArchitecturePriority</key>
-  <array>
-    <string>x86_64</string>
-  </array>
-
   <key>CFBundleIconFile</key>
   <string>dash.icns</string>
 
