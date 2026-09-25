@@ -794,10 +794,7 @@ public:
 
     void UpdatedBlockTip(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    CDeterministicMNList GetListForBlock(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs) {
-        LOCK(cs);
-        return GetListForBlockInternal(pindex);
-    };
+    CDeterministicMNList GetListForBlock(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     CDeterministicMNList GetListAtChainTip() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void SetListForBlockForTesting(const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs)
