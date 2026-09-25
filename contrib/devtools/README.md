@@ -193,3 +193,13 @@ Example usage:
 
     cd .../src
     ../contrib/devtools/circular-dependencies.py {*,*/*,*/*/*}.{h,cpp}
+
+update-rust-hashes.py
+=====================
+
+Refreshes the sha256 pins of the prebuilt Rust toolchain
+(`depends/packages/native_rust.mk`) and of the per-host standard libraries
+(`depends/packages/rust_stdlib.mk`) after the version in `native_rust.mk` was
+changed; each downloaded archive must match the `.sha256` file published next
+to it. `--check` compares the pins with the published `.sha256` files instead
+of rewriting them.
