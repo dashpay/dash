@@ -60,14 +60,8 @@ class MasternodeParamsTest(BitcoinTestFramework):
         # The actual filter enabling might require the node to be fully synced
         assert node1.getblockcount() >= 0  # Basic check that node is running
 
-        self.log.info("Test that masternode parameter interaction is logged")
-        self.stop_node(1)
-        if self.is_wallet_compiled():
-            with self.nodes[1].assert_debug_log(["parameter interaction: -masternodeblsprivkey set -> setting -disablewallet=1"]):
-                self.start_node(1, extra_args=[f"-masternodeblsprivkey={bls_key}"])
-            self.stop_node(1)
-
         self.log.info("Test that masternode refuses settings that silently skip its duties")
+        self.stop_node(1)
         mn_arg = f"-masternodeblsprivkey={bls_key}"
         for extra_args, expected_msg in [
             (["-blocksonly"], "Error: Masternode must relay transactions, set -blocksonly=0"),
@@ -80,7 +74,16 @@ class MasternodeParamsTest(BitcoinTestFramework):
         # masternodes may use it to create mempool inconsistencies (feature_llmq_is_retroactive.py).
         self.log.info("Test that a stricter relay policy is allowed on regtest masternodes")
         self.start_node(1, extra_args=[mn_arg, "-minrelaytxfee=0.001", "-datacarrier=0", "-limitancestorcount=5"])
+
+        self.log.info("Test that masternode parameter interaction is logged")
+        # Stop the node first so we can check the startup logs
         self.stop_node(1)
+
+        # Check debug log for parameter interaction messages during startup
+        if self.is_wallet_compiled():
+            with self.nodes[1].assert_debug_log(["parameter interaction: -masternodeblsprivkey set -> setting -disablewallet=1"]):
+                self.start_node(1, extra_args=[mn_arg])
+            self.stop_node(1)
 
         self.log.info("Test that a regular node may still use these settings")
         self.start_node(1, extra_args=["-blocksonly", "-peerblockfilters=0", "-maxuploadtarget=500M", "-datacarrier=0", "-minrelaytxfee=0.001"])
