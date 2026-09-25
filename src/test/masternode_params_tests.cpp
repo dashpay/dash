@@ -33,6 +33,7 @@ static std::vector<std::string> StricterFor(const std::vector<std::string>& args
     argsman.AddArg("-limitdescendantcount", "", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-limitdescendantsize", "", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-maxmempool", "", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-mempoolexpiry", "", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     BOOST_REQUIRE(argsman.ParseParameters(argv.size(), argv.data(), error));
     kernel::MemPoolOptions opts{};
     BOOST_REQUIRE(!ApplyArgsManOptions(argsman, Params(), opts));
@@ -46,8 +47,9 @@ BOOST_AUTO_TEST_CASE(default_relay_policy_is_not_stricter)
 
 BOOST_AUTO_TEST_CASE(looser_relay_policy_is_not_stricter)
 {
-    BOOST_CHECK(
-        StricterFor({"-minrelaytxfee=0.000001", "-limitancestorcount=50", "-datacarriersize=160", "-maxmempool=301"}).empty());
+    BOOST_CHECK(StricterFor({"-minrelaytxfee=0.000001", "-limitancestorcount=50", "-datacarriersize=160",
+                             "-maxmempool=301", "-mempoolexpiry=337"})
+                    .empty());
 }
 
 BOOST_AUTO_TEST_CASE(each_stricter_relay_option_is_reported)
@@ -65,6 +67,8 @@ BOOST_AUTO_TEST_CASE(each_stricter_relay_option_is_reported)
     BOOST_CHECK(StricterFor({"-limitdescendantcount=5"}) == V{"-limitdescendantcount"});
     BOOST_CHECK(StricterFor({"-limitdescendantsize=50"}) == V{"-limitdescendantsize"});
     BOOST_CHECK(StricterFor({"-maxmempool=299"}) == V{"-maxmempool"});
+    BOOST_CHECK(StricterFor({"-mempoolexpiry=335"}) == V{"-mempoolexpiry"});
+    BOOST_CHECK(StricterFor({"-mempoolexpiry=-1"}) == V{"-mempoolexpiry"});
 }
 
 BOOST_AUTO_TEST_SUITE_END()

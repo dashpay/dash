@@ -127,5 +127,6 @@ std::vector<std::string> GetStricterThanDefaultRelayPolicy(const MemPoolOptions&
         stricter.emplace_back("-limitdescendantsize");
     // A full smaller mempool evicts transactions a default-sized one keeps and raises its fee floor.
     if (mempool_opts.max_size_bytes < defaults.max_size_bytes) stricter.emplace_back("-maxmempool");
+    if (mempool_opts.expiry < defaults.expiry) stricter.emplace_back("-mempoolexpiry");
     return stricter;
 }

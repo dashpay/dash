@@ -31,6 +31,7 @@ class MasternodeParamsDevnetTest(BitcoinTestFramework):
             (["-limitancestorcount=5", "-limitdescendantsize=50"], "-limitancestorcount, -limitdescendantsize"),
             (["-maxmempool=299"], "-maxmempool"),
             (["-bytespersigop=21"], "-bytespersigop"),
+            (["-mempoolexpiry=335"], "-mempoolexpiry"),
         ]:
             self.log.info(f"Test that a masternode refuses {' '.join(extra_args)}")
             self.nodes[0].assert_start_raises_init_error(extra_args=mn_args + extra_args,
@@ -38,7 +39,7 @@ class MasternodeParamsDevnetTest(BitcoinTestFramework):
 
         self.log.info("Test that a looser relay policy is still allowed")
         self.start_node(0, extra_args=mn_args + ["-minrelaytxfee=0.000001", "-limitancestorcount=50", "-datacarriersize=160",
-                                                 "-maxmempool=301", "-bytespersigop=19"])
+                                                 "-maxmempool=301", "-bytespersigop=19", "-mempoolexpiry=337"])
 
 
 if __name__ == '__main__':
