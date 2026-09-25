@@ -29,7 +29,7 @@ jobs:
     name: Test source
     runs-on: ${{ inputs.runs-on }}
     container:
-      image: ${{ inputs.container-path }}
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       # SYS_PTRACE is required by LeakSanitizer's stop-the-world
       # (https://github.com/google/sanitizers/issues/764)
       options: --user root --cap-add SYS_PTRACE

@@ -8,7 +8,7 @@ permissions:
 
 on:
   push:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] fetches the PR head only to test a fast-forward merge; runs no PR code
   pull_request_review:
     types: [submitted]
 

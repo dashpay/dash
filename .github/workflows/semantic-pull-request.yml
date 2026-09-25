@@ -1,7 +1,7 @@
 name: "Check PR title and description"
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] validates PR metadata with base-branch code; does not check out PR code
     types:
       - opened
       - edited

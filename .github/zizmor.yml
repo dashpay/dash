@@ -1,0 +1,16 @@
+# Configuration for zizmor, the GitHub Actions static analyzer run by
+# test/lint/lint-github-actions.py. Prefer fixing findings; otherwise ignore
+# a single finding inline with `# zizmor: ignore[<audit>] <reason>`.
+rules:
+  # Actions are pinned to release tags rather than commit SHAs so they keep
+  # receiving upstream fixes without manual bumps. Still require every
+  # `uses:` to name an explicit ref instead of zizmor's default SHA-only policy.
+  unpinned-uses:
+    config:
+      policies:
+        "*": ref-pin
+  self-repository:
+    ignore:
+      # build.yml only calls local reusable workflows (`./.github/workflows/...`),
+      # which GitHub loads from the caller's commit, not the runner filesystem.
+      - build.yml

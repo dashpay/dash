@@ -17,7 +17,7 @@ jobs:
     name: Run linters
     runs-on: ${{ inputs.runs-on }}
     container:
-      image: ${{ inputs.container-path }}
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       options: --user root
     steps:
       - name: Checkout code
