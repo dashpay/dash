@@ -536,6 +536,17 @@ public:
     void removeProTxReferences(const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxSpentCollateralConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxKeyChangedConflicts(const CTransaction &tx, const uint256& proTxHash, const uint256& newKeyHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** If tx changes or revokes a masternode's operator key, remove that masternode's pending
+     *  ProUpServTxs other than tx's ancestors, together with their descendants. They are signed with
+     *  the key being replaced, and mined after the change they would restore the previous operator's
+     *  service fields. */
+    void removeProTxStaleServiceUpdates(const CTransaction& tx, const setEntries& ancestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Does a package pair a registrar update or revocation with a ProUpServTx of the same masternode,
+     *  in the package itself or pending in the pool and spent by the package? Package members are
+     *  checked against the pool before any of them is added, so neither existsProviderTxConflict()
+     *  nor the eviction on admission can separate such a pair. Registrar updates keeping the
+     *  operator key count too; packages are regtest-only, so no finer check is worth having. */
+    bool PackageHasStaleServiceUpdate(const std::vector<CTransactionRef>& txns) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Remove pending TXs of refType for proTxHash that pair the P2PKH destination of keyIDVoting with a
      *  share reward script: ProUpShareTxs paying it, or ProUpSharedRegTxs setting it as the voting key. */
     void removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -837,6 +848,8 @@ private:
      * addUnchecked extension for Dash-specific transactions (ProTx).
      */
     void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Add the pending ProUpServTxs of proTxHash that are not in exclude, and their descendants, to entries */
+    void CalculateServiceUpdates(const uint256& proTxHash, const setEntries& exclude, setEntries& entries) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Before calling removeUnchecked for a given transaction,
      *  UpdateForRemoveFromMempool must be called on the entire (dependent) set

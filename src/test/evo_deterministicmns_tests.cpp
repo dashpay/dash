@@ -91,7 +91,8 @@ static CMutableTransaction CreateProRegTxExternalCollateral(const ChainstateMana
 }
 
 static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, const uint256& proTxHash, const CBLSSecretKey& operatorKey, int port, const CScript& scriptOperatorPayout, const CKey& coinbaseKey,
-                                             uint16_t version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false))
+                                             uint16_t version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false),
+                                             CAmount fee = 0)
 {
     CProUpServTx proTx;
     proTx.nVersion = version;
@@ -105,6 +106,8 @@ static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, 
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
+    // See CreateProUpRegTx: a zero-fee transaction only gets into blocks built by the test itself
+    tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     proTx.sig = operatorKey.Sign(::SerializeHash(proTx), bls::bls_legacy_scheme);
     SetTxPayload(tx, proTx);
@@ -139,7 +142,8 @@ static CMutableTransaction CreateProUpRegTx(const ChainstateManager& chainman, S
     return tx;
 }
 
-static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, const uint256& proTxHash, const CBLSSecretKey& operatorKey, const CKey& coinbaseKey)
+static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, const uint256& proTxHash, const CBLSSecretKey& operatorKey, const CKey& coinbaseKey,
+                                            CAmount fee = 0)
 {
     CProUpRevTx proTx;
     proTx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
@@ -149,6 +153,8 @@ static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, S
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
+    // See CreateProUpRegTx: a zero-fee transaction only gets into blocks built by the test itself
+    tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     proTx.sig = operatorKey.Sign(::SerializeHash(proTx), bls::bls_legacy_scheme);
     SetTxPayload(tx, proTx);
@@ -1543,6 +1549,207 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
                                                MakeTransactionRef(tx_reg_replace)};
         testPool.removeForBlock(connected, tip_height() + 1);
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
+    }
+}
+
+// A ProUpServTx is signed with the operator key at the tip. If an operator key change or revocation
+// for the same masternode confirms ahead of it in one block, the service update still applies and
+// restores the displaced operator's service fields and revives the masternode the change banned.
+// The mempool must never hold such a pair: the key change wins regardless of arrival order.
+void FuncTestMempoolStaleServiceUpdate(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto& mempool = *Assert(setup.m_node.mempool.get());
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    constexpr CAmount fee{10000};
+    const uint16_t version{ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false)};
+
+    CKey ownerKey;
+    CBLSSecretKey operatorKey;
+    auto tx_reg = CreateProRegTx(chainman, utxos, /*port=*/1, GenerateRandomAddress(), setup.coinbaseKey, ownerKey,
+                                 operatorKey);
+    const uint256 proTxHash = tx_reg.GetHash();
+    // Every transaction below consumes a whole funding output and the fixture has few mature
+    // coinbases, so split one into small outputs that need no maturity
+    constexpr int num_split{20};
+    CMutableTransaction tx_split;
+    const auto split_spent = FundTransaction(chainman, tx_split, utxos, coinbase_pk, 2 * COIN);
+    BOOST_REQUIRE_EQUAL(tx_split.vout.size(), 2U);
+    BOOST_REQUIRE(tx_split.vout[1].nValue > num_split * 2 * COIN + fee);
+    for (int i = 0; i < num_split; ++i) {
+        tx_split.vout[1].nValue -= 2 * COIN;
+        tx_split.vout.emplace_back(2 * COIN, coinbase_pk);
+    }
+    tx_split.vout[1].nValue -= fee;
+    SignTransaction(tx_split, split_spent, setup.coinbaseKey);
+    setup.CreateAndProcessBlock({tx_reg, tx_split}, coinbase_pk);
+    sync_dmn_tip();
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(proTxHash));
+    for (size_t i = 0; i < tx_split.vout.size(); ++i) {
+        utxos.emplace(COutPoint(tx_split.GetHash(), i), Coin(tx_split.vout[i], /*nHeightIn=*/0, /*fCoinBaseIn=*/false));
+    }
+
+    CBLSSecretKey newOperatorKey;
+    newOperatorKey.MakeNewKey();
+    const CKeyID votingKeyID{ownerKey.GetPubKey().GetID()};
+    const CScript payout{GenerateRandomAddress()};
+
+    auto submit = [&](const CMutableTransaction& tx) {
+        LOCK(cs_main);
+        return chainman.ProcessTransaction(MakeTransactionRef(tx));
+    };
+    auto accepted = [&](const CMutableTransaction& tx) {
+        const auto result = submit(tx);
+        BOOST_CHECK_MESSAGE(result.m_result_type == MempoolAcceptResult::ResultType::VALID,
+                            "unexpected rejection: " << result.m_state.GetRejectReason());
+        return result.m_result_type == MempoolAcceptResult::ResultType::VALID;
+    };
+    auto in_mempool = [&](const CMutableTransaction& tx) { return mempool.exists(tx.GetHash()); };
+    auto reset_mempool = [&] {
+        LOCK(mempool.cs);
+        for (const auto& info : mempool.infoAll()) {
+            mempool.removeRecursive(*info.tx, MemPoolRemovalReason::MANUAL);
+        }
+        BOOST_REQUIRE_EQUAL(mempool.size(), 0U);
+    };
+    auto make_serv = [&](int port, const CBLSSecretKey& key) {
+        return CreateProUpServTx(chainman, utxos, proTxHash, key, port, CScript(), setup.coinbaseKey, version, fee);
+    };
+    auto make_reg = [&](const CBLSSecretKey& operator_key) {
+        return CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operator_key.GetPublicKey(), votingKeyID, payout,
+                                setup.coinbaseKey, version, fee);
+    };
+
+    for (const bool revoke : {false, true}) {
+        BOOST_TEST_MESSAGE("key change: " << (revoke ? "revocation" : "rotation"));
+        auto make_key_change = [&] {
+            return revoke ? CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey, fee)
+                          : make_reg(newOperatorKey);
+        };
+
+        // Key change first: the old-key service update is refused
+        {
+            const auto tx_change = make_key_change();
+            const auto tx_serv = make_serv(/*port=*/2, operatorKey);
+            BOOST_REQUIRE(accepted(tx_change));
+            const auto result = submit(tx_serv);
+            BOOST_CHECK(result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+            BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "protx-dup");
+            BOOST_CHECK(in_mempool(tx_change));
+            reset_mempool();
+        }
+
+        // Service update first: the key change evicts it
+        {
+            const auto tx_serv = make_serv(/*port=*/3, operatorKey);
+            const auto tx_change = make_key_change();
+            BOOST_REQUIRE(accepted(tx_serv));
+            BOOST_REQUIRE(accepted(tx_change));
+            BOOST_CHECK(!in_mempool(tx_serv));
+            BOOST_CHECK(in_mempool(tx_change));
+            reset_mempool();
+        }
+    }
+
+    // A key change spending the service update's output is always mined after it, so both stay
+    {
+        const auto tx_serv = make_serv(/*port=*/4, operatorKey);
+        SimpleUTXOMap serv_coins{{COutPoint(tx_serv.GetHash(), 0),
+                                  Coin(tx_serv.vout[0], /*nHeightIn=*/0, /*fCoinBaseIn=*/false)}};
+        const auto tx_revoke = CreateProUpRevTx(chainman, serv_coins, proTxHash, operatorKey, setup.coinbaseKey, fee);
+        BOOST_REQUIRE_EQUAL(tx_revoke.vin.size(), 1U);
+        BOOST_REQUIRE(tx_revoke.vin[0].prevout.hash == tx_serv.GetHash());
+        BOOST_REQUIRE(accepted(tx_serv));
+        BOOST_REQUIRE(accepted(tx_revoke));
+        BOOST_CHECK(in_mempool(tx_serv));
+        BOOST_CHECK(in_mempool(tx_revoke));
+        reset_mempool();
+    }
+
+    // A registrar update keeping the operator key is not a key change: both stay, in either order
+    {
+        const auto tx_serv = make_serv(/*port=*/5, operatorKey);
+        BOOST_REQUIRE(accepted(tx_serv));
+        BOOST_REQUIRE(accepted(make_reg(operatorKey)));
+        BOOST_CHECK(in_mempool(tx_serv));
+        reset_mempool();
+
+        BOOST_REQUIRE(accepted(make_reg(operatorKey)));
+        BOOST_CHECK(accepted(make_serv(/*port=*/6, operatorKey)));
+        reset_mempool();
+    }
+
+    // Package members are checked against the pool before any of them is added, so the package
+    // itself must not pair a key change with an old-key service update, directly or by spending one
+    {
+        const auto tx_serv = make_serv(/*port=*/8, operatorKey);
+        SimpleUTXOMap serv_coins{{COutPoint(tx_serv.GetHash(), 0),
+                                  Coin(tx_serv.vout[0], /*nHeightIn=*/0, /*fCoinBaseIn=*/false)}};
+        const auto tx_revoke = CreateProUpRevTx(chainman, serv_coins, proTxHash, operatorKey, setup.coinbaseKey, fee);
+        const auto tx_change = make_reg(newOperatorKey);
+        auto& chainstate = chainman.ActiveChainstate();
+        const Package unrelated{MakeTransactionRef(tx_serv), MakeTransactionRef(tx_change)};
+        const Package chained{MakeTransactionRef(tx_serv), MakeTransactionRef(tx_revoke)};
+        // Submission only takes a child with its parents, which the unrelated pair is not
+        for (const auto& [package, test_accept] : {std::pair{unrelated, true}, std::pair{chained, true},
+                                                   std::pair{chained, false}}) {
+            const auto result = WITH_LOCK(cs_main, return ProcessNewPackage(chainstate, mempool, package, test_accept));
+            BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "protx-dup");
+            BOOST_CHECK_EQUAL(mempool.size(), 0U);
+        }
+        // A pending service update is spent by a package carrying a key change
+        BOOST_REQUIRE(accepted(tx_serv));
+        const auto result = WITH_LOCK(cs_main, return ProcessNewPackage(chainstate, mempool,
+                                                                        {MakeTransactionRef(tx_revoke)},
+                                                                        /*test_accept=*/true));
+        BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "protx-dup");
+        reset_mempool();
+    }
+
+    // A rotation returned to the mempool by a reorg is still a key change: the mempool checks it
+    // against the masternode list of the new tip, not of the disconnected block
+    const auto tx_rotation = make_reg(newOperatorKey);
+    setup.CreateAndProcessBlock({tx_rotation}, coinbase_pk);
+    sync_dmn_tip();
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->IsBanned());
+    BlockValidationState state;
+    BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, tip_index()));
+    BOOST_REQUIRE(in_mempool(tx_rotation));
+    const auto result = submit(make_serv(/*port=*/7, operatorKey));
+    BOOST_CHECK(result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+    BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "protx-dup");
+    reset_mempool();
+
+    // A reorg returning a block that confirmed a service update and then a rotation, while a pending
+    // transaction spends the service update: the returning rotation evicts the service update
+    // together with its spender, although the reorg has not yet linked the two
+    {
+        const CBlockIndex* fork_point{tip_index()};
+        const auto tx_serv = make_serv(/*port=*/9, operatorKey);
+        const auto tx_rot = make_reg(newOperatorKey);
+        setup.CreateAndProcessBlock({tx_serv, tx_rot}, coinbase_pk);
+        sync_dmn_tip();
+        SimpleUTXOMap serv_coins{{COutPoint(tx_serv.GetHash(), 0),
+                                  Coin(tx_serv.vout[0], /*nHeightIn=*/0, /*fCoinBaseIn=*/false)}};
+        CMutableTransaction tx_child;
+        tx_child.vin.emplace_back(COutPoint(tx_serv.GetHash(), 0));
+        tx_child.vout.emplace_back(tx_serv.vout[0].nValue - fee, coinbase_pk);
+        SignTransaction(tx_child, serv_coins, setup.coinbaseKey);
+        BOOST_REQUIRE(accepted(tx_child));
+
+        BlockValidationState reorg_state;
+        BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(
+            reorg_state, WITH_LOCK(cs_main, return chainman.ActiveChain().Next(fork_point))));
+        BOOST_CHECK(in_mempool(tx_rot));
+        BOOST_CHECK(!in_mempool(tx_serv));
+        BOOST_CHECK(!in_mempool(tx_child));
+        LOCK2(cs_main, mempool.cs);
+        mempool.check(chainman.ActiveChainstate().CoinsTip(), chainman.ActiveChain().Height() + 1);
     }
 }
 
@@ -3493,6 +3700,12 @@ BOOST_AUTO_TEST_CASE(test_mempool_proreg_replacement_update_conflict)
 {
     TestChainV19Setup setup;
     FuncTestMempoolProRegReplacementUpdateConflict(setup);
+}
+
+BOOST_AUTO_TEST_CASE(test_mempool_stale_service_update)
+{
+    TestChainV19Setup setup;
+    FuncTestMempoolStaleServiceUpdate(setup);
 }
 
 //This one can be started only with legacy scheme, since inside undo block will switch it back to legacy resulting into an inconsistency
