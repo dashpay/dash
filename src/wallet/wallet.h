@@ -100,9 +100,14 @@ static constexpr int MAX_N_WALLET_BACKUPS = 20;
  * maxBackups <= 0 deletes nothing, and a non-positive nWalletBackups leaves retention
  * entirely to the age ranges. Callers must keep nWalletBackups <= maxBackups for the
  * total to hold; InitAutoBackup() enforces that.
+ *
+ * backup_time is when the backup that triggered pruning was written. Backups dated after
+ * it, which only a clock that moved backward can produce, are never deleted and take no
+ * part in retention, so the backup just written is always the newest one and is kept.
  */
 std::vector<fs::path> GetBackupsToDelete(const std::multimap<std::chrono::system_clock::time_point, fs::path>& backups,
-                                         int nWalletBackups, int maxBackups = DEFAULT_MAX_BACKUPS);
+                                         std::chrono::system_clock::time_point backup_time, int nWalletBackups,
+                                         int maxBackups = DEFAULT_MAX_BACKUPS);
 
 /**
  * Read back the UTC timestamp AutoBackupWallet() embeds in backup filenames (e.g.
