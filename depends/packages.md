@@ -48,6 +48,13 @@ These variables are optional:
     Any extra files that will be fetched via $(package)_fetch_cmds. These are
     specified so that they can be fetched and verified via 'make download'.
 
+    $(package)_fetched_id:
+    Added to the name of the package's download stamp, which otherwise holds
+    only $(package)_version and $(package)_sha256_hash. Set it to the hash of
+    an extra source that can change while those stay the same, so that a
+    change refetches it. It must be a single word: join several hashes with
+    "-", not spaces.
+
 
 ## Build Variables:
 After defining the main identifiers, build variables may be added or customized
