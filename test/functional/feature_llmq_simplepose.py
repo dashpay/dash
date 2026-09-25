@@ -84,6 +84,15 @@ class LLMQSimplePoSeTest(DashTestFramework):
             # With PoSe off there should be no punishing for outdated nodes
             self.test_no_banning(self.force_old_mn_proto, 3)
 
+        self.repair_masternodes(True)
+        self.reset_probe_timeouts()
+
+        for flag, reason in [("-pushnorelay", "does not relay transactions"),
+                             ("-pushnocompactfilters", "does not serve compact block filters")]:
+            self.test_no_service(flag, reason, banned=not self.options.disable_spork23)
+            self.repair_masternodes(True)
+            self.reset_probe_timeouts()
+
     def isolate_mn(self, mn: MasternodeInfo):
         mn.get_node(self).setnetworkactive(False)
         self.wait_until(lambda: mn.get_node(self).getconnectioncount() == 0)
@@ -107,6 +116,31 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.connect_nodes(mn.nodeIdx, 0)
         self.reset_probe_timeouts()
         return False, True
+
+    def test_no_service(self, flag, reason, banned):
+        # Advertise that it does not provide a service, as a -blocksonly or -peerblockfilters=0 masternode would
+        mn = self.mninfo[0]
+        self.stop_node(mn.nodeIdx)
+        self.start_masternode(mn, [flag])
+        self.connect_nodes(mn.nodeIdx, 0)
+        # Peers stop announcing DKG messages to a relay=0 peer, so its own DKG status is not checked.
+        # Its own contribution still reaches every member.
+        others = [m for m in self.mninfo if m is not mn]
+        online = others if flag == "-pushnorelay" else self.mninfo
+        expected_complaints = len(others) if banned else 0
+        for i in range(2):
+            self.log.info(f"Testing PoSe {'banning' if banned else 'no banning'} for {flag} {i + 1}/2")
+            self.reset_probe_timeouts()
+            with others[0].get_node(self).assert_debug_log([reason] if banned else [], unexpected_msgs=[] if banned else [reason]):
+                self.mine_quorum(expected_connections=3, expected_members=len(online) if not banned else len(others),
+                                 expected_contributions=len(self.mninfo), expected_complaints=expected_complaints,
+                                 expected_commitments=len(online) if not banned else len(others),
+                                 mninfos_online=online if not banned else others, mninfos_valid=others)
+            if check_banned(self.nodes[0], mn):
+                break
+        assert_equal(check_banned(self.nodes[0], mn), banned)
+        if not banned:
+            assert not check_punished(self.nodes[0], mn)
 
     def test_no_banning(self, invalidate_proc, expected_connections=None):
         [_, instant_ban] = invalidate_proc(self.mninfo[0])
