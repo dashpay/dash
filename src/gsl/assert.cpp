@@ -33,7 +33,7 @@ namespace details
                                                             << loc.column() << ":" << loc.function_name()
                                                             << std::endl;
     std::cerr << s.str() << std::flush;
-    LogPrintf("%s", s.str()); /* Continued */
+    LogPrintf("%s", s.str()); // NOLINT(bitcoin-unterminated-logprintf)
     std::terminate();
 #endif // defined(GSL_MSVC_USE_STL_NOEXCEPTION_WORKAROUND)
 }

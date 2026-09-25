@@ -64,6 +64,12 @@ fi
 # Zero stats before run to get accurate statistics for this run only
 python3 "${CLANG_TIDY_CACHE_PY}" --zero-stats 2>&1 || true
 
+# Build the bitcoin-tidy clang-tidy plugin, which implements the
+# bitcoin-* checks enabled in src/.clang-tidy
+cmake -B /tidy-build -DLLVM_DIR="$(llvm-config --cmakedir)" -DCMAKE_BUILD_TYPE=Release -S "${BASE_ROOT_DIR}/contrib/devtools/bitcoin-tidy"
+cmake --build /tidy-build "${MAKEJOBS}"
+cmake --build /tidy-build --target bitcoin-tidy-tests "${MAKEJOBS}"
+
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"
 
 CAST_LINT_DB="${PWD}/../cstyle-cast-compile-db"
@@ -76,6 +82,7 @@ if ! ( run-clang-tidy \
   -checks=clang-diagnostic-old-style-cast,google-readability-casting \
   -warnings-as-errors=-clang-diagnostic-old-style-cast,-google-readability-casting \
   -clang-tidy-binary="${CLANG_TIDY_CACHE}" \
+  -load="/tidy-build/libbitcoin-tidy.so" \
   -p "${CAST_LINT_DB}" \
   -quiet "${MAKEJOBS}" | \
   python3 "${BASE_ROOT_DIR}/ci/dash/lint-cstyle-casts.py" filter --source-root "${BASE_ROOT_DIR}" | \

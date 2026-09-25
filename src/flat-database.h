@@ -163,7 +163,7 @@ private:
         if (readResult == ReadResult::FileError)
             LogPrintf("Missing file %s, will try to recreate\n", strFilename);
         else if (readResult != ReadResult::Ok) {
-            LogPrintf("ERROR: CFlatDB::Read Error reading %s: ", strFilename);
+            LogPrintf("ERROR: CFlatDB::Read Error reading %s: ", strFilename); // NOLINT(bitcoin-unterminated-logprintf)
             if (readResult == ReadResult::IncorrectFormat) {
                 LogPrintf("%s: Magic is ok but data has invalid format, will try to recreate\n", __func__);
             } else {

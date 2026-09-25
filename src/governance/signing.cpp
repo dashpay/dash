@@ -199,7 +199,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
                     if (voteInstancePair.second.eOutcome == VOTE_OUTCOME_YES) {
                         votedFundingYesTriggerHash = gov_sb_hash;
                     }
-                    LogPrint(BCLog::GOBJECT, /* Continued */
+                    LogPrint(BCLog::GOBJECT,
                              "%s -- Not voting YES-FUNDING for trigger:%s, we voted %s for it already\n", strFunc,
                              gov_sb_hash.ToString(),
                              CGovernanceVoting::ConvertOutcomeToString(voteInstancePair.second.eOutcome));
@@ -250,7 +250,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
             const auto& strFunc = __func__;
             if (std::ranges::any_of(voteRecord.mapInstances, [&](const auto& voteInstancePair) {
                     if (voteInstancePair.first == VOTE_SIGNAL_FUNDING) {
-                        LogPrint(BCLog::GOBJECT, /* Continued */
+                        LogPrint(BCLog::GOBJECT,
                                  "%s -- Not voting NO-FUNDING for trigger:%s, we voted %s for it already\n", strFunc,
                                  trigger_hash.ToString(),
                                  CGovernanceVoting::ConvertOutcomeToString(voteInstancePair.second.eOutcome));

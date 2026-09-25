@@ -16,6 +16,8 @@ from subprocess import check_output, CalledProcessError
 
 from lint_ignore_dirs import SHARED_EXCLUDED_SUBTREES
 
+EXCLUDED_DIRS = ["contrib/devtools/bitcoin-tidy/"] + SHARED_EXCLUDED_SUBTREES
+
 EXPECTED_BOOST_INCLUDES = ["boost/date_time/posix_time/posix_time.hpp",
                            "boost/hana/for_each.hpp",
                            "boost/hana/tuple.hpp",
@@ -40,7 +42,7 @@ def get_toplevel():
 
 
 def list_files_by_suffix(suffixes):
-    exclude_args = [":(exclude)" + dir for dir in SHARED_EXCLUDED_SUBTREES]
+    exclude_args = [":(exclude)" + dir for dir in EXCLUDED_DIRS]
 
     files_list = check_output(["git", "ls-files", "src"] + exclude_args, text=True, encoding="utf8").splitlines()
 
@@ -98,7 +100,7 @@ def find_extra_boosts():
 
 
 def find_quote_syntax_inclusions():
-    exclude_args = [":(exclude)" + dir for dir in SHARED_EXCLUDED_SUBTREES]
+    exclude_args = [":(exclude)" + dir for dir in EXCLUDED_DIRS]
     quote_syntax_inclusions = list()
 
     try:

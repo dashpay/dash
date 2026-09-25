@@ -210,7 +210,7 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
         if (it != data.recSigs.end()) {
             auto recSig = std::make_shared<llmq::CRecoveredSig>(std::move(it->second));
             if (!m_sigman.HasRecoveredSigForId(llmq_params.type, recSig->getId())) {
-                LogPrint(BCLog::INSTANTSEND, /* Continued */
+                LogPrint(BCLog::INSTANTSEND,
                          "NetInstantSend::%s -- txid=%s, islock=%s: "
                          "passing reconstructed recSig to signing mgr, peer=%d\n",
                          __func__, islock->txid.ToString(), hash.ToString(), nodeId);
@@ -385,7 +385,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
         // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
         // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
         if (minedHeight.has_value() && m_chainlocks.HasChainLock(*minedHeight, hashBlock)) {
-            LogPrint(BCLog::INSTANTSEND, /* Continued */
+            LogPrint(BCLog::INSTANTSEND,
                      "NetInstantSend::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
                      "ChainLock in block %s, peer=%d\n",
                      __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);

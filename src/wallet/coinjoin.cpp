@@ -223,7 +223,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
         for (const auto& item : vecTallyRet) {
             strMessage += strprintf("  %s %f\n", EncodeDestination(item.txdest), float(item.nAmount) / COIN);
         }
-        LogPrint(BCLog::SELECTCOINS, "%s", strMessage); /* Continued */
+        LogPrint(BCLog::SELECTCOINS, "%s", strMessage); // NOLINT(bitcoin-unterminated-logprintf)
     }
 
     return vecTallyRet;

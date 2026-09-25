@@ -207,7 +207,7 @@ void WalletInit::InitCoinJoinSettings(CCoinJoinClientManager& mgr) const
     if (fAutoStart) {
         mgr.startMixing();
     }
-    LogPrintf("CoinJoin: autostart=%d, multisession=%d," /* Continued */
+    LogPrintf("CoinJoin: autostart=%d, multisession=%d,"
               "sessions=%d, rounds=%d, amount=%d, denoms_goal=%d, denoms_hardcap=%d\n",
               fAutoStart, CCoinJoinClientOptions::IsMultiSessionEnabled(),
               CCoinJoinClientOptions::GetSessions(), CCoinJoinClientOptions::GetRounds(),

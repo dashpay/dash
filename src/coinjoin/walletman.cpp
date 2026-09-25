@@ -280,7 +280,7 @@ MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnma
 
         if (m_queueman->HasQueueFromMasternode(dsq.masternodeOutpoint, dsq.fReady)) {
             // no way the same mn can send another dsq with the same readiness this soon
-            LogPrint(BCLog::COINJOIN, /* Continued */
+            LogPrint(BCLog::COINJOIN,
                      "DSQUEUE -- Peer %d is sending WAY too many dsq messages for a masternode with collateral %s\n",
                      from, dsq.masternodeOutpoint.ToStringShort());
             return ret;

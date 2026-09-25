@@ -236,7 +236,7 @@ void SyncManager::ProcessTick()
                             if (!pNodeTmp->IsInboundConn() && !fRequestedEarlier && !pNodeTmp->IsBlockRelayOnly()) {
                                 m_netfulfilledman.AddFulfilledRequest(pNodeTmp->addr, "mempool-sync");
                                 m_connman.PushMessage(pNodeTmp, msgMaker.Make(NetMsgType::MEMPOOL));
-                                LogPrint(BCLog::MNSYNC, /* Continued */
+                                LogPrint(BCLog::MNSYNC,
                                          "Sync Tick -- nTick %d asset_id %d -- syncing mempool from peer=%d\n", nTick,
                                          asset_id, pNodeTmp->GetId());
                             }

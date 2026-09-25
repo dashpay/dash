@@ -78,7 +78,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
     CCoinJoinAccept dsa;
     vRecv >> dsa;
 
-    LogPrint(BCLog::COINJOIN, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CoinJoin::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString()); /* Continued */
+    LogPrint(BCLog::COINJOIN, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CoinJoin::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 
     auto mnList = m_dmnman.GetListAtChainTip();
     auto dmn = mnList.GetValidMNByCollateral(m_mn_activeman.GetOutPoint());
@@ -210,7 +210,7 @@ void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
     CCoinJoinEntry entry;
     vRecv >> entry;
 
-    LogPrint(BCLog::COINJOIN, "DSVIN -- txCollateral %s", entry.txCollateral->ToString()); /* Continued */
+    LogPrint(BCLog::COINJOIN, "DSVIN -- txCollateral %s", entry.txCollateral->ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 
     // Note: unbalanced (promotion/demotion) entries are only valid post-V24; AddEntry ->
     // IsValidInOuts rejects them pre-V24 and consumes the collateral to keep spam costly
@@ -407,7 +407,7 @@ void CCoinJoinServer::CreateFinalTransaction(int session_id)
     sort(txNew.vout.begin(), txNew.vout.end(), CompareOutputBIP69());
 
     finalMutableTransaction = txNew;
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- finalMutableTransaction=%s", /* Continued */
+    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- finalMutableTransaction=%s", // NOLINT(bitcoin-unterminated-logprintf)
              txNew.ToString());
 
     // request signatures from clients
@@ -422,7 +422,7 @@ void CCoinJoinServer::CommitFinalTransaction()
     CTransactionRef finalTransaction = WITH_LOCK(cs_coinjoin, return MakeTransactionRef(finalMutableTransaction));
     uint256 hashTx = finalTransaction->GetHash();
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- finalTransaction=%s", /* Continued */
+    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- finalTransaction=%s", // NOLINT(bitcoin-unterminated-logprintf)
              finalTransaction->ToString());
 
     {
@@ -430,7 +430,7 @@ void CCoinJoinServer::CommitFinalTransaction()
         TRY_LOCK(::cs_main, lockMain);
         mempool.PrioritiseTransaction(hashTx, 0.1 * COIN);
         if (!lockMain || !ATMPIfSaneFee(m_chainman, finalTransaction)) {
-            LogPrint(BCLog::COINJOIN, /* Continued */
+            LogPrint(BCLog::COINJOIN,
                      "CCoinJoinServer::CommitFinalTransaction -- ATMPIfSaneFee() error: Transaction not valid\n");
             WITH_LOCK(cs_coinjoin, SetNull());
             // not much we can do in this case, just notify clients
@@ -495,7 +495,7 @@ void CCoinJoinServer::ChargeFees() const
 
             // This queue entry didn't send us the promised transaction
             if (!fFound) {
-                LogPrint(BCLog::COINJOIN, /* Continued */
+                LogPrint(BCLog::COINJOIN,
                          "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't send transaction), found "
                          "offence\n");
                 vecOffendersCollaterals.push_back(txCollateral);
@@ -509,7 +509,7 @@ void CCoinJoinServer::ChargeFees() const
         for (const auto& entry : vecEntries) {
             for (const auto& txdsin : entry.vecTxDSIn) {
                 if (!txdsin.fHasSig) {
-                    LogPrint(BCLog::COINJOIN, /* Continued */
+                    LogPrint(BCLog::COINJOIN,
                              "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't sign), found offence\n");
                     vecOffendersCollaterals.push_back(entry.txCollateral);
                 }
@@ -530,8 +530,8 @@ void CCoinJoinServer::ChargeFees() const
     Shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), FastRandomContext());
 
     if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
-        LogPrint(BCLog::COINJOIN, /* Continued */
-                 "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s",
+        LogPrint(BCLog::COINJOIN,
+                 "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s", // NOLINT(bitcoin-unterminated-logprintf)
                  (nState == POOL_STATE_SIGNING) ? "sign" : "send", vecOffendersCollaterals[0]->ToString());
         ConsumeCollateral(vecOffendersCollaterals[0]);
     }
@@ -561,8 +561,8 @@ void CCoinJoinServer::ChargeRandomFees() const
 
     for (const auto& txCollateral : session_collaterals) {
         if (GetRand<int>(/*nMax=*/100) > 10) return;
-        LogPrint(BCLog::COINJOIN, /* Continued */
-                 "CCoinJoinServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString());
+        LogPrint(BCLog::COINJOIN,
+                 "CCoinJoinServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString()); // NOLINT(bitcoin-unterminated-logprintf)
         ConsumeCollateral(txCollateral);
     }
 }
@@ -776,7 +776,7 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
     // PROMOTION_RATIO outputs; pre-V24 entries are capped at COINJOIN_ENTRY_MAX_SIZE (9)
     const size_t nMaxEntrySize = fRebalanceSession ? static_cast<size_t>(CoinJoin::PROMOTION_RATIO) : COINJOIN_ENTRY_MAX_SIZE;
     if (entry.vecTxDSIn.size() > nMaxEntrySize || entry.vecTxOut.size() > nMaxEntrySize) {
-        LogPrint(BCLog::COINJOIN, /* Continued */
+        LogPrint(BCLog::COINJOIN,
                  "CCoinJoinServer::%s -- ERROR: too many inputs or outputs! inputs=%s/%s, outputs=%s/%s\n", __func__,
                  entry.vecTxDSIn.size(), nMaxEntrySize, entry.vecTxOut.size(), nMaxEntrySize);
         nMessageIDRet = ERR_MAXIMUM;

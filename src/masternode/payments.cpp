@@ -379,7 +379,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CChain& active_chain, const C
     const bool is_v24{check_superblock == SuperBlockCheckType::DisallowDuplicates};
     if (!m_superblocks.IsValidSuperblock(active_chain, tip_mn_list, *block.vtx[0], nBlockHeight, blockReward, is_v24)) {
         // triggered but invalid? that's weird
-        LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, block.vtx[0]->ToString()); /* Continued */
+        LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, block.vtx[0]->ToString()); // NOLINT(bitcoin-unterminated-logprintf)
         // should NOT allow invalid superblocks, when superblocks are enabled
         strErrorRet = strprintf("invalid superblock detected at height %d", nBlockHeight);
         return false;
@@ -395,9 +395,9 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CChain& active_chain, const C
 
     // Check for correct masternode payment
     if (IsTransactionValid(txNew, pindexPrev, blockSubsidy, feeReward, era, strict_multiplicity)) {
-        LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- Valid masternode payment at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
+        LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- Valid masternode payment at height %d: %s", __func__, nBlockHeight, txNew.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
     } else {
-        LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid masternode payment detected at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
+        LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid masternode payment detected at height %d: %s", __func__, nBlockHeight, txNew.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
         return false;
     }
 
@@ -425,11 +425,11 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CChain& active_chain, const C
     if (m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
         if (m_superblocks.IsValidSuperblock(active_chain, tip_mn_list, txNew, nBlockHeight,
                                             blockSubsidy + feeReward, is_v24)) {
-            LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", /* Continued */
+            LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", // NOLINT(bitcoin-unterminated-logprintf)
                      __func__, nBlockHeight, txNew.ToString());
             // continue validation, should also pay MN
         } else {
-            LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", /* Continued */
+            LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", // NOLINT(bitcoin-unterminated-logprintf)
                       __func__, nBlockHeight, txNew.ToString());
             return false;
         }
@@ -469,6 +469,6 @@ void CMNPaymentsProcessor::FillBlockPayments(CMutableTransaction& txNew, const C
         voutMasternodeStr += txout.ToString();
     }
 
-    LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__, /* Continued */
+    LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__, // NOLINT(bitcoin-unterminated-logprintf)
                             nBlockHeight, blockSubsidy + feeReward, voutMasternodeStr, txNew.ToString());
 }
