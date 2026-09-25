@@ -146,10 +146,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push multi-arch manifest
+        env:
+          REPO_NAME: ${{ needs.build-amd64.outputs.repo }}
+          IMAGE_NAME: ${{ inputs.name }}
+          TAG: ${{ needs.build-amd64.outputs.tag }}
+          HASH_TAG: ${{ hashFiles(inputs.file) }}
         run: |
-          REPO="ghcr.io/${{ needs.build-amd64.outputs.repo }}/${{ inputs.name }}"
-          TAG="${{ needs.build-amd64.outputs.tag }}"
-          HASH_TAG="${{ hashFiles(inputs.file) }}"
+          REPO="ghcr.io/${REPO_NAME}/${IMAGE_NAME}"
 
           # Create manifest from arch-specific images
           docker buildx imagetools create -t "${REPO}:${HASH_TAG}" \
