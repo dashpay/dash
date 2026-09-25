@@ -83,7 +83,8 @@ RUN uv pip install --system --break-system-packages \
     lief==0.13.2 \
     mypy==0.981 \
     pyzmq==24.0.1 \
-    vulture==2.6
+    vulture==2.6 \
+    zizmor==1.30.1
 
 # Install packages relied on by tests
 ARG DASH_HASH_VERSION=1.4.0
