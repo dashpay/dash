@@ -38,6 +38,7 @@
 
 #include <map>
 #include <optional>
+#include <string>
 #include <vector>
 
 static bool IsV24Active(const ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -3512,6 +3513,72 @@ BOOST_AUTO_TEST_CASE(test_sml_cache_basic)
 {
     TestChainV19Setup setup;
     SmlCache(setup);
+}
+
+// getmnlistd and getqrinfo let a peer request lists for arbitrarily old blocks. Rebuilding one
+// caches a disk snapshot, its diffs and mini-snapshots, which the scheduled cleanup only drops
+// after the next block.
+BOOST_AUTO_TEST_CASE(mn_lists_historical_cache_cleanup)
+{
+    TestChainDIP3Setup setup;
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+    auto serialize = [](const CDeterministicMNList& list) {
+        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        stream << list;
+        return stream.str();
+    };
+
+    // A registered masternode is paid every block, so every list differs from its parent.
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    auto tx = CreateProRegTx(chainman, utxos, 1, GenerateRandomAddress(), setup.coinbaseKey, owner_key, operator_key);
+    setup.CreateAndProcessBlock({tx}, coinbase_pk);
+
+    constexpr int window{CDeterministicMNManager::LIST_DIFFS_CACHE_SIZE};
+    constexpr int n_old_blocks{CDeterministicMNManager::DISK_SNAPSHOT_PERIOD + 64};
+    const CBlockIndex* old_pindex{nullptr};
+    std::string old_list;
+    for (int i = 0; i < window + n_old_blocks; ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(tip_index());
+        if (i == n_old_blocks / 2) {
+            old_pindex = tip_index();
+            old_list = serialize(dmnman.GetListAtChainTip());
+        }
+    }
+    const CBlockIndex* tip = tip_index();
+    dmnman.DoMaintenance();
+    const auto baseline = dmnman.GetCacheSizesForTesting();
+
+    // A sweep over blocks older than the window grows both caches.
+    for (int h = tip->nHeight - window - 1; h > tip->nHeight - window - n_old_blocks; --h) {
+        (void)dmnman.GetListForBlock(tip->GetAncestor(h));
+    }
+    const auto swept = dmnman.GetCacheSizesForTesting();
+    BOOST_CHECK_GT(swept.first, baseline.first);
+    BOOST_CHECK_GT(swept.second, baseline.second);
+
+    // Cleanup drops everything the sweep added, and rebuilding afterwards gives the same list.
+    dmnman.CleanupHistoricalCache();
+    BOOST_CHECK(dmnman.GetCacheSizesForTesting() == baseline);
+    BOOST_CHECK(serialize(dmnman.GetListForBlock(old_pindex)) == old_list);
+    dmnman.CleanupHistoricalCache();
+    BOOST_CHECK(dmnman.GetCacheSizesForTesting() == baseline);
+
+    // Lists inside the window are kept. Pick a mini-snapshot height (a multiple of 32) that is
+    // neither a disk snapshot nor a regtest quorum base (a multiple of 24), so it is rebuilt.
+    int recent_height{tip->nHeight - 100};
+    recent_height -= (recent_height % 96 + 96 - 32) % 96;
+    const CBlockIndex* recent_pindex = tip->GetAncestor(recent_height);
+    (void)dmnman.GetListForBlock(recent_pindex);
+    const auto recent = dmnman.GetCacheSizesForTesting();
+    BOOST_CHECK_GT(recent.first, baseline.first);
+    dmnman.CleanupHistoricalCache();
+    BOOST_CHECK(dmnman.GetCacheSizesForTesting() == recent);
 }
 
 BOOST_AUTO_TEST_CASE(field_bit_migration_validation)

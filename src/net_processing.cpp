@@ -5614,9 +5614,11 @@ void PeerManagerImpl::ProcessMessage(
 
         CSimplifiedMNListDiff mnListDiff;
         std::string strError;
-        if (BuildSimplifiedMNListDiff(m_dmnman, m_chainman, *m_llmq_ctx.quorum_block_processor, *m_llmq_ctx.qman,
-                                      cmd.baseBlockHash, cmd.blockHash, mnListDiff, strError))
-        {
+        const auto& qblockman{*m_llmq_ctx.quorum_block_processor};
+        const bool built{BuildSimplifiedMNListDiff(m_dmnman, m_chainman, qblockman, *m_llmq_ctx.qman, cmd.baseBlockHash,
+                                                   cmd.blockHash, mnListDiff, strError)};
+        m_dmnman.CleanupHistoricalCache();
+        if (built) {
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, mnListDiff));
         } else {
             strError = strprintf("getmnlistdiff failed for baseBlockHash=%s, blockHash=%s. error=%s", cmd.baseBlockHash.ToString(), cmd.blockHash.ToString(), strError);
@@ -5671,7 +5673,11 @@ void PeerManagerImpl::ProcessMessage(
         llmq::CQuorumRotationInfo quorumRotationInfoRet;
         std::string strError;
         bool use_legacy_construction = pfrom.GetCommonVersion() < EFFICIENT_QRINFO_VERSION;;
-        if (BuildQuorumRotationInfo(m_dmnman, *m_llmq_ctx.qsnapman, m_chainman, *m_llmq_ctx.qman, *m_llmq_ctx.quorum_block_processor, cmd, use_legacy_construction, quorumRotationInfoRet, strError)) {
+        const bool built{BuildQuorumRotationInfo(m_dmnman, *m_llmq_ctx.qsnapman, m_chainman, *m_llmq_ctx.qman,
+                                                 *m_llmq_ctx.quorum_block_processor, cmd, use_legacy_construction,
+                                                 quorumRotationInfoRet, strError)};
+        m_dmnman.CleanupHistoricalCache();
+        if (built) {
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QUORUMROTATIONINFO, quorumRotationInfoRet));
         } else {
             strError = strprintf("getquorumrotationinfo failed for size(baseBlockHashes)=%d, blockRequestHash=%s. error=%s", cmd.baseBlockHashes.size(), cmd.blockRequestHash.ToString(), strError);

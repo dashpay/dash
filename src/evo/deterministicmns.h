@@ -758,6 +758,7 @@ public:
 
 class CDeterministicMNManager
 {
+public:
     static constexpr int DISK_SNAPSHOT_PERIOD = 576; // once per day
     // keep cache for enough disk snapshots to have all active quourms covered
     static constexpr int DISK_SNAPSHOTS = llmq_max_blocks() / DISK_SNAPSHOT_PERIOD + 1;
@@ -810,6 +811,15 @@ public:
     static bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
     void DoMaintenance() EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cleanup);
+    // Drops cached lists and diffs older than the window CleanupCache() keeps. Called after
+    // serving a peer request, which may have rebuilt lists for arbitrarily old blocks.
+    void CleanupHistoricalCache() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    std::pair<size_t, size_t> GetCacheSizesForTesting() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return {mnListsCache.size(), mnListDiffsCache.size()};
+    }
 
     // Recalculate and optionally repair diffs between snapshots
     struct RecalcDiffsResult {
