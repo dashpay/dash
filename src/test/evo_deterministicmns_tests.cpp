@@ -271,7 +271,6 @@ void FuncV19Activation(TestChainSetup& setup)
     ++nHeight;
     BOOST_CHECK_EQUAL(tip_height(), nHeight);
     sync_dmn_tip();
-    dmnman.DoMaintenance();
     auto tip_list = dmnman.GetListAtChainTip();
     BOOST_REQUIRE(tip_list.HasMN(tx_reg_hash));
     auto pindex_create = tip_index();
@@ -289,7 +288,6 @@ void FuncV19Activation(TestChainSetup& setup)
     ++nHeight;
     BOOST_CHECK_EQUAL(tip_height(), nHeight);
     sync_dmn_tip();
-    dmnman.DoMaintenance();
     tip_list = dmnman.GetListAtChainTip();
     BOOST_REQUIRE(tip_list.HasMN(tx_reg_hash));
     diffs.push_back(base_list.BuildDiff(tip_list));
@@ -308,7 +306,6 @@ void FuncV19Activation(TestChainSetup& setup)
     ++nHeight;
     BOOST_CHECK_EQUAL(tip_height(), nHeight);
     sync_dmn_tip();
-    dmnman.DoMaintenance();
     diffs.push_back(tip_list.BuildDiff(dmnman.GetListAtChainTip()));
     tip_list = dmnman.GetListAtChainTip();
     BOOST_REQUIRE(!tip_list.HasMN(tx_reg_hash));
@@ -320,7 +317,6 @@ void FuncV19Activation(TestChainSetup& setup)
     ++nHeight;
     BOOST_CHECK_EQUAL(tip_height(), nHeight);
     sync_dmn_tip();
-    dmnman.DoMaintenance();
     diffs.push_back(tip_list.BuildDiff(dmnman.GetListAtChainTip()));
     tip_list = dmnman.GetListAtChainTip();
     BOOST_REQUIRE(!tip_list.HasMN(tx_reg_hash));
@@ -332,7 +328,6 @@ void FuncV19Activation(TestChainSetup& setup)
     ++nHeight;
     BOOST_CHECK_EQUAL(tip_height(), nHeight);
     sync_dmn_tip();
-    dmnman.DoMaintenance();
     diffs.push_back(tip_list.BuildDiff(dmnman.GetListAtChainTip()));
     tip_list = dmnman.GetListAtChainTip();
     BOOST_REQUIRE(!tip_list.HasMN(tx_reg_hash));
@@ -353,7 +348,6 @@ void FuncV19Activation(TestChainSetup& setup)
             DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
         BOOST_CHECK_EQUAL(tip_height(), nHeight + 1 + i);
         sync_dmn_tip();
-        dmnman.DoMaintenance();
         diffs.push_back(tip_list.BuildDiff(dmnman.GetListAtChainTip()));
         tip_list = dmnman.GetListAtChainTip();
         BOOST_REQUIRE(!tip_list.HasMN(tx_reg_hash));
