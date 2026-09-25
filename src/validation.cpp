@@ -1733,6 +1733,10 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
     if (result.m_result_type != MempoolAcceptResult::ResultType::VALID || test_accept) {
         if (result.m_result_type != MempoolAcceptResult::ResultType::VALID) {
             LogPrint(BCLog::MEMPOOL, "%s: %s %s (%s)\n", __func__, tx->GetHash().ToString(), result.m_state.GetRejectReason(), result.m_state.GetDebugMessage());
+            TRACE2(mempool, rejected,
+                    tx->GetHash().data(),
+                    result.m_state.GetRejectReason().c_str()
+            );
         }
 
         // Remove coins that were not present in the coins cache before calling;
