@@ -5,7 +5,9 @@
 """Test masternode parameter interactions.
 
 This test verifies that certain parameters are automatically enabled
-when a node is configured as a masternode via -masternodeblsprivkey.
+when a node is configured as a masternode via -masternodeblsprivkey, and
+that a masternode refuses to start with settings that make it silently
+skip its duties (transaction relay, InstantSend signing, SPV serving).
 """
 
 from test_framework.test_framework import BitcoinTestFramework
@@ -58,22 +60,20 @@ class MasternodeParamsTest(BitcoinTestFramework):
         # The actual filter enabling might require the node to be fully synced
         assert node1.getblockcount() >= 0  # Basic check that node is running
 
-        self.log.info("Test that masternode can explicitly disable blockfilters")
-        # Restart masternode with explicit disable
-        self.restart_node(1, extra_args=[
-            f"-masternodeblsprivkey={bls_key}",
-            "-peerblockfilters=0",
-            "-blockfilterindex=0"
-        ])
-        node1 = self.nodes[1]
+        self.log.info("Test that masternode refuses settings that silently skip its duties")
+        self.stop_node(1)
+        mn_arg = f"-masternodeblsprivkey={bls_key}"
+        for extra_args, expected_msg in [
+            (["-blocksonly"], "Error: Masternode must relay transactions, set -blocksonly=0"),
+            (["-peerblockfilters=0"], "Error: Masternode must serve compact block filters, set -peerblockfilters=1"),
+            (["-maxuploadtarget=500M"], "Error: Masternode must serve blocks and SPV clients without an upload limit, set -maxuploadtarget=0"),
+        ]:
+            self.nodes[1].assert_start_raises_init_error(extra_args=[mn_arg] + extra_args, expected_msg=expected_msg)
 
-        # Should not have COMPACT_FILTERS service
-        services = int(node1.getnetworkinfo()['localservices'], 16)
-        assert services & NODE_COMPACT_FILTERS == 0
-
-        # Should not have blockfilterindex
-        index_info = node1.getindexinfo()
-        assert BASIC_FILTER_INDEX not in index_info
+        # The stricter-relay-policy check only applies to chains with public masternodes; regtest
+        # masternodes may use it to create mempool inconsistencies (feature_llmq_is_retroactive.py).
+        self.log.info("Test that a stricter relay policy is allowed on regtest masternodes")
+        self.start_node(1, extra_args=[mn_arg, "-minrelaytxfee=0.001", "-datacarrier=0", "-limitancestorcount=5"])
 
         self.log.info("Test that masternode parameter interaction is logged")
         # Stop the node first so we can check the startup logs
@@ -82,13 +82,11 @@ class MasternodeParamsTest(BitcoinTestFramework):
         # Check debug log for parameter interaction messages during startup
         if self.is_wallet_compiled():
             with self.nodes[1].assert_debug_log(["parameter interaction: -masternodeblsprivkey set -> setting -disablewallet=1"]):
-                self.start_node(1, extra_args=[
-                    f"-masternodeblsprivkey={bls_key}",
-                    "-peerblockfilters=0",
-                    "-blockfilterindex=0"
-                ])
-        # Note: The peerblockfilters and blockfilterindex messages won't be in the log
-        # when explicitly disabled, only when auto-enabled
+                self.start_node(1, extra_args=[mn_arg])
+            self.stop_node(1)
+
+        self.log.info("Test that a regular node may still use these settings")
+        self.start_node(1, extra_args=["-blocksonly", "-peerblockfilters=0", "-maxuploadtarget=500M", "-datacarrier=0", "-minrelaytxfee=0.001"])
 
 
 if __name__ == '__main__':

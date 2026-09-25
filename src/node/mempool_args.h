@@ -6,6 +6,8 @@
 #define BITCOIN_NODE_MEMPOOL_ARGS_H
 
 #include <optional>
+#include <string>
+#include <vector>
 
 class ArgsManager;
 class CChainParams;
@@ -23,5 +25,11 @@ struct MemPoolOptions;
  */
 [[nodiscard]] std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& argsman, const CChainParams& chainparams, kernel::MemPoolOptions& mempool_opts);
 
+/**
+ * Names of the relay policy options in \p mempool_opts that reject transactions the network
+ * default policy accepts. A masternode only signs InstantSend locks for transactions that enter
+ * its own mempool, so any of these makes it silently skip signing work.
+ */
+[[nodiscard]] std::vector<std::string> GetStricterThanDefaultRelayPolicy(const kernel::MemPoolOptions& mempool_opts);
 
 #endif // BITCOIN_NODE_MEMPOOL_ARGS_H

@@ -11,6 +11,7 @@
 #include <init.h>
 
 #include <kernel/checks.h>
+#include <kernel/mempool_options.h>
 #include <kernel/mempool_persist.h>
 #include <kernel/validation_cache_sizes.h>
 
@@ -1408,6 +1409,33 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
         if (args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)) {
             return InitError(_("You can not disable governance validation on a masternode."));
+        }
+        if (args.GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY)) {
+            return InitError(Untranslated("Masternode must relay transactions, set -blocksonly=0"));
+        }
+        if (!args.GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS)) {
+            return InitError(Untranslated("Masternode must serve compact block filters, set -peerblockfilters=1"));
+        }
+        // Once the daily budget minus a reserve of up to one max-size block per 10 minutes is used
+        // up, the node refuses filtered blocks, historical blocks and BIP35 mempool requests while
+        // still advertising NODE_BLOOM. A cap that never triggers is equivalent to no cap.
+        if (ParseByteUnits(args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET), ByteUnit::M).value_or(0) != 0) {
+            return InitError(Untranslated("Masternode must serve blocks and SPV clients without an upload limit, set "
+                                          "-maxuploadtarget=0"));
+        }
+        kernel::MemPoolOptions mempool_opts{};
+        if (const auto error{ApplyArgsManOptions(args, chainparams, mempool_opts)}) {
+            return InitError(*error);
+        }
+        // Regression tests deliberately give individual masternodes a stricter policy to create
+        // mempool inconsistencies (see feature_llmq_is_retroactive.py).
+        auto stricter{GetStricterThanDefaultRelayPolicy(mempool_opts)};
+        if (nBytesPerSigOp > DEFAULT_BYTES_PER_SIGOP) stricter.emplace_back("-bytespersigop");
+        if (!stricter.empty() && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
+            return InitError(
+                strprintf(Untranslated("Masternode must not use a stricter transaction relay policy than the default, "
+                                       "which would make it skip InstantSend signing. Remove or restore: %s"),
+                          Join(stricter, ", ")));
         }
     }
 
