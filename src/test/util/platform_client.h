@@ -43,6 +43,12 @@ public:
 
     std::vector<Call> calls;
     std::vector<platform::OperationKind> build_kinds;
+    //! The key ids each build's operation allowed, and the salt of each
+    //! DPNS build.
+    std::vector<std::vector<uint32_t>> build_key_ids;
+    std::vector<std::array<uint8_t, 32>> build_salts;
+    std::optional<platform::AssetLockProof> last_asset_lock_proof;
+    std::vector<platform::NewIdentityKey> last_identity_keys;
     std::vector<std::vector<uint8_t>> broadcast_bytes;
     std::vector<std::vector<platform::Endpoint>> endpoint_updates;
     std::vector<std::vector<platform::QuorumKey>> quorum_key_updates;

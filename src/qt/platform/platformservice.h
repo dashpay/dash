@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_PLATFORM_PLATFORMSERVICE_H
 #define BITCOIN_QT_PLATFORM_PLATFORMSERVICE_H
 
+#include <consensus/amount.h>
 #include <netaddress.h>
 #include <platform/client.h>
 #include <platform/signer.h>
@@ -23,6 +24,7 @@
 #include <vector>
 
 class ClientModel;
+class IdentityFlow;
 
 namespace interfaces {
 class Handler;
@@ -86,8 +88,9 @@ struct PlatformAvailability {
 
 /**
  * Per-wallet orchestrator for all Dash Platform interactions. This is the
- * only object GUI pages talk to. It owns the PlatformClient, marshals its
- * callbacks onto the GUI thread, persists state through the wallet's
+ * only object GUI pages talk to. It owns the PlatformClient and the
+ * identity/username registration flow, marshals
+ * client callbacks onto the GUI thread, persists state through the wallet's
  * platform data records, mints the SigningOperations every write signs
  * under, and feeds node-local context (evonode endpoints, quorum keys, the
  * ChainLock height) into the client.
@@ -107,9 +110,17 @@ public:
     static bool IsEnabled(interfaces::Wallet& wallet);
     //! Record the opt-in.
     static bool Enable(interfaces::Wallet& wallet);
-    //! Remove every Platform record of the wallet (opt-out and
+    //! Remove every Platform record of the wallet but `keep` (opt-out and
     //! record-version mismatch); recovery rebuilds them from chain.
-    static bool WipeRecords(interfaces::Wallet& wallet);
+    static bool WipeRecords(interfaces::Wallet& wallet, const std::string& keep = {});
+    //! Whether the wallet's registration record holds an asset lock no
+    //! identity consumed yet (IdentityFlow::HoldsUnconsumedFunding), read
+    //! from the wallet so it also holds while no service runs.
+    static bool HoldsUnconsumedFunding(interfaces::Wallet& wallet);
+    //! Wipe the records for recovery to rebuild, keeping the opt-in and a
+    //! registration record that holds unconsumed funding: seed recovery
+    //! finds identities, not asset locks.
+    static bool DiscardRecords(interfaces::Wallet& wallet);
 
     //! `route` is the one the client was configured for; only evonodes on
     //! it are pushed to the client.
@@ -121,33 +132,103 @@ public:
     ClientModel& clientModel() { return m_client_model; }
     platform::PlatformClient& client() { return *m_client; }
 
+    IdentityFlow& identityFlow() { return *m_identity_flow; }
+
     //! The client holds evonode endpoints to send requests to. None while
     //! network activity is off or the node is syncing.
     bool haveEndpoints() const { return m_have_endpoints; }
     //! The masternode list has evonodes, but none on this service's route
     //! (for example only IPv4 ones under -onlynet=onion).
     bool unreachable() const { return m_unreachable; }
+    //! Collect the evonode endpoints, ChainLock height and quorum keys again
+    //! now (after a pause) instead of at the next refresh; emits
+    //! endpointsAvailable() once endpoints reach the client again.
+    void refreshNodeContext() { updateNodeContext(); }
     //! Test-only: push `endpoints` to the client now, as a collection that
     //! just landed would (a test chain has no evonodes to collect); the next
     //! collection replaces them.
     void setEndpointsForTesting(std::vector<platform::Endpoint> endpoints);
     //! Whether network activity is on; Platform lookups wait while it is off.
     bool networkActive() const;
+    //! True once a verified response reported a protocol version this build
+    //! does not know; writes are refused until Dash Core is updated.
+    bool writesFrozen() const { return m_unsupported_version; }
+    //! The highest protocol version a verified read has shown Platform to
+    //! run this session, which the client builds under; 0 before any.
+    uint32_t protocolVersion() const { return m_protocol_version; }
 
+    //! Outcome of minting a signing operation: the operation, or why not.
+    struct SigningAttempt {
+        std::optional<platform::SigningOperation> op;
+        //! The user declined to unlock the wallet (the caller parks until
+        //! the next user action); otherwise `refusal` says why writes are
+        //! refused right now (protocol version ahead, network changed).
+        bool unlock_declined{false};
+        QString refusal;
+    };
     //! Mint the operation a write signs under. Asks the user to unlock an
-    //! encrypted wallet; nullopt when they decline, so the caller parks.
-    std::optional<platform::SigningOperation> beginSigningOperation(
-        platform::OperationKind kind, std::vector<uint32_t> key_ids,
-        std::optional<platform::IdentityPublicKey> document_key,
-        std::optional<wallet::RegistrationFundingKey> funding_key);
+    //! encrypted wallet.
+    SigningAttempt beginSigningOperation(platform::OperationKind kind, std::vector<uint32_t> key_ids,
+                                         std::optional<platform::IdentityPublicKey> document_key,
+                                         std::optional<wallet::RegistrationFundingKey> funding_key);
 
-    //! Wallet platform-data record helpers.
+    //! Whether a write may start now; error names the reason otherwise
+    //! (protocol version ahead of this build, network changed).
+    bool writesAllowed(QString& error) const;
+
+    //! The key of a proved identity this wallet signs documents with: the
+    //! enabled ECDSA AUTHENTICATION key at the record's auth key id, checked
+    //! against the key the wallet derives there. nullopt when the identity
+    //! carries no such key.
+    std::optional<platform::IdentityPublicKey> documentSigningKey(const platform::Identity& identity) const;
+
+    //! The registered username of this wallet's identity, if any.
+    QString myUsername() const;
+    std::optional<platform::Identifier> myIdentityId() const;
+
+    //! Duffs an identity registration locks: the base amount plus, for a
+    //! contested name, the vote reserve the network's protocol version
+    //! requires. nullopt before a verified read has shown that version.
+    std::optional<CAmount> identityFundingAmount(bool contested) const;
+    //! Credits a contested name locks for the masternode vote on the
+    //! network's protocol version; nullopt before a verified read.
+    std::optional<uint64_t> contestedNameCredits() const;
+    //! Upper bound on the fee of one DPNS document transition (0.001 DASH).
+    //! Observed fees are well under half of it; the Platform wallet reserves
+    //! the same amount per document transition.
+    static constexpr uint64_t DOCUMENT_FEE_RESERVE_CREDITS{100'000'000};
+    //! Credits an existing identity needs for a contested name: the vote
+    //! reserve plus the fees of the preorder and the domain transition, the
+    //! first of which is paid before the second locks the reserve. nullopt
+    //! before a verified read.
+    std::optional<uint64_t> contestedNameRequiredCredits() const;
+    //! DashPay profile field limits (the contract's maxLength).
+    static constexpr int MAX_DISPLAY_NAME_LENGTH{25};
+    static constexpr int MAX_PUBLIC_MESSAGE_LENGTH{140};
+
+    //! Proof-verified credit balance of this wallet's identity; emits
+    //! identityBalanceLoaded().
+    void refreshIdentityBalance();
+
+    //! Async name availability probe (proof-backed absence check). Emits
+    //! nameAvailability().
+    void checkNameAvailability(const QString& name);
+    //! Async proof-verified contested-name vote state. Emits contestedNameState().
+    void checkContestedNameState(const QString& normalized_label);
+
+    //! Wallet platform-data record helpers (used by the flows).
     bool writeRecord(const std::string& key, const std::vector<unsigned char>& value);
     std::vector<unsigned char> readRecord(const std::string& key) const;
 
     //! Run a callback on the GUI thread (safe from client threads; dropped
     //! if the service is destroyed first).
     void post(std::function<void()> fn);
+
+    //! Every client result passes through here (the client the flows see is
+    //! wrapped to do so) so UnsupportedProtocolVersion drives its
+    //! user-visible state; protocol_version is the one a verified read's
+    //! metadata carries (0 for a broadcast).
+    void observeStatus(const platform::Status& status, bool verified_read, uint32_t protocol_version);
 
 Q_SIGNALS:
     //! A verified response reported a protocol version this build does not
@@ -160,6 +241,18 @@ Q_SIGNALS:
     void networkActiveChanged(bool active);
     //! unreachable() changed.
     void reachabilityChanged();
+    void nameAvailability(const QString& normalized_label, bool available, bool contested);
+    void nameAvailabilityFailed(const QString& normalized_label, const QString& error, const QString& details);
+    //! The name is registered to this wallet's own identity.
+    void nameIsOurs(const QString& normalized_label);
+    //! Proof-verified contested vote state for a label; error is empty on
+    //! success.
+    void contestedNameState(const QString& normalized_label, const platform::ContestedNameState& state,
+                            const QString& error);
+    void identityStateChanged();
+    void identityBalanceLoaded(quint64 credits);
+    void identityBalanceFailed(const QString& error, const QString& details);
+    void flowFailed(const QString& step, const QString& error, const QString& details);
 
 private Q_SLOTS:
     //! Collect the evonode endpoints, ChainLock height and Platform quorum
@@ -179,18 +272,18 @@ private:
     //! them.
     void pushEndpoints(std::vector<platform::Endpoint> endpoints);
 
-    //! Every client callback passes through here so UnsupportedProtocolVersion
-    //! drives its user-visible state.
-    void observeStatus(const platform::Status& status);
-
     WalletModel& m_wallet_model;
     ClientModel& m_client_model;
     std::unique_ptr<platform::PlatformClient> m_client;
     const PlatformRoute m_route;
     bool m_unsupported_version{false};
+    uint32_t m_protocol_version{0};
     bool m_have_endpoints{false};
     bool m_unreachable{false};
     std::unique_ptr<interfaces::Handler> m_chainlock_handler;
+
+    std::unique_ptr<IdentityFlow> m_identity_flow;
+    QTimer* m_tick_timer{nullptr};    //!< drives flow advance/retry
     QTimer* m_context_timer{nullptr}; //!< refreshes endpoints/quorum keys
     QThread* m_context_thread{nullptr};
     QObject* m_context_worker{nullptr}; //!< lives on m_context_thread

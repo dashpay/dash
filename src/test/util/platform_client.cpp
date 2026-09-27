@@ -33,6 +33,7 @@ Result<T> FakePlatformClient::Pop(std::deque<Result<T>>& scripted)
 util::Result<Built> FakePlatformClient::PopBuild(const platform::SigningOperation& op)
 {
     build_kinds.push_back(op.kind());
+    build_key_ids.push_back(op.keyIds());
     if (builds.empty()) return util::Error{Untranslated("nothing scripted")};
     util::Result<Built> out{std::move(builds.front())};
     builds.pop_front();
@@ -112,21 +113,25 @@ void FakePlatformClient::broadcastStateTransition(const std::vector<uint8_t>& st
 }
 
 util::Result<Built> FakePlatformClient::buildIdentityCreate(const platform::SigningOperation& op,
-                                                            const platform::AssetLockProof&,
-                                                            const std::vector<platform::NewIdentityKey>&)
+                                                            const platform::AssetLockProof& proof,
+                                                            const std::vector<platform::NewIdentityKey>& keys)
 {
+    last_asset_lock_proof = proof;
+    last_identity_keys = keys;
     return PopBuild(op);
 }
 
 util::Result<Built> FakePlatformClient::buildDpnsPreorder(const platform::SigningOperation& op, const Identifier&,
-                                                          uint64_t, const std::string&, const std::array<uint8_t, 32>&)
+                                                          uint64_t, const std::string&, const std::array<uint8_t, 32>& salt)
 {
+    build_salts.push_back(salt);
     return PopBuild(op);
 }
 
 util::Result<Built> FakePlatformClient::buildDpnsDomain(const platform::SigningOperation& op, const Identifier&,
-                                                        uint64_t, const std::string&, const std::array<uint8_t, 32>&)
+                                                        uint64_t, const std::string&, const std::array<uint8_t, 32>& salt)
 {
+    build_salts.push_back(salt);
     return PopBuild(op);
 }
 

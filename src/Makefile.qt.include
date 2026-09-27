@@ -124,7 +124,9 @@ QT_MOC_CPP = \
 
 if ENABLE_PLATFORM_GUI
 QT_MOC_CPP += \
+  qt/platform/moc_createusernamewizard.cpp \
   qt/platform/moc_dashpayoptionswidget.cpp \
+  qt/platform/moc_identityflow.cpp \
   qt/platform/moc_platformoptindialog.cpp \
   qt/platform/moc_platformpage.cpp \
   qt/platform/moc_platformservice.cpp \
@@ -235,7 +237,9 @@ BITCOIN_QT_H = \
 
 if ENABLE_PLATFORM_GUI
 BITCOIN_QT_H += \
+  qt/platform/createusernamewizard.h \
   qt/platform/dashpayoptionswidget.h \
+  qt/platform/identityflow.h \
   qt/platform/platformoptindialog.h \
   qt/platform/platformpage.h \
   qt/platform/platformservice.h \
@@ -376,7 +380,9 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletview.cpp
 
 BITCOIN_QT_PLATFORM_CPP = \
+  qt/platform/createusernamewizard.cpp \
   qt/platform/dashpayoptionswidget.cpp \
+  qt/platform/identityflow.cpp \
   qt/platform/platformoptindialog.cpp \
   qt/platform/platformpage.cpp \
   qt/platform/platformservice.cpp \
