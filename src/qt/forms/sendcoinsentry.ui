@@ -55,6 +55,25 @@
       </widget>
     </item>
     <item>
+      <widget class="QToolButton" name="contactsButton">
+      <property name="visible">
+        <bool>false</bool>
+      </property>
+      <property name="toolTip">
+        <string>Choose a DashPay contact to pay (Alt+C)</string>
+      </property>
+      <property name="text">
+        <string/>
+      </property>
+      <property name="iconSize">
+        <size>
+        <width>22</width>
+        <height>22</height>
+        </size>
+      </property>
+      </widget>
+    </item>
+    <item>
       <widget class="QToolButton" name="addressBookButton">
       <property name="toolTip">
         <string>Choose previously used address</string>
@@ -110,7 +129,20 @@
     </item>
     </layout>
   </item>
-  <item row="1" column="0">
+  <item row="1" column="1">
+    <widget class="QLabel" name="payToStatus">
+    <property name="visible">
+      <bool>false</bool>
+    </property>
+    <property name="textFormat">
+      <enum>Qt::PlainText</enum>
+    </property>
+    <property name="wordWrap">
+      <bool>true</bool>
+    </property>
+    </widget>
+  </item>
+  <item row="2" column="0">
     <widget class="QLabel" name="labellLabel">
     <property name="text">
       <string>&amp;Label:</string>
@@ -123,7 +155,7 @@
     </property>
     </widget>
   </item>
-  <item row="1" column="1">
+  <item row="2" column="1">
     <widget class="QLineEdit" name="addAsLabel">
     <property name="toolTip">
       <string>Enter a label for this address to add it to the list of used addresses</string>
@@ -133,7 +165,7 @@
     </property>
     </widget>
   </item>
-  <item row="2" column="0">
+  <item row="3" column="0">
     <widget class="QLabel" name="amountLabel">
     <property name="text">
       <string>A&amp;mount:</string>
@@ -146,7 +178,7 @@
     </property>
     </widget>
   </item>
-  <item row="2" column="1">
+  <item row="3" column="1">
     <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,1,0">
     <item>
       <widget class="BitcoinAmountField" name="payAmount" native="true">
@@ -174,7 +206,7 @@
     </item>
     </layout>
   </item>
-  <item row="3" column="0">
+  <item row="4" column="0">
     <widget class="QLabel" name="messageLabel">
     <property name="text">
       <string>Message:</string>
@@ -184,7 +216,7 @@
     </property>
     </widget>
   </item>
-  <item row="3" column="1">
+  <item row="4" column="1">
     <widget class="QLabel" name="messageTextLabel">
     <property name="toolTip">
       <string>A message that was attached to the dash: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Dash network.</string>
@@ -194,7 +226,7 @@
     </property>
     </widget>
   </item>
-  <item row="4" column="0" colspan="2">
+  <item row="5" column="0" colspan="2">
     <widget class="Line" name="line">
     <property name="orientation">
       <enum>Qt::Horizontal</enum>

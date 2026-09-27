@@ -194,20 +194,24 @@ public:
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
-    wallet::RescanStatus startRescan(bool from_genesis) override
+    //! Where a rescan from the birth of the wallet's first key starts.
+    int rescanStartHeight()
     {
         int rescan_height{0};
-        if (!from_genesis) {
-            std::optional<int64_t> time_first_key;
-            for (auto spk_man : m_wallet->GetAllScriptPubKeyMans()) {
-                int64_t time = spk_man->GetTimeFirstKey();
-                if (!time_first_key || time < *time_first_key) time_first_key = time;
-            }
-            if (time_first_key) {
-                m_wallet->chain().findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height,
-                                                                  FoundBlock().height(rescan_height));
-            }
+        std::optional<int64_t> time_first_key;
+        for (auto spk_man : m_wallet->GetAllScriptPubKeyMans()) {
+            int64_t time = spk_man->GetTimeFirstKey();
+            if (!time_first_key || time < *time_first_key) time_first_key = time;
         }
+        if (time_first_key) {
+            m_wallet->chain().findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height,
+                                                              FoundBlock().height(rescan_height));
+        }
+        return rescan_height;
+    }
+    wallet::RescanStatus startRescan(bool from_genesis) override
+    {
+        const int rescan_height{from_genesis ? 0 : rescanStartHeight()};
 
         WalletRescanReserver reserver(*m_wallet);
         if (!reserver.reserve()) {
@@ -226,6 +230,14 @@ public:
         return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
     void abortRescan() override { m_wallet->AbortRescan(); }
+    std::optional<int> rescanPrunedFrom() override
+    {
+        if (!m_wallet->chain().havePruned()) return std::nullopt;
+        const int rescan_height{rescanStartHeight()};
+        const uint256 tip{WITH_LOCK(m_wallet->cs_wallet, return m_wallet->GetLastBlockHash())};
+        if (m_wallet->chain().hasBlocks(tip, rescan_height)) return std::nullopt;
+        return rescan_height;
+    }
     void autoLockMasternodeCollaterals() override { m_wallet->AutoLockMasternodeCollaterals(); }
     bool backupWallet(const std::string& filename) override { return m_wallet->BackupWallet(filename); }
     bool autoBackupWallet(const fs::path& wallet_path, bilingual_str& error_string, std::vector<bilingual_str>& warnings) override

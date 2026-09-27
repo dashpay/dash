@@ -286,6 +286,12 @@ bool ContactsPage::isEmpty() const { return m_model->rowCount() == 0 && m_model-
 
 bool ContactsPage::showsEmptyState() const { return !m_empty->isHidden(); }
 
+QWidget* ContactsPage::focusTarget() const
+{
+    if (showsEmptyState()) return m_empty_add_button;
+    return m_view->isHidden() ? nullptr : m_view;
+}
+
 void ContactsPage::changeEvent(QEvent* event)
 {
     QWidget::changeEvent(event);
@@ -372,7 +378,8 @@ void ContactsPage::updateActions()
         case Kind::Outgoing:
             break;
         }
-        m_primary_button->setEnabled(!busy && (row->kind != Kind::Incoming || writable));
+        const bool confirming{row->identity_hex == m_service.pendingContactRequest()};
+        m_primary_button->setEnabled(!busy && !confirming && (row->kind != Kind::Incoming || writable));
         m_ignore_button->setEnabled(!busy);
     }
 

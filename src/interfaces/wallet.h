@@ -118,6 +118,10 @@ public:
     //! Abort a rescan.
     virtual void abortRescan() = 0;
 
+    //! The height startRescan(false) starts at, when this node has pruned
+    //! blocks it would read; nullopt when it has them all.
+    virtual std::optional<int> rescanPrunedFrom() = 0;
+
     //! Lock masternode collaterals
     virtual void autoLockMasternodeCollaterals() = 0;
 

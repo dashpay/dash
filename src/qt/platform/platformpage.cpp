@@ -13,8 +13,10 @@
 #include <qt/optionsmodel.h>
 #include <qt/platform/contactspage.h>
 #include <qt/platform/createusernamewizard.h>
+#include <qt/platform/identitydetailsdialog.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformoptindialog.h>
+#include <qt/platform/platformrecovery.h>
 #include <qt/platform/platformservice.h>
 #include <qt/platform/platformui.h>
 #include <qt/platform/profiledialog.h>
@@ -199,10 +201,13 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     m_notice_body->setWordWrap(true);
     m_notice_body->setTextFormat(Qt::PlainText);
     m_notice_busy = PlatformUi::makeBusyBar(m_notice);
+    m_notice_error = new PlatformUi::MessageLine(m_notice);
+    m_notice_error->setIconShown(false); // the title row carries it
     m_notice_button = new QPushButton(m_notice);
     notice_layout->addLayout(notice_title_row);
     notice_layout->addWidget(m_notice_body);
     notice_layout->addWidget(m_notice_busy);
+    notice_layout->addWidget(m_notice_error);
     notice_layout->addWidget(m_notice_button, 0, Qt::AlignLeft);
     connect(m_notice_button, &QPushButton::clicked, this, [this] { runNoticeAction(m_notice_action); });
 
@@ -262,7 +267,11 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
         }
         fetchDashboard();
     });
+    m_details_button = new QPushButton(tr("Identity details…"), dash_page);
+    PlatformUi::makeSecondary(m_details_button);
+    connect(m_details_button, &QPushButton::clicked, this, &PlatformPage::openIdentityDetails);
     header_actions->addWidget(m_edit_profile_button);
+    header_actions->addWidget(m_details_button);
     header->addLayout(header_actions);
     header->setAlignment(header_actions, Qt::AlignTop | Qt::AlignRight);
     dl->addLayout(header);
@@ -306,6 +315,11 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     dl->addWidget(m_state_card);
     m_saved_line = new PlatformUi::MessageLine(dash_page);
     dl->addWidget(m_saved_line);
+    m_recovery_line = new PlatformUi::MessageLine(dash_page);
+    dl->addWidget(m_recovery_line);
+    connect(m_recovery_line, &PlatformUi::MessageLine::actionClicked, this, [this] {
+        if (m_service) m_service->recovery().retryRescan();
+    });
 
     // Paused / frozen, in the overview's alert style.
     auto* alert_row = new QHBoxLayout();
@@ -330,6 +344,8 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
         if (state == Qt::ApplicationActive && isVisible()) fetchDashboardIfStale();
     });
+    // The page's primary action takes the focus once its buttons are set.
+    connect(m_stack, &QStackedWidget::currentChanged, this, &PlatformPage::focusPrimary, Qt::QueuedConnection);
 
     m_fetch_timer = new QTimer(this);
     m_fetch_timer->setInterval(DASHBOARD_FETCH_INTERVAL_MS);
@@ -384,6 +400,7 @@ void PlatformPage::showEvent(QShowEvent* event)
     // Headings are bold from the first paint, as on the other tabs.
     if (!event->spontaneous()) GUIUtil::updateFonts();
     fetchDashboardIfStale();
+    focusPrimary();
 }
 
 void PlatformPage::fetchDashboardIfStale()
@@ -482,6 +499,8 @@ void PlatformPage::maybeCreateService()
 
 void PlatformPage::connectService()
 {
+    connect(&m_service->recovery(), &PlatformRecovery::stateChanged, this, &PlatformPage::refresh);
+    connect(walletModel, &WalletModel::encryptionStatusChanged, this, &PlatformPage::refresh);
     connect(m_service.get(), &PlatformService::unsupportedProtocolVersion, this, &PlatformPage::refresh);
     connect(m_service.get(), &PlatformService::reachabilityChanged, this, &PlatformPage::refresh);
     // Network activity back on (or sync done): what the dashboard read while
@@ -758,11 +777,23 @@ void PlatformPage::openWizard()
     m_wizard->open();
 }
 
+void PlatformPage::openIdentityDetails()
+{
+    if (!m_service || !m_service->myIdentityId()) return;
+    IdentityDetailsDialog(*m_service, /*paused=*/m_paused, this).exec();
+}
+
 void PlatformPage::runNoticeAction(NoticeAction action)
 {
     switch (action) {
     case NoticeAction::TURN_NETWORK_ON:
         if (clientModel) clientModel->node().setNetworkActive(true);
+        break;
+    case NoticeAction::UNLOCK_WALLET:
+        if (m_service) m_service->recovery().unlockAndStart();
+        break;
+    case NoticeAction::RETRY_RECOVERY:
+        if (m_service) m_service->recovery().maybeStart();
         break;
     case NoticeAction::NONE:
         break;
@@ -800,18 +831,66 @@ void PlatformPage::updateAvatar()
     m_avatar->setAccessibleName(username.isEmpty() ? tr("Avatar") : tr("Avatar for %1").arg(username));
 }
 
+void PlatformPage::focusPrimary()
+{
+    if (!isVisible()) return;
+    QWidget* target{nullptr};
+    switch (m_stack->currentIndex()) {
+    case 0:
+        for (QPushButton* button : {m_enable_button, m_create_button, m_notice_button, m_settings_button}) {
+            if (button->isVisibleTo(m_stack) && button->isEnabled()) {
+                target = button;
+                break;
+            }
+        }
+        break;
+    default:
+        if (m_state_card->isVisibleTo(m_stack) && m_state_button->isVisibleTo(m_stack) && m_state_button->isEnabled()) {
+            target = m_state_button;
+        } else if (m_contacts_page && m_contacts_page->isVisibleTo(m_stack)) {
+            target = m_contacts_page->focusTarget();
+        }
+        break;
+    }
+    if (target) target->setFocus();
+}
+
+void PlatformPage::updateRecoveryLine()
+{
+    using Severity = PlatformUi::MessageLine::Severity;
+    const PlatformRecovery& recovery{m_service->recovery()};
+    if (!recovery.rescanFailure()) {
+        m_recovery_line->clear();
+    } else if (recovery.running()) {
+        m_recovery_line->setMessage(Severity::Info,
+                                    tr("Rescanning the wallet to restore your payment history with your contacts…"));
+        m_recovery_line->setAction({});
+    } else {
+        m_recovery_line->setMessage(Severity::Error, recovery.rescanFailureText());
+        m_recovery_line->setAction(tr("Retry"));
+    }
+}
+
 void PlatformPage::setNotice(const QString& icon, const QString& title, const QString& body, bool busy, NoticeAction action)
 {
     m_notice->setVisible(!title.isEmpty());
+    m_notice_icon_name = icon;
     SetIcon(m_notice_icon, icon, IconColor(icon, /*error=*/false));
     m_notice_title->setText(title);
     m_notice_body->setText(body);
     m_notice_body->setVisible(!body.isEmpty());
     m_notice_busy->setVisible(busy);
+    m_notice_error->clear();
     m_notice_action = action;
     switch (action) {
     case NoticeAction::TURN_NETWORK_ON:
         m_notice_button->setText(tr("Turn network on"));
+        break;
+    case NoticeAction::UNLOCK_WALLET:
+        m_notice_button->setText(tr("Unlock wallet…"));
+        break;
+    case NoticeAction::RETRY_RECOVERY:
+        m_notice_button->setText(tr("Try again"));
         break;
     case NoticeAction::NONE:
         break;
@@ -858,7 +937,38 @@ void PlatformPage::showWelcome(const PlatformAvailability& availability)
                   tr("DashPay couldn't use your network settings to connect to Dash Platform. The debug log has "
                      "the details."),
                   false, NoticeAction::NONE);
+    } else if (!blocked && m_service) {
+        blocked = true;
+        using Outcome = PlatformRecovery::Outcome;
+        const PlatformRecovery& recovery{m_service->recovery()};
+        switch (recovery.outcome()) {
+        case Outcome::NO_IDENTITY:
+        case Outcome::RESTORED:
+            blocked = false;
+            break;
+        case Outcome::PENDING:
+            setNotice({}, tr("Checking Dash Platform"), recovery.registrationBlocker(), /*busy=*/true,
+                      NoticeAction::NONE);
+            break;
+        case Outcome::NEEDS_UNLOCK:
+            setNotice(QStringLiteral("lock_closed"), tr("Unlock to continue"), recovery.registrationBlocker(), false,
+                      NoticeAction::UNLOCK_WALLET);
+            break;
+        case Outcome::UNUSABLE:
+            setNotice(QStringLiteral("warning"), tr("This recovery phrase already has a DashPay identity"),
+                      tr("It was created with keys Dash Core can't use. Keep using it in the app that created it."),
+                      false, NoticeAction::NONE);
+            break;
+        case Outcome::FAILED:
+            setNotice(QStringLiteral("warning"), tr("Couldn't check Dash Platform"), {}, recovery.running(),
+                      NoticeAction::RETRY_RECOVERY);
+            SetIcon(m_notice_icon, m_notice_icon_name, GUIUtil::ThemedColor::RED);
+            m_notice_error->setMessage(PlatformUi::MessageLine::Severity::Error, recovery.lastError());
+            m_notice_button->setEnabled(!recovery.running());
+            break;
+        }
     }
+    if (m_notice_action != NoticeAction::RETRY_RECOVERY) m_notice_button->setEnabled(true);
     m_welcome_steps->setVisible(!blocked);
     m_enable_button->setVisible(!opted_in && availability.gate == Gate::NONE);
     m_create_button->setVisible(opted_in && m_service && !blocked);
@@ -896,7 +1006,8 @@ void PlatformPage::refresh()
     }
 
     if (m_service->identityFlow().record().state == IdentityFlow::State::NONE) {
-        // A pause says why nothing can start.
+        // No registration until seed-only recovery has proved the seed has
+        // no identity yet; a pause says why first.
         showWelcome(availability);
         return;
     }
@@ -948,6 +1059,8 @@ void PlatformPage::refreshDashboard(const PlatformAvailability& availability)
     m_edit_profile_button->setEnabled(writable && profile_known && !profile_pending);
     m_edit_profile_button->setToolTip(profile_pending ? tr("Your profile is being published to Dash Platform.")
                                                       : tr("Set the display name and message other DashPay users see"));
+    m_details_button->setVisible(m_service->myIdentityId().has_value());
+    updateRecoveryLine();
 
     // State card.
     m_state_card->setVisible(!registered);

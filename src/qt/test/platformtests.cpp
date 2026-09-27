@@ -14,10 +14,13 @@
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <netbase.h>
+#include <node/blockstorage.h>
 #include <node/interface_ui.h>
 #include <platform/helpers.h>
 #include <platform/walletrecords.h>
 #include <primitives/transaction.h>
+#include <qt/bitcoinaddressvalidator.h>
+#include <qt/bitcoinamountfield.h>
 #include <qt/bitcoinunits.h>
 #include <qt/optionsmodel.h>
 #include <qt/platform/contactflow.h>
@@ -25,13 +28,18 @@
 #include <qt/platform/contactspage.h>
 #include <qt/platform/createusernamewizard.h>
 #include <qt/platform/dashpayoptionswidget.h>
+#include <qt/platform/identitydetailsdialog.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformoptindialog.h>
 #include <qt/platform/platformpage.h>
+#include <qt/platform/platformrecovery.h>
 #include <qt/platform/platformservice.h>
 #include <qt/platform/platformui.h>
 #include <qt/platform/profiledialog.h>
 #include <qt/platform/usernamesearchdialog.h>
+#include <qt/qvalidatedlineedit.h>
+#include <qt/sendcoinsdialog.h>
+#include <qt/sendcoinsentry.h>
 #include <qt/walletmodel.h>
 #include <script/standard.h>
 #include <spork.h>
@@ -47,6 +55,7 @@
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/wallet.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QCheckBox>
 #include <QCoreApplication>
@@ -57,17 +66,21 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QStackedWidget>
 #include <QTableView>
 #include <QTableWidget>
 #include <QTimer>
+#include <QVBoxLayout>
 
 #include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 using MasternodeTestUtil::GuiModels;
 using MasternodeTestUtil::MakeCoinbaseWallet;
@@ -425,17 +438,17 @@ struct Counterparty {
     //! The contact request this counterparty sends us, encrypting its
     //! compact xpub with the ECDH secret between its key and our key at
     //! recipient_key_index, as DIP-15 specifies (IV || AES-256-CBC).
-    platform::ContactRequest requestTo(const IdentityFixture& f, uint32_t sender_key_index,
-                                       uint32_t recipient_key_index, uint64_t created_at) const
+    platform::ContactRequest requestTo(interfaces::Wallet& wallet, const platform::Identifier& to,
+                                       uint32_t sender_key_index, uint32_t recipient_key_index, uint64_t created_at) const
     {
         platform::ContactRequest request;
         request.document_id = platform_test::IdentifierFromByte(0xD0);
         request.owner_id = id;
-        request.to_user_id = f.my_id;
+        request.to_user_id = to;
         request.sender_key_index = sender_key_index;
         request.recipient_key_index = recipient_key_index;
         request.created_at = created_at;
-        const auto our_key{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, recipient_key_index})};
+        const auto our_key{wallet.getPlatformPubKey(wallet::IdentityAuthKey{0, recipient_key_index})};
         SecureVector secret;
         if (!our_key || !wallet::platformkeys::ComputeECDHSecret(encryption_key, our_key.value, secret)) return request;
         wallet::CompactXpub compact;
@@ -812,7 +825,7 @@ void PlatformTests::networkResumePushesEndpointsAgain()
     Q_EMIT f.models.client.networkActiveChanged(false);
     QVERIFY(WaitForEndpointUpdates(*fake, 5));
     QTest::qWait(200);
-    QCoreApplication::processEvents(QEventLoop::AllEvents);
+    Drain();
     QCOMPARE(fake->endpoint_updates.size(), size_t{5});
     QVERIFY(fake->endpoint_updates.back().empty());
     QVERIFY(!service.haveEndpoints());
@@ -977,54 +990,98 @@ void PlatformTests::registrationKeysAndContestedFunding()
     QCOMPARE(*contested, *f.service->identityFundingAmount(/*contested=*/false) + CAmount{10'000'000});
 }
 
-//! A new identity is funded only right after a proved lookup showed that
-//! none is registered under this wallet's identity MASTER key: a wallet
-//! restored from its recovery phrase, or one that turned DashPay off and on
-//! again, has no record of the one it may have. An unanswered lookup funds
-//! nothing and Register looks again; a found identity funds nothing; a
-//! proven absence lets Register go on, by itself, to the funding payment.
+//! A new identity is funded only once Dash Platform proved that this wallet
+//! has none. Seed-only recovery proves it for every index it probes, and no
+//! other lookup is made then. A registration started over from a record of
+//! one that never funded anything (recovery found that record, not an
+//! absence) looks the identity MASTER key up itself: an unanswered lookup
+//! funds nothing and Register looks again, a found identity funds nothing
+//! and is restored as recovery restores one, and a proven absence lets
+//! Register go on, by itself, to the funding payment.
 void PlatformTests::registrationFundsOnlyWithoutExistingIdentity()
 {
     using Existing = IdentityFlow::ExistingIdentity;
+    using State = IdentityFlow::State;
     FundingFixture f{m_node};
     QVERIFY(f.models.ok);
     QVERIFY(f.funded_model.getAvailableBalance(nullptr) > 2 * COIN);
     const CAmount funding{COIN};
+    QString error;
+
+    // Recovery proved there is none: funded without a lookup of its own.
+    for (int i = 0; i < 5; ++i) {
+        f.fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    f.service->recovery().maybeStart();
+    Drain();
+    QVERIFY(f.service->seedHasNoIdentity());
+    QVERIFY2(f.service->identityFlow().start("bob2026x", funding, error), qPrintable(error));
+    QVERIFY(f.service->identityFlow().record().state == State::FUNDING_SENT);
+    QCOMPARE(f.assetLocks(), size_t{1});
+    QCOMPARE(f.fake->countCalls("getIdentityByPublicKeyHash"), size_t{5});
+    // Its coin funds the next one.
+    QVERIFY(f.funded_model.wallet().abandonTransaction(f.service->identityFlow().record().funding_txid));
+
+    // After a restart, a record of a registration whose funding payment
+    // never got anywhere: recovery finds the record, not an absence.
+    platform::IdentityRecord stale;
+    stale.state = State::FAILED;
+    stale.resume_state = State::FUNDING_SENT;
+    stale.label = "bob2026x";
+    const auto restart_from_stale = [&] {
+        f.service->writeRecord(platform::records::IDENTITY, platform::SerializeIdentityRecord(stale));
+        f.restartService();
+        f.service->recovery().maybeStart();
+        return f.service->recovery().outcome() == PlatformRecovery::Outcome::RESTORED && !f.service->seedHasNoIdentity();
+    };
+    QVERIFY(restart_from_stale());
+    IdentityFlow* flow{&f.service->identityFlow()};
 
     // Unanswered: nothing is funded, and Register looks again.
-    IdentityFlow* flow{&f.service->identityFlow()};
-    QSignalSpy checked(flow, &IdentityFlow::existingIdentityChecked);
     f.fake->identities_by_pubkey_hash.push_back(
         platform_test::Failed<platform::Identity>(platform::StatusKind::UNAVAILABLE));
-    QString error;
     QVERIFY(!flow->start("bob2026x", funding, error));
     QVERIFY(flow->existingIdentity() == Existing::CHECKING);
     QVERIFY(error.contains("Checking whether this wallet already has a DashPay identity"));
     Drain();
-    QCOMPARE(checked.size(), 1);
     QVERIFY(flow->existingIdentity() == Existing::UNVERIFIED);
     QVERIFY(flow->existingIdentityError().text.contains("so nothing was sent"));
     QCOMPARE(f.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
     QCOMPARE(f.fake->calls.back().argument, f.masterKeyHash());
-    QCOMPARE(f.assetLocks(), size_t{0});
-    QVERIFY(flow->record().state == IdentityFlow::State::NONE);
+    QCOMPARE(f.assetLocks(), size_t{1});
+    QVERIFY(flow->record().state == State::NONE);
 
-    // Found: nothing is funded, and it stays found.
-    platform::Identity existing;
-    existing.id = platform_test::IdentifierFromByte(0x1D);
-    f.fake->identities_by_pubkey_hash.push_back(platform_test::Ok(existing));
+    // Found: nothing is funded, and recovery restores it, here as an
+    // identity that waits for its username.
+    platform::Identity mine;
+    mine.id = platform_test::IdentifierFromByte(0x1D);
+    for (const auto& spec : IdentityFlow::RegistrationKeys()) {
+        const auto pubkey{f.funded_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, spec.id})};
+        platform::IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    }
+    f.fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    f.fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    for (int i = 0; i < 5; ++i) {
+        f.fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    f.fake->names_of_identity.push_back(platform_test::Absent<platform::Paged<platform::DpnsName>>());
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
     QVERIFY(!flow->start("bob2026x", funding, error));
     Drain();
-    QCOMPARE(checked.size(), 2);
     QVERIFY(flow->existingIdentity() == Existing::FOUND);
-    QVERIFY(!flow->start("bob2026x", funding, error));
-    QVERIFY(error.contains("already has a DashPay identity"));
-    QCOMPARE(f.fake->countCalls("getIdentityByPublicKeyHash"), size_t{2});
-    QCOMPARE(f.assetLocks(), size_t{0});
-    QVERIFY(flow->record().state == IdentityFlow::State::NONE);
+    QVERIFY(flow->existingIdentityError().text.contains("DashPay is restoring it"));
+    QCOMPARE(f.assetLocks(), size_t{1});
+    QVERIFY(f.service->myIdentityId() == std::optional{mine.id});
+    QVERIFY(flow->record().AwaitsUsername());
 
     // Proven absent: Register goes on to the funding payment by itself.
-    f.restartService();
+    QVERIFY(restart_from_stale());
     flow = &f.service->identityFlow();
     CreateUsernameWizard wizard{*f.service, f.funded_model};
     wizard.show();
@@ -1050,11 +1107,11 @@ void PlatformTests::registrationFundsOnlyWithoutExistingIdentity()
     QVERIFY(click("Register"));
     QVERIFY(cost->isBusy());
     QVERIFY(!cost->isComplete());
-    QCOMPARE(f.assetLocks(), size_t{0});
+    QCOMPARE(f.assetLocks(), size_t{1});
     Drain();
     QVERIFY(stack->currentWidget() != cost);
-    QVERIFY(flow->record().state == IdentityFlow::State::FUNDING_SENT);
-    QCOMPARE(f.assetLocks(), size_t{1});
+    QVERIFY(flow->record().state == State::FUNDING_SENT);
+    QCOMPARE(f.assetLocks(), size_t{2});
     QCOMPARE(f.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
     // The proved answer funded that registration; it does not fund another.
     QVERIFY(flow->existingIdentity() == Existing::UNKNOWN);
@@ -1938,9 +1995,8 @@ void PlatformTests::abandonedFundingKeepsItsRecord()
     QVERIFY(flow.holdsUnconsumedFunding());
 }
 
-//! A mature coinbase coin the wallet can spend, and a funding payment
-//! spending it that the network refused and this wallet abandoned.
-std::pair<CTransactionRef, CTransactionRef> AbandonedFunding(Fixture& f)
+//! A mature coinbase coin the wallet can spend.
+CTransactionRef SpendableCoin(Fixture& f)
 {
     const CTransactionRef coin{f.chain.m_coinbase_txns.front()};
     const auto* block{WITH_LOCK(f.chain.m_node.chainman->GetMutex(), return f.chain.m_node.chainman->ActiveChain()[1])};
@@ -1949,17 +2005,25 @@ std::pair<CTransactionRef, CTransactionRef> AbandonedFunding(Fixture& f)
     std::string error;
     auto descriptor{Parse("combo(" + EncodeSecret(f.chain.coinbaseKey) + ")", provider, error, /*require_checksum=*/false)};
     assert(descriptor);
-    CMutableTransaction payment;
-    payment.vin.emplace_back(COutPoint{coin->GetHash(), 0});
-    payment.vout.emplace_back(COIN, CScript() << OP_TRUE);
-    const CTransactionRef funding{MakeTransactionRef(payment)};
     wallet::WalletDescriptor wallet_descriptor{std::move(descriptor), 0, 0, 1, 1};
     LOCK(f.wallet->cs_wallet);
     const bool added{f.wallet->AddWalletDescriptor(wallet_descriptor, provider, "", false) != nullptr};
     assert(added);
     f.wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
     f.wallet->AddToWallet(coin, wallet::TxStateConfirmed{block->GetBlockHash(), block->nHeight, /*index=*/0});
-    f.wallet->AddToWallet(funding, wallet::TxStateInactive{/*abandoned=*/true});
+    return coin;
+}
+
+//! A mature coinbase coin the wallet can spend, and a funding payment
+//! spending it that the network refused and this wallet abandoned.
+std::pair<CTransactionRef, CTransactionRef> AbandonedFunding(Fixture& f)
+{
+    const CTransactionRef coin{SpendableCoin(f)};
+    CMutableTransaction payment;
+    payment.vin.emplace_back(COutPoint{coin->GetHash(), 0});
+    payment.vout.emplace_back(COIN, CScript() << OP_TRUE);
+    const CTransactionRef funding{MakeTransactionRef(payment)};
+    WITH_LOCK(f.wallet->cs_wallet, f.wallet->AddToWallet(funding, wallet::TxStateInactive{/*abandoned=*/true}));
     return {coin, funding};
 }
 
@@ -2579,6 +2643,1014 @@ void PlatformTests::usernameProgressWording()
     }
 }
 
+//! Accepting a request decrypts the 69-byte compact xpub with our key at
+//! recipient_key_index (2 or 3, never the MASTER key), imports our receiving
+//! keychain with a birth time that is ours (now, on a first accept), stores
+//! the contact's xpub and sends our request back with the ECDH secret and
+//! the accountReference MAC computed inside the wallet.
+void PlatformTests::contactAcceptDecryptsAndImports()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const int64_t their_document_time{1'000'000}; // 1970: sender-authored, must never become our birth time
+
+    // A request encrypted to our MASTER key (an older wallet) is refused.
+    {
+        const auto request{bob.requestTo(f.wallet_model.wallet(), f.my_id, /*sender_key_index=*/2,
+                                         /*recipient_key_index=*/0, their_document_time)};
+        QString error;
+        QVERIFY(!f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::ENCRYPTION), error));
+        QVERIFY(!error.isEmpty());
+    }
+    // A sender key of a purpose the receive policy refuses (a TRANSFER key)
+    // is refused; an ENCRYPTION key decrypts.
+    const auto request{bob.requestTo(f.wallet_model.wallet(), f.my_id, /*sender_key_index=*/2,
+                                     /*recipient_key_index=*/3, their_document_time)};
+    {
+        QString error;
+        QVERIFY(!f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::TRANSFER), error));
+        const auto xpub{f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::ENCRYPTION), error)};
+        QVERIFY2(xpub.has_value(), qPrintable(error));
+        wallet::CompactXpub expected;
+        QVERIFY(wallet::CompactXpubBytes(bob.xpub, expected));
+        QVERIFY(*xpub == expected);
+    }
+
+    // The full accept: the incoming list must hold the request, the proved
+    // sender identity carries the ENCRYPTION key, and the reciprocal send
+    // runs through the version lookup, our own identity read, the nonce,
+    // the build and the broadcast, confirmed by our request appearing.
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(request);
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    f.service->refreshContacts();
+    Drain();
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    f.fake->contact_requests.push_back(
+        platform_test::Absent<platform::Paged<platform::ContactRequest>>()); // no earlier request of ours
+    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
+    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
+    f.fake->builds.push_back(ScriptedBuild(0xCC));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::OK));
+    // Confirmation looks for the request just built (its account
+    // reference), not any earlier request to the same contact: a first page
+    // full of older requests is paged past.
+    platform::Paged<platform::ContactRequest> older;
+    platform::ContactRequest our_request;
+    our_request.owner_id = f.my_id;
+    our_request.to_user_id = bob.id;
+    our_request.account_reference = 0xFFFF'FFFF;
+    older.items.push_back(our_request);
+    older.has_more = true;
+    older.next_start_after = platform_test::IdentifierFromByte(0x66);
+    f.fake->contact_requests.push_back(platform_test::Ok(older));
+    platform::Paged<platform::ContactRequest> ours;
+    our_request.account_reference = platform::helpers::Dip15AccountReferenceFromMac(
+        [&] {
+            const uint256 my_hash{Span{f.my_id.data(), f.my_id.size()}};
+            const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
+            // Deriving the chain here fixes its birth; the accept below
+            // keeps it (now, as a first accept does).
+            const auto keychain{f.wallet_model.wallet().ensureFriendshipReceivingKeychain(
+                wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, GetTime()})};
+            wallet::CompactXpub compact;
+            const bool compacted{wallet::CompactXpubBytes(keychain.value, compact)};
+            assert(compacted);
+            const auto mac{f.wallet_model.wallet().platformAccountReferenceMac(wallet::IdentityAuthKey{0, 2}, compact)};
+            std::array<uint8_t, 32> mac_bytes;
+            std::copy(mac.value.begin(), mac.value.end(), mac_bytes.begin());
+            return mac_bytes;
+        }(),
+        0, 0);
+    ours.items.push_back(our_request);
+    f.fake->contact_requests.push_back(platform_test::Ok(ours));
+
+    const int64_t before{GetTime()};
+    QString error;
+    QVERIFY2(f.service->acceptContact(bob_hex, error), qPrintable(error));
+    for (int i = 0; i < 50 && finished.isEmpty(); ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QTest::qWait(20);
+    }
+    QCOMPARE(finished.size(), 1);
+    QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
+
+    QVERIFY(f.service->isEstablished(bob_hex));
+    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
+    QVERIFY(f.fake->build_kinds[0] == platform::OperationKind::CONTACT_REQUEST);
+    QCOMPARE(f.fake->build_key_ids[0], std::vector<uint32_t>{1});
+    // The confirmation query was bounded to recent requests and continued
+    // from the first page's cursor.
+    std::vector<FakePlatformClient::Call> confirmations;
+    for (const auto& call : f.fake->calls) {
+        if (call.method == "getContactRequests/from_me" && call.since_ms > 0) confirmations.push_back(call);
+    }
+    QCOMPARE(confirmations.size(), size_t{2});
+    QVERIFY(confirmations[0].since_ms <= static_cast<uint64_t>(before) * 1000);
+    QVERIFY(confirmations[1].start_after == platform_test::IdentifierFromByte(0x66));
+    const auto birth{FriendshipBirthTime(f, bob.id)};
+    QVERIFY(birth.has_value());
+    QVERIFY(*birth >= before);
+    const auto out_record{platform::DecodeContactOutRecord(
+        f.service->readRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex.toStdString()))};
+    QVERIFY(out_record.has_value() && *out_record >= before);
+    // The receiving chain is labelled for transaction history.
+    const uint256 my_hash{Span{f.my_id.data(), f.my_id.size()}};
+    const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
+    const auto keychain{f.wallet_model.wallet().ensureFriendshipReceivingKeychain(
+        wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, 0})};
+    QVERIFY(keychain);
+    CTxDestination first;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(keychain.value, 0, first));
+    std::string label;
+    QVERIFY(f.wallet_model.wallet().getAddress(first, &label, nullptr, nullptr));
+    QVERIFY(QString::fromStdString(label).contains("DashPay"));
+}
+
+//! A resend to the same contact bumps the DIP-15 rotation version found by
+//! unmasking our latest on-chain request with our own MAC, so the unique
+//! (ownerId, toUserId, accountReference) index does not reject it; the
+//! chain is the source of truth, not a local counter.
+void PlatformTests::contactSendRotatesVersionFromChain()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+
+    // What our earlier request's accountReference would be at version 2.
+    const uint256 my_hash{Span{f.my_id.data(), f.my_id.size()}};
+    const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
+    const auto keychain{f.wallet_model.wallet().ensureFriendshipReceivingKeychain(
+        wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, 0})};
+    QVERIFY(keychain);
+    wallet::CompactXpub compact;
+    QVERIFY(wallet::CompactXpubBytes(keychain.value, compact));
+    const auto mac{f.wallet_model.wallet().platformAccountReferenceMac(wallet::IdentityAuthKey{0, 2}, compact)};
+    QVERIFY(mac);
+    std::array<uint8_t, 32> mac_bytes;
+    std::copy(mac.value.begin(), mac.value.end(), mac_bytes.begin());
+    platform::ContactRequest earlier;
+    earlier.owner_id = f.my_id;
+    earlier.to_user_id = bob.id;
+    earlier.account_reference = platform::helpers::Dip15AccountReferenceFromMac(mac_bytes, 0, 2);
+
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
+    platform::Paged<platform::ContactRequest> sent;
+    sent.items.push_back(earlier);
+    f.fake->contact_requests.push_back(platform_test::Ok(sent));
+    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
+    f.fake->nonces.push_back(platform_test::Ok<uint64_t>(7));
+    f.fake->builds.push_back(ScriptedBuild(0xCD));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::ALREADY_EXISTS));
+    platform::Paged<platform::ContactRequest> resent{sent};
+    platform::ContactRequest bumped{earlier};
+    bumped.account_reference = platform::helpers::Dip15AccountReferenceFromMac(mac_bytes, 0, 3);
+    resent.items.push_back(bumped);
+    f.fake->contact_requests.push_back(platform_test::Ok(resent));
+
+    QString error;
+    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
+    for (int i = 0; i < 50 && finished.isEmpty(); ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QTest::qWait(20);
+    }
+    QCOMPARE(finished.size(), 1);
+    QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
+    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
+    QVERIFY(f.fake->last_contact_request_input.has_value());
+    const auto unmasked{
+        platform::helpers::Dip15UnmaskAccountReference(mac_bytes, f.fake->last_contact_request_input->account_reference)};
+    QCOMPARE(unmasked.version, 3U);
+    QCOMPARE(unmasked.account_index, 0U);
+    QCOMPARE(f.fake->last_contact_request_input->sender_key_index, 2U);
+    QCOMPARE(f.fake->last_contact_request_input->recipient_key_index, 3U);
+    QVERIFY(f.fake->last_contact_request_input->compact_xpub == compact);
+}
+
+//! Accepting the request of a contact we already sent ours to imports
+//! their keychain and completes without a second, version-bumped request:
+//! our side of the friendship is already on chain, and its time is the
+//! keychain's birth.
+void PlatformTests::contactAcceptAfterOurRequestSendsNothing()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const int64_t our_request_time{1'598'000'000};
+
+    platform::Paged<platform::ContactRequest> incoming, outgoing;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, /*sender_key_index=*/2,
+                                           /*recipient_key_index=*/3, /*created_at=*/1'000));
+    platform::ContactRequest ours;
+    ours.owner_id = f.my_id;
+    ours.to_user_id = bob.id;
+    ours.created_at = static_cast<uint64_t>(our_request_time) * 1000;
+    outgoing.items.push_back(ours);
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.service->refreshContacts();
+    Drain();
+
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    QString error;
+    QVERIFY2(f.service->acceptContact(bob_hex, error), qPrintable(error));
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
+    QVERIFY(f.service->isEstablished(bob_hex));
+    QVERIFY(f.fake->build_kinds.empty());
+    QCOMPARE(f.fake->countCalls("broadcastStateTransition"), size_t{0});
+    QCOMPARE(platform::DecodeContactOutRecord(
+                 f.service->readRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex.toStdString())),
+             std::optional<int64_t>{our_request_time});
+    QCOMPARE(FriendshipBirthTime(f, bob.id), std::optional<int64_t>{our_request_time});
+}
+
+//! The keys a contact request is signed with and encrypted from are the
+//! ones the proved identity carries at the ids the record names, so an
+//! identity registered by another wallet from the same seed (dashwallet's
+//! layout puts ENCRYPTION/DECRYPTION at 4/5 and AUTH/HIGH at 2) signs and
+//! encrypts with the right keys; a request to a key of ours that is not
+//! one of the two is refused before any ECDH runs.
+void PlatformTests::contactKeysFollowTheIdentityLayout()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    using Level = platform::IdentityPublicKey::SecurityLevel;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    platform::IdentityRecord record{f.service->identityFlow().record()};
+    record.auth_key_id = 2;
+    record.encryption_key_id = 4;
+    record.decryption_key_id = 5;
+    f.writeRecord(record);
+    platform::Identity mine;
+    mine.id = f.my_id;
+    const auto add_key = [&](uint32_t id, Purpose purpose, Level level) {
+        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, id})};
+        platform::IdentityPublicKey key;
+        key.id = id;
+        key.purpose = purpose;
+        key.security_level = level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    };
+    add_key(0, Purpose::AUTHENTICATION, Level::MASTER);
+    add_key(1, Purpose::AUTHENTICATION, Level::CRITICAL);
+    add_key(2, Purpose::AUTHENTICATION, Level::HIGH);
+    add_key(3, Purpose::TRANSFER, Level::CRITICAL);
+    add_key(4, Purpose::ENCRYPTION, Level::MEDIUM);
+    add_key(5, Purpose::DECRYPTION, Level::MEDIUM);
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+
+    // A request encrypted to our AUTH/HIGH key is not one this wallet
+    // decrypts, whatever purpose the policy would guess for it.
+    {
+        const auto request{
+            bob.requestTo(f.wallet_model.wallet(), f.my_id, /*sender_key_index=*/2, /*recipient_key_index=*/2, 1'000)};
+        QString error;
+        QVERIFY(!f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::ENCRYPTION), error));
+        const auto to_decryption{
+            bob.requestTo(f.wallet_model.wallet(), f.my_id, /*sender_key_index=*/2, /*recipient_key_index=*/5, 1'000)};
+        QVERIFY(f.service->contactFlow().decryptXpub(to_decryption, bob.identity(2, Purpose::ENCRYPTION), error));
+    }
+
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->identities.push_back(platform_test::Ok(mine));
+    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
+    f.fake->builds.push_back(ScriptedBuild(0xCE));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::UNAVAILABLE));
+    QString error;
+    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
+    QCOMPARE(f.fake->build_key_ids[0], std::vector<uint32_t>{2});
+    QVERIFY(f.fake->last_contact_request_input.has_value());
+    QCOMPARE(f.fake->last_contact_request_input->sender_key_index, 4U);
+    QCOMPARE(f.fake->last_contact_request_input->recipient_key_index, 3U);
+}
+
+//! Sending a contact request from a locked encrypted wallet asks for the
+//! passphrase once for all of its key work (keychain, MAC, ECDH and
+//! signature) instead of failing, and locks the wallet again after.
+void PlatformTests::contactSendAsksToUnlock()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const platform::Identity mine{f.myIdentity()};
+    QVERIFY(f.wallet->EncryptWallet("passphrase"));
+    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
+    int prompts{0};
+    connect(&f.wallet_model, &WalletModel::requireUnlock, &f.wallet_model, [&] {
+        ++prompts;
+        f.wallet_model.setWalletLocked(false, "passphrase");
+    });
+
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->identities.push_back(platform_test::Ok(mine));
+    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
+    f.fake->builds.push_back(ScriptedBuild(0xCF));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::UNAVAILABLE));
+    QString error;
+    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
+    QCOMPARE(prompts, 1);
+    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
+}
+
+//! Accepting a request from a locked encrypted wallet asks for the
+//! passphrase once: decrypting their request, both keychains, the MAC, the
+//! ECDH secret and the signature of our reciprocal request share it.
+void PlatformTests::contactAcceptAsksToUnlockOnce()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const platform::Identity mine{f.myIdentity()};
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    f.service->refreshContacts();
+    Drain();
+
+    QVERIFY(f.wallet->EncryptWallet("passphrase"));
+    int prompts{0};
+    connect(&f.wallet_model, &WalletModel::requireUnlock, &f.wallet_model, [&] {
+        ++prompts;
+        f.wallet_model.setWalletLocked(false, "passphrase");
+    });
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->identities.push_back(platform_test::Ok(mine));
+    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
+    f.fake->builds.push_back(ScriptedBuild(0xCB));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::UNAVAILABLE));
+    QString error;
+    QVERIFY2(f.service->acceptContact(bob_hex, error), qPrintable(error));
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
+    QCOMPARE(prompts, 1);
+    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
+    // Their side was imported under that unlock even though our reply was
+    // not confirmed.
+    QCOMPARE(f.service->readRecord(platform::records::CONTACT_KEY_PREFIX + bob_hex.toStdString()).size(),
+             wallet::COMPACT_XPUB_SIZE);
+}
+
+//! The original sender sees the contact established once the counterparty
+//! answers: a refresh that finds their request next to ours imports their
+//! keychain without any broadcast, as the mobile wallets do. A locked wallet
+//! shows the contact as accepted, and the unlock finishes it.
+void PlatformTests::answeredRequestEstablishesContact()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const int64_t our_request_time{1'598'000'000};
+    platform::Paged<platform::ContactRequest> incoming, outgoing;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
+    platform::ContactRequest ours;
+    ours.owner_id = f.my_id;
+    ours.to_user_id = bob.id;
+    ours.created_at = static_cast<uint64_t>(our_request_time) * 1000;
+    outgoing.items.push_back(ours);
+    ContactsModel model{*f.service};
+
+    // Locked: accepted, not established, nothing asked for.
+    QVERIFY(f.wallet->EncryptWallet("passphrase"));
+    QSignalSpy asked(&f.wallet_model, &WalletModel::requireUnlock);
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(asked.size(), 0);
+    QVERIFY(f.service->isAccepted(bob_hex));
+    QVERIFY(!f.service->isEstablished(bob_hex));
+    QCOMPARE(model.rowCount(), 1);
+    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Accepted);
+
+    // The unlock finishes it without a broadcast.
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    QVERIFY(f.wallet_model.setWalletLocked(false, "passphrase"));
+    Drain();
+    QVERIFY(f.service->isEstablished(bob_hex));
+    QVERIFY(!f.service->isAccepted(bob_hex));
+    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Established);
+    QCOMPARE(f.fake->countCalls("broadcastStateTransition"), size_t{0});
+    QVERIFY(f.fake->build_kinds.empty());
+    QCOMPARE(FriendshipBirthTime(f, bob.id), std::optional<int64_t>{our_request_time});
+    // Paying starts on the Send tab: the row says so and has no action.
+    QVERIFY(model.index(0, 0).data(Qt::ToolTipRole).toString().contains("open Send"));
+    {
+        f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+        f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+        ContactsPage page{*f.service};
+        page.refresh();
+        Drain();
+        auto* view{page.findChild<QTableView*>()};
+        view->setCurrentIndex(view->model()->index(0, 0));
+        const size_t calls{f.fake->calls.size()};
+        Q_EMIT view->doubleClicked(view->model()->index(0, 0));
+        Drain();
+        QCOMPARE(f.fake->calls.size(), calls);
+        for (const auto* button : page.findChildren<QPushButton*>()) {
+            QVERIFY(!button->isVisibleTo(&page) || button->text() == "Hide contact" ||
+                    button->text() == "Add contact…");
+        }
+    }
+
+    // A hidden contact reads as hidden, not as an ignored request.
+    f.service->setHidden(bob_hex, true);
+    model.setShowIgnored(true);
+    QCOMPARE(model.index(0, ContactsModel::Direction).data().toString(), QString("Hidden"));
+}
+
+//! A contact who sends again (DIP-15 re-send, e.g. with new payment
+//! addresses) is one row, and the contact is re-established from the newest
+//! request: payments derive from its xpub, starting again at its first
+//! address, as the mobile wallets do.
+void PlatformTests::contactResendUsesNewestRequest()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    platform::ContactRequest ours;
+    ours.owner_id = f.my_id;
+    ours.to_user_id = bob.id;
+    ours.created_at = 1'598'000'000'000;
+    platform::Paged<platform::ContactRequest> outgoing;
+    outgoing.items.push_back(ours);
+    const auto first{bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000)};
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(first);
+    ContactsModel model{*f.service};
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    f.service->refreshContacts();
+    Drain();
+    QVERIFY(f.service->isEstablished(bob_hex));
+    const std::string key_record{platform::records::CONTACT_KEY_PREFIX + bob_hex.toStdString()};
+    const auto first_xpub{f.service->readRecord(key_record)};
+    const std::string cursor_record{platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex.toStdString()};
+    f.service->writeRecord(cursor_record, platform::EncodePaymentCursor(3));
+
+    // Bob sends again, later, with other payment addresses; the older
+    // request stays on Platform and is listed after the newer one.
+    Counterparty bob_again;
+    bob_again.encryption_key = bob.encryption_key;
+    auto second{bob_again.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 5'000)};
+    second.document_id = platform_test::IdentifierFromByte(0xD1);
+    second.account_reference = 1U << 28;
+    incoming.items = {second, first};
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    f.service->refreshContacts();
+    Drain();
+
+    QCOMPARE(model.rowCount(), 1);
+    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Established);
+    wallet::CompactXpub newest;
+    QVERIFY(wallet::CompactXpubBytes(bob_again.xpub, newest));
+    const auto xpub{f.service->readRecord(key_record)};
+    QVERIFY(xpub != first_xpub);
+    QVERIFY(std::equal(xpub.begin(), xpub.end(), newest.begin(), newest.end()));
+    QVERIFY(f.service->readRecord(platform::records::CONTACT_IN_PREFIX + bob_hex.toStdString()) ==
+            std::vector<unsigned char>(second.document_id.begin(), second.document_id.end()));
+    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_record)), 0U);
+    QCOMPARE(f.fake->countCalls("broadcastStateTransition"), size_t{0});
+
+    // Listing the same two requests again changes nothing.
+    f.service->writeRecord(cursor_record, platform::EncodePaymentCursor(2));
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(model.rowCount(), 1);
+    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_record)), 2U);
+}
+
+//! An identity without a key a contact request can be encrypted to is
+//! marked in Add contact once chosen, and cannot be sent a request.
+void PlatformTests::addContactMarksIdentitiesThatCannotReceive()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    platform::Paged<platform::DpnsName> page;
+    platform::DpnsName keyless;
+    keyless.label = "Legacy";
+    keyless.normalized_label = "1egacy";
+    keyless.identity = platform_test::IdentifierFromByte(0xE1);
+    page.items.push_back(keyless);
+    f.fake->search_names.push_back(platform_test::Ok(page));
+    f.fake->profiles.push_back(platform_test::Absent<platform::Profile>());
+    Counterparty legacy;
+    legacy.id = keyless.identity;
+    f.fake->identities.push_back(platform_test::Ok(legacy.identity(1, Purpose::AUTHENTICATION)));
+    const QString legacy_hex{QString::fromStdString(HexStr(keyless.identity))};
+
+    UsernameSearchDialog dialog{*f.service};
+    auto* table{dialog.findChild<QTableWidget*>()};
+    QVERIFY(table != nullptr);
+    dialog.findChild<QLineEdit*>()->setText("1eg");
+    QTest::qWait(500);
+    Drain();
+    QCOMPARE(table->rowCount(), 1);
+    QVERIFY(table->isColumnHidden(2));
+    table->setCurrentCell(0, 0);
+    Drain();
+    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
+    QCOMPARE(f.service->canReceiveContactRequests(legacy_hex), std::optional<bool>{false});
+    QVERIFY(!table->isColumnHidden(2));
+    QCOMPARE(table->item(0, 2)->text(), QString("Can't receive contact requests"));
+    QVERIFY(!(table->item(0, 0)->flags() & Qt::ItemIsEnabled));
+    for (const auto* button : dialog.findChildren<QPushButton*>()) {
+        if (button->text() == "Send contact request") QVERIFY(!button->isEnabled());
+    }
+    // Chosen again, it is not read again.
+    table->setCurrentCell(0, 0);
+    Drain();
+    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
+}
+
+//! An answered request that cannot be finished for a reason other than a
+//! locked wallet (here a request encrypted to our MASTER key, which is
+//! refused) says why on its row instead of asking for an unlock, and is not
+//! retried on every refresh.
+void PlatformTests::answeredRequestThatCannotFinishSaysWhy()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    platform::Paged<platform::ContactRequest> incoming, outgoing;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 0, 1'000));
+    platform::ContactRequest ours;
+    ours.owner_id = f.my_id;
+    ours.to_user_id = bob.id;
+    ours.created_at = 1'598'000'000'000;
+    outgoing.items.push_back(ours);
+    ContactsModel model{*f.service};
+
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
+    QVERIFY(f.service->isAccepted(bob_hex));
+    QVERIFY(f.service->acceptedError(bob_hex).contains("too old"));
+    QCOMPARE(model.rowCount(), 1);
+    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Accepted);
+    const QModelIndex status{model.index(0, ContactsModel::Direction)};
+    QVERIFY(!status.data(Qt::DisplayRole).toString().contains("unlock"));
+    QVERIFY(status.data(Qt::ToolTipRole).toString().contains("too old"));
+
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
+    QVERIFY(f.service->acceptedError(bob_hex).contains("too old"));
+}
+
+//! The contacts list keeps the selected row across a refresh (and so across
+//! a cancelled unlock), aligns its headers with its cells, and a refresh
+//! failure is cleared by the next successful refresh.
+void PlatformTests::contactsPageKeepsSelectionAndClearsErrors()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    ContactsPage page{*f.service};
+    page.refresh(); // as the dashboard does when it is shown
+    Drain();
+    auto* view{page.findChild<QTableView*>()};
+    QVERIFY(view != nullptr);
+    QCOMPARE(view->model()->rowCount(), 1);
+    for (int column = 0; column < view->model()->columnCount(); ++column) {
+        QCOMPARE(view->model()->headerData(column, Qt::Horizontal, Qt::TextAlignmentRole).toInt(),
+                 view->model()->index(0, column).data(Qt::TextAlignmentRole).toInt());
+    }
+    view->setCurrentIndex(view->model()->index(0, 0));
+    QPushButton* accept{nullptr};
+    for (auto* button : page.findChildren<QPushButton*>()) {
+        if (button->text() == "Accept") accept = button;
+        // The list keeps itself up to date.
+        QVERIFY(button->text() != "Refresh");
+    }
+    QVERIFY(accept != nullptr && accept->isEnabled());
+
+    // Accepting sends our request back; the unlock for it is cancelled.
+    // The refresh that follows rebuilds the list: the row stays selected
+    // and can be accepted again.
+    QVERIFY(f.wallet->EncryptWallet("passphrase"));
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, platform::IdentityPublicKey::Purpose::ENCRYPTION)));
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
+    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    QSignalSpy reset(view->model(), &QAbstractItemModel::modelReset);
+    accept->click();
+    Drain();
+    QCOMPARE(reset.size(), 1);
+    QVERIFY(f.fake->build_kinds.empty());
+    QCOMPARE(view->currentIndex().row(), 0);
+    QVERIFY(accept->isEnabled());
+
+    // A failed refresh is shown until the next one succeeds.
+    auto* status{page.findChild<PlatformUi::MessageLine*>()};
+    QVERIFY(status != nullptr);
+    QVERIFY(status->text().contains("stayed locked"));
+    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
+    Drain();
+    QVERIFY(status->text().contains("could not be refreshed"));
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    f.service->refreshContacts();
+    Drain();
+    QVERIFY(status->text().isEmpty());
+    QCOMPARE(view->currentIndex().row(), 0);
+}
+
+//! Turning network activity back on is not an error for the contacts list:
+//! nothing is read while no evonode endpoints are pushed (the first set
+//! collected after the resume can still be empty), and the refresh asked for
+//! meanwhile, or while one was running, runs once they arrive and clears a
+//! message left by the pause.
+void PlatformTests::contactsWaitForEndpointsOnResume()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    f.fake->needs_endpoints = true;
+    const auto reads = [&] { return f.fake->countCalls("getContactRequests/to_me"); };
+    // The test node has no UI interface: the notifications the GUI would get
+    // are sent by hand.
+    f.node.setNetworkActive(false);
+    Q_EMIT f.models.client.networkActiveChanged(false);
+    QVERIFY(WaitForEndpointUpdates(*f.fake, 3));
+    QVERIFY(!f.service->haveEndpoints());
+    ContactsPage page{*f.service};
+    page.refresh(); // as the dashboard does when it is shown
+    Drain();
+    auto* status{page.findChild<PlatformUi::MessageLine*>()};
+    QVERIFY(status != nullptr);
+    // Paused (the dashboard disables the section and says why), nothing is
+    // loading: no busy bar that would never finish.
+    const auto loading_shown{[&page] {
+        for (const auto* label : page.findChildren<QLabel*>()) {
+            if (label->text() == "Loading contacts…" && label->isVisibleTo(&page)) return true;
+        }
+        return false;
+    }};
+    QVERIFY(loading_shown());
+    page.setEnabled(false);
+    QVERIFY(!loading_shown());
+    page.setEnabled(true);
+    // Back on, the first set the node collects is still empty here (the test
+    // chain has no evonodes): nothing is read, nothing is shown.
+    f.node.setNetworkActive(true);
+    Q_EMIT f.models.client.networkActiveChanged(true);
+    QVERIFY(WaitForEndpointUpdates(*f.fake, 4));
+    QVERIFY(f.fake->endpoint_updates.back().empty());
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(reads(), size_t{0});
+    QVERIFY(status->text().isEmpty());
+
+    // The endpoints arrive: the refresh asked for runs.
+    Counterparty bob;
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
+    const auto script_refresh = [&] {
+        f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+        f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    };
+    script_refresh();
+    pushEndpoints(*f.service, /*available=*/true);
+    Drain();
+    QCOMPARE(reads(), size_t{1});
+    auto* view{page.findChild<QTableView*>()};
+    QVERIFY(view != nullptr);
+    QCOMPARE(view->model()->rowCount(), 1);
+    QVERIFY(status->text().isEmpty());
+
+    // A read that fails because the endpoints went away meanwhile is not
+    // shown; it is made again when they are back.
+    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
+    pushEndpoints(*f.service, /*available=*/false);
+    Drain();
+    QCOMPARE(reads(), size_t{2});
+    QVERIFY(status->text().isEmpty());
+    script_refresh();
+    pushEndpoints(*f.service, /*available=*/true);
+    Drain();
+    QCOMPARE(reads(), size_t{3});
+    QVERIFY(status->text().isEmpty());
+
+    // A refresh asked for while one runs follows it: the failure of the
+    // first is not shown, and the second clears the error an earlier one left.
+    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
+    Drain();
+    QVERIFY(status->text().contains("could not be refreshed"));
+    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
+    script_refresh();
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(reads(), size_t{6});
+    QVERIFY(status->text().isEmpty());
+    QCOMPARE(view->model()->rowCount(), 1);
+}
+
+//! A contact request Platform accepted for broadcast is never reported as
+//! not sent: the search dialog says it was sent and is being confirmed, the
+//! contacts list shows it as a sent request, and a confirmation that takes
+//! longer than its window hands over to the contacts refresh.
+void PlatformTests::contactRequestConfirmationIsNeverAFailure()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    ContactsModel model{*f.service};
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(model.rowCount(), 0);
+
+    QSignalSpy pending(f.service.get(), &PlatformService::contactRequestPending);
+    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
+    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
+    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
+    f.fake->builds.push_back(ScriptedBuild(0xC1));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::OK));
+    // The first confirmation read does not find it yet.
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    QString error;
+    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
+    Drain();
+    QCOMPARE(pending.size(), 1);
+    QCOMPARE(finished.size(), 0);
+    QCOMPARE(f.service->pendingContactRequest(), bob_hex);
+    QCOMPARE(model.rowCount(), 1);
+    QCOMPARE(model.index(0, ContactsModel::Direction).data().toString(), QString("Request sent — confirming…"));
+    // Another request waits for this one's nonce, and says why.
+    QVERIFY(!f.service->sendContactRequest(QString::fromStdString(HexStr(platform_test::IdentifierFromByte(0xC2))), error));
+    QVERIFY(error.contains("still confirming"));
+
+    // Past the confirmation window the next read hands over to the refresh,
+    // and nothing is reported as failed.
+    Elapse(181);
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    for (int i = 0; i < 40 && f.fake->countCalls("getContactRequests/from_me") < 4; ++i) {
+        QTest::qWait(100);
+        Drain();
+    }
+    Drain();
+    QCOMPARE(finished.size(), 0);
+    QVERIFY(f.service->pendingContactRequest().isEmpty());
+}
+
+//! Search results stay in memory: the wallet database only names contacts,
+//! never everyone the user looked up.
+void PlatformTests::searchResultsAreNotPersisted()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    platform::Paged<platform::DpnsName> page;
+    platform::DpnsName stranger;
+    stranger.label = "Carol";
+    stranger.normalized_label = "car01";
+    stranger.identity = platform_test::IdentifierFromByte(0xCA);
+    page.items.push_back(stranger);
+    f.fake->search_names.push_back(platform_test::Ok(page));
+    platform::Profile profile;
+    profile.owner_id = stranger.identity;
+    profile.display_name = "Carol QA";
+    f.fake->profiles.push_back(platform_test::Ok(profile));
+    int results{0};
+    connect(f.service.get(), &PlatformService::searchResults, f.service.get(),
+            [&](const QString&, const auto& found) { results += found.size(); });
+    QSignalSpy profiles(f.service.get(), &PlatformService::searchProfileLoaded);
+    f.service->searchNames("car");
+    Drain();
+    QCOMPARE(results, 1);
+    // Each result's profile name is read (proved) once a session.
+    QCOMPARE(profiles.size(), 1);
+    QCOMPARE(profiles.first().at(1).toString(), QString("Carol QA"));
+    const QString carol_hex{QString::fromStdString(HexStr(stranger.identity))};
+    QCOMPARE(f.service->contactMetadata(carol_hex, platform::records::CONTACT_DISPLAY_NAME_PREFIX),
+             QString("Carol QA"));
+    f.fake->search_names.push_back(platform_test::Ok(page));
+    f.service->searchNames("car");
+    Drain();
+    QCOMPARE(f.fake->countCalls("getProfile"), size_t{1});
+    QCOMPARE(f.service->contactDisplayString(carol_hex), QString("Carol"));
+    QVERIFY(f.wallet_model.wallet().getPlatformData("contact/").empty());
+}
+
+//! A contact's username and profile name are read (proved) after the list
+//! and shown from the records they are written to, without reading the
+//! contact requests again.
+void PlatformTests::contactMetadataShownWithoutRereadingRequests()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
+    ContactsModel model{*f.service};
+    platform::Paged<platform::DpnsName> names;
+    platform::DpnsName name;
+    name.label = "Bob";
+    name.normalized_label = "b0b";
+    name.identity = bob.id;
+    names.items.push_back(name);
+    platform::Profile profile;
+    profile.owner_id = bob.id;
+    profile.display_name = "Bob B";
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    f.fake->names_of_identity.push_back(platform_test::Ok(names));
+    f.fake->profiles.push_back(platform_test::Ok(profile));
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(f.fake->countCalls("getContactRequests/to_me"), size_t{1});
+    QCOMPARE(model.rowCount(), 1);
+    QCOMPARE(model.rowAt(0)->username, QString("Bob"));
+    QCOMPARE(model.rowAt(0)->display_name, QString("Bob B"));
+}
+
+//! A contact who removed their profile is shown without a name, even when an
+//! earlier search this session showed one: the proved read replaces it.
+void PlatformTests::clearedContactNameReplacesSearchedName()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    platform::Paged<platform::DpnsName> names;
+    platform::DpnsName name;
+    name.label = "Bob";
+    name.normalized_label = "b0b";
+    name.identity = bob.id;
+    names.items.push_back(name);
+    platform::Profile profile;
+    profile.owner_id = bob.id;
+    profile.display_name = "Bob B";
+    f.fake->search_names.push_back(platform_test::Ok(names));
+    f.fake->profiles.push_back(platform_test::Ok(profile));
+    f.service->searchNames("bob");
+    Drain();
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    QCOMPARE(f.service->contactMetadata(bob_hex, platform::records::CONTACT_DISPLAY_NAME_PREFIX), QString("Bob B"));
+
+    platform::Paged<platform::ContactRequest> incoming;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
+    ContactsModel model{*f.service};
+    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
+    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
+    f.fake->names_of_identity.push_back(platform_test::Ok(names));
+    f.fake->profiles.push_back(platform_test::Absent<platform::Profile>());
+    f.service->refreshContacts();
+    Drain();
+    QCOMPARE(model.rowCount(), 1);
+    QCOMPARE(model.rowAt(0)->display_name, QString());
+}
+
+
+//! A profile update reads the current profile (proved) so a replace keeps
+//! every field the dialog does not edit, and is confirmed only by a proved
+//! re-read at the next revision.
+void PlatformTests::profilePublishConfirmedByProof()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    QSignalSpy updated(f.service.get(), &PlatformService::profileUpdated);
+
+    platform::Profile existing;
+    existing.document_id = platform_test::IdentifierFromByte(0xE0);
+    existing.owner_id = f.my_id;
+    existing.revision = 4;
+    existing.avatar_url = "https://example.invalid/avatar.png";
+    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
+    f.fake->profiles.push_back(platform_test::Ok(existing));
+    f.fake->nonces.push_back(platform_test::Ok<uint64_t>(2));
+    f.fake->builds.push_back(ScriptedBuild(0xEE));
+    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::OK));
+    // First re-read still shows the old revision, the second the new one.
+    f.fake->profiles.push_back(platform_test::Ok(existing));
+    platform::Profile replaced{existing};
+    replaced.revision = 5;
+    replaced.display_name = "Alice";
+    replaced.public_message = "hi";
+    f.fake->profiles.push_back(platform_test::Ok(replaced));
+
+    QString error;
+    QVERIFY(!f.service->updateProfile(QString(150, 'x'), "", error)); // too long
+    QVERIFY2(f.service->updateProfile("Alice", "hi", error), qPrintable(error));
+    for (int i = 0; i < 100 && updated.isEmpty(); ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QTest::qWait(50);
+    }
+    QCOMPARE(updated.size(), 1);
+    QVERIFY2(updated.first().at(0).toBool(), qPrintable(updated.first().at(1).toString()));
+    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
+    QVERIFY(f.fake->build_kinds[0] == platform::OperationKind::PROFILE);
+    QVERIFY(f.fake->last_profile_existing.has_value());
+    QCOMPARE(f.fake->last_profile_existing->revision, uint64_t{4});
+    QCOMPARE(f.fake->last_profile_existing->avatar_url, std::string("https://example.invalid/avatar.png"));
+}
+
+//! The profile dialog cannot be edited or saved before the current profile
+//! has loaded (a save would publish empty fields over it), nor while a load
+//! failed; once loaded, Save needs a change.
+void PlatformTests::profileDialogWaitsForTheCurrentProfile()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    ProfileDialog dialog{*f.service};
+    auto* name{dialog.findChild<QLineEdit*>()};
+    auto* save{dialog.findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Save)};
+    QVERIFY(name && save);
+    // Nothing scripted: the load fails (UNAVAILABLE).
+    QVERIFY(!name->isEnabled());
+    QVERIFY(!save->isEnabled());
+    Drain();
+    QVERIFY(!name->isEnabled());
+    QVERIFY(!save->isEnabled());
+    QCOMPARE(f.fake->countCalls("getProfile"), size_t{1});
+
+    platform::Profile existing;
+    existing.revision = 3;
+    existing.display_name = "Alice";
+    existing.public_message = "hello";
+    f.fake->profiles.push_back(platform_test::Ok(existing));
+    QPushButton* retry{nullptr};
+    for (auto* button : dialog.findChildren<QPushButton*>()) {
+        if (button->text() == "Retry" && button->isVisibleTo(&dialog)) retry = button;
+    }
+    QVERIFY(retry != nullptr);
+    retry->click();
+    Drain();
+    QVERIFY(name->isEnabled());
+    QCOMPARE(name->text(), QString("Alice"));
+    QVERIFY(!save->isEnabled()); // nothing changed yet
+    name->setText("Alice B");
+    QVERIFY(save->isEnabled());
+
+    // Each label stays on the line of its field, however tall the window.
+    dialog.resize(dialog.width(), dialog.height() + 200);
+    dialog.show();
+    Drain();
+    for (auto* label : dialog.findChildren<QLabel*>()) {
+        if (label->text() != "Display name") continue;
+        const int label_centre{label->mapTo(&dialog, label->rect().center()).y()};
+        const QRect field{name->mapTo(&dialog, QPoint{}), name->size()};
+        QVERIFY(label_centre >= field.top() && label_centre <= field.bottom());
+    }
+    // The name field and the message box end at the same edge, whatever
+    // their character counters read. (Wide enough for the minimal
+    // platform's font, which the default width does not fit.)
+    auto* message{dialog.findChild<QPlainTextEdit*>()};
+    QVERIFY(message != nullptr);
+    dialog.resize(dialog.width() * 2, dialog.height());
+    Drain();
+    const auto right_edge = [&dialog](const QWidget* field) {
+        return field->mapTo(&dialog, field->rect().topRight()).x();
+    };
+    QCOMPARE(right_edge(name), right_edge(message));
+    message->setPlainText(QString(120, 'x'));
+    Drain();
+    QCOMPARE(right_edge(name), right_edge(message));
+    dialog.hide();
+}
+
 //! Disable DashPay wipes the records, the only trace of an asset lock no
 //! identity consumed yet: the guard holds from the funding payment until
 //! the identity exists, also while that step waits for the passphrase or
@@ -2726,6 +3798,7 @@ void PlatformTests::dashboardHasNoSendDisableOrRefresh()
     }
     QVERIFY(texts.contains("Add contact…"));
     QVERIFY(!f.texts().contains("Find people"));
+
 }
 
 //! Each dashboard state has at most one filled button, and it is the one
@@ -3158,6 +4231,7 @@ void PlatformTests::detachingClientModelStopsService()
     QString error;
     QVERIFY(!service.writesAllowed(error));
     QVERIFY(error.contains("shutting down"));
+    QVERIFY(!service.networkActive());
     // The page has none any more.
     QVERIFY(f.page.registeredUsername().isEmpty());
 }
@@ -3370,988 +4444,118 @@ void PlatformTests::layoutChangeKeepsUnconsumedFunding()
     QVERIFY(platform::IsRecordSetCurrent(service.readRecord(platform::records::VERSION), /*have_platform_records=*/true));
 }
 
-//! Accepting a request decrypts the 69-byte compact xpub with our key at
-//! recipient_key_index (2 or 3, never the MASTER key), imports our receiving
-//! keychain with a birth time that is ours (now, on a first accept), stores
-//! the contact's xpub and sends our request back with the ECDH secret and
-//! the accountReference MAC computed inside the wallet.
-void PlatformTests::contactAcceptDecryptsAndImports()
+//! The identity details dialog never leaves a value on "Loading…" after its
+//! read failed, and its only filled button is Close (the Copy buttons are
+//! secondary).
+void PlatformTests::identityDetailsAfterFailedReads()
 {
-    using Purpose = platform::IdentityPublicKey::Purpose;
     IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    const int64_t their_document_time{1'000'000}; // 1970: sender-authored, must never become our birth time
-
-    // A request encrypted to our MASTER key (an older wallet) is refused.
-    {
-        const auto request{bob.requestTo(f, /*sender_key_index=*/2, /*recipient_key_index=*/0, their_document_time)};
-        QString error;
-        QVERIFY(!f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::ENCRYPTION), error));
-        QVERIFY(!error.isEmpty());
+    IdentityDetailsDialog dialog{*f.service, /*paused=*/false};
+    Drain(); // nothing scripted: both reads fail (UNAVAILABLE)
+    QStringList texts;
+    for (const auto* label : dialog.findChildren<QLabel*>()) {
+        texts << label->text();
     }
-    // A sender key of a purpose the receive policy refuses (a TRANSFER key)
-    // is refused; an ENCRYPTION key decrypts.
-    const auto request{bob.requestTo(f, /*sender_key_index=*/2, /*recipient_key_index=*/3, their_document_time)};
-    {
-        QString error;
-        QVERIFY(!f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::TRANSFER), error));
-        const auto xpub{f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::ENCRYPTION), error)};
-        QVERIFY2(xpub.has_value(), qPrintable(error));
-        wallet::CompactXpub expected;
-        QVERIFY(wallet::CompactXpubBytes(bob.xpub, expected));
-        QVERIFY(*xpub == expected);
+    QVERIFY(!texts.contains("Loading…"));
+    QVERIFY(texts.contains("—"));
+    // What only support or the network ever needed is gone.
+    for (const char* gone : {"Network", "Funding payment", "Revision", "Platform credits"}) {
+        QVERIFY2(!texts.contains(gone), gone);
     }
-
-    // The full accept: the incoming list must hold the request, the proved
-    // sender identity carries the ENCRYPTION key, and the reciprocal send
-    // runs through the version lookup, our own identity read, the nonce,
-    // the build and the broadcast, confirmed by our request appearing.
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(request);
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    f.service->refreshContacts();
-    Drain();
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    f.fake->contact_requests.push_back(
-        platform_test::Absent<platform::Paged<platform::ContactRequest>>()); // no earlier request of ours
-    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
-    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
-    f.fake->builds.push_back(ScriptedBuild(0xCC));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::OK));
-    // Confirmation looks for the request just built (its account
-    // reference), not any earlier request to the same contact: a first page
-    // full of older requests is paged past.
-    platform::Paged<platform::ContactRequest> older;
-    platform::ContactRequest our_request;
-    our_request.owner_id = f.my_id;
-    our_request.to_user_id = bob.id;
-    our_request.account_reference = 0xFFFF'FFFF;
-    older.items.push_back(our_request);
-    older.has_more = true;
-    older.next_start_after = platform_test::IdentifierFromByte(0x66);
-    f.fake->contact_requests.push_back(platform_test::Ok(older));
-    platform::Paged<platform::ContactRequest> ours;
-    our_request.account_reference = platform::helpers::Dip15AccountReferenceFromMac(
-        [&] {
-            const uint256 my_hash{Span{f.my_id.data(), f.my_id.size()}};
-            const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
-            // Deriving the chain here fixes its birth; the accept below
-            // keeps it (now, as a first accept does).
-            const auto keychain{f.wallet_model.wallet().ensureFriendshipReceivingKeychain(
-                wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, GetTime()})};
-            wallet::CompactXpub compact;
-            const bool compacted{wallet::CompactXpubBytes(keychain.value, compact)};
-            assert(compacted);
-            const auto mac{f.wallet_model.wallet().platformAccountReferenceMac(wallet::IdentityAuthKey{0, 2}, compact)};
-            std::array<uint8_t, 32> mac_bytes;
-            std::copy(mac.value.begin(), mac.value.end(), mac_bytes.begin());
-            return mac_bytes;
-        }(),
-        0, 0);
-    ours.items.push_back(our_request);
-    f.fake->contact_requests.push_back(platform_test::Ok(ours));
-
-    const int64_t before{GetTime()};
-    QString error;
-    QVERIFY2(f.service->acceptContact(bob_hex, error), qPrintable(error));
-    for (int i = 0; i < 50 && finished.isEmpty(); ++i) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-        QTest::qWait(20);
-    }
-    QCOMPARE(finished.size(), 1);
-    QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
-
-    QVERIFY(f.service->isEstablished(bob_hex));
-    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
-    QVERIFY(f.fake->build_kinds[0] == platform::OperationKind::CONTACT_REQUEST);
-    QCOMPARE(f.fake->build_key_ids[0], std::vector<uint32_t>{1});
-    // The confirmation query was bounded to recent requests and continued
-    // from the first page's cursor.
-    std::vector<FakePlatformClient::Call> confirmations;
-    for (const auto& call : f.fake->calls) {
-        if (call.method == "getContactRequests/from_me" && call.since_ms > 0) confirmations.push_back(call);
-    }
-    QCOMPARE(confirmations.size(), size_t{2});
-    QVERIFY(confirmations[0].since_ms <= static_cast<uint64_t>(before) * 1000);
-    QVERIFY(confirmations[1].start_after == platform_test::IdentifierFromByte(0x66));
-    const auto birth{FriendshipBirthTime(f, bob.id)};
-    QVERIFY(birth.has_value());
-    QVERIFY(*birth >= before);
-    const auto out_record{platform::DecodeContactOutRecord(
-        f.service->readRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex.toStdString()))};
-    QVERIFY(out_record.has_value() && *out_record >= before);
-    // The receiving chain is labelled for transaction history.
-    const uint256 my_hash{Span{f.my_id.data(), f.my_id.size()}};
-    const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
-    const auto keychain{f.wallet_model.wallet().ensureFriendshipReceivingKeychain(
-        wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, 0})};
-    QVERIFY(keychain);
-    CTxDestination first;
-    QVERIFY(wallet::DeriveFriendshipPaymentDestination(keychain.value, 0, first));
-    std::string label;
-    QVERIFY(f.wallet_model.wallet().getAddress(first, &label, nullptr, nullptr));
-    QVERIFY(QString::fromStdString(label).contains("DashPay"));
-}
-
-//! A resend to the same contact bumps the DIP-15 rotation version found by
-//! unmasking our latest on-chain request with our own MAC, so the unique
-//! (ownerId, toUserId, accountReference) index does not reject it; the
-//! chain is the source of truth, not a local counter.
-void PlatformTests::contactSendRotatesVersionFromChain()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-
-    // What our earlier request's accountReference would be at version 2.
-    const uint256 my_hash{Span{f.my_id.data(), f.my_id.size()}};
-    const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
-    const auto keychain{f.wallet_model.wallet().ensureFriendshipReceivingKeychain(
-        wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, 0})};
-    QVERIFY(keychain);
-    wallet::CompactXpub compact;
-    QVERIFY(wallet::CompactXpubBytes(keychain.value, compact));
-    const auto mac{f.wallet_model.wallet().platformAccountReferenceMac(wallet::IdentityAuthKey{0, 2}, compact)};
-    QVERIFY(mac);
-    std::array<uint8_t, 32> mac_bytes;
-    std::copy(mac.value.begin(), mac.value.end(), mac_bytes.begin());
-    platform::ContactRequest earlier;
-    earlier.owner_id = f.my_id;
-    earlier.to_user_id = bob.id;
-    earlier.account_reference = platform::helpers::Dip15AccountReferenceFromMac(mac_bytes, 0, 2);
-
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
-    platform::Paged<platform::ContactRequest> sent;
-    sent.items.push_back(earlier);
-    f.fake->contact_requests.push_back(platform_test::Ok(sent));
-    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
-    f.fake->nonces.push_back(platform_test::Ok<uint64_t>(7));
-    f.fake->builds.push_back(ScriptedBuild(0xCD));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::ALREADY_EXISTS));
-    platform::Paged<platform::ContactRequest> resent{sent};
-    platform::ContactRequest bumped{earlier};
-    bumped.account_reference = platform::helpers::Dip15AccountReferenceFromMac(mac_bytes, 0, 3);
-    resent.items.push_back(bumped);
-    f.fake->contact_requests.push_back(platform_test::Ok(resent));
-
-    QString error;
-    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
-    for (int i = 0; i < 50 && finished.isEmpty(); ++i) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-        QTest::qWait(20);
-    }
-    QCOMPARE(finished.size(), 1);
-    QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
-    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
-    QVERIFY(f.fake->last_contact_request_input.has_value());
-    const auto unmasked{
-        platform::helpers::Dip15UnmaskAccountReference(mac_bytes, f.fake->last_contact_request_input->account_reference)};
-    QCOMPARE(unmasked.version, 3U);
-    QCOMPARE(unmasked.account_index, 0U);
-    QCOMPARE(f.fake->last_contact_request_input->sender_key_index, 2U);
-    QCOMPARE(f.fake->last_contact_request_input->recipient_key_index, 3U);
-    QVERIFY(f.fake->last_contact_request_input->compact_xpub == compact);
-}
-
-//! Accepting the request of a contact we already sent ours to imports
-//! their keychain and completes without a second, version-bumped request:
-//! our side of the friendship is already on chain, and its time is the
-//! keychain's birth.
-void PlatformTests::contactAcceptAfterOurRequestSendsNothing()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    const int64_t our_request_time{1'598'000'000};
-
-    platform::Paged<platform::ContactRequest> incoming, outgoing;
-    incoming.items.push_back(bob.requestTo(f, /*sender_key_index=*/2, /*recipient_key_index=*/3, /*created_at=*/1'000));
-    platform::ContactRequest ours;
-    ours.owner_id = f.my_id;
-    ours.to_user_id = bob.id;
-    ours.created_at = static_cast<uint64_t>(our_request_time) * 1000;
-    outgoing.items.push_back(ours);
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.service->refreshContacts();
-    Drain();
-
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    QString error;
-    QVERIFY2(f.service->acceptContact(bob_hex, error), qPrintable(error));
-    Drain();
-    QCOMPARE(finished.size(), 1);
-    QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
-    QVERIFY(f.service->isEstablished(bob_hex));
-    QVERIFY(f.fake->build_kinds.empty());
-    QCOMPARE(f.fake->countCalls("broadcastStateTransition"), size_t{0});
-    QCOMPARE(platform::DecodeContactOutRecord(
-                 f.service->readRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex.toStdString())),
-             std::optional<int64_t>{our_request_time});
-    QCOMPARE(FriendshipBirthTime(f, bob.id), std::optional<int64_t>{our_request_time});
-}
-
-//! The keys a contact request is signed with and encrypted from are the
-//! ones the proved identity carries at the ids the record names, so an
-//! identity registered by another wallet from the same seed (dashwallet's
-//! layout puts ENCRYPTION/DECRYPTION at 4/5 and AUTH/HIGH at 2) signs and
-//! encrypts with the right keys; a request to a key of ours that is not
-//! one of the two is refused before any ECDH runs.
-void PlatformTests::contactKeysFollowTheIdentityLayout()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    using Level = platform::IdentityPublicKey::SecurityLevel;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    platform::IdentityRecord record{f.service->identityFlow().record()};
-    record.auth_key_id = 2;
-    record.encryption_key_id = 4;
-    record.decryption_key_id = 5;
-    f.writeRecord(record);
-    platform::Identity mine;
-    mine.id = f.my_id;
-    const auto add_key = [&](uint32_t id, Purpose purpose, Level level) {
-        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, id})};
-        platform::IdentityPublicKey key;
-        key.id = id;
-        key.purpose = purpose;
-        key.security_level = level;
-        key.data.assign(pubkey.value.begin(), pubkey.value.end());
-        mine.public_keys.push_back(key);
-    };
-    add_key(0, Purpose::AUTHENTICATION, Level::MASTER);
-    add_key(1, Purpose::AUTHENTICATION, Level::CRITICAL);
-    add_key(2, Purpose::AUTHENTICATION, Level::HIGH);
-    add_key(3, Purpose::TRANSFER, Level::CRITICAL);
-    add_key(4, Purpose::ENCRYPTION, Level::MEDIUM);
-    add_key(5, Purpose::DECRYPTION, Level::MEDIUM);
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-
-    // A request encrypted to our AUTH/HIGH key is not one this wallet
-    // decrypts, whatever purpose the policy would guess for it.
-    {
-        const auto request{bob.requestTo(f, /*sender_key_index=*/2, /*recipient_key_index=*/2, 1'000)};
-        QString error;
-        QVERIFY(!f.service->contactFlow().decryptXpub(request, bob.identity(2, Purpose::ENCRYPTION), error));
-        const auto to_decryption{bob.requestTo(f, /*sender_key_index=*/2, /*recipient_key_index=*/5, 1'000)};
-        QVERIFY(f.service->contactFlow().decryptXpub(to_decryption, bob.identity(2, Purpose::ENCRYPTION), error));
-    }
-
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.fake->identities.push_back(platform_test::Ok(mine));
-    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
-    f.fake->builds.push_back(ScriptedBuild(0xCE));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::UNAVAILABLE));
-    QString error;
-    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
-    Drain();
-    QCOMPARE(finished.size(), 1);
-    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
-    QCOMPARE(f.fake->build_key_ids[0], std::vector<uint32_t>{2});
-    QVERIFY(f.fake->last_contact_request_input.has_value());
-    QCOMPARE(f.fake->last_contact_request_input->sender_key_index, 4U);
-    QCOMPARE(f.fake->last_contact_request_input->recipient_key_index, 3U);
-}
-
-//! Sending a contact request from a locked encrypted wallet asks for the
-//! passphrase once for all of its key work (keychain, MAC, ECDH and
-//! signature) instead of failing, and locks the wallet again after.
-void PlatformTests::contactSendAsksToUnlock()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    const platform::Identity mine{f.myIdentity()};
-    QVERIFY(f.wallet->EncryptWallet("passphrase"));
-    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
-    int prompts{0};
-    connect(&f.wallet_model, &WalletModel::requireUnlock, &f.wallet_model, [&] {
-        ++prompts;
-        f.wallet_model.setWalletLocked(false, "passphrase");
-    });
-
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.fake->identities.push_back(platform_test::Ok(mine));
-    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
-    f.fake->builds.push_back(ScriptedBuild(0xCF));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::UNAVAILABLE));
-    QString error;
-    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
-    Drain();
-    QCOMPARE(finished.size(), 1);
-    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
-    QCOMPARE(prompts, 1);
-    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
-}
-
-//! Accepting a request from a locked encrypted wallet asks for the
-//! passphrase once: decrypting their request, both keychains, the MAC, the
-//! ECDH secret and the signature of our reciprocal request share it.
-void PlatformTests::contactAcceptAsksToUnlockOnce()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    const platform::Identity mine{f.myIdentity()};
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(bob.requestTo(f, 2, 3, 1'000));
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    f.service->refreshContacts();
-    Drain();
-
-    QVERIFY(f.wallet->EncryptWallet("passphrase"));
-    int prompts{0};
-    connect(&f.wallet_model, &WalletModel::requireUnlock, &f.wallet_model, [&] {
-        ++prompts;
-        f.wallet_model.setWalletLocked(false, "passphrase");
-    });
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.fake->identities.push_back(platform_test::Ok(mine));
-    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
-    f.fake->builds.push_back(ScriptedBuild(0xCB));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::UNAVAILABLE));
-    QString error;
-    QVERIFY2(f.service->acceptContact(bob_hex, error), qPrintable(error));
-    Drain();
-    QCOMPARE(finished.size(), 1);
-    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
-    QCOMPARE(prompts, 1);
-    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
-    // Their side was imported under that unlock even though our reply was
-    // not confirmed.
-    QCOMPARE(f.service->readRecord(platform::records::CONTACT_KEY_PREFIX + bob_hex.toStdString()).size(),
-             wallet::COMPACT_XPUB_SIZE);
-}
-
-//! The original sender sees the contact established once the counterparty
-//! answers: a refresh that finds their request next to ours imports their
-//! keychain without any broadcast, as the mobile wallets do. A locked wallet
-//! shows the contact as accepted, and the unlock finishes it.
-void PlatformTests::answeredRequestEstablishesContact()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    const int64_t our_request_time{1'598'000'000};
-    platform::Paged<platform::ContactRequest> incoming, outgoing;
-    incoming.items.push_back(bob.requestTo(f, 2, 3, 1'000));
-    platform::ContactRequest ours;
-    ours.owner_id = f.my_id;
-    ours.to_user_id = bob.id;
-    ours.created_at = static_cast<uint64_t>(our_request_time) * 1000;
-    outgoing.items.push_back(ours);
-    ContactsModel model{*f.service};
-
-    // Locked: accepted, not established, nothing asked for.
-    QVERIFY(f.wallet->EncryptWallet("passphrase"));
-    QSignalSpy asked(&f.wallet_model, &WalletModel::requireUnlock);
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(asked.size(), 0);
-    QVERIFY(f.service->isAccepted(bob_hex));
-    QVERIFY(!f.service->isEstablished(bob_hex));
-    QCOMPARE(model.rowCount(), 1);
-    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Accepted);
-
-    // The unlock finishes it without a broadcast.
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    QVERIFY(f.wallet_model.setWalletLocked(false, "passphrase"));
-    Drain();
-    QVERIFY(f.service->isEstablished(bob_hex));
-    QVERIFY(!f.service->isAccepted(bob_hex));
-    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Established);
-    QCOMPARE(f.fake->countCalls("broadcastStateTransition"), size_t{0});
-    QVERIFY(f.fake->build_kinds.empty());
-    QCOMPARE(FriendshipBirthTime(f, bob.id), std::optional<int64_t>{our_request_time});
-
-    // A hidden contact reads as hidden, not as an ignored request.
-    f.service->setHidden(bob_hex, true);
-    model.setShowIgnored(true);
-    QCOMPARE(model.index(0, ContactsModel::Direction).data().toString(), QString("Hidden"));
-}
-
-//! A contact who sends again (DIP-15 re-send, e.g. with new payment
-//! addresses) is one row, and the contact is re-established from the newest
-//! request: payments derive from its xpub, starting again at its first
-//! address, as the mobile wallets do.
-void PlatformTests::contactResendUsesNewestRequest()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    platform::ContactRequest ours;
-    ours.owner_id = f.my_id;
-    ours.to_user_id = bob.id;
-    ours.created_at = 1'598'000'000'000;
-    platform::Paged<platform::ContactRequest> outgoing;
-    outgoing.items.push_back(ours);
-    const auto first{bob.requestTo(f, 2, 3, 1'000)};
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(first);
-    ContactsModel model{*f.service};
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    f.service->refreshContacts();
-    Drain();
-    QVERIFY(f.service->isEstablished(bob_hex));
-    const std::string key_record{platform::records::CONTACT_KEY_PREFIX + bob_hex.toStdString()};
-    const auto first_xpub{f.service->readRecord(key_record)};
-    const std::string cursor_record{platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex.toStdString()};
-    f.service->writeRecord(cursor_record, platform::EncodePaymentCursor(3));
-
-    // Bob sends again, later, with other payment addresses; the older
-    // request stays on Platform and is listed after the newer one.
-    Counterparty bob_again;
-    bob_again.encryption_key = bob.encryption_key;
-    auto second{bob_again.requestTo(f, 2, 3, 5'000)};
-    second.document_id = platform_test::IdentifierFromByte(0xD1);
-    second.account_reference = 1U << 28;
-    incoming.items = {second, first};
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    f.service->refreshContacts();
-    Drain();
-
-    QCOMPARE(model.rowCount(), 1);
-    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Established);
-    wallet::CompactXpub newest;
-    QVERIFY(wallet::CompactXpubBytes(bob_again.xpub, newest));
-    const auto xpub{f.service->readRecord(key_record)};
-    QVERIFY(xpub != first_xpub);
-    QVERIFY(std::equal(xpub.begin(), xpub.end(), newest.begin(), newest.end()));
-    QVERIFY(f.service->readRecord(platform::records::CONTACT_IN_PREFIX + bob_hex.toStdString()) ==
-            std::vector<unsigned char>(second.document_id.begin(), second.document_id.end()));
-    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_record)), 0U);
-    QCOMPARE(f.fake->countCalls("broadcastStateTransition"), size_t{0});
-
-    // Listing the same two requests again changes nothing.
-    f.service->writeRecord(cursor_record, platform::EncodePaymentCursor(2));
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(model.rowCount(), 1);
-    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_record)), 2U);
-}
-
-//! An identity without a key a contact request can be encrypted to is
-//! marked in Add contact once chosen, and cannot be sent a request.
-void PlatformTests::addContactMarksIdentitiesThatCannotReceive()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    platform::Paged<platform::DpnsName> page;
-    platform::DpnsName keyless;
-    keyless.label = "Legacy";
-    keyless.normalized_label = "1egacy";
-    keyless.identity = platform_test::IdentifierFromByte(0xE1);
-    page.items.push_back(keyless);
-    f.fake->search_names.push_back(platform_test::Ok(page));
-    f.fake->profiles.push_back(platform_test::Absent<platform::Profile>());
-    Counterparty legacy;
-    legacy.id = keyless.identity;
-    f.fake->identities.push_back(platform_test::Ok(legacy.identity(1, Purpose::AUTHENTICATION)));
-    const QString legacy_hex{QString::fromStdString(HexStr(keyless.identity))};
-
-    UsernameSearchDialog dialog{*f.service};
-    auto* table{dialog.findChild<QTableWidget*>()};
-    QVERIFY(table != nullptr);
-    dialog.findChild<QLineEdit*>()->setText("1eg");
-    QTest::qWait(500);
-    Drain();
-    QCOMPARE(table->rowCount(), 1);
-    QVERIFY(table->isColumnHidden(2));
-    table->setCurrentCell(0, 0);
-    Drain();
-    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
-    QCOMPARE(f.service->canReceiveContactRequests(legacy_hex), std::optional<bool>{false});
-    QVERIFY(!table->isColumnHidden(2));
-    QCOMPARE(table->item(0, 2)->text(), QString("Can't receive contact requests"));
-    QVERIFY(!(table->item(0, 0)->flags() & Qt::ItemIsEnabled));
-    for (const auto* button : dialog.findChildren<QPushButton*>()) {
-        if (button->text() == "Send contact request") QVERIFY(!button->isEnabled());
-    }
-    // Chosen again, it is not read again.
-    table->setCurrentCell(0, 0);
-    Drain();
-    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
-}
-
-//! An answered request that cannot be finished for a reason other than a
-//! locked wallet (here a request encrypted to our MASTER key, which is
-//! refused) says why on its row instead of asking for an unlock, and is not
-//! retried on every refresh.
-void PlatformTests::answeredRequestThatCannotFinishSaysWhy()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    platform::Paged<platform::ContactRequest> incoming, outgoing;
-    incoming.items.push_back(bob.requestTo(f, 2, 0, 1'000));
-    platform::ContactRequest ours;
-    ours.owner_id = f.my_id;
-    ours.to_user_id = bob.id;
-    ours.created_at = 1'598'000'000'000;
-    outgoing.items.push_back(ours);
-    ContactsModel model{*f.service};
-
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
-    QVERIFY(f.service->isAccepted(bob_hex));
-    QVERIFY(f.service->acceptedError(bob_hex).contains("too old"));
-    QCOMPARE(model.rowCount(), 1);
-    QVERIFY(model.rowAt(0)->kind == ContactsModel::Kind::Accepted);
-    const QModelIndex status{model.index(0, ContactsModel::Direction)};
-    QVERIFY(!status.data(Qt::DisplayRole).toString().contains("unlock"));
-    QVERIFY(status.data(Qt::ToolTipRole).toString().contains("too old"));
-
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(outgoing));
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(f.fake->countCalls("getIdentity"), size_t{1});
-    QVERIFY(f.service->acceptedError(bob_hex).contains("too old"));
-}
-
-//! The contacts list keeps the selected row across a refresh (and so across
-//! a cancelled unlock), aligns its headers with its cells, and a refresh
-//! failure is cleared by the next successful refresh.
-void PlatformTests::contactsPageKeepsSelectionAndClearsErrors()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(bob.requestTo(f, 2, 3, 1'000));
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    ContactsPage page{*f.service};
-    page.refresh(); // as the dashboard does when it is shown
-    Drain();
-    auto* view{page.findChild<QTableView*>()};
-    QVERIFY(view != nullptr);
-    QCOMPARE(view->model()->rowCount(), 1);
-    for (int column = 0; column < view->model()->columnCount(); ++column) {
-        QCOMPARE(view->model()->headerData(column, Qt::Horizontal, Qt::TextAlignmentRole).toInt(),
-                 view->model()->index(0, column).data(Qt::TextAlignmentRole).toInt());
-    }
-    view->setCurrentIndex(view->model()->index(0, 0));
-    QPushButton* accept{nullptr};
-    for (auto* button : page.findChildren<QPushButton*>()) {
-        if (button->text() == "Accept") accept = button;
-        // The list keeps itself up to date.
-        QVERIFY(button->text() != "Refresh");
-    }
-    QVERIFY(accept != nullptr && accept->isEnabled());
-
-    // Accepting sends our request back; the unlock for it is cancelled.
-    // The refresh that follows rebuilds the list: the row stays selected
-    // and can be accepted again.
-    QVERIFY(f.wallet->EncryptWallet("passphrase"));
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(2, platform::IdentityPublicKey::Purpose::ENCRYPTION)));
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
-    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    QSignalSpy reset(view->model(), &QAbstractItemModel::modelReset);
-    accept->click();
-    Drain();
-    QCOMPARE(reset.size(), 1);
-    QVERIFY(f.fake->build_kinds.empty());
-    QCOMPARE(view->currentIndex().row(), 0);
-    QVERIFY(accept->isEnabled());
-
-    // A failed refresh is shown until the next one succeeds.
-    auto* status{page.findChild<PlatformUi::MessageLine*>()};
-    QVERIFY(status != nullptr);
-    QVERIFY(status->text().contains("stayed locked"));
-    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
-    Drain();
-    QVERIFY(status->text().contains("could not be refreshed"));
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    f.service->refreshContacts();
-    Drain();
-    QVERIFY(status->text().isEmpty());
-    QCOMPARE(view->currentIndex().row(), 0);
-}
-
-//! Turning network activity back on is not an error for the contacts list:
-//! nothing is read while no evonode endpoints are pushed (the first set
-//! collected after the resume can still be empty), and the refresh asked for
-//! meanwhile, or while one was running, runs once they arrive and clears a
-//! message left by the pause.
-void PlatformTests::contactsWaitForEndpointsOnResume()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    f.fake->needs_endpoints = true;
-    const auto reads = [&] { return f.fake->countCalls("getContactRequests/to_me"); };
-    // The test node has no UI interface: the notifications the GUI would get
-    // are sent by hand.
-    f.node.setNetworkActive(false);
-    Q_EMIT f.models.client.networkActiveChanged(false);
-    QVERIFY(WaitForEndpointUpdates(*f.fake, 3));
-    QVERIFY(!f.service->haveEndpoints());
-    ContactsPage page{*f.service};
-    page.refresh(); // as the dashboard does when it is shown
-    Drain();
-    auto* status{page.findChild<PlatformUi::MessageLine*>()};
-    QVERIFY(status != nullptr);
-    // Paused (the dashboard disables the section and says why), nothing is
-    // loading: no busy bar that would never finish.
-    const auto loading_shown{[&page] {
-        for (const auto* label : page.findChildren<QLabel*>()) {
-            if (label->text() == "Loading contacts…" && label->isVisibleTo(&page)) return true;
-        }
-        return false;
-    }};
-    QVERIFY(loading_shown());
-    page.setEnabled(false);
-    QVERIFY(!loading_shown());
-    page.setEnabled(true);
-    // Back on, the first set the node collects is still empty here (the test
-    // chain has no evonodes): nothing is read, nothing is shown.
-    f.node.setNetworkActive(true);
-    Q_EMIT f.models.client.networkActiveChanged(true);
-    QVERIFY(WaitForEndpointUpdates(*f.fake, 4));
-    QVERIFY(f.fake->endpoint_updates.back().empty());
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(reads(), size_t{0});
-    QVERIFY(status->text().isEmpty());
-
-    // The endpoints arrive: the refresh asked for runs.
-    Counterparty bob;
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(bob.requestTo(f, 2, 3, 1'000));
-    const auto script_refresh = [&] {
-        f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-        f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    };
-    script_refresh();
-    pushEndpoints(*f.service, /*available=*/true);
-    Drain();
-    QCOMPARE(reads(), size_t{1});
-    auto* view{page.findChild<QTableView*>()};
-    QVERIFY(view != nullptr);
-    QCOMPARE(view->model()->rowCount(), 1);
-    QVERIFY(status->text().isEmpty());
-
-    // A read that fails because the endpoints went away meanwhile is not
-    // shown; it is made again when they are back.
-    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
-    pushEndpoints(*f.service, /*available=*/false);
-    Drain();
-    QCOMPARE(reads(), size_t{2});
-    QVERIFY(status->text().isEmpty());
-    script_refresh();
-    pushEndpoints(*f.service, /*available=*/true);
-    Drain();
-    QCOMPARE(reads(), size_t{3});
-    QVERIFY(status->text().isEmpty());
-
-    // A refresh asked for while one runs follows it: the failure of the
-    // first is not shown, and the second clears the error an earlier one left.
-    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
-    Drain();
-    QVERIFY(status->text().contains("could not be refreshed"));
-    f.service->refreshContacts(); // nothing scripted: UNAVAILABLE
-    script_refresh();
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(reads(), size_t{6});
-    QVERIFY(status->text().isEmpty());
-    QCOMPARE(view->model()->rowCount(), 1);
-}
-
-//! A contact request Platform accepted for broadcast is never reported as
-//! not sent: the search dialog says it was sent and is being confirmed, the
-//! contacts list shows it as a sent request, and a confirmation that takes
-//! longer than its window hands over to the contacts refresh.
-void PlatformTests::contactRequestConfirmationIsNeverAFailure()
-{
-    using Purpose = platform::IdentityPublicKey::Purpose;
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    ContactsModel model{*f.service};
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(model.rowCount(), 0);
-
-    QSignalSpy pending(f.service.get(), &PlatformService::contactRequestPending);
-    QSignalSpy finished(f.service.get(), &PlatformService::contactRequestFinished);
-    f.fake->identities.push_back(platform_test::Ok(bob.identity(3, Purpose::DECRYPTION)));
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
-    f.fake->nonces.push_back(platform_test::Absent<uint64_t>());
-    f.fake->builds.push_back(ScriptedBuild(0xC1));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::OK));
-    // The first confirmation read does not find it yet.
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    QString error;
-    QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
-    Drain();
-    QCOMPARE(pending.size(), 1);
-    QCOMPARE(finished.size(), 0);
-    QCOMPARE(f.service->pendingContactRequest(), bob_hex);
-    QCOMPARE(model.rowCount(), 1);
-    QCOMPARE(model.index(0, ContactsModel::Direction).data().toString(), QString("Request sent — confirming…"));
-    // Another request waits for this one's nonce, and says why.
-    QVERIFY(!f.service->sendContactRequest(QString::fromStdString(HexStr(platform_test::IdentifierFromByte(0xC2))), error));
-    QVERIFY(error.contains("still confirming"));
-
-    // Past the confirmation window the next read hands over to the refresh,
-    // and nothing is reported as failed.
-    Elapse(181);
-    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
-    for (int i = 0; i < 40 && f.fake->countCalls("getContactRequests/from_me") < 4; ++i) {
-        QTest::qWait(100);
-        Drain();
-    }
-    Drain();
-    QCOMPARE(finished.size(), 0);
-    QVERIFY(f.service->pendingContactRequest().isEmpty());
-}
-
-//! Search results stay in memory: the wallet database only names contacts,
-//! never everyone the user looked up.
-void PlatformTests::searchResultsAreNotPersisted()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    platform::Paged<platform::DpnsName> page;
-    platform::DpnsName stranger;
-    stranger.label = "Carol";
-    stranger.normalized_label = "car01";
-    stranger.identity = platform_test::IdentifierFromByte(0xCA);
-    page.items.push_back(stranger);
-    f.fake->search_names.push_back(platform_test::Ok(page));
-    platform::Profile profile;
-    profile.owner_id = stranger.identity;
-    profile.display_name = "Carol QA";
-    f.fake->profiles.push_back(platform_test::Ok(profile));
-    int results{0};
-    connect(f.service.get(), &PlatformService::searchResults, f.service.get(),
-            [&](const QString&, const auto& found) { results += found.size(); });
-    QSignalSpy profiles(f.service.get(), &PlatformService::searchProfileLoaded);
-    f.service->searchNames("car");
-    Drain();
-    QCOMPARE(results, 1);
-    // Each result's profile name is read (proved) once a session.
-    QCOMPARE(profiles.size(), 1);
-    QCOMPARE(profiles.first().at(1).toString(), QString("Carol QA"));
-    const QString carol_hex{QString::fromStdString(HexStr(stranger.identity))};
-    QCOMPARE(f.service->contactMetadata(carol_hex, platform::records::CONTACT_DISPLAY_NAME_PREFIX),
-             QString("Carol QA"));
-    f.fake->search_names.push_back(platform_test::Ok(page));
-    f.service->searchNames("car");
-    Drain();
-    QCOMPARE(f.fake->countCalls("getProfile"), size_t{1});
-    QCOMPARE(f.service->contactDisplayString(carol_hex), QString("Carol"));
-    QVERIFY(f.wallet_model.wallet().getPlatformData("contact/").empty());
-}
-
-//! A contact's username and profile name are read (proved) after the list
-//! and shown from the records they are written to, without reading the
-//! contact requests again.
-void PlatformTests::contactMetadataShownWithoutRereadingRequests()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(bob.requestTo(f, 2, 3, 1'000));
-    ContactsModel model{*f.service};
-    platform::Paged<platform::DpnsName> names;
-    platform::DpnsName name;
-    name.label = "Bob";
-    name.normalized_label = "b0b";
-    name.identity = bob.id;
-    names.items.push_back(name);
-    platform::Profile profile;
-    profile.owner_id = bob.id;
-    profile.display_name = "Bob B";
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    f.fake->names_of_identity.push_back(platform_test::Ok(names));
-    f.fake->profiles.push_back(platform_test::Ok(profile));
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(f.fake->countCalls("getContactRequests/to_me"), size_t{1});
-    QCOMPARE(model.rowCount(), 1);
-    QCOMPARE(model.rowAt(0)->username, QString("Bob"));
-    QCOMPARE(model.rowAt(0)->display_name, QString("Bob B"));
-}
-
-//! A contact who removed their profile is shown without a name, even when an
-//! earlier search this session showed one: the proved read replaces it.
-void PlatformTests::clearedContactNameReplacesSearchedName()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    Counterparty bob;
-    platform::Paged<platform::DpnsName> names;
-    platform::DpnsName name;
-    name.label = "Bob";
-    name.normalized_label = "b0b";
-    name.identity = bob.id;
-    names.items.push_back(name);
-    platform::Profile profile;
-    profile.owner_id = bob.id;
-    profile.display_name = "Bob B";
-    f.fake->search_names.push_back(platform_test::Ok(names));
-    f.fake->profiles.push_back(platform_test::Ok(profile));
-    f.service->searchNames("bob");
-    Drain();
-    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
-    QCOMPARE(f.service->contactMetadata(bob_hex, platform::records::CONTACT_DISPLAY_NAME_PREFIX), QString("Bob B"));
-
-    platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
-    ContactsModel model{*f.service};
-    f.fake->contact_requests.push_back(platform_test::Ok(incoming));
-    f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
-    f.fake->names_of_identity.push_back(platform_test::Ok(names));
-    f.fake->profiles.push_back(platform_test::Absent<platform::Profile>());
-    f.service->refreshContacts();
-    Drain();
-    QCOMPARE(model.rowCount(), 1);
-    QCOMPARE(model.rowAt(0)->display_name, QString());
-}
-
-
-//! A profile update reads the current profile (proved) so a replace keeps
-//! every field the dialog does not edit, and is confirmed only by a proved
-//! re-read at the next revision.
-void PlatformTests::profilePublishConfirmedByProof()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    QSignalSpy updated(f.service.get(), &PlatformService::profileUpdated);
-
-    platform::Profile existing;
-    existing.document_id = platform_test::IdentifierFromByte(0xE0);
-    existing.owner_id = f.my_id;
-    existing.revision = 4;
-    existing.avatar_url = "https://example.invalid/avatar.png";
-    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
-    f.fake->profiles.push_back(platform_test::Ok(existing));
-    f.fake->nonces.push_back(platform_test::Ok<uint64_t>(2));
-    f.fake->builds.push_back(ScriptedBuild(0xEE));
-    f.fake->broadcasts.push_back(platform_test::BroadcastStatus(platform::StatusKind::OK));
-    // First re-read still shows the old revision, the second the new one.
-    f.fake->profiles.push_back(platform_test::Ok(existing));
-    platform::Profile replaced{existing};
-    replaced.revision = 5;
-    replaced.display_name = "Alice";
-    replaced.public_message = "hi";
-    f.fake->profiles.push_back(platform_test::Ok(replaced));
-
-    QString error;
-    QVERIFY(!f.service->updateProfile(QString(150, 'x'), "", error)); // too long
-    QVERIFY2(f.service->updateProfile("Alice", "hi", error), qPrintable(error));
-    for (int i = 0; i < 100 && updated.isEmpty(); ++i) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-        QTest::qWait(50);
-    }
-    QCOMPARE(updated.size(), 1);
-    QVERIFY2(updated.first().at(0).toBool(), qPrintable(updated.first().at(1).toString()));
-    QCOMPARE(f.fake->build_kinds.size(), size_t{1});
-    QVERIFY(f.fake->build_kinds[0] == platform::OperationKind::PROFILE);
-    QVERIFY(f.fake->last_profile_existing.has_value());
-    QCOMPARE(f.fake->last_profile_existing->revision, uint64_t{4});
-    QCOMPARE(f.fake->last_profile_existing->avatar_url, std::string("https://example.invalid/avatar.png"));
-}
-
-//! The profile dialog cannot be edited or saved before the current profile
-//! has loaded (a save would publish empty fields over it), nor while a load
-//! failed; once loaded, Save needs a change.
-void PlatformTests::profileDialogWaitsForTheCurrentProfile()
-{
-    IdentityFixture f{m_node, "alice", /*registered=*/true};
-    ProfileDialog dialog{*f.service};
-    auto* name{dialog.findChild<QLineEdit*>()};
-    auto* save{dialog.findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Save)};
-    QVERIFY(name && save);
-    // Nothing scripted: the load fails (UNAVAILABLE).
-    QVERIFY(!name->isEnabled());
-    QVERIFY(!save->isEnabled());
-    Drain();
-    QVERIFY(!name->isEnabled());
-    QVERIFY(!save->isEnabled());
-    QCOMPARE(f.fake->countCalls("getProfile"), size_t{1});
-
-    platform::Profile existing;
-    existing.revision = 3;
-    existing.display_name = "Alice";
-    existing.public_message = "hello";
-    f.fake->profiles.push_back(platform_test::Ok(existing));
-    QPushButton* retry{nullptr};
+    QVERIFY(texts.contains("Balance on Dash Platform"));
+    QVERIFY(dialog.findChild<PlatformUi::MessageLine*>()->text().size() > 0);
+    int filled{0};
+    QPushButton* show_keys{nullptr};
+    QPushButton* try_again{nullptr};
     for (auto* button : dialog.findChildren<QPushButton*>()) {
-        if (button->text() == "Retry" && button->isVisibleTo(&dialog)) retry = button;
+        QVERIFY(button->text() != "Refresh");
+        QVERIFY(button->text() != "Copy all details");
+        if (button->text() == "Show keys") show_keys = button;
+        if (button->text() == "Try again") try_again = button;
+        if (!button->property("mnSecondary").toBool()) {
+            ++filled;
+            QCOMPARE(button->text(), QString("Close"));
+        }
     }
-    QVERIFY(retry != nullptr);
-    retry->click();
-    Drain();
-    QVERIFY(name->isEnabled());
-    QCOMPARE(name->text(), QString("Alice"));
-    QVERIFY(!save->isEnabled()); // nothing changed yet
-    name->setText("Alice B");
-    QVERIFY(save->isEnabled());
+    QCOMPARE(filled, 1);
+    // A failed read is read again on Try again, not on a Refresh.
+    QVERIFY(try_again != nullptr);
+    // The keys wait behind Show keys.
+    QVERIFY(show_keys != nullptr);
+    auto* keys{dialog.findChild<QTableWidget*>()};
+    QVERIFY(!keys->isVisibleTo(&dialog));
+    show_keys->click();
+    QVERIFY(keys->isVisibleTo(&dialog));
+    QCOMPARE(show_keys->text(), QString("Hide keys"));
+}
 
-    // Each label stays on the line of its field, however tall the window.
-    dialog.resize(dialog.width(), dialog.height() + 200);
+//! The dialog opens with every card in view, and Show keys brings the whole
+//! keys table into view, wide enough for all its columns.
+void PlatformTests::identityDetailsFitsContent()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    f.fake->identities.push_back(platform_test::Ok(f.myIdentity()));
+    f.fake->profiles.push_back(platform_test::Ok(platform::Profile{}));
+    IdentityDetailsDialog dialog{*f.service, /*paused=*/false};
     dialog.show();
     Drain();
-    for (auto* label : dialog.findChildren<QLabel*>()) {
-        if (label->text() != "Display name") continue;
-        const int label_centre{label->mapTo(&dialog, label->rect().center()).y()};
-        const QRect field{name->mapTo(&dialog, QPoint{}), name->size()};
-        QVERIFY(label_centre >= field.top() && label_centre <= field.bottom());
+    auto* scroll{dialog.findChild<QScrollArea*>()};
+    QVERIFY(scroll != nullptr);
+    QCOMPARE(scroll->verticalScrollBar()->maximum(), 0);
+
+    auto* keys{dialog.findChild<QTableWidget*>()};
+    QCOMPARE(keys->rowCount(), 4);
+    for (auto* button : dialog.findChildren<QPushButton*>()) {
+        if (button->text() == "Show keys") button->click();
     }
-    // The name field and the message box end at the same edge, whatever
-    // their character counters read. (Wide enough for the minimal
-    // platform's font, which the default width does not fit.)
-    auto* message{dialog.findChild<QPlainTextEdit*>()};
-    QVERIFY(message != nullptr);
-    dialog.resize(dialog.width() * 2, dialog.height());
     Drain();
-    const auto right_edge = [&dialog](const QWidget* field) {
-        return field->mapTo(&dialog, field->rect().topRight()).x();
+    QVERIFY(keys->isVisible());
+    QCOMPARE(scroll->verticalScrollBar()->maximum(), 0);
+    QCOMPARE(keys->horizontalScrollBar()->maximum(), 0);
+    QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+}
+
+//! "Created" is when this wallet started the registration: a restored
+//! identity (no funding payment of this wallet's) has no such date.
+void PlatformTests::identityDetailsCreatedOnlyWhenRegisteredHere()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    platform::IdentityRecord record{f.service->identityFlow().record()};
+    record.started_at = 1'790'000'000;
+    f.writeRecord(record);
+    const auto has_created = [&f] {
+        IdentityDetailsDialog dialog{*f.service, /*paused=*/false};
+        for (const auto* label : dialog.findChildren<QLabel*>()) {
+            if (label->text() == "Created") return true;
+        }
+        return false;
     };
-    QCOMPARE(right_edge(name), right_edge(message));
-    message->setPlainText(QString(120, 'x'));
+    QVERIFY(!has_created());
+    record.funding_txid = uint256::ONE;
+    f.writeRecord(record);
+    QVERIFY(has_created());
+}
+
+//! While DashPay is paused the dialog reads nothing and says it shows only
+//! what the wallet knows.
+void PlatformTests::identityDetailsPausedShowsLocalOnly()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    const size_t identities{f.fake->countCalls("getIdentity")};
+    const size_t profiles{f.fake->countCalls("getProfile")};
+    // A gate closed while the endpoints were kept (a sync).
+    {
+        IdentityDetailsDialog dialog{*f.service, /*paused=*/true};
+        Drain();
+        QVERIFY(dialog.findChild<PlatformUi::MessageLine*>()->text().contains("DashPay is paused"));
+    }
+    // Network activity off: no endpoints.
+    pushEndpoints(*f.service, /*available=*/false);
+    IdentityDetailsDialog dialog{*f.service, /*paused=*/false};
     Drain();
-    QCOMPARE(right_edge(name), right_edge(message));
-    dialog.hide();
+    QCOMPARE(f.fake->countCalls("getIdentity"), identities);
+    QCOMPARE(f.fake->countCalls("getProfile"), profiles);
+    QVERIFY(dialog.findChild<PlatformUi::MessageLine*>()->text().contains("DashPay is paused"));
 }
 
 //! An incoming request can be ignored on this wallet only (a contact
@@ -4364,7 +4568,7 @@ void PlatformTests::ignoredRequestsAreHiddenLocally()
     Counterparty bob;
     const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
     platform::Paged<platform::ContactRequest> incoming;
-    incoming.items.push_back(bob.requestTo(f, 2, 3, 1'000));
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), f.my_id, 2, 3, 1'000));
     f.fake->contact_requests.push_back(platform_test::Ok(incoming));
     f.fake->contact_requests.push_back(platform_test::Ok(platform::Paged<platform::ContactRequest>{}));
     ContactsModel model{*f.service};
@@ -4391,4 +4595,1065 @@ void PlatformTests::ignoredRequestsAreHiddenLocally()
     QVERIFY2(f.service->sendContactRequest(bob_hex, error), qPrintable(error));
     QVERIFY(!f.service->isHidden(bob_hex));
     Drain();
+}
+
+//! Seed-only recovery scans identity indexes by MASTER key hash; only a
+//! proven absence counts toward the gap limit, a failed probe ends the
+//! session without concluding anything, and the next start retries.
+void PlatformTests::recoveryTreatsOnlyProvenAbsenceAsAbsence()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    PlatformService::Enable(f.wallet_model.wallet());
+    auto client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* fake{client.get()};
+    PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+    QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+
+    // Until the probe concludes, no registration may start.
+    QString blocker;
+    QVERIFY(!service.registrationAllowed(blocker));
+    QVERIFY(!blocker.isEmpty());
+
+    // Index 0 unanswered: incomplete, nothing written, retried on the next start.
+    fake->identities_by_pubkey_hash.push_back(platform_test::Failed<platform::Identity>(platform::StatusKind::UNAVAILABLE));
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    QVERIFY(!finished.first().at(0).toBool());
+    QVERIFY(service.readRecord(platform::records::IDENTITY).empty());
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
+    QVERIFY(!service.registrationAllowed(blocker));
+
+    // Five proven absences end the scan: no identity, nothing written, the
+    // probe does not run again this session, and registration opens.
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(finished.size(), 2);
+    QVERIFY(!finished.at(1).at(0).toBool());
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{6});
+    QVERIFY(service.readRecord(platform::records::IDENTITY).empty());
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{6});
+    QVERIFY(service.recovery().outcome() == PlatformRecovery::Outcome::NO_IDENTITY);
+    QVERIFY2(service.registrationAllowed(blocker), qPrintable(blocker));
+}
+
+//! An identity registered with keys this wallet does not derive (index 0
+//! MASTER matches, the rest do not) is reported, not restored as one that
+//! could never sign; and a locked wallet defers the probe to its unlock,
+//! blocking registration meanwhile so the restored wallet cannot burn an
+//! asset lock on an identity that already exists.
+void PlatformTests::recoveryRefusesForeignKeysAndWaitsForUnlock()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    using Level = platform::IdentityPublicKey::SecurityLevel;
+    QString blocker;
+    // One node context at a time: the foreign-key part ends before the
+    // locked-wallet part starts.
+    {
+        Fixture f{m_node};
+        QVERIFY(f.models.ok);
+        PlatformService::Enable(f.wallet_model.wallet());
+        auto client{std::make_unique<FakePlatformClient>()};
+        FakePlatformClient* fake{client.get()};
+        PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+        QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+
+        platform::Identity foreign;
+        foreign.id = platform_test::IdentifierFromByte(0x1D);
+        const auto add_key = [&](uint32_t id, Purpose purpose, Level level, bool ours) {
+            platform::IdentityPublicKey key;
+            key.id = id;
+            key.purpose = purpose;
+            key.security_level = level;
+            if (ours) {
+                const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, id})};
+                key.data.assign(pubkey.value.begin(), pubkey.value.end());
+            } else {
+                CKey other;
+                other.MakeNewKey(true);
+                const CPubKey pubkey{other.GetPubKey()};
+                key.data.assign(pubkey.begin(), pubkey.end());
+            }
+            foreign.public_keys.push_back(key);
+        };
+        add_key(0, Purpose::AUTHENTICATION, Level::MASTER, true);
+        add_key(1, Purpose::AUTHENTICATION, Level::HIGH, false);
+        add_key(2, Purpose::ENCRYPTION, Level::MEDIUM, false);
+        add_key(3, Purpose::DECRYPTION, Level::MEDIUM, false);
+        fake->identities_by_pubkey_hash.push_back(platform_test::Ok(foreign));
+        for (int i = 0; i < 5; ++i) {
+            fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+        }
+        fake->names_of_identity.push_back(platform_test::Absent<platform::Paged<platform::DpnsName>>());
+        service.recovery().maybeStart();
+        Drain();
+        QCOMPARE(finished.size(), 1);
+        QVERIFY(!finished.first().at(0).toBool());
+        QVERIFY(service.readRecord(platform::records::IDENTITY).empty());
+        QVERIFY(service.recovery().outcome() == PlatformRecovery::Outcome::UNUSABLE);
+        QVERIFY(!service.registrationAllowed(blocker));
+        QVERIFY(blocker.contains("keys"));
+    }
+
+    // A locked wallet: the probe waits for the unlock and so does the
+    // registration gate; the unlock runs the probe.
+    Fixture g{m_node};
+    QVERIFY(g.models.ok);
+    PlatformService::Enable(g.wallet_model.wallet());
+    QVERIFY(g.wallet->EncryptWallet("passphrase"));
+    auto locked_client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* locked_fake{locked_client.get()};
+    PlatformService locked{g.wallet_model, g.models.client, std::move(locked_client)};
+    // The page redraws on stateChanged(): a start that concludes the wallet
+    // must be unlocked first announces it, although no run ever began.
+    QSignalSpy changed(&locked.recovery(), &PlatformRecovery::stateChanged);
+    locked.recovery().maybeStart();
+    Drain();
+    QVERIFY(locked.recovery().outcome() == PlatformRecovery::Outcome::NEEDS_UNLOCK);
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(!locked.recovery().running());
+    QVERIFY(!locked.registrationAllowed(blocker));
+    QVERIFY(blocker.contains("nlock"));
+    QCOMPARE(locked_fake->countCalls("getIdentityByPublicKeyHash"), size_t{0});
+    for (int i = 0; i < 5; ++i) {
+        locked_fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    QVERIFY(g.wallet_model.setWalletLocked(false, "passphrase"));
+    Drain();
+    QCOMPARE(locked_fake->countCalls("getIdentityByPublicKeyHash"), size_t{5});
+    QVERIFY2(locked.registrationAllowed(blocker), qPrintable(blocker));
+    // Running, then PENDING while it scans, then stopped at NO_IDENTITY.
+    QVERIFY(!locked.recovery().running());
+    QVERIFY(changed.count() >= 3);
+}
+
+//! "Unlock wallet…" on the recovery notice unlocks the wallet for the scan
+//! only: declining starts nothing, and the wallet is locked again once the
+//! scan has ended.
+void PlatformTests::recoveryUnlockLastsForTheScan()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    PlatformService::Enable(f.wallet_model.wallet());
+    QVERIFY(f.wallet->EncryptWallet("passphrase"));
+    auto client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* fake{client.get()};
+    PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+    service.recovery().maybeStart();
+    Drain();
+    QVERIFY(service.recovery().outcome() == PlatformRecovery::Outcome::NEEDS_UNLOCK);
+
+    bool unlock{false};
+    connect(&f.wallet_model, &WalletModel::requireUnlock, &f.wallet_model, [&] {
+        if (unlock) f.wallet_model.setWalletLocked(false, "passphrase");
+    });
+    service.recovery().unlockAndStart();
+    Drain();
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{0});
+    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
+
+    // A scan still running when the unlock runs out goes on locked: the
+    // identity it finds (ours) is not concluded on until the next unlock.
+    unlock = true;
+    auto* expiry{service.recovery().findChild<QTimer*>("recoveryUnlockTimer")};
+    QVERIFY(expiry != nullptr);
+    bool unlocked_at_expiry{false};
+    const auto expire = connect(&service.recovery(), &PlatformRecovery::stateChanged, expiry, [&] {
+        if (!service.recovery().running() || !expiry->isActive()) return;
+        // Fired as the single-shot timer would, once the scan is running.
+        unlocked_at_expiry = f.wallet_model.getEncryptionStatus() == WalletModel::Unlocked;
+        expiry->stop();
+        QMetaObject::invokeMethod(expiry, "timeout", Qt::DirectConnection);
+    });
+    platform::Identity mine;
+    mine.id = platform_test::IdentifierFromByte(0x1D);
+    QVERIFY(f.wallet_model.setWalletLocked(false, "passphrase"));
+    for (const auto& spec : IdentityFlow::RegistrationKeys()) {
+        platform::IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, spec.id})};
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    }
+    QVERIFY(f.wallet_model.setWalletLocked(true));
+    Drain();
+    fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    fake->names_of_identity.push_back(platform_test::Absent<platform::Paged<platform::DpnsName>>());
+    service.recovery().unlockAndStart();
+    Drain();
+    disconnect(expire);
+    QVERIFY(unlocked_at_expiry);
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{6});
+    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
+    QVERIFY(!service.recovery().running());
+    QVERIFY(service.recovery().outcome() == PlatformRecovery::Outcome::NEEDS_UNLOCK);
+    QVERIFY(service.readRecord(platform::records::IDENTITY).empty());
+
+    // Within the unlock the whole scan runs, and the wallet is locked again
+    // when it ends.
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    service.recovery().unlockAndStart();
+    Drain();
+    QVERIFY(service.recovery().outcome() == PlatformRecovery::Outcome::NO_IDENTITY);
+    QVERIFY(f.wallet_model.getEncryptionStatus() == WalletModel::Locked);
+    QVERIFY(!expiry->isActive());
+}
+
+//! Contacts skipped for a reason a later run can resolve (an unanswered
+//! page) keep the contact phase owed: the next start resumes it for the
+//! restored identity instead of giving up until the records are wiped.
+void PlatformTests::recoveryResumesOwedContacts()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    PlatformService::Enable(f.wallet_model.wallet());
+    auto client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* fake{client.get()};
+    PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+    QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+
+    platform::Identity mine;
+    mine.id = platform_test::IdentifierFromByte(0x1D);
+    for (const auto& spec : IdentityFlow::RegistrationKeys()) {
+        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, spec.id})};
+        platform::IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    }
+    fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    fake->names_of_identity.push_back(platform_test::Absent<platform::Paged<platform::DpnsName>>());
+    // The first contact page is unanswered: the identity is restored, the
+    // contacts are owed.
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    QVERIFY(finished.first().at(0).toBool());
+    QVERIFY(service.myIdentityId() == std::optional{mine.id});
+    QVERIFY(!service.readRecord(platform::records::RECOVERY_PENDING).empty());
+
+    // The next start resumes the contact phase with the stored identity.
+    Counterparty bob;
+    const int64_t our_request_time{1'598'000'000};
+    platform::Paged<platform::ContactRequest> incoming, outgoing;
+    incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), mine.id, 2, 3, /*created_at=*/1'000));
+    platform::ContactRequest ours;
+    ours.owner_id = mine.id;
+    ours.to_user_id = bob.id;
+    ours.created_at = static_cast<uint64_t>(our_request_time) * 1000;
+    outgoing.items.push_back(ours);
+    fake->contact_requests.push_back(platform_test::Ok(incoming));
+    fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    service.recovery().maybeStart();
+    for (int i = 0; i < 100 && finished.size() < 2; ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QTest::qWait(20);
+    }
+    QCOMPARE(finished.size(), 2);
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{6}); // no second identity scan
+    QVERIFY(service.isEstablished(QString::fromStdString(HexStr(bob.id))));
+    QVERIFY(service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(finished.size(), 2);
+}
+
+//! A contact list longer than one batch, or one an unanswered page cut off,
+//! is resumed where it stopped rather than read from its start again: the
+//! requests we sent are read to their end first, then the ones we received
+//! a batch at a time, and recovery is done once both were read to their end.
+void PlatformTests::recoveryResumesContactsFromCursor()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    PlatformService::Enable(f.wallet_model.wallet());
+    auto client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* fake{client.get()};
+    PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+    QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+    const auto wait_finished = [&finished](int count) {
+        for (int i = 0; i < 100 && finished.size() < count; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+            QTest::qWait(20);
+        }
+        return finished.size() == count;
+    };
+    const auto starts = [fake](const std::string& method) {
+        std::vector<platform::Identifier> out;
+        for (const auto& call : fake->calls) {
+            if (call.method == method) out.push_back(call.start_after);
+        }
+        return out;
+    };
+    const platform::Identifier first{};
+    const platform::Identifier second_batch{platform_test::IdentifierFromByte(0x01)};
+    const platform::Identifier second_page{platform_test::IdentifierFromByte(0x0B)};
+
+    platform::Identity mine;
+    mine.id = platform_test::IdentifierFromByte(0x1D);
+    for (const auto& spec : IdentityFlow::RegistrationKeys()) {
+        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, spec.id})};
+        platform::IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    }
+    fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    fake->names_of_identity.push_back(platform_test::Absent<platform::Paged<platform::DpnsName>>());
+    // A full batch of received requests, bob's among them, with more after it.
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    platform::Paged<platform::ContactRequest> full;
+    full.items.resize(1000);
+    full.items.back() = bob.requestTo(f.wallet_model.wallet(), mine.id, 2, 3, /*created_at=*/1'000);
+    full.has_more = true;
+    full.next_start_after = second_batch;
+    // Our request to bob on the first page of ours; the second page is
+    // unanswered (nothing scripted).
+    platform::Paged<platform::ContactRequest> sent;
+    platform::ContactRequest ours;
+    ours.owner_id = mine.id;
+    ours.to_user_id = bob.id;
+    ours.created_at = uint64_t{1'598'000'000} * 1000;
+    sent.items.push_back(ours);
+    sent.has_more = true;
+    sent.next_start_after = second_page;
+    fake->contact_requests.push_back(platform_test::Ok(full));
+    fake->contact_requests.push_back(platform_test::Ok(sent));
+    service.recovery().maybeStart();
+    QVERIFY(wait_finished(1));
+    QVERIFY(finished.last().at(0).toBool());
+    QVERIFY(!service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QVERIFY(service.sentRequestTo(bob_hex));
+    QVERIFY(!service.isEstablished(bob_hex));
+    QVERIFY(starts("getContactRequests/from_me") == (std::vector{first, second_page}));
+
+    // The next run reads ours on from where they stopped, then matches the
+    // received batch, which no run matched yet, against them; the batch
+    // after it is unanswered.
+    fake->contact_requests.push_back(platform_test::Ok(full));
+    fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    service.recovery().maybeStart();
+    QVERIFY(wait_finished(2));
+    QVERIFY(service.isEstablished(bob_hex));
+    QVERIFY(!service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QVERIFY(starts("getContactRequests/from_me") == (std::vector{first, second_page, second_page}));
+    QVERIFY(starts("getContactRequests/to_me") == (std::vector{first, first, second_batch}));
+
+    // The run after that reads only what comes after the matched batch; both
+    // directions read to their end, recovery is done.
+    platform::Paged<platform::ContactRequest> rest;
+    rest.items.resize(1);
+    fake->contact_requests.push_back(platform_test::Ok(rest));
+    service.recovery().maybeStart();
+    QVERIFY(wait_finished(3));
+    QVERIFY(finished.last().at(0).toBool());
+    QVERIFY(service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QVERIFY(starts("getContactRequests/to_me") == (std::vector{first, first, second_batch, second_batch}));
+    QCOMPARE(fake->countCalls("getContactRequests/from_me"), size_t{3});
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{6});
+    QVERIFY(service.isEstablished(bob_hex));
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(finished.size(), 3);
+}
+
+//! A rescan that fails, here because the node pruned the blocks it reads,
+//! keeps the restored contacts' payment history owed and paying them by
+//! username off. The DashPay page says why, with where the rescan starts and
+//! how to get past it, and its Retry runs the rescan again, which a start
+//! by itself does not.
+void PlatformTests::recoveryRescanFailureIsShownWithRetry()
+{
+    PageFixture f{m_node, RegisteredRecord()};
+    QVERIFY(f.models.ok);
+    PlatformService& service{f.service()};
+    Counterparty bob;
+    const std::string bob_hex{HexStr(bob.id)};
+    wallet::CompactXpub bob_compact;
+    QVERIFY(wallet::CompactXpubBytes(bob.xpub, bob_compact));
+    service.writeRecord(platform::records::CONTACT_KEY_PREFIX + bob_hex, {bob_compact.begin(), bob_compact.end()});
+    service.writeRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex, platform::EncodeContactOutRecord(GetTime()));
+    service.writeRecord(platform::records::RECOVERY_PENDING, {1});
+    int pruned_file{0};
+    {
+        LOCK(cs_main);
+        const CBlockIndex* tip{f.chain.m_node.chainman->ActiveChain().Tip()};
+        pruned_file = tip->GetBlockPos().nFile;
+        f.chain.m_node.chainman->m_blockman.PruneOneBlockFile(pruned_file);
+        f.chain.m_node.chainman->m_blockman.m_have_pruned = true;
+    }
+    node::UnlinkPrunedFiles({pruned_file});
+
+    QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+    const auto wait_finished = [&finished](int count) {
+        for (int i = 0; i < 100 && finished.size() < count; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+            QTest::qWait(20);
+        }
+        return finished.size() == count;
+    };
+    const auto shown = [&f](const QString& text) {
+        for (const auto* label : f.page.findChildren<QLabel*>()) {
+            if (label->isVisibleTo(&f.page) && label->text().contains(text)) return true;
+        }
+        return false;
+    };
+    const auto retry = [&f]() -> QPushButton* {
+        for (auto* button : f.page.findChildren<QPushButton*>()) {
+            if (button->isVisibleTo(&f.page) && button->text() == "Retry") return button;
+        }
+        return nullptr;
+    };
+    QVERIFY(!shown("wallet rescan"));
+    QVERIFY(retry() == nullptr);
+
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    f.fake->contact_requests.push_back(platform_test::Absent<platform::Paged<platform::ContactRequest>>());
+    service.recovery().maybeStart();
+    QVERIFY(wait_finished(1));
+    const auto& failure{service.recovery().rescanFailure()};
+    QVERIFY(failure.has_value());
+    QVERIFY(failure->status == wallet::RescanStatus::FAILURE);
+    QVERIFY(failure->pruned_from.has_value());
+    QVERIFY(!service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QVERIFY(shown("Paying contacts by username stays off"));
+    QVERIFY(shown(QString("wallet rescan from block %1, but this node has pruned").arg(*failure->pruned_from)));
+    QVERIFY(shown("-reindex"));
+    QVERIFY(retry() != nullptr);
+
+    // Paying bob by username says why it is off.
+    platform::DpnsName bob_name;
+    bob_name.label = "Bob";
+    bob_name.normalized_label = "b0b";
+    bob_name.identity = bob.id;
+    QSignalSpy resolved(&service, &PlatformService::paymentAddressResolved);
+    f.fake->resolve_name.push_back(platform_test::Ok(bob_name));
+    service.resolvePaymentAddress("Bob");
+    Drain();
+    QCOMPARE(resolved.size(), 1);
+    QVERIFY(resolved.last().at(2).toString().isEmpty());
+    QVERIFY(resolved.last().at(3).toString().contains("wallet rescan that did not finish"));
+    QVERIFY(resolved.last().at(4).toString().contains("pruned"));
+
+    // A start by itself leaves the failed rescan for the user; Retry runs it
+    // again, without reading the contacts again.
+    service.recovery().maybeStart();
+    Drain();
+    QCOMPARE(finished.size(), 1);
+    retry()->click();
+    QVERIFY(wait_finished(2));
+    QVERIFY(service.recovery().rescanFailure().has_value());
+    QVERIFY(shown("this node has pruned"));
+    QVERIFY(retry() != nullptr);
+    QCOMPARE(f.fake->countCalls("getContactRequests/to_me"), size_t{1});
+}
+
+//! A restored contact's payment history is owed until a wallet rescan
+//! succeeds: one that cannot run keeps recovery pending and paying by
+//! username waiting, and the next start scans again for the contacts
+//! restored before, then rebuilds their cursors from what the scan found.
+void PlatformTests::recoveryOwesPaymentHistoryUntilRescanSucceeds()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    PlatformService::Enable(f.wallet_model.wallet());
+    auto client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* fake{client.get()};
+    PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+    QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+    const auto wait_finished = [&finished](int count) {
+        for (int i = 0; i < 100 && finished.size() < count; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+            QTest::qWait(20);
+        }
+        return finished.size() == count;
+    };
+
+    platform::Identity mine;
+    mine.id = platform_test::IdentifierFromByte(0x1D);
+    for (const auto& spec : IdentityFlow::RegistrationKeys()) {
+        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, spec.id})};
+        platform::IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    }
+    fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    fake->names_of_identity.push_back(platform_test::Absent<platform::Paged<platform::DpnsName>>());
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const auto script_contacts = [&] {
+        platform::Paged<platform::ContactRequest> incoming, outgoing;
+        incoming.items.push_back(bob.requestTo(f.wallet_model.wallet(), mine.id, 2, 3, /*created_at=*/1'000));
+        platform::ContactRequest ours;
+        ours.owner_id = mine.id;
+        ours.to_user_id = bob.id;
+        ours.created_at = uint64_t{1'598'000'000} * 1000;
+        outgoing.items.push_back(ours);
+        fake->contact_requests.push_back(platform_test::Ok(incoming));
+        fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    };
+    script_contacts();
+    fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+
+    // In blocks the wallet has not scanned, this seed received coins and
+    // paid all of them to bob's second address.
+    const auto received_at{f.wallet->GetNewDestination("")};
+    QVERIFY(received_at);
+    const CScript miner{GetScriptForRawPubKey(f.chain.coinbaseKey.GetPubKey())};
+    const CMutableTransaction received{
+        f.chain.CreateValidMempoolTransaction(f.chain.m_coinbase_txns[0], 0, /*input_height=*/1, f.chain.coinbaseKey,
+                                              GetScriptForDestination(*received_at), 10 * COIN, /*submit=*/false)};
+    f.chain.CreateAndProcessBlock({received}, miner);
+    CTxDestination paid_to_bob;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(bob.xpub, 1, paid_to_bob));
+    CMutableTransaction payment;
+    payment.vin.emplace_back(COutPoint{received.GetHash(), 0});
+    payment.vout.emplace_back(9 * COIN, GetScriptForDestination(paid_to_bob));
+    std::map<int, bilingual_str> sign_errors;
+    QVERIFY(f.wallet->SignTransaction(payment, {{payment.vin[0].prevout, Coin{received.vout[0], 101, false}}},
+                                      SIGHASH_ALL, sign_errors));
+    f.chain.CreateAndProcessBlock({payment}, miner);
+    QCOMPARE(WITH_LOCK(cs_main, return f.chain.m_node.chainman->ActiveChain().Height()), 102);
+    QVERIFY(WITH_LOCK(f.wallet->cs_wallet, return f.wallet->GetWalletTx(payment.GetHash())) == nullptr);
+
+    // The scan cannot run (another one holds the wallet): bob is restored,
+    // his payment history is not.
+    {
+        wallet::WalletRescanReserver busy{*f.wallet};
+        QVERIFY(busy.reserve());
+        service.recovery().maybeStart();
+        QVERIFY(wait_finished(1));
+    }
+    QVERIFY(finished.first().at(0).toBool());
+    QVERIFY(service.isEstablished(bob_hex));
+    QVERIFY(!service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QCOMPARE(platform::DecodePaymentCursor(
+                 service.readRecord(platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex.toStdString())),
+             0U);
+    platform::DpnsName bob_name;
+    bob_name.label = "Bob";
+    bob_name.normalized_label = "b0b";
+    bob_name.identity = bob.id;
+    QSignalSpy resolved(&service, &PlatformService::paymentAddressResolved);
+    fake->resolve_name.push_back(platform_test::Ok(bob_name));
+    service.resolvePaymentAddress("Bob");
+    Drain();
+    QCOMPARE(resolved.size(), 1);
+    QVERIFY(resolved.last().at(2).toString().isEmpty());
+    QVERIFY(resolved.last().at(3).toString().contains("restoring"));
+
+    // The next start scans again for bob and continues after the payment
+    // the scan found, which reads as a payment to him.
+    script_contacts();
+    service.recovery().maybeStart();
+    QVERIFY(wait_finished(2));
+    QVERIFY(finished.last().at(0).toBool());
+    QCOMPARE(fake->countCalls("getIdentityByPublicKeyHash"), size_t{6});
+    QVERIFY(WITH_LOCK(f.wallet->cs_wallet, return f.wallet->GetWalletTx(payment.GetHash())) != nullptr);
+    QVERIFY(service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QCOMPARE(platform::DecodePaymentCursor(
+                 service.readRecord(platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex.toStdString())),
+             2U);
+    std::string paid_label;
+    QVERIFY(f.wallet_model.wallet().getAddress(paid_to_bob, &paid_label, nullptr, nullptr));
+    QCOMPARE(QString::fromStdString(paid_label), service.contactAddressLabel(bob_hex));
+    CTxDestination next;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(bob.xpub, 2, next));
+    fake->resolve_name.push_back(platform_test::Ok(bob_name));
+    service.resolvePaymentAddress("Bob");
+    Drain();
+    QCOMPARE(resolved.size(), 2);
+    QCOMPARE(resolved.last().at(2).toString(), QString::fromStdString(EncodeDestination(next)));
+}
+
+//! An identity found at index 0 is restored as REGISTERED with its name
+//! (gathered one page per request), and only mutual contact requests are
+//! restored, with keychain birth times taken from our own requests. Every
+//! request we sent is remembered, and past payments to a restored contact
+//! are labelled as payments to them.
+void PlatformTests::recoveryRestoresIdentityAndPagesContacts()
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    PlatformService::Enable(f.wallet_model.wallet());
+    auto client{std::make_unique<FakePlatformClient>()};
+    FakePlatformClient* fake{client.get()};
+    PlatformService service{f.wallet_model, f.models.client, std::move(client)};
+    QSignalSpy finished(&service.recovery(), &PlatformRecovery::finished);
+
+    platform::Identity mine;
+    mine.id = platform_test::IdentifierFromByte(0x1D);
+    for (const auto& spec : IdentityFlow::RegistrationKeys()) {
+        const auto pubkey{f.wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, spec.id})};
+        platform::IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        mine.public_keys.push_back(key);
+    }
+    fake->identities_by_pubkey_hash.push_back(platform_test::Ok(mine));
+    for (int i = 0; i < 5; ++i) {
+        fake->identities_by_pubkey_hash.push_back(platform_test::Absent<platform::Identity>());
+    }
+    // Two pages of names: the lexicographically smallest normalized label wins.
+    platform::Paged<platform::DpnsName> names1, names2;
+    platform::DpnsName zed, alice;
+    zed.label = "Zed";
+    zed.normalized_label = "zed";
+    alice.label = "Alice";
+    alice.normalized_label = "a11ce";
+    names1.items.push_back(zed);
+    names1.has_more = true;
+    names1.next_start_after = platform_test::IdentifierFromByte(0x77);
+    names2.items.push_back(alice);
+    fake->names_of_identity.push_back(platform_test::Ok(names1));
+    fake->names_of_identity.push_back(platform_test::Ok(names2));
+
+    // Incoming: bob (mutual) and carol (not mutual), both sender-authored in
+    // 1970. Outgoing: our request to bob, whose time becomes the keychain's
+    // birth. Both incoming requests must be decryptable to us.
+    Counterparty bob;
+    Counterparty carol;
+    carol.id = platform_test::IdentifierFromByte(0xCA);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    // Earlier than the fixture's mock time, so a later lookup with "now"
+    // cannot lower it; later than the senders' 1970 document times.
+    const int64_t our_request_time{1'598'000'000};
+    platform::Paged<platform::ContactRequest> incoming, outgoing;
+    incoming.items.push_back(bob.requestTo(wallet, mine.id, 2, 3, /*created_at=*/1'000));
+    incoming.items.push_back(carol.requestTo(wallet, mine.id, 2, 3, /*created_at=*/1'000));
+    platform::ContactRequest ours;
+    ours.owner_id = mine.id;
+    ours.to_user_id = bob.id;
+    ours.created_at = static_cast<uint64_t>(our_request_time) * 1000;
+    outgoing.items.push_back(ours);
+    // An unanswered request we sent to dave.
+    const platform::Identifier dave_id{platform_test::IdentifierFromByte(0xDA)};
+    const QString dave_hex{QString::fromStdString(HexStr(dave_id))};
+    platform::ContactRequest to_dave;
+    to_dave.owner_id = mine.id;
+    to_dave.to_user_id = dave_id;
+    to_dave.created_at = static_cast<uint64_t>(our_request_time + 60) * 1000;
+    outgoing.items.push_back(to_dave);
+    fake->contact_requests.push_back(platform_test::Ok(incoming));
+    fake->contact_requests.push_back(platform_test::Ok(outgoing));
+    fake->identities.push_back(platform_test::Ok(bob.identity(2, Purpose::ENCRYPTION)));
+    // This seed paid bob's second DashPay address before (from another
+    // wallet, say): that payment is in the wallet, unlabelled.
+    CTxDestination paid_to_bob;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(bob.xpub, 1, paid_to_bob));
+    {
+        CMutableTransaction payment;
+        payment.vin.emplace_back(COutPoint{f.chain.m_coinbase_txns.back()->GetHash(), 0});
+        payment.vout.emplace_back(COIN, GetScriptForDestination(paid_to_bob));
+        LOCK(f.wallet->cs_wallet);
+        f.wallet->AddToWallet(MakeTransactionRef(payment), wallet::TxStateInactive{});
+    }
+
+    service.recovery().maybeStart();
+    for (int i = 0; i < 100 && finished.isEmpty(); ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QTest::qWait(20);
+    }
+    QCOMPARE(finished.size(), 1);
+    QVERIFY(finished.first().at(0).toBool());
+    QCOMPARE(service.myUsername(), QString("Alice"));
+    QVERIFY(service.myIdentityId() == std::optional{mine.id});
+    QCOMPARE(service.identityFlow().record().auth_key_id, 1U);
+    QCOMPARE(service.identityFlow().record().encryption_key_id, 2U);
+    QCOMPARE(service.identityFlow().record().decryption_key_id, 3U);
+    QVERIFY(service.readRecord(platform::records::RECOVERY_PENDING).empty());
+    QCOMPARE(fake->countCalls("namesOfIdentity"), size_t{2});
+    // The second page continued from the first page's cursor.
+    std::vector<platform::Identifier> name_cursors;
+    for (const auto& call : fake->calls) {
+        if (call.method == "namesOfIdentity") name_cursors.push_back(call.start_after);
+    }
+    QCOMPARE(name_cursors.size(), size_t{2});
+    QVERIFY(name_cursors[0] == platform::Identifier{});
+    QVERIFY(name_cursors[1] == platform_test::IdentifierFromByte(0x77));
+
+    // Bob is established, carol is not; bob's keychain was born at the
+    // time of OUR request, not the sender-authored 1970 timestamp.
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    const QString carol_hex{QString::fromStdString(HexStr(carol.id))};
+    QVERIFY(service.isEstablished(bob_hex));
+    QVERIFY(!service.isEstablished(carol_hex));
+    QCOMPARE(platform::DecodeContactOutRecord(
+                 service.readRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex.toStdString())),
+             std::optional<int64_t>{our_request_time});
+    const uint256 my_hash{Span{mine.id.data(), mine.id.size()}};
+    const uint256 bob_hash{Span{bob.id.data(), bob.id.size()}};
+    const auto keychain{
+        wallet.ensureFriendshipReceivingKeychain(wallet::FriendshipKeychainRequest{0, my_hash, bob_hash, GetTime()})};
+    QVERIFY(keychain);
+    CTxDestination first;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(keychain.value, 0, first));
+    {
+        LOCK(f.wallet->cs_wallet);
+        bool found{false};
+        for (auto* spk_man : f.wallet->GetScriptPubKeyMans(GetScriptForDestination(first))) {
+            auto* desc{dynamic_cast<wallet::DescriptorScriptPubKeyMan*>(spk_man)};
+            if (!desc) continue;
+            LOCK(desc->cs_desc_man);
+            QCOMPARE(static_cast<int64_t>(desc->GetWalletDescriptor().creation_time), our_request_time);
+            found = true;
+        }
+        QVERIFY(found);
+    }
+    // The payment cursor continues after the payment found, which now reads
+    // as a payment to bob.
+    QCOMPARE(platform::DecodePaymentCursor(
+                 service.readRecord(platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex.toStdString())),
+             2U);
+    std::string paid_label;
+    std::string paid_purpose;
+    QVERIFY(wallet.getAddress(paid_to_bob, &paid_label, nullptr, &paid_purpose));
+    QCOMPARE(QString::fromStdString(paid_label), service.contactAddressLabel(bob_hex));
+    QCOMPARE(paid_purpose, std::string{"send"});
+    // A request we sent that was never answered is remembered too, so Add
+    // contact does not offer to send it again.
+    QVERIFY(service.sentRequestTo(dave_hex));
+    QVERIFY(!service.isEstablished(dave_hex));
+    QCOMPARE(platform::DecodeContactOutRecord(
+                 service.readRecord(platform::records::CONTACT_OUT_PREFIX + dave_hex.toStdString())),
+             std::optional<int64_t>{our_request_time + 60});
+    QVERIFY(!service.sentRequestTo(carol_hex));
+}
+
+//! Sending to a username resolves it through a proved read and shows the
+//! proved DPNS label (as registered, not its homograph-safe normalized
+//! form) together with the derived payment address; a profile
+//! display name is never part of the decision. The address is reserved and
+//! its cursor only advances when the payment is sent.
+void PlatformTests::sendToUsernameShowsVerifiedDestination()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    const QString bob_hex{QString::fromStdString(HexStr(bob.id))};
+    // Bob is an established contact: his xpub and our confirmed request.
+    wallet::CompactXpub bob_compact;
+    QVERIFY(wallet::CompactXpubBytes(bob.xpub, bob_compact));
+    f.service->writeRecord(platform::records::CONTACT_KEY_PREFIX + bob_hex.toStdString(),
+                           {bob_compact.begin(), bob_compact.end()});
+    f.service->writeRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex.toStdString(),
+                           platform::EncodeContactOutRecord(GetTime()));
+    f.service->writeRecord(platform::records::CONTACT_DISPLAY_NAME_PREFIX + bob_hex.toStdString(),
+                           {'a', 'l', 'i', 'c', 'e'}); // a misleading profile name
+
+    SendCoinsDialog dialog;
+    dialog.setModel(&f.wallet_model);
+    dialog.setPlatformService(f.service.get());
+    auto* entry{dialog.findChild<SendCoinsEntry*>()};
+    QVERIFY(entry != nullptr);
+    auto* pay_to{entry->findChild<QValidatedLineEdit*>("payTo")};
+    QVERIFY(pay_to != nullptr);
+
+    // The start of a Dash address (Base58 only) is never looked up while
+    // typing: what the user types stays between them and their node.
+    pay_to->setText("XabcDEF");
+    QTest::qWait(600);
+    Drain();
+    QCOMPARE(f.fake->countCalls("resolveName"), size_t{0});
+    // Leaving the entry with a label that could have been an address looks
+    // it up once.
+    f.fake->resolve_name.push_back(platform_test::Absent<platform::DpnsName>());
+    QMetaObject::invokeMethod(entry, "on_payTo_editingFinished");
+    Drain();
+    QCOMPARE(f.fake->countCalls("resolveName"), size_t{1});
+
+    // An unknown username (one no address starts with: it has a zero) is
+    // looked up while typing and refused with a reason; no address is shown.
+    f.fake->resolve_name.push_back(platform_test::Absent<platform::DpnsName>());
+    pay_to->setText("n0body");
+    QTest::qWait(600);
+    Drain();
+    QCOMPARE(pay_to->text(), QString("n0body"));
+    QVERIFY(!pay_to->actions().isEmpty());
+    QVERIFY(pay_to->actions().last()->toolTip().contains("No DashPay user"));
+    QVERIFY(entry->findChild<QLabel*>("payToStatus")->text().contains("No DashPay user"));
+
+    // One's own username is not a contact that is missing: it says whose
+    // it is, and no address is shown.
+    platform::DpnsName own;
+    own.label = "alice";
+    own.normalized_label = "a11ce";
+    own.identity = f.my_id;
+    f.fake->resolve_name.push_back(platform_test::Ok(own));
+    pay_to->setText("alice");
+    QMetaObject::invokeMethod(entry, "on_payTo_editingFinished");
+    Drain();
+    QCOMPARE(pay_to->text(), QString("alice"));
+    QVERIFY(entry->findChild<QLabel*>("payToStatus")->text().contains("your own DashPay username"));
+    QVERIFY(!entry->findChild<QLabel*>("payToStatus")->text().contains("not contacts"));
+
+    // Bob resolves: the entry becomes the derived address and the status
+    // shows his DPNS label and the address, not the profile name.
+    platform::DpnsName name;
+    name.label = "Bob";
+    name.normalized_label = "b0b";
+    name.identity = bob.id;
+    f.fake->resolve_name.push_back(platform_test::Ok(name));
+    pay_to->setText("Bob"); // Base58 letters only: looked up when the entry is left
+    QMetaObject::invokeMethod(entry, "on_payTo_editingFinished");
+    Drain();
+    CTxDestination expected;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(bob.xpub, 0, expected));
+    const QString expected_address{QString::fromStdString(EncodeDestination(expected))};
+    QCOMPARE(pay_to->text(), expected_address);
+    const QString status{pay_to->actions().last()->toolTip()};
+    QVERIFY(status.contains("“Bob”"));
+    QVERIFY(!status.contains("b0b"));
+    QVERIFY(status.contains(expected_address));
+    QVERIFY(!status.contains("alice"));
+    // The derived address carries the contact's label for history.
+    std::string label;
+    QVERIFY(f.wallet_model.wallet().getAddress(expected, &label, nullptr, nullptr));
+    QVERIFY(QString::fromStdString(label).contains("DashPay"));
+
+    // The cursor moves only when the send is committed, and only once.
+    const std::string cursor_key{platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex.toStdString()};
+    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_key)), 0U);
+    f.fake->resolve_name.push_back(platform_test::Ok(name));
+    pay_to->setText("Bob");
+    QMetaObject::invokeMethod(entry, "on_payTo_editingFinished");
+    Drain();
+    f.service->commitPaymentAddress(expected_address);
+    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_key)), 1U);
+    f.service->commitPaymentAddress(expected_address);
+    QCOMPARE(platform::DecodePaymentCursor(f.service->readRecord(cursor_key)), 1U);
+}
+
+//! The label a resolved contact filled in follows that contact only: the
+//! next contact resolved gets their own, while a label the user typed
+//! stays.
+void PlatformTests::sendToUsernameReplacesContactLabel()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    Counterparty bob;
+    Counterparty erin;
+    erin.id = platform_test::IdentifierFromByte(0xE1);
+    for (const auto& [contact, username] : {std::pair{&bob, std::string{"bob"}}, std::pair{&erin, std::string{"erin"}}}) {
+        const std::string hex{HexStr(contact->id)};
+        wallet::CompactXpub compact;
+        QVERIFY(wallet::CompactXpubBytes(contact->xpub, compact));
+        f.service->writeRecord(platform::records::CONTACT_KEY_PREFIX + hex, {compact.begin(), compact.end()});
+        f.service->writeRecord(platform::records::CONTACT_OUT_PREFIX + hex, platform::EncodeContactOutRecord(GetTime()));
+        f.service->writeRecord(platform::records::CONTACT_USERNAME_PREFIX + hex, {username.begin(), username.end()});
+    }
+
+    SendCoinsDialog dialog;
+    dialog.setModel(&f.wallet_model);
+    dialog.setPlatformService(f.service.get());
+    auto* entry{dialog.findChild<SendCoinsEntry*>()};
+    QVERIFY(entry != nullptr);
+    auto* pay_to{entry->findChild<QValidatedLineEdit*>("payTo")};
+    auto* label{entry->findChild<QLineEdit*>("addAsLabel")};
+    QVERIFY(pay_to != nullptr && label != nullptr);
+    const auto resolve{[&](const Counterparty& contact, const QString& username) {
+        platform::DpnsName name;
+        name.label = username.toStdString();
+        name.normalized_label = platform::helpers::NormalizeLabel(name.label);
+        name.identity = contact.id;
+        f.fake->resolve_name.push_back(platform_test::Ok(name));
+        pay_to->setText(username);
+        QMetaObject::invokeMethod(entry, "on_payTo_editingFinished");
+        Drain();
+    }};
+
+    resolve(bob, "bob");
+    QVERIFY(label->text().startsWith("bob"));
+    resolve(erin, "erin");
+    QVERIFY(label->text().startsWith("erin"));
+    // A typed label is the user's, whoever the recipient becomes.
+    label->setText("Rent");
+    resolve(bob, "bob");
+    QCOMPARE(label->text(), QString("Rent"));
+}
+
+//! A username is looked up when the "@" picker or "Pay this contact" fills
+//! the field in and when the field loses focus, not only on Return; and
+//! Send on a username without a payment address says why (starting the
+//! lookup if none ran) instead of failing silently.
+void PlatformTests::sendToUsernameResolvesWithoutReturn()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    SendCoinsDialog dialog;
+    dialog.setModel(&f.wallet_model);
+    dialog.setPlatformService(f.service.get());
+    auto* entry{dialog.findChild<SendCoinsEntry*>()};
+    auto* pay_to{entry->findChild<QValidatedLineEdit*>("payTo")};
+    QVERIFY(pay_to != nullptr);
+
+    // Filling the field in (the picker, "Pay this contact") looks it up,
+    // also a name the typing pause would otherwise hold back.
+    f.fake->resolve_name.push_back(platform_test::Absent<platform::DpnsName>());
+    dialog.setAddress("Carol");
+    Drain();
+    QCOMPARE(f.fake->countCalls("resolveName"), size_t{1});
+    QCOMPARE(pay_to->text(), QString("Carol"));
+
+    // Focus leaving the field looks it up.
+    pay_to->setText("Bob");
+    f.fake->resolve_name.push_back(platform_test::Absent<platform::DpnsName>());
+    QFocusEvent focus_out{QEvent::FocusOut, Qt::ActiveWindowFocusReason};
+    QCoreApplication::sendEvent(pay_to, &focus_out);
+    Drain();
+    QCOMPARE(f.fake->countCalls("resolveName"), size_t{2});
+
+    // Send explains a refused username.
+    QString shown;
+    connect(&dialog, &SendCoinsDialog::message, &dialog,
+            [&](const QString&, const QString& message, unsigned int) { shown = message; });
+    QMetaObject::invokeMethod(&dialog, "sendButtonClicked", Q_ARG(bool, false));
+    QVERIFY(shown.contains("Bob"));
+    QVERIFY(shown.contains("No DashPay user"));
+}
+
+//! A contact's payment address is used once the payment leaves the send
+//! dialog, also as an unsigned PSBT that may be broadcast elsewhere; a
+//! declined confirmation keeps it for the next try.
+void PlatformTests::sendToUsernameCommitsHandedOutPsbt()
+{
+    IdentityFixture f{m_node, "alice", /*registered=*/true};
+    // One block more, and the first coinbase coin is mature.
+    f.chain.CreateAndProcessBlock({}, GetScriptForRawPubKey(f.chain.coinbaseKey.GetPubKey()));
+    SpendableCoin(f);
+    f.wallet_model.pollBalanceChanged();
+    Counterparty bob;
+    const std::string bob_hex{HexStr(bob.id)};
+    wallet::CompactXpub bob_compact;
+    QVERIFY(wallet::CompactXpubBytes(bob.xpub, bob_compact));
+    f.service->writeRecord(platform::records::CONTACT_KEY_PREFIX + bob_hex, {bob_compact.begin(), bob_compact.end()});
+    f.service->writeRecord(platform::records::CONTACT_OUT_PREFIX + bob_hex, platform::EncodeContactOutRecord(GetTime()));
+    const std::string cursor_key{platform::records::CONTACT_PAY_INDEX_PREFIX + bob_hex};
+    const auto cursor{[&] { return platform::DecodePaymentCursor(f.service->readRecord(cursor_key)); }};
+    const auto address_at{[&bob](uint32_t index) {
+        CTxDestination destination;
+        const bool derived{wallet::DeriveFriendshipPaymentDestination(bob.xpub, index, destination)};
+        assert(derived);
+        return QString::fromStdString(EncodeDestination(destination));
+    }};
+
+    OptionsModel& options{*f.wallet_model.getOptionsModel()};
+    const bool psbt_controls_before{options.getEnablePSBTControls()};
+    options.setOption(OptionsModel::EnablePSBTControls, true);
+    SendCoinsDialog dialog;
+    dialog.setModel(&f.wallet_model);
+    dialog.setPlatformService(f.service.get());
+    // The (only) entry: a send that clears the dialog replaces it.
+    const auto entry_widget{[&dialog] {
+        return qobject_cast<SendCoinsEntry*>(dialog.findChild<QVBoxLayout*>("entries")->itemAt(0)->widget());
+    }};
+    // Fill it with Bob's payment address and an amount.
+    const auto pay_bob{[&]() -> QString {
+        auto* entry{entry_widget()};
+        auto* pay_to{entry->findChild<QValidatedLineEdit*>("payTo")};
+        platform::DpnsName name;
+        name.label = "bob";
+        name.normalized_label = platform::helpers::NormalizeLabel(name.label);
+        name.identity = bob.id;
+        f.fake->resolve_name.push_back(platform_test::Ok(name));
+        pay_to->setText("bob");
+        QMetaObject::invokeMethod(entry, "on_payTo_editingFinished");
+        Drain();
+        entry->findChild<BitcoinAmountField*>("payAmount")->setValue(COIN / 10);
+        return pay_to->text();
+    }};
+    // Press `choices` in the message boxes Send opens, in order, also a
+    // button the confirmation's countdown still holds back.
+    const auto send{[&dialog](QList<QMessageBox::StandardButton> choices) {
+        auto* timer{new QTimer};
+        QObject::connect(timer, &QTimer::timeout, timer, [timer, choices]() mutable {
+            for (auto* widget : QApplication::topLevelWidgets()) {
+                auto* box{qobject_cast<QMessageBox*>(widget)};
+                if (!box || !box->isVisible() || choices.isEmpty()) continue;
+                if (auto* button{box->button(choices.front())}) {
+                    choices.pop_front();
+                    button->setEnabled(true);
+                    button->click();
+                }
+            }
+            if (choices.isEmpty()) timer->deleteLater();
+        });
+        timer->start(10);
+        QMetaObject::invokeMethod(&dialog, "sendButtonClicked", Q_ARG(bool, false));
+    }};
+
+    // Declined: the entry keeps the address and the cursor stays.
+    QCOMPARE(pay_bob(), address_at(0));
+    send({QMessageBox::Cancel});
+    QCOMPARE(cursor(), 0U);
+    QCOMPARE(entry_widget()->findChild<QValidatedLineEdit*>("payTo")->text(), address_at(0));
+    QCOMPARE(pay_bob(), address_at(0));
+
+    // "Create Unsigned" hands the payment out (the PSBT is on the clipboard
+    // even when not saved): the address is used.
+    send({QMessageBox::Save, QMessageBox::Discard});
+    QCOMPARE(cursor(), 1U);
+    QCOMPARE(pay_bob(), address_at(1));
+    options.setOption(OptionsModel::EnablePSBTControls, psbt_controls_before);
+}
+
+//! The recipient field accepts DPNS label candidates while typing (Base58
+//! entry validation would drop 0, I, O and l) without accepting anything a
+//! username cannot be.
+void PlatformTests::recipientEntryValidator()
+{
+    DashPayRecipientEntryValidator validator{nullptr, true};
+    int pos{0};
+    for (const QString& candidate : {QString{"uxalpha7c9"}, QString{"label0"}, QString{"nameOIL"}, QString{"dash-pay"}}) {
+        QString editable{candidate};
+        QCOMPARE(validator.validate(editable, pos), QValidator::Acceptable);
+        QCOMPARE(editable, candidate);
+    }
+    QString trailing_hyphen{"dash-"};
+    QCOMPARE(validator.validate(trailing_hyphen, pos), QValidator::Intermediate);
+    // Too short for a label and not Base58 either (0 is excluded there).
+    QString too_short{"a0"};
+    QCOMPARE(validator.validate(too_short, pos), QValidator::Intermediate);
+    QString underscore{"dash_pay"};
+    QCOMPARE(validator.validate(underscore, pos), QValidator::Invalid);
+    QString leading_hyphen{"-dash"};
+    QCOMPARE(validator.validate(leading_hyphen, pos), QValidator::Invalid);
+    // Over the label limit and not Base58 (0 again), so nothing accepts it.
+    QString too_long{QString(63, 'a') + QStringLiteral("0")};
+    QCOMPARE(validator.validate(too_long, pos), QValidator::Invalid);
 }

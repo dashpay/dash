@@ -894,13 +894,15 @@ QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:checked  {
 }
 
 /******************************************************
-DashPay tables: ContactsPage, UsernameSearchDialog
+DashPay tables: ContactPickerDialog, ContactsPage, UsernameSearchDialog
 ******************************************************/
 
+ContactPickerDialog QTableView,
 ContactsPage QTableView {
     color: #c7c7c7;
 }
 
+ContactPickerDialog QTableView::item:selected,
 ContactsPage QTableView::item:selected,
 UsernameSearchDialog QTableWidget::item:selected {
     background-color: #585858;
@@ -1069,7 +1071,14 @@ QDialog#SendCoinsDialog #scrollArea {
 SendCoinsEntry
 ******************************************************/
 
-/***** No dark.css specific coloring here yet *****/
+/* The DashPay contacts button is a glyph: the colour of the icons beside it */
+QWidget#SendCoinsEntry .QToolButton#contactsButton {
+    color: #00599a;
+}
+
+QWidget#SendCoinsEntry .QToolButton#contactsButton:disabled {
+    color: #4a4a4b;
+}
 
 /******************************************************
 SignVerifyMessageDialog

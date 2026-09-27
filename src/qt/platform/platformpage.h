@@ -94,6 +94,7 @@ protected:
 
 private Q_SLOTS:
     void openWizard();
+    void openIdentityDetails();
     //! Redraw from local state; no Platform read.
     void refresh();
     //! Re-read what the dashboard shows of the identity (profile, balance,
@@ -107,6 +108,8 @@ private:
     enum class NoticeAction {
         NONE,
         TURN_NETWORK_ON,
+        UNLOCK_WALLET,
+        RETRY_RECOVERY,
     };
 
     void maybeCreateService();
@@ -127,6 +130,10 @@ private:
     void fetchDashboardIfStale();
     //! Read a premium username's votes again, at most every few minutes.
     void refreshVotesIfDue();
+    //! Focus the primary action of the page shown.
+    void focusPrimary();
+    //! Show whether a failed rescan holds seed recovery up.
+    void updateRecoveryLine();
     void runNoticeAction(NoticeAction action);
 
     const ClientFactory m_make_client;
@@ -145,9 +152,11 @@ private:
     QLabel* m_privacy_note{nullptr};
     QFrame* m_notice{nullptr};
     QLabel* m_notice_icon{nullptr};
+    QString m_notice_icon_name;
     QLabel* m_notice_title{nullptr};
     QLabel* m_notice_body{nullptr};
     QProgressBar* m_notice_busy{nullptr};
+    PlatformUi::MessageLine* m_notice_error{nullptr};
     QPushButton* m_notice_button{nullptr};
     NoticeAction m_notice_action{NoticeAction::NONE};
     QPushButton* m_enable_button{nullptr};
@@ -161,6 +170,7 @@ private:
     QLabel* m_message{nullptr};
     QLabel* m_balance{nullptr};
     QPushButton* m_edit_profile_button{nullptr};
+    QPushButton* m_details_button{nullptr};
     QFrame* m_state_card{nullptr};
     QLabel* m_state_icon{nullptr};
     QString m_state_icon_name;
@@ -171,6 +181,9 @@ private:
     QProgressBar* m_state_busy{nullptr};
     QPushButton* m_state_button{nullptr};
     PlatformUi::MessageLine* m_saved_line{nullptr};
+    //! Why seed recovery's payment history is held up by a failed rescan,
+    //! with Retry.
+    PlatformUi::MessageLine* m_recovery_line{nullptr};
     QLabel* m_alert{nullptr};
     QPushButton* m_alert_button{nullptr};
     NoticeAction m_alert_action{NoticeAction::NONE};

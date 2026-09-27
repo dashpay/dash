@@ -564,7 +564,7 @@ bool IdentityFlow::noExistingIdentity(const std::array<uint8_t, 20>& master_key_
                 self->m_existing_identity = ExistingIdentity::FOUND;
                 self->m_existing_identity_error.text = tr(
                     "This wallet already has a DashPay identity on Dash Platform, so Dash Core did not fund a "
-                    "new one. This version of Dash Core can't restore an existing identity.");
+                    "new one. DashPay is restoring it; you can choose its username once it is restored.");
             } else {
                 // Not an answer: nothing is funded on an absence that
                 // was not proved.
@@ -623,6 +623,7 @@ bool IdentityFlow::start(const QString& label, CAmount funding_amount, QString& 
         return true;
     }
 
+    if (!m_service.registrationAllowed(error)) return false;
     Wallet& wallet{m_service.walletModel().wallet()};
 
     // The one passphrase of the registration: the wallet stays unlocked
@@ -643,7 +644,12 @@ bool IdentityFlow::start(const QString& label, CAmount funding_amount, QString& 
         error = tr("Dash Core could not derive the key for the funding payment from this wallet.");
         return false;
     }
-    if (!noExistingIdentity(Hash160Of(master_pubkey.value), unlock, error)) return false;
+    // Seed-only recovery proved that the seed has no identity, at every index
+    // it probed; a registration started over from a record that never funded
+    // one (recovery found that record, not an absence) looks here instead.
+    if (!m_service.seedHasNoIdentity() && !noExistingIdentity(Hash160Of(master_pubkey.value), unlock, error)) {
+        return false;
+    }
 
     auto res{wallet.createAssetLockTransaction(funding_amount, funding_pubkey.value, wallet::CCoinControl{})};
     if (!res) {
