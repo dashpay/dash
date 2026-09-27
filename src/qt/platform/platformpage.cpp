@@ -11,11 +11,13 @@
 #include <qt/guiutil.h>
 #include <qt/masternodewidgets.h>
 #include <qt/optionsmodel.h>
+#include <qt/platform/contactspage.h>
 #include <qt/platform/createusernamewizard.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformoptindialog.h>
 #include <qt/platform/platformservice.h>
 #include <qt/platform/platformui.h>
+#include <qt/platform/profiledialog.h>
 #include <qt/sharedmnwidgets.h>
 #include <qt/walletmodel.h>
 #include <util/strencodings.h>
@@ -225,8 +227,10 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     // Page 1: dashboard, a centred column.
     QVBoxLayout* dl{nullptr};
     QWidget* dash_page{CenteredColumn(this, DASHBOARD_MAX_WIDTH, /*panel=*/false, dl)};
+    m_dashboard_layout = dl;
 
-    // Header: avatar | username and balance.
+    // Header: avatar | username, profile, balance | the profile and identity
+    // buttons, top-aligned on the right.
     auto* header = new QHBoxLayout();
     header->setSpacing(12);
     m_avatar = new QLabel(dash_page);
@@ -236,10 +240,31 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     identity->setSpacing(2);
     m_username = new QLabel(dash_page);
     GUIUtil::setFont({m_username}, GUIUtil::FontWeight::Bold, PlatformUi::SECTION_HEADING_SIZE);
+    m_display_name = new QLabel(dash_page);
+    m_display_name->setTextFormat(Qt::PlainText); // profile text, not markup
+    m_message = PlatformUi::makeHint({}, dash_page);
+    m_message->setTextFormat(Qt::PlainText);
     m_balance = PlatformUi::makeHint({}, dash_page);
     identity->addWidget(m_username);
+    identity->addWidget(m_display_name);
+    identity->addWidget(m_message);
     identity->addWidget(m_balance);
     header->addLayout(identity, /*stretch=*/1);
+    auto* header_actions = new QHBoxLayout();
+    header_actions->setSpacing(TITLE_SPACING);
+    m_edit_profile_button = new QPushButton(dash_page);
+    PlatformUi::makeSecondary(m_edit_profile_button);
+    connect(m_edit_profile_button, &QPushButton::clicked, this, [this] {
+        if (!m_service) return;
+        ProfileDialog dialog(*m_service, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            m_saved_line->setTransientMessage(PlatformUi::MessageLine::Severity::Success, tr("Profile saved."));
+        }
+        fetchDashboard();
+    });
+    header_actions->addWidget(m_edit_profile_button);
+    header->addLayout(header_actions);
+    header->setAlignment(header_actions, Qt::AlignTop | Qt::AlignRight);
     dl->addLayout(header);
 
     // Registration state, with its action under its text.
@@ -279,6 +304,8 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     card->addWidget(m_state_busy);
     card->addWidget(m_state_button, 0, Qt::AlignLeft);
     dl->addWidget(m_state_card);
+    m_saved_line = new PlatformUi::MessageLine(dash_page);
+    dl->addWidget(m_saved_line);
 
     // Paused / frozen, in the overview's alert style.
     auto* alert_row = new QHBoxLayout();
@@ -293,9 +320,9 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     alert_row->addWidget(m_alert_button, 0, Qt::AlignVCenter);
     dl->addLayout(alert_row);
 
-    // The spare height collects here, below everything, instead of between
-    // the header rows.
-    dl->addStretch(1);
+    // The contacts are inserted here once the service exists; the column
+    // leaves the spare height below them.
+    m_contacts_index = dl->count();
 
     m_stack->addWidget(dash_page);
 
@@ -315,6 +342,13 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
     connect(m_balance_retry, &QTimer::timeout, this, [this] {
         if (m_service && isVisible() && !m_paused && m_service->haveEndpoints()) m_service->refreshIdentityBalance();
     });
+    m_profile_retry = new QTimer(this);
+    m_profile_retry->setSingleShot(true);
+    m_profile_retry->setInterval(READ_RETRY_MS);
+    connect(m_profile_retry, &QTimer::timeout, this, [this] {
+        if (!m_service || !isVisible() || m_paused || !m_service->haveEndpoints()) return;
+        if (const auto id{m_service->myIdentityId()}) m_service->loadProfile(*id);
+    });
 
     GUIUtil::updateFonts();
     SharedMnFitWrappedLabels(this);
@@ -326,8 +360,10 @@ PlatformPage::PlatformPage(QWidget* parent, ClientFactory make_client) :
 
 PlatformPage::~PlatformPage()
 {
-    // The wizard works on the service, which goes first.
+    // The wizard works on the service, which goes first; the service stops
+    // while what it reports to is whole.
     delete m_wizard;
+    if (m_service) m_service->stop();
 }
 
 void PlatformPage::changeEvent(QEvent* event)
@@ -391,9 +427,17 @@ void PlatformPage::setClientModel(ClientModel* client_model)
     if (!client_model && m_service) {
         // Detached at shutdown, before the wallet and client models are
         // deleted: the service stops while the models it holds still exist.
-        delete m_wizard;
+        // Nothing that holds it is deleted here: a nested event loop (a
+        // passphrase prompt, a dialog opened from the contacts) may be
+        // running inside one of them. The wizard goes once control is back
+        // in the main loop, the contacts page and the service with the page.
+        // What runs meanwhile (the wizard finishing) refreshes nothing.
+        clientModel = nullptr;
+        if (m_wizard) m_wizard->close();
         Q_EMIT platformServiceReady(nullptr);
-        m_service.reset();
+        m_contacts_page->hide();
+        m_service->stop();
+        m_stopped_service = std::move(m_service);
     }
     clientModel = client_model;
     if (clientModel) {
@@ -479,6 +523,38 @@ void PlatformPage::connectService()
                                                                                          QLocale::ShortFormat));
                 refresh();
             });
+    connect(m_service.get(), &PlatformService::profileLoaded, this,
+            [this](const QString& identity_hex, const QString& display_name, const QString& public_message) {
+                const auto my_id{m_service->myIdentityId()};
+                if (!my_id || QString::fromStdString(HexStr(*my_id)) != identity_hex) return;
+                m_profile_display_name = display_name;
+                m_have_profile = !display_name.isEmpty() || !public_message.isEmpty();
+                m_profile_failed = false;
+                m_display_name->setText(display_name);
+                if (*m_have_profile) {
+                    m_message->setText(public_message);
+                } else if (m_service->identityFlow().profilePending()) {
+                    // The profile chosen at registration is not on Platform yet.
+                    m_message->setText(tr("Publishing your profile to Dash Platform…"));
+                } else {
+                    m_message->setText(tr("No profile yet. Add a display name so people recognize you."));
+                }
+                refresh();
+            });
+    connect(m_service.get(), &PlatformService::profileLoadFailed, this,
+            [this](const QString& identity_hex, const QString& error, const QString& details) {
+                const auto my_id{m_service->myIdentityId()};
+                if (!my_id || QString::fromStdString(HexStr(*my_id)) != identity_hex) return;
+                // Keep any previously loaded profile text; only replace the
+                // loading placeholder so the header never sticks on "Loading".
+                if (!m_have_profile) {
+                    m_profile_failed = true;
+                    m_message->setText(tr("Your profile could not be loaded. Dash Core will try again."));
+                    m_message->setToolTip(error + QLatin1Char('\n') + details);
+                    refresh();
+                }
+                if (isVisible()) m_profile_retry->start();
+            });
     connect(m_service.get(), &PlatformService::identityBalanceLoaded, this, [this](quint64 credits) {
         m_credits = credits;
         showBalance();
@@ -493,6 +569,12 @@ void PlatformPage::connectService()
                 }
                 if (isVisible()) m_balance_retry->start();
             });
+
+    // Embed the contacts UI in the dashboard once the service exists.
+    m_contacts_page = new ContactsPage(*m_service, this);
+    connect(m_contacts_page, &ContactsPage::emptyChanged, this, &PlatformPage::refresh);
+    m_dashboard_layout->insertWidget(m_contacts_index, m_contacts_page);
+    GUIUtil::updateFonts();
     if (isVisible()) fetchDashboard();
 }
 
@@ -507,6 +589,7 @@ void PlatformPage::fetchDashboard()
         (!registered && state != State::CONTESTED_PENDING && !m_service->identityFlow().record().AwaitsUsername())) {
         m_fetch_timer->stop();
         m_balance_retry->stop();
+        m_profile_retry->stop();
         return;
     }
     m_last_fetch = GetTime();
@@ -517,6 +600,11 @@ void PlatformPage::fetchDashboard()
     // What the identity holds is shown for an identity still without a
     // username too: it pays for that username.
     m_service->refreshIdentityBalance();
+    if (registered) {
+        if (!m_have_profile) m_message->setText(tr("Loading profile…"));
+        if (const auto id{m_service->myIdentityId()}) m_service->loadProfile(*id);
+        m_contacts_page->refreshIfShown();
+    }
     m_fetch_timer->start();
 }
 
@@ -617,11 +705,18 @@ bool PlatformPage::disableDashPay(QWidget* dialog_parent)
     delete m_wizard;
     // Consumers drop their service pointer while it is still valid.
     Q_EMIT platformServiceReady(nullptr);
+    delete m_contacts_page;
+    m_contacts_page = nullptr;
     m_service.reset();
+    m_profile_display_name.clear();
+    m_have_profile.reset();
+    m_profile_failed = false;
     m_credits.reset();
     m_votes.clear();
-    m_balance->clear();
-    m_balance->setToolTip({});
+    for (QLabel* label : {m_display_name, m_message, m_balance}) {
+        label->clear();
+        label->setToolTip({});
+    }
     if (!PlatformService::WipeRecords(walletModel->wallet())) {
         QMessageBox::warning(dialog_parent, tr("Disable DashPay"),
                              tr("Some DashPay data could not be deleted from the wallet. Try disabling DashPay "
@@ -649,6 +744,8 @@ void PlatformPage::openWizard()
     m_wizard = new CreateUsernameWizard(*m_service, *walletModel, this);
     m_wizard->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_wizard, &QDialog::finished, this, &PlatformPage::refresh);
+    connect(m_wizard, &CreateUsernameWizard::addProfileRequested, m_edit_profile_button, &QPushButton::click,
+            Qt::QueuedConnection);
     const auto& rec{flow.record()};
     // A recovered identity without a username starts at name entry like a
     // fresh registration.
@@ -699,7 +796,7 @@ void PlatformPage::updateAvatar()
             username = QString::fromStdString(rec.label);
         }
     }
-    m_avatar->setPixmap(PlatformUi::avatarPixmap(username, {}, AVATAR_SIZE, devicePixelRatioF()));
+    m_avatar->setPixmap(PlatformUi::avatarPixmap(username, m_profile_display_name, AVATAR_SIZE, devicePixelRatioF()));
     m_avatar->setAccessibleName(username.isEmpty() ? tr("Avatar") : tr("Avatar for %1").arg(username));
 }
 
@@ -783,7 +880,10 @@ void PlatformPage::refresh()
     // activity off, the node syncing) and resumes by itself.
     const bool was_paused{m_paused};
     m_paused = availability.gate != PlatformAvailability::Gate::NONE;
-    if (m_paused) m_balance_retry->stop();
+    if (m_paused) {
+        m_balance_retry->stop();
+        m_profile_retry->stop();
+    }
     if (was_paused && !m_paused) {
         // Reads wait for the endpoints the node pushes again on resume
         // (endpointsAvailable() fetches then); with endpoints kept (a sync
@@ -832,7 +932,22 @@ void PlatformPage::refreshDashboard(const PlatformAvailability& availability)
     updateAvatar();
     m_username->setText(label.isEmpty() ? tr("No username yet") : label);
     m_username->setToolTip(QString::fromStdString(rec.normalized_label));
+    m_display_name->setVisible(registered && !m_display_name->text().isEmpty());
+    m_message->setVisible(registered && !m_message->text().isEmpty());
     m_balance->setVisible(m_credits.has_value() || !m_balance->text().isEmpty());
+    m_edit_profile_button->setVisible(registered);
+    // The profile chosen at registration is still going out.
+    const bool profile_pending{m_service->identityFlow().profilePending()};
+    // Only a profile read (or proved absent) can be edited without losing
+    // what another wallet set; a failed read offers what it will be once one
+    // succeeds.
+    const bool profile_known{m_have_profile.has_value()};
+    m_edit_profile_button->setText((m_have_profile.value_or(true) && !m_profile_failed) || profile_pending
+                                       ? tr("Edit profile…")
+                                       : tr("Add profile…"));
+    m_edit_profile_button->setEnabled(writable && profile_known && !profile_pending);
+    m_edit_profile_button->setToolTip(profile_pending ? tr("Your profile is being published to Dash Platform.")
+                                                      : tr("Set the display name and message other DashPay users see"));
 
     // State card.
     m_state_card->setVisible(!registered);
@@ -916,4 +1031,11 @@ void PlatformPage::refreshDashboard(const PlatformAvailability& availability)
                                m_service->identityFlow().fundingWait() != IdentityFlow::FundingWait::ENDING);
     m_state_icon_name = icon;
     SetIcon(m_state_icon, icon, IconColor(icon, error_icon));
+    m_state_card->updateGeometry();
+
+    // The contacts show once there is something to show.
+    if (m_contacts_page) {
+        m_contacts_page->setVisible(registered || !m_contacts_page->isEmpty());
+        m_contacts_page->setEnabled(!m_paused);
+    }
 }

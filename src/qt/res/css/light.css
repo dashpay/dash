@@ -880,6 +880,15 @@ QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:checked  {
 }
 
 /******************************************************
+DashPay tables: ContactsPage, UsernameSearchDialog
+******************************************************/
+
+/* The selected rows use the QTableView selection above */
+ContactsPage QTableView {
+    color: #555;
+}
+
+/******************************************************
 EditAddressDialog
 ******************************************************/
 

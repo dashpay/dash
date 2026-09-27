@@ -139,7 +139,7 @@ window becomes active (not again within 30 seconds); the contact list also on
 a new ChainLock (at most once a minute) and on a five-minute fallback, backing
 off to ten minutes while reads fail; and whatever the user's own change
 touched. There is no manual refresh; a failed read offers Try again. A
-contact's username and profile are re-read at most once an hour; username
+contact's username and profile are re-read at most every five minutes; username
 search results are kept in memory for the session and never written to the
 wallet; and a recipient typed into the send form is looked up only once it can
 no longer be the start of a Dash address, or when the entry is left.

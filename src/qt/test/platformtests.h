@@ -8,6 +8,7 @@
 #include <QObject>
 #include <QTest>
 
+class PlatformService;
 namespace interfaces {
 class Node;
 } // namespace interfaces
@@ -21,6 +22,10 @@ public:
     {
     }
     interfaces::Node& m_node;
+
+    //! Push one evonode endpoint into the service's client, or none, as the
+    //! node would after collecting them (the test chain has no evonodes).
+    static void pushEndpoints(PlatformService& service, bool available);
 
     Q_OBJECT
 
@@ -68,6 +73,36 @@ private Q_SLOTS:
     void balanceShownAsDash();
     void serviceStartsThroughTheProxy();
     void clientFailureIsShown();
+    void contactAcceptDecryptsAndImports();
+    void contactSendRotatesVersionFromChain();
+    void contactAcceptAfterOurRequestSendsNothing();
+    void contactKeysFollowTheIdentityLayout();
+    void contactSendAsksToUnlock();
+    void contactAcceptAsksToUnlockOnce();
+    void answeredRequestEstablishesContact();
+    void contactResendUsesNewestRequest();
+    void profileAndContactRequestShareTheNonce();
+    void contactRequestWithoutIdentityReleasesTheNonce();
+    void detachingKeepsOpenDialogUsable();
+    void contactsPastTheCapAreNotComplete();
+    void readsShownOnNewerProtocolVersion();
+    void addContactMarksIdentitiesThatCannotReceive();
+    void answeredRequestThatCannotFinishSaysWhy();
+    void contactsPageKeepsSelectionAndClearsErrors();
+    void contactsWaitForEndpointsOnResume();
+    void contactRequestConfirmationIsNeverAFailure();
+    void searchResultsAreNotPersisted();
+    void contactMetadataShownWithoutRereadingRequests();
+    void clearedContactNameReplacesSearchedName();
+    void profilePublishConfirmedByProof();
+    void profileDialogWaitsForTheCurrentProfile();
+    void ignoredRequestsAreHiddenLocally();
+    void dashboardHasNoSendDisableOrRefresh();
+    void onlyOneFilledButton();
+    void contactsRefreshFollowsChainLocks();
+    void showRefreshThrottled();
+    void firstIncomingRequestSelected();
+    void addContactNeedsThreeCharacters();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H

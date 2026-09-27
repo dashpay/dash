@@ -108,6 +108,11 @@ QString formatPlatformBalance(BitcoinUnit unit, uint64_t credits);
 //! funding payment, or nothing spent.
 QString failureReassurance(const platform::IdentityRecord& record);
 
+//! An identity id the way every other Dash Platform tool shows it (Base58).
+QString identityIdBase58(const platform::Identifier& id);
+//! identityIdBase58() of a hex identity id; empty when `hex` is not one.
+QString identityIdBase58(const QString& hex);
+
 /** One message line: an icon and a sentence coloured by severity, an
  *  optional secondary action (Retry, Try again), and a "Show details"
  *  disclosure with the raw result and a Copy details button. Hidden while

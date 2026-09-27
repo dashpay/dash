@@ -24,6 +24,9 @@ using platform::StatusKind;
 template <typename T>
 Result<T> FakePlatformClient::Pop(std::deque<Result<T>>& scripted)
 {
+    if (needs_endpoints && (endpoint_updates.empty() || endpoint_updates.back().empty())) {
+        return platform_test::Failed<T>(StatusKind::UNAVAILABLE, "no evonode endpoints");
+    }
     if (scripted.empty()) return platform_test::Failed<T>(StatusKind::UNAVAILABLE, "nothing scripted");
     Result<T> out{std::move(scripted.front())};
     scripted.pop_front();
@@ -87,7 +90,8 @@ void FakePlatformClient::getProfile(const Identifier& owner_id, Callback<Profile
 void FakePlatformClient::getContactRequests(const Identifier& identity, bool to_me, uint64_t since_ms,
                                             const Identifier& start_after, Callback<Paged<ContactRequest>> cb)
 {
-    calls.push_back({to_me ? "getContactRequests/to_me" : "getContactRequests/from_me", HexStr(identity), start_after});
+    calls.push_back(
+        {to_me ? "getContactRequests/to_me" : "getContactRequests/from_me", HexStr(identity), start_after, since_ms});
     cb(Pop(contact_requests));
 }
 
@@ -136,15 +140,17 @@ util::Result<Built> FakePlatformClient::buildDpnsDomain(const platform::SigningO
 }
 
 util::Result<Built> FakePlatformClient::buildProfile(const platform::SigningOperation& op, const Identifier&, uint64_t,
-                                                     const Profile&, const platform::ProfileInput&)
+                                                     const Profile& existing, const platform::ProfileInput&)
 {
+    last_profile_existing = existing;
     return PopBuild(op);
 }
 
 util::Result<Built> FakePlatformClient::buildContactRequest(const platform::SigningOperation& op, const Identity&,
                                                             const Identity&, uint64_t,
-                                                            const platform::ContactRequestInput&)
+                                                            const platform::ContactRequestInput& input)
 {
+    last_contact_request_input = input;
     return PopBuild(op);
 }
 
