@@ -15,6 +15,7 @@
 #include <optional>
 
 class ClientModel;
+class ContactsPage;
 class CreateUsernameWizard;
 class PlatformService;
 class WalletModel;
@@ -32,6 +33,7 @@ class QHideEvent;
 class QShowEvent;
 class QStackedWidget;
 class QTimer;
+class QVBoxLayout;
 QT_END_NAMESPACE
 
 /** DashPay (Dash Platform) page for a single wallet. Only built with
@@ -41,7 +43,7 @@ QT_END_NAMESPACE
  *  the service cannot start (network settings, network inactive, syncing,
  *  no ChainLock) with the action that resolves it, the welcome panel with
  *  the username wizard while the wallet has no identity, and the dashboard
- *  (identity header, registration state) once
+ *  (profile header, registration state, quick actions, contacts) once
  *  registration has started. The per-wallet PlatformService is created only
  *  when the wallet has opted in and every gate passes; nothing contacts
  *  Platform before that. */
@@ -132,6 +134,9 @@ private:
     WalletModel* walletModel{nullptr};
     ClientModel* clientModel{nullptr};
     std::unique_ptr<PlatformService> m_service;
+    //! The service stopped at detach, kept until the page goes: a dialog,
+    //! or a nested event loop under a click on this page, may still use it.
+    std::unique_ptr<PlatformService> m_stopped_service;
 
     QStackedWidget* m_stack{nullptr};
 
@@ -159,7 +164,10 @@ private:
     // Page 2: dashboard.
     QLabel* m_avatar{nullptr};
     QLabel* m_username{nullptr};
+    QLabel* m_display_name{nullptr};
+    QLabel* m_message{nullptr};
     QLabel* m_balance{nullptr};
+    QPushButton* m_edit_profile_button{nullptr};
     QFrame* m_state_card{nullptr};
     QLabel* m_state_icon{nullptr};
     QString m_state_icon_name;
@@ -169,16 +177,28 @@ private:
     QLabel* m_state_hint{nullptr};
     QProgressBar* m_state_busy{nullptr};
     QPushButton* m_state_button{nullptr};
+    PlatformUi::MessageLine* m_saved_line{nullptr};
     QLabel* m_alert{nullptr};
     QPushButton* m_alert_button{nullptr};
     NoticeAction m_alert_action{NoticeAction::NONE};
-    QTimer* m_fetch_timer{nullptr}; //!< reads the votes again while shown
+    QVBoxLayout* m_dashboard_layout{nullptr};
+    //! Where the contacts go in m_dashboard_layout, above the spare space.
+    int m_contacts_index{0};
+    ContactsPage* m_contacts_page{nullptr};
+    QTimer* m_fetch_timer{nullptr}; //!< fallback reads while shown
     //! When the last dashboard fetch and vote read started (GetTime()).
     int64_t m_last_fetch{0};
     int64_t m_votes_read{0};
-    //! The balance read again after a failed read.
+    //! The balance and profile read again after a failed read.
     QTimer* m_balance_retry{nullptr};
+    QTimer* m_profile_retry{nullptr};
 
+    //! What the header last learned about the profile: the display name
+    //! (for the avatar) and whether one exists.
+    QString m_profile_display_name;
+    std::optional<bool> m_have_profile;
+    //! Reading the profile failed and none was read before.
+    bool m_profile_failed{false};
     //! The identity's balance on Dash Platform (in credits), once read.
     std::optional<quint64> m_credits;
     //! The last vote count read for a premium username.

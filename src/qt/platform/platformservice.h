@@ -11,11 +11,15 @@
 #include <platform/signer.h>
 #include <platform/types.h>
 #include <qt/walletmodel.h>
+#include <wallet/platformtypes.h>
 
 #include <QObject>
+#include <QPair>
+#include <QSet>
 #include <QString>
 #include <QThread>
 #include <QTimer>
+#include <QVector>
 
 #include <functional>
 #include <memory>
@@ -24,6 +28,7 @@
 #include <vector>
 
 class ClientModel;
+class ContactFlow;
 class IdentityFlow;
 
 namespace interfaces {
@@ -89,8 +94,8 @@ struct PlatformAvailability {
 
 /**
  * Per-wallet orchestrator for all Dash Platform interactions. This is the
- * only object GUI pages talk to. It owns the PlatformClient and the
- * identity/username registration flow, marshals
+ * only object GUI pages talk to. It owns the PlatformClient and the flows
+ * (identity/username registration, contacts), marshals
  * client callbacks onto the GUI thread, persists state through the wallet's
  * platform data records, mints the SigningOperations every write signs
  * under, and feeds node-local context (evonode endpoints, quorum keys, the
@@ -134,11 +139,22 @@ public:
                     PlatformRoute route = {}, QObject* parent = nullptr);
     ~PlatformService() override;
 
+    //! Stop for good while the wallet and client models still exist (the
+    //! page is detached at shutdown): no timer, ChainLock, network or wallet
+    //! notification and no client callback reaches them afterwards, the
+    //! client is shut down, and a profile update in flight ends as refused.
+    //! The object stays usable for whoever still holds it: records read
+    //! empty, writes are refused and reads go nowhere. (A passphrase prompt
+    //! already open when it stops is the wallet model's own.)
+    void stop();
+    bool stopped() const { return m_stopped; }
+
     WalletModel& walletModel() { return m_wallet_model; }
     ClientModel& clientModel() { return m_client_model; }
     platform::PlatformClient& client() { return *m_client; }
 
     IdentityFlow& identityFlow() { return *m_identity_flow; }
+    ContactFlow& contactFlow() { return *m_contact_flow; }
 
     //! True when the wallet's records were written for another chain: the
     //! page offers to discard local Platform state and re-scan.
@@ -231,13 +247,75 @@ public:
     void checkNameAvailability(const QString& name);
     //! Async proof-verified contested-name vote state. Emits contestedNameState().
     void checkContestedNameState(const QString& normalized_label);
+    //! Usernames one search returns at most.
+    static constexpr uint32_t SEARCH_PAGE_SIZE{25};
+    //! Async prefix search (one page); emits searchResults(), then
+    //! searchProfileLoaded() for each result with a profile display name.
+    void searchNames(const QString& prefix);
+    //! Whether an identity can receive a contact request: its proved
+    //! identity carries a key one can be encrypted to (the send path's
+    //! platform::helpers::Dip15SelectRecipientKey). Known once checkRecipient()
+    //! or a send has read it this session; nullopt before.
+    std::optional<bool> canReceiveContactRequests(const QString& identity_hex) const;
+    //! Read the identity (once a session); emits recipientChecked().
+    void checkRecipient(const QString& identity_hex);
+    //! Async profile fetch; emits profileLoaded().
+    void loadProfile(const platform::Identifier& identity);
+
+    //! Fetch this identity's incoming + outgoing contact requests, one page
+    //! per request continued from the cursor; emits contactsUpdated().
+    void refreshContacts();
+    //! Send a contact request to an identity (hex id); accept an incoming one.
+    bool sendContactRequest(const QString& identity_hex, QString& error);
+    bool acceptContact(const QString& identity_hex, QString& error);
+    //! Whether a contact request has been established (their key imported).
+    bool isEstablished(const QString& identity_hex) const;
+    //! Whether we sent this identity a contact request: on chain, recorded
+    //! by this wallet (or seed recovery), or being confirmed.
+    bool sentRequestTo(const QString& identity_hex) const;
+    //! The identity our last contact request (or reply) went to while Dash
+    //! Platform is confirming it; empty otherwise.
+    QString pendingContactRequest() const
+    {
+        return m_contact_request_pending ? m_contact_request_in_flight : QString{};
+    }
+    //! Whether the contact has answered our request with theirs, but its
+    //! keychain is not imported yet (the wallet was locked, or finishing
+    //! failed).
+    bool isAccepted(const QString& identity_hex) const;
+    //! Why finishing an accepted contact failed the last time, other than
+    //! a locked wallet; empty when it did not fail.
+    QString acceptedError(const QString& identity_hex) const { return m_accepted_errors.value(identity_hex); }
+    //! When our own request to an identity was created, from the last
+    //! fetched outgoing requests (seconds); nullopt when we sent none.
+    std::optional<int64_t> outgoingRequestTime(const platform::Identifier& identity) const;
+    //! Whether the user chose to ignore this identity's request (or to hide
+    //! this contact). Local to this wallet: a contact request can be neither
+    //! withdrawn nor rejected on Platform, and the sender is never told.
+    bool isHidden(const QString& identity_hex) const;
+    void setHidden(const QString& identity_hex, bool hidden);
+
+
+    //! Publish a DashPay profile (create or replace). Emits profileUpdated().
+    bool updateProfile(const QString& display_name, const QString& public_message, QString& error);
 
     //! Wallet platform-data record helpers (used by the flows).
     bool writeRecord(const std::string& key, const std::vector<unsigned char>& value);
     std::vector<unsigned char> readRecord(const std::string& key) const;
 
+    //! Proof-verified contact metadata cached in wallet platform data, or
+    //! for identities that are not contacts, in memory from a search.
+    QString contactMetadata(const QString& identity_hex, const char* prefix) const;
+    //! Human-readable name for a contact, best first: username, profile
+    //! display name (marked untrusted), shortened identity id. Plain text:
+    //! the display name is counterparty-authored.
+    QString contactDisplayString(const QString& identity_hex) const;
+    //! Address-book label applied to DIP-15 friendship addresses so
+    //! transaction history attributes payments to the contact.
+    QString contactAddressLabel(const QString& identity_hex) const;
+
     //! Run a callback on the GUI thread (safe from client threads; dropped
-    //! if the service is destroyed first).
+    //! if the service is stopped or destroyed first).
     void post(std::function<void()> fn);
 
     //! Every client result passes through here (the client the flows see is
@@ -270,10 +348,37 @@ Q_SIGNALS:
     //! success.
     void contestedNameState(const QString& normalized_label, const platform::ContestedNameState& state,
                             const QString& error);
+    void searchResults(const QString& prefix, const QVector<QPair<QString, QString>>& results); //!< (label, identity hex)
+    //! The proved profile display name of a search result.
+    void searchProfileLoaded(const QString& identity_hex, const QString& display_name);
+    void searchFailed(const QString& prefix, const QString& error, const QString& details);
+    void recipientChecked(const QString& identity_hex, bool can_receive);
+    //! Emitted with empty fields (and revision 0) when the identity
+    //! verifiably has no profile.
+    void profileLoaded(const QString& identity_hex, const QString& display_name, const QString& public_message,
+                       quint64 revision);
+    void profileLoadFailed(const QString& identity_hex, const QString& error, const QString& details);
     void identityStateChanged();
     void identityBalanceLoaded(quint64 credits);
     void identityBalanceFailed(const QString& error, const QString& details);
     void flowFailed(const QString& step, const QString& error, const QString& details);
+    //! (identity hex, username) pairs for incoming and outgoing requests.
+    void contactsUpdated(const QVector<QPair<QString, QString>>& incoming,
+                         const QVector<QPair<QString, QString>>& outgoing);
+    void contactsRefreshFailed(const QString& error, const QString& details);
+    //! A contacts refresh read the whole list (after its contactsUpdated()).
+    void contactsRefreshed();
+    //! A contact was ignored or shown again.
+    void hiddenContactsChanged();
+    void profileUpdated(bool ok, const QString& error, const QString& details);
+    //! Dash Platform accepted the contact request (or the reply to an
+    //! accepted one) for broadcast; its confirmation continues in the
+    //! background and ends in contactRequestFinished(ok) or, when it takes
+    //! too long, in the next contacts refresh.
+    void contactRequestPending(const QString& identity_hex);
+    //! ok: the request was confirmed on Platform. Otherwise it was not sent
+    //! (or refused), and error says why.
+    void contactRequestFinished(const QString& identity_hex, bool ok, const QString& error, const QString& details);
 
 private Q_SLOTS:
     //! Collect the evonode endpoints, ChainLock height and Platform quorum
@@ -292,6 +397,35 @@ private:
     //! Hand the endpoints on the route to the client and tell who waits for
     //! them.
     void pushEndpoints(std::vector<platform::Endpoint> endpoints);
+    //! Emit contactsUpdated() from the last fetched requests.
+    void publishContacts();
+    //! Import the keychain of every contact that answered our request, when
+    //! the wallet can do so without asking for its passphrase.
+    void completeAcceptedContacts();
+    void finishContactRequest(const QString& identity_hex, bool ok, const QString& error, const QString& details);
+    //! Why a contact request or a profile update cannot start now: both sign
+    //! with the identity's DashPay nonce, so another request or profile
+    //! update in flight or being confirmed, or the profile chosen at
+    //! registration, holds it. Empty when one can.
+    QString contactRequestBlocker() const;
+    void finishProfileUpdate(bool ok, const QString& error, const QString& details);
+    void failProfileUpdate(const platform::Status& status, const QString& operation);
+    //! Read a contact's username and profile again unless read within the
+    //! TTL; force reads them regardless (their request changed).
+    void hydrateContactMetadata(const platform::Identifier& identity, bool force);
+    //! Proved profile display name of a search result, kept in memory.
+    void loadSearchProfile(const platform::Identifier& identity);
+    //! Remember whether a proved identity can receive a contact request.
+    void recordRecipient(const QString& identity_hex, const platform::Identity& identity);
+    void setContactMetadata(const QString& identity_hex, const char* prefix, const QString& value);
+    void collectContactRequests(bool to_me, const platform::Identifier& start_after,
+                                std::vector<platform::ContactRequest> collected);
+    //! The contacts refresh ended; run the one asked for meanwhile.
+    void finishContactsRefresh();
+    void publishProfile(const platform::Identity& identity, const platform::Profile& existing,
+                        const platform::ProfileInput& input);
+    void confirmProfile(const platform::Identifier& owner, uint64_t revision, const platform::ProfileInput& input,
+                        int attempts_left);
 
     WalletModel& m_wallet_model;
     ClientModel& m_client_model;
@@ -299,6 +433,7 @@ private:
     const PlatformRoute m_route;
     const std::string m_chain_id;
     bool m_network_changed{false};
+    bool m_stopped{false};
     //! The records carry the chain id of a verified response.
     bool m_chain_id_stamped{false};
     //! The last verified read failed for another chain id; cleared by the
@@ -313,6 +448,44 @@ private:
     std::unique_ptr<interfaces::Handler> m_chainlock_handler;
 
     std::unique_ptr<IdentityFlow> m_identity_flow;
+    std::unique_ptr<ContactFlow> m_contact_flow;
+    //! The newest request of each sender (ContactFlow::NewestPerSender).
+    std::vector<platform::ContactRequest> m_incoming_contacts;
+    std::vector<platform::ContactRequest> m_outgoing_contacts;
+    //! Document id of each sender's request at the last refresh.
+    QHash<QString, platform::Identifier> m_incoming_documents;
+    //! Identity hex of every sender of m_incoming_contacts and recipient of
+    //! m_outgoing_contacts.
+    QSet<QString> m_incoming_ids;
+    QSet<QString> m_outgoing_ids;
+    bool m_contacts_refreshing{false};
+    //! A contacts refresh was asked for while one ran or while there were
+    //! no endpoints: it runs when the current one ends or they arrive.
+    bool m_contacts_refresh_again{false};
+    QSet<QString> m_contact_metadata_pending;
+    //! Contact metadata re-read no more than once per TTL, by identity hex.
+    QHash<QString, int64_t> m_contact_metadata_fetched_at;
+    //! Usernames and profile display names of search results (identity hex
+    //! -> text), never persisted.
+    QHash<QString, QString> m_searched_usernames;
+    QHash<QString, QString> m_searched_display_names;
+    //! Whether a search result can receive a contact request, once read.
+    QHash<QString, bool> m_recipients_checked;
+    QSet<QString> m_recipients_checking;
+    QString m_contact_request_in_flight;
+    //! The request in flight was accepted for broadcast and is being confirmed.
+    bool m_contact_request_pending{false};
+    //! Accepted contacts whose keychain import is running.
+    QSet<QString> m_completing_contacts;
+    //! Why an accepted contact could not be finished, by identity hex.
+    QHash<QString, QString> m_accepted_errors;
+    //! Accepted contacts whose request was refused: finishing them again
+    //! waits for the user, not the next refresh or unlock.
+    QSet<QString> m_accepted_refused;
+    bool m_profile_update_in_flight{false};
+    //! The contacts refresh under way stopped at MAX_CONTACT_REQUESTS with
+    //! more requests left unread.
+    bool m_contacts_partial{false};
     QTimer* m_tick_timer{nullptr};    //!< drives flow advance/retry
     QTimer* m_context_timer{nullptr}; //!< refreshes endpoints/quorum keys
     QThread* m_context_thread{nullptr};

@@ -447,7 +447,7 @@ void IdentityFlow::restartWait()
 
 void IdentityFlow::retryAfterUnlock()
 {
-    if (m_record.state != State::NEEDS_UNLOCK || m_signing) return;
+    if (m_record.state != State::NEEDS_UNLOCK || m_signing || m_service.stopped()) return;
     const State resume{m_record.resume_state};
     m_record.resume_state = State::NONE;
     if (setState(resume)) {
@@ -638,7 +638,7 @@ bool IdentityFlow::start(const QString& label, CAmount funding_amount, QString& 
 
 void IdentityFlow::advance()
 {
-    if (m_step_in_flight || m_signing) return;
+    if (m_step_in_flight || m_signing || m_service.stopped()) return;
     switch (m_record.state) {
     case State::NONE:
     case State::FAILED:

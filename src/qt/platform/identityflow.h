@@ -168,6 +168,10 @@ public:
     //! the passphrase. Returns false with error set when nothing was sent.
     bool releaseFunding(QString& error);
 
+    //! The service stopped: the registration's unlock is released while the
+    //! wallet still exists, and the flow moves no further.
+    void stop() { releaseRegistrationUnlock(); }
+
     //! Leave FAILED so the user can try again, keeping whatever the failed
     //! attempt put on chain: a confirmed identity waits for a new name, an
     //! unconsumed asset lock is re-used, and only a registration that never

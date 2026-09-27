@@ -4,9 +4,11 @@
 
 #include <qt/platform/platformui.h>
 
+#include <base58.h>
 #include <platform/helpers.h>
 #include <qt/masternodewidgets.h>
 #include <qt/sharedmnwidgets.h>
+#include <util/strencodings.h>
 #include <util/system.h>
 
 #include <QDateTime>
@@ -514,6 +516,17 @@ QString failureReassurance(const platform::IdentityRecord& record)
         break;
     }
     return QObject::tr("No funds were spent.");
+}
+
+QString identityIdBase58(const platform::Identifier& id) { return QString::fromStdString(EncodeBase58(id)); }
+
+QString identityIdBase58(const QString& hex)
+{
+    const auto bytes{TryParseHex<uint8_t>(hex.toStdString())};
+    platform::Identifier id{};
+    if (!bytes || bytes->size() != id.size()) return {};
+    std::copy(bytes->begin(), bytes->end(), id.begin());
+    return identityIdBase58(id);
 }
 
 MessageLine::MessageLine(QWidget* parent) :

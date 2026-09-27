@@ -26,6 +26,7 @@ public:
         std::string method;
         std::string argument; //!< hex identifier, label or prefix
         platform::Identifier start_after{};
+        uint64_t since_ms{0};
     };
 
     std::deque<platform::Result<platform::DpnsName>> resolve_name;
@@ -40,6 +41,9 @@ public:
     std::deque<platform::Status> broadcasts;
     std::deque<util::Result<platform::Built>> builds;
     std::optional<uint64_t> contested_fund_credits;
+    //! Answer every read UNAVAILABLE while the last endpoint set pushed is
+    //! empty, as the SDK does, without taking its scripted result.
+    bool needs_endpoints{false};
 
     std::vector<Call> calls;
     std::vector<platform::OperationKind> build_kinds;
@@ -49,6 +53,8 @@ public:
     std::vector<std::array<uint8_t, 32>> build_salts;
     std::optional<platform::AssetLockProof> last_asset_lock_proof;
     std::vector<platform::NewIdentityKey> last_identity_keys;
+    std::optional<platform::ContactRequestInput> last_contact_request_input;
+    std::optional<platform::Profile> last_profile_existing;
     std::vector<std::vector<uint8_t>> broadcast_bytes;
     std::vector<std::vector<platform::Endpoint>> endpoint_updates;
     std::vector<std::vector<platform::QuorumKey>> quorum_key_updates;
@@ -99,7 +105,7 @@ public:
 
 private:
     template <typename T>
-    static platform::Result<T> Pop(std::deque<platform::Result<T>>& scripted);
+    platform::Result<T> Pop(std::deque<platform::Result<T>>& scripted);
     util::Result<platform::Built> PopBuild(const platform::SigningOperation& op);
 };
 
