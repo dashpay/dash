@@ -51,6 +51,9 @@ public:
     //! refresh() for the dashboard being shown, unless reads are failing and
     //! the backoff says to wait.
     void refreshIfShown();
+    //! What takes the focus when the dashboard opens on the list: the empty
+    //! state's Add contact…, otherwise the table.
+    QWidget* focusTarget() const;
 
 Q_SIGNALS:
     //! isEmpty() or showsEmptyState() may have changed.

@@ -557,6 +557,7 @@ bool IdentityFlow::start(const QString& label, CAmount funding_amount, QString& 
         return true;
     }
 
+    if (!m_service.registrationAllowed(error)) return false;
     Wallet& wallet{m_service.walletModel().wallet()};
 
     // The one passphrase of the registration: the wallet stays unlocked

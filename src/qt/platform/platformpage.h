@@ -95,6 +95,7 @@ protected:
 private Q_SLOTS:
     void discardNetworkChange();
     void openWizard();
+    void openIdentityDetails();
     //! Redraw from local state; no Platform read.
     void refresh();
     //! Re-read what the dashboard shows of the identity (profile, balance,
@@ -108,6 +109,8 @@ private:
     enum class NoticeAction {
         NONE,
         TURN_NETWORK_ON,
+        UNLOCK_WALLET,
+        RETRY_RECOVERY,
     };
 
     void maybeCreateService();
@@ -128,6 +131,8 @@ private:
     void fetchDashboardIfStale();
     //! Read a premium username's votes again, at most every few minutes.
     void refreshVotesIfDue();
+    //! Focus the primary action of the page shown.
+    void focusPrimary();
     void runNoticeAction(NoticeAction action);
 
     const ClientFactory m_make_client;
@@ -159,6 +164,7 @@ private:
 
     // Page 1: the network changed under the wallet's records.
     QLabel* m_changed_icon{nullptr};
+    QPushButton* m_rebuild_button{nullptr};
     QPushButton* m_changed_settings_button{nullptr};
 
     // Page 2: dashboard.
@@ -168,6 +174,7 @@ private:
     QLabel* m_message{nullptr};
     QLabel* m_balance{nullptr};
     QPushButton* m_edit_profile_button{nullptr};
+    QPushButton* m_details_button{nullptr};
     QFrame* m_state_card{nullptr};
     QLabel* m_state_icon{nullptr};
     QString m_state_icon_name;

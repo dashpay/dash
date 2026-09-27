@@ -16,6 +16,7 @@
 #include <qt/overviewpage.h>
 #ifdef ENABLE_PLATFORM_GUI
 #include <qt/platform/platformpage.h>
+#include <qt/platform/platformservice.h>
 #endif
 #include <qt/receivecoinsdialog.h>
 #include <qt/sendcoinsdialog.h>
@@ -111,6 +112,7 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
 
 #ifdef ENABLE_PLATFORM_GUI
     platformPage = new PlatformPage();
+    connect(platformPage, &PlatformPage::platformServiceReady, sendCoinsPage, &SendCoinsDialog::setPlatformService);
     connect(platformPage, &PlatformPage::dashPaySettingsRequested, this, &WalletView::dashPaySettingsRequested);
     platformPage->setWalletModel(walletModel);
     addWidget(platformPage);

@@ -9,6 +9,7 @@
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
+#include <key_io.h>
 #include <logging.h>
 #include <netbase.h>
 #include <platform/helpers.h>
@@ -16,6 +17,7 @@
 #include <qt/clientmodel.h>
 #include <qt/platform/contactflow.h>
 #include <qt/platform/identityflow.h>
+#include <qt/platform/platformrecovery.h>
 #include <qt/platform/platformui.h>
 #include <util/strencodings.h>
 #include <util/system.h>
@@ -307,6 +309,15 @@ bool PlatformService::DiscardRecords(interfaces::Wallet& wallet)
     return WipeRecords(wallet, keep) && Enable(wallet);
 }
 
+wallet::FriendshipXpub PlatformService::FriendshipXpubFromCompact(const wallet::CompactXpub& compact)
+{
+    wallet::FriendshipXpub xpub;
+    std::copy_n(compact.begin(), xpub.parent_fingerprint.size(), xpub.parent_fingerprint.begin());
+    xpub.chaincode = ChainCode{Span{compact.data() + 4, 32}};
+    xpub.pubkey.Set(compact.begin() + 36, compact.end());
+    return xpub;
+}
+
 PlatformAvailability PlatformService::Availability(WalletModel& wallet_model, ClientModel& client_model,
                                                    const PlatformService* service)
 {
@@ -429,6 +440,11 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
                 publishContacts();
             });
 
+    m_recovery = std::make_unique<PlatformRecovery>(*this);
+    connect(m_recovery.get(), &PlatformRecovery::finished, this, [this](bool recovered) {
+        if (recovered) refreshContacts();
+    });
+
     m_tick_timer = new QTimer(this);
     m_tick_timer->setInterval(TICK_INTERVAL_MS);
     connect(m_tick_timer, &QTimer::timeout, this, [this] {
@@ -457,10 +473,11 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
         Q_EMIT networkActiveChanged(active);
     });
     // A wallet unlock is the user action a parked flow waits for, and what
-    // a contact who accepted our request needs to be established.
+    // a recovery that could not derive the identity's keys needs.
     connect(&m_wallet_model, &WalletModel::encryptionStatusChanged, this, [this] {
         if (m_wallet_model.getEncryptionStatus() != WalletModel::Unlocked) return;
         m_identity_flow->retryAfterUnlock();
+        if (!m_network_changed) m_recovery->maybeStart();
         completeAcceptedContacts();
     });
 
@@ -486,6 +503,7 @@ void PlatformService::stop()
     delete m_context_worker;
     m_context_worker = nullptr;
     m_identity_flow->stop();
+    m_recovery->stop();
     // The flows hold callbacks into the client; stop it before they go.
     m_client->shutdown();
     // The profile dialog waits for its update to end before it can close.
@@ -500,6 +518,7 @@ void PlatformService::discardStateAfterNetworkChange()
     m_network_changed = false;
     m_chain_id_stamped = false;
     m_identity_flow->reload();
+    m_recovery->maybeStart();
     Q_EMIT platformNetworkChanged();
 }
 
@@ -517,6 +536,13 @@ PlatformService::SigningAttempt PlatformService::beginSigningOperation(
     attempt.op.emplace(platform::SigningOperation(m_wallet_model.wallet(), kind, std::move(key_ids), std::move(document_key),
                                                   funding_key, std::make_unique<UnlockScope>(std::move(unlock))));
     return attempt;
+}
+
+bool PlatformService::registrationAllowed(QString& error) const
+{
+    if (!writesAllowed(error)) return false;
+    error = m_recovery->registrationBlocker();
+    return error.isEmpty();
 }
 
 bool PlatformService::writesAllowed(QString& error) const
@@ -541,6 +567,21 @@ bool PlatformService::writesAllowed(QString& error) const
     }
     return true;
 }
+
+QString PlatformService::networkMismatch() const
+{
+    if (!m_network_mismatch) return {};
+    return RefusalText(platform::StatusKind::CHAIN_ID_MISMATCH);
+}
+
+QString PlatformService::networkMismatchDetails() const
+{
+    if (!m_network_mismatch) return {};
+    return tr("Expected chain: %1").arg(QString::fromStdString(m_chain_id)) + QLatin1Char('\n') +
+           tr("Received: %1").arg(QString::fromStdString(m_network_mismatch_message));
+}
+
+bool PlatformService::networkActive() const { return !m_stopped && m_client_model.node().getNetworkActive(); }
 
 std::optional<platform::IdentityPublicKey> PlatformService::documentSigningKey(const platform::Identity& identity) const
 {
@@ -801,6 +842,26 @@ void PlatformService::loadProfile(const platform::Identifier& identity)
     });
 }
 
+void PlatformService::loadMyIdentity()
+{
+    const auto id{myIdentityId()};
+    if (!id) return;
+    QPointer<PlatformService> self{this};
+    m_client->getIdentity(*id, [self](platform::Result<platform::Identity> res) {
+        if (!self) return;
+        self->post([self, res = std::move(res)] {
+            if (!self) return;
+            // A newer protocol version still returns the identity to show.
+            if (res.value) {
+                Q_EMIT self->myIdentityLoaded(*res.value);
+            } else {
+                const auto error{PlatformUi::Describe(res.status, PlatformUi::Context::READ, tr("Load identity"))};
+                Q_EMIT self->myIdentityFailed(error.text, error.details);
+            }
+        });
+    });
+}
+
 bool PlatformService::writeRecord(const std::string& key, const std::vector<unsigned char>& value)
 {
     if (m_stopped) return false;
@@ -822,21 +883,6 @@ void PlatformService::post(std::function<void()> fn)
     };
     QMetaObject::invokeMethod(this, std::move(run_unless_stopped), Qt::QueuedConnection);
 }
-
-QString PlatformService::networkMismatch() const
-{
-    if (!m_network_mismatch) return {};
-    return RefusalText(platform::StatusKind::CHAIN_ID_MISMATCH);
-}
-
-QString PlatformService::networkMismatchDetails() const
-{
-    if (!m_network_mismatch) return {};
-    return tr("Expected chain: %1").arg(QString::fromStdString(m_chain_id)) + QLatin1Char('\n') +
-           tr("Received: %1").arg(QString::fromStdString(m_network_mismatch_message));
-}
-
-bool PlatformService::networkActive() const { return m_client_model.node().getNetworkActive(); }
 
 void PlatformService::observeStatus(const platform::Status& status, bool verified_read, uint32_t protocol_version)
 {
@@ -1268,6 +1314,87 @@ bool PlatformService::acceptContact(const QString& identity_hex, QString& error)
     return true;
 }
 
+void PlatformService::resolvePaymentAddress(const QString& username)
+{
+    if (!networkActive()) {
+        Q_EMIT paymentAddressResolved(username, {}, {},
+                                      tr("DashPay is paused while network activity is turned off. Turn it on to pay "
+                                         "by username."),
+                                      {});
+        return;
+    }
+    const std::string normalized{platform::helpers::NormalizeLabel(username.toStdString())};
+    QPointer<PlatformService> self{this};
+    m_client->resolveName(normalized, [self, username](platform::Result<platform::DpnsName> result) {
+        if (!self) return;
+        self->post([self, username, result = std::move(result)] {
+            if (!self) return;
+            if (result.provenAbsent()) {
+                Q_EMIT self->paymentAddressResolved(username, {}, {},
+                                                    tr("No DashPay user has the username “%1”.").arg(username), {});
+                return;
+            }
+            if (!result.ok()) {
+                const auto error{
+                    PlatformUi::Describe(result.status, PlatformUi::Context::PAYMENT_LOOKUP, tr("Look up username"))};
+                Q_EMIT self->paymentAddressResolved(username, {}, {}, error.text, error.details);
+                return;
+            }
+            const QString label{QString::fromStdString(result.value->label)};
+            if (self->myIdentityId() == result.value->identity) {
+                Q_EMIT self->paymentAddressResolved(username, label, {},
+                                                    tr("“%1” is your own DashPay username. To move Dash within this "
+                                                       "wallet, use one of your own receiving addresses.")
+                                                        .arg(label),
+                                                    {});
+                return;
+            }
+            const std::string id_hex{HexStr(result.value->identity)};
+            const auto serialized{self->readRecord(platform::records::CONTACT_KEY_PREFIX + id_hex)};
+            if (serialized.size() != wallet::COMPACT_XPUB_SIZE ||
+                self->readRecord(platform::records::CONTACT_OUT_PREFIX + id_hex).empty()) {
+                Q_EMIT self->paymentAddressResolved(username, label, {},
+                                                    tr("You and “%1” are not contacts yet. Add them on the DashPay tab; "
+                                                       "once they accept, you can pay them by username.")
+                                                        .arg(label),
+                                                    {});
+                return;
+            }
+            wallet::CompactXpub compact;
+            std::copy(serialized.begin(), serialized.end(), compact.begin());
+            const wallet::FriendshipXpub contact_xpub{FriendshipXpubFromCompact(compact)};
+            const std::string cursor_key{platform::records::CONTACT_PAY_INDEX_PREFIX + id_hex};
+            const uint32_t index{platform::DecodePaymentCursor(self->readRecord(cursor_key))};
+            CTxDestination destination;
+            if (!wallet::DeriveFriendshipPaymentDestination(contact_xpub, index, destination)) {
+                Q_EMIT self->paymentAddressResolved(
+                    username, label, {},
+                    tr("Dash Core could not create a payment address for this contact. "
+                       "Please report this; Show details has more."),
+                    QStringLiteral("Operation: Derive contact payment address\nIndex: %1").arg(index));
+                return;
+            }
+            const QString address{QString::fromStdString(EncodeDestination(destination))};
+            self->m_payment_reservations.insert(address, {QString::fromStdString(cursor_key), index});
+            // Label the derived destination so transaction history shows
+            // the contact's username instead of a bare address.
+            self->m_wallet_model.wallet().setAddressBook(
+                destination, self->contactAddressLabel(QString::fromStdString(id_hex)).toStdString(), "send");
+            Q_EMIT self->paymentAddressResolved(username, label, address, {}, {});
+        });
+    });
+}
+
+void PlatformService::commitPaymentAddress(const QString& address)
+{
+    const auto it{m_payment_reservations.find(address)};
+    if (it == m_payment_reservations.end()) return;
+    const auto [cursor_key, index]{it.value()};
+    const uint32_t current{platform::DecodePaymentCursor(readRecord(cursor_key.toStdString()))};
+    if (current == index) writeRecord(cursor_key.toStdString(), platform::EncodePaymentCursor(index + 1));
+    m_payment_reservations.erase(it);
+}
+
 void PlatformService::finishProfileUpdate(bool ok, const QString& error, const QString& details)
 {
     if (!m_profile_update_in_flight) return;
@@ -1455,6 +1582,11 @@ void PlatformService::updateNodeContext()
     });
 }
 
+void PlatformService::setEndpointsForTesting(std::vector<platform::Endpoint> endpoints)
+{
+    pushEndpoints(std::move(endpoints));
+}
+
 void PlatformService::applyNodeContext(NodeContext context)
 {
     m_context_refresh_pending = false;
@@ -1467,11 +1599,6 @@ void PlatformService::applyNodeContext(NodeContext context)
     m_client->updateCoreChainLockedHeight(context.chainlock_height);
     m_client->updateQuorumKeys(context.llmq_type, std::move(context.quorum_keys));
     pushEndpoints(std::move(context.endpoints));
-}
-
-void PlatformService::setEndpointsForTesting(std::vector<platform::Endpoint> endpoints)
-{
-    pushEndpoints(std::move(endpoints));
 }
 
 void PlatformService::pushEndpoints(std::vector<platform::Endpoint> endpoints)
@@ -1490,4 +1617,9 @@ void PlatformService::pushEndpoints(std::vector<platform::Endpoint> endpoints)
         Q_EMIT endpointsAvailable();
         if (m_contacts_refresh_again) refreshContacts();
     }
+
+    // Seed-only recovery needs endpoints (and their quorum keys) to issue
+    // proof-backed queries, so it is armed from here rather than the
+    // constructor. maybeStart() is a cheap no-op once it has run.
+    if (m_have_endpoints && !m_network_changed) m_recovery->maybeStart();
 }

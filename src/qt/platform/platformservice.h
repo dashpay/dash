@@ -13,6 +13,7 @@
 #include <qt/walletmodel.h>
 #include <wallet/platformtypes.h>
 
+#include <QHash>
 #include <QObject>
 #include <QPair>
 #include <QSet>
@@ -30,6 +31,7 @@
 class ClientModel;
 class ContactFlow;
 class IdentityFlow;
+class PlatformRecovery;
 
 namespace interfaces {
 class Handler;
@@ -95,7 +97,7 @@ struct PlatformAvailability {
 /**
  * Per-wallet orchestrator for all Dash Platform interactions. This is the
  * only object GUI pages talk to. It owns the PlatformClient and the flows
- * (identity/username registration, contacts), marshals
+ * (identity/username registration, contacts, seed-only recovery), marshals
  * client callbacks onto the GUI thread, persists state through the wallet's
  * platform data records, mints the SigningOperations every write signs
  * under, and feeds node-local context (evonode endpoints, quorum keys, the
@@ -132,6 +134,9 @@ public:
     //! registration record that holds unconsumed funding: seed recovery
     //! finds identities, not asset locks.
     static bool DiscardRecords(interfaces::Wallet& wallet);
+    //! A contact's friendship xpub from the 69-byte compact form stored in
+    //! its "contact/key" record.
+    static wallet::FriendshipXpub FriendshipXpubFromCompact(const wallet::CompactXpub& compact);
 
     //! `route` is the one the client was configured for; only evonodes on
     //! it are pushed to the client.
@@ -155,6 +160,7 @@ public:
 
     IdentityFlow& identityFlow() { return *m_identity_flow; }
     ContactFlow& contactFlow() { return *m_contact_flow; }
+    PlatformRecovery& recovery() { return *m_recovery; }
 
     //! True when the wallet's records were written for another chain: the
     //! page offers to discard local Platform state and re-scan.
@@ -207,6 +213,11 @@ public:
     //! Whether a write may start now; error names the reason otherwise
     //! (protocol version ahead of this build, network changed).
     bool writesAllowed(QString& error) const;
+    //! Whether a new identity may be registered now: writes are allowed and
+    //! seed-only recovery has proved that this seed has no identity yet
+    //! (registering again would burn an asset lock on an identity Platform
+    //! refuses as a duplicate). error names the reason otherwise.
+    bool registrationAllowed(QString& error) const;
 
     //! The key of a proved identity this wallet signs documents with: the
     //! enabled ECDSA AUTHENTICATION key at the record's auth key id, checked
@@ -261,6 +272,8 @@ public:
     void checkRecipient(const QString& identity_hex);
     //! Async profile fetch; emits profileLoaded().
     void loadProfile(const platform::Identifier& identity);
+    //! Async proved read of this wallet's identity; emits myIdentityLoaded().
+    void loadMyIdentity();
 
     //! Fetch this identity's incoming + outgoing contact requests, one page
     //! per request continued from the cursor; emits contactsUpdated().
@@ -295,6 +308,14 @@ public:
     bool isHidden(const QString& identity_hex) const;
     void setHidden(const QString& identity_hex, bool hidden);
 
+
+    //! Resolve an established contact's username to the next DIP-15
+    //! payment address. Emits paymentAddressResolved().
+    void resolvePaymentAddress(const QString& username);
+    //! Advance the contact's cursor past a resolved payment address once a
+    //! payment to it left the send dialog (broadcast, or handed out as a
+    //! PSBT). An address never committed is resolved again next time.
+    void commitPaymentAddress(const QString& address);
 
     //! Publish a DashPay profile (create or replace). Emits profileUpdated().
     bool updateProfile(const QString& display_name, const QString& public_message, QString& error);
@@ -341,9 +362,9 @@ Q_SIGNALS:
     //! unreachable() changed.
     void reachabilityChanged();
     void nameAvailability(const QString& normalized_label, bool available, bool contested);
-    void nameAvailabilityFailed(const QString& normalized_label, const QString& error, const QString& details);
     //! The name is registered to this wallet's own identity.
     void nameIsOurs(const QString& normalized_label);
+    void nameAvailabilityFailed(const QString& normalized_label, const QString& error, const QString& details);
     //! Proof-verified contested vote state for a label; error is empty on
     //! success.
     void contestedNameState(const QString& normalized_label, const platform::ContestedNameState& state,
@@ -361,6 +382,8 @@ Q_SIGNALS:
     void identityStateChanged();
     void identityBalanceLoaded(quint64 credits);
     void identityBalanceFailed(const QString& error, const QString& details);
+    void myIdentityLoaded(const platform::Identity& identity);
+    void myIdentityFailed(const QString& error, const QString& details);
     void flowFailed(const QString& step, const QString& error, const QString& details);
     //! (identity hex, username) pairs for incoming and outgoing requests.
     void contactsUpdated(const QVector<QPair<QString, QString>>& incoming,
@@ -379,6 +402,10 @@ Q_SIGNALS:
     //! ok: the request was confirmed on Platform. Otherwise it was not sent
     //! (or refused), and error says why.
     void contactRequestFinished(const QString& identity_hex, bool ok, const QString& error, const QString& details);
+    //! label is the proved DPNS label of the username, as registered. The
+    //! details, if any, are for a tooltip.
+    void paymentAddressResolved(const QString& username, const QString& label, const QString& address,
+                                const QString& error, const QString& details);
 
 private Q_SLOTS:
     //! Collect the evonode endpoints, ChainLock height and Platform quorum
@@ -449,6 +476,7 @@ private:
 
     std::unique_ptr<IdentityFlow> m_identity_flow;
     std::unique_ptr<ContactFlow> m_contact_flow;
+    std::unique_ptr<PlatformRecovery> m_recovery;
     //! The newest request of each sender (ContactFlow::NewestPerSender).
     std::vector<platform::ContactRequest> m_incoming_contacts;
     std::vector<platform::ContactRequest> m_outgoing_contacts;
@@ -472,6 +500,7 @@ private:
     //! Whether a search result can receive a contact request, once read.
     QHash<QString, bool> m_recipients_checked;
     QSet<QString> m_recipients_checking;
+    QHash<QString, QPair<QString, uint32_t>> m_payment_reservations;
     QString m_contact_request_in_flight;
     //! The request in flight was accepted for broadcast and is being confirmed.
     bool m_contact_request_pending{false};

@@ -17,6 +17,9 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/sendcoinsentry.h>
+#ifdef ENABLE_PLATFORM_GUI
+#include <qt/platform/platformservice.h>
+#endif
 
 #include <chainparams.h>
 #include <interfaces/node.h>
@@ -251,6 +254,18 @@ void SendCoinsDialog::setModel(WalletModel *_model)
     }
 }
 
+#ifdef ENABLE_PLATFORM_GUI
+void SendCoinsDialog::setPlatformService(PlatformService* service)
+{
+    m_platform_service = service;
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        if (auto* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget())) {
+            entry->setPlatformService(service);
+        }
+    }
+}
+#endif
+
 SendCoinsDialog::~SendCoinsDialog()
 {
     QSettings settings;
@@ -283,6 +298,13 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
             {
                 ui->scrollArea->ensureWidgetVisible(entry);
                 valid = false;
+#ifdef ENABLE_PLATFORM_GUI
+                // A username is never sent to silently fail: say why.
+                const QString unresolved{entry->unresolvedUsername()};
+                if (!unresolved.isEmpty()) {
+                    Q_EMIT message(tr("Username not ready"), unresolved, CClientUIInterface::MSG_WARNING);
+                }
+#endif
             }
         }
     }
@@ -652,6 +674,17 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
         }
     }
     if (!send_failure) {
+#ifdef ENABLE_PLATFORM_GUI
+        // The payment left this dialog, broadcast or handed out as a PSBT
+        // that may be signed and broadcast elsewhere: the next payment to a
+        // DashPay contact paid here goes to a fresh address. After a failure
+        // the entry keeps the address and the retry settles it.
+        if (m_platform_service) {
+            for (const auto& recipient : m_current_transaction->getRecipients()) {
+                m_platform_service->commitPaymentAddress(recipient.address);
+            }
+        }
+#endif
         accept();
         m_coin_control->UnSelectAll();
         coinControlUpdateLabels();
@@ -696,6 +729,9 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
 {
     SendCoinsEntry* entry = new SendCoinsEntry(this);
     entry->setModel(model);
+#ifdef ENABLE_PLATFORM_GUI
+    entry->setPlatformService(m_platform_service);
+#endif
     ui->entries->addWidget(entry);
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::useAvailableBalance, this, &SendCoinsDialog::useAvailableBalance);

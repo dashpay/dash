@@ -125,13 +125,16 @@ QT_MOC_CPP = \
 if ENABLE_PLATFORM_GUI
 QT_MOC_CPP += \
   qt/platform/moc_contactflow.cpp \
+  qt/platform/moc_contactpickerdialog.cpp \
   qt/platform/moc_contactsmodel.cpp \
   qt/platform/moc_contactspage.cpp \
   qt/platform/moc_createusernamewizard.cpp \
   qt/platform/moc_dashpayoptionswidget.cpp \
+  qt/platform/moc_identitydetailsdialog.cpp \
   qt/platform/moc_identityflow.cpp \
   qt/platform/moc_platformoptindialog.cpp \
   qt/platform/moc_platformpage.cpp \
+  qt/platform/moc_platformrecovery.cpp \
   qt/platform/moc_platformservice.cpp \
   qt/platform/moc_platformui.cpp \
   qt/platform/moc_profiledialog.cpp \
@@ -243,13 +246,16 @@ BITCOIN_QT_H = \
 if ENABLE_PLATFORM_GUI
 BITCOIN_QT_H += \
   qt/platform/contactflow.h \
+  qt/platform/contactpickerdialog.h \
   qt/platform/contactsmodel.h \
   qt/platform/contactspage.h \
   qt/platform/createusernamewizard.h \
   qt/platform/dashpayoptionswidget.h \
+  qt/platform/identitydetailsdialog.h \
   qt/platform/identityflow.h \
   qt/platform/platformoptindialog.h \
   qt/platform/platformpage.h \
+  qt/platform/platformrecovery.h \
   qt/platform/platformservice.h \
   qt/platform/platformui.h \
   qt/platform/profiledialog.h \
@@ -391,13 +397,16 @@ BITCOIN_QT_WALLET_CPP = \
 
 BITCOIN_QT_PLATFORM_CPP = \
   qt/platform/contactflow.cpp \
+  qt/platform/contactpickerdialog.cpp \
   qt/platform/contactsmodel.cpp \
   qt/platform/contactspage.cpp \
   qt/platform/createusernamewizard.cpp \
   qt/platform/dashpayoptionswidget.cpp \
+  qt/platform/identitydetailsdialog.cpp \
   qt/platform/identityflow.cpp \
   qt/platform/platformoptindialog.cpp \
   qt/platform/platformpage.cpp \
+  qt/platform/platformrecovery.cpp \
   qt/platform/platformservice.cpp \
   qt/platform/platformui.cpp \
   qt/platform/profiledialog.cpp \

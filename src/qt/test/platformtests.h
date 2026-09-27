@@ -68,7 +68,6 @@ private Q_SLOTS:
     void storedFailuresAreWordedWhenShown();
     void usernameWizardEntry();
     void usernameProgressWording();
-    void unconsumedFundingBlocksDisable();
     void balanceShownAsDash();
     void serviceStartsThroughTheProxy();
     void clientFailureIsShown();
@@ -94,6 +93,11 @@ private Q_SLOTS:
     void contactMetadataShownWithoutRereadingRequests();
     void profilePublishConfirmedByProof();
     void profileDialogWaitsForTheCurrentProfile();
+    void unconsumedFundingBlocksDisable();
+    void identityDetailsAfterFailedReads();
+    void identityDetailsFitsContent();
+    void identityDetailsCreatedOnlyWhenRegisteredHere();
+    void identityDetailsPausedShowsLocalOnly();
     void ignoredRequestsAreHiddenLocally();
     void dashboardHasNoSendDisableOrRefresh();
     void onlyOneFilledButton();
@@ -101,6 +105,16 @@ private Q_SLOTS:
     void showRefreshThrottled();
     void firstIncomingRequestSelected();
     void addContactNeedsThreeCharacters();
+    void recoveryTreatsOnlyProvenAbsenceAsAbsence();
+    void recoveryRefusesForeignKeysAndWaitsForUnlock();
+    void recoveryUnlockLastsForTheScan();
+    void recoveryResumesOwedContacts();
+    void recoveryRestoresIdentityAndPagesContacts();
+    void sendToUsernameShowsVerifiedDestination();
+    void sendToUsernameReplacesContactLabel();
+    void sendToUsernameResolvesWithoutReturn();
+    void sendToUsernameCommitsHandedOutPsbt();
+    void recipientEntryValidator();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H
